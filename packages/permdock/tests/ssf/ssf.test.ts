@@ -100,7 +100,7 @@ function verifier(
   };
 }
 
-describe("createPermDock", () => {
+describe(createPermDock, () => {
   it("throws TypeError without verifier, jwks, or discovery", () => {
     expect(() =>
       createPermDock(policy, {

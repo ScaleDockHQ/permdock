@@ -31,7 +31,7 @@ const withRls = (
   rls: { ...supabaseHookManifestFixture.rls, ...rls },
 });
 
-describe("authorizationProvider", () => {
+describe(authorizationProvider, () => {
   it("passes better-supabase's conformance kit for the fixture", async () => {
     const provider = authorizationProvider({
       manifest: supabaseHookManifestFixture,

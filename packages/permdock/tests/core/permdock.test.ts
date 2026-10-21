@@ -41,7 +41,7 @@ async function permdockFor(
   return getPermDockSync(policy, user, options);
 }
 
-describe("getPermDockSync", () => {
+describe(getPermDockSync, () => {
   it("is synchronous for the quick-start policy", async () => {
     const permdock = getPermDockSync(policy, memberUser);
     expect(permdock).not.toBeInstanceOf(Promise);

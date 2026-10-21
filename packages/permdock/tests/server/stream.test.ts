@@ -49,7 +49,7 @@ async function collect(iterable: AsyncIterable<unknown>): Promise<unknown[]> {
   return out;
 }
 
-describe("isAsyncIterable", () => {
+describe(isAsyncIterable, () => {
   it.each<[unknown, boolean]>([
     [items([]), true],
     [{ [Symbol.asyncIterator]: 1 }, false],
@@ -61,7 +61,7 @@ describe("isAsyncIterable", () => {
   });
 });
 
-describe("guardIterable", () => {
+describe(guardIterable, () => {
   it("yields every item without an items permission and returns the source value", async () => {
     const { open } = kernel();
     const real = await open();
@@ -166,7 +166,7 @@ describe("guardIterable", () => {
   });
 });
 
-describe("onRevoked", () => {
+describe(onRevoked, () => {
   it("ends once with the revocation Problem Details, now or on abort", async () => {
     const { open, revocations } = kernel();
     const connection = await open();

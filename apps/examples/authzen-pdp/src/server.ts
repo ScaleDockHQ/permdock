@@ -2,9 +2,11 @@ import type { Policy } from "permdock";
 
 import { createPermDock } from "permdock/authzen";
 
+import type { User } from "./policy.ts";
+
 import { PEP_TOKEN } from "./pep.ts";
 import { otherPost, ownPost } from "./permissions.ts";
-import { type User, adminUser, memberUser, policy } from "./policy.ts";
+import { adminUser, memberUser, policy } from "./policy.ts";
 
 /**
  * The caller `src/pep.ts` authenticates as; only it may name a subject in the

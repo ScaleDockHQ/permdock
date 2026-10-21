@@ -1,5 +1,6 @@
 import type { SqlMembershipSource } from "../../supabase/sources.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
+import type { Body } from "./helper-bodies.ts";
 
 import { scopeColumn } from "../../conditions/compile.ts";
 import { activeMembershipSql } from "../sql/active.ts";
@@ -20,7 +21,6 @@ import {
 } from "../sql/subject.ts";
 import { serviceKeyMemberSql } from "./api-keys.ts";
 import {
-  type Body,
   claimKeptLines,
   claimTenant,
   disabledColumn,

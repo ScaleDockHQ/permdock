@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import type { Condition } from "../conditions/index.ts";
 import type { PermissionTree, ResourceNode } from "./permission-types.ts";
 import type {
   PolicyOptions,
@@ -13,10 +14,11 @@ import type {
   SeparationConflict,
   VocabularyFromInput,
 } from "./policy-types.ts";
+import type { PolicyScopesInput } from "./scopes.ts";
 import type { Principal } from "./subject.ts";
 import type { RoleTree } from "./vocabulary.ts";
 
-import { type Condition, normalizeWhere } from "../conditions/index.ts";
+import { normalizeWhere } from "../conditions/index.ts";
 import {
   assertApprovalRelations,
   assertApprovalVersions,
@@ -45,7 +47,7 @@ import {
   normalizeOAuthScopes,
 } from "./policy-delegation.ts";
 import { POLICY_X, canonicalPolicy } from "./policy-fingerprint.ts";
-import { type PolicyScopesInput, defineScopes } from "./scopes.ts";
+import { defineScopes } from "./scopes.ts";
 import { sha256Digest } from "./sha256.ts";
 import { listRoles } from "./vocabulary.ts";
 

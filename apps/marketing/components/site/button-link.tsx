@@ -1,7 +1,9 @@
 import { buttonVariants } from "@permdock/ui/components/button";
 import { cn } from "@permdock/ui/lib/utils";
 
-import { SiteLink, type SiteLinkProps } from "./site-link";
+import type { SiteLinkProps } from "./site-link";
+
+import { SiteLink } from "./site-link";
 
 type ButtonVariants = NonNullable<Parameters<typeof buttonVariants>[0]>;
 

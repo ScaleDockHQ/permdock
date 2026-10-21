@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 
 import type { Policy } from "../../index.ts";
+import type { CollectOutcome } from "../collect.ts";
 import type {
   DoctorFiles,
   DoctorInput,
@@ -8,7 +9,7 @@ import type {
 } from "../shared/doctor-types.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
-import { type CollectOutcome, runCollect } from "../collect.ts";
+import { runCollect } from "../collect.ts";
 import { describeError } from "../core/errors.ts";
 import { doctorSrcPath, listSourceFiles, rel } from "../files.ts";
 import { nodeFiles } from "../shared/doctor-files.ts";

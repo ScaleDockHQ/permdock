@@ -2,18 +2,16 @@ import type { ShareLinks } from "better-supabase/blocks/share-links";
 
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { ShareLinkResolver } from "../../src/better-supabase/index.ts";
 import type { CapabilityPrincipal } from "../../src/core/capability.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
-import {
-  type ShareLinkResolver,
-  subjectFromShareLink,
-} from "../../src/better-supabase/index.ts";
+import { subjectFromShareLink } from "../../src/better-supabase/index.ts";
 import { permissions } from "../fixtures/vocabulary.ts";
 
 declare const shareLinks: ShareLinks;
 
-describe("subjectFromShareLink", () => {
+describe(subjectFromShareLink, () => {
   it("takes better-supabase's ShareLinks and resolves to a link subject", () => {
     expectTypeOf(shareLinks).toExtend<ShareLinkResolver>();
     expectTypeOf(

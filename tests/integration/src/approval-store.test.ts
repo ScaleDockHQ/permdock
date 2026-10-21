@@ -34,27 +34,29 @@ const store: ApprovalStore = {
   expire: (now) => current.expire(now),
 };
 
-beforeAll(async () => {
-  pg = await startPostgres();
-  await pg.admin.query(approvalsDdl);
-  current = await openStore();
-}, 120_000);
+describe("approval store", () => {
+  beforeAll(async () => {
+    pg = await startPostgres();
+    await pg.admin.query(approvalsDdl);
+    current = await openStore();
+  }, 120_000);
 
-afterAll(async () => {
-  await Promise.all(clients.map((client) => client.end()));
-  await pg.stop();
-});
+  afterAll(async () => {
+    await Promise.all(clients.map((client) => client.end()));
+    await pg.stop();
+  });
 
-describe("Drizzle approval store recipe on Postgres", () => {
-  testApprovalStore(store, {
-    reopen: openStore,
-    capabilities: {
-      expire: async (token) => {
-        await pg.admin.query(
-          "update permdock_approvals set status = 'expired' where token = $1",
-          [token],
-        );
+  describe("Drizzle approval store recipe on Postgres", () => {
+    testApprovalStore(store, {
+      reopen: openStore,
+      capabilities: {
+        expire: async (token) => {
+          await pg.admin.query(
+            "update permdock_approvals set status = 'expired' where token = $1",
+            [token],
+          );
+        },
       },
-    },
+    });
   });
 });

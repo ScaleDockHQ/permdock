@@ -42,7 +42,7 @@ const policy = definePolicy(
   },
 );
 
-describe("checkHostedGrant", () => {
+describe(checkHostedGrant, () => {
   it("gives the drop reason mergeHostedGrants reports", () => {
     const cases: readonly unknown[] = [
       {
@@ -96,7 +96,7 @@ describe("checkHostedGrant", () => {
   });
 });
 
-describe("hostedGrantOptions", () => {
+describe(hostedGrantOptions, () => {
   const options = hostedGrantOptions(policy);
 
   it("lists each hostable permission with its grantees, approvals and fields", () => {

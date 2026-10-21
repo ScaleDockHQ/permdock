@@ -28,7 +28,7 @@ const permission = (key: string): Permission => ({
 });
 const options = { manifest, catalog, scope: "organization" } as const;
 
-describe("bucketPolicy", () => {
+describe(bucketPolicy, () => {
   it("checks catalog keys with the helpers at the scope", () => {
     const policy = bucketPolicy(
       {
@@ -95,7 +95,7 @@ describe("bucketPolicy", () => {
   });
 });
 
-describe("topicPolicy", () => {
+describe(topicPolicy, () => {
   it("checks receive and send", () => {
     expect(
       topicPolicy(

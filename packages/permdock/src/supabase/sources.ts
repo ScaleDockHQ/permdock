@@ -2,6 +2,14 @@ import type { MemberEntry, MembershipSource } from "../core/interfaces.ts";
 import type { SqlQuery } from "../core/sql.ts";
 import type { Membership } from "../core/subject.ts";
 import type { SupabaseManifestMembership } from "./manifest.ts";
+import type { Shape } from "./membership-sql.ts";
+import type {
+  RoleColumn,
+  RoleGuard,
+  RoleKeys,
+  RoleSource,
+  RoleSpec,
+} from "./roles.ts";
 import type { RoleMap, RoleThrough, SupabaseSuspension } from "./types.ts";
 
 import { readAppData } from "../core/app-data.ts";
@@ -13,17 +21,8 @@ import {
   quoteSqlLiteral,
   sqlRows,
 } from "../core/sql.ts";
-import { type Shape, col, filters, selectOf, sqlOf } from "./membership-sql.ts";
-import {
-  type RoleColumn,
-  type RoleGuard,
-  type RoleKeys,
-  type RoleSource,
-  type RoleSpec,
-  columnManifest,
-  roleColumn,
-  roleManifest,
-} from "./roles.ts";
+import { col, filters, selectOf, sqlOf } from "./membership-sql.ts";
+import { columnManifest, roleColumn, roleManifest } from "./roles.ts";
 
 export type { SqlQuery } from "../core/sql.ts";
 

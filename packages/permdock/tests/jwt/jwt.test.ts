@@ -83,7 +83,7 @@ function verifier() {
   });
 }
 
-describe("joseTokenSigner", () => {
+describe(joseTokenSigner, () => {
   it("writes only alg, kid and typ and round-trips a snapshot", async () => {
     const signer = joseTokenSigner({
       key: { ...PRIVATE_JWK },
@@ -125,7 +125,7 @@ describe("joseTokenSigner", () => {
   });
 });
 
-describe("joseTokenVerifier", () => {
+describe(joseTokenVerifier, () => {
   it("requires exp except on a Security Event Token (RFC 8417), which needs iat", async () => {
     const key = await importJWK({ ...PRIVATE_JWK }, "Ed25519");
     const unexpiring = (typ: string, iat = true) => {
@@ -300,7 +300,7 @@ describe("jwtSubjectResolver conformance", () => {
   });
 });
 
-describe("subjectFromJwt", () => {
+describe(subjectFromJwt, () => {
   it("returns anonymous without an event when the token is missing", async () => {
     const events: unknown[] = [];
     const subject = await subjectFromJwt(undefined, {
@@ -438,7 +438,7 @@ describe("subjectFromJwt", () => {
   });
 });
 
-describe("verifyDpopProof", () => {
+describe(verifyDpopProof, () => {
   it("accepts a matching proof and rejects a missing header", async () => {
     const { privateKey, publicKey } = await generateKeyPair("Ed25519", {
       extractable: true,
@@ -918,7 +918,7 @@ describe("configuration and remaining causes", () => {
   });
 });
 
-describe("subjectFromIntrospection", () => {
+describe(subjectFromIntrospection, () => {
   it("maps RFC 9767 active responses and never throws", () => {
     const subject = subjectFromIntrospection({
       active: true,
@@ -972,7 +972,7 @@ describe("signed snapshot", () => {
       signer,
       audience: "https://app.example.com",
     });
-    expect(typeof jws).toBe("string");
+    expect(jws).toBeTypeOf("string");
     // SAFETY: the typeof check above confirmed snapshot({ signer }) returned a JWS string.
     const checked = await joseTokenVerifier({
       jwks: PUBLIC_JWKS,

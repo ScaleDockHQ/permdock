@@ -1,4 +1,6 @@
-import { ORPCError, type Middleware } from "@orpc/server";
+import type { Middleware } from "@orpc/server";
+
+import { ORPCError } from "@orpc/server";
 
 import type { PermDockRevokedError } from "../core/errors.ts";
 import type { PermDock } from "../core/permdock.ts";

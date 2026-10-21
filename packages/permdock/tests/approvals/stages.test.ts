@@ -1,9 +1,9 @@
 import { describe as group, expect, it } from "vitest";
 
+import type { ApprovalRequest } from "../../src/approvals/index.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
-  type ApprovalRequest,
   approvalsHandler,
   approverRelations,
   memoryApprovalStore,
@@ -290,6 +290,7 @@ group("approval modes and approver kinds", () => {
   it("describes every stage's approvers", async () => {
     const permdock = getPermDockSync(policy, { id: "alice" });
     const decision = permdock.decide(permissions.expense.pay, rows.expense[0]);
+    // oxlint-disable-next-line vitest/prefer-importing-vitest-globals -- permdock's describe(), not Vitest's
     expect(describe(decision).detail).toBe(
       "expense.pay requires approval from manager and approver.",
     );

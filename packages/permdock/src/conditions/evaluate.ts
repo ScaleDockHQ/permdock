@@ -1,26 +1,24 @@
+import type { Scope } from "../core/scopes.ts";
 import type { Subject } from "../core/subject.ts";
+import type {
+  Condition,
+  ConditionValue,
+  MemberOfParent,
+  RelatedCondition,
+} from "./ast.ts";
 
 import { isReadonlyArray } from "../core/compact.ts";
 import { expiredAt } from "../core/expiry.ts";
 import { sameId } from "../core/ids.ts";
 import { ownGet } from "../core/paths.ts";
 import {
-  type Scope,
   resolveScope,
   scopeList,
   subjectMemberships,
   tenantOf,
 } from "../core/scopes.ts";
 import { epochSeconds } from "../core/time.ts";
-import {
-  type Condition,
-  type ConditionValue,
-  isConditionDate,
-  isConditionRef,
-  type MemberOfParent,
-  type RelatedCondition,
-  parentHop,
-} from "./ast.ts";
+import { isConditionDate, isConditionRef, parentHop } from "./ast.ts";
 import { isoInstant } from "./instant.ts";
 import { resolveConditionRef } from "./refs.ts";
 

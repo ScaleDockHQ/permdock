@@ -33,7 +33,7 @@ const sent = deliveryEvent({
   at: "2026-10-14T09:00:00Z",
 });
 
-describe("deliveryEvent", () => {
+describe(deliveryEvent, () => {
   it("builds a frozen-shape delivery event with an RFC 3339 time", () => {
     expect(sent).toStrictEqual({
       type: "delivery",

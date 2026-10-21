@@ -1,4 +1,5 @@
 import type { Instant } from "../core/time.ts";
+import type { CloudScope } from "./base-url.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
 import { secondsAt } from "../core/time.ts";
@@ -9,7 +10,7 @@ import {
   parseToken,
   stringField,
 } from "../terminal/device.ts";
-import { CLOUD_BASE_URL, type CloudScope } from "./base-url.ts";
+import { CLOUD_BASE_URL } from "./base-url.ts";
 import { bearerChallenge } from "./challenge.ts";
 import { CloudAuthError } from "./oauth-error.ts";
 import { pkce, randomToken } from "./pkce.ts";

@@ -1,6 +1,9 @@
 import type { Denial } from "./decision.ts";
+import type { InstanceHandle } from "./internals.ts";
 import type { Policy, RoleBinding } from "./policy-types.ts";
+import type { Scope } from "./scopes.ts";
 import type { CustomRole, Membership, Principal } from "./subject.ts";
+import type { Role } from "./vocabulary.ts";
 
 import { compact, isReadonlyArray } from "./compact.ts";
 import {
@@ -11,11 +14,10 @@ import {
 } from "./custom-roles.ts";
 import { freezeDeep } from "./freeze.ts";
 import { sameId } from "./ids.ts";
-import { type InstanceHandle, internalsOf } from "./internals.ts";
+import { internalsOf } from "./internals.ts";
 import { declaredRoleNames } from "./policy.ts";
 import { bindingOf, rankRoles, usesAssigns } from "./role-rank.ts";
 import {
-  type Scope,
   resolveScope,
   scopeChain,
   scopeList,
@@ -23,7 +25,7 @@ import {
   tenantOf,
 } from "./scopes.ts";
 import { isMembershipExpired } from "./tenancy.ts";
-import { type Role, findRole } from "./vocabulary.ts";
+import { findRole } from "./vocabulary.ts";
 
 /**
  * Who a role change is about: their principal id and their membership in the

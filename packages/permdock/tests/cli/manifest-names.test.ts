@@ -1,13 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import type { Entry } from "../../src/cli/core/manifest.ts";
+
 import { flagSpellings } from "../../src/cli/core/args.ts";
 import { GLOBAL_FLAGS } from "../../src/cli/core/context.ts";
-import {
-  type Entry,
-  RESERVED_NAMES,
-  ROOT,
-  leaves,
-} from "../../src/cli/core/manifest.ts";
+import { RESERVED_NAMES, ROOT, leaves } from "../../src/cli/core/manifest.ts";
 
 const KEBAB = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u;
 

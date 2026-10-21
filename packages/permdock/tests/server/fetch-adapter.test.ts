@@ -64,7 +64,7 @@ const signedHeaders = {
   "Signature-Agent": '"https://agents.example.com"',
 };
 
-describe("guardedRoute", () => {
+describe(guardedRoute, () => {
   it("runs the handler with the row on a grant and answers a denial with Problem Details", async () => {
     const adapter = adapterFor();
     const handler = guardedRoute(
@@ -124,7 +124,7 @@ describe("guardedRoute", () => {
   });
 });
 
-describe("instanceRoute", () => {
+describe(instanceRoute, () => {
   it("builds the instance once and reuses one already on the locals", async () => {
     const adapter = adapterFor();
     const seen: unknown[] = [];
@@ -183,7 +183,7 @@ describe("instanceRoute", () => {
   });
 });
 
-describe("fetchAdapter", () => {
+describe(fetchAdapter, () => {
   it("routes the decision endpoint by method and answers others with 405", async () => {
     const handler = adapterFor().handler();
     const get = await handler(eventFor("/api/permdock"));
@@ -241,7 +241,7 @@ describe("fetchAdapter", () => {
   });
 });
 
-describe("protectTarget", () => {
+describe(protectTarget, () => {
   it("passes a permission and null through with their loader", () => {
     const load = () => ownPost;
     expect(protectTarget(permissions.post.update, load)).toStrictEqual({

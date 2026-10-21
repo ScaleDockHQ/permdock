@@ -23,7 +23,7 @@ const request: ApprovalRequest = {
   status: "pending",
 };
 
-describe("approvalPrompt", () => {
+describe(approvalPrompt, () => {
   it("is ApprovalPrompt v1 without the token, roles or membership", () => {
     const prompt = approvalPrompt(request, {
       operation: deliveryOperations["invoice.send"],
@@ -60,7 +60,7 @@ describe("approvalPrompt", () => {
   });
 });
 
-describe("approvalUrlFor", () => {
+describe(approvalUrlFor, () => {
   const prompt = approvalPrompt(request);
 
   it("appends the request id to a base URL", () => {

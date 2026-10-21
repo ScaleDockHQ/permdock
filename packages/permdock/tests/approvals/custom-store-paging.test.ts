@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import type {
+  ApprovalListQuery,
+  ApprovalStore,
+} from "../../src/approvals/index.ts";
+
 import {
-  type ApprovalListQuery,
-  type ApprovalStore,
   approvalPageSize,
   decodeApprovalCursor,
   encodeApprovalCursor,

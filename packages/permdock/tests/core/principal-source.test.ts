@@ -107,7 +107,7 @@ describe("memoryPrincipalSource conformance", () => {
   });
 });
 
-describe("memoryPrincipalSource", () => {
+describe(memoryPrincipalSource, () => {
   it("returns a frozen copy each time", async () => {
     const first = await source.principal("u_alice");
     const second = await source.principal("u_alice");
@@ -160,7 +160,7 @@ describe("memoryPrincipalSource", () => {
   });
 });
 
-describe("normalizeIdentity", () => {
+describe(normalizeIdentity, () => {
   it("trims and lower-cases an email and drops provider and workspace", () => {
     expect(
       normalizeIdentity({
@@ -202,7 +202,7 @@ describe("normalizeIdentity", () => {
   });
 });
 
-describe("loadPrincipal", () => {
+describe(loadPrincipal, () => {
   const throwing: PrincipalSource = {
     principal() {
       throw new Error("db down");

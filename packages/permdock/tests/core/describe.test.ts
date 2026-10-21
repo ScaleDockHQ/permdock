@@ -28,7 +28,7 @@ function denied(...reasons: readonly string[]): Decision {
   } as Decision;
 }
 
-describe("describe", () => {
+describe(describe, () => {
   it.each<[Grantee | readonly Grantee[], string]>([
     [{ kind: "role", role: "admin", scope: "global" }, "admin"],
     [{ kind: "plan", plan: "pro" }, "pro"],

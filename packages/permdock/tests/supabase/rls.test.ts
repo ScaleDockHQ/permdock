@@ -10,7 +10,7 @@ const members = {
   expiresAt: "expires_at",
 };
 
-describe("supabaseRls", () => {
+describe(supabaseRls, () => {
   it("wraps a single membership table as the tenant table and keeps a scoped map", () => {
     const scoped = { tenant: members };
     expect({
@@ -21,7 +21,7 @@ describe("supabaseRls", () => {
   });
 });
 
-describe("authorizeSql", () => {
+describe(authorizeSql, () => {
   it("qualifies a bare membership table and filters expired memberships", () => {
     const sql = authorizeSql({
       tenant: members,

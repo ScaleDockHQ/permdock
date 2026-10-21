@@ -55,7 +55,7 @@ async function settle(): Promise<void> {
   });
 }
 
-describe("powerSyncSource", () => {
+describe(powerSyncSource, () => {
   it("builds the snapshot from the watched rows and follows their changes", async () => {
     const tables: Record<string, Row[]> = {
       user_roles: [{ user_id: "u1", role: "member" }],

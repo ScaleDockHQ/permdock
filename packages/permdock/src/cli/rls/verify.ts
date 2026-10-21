@@ -1,21 +1,22 @@
 import { resolve } from "node:path";
 
+import type { PermDock, Permission, Policy } from "../../index.ts";
 import type { CommandResult } from "../core/result.ts";
+import type { SqlConnect } from "../pg.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
+import type { RlsFinding, VerifyIgnore } from "./verify-findings.ts";
+import type { InProcess } from "./verify-pgtap.ts";
 
 import {
   findPermission,
   hasConditionOp,
   getPermDock,
   memoryCustomRoleSource,
-  type PermDock,
-  type Permission,
-  type Policy,
 } from "../../index.ts";
 import { usageResult } from "../core/errors.ts";
 import { writeFileEnsuringDir } from "../files.ts";
 import { fixtureRow, fixtureSubject, loadFixtures } from "../fixtures.ts";
-import { pgConnector, type SqlConnect } from "../pg.ts";
+import { pgConnector } from "../pg.ts";
 import { loadPolicyAt } from "../project/load.ts";
 import { commandFor } from "../sql/compile.ts";
 import {
@@ -24,13 +25,8 @@ import {
   verifyAgainstDatabase,
   verifyTreeAgainstDatabase,
 } from "./verify-database.ts";
-import {
-  type RlsFinding,
-  type VerifyIgnore,
-  rlsFinding,
-  verifyResult,
-} from "./verify-findings.ts";
-import { type InProcess, emitPgtap } from "./verify-pgtap.ts";
+import { rlsFinding, verifyResult } from "./verify-findings.ts";
+import { emitPgtap } from "./verify-pgtap.ts";
 
 /** Where `rls verify --kind pgtap` writes, the folder `supabase test db` reads. */
 const PGTAP_OUT = "supabase/tests/permdock_rls.test.sql";

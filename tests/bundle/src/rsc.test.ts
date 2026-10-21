@@ -7,11 +7,12 @@ import { fileURLToPath } from "node:url";
 import { isPermission, parseSnapshot } from "permdock";
 import { describe, expect, it } from "vitest";
 
+import type { Entry } from "./graph.ts";
+
 import {
   CLIENT_ENTRIES,
   DIST,
   ENTRIES,
-  type Entry,
   clientApiLeaks,
   isClientBoundary,
   walk,

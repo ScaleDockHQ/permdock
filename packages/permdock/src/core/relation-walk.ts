@@ -1,15 +1,11 @@
 import type { RelatedCondition } from "../conditions/ast.ts";
 import type { RelationGroup, RelationHolder } from "./interfaces.ts";
+import type { RelatedVerdict, RelationReader } from "./relations.ts";
 import type { Subject } from "./subject.ts";
 
 import { isRecord } from "./compact.ts";
 import { ownGet } from "./paths.ts";
-import {
-  DEFAULT_GROUP_DEPTH,
-  type RelatedVerdict,
-  type RelationReader,
-  relationId,
-} from "./relations.ts";
+import { DEFAULT_GROUP_DEPTH, relationId } from "./relations.ts";
 
 /** Whether the holder's period covers `now`. */
 function activeNow(holder: RelationHolder, now: number): boolean {

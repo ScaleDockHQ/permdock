@@ -1,6 +1,7 @@
 import type { SQL } from "drizzle-orm";
 import type { Permission, WhereResult } from "permdock";
 import type { RelationsMapping } from "permdock/drizzle";
+import type { OrmParityCase, OrmParityScenario } from "permdock/testing";
 
 import { PGlite } from "@electric-sql/pglite";
 import { boolean, pgTable, text } from "drizzle-orm/pg-core";
@@ -16,15 +17,12 @@ import {
 import { toWhere as drizzleWhere } from "permdock/drizzle";
 import { toWhere as kyselyWhere } from "permdock/kysely";
 import { resolveRelated } from "permdock/prisma";
-import {
-  type OrmParityCase,
-  type OrmParityScenario,
-  testOrmParity,
-} from "permdock/testing";
+import { testOrmParity } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type { WorkspaceUser } from "../fixtures/workspace/policy.ts";
+
 import {
-  type WorkspaceUser,
   closureSql,
   permissions,
   policy,

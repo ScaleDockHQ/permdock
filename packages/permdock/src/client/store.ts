@@ -3,6 +3,8 @@ import type { TokenVerifier } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
+import type { CacheEntry } from "./batch.ts";
+import type { StoreHeaders } from "./request.ts";
 import type {
   ApprovalState,
   ClientPermDock,
@@ -17,14 +19,8 @@ import { parseSnapshot } from "../core/snapshot.ts";
 import { nowSeconds } from "../core/tenancy.ts";
 import { secondsOf } from "../core/time.ts";
 import { createApprovals } from "./approvals.ts";
-import {
-  type CacheEntry,
-  NO_ENDPOINT,
-  SERVER_ONLY,
-  cacheKey,
-  createBatch,
-} from "./batch.ts";
-import { type StoreHeaders, storeRequest } from "./request.ts";
+import { NO_ENDPOINT, SERVER_ONLY, cacheKey, createBatch } from "./batch.ts";
+import { storeRequest } from "./request.ts";
 import { isJws } from "./source.ts";
 
 export type ClientStoreOptions = {

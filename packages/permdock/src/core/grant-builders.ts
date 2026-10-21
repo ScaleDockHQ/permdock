@@ -1,4 +1,6 @@
+import type { AppDataSchema } from "./app-data.ts";
 import type { AppObligation } from "./decision.ts";
+import type { Grantee } from "./grantee.ts";
 import type {
   Permission,
   PermissionKind,
@@ -14,18 +16,12 @@ import type {
 } from "./policy-types.ts";
 
 import { normalizeWhere } from "../conditions/index.ts";
-import {
-  type AppDataSchema,
-  assertAppData,
-  assertMetaValue,
-  parseAppData,
-} from "./app-data.ts";
+import { assertAppData, assertMetaValue, parseAppData } from "./app-data.ts";
 import { normalizeApproval } from "./approval-normalize.ts";
 import { compact, isReadonlyArray, sole } from "./compact.ts";
 import { sanitizeFields } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
 import {
-  type Grantee,
   asGrantee,
   flattenGrantee,
   roleNameOf,

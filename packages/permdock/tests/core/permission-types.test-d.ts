@@ -18,7 +18,7 @@ const post = resource(Post, {
 
 type PostInit = typeof post;
 
-describe("InferPermissionTree", () => {
+describe("the InferPermissionTree type", () => {
   it("prefixes nested keys while it distributes over the input", () => {
     type Tree = InferPermissionTree<{
       blog: { post: PostInit };

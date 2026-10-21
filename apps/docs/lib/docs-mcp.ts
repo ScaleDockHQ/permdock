@@ -1,3 +1,4 @@
+import type { McpHttpHandler } from "@modelcontextprotocol/server";
 import type { SearchServer } from "fumadocs-core/search/server";
 import type {
   LLMsWithPages,
@@ -5,11 +6,7 @@ import type {
   LoaderOutput,
 } from "fumadocs-core/source";
 
-import {
-  createMcpHandler,
-  McpServer,
-  type McpHttpHandler,
-} from "@modelcontextprotocol/server";
+import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import { registerSearchTool, registerSourceTools } from "fumadocs-core/mcp";
 
 import packageJson from "../package.json" with { type: "json" };

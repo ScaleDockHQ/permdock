@@ -23,7 +23,7 @@ function sub(
   return { principal: who, context: ctx };
 }
 
-describe("compileWhere", () => {
+describe(compileWhere, () => {
   it("fails closed on an empty or", () => {
     expect(compileWhere({ op: "or", conditions: [] })).toStrictEqual({
       kind: "never",
@@ -565,6 +565,7 @@ describe("compileWhere", () => {
       compileWhere({ op: "eq", field: "constructor", value: "x" }),
     ).toThrow(/forbidden/u);
   });
+
   it("keys parent hops by resource in the in-list and exists forms", () => {
     const condition = {
       op: "memberOf",

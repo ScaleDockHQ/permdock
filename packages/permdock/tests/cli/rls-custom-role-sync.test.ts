@@ -43,7 +43,7 @@ const ctx: RlsSqlContext = {
   },
 };
 
-describe("customRoleSyncSql", () => {
+describe(customRoleSyncSql, () => {
   it("rebuilds the role through the trusted replace on every legacy write", () => {
     const sql = customRoleSyncSql(ctx, from, undefined);
     expect(sql).toContain(

@@ -7,7 +7,7 @@ type Context = { readonly url: string; readonly tenant?: string };
 
 const toRequest = (context: Context): Request => new Request(context.url);
 
-describe("bindKernel", () => {
+describe(bindKernel, () => {
   it("reads the subject from the context a request was bound to", async () => {
     let calls = 0;
     const { kernel, bind } = bindKernel(

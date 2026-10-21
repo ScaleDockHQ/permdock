@@ -8,6 +8,7 @@ import type { CatalogDocument } from "../../catalog/types.ts";
 import type { CloudApproverOptions } from "../../cloud/types.ts";
 import type { SnapshotSource, Subject, TokenVerifier } from "../../index.ts";
 import type { AuthzenVectors } from "../authzen.ts";
+import type { TestCloudPlatformOptions } from "./platform-checks.ts";
 
 import { APPROVAL_HEADER } from "../../approvals/types.ts";
 import { approverHeaders } from "../../cloud/approver.ts";
@@ -22,10 +23,7 @@ import {
   testPolicySource,
   testSnapshotSource,
 } from "../conformance/runtime-stores.ts";
-import {
-  type TestCloudPlatformOptions,
-  testCloudPlatform,
-} from "./platform-checks.ts";
+import { testCloudPlatform } from "./platform-checks.ts";
 import { cloudApiValidator } from "./validate.ts";
 
 export type { TestCloudPlatformOptions };

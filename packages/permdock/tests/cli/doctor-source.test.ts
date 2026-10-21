@@ -29,7 +29,7 @@ function messages(findings: readonly DoctorFinding[]): readonly string[] {
   return findings.map((item) => item.message);
 }
 
-describe("isClientSource", () => {
+describe(isClientSource, () => {
   it.each([
     [src("a.ts", "'use client'\n"), true],
     [src("a.ts", '"use client"\n'), true],

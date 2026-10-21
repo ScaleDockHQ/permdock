@@ -2,9 +2,10 @@ import { existsSync } from "node:fs";
 import { relative, resolve } from "node:path";
 
 import type { PermDockConfig } from "../types.ts";
+import type { ParsedConfig } from "./config-schema.ts";
 
 import { CliError } from "../core/errors.ts";
-import { type ParsedConfig, parseConfig } from "./config-schema.ts";
+import { parseConfig } from "./config-schema.ts";
 
 const CONFIG_FILES = [
   "permdock.config.ts",

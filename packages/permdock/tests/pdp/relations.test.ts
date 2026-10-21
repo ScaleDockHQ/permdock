@@ -60,7 +60,7 @@ function policyWith(provider: ReturnType<typeof openfga>) {
 
 const rows = [{ id: "d1" }, { id: "d2" }, { id: "d3" }];
 
-describe("openfga", () => {
+describe(openfga, () => {
   const map = [
     [
       permissions.doc.read,
@@ -218,7 +218,7 @@ describe("openfga", () => {
   });
 });
 
-describe("spicedb", () => {
+describe(spicedb, () => {
   const map = [
     [
       permissions.doc.read,

@@ -63,7 +63,7 @@ function source(
   return { membershipsFor: memberships, ...extra };
 }
 
-describe("composeMemberships", () => {
+describe(composeMemberships, () => {
   it("merges duplicate instances and keeps different kinds apart", async () => {
     const composed = composeMemberships([
       source(() => [
@@ -206,7 +206,7 @@ describe("composeMemberships edge cases", () => {
   });
 });
 
-describe("claimsFirst", () => {
+describe(claimsFirst, () => {
   const token: Principal = {
     id: "u",
     roles: [],

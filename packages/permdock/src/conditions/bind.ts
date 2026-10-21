@@ -1,11 +1,7 @@
 import type { Subject } from "../core/subject.ts";
+import type { Condition, ConditionValue, SqlFunctionArg } from "./ast.ts";
 
-import {
-  type Condition,
-  type ConditionValue,
-  type SqlFunctionArg,
-  isConditionRef,
-} from "./ast.ts";
+import { isConditionRef } from "./ast.ts";
 import { resolveConditionRef } from "./refs.ts";
 
 function isPrimitive(value: unknown): value is string | number | boolean {

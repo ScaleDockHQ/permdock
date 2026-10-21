@@ -10,7 +10,7 @@ import {
   policy,
 } from "../fixtures/quick-start.ts";
 
-describe("boundedMap", () => {
+describe(boundedMap, () => {
   it("evicts the least recently used key past the limit", () => {
     const map = boundedMap<string, number>(2);
     map.set("a", 1);
@@ -32,7 +32,7 @@ describe("boundedMap", () => {
   });
 });
 
-describe("approvalTokenOf", () => {
+describe(approvalTokenOf, () => {
   it("reads only a non-empty string token from an object", () => {
     expect(
       [
@@ -54,7 +54,7 @@ describe("approvalTokenOf", () => {
   });
 });
 
-describe("modelReason", () => {
+describe(modelReason, () => {
   it("names an unknown permission in a denial", () => {
     expect(
       modelReason(

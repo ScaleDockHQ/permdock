@@ -6,15 +6,12 @@ import type {
   TokenFailureCause,
   TokenVerifier,
 } from "../core/interfaces.ts";
+import type { Principal, Subject } from "../core/subject.ts";
 import type { JoseTokenVerifierOptions } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import {
-  type Principal,
-  type Subject,
-  anonymousSubject,
-} from "../core/subject.ts";
+import { anonymousSubject } from "../core/subject.ts";
 import { decodeHeader } from "./header.ts";
 import { validateCustomClaims } from "./map-claims.ts";
 import { joseTokenVerifier } from "./verifier.ts";

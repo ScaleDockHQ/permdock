@@ -1,10 +1,16 @@
 import { parseSync } from "oxc-parser";
 
+import type { Edit, Estree } from "./ast.ts";
+import type {
+  CodemodChange,
+  CodemodFollowUp,
+  Context,
+  ImportBinding,
+  RenameSet,
+} from "./context.ts";
 import type { Rename } from "./renames-0.5.ts";
 
 import {
-  type Edit,
-  type Estree,
   applyEdits,
   lineIndex,
   nameOf,
@@ -15,11 +21,6 @@ import {
   walk,
 } from "./ast.ts";
 import {
-  type CodemodChange,
-  type CodemodFollowUp,
-  type Context,
-  type ImportBinding,
-  type RenameSet,
   SCRIPT_BLOCK,
   declaredBetween,
   edit,

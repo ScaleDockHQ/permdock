@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { MemoryEdge } from "../../core/memory-relations.ts";
+import type { Policy, ResourceNode } from "../../index.ts";
 import type { PermDockConfig } from "../types.ts";
 import type { RlsFinding } from "./verify-findings.ts";
 
@@ -14,8 +15,6 @@ import {
   listPermissions,
   getPermDock,
   memoryRelationSource,
-  type Policy,
-  type ResourceNode,
 } from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
 import { columnTypesOf } from "../sql/columns.ts";

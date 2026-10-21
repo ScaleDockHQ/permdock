@@ -37,7 +37,7 @@ async function body(response: Response): Promise<Record<string, unknown>> {
   return (await response.json()) as Record<string, unknown>;
 }
 
-describe("bearerChallenge", () => {
+describe(bearerChallenge, () => {
   it("writes every parameter, deduplicating scopes and dropping quotes", () => {
     expect(
       bearerChallenge({
@@ -152,7 +152,7 @@ describe("stepUpOf and wwwAuthenticate", () => {
   });
 });
 
-describe("rateLimitHeaders", () => {
+describe(rateLimitHeaders, () => {
   it("names one policy per role, percent-encodes non-ASCII and escapes quotes", () => {
     const detail = { count: 5, per: 60, resetsAt: at(1_000) };
     const headers = rateLimitHeaders(
@@ -189,7 +189,7 @@ describe("rateLimitHeaders", () => {
   });
 });
 
-describe("problemFromDecision", () => {
+describe(problemFromDecision, () => {
   it("answers 204 for a granted decision", async () => {
     const permdock = createCorePermDock(policy, memberUser);
     const decision = permdock.decide(permissions.post.read, ownPost);

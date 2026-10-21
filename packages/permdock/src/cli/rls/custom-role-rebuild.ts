@@ -1,3 +1,4 @@
+import type { RoleSource } from "../../supabase/roles.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type {
   RlsCustomRolesFrom,
@@ -7,7 +8,7 @@ import type {
 } from "../types.ts";
 
 import { qualifySqlTable, sqlTextArray } from "../../core/sql.ts";
-import { type RoleSource, roleColumn } from "../../supabase/roles.ts";
+import { roleColumn } from "../../supabase/roles.ts";
 import { configError } from "../core/errors.ts";
 import { byCodeUnit, byKey } from "../shared/compare.ts";
 import { beforeFirst } from "../shared/text.ts";

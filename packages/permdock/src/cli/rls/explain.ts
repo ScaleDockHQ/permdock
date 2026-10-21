@@ -1,10 +1,12 @@
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { PermDockConfig } from "../types.ts";
+import type { TableBinding } from "./bindings.ts";
 import type { GeneratedPolicies } from "./generate-policies.ts";
+import type { GeneratedTrigger } from "./trigger-notes.ts";
 
 import { tableNames } from "../sql/tables.ts";
-import { type TableBinding, tableBindings } from "./bindings.ts";
-import { type GeneratedTrigger, generatedTriggers } from "./trigger-notes.ts";
+import { tableBindings } from "./bindings.ts";
+import { generatedTriggers } from "./trigger-notes.ts";
 
 /**
  * What `permdock rls explain` reports: how the generated SQL binds to the

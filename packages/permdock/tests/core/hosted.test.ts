@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { PolicyDocument, PolicySource } from "../../src/core/hosted.ts";
+
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import {
-  type PolicyDocument,
-  type PolicySource,
   hostedPolicies,
   isPortableCondition,
   memoryPolicySource,
@@ -879,7 +879,7 @@ describe("hosted grant validation", () => {
   });
 });
 
-describe("isPortableCondition", () => {
+describe(isPortableCondition, () => {
   it.each([
     [{ op: "eq", field: "a", value: 1 }, true],
     [{ op: "eq", field: "a", value: null }, true],

@@ -51,47 +51,49 @@ function runtime() {
   return { configDir: dir };
 }
 
-afterEach(() => {
-  vault.clear();
-  for (const dir of dirs.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-const credential = { access_token: "at", refresh_token: "rt", expires_at: 9 };
-
-describe("terminal credential storage", () => {
-  it("stores tokens in the keychain when a keyring is given", () => {
-    const rt = runtime();
-    const storage = { service: "acme-cli", keyring: FakeEntry };
-    writeCredentials(storage, "default", credential, rt);
-    expect(vault.has("acme-cli/default")).toBe(true);
-    expect(existsSync(credentialsPath("acme-cli", rt))).toBe(false);
-    expect(readCredentials(storage, "default", rt)).toStrictEqual(credential);
-    deleteCredentials(storage, "default", rt);
-    expect(vault.size).toBe(0);
-    expect(readCredentials(storage, "default", rt)).toBeNull();
+describe("storage", () => {
+  afterEach(() => {
+    vault.clear();
+    for (const dir of dirs.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
-  it("falls back to the mode-0600 file when the keychain throws", () => {
-    const rt = runtime();
-    const storage = { service: "acme-cli", keyring: BrokenEntry };
-    writeCredentials(storage, "default", credential, rt);
-    expect(existsSync(credentialsPath("acme-cli", rt))).toBe(true);
-    expect(readCredentials(storage, "default", rt)).toStrictEqual(credential);
-    deleteCredentials(storage, "default", rt);
-    expect(existsSync(credentialsPath("acme-cli", rt))).toBe(false);
-  });
+  const credential = { access_token: "at", refresh_token: "rt", expires_at: 9 };
 
-  it("reads a file written before the keyring was configured", () => {
-    const rt = runtime();
-    writeCredentials({ service: "acme-cli" }, "default", credential, rt);
-    expect(
-      readCredentials(
-        { service: "acme-cli", keyring: FakeEntry },
-        "default",
-        rt,
-      ),
-    ).toStrictEqual(credential);
+  describe("terminal credential storage", () => {
+    it("stores tokens in the keychain when a keyring is given", () => {
+      const rt = runtime();
+      const storage = { service: "acme-cli", keyring: FakeEntry };
+      writeCredentials(storage, "default", credential, rt);
+      expect(vault.has("acme-cli/default")).toBe(true);
+      expect(existsSync(credentialsPath("acme-cli", rt))).toBe(false);
+      expect(readCredentials(storage, "default", rt)).toStrictEqual(credential);
+      deleteCredentials(storage, "default", rt);
+      expect(vault.size).toBe(0);
+      expect(readCredentials(storage, "default", rt)).toBeNull();
+    });
+
+    it("falls back to the mode-0600 file when the keychain throws", () => {
+      const rt = runtime();
+      const storage = { service: "acme-cli", keyring: BrokenEntry };
+      writeCredentials(storage, "default", credential, rt);
+      expect(existsSync(credentialsPath("acme-cli", rt))).toBe(true);
+      expect(readCredentials(storage, "default", rt)).toStrictEqual(credential);
+      deleteCredentials(storage, "default", rt);
+      expect(existsSync(credentialsPath("acme-cli", rt))).toBe(false);
+    });
+
+    it("reads a file written before the keyring was configured", () => {
+      const rt = runtime();
+      writeCredentials({ service: "acme-cli" }, "default", credential, rt);
+      expect(
+        readCredentials(
+          { service: "acme-cli", keyring: FakeEntry },
+          "default",
+          rt,
+        ),
+      ).toStrictEqual(credential);
+    });
   });
 });

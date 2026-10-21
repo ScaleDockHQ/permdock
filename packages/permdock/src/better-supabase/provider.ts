@@ -13,26 +13,22 @@ import type { CatalogDocument } from "../catalog/types.ts";
 import type { OperationRisk } from "../core/operation-risks.ts";
 import type { OperationEffect } from "../core/operations.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type {
+  SupabaseHookManifest,
+  SupabaseManifest,
+  SupabaseManifestActiveRow,
+  SupabaseManifestHelper,
+  SupabaseManifestMembership,
+} from "../supabase/manifest.ts";
+import type { ProviderApprovers } from "./approvers.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
 import { holder } from "../core/approvers.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { delegatedScopeMap } from "../core/oauth-scopes.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
-import {
-  type SupabaseHookManifest,
-  type SupabaseManifest,
-  type SupabaseManifestActiveRow,
-  type SupabaseManifestHelper,
-  type SupabaseManifestMembership,
-  hasTokenHook,
-  parseSupabaseManifest,
-} from "../supabase/manifest.ts";
-import {
-  IS_APPROVER,
-  type ProviderApprovers,
-  isApproverTemplate,
-} from "./approvers.ts";
+import { hasTokenHook, parseSupabaseManifest } from "../supabase/manifest.ts";
+import { IS_APPROVER, isApproverTemplate } from "./approvers.ts";
 
 export type AuthorizationProviderOptions = {
   /**

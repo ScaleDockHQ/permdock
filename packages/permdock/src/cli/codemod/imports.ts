@@ -1,6 +1,7 @@
+import type { Estree } from "./ast.ts";
 import type { Context, ImportBinding } from "./context.ts";
 
-import { type Estree, nodes } from "./ast.ts";
+import { nodes } from "./ast.ts";
 import { declaredBetween, isPermDockSpecifier } from "./context.ts";
 
 export function removableBindings(ctx: Context): ReadonlySet<string> {

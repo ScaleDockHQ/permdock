@@ -104,7 +104,7 @@ const request = (
 const pd = authorizer({ policy });
 const row = { id: "q1", organization_id: ORG };
 
-describe("authorizer", () => {
+describe(authorizer, () => {
   it("conforms to better-supabase's authorizer contract", async () => {
     await testAuthorizer(pd, {
       permissions: [quote.read, quote.update],

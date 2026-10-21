@@ -41,7 +41,7 @@ const user = {
   revision: 1,
 };
 
-describe("postgresDirectoryStore", () => {
+describe(postgresDirectoryStore, () => {
   it("binds filter values as parameters and never splices them into the SQL", async () => {
     const { query, calls } = recorder(() => [{ total: 0, resources: "[]" }]);
     const store = postgresDirectoryStore(query);

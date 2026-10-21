@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { timeoutSignal } from "../../src/core/timeout.ts";
 
-describe("timeoutSignal", () => {
+describe(timeoutSignal, () => {
   it("aborts with a TimeoutError after the deadline", async () => {
     const signal = timeoutSignal(10);
     await new Promise((resolve) => {

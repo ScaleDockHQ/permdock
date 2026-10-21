@@ -275,6 +275,6 @@ describe("server wrap", () => {
     });
     const permdock = await server.getPermDock(request());
     expect(wrapped).toStrictEqual(["wrap"]);
-    expect(typeof permdock.on).toBe("function");
+    expect(permdock.on).toBeTypeOf("function");
   });
 });

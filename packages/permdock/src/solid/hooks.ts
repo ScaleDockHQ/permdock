@@ -1,10 +1,11 @@
+import type { Accessor } from "solid-js";
+
 import {
   createMemo,
   createSignal,
   getOwner,
   onCleanup,
   useContext,
-  type Accessor,
 } from "solid-js";
 
 import type { ClientStore } from "../client/store.ts";

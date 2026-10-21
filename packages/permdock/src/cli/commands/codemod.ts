@@ -1,4 +1,6 @@
-import { type Leaf, defineLeaf } from "../core/command.ts";
+import type { Leaf } from "../core/command.ts";
+
+import { defineLeaf } from "../core/command.ts";
 import { dryRunFlag } from "../core/flags.ts";
 
 export const codemod: Leaf = defineLeaf({

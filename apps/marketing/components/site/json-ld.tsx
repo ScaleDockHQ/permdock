@@ -1,4 +1,6 @@
-import { type JsonLdNode, graph } from "@/lib/structured-data";
+import type { JsonLdNode } from "@/lib/structured-data";
+
+import { graph } from "@/lib/structured-data";
 
 export function JsonLd({ nodes }: { nodes: readonly JsonLdNode[] }) {
   // `<` becomes `\u003c` so no string in the payload can close the script element.

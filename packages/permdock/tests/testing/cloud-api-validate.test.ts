@@ -11,7 +11,7 @@ const problem = (status: number, type = "application/problem+json") =>
     headers: { "content-type": type },
   });
 
-describe("cloudApiValidator", () => {
+describe(cloudApiValidator, () => {
   it("accepts a documented response", async () => {
     expect(
       await check("GET", `${ENV}/approvals/by-token`, problem(404)),

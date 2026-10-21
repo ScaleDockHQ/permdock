@@ -128,7 +128,7 @@ async function permdockFor(
   });
 }
 
-describe("resolveCustomRole", () => {
+describe(resolveCustomRole, () => {
   it("unions includes and own allows, removes denies, within the ceiling", () => {
     const resolved = resolveCustomRole(policy, {
       tenant: "acme",

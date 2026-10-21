@@ -1,4 +1,6 @@
-import { type Leaf, defineLeaf } from "../core/command.ts";
+import type { Leaf } from "../core/command.ts";
+
+import { defineLeaf } from "../core/command.ts";
 import { fileOut, given, outFlag } from "../core/flags.ts";
 
 export const casbinImport: Leaf = defineLeaf({

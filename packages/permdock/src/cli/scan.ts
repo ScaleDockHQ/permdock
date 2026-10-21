@@ -1,11 +1,7 @@
+import type { Program, VisitorObject } from "oxc-parser";
+
 import { readFileSync } from "node:fs";
-import {
-  type Program,
-  type VisitorObject,
-  Visitor,
-  parseSync,
-  visitorKeys,
-} from "oxc-parser";
+import { Visitor, parseSync, visitorKeys } from "oxc-parser";
 
 import type {
   CatalogUsage,

@@ -2,6 +2,7 @@ import { defineMiddleware, pipeline } from "@supabase/middleware";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { SinkEvent } from "../../src/core/event-types.ts";
+import type { SupabaseJwtClaims } from "../../src/supabase/middleware.ts";
 import type { PermDockOf } from "../fixtures/vocabulary.ts";
 
 import {
@@ -10,10 +11,7 @@ import {
 } from "../../src/approvals/index.ts";
 import { APPROVAL_HEADER } from "../../src/approvals/types.ts";
 import { webBotAuthVerifier } from "../../src/server/web-bot-auth.ts";
-import {
-  type SupabaseJwtClaims,
-  createPermDock,
-} from "../../src/supabase/middleware.ts";
+import { createPermDock } from "../../src/supabase/middleware.ts";
 import { subjectFromSupabase } from "../../src/supabase/subject.ts";
 import {
   saasPermissions,
@@ -274,7 +272,7 @@ describe("permdock/supabase/middleware", () => {
       readonly token?: string;
     };
     expect(body.type).toBe("https://permdock.com/problems/approval-required");
-    expect(typeof body.token).toBe("string");
+    expect(body.token).toBeTypeOf("string");
     await resolveApproval(store, body.token!, {
       status: "approved",
       by: { principal: { id: "u9", roles: ["admin"] }, context: {} },

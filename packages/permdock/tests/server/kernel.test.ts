@@ -15,7 +15,7 @@ import {
 
 const request = (): Request => new Request("https://api.example/posts/p1");
 
-describe("tenantScope", () => {
+describe(tenantScope, () => {
   it("passes a string through and treats a throwing resolver as no tenant", async () => {
     expect(await tenantScope("o1", null)).toStrictEqual({ tenant: "o1" });
     expect(await tenantScope(undefined, null)).toStrictEqual({
@@ -56,7 +56,7 @@ describe("actor resolution", () => {
   });
 });
 
-describe("createPermDock", () => {
+describe(createPermDock, () => {
   it("resolves the subject once per request and wraps every instance", async () => {
     const subject = vi.fn<() => typeof memberUser>(() => memberUser);
     const wrapped: PermDock[] = [];

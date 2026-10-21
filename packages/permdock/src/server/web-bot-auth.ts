@@ -1,8 +1,9 @@
 import type { ProblemDetails } from "../core/errors.ts";
 import type { Actor, JsonWebKeyLike } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 
 import { compact } from "../core/compact.ts";
-import { type Instant, secondsAt } from "../core/time.ts";
+import { secondsAt } from "../core/time.ts";
 import { timeoutSignal } from "../core/timeout.ts";
 import { PROBLEM_BASE, problemResponse } from "./problem.ts";
 

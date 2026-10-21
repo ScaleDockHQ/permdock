@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import type {
+  ApprovalPolicy,
+  ApprovalPolicySource,
+} from "../../src/core/approval-policies.ts";
 import type { Decision } from "../../src/core/decision.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
-  type ApprovalPolicy,
-  type ApprovalPolicySource,
   approvalPolicies,
   memoryApprovalPolicySource,
   validateApprovalPolicy,
@@ -58,7 +60,7 @@ const overLimit: ApprovalPolicy = {
   approval: { by: "finance" },
 };
 
-describe("ApprovalPolicySource", () => {
+describe("the ApprovalPolicySource type", () => {
   testApprovalPolicySource(
     memoryApprovalPolicySource([
       overLimit,

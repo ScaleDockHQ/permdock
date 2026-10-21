@@ -25,7 +25,7 @@ const base: DecisionEvent = {
   adapter: "mcp",
 };
 
-describe("toOcsf", () => {
+describe(toOcsf, () => {
   it("maps a denial onto Authorize Session", () => {
     expect(toOcsf(base)).toStrictEqual({
       class_uid: 3003,
@@ -109,7 +109,7 @@ describe("toOcsf", () => {
   });
 });
 
-describe("accessToOcsf", () => {
+describe(accessToOcsf, () => {
   const access = {
     type: "access",
     at: "2026-09-28T10:00:00.000Z",

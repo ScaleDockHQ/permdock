@@ -1,6 +1,7 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { WhereResult } from "./permdock.ts";
 import type { ResourceNode } from "./permission-types.ts";
+import type { Scope } from "./scopes.ts";
 import type { SnapshotGrant } from "./snapshot-types.ts";
 import type { Membership, Subject } from "./subject.ts";
 
@@ -8,7 +9,7 @@ import { bindConditionRefs } from "../conditions/bind.ts";
 import { sole } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { resourceRoleCondition } from "./grantee-conditions.ts";
-import { type Scope, findScope, scopeChain, scopeIdOf } from "./scopes.ts";
+import { findScope, scopeChain, scopeIdOf } from "./scopes.ts";
 import {
   activeFor,
   inTeam,

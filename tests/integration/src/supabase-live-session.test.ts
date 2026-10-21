@@ -73,55 +73,57 @@ const admin = (sessionId?: unknown) => ({
 
 const update = "update public.project set id = id where id = 'p1' returning id";
 
-beforeAll(async () => {
-  generated = await generateRls(join(HERE, "../fixtures/live-session"));
-  db = await startSupabasePostgres();
-  await db.superuser.query(AUTH);
-  await db.owner.query(APP);
-  await db.owner.query(generated);
-}, 240_000);
+describe("supabase live session", () => {
+  beforeAll(async () => {
+    generated = await generateRls(join(HERE, "../fixtures/live-session"));
+    db = await startSupabasePostgres();
+    await db.superuser.query(AUTH);
+    await db.owner.query(APP);
+    await db.owner.query(generated);
+  }, 240_000);
 
-afterAll(async () => {
-  await db?.stop();
-});
-
-describe("{ subject: { session: { live: true } } } on supabase/postgres", () => {
-  it("updates on a session auth.sessions holds for the caller", async () => {
-    expect(await as(admin(LIVE), update)).toStrictEqual([{ id: "p1" }]);
+  afterAll(async () => {
+    await db?.stop();
   });
 
-  it.each([
-    ["a revoked session", REVOKED],
-    ["an expired session", EXPIRED],
-    ["another user's session", OTHERS],
-    ["a malformed session_id", "not-a-uuid"],
-    ["a non-string session_id", 42],
-    ["no session_id", undefined],
-  ])("updates nothing on %s", async (_, sessionId) => {
-    expect(await as(admin(sessionId), update)).toStrictEqual([]);
-  });
+  describe("{ subject: { session: { live: true } } } on supabase/postgres", () => {
+    it("updates on a session auth.sessions holds for the caller", async () => {
+      expect(await as(admin(LIVE), update)).toStrictEqual([{ id: "p1" }]);
+    });
 
-  it("leaves reads that do not ask for a live session alone", async () => {
-    expect(
-      await as(admin(REVOKED), "select id from public.project"),
-    ).toStrictEqual([{ id: "p1" }]);
-  });
+    it.each([
+      ["a revoked session", REVOKED],
+      ["an expired session", EXPIRED],
+      ["another user's session", OTHERS],
+      ["a malformed session_id", "not-a-uuid"],
+      ["a non-string session_id", 42],
+      ["no session_id", undefined],
+    ])("updates nothing on %s", async (_, sessionId) => {
+      expect(await as(admin(sessionId), update)).toStrictEqual([]);
+    });
 
-  it("keeps permdock_session_live() from anon", async () => {
-    const { tester } = started();
-    await tester.query("begin");
-    try {
-      await tester.query("set local role anon");
-      await expect(
-        tester.query(`select "permdock".permdock_session_live()`),
-      ).rejects.toMatchObject({ code: "42501" });
-    } finally {
-      await tester.query("rollback");
-    }
-  });
+    it("leaves reads that do not ask for a live session alone", async () => {
+      expect(
+        await as(admin(REVOKED), "select id from public.project"),
+      ).toStrictEqual([{ id: "p1" }]);
+    });
 
-  it("raises no WARN or ERROR lint on the generated SQL", async () => {
-    const findings = await runSplinter(started().owner);
-    expect(generatedFindings(findings, generated)).toStrictEqual([]);
-  }, 120_000);
+    it("keeps permdock_session_live() from anon", async () => {
+      const { tester } = started();
+      await tester.query("begin");
+      try {
+        await tester.query("set local role anon");
+        await expect(
+          tester.query(`select "permdock".permdock_session_live()`),
+        ).rejects.toMatchObject({ code: "42501" });
+      } finally {
+        await tester.query("rollback");
+      }
+    });
+
+    it("raises no WARN or ERROR lint on the generated SQL", async () => {
+      const findings = await runSplinter(started().owner);
+      expect(generatedFindings(findings, generated)).toStrictEqual([]);
+    }, 120_000);
+  });
 });

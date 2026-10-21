@@ -49,7 +49,7 @@ function tools() {
   };
 }
 
-describe("createAgentKernel", () => {
+describe(createAgentKernel, () => {
   it("maps granted, denied and unmapped tools", async () => {
     const kernel = createAgentKernel(policy, {
       adapter: "test",

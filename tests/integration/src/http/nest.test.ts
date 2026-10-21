@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import type { INestApplication, Type } from "@nestjs/common";
+import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import type { FastifyRequest } from "fastify";
 import type { NestRequest } from "permdock/nest";
 import type { HttpMounted, HttpScenarioDomain } from "permdock/testing";
@@ -19,10 +20,7 @@ import {
 } from "@nestjs/common";
 import { APP_GUARD, NestFactory, RouterModule } from "@nestjs/core";
 import { FileInterceptor } from "@nestjs/platform-express";
-import {
-  FastifyAdapter,
-  type NestFastifyApplication,
-} from "@nestjs/platform-fastify";
+import { FastifyAdapter } from "@nestjs/platform-fastify";
 import { createPermDock } from "permdock/nest";
 import { testHttpAdapter } from "permdock/testing";
 import { saasPermissions as p } from "permdock/testing/saas";

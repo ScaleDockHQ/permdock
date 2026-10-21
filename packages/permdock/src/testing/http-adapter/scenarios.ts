@@ -1,24 +1,23 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type {
+  HttpAdapterOptions,
+  HttpCall,
+  HttpMounted,
+  HttpOp,
+  HttpResult,
+  HttpScenarioName,
+} from "./domain.ts";
+import type { EventStream } from "./wire.ts";
+
 import { resolveApproval } from "../../approvals/index.ts";
 import { getPermDock } from "../../index.ts";
 import { problemFromDecision } from "../../server/index.ts";
 import { saasPolicy } from "../saas/policy.ts";
 import { saasPrincipal } from "../saas/seed.ts";
 import { signSaasToken } from "../saas/tokens.ts";
+import { approverSubject, createDomain, project } from "./domain.ts";
 import {
-  type HttpAdapterOptions,
-  type HttpCall,
-  type HttpMounted,
-  type HttpOp,
-  type HttpResult,
-  type HttpScenarioName,
-  approverSubject,
-  createDomain,
-  project,
-} from "./domain.ts";
-import {
-  type EventStream,
   PARALLEL,
   eventStream,
   field,
@@ -45,6 +44,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
       (name.startsWith("stream-") && options.streams !== true
         ? "no events stream"
         : undefined);
+
     it.skipIf(reason !== undefined)(
       reason === undefined ? title : `${title} (${reason})`,
       run,
@@ -333,7 +333,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           "https://permdock.com/problems/approval-required",
         );
         const token = field(asked.body, "token");
-        expect(typeof token).toBe("string");
+        expect(token).toBeTypeOf("string");
         await resolveApproval(domain.store, String(token), {
           status: "approved",
           by: await approverSubject("carol", "acme"),

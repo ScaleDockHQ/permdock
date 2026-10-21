@@ -42,7 +42,7 @@ function request(authorization?: string): Request {
   });
 }
 
-describe("mcpResourceGuard", () => {
+describe(mcpResourceGuard, () => {
   it("answers McpAuthInfo for a token with every required scope", async () => {
     const seen: unknown[] = [];
     const guard = mcpResourceGuard({
@@ -152,7 +152,7 @@ describe("mcpResourceGuard", () => {
   });
 });
 
-describe("protectedResourceMetadata", () => {
+describe(protectedResourceMetadata, () => {
   const handler = protectedResourceMetadata({
     resource: RESOURCE,
     authorizationServers: ["https://auth.example.com"],

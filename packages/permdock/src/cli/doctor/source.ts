@@ -1,17 +1,17 @@
+import type {
+  Argument,
+  CallExpression,
+  Expression,
+  ObjectExpression,
+  ObjectProperty,
+} from "oxc-parser";
+
 import { createJiti } from "jiti";
 import { existsSync, realpathSync } from "node:fs";
 import { isBuiltin } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import {
-  type Argument,
-  type CallExpression,
-  type Expression,
-  type ObjectExpression,
-  type ObjectProperty,
-  Visitor,
-  parseSync,
-} from "oxc-parser";
+import { Visitor, parseSync } from "oxc-parser";
 
 import type { DoctorFinding, DoctorSource } from "../shared/doctor-types.ts";
 

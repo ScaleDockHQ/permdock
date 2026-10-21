@@ -1,7 +1,8 @@
+import type { Leaf } from "../core/command.ts";
 import type { CliContext } from "../core/context.ts";
 import type { CommandResult } from "../core/result.ts";
 
-import { type Leaf, defineLeaf } from "../core/command.ts";
+import { defineLeaf } from "../core/command.ts";
 import { checkFlag } from "../core/flags.ts";
 import { CANCELLED, pick } from "../core/prompt.ts";
 import { detectedAgents, runSkills, SKILL_AGENTS } from "../skills.ts";

@@ -10,12 +10,12 @@ import {
   sender,
 } from "../fixtures/delivery.ts";
 
-describe("audience", () => {
+describe(audience, () => {
   it("lists the holders whoCan finds that decideFor grants", async () => {
     const permdock = await sender();
     const found = await audience(permdock, p.invoice.read, invoice);
     expect(found.principals.toSorted()).toStrictEqual(["u_1", "u_2"]);
-    expect(typeof found.complete).toBe("boolean");
+    expect(found.complete).toBeTypeOf("boolean");
   });
 
   it("keeps only the candidates decideFor grants, in their order", async () => {
@@ -44,7 +44,7 @@ describe("audience", () => {
   });
 });
 
-describe("subscribersFor", () => {
+describe(subscribersFor, () => {
   it("keeps the subscribers whose principal is granted the event's permission", async () => {
     const permdock = await sender();
     const subscribers = [

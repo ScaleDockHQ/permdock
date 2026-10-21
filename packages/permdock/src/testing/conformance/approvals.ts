@@ -199,7 +199,7 @@ export function testApprovalStore(
       "page-a",
       "page-b",
     ]);
-    expect(typeof first.next).toBe("string");
+    expect(first.next).toBeTypeOf("string");
     const second = await store.list({
       principalId: "u_pager",
       limit: 2,

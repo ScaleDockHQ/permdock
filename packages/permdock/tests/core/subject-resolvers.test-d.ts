@@ -39,7 +39,7 @@ declare const mcp: McpSubjectOptions;
 
 type Token = string | undefined | null;
 
-describe("SubjectResolver", () => {
+describe("the SubjectResolver type", () => {
   it("is what subjectFromApiKey becomes with the tenant passed through", () => {
     expectTypeOf((key: Token, scope?: { readonly tenant?: string }) =>
       subjectFromApiKey(key, { ...apiKey, ...scope }),

@@ -1,18 +1,16 @@
 import type { Decision, DenialReason } from "../core/decision.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Actor, Delegation } from "../core/subject.ts";
+import type { PermissionLookup } from "../server/evaluation-items.ts";
+import type { EvaluationReasons } from "../server/evaluations.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
 import { fromWireDelegation } from "../core/wire-delegation.ts";
 import {
-  type PermissionLookup,
   itemResourceData,
   wireResourceId,
 } from "../server/evaluation-items.ts";
-import {
-  type EvaluationReasons,
-  evaluationReasons,
-} from "../server/evaluations.ts";
+import { evaluationReasons } from "../server/evaluations.ts";
 
 export type AuthzenEntity = {
   readonly type?: unknown;

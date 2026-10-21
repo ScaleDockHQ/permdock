@@ -1,6 +1,8 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import type { SinkEvent } from "./event-types.ts";
+import type { JsonSchemaNode } from "./json-schema.ts";
+import type { CatalogEventData, CloudEvent, CloudEventType } from "./sink.ts";
 
 import { compact, isRecord } from "./compact.ts";
 import {
@@ -9,13 +11,10 @@ import {
   SINK_EVENT_SCHEMAS,
 } from "./event-schemas.ts";
 import { freezeDeep } from "./freeze.ts";
-import { type JsonSchemaNode, checkSchema, copyJson } from "./json-schema.ts";
+import { checkSchema, copyJson } from "./json-schema.ts";
 import { isForbiddenKey } from "./paths.ts";
 import {
   CLOUD_EVENT_TYPES,
-  type CatalogEventData,
-  type CloudEvent,
-  type CloudEventType,
   RESERVED_CLOUD_EVENT_TYPES,
   cloudEventType,
   isAbsoluteUri,

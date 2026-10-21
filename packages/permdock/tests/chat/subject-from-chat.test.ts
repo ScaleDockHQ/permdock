@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { subjectFromChat } from "../../src/chat/index.ts";
 import { chatPrincipals, member, stranger } from "../fixtures/chat.ts";
 
-describe("subjectFromChat", () => {
+describe(subjectFromChat, () => {
   it("resolves a linked author through principalByIdentity", async () => {
     const subject = await subjectFromChat(member, {
       principals: chatPrincipals,

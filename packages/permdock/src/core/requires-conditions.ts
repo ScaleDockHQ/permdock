@@ -1,14 +1,11 @@
 import type { Condition } from "../conditions/ast.ts";
+import type { CustomGrant } from "./custom-roles.ts";
 import type { ResourceNode } from "./permission-types.ts";
 import type { Grant, Policy } from "./policy-types.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
 import { sole } from "./compact.ts";
-import {
-  type CustomGrant,
-  holdsCustomRole,
-  holdsGlobalCustomRole,
-} from "./custom-roles.ts";
+import { holdsCustomRole, holdsGlobalCustomRole } from "./custom-roles.ts";
 import { freezeDeep } from "./freeze.ts";
 import { combineWhere } from "./grantee-match.ts";
 import { flattenGrantee } from "./grantee.ts";

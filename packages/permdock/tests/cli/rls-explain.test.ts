@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import type { RlsExplain } from "../../src/cli/rls/explain.ts";
 import type { RlsRunInput } from "../../src/cli/rls/rls.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { describeExplain, type RlsExplain } from "../../src/cli/rls/explain.ts";
+import { describeExplain } from "../../src/cli/rls/explain.ts";
 import { runRls } from "../../src/cli/rls/rls.ts";
 
-describe("describeExplain", () => {
+describe(describeExplain, () => {
   const base: RlsExplain = {
     schema: "permdock",
     authorize: "database",

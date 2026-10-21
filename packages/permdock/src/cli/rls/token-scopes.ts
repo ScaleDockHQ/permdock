@@ -1,8 +1,9 @@
+import type { Policy } from "../../index.ts";
 import type { RlsSqlContext, TokenScopesPlan } from "../sql/context.ts";
 
 import { delegatedScopeMap } from "../../core/oauth-scopes.ts";
 import { formerKeys } from "../../core/permission-leaf.ts";
-import { type Policy, listPermissions } from "../../index.ts";
+import { listPermissions } from "../../index.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { subjectClaimJsonSql, subjectClaimSql } from "../sql/subject.ts";
 

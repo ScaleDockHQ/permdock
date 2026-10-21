@@ -17,7 +17,7 @@ import { expandRelation } from "../../src/core/resource-relations.ts";
 
 const Post = z.object({ id: z.string() });
 
-describe("isPermission", () => {
+describe(isPermission, () => {
   const permissions = definePermissions({
     post: resource(Post, {
       id: "id",

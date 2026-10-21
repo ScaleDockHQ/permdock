@@ -73,7 +73,7 @@ const catalog = (data: Record<string, unknown>): Record<string, unknown> => ({
   data,
 });
 
-describe("verifyWebhook", () => {
+describe(verifyWebhook, () => {
   it("accepts a v1a-signed CloudEvents batch", async () => {
     const result = await verifyWebhook(
       await delivery([toCloudEvent(membership, { source: SOURCE })], {
@@ -234,7 +234,7 @@ describe("verifyWebhook", () => {
   });
 });
 
-describe("parseCloudEvent", () => {
+describe(parseCloudEvent, () => {
   it("validates the envelope, the type and the data shape", () => {
     const event = toCloudEvent(membership, { source: SOURCE });
     expect(parseCloudEvent(event)?.type).toBe(

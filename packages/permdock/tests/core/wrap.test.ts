@@ -11,7 +11,7 @@ import {
   policy,
 } from "../fixtures/quick-start.ts";
 
-describe("wrapPermDock", () => {
+describe(wrapPermDock, () => {
   it("replaces members and re-applies them to tenant(), team() and derive()", async () => {
     const calls: string[] = [];
     const base = getPermDockSync(policy, memberUser);
@@ -38,7 +38,7 @@ describe("wrapPermDock", () => {
   });
 });
 
-describe("composeWraps", () => {
+describe(composeWraps, () => {
   it("applies otel first, then wrap", async () => {
     const order: string[] = [];
     const base = getPermDockSync(policy, memberUser);

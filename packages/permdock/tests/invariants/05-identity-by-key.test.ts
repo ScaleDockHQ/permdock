@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import type { Decision, Permission } from "../../src/index.ts";
 import type * as fixture from "../fixtures/quick-start.ts";
 
-import {
-  type Decision,
-  type Permission,
-  getPermDockSync,
-} from "../../src/index.ts";
+import { getPermDockSync } from "../../src/index.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 import {
   adminUser,

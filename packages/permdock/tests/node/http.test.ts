@@ -31,7 +31,7 @@ function asMessage(stream: PassThrough): IncomingMessage {
   return stream as unknown as IncomingMessage;
 }
 
-describe("toRequest", () => {
+describe(toRequest, () => {
   it("builds the URL from protocol, an array host and originalUrl", () => {
     const request = toRequest(
       message({

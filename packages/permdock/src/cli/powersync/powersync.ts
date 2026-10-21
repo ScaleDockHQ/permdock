@@ -1,37 +1,32 @@
 import { resolve } from "node:path";
 
+import type { Policy } from "../../index.ts";
 import type { CommandResult } from "../core/result.ts";
+import type { RlsFixture } from "../fixtures.ts";
+import type { SqlConnect } from "../pg.ts";
 import type { PermDockConfig } from "../types.ts";
+import type {
+  PowerSyncPlan,
+  PowerSyncStream,
+  SubjectStream,
+} from "./streams.ts";
 
 import {
   findPermission,
   getPermDock,
   localSnapshotManifest,
   memoryCustomRoleSource,
-  type Policy,
 } from "../../index.ts";
 import { usageResult } from "../core/errors.ts";
 import { applyFiles } from "../core/files.ts";
 import { fileDrift } from "../core/output-files.ts";
-import {
-  type RlsFixture,
-  fixtureRow,
-  fixtureSubject,
-  loadFixtures,
-} from "../fixtures.ts";
-import { type SqlConnect, pgConnector } from "../pg.ts";
+import { fixtureRow, fixtureSubject, loadFixtures } from "../fixtures.ts";
+import { pgConnector } from "../pg.ts";
 import { requirePolicy } from "../project/load.ts";
 import { canFixture } from "../rls/verify.ts";
 import { quoteIdent } from "../sql/quote.ts";
 import { localRows } from "./rows.ts";
-import {
-  POSTGRES,
-  type PowerSyncPlan,
-  type PowerSyncStream,
-  type SubjectStream,
-  powersyncPlan,
-  powersyncYaml,
-} from "./streams.ts";
+import { POSTGRES, powersyncPlan, powersyncYaml } from "./streams.ts";
 import { warnedFor } from "./verify-gaps.ts";
 
 const POWERSYNC_HELP = `permdock powersync generate [--out sync-config.yaml] [--check]

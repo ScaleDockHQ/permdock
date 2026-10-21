@@ -1,10 +1,11 @@
+import type { GroupEntry } from "../core/manifest.ts";
+import type { FlagRename } from "../core/renames.ts";
 import type { CodemodChange, CodemodFollowUp } from "./context.ts";
 
-import { type GroupEntry, ROOT } from "../core/manifest.ts";
+import { ROOT } from "../core/manifest.ts";
 import {
   COMMAND_MOVES,
   DEFAULT_CHANGES,
-  type FlagRename,
   flagRename,
   renameMessage,
 } from "../core/renames.ts";

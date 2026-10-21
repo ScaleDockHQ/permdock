@@ -25,7 +25,7 @@ function detail(result: ReturnType<typeof parseAuthzenRequest>): unknown {
   return result.ok ? result.request : result.problem.detail;
 }
 
-describe("parseAuthzenRequest", () => {
+describe(parseAuthzenRequest, () => {
   it.each<[Parameters<typeof parseAuthzenRequest>[0], unknown, string]>([
     ["evaluation", [], "evaluation body must be an object"],
     ["evaluation", { action, resource }, "subject.type is required"],
@@ -143,7 +143,7 @@ describe("parseAuthzenRequest", () => {
   });
 });
 
-describe("readAuthzenRequest", () => {
+describe(readAuthzenRequest, () => {
   function request(body: string, type = "application/json"): Request {
     return new Request(`${ORIGIN}/access/v1/evaluation`, {
       method: "POST",
@@ -177,7 +177,7 @@ describe("readAuthzenRequest", () => {
   });
 });
 
-describe("searchActions", () => {
+describe(searchActions, () => {
   it("answers the distinct granted actions of the resource type", async () => {
     const member = await searchActions(
       policy,
@@ -232,7 +232,7 @@ describe("searchActions", () => {
   });
 });
 
-describe("searchSubjects", () => {
+describe(searchSubjects, () => {
   const records = [
     { id: memberUser.id, orgId: "o1", roles: memberUser.roles },
     { id: adminUser.id, orgId: "o1", roles: adminUser.roles },

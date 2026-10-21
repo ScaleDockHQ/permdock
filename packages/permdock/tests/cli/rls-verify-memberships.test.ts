@@ -47,7 +47,7 @@ const member = [
   { scope: "customer", id: "c1", within: { organization: "o1" }, roles: ["a"] },
 ];
 
-describe("fixtureMembershipSql", () => {
+describe(fixtureMembershipSql, () => {
   it("writes the ancestor columns of a nested scope's table", () => {
     const config = tables({
       scopes: {

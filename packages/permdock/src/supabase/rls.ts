@@ -1,3 +1,4 @@
+import type { RoleColumn } from "./roles.ts";
 import type {
   AuthorizeSqlOptions,
   SupabaseActiveRow,
@@ -18,7 +19,7 @@ import {
 } from "../core/sql.ts";
 import { supabaseTenantClaim } from "./budget.ts";
 import { keptKeys } from "./keep.ts";
-import { type RoleColumn, roleColumn } from "./roles.ts";
+import { roleColumn } from "./roles.ts";
 import { PERMDOCK_SCHEMA } from "./sources.ts";
 
 function isTable(

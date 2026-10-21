@@ -345,7 +345,7 @@ describePolicy(orgPolicy, {
   },
 });
 
-describe("snapshotFixture", () => {
+describe(snapshotFixture, () => {
   it("returns snapshot JSON", async () => {
     const snapshot = await snapshotFixture(policy, {
       id: "u1",

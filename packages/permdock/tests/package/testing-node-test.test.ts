@@ -7,18 +7,19 @@ const TMP = path.join(import.meta.dirname, "../../tmp");
 
 const temps: string[] = [];
 
-afterEach(() => {
-  for (const dir of temps.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
+describe("testing node test", () => {
+  afterEach(() => {
+    for (const dir of temps.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 
-/**
- * A `node:test` file that runs an exhaustive matrix through the built
- * `permdock/testing/core`.
- */
-function matrixFile(readCell: string): string {
-  return `import assert from "node:assert/strict";
+  /**
+   * A `node:test` file that runs an exhaustive matrix through the built
+   * `permdock/testing/core`.
+   */
+  function matrixFile(readCell: string): string {
+    return `import assert from "node:assert/strict";
 import { test } from "node:test";
 import { allow, definePermissions, definePolicy, resource, role } from "permdock";
 import { policyMatrix } from "permdock/testing/core";
@@ -53,32 +54,34 @@ test("doc policy matrix", async () => {
   }
 });
 `;
-}
+  }
 
-function runNodeTest(source: string): ReturnType<typeof spawnSync> {
-  mkdirSync(TMP, { recursive: true });
-  const dir = mkdtempSync(path.join(TMP, "node-test-"));
-  temps.push(dir);
-  const file = path.join(dir, "matrix.test.mjs");
-  writeFileSync(file, source);
-  return spawnSync(process.execPath, ["--test", "--test-reporter=tap", file], {
-    cwd: dir,
-    encoding: "utf8",
-  });
-}
+  function runNodeTest(source: string): ReturnType<typeof spawnSync> {
+    mkdirSync(TMP, { recursive: true });
+    const dir = mkdtempSync(path.join(TMP, "node-test-"));
+    temps.push(dir);
+    const file = path.join(dir, "matrix.test.mjs");
+    writeFileSync(file, source);
+    return spawnSync(
+      process.execPath,
+      ["--test", "--test-reporter=tap", file],
+      { cwd: dir, encoding: "utf8" },
+    );
+  }
 
-describe("permdock/testing/core under node:test", () => {
-  it("runs an exhaustive policy matrix without vitest", () => {
-    const result = runNodeTest(matrixFile('"granted"'));
-    expect(result.stderr).toBe("");
-    expect(result.stdout).toContain("# pass 1");
-    expect(result.status).toBe(0);
-  });
+  describe("permdock/testing/core under node:test", () => {
+    it("runs an exhaustive policy matrix without vitest", () => {
+      const result = runNodeTest(matrixFile('"granted"'));
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("# pass 1");
+      expect(result.status).toBe(0);
+    });
 
-  it("fails the node:test run when a cell disagrees", () => {
-    const result = runNodeTest(matrixFile('"denied"'));
-    expect(result.stdout).toContain("# fail 1");
-    expect(result.stdout).toContain("doc.read / vera");
-    expect(result.status).toBe(1);
+    it("fails the node:test run when a cell disagrees", () => {
+      const result = runNodeTest(matrixFile('"denied"'));
+      expect(result.stdout).toContain("# fail 1");
+      expect(result.stdout).toContain("doc.read / vera");
+      expect(result.status).toBe(1);
+    });
   });
 });

@@ -56,7 +56,7 @@ function compiled() {
   return compileGrants(policy, ctx, undefined, [], false);
 }
 
-describe("assemblePolicies", () => {
+describe(assemblePolicies, () => {
   it("collapses to one policy per table, command, effect and database role", () => {
     const policies = assemblePolicies(compiled().branches, { perRole: false });
     expect(

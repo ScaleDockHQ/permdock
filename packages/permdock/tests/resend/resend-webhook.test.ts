@@ -64,7 +64,7 @@ function setup() {
   return { sink, handler };
 }
 
-describe("resendWebhook", () => {
+describe(resendWebhook, () => {
   it("maps delivery outcomes to delivery events", async () => {
     const cases = [
       [emailEvent("email.delivered"), { operation: "delivered" }],

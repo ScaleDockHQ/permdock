@@ -27,7 +27,7 @@ const policy = definePolicy(permissions, {
 
 const vera = { id: "vera", orgId: "o1" };
 
-describe("snapshotFixture", () => {
+describe(snapshotFixture, () => {
   it("builds the default snapshot for the active tenant", async () => {
     const snapshot = await snapshotFixture(policy, vera, { tenant: "o1" });
     expect({

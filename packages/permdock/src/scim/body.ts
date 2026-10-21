@@ -1,15 +1,10 @@
 import type { AppData } from "../core/app-data.ts";
+import type { DirectoryGroup, DirectoryUser } from "./types.ts";
 
 import { readAppData } from "../core/app-data.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { readBodyText } from "../server/body-text.ts";
-import {
-  APP_DATA_EXTENSION,
-  PATCH_SCHEMA,
-  ROLES_EXTENSION,
-  type DirectoryGroup,
-  type DirectoryUser,
-} from "./types.ts";
+import { APP_DATA_EXTENSION, PATCH_SCHEMA, ROLES_EXTENSION } from "./types.ts";
 
 /**
  * The parsed body; `undefined` for an empty or unreadable one. Invalid JSON

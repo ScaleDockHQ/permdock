@@ -17,6 +17,7 @@ import type {
   SsfSubject,
   SsfSubjectResolver,
 } from "./types.ts";
+import type { IngestFail, IngestResult } from "./wire.ts";
 
 import { cancelApprovals } from "../approvals/helpers.ts";
 import { compact, isRecord } from "../core/compact.ts";
@@ -48,8 +49,6 @@ import {
   jsonResponse,
   parseEvery,
   rfc8935,
-  type IngestFail,
-  type IngestResult,
 } from "./wire.ts";
 
 type ReceiverConfig = {

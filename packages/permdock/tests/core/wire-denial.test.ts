@@ -11,7 +11,7 @@ import { wireDenial } from "../../src/core/wire-denial.ts";
 import { isDecisionEvent } from "../fixtures/decisions.ts";
 import { memberUser, ownPost, permissions } from "../fixtures/quick-start.ts";
 
-describe("wireDenial", () => {
+describe(wireDenial, () => {
   it("keeps role, reason, to and a JSON detail", () => {
     const limit = { quota: "seats", used: 3, max: 3 };
     const to = { kind: "role", role: "user", scope: "global" } as const;

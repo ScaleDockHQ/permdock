@@ -74,7 +74,7 @@ async function setup() {
   return { chat, store, id, pay };
 }
 
-describe("approvalActions", () => {
+describe(approvalActions, () => {
   it("names the approve and reject action ids", async () => {
     const { chat } = await setup();
     const actions = approvalActions(chat, { workspace: "T1" });

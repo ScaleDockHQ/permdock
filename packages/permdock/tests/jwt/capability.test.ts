@@ -103,7 +103,7 @@ function can(subject: Subject, id: string): boolean {
   return permdock.can(permissions.quote.read, { id });
 }
 
-describe("subjectFromCapability", () => {
+describe(subjectFromCapability, () => {
   it("resolves a signed link into a link principal on its resource", async () => {
     const { subject, events } = await resolve(await link());
     expect(events).toStrictEqual([]);

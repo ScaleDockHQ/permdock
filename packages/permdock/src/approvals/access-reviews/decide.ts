@@ -1,11 +1,12 @@
 import type { Subject } from "../../core/subject.ts";
+import type { Instant } from "../../core/time.ts";
 import type {
   AccessReview,
   AccessReviewDecision,
   AccessReviewItem,
 } from "./types.ts";
 
-import { dateAt, type Instant } from "../../core/time.ts";
+import { dateAt } from "../../core/time.ts";
 import { matchesApprovers } from "../store.ts";
 import { AccessReviewError } from "./errors.ts";
 

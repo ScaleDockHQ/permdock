@@ -1,8 +1,6 @@
-import {
-  TRPCError,
-  isTrackedEnvelope,
-  type AnyTRPCMiddlewareFunction,
-} from "@trpc/server";
+import type { AnyTRPCMiddlewareFunction } from "@trpc/server";
+
+import { TRPCError, isTrackedEnvelope } from "@trpc/server";
 
 import type { PermDockRevokedError } from "../core/errors.ts";
 import type { PermDock } from "../core/permdock.ts";

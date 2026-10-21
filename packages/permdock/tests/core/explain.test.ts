@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { Subject } from "../../src/index.ts";
+
 import {
   allow,
   breakGlass,
@@ -12,7 +14,6 @@ import {
   memoryDecisionSink,
   resource,
   role,
-  type Subject,
 } from "../../src/index.ts";
 
 const Doc = z.object({ id: z.string(), locked: z.boolean() });

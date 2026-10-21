@@ -1,7 +1,8 @@
 import type { CheckedPermission, RlsSqlContext } from "../sql/context.ts";
+import type { RoleRows } from "../sql/global-roles.ts";
 
 import { activeInstancesSql, activeUserSql } from "../sql/active.ts";
-import { type RoleRows, globalRoleSource } from "../sql/global-roles.ts";
+import { globalRoleSource } from "../sql/global-roles.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { CUSTOM_ROLES } from "../sql/shared.ts";
 import {

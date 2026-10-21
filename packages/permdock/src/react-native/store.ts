@@ -1,6 +1,7 @@
 import type { ClientStore } from "../client/store.ts";
 import type { SnapshotSource } from "../core/interfaces.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
+import type { Stored } from "./storage.ts";
 import type {
   ReactNativePermDockProviderProps,
   SubscribeForeground,
@@ -17,7 +18,6 @@ import {
   persistSnapshot,
   readStored,
   readStoredSync,
-  type Stored,
 } from "./storage.ts";
 
 export type NativeStoreOptions = Omit<

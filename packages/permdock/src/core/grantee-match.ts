@@ -1,11 +1,13 @@
 import type { Condition } from "../conditions/ast.ts";
+import type { Grantee, GranteeMatch } from "./grantee.ts";
 import type { ResourceNode } from "./permission-types.ts";
+import type { Scope } from "./scopes.ts";
 import type { Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { inheritCondition, relationCondition } from "./grantee-conditions.ts";
-import { type Grantee, type GranteeMatch, flattenGrantee } from "./grantee.ts";
-import { type Scope, activeFor, scopeList } from "./scopes.ts";
+import { flattenGrantee } from "./grantee.ts";
+import { activeFor, scopeList } from "./scopes.ts";
 import { isoAt } from "./time.ts";
 
 export function combineWhere(

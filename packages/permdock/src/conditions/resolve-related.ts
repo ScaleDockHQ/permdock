@@ -1,11 +1,10 @@
 import type { WhereResult } from "../core/permdock.ts";
 import type { Condition, RelatedCondition } from "./ast.ts";
+import type { RelationsMapping, GraphSql } from "./graph-sql.ts";
 
 import { freezeDeep } from "../core/freeze.ts";
 import { PermDockValidationError } from "../core/validation-error.ts";
 import {
-  type RelationsMapping,
-  type GraphSql,
   relatedRowGuard,
   relatedTargetsSql,
   renderGraphSql,

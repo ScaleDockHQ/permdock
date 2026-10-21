@@ -23,7 +23,7 @@ const other = definePermissions({
   }),
 });
 
-describe("defineOperations", () => {
+describe(defineOperations, () => {
   it("returns a frozen map of frozen operations named by their key", () => {
     const data = (input: { readonly id: string }) => ({ id: input.id });
     const operations = defineOperations(permissions, {

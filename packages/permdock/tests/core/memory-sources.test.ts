@@ -52,7 +52,7 @@ describe("memoryCustomRoleSource conformance", () => {
   );
 });
 
-describe("memoryMembershipSource", () => {
+describe(memoryMembershipSource, () => {
   it("lists the members of one scope instance", async () => {
     const source = memoryMembershipSource(memberships);
     const members = await source.list?.({ scope: "organization", id: "o1" });
@@ -74,7 +74,7 @@ describe("memoryMembershipSource", () => {
   });
 });
 
-describe("memorySnapshotSource", () => {
+describe(memorySnapshotSource, () => {
   it("replaces the snapshot and notifies each subscriber until it leaves", async () => {
     const source = memorySnapshotSource(snapshot);
     const next: Snapshot = { ...snapshot, issuedAt: "1970-01-01T00:00:02Z" };
@@ -92,7 +92,7 @@ describe("memorySnapshotSource", () => {
   });
 });
 
-describe("memoryCustomRoleSource", () => {
+describe(memoryCustomRoleSource, () => {
   it("keeps global roles apart from tenant roles", async () => {
     const source = memoryCustomRoleSource([
       { tenant: "o1", name: "staff", includes: ["member"] },

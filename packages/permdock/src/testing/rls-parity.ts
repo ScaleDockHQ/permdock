@@ -1,5 +1,14 @@
+import type { Scope } from "../core/scopes.ts";
+import type {
+  CustomRole,
+  Membership,
+  Permission,
+  Policy,
+  Subject,
+} from "../index.ts";
+
 import { membershipsClaim } from "../core/custom-roles.ts";
-import { type Scope, scopeList } from "../core/scopes.ts";
+import { scopeList } from "../core/scopes.ts";
 import {
   SQL_IDENT as IDENT,
   defaultSqlCommand,
@@ -7,15 +16,10 @@ import {
   quoteSqlTable as quoteTable,
 } from "../core/sql.ts";
 import {
-  type CustomRole,
   fromSnapshot,
   getPermDock,
-  type Membership,
   memoryCustomRoleSource,
   parseSnapshot,
-  type Permission,
-  type Policy,
-  type Subject,
 } from "../index.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 

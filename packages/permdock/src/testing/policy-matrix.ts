@@ -1,12 +1,6 @@
-import {
-  type Decision,
-  fromSnapshot,
-  listPermissions,
-  getPermDock,
-  type PermDock,
-  type PermDockOptions,
-  type Policy,
-} from "../index.ts";
+import type { Decision, PermDock, PermDockOptions, Policy } from "../index.ts";
+
+import { fromSnapshot, listPermissions, getPermDock } from "../index.ts";
 
 export type MatrixOutcome = "granted" | "denied" | "approval-required";
 

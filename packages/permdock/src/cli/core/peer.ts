@@ -1,11 +1,8 @@
+import type { Agent } from "package-manager-detector";
+
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import {
-  type Agent,
-  detect,
-  getUserAgent,
-  resolveCommand,
-} from "package-manager-detector";
+import { detect, getUserAgent, resolveCommand } from "package-manager-detector";
 
 import { CliError } from "./errors.ts";
 

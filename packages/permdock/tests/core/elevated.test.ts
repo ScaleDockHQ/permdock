@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { AccessEvent, DecisionEvent } from "../../src/core/event-types.ts";
+import type { PermDock } from "../../src/core/permdock.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import { breakGlass, supportAccess } from "../../src/core/elevated.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { accessToOcsf, toOcsf } from "../../src/core/ocsf.ts";
-import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";

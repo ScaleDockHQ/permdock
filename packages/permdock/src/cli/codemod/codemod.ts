@@ -1,10 +1,12 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 
+import type { PlannedFile } from "../core/files.ts";
 import type { CommandResult } from "../core/result.ts";
+import type { CodemodChange, CodemodFollowUp, RenameSet } from "./transform.ts";
 
 import { CliError } from "../core/errors.ts";
-import { type PlannedFile, applyFiles, refuseDirty } from "../core/files.ts";
+import { applyFiles, refuseDirty } from "../core/files.ts";
 import { rel } from "../files.ts";
 import { rewriteCliCalls } from "./cli-calls.ts";
 import { RENAMES_0_5, SIGNATURE_CHANGES_0_5 } from "./renames-0.5.ts";
@@ -18,12 +20,7 @@ import {
   PROP_RENAMES_0_5,
   TEMPLATE_HINTS_0_5,
 } from "./shapes-0.5.ts";
-import {
-  type CodemodChange,
-  type CodemodFollowUp,
-  type RenameSet,
-  transformSource,
-} from "./transform.ts";
+import { transformSource } from "./transform.ts";
 
 export const CODEMOD_0_5: RenameSet = Object.freeze({
   renames: Object.freeze([...RENAMES_0_5, ...CALL_RENAMES_0_5]),

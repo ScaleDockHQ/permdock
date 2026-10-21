@@ -1,8 +1,9 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import type { Automation } from "../../src/core/automation.ts";
+
 import {
-  type Automation,
   memoryAutomationSource,
   parseAutomation,
 } from "../../src/core/automation.ts";
@@ -39,7 +40,7 @@ const service: Automation = {
   roles: ["billing"],
 };
 
-describe("parseAutomation", () => {
+describe(parseAutomation, () => {
   it("keeps the v1 fields and freezes the copy", () => {
     expect(parseAutomation({ ...record, extra: true })).toStrictEqual(record);
     expect(parseAutomation(service)).toStrictEqual(service);
@@ -77,7 +78,7 @@ describe("parseAutomation", () => {
   });
 });
 
-describe("memoryAutomationSource", () => {
+describe(memoryAutomationSource, () => {
   it("returns a record by id, scoped to a tenant, and replaces on put", () => {
     const source = memoryAutomationSource([record]);
     expect(source.automation("auto_1")).toStrictEqual(record);
@@ -96,7 +97,7 @@ describe("memoryAutomationSource", () => {
   });
 });
 
-describe("decideAutomation", () => {
+describe(decideAutomation, () => {
   const billing = permdockFor(userSubject("u_1", ["billing"]));
   const owner = permdockFor(userSubject("u_1", ["owner"]));
   const request = {

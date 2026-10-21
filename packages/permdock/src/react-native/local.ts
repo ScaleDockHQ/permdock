@@ -1,4 +1,5 @@
 import type { Condition } from "../conditions/ast.ts";
+import type { Grantee } from "../core/grantee.ts";
 import type { SnapshotSource } from "../core/interfaces.ts";
 import type {
   LocalCustomRoleTable,
@@ -7,11 +8,12 @@ import type {
   SnapshotGrant,
 } from "../core/snapshot-types.ts";
 import type { CustomRole, Membership, Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 
 import { bindConditionRefs } from "../conditions/bind.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { type Grantee, flattenGrantee } from "../core/grantee.ts";
+import { flattenGrantee } from "../core/grantee.ts";
 import { LOCAL_CUSTOM_ROLE } from "../core/local-role.ts";
 import {
   normalizeMemberships,
@@ -21,7 +23,7 @@ import {
 } from "../core/scopes.ts";
 import { heldRoleNames } from "../core/snapshot-subject.ts";
 import { resolveActiveTenant } from "../core/tenancy.ts";
-import { type Instant, rfc3339, secondsAt } from "../core/time.ts";
+import { rfc3339, secondsAt } from "../core/time.ts";
 
 /** What the device holds for the signed-in user, read from its local database. */
 export type LocalSnapshotData = {

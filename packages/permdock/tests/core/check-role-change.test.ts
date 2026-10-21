@@ -110,7 +110,7 @@ function catalogRole(name: string): RoleRules {
   return found;
 }
 
-describe("checkRoleChange", () => {
+describe(checkRoleChange, () => {
   it("agrees with decideRoleChange from the catalog roles alone", () => {
     for (const entry of cases) {
       const decided = decideRoleChange(admin, {

@@ -11,7 +11,7 @@ const permissions = definePermissions({
   post: resource(Post, { actions: ["update"], collection: ["create"] }),
 });
 
-describe("validateBoundary", () => {
+describe(validateBoundary, () => {
   it("returns data when trusted and mode is boundary", () => {
     expect(
       validateBoundary(

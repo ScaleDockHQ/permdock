@@ -296,7 +296,7 @@ describe("permdock/openapi defaults", () => {
   });
 });
 
-describe("openapiVersion", () => {
+describe(openapiVersion, () => {
   it("maps every target to its full version", () => {
     expect([
       openapiVersion("3.1"),

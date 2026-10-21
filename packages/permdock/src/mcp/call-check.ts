@@ -3,7 +3,9 @@ import type { ToolBinding } from "../agent/types.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
+import type { Context, McpCall, Reach } from "./mcp-auth.ts";
 import type { Handler } from "./protect-server.ts";
+import type { Checked, Refusal } from "./refusals.ts";
 import type { McpAuthInfo, McpPermDockOptions } from "./types.ts";
 
 import { refusalText } from "../agent/denied-text.ts";
@@ -16,17 +18,12 @@ import {
 } from "../core/oauth-scopes.ts";
 import { bearerChallenge } from "../server/problem.ts";
 import {
-  type Context,
-  type McpCall,
-  type Reach,
   approvalTokenOf,
   contextOf,
   resourceMetadataOf,
   sameResource,
 } from "./mcp-auth.ts";
 import {
-  type Checked,
-  type Refusal,
   approvalInput,
   approvalRefusal,
   deniedRefusal,

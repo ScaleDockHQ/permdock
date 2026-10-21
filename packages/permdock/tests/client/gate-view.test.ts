@@ -44,7 +44,7 @@ function view(
   );
 }
 
-describe("gateView", () => {
+describe(gateView, () => {
   it("enables a granted control", () => {
     expect(view(granted, true, "ready")).toMatchObject({
       allowed: true,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { delegatedScopeMap } from "../../src/core/oauth-scopes.ts";
 
-describe("delegatedScopeMap", () => {
+describe(delegatedScopeMap, () => {
   it("maps own scopes, former scopes and coarse scopes, sorted by code point", () => {
     expect(
       delegatedScopeMap(

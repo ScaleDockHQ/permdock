@@ -1,3 +1,4 @@
+import type { Scope } from "../../core/scopes.ts";
 import type {
   RlsActiveRow,
   RlsSuspendedScope,
@@ -5,7 +6,7 @@ import type {
 } from "../types.ts";
 import type { CheckedPermission, RlsSqlContext } from "./context.ts";
 
-import { type Scope, resolveScope, scopeChain } from "../../core/scopes.ts";
+import { resolveScope, scopeChain } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { keptKeys } from "../../supabase/keep.ts";
 import { configError } from "../core/errors.ts";

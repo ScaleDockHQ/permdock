@@ -109,7 +109,7 @@ const USER_TEAMS = [
   },
 ];
 
-describe("subjectFromBetterAuth", () => {
+describe(subjectFromBetterAuth, () => {
   it("never throws and fails closed to anonymous", async () => {
     await expect(
       subjectFromBetterAuth(null, { auth: {} }),
@@ -368,7 +368,7 @@ describe("subjectFromBetterAuth", () => {
   });
 });
 
-describe("rolesFromAccessControl", () => {
+describe(rolesFromAccessControl, () => {
   it("maps matching statements and reports unmatched pairs", () => {
     const seeded = rolesFromAccessControl(
       {
@@ -419,7 +419,7 @@ describe("subjectFromBetterAuth conformance", () => {
   );
 });
 
-describe("betterAuthCustomRoleSource", () => {
+describe(betterAuthCustomRoleSource, () => {
   it("includes declared assignable roles whose statements the dynamic role covers", async () => {
     const source = betterAuthCustomRoleSource(
       {
@@ -466,7 +466,7 @@ describe("betterAuthCustomRoleSource", () => {
   });
 });
 
-describe("onRoleChange", () => {
+describe(onRoleChange, () => {
   it("forwards the Better Auth hook payload to the refresh callback", async () => {
     const seen: unknown[] = [];
     const hook = onRoleChange((event) => {

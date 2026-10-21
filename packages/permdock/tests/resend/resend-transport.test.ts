@@ -106,7 +106,7 @@ async function target(): Promise<DeliveryTarget<"email">> {
   };
 }
 
-describe("resendTransport", () => {
+describe(resendTransport, () => {
   it("accepts a Resend client", () => {
     const client: ResendClient = new Resend("re_test_key");
     expect(resendTransport(client).channel).toBe("email");

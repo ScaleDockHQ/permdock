@@ -56,7 +56,7 @@ describe("assertLimit windows", () => {
   });
 });
 
-describe("memoryLimitStore", () => {
+describe(memoryLimitStore, () => {
   const input = {
     key: "k",
     subjectId: "u1",

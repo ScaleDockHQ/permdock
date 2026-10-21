@@ -1,5 +1,6 @@
 import type { ResourceNode } from "../../core/permission-types.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
+import type { Body } from "./helper-bodies.ts";
 import type { ShimGrants } from "./shims.ts";
 
 import { partitionsOf, scopeField } from "../../core/tenancy.ts";
@@ -9,7 +10,7 @@ import { scopeTypeOf } from "../sql/columns.ts";
 import { permittedForHelper, permittedIdsHelper } from "../sql/names.ts";
 import { qualified, quoteIdent, quoteLiteral } from "../sql/quote.ts";
 import { HELPERS } from "../sql/shared.ts";
-import { type Body, functionBody } from "./helper-bodies.ts";
+import { functionBody } from "./helper-bodies.ts";
 import { forUserContext, grantBodies } from "./helpers.ts";
 
 /**

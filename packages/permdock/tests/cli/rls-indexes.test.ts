@@ -22,7 +22,7 @@ import {
 } from "../../src/index.ts";
 import { fakeSql } from "../fakes/sql.ts";
 
-describe("indexedFields", () => {
+describe(indexedFields, () => {
   it("keeps comparisons with the subject or a membership, through and and or", () => {
     expect(
       indexedFields({
@@ -76,7 +76,7 @@ describe("indexedFields", () => {
   });
 });
 
-describe("pruneIndexTargets", () => {
+describe(pruneIndexTargets, () => {
   const targets = [
     { table: "public.ticket", columns: ["workspace_id"] },
     { table: "public.ticket", columns: ["project_id"] },
@@ -142,7 +142,7 @@ describe("pruneIndexTargets", () => {
   });
 });
 
-describe("indexName", () => {
+describe(indexName, () => {
   it("names the table and columns, and hashes a name over 63 bytes", () => {
     expect(indexName({ table: "public.invoice", columns: ["status"] })).toBe(
       "permdock_invoice_status_idx",

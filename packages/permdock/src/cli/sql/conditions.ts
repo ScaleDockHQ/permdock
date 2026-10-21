@@ -1,5 +1,7 @@
 import type { RelatedCondition } from "../../conditions/ast.ts";
+import type { Condition, ConditionValue } from "../../index.ts";
 import type { RlsMembershipTable } from "../types.ts";
+import type { RlsSqlContext } from "./context.ts";
 
 import { scopeColumn, scopeMembershipTable } from "../../conditions/compile.ts";
 import { relatedSql } from "../../conditions/graph-sql.ts";
@@ -9,11 +11,7 @@ import { isForbiddenKey } from "../../core/paths.ts";
 import { resolveScope, rootScope } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { isoAt } from "../../core/time.ts";
-import {
-  type Condition,
-  type ConditionValue,
-  isSqlFunctionField,
-} from "../../index.ts";
+import { isSqlFunctionField } from "../../index.ts";
 import { configError } from "../core/errors.ts";
 import {
   activeInstancesSql,
@@ -21,7 +19,7 @@ import {
   activeUserSql,
 } from "./active.ts";
 import { sqlType } from "./columns.ts";
-import { CLAIM, type RlsSqlContext } from "./context.ts";
+import { CLAIM } from "./context.ts";
 import {
   CLOSURE,
   graphHelper,

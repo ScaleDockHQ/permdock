@@ -17,7 +17,7 @@ const memberships = {
   team: { table: "team_users", team: "teamId", user: "user_id", role: "role" },
 };
 
-describe("conditionFromAst", () => {
+describe(conditionFromAst, () => {
   it("maps auth.uid equality, compounds, isNull and claims", async () => {
     const unmapped: string[] = [];
     expect(
@@ -143,7 +143,7 @@ describe("conditionFromAst", () => {
   });
 });
 
-describe("sqlFunctionNames", () => {
+describe(sqlFunctionNames, () => {
   it("walks compounds and ignores leaves without a function", () => {
     expect(sqlFunctionNames(undefined)).toStrictEqual([]);
     expect(

@@ -1,6 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server";
+import type { H3Event } from "h3";
 
-import { type H3Event, H3 } from "h3";
+import { H3 } from "h3";
 import { describe, expect, it } from "vitest";
 
 import { webBotAuthVerifier } from "../../src/server/web-bot-auth.ts";

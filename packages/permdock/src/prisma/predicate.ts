@@ -1,14 +1,11 @@
 import type { Condition } from "../conditions/ast.ts";
+import type { CompiledWhere } from "../conditions/compile.ts";
 import type { WhereResult } from "../core/permdock.ts";
 import type { Subject } from "../core/subject.ts";
 import type { Instant } from "../core/time.ts";
 import type { PrismaModelFields } from "./model-fields.ts";
 
-import {
-  type CompiledWhere,
-  compileWhere,
-  escapeLike,
-} from "../conditions/compile.ts";
+import { compileWhere, escapeLike } from "../conditions/compile.ts";
 import { loadPeer } from "../conditions/peer.ts";
 import { compact } from "../core/compact.ts";
 import { assertSafeKey } from "../core/paths.ts";

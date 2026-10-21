@@ -27,7 +27,7 @@ import {
   policy,
 } from "../fixtures/quick-start.ts";
 
-describe("fromSnapshot", () => {
+describe(fromSnapshot, () => {
   it("answers the same portable checks as the server instance", async () => {
     const server = getPermDockSync(policy, memberUser);
     const snapshot = server.snapshot();

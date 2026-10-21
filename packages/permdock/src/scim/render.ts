@@ -1,4 +1,5 @@
 import type { AppData } from "../core/app-data.ts";
+import type { DirectoryGroup, DirectoryUser } from "./types.ts";
 
 import { canonicalJson } from "../core/canonical-json.ts";
 import { compact, isRecord } from "../core/compact.ts";
@@ -13,8 +14,6 @@ import {
   USER_SCHEMA,
   isDirectoryNotFoundError,
   isDirectoryUniquenessError,
-  type DirectoryGroup,
-  type DirectoryUser,
 } from "./types.ts";
 
 export function scimResponse(

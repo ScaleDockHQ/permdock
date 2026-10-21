@@ -42,7 +42,7 @@ function assertJson(value: unknown, path = "$"): void {
   }
 }
 
-describe("snapshotFor", () => {
+describe(snapshotFor, () => {
   it("matches getPermDockSync().snapshot() for the same subject", async () => {
     const permdock = getPermDockSync(policy, alice, { tenant: "acme" });
     // SAFETY: the instance has no signer, so snapshot() returned an unsigned Snapshot.
@@ -165,7 +165,7 @@ describe("snapshotFor", () => {
   });
 });
 
-describe("mayAccess", () => {
+describe(mayAccess, () => {
   it("is false only when declared roles provably lack the permission", () => {
     expect(
       mayAccess(policy, alice, permissions.member.invite, { tenant: "acme" }),

@@ -2,16 +2,18 @@ import { existsSync, readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { parse } from "pgsql-parser";
 
+import type { PlannedFile } from "../core/files.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { RlsMigrateConfig, RlsMigrateHelper } from "../types.ts";
 import type { GenerateOutcome } from "./generate.ts";
+import type { RetirePlan, RetireStatement } from "./retire.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { escapeSqlIdent, quoteSqlLiteral } from "../../core/sql.ts";
 import { dateAt } from "../../core/time.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { describeError } from "../core/errors.ts";
-import { type PlannedFile, applyFiles, refuseDirty } from "../core/files.ts";
+import { applyFiles, refuseDirty } from "../core/files.ts";
 import {
   STDOUT,
   dataMigrationFile,
@@ -21,12 +23,7 @@ import { sqlFiles } from "../files.ts";
 import { RETIRE_MARKER } from "../sql/markers.ts";
 import { HELPERS } from "../sql/shared.ts";
 import { sqlStatements } from "../sql/statements.ts";
-import {
-  type RetirePlan,
-  type RetireStatement,
-  retirePlan,
-  retireSql,
-} from "./retire.ts";
+import { retirePlan, retireSql } from "./retire.ts";
 
 /** One call `rls migrate` rewrote, or would without `--dry-run`. */
 export type MigrateRewrite = {

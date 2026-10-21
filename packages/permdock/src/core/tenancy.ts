@@ -1,12 +1,12 @@
 import type { ResourceNode } from "./permission-types.ts";
 import type { GrantScope } from "./policy-types.ts";
+import type { Scope } from "./scopes.ts";
 import type { Membership, Principal, Subject } from "./subject.ts";
 
 import { expiredAt } from "./expiry.ts";
 import { sameId } from "./ids.ts";
 import { isFieldRelation } from "./resource-relations.ts";
 import {
-  type Scope,
   activeFor,
   findScope,
   resolveScope,

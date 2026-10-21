@@ -1,9 +1,6 @@
-import {
-  getPermDock,
-  type Permission,
-  type Policy,
-  type Snapshot,
-} from "../index.ts";
+import type { Permission, Policy, Snapshot } from "../index.ts";
+
+import { getPermDock } from "../index.ts";
 
 export async function snapshotFixture(
   policy: Policy,

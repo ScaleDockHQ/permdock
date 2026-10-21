@@ -183,7 +183,7 @@ describe("Problem Details under --json", () => {
   });
 });
 
-describe("usageResult", () => {
+describe(usageResult, () => {
   it("reports a usage error and lets a CliError through to run()", () => {
     expect(usageResult(new Error("bad flag"))).toStrictEqual({
       code: 2,

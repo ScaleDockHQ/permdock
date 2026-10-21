@@ -7,7 +7,7 @@ const permissions = definePermissions({
   post: resource({ actions: ["read", "update"], collection: ["create"] }),
 });
 
-describe("rowIdOf", () => {
+describe(rowIdOf, () => {
   it.each([
     [null, undefined, "*"],
     ["p1", undefined, "*"],
@@ -24,7 +24,7 @@ describe("rowIdOf", () => {
   });
 });
 
-describe("rowValues", () => {
+describe(rowValues, () => {
   it("splits an instance pair and repeats a single row", () => {
     const pair = { current: { id: "a" }, next: { id: "b" } };
     expect(rowValues(permissions.post.update, pair)).toStrictEqual(pair);

@@ -1,11 +1,8 @@
 import type { SupabaseManifestRole } from "../../supabase/manifest.ts";
+import type { RoleKeys } from "../../supabase/roles.ts";
 import type { GlobalRoles, RlsCustomRoleTable } from "../types.ts";
 
-import {
-  type RoleKeys,
-  roleColumn,
-  roleManifest,
-} from "../../supabase/roles.ts";
+import { roleColumn, roleManifest } from "../../supabase/roles.ts";
 import { quoteIdent, quoteTable } from "./quote.ts";
 
 /**

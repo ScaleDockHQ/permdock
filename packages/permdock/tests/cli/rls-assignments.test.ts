@@ -306,7 +306,7 @@ describe("permdock_can_assign_any", () => {
   });
 });
 
-describe("guardedTables", () => {
+describe(guardedTables, () => {
   const memberships = {
     scopes: {
       organization: {

@@ -29,7 +29,7 @@ const event = (id: string): DecisionEvent => ({
   call: "decide",
 });
 
-describe("memoryDecisionSink", () => {
+describe(memoryDecisionSink, () => {
   it("buffers events and drops the oldest past capacity", () => {
     const sink = memoryDecisionSink({ capacity: 2 });
     void sink.write([event("1"), event("2"), event("3")]);
@@ -91,7 +91,7 @@ describe("memoryDecisionSink", () => {
   });
 });
 
-describe("signDecisionBatch", () => {
+describe(signDecisionBatch, () => {
   it("envelopes directory and approval events", async () => {
     const directory: DirectoryEvent = {
       type: "directory",
@@ -233,7 +233,7 @@ describe("toCloudEvent for access events", () => {
   });
 });
 
-describe("toCloudEvent", () => {
+describe(toCloudEvent, () => {
   const source = "https://app.example.com";
 
   it.each([
@@ -348,7 +348,7 @@ describe("toCloudEvent", () => {
   });
 });
 
-describe("cloudEventType", () => {
+describe(cloudEventType, () => {
   it("never throws for an operation outside its union", () => {
     const base = {
       at: "2026-01-01T00:00:00.000Z",

@@ -1,3 +1,5 @@
+import type { PermDock } from "permdock";
+
 import { PrismaPg } from "@prisma/adapter-pg";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -6,7 +8,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { getPermDockSync, type PermDock } from "permdock";
+import { getPermDockSync } from "permdock";
 import { run } from "permdock/cli";
 import { withSubject as drizzleWithSubject } from "permdock/drizzle";
 import { withSubject as kyselyWithSubject } from "permdock/kysely";

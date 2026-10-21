@@ -11,8 +11,10 @@ import { createPermDock } from "permdock/mcp";
 import { withOtel } from "permdock/otel";
 import { z } from "zod";
 
+import type { User } from "./policy.ts";
+
 import { ownPost, permissions } from "./permissions.ts";
-import { policy, type User } from "./policy.ts";
+import { policy } from "./policy.ts";
 
 export const otelLog: {
   readonly message: string;

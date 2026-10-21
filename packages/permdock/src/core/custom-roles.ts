@@ -1,16 +1,17 @@
 import type { Condition } from "../conditions/ast.ts";
+import type { RoleGrantee } from "./grantee.ts";
 import type { Grant, Policy } from "./policy-types.ts";
+import type { Scope } from "./scopes.ts";
 import type { CustomRole, CustomRoleGrant, Membership } from "./subject.ts";
 
 import { freezeDeep } from "./freeze.ts";
-import { type RoleGrantee, flattenGrantee } from "./grantee.ts";
+import { flattenGrantee } from "./grantee.ts";
 import { sameId } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { formerKeys } from "./permission-leaf.ts";
 import { findPermission } from "./permission-registry.ts";
 import { declaredRoleNames, grantList, levelCondition } from "./policy.ts";
 import {
-  type Scope,
   normalizeMemberships,
   resolveScope,
   scopeList,

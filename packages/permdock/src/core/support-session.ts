@@ -1,5 +1,6 @@
 import type { Denial } from "./decision.ts";
 import type { SettingsSource } from "./interfaces.ts";
+import type { InstanceHandle } from "./internals.ts";
 import type { PermDock } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Instant } from "./time.ts";
@@ -8,7 +9,7 @@ import { canonicalJson } from "./canonical-json.ts";
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { idList, isId } from "./ids.ts";
-import { type InstanceHandle, internalsOf } from "./internals.ts";
+import { internalsOf } from "./internals.ts";
 import { ownRecord } from "./paths.ts";
 import { annotationsFor } from "./permission-leaf.ts";
 import { findPermission, listPermissions } from "./permission-registry.ts";

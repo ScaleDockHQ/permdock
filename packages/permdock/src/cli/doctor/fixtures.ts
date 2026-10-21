@@ -1,12 +1,11 @@
 import { resolve } from "node:path";
 
+import type { CustomRole, TenantSettings } from "../../index.ts";
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 
 import { normalizeMemberships, scopeList } from "../../core/scopes.ts";
 import { quoteSqlLiteral } from "../../core/sql.ts";
 import {
-  type CustomRole,
-  type TenantSettings,
   parseCredential,
   separationConflicts,
   validateCustomRole,

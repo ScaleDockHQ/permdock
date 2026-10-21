@@ -1,4 +1,5 @@
 import type { AuthEvent } from "./event-types.ts";
+import type { SnapshotInclude } from "./instance-snapshot.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type { Snapshot } from "./snapshot-types.ts";
 import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
@@ -6,7 +7,7 @@ import type { Instant } from "./time.ts";
 
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
-import { type SnapshotInclude, snapshotOf } from "./instance-snapshot.ts";
+import { snapshotOf } from "./instance-snapshot.ts";
 import { resolveSubject } from "./resolve-subject.ts";
 import { scopeList } from "./scopes.ts";
 import { tenantsOf } from "./tenancy.ts";

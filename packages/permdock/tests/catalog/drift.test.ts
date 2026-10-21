@@ -91,7 +91,7 @@ const document: PolicyDocument = {
   ],
 };
 
-describe("hostedGrantFindings", () => {
+describe(hostedGrantFindings, () => {
   it("maps each drop reason the catalog caused onto a finding", () => {
     const { rebuilt } = build(false, ["finance"]);
     expect(hostedGrantFindings(rebuilt, document)).toStrictEqual([
@@ -116,7 +116,7 @@ describe("hostedGrantFindings", () => {
   });
 });
 
-describe("catalogDrift", () => {
+describe(catalogDrift, () => {
   it("returns drift event data that parses as CatalogEventData", () => {
     const before = build(true, ["finance", "auditor"]);
     const after = build(false, ["finance"]);

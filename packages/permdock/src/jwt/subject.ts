@@ -1,5 +1,6 @@
 import type { AuthEvent } from "../core/event-types.ts";
 import type { JwtClaims } from "../core/interfaces.ts";
+import type { Membership, Subject } from "../core/subject.ts";
 import type {
   JwtPrincipal,
   JwtSubjectOptions,
@@ -8,11 +9,7 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import {
-  type Membership,
-  type Subject,
-  anonymousSubject,
-} from "../core/subject.ts";
+import { anonymousSubject } from "../core/subject.ts";
 import {
   assertSubjectConfig,
   fail,

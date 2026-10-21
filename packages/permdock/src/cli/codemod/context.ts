@@ -1,3 +1,4 @@
+import type { Edit, Estree } from "./ast.ts";
 import type { Rename, SignatureChange } from "./renames-0.5.ts";
 import type {
   AwaitRename,
@@ -10,13 +11,7 @@ import type {
 } from "./shapes-0.5.ts";
 
 import { beforeFirst } from "../shared/text.ts";
-import {
-  type Edit,
-  type Estree,
-  bindingsCached,
-  nameOf,
-  nodes,
-} from "./ast.ts";
+import { bindingsCached, nameOf, nodes } from "./ast.ts";
 
 /** One version's rename map: what the codemod rewrites and what it only reports. */
 export const SCRIPT_BLOCK: RegExp = /<script\b([^>]*)>([\s\S]*?)<\/script>/gu;

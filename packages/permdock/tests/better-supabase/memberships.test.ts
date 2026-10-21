@@ -45,7 +45,7 @@ const rows: readonly BetterSupabaseMembershipRow[] = [
   { user_id: "u2", organization_id: "o4", role: "admin" },
 ];
 
-describe("principalFromMemberships", () => {
+describe(principalFromMemberships, () => {
   it("builds one membership per organization from the user's live rows", () => {
     expect(principalFromMemberships("u1", rows)).toStrictEqual({
       id: "u1",

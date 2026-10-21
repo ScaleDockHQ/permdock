@@ -166,7 +166,7 @@ describe("subjectFromJwt with an injected verifier", () => {
   });
 });
 
-describe("subjectFromIntrospection", () => {
+describe(subjectFromIntrospection, () => {
   it("maps optional claims only when they have the right type", () => {
     const subject = subjectFromIntrospection({
       active: true,
@@ -465,7 +465,7 @@ describe("subjectFromCapability with an injected verifier", () => {
   });
 });
 
-describe("joseTokenSigner", () => {
+describe(joseTokenSigner, () => {
   it("refuses an unsupported algorithm", () => {
     expect(() =>
       joseTokenSigner({

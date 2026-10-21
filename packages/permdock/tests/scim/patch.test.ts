@@ -8,7 +8,7 @@ import {
 } from "../../src/scim/patch.ts";
 import { ROLES_EXTENSION } from "../../src/scim/types.ts";
 
-describe("normalizePatchOps", () => {
+describe(normalizePatchOps, () => {
   it.each<[string, unknown, readonly ScimPatchOp[]]>([
     [
       "op names case-insensitively",
@@ -129,7 +129,7 @@ describe("normalizePatchOps", () => {
   });
 });
 
-describe("readPatchOperations", () => {
+describe(readPatchOperations, () => {
   it.each<[unknown, readonly unknown[] | undefined]>([
     [{ Operations: [{ op: "add" }] }, [{ op: "add" }]],
     [{ operations: [] }, []],

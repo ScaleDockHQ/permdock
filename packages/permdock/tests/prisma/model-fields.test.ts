@@ -29,7 +29,7 @@ model User {
 }
 `;
 
-describe("prismaModelFields", () => {
+describe(prismaModelFields, () => {
   it("reads required and list scalars from schema.prisma, skipping relations", () => {
     expect(prismaModelFields(SCHEMA, "Post")).toStrictEqual({
       required: ["id", "orgId", "status", "authorId", "ownerId"],

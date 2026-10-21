@@ -36,7 +36,7 @@ const policy = definePolicy(permissions, {
 });
 const member = { id: "u1", roles: ["member"] };
 
-describe("shadowMode", () => {
+describe(shadowMode, () => {
   it("returns the legacy answer and reports where PermDock disagrees", async () => {
     const mismatches: ShadowMismatch[] = [];
     const permdock = shadowMode({
@@ -107,7 +107,7 @@ describe("shadowMode", () => {
   });
 });
 
-describe("wrapPermDock", () => {
+describe(wrapPermDock, () => {
   it("keeps feature functions working on a wrapped instance", async () => {
     const wrapped = wrapPermDock(getPermDockSync(policy, member), () => ({}));
     expect(internalsOf(wrapped)).toBeDefined();

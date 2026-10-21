@@ -1,8 +1,9 @@
+import type { ProblemCode } from "../core/errors.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { CliIo } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
-import { CLI_ERRORS_URL, type ProblemCode } from "../core/errors.ts";
+import { CLI_ERRORS_URL } from "../core/errors.ts";
 import { authFailure, httpRequest } from "../core/http.ts";
 import { POLICY_NOT_PUBLISHED } from "./problem-types.ts";
 

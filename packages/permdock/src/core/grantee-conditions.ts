@@ -5,19 +5,16 @@ import type {
   RelatedHop,
   RestrictedAncestors,
 } from "../conditions/ast.ts";
+import type { InheritGrantee, RelationGrantee } from "./grantee.ts";
 import type {
   PrincipalRelation,
   ResourceLink,
   ResourceNode,
 } from "./permission-types.ts";
+import type { Scope } from "./scopes.ts";
 
 import { compact, sole } from "./compact.ts";
-import {
-  DEFAULT_RELATION_DEPTH,
-  type InheritGrantee,
-  MAX_RELATION_DEPTH,
-  type RelationGrantee,
-} from "./grantee.ts";
+import { DEFAULT_RELATION_DEPTH, MAX_RELATION_DEPTH } from "./grantee.ts";
 import {
   expandRelation,
   isComputedRelation,
@@ -28,7 +25,7 @@ import {
   restrictedFor,
   restrictedStops,
 } from "./resource-relations.ts";
-import { type Scope, resolveScope, rootScope, scopeList } from "./scopes.ts";
+import { resolveScope, rootScope, scopeList } from "./scopes.ts";
 import { isoNow } from "./time.ts";
 
 /**

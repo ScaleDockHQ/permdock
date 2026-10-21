@@ -4,9 +4,10 @@ import type { AdapterId } from "../core/open-union.ts";
 import type { ApprovalMode, ApprovalStage } from "../core/policy-types.ts";
 import type { Approver } from "../core/policy.ts";
 import type { Membership, Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 import type { WireDelegation } from "../core/wire-delegation.ts";
 
-import { durationOf, type Instant } from "../core/time.ts";
+import { durationOf } from "../core/time.ts";
 
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 

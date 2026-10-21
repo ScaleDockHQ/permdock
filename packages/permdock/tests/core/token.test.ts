@@ -17,7 +17,7 @@ import {
   role,
 } from "../../src/index.ts";
 
-describe("decisionToken", () => {
+describe(decisionToken, () => {
   it("is a sha-256: digest and stable for the same inputs", () => {
     const input = {
       key: "post.update",
@@ -43,7 +43,7 @@ describe("decisionToken", () => {
   });
 });
 
-describe("versionOf", () => {
+describe(versionOf, () => {
   it.each([
     [null, null],
     ["row", null],
@@ -61,7 +61,7 @@ describe("versionOf", () => {
   });
 });
 
-describe("payloadDigest", () => {
+describe(payloadDigest, () => {
   it("is the sha-256: digest of the RFC 8785 JSON", () => {
     expect(payloadDigest({ b: [1.5, "x"], a: null })).toBe(
       sha256Digest('{"a":null,"b":[1.5,"x"]}'),
@@ -74,7 +74,7 @@ describe("payloadDigest", () => {
   });
 });
 
-describe("tokenPayload", () => {
+describe(tokenPayload, () => {
   it("binds the args when given, for a row or a collection", () => {
     expect(tokenPayload("p1", { id: "p1" }, { to: "a" })).toBe(
       payloadDigest({ to: "a" }),

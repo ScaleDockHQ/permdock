@@ -1,9 +1,6 @@
-import {
-  createComponent,
-  createSignal,
-  ErrorBoundary,
-  type JSX,
-} from "solid-js";
+import type { JSX } from "solid-js";
+
+import { createComponent, createSignal, ErrorBoundary } from "solid-js";
 import { render } from "solid-js/web";
 import { describe, expect, it, vi } from "vitest";
 

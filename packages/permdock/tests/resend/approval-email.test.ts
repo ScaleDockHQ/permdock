@@ -21,7 +21,7 @@ const prompt: ApprovalPrompt = {
   operation: { name: "invoice.pay", title: "Pay an invoice", risk: "high" },
 };
 
-describe("approvalEmail", () => {
+describe(approvalEmail, () => {
   it("renders an approval-category email that links to the approval page", () => {
     const email = approvalEmail(prompt, {
       approvalUrl: "https://acme.test/approvals",

@@ -7,6 +7,7 @@ import type {
   ResourceNode,
 } from "../core/permission-types.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
+import type { ResourceRef } from "../core/tool-refusal.ts";
 import type {
   ModelContext,
   PermissionGroup,
@@ -27,7 +28,6 @@ import {
 import { resourceRef } from "../core/resource-ref.ts";
 import { ignoreRejection, isThenable } from "../core/thenable.ts";
 import {
-  type ResourceRef,
   approvalToolRefusal,
   deniedToolRefusal,
   toolErrorResult,

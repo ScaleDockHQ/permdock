@@ -1,4 +1,6 @@
-import { effectScope, isRef, toValue, watch, type App, type Plugin } from "vue";
+import type { App, Plugin } from "vue";
+
+import { effectScope, isRef, toValue, watch } from "vue";
 
 import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockPluginOptions } from "./types.ts";

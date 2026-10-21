@@ -1,3 +1,5 @@
+import type { Approver, ApproverInput } from "./approvers.ts";
+import type { GranteeInput } from "./grantee.ts";
 import type { ResourceNode } from "./permission-types.ts";
 import type {
   ApprovalEscalation,
@@ -9,8 +11,6 @@ import type {
 } from "./policy-types.ts";
 
 import {
-  type Approver,
-  type ApproverInput,
   approverLeaves,
   flattenApprovers,
   isAnyOfInput,
@@ -19,7 +19,7 @@ import {
   user,
 } from "./approvers.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
-import { type GranteeInput, asGrantee, authenticated } from "./grantee.ts";
+import { asGrantee, authenticated } from "./grantee.ts";
 import { isSelfParented } from "./resource-relations.ts";
 import { assertDuration } from "./time.ts";
 

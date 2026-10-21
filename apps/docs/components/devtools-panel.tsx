@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 
-import {
-  DEMO_ACTIONS,
-  DEMO_ROLES,
-  demoDecide,
-  type DemoAction,
-  type DemoDecisionView,
-  type DemoRole,
+import type {
+  DemoAction,
+  DemoDecisionView,
+  DemoRole,
 } from "@/lib/devtools-demo";
+
+import { DEMO_ACTIONS, DEMO_ROLES, demoDecide } from "@/lib/devtools-demo";
 
 const SELECT_CLASS = "rounded-md border border-border bg-background px-3 py-2";
 

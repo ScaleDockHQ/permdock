@@ -1,4 +1,6 @@
-import { jsonSchema, safeValidateUIMessages, type UIMessage } from "ai";
+import type { UIMessage } from "ai";
+
+import { jsonSchema, safeValidateUIMessages } from "ai";
 import * as v from "valibot";
 
 export const maxMessages = 20;

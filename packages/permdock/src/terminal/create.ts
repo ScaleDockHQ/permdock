@@ -4,6 +4,7 @@ import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { Actor, Principal, Subject } from "../core/subject.ts";
 import type {
   CommandEntry,
   FilterCommandsOptions,
@@ -25,12 +26,7 @@ import { withApp } from "../core/app.ts";
 import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
 import { resourceRef } from "../core/resource-ref.ts";
-import {
-  type Actor,
-  type Principal,
-  type Subject,
-  isSubject,
-} from "../core/subject.ts";
+import { isSubject } from "../core/subject.ts";
 import { revokeCredential } from "./device.ts";
 import { defaultExit, EX_NOPERM, EX_USAGE } from "./exit.ts";
 import { filterCommandEntries } from "./filter.ts";

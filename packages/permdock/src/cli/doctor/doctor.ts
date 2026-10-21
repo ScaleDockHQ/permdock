@@ -1,5 +1,6 @@
 import type { CommandResult } from "../core/result.ts";
 import type { Style } from "../core/style.ts";
+import type { Project } from "../project/project.ts";
 import type { DoctorFinding, DoctorSeverity } from "../shared/doctor-types.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
@@ -12,7 +13,7 @@ import { findingOf } from "../core/output.ts";
 import { createStyle } from "../core/style.ts";
 import { DOCTOR_REPORT_SCHEMA } from "../core/version.ts";
 import { listSourceFiles, rel } from "../files.ts";
-import { type Project, loadProject } from "../project/project.ts";
+import { loadProject } from "../project/project.ts";
 import { runSkillsInstall } from "../skills.ts";
 import { pd045, pd074 } from "../supabase-config.ts";
 import { attrsPlan } from "../supabase-hook/claims.ts";

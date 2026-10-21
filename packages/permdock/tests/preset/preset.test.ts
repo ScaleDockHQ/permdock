@@ -290,7 +290,7 @@ describe("generated presets", () => {
   }, 120_000);
 });
 
-describe("presetMatrix", () => {
+describe(presetMatrix, () => {
   it("agrees with the generated policy on the demo user's collection actions", async () => {
     writeCases();
     vi.stubEnv("PERMDOCK_CLOUD_URL", "https://cloud.example.com");

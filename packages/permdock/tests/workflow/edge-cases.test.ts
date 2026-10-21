@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Automation } from "../../src/core/automation.ts";
 import type { TokenVerifier } from "../../src/core/interfaces.ts";
 import type { Principal } from "../../src/core/subject.ts";
+import type { WorkflowPermDockOptions } from "../../src/workflow/index.ts";
 
 import { memoryApprovalStore } from "../../src/approvals/store.ts";
 import { memoryApprovalPolicySource } from "../../src/core/approval-policies.ts";
@@ -13,7 +14,6 @@ import {
   subjectFromRunTicket,
 } from "../../src/server/run-ticket.ts";
 import {
-  type WorkflowPermDockOptions,
   createPermDock,
   memoryAutomationSource,
 } from "../../src/workflow/index.ts";

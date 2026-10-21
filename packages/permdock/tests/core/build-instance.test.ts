@@ -5,7 +5,7 @@ import { buildReportingInstance } from "../../src/core/request-context.ts";
 import { wrapPermDock } from "../../src/core/wrap.ts";
 import { memberUser, permissions, policy } from "../fixtures/quick-start.ts";
 
-describe("resolveOrNull", () => {
+describe(resolveOrNull, () => {
   it("returns null when the resolver throws", async () => {
     expect(
       await resolveOrNull(() => {

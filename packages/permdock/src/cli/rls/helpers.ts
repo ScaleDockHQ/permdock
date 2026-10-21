@@ -1,4 +1,5 @@
 import type { RlsSqlContext } from "../sql/context.ts";
+import type { Body } from "./helper-bodies.ts";
 
 import { configError } from "../core/errors.ts";
 import { scopeTypeOf } from "../sql/columns.ts";
@@ -30,13 +31,7 @@ import { customRoleNameGuardSql } from "./custom-role-guard.ts";
 import { customRoleWritesSql } from "./custom-role-writes.ts";
 import { customRolesSql, roleReadersSql } from "./custom-roles.ts";
 import { globalRolesSql } from "./global-roles.ts";
-import {
-  type Body,
-  functionBody,
-  hasBody,
-  scopedBody,
-  sqlBody,
-} from "./helper-bodies.ts";
+import { functionBody, hasBody, scopedBody, sqlBody } from "./helper-bodies.ts";
 import {
   memberForFunction,
   memberFunction,

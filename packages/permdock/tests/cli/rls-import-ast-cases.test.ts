@@ -1,5 +1,3 @@
-import type * as PgsqlParser from "pgsql-parser";
-
 import { parse } from "pgsql-parser";
 import { describe, expect, it, vi } from "vitest";
 
@@ -12,8 +10,8 @@ import {
 } from "../../src/cli/rls/import-ast.ts";
 import { seedFromRow, seedsFromSql } from "../../src/cli/rls/import-seeds.ts";
 
-vi.mock("pgsql-parser", async (importOriginal) => {
-  const actual = await importOriginal<typeof PgsqlParser>();
+vi.mock(import("pgsql-parser"), async (importOriginal) => {
+  const actual = await importOriginal();
   return { ...actual, parse: vi.fn<typeof actual.parse>(actual.parse) };
 });
 
@@ -364,7 +362,7 @@ describe("conditionFromAst memberships and helpers", () => {
   });
 });
 
-describe("helperGrants", () => {
+describe(helperGrants, () => {
   const seeds: RolePermission[] = [
     {
       role: "admin",

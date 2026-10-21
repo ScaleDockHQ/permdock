@@ -1,3 +1,5 @@
+import type { RlsParityFixture } from "permdock/testing";
+
 import {
   mkdirSync,
   mkdtempSync,
@@ -8,7 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { testRlsParity, type RlsParityFixture } from "permdock/testing";
+import { testRlsParity } from "permdock/testing";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 

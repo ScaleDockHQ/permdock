@@ -24,7 +24,7 @@ function problem(run: () => unknown): CliError {
   throw new Error("expected a CliError");
 }
 
-describe("parseLeaf", () => {
+describe(parseLeaf, () => {
   it("reads aliases, negations, = values, repeated and comma-split values", () => {
     const input = parseLeaf(
       "x",
@@ -92,7 +92,7 @@ describe("parseLeaf", () => {
   });
 });
 
-describe("didYouMean", () => {
+describe(didYouMean, () => {
   it("suggests only a close name", () => {
     expect(didYouMean("--chek", ["--check", "--json"])).toBe("--check");
     expect(didYouMean("--zzzzzz", ["--check", "--json"])).toBeUndefined();

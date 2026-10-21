@@ -1,3 +1,4 @@
+import type { SplitPart } from "../core/output-files.ts";
 import type { SqlConnect } from "../pg.ts";
 import type {
   CliIo,
@@ -8,7 +9,7 @@ import type {
 } from "../types.ts";
 import type { RbacAuthorizeMode } from "./rbac.ts";
 
-import { type SplitPart, parseSplit } from "../core/output-files.ts";
+import { parseSplit } from "../core/output-files.ts";
 
 export type RlsGenerateInput = {
   readonly cwd: string;

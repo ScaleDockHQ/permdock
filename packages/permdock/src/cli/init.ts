@@ -3,11 +3,10 @@ import type { Agent } from "package-manager-detector";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
+import type { Preset, PresetInput } from "../preset/index.ts";
 import type { CommandResult, NextStep } from "./core/result.ts";
 
 import {
-  type Preset,
-  type PresetInput,
   decodePreset,
   encodePreset,
   generatePreset,

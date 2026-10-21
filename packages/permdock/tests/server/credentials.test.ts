@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { Credential } from "../../src/core/credential.ts";
 import type { AuthEvent } from "../../src/core/event-types.ts";
 import type { Subject } from "../../src/core/subject.ts";
+import type { ApiKeySubjectOptions } from "../../src/server/credentials.ts";
 
 import { compact } from "../../src/core/compact.ts";
 import { allow } from "../../src/core/grant-builders.ts";
@@ -19,7 +20,6 @@ import { role } from "../../src/core/role-builder.ts";
 import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { createPermDock as createHonoPermDock } from "../../src/hono/index.ts";
 import {
-  type ApiKeySubjectOptions,
   apiKeyVerifier,
   generateApiKey,
   hashApiKey,
@@ -193,7 +193,7 @@ describe("API key format", () => {
   });
 });
 
-describe("memoryCredentialStore", () => {
+describe(memoryCredentialStore, () => {
   it("issues, rotates and revokes, reporting each to the sink", async () => {
     const sink = memoryDecisionSink();
     const store = memoryCredentialStore({ sink, source: "app" });
@@ -242,7 +242,7 @@ describe("memoryCredentialStore", () => {
   });
 });
 
-describe("apiKeyVerifier", () => {
+describe(apiKeyVerifier, () => {
   it("returns null for a wrong hash, a mismatched id or an invalid record", async () => {
     const key = generateApiKey("key_1");
     const hash = await hashApiKey(key);
@@ -268,7 +268,7 @@ describe("apiKeyVerifier", () => {
   });
 });
 
-describe("subjectFromApiKey", () => {
+describe(subjectFromApiKey, () => {
   const verifier = memoryCredentialStore();
   testSubjectResolver(
     (key: string | undefined | null, scope?: { readonly tenant?: string }) =>

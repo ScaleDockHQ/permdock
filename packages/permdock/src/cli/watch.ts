@@ -1,4 +1,6 @@
-import { type FSWatcher, watch } from "node:fs";
+import type { FSWatcher } from "node:fs";
+
+import { watch } from "node:fs";
 import { basename, dirname, relative, resolve, sep } from "node:path";
 
 import type { CliContext } from "./core/context.ts";

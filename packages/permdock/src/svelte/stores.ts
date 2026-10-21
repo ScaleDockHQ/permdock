@@ -1,4 +1,6 @@
-import { readable, toStore, type Readable } from "svelte/store";
+import type { Readable } from "svelte/store";
+
+import { readable, toStore } from "svelte/store";
 
 import type { ClientStore } from "../client/store.ts";
 import type { Decision } from "../core/decision.ts";

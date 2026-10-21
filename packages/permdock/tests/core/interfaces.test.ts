@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { memoryEntitlementSource } from "../../src/core/memory-sources.ts";
 
-describe("memoryEntitlementSource", () => {
+describe(memoryEntitlementSource, () => {
   const source = memoryEntitlementSource({ acme: ["sso"] });
   const principal = { id: "u1" };
 

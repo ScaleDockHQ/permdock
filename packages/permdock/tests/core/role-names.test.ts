@@ -36,7 +36,7 @@ const policy = definePolicy(permissions, {
   }),
 });
 
-describe("isRoleName", () => {
+describe(isRoleName, () => {
   it("accepts a declared role and rejects anything else", () => {
     expect(isRoleName(vocabularyPolicy, "editor")).toBe(true);
     expect(isRoleName(vocabularyPolicy, "owner")).toBe(false);

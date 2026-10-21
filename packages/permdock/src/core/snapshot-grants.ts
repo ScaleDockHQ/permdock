@@ -1,12 +1,14 @@
+import type { Condition } from "../conditions/ast.ts";
+import type { CustomGrant } from "./custom-roles.ts";
+import type { GranteeMatch } from "./grantee.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Grant, Policy } from "./policy-types.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
-import { type Condition, hasConditionOp } from "../conditions/ast.ts";
+import { hasConditionOp } from "../conditions/ast.ts";
 import { compact } from "./compact.ts";
 import { contactMayUse } from "./contact.ts";
 import {
-  type CustomGrant,
   customGrantsFor,
   holdsCustomRole,
   holdsGlobalCustomRole,
@@ -14,7 +16,7 @@ import {
 import { coversRequirements } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
 import { combineWhere, matchGrantee } from "./grantee-match.ts";
-import { type GranteeMatch, flattenGrantee } from "./grantee.ts";
+import { flattenGrantee } from "./grantee.ts";
 import { getResource, listPermissions } from "./permission-registry.ts";
 import { declaredRoleNames, grantList } from "./policy.ts";
 import { requirementCondition } from "./requires-conditions.ts";

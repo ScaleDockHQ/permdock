@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  findPage,
-  normalizeDocsPath,
-  searchDocs,
-  type DocsPageSummary,
-} from "../lib/docs-pages";
+import type { DocsPageSummary } from "../lib/docs-pages";
+
+import { findPage, normalizeDocsPath, searchDocs } from "../lib/docs-pages";
 
 const pages: readonly DocsPageSummary[] = [
   {
@@ -28,7 +25,7 @@ const pages: readonly DocsPageSummary[] = [
   },
 ];
 
-describe("searchDocs", () => {
+describe(searchDocs, () => {
   it("ranks title matches above path matches", () => {
     const hits = searchDocs(pages, "hono");
     expect(hits[0]?.url).toBe("/docs/adapters/hono");
@@ -43,7 +40,7 @@ describe("searchDocs", () => {
   });
 });
 
-describe("normalizeDocsPath", () => {
+describe(normalizeDocsPath, () => {
   it("strips /docs, hosts and suffixes", () => {
     expect(normalizeDocsPath("/docs/adapters/hono")).toStrictEqual([
       "adapters",
@@ -59,7 +56,7 @@ describe("normalizeDocsPath", () => {
   });
 });
 
-describe("findPage", () => {
+describe(findPage, () => {
   it("resolves a slug path", () => {
     expect(findPage(pages, "adapters/hono")?.title).toBe("Hono");
   });

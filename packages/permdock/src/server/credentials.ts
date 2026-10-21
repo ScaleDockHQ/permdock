@@ -1,3 +1,8 @@
+import type {
+  Credential,
+  CredentialKind,
+  ApiKeyPrincipal,
+} from "../core/credential.ts";
 import type { AuthEvent } from "../core/event-types.ts";
 import type {
   CredentialVerifier,
@@ -6,13 +11,11 @@ import type {
 } from "../core/interfaces.ts";
 import type { PermissionTree } from "../core/permission-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
+import type { Principal, Subject } from "../core/subject.ts";
 import type { Instant } from "../core/time.ts";
 
 import { compact } from "../core/compact.ts";
 import {
-  type Credential,
-  type CredentialKind,
-  type ApiKeyPrincipal,
   credentialPolicyViolation,
   credentialSubject,
   credentialTenant,
@@ -21,11 +24,7 @@ import {
 } from "../core/credential.ts";
 import { bytesToBase64Url } from "../core/sha256.ts";
 import { credentialEvent } from "../core/sink.ts";
-import {
-  type Principal,
-  type Subject,
-  anonymousSubject,
-} from "../core/subject.ts";
+import { anonymousSubject } from "../core/subject.ts";
 import { isThenable } from "../core/thenable.ts";
 import { isoAt, nowMillis } from "../core/time.ts";
 

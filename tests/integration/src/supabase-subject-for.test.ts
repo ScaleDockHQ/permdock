@@ -1,7 +1,9 @@
+import type { SupabaseRpcClient } from "permdock/supabase";
+
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { countHolders, getPermDock } from "permdock";
-import { type SupabaseRpcClient, postgrestSources } from "permdock/supabase";
+import { postgrestSources } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";

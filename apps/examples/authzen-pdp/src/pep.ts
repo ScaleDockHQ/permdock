@@ -3,8 +3,10 @@ import type { DecisionProvider } from "permdock";
 import { definePolicy } from "permdock";
 import { getPermDockSync, remotePdp } from "permdock/pdp";
 
+import type { User } from "./policy.ts";
+
 import { permissions } from "./permissions.ts";
-import { type User, roles, subjectOf } from "./policy.ts";
+import { roles, subjectOf } from "./policy.ts";
 
 /** The bearer the local PDP trusts to name the subject in the body. */
 export const PEP_TOKEN = "pep";

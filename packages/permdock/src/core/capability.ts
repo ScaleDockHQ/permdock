@@ -1,5 +1,6 @@
 import type { TokenSigner } from "./interfaces.ts";
 import type { Permission, PermissionTree } from "./permission-types.ts";
+import type { Membership, Principal, Subject } from "./subject.ts";
 import type { Instant } from "./time.ts";
 
 import { compact } from "./compact.ts";
@@ -8,12 +9,7 @@ import { freezeDeep } from "./freeze.ts";
 import { idList, isId, sameId } from "./ids.ts";
 import { ownRecord } from "./paths.ts";
 import { listPermissions } from "./permission-registry.ts";
-import {
-  type Membership,
-  type Principal,
-  type Subject,
-  anonymousSubject,
-} from "./subject.ts";
+import { anonymousSubject } from "./subject.ts";
 import { epochSeconds, nowSeconds } from "./time.ts";
 
 /**

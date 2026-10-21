@@ -242,6 +242,7 @@ export function testAgentRuntime(options: AgentRuntimeOptions): void {
       run: () => Promise<void>,
     ): void => {
       const reason = options.skip?.[name];
+
       it.skipIf(reason !== undefined)(
         reason === undefined ? title : `${title} (${reason})`,
         run,

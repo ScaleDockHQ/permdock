@@ -1,14 +1,11 @@
 import type { SnapshotSource } from "../core/interfaces.ts";
 import type { LocalSnapshotManifest } from "../core/snapshot-types.ts";
+import type { LocalSnapshotData } from "./local.ts";
+import type { RowPrincipal } from "./powersync-rows.ts";
 
 import { compact } from "../core/compact.ts";
-import { type LocalSnapshotData, localSnapshot } from "./local.ts";
-import {
-  type RowPrincipal,
-  readRows,
-  rowQuery,
-  rowTables,
-} from "./powersync-rows.ts";
+import { localSnapshot } from "./local.ts";
+import { readRows, rowQuery, rowTables } from "./powersync-rows.ts";
 
 /** The `PowerSyncDatabase` methods `powerSyncSource` calls. */
 export type PowerSyncWatchable = {

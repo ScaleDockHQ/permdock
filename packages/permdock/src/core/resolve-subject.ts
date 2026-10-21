@@ -1,9 +1,17 @@
+import type { AppDataSchema } from "./app-data.ts";
 import type { AuthEvent } from "./event-types.ts";
 import type { MembershipSource } from "./interfaces.ts";
 import type { PermDockOptions } from "./permdock.ts";
 import type { Policy } from "./policy-types.ts";
+import type {
+  Actor,
+  Delegation,
+  Membership,
+  Principal,
+  Subject,
+} from "./subject.ts";
 
-import { type AppDataSchema, readAppData } from "./app-data.ts";
+import { readAppData } from "./app-data.ts";
 import { compact } from "./compact.ts";
 import { contactMemberships, isContact } from "./contact.ts";
 import { sanitizeContext } from "./fields.ts";
@@ -14,15 +22,7 @@ import { policyX } from "./policy-fingerprint.ts";
 import { applyRoleKinds } from "./role-rank.ts";
 import { normalizeMemberships, scopeList, tenantOf } from "./scopes.ts";
 import { sourceName } from "./source-name.ts";
-import {
-  type Actor,
-  type Delegation,
-  type Membership,
-  type Principal,
-  type Subject,
-  anonymousSubject,
-  isSubject,
-} from "./subject.ts";
+import { anonymousSubject, isSubject } from "./subject.ts";
 import { resolveActiveTenant } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
 

@@ -1,10 +1,12 @@
+import type { VNode } from "vue";
+
 import {
   PermissionBoundary,
   Protected,
   usePermDock,
   usePermission,
 } from "permdock/vue";
-import { defineComponent, h, type VNode } from "vue";
+import { defineComponent, h } from "vue";
 
 import { ownPost, permissions } from "./permissions.ts";
 

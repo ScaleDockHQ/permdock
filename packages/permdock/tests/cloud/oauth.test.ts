@@ -40,7 +40,7 @@ async function authorize(fetchFn: typeof fetch, url: string): Promise<string> {
   return response.headers.get("location") ?? "";
 }
 
-describe("cloudOAuth", () => {
+describe(cloudOAuth, () => {
   it("defaults to CLOUD_BASE_URL", () => {
     expect(cloudOAuth({ clientId: "app", redirectUri: REDIRECT }).issuer).toBe(
       CLOUD_BASE_URL,
@@ -350,7 +350,7 @@ describe("cloudOAuth", () => {
   });
 });
 
-describe("bearerChallenge", () => {
+describe(bearerChallenge, () => {
   it("reads quoted and token parameters with lower-case names", () => {
     expect(
       bearerChallenge(

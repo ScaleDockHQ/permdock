@@ -9,7 +9,7 @@ import {
 import { sha256Digest } from "../../src/index.ts";
 import { testIdempotencyStore } from "../../src/testing/index.ts";
 
-describe("idempotencyRecord", () => {
+describe(idempotencyRecord, () => {
   const call = { action: "approve", id: "apr_1", body: "" } as const;
 
   it("builds the record the approvals handler stores", async () => {
@@ -48,7 +48,7 @@ describe("memoryIdempotencyStore conformance", () => {
   testIdempotencyStore(memoryIdempotencyStore());
 });
 
-describe("memoryIdempotencyStore", () => {
+describe(memoryIdempotencyStore, () => {
   it("drops an entry once it expires", () => {
     const store = memoryIdempotencyStore();
     const response = {

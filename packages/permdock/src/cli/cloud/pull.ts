@@ -4,6 +4,8 @@ import { relative, resolve } from "node:path";
 import type { CatalogDocument } from "../../catalog/types.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
+import type { Env } from "./issuer.ts";
+import type { CloudRequest, ProjectPolicy } from "./projects.ts";
 
 import { parseCatalog } from "../../catalog/parse.ts";
 import { catalogFingerprint } from "../../core/catalog-fingerprint.ts";
@@ -15,13 +17,8 @@ import { cliVersion } from "../core/version.ts";
 import { writeFileEnsuringDir } from "../files.ts";
 import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
 import { cliRuntime, readAuth } from "./auth.ts";
-import { cloudUrl, type Env } from "./issuer.ts";
-import {
-  type CloudRequest,
-  type ProjectPolicy,
-  projectPolicy,
-  resolveProject,
-} from "./projects.ts";
+import { cloudUrl } from "./issuer.ts";
+import { projectPolicy, resolveProject } from "./projects.ts";
 
 const COMMAND = "permdock cloud pull";
 

@@ -646,7 +646,7 @@ describe("permdock/next", () => {
   });
 });
 
-describe("cacheLifeFor", () => {
+describe(cacheLifeFor, () => {
   it("reads the clock without issuedAt or now", () => {
     vi.useFakeTimers();
     try {

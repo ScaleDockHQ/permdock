@@ -25,7 +25,7 @@ const rows = [
 const tokens = (page: ApprovalPage): string[] =>
   page.items.map((item) => item.token);
 
-describe("pageApprovals", () => {
+describe(pageApprovals, () => {
   it("orders by createdAt then token and follows the cursor", () => {
     const first = pageApprovals(rows, { limit: 2 });
     expect({ tokens: tokens(first), next: first.next }).toStrictEqual({
@@ -79,7 +79,7 @@ describe("pageApprovals", () => {
   });
 });
 
-describe("listAllApprovals", () => {
+describe(listAllApprovals, () => {
   it("follows next until the last page", async () => {
     const pages: ApprovalPage[] = [
       { items: [request("1", "a")], next: "c1" },

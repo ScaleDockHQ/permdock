@@ -58,7 +58,7 @@ function pending(overrides: Partial<ApprovalRequest> = {}): ApprovalRequest {
   };
 }
 
-describe("memoryApprovalStore", () => {
+describe(memoryApprovalStore, () => {
   it("creates, lists, resolves and expires requests", async () => {
     const store = memoryApprovalStore();
     void store.create(pending());
@@ -425,7 +425,7 @@ describe("request and resume helpers", () => {
   });
 });
 
-describe("approvalsHandler", () => {
+describe(approvalsHandler, () => {
   function handler(
     store = memoryApprovalStore(),
     options?: {

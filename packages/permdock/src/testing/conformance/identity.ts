@@ -1,22 +1,22 @@
 import { expect, it } from "vitest";
 
-import { normalizeMemberships, scopeList } from "../../core/scopes.ts";
-import {
-  type EntitlementSource,
-  type Membership,
-  type MembershipSource,
-  type Policy,
-  type RevocationEvent,
-  type Role,
-  type CustomRoleSource,
-  type SettingsSource,
-  type Subject,
-  type SubjectResolver,
-  memoryRevocationFeed,
-  validateCustomRole,
+import type {
+  EntitlementSource,
+  Membership,
+  MembershipSource,
+  Policy,
+  RevocationEvent,
+  Role,
+  CustomRoleSource,
+  SettingsSource,
+  Subject,
+  SubjectResolver,
 } from "../../index.ts";
+import type { DirectoryStore } from "../../scim/index.ts";
+
+import { normalizeMemberships, scopeList } from "../../core/scopes.ts";
+import { memoryRevocationFeed, validateCustomRole } from "../../index.ts";
 import {
-  type DirectoryStore,
   directoryMembershipSource,
   scimHandler,
   sha256Hex,
@@ -58,6 +58,7 @@ export function testMembershipSource(
   },
 ): void {
   const query = options.tenant === undefined ? {} : { tenant: options.tenant };
+
   it("returns well-formed memberships and fails closed on throw", async () => {
     for (const principal of options.principals) {
       let memberships: Membership[] = [];
@@ -147,7 +148,7 @@ export function testEntitlementSource(
     });
     expect(Array.isArray(found)).toBe(true);
     for (const name of found) {
-      expect(typeof name).toBe("string");
+      expect(name).toBeTypeOf("string");
     }
     if (options.expect !== undefined) {
       expect([...found].toSorted()).toStrictEqual(
@@ -213,6 +214,7 @@ export function testDirectoryStore(
   options: { readonly tenants: readonly [string, string] },
 ): void {
   const [home, other] = options.tenants;
+
   it("round-trips users and groups, isolates tenants, and drops inactive memberships", async () => {
     const created = await store.putUser(home, {
       id: "",
@@ -333,7 +335,7 @@ export function testSettingsSource(
   it("answers per tenant with plain settings and nothing for an unknown tenant", async () => {
     const settings = await source.settingsFor(options.tenant);
     if (settings !== undefined) {
-      expect(typeof settings).toBe("object");
+      expect(settings).toBeTypeOf("object");
       const credentials = settings.credentials;
       if (credentials !== undefined) {
         expect(

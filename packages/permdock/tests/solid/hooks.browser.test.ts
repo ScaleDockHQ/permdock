@@ -1,4 +1,6 @@
-import { createComponent, createRoot, createSignal, type JSX } from "solid-js";
+import type { JSX } from "solid-js";
+
+import { createComponent, createRoot, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { render } from "solid-js/web";
 import { describe, expect, it } from "vitest";

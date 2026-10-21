@@ -1,12 +1,14 @@
+import type { CustomGrant } from "./custom-roles.ts";
+import type { EvalEnv } from "./events.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Grant, Policy } from "./policy-types.ts";
 import type { CustomRole, Principal, Subject } from "./subject.ts";
+import type { Role } from "./vocabulary.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
 import { compact } from "./compact.ts";
 import { byCodePoint } from "./compare.ts";
 import {
-  type CustomGrant,
   ceilingGrants,
   customRoleOf,
   customRoleScope,
@@ -16,7 +18,7 @@ import {
   tenantCustomRoles,
 } from "./custom-roles.ts";
 import { evaluate } from "./evaluate/index.ts";
-import { type EvalEnv, emptyListeners } from "./events.ts";
+import { emptyListeners } from "./events.ts";
 import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames, roleLeaf } from "./held-roles.ts";
 import { listPermissions } from "./permission-registry.ts";
@@ -31,7 +33,6 @@ import {
 } from "./tenancy.ts";
 import { instantAt } from "./time.ts";
 import {
-  type Role,
   listRoles,
   sourceRoleMeta,
   synthesiseRole,

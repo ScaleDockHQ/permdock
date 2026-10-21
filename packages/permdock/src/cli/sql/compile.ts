@@ -1,17 +1,18 @@
+import type { SqlCommand } from "../../core/sql.ts";
+import type { Condition, Policy, ResourceNode } from "../../index.ts";
+import type { RolePermission } from "../rls/helpers.ts";
 import type { RlsActions } from "../types.ts";
 import type { RlsSqlContext } from "./context.ts";
+import type { RlsGrant } from "./grants.ts";
 
 import { canonicalJson } from "../../core/canonical-json.ts";
 import { sole } from "../../core/compact.ts";
 import { andWhere, leveled } from "../../core/custom-roles.ts";
 import { requiresStandIn } from "../../core/delegation.ts";
 import { policyLevels } from "../../core/policy.ts";
-import { type SqlCommand, defaultSqlCommand } from "../../core/sql.ts";
+import { defaultSqlCommand } from "../../core/sql.ts";
 import { scopeField } from "../../core/tenancy.ts";
 import {
-  type Condition,
-  type Policy,
-  type ResourceNode,
   formerKeys,
   hasConditionOp,
   listPermissions,
@@ -21,7 +22,7 @@ import { jsonSchemaOf } from "../catalog-doc.ts";
 import { configError } from "../core/errors.ts";
 import { apiKeyAllowsCall } from "../rls/api-keys.ts";
 import { capabilityAccessSql } from "../rls/capabilities.ts";
-import { type RolePermission, accessSql } from "../rls/helpers.ts";
+import { accessSql } from "../rls/helpers.ts";
 import { indexedFields } from "../rls/indexes.ts";
 import { requiresSql } from "../rls/permission-keys.ts";
 import { tokenScopeAllowsCall } from "../rls/token-scopes.ts";
@@ -32,12 +33,7 @@ import {
   contextRefs,
   sqlFunctionNames,
 } from "./conditions.ts";
-import {
-  type RlsGrant,
-  breakGlassHolder,
-  breakGlassKey,
-  collectGrants,
-} from "./grants.ts";
+import { breakGlassHolder, breakGlassKey, collectGrants } from "./grants.ts";
 import { quoteLiteral } from "./quote.ts";
 import { subjectClaimJsonSql, subjectClaimSql } from "./subject.ts";
 

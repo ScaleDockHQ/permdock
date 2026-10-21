@@ -161,7 +161,7 @@ describe("rls import membership subqueries", () => {
   });
 });
 
-describe("mapRoleValues", () => {
+describe(mapRoleValues, () => {
   it("renames memberOf roles anywhere in a condition and leaves other values", () => {
     expect(
       mapRoleValues(
@@ -194,7 +194,7 @@ describe("mapRoleValues", () => {
   });
 });
 
-describe("textArrayLiteral", () => {
+describe(textArrayLiteral, () => {
   it("quotes an empty element and one that reads as null", () => {
     expect(textArrayLiteral(["", "NULL", "ok"])).toBe(`'{"","NULL",ok}'`);
   });

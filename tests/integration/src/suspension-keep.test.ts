@@ -1,10 +1,10 @@
+import type { SqlQuery } from "permdock/supabase";
 import type { Client } from "pg";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock } from "permdock";
 import {
-  type SqlQuery,
   junctionMembershipSource,
   subjectFromSupabase,
 } from "permdock/supabase";

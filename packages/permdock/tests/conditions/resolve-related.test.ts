@@ -42,7 +42,7 @@ const unrestrictedViewerOfParent: RelatedCondition = {
   parent: true,
 };
 
-describe("resolveRelated", () => {
+describe(resolveRelated, () => {
   it("replaces each related node with the ids one query reads", async () => {
     const where = await graphWhere("vera");
     const queries: Query[] = [];

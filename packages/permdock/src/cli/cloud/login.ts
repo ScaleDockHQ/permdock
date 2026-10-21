@@ -6,6 +6,7 @@ import type {
 } from "../../terminal/types.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { CliIo } from "../types.ts";
+import type { Env } from "./issuer.ts";
 
 import { dateAt, instantAt, secondsAt } from "../../core/time.ts";
 import { runDeviceFlow } from "../../terminal/device.ts";
@@ -26,7 +27,6 @@ import {
 import {
   CLI_CLIENT_ID,
   cloudUrl,
-  type Env,
   issuerMetadata,
   READ_SCOPES,
 } from "./issuer.ts";

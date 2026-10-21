@@ -1,12 +1,7 @@
+import type { AppDataSchema, WithX } from "./app-data.ts";
 import type { ActionMeta } from "./permission-types.ts";
 
-import {
-  type AppDataSchema,
-  type WithX,
-  assertAppData,
-  parseAppData,
-  readAppData,
-} from "./app-data.ts";
+import { assertAppData, parseAppData, readAppData } from "./app-data.ts";
 import { freezeCopy, freezeDeep } from "./freeze.ts";
 import { assertSafeKey, isForbiddenKey, ownKeys } from "./paths.ts";
 

@@ -41,7 +41,7 @@ describe("getSnapshot(request)", () => {
   });
 });
 
-describe("snapshotHeaders", () => {
+describe(snapshotHeaders, () => {
   const snapshotAt = async (issuedAt: string): Promise<Snapshot> => {
     const server = createPermDock(saasPolicy, {
       subject: () => alice,

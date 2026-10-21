@@ -58,7 +58,7 @@ const base: RlsSqlContext = {
   gucPrefix: "app",
 };
 
-describe("commandFor", () => {
+describe(commandFor, () => {
   it("merges rls.actions over the default verbs", () => {
     expect(commandFor("read")).toBe("select");
     expect(commandFor("view")).toBeUndefined();

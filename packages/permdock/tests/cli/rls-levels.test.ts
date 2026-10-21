@@ -18,26 +18,27 @@ const TMP = join(HERE, "../../tmp");
 
 const temps: string[] = [];
 
-afterEach(() => {
-  for (const dir of temps.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
+describe("rls levels", () => {
+  afterEach(() => {
+    for (const dir of temps.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 
-function appWith(
-  levels: boolean,
-  authorize: "database" | "jwt",
-  renamed = false,
-  manager = false,
-  create = false,
-): string {
-  mkdirSync(TMP, { recursive: true });
-  const dir = mkdtempSync(join(TMP, "rls-levels-"));
-  temps.push(dir);
-  cpSync(FIXTURE, dir, { recursive: true });
-  writeFileSync(
-    join(dir, "src/levels.ts"),
-    `import { allow, definePermissions, definePolicy, deny, principal, resource, role } from 'permdock';
+  function appWith(
+    levels: boolean,
+    authorize: "database" | "jwt",
+    renamed = false,
+    manager = false,
+    create = false,
+  ): string {
+    mkdirSync(TMP, { recursive: true });
+    const dir = mkdtempSync(join(TMP, "rls-levels-"));
+    temps.push(dir);
+    cpSync(FIXTURE, dir, { recursive: true });
+    writeFileSync(
+      join(dir, "src/levels.ts"),
+      `import { allow, definePermissions, definePolicy, deny, principal, resource, role } from 'permdock';
 
 export const permissions = definePermissions({
   job: resource({
@@ -61,10 +62,10 @@ export const policy = definePolicy(permissions, {
   subject: () => null,
 });
 `,
-  );
-  writeFileSync(
-    join(dir, "permdock.config.ts"),
-    `export default {
+    );
+    writeFileSync(
+      join(dir, "permdock.config.ts"),
+      `export default {
   permissions: './src/levels.ts',
   policy: './src/levels.ts',
   rls: {
@@ -80,183 +81,190 @@ export const policy = definePolicy(permissions, {
   },
 };
 `,
-  );
-  return dir;
-}
-
-async function generate(
-  cwd: string,
-  extra: readonly string[] = [],
-): Promise<string> {
-  const result = await run(
-    ["rls", "generate", "--target", "sql", "--out", "rls.sql", ...extra],
-    { cwd },
-  );
-  if (result.code !== 0) {
-    throw new Error(result.stdout);
+    );
+    return dir;
   }
-  return readFileSync(join(cwd, "rls.sql"), "utf8");
-}
 
-describe("rls generate with resource levels", () => {
-  it("adds a level column and a leveled grant key per level (database)", async () => {
-    const sql = await generate(appWith(true, "database"));
-    expect(sql).toContain(
-      "add column if not exists level text check (level ~ '^[a-z][a-z0-9_]*$')",
+  async function generate(
+    cwd: string,
+    extra: readonly string[] = [],
+  ): Promise<string> {
+    const result = await run(
+      ["rls", "generate", "--target", "sql", "--out", "rls.sql", ...extra],
+      { cwd },
     );
-    expect(sql).toContain("'job.read@own'");
-    expect(sql).toMatch(/'job\.update#\d@all'/u);
-    expect(sql).toContain("permission || coalesce('@' || c.level, '')");
-    expect(sql).not.toMatch(/service_role/iu);
-  });
-
-  it("reads key@level claim entries (jwt)", async () => {
-    const sql = await generate(appWith(true, "jwt"));
-    expect(sql).toContain("'job.read@own'");
-    expect(sql).not.toContain("custom_role_permissions");
-    expect(sql).toContain("split_part(");
-  });
-
-  it("emits nothing level-shaped without declared levels", async () => {
-    for (const authorize of ["database", "jwt"] as const) {
-      const sql = await generate(appWith(false, authorize));
-      expect(sql).not.toContain("@own");
-      expect(sql).not.toContain("c.level");
-      expect(sql).not.toContain("add column if not exists level");
-      expect(sql).not.toContain("allowed_levels");
+    if (result.code !== 0) {
+      throw new Error(result.stdout);
     }
-  });
+    return readFileSync(join(cwd, "rls.sql"), "utf8");
+  }
 
-  it("maps a stored former key before splitting off its level", async () => {
-    const sql = await generate(appWith(true, "database", true));
-    expect(sql).toContain("('task.read', 'job.read')");
-    expect(sql).toContain("allowed_levels");
-  });
+  describe("rls generate with resource levels", () => {
+    it("adds a level column and a leveled grant key per level (database)", async () => {
+      const sql = await generate(appWith(true, "database"));
+      expect(sql).toContain(
+        "add column if not exists level text check (level ~ '^[a-z][a-z0-9_]*$')",
+      );
+      expect(sql).toContain("'job.read@own'");
+      expect(sql).toMatch(/'job\.update#\d@all'/u);
+      expect(sql).toContain("permission || coalesce('@' || c.level, '')");
+      expect(sql).not.toMatch(/service_role/iu);
+    });
 
-  it("emits the custom-role write functions in database mode only", async () => {
-    const leveled = await generate(appWith(true, "database", true));
-    for (const name of [
-      "permdock_custom_role_beyond",
-      "permdock_custom_role_guard",
-      "permdock_replace_custom_role_grants",
-      "permdock_rename_custom_role_grants",
-      "permdock_delete_custom_role_grants",
-    ]) {
+    it("reads key@level claim entries (jwt)", async () => {
+      const sql = await generate(appWith(true, "jwt"));
+      expect(sql).toContain("'job.read@own'");
+      expect(sql).not.toContain("custom_role_permissions");
+      expect(sql).toContain("split_part(");
+    });
+
+    it("emits nothing level-shaped without declared levels", async () => {
+      for (const authorize of ["database", "jwt"] as const) {
+        const sql = await generate(appWith(false, authorize));
+        expect(sql).not.toContain("@own");
+        expect(sql).not.toContain("c.level");
+        expect(sql).not.toContain("add column if not exists level");
+        expect(sql).not.toContain("allowed_levels");
+      }
+    });
+
+    it("maps a stored former key before splitting off its level", async () => {
+      const sql = await generate(appWith(true, "database", true));
+      expect(sql).toContain("('task.read', 'job.read')");
+      expect(sql).toContain("allowed_levels");
+    });
+
+    it("emits the custom-role write functions in database mode only", async () => {
+      const leveled = await generate(appWith(true, "database", true));
+      for (const name of [
+        "permdock_custom_role_beyond",
+        "permdock_custom_role_guard",
+        "permdock_replace_custom_role_grants",
+        "permdock_rename_custom_role_grants",
+        "permdock_delete_custom_role_grants",
+      ]) {
+        expect(leveled).toContain(
+          `create or replace function "permdock".${name}(`,
+        );
+      }
       expect(leveled).toContain(
-        `create or replace function "permdock".${name}(`,
+        'grant execute on function "permdock".permdock_replace_custom_role_grants(text, text, text, text, text[], text[], text[]) to authenticated;',
       );
-    }
-    expect(leveled).toContain(
-      'grant execute on function "permdock".permdock_replace_custom_role_grants(text, text, text, text, text[], text[], text[]) to authenticated;',
-    );
-    expect(leveled).toContain(
-      'revoke execute on function "permdock".permdock_custom_role_beyond(text, text, text, text[], text[], text[]) from public, anon, authenticated;',
-    );
-    expect(leveled).toContain(
-      "reach (grant_key, level) as (values ('job.read', 'all'), ('job.read', 'own')",
-    );
-    expect(leveled).toContain("when 'task.read' then 'job.read'");
-    expect(leveled).toContain("hint = 'unknown-level'");
-    expect(leveled).not.toMatch(/service_role/iu);
-    const plain = await generate(appWith(false, "database"));
-    expect(plain).toContain("permdock_replace_custom_role_grants");
-    expect(plain).not.toContain("reach (grant_key, level)");
-    expect(plain).not.toContain("unknown-level");
-    expect(plain).toContain("if false then");
-    const jwt = await generate(appWith(true, "jwt"));
-    expect(jwt).not.toContain("permdock_replace_custom_role_grants");
-  });
+      expect(leveled).toContain(
+        'revoke execute on function "permdock".permdock_custom_role_beyond(text, text, text, text[], text[], text[]) from public, anon, authenticated;',
+      );
+      expect(leveled).toContain(
+        "reach (grant_key, level) as (values ('job.read', 'all'), ('job.read', 'own')",
+      );
+      expect(leveled).toContain("when 'task.read' then 'job.read'");
+      expect(leveled).toContain("hint = 'unknown-level'");
+      expect(leveled).not.toMatch(/service_role/iu);
+      const plain = await generate(appWith(false, "database"));
+      expect(plain).toContain("permdock_replace_custom_role_grants");
+      expect(plain).not.toContain("reach (grant_key, level)");
+      expect(plain).not.toContain("unknown-level");
+      expect(plain).toContain("if false then");
+      const jwt = await generate(appWith(true, "jwt"));
+      expect(jwt).not.toContain("permdock_replace_custom_role_grants");
+    });
 
-  it("reaches only the levels whose condition a conditioned grant matches", async () => {
-    const sql = await generate(appWith(true, "database", false, true));
-    const reach = /reach \(grant_key, level\) as \(values ([^\n]+)\)/u.exec(
-      sql,
-    )?.[1];
-    expect(reach).toContain(
-      "('job.update#3', 'own'), ('job.update#3@own', 'own')",
-    );
-    expect(reach).not.toContain("('job.update#3', 'all')");
-    expect(reach).not.toContain("'job.update#3@all'");
-    expect(reach).toContain("('job.update#1', 'all'), ('job.update#1', 'own')");
-  });
+    it("reaches only the levels whose condition a conditioned grant matches", async () => {
+      const sql = await generate(appWith(true, "database", false, true));
+      const reach = /reach \(grant_key, level\) as \(values ([^\n]+)\)/u.exec(
+        sql,
+      )?.[1];
+      expect(reach).toContain(
+        "('job.update#3', 'own'), ('job.update#3@own', 'own')",
+      );
+      expect(reach).not.toContain("('job.update#3', 'all')");
+      expect(reach).not.toContain("'job.update#3@all'");
+      expect(reach).toContain(
+        "('job.update#1', 'all'), ('job.update#1', 'own')",
+      );
+    });
 
-  it("gives an instance create one row-helper branch per level", async () => {
-    const sql = await generate(appWith(true, "database", false, false, true));
-    const arm = /\n {4}when 'job\.create' then ([^\n]+)/u.exec(sql)?.[1];
-    expect(arm).toBe(
-      `coalesce((("orgId" in (select "permdock".permitted_tenant_ids('job.create'))) or (("orgId" in (select "permdock".permitted_tenant_ids('job.create@own'))) and ("ownerId" = (select "permdock".permdock_user_id()))) or ("orgId" in (select "permdock".permitted_tenant_ids('job.create@all')))), false)`,
-    );
-    expect(sql).toContain(
-      'create or replace function "permdock".permitted_job_row(p_row "public"."job", p_permission text)',
-    );
-  });
+    it("gives an instance create one row-helper branch per level", async () => {
+      const sql = await generate(appWith(true, "database", false, false, true));
+      const arm = /\n {4}when 'job\.create' then ([^\n]+)/u.exec(sql)?.[1];
+      expect(arm).toBe(
+        `coalesce((("orgId" in (select "permdock".permitted_tenant_ids('job.create'))) or (("orgId" in (select "permdock".permitted_tenant_ids('job.create@own'))) and ("ownerId" = (select "permdock".permdock_user_id()))) or ("orgId" in (select "permdock".permitted_tenant_ids('job.create@all')))), false)`,
+      );
+      expect(sql).toContain(
+        'create or replace function "permdock".permitted_job_row(p_row "public"."job", p_permission text)',
+      );
+    });
 
-  it("passes levels to the rbac scaffold", async () => {
-    const sql = await generate(appWith(true, "database"), [
-      "--rbac",
-      "supabase",
-    ]);
-    expect(sql).toContain("coalesce('@' || c.level, '')");
-    expect(sql).toContain('create or replace function "permdock"."authorize"(');
-  });
+    it("passes levels to the rbac scaffold", async () => {
+      const sql = await generate(appWith(true, "database"), [
+        "--rbac",
+        "supabase",
+      ]);
+      expect(sql).toContain("coalesce('@' || c.level, '')");
+      expect(sql).toContain(
+        'create or replace function "permdock"."authorize"(',
+      );
+    });
 
-  it("checks rls.customRoleWrites.requires before the hand-out check", async () => {
-    const requiring = (requires: string): string => {
-      const dir = appWith(false, "database");
-      const configPath = join(dir, "permdock.config.ts");
-      writeFileSync(
-        configPath,
-        readFileSync(configPath, "utf8").replace(
-          "customRoles: true,",
-          `customRoles: true,\n    customRoleWrites: { requires: ${requires} },`,
+    it("checks rls.customRoleWrites.requires before the hand-out check", async () => {
+      const requiring = (requires: string): string => {
+        const dir = appWith(false, "database");
+        const configPath = join(dir, "permdock.config.ts");
+        writeFileSync(
+          configPath,
+          readFileSync(configPath, "utf8").replace(
+            "customRoles: true,",
+            `customRoles: true,\n    customRoleWrites: { requires: ${requires} },`,
+          ),
+        );
+        return dir;
+      };
+      const sql = await generate(requiring("['job.update']"));
+      const guard = sql.slice(
+        sql.indexOf(
+          'create or replace function "permdock".permdock_custom_role_guard(',
         ),
       );
-      return dir;
-    };
-    const sql = await generate(requiring("['job.update']"));
-    const guard = sql.slice(
-      sql.indexOf(
-        'create or replace function "permdock".permdock_custom_role_guard(',
-      ),
-    );
-    const check = guard.indexOf("hint = 'manage-roles'");
-    expect(check).toBeGreaterThan(guard.indexOf("hint = 'not-member'"));
-    expect(check).toBeLessThan(guard.indexOf("hint = 'not-assignable-by'"));
-    expect(guard).toContain("rp.permission = any(array['job.update']::text[])");
-    expect(await generate(appWith(false, "database"))).not.toContain(
-      "manage-roles",
-    );
-    for (const [requires, message] of [
-      ["'manageRoles'", "no permission declares meta.manageRoles"],
-      ["['job.nope']", "undeclared permissions: job.nope"],
-      ["[]", "names no permission"],
-    ] as const) {
-      const result = await run(
-        ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
-        { cwd: requiring(requires) },
+      const check = guard.indexOf("hint = 'manage-roles'");
+      expect(check).toBeGreaterThan(guard.indexOf("hint = 'not-member'"));
+      expect(check).toBeLessThan(guard.indexOf("hint = 'not-assignable-by'"));
+      expect(guard).toContain(
+        "rp.permission = any(array['job.update']::text[])",
       );
-      expect(result.code).toBe(2);
-      expect(result.stderr).toContain(message);
-    }
+      expect(await generate(appWith(false, "database"))).not.toContain(
+        "manage-roles",
+      );
+      for (const [requires, message] of [
+        ["'manageRoles'", "no permission declares meta.manageRoles"],
+        ["['job.nope']", "undeclared permissions: job.nope"],
+        ["[]", "names no permission"],
+      ] as const) {
+        const result = await run(
+          ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
+          { cwd: requiring(requires) },
+        );
+        expect(result.code).toBe(2);
+        expect(result.stderr).toContain(message);
+      }
+    });
   });
-});
 
-describe("leveled grant keys across roles", () => {
-  it("gives an assignable and a non-assignable role the same leveled keys", async () => {
-    const sql = await generate(appWith(true, "database"));
-    const keys = (role: string): string[] =>
-      [
-        ...sql.matchAll(
-          new RegExp(`\\('${role}', 'job\\.update', '([^']+)',`, "gu"),
-        ),
-      ]
-        .map((match) => match[1] ?? "")
-        .filter((key) => key.includes("@"))
-        .toSorted();
-    expect(keys("owner")).toStrictEqual([
-      "job.update#1@all",
-      "job.update#1@own",
-    ]);
-    expect(keys("admin")).toStrictEqual(keys("owner"));
+  describe("leveled grant keys across roles", () => {
+    it("gives an assignable and a non-assignable role the same leveled keys", async () => {
+      const sql = await generate(appWith(true, "database"));
+      const keys = (role: string): string[] =>
+        [
+          ...sql.matchAll(
+            new RegExp(`\\('${role}', 'job\\.update', '([^']+)',`, "gu"),
+          ),
+        ]
+          .map((match) => match[1] ?? "")
+          .filter((key) => key.includes("@"))
+          .toSorted();
+      expect(keys("owner")).toStrictEqual([
+        "job.update#1@all",
+        "job.update#1@own",
+      ]);
+      expect(keys("admin")).toStrictEqual(keys("owner"));
+    });
   });
 });

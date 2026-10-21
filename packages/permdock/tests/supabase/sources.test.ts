@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import type { SqlQuery } from "../../src/supabase/sources.ts";
+
 import {
-  type SqlQuery,
   authzVersion,
   junctionMembershipSource,
   supabasePostgresQuery,
@@ -54,7 +55,7 @@ describe("tableMembershipSource conformance", () => {
   );
 });
 
-describe("tableMembershipSource", () => {
+describe(tableMembershipSource, () => {
   it("selects one row per instance with the default columns", () => {
     const { sql } = tableMembershipSource({ table: "memberships" });
     expect(sql.table).toBe("memberships");
@@ -267,7 +268,7 @@ having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where 
   });
 });
 
-describe("junctionMembershipSource", () => {
+describe(junctionMembershipSource, () => {
   it("reads a one-scope table with a role column and ancestor columns", async () => {
     const { query, calls } = recording([
       {
@@ -370,7 +371,7 @@ describe("junctionMembershipSource", () => {
   });
 });
 
-describe("supabasePostgresQuery", () => {
+describe(supabasePostgresQuery, () => {
   it("runs tableMembershipSource lookups through ctx.postgres.queryRaw", async () => {
     const calls: { text: string; params: unknown[] | undefined }[] = [];
     const postgres = {
@@ -394,7 +395,7 @@ describe("supabasePostgresQuery", () => {
   });
 });
 
-describe("authzVersion", () => {
+describe(authzVersion, () => {
   it.each([
     [[{ version: 4 }], 4],
     [[{ version: "7" }], 7],

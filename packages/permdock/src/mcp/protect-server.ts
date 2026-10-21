@@ -5,6 +5,8 @@ import type {
 } from "@modelcontextprotocol/server";
 
 import type { Permission, ToolHints } from "../core/permission-types.ts";
+import type { McpChecks } from "./call-check.ts";
+import type { Context, Reach } from "./mcp-auth.ts";
 import type {
   GuardedMcpServer,
   McpProcedureEnforcement,
@@ -15,10 +17,8 @@ import { boundedMap } from "../agent/lru.ts";
 import { isRecord } from "../core/compact.ts";
 import { challengeScope, scopesReaching } from "../core/oauth-scopes.ts";
 import { annotationsFor } from "../core/permission-leaf.ts";
-import { type McpChecks, guard, reachOf, visible } from "./call-check.ts";
+import { guard, reachOf, visible } from "./call-check.ts";
 import {
-  type Context,
-  type Reach,
   challengeFor,
   contextOf,
   declaredScopes,

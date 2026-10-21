@@ -2,6 +2,7 @@ import type { Scope } from "../../core/scopes.ts";
 import type { Policy } from "../../index.ts";
 import type { RoleSource } from "../../supabase/roles.ts";
 import type { SqlMembershipSource } from "../../supabase/sources.ts";
+import type { RlsGrant } from "../sql/grants.ts";
 import type { PermDockConfig } from "../types.ts";
 import type { StreamDialect } from "./streams.ts";
 
@@ -10,7 +11,7 @@ import { policyLevels } from "../../core/policy.ts";
 import { SQL_IDENT } from "../../core/sql.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { andConditions } from "../sql/conditions.ts";
-import { type RlsGrant, assignableRoles } from "../sql/grants.ts";
+import { assignableRoles } from "../sql/grants.ts";
 import { CUSTOM_ROLES, customRolesOn } from "../sql/shared.ts";
 import { CUSTOM_ROLE, bare, fromTable, quotedTable } from "./names.ts";
 import {

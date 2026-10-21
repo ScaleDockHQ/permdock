@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import type { Policy } from "../../src/index.ts";
+
 import { collectGrants, roleNames } from "../../src/cli/sql/grants.ts";
 import {
-  type Policy,
   actor,
   allow,
   anyone,
@@ -27,7 +28,7 @@ const permissions = definePermissions({
 });
 const roles = defineRoles({ owner: {}, auditor: {} });
 
-describe("collectGrants", () => {
+describe(collectGrants, () => {
   it("collects role grants and top-level grants", () => {
     const policy = definePolicy(
       { permissions, roles },

@@ -1,4 +1,6 @@
-import { createMemo, useContext, type JSX } from "solid-js";
+import type { JSX } from "solid-js";
+
+import { createMemo, useContext } from "solid-js";
 
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { ProtectedProps, SolidChild } from "./types.ts";

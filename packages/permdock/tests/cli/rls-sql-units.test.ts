@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { Condition } from "../../src/index.ts";
 
 import {
@@ -20,10 +21,7 @@ import {
   contextRefs,
   sqlFunctionNames,
 } from "../../src/cli/sql/conditions.ts";
-import {
-  type RlsSqlContext,
-  parseMembershipsFlag,
-} from "../../src/cli/sql/context.ts";
+import { parseMembershipsFlag } from "../../src/cli/sql/context.ts";
 import {
   graphHelper,
   graphSqlName,

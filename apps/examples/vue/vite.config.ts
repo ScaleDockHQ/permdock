@@ -1,5 +1,7 @@
+import type { Plugin } from "vite";
+
 import vue from "@vitejs/plugin-vue";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig } from "vite";
 
 type HealthRequest = { readonly url?: string };
 type HealthResponse = { statusCode: number; end: (body: string) => void };

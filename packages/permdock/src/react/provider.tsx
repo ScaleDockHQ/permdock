@@ -1,4 +1,6 @@
-import { type ReactElement, useLayoutEffect, useMemo } from "react";
+import type { ReactElement } from "react";
+
+import { useLayoutEffect, useMemo } from "react";
 
 import type { PermDockProviderProps } from "./types.ts";
 

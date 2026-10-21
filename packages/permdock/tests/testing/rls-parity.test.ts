@@ -41,7 +41,7 @@ const policy = definePolicy(permissions, {
 const own = { id: "p1", authorId: "u1" };
 const other = { id: "p2", authorId: "u9" };
 
-describe("testRlsParity", () => {
+describe(testRlsParity, () => {
   it("agrees when the database filters a denied update", async () => {
     const report = await testRlsParity(policy, {
       dialect: "guc",

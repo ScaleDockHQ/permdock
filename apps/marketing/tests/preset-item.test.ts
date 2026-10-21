@@ -13,7 +13,7 @@ import { presetItem } from "../lib/preset-item";
 
 const ORIGIN = "https://permdock.com";
 
-describe("presetItem", () => {
+describe(presetItem, () => {
   it("builds a valid shadcn registry block that writes the preset's files", () => {
     const code = encodePreset(
       resolvePreset({

@@ -1,13 +1,12 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import type { SupportSession } from "../../src/core/support-session.ts";
+
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { memorySettingsSource } from "../../src/core/memory-sources.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
-import {
-  type SupportSession,
-  parseSupportSession,
-} from "../../src/core/support-session.ts";
+import { parseSupportSession } from "../../src/core/support-session.ts";
 import { decideSupportSession } from "../../src/index.ts";
 import {
   permdockFor,
@@ -37,7 +36,7 @@ const request = {
   reason: "Ticket 4411: invoice totals look wrong",
 };
 
-describe("parseSupportSession", () => {
+describe(parseSupportSession, () => {
   it("keeps the v1 fields and freezes the copy", () => {
     expect(parseSupportSession({ ...session, extra: 1 })).toStrictEqual(
       session,
@@ -65,7 +64,7 @@ describe("parseSupportSession", () => {
   });
 });
 
-describe("decideSupportSession", () => {
+describe(decideSupportSession, () => {
   const staff = permdockFor(userSubject("u_staff", ["billing"]));
 
   it("asks for approval by default and defaults to the actor's read-only permissions", async () => {

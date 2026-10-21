@@ -29,7 +29,7 @@ describe("asRoles and asStatements", () => {
   });
 });
 
-describe("expiresAtSeconds", () => {
+describe(expiresAtSeconds, () => {
   it("accepts seconds, milliseconds, dates and date strings", () => {
     expect([
       expiresAtSeconds(1_700_000_000),
@@ -53,7 +53,7 @@ describe("expiresAtSeconds", () => {
   });
 });
 
-describe("parseMemberRows", () => {
+describe(parseMemberRows, () => {
   it("keeps only rows of the caller with a tenant and roles", () => {
     expect(
       parseMemberRows(
@@ -94,7 +94,7 @@ describe("parseMemberRows", () => {
   });
 });
 
-describe("parseTeamRows", () => {
+describe(parseTeamRows, () => {
   it("reads the team and tenant from the row or the nested team", () => {
     expect(
       parseTeamRows(
@@ -124,7 +124,7 @@ describe("parseTeamRows", () => {
   });
 });
 
-describe("parseOrganizationRoles", () => {
+describe(parseOrganizationRoles, () => {
   it("reads role or name and any statements key", () => {
     expect(
       parseOrganizationRoles({
@@ -145,7 +145,7 @@ describe("parseOrganizationRoles", () => {
   });
 });
 
-describe("statementsCover", () => {
+describe(statementsCover, () => {
   it("requires every resource and action", () => {
     const held = { post: ["read", "update"] };
     expect([

@@ -338,8 +338,8 @@ describe("PermDock outputs: compact JWS with registered headers", () => {
         aud: "https://api.example.com",
         exp: NOW + 60,
       });
-      expect(typeof claims.iat).toBe("number");
-      expect(typeof claims.jti).toBe("string");
+      expect(claims.iat).toBeTypeOf("number");
+      expect(claims.jti).toBeTypeOf("string");
       const verifier = joseTokenVerifier({
         jwks: { keys: jwks?.keys ?? [] },
         issuer: ISSUER,

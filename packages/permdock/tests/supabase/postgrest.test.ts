@@ -80,7 +80,7 @@ describe("postgrestSources api", () => {
   });
 });
 
-describe("postgrestSources", () => {
+describe(postgrestSources, () => {
   it("reads one record per user and builds the subject the hook would mint", async () => {
     const calls: string[] = [];
     const sources = postgrestSources(fakeClient({ u1: owner }, calls), {

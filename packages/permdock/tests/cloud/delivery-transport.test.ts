@@ -109,7 +109,7 @@ testDeliveryTransport("cloudDeliveryTransport", {
   },
 });
 
-describe("cloudDeliveryTransport", () => {
+describe(cloudDeliveryTransport, () => {
   it("posts the checked recipient, the permission that let it through and the message", async () => {
     const fake = fakeCloud();
     const transport = cloudDeliveryTransport("email", options(fake));

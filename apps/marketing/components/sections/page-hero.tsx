@@ -6,7 +6,9 @@ import { ButtonLink } from "@/components/site/button-link";
 import { SiteLink } from "@/components/site/site-link";
 import { Badge } from "@permdock/ui/reui/badge";
 
-import { PageHeroFeatures, type PageHeroFeature } from "./page-hero-features";
+import type { PageHeroFeature } from "./page-hero-features";
+
+import { PageHeroFeatures } from "./page-hero-features";
 
 export function PageHero({
   badge,

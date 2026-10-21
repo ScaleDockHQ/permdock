@@ -76,7 +76,7 @@ async function json(response: Response): Promise<Record<string, unknown>> {
   return (await response.json()) as Record<string, unknown>;
 }
 
-describe("memoryDirectoryStore", () => {
+describe(memoryDirectoryStore, () => {
   it("round-trips users and groups and isolates tenants", async () => {
     const store = memoryDirectoryStore();
     const user = await store.putUser(TENANT, {
@@ -170,7 +170,7 @@ describe("memoryDirectoryStore", () => {
   });
 });
 
-describe("directoryMembershipSource", () => {
+describe(directoryMembershipSource, () => {
   it("returns tenant memberships via groups and nothing for inactive users", async () => {
     const store = memoryDirectoryStore();
     const user = await store.putUser(TENANT, {
@@ -348,7 +348,7 @@ describe("identity-provider memberships hold only assignable roles", () => {
   });
 });
 
-describe("scimHandler", () => {
+describe(scimHandler, () => {
   it("rejects a missing or wrong bearer with a SCIM Error", async () => {
     const { handle } = handler();
     const missing = await handle(request("/Users", {}, ""));
@@ -669,7 +669,7 @@ describe("scimHandler", () => {
     );
     expect(first["itemsPerPage"]).toBe(2);
     expect(first["totalResults"]).toBe(3);
-    expect(typeof first["nextCursor"]).toBe("string");
+    expect(first["nextCursor"]).toBeTypeOf("string");
     const second = await json(
       await handle(
         request(`/Users?cursor=${String(first["nextCursor"])}&count=2`),

@@ -1,7 +1,8 @@
+import type { Instant } from "../../core/time.ts";
 import type { Membership } from "../../index.ts";
 
 import { isRecord } from "../../core/compact.ts";
-import { type Instant, secondsAt } from "../../core/time.ts";
+import { secondsAt } from "../../core/time.ts";
 import { saasMemberships } from "./seed.ts";
 
 type EcJwk = {

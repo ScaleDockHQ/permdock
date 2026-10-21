@@ -464,7 +464,7 @@ describe("signSnapshot and signPolicyDocument", () => {
   });
 });
 
-describe("parseApprovalRequest", () => {
+describe(parseApprovalRequest, () => {
   const request = {
     v: 1,
     id: "apr_1",

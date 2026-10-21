@@ -1,10 +1,13 @@
+import type {
+  ArgumentsHost,
+  CanActivate,
+  DynamicModule,
+  ExceptionFilter,
+  ExecutionContext,
+  Type,
+} from "@nestjs/common";
+
 import {
-  type ArgumentsHost,
-  type CanActivate,
-  type DynamicModule,
-  type ExceptionFilter,
-  type ExecutionContext,
-  type Type,
   Catch,
   Controller,
   Get,
@@ -27,6 +30,7 @@ import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type { TenantScope } from "../server/create.ts";
 import type { OpenApiHooks, ProtectOptions } from "../server/server-types.ts";
+import type { NestHttpRequest } from "./http.ts";
 
 import {
   compact,
@@ -44,7 +48,7 @@ import {
   InvalidSignatureError,
 } from "../server/kit.ts";
 import { decorateMethod } from "./decorate.ts";
-import { sendNestResponse, toRequest, type NestHttpRequest } from "./http.ts";
+import { sendNestResponse, toRequest } from "./http.ts";
 
 const PROTECT_KEY = "permdock:protect";
 

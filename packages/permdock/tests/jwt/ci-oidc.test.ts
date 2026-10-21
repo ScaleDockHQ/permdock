@@ -44,7 +44,7 @@ async function ciToken(
     .sign(key);
 }
 
-describe("subjectFromCiOidc", () => {
+describe(subjectFromCiOidc, () => {
   it("maps a GitHub Actions token to a workload", async () => {
     const token = await ciToken("https://token.actions.githubusercontent.com", {
       sub: "repo:acme/api:environment:production",

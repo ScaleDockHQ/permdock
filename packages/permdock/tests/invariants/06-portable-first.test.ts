@@ -153,9 +153,9 @@ describe("invariant 6: every operator is portable or refuses explicitly", () => 
       });
 
       it("evaluates in process to a boolean", () => {
-        expect(
-          typeof evaluateCondition(sample.condition, row, subject, 0),
-        ).toBe("boolean");
+        expect(evaluateCondition(sample.condition, row, subject, 0)).toBeTypeOf(
+          "boolean",
+        );
       });
 
       it("is plain JSON that round-trips", () => {
@@ -178,7 +178,7 @@ describe("invariant 6: every operator is portable or refuses explicitly", () => 
       });
 
       it(`RLS SQL: ${sample.rls}`, () => {
-        expect(typeof compileConditionSql(sample.condition, rlsContext)).toBe(
+        expect(compileConditionSql(sample.condition, rlsContext)).toBeTypeOf(
           "string",
         );
       });

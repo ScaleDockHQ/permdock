@@ -1,42 +1,34 @@
+import type { Scope } from "../../core/scopes.ts";
+import type { Condition, ConditionValue, Policy } from "../../index.ts";
 import type { RoleSource } from "../../supabase/roles.ts";
 import type {
   MembershipStream,
   SqlMembershipSource,
 } from "../../supabase/sources.ts";
+import type { RlsGrant } from "../sql/grants.ts";
 import type {
   GlobalRoles,
   PermDockConfig,
   RlsMembershipTable,
   RoleThrough,
 } from "../types.ts";
+import type { TableNames } from "./names.ts";
 
 import { isConditionDate, isConditionRef } from "../../conditions/ast.ts";
 import { scopeColumn, scopeMembershipTable } from "../../conditions/compile.ts";
-import { type Scope, resolveScope, scopeList } from "../../core/scopes.ts";
+import { resolveScope, scopeList } from "../../core/scopes.ts";
 import { quoteSqlLiteral, SQL_IDENT } from "../../core/sql.ts";
-import {
-  type Condition,
-  type ConditionValue,
-  type Policy,
-  requiresApproval,
-} from "../../index.ts";
+import { requiresApproval } from "../../index.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { ownershipRules } from "../rls/ownership.ts";
 import { tableFor } from "../sql/compile.ts";
 import { contextRefs } from "../sql/conditions.ts";
-import { type RlsGrant, collectGrants, roleNames } from "../sql/grants.ts";
+import { collectGrants, roleNames } from "../sql/grants.ts";
 import { CUSTOM_ROLES, customRolesOn } from "../sql/shared.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
 import { tableNames } from "../sql/tables.ts";
 import { customRoleItems } from "./levels.ts";
-import {
-  CUSTOM_ROLE,
-  type TableNames,
-  bare,
-  fromTable,
-  ident,
-  renames,
-} from "./names.ts";
+import { CUSTOM_ROLE, bare, fromTable, ident, renames } from "./names.ts";
 import {
   ownRows,
   roleTableRows,

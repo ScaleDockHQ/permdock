@@ -522,7 +522,7 @@ describe("email standards", () => {
   });
 });
 
-describe("memoryDeliveryTransport", () => {
+describe(memoryDeliveryTransport, () => {
   it("refuses a target without a granted decision", async () => {
     const mail = memoryDeliveryTransport("email");
     const result = await mail.deliver(

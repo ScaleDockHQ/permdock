@@ -1,14 +1,23 @@
 import { basename } from "node:path";
 
+import type { Policy } from "../../index.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { PermDockConfig, RlsShimsConfig } from "../types.ts";
 import type { GenerateContext } from "./generate-context.ts";
+import type {
+  GenerateOptions,
+  Refusal,
+  RlsGenerateInput,
+} from "./generate-options.ts";
 import type { SplitSql } from "./generate-output.ts";
+import type { GeneratedPolicies } from "./generate-policies.ts";
+import type { RolePermission } from "./helpers.ts";
+import type { IndexTarget } from "./indexes.ts";
 
 import { compact } from "../../core/compact.ts";
 import { renamedKeys } from "../../core/permission-registry.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
-import { type Policy, listPermissions } from "../../index.ts";
+import { listPermissions } from "../../index.ts";
 import { describeError } from "../core/errors.ts";
 import { INDEXES_MARKER, SEEDS_MARKER } from "../sql/markers.ts";
 import { graphHelper, scopeTable } from "../sql/names.ts";
@@ -33,21 +42,11 @@ import {
   migrationSql,
 } from "./emit.ts";
 import { rowBranches } from "./fields.ts";
-import {
-  type GenerateOptions,
-  type Refusal,
-  type RlsGenerateInput,
-  isRefusal,
-  splitsPart,
-} from "./generate-options.ts";
-import {
-  type GeneratedPolicies,
-  generatePolicies,
-  withHelperTables,
-} from "./generate-policies.ts";
+import { isRefusal, splitsPart } from "./generate-options.ts";
+import { generatePolicies, withHelperTables } from "./generate-policies.ts";
 import { graphSql } from "./graph.ts";
-import { type RolePermission, helpersSql, seedSql } from "./helpers.ts";
-import { type IndexTarget, indexTargets, indexesSql } from "./indexes.ts";
+import { helpersSql, seedSql } from "./helpers.ts";
+import { indexTargets, indexesSql } from "./indexes.ts";
 import { ownershipSql } from "./ownership.ts";
 import { permissionHoldersSql } from "./permission-holders.ts";
 import { permissionHelpersSql } from "./permission-keys.ts";

@@ -1,9 +1,10 @@
+import type { JSX } from "solid-js";
+
 import {
   createComponent,
   createContext,
   ErrorBoundary,
   useContext,
-  type JSX,
 } from "solid-js";
 
 import type { PermissionBoundaryState } from "../client/boundary.ts";

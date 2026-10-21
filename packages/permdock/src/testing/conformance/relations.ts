@@ -43,7 +43,7 @@ export function testRelationSource(
       });
       expect(Array.isArray(full.ancestors)).toBe(true);
       for (const ancestor of full.ancestors) {
-        expect(typeof ancestor.id).toBe("string");
+        expect(ancestor.id).toBeTypeOf("string");
         expect(ancestor.id).not.toBe("");
       }
       expect(full.ancestors.length).toBeLessThanOrEqual(32);
@@ -94,11 +94,11 @@ export function testRelationSource(
             holder.group.id,
             holder.group.relation,
           ]) {
-            expect(typeof part).toBe("string");
+            expect(part).toBeTypeOf("string");
             expect(part).not.toBe("");
           }
         } else {
-          expect(typeof holder.principal.id).toBe("string");
+          expect(holder.principal.id).toBeTypeOf("string");
         }
         for (const instant of [holder.startsAt, holder.expiresAt]) {
           expect(

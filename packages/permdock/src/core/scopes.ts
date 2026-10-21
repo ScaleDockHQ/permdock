@@ -1,6 +1,7 @@
+import type { AppData } from "./app-data.ts";
 import type { Membership, Subject } from "./subject.ts";
 
-import { type AppData, readAppData } from "./app-data.ts";
+import { readAppData } from "./app-data.ts";
 import { isRecord } from "./compact.ts";
 import { expirySeconds } from "./expiry.ts";
 import { freezeCopy } from "./freeze.ts";

@@ -1,9 +1,11 @@
+import type { IncomingMessage } from "node:http";
+
 import {
   bearerAuthChallengeResponse,
   createMcpHandler,
   verifyBearerToken,
 } from "@modelcontextprotocol/server";
-import { createServer, type IncomingMessage } from "node:http";
+import { createServer } from "node:http";
 import { resolveApproval } from "permdock/approvals";
 
 import { createProcedureServer } from "./procedures.ts";

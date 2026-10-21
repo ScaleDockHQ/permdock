@@ -2,6 +2,7 @@ import type { Decision } from "../core/decision.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { Report } from "../core/request-context.ts";
 import type { Principal } from "../core/subject.ts";
 import type { Boundary } from "../core/validation.ts";
 import type {
@@ -22,7 +23,6 @@ import { actorMayCallTool } from "../core/delegation.ts";
 import {
   buildReportingInstance,
   requestContext,
-  type Report,
 } from "../core/request-context.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { refusalText } from "./denied-text.ts";

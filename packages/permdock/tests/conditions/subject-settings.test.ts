@@ -19,7 +19,7 @@ function texts(holder: { readonly subject: Subject }, options = {}): string[] {
   return subjectStatements(holder, options).map(statementText);
 }
 
-describe("subjectStatements", () => {
+describe(subjectStatements, () => {
   it("sets authenticated and the JWT claims for Supabase and Neon", () => {
     for (const dialect of ["supabase", "neon"] as const) {
       const statements = subjectStatements(user, {

@@ -3,13 +3,11 @@ import type {
   PrincipalSource,
 } from "../core/principal-source.ts";
 import type { Principal } from "../core/subject.ts";
+import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 
 import { isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import {
-  type BetterSupabaseSubjectOptions,
-  subjectFromBetterSupabase,
-} from "./subject.ts";
+import { subjectFromBetterSupabase } from "./subject.ts";
 
 /**
  * Where an identity link points: an app user, whose claims `principal` loads,

@@ -1,15 +1,15 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it, vi } from "vitest";
 
+import type {
+  ShareLinkResolver,
+  ShareLinkRow,
+  ShareLinkSubjectOptions,
+} from "../../src/better-supabase/index.ts";
 import type { AuthEvent } from "../../src/core/event-types.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
-import {
-  type ShareLinkResolver,
-  type ShareLinkRow,
-  type ShareLinkSubjectOptions,
-  subjectFromShareLink,
-} from "../../src/better-supabase/index.ts";
+import { subjectFromShareLink } from "../../src/better-supabase/index.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
@@ -80,7 +80,7 @@ function permdockFor(subject: Subject) {
   return permdock;
 }
 
-describe("subjectFromShareLink", () => {
+describe(subjectFromShareLink, () => {
   it("builds a link subject holding the mapped roles on the row's subject", async () => {
     const subject = await subjectFromShareLink("tok", options());
     expect(subject.principal).toMatchObject({

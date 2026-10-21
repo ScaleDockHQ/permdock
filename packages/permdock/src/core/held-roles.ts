@@ -1,12 +1,13 @@
 import type { Policy } from "./policy-types.ts";
 import type { Subject } from "./subject.ts";
+import type { Role } from "./vocabulary.ts";
 
 import { compact } from "./compact.ts";
 import { sameId } from "./ids.ts";
 import { rankRoles } from "./role-rank.ts";
 import { resolveScope, scopeList, tenantOf } from "./scopes.ts";
 import { isMembershipExpired } from "./tenancy.ts";
-import { type Role, findRole, synthesiseRole } from "./vocabulary.ts";
+import { findRole, synthesiseRole } from "./vocabulary.ts";
 
 /**
  * Role names held in `tenant` on live memberships, global roles included, in

@@ -6,7 +6,7 @@ import {
 } from "../../src/openapi/index.ts";
 import { permissions } from "../fixtures/quick-start.ts";
 
-describe("operationPermissions", () => {
+describe(operationPermissions, () => {
   const operations = operationPermissions(
     {
       "GET /posts": permissions.post.list,

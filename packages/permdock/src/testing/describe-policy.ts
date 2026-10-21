@@ -1,13 +1,12 @@
 import { beforeAll, describe, expect, it } from "vitest";
 
 import type { Policy } from "../index.ts";
-
-import {
-  type DescribePolicyConfig,
-  policyMatrix,
-  policyMatrixLayout,
-  type PolicyMatrixReport,
+import type {
+  DescribePolicyConfig,
+  PolicyMatrixReport,
 } from "./policy-matrix.ts";
+
+import { policyMatrix, policyMatrixLayout } from "./policy-matrix.ts";
 
 /** `policyMatrix` under Vitest: one test per cell, plus the exhaustive check. */
 export function describePolicy<TSubject>(

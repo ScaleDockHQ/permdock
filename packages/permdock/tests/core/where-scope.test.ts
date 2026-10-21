@@ -2,14 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { Scope } from "../../src/core/scopes.ts";
 import type { SnapshotGrant } from "../../src/core/snapshot-types.ts";
+import type { WhereScope } from "../../src/core/where-scope.ts";
 
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
-import {
-  type WhereScope,
-  whereFromGrants,
-} from "../../src/core/where-scope.ts";
+import { whereFromGrants } from "../../src/core/where-scope.ts";
 
 const scopes: readonly Scope[] = [
   { name: "tenant", key: "orgId" },

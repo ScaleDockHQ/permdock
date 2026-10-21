@@ -8,14 +8,12 @@ import type { Decision } from "../core/decision.ts";
 import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
+import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 
 import { isRecord } from "../core/compact.ts";
 import { getPermDock } from "../core/permdock.ts";
 import { isPermission } from "../core/permission-registry.ts";
-import {
-  type BetterSupabaseSubjectOptions,
-  subjectFromBetterSupabase,
-} from "./subject.ts";
+import { subjectFromBetterSupabase } from "./subject.ts";
 
 /**
  * The table operations better-supabase's `permissions: true` resolves through

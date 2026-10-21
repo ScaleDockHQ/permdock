@@ -490,7 +490,7 @@ describe("RFC 9865 SCIM cursor pagination (October 2025)", () => {
     }
     const first = await body(await handle(request("/Users?cursor=&count=2")));
     expect(resources(first)).toHaveLength(2);
-    expect(typeof first["nextCursor"]).toBe("string");
+    expect(first["nextCursor"]).toBeTypeOf("string");
     const second = await body(
       await handle(
         request(`/Users?cursor=${String(first["nextCursor"])}&count=2`),

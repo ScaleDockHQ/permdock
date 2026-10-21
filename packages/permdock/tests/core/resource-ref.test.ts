@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { resourceIdOf, resourceRef } from "../../src/core/resource-ref.ts";
 import { ownPost, permissions } from "../fixtures/quick-start.ts";
 
-describe("resourceRef", () => {
+describe(resourceRef, () => {
   it("reads a string or number id from an object and ignores other values", () => {
     expect(resourceIdOf({ id: "p1" })).toBe("p1");
     expect(resourceIdOf({ id: 7 })).toBe("7");

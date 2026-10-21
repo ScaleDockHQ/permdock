@@ -108,7 +108,7 @@ const tables = {
   ],
 };
 
-describe("readRows", () => {
+describe(readRows, () => {
   it("lists every table the rows name, including through tables", () => {
     expect(rowTables(rows)).toStrictEqual([
       "seats",

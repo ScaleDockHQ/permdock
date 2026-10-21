@@ -5,11 +5,13 @@ import { joseTokenSigner } from "permdock/jwt";
 import { describePolicy, testCloudApi } from "permdock/testing";
 import { describe, expect, it } from "vitest";
 
+import type { User } from "../src/policy.ts";
+
 import { env } from "../src/env.ts";
 import { clientCredentials, cloudPdp } from "../src/pep-cloud.ts";
 import { localPdp, pepFor } from "../src/pep.ts";
 import { otherPost, ownPost, permissions } from "../src/permissions.ts";
-import { type User, adminUser, memberUser, policy } from "../src/policy.ts";
+import { adminUser, memberUser, policy } from "../src/policy.ts";
 import { permdockHandler } from "../src/server.ts";
 
 type Outcome = "granted" | "denied" | "approval-required";

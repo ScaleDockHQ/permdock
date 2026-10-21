@@ -89,7 +89,7 @@ describe("emitSql and migrationSql", () => {
   });
 });
 
-describe("emitDrizzle", () => {
+describe(emitDrizzle, () => {
   it("declares roles for guc and neon and escapes quotes and template text", () => {
     const anon = policy({
       roles: ["anon", "authenticated"],
@@ -142,7 +142,7 @@ describe("emitDrizzle", () => {
   });
 });
 
-describe("emitPrisma", () => {
+describe(emitPrisma, () => {
   it("lists every target model and writes withCheck", () => {
     const text = emitPrisma(
       [

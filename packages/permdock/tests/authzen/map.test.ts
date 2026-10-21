@@ -22,7 +22,7 @@ import {
 import { permissionLookup } from "../../src/server/evaluation-items.ts";
 import { permissions } from "../fixtures/quick-start.ts";
 
-describe("permissionOf", () => {
+describe(permissionOf, () => {
   it.each<[string, AuthzenItem, string | undefined]>([
     [
       "a full key as the action name",
@@ -184,7 +184,7 @@ describe("resource and subject mapping", () => {
   });
 });
 
-describe("evaluationRow", () => {
+describe(evaluationRow, () => {
   it("maps every outcome to the PermDock context", () => {
     const granted = { outcome: "granted" } as const;
     expect(

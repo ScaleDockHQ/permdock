@@ -1,5 +1,6 @@
 import type { PermissionTree, ResourceNode } from "./permission-types.ts";
 import type { Grant, RoleBinding, RoleScope } from "./policy-types.ts";
+import type { Scope } from "./scopes.ts";
 
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
@@ -12,7 +13,7 @@ import {
 import { flattenGrantee } from "./grantee.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { isFieldRelation, isSelfParented } from "./resource-relations.ts";
-import { type Scope, resolveScope } from "./scopes.ts";
+import { resolveScope } from "./scopes.ts";
 import { memberOfFields, relatesTo, scopeField } from "./tenancy.ts";
 
 export function assertParentGraph(

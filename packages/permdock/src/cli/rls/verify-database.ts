@@ -1,13 +1,17 @@
+import type { Scope } from "../../core/scopes.ts";
+import type { CustomRole, Policy } from "../../index.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { RlsFixture } from "../fixtures.ts";
 import type { SqlConnect } from "../pg.ts";
 import type { PermDockConfig } from "../types.ts";
 import type { RlsFinding } from "./verify-findings.ts";
+import type { VerifyIgnore } from "./verify-findings.ts";
+import type { InProcess, Subject } from "./verify-pgtap.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
-import { type Scope, scopeList } from "../../core/scopes.ts";
-import { type CustomRole, type Policy, findPermission } from "../../index.ts";
+import { scopeList } from "../../core/scopes.ts";
+import { findPermission } from "../../index.ts";
 import { describeError } from "../core/errors.ts";
 import {
   HELPER_TABLE_POLICIES_SQL,
@@ -17,14 +21,8 @@ import {
 import { quoteIdent, quoteTable } from "../sql/quote.ts";
 import { tableNameOf } from "../sql/tables.ts";
 import { FIELD_VIEWS, viewName } from "./fields.ts";
+import { rlsFinding, verifyResult } from "./verify-findings.ts";
 import {
-  type VerifyIgnore,
-  rlsFinding,
-  verifyResult,
-} from "./verify-findings.ts";
-import {
-  type InProcess,
-  type Subject,
   customRoleRows,
   customRoleSchema,
   rowId,

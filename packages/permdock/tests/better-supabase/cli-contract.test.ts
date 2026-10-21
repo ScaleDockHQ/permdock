@@ -4,11 +4,12 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 
+import type { ProblemCode } from "../../src/cli/core/errors.ts";
+
 import {
   cliProblem,
   exitCodeOfProblem,
   PROBLEM_CODES,
-  type ProblemCode,
 } from "../../src/cli/core/errors.ts";
 import { run } from "../../src/cli/core/run.ts";
 

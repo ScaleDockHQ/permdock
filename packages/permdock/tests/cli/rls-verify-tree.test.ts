@@ -37,7 +37,7 @@ function database(
   return { query, inserts, selects };
 }
 
-describe("verifyTree", () => {
+describe(verifyTree, () => {
   it("seeds every walked tree, its child rows and its edges in one pass", async () => {
     const db = database("none");
     const bound: string[] = [];

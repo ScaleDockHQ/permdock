@@ -16,7 +16,7 @@ const via = (table: string, extra: object = {}): RlsTable => ({
   via: { table, column: "org_id", ...extra },
 });
 
-describe("tableNameOf", () => {
+describe(tableNameOf, () => {
   it("falls back to the resource, a string, or the object's table", () => {
     expect(tableNameOf(undefined, "post")).toBe("post");
     expect(tableNameOf("app.posts", "post")).toBe("app.posts");
@@ -30,7 +30,7 @@ describe("tableNameOf", () => {
   });
 });
 
-describe("tableNames", () => {
+describe(tableNames, () => {
   it("reduces every entry to a table name and keeps undefined", () => {
     expect(tableNames(undefined)).toBeUndefined();
     expect(tableNames({ post: "posts", task: via("projects") })).toStrictEqual({
@@ -40,7 +40,7 @@ describe("tableNames", () => {
   });
 });
 
-describe("resolveVias", () => {
+describe(resolveVias, () => {
   it("answers undefined without a via entry", () => {
     expect(resolveVias(undefined, scopes, "supabase")).toBeUndefined();
     expect(resolveVias({ post: "posts" }, scopes, "supabase")).toBeUndefined();

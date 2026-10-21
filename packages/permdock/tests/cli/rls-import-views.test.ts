@@ -160,7 +160,7 @@ create view invoice_visible with (security_invoker) as select invoice.id from in
   });
 });
 
-describe("viewsSqlFromDb", () => {
+describe(viewsSqlFromDb, () => {
   it("rebuilds create view statements with only safe options", async () => {
     const sql: string[] = [];
     const text = await viewsSqlFromDb(async (statement) => {

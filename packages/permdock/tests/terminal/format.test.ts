@@ -63,7 +63,7 @@ describe("formatDecision without a permission", () => {
   });
 });
 
-describe("filterCommandEntries", () => {
+describe(filterCommandEntries, () => {
   const entries = [
     { name: "read", permission: permissions.post.read, description: "Read" },
   ];

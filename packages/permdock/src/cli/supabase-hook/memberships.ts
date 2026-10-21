@@ -1,3 +1,4 @@
+import type { Scope } from "../../core/scopes.ts";
 import type { SupabaseManifestMembership } from "../../supabase/manifest.ts";
 import type { SqlMembershipSource } from "../../supabase/sources.ts";
 import type {
@@ -8,7 +9,7 @@ import type {
 import type { Parts } from "./parts.ts";
 
 import { scopeColumn } from "../../conditions/compile.ts";
-import { type Scope, resolveScope, scopeChain } from "../../core/scopes.ts";
+import { resolveScope, scopeChain } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { roleManifest } from "../../supabase/roles.ts";
 import { configError } from "../core/errors.ts";

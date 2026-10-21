@@ -726,7 +726,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
   );
 });
 
-describe("subjectFromMcp", () => {
+describe(subjectFromMcp, () => {
   it("maps verified auth info to a principal, an mcp-client actor and a delegation", () => {
     const subject = subjectFromMcp(
       auth(["post:read", "post:update"], {

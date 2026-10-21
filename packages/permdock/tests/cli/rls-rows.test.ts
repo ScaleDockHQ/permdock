@@ -143,7 +143,7 @@ describe("permitted_<resource>_rows", () => {
   });
 });
 
-describe("levelKeys", () => {
+describe(levelKeys, () => {
   it("lists each level of an instance permission and whether it has a condition", () => {
     const levelled = definePermissions({
       job: resource({

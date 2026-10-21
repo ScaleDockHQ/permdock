@@ -38,7 +38,7 @@ const subjects = {
   ed: { id: "ed", role: "editor" },
 };
 
-describe("policyMatrix", () => {
+describe(policyMatrix, () => {
   it("decides each cell and lists no failures when the matrix holds", async () => {
     const report = await policyMatrix(policy, {
       subjects,

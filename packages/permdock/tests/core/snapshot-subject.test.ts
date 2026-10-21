@@ -36,7 +36,7 @@ const subject: Subject = {
   context: {},
 };
 
-describe("heldRoleNames", () => {
+describe(heldRoleNames, () => {
   it("lists global roles and the roles held in the tenant, ranked", () => {
     expect(
       heldRoleNames(subject, "o1", scopes, { rank: ["owner", "viewer"] }, 10),
@@ -77,7 +77,7 @@ describe("heldRoleNames", () => {
   });
 });
 
-describe("subjectFromSnapshot", () => {
+describe(subjectFromSnapshot, () => {
   const base: Snapshot = {
     v: 1,
     issuedAt: "1970-01-01T00:00:00Z",

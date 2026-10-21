@@ -1,4 +1,6 @@
 import type { Permission, Principal, WhereResult } from "permdock";
+import type { SqlQuery, SupabaseSuspension } from "permdock/supabase";
+import type { OrmParityScenario } from "permdock/testing";
 
 import { PGlite } from "@electric-sql/pglite";
 import { pgTable, text } from "drizzle-orm/pg-core";
@@ -7,12 +9,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock } from "permdock";
 import { toWhere } from "permdock/drizzle";
-import {
-  type SqlQuery,
-  type SupabaseSuspension,
-  subjectFromSupabase,
-} from "permdock/supabase";
-import { type OrmParityScenario, testOrmParity } from "permdock/testing";
+import { subjectFromSupabase } from "permdock/supabase";
+import { testOrmParity } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {

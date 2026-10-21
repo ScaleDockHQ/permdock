@@ -6,6 +6,7 @@ import type {
   WebMcpRegisteredTool,
   WebMcpToolResult,
 } from "../../src/webmcp/types.ts";
+import type { User } from "../fixtures/quick-start.ts";
 
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot, fromSnapshot } from "../../src/core/from-snapshot.ts";
@@ -17,7 +18,6 @@ import {
   ownPost,
   permissions,
   policy,
-  type User,
 } from "../fixtures/quick-start.ts";
 
 async function clientOf(user: User) {
@@ -52,7 +52,7 @@ function fakeContext(): {
   };
 }
 
-describe("registerTools", () => {
+describe(registerTools, () => {
   it("registers only snapshot-allowed tools for a member", async () => {
     const permdock = await clientOf(memberUser);
     const { context, tools } = fakeContext();
@@ -277,7 +277,7 @@ describe("registerTools", () => {
       readonly token: unknown;
     };
     expect(call.input).toStrictEqual(ownPost);
-    expect(typeof call.token).toBe("string");
+    expect(call.token).toBeTypeOf("string");
   });
 
   it("reads the input JSON Schema through the Standard JSON Schema input()", async () => {

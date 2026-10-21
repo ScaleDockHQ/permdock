@@ -1,8 +1,9 @@
+import type { ProblemDetails } from "../core/errors.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Connection } from "./connection.ts";
 import type { ProtectOptions } from "./server-types.ts";
 
-import { PermDockRevokedError, type ProblemDetails } from "../core/errors.ts";
+import { PermDockRevokedError } from "../core/errors.ts";
 
 export function isAsyncIterable(
   value: unknown,

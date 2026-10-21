@@ -57,7 +57,7 @@ describe("Agent Skills specification: SKILL.md", () => {
         readFileSync(path.join(SKILLS, folder, "SKILL.md"), "utf8"),
       );
       const name = meta["name"];
-      expect(typeof name).toBe("string");
+      expect(name).toBeTypeOf("string");
       expect(name).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/u);
       expect(String(name).length).toBeLessThanOrEqual(64);
       expect(name).toBe(folder);
@@ -88,7 +88,7 @@ describe("Agent Skills specification: SKILL.md", () => {
       const metadata = meta["metadata"];
       expect(metadata !== null && typeof metadata === "object").toBe(true);
       for (const value of Object.values(Object.assign({}, metadata))) {
-        expect(typeof value).toBe("string");
+        expect(value).toBeTypeOf("string");
       }
       for (const key of Object.keys(meta)) {
         expect([

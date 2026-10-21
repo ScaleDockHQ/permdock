@@ -26,7 +26,7 @@ const hookWith = (memberships: readonly SqlMembershipSource[]) => () =>
     supabase: { hook: { memberships } },
   });
 
-describe("activeFromSql", () => {
+describe(activeFromSql, () => {
   it("reads app_metadata, a table column or a mapped id column", () => {
     expect(activeFromSql(undefined, "organization")).toStrictEqual({
       sql: `claims -> 'app_metadata' ->> 'active_organization'`,

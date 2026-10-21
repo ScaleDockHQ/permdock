@@ -1,20 +1,20 @@
+import type { ApprovalStore } from "../../approvals/index.ts";
+import type {
+  CustomRoleSource,
+  Limits,
+  Principal,
+  RevocationFeed,
+  Subject,
+} from "../../index.ts";
 import type { SaasProject } from "../saas/permissions.ts";
 
+import { memoryApprovalStore } from "../../approvals/index.ts";
 import {
-  type ApprovalStore,
-  memoryApprovalStore,
-} from "../../approvals/index.ts";
-import {
-  type CustomRoleSource,
-  type Limits,
   limits,
   getPermDock,
   memoryCustomRoleSource,
   memoryLimitStore,
   memoryRevocationFeed,
-  type Principal,
-  type RevocationFeed,
-  type Subject,
 } from "../../index.ts";
 import { saasPolicy } from "../saas/policy.ts";
 import {

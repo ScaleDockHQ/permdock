@@ -48,7 +48,7 @@ const APPROVED: ApprovalRequest = {
   resolvedBy: "u_2",
 };
 
-describe("approvalSignatureClaims", () => {
+describe(approvalSignatureClaims, () => {
   it("carries act, the approvals in snake_case and one authorization_details entry", () => {
     expect(approvalSignatureClaims(APPROVED)).toStrictEqual({
       sub: "u_1",
@@ -92,7 +92,7 @@ describe("approvalSignatureClaims", () => {
   });
 });
 
-describe("signApproval", () => {
+describe(signApproval, () => {
   it("signs an approved request with jti, iat and exp from the record", async () => {
     const signer = joseTokenSigner({
       key: PRIVATE_JWK,

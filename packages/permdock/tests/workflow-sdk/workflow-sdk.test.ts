@@ -127,7 +127,7 @@ function setup() {
   return { hooks, store, workflow };
 }
 
-describe("workflowSdkWaiter", () => {
+describe(workflowSdkWaiter, () => {
   it("parks on a hook named after the approval token and wakes on resume", async () => {
     const hooks = fakeHooks();
     const waiter = workflowSdkWaiter(hooks);
@@ -230,7 +230,7 @@ describe("openApproval and resumeApproval", () => {
   });
 });
 
-describe("startAutomation", () => {
+describe(startAutomation, () => {
   it("starts the Workflow SDK run with the ticket first, and nothing when denied", async () => {
     const { workflow } = setup();
     const calls: unknown[][] = [];
@@ -265,7 +265,7 @@ describe("startAutomation", () => {
   });
 });
 
-describe("authorizeHook", () => {
+describe(authorizeHook, () => {
   it("resumes a hook only for a caller granted the permission", async () => {
     const hooks = fakeHooks();
     const waiting = hooks.createHook({ token: "input:inv_1" });

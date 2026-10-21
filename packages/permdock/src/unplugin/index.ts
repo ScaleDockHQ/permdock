@@ -3,13 +3,10 @@ import type { createUnplugin, UnpluginOptions } from "unplugin";
 import { createRequire } from "node:module";
 
 import type { PermDockPluginOptions } from "../cli/types.ts";
+import type { CollectScheduler } from "../cli/watch.ts";
 
 import { peerHint } from "../cli/core/peer.ts";
-import {
-  createCollectScheduler,
-  report,
-  type CollectScheduler,
-} from "../cli/watch.ts";
+import { createCollectScheduler, report } from "../cli/watch.ts";
 
 export type { PermDockPluginOptions } from "../cli/types.ts";
 

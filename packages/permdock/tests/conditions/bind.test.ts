@@ -13,7 +13,7 @@ const subject: Subject = {
   context: { region: "eu" },
 };
 
-describe("bindConditionRefs", () => {
+describe(bindConditionRefs, () => {
   it("replaces refs with the subject values", () => {
     expect(
       bindConditionRefs(

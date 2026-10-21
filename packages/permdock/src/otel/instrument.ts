@@ -1,16 +1,18 @@
 import type { DecisionEvent } from "../core/event-types.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
+import type {
+  OtelApi,
+  OtelOptions,
+  OtelSpan,
+  OtelTracer,
+  StructuralLogger,
+} from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { appObligationNames } from "../core/ocsf.ts";
 import { wrapPermDock } from "../core/wrap.ts";
 import {
-  type OtelApi,
-  type OtelOptions,
-  type OtelSpan,
-  type OtelTracer,
-  type StructuralLogger,
   ERROR_TYPE,
   GENAI_SEMCONV_PIN,
   GEN_AI_AGENT_ID,

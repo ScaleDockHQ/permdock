@@ -6,7 +6,7 @@ import { opaque } from "../../src/conditions/opaque.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import { sqlFunction } from "../../src/conditions/sql-function.ts";
 
-describe("normalizeWhere", () => {
+describe(normalizeWhere, () => {
   it("turns object shorthand into a tagged AST and flattens compounds", () => {
     const condition = normalizeWhere({
       authorId: principal.id,

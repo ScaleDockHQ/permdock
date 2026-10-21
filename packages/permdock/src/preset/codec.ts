@@ -1,3 +1,5 @@
+import type { Preset } from "./catalog.ts";
+
 import {
   ARCHETYPES,
   AUTH,
@@ -5,7 +7,6 @@ import {
   FEATURES,
   FRAMEWORKS,
   INTEGRATIONS,
-  type Preset,
   SERVICES,
   resolvePreset,
 } from "./catalog.ts";

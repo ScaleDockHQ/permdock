@@ -84,6 +84,7 @@ describe("schemas/approval-request-v1.json", () => {
         },
       },
     });
+
     it("saw requests", () => {
       expect(seen.length).toBeGreaterThan(10);
     });

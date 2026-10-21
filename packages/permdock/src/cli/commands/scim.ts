@@ -1,4 +1,6 @@
-import { type Leaf, defineLeaf } from "../core/command.ts";
+import type { Leaf } from "../core/command.ts";
+
+import { defineLeaf } from "../core/command.ts";
 import { checkFlag, dryRunFlag, given } from "../core/flags.ts";
 
 export const generate: Leaf = defineLeaf({

@@ -1,12 +1,15 @@
 import type { WhereResult } from "../core/permdock.ts";
 import type { ResourceNode } from "../core/permission-types.ts";
+import type { Scope } from "../core/scopes.ts";
 import type { Membership, Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
+import type { Condition, ConditionValue, RelatedCondition } from "./ast.ts";
+import type { GraphSql, RelationsMapping } from "./graph-sql.ts";
 
 import { compact, isReadonlyArray, sole } from "../core/compact.ts";
 import { expiredAt } from "../core/expiry.ts";
 import { assertSafeKey } from "../core/paths.ts";
 import {
-  type Scope,
   resolveScope,
   rootScope,
   scopeChain,
@@ -14,21 +17,10 @@ import {
   subjectMemberships,
   tenantOf,
 } from "../core/scopes.ts";
-import { epochSeconds, type Instant, INVALID_NOW } from "../core/time.ts";
+import { epochSeconds, INVALID_NOW } from "../core/time.ts";
 import { PermDockValidationError } from "../core/validation-error.ts";
-import {
-  type Condition,
-  type ConditionValue,
-  type RelatedCondition,
-  isConditionDate,
-  isConditionRef,
-  parentHop,
-} from "./ast.ts";
-import {
-  type GraphSql,
-  type RelationsMapping,
-  relatedSql,
-} from "./graph-sql.ts";
+import { isConditionDate, isConditionRef, parentHop } from "./ast.ts";
+import { relatedSql } from "./graph-sql.ts";
 import { isoInstant } from "./instant.ts";
 import { resolveConditionRef } from "./refs.ts";
 

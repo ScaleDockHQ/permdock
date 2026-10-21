@@ -34,229 +34,240 @@ function appCopy(): string {
   return dir;
 }
 
-afterEach(() => {
-  for (const dir of temps.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-describe("run", () => {
-  it("returns exit 2 and help when no command is given", async () => {
-    const result = await run([]);
-    expect(result.code).toBe(2);
-    expect(result.stderr).toContain("permdock");
+describe("the run module", () => {
+  afterEach(() => {
+    for (const dir of temps.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
-  it("returns exit 2 for an unknown command", async () => {
-    const result = await run(["nope"]);
-    expect(result.code).toBe(2);
-    expect(result.stderr).toContain("unknown command 'nope'");
-  });
-
-  it("returns exit 2 and rls help when rls has no subcommand", async () => {
-    const rls = await run(["rls"]);
-    expect(rls.code).toBe(2);
-    expect(rls.stderr).toContain("generate");
-  });
-
-  it("emits security onto an OpenAPI document", async () => {
-    const cwd = appCopy();
-    const result = await run(
-      [
-        "openapi",
-        "emit",
-        "--doc",
-        "openapi.json",
-        "--out",
-        "openapi.out.json",
-        ...URLS,
-      ],
-      { cwd },
-    );
-    expect(result.code).toBe(0);
-    expect(result.stdout).toContain("wrote");
-    const check = await run(
-      [
-        "openapi",
-        "emit",
-        "--doc",
-        "openapi.json",
-        "--out",
-        "openapi.out.json",
-        ...URLS,
-        "--check",
-      ],
-      { cwd },
-    );
-    expect(check.code).toBe(0);
-  });
-
-  it("prints help with --help", async () => {
-    const result = await run(["--help"]);
-    expect(result.code).toBe(0);
-    expect(result.stdout).toContain("collect");
-  });
-
-  it.each([
-    [["catalog", "--help"]],
-    [["help", "catalog"]],
-    [["catalog", "-h"]],
-  ])("prints one command’s flags with %o", async (argv) => {
-    const result = await run(argv);
-    expect(result.code).toBe(0);
-    expect(result.stdout).toContain("permdock catalog");
-    expect(result.stdout).toContain("--kind <catalog|json-schema|markdown>");
-    expect(result.stdout).toContain("(default catalog)");
-    expect(result.stdout).toContain("--color");
-  });
-
-  it.each([
-    ["the stream takes no colour", ["catalog", "--help"], false],
-    ["--no-color is set", ["catalog", "--help", "--no-color"], true],
-  ])("prints help plain when %s", async (_, argv, color) => {
-    const io = { stdout: () => undefined, stderr: () => undefined, color };
-    const result = await run(argv, { io });
-    expect(result.stdout).toContain("--format");
-    expect(result.stdout).not.toContain("\u001B[");
-  });
-
-  it("reads global flags before the command name", async () => {
-    const cwd = appCopy();
-    const result = await run(["--cwd", cwd, "collect", "--check"]);
-    expect(result.stdout).toContain("permissions.catalog.json");
-  });
-
-  it("reads a flag followed by another flag as given without a value", async () => {
-    const cwd = appCopy();
-    const result = await run(
-      ["openapi", "emit", "--doc", "openapi.json", "--out", "--check", ...URLS],
-      { cwd },
-    );
-    expect(result.stdout).toMatch(/^openapi drift/u);
-    expect(readFileSync(join(cwd, "openapi.json"), "utf8")).not.toContain(
-      "securitySchemes",
-    );
-  });
-
-  it("refuses a bare enum flag and ignores flags after --", async () => {
-    const cwd = appCopy();
-    const bare = await run(["catalog", "--kind"], { cwd });
-    expect(bare).toMatchObject({
-      code: 2,
-      stderr: "catalog: --kind needs a value.\n",
+  describe(run, () => {
+    it("returns exit 2 and help when no command is given", async () => {
+      const result = await run([]);
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain("permdock");
     });
-    const passed = await run(["catalog", "--", "--kind", "markdown"], { cwd });
-    expect(passed.code).toBe(0);
-    expect(passed.stdout).toContain('"key": "post.update"');
-  });
 
-  it("defineConfig is an identity", () => {
-    const config = defineConfig({ permissions: "./src/permissions.ts" });
-    expect(config.permissions).toBe("./src/permissions.ts");
-  });
+    it("returns exit 2 for an unknown command", async () => {
+      const result = await run(["nope"]);
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain("unknown command 'nope'");
+    });
 
-  it("collect writes a catalog and --check exits 0 when fresh", async () => {
-    const cwd = appCopy();
-    const write = await run(["collect"], { cwd });
-    expect(write.code).toBe(0);
-    expect(write.stdout).toContain("wrote");
-    const check = await run(["collect", "--check"], { cwd });
-    expect(check.code).toBe(0);
-    expect(check.stdout).toContain("up to date");
-  });
+    it("returns exit 2 and rls help when rls has no subcommand", async () => {
+      const rls = await run(["rls"]);
+      expect(rls.code).toBe(2);
+      expect(rls.stderr).toContain("generate");
+    });
 
-  it("collect scans sources with array holes", async () => {
-    const cwd = appCopy();
-    writeFileSync(
-      join(cwd, "src/holes.ts"),
-      "export const [, , id = ''] = '/a/b'.split('/');\n",
-    );
-    const result = await run(["collect"], { cwd });
-    expect(result.stderr).toBe("");
-    expect(result.code).toBe(0);
-  });
+    it("emits security onto an OpenAPI document", async () => {
+      const cwd = appCopy();
+      const result = await run(
+        [
+          "openapi",
+          "emit",
+          "--doc",
+          "openapi.json",
+          "--out",
+          "openapi.out.json",
+          ...URLS,
+        ],
+        { cwd },
+      );
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("wrote");
+      const check = await run(
+        [
+          "openapi",
+          "emit",
+          "--doc",
+          "openapi.json",
+          "--out",
+          "openapi.out.json",
+          ...URLS,
+          "--check",
+        ],
+        { cwd },
+      );
+      expect(check.code).toBe(0);
+    });
 
-  it("collect --check exits 1 when the catalog is missing", async () => {
-    const cwd = appCopy();
-    const result = await run(["collect", "--check"], { cwd });
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain("missing");
-  });
+    it("prints help with --help", async () => {
+      const result = await run(["--help"]);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("collect");
+    });
 
-  it("catalog --format json lists post.update", async () => {
-    const cwd = appCopy();
-    const result = await run(["catalog", "--kind", "catalog"], { cwd });
-    expect(result.code).toBe(0);
-    expect(result.stdout).toContain('"key": "post.update"');
-    expect(result.stdout).toContain('"arity": "instance"');
-  });
+    it.each([
+      [["catalog", "--help"]],
+      [["help", "catalog"]],
+      [["catalog", "-h"]],
+    ])("prints one command’s flags with %o", async (argv) => {
+      const result = await run(argv);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("permdock catalog");
+      expect(result.stdout).toContain("--kind <catalog|json-schema|markdown>");
+      expect(result.stdout).toContain("(default catalog)");
+      expect(result.stdout).toContain("--color");
+    });
 
-  it("catalog --format schema emits a JSON Schema document", async () => {
-    const result = await run(["catalog", "--kind", "json-schema"]);
-    expect(result.code).toBe(0);
-    expect(result.stdout).toContain("catalog-v1.json");
-  });
+    it.each([
+      ["the stream takes no colour", ["catalog", "--help"], false],
+      ["--no-color is set", ["catalog", "--help", "--no-color"], true],
+    ])("prints help plain when %s", async (_, argv, color) => {
+      const io = { stdout: () => undefined, stderr: () => undefined, color };
+      const result = await run(argv, { io });
+      expect(result.stdout).toContain("--format");
+      expect(result.stdout).not.toContain("\u001B[");
+    });
 
-  it("catalog --format markdown has a post section", async () => {
-    const cwd = appCopy();
-    const result = await run(["catalog", "--kind", "markdown"], { cwd });
-    expect(result.code).toBe(0);
-    expect(result.stdout).toContain("## post");
-    expect(result.stdout).toContain("archive");
-  });
+    it("reads global flags before the command name", async () => {
+      const cwd = appCopy();
+      const result = await run(["--cwd", cwd, "collect", "--check"]);
+      expect(result.stdout).toContain("permissions.catalog.json");
+    });
 
-  it("usage reports unused, ungranted and an unmerged role", async () => {
-    const cwd = appCopy();
-    const result = await run(["usage", "--json"], { cwd });
-    expect(result.code).toBe(1);
-    // SAFETY: the --json report printed by `permdock usage` under test.
-    const report = jsonData(result.stdout) as {
-      readonly unused: readonly { readonly key: string }[];
-      readonly ungranted: readonly { readonly key: string }[];
-      readonly noRole: readonly { readonly key: string }[];
-    };
-    expect(report.ungranted.some((item) => item.key === "post.archive")).toBe(
-      true,
-    );
-    expect(report.unused.some((item) => item.key === "post.publish")).toBe(
-      true,
-    );
-    expect(report.noRole.some((item) => item.key === "finance")).toBe(true);
-  });
+    it("reads a flag followed by another flag as given without a value", async () => {
+      const cwd = appCopy();
+      const result = await run(
+        [
+          "openapi",
+          "emit",
+          "--doc",
+          "openapi.json",
+          "--out",
+          "--check",
+          ...URLS,
+        ],
+        { cwd },
+      );
+      expect(result.stdout).toMatch(/^openapi drift/u);
+      expect(readFileSync(join(cwd, "openapi.json"), "utf8")).not.toContain(
+        "securitySchemes",
+      );
+    });
 
-  it("usage flags conditions on fields the schema does not declare", async () => {
-    const cwd = appCopy();
-    const policyFile = join(cwd, "src/policy.ts");
-    writeFileSync(
-      policyFile,
-      readFileSync(policyFile, "utf8").replace(
-        "allow(permissions.post.read),",
-        "allow(permissions.post.read, { where: { ownerId: principal.id } }),",
-      ),
-    );
-    const result = await run(["usage", "--json"], { cwd });
-    // SAFETY: the --json report printed by `permdock usage` under test.
-    const report = jsonData(result.stdout) as {
-      readonly undeclared: readonly {
-        readonly key: string;
-        readonly detail: string;
-      }[];
-    };
-    expect(report.undeclared).toStrictEqual([
-      {
-        kind: "undeclared-field",
-        key: "post.read",
-        detail:
-          "role 'member' reads 'ownerId', which the post schema does not declare",
-      },
-    ]);
-  });
+    it("refuses a bare enum flag and ignores flags after --", async () => {
+      const cwd = appCopy();
+      const bare = await run(["catalog", "--kind"], { cwd });
+      expect(bare).toMatchObject({
+        code: 2,
+        stderr: "catalog: --kind needs a value.\n",
+      });
+      const passed = await run(["catalog", "--", "--kind", "markdown"], {
+        cwd,
+      });
+      expect(passed.code).toBe(0);
+      expect(passed.stdout).toContain('"key": "post.update"');
+    });
 
-  it("usage flags client checks outside every snapshot include", async () => {
-    const cwd = appCopy();
-    writeFileSync(
-      join(cwd, "src/layout.ts"),
-      `import { getPermDockSync } from 'permdock';
+    it("defineConfig is an identity", () => {
+      const config = defineConfig({ permissions: "./src/permissions.ts" });
+      expect(config.permissions).toBe("./src/permissions.ts");
+    });
+
+    it("collect writes a catalog and --check exits 0 when fresh", async () => {
+      const cwd = appCopy();
+      const write = await run(["collect"], { cwd });
+      expect(write.code).toBe(0);
+      expect(write.stdout).toContain("wrote");
+      const check = await run(["collect", "--check"], { cwd });
+      expect(check.code).toBe(0);
+      expect(check.stdout).toContain("up to date");
+    });
+
+    it("collect scans sources with array holes", async () => {
+      const cwd = appCopy();
+      writeFileSync(
+        join(cwd, "src/holes.ts"),
+        "export const [, , id = ''] = '/a/b'.split('/');\n",
+      );
+      const result = await run(["collect"], { cwd });
+      expect(result.stderr).toBe("");
+      expect(result.code).toBe(0);
+    });
+
+    it("collect --check exits 1 when the catalog is missing", async () => {
+      const cwd = appCopy();
+      const result = await run(["collect", "--check"], { cwd });
+      expect(result.code).toBe(1);
+      expect(result.stdout).toContain("missing");
+    });
+
+    it("catalog --format json lists post.update", async () => {
+      const cwd = appCopy();
+      const result = await run(["catalog", "--kind", "catalog"], { cwd });
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('"key": "post.update"');
+      expect(result.stdout).toContain('"arity": "instance"');
+    });
+
+    it("catalog --format schema emits a JSON Schema document", async () => {
+      const result = await run(["catalog", "--kind", "json-schema"]);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("catalog-v1.json");
+    });
+
+    it("catalog --format markdown has a post section", async () => {
+      const cwd = appCopy();
+      const result = await run(["catalog", "--kind", "markdown"], { cwd });
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("## post");
+      expect(result.stdout).toContain("archive");
+    });
+
+    it("usage reports unused, ungranted and an unmerged role", async () => {
+      const cwd = appCopy();
+      const result = await run(["usage", "--json"], { cwd });
+      expect(result.code).toBe(1);
+      // SAFETY: the --json report printed by `permdock usage` under test.
+      const report = jsonData(result.stdout) as {
+        readonly unused: readonly { readonly key: string }[];
+        readonly ungranted: readonly { readonly key: string }[];
+        readonly noRole: readonly { readonly key: string }[];
+      };
+      expect(report.ungranted.some((item) => item.key === "post.archive")).toBe(
+        true,
+      );
+      expect(report.unused.some((item) => item.key === "post.publish")).toBe(
+        true,
+      );
+      expect(report.noRole.some((item) => item.key === "finance")).toBe(true);
+    });
+
+    it("usage flags conditions on fields the schema does not declare", async () => {
+      const cwd = appCopy();
+      const policyFile = join(cwd, "src/policy.ts");
+      writeFileSync(
+        policyFile,
+        readFileSync(policyFile, "utf8").replace(
+          "allow(permissions.post.read),",
+          "allow(permissions.post.read, { where: { ownerId: principal.id } }),",
+        ),
+      );
+      const result = await run(["usage", "--json"], { cwd });
+      // SAFETY: the --json report printed by `permdock usage` under test.
+      const report = jsonData(result.stdout) as {
+        readonly undeclared: readonly {
+          readonly key: string;
+          readonly detail: string;
+        }[];
+      };
+      expect(report.undeclared).toStrictEqual([
+        {
+          kind: "undeclared-field",
+          key: "post.read",
+          detail:
+            "role 'member' reads 'ownerId', which the post schema does not declare",
+        },
+      ]);
+    });
+
+    it("usage flags client checks outside every snapshot include", async () => {
+      const cwd = appCopy();
+      writeFileSync(
+        join(cwd, "src/layout.ts"),
+        `import { getPermDockSync } from 'permdock';
 import { permissions } from './permissions.ts';
 import { policy } from './policy.ts';
 
@@ -264,201 +275,204 @@ export const snapshot = getPermDockSync(policy, { subject: null }).snapshot({
   include: [permissions.post.read, permissions.post.update],
 });
 `,
-    );
-    writeFileSync(
-      join(cwd, "src/page.ts"),
-      `'use client';
+      );
+      writeFileSync(
+        join(cwd, "src/page.ts"),
+        `'use client';
 import { permissions } from './permissions.ts';
 
 export const read = (permdock: { can: (p: unknown) => boolean }) =>
   permdock.can(permissions.post.read) && permdock.can(permissions.post.delete);
 `,
-    );
-    const result = await run(["usage", "--json"], { cwd });
-    // SAFETY: the --json report printed by `permdock usage` under test.
-    const report = jsonData(result.stdout) as {
-      readonly outsideInclude: readonly { readonly key: string }[];
-    };
-    expect(report.outsideInclude.map((item) => item.key)).toStrictEqual([
-      "post.delete",
-    ]);
-  });
-
-  it("usage --strict fails on warnings", async () => {
-    const cwd = appCopy();
-    const result = await run(["usage", "--fail-on", "warning"], { cwd });
-    expect(result.code).toBe(1);
-  });
-
-  it("doctor --json includes a $schema and can report PD004", async () => {
-    const cwd = appCopy();
-    const result = await run(["doctor", "--json", "--only", "catalog"], {
-      cwd,
+      );
+      const result = await run(["usage", "--json"], { cwd });
+      // SAFETY: the --json report printed by `permdock usage` under test.
+      const report = jsonData(result.stdout) as {
+        readonly outsideInclude: readonly { readonly key: string }[];
+      };
+      expect(report.outsideInclude.map((item) => item.key)).toStrictEqual([
+        "post.delete",
+      ]);
     });
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain("doctor-report-v1");
-    expect(result.stdout).toContain("PD004");
+
+    it("usage --strict fails on warnings", async () => {
+      const cwd = appCopy();
+      const result = await run(["usage", "--fail-on", "warning"], { cwd });
+      expect(result.code).toBe(1);
+    });
+
+    it("doctor --json includes a $schema and can report PD004", async () => {
+      const cwd = appCopy();
+      const result = await run(["doctor", "--json", "--only", "catalog"], {
+        cwd,
+      });
+      expect(result.code).toBe(1);
+      expect(result.stdout).toContain("doctor-report-v1");
+      expect(result.stdout).toContain("PD004");
+    });
+
+    it("arazzo check exits 0 when every step is documented", async () => {
+      const cwd = appCopy();
+      const result = await run(
+        [
+          "arazzo",
+          "check",
+          "--doc",
+          "arazzo.json",
+          "--openapi",
+          "openapi.json",
+          "--permissions",
+          "src/permissions.ts",
+        ],
+        { cwd },
+      );
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("documented");
+    });
+
+    it("arazzo check exits 1 on an undocumented step", async () => {
+      const cwd = appCopy();
+      const result = await run(
+        [
+          "arazzo",
+          "check",
+          "--doc",
+          "arazzo-hole.json",
+          "--openapi",
+          "openapi.json",
+        ],
+        { cwd },
+      );
+      expect(result.code).toBe(1);
+      expect(result.stdout).toContain("undocumented");
+    });
+
+    it("doctor is clean for catalog after collect", async () => {
+      const cwd = appCopy();
+      await run(["collect"], { cwd });
+      const result = await run(["doctor", "--json", "--only", "catalog"], {
+        cwd,
+      });
+      expect(result.code).toBe(0);
+      // SAFETY: the --json report printed by `permdock doctor` under test.
+      const report = jsonData(result.stdout) as {
+        readonly findings: readonly unknown[];
+      };
+      expect(report.findings).toStrictEqual([]);
+    });
   });
 
-  it("arazzo check exits 0 when every step is documented", async () => {
-    const cwd = appCopy();
-    const result = await run(
+  describe("run flag validation", () => {
+    it.each([
       [
-        "arazzo",
-        "check",
-        "--doc",
-        "arazzo.json",
-        "--openapi",
-        "openapi.json",
-        "--permissions",
-        "src/permissions.ts",
+        ["catalog", "--format", "xml"],
+        "catalog: --format is --kind since 0.5.0.",
       ],
-      { cwd },
-    );
-    expect(result.code).toBe(0);
-    expect(result.stdout).toContain("documented");
-  });
-
-  it("arazzo check exits 1 on an undocumented step", async () => {
-    const cwd = appCopy();
-    const result = await run(
       [
-        "arazzo",
-        "check",
-        "--doc",
-        "arazzo-hole.json",
-        "--openapi",
-        "openapi.json",
+        ["openapi", "import", "--doc", "x.json", "--validator", "joi"],
+        "openapi import: --validator 'joi' is not one of zod, valibot, arktype.",
       ],
-      { cwd },
-    );
-    expect(result.code).toBe(1);
-    expect(result.stdout).toContain("undocumented");
-  });
-
-  it("doctor is clean for catalog after collect", async () => {
-    const cwd = appCopy();
-    await run(["collect"], { cwd });
-    const result = await run(["doctor", "--json", "--only", "catalog"], {
-      cwd,
+      [
+        ["openapi", "emit", "--target", "4.0"],
+        "openapi emit: --target '4.0' is not one of 3.1, 3.2, 3.3.",
+      ],
+      [
+        ["openapi", "emit", "--kind", "yaml"],
+        "openapi emit: --kind 'yaml' is not one of document, overlay.",
+      ],
+      [
+        ["openapi", "emit", "--overlay", "2.0"],
+        "openapi emit: --overlay '2.0' is not one of 1.1, 1.2.",
+      ],
+      [
+        ["openapi", "emit", "--profile", "fapi1"],
+        "openapi emit: --profile 'fapi1' is not one of fapi2. Did you mean fapi2?",
+      ],
+      [
+        ["rls", "generate", "--rbac", "auth0"],
+        "rls generate: --rbac 'auth0' is not one of supabase.",
+      ],
+    ])("exits 2 on %o", async (argv, message) => {
+      expect(await run(argv, { cwd: appCopy() })).toStrictEqual({
+        code: 2,
+        stdout: "",
+        stderr: `${message}\n`,
+      });
     });
-    expect(result.code).toBe(0);
-    // SAFETY: the --json report printed by `permdock doctor` under test.
-    const report = jsonData(result.stdout) as {
-      readonly findings: readonly unknown[];
-    };
-    expect(report.findings).toStrictEqual([]);
-  });
-});
 
-describe("run flag validation", () => {
-  it.each([
-    [
-      ["catalog", "--format", "xml"],
-      "catalog: --format is --kind since 0.5.0.",
-    ],
-    [
-      ["openapi", "import", "--doc", "x.json", "--validator", "joi"],
-      "openapi import: --validator 'joi' is not one of zod, valibot, arktype.",
-    ],
-    [
-      ["openapi", "emit", "--target", "4.0"],
-      "openapi emit: --target '4.0' is not one of 3.1, 3.2, 3.3.",
-    ],
-    [
-      ["openapi", "emit", "--kind", "yaml"],
-      "openapi emit: --kind 'yaml' is not one of document, overlay.",
-    ],
-    [
-      ["openapi", "emit", "--overlay", "2.0"],
-      "openapi emit: --overlay '2.0' is not one of 1.1, 1.2.",
-    ],
-    [
-      ["openapi", "emit", "--profile", "fapi1"],
-      "openapi emit: --profile 'fapi1' is not one of fapi2. Did you mean fapi2?",
-    ],
-    [
-      ["rls", "generate", "--rbac", "auth0"],
-      "rls generate: --rbac 'auth0' is not one of supabase.",
-    ],
-  ])("exits 2 on %o", async (argv, message) => {
-    expect(await run(argv, { cwd: appCopy() })).toStrictEqual({
-      code: 2,
-      stdout: "",
-      stderr: `${message}\n`,
+    it("asks for a missing required input with exit 3", async () => {
+      expect(
+        await run(["openapi", "import"], { cwd: appCopy() }),
+      ).toStrictEqual({
+        code: 3,
+        stdout: "",
+        stderr: "openapi import needs --doc: the OpenAPI document to import\n",
+      });
     });
-  });
 
-  it("asks for a missing required input with exit 3", async () => {
-    expect(await run(["openapi", "import"], { cwd: appCopy() })).toStrictEqual({
-      code: 3,
-      stdout: "",
-      stderr: "openapi import needs --doc: the OpenAPI document to import\n",
+    it("exits 2 when the config fails to load", async () => {
+      const cwd = appCopy();
+      expect(
+        await run(["doctor", "--config", "absent.ts"], { cwd }),
+      ).toStrictEqual({
+        code: 2,
+        stdout: "",
+        stderr: `PermDock CLI: config file not found: ${join(cwd, "absent.ts")}\n`,
+      });
+      writeFileSync(join(cwd, "permdock.config.ts"), "throw 'raw';\n");
+      expect(await run(["doctor"], { cwd })).toStrictEqual({
+        code: 2,
+        stdout: "",
+        stderr: "raw\n",
+      });
     });
-  });
 
-  it("exits 2 when the config fails to load", async () => {
-    const cwd = appCopy();
-    expect(
-      await run(["doctor", "--config", "absent.ts"], { cwd }),
-    ).toStrictEqual({
-      code: 2,
-      stdout: "",
-      stderr: `PermDock CLI: config file not found: ${join(cwd, "absent.ts")}\n`,
+    it("keeps help free of escape codes under --no-color on a colour terminal", async () => {
+      const io = {
+        stdout: (): void => undefined,
+        stderr: (): void => undefined,
+        color: true,
+      };
+      const coloured = await run(["--help"], { io });
+      expect(coloured.stdout).toContain("permdock");
+      const plain = await run(["--help", "--no-color"], { io });
+      expect(plain.stdout).toContain("permdock");
+      expect(plain.stdout).not.toContain("\u001B[");
     });
-    writeFileSync(join(cwd, "permdock.config.ts"), "throw 'raw';\n");
-    expect(await run(["doctor"], { cwd })).toStrictEqual({
-      code: 2,
-      stdout: "",
-      stderr: "raw\n",
+
+    it("writes through a custom io and also returns the output", async () => {
+      const out: string[] = [];
+      const err: string[] = [];
+      const io = {
+        stdout: (text: string): void => {
+          out.push(text);
+        },
+        stderr: (text: string): void => {
+          err.push(text);
+        },
+      };
+      const help = await run(["help"], { io });
+      expect(help.code).toBe(0);
+      expect(out).toStrictEqual([help.stdout]);
+      const bad = await run(["catalog", "--format", "xml"], {
+        io,
+        cwd: appCopy(),
+      });
+      expect(err).toStrictEqual([bad.stderr]);
     });
-  });
 
-  it("keeps help free of escape codes under --no-color on a colour terminal", async () => {
-    const io = {
-      stdout: (): void => undefined,
-      stderr: (): void => undefined,
-      color: true,
-    };
-    const coloured = await run(["--help"], { io });
-    expect(coloured.stdout).toContain("permdock");
-    const plain = await run(["--help", "--no-color"], { io });
-    expect(plain.stdout).toContain("permdock");
-    expect(plain.stdout).not.toContain("\u001B[");
-  });
-
-  it("writes through a custom io and also returns the output", async () => {
-    const out: string[] = [];
-    const err: string[] = [];
-    const io = {
-      stdout: (text: string): void => {
-        out.push(text);
-      },
-      stderr: (text: string): void => {
-        err.push(text);
-      },
-    };
-    const help = await run(["help"], { io });
-    expect(help.code).toBe(0);
-    expect(out).toStrictEqual([help.stdout]);
-    const bad = await run(["catalog", "--format", "xml"], {
-      io,
-      cwd: appCopy(),
+    it("collect honours --src and --out", async () => {
+      const cwd = appCopy();
+      const result = await run(
+        ["collect", "--src", "./src", "--out", "custom.catalog.json"],
+        { cwd },
+      );
+      expect(result.code).toBe(0);
+      // SAFETY: the catalog file `permdock collect` just wrote.
+      const catalog = JSON.parse(
+        readFileSync(join(cwd, "custom.catalog.json"), "utf8"),
+      ) as { readonly version: number };
+      expect(catalog.version).toBe(1);
     });
-    expect(err).toStrictEqual([bad.stderr]);
-  });
-
-  it("collect honours --src and --out", async () => {
-    const cwd = appCopy();
-    const result = await run(
-      ["collect", "--src", "./src", "--out", "custom.catalog.json"],
-      { cwd },
-    );
-    expect(result.code).toBe(0);
-    // SAFETY: the catalog file `permdock collect` just wrote.
-    const catalog = JSON.parse(
-      readFileSync(join(cwd, "custom.catalog.json"), "utf8"),
-    ) as { readonly version: number };
-    expect(catalog.version).toBe(1);
   });
 });

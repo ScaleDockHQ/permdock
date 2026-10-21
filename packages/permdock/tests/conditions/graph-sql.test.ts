@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { RelatedCondition } from "../../src/conditions/ast.ts";
+import type {
+  GraphSql,
+  GraphSqlOptions,
+} from "../../src/conditions/graph-sql.ts";
 import type { ResourceNode } from "../../src/core/permission-types.ts";
 
 import {
-  type GraphSql,
-  type GraphSqlOptions,
   holderIdsSql,
   quoteSqlName,
   relatedSql,

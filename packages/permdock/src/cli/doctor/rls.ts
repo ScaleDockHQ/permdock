@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 
+import type { Policy } from "../../index.ts";
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { RlsActions } from "../types.ts";
@@ -7,7 +8,7 @@ import type { RlsActions } from "../types.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { scopeList } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
-import { type Policy, hasConditionOp, listPermissions } from "../../index.ts";
+import { hasConditionOp, listPermissions } from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
 import { sqlFiles } from "../files.ts";
 import { graphPlan } from "../rls/graph.ts";

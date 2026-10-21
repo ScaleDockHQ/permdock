@@ -2,14 +2,12 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { RelationSource } from "../../src/core/interfaces.ts";
+import type { RelationCache } from "../../src/core/relations.ts";
 
 import { memoryRelationSource } from "../../src/core/memory-relations.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
-import {
-  type RelationCache,
-  relationReader,
-} from "../../src/core/relations.ts";
+import { relationReader } from "../../src/core/relations.ts";
 
 const Room = z.object({
   id: z.string(),
@@ -65,7 +63,7 @@ function related(id: string, relation: string): unknown {
   return source.related({ resource: "room", id, relation });
 }
 
-describe("memoryRelationSource", () => {
+describe(memoryRelationSource, () => {
   it.each([
     {
       name: "a Date period",

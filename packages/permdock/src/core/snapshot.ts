@@ -7,6 +7,7 @@ import type {
   SnapshotNotEntitled,
 } from "./snapshot-types.ts";
 import type { Delegation, Membership, Subject } from "./subject.ts";
+import type { Plan, Role } from "./vocabulary.ts";
 
 import { bindConditionRefs } from "../conditions/bind.ts";
 import { compact } from "./compact.ts";
@@ -16,7 +17,7 @@ import { scopeList } from "./scopes.ts";
 import { tenantsOf } from "./tenancy.ts";
 import { isRfc3339, nowSeconds, rfc3339 } from "./time.ts";
 import { wireValidity } from "./validity.ts";
-import { listPlans, listRoles, type Plan, type Role } from "./vocabulary.ts";
+import { listPlans, listRoles } from "./vocabulary.ts";
 import { toWireDelegation } from "./wire-delegation.ts";
 
 function plainPermission(leaf: Permission): Permission {

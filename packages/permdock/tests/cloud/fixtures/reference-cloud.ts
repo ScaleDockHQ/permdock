@@ -3,6 +3,11 @@ import type { CatalogDocument } from "../../../src/catalog/types.ts";
 import type { CloudApproverOptions } from "../../../src/cloud/types.ts";
 import type { HostedGrant, PolicyDocument } from "../../../src/core/hosted.ts";
 import type { Policy, TokenSigner, TokenVerifier } from "../../../src/index.ts";
+import type {
+  PushedEntry,
+  ReferencePlatform,
+  ReferencePlatformMutation,
+} from "./reference-platform.ts";
 
 import { isApprovalError } from "../../../src/approvals/errors.ts";
 import { memoryApprovalStore } from "../../../src/approvals/store.ts";
@@ -20,12 +25,7 @@ import { verifySubjectToken } from "../../../src/jwt/subject-token.ts";
 import { joseTokenVerifier } from "../../../src/jwt/verifier.ts";
 import { memoryReplayStore } from "../../../src/ssf/replay.ts";
 import { snapshotFixture } from "../../../src/testing/snapshot-fixture.ts";
-import {
-  type PushedEntry,
-  type ReferencePlatform,
-  type ReferencePlatformMutation,
-  referencePlatform,
-} from "./reference-platform.ts";
+import { referencePlatform } from "./reference-platform.ts";
 
 /** One deliberate contract break; `testCloudApi` must reject each. */
 export type ReferenceCloudMutation =

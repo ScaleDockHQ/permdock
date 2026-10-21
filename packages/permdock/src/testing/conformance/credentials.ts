@@ -1,6 +1,13 @@
 import { expect, it, vi } from "vitest";
 
 import type {
+  CredentialVerifier,
+  RevocationEvent,
+  RevocationFeed,
+  TokenSigner,
+  TokenVerifier,
+} from "../../index.ts";
+import type {
   ReplayStore,
   SetQueue,
   SsfStreamConfiguration,
@@ -8,14 +15,7 @@ import type {
 } from "../../ssf/index.ts";
 
 import { nowMillis, nowSeconds } from "../../core/time.ts";
-import {
-  type CredentialVerifier,
-  type RevocationEvent,
-  type RevocationFeed,
-  type TokenSigner,
-  type TokenVerifier,
-  parseCredential,
-} from "../../index.ts";
+import { parseCredential } from "../../index.ts";
 import { parseApiKey } from "../../server/credentials.ts";
 import {
   jwtFixtureAudience,
@@ -260,6 +260,7 @@ export function testTokenVerifier(
 ): void {
   const audience = options?.audience ?? jwtFixtureAudience;
   const issuer = options?.issuer ?? jwtFixtureIssuer;
+
   it("never throws and maps the JWT behaviour table", async () => {
     const valid = await verifier.verify(jwtFixtureTokens.valid, {
       audience,

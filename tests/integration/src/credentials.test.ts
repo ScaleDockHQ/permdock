@@ -155,168 +155,170 @@ const DAY = 86_400;
 const at = (seconds: number): string => new Date(seconds * 1000).toISOString();
 const conformanceKey = generateApiKey("conformance");
 
-beforeAll(async () => {
-  db = await startPostgres([SETUP]);
-  const now = Math.floor(Date.now() / 1000);
-  await store(
-    {
-      v: 1,
-      id: "conformance",
-      kind: "user",
-      principal: "u_1",
-      permissions: [{ permission: "repo.read" }],
-      createdBy: "u_1",
-      createdAt: at(now),
-      expiresAt: at(now + DAY),
-    },
-    conformanceKey,
-  );
-});
-
-afterAll(async () => {
-  await db.stop();
-});
-
-describe("API keys stored as SHA-256 hashes in Postgres", () => {
-  testCredentialVerifier(verifier, {
-    key: conformanceKey,
-    revoke: async () => {
-      await db.admin.query(
-        "update api_keys set revoked_at = now() where id = 'conformance'",
-      );
-    },
-  });
-
-  it("stores only the hash and finds the key by its id", async () => {
-    const creating = await creator("u_1");
-    const decision = await decideCredential(
-      creating,
+describe("credentials", () => {
+  beforeAll(async () => {
+    db = await startPostgres([SETUP]);
+    const now = Math.floor(Date.now() / 1000);
+    await store(
       {
+        v: 1,
+        id: "conformance",
         kind: "user",
-        id: "key_user",
-        permissions: [repo.read],
-        expiresAt: at(Math.floor(Date.now() / 1000) + DAY),
+        principal: "u_1",
+        permissions: [{ permission: "repo.read" }],
+        createdBy: "u_1",
+        createdAt: at(now),
+        expiresAt: at(now + DAY),
       },
-      { settings },
+      conformanceKey,
     );
-    expect(decision.outcome).toBe("granted");
-    if (decision.outcome !== "granted") {
-      return;
-    }
-    const key = await store(decision.credential);
-    const row = await db.admin.query<{ hash: string; credential: unknown }>(
-      "select hash, credential::text from api_keys where id = 'key_user'",
-    );
-    expect(row.rows[0]?.hash).toHaveLength(43);
-    expect(JSON.stringify(row.rows[0])).not.toContain(key.slice(-43));
-    const permdock = await permdockFor(key);
-    expect(
-      permdock.filter(repo.read, await repos()).map((r) => r.id),
-    ).toStrictEqual(["r_1", "r_2"]);
-    expect(permdock.filter(repo.write, await repos())).toStrictEqual([]);
   });
 
-  it("follows the owner live rights: a demotion reaches the key on the next request", async () => {
-    const now = Math.floor(Date.now() / 1000);
-    const key = await store({
-      v: 1,
-      id: "key_demote",
-      kind: "user",
-      principal: "u_2",
-      permissions: [{ permission: "repo.delete" }],
-      createdBy: "u_2",
-      createdAt: at(now),
-      expiresAt: at(now + DAY),
-    });
-    const [r1] = await repos();
-    expect((await permdockFor(key)).can(repo.delete, r1)).toBe(true);
-    await db.admin.query(
-      "update memberships set role = 'developer' where user_id = 'u_2'",
-    );
-    expect((await permdockFor(key)).can(repo.delete, r1)).toBe(false);
+  afterAll(async () => {
+    await db.stop();
   });
 
-  it("creates a service key inside the creator ceiling and the tenant policy", async () => {
-    const developer = await creator("u_1");
-    const expiresAt = Math.floor(Date.now() / 1000) + DAY;
-    const tooWide = await decideCredential(
-      developer,
-      {
-        kind: "service",
-        id: "svc_wide",
-        tenant: "o_1",
-        roles: ["admin"],
-        permissions: [repo.delete],
-        expiresAt: at(expiresAt),
+  describe("API keys stored as SHA-256 hashes in Postgres", () => {
+    testCredentialVerifier(verifier, {
+      key: conformanceKey,
+      revoke: async () => {
+        await db.admin.query(
+          "update api_keys set revoked_at = now() where id = 'conformance'",
+        );
       },
-      { settings },
-    );
-    expect(tooWide).toMatchObject({
-      outcome: "denied",
-      denials: [{ reason: "exceeds-creator" }],
     });
-    const tooLong = await decideCredential(
-      developer,
-      {
+
+    it("stores only the hash and finds the key by its id", async () => {
+      const creating = await creator("u_1");
+      const decision = await decideCredential(
+        creating,
+        {
+          kind: "user",
+          id: "key_user",
+          permissions: [repo.read],
+          expiresAt: at(Math.floor(Date.now() / 1000) + DAY),
+        },
+        { settings },
+      );
+      expect(decision.outcome).toBe("granted");
+      if (decision.outcome !== "granted") {
+        return;
+      }
+      const key = await store(decision.credential);
+      const row = await db.admin.query<{ hash: string; credential: unknown }>(
+        "select hash, credential::text from api_keys where id = 'key_user'",
+      );
+      expect(row.rows[0]?.hash).toHaveLength(43);
+      expect(JSON.stringify(row.rows[0])).not.toContain(key.slice(-43));
+      const permdock = await permdockFor(key);
+      expect(
+        permdock.filter(repo.read, await repos()).map((r) => r.id),
+      ).toStrictEqual(["r_1", "r_2"]);
+      expect(permdock.filter(repo.write, await repos())).toStrictEqual([]);
+    });
+
+    it("follows the owner live rights: a demotion reaches the key on the next request", async () => {
+      const now = Math.floor(Date.now() / 1000);
+      const key = await store({
+        v: 1,
+        id: "key_demote",
+        kind: "user",
+        principal: "u_2",
+        permissions: [{ permission: "repo.delete" }],
+        createdBy: "u_2",
+        createdAt: at(now),
+        expiresAt: at(now + DAY),
+      });
+      const [r1] = await repos();
+      expect((await permdockFor(key)).can(repo.delete, r1)).toBe(true);
+      await db.admin.query(
+        "update memberships set role = 'developer' where user_id = 'u_2'",
+      );
+      expect((await permdockFor(key)).can(repo.delete, r1)).toBe(false);
+    });
+
+    it("creates a service key inside the creator ceiling and the tenant policy", async () => {
+      const developer = await creator("u_1");
+      const expiresAt = Math.floor(Date.now() / 1000) + DAY;
+      const tooWide = await decideCredential(
+        developer,
+        {
+          kind: "service",
+          id: "svc_wide",
+          tenant: "o_1",
+          roles: ["admin"],
+          permissions: [repo.delete],
+          expiresAt: at(expiresAt),
+        },
+        { settings },
+      );
+      expect(tooWide).toMatchObject({
+        outcome: "denied",
+        denials: [{ reason: "exceeds-creator" }],
+      });
+      const tooLong = await decideCredential(
+        developer,
+        {
+          kind: "service",
+          id: "svc_long",
+          tenant: "o_1",
+          roles: ["developer"],
+          permissions: [repo.read],
+          expiresAt: at(expiresAt + 90 * DAY),
+        },
+        { settings },
+      );
+      expect(tooLong).toMatchObject({
+        denials: [{ reason: "credential-policy", detail: { rule: "ttl" } }],
+      });
+      const decision = await decideCredential(
+        developer,
+        {
+          kind: "service",
+          id: "svc_ci",
+          principal: "ci",
+          tenant: "o_1",
+          roles: ["developer"],
+          permissions: [{ permission: repo.write, ids: ["r_1"] }],
+          expiresAt: at(expiresAt),
+        },
+        { settings },
+      );
+      expect(decision.outcome).toBe("granted");
+      if (decision.outcome !== "granted") {
+        return;
+      }
+      const key = await store(decision.credential);
+      const permdock = await permdockFor(key);
+      expect(permdock.subject.principal?.kind).toBe("service");
+      expect(
+        permdock.filter(repo.write, await repos()).map((r) => r.id),
+      ).toStrictEqual(["r_1"]);
+      await db.admin.query(
+        "update api_keys set revoked_at = now() where id = 'svc_ci'",
+      );
+      expect((await permdockFor(key)).subject.principal).toBeNull();
+    });
+
+    it("refuses existing keys once the tenant tightens its policy", async () => {
+      const now = Math.floor(Date.now() / 1000);
+      const key = await store({
+        v: 1,
+        id: "svc_tighten",
         kind: "service",
-        id: "svc_long",
+        principal: "nightly",
         tenant: "o_1",
         roles: ["developer"],
-        permissions: [repo.read],
-        expiresAt: at(expiresAt + 90 * DAY),
-      },
-      { settings },
-    );
-    expect(tooLong).toMatchObject({
-      denials: [{ reason: "credential-policy", detail: { rule: "ttl" } }],
+        permissions: [{ permission: "repo.read" }],
+        createdBy: "u_1",
+        createdAt: at(now),
+        expiresAt: at(now + 7 * DAY),
+      });
+      expect((await permdockFor(key)).subject.principal?.id).toBe("nightly");
+      await db.admin.query(
+        `update tenant_settings set settings = '{"credentials":{"maxTtl":86400}}' where tenant = 'o_1'`,
+      );
+      expect((await permdockFor(key)).subject.principal).toBeNull();
     });
-    const decision = await decideCredential(
-      developer,
-      {
-        kind: "service",
-        id: "svc_ci",
-        principal: "ci",
-        tenant: "o_1",
-        roles: ["developer"],
-        permissions: [{ permission: repo.write, ids: ["r_1"] }],
-        expiresAt: at(expiresAt),
-      },
-      { settings },
-    );
-    expect(decision.outcome).toBe("granted");
-    if (decision.outcome !== "granted") {
-      return;
-    }
-    const key = await store(decision.credential);
-    const permdock = await permdockFor(key);
-    expect(permdock.subject.principal?.kind).toBe("service");
-    expect(
-      permdock.filter(repo.write, await repos()).map((r) => r.id),
-    ).toStrictEqual(["r_1"]);
-    await db.admin.query(
-      "update api_keys set revoked_at = now() where id = 'svc_ci'",
-    );
-    expect((await permdockFor(key)).subject.principal).toBeNull();
-  });
-
-  it("refuses existing keys once the tenant tightens its policy", async () => {
-    const now = Math.floor(Date.now() / 1000);
-    const key = await store({
-      v: 1,
-      id: "svc_tighten",
-      kind: "service",
-      principal: "nightly",
-      tenant: "o_1",
-      roles: ["developer"],
-      permissions: [{ permission: "repo.read" }],
-      createdBy: "u_1",
-      createdAt: at(now),
-      expiresAt: at(now + 7 * DAY),
-    });
-    expect((await permdockFor(key)).subject.principal?.id).toBe("nightly");
-    await db.admin.query(
-      `update tenant_settings set settings = '{"credentials":{"maxTtl":86400}}' where tenant = 'o_1'`,
-    );
-    expect((await permdockFor(key)).subject.principal).toBeNull();
   });
 });

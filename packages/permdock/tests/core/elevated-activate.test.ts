@@ -219,7 +219,7 @@ describe("activate", () => {
   });
 });
 
-describe("breakGlass", () => {
+describe(breakGlass, () => {
   it("builds one grant per permission of a list or tree, without overrides", () => {
     const fromList = breakGlass([permissions.doc.read, permissions.doc.write]);
     // SAFETY: breakGlass returns a grant list for more than one permission; the test reads the keys.

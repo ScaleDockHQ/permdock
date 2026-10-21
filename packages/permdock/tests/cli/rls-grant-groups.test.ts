@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
+import type { RoleBinding } from "../../src/index.ts";
 
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
-  type RoleBinding,
   allow,
   definePermissions,
   definePolicy,

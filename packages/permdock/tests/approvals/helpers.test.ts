@@ -121,7 +121,7 @@ const detailOf = (decision: Decision): unknown =>
     ? decision.denials[0]?.detail
     : decision.outcome;
 
-describe("summarizeSubject", () => {
+describe(summarizeSubject, () => {
   it("keeps an anonymous principal and defaults missing roles", () => {
     expect(summarizeSubject(anonymous)).toStrictEqual({ principal: null });
     expect(
@@ -130,7 +130,7 @@ describe("summarizeSubject", () => {
   });
 });
 
-describe("requestApproval", () => {
+describe(requestApproval, () => {
   it.each([
     ["Unix seconds", 1_700_000_000],
     ["a Date", new Date("2026-03-01T10:00:00.000Z")],
@@ -398,7 +398,7 @@ describe("resumeDecision ttl", () => {
   );
 });
 
-describe("consumeApproval", () => {
+describe(consumeApproval, () => {
   it("reports a store that lost the race to consume", async () => {
     const store: ApprovalStore = { ...approved("t1"), consume: () => null };
     expect(await consumeApproval(store, "t1")).toStrictEqual({
@@ -408,7 +408,7 @@ describe("consumeApproval", () => {
   });
 });
 
-describe("cancelApprovals", () => {
+describe(cancelApprovals, () => {
   it("uses the store cancel when there is one", async () => {
     const cancel = vi.fn<NonNullable<ApprovalStore["cancel"]>>(() => 3);
     const store: ApprovalStore = { ...memoryApprovalStore(), cancel };
@@ -443,7 +443,7 @@ describe("cancelApprovals", () => {
   });
 });
 
-describe("storedApprovalToken", () => {
+describe(storedApprovalToken, () => {
   it.each<
     [string, Partial<ApprovalRequest> | null, boolean, string | undefined]
   >([

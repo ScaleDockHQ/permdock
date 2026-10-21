@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { AuthEvent } from "../../src/core/event-types.ts";
+import type { ClientNames } from "../../src/index.ts";
 
 import {
-  type ClientNames,
   allow,
   getPermDockSync,
   definePermissions,
@@ -20,7 +20,7 @@ import {
   supabaseRls,
 } from "../../src/supabase/index.ts";
 
-describe("subjectFromSupabase", () => {
+describe(subjectFromSupabase, () => {
   it("never throws and fails closed to anonymous", () => {
     expect(() => subjectFromSupabase(null)).not.toThrow();
     expect(subjectFromSupabase(null).principal).toBeNull();

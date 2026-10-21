@@ -1,5 +1,7 @@
+import type { Plugin } from "vite";
+
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig } from "vite";
 
 type HealthRequest = { readonly url?: string };
 type HealthResponse = { statusCode: number; end: (body: string) => void };

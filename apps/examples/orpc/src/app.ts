@@ -1,9 +1,11 @@
 import { implement } from "@orpc/server";
 import { createPermDock } from "permdock/orpc";
 
+import type { User } from "./policy.ts";
+
 import { contract } from "./contract.ts";
 import { ownPost, permissions } from "./permissions.ts";
-import { policy, type User } from "./policy.ts";
+import { policy } from "./policy.ts";
 
 type Ctx = { readonly user: User };
 

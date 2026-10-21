@@ -1,3 +1,5 @@
+import type { Component, VNode } from "vue";
+
 import { describe, expect, it } from "vitest";
 import {
   createApp,
@@ -6,8 +8,6 @@ import {
   nextTick,
   reactive,
   shallowRef,
-  type Component,
-  type VNode,
 } from "vue";
 
 import type { Decision } from "../../src/core/decision.ts";

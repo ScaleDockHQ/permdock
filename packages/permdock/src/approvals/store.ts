@@ -1,24 +1,28 @@
+import type { Approver } from "../core/approvers.ts";
 import type { ApprovalStage } from "../core/policy-types.ts";
 import type { Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
+import type {
+  ApprovalCancelMeta,
+  ApprovalListFilter,
+  ApprovalListQuery,
+  ApprovalPage,
+  ApprovalRequest,
+  ApprovalStore,
+  ApprovalSignature,
+  ApprovalVerdict,
+} from "./types.ts";
 
-import { type Approver, flattenApprovers } from "../core/approvers.ts";
+import { flattenApprovers } from "../core/approvers.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { matchGrantee } from "../core/grantee-match.ts";
 import { rootMembershipId } from "../core/scopes.ts";
-import { dateAt, durationOf, type Instant } from "../core/time.ts";
+import { dateAt, durationOf } from "../core/time.ts";
 import { ApprovalError } from "./errors.ts";
 import { pageApprovals } from "./page.ts";
 import { belongsToTenant } from "./tenancy.ts";
 import {
-  type ApprovalCancelMeta,
-  type ApprovalListFilter,
-  type ApprovalListQuery,
-  type ApprovalPage,
-  type ApprovalRequest,
-  type ApprovalStore,
-  type ApprovalSignature,
-  type ApprovalVerdict,
   approvalQuorum,
   approverRelationKey,
   DEFAULT_APPROVAL_TTL,

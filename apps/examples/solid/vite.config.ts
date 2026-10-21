@@ -1,4 +1,6 @@
-import { defineConfig, type Plugin } from "vite";
+import type { Plugin } from "vite";
+
+import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
 
 type HealthRequest = { readonly url?: string };

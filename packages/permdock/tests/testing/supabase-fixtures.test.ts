@@ -144,7 +144,7 @@ describe("Supabase RBAC hook claims", () => {
   });
 });
 
-describe("supabaseHookManifestFixture", () => {
+describe("the supabaseHookManifestFixture fixture", () => {
   it("is what supabase inspect prints for one tenant scope and a features claim", () => {
     const manifest = supabaseHookManifest(
       defineScopes({ tenant: { key: "orgId" } }),
@@ -325,7 +325,7 @@ describe("manifest requires", () => {
   });
 });
 
-describe("supabaseClaimVectors", () => {
+describe("the supabaseClaimVectors fixture", () => {
   // SAFETY: the fixture is supabase/sdk's conformance.schema.json, a top-level object.
   const validate = new Ajv2020({ strict: false }).compile(
     JSON.parse(

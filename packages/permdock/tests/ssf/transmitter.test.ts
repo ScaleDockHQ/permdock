@@ -98,7 +98,7 @@ function fetchTo(
   return (input, init) => handler(new Request(input, init));
 }
 
-describe("signSet", () => {
+describe(signSet, () => {
   it("writes an RFC 8417 SET with sub_id, one event and txn", async () => {
     const token = await signSet(
       caepEvents.sessionRevoked({
@@ -220,7 +220,7 @@ describe("event builders", () => {
   });
 });
 
-describe("pushSet", () => {
+describe(pushSet, () => {
   it("delivers to the PermDock receiver, which verifies and dispatches the SET", async () => {
     const { ssf, handled } = receiver();
     const token = await signSet(
@@ -298,7 +298,7 @@ describe("pushSet", () => {
   });
 });
 
-describe("setPollHandler", () => {
+describe(setPollHandler, () => {
   function poll(body: unknown, init: RequestInit = {}): Request {
     return new Request("https://cloud.example.com/ssf/poll", {
       method: "POST",

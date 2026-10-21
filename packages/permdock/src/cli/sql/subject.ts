@@ -1,9 +1,10 @@
 import type { RlsMembershipTable } from "../types.ts";
+import type { RlsSqlContext } from "./context.ts";
 
 import { byCodePoint } from "../../core/compare.ts";
 import { configError } from "../core/errors.ts";
 import { tenantTypeOf } from "./columns.ts";
-import { CLAIM, type RlsSqlContext } from "./context.ts";
+import { CLAIM } from "./context.ts";
 import { qualified, quoteIdent, quoteLiteral } from "./quote.ts";
 
 /**

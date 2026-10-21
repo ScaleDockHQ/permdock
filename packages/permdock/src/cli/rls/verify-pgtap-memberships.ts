@@ -1,14 +1,11 @@
+import type { Scope } from "../../core/scopes.ts";
 import type { Membership } from "../../core/subject.ts";
 import type { SupabaseManifestMembership } from "../../supabase/manifest.ts";
 import type { RlsFixture } from "../fixtures.ts";
 import type { PermDockConfig } from "../types.ts";
 
 import { scopeColumn, scopeMembershipTable } from "../../conditions/compile.ts";
-import {
-  type Scope,
-  normalizeMemberships,
-  rootScope,
-} from "../../core/scopes.ts";
+import { normalizeMemberships, rootScope } from "../../core/scopes.ts";
 import { quoteIdent, quoteLiteral, quoteTable } from "../sql/quote.ts";
 
 type Column = readonly [column: string, value: string];

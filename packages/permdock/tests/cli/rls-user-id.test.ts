@@ -5,9 +5,10 @@ import { afterAll, describe, expect, it } from "vitest";
 import { run } from "../../src/cli/core/run.ts";
 import { policyModule, policyProject, removeProjects } from "./doctor-kit.ts";
 
-afterAll(removeProjects);
+describe("rls user id", () => {
+  afterAll(removeProjects);
 
-const POLICY = `  roles: [
+  const POLICY = `  roles: [
     role('member', [allow([permissions.post.read, permissions.post.update])], { on: 'tenant' }),
     role('admin', [allow(permissions.post.delete)]),
   ],
@@ -17,18 +18,18 @@ const POLICY = `  roles: [
   ],
   scopes: { tenant: { key: 'orgId' } },`;
 
-const MEMBERSHIPS = {
-  scopes: {
-    tenant: {
-      table: "tenant_members",
-      user: "user_id",
-      role: "role",
-      columns: { tenant: "tenant_id" },
+  const MEMBERSHIPS = {
+    scopes: {
+      tenant: {
+        table: "tenant_members",
+        user: "user_id",
+        role: "role",
+        columns: { tenant: "tenant_id" },
+      },
     },
-  },
-};
+  };
 
-const FUNCTION = `-- the caller's user id: the sub of request.jwt.claims, or null when it is empty or absent
+  const FUNCTION = `-- the caller's user id: the sub of request.jwt.claims, or null when it is empty or absent
 create or replace function "permdock".permdock_user_id()
 returns uuid
 language sql
@@ -41,39 +42,41 @@ as $$
   )::uuid
 $$;`;
 
-async function generate(
-  rls: Readonly<Record<string, unknown>>,
-  policy = policyModule(POLICY),
-): Promise<string> {
-  const cwd = policyProject(
-    {},
-    {
-      "src/policy.ts": policy,
-      "permdock.config.ts": `export default ${JSON.stringify({
-        permissions: "./src/permissions.ts",
-        policy: "./src/policy.ts",
-        rls: {
-          tenantType: "text",
-          tables: { post: "posts", note: "notes" },
-          ...rls,
-        },
-      })};\n`,
-    },
-  );
-  const result = await run(["rls", "generate", "--out", "rls.sql"], { cwd });
-  if (result.code !== 0) {
-    throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
+  async function generate(
+    rls: Readonly<Record<string, unknown>>,
+    policy = policyModule(POLICY),
+  ): Promise<string> {
+    const cwd = policyProject(
+      {},
+      {
+        "src/policy.ts": policy,
+        "permdock.config.ts": `export default ${JSON.stringify({
+          permissions: "./src/permissions.ts",
+          policy: "./src/policy.ts",
+          rls: {
+            tenantType: "text",
+            tables: { post: "posts", note: "notes" },
+            ...rls,
+          },
+        })};\n`,
+      },
+    );
+    const result = await run(["rls", "generate", "--out", "rls.sql"], { cwd });
+    if (result.code !== 0) {
+      throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
+    }
+    return readFileSync(path.join(cwd, "rls.sql"), "utf8");
   }
-  return readFileSync(path.join(cwd, "rls.sql"), "utf8");
-}
 
-function outsideFunction(sql: string): string {
-  const start = sql.indexOf(FUNCTION);
-  return sql.slice(0, start) + sql.slice(start + FUNCTION.length);
-}
+  function outsideFunction(sql: string): string {
+    const start = sql.indexOf(FUNCTION);
+    return sql.slice(0, start) + sql.slice(start + FUNCTION.length);
+  }
 
-const MODES: readonly (readonly [string, Readonly<Record<string, unknown>>])[] =
-  [
+  const MODES: readonly (readonly [
+    string,
+    Readonly<Record<string, unknown>>,
+  ])[] = [
     ["jwt", { authorize: "jwt" }],
     ["jwt, tenants all", { authorize: "jwt", tenants: "all" }],
     ["jwt, api keys", { authorize: "jwt", apiKeys: true }],
@@ -89,79 +92,80 @@ const MODES: readonly (readonly [string, Readonly<Record<string, unknown>>])[] =
     ],
   ];
 
-describe("permdock_user_id", () => {
-  it.each(MODES)(
-    "reads the subject through one helper in %s mode",
-    async (_mode, rls) => {
-      const sql = await generate({ dialect: "supabase", ...rls });
-      expect(sql.split(FUNCTION)).toHaveLength(2);
-      expect(sql.indexOf(FUNCTION)).toBeLessThan(
-        sql.indexOf('"permdock".permdock_has('),
-      );
-      const rest = outsideFunction(sql);
-      expect(rest).not.toContain("auth.uid()");
-      expect(rest).not.toContain("->> 'sub'");
-      expect(
-        rest.split('(select "permdock".permdock_user_id())').length,
-      ).toBeGreaterThan(3);
-      expect(rest).toContain(
-        `("authorId" = (select "permdock".permdock_user_id()))`,
-      );
-      expect(rest).toContain(
-        'revoke execute on function "permdock".permdock_user_id() from public, anon;\ngrant execute on function "permdock".permdock_user_id() to authenticated;',
-      );
-    },
-  );
+  describe("permdock_user_id", () => {
+    it.each(MODES)(
+      "reads the subject through one helper in %s mode",
+      async (_mode, rls) => {
+        const sql = await generate({ dialect: "supabase", ...rls });
+        expect(sql.split(FUNCTION)).toHaveLength(2);
+        expect(sql.indexOf(FUNCTION)).toBeLessThan(
+          sql.indexOf('"permdock".permdock_has('),
+        );
+        const rest = outsideFunction(sql);
+        expect(rest).not.toContain("auth.uid()");
+        expect(rest).not.toContain("->> 'sub'");
+        expect(
+          rest.split('(select "permdock".permdock_user_id())').length,
+        ).toBeGreaterThan(3);
+        expect(rest).toContain(
+          `("authorId" = (select "permdock".permdock_user_id()))`,
+        );
+        expect(rest).toContain(
+          'revoke execute on function "permdock".permdock_user_id() from public, anon;\ngrant execute on function "permdock".permdock_user_id() to authenticated;',
+        );
+      },
+    );
 
-  it("keeps the service-key branch on an empty subject", async () => {
-    const sql = await generate({
-      dialect: "supabase",
-      apiKeys: { serviceRoles: ["member"] },
+    it("keeps the service-key branch on an empty subject", async () => {
+      const sql = await generate({
+        dialect: "supabase",
+        apiKeys: { serviceRoles: ["member"] },
+      });
+      expect(sql).toContain(
+        `coalesce((select "permdock".permdock_user_id())::text, '') = ''`,
+      );
     });
-    expect(sql).toContain(
-      `coalesce((select "permdock".permdock_user_id())::text, '') = ''`,
-    );
-  });
 
-  it("follows rls.schema and rls.anonExecute", async () => {
-    const sql = await generate({
-      dialect: "supabase",
-      schema: "authz",
-      anonExecute: true,
-    });
-    expect(sql).toContain(
-      'create or replace function "authz".permdock_user_id()',
-    );
-    expect(sql).toContain(
-      'revoke execute on function "authz".permdock_user_id() from public;\ngrant execute on function "authz".permdock_user_id() to anon, authenticated;',
-    );
-    expect(sql).not.toContain('"permdock".permdock_user_id');
-  });
-
-  it("lets anon run it when an anyone() policy reads the subject", async () => {
-    const policy = policyModule(POLICY)
-      .replace("import {", "import { anyone,")
-      .replace(
-        "allow(permissions.note.read, { to: authenticated() }),",
-        "allow(permissions.post.read, { to: anyone(), where: { authorId: principal.id } }),",
+    it("follows rls.schema and rls.anonExecute", async () => {
+      const sql = await generate({
+        dialect: "supabase",
+        schema: "authz",
+        anonExecute: true,
+      });
+      expect(sql).toContain(
+        'create or replace function "authz".permdock_user_id()',
       );
-    const sql = await generate({ dialect: "supabase" }, policy);
-    expect(sql).toContain(
-      `  to anon\n  using ("authorId" = (select "permdock".permdock_user_id()));`,
-    );
-    expect(sql).toContain(
-      'grant usage on schema "permdock" to anon, authenticated;',
-    );
-    expect(sql).toContain(
-      'grant execute on function "permdock".permdock_user_id() to anon, authenticated;',
+      expect(sql).toContain(
+        'revoke execute on function "authz".permdock_user_id() from public;\ngrant execute on function "authz".permdock_user_id() to anon, authenticated;',
+      );
+      expect(sql).not.toContain('"permdock".permdock_user_id');
+    });
+
+    it("lets anon run it when an anyone() policy reads the subject", async () => {
+      const policy = policyModule(POLICY)
+        .replace("import {", "import { anyone,")
+        .replace(
+          "allow(permissions.note.read, { to: authenticated() }),",
+          "allow(permissions.post.read, { to: anyone(), where: { authorId: principal.id } }),",
+        );
+      const sql = await generate({ dialect: "supabase" }, policy);
+      expect(sql).toContain(
+        `  to anon\n  using ("authorId" = (select "permdock".permdock_user_id()));`,
+      );
+      expect(sql).toContain(
+        'grant usage on schema "permdock" to anon, authenticated;',
+      );
+      expect(sql).toContain(
+        'grant execute on function "permdock".permdock_user_id() to anon, authenticated;',
+      );
+    });
+
+    it.each(["neon", "guc"])(
+      "is not written for the %s dialect",
+      async (dialect) => {
+        const sql = await generate({ dialect });
+        expect(sql).not.toContain("permdock_user_id");
+      },
     );
   });
-
-  it.each(["neon", "guc"])(
-    "is not written for the %s dialect",
-    async (dialect) => {
-      const sql = await generate({ dialect });
-      expect(sql).not.toContain("permdock_user_id");
-    },
-  );
 });

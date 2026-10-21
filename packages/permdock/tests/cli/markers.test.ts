@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { parseGrantsMarker, parseHookMarker } from "../../src/cli/index.ts";
 
-describe("parseHookMarker", () => {
+describe(parseHookMarker, () => {
   it("reads the fields of the hook marker line", () => {
     const sql =
       "-- permdock:hook v1 schema=public tenant=tenant_id budget=2048 claims=user_role,roles,memberships\n-- rest";
@@ -42,7 +42,7 @@ describe("parseHookMarker", () => {
   });
 });
 
-describe("parseGrantsMarker", () => {
+describe(parseGrantsMarker, () => {
   it("reads the schema of a grants migration", () => {
     expect(
       parseGrantsMarker("-- permdock:grants v1 schema=public\ngrant usage;"),

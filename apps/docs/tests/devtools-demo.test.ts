@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { DEMO_ACTIONS, demoDecide } from "../lib/devtools-demo";
 
-describe("demoDecide", () => {
+describe(demoDecide, () => {
   it("grants member read and denies member delete", () => {
     expect(demoDecide("member", "read").outcome).toBe("granted");
     expect(demoDecide("member", "delete").outcome).toBe("denied");

@@ -68,7 +68,7 @@ function fakeCloud(
   return { fetch: fetchImpl, signed };
 }
 
-describe("cloudSigner", () => {
+describe(cloudSigner, () => {
   it("signs a run ticket with the environment's key", async () => {
     const fake = fakeCloud();
     const signer = cloudSigner({

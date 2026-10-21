@@ -61,7 +61,7 @@ function AssignableProbe(): string {
   return `${leaves.map((leaf) => leaf.key).join(",")}|${other.length}`;
 }
 
-describe("useAssignablePermissions", () => {
+describe(useAssignablePermissions, () => {
   it("reads the custom-role ceiling the subject may hand out from the snapshot", async () => {
     const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });

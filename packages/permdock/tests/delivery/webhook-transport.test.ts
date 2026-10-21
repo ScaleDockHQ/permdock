@@ -48,7 +48,7 @@ function capture(status: number) {
   return { requests, fetcher };
 }
 
-describe("webhookTransport", () => {
+describe(webhookTransport, () => {
   it("posts a signed CloudEvent that webhookVerifier accepts", async () => {
     const { requests, fetcher } = capture(204);
     const transport = webhookTransport(signer, { fetch: fetcher });

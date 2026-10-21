@@ -197,7 +197,7 @@ describe("the permdock entry", () => {
   });
 });
 
-describe("parseSinkEvents", () => {
+describe(parseSinkEvents, () => {
   it("returns frozen copies of valid events", () => {
     const parsed = parseSinkEvents(JSON.parse(JSON.stringify(families)));
     expect(parsed).toStrictEqual(families);
@@ -240,7 +240,7 @@ describe("parseSinkEvents", () => {
   });
 });
 
-describe("parseCloudEvent", () => {
+describe(parseCloudEvent, () => {
   it("round-trips every family through JSON", () => {
     for (const event of families) {
       const cloud = toCloudEvent(event, { source });

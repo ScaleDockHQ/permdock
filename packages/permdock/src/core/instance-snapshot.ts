@@ -1,3 +1,4 @@
+import type { CustomGrant } from "./custom-roles.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
 import type { Snapshot, SnapshotAssignable } from "./snapshot-types.ts";
@@ -5,7 +6,7 @@ import type { CustomRole, Subject } from "./subject.ts";
 
 import { assignableIn } from "./assignable.ts";
 import { compact } from "./compact.ts";
-import { type CustomGrant, customGrantsFor } from "./custom-roles.ts";
+import { customGrantsFor } from "./custom-roles.ts";
 import { delegatedPermissions, readOnlyActorRefuses } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames } from "./held-roles.ts";

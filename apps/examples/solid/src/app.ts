@@ -1,4 +1,5 @@
 import type { Snapshot } from "permdock";
+import type { JSX } from "solid-js";
 
 import {
   PermDockProvider,
@@ -7,7 +8,7 @@ import {
   usePermDock,
   usePermission,
 } from "permdock/solid";
-import { createComponent, createRenderEffect, type JSX } from "solid-js";
+import { createComponent, createRenderEffect } from "solid-js";
 
 import { ownPost, permissions } from "./permissions.ts";
 

@@ -47,178 +47,180 @@ function started(): Postgres {
   return db;
 }
 
-beforeAll(async () => {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-approval-delegations-"));
-  try {
-    const out = join(dir, "rls.sql");
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: join(HERE, "../fixtures/approval-delegations-sql") },
-    );
-    if (result.code !== 0) {
-      throw new Error(`rls generate: ${result.stdout}`);
+describe("approval delegations", () => {
+  beforeAll(async () => {
+    const dir = mkdtempSync(join(tmpdir(), "permdock-approval-delegations-"));
+    try {
+      const out = join(dir, "rls.sql");
+      const result = await run(
+        ["rls", "generate", "--target", "sql", "--out", out],
+        { cwd: join(HERE, "../fixtures/approval-delegations-sql") },
+      );
+      if (result.code !== 0) {
+        throw new Error(`rls generate: ${result.stdout}`);
+      }
+      db = await startPostgres([SETUP, readFileSync(out, "utf8")]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
-    db = await startPostgres([SETUP, readFileSync(out, "utf8")]);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-  await started().admin.query(
-    `insert into permdock.approval_delegations (id, delegator, delegate, tenant, resources, "from", "until") values
+    await started().admin.query(
+      `insert into permdock.approval_delegations (id, delegator, delegate, tenant, resources, "from", "until") values
       ('active', $1, $2, 'o1', array['job'], now() - interval '1 day', now() + interval '1 day'),
       ('expired', $1, $3, null, null, now() - interval '2 days', now() - interval '1 day'),
       ('second-hop', $2, $3, null, null, now() - interval '1 day', now() + interval '1 day')`,
-    [LEAD, COVER, SECOND],
-  );
-}, 120_000);
-
-afterAll(async () => {
-  await db?.stop();
-});
-
-async function isApprover(
-  user: string,
-  approvers: unknown,
-  tenant: string | null,
-  requester: string,
-  resource = "job",
-): Promise<boolean> {
-  const target = started();
-  return target.as(
-    {
-      role: "authenticated",
-      settings: { "request.jwt.claims": JSON.stringify(member(user)) },
-    },
-    async () => {
-      const result = await target.tester.query<{ readonly ok: boolean }>(
-        "select permdock.permdock_is_approver($1::jsonb, $2, $3, $4) as ok",
-        [JSON.stringify(approvers), tenant, requester, resource],
-      );
-      return result.rows[0]?.ok === true;
-    },
-  );
-}
-
-describe("permdock_is_approver with covers", () => {
-  const lead = { kind: "user", id: LEAD };
-
-  it("lets a delegate approve inside an active cover for the resource and tenant", async () => {
-    expect(await isApprover(LEAD, lead, "o1", REQUESTER)).toBe(true);
-    expect(await isApprover(COVER, lead, "o1", REQUESTER)).toBe(true);
-    expect(await isApprover(COVER, lead, "o2", REQUESTER)).toBe(false);
-    expect(await isApprover(COVER, lead, "o1", REQUESTER, "invoice")).toBe(
-      false,
+      [LEAD, COVER, SECOND],
     );
+  }, 120_000);
+
+  afterAll(async () => {
+    await db?.stop();
   });
 
-  it("refuses an expired cover, a delegator who asked, and a second hop", async () => {
-    expect(await isApprover(SECOND, lead, "o1", REQUESTER)).toBe(false);
-    expect(await isApprover(COVER, lead, "o1", LEAD)).toBe(false);
-    expect(
-      await isApprover(SECOND, { kind: "user", id: COVER }, "o1", REQUESTER),
-    ).toBe(true);
-    expect(await isApprover(COVER, lead, "o1", "")).toBe(false);
-  });
-
-  it("keeps the two-argument check free of covers", async () => {
-    const target = started();
-    const ok = await target.as(
-      {
-        role: "authenticated",
-        settings: { "request.jwt.claims": JSON.stringify(member(COVER)) },
-      },
-      async () =>
-        (
-          await target.tester.query<{ readonly ok: boolean }>(
-            "select permdock.permdock_is_approver($1::jsonb, 'o1') as ok",
-            [JSON.stringify(lead)],
-          )
-        ).rows[0]?.ok,
-    );
-    expect(ok).toBe(false);
-  });
-});
-
-describe("approval_delegations policies", () => {
-  async function asUser<T>(
+  async function isApprover(
     user: string,
-    work: (target: Postgres) => Promise<T>,
-  ): Promise<T> {
+    approvers: unknown,
+    tenant: string | null,
+    requester: string,
+    resource = "job",
+  ): Promise<boolean> {
     const target = started();
     return target.as(
       {
         role: "authenticated",
         settings: { "request.jwt.claims": JSON.stringify(member(user)) },
       },
-      () => work(target),
+      async () => {
+        const result = await target.tester.query<{ readonly ok: boolean }>(
+          "select permdock.permdock_is_approver($1::jsonb, $2, $3, $4) as ok",
+          [JSON.stringify(approvers), tenant, requester, resource],
+        );
+        return result.rows[0]?.ok === true;
+      },
     );
   }
 
-  it("lets a user write covers for themselves in their own tenants", async () => {
-    const inserted = await asUser(REQUESTER, async (target) => {
-      await target.tester.query(
-        `insert into permdock.approval_delegations (delegate, tenant, "until") values ($1, 'o1', now() + interval '1 day')`,
-        [COVER],
+  describe("permdock_is_approver with covers", () => {
+    const lead = { kind: "user", id: LEAD };
+
+    it("lets a delegate approve inside an active cover for the resource and tenant", async () => {
+      expect(await isApprover(LEAD, lead, "o1", REQUESTER)).toBe(true);
+      expect(await isApprover(COVER, lead, "o1", REQUESTER)).toBe(true);
+      expect(await isApprover(COVER, lead, "o2", REQUESTER)).toBe(false);
+      expect(await isApprover(COVER, lead, "o1", REQUESTER, "invoice")).toBe(
+        false,
       );
-      return (
-        await target.tester.query<{ readonly delegator: string }>(
-          "select delegator::text from permdock.approval_delegations where delegate = $1",
-          [COVER],
-        )
-      ).rows.map((row) => row.delegator);
     });
-    expect(inserted).toStrictEqual([REQUESTER]);
+
+    it("refuses an expired cover, a delegator who asked, and a second hop", async () => {
+      expect(await isApprover(SECOND, lead, "o1", REQUESTER)).toBe(false);
+      expect(await isApprover(COVER, lead, "o1", LEAD)).toBe(false);
+      expect(
+        await isApprover(SECOND, { kind: "user", id: COVER }, "o1", REQUESTER),
+      ).toBe(true);
+      expect(await isApprover(COVER, lead, "o1", "")).toBe(false);
+    });
+
+    it("keeps the two-argument check free of covers", async () => {
+      const target = started();
+      const ok = await target.as(
+        {
+          role: "authenticated",
+          settings: { "request.jwt.claims": JSON.stringify(member(COVER)) },
+        },
+        async () =>
+          (
+            await target.tester.query<{ readonly ok: boolean }>(
+              "select permdock.permdock_is_approver($1::jsonb, 'o1') as ok",
+              [JSON.stringify(lead)],
+            )
+          ).rows[0]?.ok,
+      );
+      expect(ok).toBe(false);
+    });
   });
 
-  it("refuses a cover for someone else, in another tenant, and hides others' covers", async () => {
-    await expect(
-      asUser(REQUESTER, (target) =>
-        target.tester.query(
-          `insert into permdock.approval_delegations (delegator, delegate, "until") values ($1, $2, now() + interval '1 day')`,
-          [LEAD, REQUESTER],
-        ),
-      ),
-    ).rejects.toThrow(/row-level security/u);
-    await expect(
-      asUser(REQUESTER, (target) =>
-        target.tester.query(
-          `insert into permdock.approval_delegations (delegate, tenant, "until") values ($1, 'o2', now() + interval '1 day')`,
+  describe("approval_delegations policies", () => {
+    async function asUser<T>(
+      user: string,
+      work: (target: Postgres) => Promise<T>,
+    ): Promise<T> {
+      const target = started();
+      return target.as(
+        {
+          role: "authenticated",
+          settings: { "request.jwt.claims": JSON.stringify(member(user)) },
+        },
+        () => work(target),
+      );
+    }
+
+    it("lets a user write covers for themselves in their own tenants", async () => {
+      const inserted = await asUser(REQUESTER, async (target) => {
+        await target.tester.query(
+          `insert into permdock.approval_delegations (delegate, tenant, "until") values ($1, 'o1', now() + interval '1 day')`,
           [COVER],
-        ),
-      ),
-    ).rejects.toThrow(/row-level security/u);
-    const seen = await asUser(
-      REQUESTER,
-      async (target) =>
-        (
-          await target.tester.query(
-            "select id from permdock.approval_delegations",
+        );
+        return (
+          await target.tester.query<{ readonly delegator: string }>(
+            "select delegator::text from permdock.approval_delegations where delegate = $1",
+            [COVER],
           )
-        ).rowCount,
-    );
-    expect(seen).toBe(0);
-  });
-});
+        ).rows.map((row) => row.delegator);
+      });
+      expect(inserted).toStrictEqual([REQUESTER]);
+    });
 
-describe("tableApprovalDelegationSource over the generated table", () => {
-  const source = tableApprovalDelegationSource({
-    query: (text, values) => started().admin.query(text, [...values]),
+    it("refuses a cover for someone else, in another tenant, and hides others' covers", async () => {
+      await expect(
+        asUser(REQUESTER, (target) =>
+          target.tester.query(
+            `insert into permdock.approval_delegations (delegator, delegate, "until") values ($1, $2, now() + interval '1 day')`,
+            [LEAD, REQUESTER],
+          ),
+        ),
+      ).rejects.toThrow(/row-level security/u);
+      await expect(
+        asUser(REQUESTER, (target) =>
+          target.tester.query(
+            `insert into permdock.approval_delegations (delegate, tenant, "until") values ($1, 'o2', now() + interval '1 day')`,
+            [COVER],
+          ),
+        ),
+      ).rejects.toThrow(/row-level security/u);
+      const seen = await asUser(
+        REQUESTER,
+        async (target) =>
+          (
+            await target.tester.query(
+              "select id from permdock.approval_delegations",
+            )
+          ).rowCount,
+      );
+      expect(seen).toBe(0);
+    });
   });
 
-  testApprovalDelegationSource(source, {
-    delegate: COVER,
-    delegator: LEAD,
-    tenant: "o1",
-  });
+  describe("tableApprovalDelegationSource over the generated table", () => {
+    const source = tableApprovalDelegationSource({
+      query: (text, values) => started().admin.query(text, [...values]),
+    });
 
-  it("returns only the active covers for the tenant", async () => {
-    const at = new Date().toISOString();
-    expect(
-      (await source.delegationsFor({ delegate: SECOND, at })).map(
-        (entry) => entry.id,
-      ),
-    ).toStrictEqual(["second-hop"]);
-    expect(await source.delegationsFor({ delegate: COVER, at })).toStrictEqual(
-      [],
-    );
+    testApprovalDelegationSource(source, {
+      delegate: COVER,
+      delegator: LEAD,
+      tenant: "o1",
+    });
+
+    it("returns only the active covers for the tenant", async () => {
+      const at = new Date().toISOString();
+      expect(
+        (await source.delegationsFor({ delegate: SECOND, at })).map(
+          (entry) => entry.id,
+        ),
+      ).toStrictEqual(["second-hop"]);
+      expect(
+        await source.delegationsFor({ delegate: COVER, at }),
+      ).toStrictEqual([]);
+    });
   });
 });

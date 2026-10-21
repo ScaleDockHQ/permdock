@@ -1,11 +1,13 @@
+import type { Scope } from "../../core/scopes.ts";
+import type { CustomRole, Policy } from "../../index.ts";
 import type { RlsFixture } from "../fixtures.ts";
 import type { PermDockConfig, RlsDialect } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { customRoleScope, membershipsClaim } from "../../core/custom-roles.ts";
-import { type Scope, scopeList } from "../../core/scopes.ts";
+import { scopeList } from "../../core/scopes.ts";
 import { SQL_IDENT, defaultSqlCommand } from "../../core/sql.ts";
-import { type CustomRole, type Policy, findPermission } from "../../index.ts";
+import { findPermission } from "../../index.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { quoteIdent, quoteLiteral, quoteTable } from "../sql/quote.ts";

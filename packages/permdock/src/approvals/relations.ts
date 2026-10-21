@@ -1,20 +1,19 @@
 import type { RelatedCondition } from "../conditions/ast.ts";
+import type { Approver } from "../core/approvers.ts";
 import type { RelationGrantee } from "../core/grantee.ts";
 import type { RelationSource } from "../core/interfaces.ts";
 import type { PermissionTree, ResourceNode } from "../core/permission-types.ts";
+import type { RelationCache, RelationReader } from "../core/relations.ts";
 import type { Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
+import type { ApprovalRequest } from "./types.ts";
 
-import { type Approver, approverLeaves } from "../core/approvers.ts";
+import { approverLeaves } from "../core/approvers.ts";
 import { getRegistry } from "../core/permission-registry.ts";
 import { resolveRelated } from "../core/relation-walk.ts";
-import {
-  type RelationCache,
-  type RelationReader,
-  pendingRelations,
-  relationReader,
-} from "../core/relations.ts";
-import { dateAt, type Instant } from "../core/time.ts";
-import { type ApprovalRequest, approverRelationKey } from "./types.ts";
+import { pendingRelations, relationReader } from "../core/relations.ts";
+import { dateAt } from "../core/time.ts";
+import { approverRelationKey } from "./types.ts";
 
 export type ApproverRelationsOptions = {
   /**

@@ -2,8 +2,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { CommandResult } from "../core/result.ts";
+import type { SqlConnect } from "../pg.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 import type { RolePermission } from "./helpers.ts";
+import type { ImportedGrant } from "./import-ast.ts";
+import type { ImportedFieldView } from "./import-views.ts";
 
 import { configError, usageResult } from "../core/errors.ts";
 import { writeFileEnsuringDir } from "../files.ts";
@@ -12,21 +15,13 @@ import {
   emptySchema,
   isSchemaKind,
 } from "../generate.ts";
-import { type SqlConnect, pgConnector } from "../pg.ts";
+import { pgConnector } from "../pg.ts";
 import { parseMembershipsFlag } from "../sql/context.ts";
-import {
-  type ImportedGrant,
-  conditionFromAst,
-  helperGrants,
-} from "./import-ast.ts";
+import { conditionFromAst, helperGrants } from "./import-ast.ts";
 import { mapRoleValues } from "./import-membership.ts";
 import { canonicalDump, fingerprintSql } from "./import-nodes.ts";
 import { seedFromRow, seedsFromSql } from "./import-seeds.ts";
-import {
-  type ImportedFieldView,
-  fieldViewsFromSql,
-  viewsSqlFromDb,
-} from "./import-views.ts";
+import { fieldViewsFromSql, viewsSqlFromDb } from "./import-views.ts";
 
 type ImportedPolicy = {
   readonly table: string;

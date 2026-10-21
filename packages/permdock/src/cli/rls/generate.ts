@@ -1,8 +1,10 @@
+import type { Policy } from "../../index.ts";
 import type { ExitCode } from "../core/errors.ts";
 import type { OutputFile } from "../core/output-files.ts";
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { PermDockConfig } from "../types.ts";
 import type { RlsExplain } from "./explain.ts";
+import type { RlsGenerateInput } from "./generate-options.ts";
 import type { RolePermission } from "./helpers.ts";
 import type { IndexTarget } from "./indexes.ts";
 import type { LevelKey } from "./rows.ts";
@@ -11,7 +13,7 @@ import { policyFromCatalog } from "../../catalog/policy-from-catalog.ts";
 import { renamedKeys } from "../../core/permission-registry.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { dateAt } from "../../core/time.ts";
-import { type Policy, listPermissions } from "../../index.ts";
+import { listPermissions } from "../../index.ts";
 import { POLICY_NOT_PUBLISHED } from "../cloud/problem-types.ts";
 import { fetchProjectPolicy } from "../cloud/pull.ts";
 import { describeError, exitCodeOfError } from "../core/errors.ts";
@@ -31,12 +33,7 @@ import {
 } from "./bindings.ts";
 import { explainRls } from "./explain.ts";
 import { buildContext } from "./generate-context.ts";
-import {
-  type RlsGenerateInput,
-  generateOptions,
-  isRefusal,
-  splitsPart,
-} from "./generate-options.ts";
+import { generateOptions, isRefusal, splitsPart } from "./generate-options.ts";
 import { outputFiles } from "./generate-output.ts";
 import { generateSql } from "./generate-sql.ts";
 import {

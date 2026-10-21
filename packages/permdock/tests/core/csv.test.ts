@@ -27,7 +27,7 @@ const base: DecisionEvent = {
   call: "adapter",
 };
 
-describe("toCsvRow", () => {
+describe(toCsvRow, () => {
   it("pins the column order", () => {
     expect(CSV_COLUMNS.join(",")).toBe(
       "time,principal,actor,tenant,permission,outcome,matched.role,via,denials.reason,token",

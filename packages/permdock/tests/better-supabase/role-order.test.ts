@@ -17,7 +17,7 @@ function catalog(roles: readonly CatalogRole[]): CatalogDocument {
   };
 }
 
-describe("roleOrderFromCatalog", () => {
+describe(roleOrderFromCatalog, () => {
   it("puts a role before the roles it assigns", () => {
     expect(
       roleOrderFromCatalog(

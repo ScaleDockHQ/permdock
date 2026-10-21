@@ -1,16 +1,16 @@
 import { expect, it } from "vitest";
 
-import { isoNow } from "../../core/time.ts";
-import {
-  type DecisionSink,
-  type LimitStore,
-  type Policy,
-  type PolicyDocument,
-  type PolicySource,
-  type SnapshotSource,
-  mergeHostedGrants,
-  parsePolicyDocument,
+import type {
+  DecisionSink,
+  LimitStore,
+  Policy,
+  PolicyDocument,
+  PolicySource,
+  SnapshotSource,
 } from "../../index.ts";
+
+import { isoNow } from "../../core/time.ts";
+import { mergeHostedGrants, parsePolicyDocument } from "../../index.ts";
 
 export function testLimitStore(store: LimitStore): void {
   it("counts down synchronously and fails closed when exhausted", async () => {
@@ -25,7 +25,7 @@ export function testLimitStore(store: LimitStore): void {
     expect(first.remaining).toBeGreaterThanOrEqual(0);
     const peeked = store.remaining(input);
     if (peeked !== undefined) {
-      expect(typeof peeked.remaining).toBe("number");
+      expect(peeked.remaining).toBeTypeOf("number");
       expect(
         peeked !== null &&
           typeof peeked === "object" &&

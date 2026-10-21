@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ApprovalStore } from "../../src/approvals/types.ts";
 import type { Automation } from "../../src/core/automation.ts";
 import type { Principal } from "../../src/core/subject.ts";
+import type { WorkflowPermDockOptions } from "../../src/workflow/index.ts";
 
 import { resolveApproval } from "../../src/approvals/helpers.ts";
 import { memoryApprovalStore } from "../../src/approvals/store.ts";
@@ -11,7 +12,6 @@ import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 import {
-  type WorkflowPermDockOptions,
   createPermDock,
   memoryAutomationSource,
   pollingApprovalWaiter,
@@ -375,7 +375,7 @@ describe("permdock/workflow: awaitApproval", () => {
   });
 });
 
-describe("pollingApprovalWaiter", () => {
+describe(pollingApprovalWaiter, () => {
   it("rejects on abort and refuses a non-positive interval", async () => {
     const store = memoryApprovalStore();
     const waiter = pollingApprovalWaiter({ store, interval: 5 });

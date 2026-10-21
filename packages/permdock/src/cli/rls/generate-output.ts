@@ -1,10 +1,10 @@
 import type { Scope } from "../../core/scopes.ts";
+import type { OutputFile, SplitPart } from "../core/output-files.ts";
+import type { ResolvedSchemas } from "../supabase-schemas.ts";
 import type { RlsGenerateInput } from "./generate-options.ts";
 
 import { dateAt } from "../../core/time.ts";
 import {
-  type OutputFile,
-  type SplitPart,
   isSeedsDirectory,
   parseSplit,
   partPath,
@@ -18,7 +18,7 @@ import {
   grantsLabel,
   supabaseHookSql,
 } from "../supabase-hook/supabase-hook.ts";
-import { type ResolvedSchemas, resolveSchemas } from "../supabase-schemas.ts";
+import { resolveSchemas } from "../supabase-schemas.ts";
 
 export type SplitSql = {
   readonly policies: string;

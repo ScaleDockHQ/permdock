@@ -1,7 +1,8 @@
 import type { Policy } from "../../core/policy-types.ts";
+import type { Scope } from "../../core/scopes.ts";
 import type { RlsOwnership, RlsSqlContext } from "../sql/context.ts";
 
-import { type Scope, resolveScope, scopeChain } from "../../core/scopes.ts";
+import { resolveScope, scopeChain } from "../../core/scopes.ts";
 import { findRole } from "../../core/vocabulary.ts";
 import { scopeTable } from "../sql/names.ts";
 import { memberVia } from "../sql/subject.ts";

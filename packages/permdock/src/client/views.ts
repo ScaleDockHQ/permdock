@@ -3,6 +3,11 @@ import type {
   Decision,
   GrantedDecision,
 } from "../core/decision.ts";
+import type {
+  DecisionDescription,
+  DescribeMessages,
+  DescribeOptions,
+} from "../core/describe.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Role } from "../core/vocabulary.ts";
@@ -20,13 +25,7 @@ import type {
   RolesOptions,
 } from "./types.ts";
 
-import {
-  type DecisionDescription,
-  type DescribeMessages,
-  type DescribeOptions,
-  describe,
-  requiredPlans,
-} from "../core/describe.ts";
+import { describe, requiredPlans } from "../core/describe.ts";
 
 export function permissionSet(
   store: ClientStore,

@@ -1,9 +1,10 @@
 import type { FlagValues } from "../core/command.ts";
+import type { Leaf } from "../core/command.ts";
 import type { CliContext } from "../core/context.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { RlsRunInput } from "../rls/rls.ts";
 
-import { type Leaf, defineLeaf } from "../core/command.ts";
+import { defineLeaf } from "../core/command.ts";
 import { missingInput } from "../core/errors.ts";
 import {
   checkFlag,

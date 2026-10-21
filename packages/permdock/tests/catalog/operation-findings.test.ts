@@ -50,7 +50,7 @@ function catalog(
   };
 }
 
-describe("operationFindings", () => {
+describe(operationFindings, () => {
   it("reports a raised risk with the previous and new level", () => {
     const findings = operationFindings(
       catalog([operation("refundInvoice", "invoice.refund", "medium")]),

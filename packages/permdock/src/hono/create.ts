@@ -1,7 +1,8 @@
+import type { Context, MiddlewareHandler, Next } from "hono";
 import type { SSEMessage, SSEStreamingApi } from "hono/streaming";
 import type { WSEvents } from "hono/ws";
 
-import { Hono, type Context, type MiddlewareHandler, type Next } from "hono";
+import { Hono } from "hono";
 
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";

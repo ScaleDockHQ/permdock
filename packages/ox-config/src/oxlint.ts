@@ -1,6 +1,8 @@
+import type { OxlintConfig } from "oxlint";
+
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { type OxlintConfig, defineConfig } from "oxlint";
+import { defineConfig } from "oxlint";
 
 type Rules = NonNullable<OxlintConfig["rules"]>;
 
@@ -183,6 +185,7 @@ export const core: OxlintConfig = defineConfig({
     "typescript/await-thenable": "error",
     "typescript/consistent-type-exports": "error",
     "typescript/consistent-type-imports": "error",
+    "import/consistent-type-specifier-style": ["error", "prefer-top-level"],
     // noPropertyAccessFromIndexSignature requires brackets for index-signature reads.
     "typescript/dot-notation": [
       "error",
@@ -241,15 +244,15 @@ export const core: OxlintConfig = defineConfig({
     "anti-slop/no-runtime-typeof": "off",
     // Boundary entry points (refresh, tool args, remote decisions) take `unknown` and validate it (699 findings).
     "anti-slop/no-unknown-parameters": "off",
-    // Condition paths, claims and adapter hooks hand back `unknown` for the caller to validate (271 findings).
+    // Condition paths, claims and adapter hooks hand back `unknown` for the caller to validate under invariant 9 (427 findings).
     "anti-slop/no-unknown-returns": "off",
     // `Record<string, unknown>` is the JSON boundary type; noUncheckedIndexedAccess guards reads (547 findings).
     "anti-slop/no-unsafe-dictionary-type": "off",
     // exactOptionalPropertyTypes forbids `key: undefined`; the conditional spread omits the key (177 findings).
     "anti-slop/no-conditional-empty-object-spread": "off",
-    // Explicit return and wire types (isolatedDeclarations on exports) are the contract by design (271 findings).
+    // Explicit return and wire types (isolatedDeclarations on exports) are the contract by design (567 findings).
     "anti-slop/no-known-value-widening": "off",
-    // `object` is the non-primitive bound for prototype-safe reads and foreign tables / contexts (20 findings).
+    // `object` is the non-primitive bound for prototype-safe reads, WeakMap keys and foreign tables / contexts (46 findings).
     "anti-slop/no-object-parameters": "off",
     // "Shape" is Standard Schema, tRPC and SQL vocabulary here, including public type parameters (179 findings).
     "anti-slop/no-shape-in-symbol-names": "off",
@@ -446,6 +449,14 @@ export const test: OxlintConfig = defineConfig({
     "vitest/no-focused-tests": "error",
     "vitest/no-disabled-tests": "error",
     "vitest/prefer-strict-equal": "error",
+    "vitest/prefer-import-in-mock": "error",
+    "vitest/require-top-level-describe": "error",
+    "vitest/padding-around-test-blocks": "error",
+    "vitest/padding-around-after-all-blocks": "error",
+    "vitest/prefer-describe-function-title": "error",
+    "vitest/prefer-expect-type-of": "error",
+    "vitest/consistent-test-filename": "error",
+    "vitest/prefer-importing-vitest-globals": "error",
   },
 });
 
@@ -628,6 +639,9 @@ export const react: OxlintConfig = defineConfig({
     "react-doctor/prefer-use-effect-event": "error",
     "shadcn/no-inline-styles": "error",
     "shadcn/no-raw-colors": "error",
+    // Clearing it restyles the marketing site and the Next.js example and adds
+    // variants in packages/ui: a design pass with visual review (162 findings).
+    "shadcn/no-restyle": "off",
     // Framework file conventions infer page and layout types (140 findings).
     "typescript/explicit-function-return-type": "off",
     // Framework file conventions infer page and layout types (91 findings).

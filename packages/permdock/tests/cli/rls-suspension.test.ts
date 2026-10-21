@@ -17,409 +17,415 @@ const TMP = join(HERE, "../../tmp");
 
 const temps: string[] = [];
 
-afterEach(() => {
-  for (const dir of temps.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-const MEMBERSHIPS = {
-  scopes: {
-    organization: {
-      table: "organization_users",
-      user: "user_id",
-      role: "role",
-      columns: { organization: "organization_id" },
-    },
-    customer: {
-      table: "customer_contacts",
-      user: "user_id",
-      role: "role",
-      columns: { customer: "customer_id", organization: "organization_id" },
-    },
-  },
-};
-
-const SUSPENSION = {
-  users: { table: "profiles", id: "id", disabledAt: "disabled_at" },
-  scopes: {
-    organization: {
-      table: "organizations",
-      id: "id",
-      disabledAt: "disabled_at",
-    },
-    customer: {
-      table: "customers",
-      id: "id",
-      status: "status",
-      active: ["active", "prospect"],
-    },
-  },
-};
-
-async function generate(
-  rls: Record<string, unknown>,
-  extra: readonly string[] = [],
-): Promise<{ code: number; output: string; sql: string }> {
-  mkdirSync(TMP, { recursive: true });
-  const cwd = mkdtempSync(join(TMP, "rls-suspension-"));
-  temps.push(cwd);
-  writeFileSync(
-    join(cwd, "permdock.config.ts"),
-    `export default ${JSON.stringify({ permissions: POLICY, policy: POLICY, rls })};\n`,
-  );
-  const result = await run(
-    ["rls", "generate", "--target", "sql", "--out", "rls.sql", ...extra],
-    { cwd },
-  );
-  let sql = "";
-  try {
-    sql = readFileSync(join(cwd, "rls.sql"), "utf8");
-  } catch {
-    sql = "";
-  }
-  return { code: result.code, output: result.stdout + result.stderr, sql };
-}
-
-function helper(sql: string, name: string): string {
-  const start = sql.indexOf(`function "permdock".${name}(`);
-  return sql.slice(start, sql.indexOf("$$;", start));
-}
-
-describe("rls.suspension", () => {
-  it("checks the user and every instance on the chain in database mode", async () => {
-    const { code, sql } = await generate({
-      dialect: "supabase",
-      tenantType: "text",
-      authorize: "database",
-      memberships: MEMBERSHIPS,
-      suspension: SUSPENSION,
-    });
-    expect(code).toBe(0);
-    const user =
-      'coalesce((select "permdock".permdock_user_id()) in (select s."id" from "public"."profiles" s where s."disabled_at" is null), false)';
-    expect(helper(sql, "permdock_has")).toContain(user);
-    const customer = helper(sql, "permitted_customer_ids");
-    expect(customer).toContain(user);
-    expect(customer).toContain(
-      `coalesce((m."customer_id")::text in (select s."id" from "public"."customers" s where s."status"::text = any(array['active', 'prospect']::text[])), false)`,
-    );
-    expect(customer).toContain(
-      'coalesce((m."organization_id")::text in (select s."id" from "public"."organizations" s where s."disabled_at" is null), false)',
-    );
-    expect(helper(sql, "permitted_organization_ids")).not.toContain(
-      '"customers"',
-    );
+describe("rls suspension", () => {
+  afterEach(() => {
+    for (const dir of temps.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
-  it("checks the claim ids against the tables in jwt mode", async () => {
-    const { code, sql } = await generate({
-      dialect: "supabase",
-      tenantType: "text",
-      authorize: "jwt",
-      suspension: SUSPENSION,
-    });
-    expect(code).toBe(0);
-    const customer = helper(sql, "permitted_customer_ids");
-    expect(customer).toContain(
-      `coalesce((m ->> 'id')::text in (select s."id" from`,
-    );
-    expect(customer).toContain(
-      `coalesce((m -> 'within' ->> 'organization')::text in (select s."id" from "public"."organizations" s where s."disabled_at" is null), false)`,
-    );
-  });
-
-  it("resolves scope aliases and leaves the SQL unchanged without suspension", async () => {
-    const aliased = await generate({
-      dialect: "supabase",
-      tenantType: "text",
-      authorize: "jwt",
-      suspension: {
-        scopes: {
-          tenant: {
-            table: "organizations",
-            id: "id",
-            disabledAt: "disabled_at",
-          },
-        },
-      },
-    });
-    expect(aliased.code).toBe(0);
-    expect(helper(aliased.sql, "permitted_organization_ids")).toContain(
-      '"organizations"',
-    );
-    const plain = await generate({
-      dialect: "supabase",
-      tenantType: "text",
-      authorize: "jwt",
-    });
-    expect(plain.sql).not.toContain("disabled_at");
-  });
-
-  it("refuses a suspension config it cannot compile", async () => {
-    const base = {
-      dialect: "supabase",
-      tenantType: "text",
-      authorize: "database",
-      memberships: MEMBERSHIPS,
-    };
-    const unknown = await generate({
-      ...base,
-      suspension: {
-        scopes: { site: { table: "t", id: "id", disabledAt: "d" } },
-      },
-    });
-    expect(unknown.code).toBe(2);
-    expect(unknown.output).toContain("rls.suspension.scopes.site");
-    const neither = await generate({
-      ...base,
-      suspension: { users: { table: "profiles", id: "id" } },
-    });
-    expect(neither.code).toBe(2);
-    expect(neither.output).toContain("disabledAt or status");
-    const noActive = await generate({
-      ...base,
-      suspension: { users: { table: "profiles", id: "id", status: "status" } },
-    });
-    expect(noActive.code).toBe(2);
-    expect(noActive.output).toContain("rls.suspension.users.active");
-    const unsafe = await generate({
-      ...base,
-      suspension: {
-        users: { table: "profiles", id: "id; drop table x", disabledAt: "d" },
-      },
-    });
-    expect(unsafe.code).toBe(2);
-    const noAncestor = await generate({
-      ...base,
-      memberships: {
-        scopes: {
-          ...MEMBERSHIPS.scopes,
-          customer: {
-            table: "customer_contacts",
-            user: "user_id",
-            role: "role",
-            columns: { customer: "customer_id" },
-          },
-        },
-      },
-      suspension: {
-        scopes: {
-          organization: {
-            table: "organizations",
-            id: "id",
-            disabledAt: "disabled_at",
-          },
-        },
-      },
-    });
-    expect(noAncestor.code).toBe(2);
-    expect(noAncestor.output).toContain("columns.organization");
-  });
-});
-
-describe("rls.suspension keep", () => {
-  const KEEP = {
-    ...SUSPENSION,
+  const MEMBERSHIPS = {
     scopes: {
-      ...SUSPENSION.scopes,
       organization: {
-        ...SUSPENSION.scopes.organization,
-        keep: ["invoice.read"],
+        table: "organization_users",
+        user: "user_id",
+        role: "role",
+        columns: { organization: "organization_id" },
+      },
+      customer: {
+        table: "customer_contacts",
+        user: "user_id",
+        role: "role",
+        columns: { customer: "customer_id", organization: "organization_id" },
       },
     },
   };
-  const kept = `split_part(split_part(p_grant, '#', 1), '@', 1) = any(array['invoice.read']::text[])`;
 
-  it.each(["database", "jwt"])(
-    "lets a kept permission through a suspended organization in %s mode",
-    async (authorize) => {
+  const SUSPENSION = {
+    users: { table: "profiles", id: "id", disabledAt: "disabled_at" },
+    scopes: {
+      organization: {
+        table: "organizations",
+        id: "id",
+        disabledAt: "disabled_at",
+      },
+      customer: {
+        table: "customers",
+        id: "id",
+        status: "status",
+        active: ["active", "prospect"],
+      },
+    },
+  };
+
+  async function generate(
+    rls: Record<string, unknown>,
+    extra: readonly string[] = [],
+  ): Promise<{ code: number; output: string; sql: string }> {
+    mkdirSync(TMP, { recursive: true });
+    const cwd = mkdtempSync(join(TMP, "rls-suspension-"));
+    temps.push(cwd);
+    writeFileSync(
+      join(cwd, "permdock.config.ts"),
+      `export default ${JSON.stringify({ permissions: POLICY, policy: POLICY, rls })};\n`,
+    );
+    const result = await run(
+      ["rls", "generate", "--target", "sql", "--out", "rls.sql", ...extra],
+      { cwd },
+    );
+    let sql = "";
+    try {
+      sql = readFileSync(join(cwd, "rls.sql"), "utf8");
+    } catch {
+      sql = "";
+    }
+    return { code: result.code, output: result.stdout + result.stderr, sql };
+  }
+
+  function helper(sql: string, name: string): string {
+    const start = sql.indexOf(`function "permdock".${name}(`);
+    return sql.slice(start, sql.indexOf("$$;", start));
+  }
+
+  describe("rls.suspension", () => {
+    it("checks the user and every instance on the chain in database mode", async () => {
       const { code, sql } = await generate({
         dialect: "supabase",
         tenantType: "text",
-        authorize,
-        ...(authorize === "database" ? { memberships: MEMBERSHIPS } : {}),
-        suspension: KEEP,
+        authorize: "database",
+        memberships: MEMBERSHIPS,
+        suspension: SUSPENSION,
       });
       expect(code).toBe(0);
-      expect(helper(sql, "permitted_organization_ids")).toContain(kept);
-      expect(helper(sql, "permitted_customer_ids")).toContain(kept);
-      expect(helper(sql, "member_organization_ids")).not.toContain(
-        "invoice.read",
+      const user =
+        'coalesce((select "permdock".permdock_user_id()) in (select s."id" from "public"."profiles" s where s."disabled_at" is null), false)';
+      expect(helper(sql, "permdock_has")).toContain(user);
+      const customer = helper(sql, "permitted_customer_ids");
+      expect(customer).toContain(user);
+      expect(customer).toContain(
+        `coalesce((m."customer_id")::text in (select s."id" from "public"."customers" s where s."status"::text = any(array['active', 'prospect']::text[])), false)`,
       );
-    },
-  );
+      expect(customer).toContain(
+        'coalesce((m."organization_id")::text in (select s."id" from "public"."organizations" s where s."disabled_at" is null), false)',
+      );
+      expect(helper(sql, "permitted_organization_ids")).not.toContain(
+        '"customers"',
+      );
+    });
 
-  it("keeps the kept permission in authorize()", async () => {
-    const { sql } = await generate(
-      {
+    it("checks the claim ids against the tables in jwt mode", async () => {
+      const { code, sql } = await generate({
+        dialect: "supabase",
         tenantType: "text",
         authorize: "jwt",
+        suspension: SUSPENSION,
+      });
+      expect(code).toBe(0);
+      const customer = helper(sql, "permitted_customer_ids");
+      expect(customer).toContain(
+        `coalesce((m ->> 'id')::text in (select s."id" from`,
+      );
+      expect(customer).toContain(
+        `coalesce((m -> 'within' ->> 'organization')::text in (select s."id" from "public"."organizations" s where s."disabled_at" is null), false)`,
+      );
+    });
+
+    it("resolves scope aliases and leaves the SQL unchanged without suspension", async () => {
+      const aliased = await generate({
+        dialect: "supabase",
+        tenantType: "text",
+        authorize: "jwt",
+        suspension: {
+          scopes: {
+            tenant: {
+              table: "organizations",
+              id: "id",
+              disabledAt: "disabled_at",
+            },
+          },
+        },
+      });
+      expect(aliased.code).toBe(0);
+      expect(helper(aliased.sql, "permitted_organization_ids")).toContain(
+        '"organizations"',
+      );
+      const plain = await generate({
+        dialect: "supabase",
+        tenantType: "text",
+        authorize: "jwt",
+      });
+      expect(plain.sql).not.toContain("disabled_at");
+    });
+
+    it("refuses a suspension config it cannot compile", async () => {
+      const base = {
+        dialect: "supabase",
+        tenantType: "text",
+        authorize: "database",
         memberships: MEMBERSHIPS,
-        suspension: KEEP,
-      },
-      ["--rbac", "supabase", "--dialect", "supabase"],
-    );
-    const authorize = sql.slice(
-      sql.indexOf('function "permdock"."authorize"('),
-    );
-    expect(authorize).toContain(
-      `s."disabled_at" is null) and not (requested_permission::text = any(array['invoice.read']::text[])) then`,
-    );
+      };
+      const unknown = await generate({
+        ...base,
+        suspension: {
+          scopes: { site: { table: "t", id: "id", disabledAt: "d" } },
+        },
+      });
+      expect(unknown.code).toBe(2);
+      expect(unknown.output).toContain("rls.suspension.scopes.site");
+      const neither = await generate({
+        ...base,
+        suspension: { users: { table: "profiles", id: "id" } },
+      });
+      expect(neither.code).toBe(2);
+      expect(neither.output).toContain("disabledAt or status");
+      const noActive = await generate({
+        ...base,
+        suspension: {
+          users: { table: "profiles", id: "id", status: "status" },
+        },
+      });
+      expect(noActive.code).toBe(2);
+      expect(noActive.output).toContain("rls.suspension.users.active");
+      const unsafe = await generate({
+        ...base,
+        suspension: {
+          users: { table: "profiles", id: "id; drop table x", disabledAt: "d" },
+        },
+      });
+      expect(unsafe.code).toBe(2);
+      const noAncestor = await generate({
+        ...base,
+        memberships: {
+          scopes: {
+            ...MEMBERSHIPS.scopes,
+            customer: {
+              table: "customer_contacts",
+              user: "user_id",
+              role: "role",
+              columns: { customer: "customer_id" },
+            },
+          },
+        },
+        suspension: {
+          scopes: {
+            organization: {
+              table: "organizations",
+              id: "id",
+              disabledAt: "disabled_at",
+            },
+          },
+        },
+      });
+      expect(noAncestor.code).toBe(2);
+      expect(noAncestor.output).toContain("columns.organization");
+    });
   });
 
-  it("refuses a keep that is not a list", async () => {
-    const result = await generate({
-      dialect: "supabase",
-      tenantType: "text",
-      authorize: "jwt",
-      suspension: {
-        scopes: {
-          organization: { ...SUSPENSION.scopes.organization, keep: "x" },
+  describe("rls.suspension keep", () => {
+    const KEEP = {
+      ...SUSPENSION,
+      scopes: {
+        ...SUSPENSION.scopes,
+        organization: {
+          ...SUSPENSION.scopes.organization,
+          keep: ["invoice.read"],
         },
       },
-    });
-    expect(result.code).toBe(2);
-    expect(result.output).toContain("rls.suspension.scopes.organization.keep");
-  });
-});
+    };
+    const kept = `split_part(split_part(p_grant, '#', 1), '@', 1) = any(array['invoice.read']::text[])`;
 
-describe("rls.suspension.memberships", () => {
-  const DISABLED = {
-    scopes: {
-      organization: {
-        ...MEMBERSHIPS.scopes.organization,
-        disabledAt: "disabled_at",
+    it.each(["database", "jwt"])(
+      "lets a kept permission through a suspended organization in %s mode",
+      async (authorize) => {
+        const { code, sql } = await generate({
+          dialect: "supabase",
+          tenantType: "text",
+          authorize,
+          ...(authorize === "database" ? { memberships: MEMBERSHIPS } : {}),
+          suspension: KEEP,
+        });
+        expect(code).toBe(0);
+        expect(helper(sql, "permitted_organization_ids")).toContain(kept);
+        expect(helper(sql, "permitted_customer_ids")).toContain(kept);
+        expect(helper(sql, "member_organization_ids")).not.toContain(
+          "invoice.read",
+        );
       },
-      customer: { ...MEMBERSHIPS.scopes.customer, disabledAt: "disabled_at" },
-    },
-  };
+    );
 
-  it("drops a disabled membership in database mode", async () => {
-    const { code, sql } = await generate({
-      dialect: "supabase",
-      tenantType: "text",
-      authorize: "database",
-      memberships: DISABLED,
+    it("keeps the kept permission in authorize()", async () => {
+      const { sql } = await generate(
+        {
+          tenantType: "text",
+          authorize: "jwt",
+          memberships: MEMBERSHIPS,
+          suspension: KEEP,
+        },
+        ["--rbac", "supabase", "--dialect", "supabase"],
+      );
+      const authorize = sql.slice(
+        sql.indexOf('function "permdock"."authorize"('),
+      );
+      expect(authorize).toContain(
+        `s."disabled_at" is null) and not (requested_permission::text = any(array['invoice.read']::text[])) then`,
+      );
     });
-    expect(code).toBe(0);
-    expect(helper(sql, "permitted_organization_ids")).toContain(
-      'and m."disabled_at" is null',
-    );
-    expect(helper(sql, "member_customer_ids")).toContain(
-      'and m."disabled_at" is null',
-    );
-  });
 
-  it("counts and lets assign no disabled membership", async () => {
-    const { code, sql } = await generate({
-      dialect: "supabase",
-      tenantType: "text",
-      authorize: "database",
-      memberships: DISABLED,
-    });
-    expect(code).toBe(0);
-    const holders = sql.slice(sql.indexOf("permdock_holders_organization()"));
-    expect(holders).toContain('and m."disabled_at" is null');
-    expect(helper(sql, "permdock_can_assign")).toContain(
-      'and m."disabled_at" is null',
-    );
-  });
-
-  it("lets no kept claim membership assign in jwt mode", async () => {
-    const { code, sql } = await generate({
-      dialect: "supabase",
-      tenantType: "text",
-      authorize: "jwt",
-      suspension: { memberships: { keep: ["invoice.read"] } },
-    });
-    expect(code).toBe(0);
-    expect(helper(sql, "permdock_can_assign")).toContain(
-      "coalesce(jsonb_typeof(m -> 'keep'), 'null') = 'null'",
-    );
-  });
-
-  it("lets a kept permission through a disabled membership", async () => {
-    const { code, sql } = await generate({
-      dialect: "supabase",
-      tenantType: "text",
-      authorize: "database",
-      memberships: DISABLED,
-      suspension: { memberships: { keep: ["invoice.read"] } },
-    });
-    expect(code).toBe(0);
-    expect(helper(sql, "permitted_organization_ids")).toContain(
-      `(m."disabled_at" is null or split_part(split_part(p_grant, '#', 1), '@', 1) = any(array['invoice.read']::text[]))`,
-    );
-    expect(helper(sql, "member_organization_ids")).toContain(
-      'and m."disabled_at" is null',
-    );
-  });
-
-  it("reads the keep of a claim membership in jwt mode", async () => {
-    const { code, sql } = await generate({
-      dialect: "supabase",
-      tenantType: "text",
-      authorize: "jwt",
-      suspension: { memberships: { keep: ["invoice.read"] } },
-    });
-    expect(code).toBe(0);
-    expect(helper(sql, "permitted_organization_ids")).toContain(
-      "when 'array' then m -> 'keep' @> jsonb_build_array(split_part(split_part(p_grant, '#', 1), '@', 1))",
-    );
-    expect(helper(sql, "member_organization_ids")).toContain(
-      "coalesce(jsonb_typeof(m -> 'keep'), 'null') = 'null'",
-    );
-  });
-
-  it("refuses a keep that is not a list", async () => {
-    const result = await generate({
-      dialect: "supabase",
-      tenantType: "text",
-      authorize: "jwt",
-      suspension: { memberships: { keep: "x" } },
-    });
-    expect(result.code).toBe(2);
-    expect(result.output).toContain("rls.suspension.memberships.keep");
-  });
-});
-
-describe("the Supabase token hook", () => {
-  const rbac = ["--rbac", "supabase", "--dialect", "supabase"];
-
-  it("emits no token hook: permdock supabase hook generate writes the claims", async () => {
-    const { code, sql, output } = await generate(
-      {
+    it("refuses a keep that is not a list", async () => {
+      const result = await generate({
+        dialect: "supabase",
         tenantType: "text",
         authorize: "jwt",
-        memberships: MEMBERSHIPS,
-        suspension: SUSPENSION,
-      },
-      rbac,
-    );
-    expect(code).toBe(0);
-    expect(sql).not.toContain("custom_access_token_hook(event jsonb)");
-    expect(sql).toContain("permdock supabase hook generate");
-    expect(output).toContain("permdock supabase hook generate");
-    expect(sql).not.toMatch(/service_role/iu);
+        suspension: {
+          scopes: {
+            organization: { ...SUSPENSION.scopes.organization, keep: "x" },
+          },
+        },
+      });
+      expect(result.code).toBe(2);
+      expect(result.output).toContain(
+        "rls.suspension.scopes.organization.keep",
+      );
+    });
   });
 
-  it("guards authorize() against suspended users and tenants", async () => {
-    const { sql } = await generate(
-      {
+  describe("rls.suspension.memberships", () => {
+    const DISABLED = {
+      scopes: {
+        organization: {
+          ...MEMBERSHIPS.scopes.organization,
+          disabledAt: "disabled_at",
+        },
+        customer: { ...MEMBERSHIPS.scopes.customer, disabledAt: "disabled_at" },
+      },
+    };
+
+    it("drops a disabled membership in database mode", async () => {
+      const { code, sql } = await generate({
+        dialect: "supabase",
+        tenantType: "text",
+        authorize: "database",
+        memberships: DISABLED,
+      });
+      expect(code).toBe(0);
+      expect(helper(sql, "permitted_organization_ids")).toContain(
+        'and m."disabled_at" is null',
+      );
+      expect(helper(sql, "member_customer_ids")).toContain(
+        'and m."disabled_at" is null',
+      );
+    });
+
+    it("counts and lets assign no disabled membership", async () => {
+      const { code, sql } = await generate({
+        dialect: "supabase",
+        tenantType: "text",
+        authorize: "database",
+        memberships: DISABLED,
+      });
+      expect(code).toBe(0);
+      const holders = sql.slice(sql.indexOf("permdock_holders_organization()"));
+      expect(holders).toContain('and m."disabled_at" is null');
+      expect(helper(sql, "permdock_can_assign")).toContain(
+        'and m."disabled_at" is null',
+      );
+    });
+
+    it("lets no kept claim membership assign in jwt mode", async () => {
+      const { code, sql } = await generate({
+        dialect: "supabase",
         tenantType: "text",
         authorize: "jwt",
-        memberships: MEMBERSHIPS,
-        suspension: SUSPENSION,
-      },
-      rbac,
-    );
-    const authorize = sql.slice(
-      sql.indexOf('function "permdock"."authorize"('),
-    );
-    expect(authorize).toContain("return false; -- suspended user");
-    expect(authorize).toContain(
-      `if requested_tenant is not null and not exists (select 1 from "public"."organizations" s where s."id"::text = requested_tenant and s."disabled_at" is null) then`,
-    );
+        suspension: { memberships: { keep: ["invoice.read"] } },
+      });
+      expect(code).toBe(0);
+      expect(helper(sql, "permdock_can_assign")).toContain(
+        "coalesce(jsonb_typeof(m -> 'keep'), 'null') = 'null'",
+      );
+    });
+
+    it("lets a kept permission through a disabled membership", async () => {
+      const { code, sql } = await generate({
+        dialect: "supabase",
+        tenantType: "text",
+        authorize: "database",
+        memberships: DISABLED,
+        suspension: { memberships: { keep: ["invoice.read"] } },
+      });
+      expect(code).toBe(0);
+      expect(helper(sql, "permitted_organization_ids")).toContain(
+        `(m."disabled_at" is null or split_part(split_part(p_grant, '#', 1), '@', 1) = any(array['invoice.read']::text[]))`,
+      );
+      expect(helper(sql, "member_organization_ids")).toContain(
+        'and m."disabled_at" is null',
+      );
+    });
+
+    it("reads the keep of a claim membership in jwt mode", async () => {
+      const { code, sql } = await generate({
+        dialect: "supabase",
+        tenantType: "text",
+        authorize: "jwt",
+        suspension: { memberships: { keep: ["invoice.read"] } },
+      });
+      expect(code).toBe(0);
+      expect(helper(sql, "permitted_organization_ids")).toContain(
+        "when 'array' then m -> 'keep' @> jsonb_build_array(split_part(split_part(p_grant, '#', 1), '@', 1))",
+      );
+      expect(helper(sql, "member_organization_ids")).toContain(
+        "coalesce(jsonb_typeof(m -> 'keep'), 'null') = 'null'",
+      );
+    });
+
+    it("refuses a keep that is not a list", async () => {
+      const result = await generate({
+        dialect: "supabase",
+        tenantType: "text",
+        authorize: "jwt",
+        suspension: { memberships: { keep: "x" } },
+      });
+      expect(result.code).toBe(2);
+      expect(result.output).toContain("rls.suspension.memberships.keep");
+    });
+  });
+
+  describe("the Supabase token hook", () => {
+    const rbac = ["--rbac", "supabase", "--dialect", "supabase"];
+
+    it("emits no token hook: permdock supabase hook generate writes the claims", async () => {
+      const { code, sql, output } = await generate(
+        {
+          tenantType: "text",
+          authorize: "jwt",
+          memberships: MEMBERSHIPS,
+          suspension: SUSPENSION,
+        },
+        rbac,
+      );
+      expect(code).toBe(0);
+      expect(sql).not.toContain("custom_access_token_hook(event jsonb)");
+      expect(sql).toContain("permdock supabase hook generate");
+      expect(output).toContain("permdock supabase hook generate");
+      expect(sql).not.toMatch(/service_role/iu);
+    });
+
+    it("guards authorize() against suspended users and tenants", async () => {
+      const { sql } = await generate(
+        {
+          tenantType: "text",
+          authorize: "jwt",
+          memberships: MEMBERSHIPS,
+          suspension: SUSPENSION,
+        },
+        rbac,
+      );
+      const authorize = sql.slice(
+        sql.indexOf('function "permdock"."authorize"('),
+      );
+      expect(authorize).toContain("return false; -- suspended user");
+      expect(authorize).toContain(
+        `if requested_tenant is not null and not exists (select 1 from "public"."organizations" s where s."id"::text = requested_tenant and s."disabled_at" is null) then`,
+      );
+    });
   });
 });

@@ -523,6 +523,7 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     );
     expect(rows?.rows).toStrictEqual([{ user_id: null }]);
   });
+
   it("deletes an auth user whose memberships cascade, with and without a version row", async () => {
     const admin = db?.admin;
     if (admin === undefined) {

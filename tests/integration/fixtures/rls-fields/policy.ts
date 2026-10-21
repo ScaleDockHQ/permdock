@@ -1,16 +1,11 @@
+import type { GrantOptions } from "permdock";
 import type { z } from "zod";
 
-import {
-  allow,
-  anyone,
-  definePolicy,
-  deny,
-  type GrantOptions,
-  principal,
-  role,
-} from "permdock";
+import { allow, anyone, definePolicy, deny, principal, role } from "permdock";
 
-import { type Invoice, permissions } from "./permissions.ts";
+import type { Invoice } from "./permissions.ts";
+
+import { permissions } from "./permissions.ts";
 
 const { invoice } = permissions;
 

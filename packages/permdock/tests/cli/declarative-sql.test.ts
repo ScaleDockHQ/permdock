@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { declarativeSql } from "../../src/cli/sql/declarative.ts";
 
-describe("declarativeSql", () => {
+describe(declarativeSql, () => {
   it("drops the drop statements and replaces a trigger", () => {
     const out = declarativeSql(
       'drop trigger if exists "t" on "public"."a";\ncreate trigger "t"\n  after insert on "public"."a";\ndrop policy if exists "p" on "public"."a";\ncreate policy "p" on "public"."a";\n',

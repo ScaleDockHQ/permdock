@@ -15,6 +15,7 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
 import type { ProviderApprovers } from "./approvers.ts";
+import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 import type { SubscriberPolicyEvent } from "./subscribers.ts";
 import type { SupportPolicyOptions } from "./support.ts";
 
@@ -27,10 +28,7 @@ import {
   findPermission,
   listPermissions,
 } from "../core/permission-registry.ts";
-import {
-  type BetterSupabaseSubjectOptions,
-  subjectFromBetterSupabase,
-} from "./subject.ts";
+import { subjectFromBetterSupabase } from "./subject.ts";
 import { subscriberPolicy } from "./subscribers.ts";
 import { supportPolicy } from "./support.ts";
 

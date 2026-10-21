@@ -1,11 +1,12 @@
 import type { Condition, ConditionValue } from "../conditions/ast.ts";
+import type { Grantee } from "./grantee.ts";
 import type { ApprovalRequirement, Grant, Policy } from "./policy-types.ts";
 
 import { normalizeWhere } from "../conditions/normalize.ts";
 import { compact, isRecord } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { allow, completeGrant, deny } from "./grant-builders.ts";
-import { type Grantee, MAX_RELATION_DEPTH, flattenGrantee } from "./grantee.ts";
+import { MAX_RELATION_DEPTH, flattenGrantee } from "./grantee.ts";
 import { isForbiddenKey, splitPath } from "./paths.ts";
 import { findPermission, getResource } from "./permission-registry.ts";
 import { declaredRoleNames, indexPolicy } from "./policy.ts";

@@ -1,14 +1,9 @@
+import type { Condition, ConditionValue, SqlFunctionArg } from "./ast.ts";
+
 import { sole } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { assertSafeKey, ownKeys } from "../core/paths.ts";
-import {
-  type Condition,
-  type ConditionValue,
-  type SqlFunctionArg,
-  isCondition,
-  isConditionDate,
-  isConditionRef,
-} from "./ast.ts";
+import { isCondition, isConditionDate, isConditionRef } from "./ast.ts";
 import { opaque } from "./opaque.ts";
 import { isSubjectRef } from "./refs.ts";
 import {

@@ -1,6 +1,13 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { Decision, ExplainedDecision } from "../core/decision.ts";
 import type { DecisionProvider } from "../core/interfaces.ts";
+import type {
+  PermDockOptions,
+  DecideOptions,
+  PermDock,
+  SimulateOptions,
+  WhereResult,
+} from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Membership, Principal, Subject } from "../core/subject.ts";
@@ -18,11 +25,6 @@ import {
 import { freezeDeep } from "../core/freeze.ts";
 import { attachInternals, internalsOf } from "../core/internals.ts";
 import {
-  type PermDockOptions,
-  type DecideOptions,
-  type PermDock,
-  type SimulateOptions,
-  type WhereResult,
   getPermDock as getCore,
   getPermDockSync as getCoreSync,
 } from "../core/permdock.ts";

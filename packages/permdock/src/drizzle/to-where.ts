@@ -1,6 +1,8 @@
 import type { SQL } from "drizzle-orm";
 
 import type { Condition } from "../conditions/ast.ts";
+import type { CompiledExists, CompiledWhere } from "../conditions/compile.ts";
+import type { RowCheck } from "../conditions/row-check.ts";
 import type { WhereResult } from "../core/permdock.ts";
 import type { Subject } from "../core/subject.ts";
 import type {
@@ -9,14 +11,9 @@ import type {
   DrizzleWithSubjectOptions,
 } from "./types.ts";
 
-import {
-  type CompiledExists,
-  type CompiledWhere,
-  compileWhere,
-  escapeLike,
-} from "../conditions/compile.ts";
+import { compileWhere, escapeLike } from "../conditions/compile.ts";
 import { loadPeer } from "../conditions/peer.ts";
-import { type RowCheck, rowCheckFrom } from "../conditions/row-check.ts";
+import { rowCheckFrom } from "../conditions/row-check.ts";
 import {
   statementTemplate,
   subjectStatements,

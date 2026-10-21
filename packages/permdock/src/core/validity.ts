@@ -1,6 +1,7 @@
 import type { GrantValidity, WireValidity } from "./policy-types.ts";
+import type { Instant } from "./time.ts";
 
-import { type Instant, instantOf, rfc3339, secondsOf } from "./time.ts";
+import { instantOf, rfc3339, secondsOf } from "./time.ts";
 
 /**
  * The normalised validity of a grant, or `undefined` when neither bound is set.

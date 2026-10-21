@@ -1,4 +1,6 @@
-import { type VisitorObject, Visitor, visitorKeys } from "oxc-parser";
+import type { VisitorObject } from "oxc-parser";
+
+import { Visitor, visitorKeys } from "oxc-parser";
 
 /**
  * An all-optional view of an Oxc ESTree node; Oxc sets `start` and `end` on

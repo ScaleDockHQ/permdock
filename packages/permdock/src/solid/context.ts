@@ -1,4 +1,6 @@
-import { createContext, useContext, type Context } from "solid-js";
+import type { Context } from "solid-js";
+
+import { createContext, useContext } from "solid-js";
 
 import type { ClientStore } from "../client/store.ts";
 import type { DescribeMessages } from "../core/describe.ts";

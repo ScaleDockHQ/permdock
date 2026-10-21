@@ -1,15 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { GraphPlan, GraphResource } from "../../src/cli/rls/graph.ts";
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import {
-  type GraphPlan,
-  type GraphResource,
-  closureDepths,
-  graphPlan,
-  graphSql,
-} from "../../src/cli/rls/graph.ts";
+import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls/graph.ts";
 import {
   allow,
   definePermissions,
@@ -67,7 +62,7 @@ function withEntry(
   return new Map([...plan, [name, { ...entry, ...over }]]);
 }
 
-describe("graphPlan", () => {
+describe(graphPlan, () => {
   it("skips a relation grantee that compiles to a membership", () => {
     const plan = graphPlan(policy);
     expect([...(plan.get("node")?.relations ?? [])]).toStrictEqual(["owner"]);
@@ -75,7 +70,7 @@ describe("graphPlan", () => {
   });
 });
 
-describe("graphSql", () => {
+describe(graphSql, () => {
   it("writes the closure without restricted stops for an unrestricted tree", () => {
     const text = graphSql(ctx, graphPlan(policy), { node: "app.nodes" });
     expect(text).toContain(

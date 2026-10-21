@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { RelatedCondition } from "../../src/conditions/ast.ts";
+import type { WhereResult } from "../../src/core/permdock.ts";
+import type { RestrictedUser, TreeName } from "../fixtures/restricted-stops.ts";
 
 import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls/graph.ts";
 import {
@@ -9,13 +11,11 @@ import {
   restrictedRowsSql,
 } from "../../src/conditions/graph-sql.ts";
 import { resolveRelated } from "../../src/conditions/resolve-related.ts";
-import { type WhereResult, getPermDockSync } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
-  type RestrictedUser,
-  type TreeName,
   permissions,
   policy,
   relations,

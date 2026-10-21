@@ -5,6 +5,7 @@ import type {
   WebMcpPermDock,
   WebMcpRegisteredTool,
 } from "../../src/webmcp/types.ts";
+import type { User } from "../fixtures/quick-start.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
@@ -14,7 +15,6 @@ import {
   memberUser,
   permissions,
   policy,
-  type User,
 } from "../fixtures/quick-start.ts";
 
 const TOOL_NAME = /^[A-Za-z0-9_.-]{1,128}$/u;
@@ -81,7 +81,7 @@ describe("WebMCP draft: ModelContext.registerTool", () => {
       if (tool.inputSchema !== undefined) {
         expect(tool.inputSchema["type"]).toBe("object");
       }
-      expect(typeof tool.execute).toBe("function");
+      expect(tool.execute).toBeTypeOf("function");
     }
   });
 

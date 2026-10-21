@@ -1,11 +1,11 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import type { Capability } from "../../src/core/capability.ts";
 import type { TokenSigner } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
-  type Capability,
   capabilityFromClaims,
   capabilityOf,
   capabilitySubject,
@@ -206,7 +206,7 @@ describe("capabilities", () => {
   });
 });
 
-describe("parseCapability", () => {
+describe(parseCapability, () => {
   const valid = {
     v: 1,
     id: "lnk_1",
@@ -245,7 +245,7 @@ describe("parseCapability", () => {
   });
 });
 
-describe("redeemerAllows", () => {
+describe(redeemerAllows, () => {
   const member: Subject = {
     principal: {
       id: "u_1",
@@ -297,7 +297,7 @@ describe("redeemerAllows", () => {
   });
 });
 
-describe("signCapability", () => {
+describe(signCapability, () => {
   it("signs the capability under typ vnd.permdock.capability+jwt", async () => {
     const calls: unknown[] = [];
     const signer: TokenSigner = {
@@ -407,7 +407,7 @@ describe("signCapability", () => {
   });
 });
 
-describe("linkPolicyViolation", () => {
+describe(linkPolicyViolation, () => {
   const issuedAt = 1_900_000_000;
   const base = capabilityOf({
     id: "lnk_1",

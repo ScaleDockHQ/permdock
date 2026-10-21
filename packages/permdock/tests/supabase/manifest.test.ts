@@ -9,7 +9,7 @@ import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures
 const read = (path: string): unknown =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
 
-describe("parseSupabaseManifest", () => {
+describe(parseSupabaseManifest, () => {
   it("shares its schema with schemas/supabase-manifest-v1.json", () => {
     expect(read("../../schemas/supabase-manifest-v1.json")).toStrictEqual(
       supabaseManifestSchema,

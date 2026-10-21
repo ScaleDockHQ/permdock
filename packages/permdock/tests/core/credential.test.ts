@@ -1,13 +1,13 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import type { Credential } from "../../src/core/credential.ts";
 import type { DecisionEvent } from "../../src/core/event-types.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import { parseCloudEvent } from "../../src/cloud/webhook.ts";
 import { capabilitySubject } from "../../src/core/capability.ts";
 import {
-  type Credential,
   credentialDelegation,
   credentialPolicyViolation,
   credentialSubject,
@@ -120,7 +120,7 @@ const serviceKey: Credential = {
   expiresAt: at(DAY),
 };
 
-describe("parseCredential", () => {
+describe(parseCredential, () => {
   it("keeps the v1 fields of a user and a service credential", () => {
     expect(parseCredential({ ...userKey, extra: true })).toStrictEqual(userKey);
     expect(parseCredential(serviceKey)).toStrictEqual(serviceKey);
@@ -168,7 +168,7 @@ describe("parseCredential", () => {
   });
 });
 
-describe("credentialPolicyViolation", () => {
+describe(credentialPolicyViolation, () => {
   it("refuses a key without expiry unless a policy allows it and none caps it", () => {
     const { expiresAt: _expiresAt, ...forever } = userKey;
     expect(credentialPolicyViolation(forever, [])).toBe("no-expiry");
@@ -204,7 +204,7 @@ describe("credentialPolicyViolation", () => {
   });
 });
 
-describe("credentialSubject", () => {
+describe(credentialSubject, () => {
   it("intersects a user key with its owner live rights", () => {
     const owner = person("u_1", ["developer"]);
     const permdock = permdockFor(
@@ -328,7 +328,7 @@ describe("credentialSubject", () => {
   });
 });
 
-describe("decideCredential", () => {
+describe(decideCredential, () => {
   const developer = permdockFor(userSubject("u_1", ["developer"]));
   const expiresAt = at(DAY);
   const readKey = {

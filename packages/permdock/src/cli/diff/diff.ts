@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { CatalogFinding } from "../../core/sink.ts";
+import type { Policy } from "../../index.ts";
 import type { CommandResult } from "../core/result.ts";
 import type {
   CatalogDelegation,
@@ -20,7 +21,6 @@ import {
   findPermission,
   getPermDock,
   memoryCustomRoleSource,
-  type Policy,
 } from "../../index.ts";
 import { buildCatalog } from "../catalog-doc.ts";
 import { configError, usageResult } from "../core/errors.ts";

@@ -5,6 +5,7 @@ import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
 import type { Principal } from "../core/subject.ts";
+import type { AnyGuard, Attached, ServerAdapterOptions } from "./bind.ts";
 import type { Connection, ConnectionOptions } from "./connection.ts";
 import type {
   ProtectOptions,
@@ -14,13 +15,7 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { isPermission } from "../core/permission-registry.ts";
-import {
-  type AnyGuard,
-  type Attached,
-  type ServerAdapterOptions,
-  bindKernel,
-  decorate,
-} from "./bind.ts";
+import { bindKernel, decorate } from "./bind.ts";
 import { hasCredentials } from "./http.ts";
 import { problemFromError } from "./map-error.ts";
 import { methodNotAllowed } from "./problem.ts";

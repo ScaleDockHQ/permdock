@@ -88,98 +88,100 @@ const store: ApprovalStore = {
 
 let generated = "";
 
-beforeAll(async () => {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-approval-adopt-"));
-  try {
-    const out = join(dir, "rls.sql");
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: join(HERE, "../fixtures/approvals-adopt") },
-    );
-    if (result.code !== 0) {
-      throw new Error(`rls generate: ${result.stdout}`);
+describe("supabase approval adopt", () => {
+  beforeAll(async () => {
+    const dir = mkdtempSync(join(tmpdir(), "permdock-approval-adopt-"));
+    try {
+      const out = join(dir, "rls.sql");
+      const result = await run(
+        ["rls", "generate", "--target", "sql", "--out", out],
+        { cwd: join(HERE, "../fixtures/approvals-adopt") },
+      );
+      if (result.code !== 0) {
+        throw new Error(`rls generate: ${result.stdout}`);
+      }
+      generated = readFileSync(out, "utf8");
+      db = await startPostgres([SETUP, generated]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
-    generated = readFileSync(out, "utf8");
-    db = await startPostgres([SETUP, generated]);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-  current = supabaseApprovalStore(rpcClient());
-}, 120_000);
+    current = supabaseApprovalStore(rpcClient());
+  }, 120_000);
 
-afterAll(async () => {
-  await db?.stop();
-});
-
-describe("supabaseApprovalStore over an adopted approvals table", () => {
-  testApprovalStore(store, {
-    reopen: () => supabaseApprovalStore(rpcClient()),
+  afterAll(async () => {
+    await db?.stop();
   });
 
-  it("adds only its columns, mirrors fields into the app's typed columns and leaves the app's rows alone", async () => {
-    expect(generated).not.toContain("approval_requests");
-    expect(generated).not.toContain(
-      '"public"."approvals" enable row level security',
-    );
-    expect(generated).toContain(
-      'alter table "public"."approvals" add column if not exists "permdock_token" text;',
-    );
-    if (db === undefined) {
-      throw new Error("PermDock: Postgres was not started");
-    }
-    await current.create({
-      v: 1,
-      id: "adopt",
-      token: "adopt-token",
-      permission: "job.update",
-      scope: "job:update",
-      resource: { type: "job", id: "j1" },
-      subject: { principal: { id: "u1", roles: [], tenant: "acme" } },
-      detail: "approval",
-      createdAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      status: "pending",
+  describe("supabaseApprovalStore over an adopted approvals table", () => {
+    testApprovalStore(store, {
+      reopen: () => supabaseApprovalStore(rpcClient()),
     });
-    await current.resolve("adopt-token", {
-      status: "approved",
-      by: {
-        principal: {
-          id: "boss",
-          roles: [],
-          tenant: "acme",
-          memberships: [{ tenant: "acme", roles: ["admin"] }],
+
+    it("adds only its columns, mirrors fields into the app's typed columns and leaves the app's rows alone", async () => {
+      expect(generated).not.toContain("approval_requests");
+      expect(generated).not.toContain(
+        '"public"."approvals" enable row level security',
+      );
+      expect(generated).toContain(
+        'alter table "public"."approvals" add column if not exists "permdock_token" text;',
+      );
+      if (db === undefined) {
+        throw new Error("PermDock: Postgres was not started");
+      }
+      await current.create({
+        v: 1,
+        id: "adopt",
+        token: "adopt-token",
+        permission: "job.update",
+        scope: "job:update",
+        resource: { type: "job", id: "j1" },
+        subject: { principal: { id: "u1", roles: [], tenant: "acme" } },
+        detail: "approval",
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        status: "pending",
+      });
+      await current.resolve("adopt-token", {
+        status: "approved",
+        by: {
+          principal: {
+            id: "boss",
+            roles: [],
+            tenant: "acme",
+            memberships: [{ tenant: "acme", roles: ["admin"] }],
+          },
+          context: {},
         },
-        context: {},
-      },
+      });
+      const row = await db.admin.query<{
+        state: string;
+        organization_id: string;
+        requested_by: string;
+        approval_count: number;
+        expires_at: Date;
+        kind: string;
+      }>(
+        "select state, organization_id, requested_by, approval_count, expires_at, kind from public.approvals where permdock_token = 'adopt-token'",
+      );
+      expect(row.rows[0]).toMatchObject({
+        state: "approved",
+        organization_id: "acme",
+        requested_by: "u1",
+        approval_count: 1,
+        kind: "legacy",
+      });
+      expect(row.rows[0]?.expires_at).toBeInstanceOf(Date);
+      const legacy = await db.admin.query<{ state: string }>(
+        "select state from public.approvals where requested_by = 'legacy-user'",
+      );
+      expect(legacy.rows).toStrictEqual([{ state: "pending" }]);
+      expect(
+        await current.expire({ epochMilliseconds: Date.now() + 3_600_000 }),
+      ).toBeGreaterThanOrEqual(0);
+      const after = await db.admin.query<{ state: string }>(
+        "select state from public.approvals where requested_by = 'legacy-user'",
+      );
+      expect(after.rows).toStrictEqual([{ state: "pending" }]);
     });
-    const row = await db.admin.query<{
-      state: string;
-      organization_id: string;
-      requested_by: string;
-      approval_count: number;
-      expires_at: Date;
-      kind: string;
-    }>(
-      "select state, organization_id, requested_by, approval_count, expires_at, kind from public.approvals where permdock_token = 'adopt-token'",
-    );
-    expect(row.rows[0]).toMatchObject({
-      state: "approved",
-      organization_id: "acme",
-      requested_by: "u1",
-      approval_count: 1,
-      kind: "legacy",
-    });
-    expect(row.rows[0]?.expires_at).toBeInstanceOf(Date);
-    const legacy = await db.admin.query<{ state: string }>(
-      "select state from public.approvals where requested_by = 'legacy-user'",
-    );
-    expect(legacy.rows).toStrictEqual([{ state: "pending" }]);
-    expect(
-      await current.expire({ epochMilliseconds: Date.now() + 3_600_000 }),
-    ).toBeGreaterThanOrEqual(0);
-    const after = await db.admin.query<{ state: string }>(
-      "select state from public.approvals where requested_by = 'legacy-user'",
-    );
-    expect(after.rows).toStrictEqual([{ state: "pending" }]);
   });
 });

@@ -1,10 +1,11 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { PermissionTree } from "../index.ts";
 import type { CommandResult } from "./core/result.ts";
 import type { PermDockConfig } from "./types.ts";
 
-import { type PermissionTree, arazzoFindings } from "../index.ts";
+import { arazzoFindings } from "../index.ts";
 import { missingInput } from "./core/errors.ts";
 import { DOCS_BASE } from "./core/manifest.ts";
 import { ARAZZO_REPORT_SCHEMA } from "./core/version.ts";

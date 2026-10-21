@@ -44,7 +44,7 @@ function linkSubject(expiresAt = NOW + 86_400) {
   );
 }
 
-describe("exchangeCapability", () => {
+describe(exchangeCapability, () => {
   it("mints a short-lived anon token carrying the capability", async () => {
     const { publicKey, signing } = await es256();
     const token = await exchangeCapability(linkSubject(), {

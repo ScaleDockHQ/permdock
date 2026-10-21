@@ -160,7 +160,7 @@ describe("permdock/orpc typed errors", () => {
   });
 });
 
-describe("problemDetails", () => {
+describe("the problemDetails schema", () => {
   const { validate, jsonSchema } = problemDetails["~standard"];
 
   it("accepts a PermDock problem with extension members", () => {

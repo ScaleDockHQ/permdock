@@ -83,7 +83,7 @@ function outcome(policy: Policy, scenario: SaasScenario): string {
   ).outcome;
 }
 
-describe("PUSHED_POLICY_SCHEMA", () => {
+describe("the PUSHED_POLICY_SCHEMA constant", () => {
   it("matches schemas/pushed-policy-v1.json", () => {
     const file: unknown = JSON.parse(
       readFileSync(
@@ -111,7 +111,7 @@ describe("PUSHED_POLICY_SCHEMA", () => {
   });
 });
 
-describe("policyFromCatalog", () => {
+describe(policyFromCatalog, () => {
   const rebuilt = rebuild(saasPolicy);
 
   it("keeps the fingerprint, hostable list and role bindings", () => {
@@ -242,7 +242,7 @@ describe("policyFromCatalog", () => {
   });
 });
 
-describe("resourceSchemaFromJson", () => {
+describe(resourceSchemaFromJson, () => {
   it("rejects every value under an unsupported keyword", () => {
     const schema = resourceSchemaFromJson({
       type: "object",

@@ -1,13 +1,11 @@
+import type { DefineComponent, InjectionKey, ShallowRef, VNode } from "vue";
+
 import {
   defineComponent,
   inject,
   onErrorCaptured,
   provide,
   shallowRef,
-  type DefineComponent,
-  type InjectionKey,
-  type ShallowRef,
-  type VNode,
 } from "vue";
 
 import type { PermissionBoundaryState } from "../client/boundary.ts";

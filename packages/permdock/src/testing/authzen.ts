@@ -4,10 +4,10 @@ import type {
   InferPermissionTree,
   ResourceInit,
 } from "../core/permission-types.ts";
+import type { Policy } from "../index.ts";
 
 import { byCodePoint } from "../core/compare.ts";
 import {
-  type Policy,
   allow,
   definePermissions,
   definePolicy,

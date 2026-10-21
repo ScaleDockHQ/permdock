@@ -1,4 +1,6 @@
 import type { Membership, Principal } from "permdock";
+import type { SqlQuery } from "permdock/supabase";
+import type { Client } from "pg";
 
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,12 +15,8 @@ import {
   plan,
   role,
 } from "permdock";
-import {
-  authzVersion,
-  subjectFromSupabase,
-  type SqlQuery,
-} from "permdock/supabase";
-import { Client as PgClient, type Client } from "pg";
+import { authzVersion, subjectFromSupabase } from "permdock/supabase";
+import { Client as PgClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";

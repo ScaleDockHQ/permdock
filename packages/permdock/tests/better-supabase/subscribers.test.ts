@@ -89,7 +89,7 @@ const event = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-describe("subscriberPolicy", () => {
+describe(subscriberPolicy, () => {
   const filter = subscriberPolicy({
     policy,
     principals,

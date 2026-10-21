@@ -13,6 +13,7 @@ const prompts = vi.hoisted(() => ({
   multiselect: vi.fn<() => Promise<unknown>>(),
 }));
 
+// oxlint-disable-next-line vitest/prefer-import-in-mock -- the fake does not match the real module types
 vi.mock("@clack/prompts", () => ({
   cancel: () => undefined,
   confirm: prompts.confirm,
@@ -20,77 +21,79 @@ vi.mock("@clack/prompts", () => ({
   isCancel: (value: unknown) => value === CANCEL,
 }));
 
-afterAll(removeProjects);
+describe("prompts", () => {
+  afterAll(removeProjects);
 
-beforeEach(() => {
-  prompts.confirm.mockReset();
-  prompts.multiselect.mockReset();
-});
-
-function io(interactive: boolean): CliIo {
-  return { stdout: () => undefined, stderr: () => undefined, interactive };
-}
-
-describe("skills install prompt", () => {
-  it("installs into the agents picked, preselecting the folders the project has", async () => {
-    const cwd = project({ ".cursor/rules/keep.mdc": "" });
-    prompts.multiselect.mockResolvedValue(["claude"]);
-    const result = await run(["skills", "install"], { cwd, io: io(true) });
-    expect(result.code).toBe(0);
-    expect(prompts.multiselect).toHaveBeenCalledWith(
-      expect.objectContaining({ initialValues: ["cursor"] }),
-    );
-    expect(existsSync(join(cwd, ".claude/skills/permdock-wire"))).toBe(true);
-    expect(existsSync(join(cwd, ".cursor/skills/permdock-wire"))).toBe(false);
+  beforeEach(() => {
+    prompts.confirm.mockReset();
+    prompts.multiselect.mockReset();
   });
 
-  it("exits 130 and writes nothing when cancelled", async () => {
-    const cwd = project({});
-    prompts.multiselect.mockResolvedValue(CANCEL);
-    const result = await run(["skills", "install"], { cwd, io: io(true) });
-    expect(result).toMatchObject({ code: 130, stderr: "Cancelled.\n" });
-    expect(existsSync(join(cwd, ".permdock"))).toBe(false);
+  function io(interactive: boolean): CliIo {
+    return { stdout: () => undefined, stderr: () => undefined, interactive };
+  }
+
+  describe("skills install prompt", () => {
+    it("installs into the agents picked, preselecting the folders the project has", async () => {
+      const cwd = project({ ".cursor/rules/keep.mdc": "" });
+      prompts.multiselect.mockResolvedValue(["claude"]);
+      const result = await run(["skills", "install"], { cwd, io: io(true) });
+      expect(result.code).toBe(0);
+      expect(prompts.multiselect).toHaveBeenCalledWith(
+        expect.objectContaining({ initialValues: ["cursor"] }),
+      );
+      expect(existsSync(join(cwd, ".claude/skills/permdock-wire"))).toBe(true);
+      expect(existsSync(join(cwd, ".cursor/skills/permdock-wire"))).toBe(false);
+    });
+
+    it("exits 130 and writes nothing when cancelled", async () => {
+      const cwd = project({});
+      prompts.multiselect.mockResolvedValue(CANCEL);
+      const result = await run(["skills", "install"], { cwd, io: io(true) });
+      expect(result).toMatchObject({ code: 130, stderr: "Cancelled.\n" });
+      expect(existsSync(join(cwd, ".permdock"))).toBe(false);
+    });
+
+    it.each([
+      ["--for is given", ["skills", "install", "--for", "claude"], true],
+      ["not at a terminal", ["skills", "install"], false],
+      ["--json is set", ["skills", "install", "--json"], true],
+    ] as const)("does not prompt when %s", async (_, argv, interactive) => {
+      const cwd = project({});
+      expect((await run(argv, { cwd, io: io(interactive) })).code).toBe(0);
+      expect(prompts.multiselect).not.toHaveBeenCalled();
+    });
   });
 
-  it.each([
-    ["--for is given", ["skills", "install", "--for", "claude"], true],
-    ["not at a terminal", ["skills", "install"], false],
-    ["--json is set", ["skills", "install", "--json"], true],
-  ] as const)("does not prompt when %s", async (_, argv, interactive) => {
-    const cwd = project({});
-    expect((await run(argv, { cwd, io: io(interactive) })).code).toBe(0);
-    expect(prompts.multiselect).not.toHaveBeenCalled();
-  });
-});
+  describe("doctor --fix prompt", () => {
+    it("reports without fixing when declined", async () => {
+      const cwd = project({});
+      prompts.confirm.mockResolvedValue(false);
+      await run(["doctor", "--fix"], { cwd, io: io(true) });
+      expect(prompts.confirm).toHaveBeenCalledOnce();
+      expect(existsSync(join(cwd, ".permdock/skills-lock.json"))).toBe(false);
+    });
 
-describe("doctor --fix prompt", () => {
-  it("reports without fixing when declined", async () => {
-    const cwd = project({});
-    prompts.confirm.mockResolvedValue(false);
-    await run(["doctor", "--fix"], { cwd, io: io(true) });
-    expect(prompts.confirm).toHaveBeenCalledOnce();
-    expect(existsSync(join(cwd, ".permdock/skills-lock.json"))).toBe(false);
-  });
+    it("fixes when confirmed", async () => {
+      const cwd = project({});
+      prompts.confirm.mockResolvedValue(true);
+      await run(["doctor", "--fix"], { cwd, io: io(true) });
+      expect(existsSync(join(cwd, ".permdock/skills-lock.json"))).toBe(true);
+    });
 
-  it("fixes when confirmed", async () => {
-    const cwd = project({});
-    prompts.confirm.mockResolvedValue(true);
-    await run(["doctor", "--fix"], { cwd, io: io(true) });
-    expect(existsSync(join(cwd, ".permdock/skills-lock.json"))).toBe(true);
-  });
+    it("exits 130 when cancelled", async () => {
+      const cwd = project({});
+      prompts.confirm.mockResolvedValue(CANCEL);
+      const result = await run(["doctor", "--fix"], { cwd, io: io(true) });
+      expect(result.code).toBe(130);
+      expect(existsSync(join(cwd, ".permdock"))).toBe(false);
+    });
 
-  it("exits 130 when cancelled", async () => {
-    const cwd = project({});
-    prompts.confirm.mockResolvedValue(CANCEL);
-    const result = await run(["doctor", "--fix"], { cwd, io: io(true) });
-    expect(result.code).toBe(130);
-    expect(existsSync(join(cwd, ".permdock"))).toBe(false);
-  });
-
-  it("fixes without asking when not at a terminal", async () => {
-    const cwd = project({});
-    await run(["doctor", "--fix"], { cwd, io: io(false) });
-    expect(prompts.confirm).not.toHaveBeenCalled();
-    expect(existsSync(join(cwd, ".permdock/skills-lock.json"))).toBe(true);
+    it("fixes without asking when not at a terminal", async () => {
+      const cwd = project({});
+      await run(["doctor", "--fix"], { cwd, io: io(false) });
+      expect(prompts.confirm).not.toHaveBeenCalled();
+      expect(existsSync(join(cwd, ".permdock/skills-lock.json"))).toBe(true);
+    });
   });
 });

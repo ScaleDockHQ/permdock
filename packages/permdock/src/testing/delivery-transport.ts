@@ -103,7 +103,7 @@ export function testDeliveryTransport<C extends DeliveryChannel>(
     it("names its channel and provider", () => {
       const { transport } = options.create();
       expect(transport.channel).toBe(options.channel);
-      expect(typeof transport.name).toBe("string");
+      expect(transport.name).toBeTypeOf("string");
       expect(transport.name).not.toBe("");
     });
 

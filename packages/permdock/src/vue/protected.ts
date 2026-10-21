@@ -1,11 +1,6 @@
-import {
-  computed,
-  defineComponent,
-  inject,
-  type DefineComponent,
-  type PropType,
-  type VNode,
-} from "vue";
+import type { DefineComponent, PropType, VNode } from "vue";
+
+import { computed, defineComponent, inject } from "vue";
 
 import type { Permission } from "../core/permission-types.ts";
 

@@ -1,7 +1,8 @@
+import type { Leaf } from "../core/command.ts";
 import type { CliContext } from "../core/context.ts";
 import type { Env } from "../core/env.ts";
 
-import { type Leaf, defineLeaf } from "../core/command.ts";
+import { defineLeaf } from "../core/command.ts";
 import { secretInput } from "../core/credentials.ts";
 import { dryRunFlag, given } from "../core/flags.ts";
 

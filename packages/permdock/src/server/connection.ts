@@ -1,10 +1,11 @@
 import type { Decision } from "../core/decision.ts";
+import type { RevokedCode } from "../core/errors.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { RevocationEvent, RevocationFeed } from "../core/revocations.ts";
 
 import { compact } from "../core/compact.ts";
-import { PermDockRevokedError, type RevokedCode } from "../core/errors.ts";
+import { PermDockRevokedError } from "../core/errors.ts";
 import { durationOf, epochSeconds } from "../core/time.ts";
 
 /** `setTimeout` stores delays in a signed 32-bit integer. */

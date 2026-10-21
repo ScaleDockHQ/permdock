@@ -164,7 +164,7 @@ describe("catalog-v1 schema", () => {
   });
 });
 
-describe("parseCatalog", () => {
+describe(parseCatalog, () => {
   const catalogs = committedCatalogs();
 
   it("finds the committed catalogs", () => {
@@ -452,14 +452,14 @@ describe("parseCatalog reference checks", () => {
   });
 });
 
-describe("rowConditionKeys", () => {
+describe(rowConditionKeys, () => {
   it("lists the permissions marked rowConditions: true", () => {
     const catalog: CatalogDocument = parseCatalog(base);
     expect([...rowConditionKeys(catalog)]).toStrictEqual(["post.update"]);
   });
 });
 
-describe("catalogPath", () => {
+describe(catalogPath, () => {
   const cwd = "/repo/app";
 
   it("prefers collect.out, then catalog.out, then permissions.catalog.json", () => {

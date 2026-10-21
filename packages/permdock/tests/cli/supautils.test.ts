@@ -7,7 +7,7 @@ import { supautilsRejections } from "../../src/cli/sql/supautils.ts";
 
 const GOLDEN = path.join(import.meta.dirname, "fixtures/golden");
 
-describe("supautilsRejections", () => {
+describe(supautilsRejections, () => {
   it.each([
     ["alter role anon nologin", "changes the reserved role anon"],
     ['alter user "anon" nologin', "changes the reserved role anon"],

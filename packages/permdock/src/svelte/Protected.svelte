@@ -1,14 +1,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
 
-  import {
-    getStore,
-    getUi,
-    scopedFor,
-    slotContent,
-    viewFor,
-    type ProtectedProps,
-  } from './runtime.ts';
+  import { getStore, getUi, scopedFor, slotContent, viewFor } from './runtime.ts';
+import type { ProtectedProps } from './runtime.ts';
 
   let {
     permission,

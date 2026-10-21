@@ -1,4 +1,6 @@
-import { type OxfmtConfig, defineConfig } from "oxfmt";
+import type { OxfmtConfig } from "oxfmt";
+
+import { defineConfig } from "oxfmt";
 
 const ignorePatterns: readonly string[] = [
   "**/node_modules/**",

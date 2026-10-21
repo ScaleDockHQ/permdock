@@ -453,7 +453,7 @@ describe("RunTicket", () => {
   });
 });
 
-describe("RUN_TICKET_CLAIMS", () => {
+describe("the RUN_TICKET_CLAIMS list", () => {
   it("lists every claim parseRunTicket keeps and the run-v1 schema names", () => {
     const now = Math.floor(Date.now() / 1000);
     const full = {

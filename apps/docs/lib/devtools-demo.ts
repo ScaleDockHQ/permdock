@@ -1,3 +1,10 @@
+import type {
+  Decision,
+  DecideOptions,
+  DecisionDescription,
+  PermDock,
+} from "permdock";
+
 import {
   allow,
   getPermDockSync,
@@ -6,10 +13,6 @@ import {
   describe,
   resource,
   role,
-  type Decision,
-  type DecideOptions,
-  type DecisionDescription,
-  type PermDock,
 } from "permdock";
 
 const demoPermissions = definePermissions({
@@ -143,6 +146,7 @@ export function demoDecide(
   }
   return {
     outcome: decision.outcome,
+    // oxlint-disable-next-line vitest/prefer-importing-vitest-globals -- permdock's describe(), not Vitest's
     description: describe(decision),
     permission: permissionKey,
   };

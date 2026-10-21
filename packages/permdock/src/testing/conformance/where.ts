@@ -113,6 +113,7 @@ export function testWhereCompiler<TTarget>(
   },
 ): void {
   const { matches } = options;
+
   it.skipIf(matches === undefined).each(WHERE_CASES)(
     "selects the rows the evaluator keeps: %s",
     async (_name, condition) => {

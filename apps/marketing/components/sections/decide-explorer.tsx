@@ -2,13 +2,9 @@
 
 import { useState } from "react";
 
-import {
-  DEMO_ACTIONS,
-  DEMO_ROLES,
-  demoDecide,
-  type DemoAction,
-  type DemoRole,
-} from "@/lib/demo-policy";
+import type { DemoAction, DemoRole } from "@/lib/demo-policy";
+
+import { DEMO_ACTIONS, DEMO_ROLES, demoDecide } from "@/lib/demo-policy";
 import {
   ToggleGroup,
   ToggleGroupItem,

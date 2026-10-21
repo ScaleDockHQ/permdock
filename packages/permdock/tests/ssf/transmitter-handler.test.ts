@@ -128,7 +128,7 @@ function receiver() {
   return { ssf, handled, states };
 }
 
-describe("ssfTransmitter", () => {
+describe(ssfTransmitter, () => {
   it("serves the section 7.1 metadata without credentials", async () => {
     const { handler } = transmitter();
     const response = await handler(
@@ -547,7 +547,7 @@ describe("ssfTransmitter", () => {
   });
 });
 
-describe("pollSets", () => {
+describe(pollSets, () => {
   it("sends acks and setErrs and answers the SETs unverified", async () => {
     const bodies: unknown[] = [];
     const result = await pollSets({
@@ -621,6 +621,6 @@ describe("pollSets", () => {
   });
 });
 
-describe("memorySsfStreamStore", () => {
+describe(memorySsfStreamStore, () => {
   testSsfStreamStore(memorySsfStreamStore());
 });

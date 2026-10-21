@@ -69,87 +69,89 @@ const store: ApprovalStore = {
   cancel: (filter, meta) => current.cancel?.(filter, meta) ?? 0,
 };
 
-beforeAll(async () => {
-  const rls = await generateSql(
-    join(HERE, "../fixtures", "approvals-jsonschema"),
-    ["rls", "generate", "--target", "sql"],
-  );
-  const hook = await generateSql(join(HERE, "../fixtures", "hook-validate"), [
-    "supabase",
-    "hook",
-    "generate",
-  ]);
-  db = await startSupabasePostgres();
-  await db.owner.query(SETUP);
-  await db.owner.query(rls);
-  await db.owner.query(hook);
-  current = supabaseApprovalStore(rpcClient());
-}, 240_000);
-
-afterAll(async () => {
-  await db?.stop();
-});
-
-describe("rls.jsonSchema on supabase/postgres", () => {
-  testApprovalStore(store, {
-    reopen: () => supabaseApprovalStore(rpcClient()),
-  });
-
-  it("installs the check and refuses a body that is not a v1 request", async () => {
-    const { owner } = started();
-    const found = await owner.query<{ convalidated: boolean }>(
-      "select convalidated from pg_constraint where conname = 'approval_requests_body_schema'",
+describe("supabase jsonschema", () => {
+  beforeAll(async () => {
+    const rls = await generateSql(
+      join(HERE, "../fixtures", "approvals-jsonschema"),
+      ["rls", "generate", "--target", "sql"],
     );
-    expect(found.rows).toStrictEqual([{ convalidated: true }]);
-    const bad = {
-      v: 1,
-      token: "no-permission",
-      status: "pending",
-      createdAt: "2026-10-06T09:00:00Z",
-      expiresAt: "2099-01-01T00:00:00Z",
-    };
-    await expect(
-      owner.query("select permdock.permdock_approval_open($1::jsonb)", [
-        JSON.stringify(bad),
-      ]),
-    ).rejects.toMatchObject({
-      code: "23514",
-      constraint: "approval_requests_body_schema",
+    const hook = await generateSql(join(HERE, "../fixtures", "hook-validate"), [
+      "supabase",
+      "hook",
+      "generate",
+    ]);
+    db = await startSupabasePostgres();
+    await db.owner.query(SETUP);
+    await db.owner.query(rls);
+    await db.owner.query(hook);
+    current = supabaseApprovalStore(rpcClient());
+  }, 240_000);
+
+  afterAll(async () => {
+    await db?.stop();
+  });
+
+  describe("rls.jsonSchema on supabase/postgres", () => {
+    testApprovalStore(store, {
+      reopen: () => supabaseApprovalStore(rpcClient()),
+    });
+
+    it("installs the check and refuses a body that is not a v1 request", async () => {
+      const { owner } = started();
+      const found = await owner.query<{ convalidated: boolean }>(
+        "select convalidated from pg_constraint where conname = 'approval_requests_body_schema'",
+      );
+      expect(found.rows).toStrictEqual([{ convalidated: true }]);
+      const bad = {
+        v: 1,
+        token: "no-permission",
+        status: "pending",
+        createdAt: "2026-10-06T09:00:00Z",
+        expiresAt: "2099-01-01T00:00:00Z",
+      };
+      await expect(
+        owner.query("select permdock.permdock_approval_open($1::jsonb)", [
+          JSON.stringify(bad),
+        ]),
+      ).rejects.toMatchObject({
+        code: "23514",
+        constraint: "approval_requests_body_schema",
+      });
     });
   });
-});
 
-describe("supabase.hook.validate on supabase/postgres", () => {
-  async function mint(
-    claims: Readonly<Record<string, unknown>>,
-  ): Promise<Record<string, unknown>> {
-    const { superuser } = started();
-    await superuser.query("begin");
-    try {
-      await superuser.query("set local role supabase_auth_admin");
-      const result = await superuser.query<{
-        readonly event: { readonly claims: Record<string, unknown> };
-      }>("select permdock.custom_access_token_hook($1::jsonb) as event", [
-        JSON.stringify({
-          user_id: MEMBER,
-          claims: { sub: MEMBER, role: "authenticated", ...claims },
-        }),
-      ]);
-      return result.rows[0]?.event.claims ?? {};
-    } finally {
-      await superuser.query("rollback");
+  describe("supabase.hook.validate on supabase/postgres", () => {
+    async function mint(
+      claims: Readonly<Record<string, unknown>>,
+    ): Promise<Record<string, unknown>> {
+      const { superuser } = started();
+      await superuser.query("begin");
+      try {
+        await superuser.query("set local role supabase_auth_admin");
+        const result = await superuser.query<{
+          readonly event: { readonly claims: Record<string, unknown> };
+        }>("select permdock.custom_access_token_hook($1::jsonb) as event", [
+          JSON.stringify({
+            user_id: MEMBER,
+            claims: { sub: MEMBER, role: "authenticated", ...claims },
+          }),
+        ]);
+        return result.rows[0]?.event.claims ?? {};
+      } finally {
+        await superuser.query("rollback");
+      }
     }
-  }
 
-  it("keeps claims that match supabase-claims-v1.json", async () => {
-    expect(await mint({})).toMatchObject({
-      sub: MEMBER,
-      memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
+    it("keeps claims that match supabase-claims-v1.json", async () => {
+      expect(await mint({})).toMatchObject({
+        sub: MEMBER,
+        memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
+      });
     });
-  });
 
-  it("drops every PermDock claim, without an error, when one does not match", async () => {
-    const claims = await mint({ tenant_id: 42 });
-    expect(claims).toStrictEqual({ sub: MEMBER, role: "authenticated" });
+    it("drops every PermDock claim, without an error, when one does not match", async () => {
+      const claims = await mint({ tenant_id: 42 });
+      expect(claims).toStrictEqual({ sub: MEMBER, role: "authenticated" });
+    });
   });
 });

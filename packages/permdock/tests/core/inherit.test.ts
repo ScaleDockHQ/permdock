@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { Membership, RelationSource } from "../../src/index.ts";
+
 import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls/graph.ts";
 import { inheritTargets, rowHelpersSql } from "../../src/cli/rls/rows.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
@@ -9,8 +11,6 @@ import { matchGrantee } from "../../src/core/grantee-match.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import {
-  type Membership,
-  type RelationSource,
   allow,
   anyone,
   getPermDockSync,

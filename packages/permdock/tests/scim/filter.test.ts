@@ -8,7 +8,7 @@ import {
   parseScimFilter,
 } from "../../src/scim/filter.ts";
 
-describe("parseScimFilter", () => {
+describe(parseScimFilter, () => {
   it.each<[string, ScimFilter]>([
     ['userName eq "ada"', { op: "eq", attribute: "userName", value: "ada" }],
     ['userName EQ "ada"', { op: "eq", attribute: "userName", value: "ada" }],
@@ -93,7 +93,7 @@ describe("parseScimFilter", () => {
   });
 });
 
-describe("matchFilter", () => {
+describe(matchFilter, () => {
   const user = {
     id: "u_1",
     userName: "ada",
@@ -166,7 +166,7 @@ describe("matchFilter", () => {
   });
 });
 
-describe("filterSupported", () => {
+describe(filterSupported, () => {
   it.each<[string, boolean]>([
     ['id eq "1"', true],
     ['userName sw "a"', true],

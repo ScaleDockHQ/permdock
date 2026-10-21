@@ -6,13 +6,14 @@ import type {
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
+import type { Instant } from "../core/time.ts";
 import type { SupabaseRpcCaller } from "../supabase/postgrest.ts";
 
 import { AccessReviewError } from "../approvals/access-reviews/errors.ts";
 import { isRecord } from "../core/compact.ts";
 import { flattenGrantee } from "../core/grantee.ts";
 import { findPermission } from "../core/permission-registry.ts";
-import { dateAt, type Instant } from "../core/time.ts";
+import { dateAt } from "../core/time.ts";
 import { callRpc } from "../supabase/postgrest.ts";
 
 export type AccessReviewApplierOptions = {

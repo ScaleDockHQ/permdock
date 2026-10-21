@@ -7,14 +7,14 @@ import {
 } from "../../src/cli/sql/deciding-columns.ts";
 import { tableMembershipSource } from "../../src/supabase/index.ts";
 
-describe("tableKey", () => {
+describe(tableKey, () => {
   it("qualifies, unquotes and lower-cases a table name", () => {
     expect(tableKey("Members")).toBe("public.members");
     expect(tableKey('"Auth"."Members"')).toBe("auth.members");
   });
 });
 
-describe("membershipColumns", () => {
+describe(membershipColumns, () => {
   it("reads rls.membershipSources and the hook sources the claims come from", () => {
     const hook = tableMembershipSource({ table: "memberships" });
     const rls = tableMembershipSource({ table: "other_members" });
@@ -66,7 +66,7 @@ describe("membershipColumns", () => {
   });
 });
 
-describe("decidingColumns", () => {
+describe(decidingColumns, () => {
   it("lists membership and attrs columns, sorted", () => {
     const source = tableMembershipSource({ table: "memberships" });
     const columns = decidingColumns(

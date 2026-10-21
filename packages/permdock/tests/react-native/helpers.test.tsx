@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import type { Permission } from "../../src/core/permission-types.ts";
+import type { SecureStoreModule } from "../../src/react-native/storage-adapters.ts";
 import type { SnapshotStorage } from "../../src/react-native/types.ts";
 
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
@@ -17,7 +18,6 @@ import { PermDockProvider } from "../../src/react-native/provider.tsx";
 import {
   mmkvStorage,
   secureStoreStorage,
-  type SecureStoreModule,
 } from "../../src/react-native/storage-adapters.ts";
 import {
   memorySnapshotStorage,
@@ -66,7 +66,7 @@ function fakeSecureStore(): SecureStoreModule & {
   return store;
 }
 
-describe("secureStoreStorage", () => {
+describe(secureStoreStorage, () => {
   it("round-trips a value larger than one SecureStore item", async () => {
     const fake = fakeSecureStore();
     const storage = secureStoreStorage(fake);
@@ -105,7 +105,7 @@ describe("secureStoreStorage", () => {
   });
 });
 
-describe("mmkvStorage", () => {
+describe(mmkvStorage, () => {
   it("works with the v4 remove and the v3 delete", () => {
     for (const method of ["remove", "delete"] as const) {
       const items = new Map<string, string>();
@@ -177,7 +177,7 @@ describe("appStateForeground and netInfoOnline", () => {
   });
 });
 
-describe("parseLocalSnapshotManifest", () => {
+describe(parseLocalSnapshotManifest, () => {
   it("accepts what localSnapshotManifest writes, after a JSON round trip", () => {
     const json: unknown = JSON.parse(
       JSON.stringify(localSnapshotManifest(policy)),

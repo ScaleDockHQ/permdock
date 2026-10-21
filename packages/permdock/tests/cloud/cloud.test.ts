@@ -203,7 +203,7 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
   return { fetch: fetchImpl, decisions };
 }
 
-describe("cloud", () => {
+describe(cloud, () => {
   it("throws when the key is missing", () => {
     expect(() => cloud({})).toThrow(/requires a key/u);
     expect(() => cloud({ url: CLOUD_URL })).toThrow(/requires a key/u);

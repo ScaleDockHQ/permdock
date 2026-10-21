@@ -101,7 +101,7 @@ function options(key = "pdd_k"): {
   return { idempotencyKey: key, delivery: "dlv_1" };
 }
 
-describe("chatSdkTransport", () => {
+describe(chatSdkTransport, () => {
   it("opens a DM with the address and posts the text", async () => {
     const { client, posted } = fakeChat();
     const transport = chatSdkTransport(client, {
@@ -205,7 +205,7 @@ describe("chatSdkTransport", () => {
   });
 });
 
-describe("approvalCard", () => {
+describe(approvalCard, () => {
   it("has one link to the approval page and approve and reject buttons by request id", () => {
     const card = approvalCard(prompt, {
       approvalUrl: "https://acme.test/approvals",

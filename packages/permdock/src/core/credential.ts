@@ -1,34 +1,31 @@
 import type { Denial } from "./decision.ts";
+import type { Grantee } from "./grantee.ts";
 import type { SettingsSource } from "./interfaces.ts";
+import type { InstanceHandle } from "./internals.ts";
 import type { PermDock } from "./permdock.ts";
 import type { Permission, PermissionTree } from "./permission-types.ts";
+import type {
+  AuthorizationDetail,
+  Delegation,
+  Membership,
+  Principal,
+  Subject,
+} from "./subject.ts";
+import type { Instant } from "./time.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { coveredByDelegation } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
-import { type Grantee, flattenGrantee } from "./grantee.ts";
+import { flattenGrantee } from "./grantee.ts";
 import { idList, isId } from "./ids.ts";
-import { type InstanceHandle, internalsOf } from "./internals.ts";
+import { internalsOf } from "./internals.ts";
 import { ownRecord } from "./paths.ts";
 import { formerKeys } from "./permission-leaf.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { sha256Digest } from "./sha256.ts";
-import {
-  type AuthorizationDetail,
-  type Delegation,
-  type Membership,
-  type Principal,
-  type Subject,
-  anonymousSubject,
-} from "./subject.ts";
-import {
-  type Instant,
-  isRfc3339,
-  nowSeconds,
-  rfc3339,
-  secondsOf,
-} from "./time.ts";
+import { anonymousSubject } from "./subject.ts";
+import { isRfc3339, nowSeconds, rfc3339, secondsOf } from "./time.ts";
 
 export type CredentialKind = "user" | "service" | "feed";
 

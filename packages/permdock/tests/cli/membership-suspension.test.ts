@@ -18,7 +18,7 @@ const ctx = (keep?: readonly string[], permission?: string): RlsSqlContext => ({
   ...(permission === undefined ? {} : { permission }),
 });
 
-describe("activeMembershipSql", () => {
+describe(activeMembershipSql, () => {
   it("adds nothing without a disabledAt column", () => {
     expect(activeMembershipSql(ctx(["a.read"]), undefined)).toStrictEqual([]);
   });
@@ -44,7 +44,7 @@ describe("activeMembershipSql", () => {
   });
 });
 
-describe("keptRowSql", () => {
+describe(keptRowSql, () => {
   it("admits a row without keep, or one whose keep holds the permission", () => {
     expect(keptRowSql("ms.keep", undefined)).toBe(
       "coalesce(jsonb_typeof(ms.keep), 'null') = 'null'",

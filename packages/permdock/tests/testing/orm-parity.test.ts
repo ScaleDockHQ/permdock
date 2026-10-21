@@ -44,7 +44,7 @@ const review = {
   rows,
 };
 
-describe("testOrmParity", () => {
+describe(testOrmParity, () => {
   it("passes when the database returns exactly the in-memory rows", async () => {
     const report = await testOrmParity(policy, [read], {
       run: async () => ["p1"],

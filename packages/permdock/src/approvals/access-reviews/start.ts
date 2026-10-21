@@ -3,6 +3,7 @@ import type { MembershipSource } from "../../core/interfaces.ts";
 import type { PermDock } from "../../core/permdock.ts";
 import type { Permission } from "../../core/permission-types.ts";
 import type { Grant, Policy } from "../../core/policy-types.ts";
+import type { Instant } from "../../core/time.ts";
 import type {
   AccessReview,
   AccessReviewItem,
@@ -10,7 +11,7 @@ import type {
 } from "./types.ts";
 
 import { flattenGrantee } from "../../core/grantee.ts";
-import { dateAt, type Instant } from "../../core/time.ts";
+import { dateAt } from "../../core/time.ts";
 import { AccessReviewError } from "./errors.ts";
 
 export type AccessReviewHolder = {

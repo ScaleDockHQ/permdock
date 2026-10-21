@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { readClaim } from "../../src/core/claims-map.ts";
 
-describe("readClaim", () => {
+describe(readClaim, () => {
   const claims = { sub: "u1", app: { roles: ["a"] } };
 
   it("reads a dot path, calls a function, and reads a throwing function as absent", () => {

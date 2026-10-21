@@ -1,12 +1,9 @@
-import {
-  createComponent,
-  createComputed,
-  on,
-  onCleanup,
-  type JSX,
-} from "solid-js";
+import type { JSX } from "solid-js";
+
+import { createComponent, createComputed, on, onCleanup } from "solid-js";
 
 import type { Snapshot } from "../core/snapshot-types.ts";
+import type { PermDockUi } from "./context.ts";
 import type { PermDockProviderProps } from "./types.ts";
 
 import {
@@ -15,11 +12,7 @@ import {
   isPromiseLike,
   compact,
 } from "../client/kit.ts";
-import {
-  PermDockContext,
-  PermDockUiContext,
-  type PermDockUi,
-} from "./context.ts";
+import { PermDockContext, PermDockUiContext } from "./context.ts";
 
 type ProviderProps = Parameters<typeof PermDockContext.Provider>[0];
 type UiProviderProps = Parameters<typeof PermDockUiContext.Provider>[0];

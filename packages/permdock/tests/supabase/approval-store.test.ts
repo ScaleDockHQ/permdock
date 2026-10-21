@@ -40,7 +40,7 @@ function client(
   };
 }
 
-describe("supabaseApprovalStore", () => {
+describe(supabaseApprovalStore, () => {
   it("calls one function per method with the stored bodies", async () => {
     const calls: Call[] = [];
     const opened: string[] = [];

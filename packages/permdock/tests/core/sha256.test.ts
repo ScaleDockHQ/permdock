@@ -7,7 +7,7 @@ function hex(bytes: Uint8Array): string {
   return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-describe("sha256", () => {
+describe(sha256, () => {
   it("matches the published digest of abc", () => {
     expect(hex(sha256("abc"))).toBe(
       "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",

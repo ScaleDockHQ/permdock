@@ -8,7 +8,7 @@ import { hasScope } from "../../src/core/oauth-scopes.ts";
 
 const detail = { type: "payment", actions: ["create"] };
 
-describe("delegationFrom", () => {
+describe(delegationFrom, () => {
   it("reads authorization details under either name, camel case first", () => {
     expect(
       authorizationDetailsOf({ authorizationDetails: [detail] }),
@@ -38,7 +38,7 @@ describe("delegationFrom", () => {
   });
 });
 
-describe("hasScope", () => {
+describe(hasScope, () => {
   it("is true when the token holds any wanted scope", () => {
     expect(hasScope(["a", "b"], ["c", "b"])).toBe(true);
     expect(hasScope(["a"], ["c"])).toBe(false);

@@ -1,4 +1,6 @@
 import type { GraphSql } from "../../conditions/graph-sql.ts";
+import type { Scope } from "../../core/scopes.ts";
+import type { RoleColumn } from "../../supabase/roles.ts";
 import type { SqlMembershipSource } from "../../supabase/sources.ts";
 import type {
   RlsDialect,
@@ -8,9 +10,9 @@ import type {
 import type { RlsSqlContext } from "./context.ts";
 
 import { scopeColumn, scopeMembershipTable } from "../../conditions/compile.ts";
-import { type Scope, rootScope, scopeChain } from "../../core/scopes.ts";
+import { rootScope, scopeChain } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
-import { type RoleColumn, roleColumn } from "../../supabase/roles.ts";
+import { roleColumn } from "../../supabase/roles.ts";
 import { configError } from "../core/errors.ts";
 import { CLI, quoteIdent, quoteLiteral } from "./quote.ts";
 import { subjectIdSql } from "./subject.ts";

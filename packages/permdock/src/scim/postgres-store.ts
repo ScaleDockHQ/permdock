@@ -1,20 +1,20 @@
 import type { AppData } from "../core/app-data.ts";
+import type { SqlQuery } from "../core/sql.ts";
+import type {
+  DirectoryGroup,
+  DirectoryStore,
+  DirectoryUser,
+  ScimFilter,
+  ScimPage,
+  ScimPageResult,
+  ScimPatchOp,
+} from "./types.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
-import { type SqlQuery, quoteSqlIdent, sqlRows } from "../core/sql.ts";
+import { quoteSqlIdent, sqlRows } from "../core/sql.ts";
 import { isoNow } from "../core/time.ts";
 import { applyGroupOp, applyUserOp, emailsOf } from "./store.ts";
-import {
-  DirectoryNotFoundError,
-  DirectoryUniquenessError,
-  type DirectoryGroup,
-  type DirectoryStore,
-  type DirectoryUser,
-  type ScimFilter,
-  type ScimPage,
-  type ScimPageResult,
-  type ScimPatchOp,
-} from "./types.ts";
+import { DirectoryNotFoundError, DirectoryUniquenessError } from "./types.ts";
 
 /**
  * The tables `permdock scim generate` writes; their names are the contract this

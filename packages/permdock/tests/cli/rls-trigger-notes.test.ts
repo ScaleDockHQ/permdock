@@ -14,7 +14,7 @@ create trigger permdock_holders_org after insert on public.user_roles
 create trigger "other" after insert on t for each row execute function f();
 create trigger "permdock_sync_custom_role_permissions" after insert on public.role_permissions for each row execute function f();`;
 
-describe("generatedTriggers", () => {
+describe(generatedTriggers, () => {
   it("names each trigger, its table and the option behind it", () => {
     expect(generatedTriggers(SQL)).toStrictEqual([
       {

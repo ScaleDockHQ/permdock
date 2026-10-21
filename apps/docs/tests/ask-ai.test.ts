@@ -1,18 +1,19 @@
 import { describe, expect, it } from "vitest";
 
+import type { AskAiChecks } from "../lib/ask-ai";
+
 import {
   guardAskAi,
   maxCharacters,
   maxMessages,
   parseChatRequest,
-  type AskAiChecks,
 } from "../lib/ask-ai";
 
 function user(id: string, text: string) {
   return { id, role: "user", parts: [{ type: "text", text }] };
 }
 
-describe("parseChatRequest", () => {
+describe(parseChatRequest, () => {
   it("keeps user and assistant text and drops tool parts", async () => {
     const parsed = await parseChatRequest({
       messages: [
@@ -91,7 +92,7 @@ describe("parseChatRequest", () => {
   });
 });
 
-describe("guardAskAi", () => {
+describe(guardAskAi, () => {
   const request = new Request("https://permdock.com/docs/api/chat", {
     method: "POST",
   });

@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import type { Policy } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type { McpChecks } from "./call-check.ts";
+import type { McpCall } from "./mcp-auth.ts";
 import type {
   McpPermDock,
   McpPermDockOptions,
@@ -16,7 +17,7 @@ import { compact } from "../core/compact.ts";
 import { delegationFrom } from "../core/delegation-input.ts";
 import { instanceOptions } from "../core/instance-options.ts";
 import { composeWraps } from "../core/wrap.ts";
-import { type McpCall, tenantOf } from "./mcp-auth.ts";
+import { tenantOf } from "./mcp-auth.ts";
 import { protectServer } from "./protect-server.ts";
 import { mcpActorKind } from "./subject.ts";
 

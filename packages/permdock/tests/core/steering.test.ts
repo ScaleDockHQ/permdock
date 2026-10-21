@@ -195,7 +195,7 @@ describe("events and telemetry", () => {
   });
 });
 
-describe("describe", () => {
+describe(describe, () => {
   it("labels the permission with meta.title when given the leaf", async () => {
     const permdock = getPermDockSync(policy, user);
     const decision: Decision = permdock.decide(permissions.doc.read, {

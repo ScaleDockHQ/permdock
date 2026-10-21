@@ -21,7 +21,7 @@ function reader(reads: string[] = []) {
   };
 }
 
-describe("customRoleSource", () => {
+describe(customRoleSource, () => {
   it("returns every custom role of the requested tenant, held or not", async () => {
     const source = customRoleSource(reader());
     expect(await source.rolesFor("T", { held: ["admin"] })).toStrictEqual(

@@ -10,7 +10,7 @@ const fixture: unknown = JSON.parse(
   ),
 );
 
-describe("parseSnapshot", () => {
+describe(parseSnapshot, () => {
   it("freezes a copy and leaves the caller’s object untouched", () => {
     // SAFETY: the snapshot fixture is a JSON object, so its round trip is one too.
     const input = JSON.parse(JSON.stringify(fixture)) as Record<

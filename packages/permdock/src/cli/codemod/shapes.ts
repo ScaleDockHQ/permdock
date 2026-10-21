@@ -1,3 +1,4 @@
+import type { Estree, LineAt } from "./ast.ts";
 import type {
   CodemodFollowUp,
   Context,
@@ -12,14 +13,7 @@ import type {
   PropRename,
 } from "./shapes-0.5.ts";
 
-import {
-  type Estree,
-  child,
-  type LineAt,
-  nameOf,
-  nodes,
-  position,
-} from "./ast.ts";
+import { child, nameOf, nodes, position } from "./ast.ts";
 import {
   boundImport,
   SCRIPT_BLOCK,

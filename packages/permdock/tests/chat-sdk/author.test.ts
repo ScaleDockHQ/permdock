@@ -12,7 +12,7 @@ const user: Author = {
   isMe: false,
 };
 
-describe("chatSdkAuthor", () => {
+describe(chatSdkAuthor, () => {
   it("maps a Chat SDK author to a ChatAuthor named by the adapter", () => {
     expect(chatSdkAuthor(user, { name: "slack" })).toStrictEqual({
       provider: "slack",

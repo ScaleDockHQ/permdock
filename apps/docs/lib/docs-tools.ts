@@ -1,4 +1,6 @@
-import { findPage, searchDocs, type DocsPageSummary } from "./docs-pages";
+import type { DocsPageSummary } from "./docs-pages";
+
+import { findPage, searchDocs } from "./docs-pages";
 import { getLLMText, source } from "./source";
 
 export type DocsTools = {

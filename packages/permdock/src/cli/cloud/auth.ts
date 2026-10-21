@@ -8,6 +8,7 @@ import type {
   TerminalStorageOptions,
 } from "../../terminal/types.ts";
 import type { CliIo } from "../types.ts";
+import type { Env } from "./issuer.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { secondsAt } from "../../core/time.ts";
@@ -18,12 +19,7 @@ import {
   writeCredentials,
 } from "../../terminal/storage.ts";
 import { CliError } from "../core/errors.ts";
-import {
-  CLI_CLIENT_ID,
-  type Env,
-  issuerMetadata,
-  WRITE_SCOPE,
-} from "./issuer.ts";
+import { CLI_CLIENT_ID, issuerMetadata, WRITE_SCOPE } from "./issuer.ts";
 
 /**
  * The service name credentials are stored under, in the keychain or the config

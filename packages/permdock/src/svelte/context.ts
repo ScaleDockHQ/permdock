@@ -1,5 +1,7 @@
+import type { Readable } from "svelte/store";
+
 import { getContext, onDestroy, setContext } from "svelte";
-import { toStore, type Readable } from "svelte/store";
+import { toStore } from "svelte/store";
 
 import type { ClientStore } from "../client/store.ts";
 import type { DescribeMessages } from "../core/describe.ts";

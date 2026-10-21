@@ -1,4 +1,5 @@
 import type { PermDock, Permission } from "../../src/index.ts";
+import type { ServerPermDock } from "../../src/server/index.ts";
 import type {
   HttpCall,
   HttpMounted,
@@ -9,7 +10,6 @@ import type {
 import { APPROVAL_HEADER } from "../../src/approvals/index.ts";
 import {
   PermDockRevokedError,
-  type ServerPermDock,
   createPermDock,
   problemFromError,
 } from "../../src/server/index.ts";

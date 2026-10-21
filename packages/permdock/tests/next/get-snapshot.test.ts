@@ -10,44 +10,46 @@ vi.mock(import("next/cache.js"), async (original) => ({
   cacheTag: vi.fn<(...tags: string[]) => void>(),
 }));
 
-afterEach(() => {
-  vi.mocked(cacheLife).mockReset();
-  vi.mocked(cacheTag).mockReset();
-});
-
-describe("getSnapshot", () => {
-  it("returns the snapshot and sets its lifetime and tags in the caller's scope", async () => {
-    const { getSnapshot } = createPermDock(policy, {
-      subject: () => memberUser,
-    });
-    const snapshot = await getSnapshot({
-      include: [permissions.post],
-      tags: ["org:acme"],
-    });
-    expect(snapshot.v).toBe(1);
-    expect(snapshot.grants.length).toBeGreaterThan(0);
-    expect(cacheLife).toHaveBeenCalledWith({ stale: 300 });
-    expect(cacheTag).toHaveBeenCalledWith(
-      snapshotTag(memberUser.id),
-      "org:acme",
-    );
+describe("get snapshot", () => {
+  afterEach(() => {
+    vi.mocked(cacheLife).mockReset();
+    vi.mocked(cacheTag).mockReset();
   });
 
-  it("tags an anonymous snapshot", async () => {
-    const { getSnapshot } = createPermDock(policy, { subject: () => null });
-    await getSnapshot();
-    expect(cacheTag).toHaveBeenCalledWith("permdock:anon");
-  });
-
-  it("names the missing cache scope", async () => {
-    vi.mocked(cacheLife).mockImplementation(() => {
-      throw new Error(
-        '`cacheLife()` can only be called inside a "use cache" function.',
+  describe("getSnapshot", () => {
+    it("returns the snapshot and sets its lifetime and tags in the caller's scope", async () => {
+      const { getSnapshot } = createPermDock(policy, {
+        subject: () => memberUser,
+      });
+      const snapshot = await getSnapshot({
+        include: [permissions.post],
+        tags: ["org:acme"],
+      });
+      expect(snapshot.v).toBe(1);
+      expect(snapshot.grants.length).toBeGreaterThan(0);
+      expect(cacheLife).toHaveBeenCalledWith({ stale: 300 });
+      expect(cacheTag).toHaveBeenCalledWith(
+        snapshotTag(memberUser.id),
+        "org:acme",
       );
     });
-    const { getSnapshot } = createPermDock(policy, {
-      subject: () => memberUser,
+
+    it("tags an anonymous snapshot", async () => {
+      const { getSnapshot } = createPermDock(policy, { subject: () => null });
+      await getSnapshot();
+      expect(cacheTag).toHaveBeenCalledWith("permdock:anon");
     });
-    await expect(getSnapshot()).rejects.toThrow(/'use cache: private'/u);
+
+    it("names the missing cache scope", async () => {
+      vi.mocked(cacheLife).mockImplementation(() => {
+        throw new Error(
+          '`cacheLife()` can only be called inside a "use cache" function.',
+        );
+      });
+      const { getSnapshot } = createPermDock(policy, {
+        subject: () => memberUser,
+      });
+      await expect(getSnapshot()).rejects.toThrow(/'use cache: private'/u);
+    });
   });
 });

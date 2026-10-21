@@ -41,7 +41,7 @@ const withLimit = definePolicy(permissions, {
   subject,
 });
 
-describe("defineApp", () => {
+describe(defineApp, () => {
   it("returns a policy that core and adapters read the app definition from", async () => {
     const sink = memoryDecisionSink();
     const app = defineApp(plain, { sink });

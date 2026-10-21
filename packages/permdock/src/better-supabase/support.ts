@@ -11,15 +11,13 @@ import type {
   SupportSessionDecision,
   SupportSessionRequest,
 } from "../core/support-session.ts";
+import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 
 import { canonicalJson } from "../core/canonical-json.ts";
 import { getPermDock } from "../core/permdock.ts";
 import { sha256Digest } from "../core/sha256.ts";
 import { decideSupportSession } from "../core/support-session.ts";
-import {
-  type BetterSupabaseSubjectOptions,
-  subjectFromBetterSupabase,
-} from "./subject.ts";
+import { subjectFromBetterSupabase } from "./subject.ts";
 
 /**
  * A start `decideSupportSession` holds for approval: the session it would start

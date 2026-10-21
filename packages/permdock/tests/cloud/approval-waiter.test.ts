@@ -100,7 +100,7 @@ function pendingStore(): ApprovalStore {
 
 const verify = { jwks: JWKS, replay: memoryReplayStore() };
 
-describe("cloudApprovalWaiter", () => {
+describe(cloudApprovalWaiter, () => {
   it("wakes the run of each resolved, expired and cancelled approval", async () => {
     const waiter = recordingWaiter();
     const cloud = cloudApprovalWaiter({ ...verify, waiter });
@@ -211,7 +211,7 @@ describe("cloudApprovalWaiter", () => {
   });
 });
 
-describe("approvalTokensOf", () => {
+describe(approvalTokensOf, () => {
   it("reads only the tokens of events that end a wait", () => {
     const events = [
       lifecycle("requested", "pd1.a"),

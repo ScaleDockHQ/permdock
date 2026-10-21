@@ -3,10 +3,9 @@ import type { SupportAuthorizeInput } from "better-supabase/server";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-import {
-  type SupportPolicyOptions,
-  supportPolicy,
-} from "../../src/better-supabase/index.ts";
+import type { SupportPolicyOptions } from "../../src/better-supabase/index.ts";
+
+import { supportPolicy } from "../../src/better-supabase/index.ts";
 import {
   allow,
   definePermissions,
@@ -82,7 +81,7 @@ const input = (
   };
 };
 
-describe("supportPolicy", () => {
+describe(supportPolicy, () => {
   it("waits for a distinct approver by default", async () => {
     expect(await supportPolicy({ policy })(input())).toBe(false);
     const approved = vi.fn<NonNullable<SupportPolicyOptions["approved"]>>(

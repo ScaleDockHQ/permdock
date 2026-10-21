@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 
+import type { Condition } from "../../conditions/ast.ts";
+import type { SqlConnect } from "../pg.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 
-import { type Condition, isConditionRef } from "../../conditions/ast.ts";
+import { isConditionRef } from "../../conditions/ast.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
-import { type SqlConnect, connectPgPool } from "../pg.ts";
+import { connectPgPool } from "../pg.ts";
 import { scopeTable } from "../sql/names.ts";
 import { quoteIdent, quoteTable } from "../sql/quote.ts";
 

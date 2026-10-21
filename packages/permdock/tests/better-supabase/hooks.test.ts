@@ -2,12 +2,10 @@ import { testAuthorizationHooks } from "better-supabase/testing";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { AuthorizationHooksOptions } from "../../src/better-supabase/index.ts";
 import type { Principal } from "../../src/index.ts";
 
-import {
-  type AuthorizationHooksOptions,
-  authorizationHooks,
-} from "../../src/better-supabase/index.ts";
+import { authorizationHooks } from "../../src/better-supabase/index.ts";
 import { holder, user } from "../../src/core/approvers.ts";
 import {
   allow,
@@ -112,7 +110,7 @@ const hooks = authorizationHooks({
 });
 const automation = hooks.automation!;
 
-describe("authorizationHooks", () => {
+describe(authorizationHooks, () => {
   it("passes better-supabase's conformance kit with every hook set", async () => {
     await expect(testAuthorizationHooks(hooks)).resolves.toBeDefined();
     await expect(

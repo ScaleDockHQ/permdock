@@ -1,5 +1,7 @@
+import type { Readable } from "svelte/store";
+
 import { flushSync, mount, unmount } from "svelte";
-import { get, type Readable } from "svelte/store";
+import { get } from "svelte/store";
 import { describe, expect, it } from "vitest";
 
 import type { Decision } from "../../src/core/decision.ts";

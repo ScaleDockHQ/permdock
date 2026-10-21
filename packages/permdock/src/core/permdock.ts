@@ -26,6 +26,7 @@ import type { Operation } from "./operations.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type { PrincipalSource } from "./principal-source.ts";
+import type { Scope } from "./scopes.ts";
 import type { Snapshot } from "./snapshot-types.ts";
 import type {
   Actor,
@@ -50,7 +51,7 @@ import {
   customRolesFor,
   roleSourceFor,
 } from "./role-loading.ts";
-import { type Scope, scopeList } from "./scopes.ts";
+import { scopeList } from "./scopes.ts";
 import { parseSnapshot } from "./snapshot.ts";
 import { heldRoleNamesIn, tenantsOf } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";

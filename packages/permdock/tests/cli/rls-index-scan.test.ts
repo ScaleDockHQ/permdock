@@ -39,7 +39,7 @@ create table f (name text default 'a;
   });
 });
 
-describe("indexKeysFromSql", () => {
+describe(indexKeysFromSql, () => {
   it("reads indexes, constraints and keys, cut at the first expression", () => {
     expect(indexKeysFromSql(SQL)).toStrictEqual({
       "public.organization_members": [
@@ -77,7 +77,7 @@ describe("indexKeysFromSql", () => {
   });
 });
 
-describe("tablesFromSql", () => {
+describe(tablesFromSql, () => {
   it("lists created tables, qualified, without temporary ones or comments", () => {
     expect([
       ...tablesFromSql(`
@@ -95,10 +95,11 @@ create temp table scratch (id int);
   });
 });
 
-describe("indexKeysFromProject", () => {
+describe(indexKeysFromProject, () => {
   const TMP = path.join(import.meta.dirname, "../../tmp");
   mkdirSync(TMP, { recursive: true });
   const cwd = mkdtempSync(path.join(TMP, "index-scan-"));
+
   afterAll(() => {
     rmSync(cwd, { recursive: true, force: true });
   });

@@ -11,7 +11,7 @@ import { permissions, policy } from "../fixtures/quick-start.ts";
 
 const scheme = { name: "oauth2", type: "oauth2" } as const;
 
-describe("securityFor", () => {
+describe(securityFor, () => {
   it("matches the policy-backed emitter for every permission that is not public", () => {
     const emitter = createPermDock(policy, { scheme });
     for (const leaf of listPermissions(permissions)) {
@@ -73,7 +73,7 @@ describe("securityFor", () => {
   });
 });
 
-describe("permissionsExtension", () => {
+describe(permissionsExtension, () => {
   it("lists the keys in order", () => {
     expect(permissionsExtension(permissions.post.read)).toStrictEqual([
       "post.read",

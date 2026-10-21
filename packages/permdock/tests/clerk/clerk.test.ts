@@ -35,7 +35,7 @@ const authObject = {
   has: () => false,
 };
 
-describe("subjectFromClerk", () => {
+describe(subjectFromClerk, () => {
   it("never throws and fails closed to anonymous", async () => {
     await expect(subjectFromClerk(null)).resolves.toMatchObject({
       principal: null,

@@ -1,10 +1,11 @@
-import {
-  getPermDock,
-  type PermDockOptions,
-  type Permission,
-  type Policy,
-  type WhereResult,
+import type {
+  PermDockOptions,
+  Permission,
+  Policy,
+  WhereResult,
 } from "../index.ts";
+
+import { getPermDock } from "../index.ts";
 
 export type OrmParityScenario<TUser = unknown> = {
   readonly name: string;

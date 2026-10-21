@@ -111,7 +111,7 @@ const grants = new Map([
   ["global", { "invoice.read": { allow: ["invoice.read"], deny: [] } }],
 ]);
 
-describe("shimGrants", () => {
+describe(shimGrants, () => {
   it("keeps unconditional allows and every deny, per scope, without former keys, and lists the conditioned keys apart", () => {
     expect(
       Object.fromEntries(
@@ -184,7 +184,7 @@ describe("shimGrants", () => {
   });
 });
 
-describe("shimMap", () => {
+describe(shimMap, () => {
   it("keeps only what a shim reads: the allow and deny lists of permissions that have one", () => {
     const lists = shimGrants(
       [
@@ -213,7 +213,7 @@ describe("shimMap", () => {
   });
 });
 
-describe("shimsSql", () => {
+describe(shimsSql, () => {
   const sql = shimsSql(
     base,
     migrate,

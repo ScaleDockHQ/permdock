@@ -1,7 +1,6 @@
+import type { CompiledQuery, DatabaseConnection, Driver } from "kysely";
+
 import {
-  type CompiledQuery,
-  type DatabaseConnection,
-  type Driver,
   Kysely,
   PostgresAdapter,
   PostgresIntrospector,

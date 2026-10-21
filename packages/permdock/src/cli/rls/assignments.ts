@@ -1,3 +1,4 @@
+import type { Scope } from "../../core/scopes.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type {
   PermDockConfig,
@@ -6,7 +7,7 @@ import type {
   RoleThrough,
 } from "../types.ts";
 
-import { type Scope, resolveScope } from "../../core/scopes.ts";
+import { resolveScope } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { roleColumn } from "../../supabase/roles.ts";
 import { configError } from "../core/errors.ts";

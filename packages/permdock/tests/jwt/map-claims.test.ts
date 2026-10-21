@@ -409,7 +409,7 @@ describe("custom claims", () => {
   });
 });
 
-describe("acceptMismatch", () => {
+describe(acceptMismatch, () => {
   const cases: readonly {
     readonly label: string;
     readonly claims: Record<string, unknown>;

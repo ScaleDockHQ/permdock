@@ -1,4 +1,5 @@
 import type { Policy, ResourceNode } from "../../index.ts";
+import type { CompiledBranch } from "../sql/compile.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 
 import { flattenGrantee } from "../../core/grantee.ts";
@@ -6,7 +7,7 @@ import { listPermissions } from "../../core/permission-registry.ts";
 import { policyLevels } from "../../core/policy.ts";
 import { configError } from "../core/errors.ts";
 import { branchClauses } from "../sql/clauses.ts";
-import { type CompiledBranch, tableFor } from "../sql/compile.ts";
+import { tableFor } from "../sql/compile.ts";
 import { graphSqlName } from "../sql/names.ts";
 import {
   qualified,

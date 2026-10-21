@@ -8,6 +8,7 @@ import type {
   RoleOptions,
   RoleScope,
 } from "./policy-types.ts";
+import type { Role as RoleLeaf } from "./vocabulary.ts";
 
 import { activationApproval } from "./approval-normalize.ts";
 import { compact } from "./compact.ts";
@@ -16,7 +17,7 @@ import { flattenGrants, flattenPermissions } from "./grant-builders.ts";
 import { asGrantee, flattenGrantee, roleScopeOf } from "./grantee.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { assertDuration } from "./time.ts";
-import { type Role as RoleLeaf, isRole } from "./vocabulary.ts";
+import { isRole } from "./vocabulary.ts";
 
 function resolveRoleScope(on: RoleScope | undefined): Grant["scope"] {
   if (on === undefined) {

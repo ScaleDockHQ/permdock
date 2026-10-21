@@ -1,11 +1,10 @@
 import { Elysia } from "elysia";
 import { describe, expect, it } from "vitest";
 
+import type { ElysiaPermDockContext } from "../../src/elysia/index.ts";
+
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
-import {
-  createPermDock,
-  type ElysiaPermDockContext,
-} from "../../src/elysia/index.ts";
+import { createPermDock } from "../../src/elysia/index.ts";
 import {
   memberUser,
   otherPost,

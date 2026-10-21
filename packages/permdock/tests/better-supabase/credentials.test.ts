@@ -8,11 +8,12 @@ import { AsyncResult, dbError, ok } from "better-supabase";
 import { testCredentialProvider } from "better-supabase/testing";
 import { describe, expect, it } from "vitest";
 
+import type { PermDock } from "../../src/core/permdock.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { credentialGuard } from "../../src/better-supabase/index.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -90,7 +91,7 @@ function memoryProvider(): {
 
 const ref = { provider: "memory", name: "github" } as const;
 
-describe("credentialGuard", () => {
+describe(credentialGuard, () => {
   it("passes better-supabase's credential kit when PermDock grants", async () => {
     const { provider, seed } = memoryProvider();
     const guarded = credentialGuard(provider, {

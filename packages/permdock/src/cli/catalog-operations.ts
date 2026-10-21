@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { LoadOptions } from "./project/load.ts";
 import type { CatalogOperation } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
@@ -9,7 +10,7 @@ import { isOperationEffect } from "../core/operations.ts";
 import { isPermission } from "../core/permission-registry.ts";
 import { configError } from "./core/errors.ts";
 import { rel } from "./files.ts";
-import { type LoadOptions, loadModule, pickNamed } from "./project/load.ts";
+import { loadModule, pickNamed } from "./project/load.ts";
 
 function metaOf(name: string, value: unknown): CatalogOperation["meta"] {
   const fail = (field: string): never => {

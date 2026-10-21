@@ -37,7 +37,7 @@ describe("invariant 4: permission leaves are plain frozen JSON", () => {
         Object.getOwnPropertyDescriptors(leaf),
       )) {
         expect(descriptor.get).toBeUndefined();
-        expect(typeof descriptor.value).not.toBe("function");
+        expect(descriptor.value).not.toBeTypeOf("function");
       }
     }
   });

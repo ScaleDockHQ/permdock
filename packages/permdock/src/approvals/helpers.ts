@@ -3,34 +3,32 @@ import type { Decision } from "../core/decision.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { ApprovalRequirement } from "../core/policy-types.ts";
 import type { Delegation, Membership, Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 import type { ApprovalsHandlerOptions } from "./handler.ts";
+import type { ApproverRelationsOptions } from "./relations.ts";
+import type {
+  ApprovalApprovers,
+  ApprovalCancelMeta,
+  ApprovalInspectResult,
+  ApprovalListFilter,
+  ApprovalRequest,
+  ApprovalStore,
+  ApprovalVerdict,
+} from "./types.ts";
 
 import { assertAppData } from "../core/app-data.ts";
 import { parseApprovalHeader } from "../core/approval-header.ts";
 import { compact } from "../core/compact.ts";
 import { describe } from "../core/describe.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { dateAt, durationOf, isoAt, type Instant } from "../core/time.ts";
+import { dateAt, durationOf, isoAt } from "../core/time.ts";
 import { toWireDelegation } from "../core/wire-delegation.ts";
 import { ApprovalError } from "./errors.ts";
 import { listAllApprovals } from "./page.ts";
 import { heldPermissions } from "./permissions.ts";
-import {
-  type ApproverRelationsOptions,
-  approverRelations,
-} from "./relations.ts";
+import { approverRelations } from "./relations.ts";
 import { assertApprover } from "./store.ts";
-import {
-  APPROVAL_HEADER,
-  type ApprovalApprovers,
-  type ApprovalCancelMeta,
-  type ApprovalInspectResult,
-  type ApprovalListFilter,
-  type ApprovalRequest,
-  type ApprovalStore,
-  type ApprovalVerdict,
-  DEFAULT_APPROVAL_TTL,
-} from "./types.ts";
+import { APPROVAL_HEADER, DEFAULT_APPROVAL_TTL } from "./types.ts";
 
 function permissionMeta(
   permission:

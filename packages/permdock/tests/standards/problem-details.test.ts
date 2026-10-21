@@ -412,7 +412,7 @@ describe("RFC 9457 Problem Details", () => {
   });
 });
 
-describe("PROBLEM_EXAMPLES", () => {
+describe("the PROBLEM_EXAMPLES list", () => {
   const author = { principal: { id: "u_123", roles: ["member"] }, context: {} };
   const remove = permissions.post.delete;
   const refused = (...denials: readonly Denial[]): Decision => ({

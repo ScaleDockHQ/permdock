@@ -1,5 +1,8 @@
-import { getTableName, is, type SQL } from "drizzle-orm";
-import { PgDialect, PgPolicy, PgRole, type PgTable } from "drizzle-orm/pg-core";
+import type { SQL } from "drizzle-orm";
+import type { PgTable } from "drizzle-orm/pg-core";
+
+import { getTableName, is } from "drizzle-orm";
+import { PgDialect, PgPolicy, PgRole } from "drizzle-orm/pg-core";
 import {
   mkdirSync,
   mkdtempSync,

@@ -1,3 +1,4 @@
+import type { TenantOption, TenantScope } from "../core/adapter-context.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
@@ -19,12 +20,7 @@ import type {
   SnapshotQuery,
 } from "./server-types.ts";
 
-import {
-  type TenantOption,
-  type TenantScope,
-  actorFrom,
-  tenantScope,
-} from "../core/adapter-context.ts";
+import { actorFrom, tenantScope } from "../core/adapter-context.ts";
 import { resolveOrNull } from "../core/build-instance.ts";
 import { listPermissions } from "../core/permission-registry.ts";
 import { problemFor } from "./kernel-problems.ts";
@@ -33,16 +29,17 @@ import { InvalidSignatureError } from "./web-bot-auth.ts";
 export { tenantScope };
 export type { TenantOption, TenantScope };
 
+import type { Report, RequestContext } from "../core/request-context.ts";
+import type { RouteGuardDeps } from "./route-guard.ts";
+
 import { withApp } from "../core/app.ts";
 import { compact } from "../core/compact.ts";
 import {
   buildReportingInstance,
   requestContext,
-  type Report,
-  type RequestContext,
 } from "../core/request-context.ts";
 import { evaluationsHandler } from "./evaluations.ts";
-import { type RouteGuardDeps, guardOn, routeScopes } from "./route-guard.ts";
+import { guardOn, routeScopes } from "./route-guard.ts";
 
 export type { RequestContext };
 

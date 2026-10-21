@@ -3,6 +3,12 @@ import { resolve } from "node:path";
 import { isMap, parseDocument } from "yaml";
 
 import type { CommandResult } from "../core/result.ts";
+import type {
+  GeneratedAction,
+  GeneratedResource,
+  JsonSchema,
+  SchemaKind,
+} from "../generate.ts";
 import type { CliIo } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
@@ -10,14 +16,7 @@ import { byCodePoint } from "../../core/compare.ts";
 import { applyFiles } from "../core/files.ts";
 import { httpRequest } from "../core/http.ts";
 import { readJsonFile } from "../files.ts";
-import {
-  type GeneratedAction,
-  type GeneratedResource,
-  type JsonSchema,
-  type SchemaKind,
-  emitPermissionsModule,
-  schemaExpression,
-} from "../generate.ts";
+import { emitPermissionsModule, schemaExpression } from "../generate.ts";
 import { validateOpenapi } from "./schema.ts";
 
 const METHODS = [

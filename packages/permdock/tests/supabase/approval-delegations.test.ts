@@ -18,7 +18,7 @@ const ROWS = [
   },
 ];
 
-describe("tableApprovalDelegationSource", () => {
+describe(tableApprovalDelegationSource, () => {
   const query = vi.fn<SqlQuery>(async (_text, values) =>
     values[0] === "u_cover" ? { rows: ROWS } : [],
   );

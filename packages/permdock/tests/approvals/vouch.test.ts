@@ -37,7 +37,7 @@ function person(id: string): Subject {
   return { principal: { id, roles: [] }, context: {} };
 }
 
-describe("vouchApproval", () => {
+describe(vouchApproval, () => {
   it("resolves with the app's verdict in one step and records the rule", async () => {
     const store = memoryApprovalStore();
     void store.create(request());

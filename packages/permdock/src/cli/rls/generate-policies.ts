@@ -1,3 +1,6 @@
+import type { Policy } from "../../index.ts";
+import type { CompiledGrants, CompiledPolicy } from "../sql/compile.ts";
+import type { FieldView } from "./fields.ts";
 import type { GenerateContext } from "./generate-context.ts";
 import type {
   GenerateOptions,
@@ -8,19 +11,15 @@ import type {
 import { compact } from "../../core/compact.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
-import { type Policy, listPermissions } from "../../index.ts";
+import { listPermissions } from "../../index.ts";
 import { describeError } from "../core/errors.ts";
-import {
-  type CompiledGrants,
-  type CompiledPolicy,
-  compileGrants,
-} from "../sql/compile.ts";
+import { compileGrants } from "../sql/compile.ts";
 import { scopeSources, scopeTable } from "../sql/names.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { subjectClaimJsonSql } from "../sql/subject.ts";
 import { tableNames } from "../sql/tables.ts";
 import { policySql } from "./emit.ts";
-import { type FieldView, fieldViews, rowBranches } from "./fields.ts";
+import { fieldViews, rowBranches } from "./fields.ts";
 import {
   ACTOR_MAY_WRITE,
   assemblePolicies,

@@ -1,18 +1,22 @@
+import type {
+  Capability,
+  CapabilityPrincipal,
+  LinkPolicy,
+} from "../core/capability.ts";
 import type { AuthEvent } from "../core/event-types.ts";
 import type { Permission, PermissionTree } from "../core/permission-types.ts";
+import type { Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 
 import {
-  type Capability,
-  type CapabilityPrincipal,
-  type LinkPolicy,
   capabilityOf,
   capabilitySubject,
   linkPolicyViolation,
 } from "../core/capability.ts";
 import { compact } from "../core/compact.ts";
 import { idList, isId } from "../core/ids.ts";
-import { type Subject, anonymousSubject } from "../core/subject.ts";
-import { type Instant, nowSeconds } from "../core/time.ts";
+import { anonymousSubject } from "../core/subject.ts";
+import { nowSeconds } from "../core/time.ts";
 
 /**
  * The fields of better-supabase's `ResolvedShareLink` a link subject is built

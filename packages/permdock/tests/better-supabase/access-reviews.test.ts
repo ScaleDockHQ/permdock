@@ -123,7 +123,7 @@ const appliedAt = async (
     (item) => item.principal === principal,
   )?.appliedAt;
 
-describe("accessReviewApplier", () => {
+describe(accessReviewApplier, () => {
   it("demotes to a fallback role that lacks the permission, then marks the item applied", async () => {
     const reviews = await reviewWith([
       { principal: "u1", via: ["admin"], status: "revoked" },

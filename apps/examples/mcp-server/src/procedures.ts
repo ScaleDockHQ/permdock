@@ -10,8 +10,10 @@ import {
 } from "permdock/orpc";
 import { z } from "zod";
 
+import type { User } from "./policy.ts";
+
 import { ownPost, permissions } from "./permissions.ts";
-import { policy, type User } from "./policy.ts";
+import { policy } from "./policy.ts";
 
 type Ctx = { readonly user: User | null };
 

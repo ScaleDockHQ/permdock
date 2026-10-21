@@ -15,7 +15,7 @@ const permissions = definePermissions({
   post: resource(z.object({ id: z.string() }), { actions: ["read"] }),
 });
 
-describe("ttlMs", () => {
+describe(ttlMs, () => {
   const cases: readonly [Parameters<typeof ttlMs>[0], number][] = [
     [undefined, 0],
     [{ ttl: 1 }, 1000],
@@ -29,12 +29,13 @@ describe("ttlMs", () => {
     [{ ttl: "5s" as unknown as number }, 0],
     [{ ttl: Number.POSITIVE_INFINITY }, 0],
   ];
+
   it.each(cases)("maps %j to %d ms", (cache, expected) => {
     expect(ttlMs(cache)).toBe(expected);
   });
 });
 
-describe("resourceIdOf", () => {
+describe(resourceIdOf, () => {
   const cases: readonly [unknown, string | undefined, string][] = [
     [null, undefined, "*"],
     ["p1", undefined, "*"],
@@ -44,12 +45,13 @@ describe("resourceIdOf", () => {
     [{ key: "k1" }, "key", "k1"],
     [Object.create({ id: "inherited" }), undefined, "*"],
   ];
+
   it.each(cases)("reads %j with field %s as %s", (data, field, expected) => {
     expect(resourceIdOf(data, field)).toBe(expected);
   });
 });
 
-describe("cacheKey", () => {
+describe(cacheKey, () => {
   it("separates issuer, tenant and actor", () => {
     const base = cacheKey(
       { principal: { id: "u1", roles: [] }, context: {} },
@@ -90,7 +92,7 @@ describe("cacheKey", () => {
   });
 });
 
-describe("ttlCache", () => {
+describe(ttlCache, () => {
   afterEach(() => {
     vi.useRealTimers();
   });
@@ -122,7 +124,7 @@ describe("ttlCache", () => {
   });
 });
 
-describe("joinUrl", () => {
+describe(joinUrl, () => {
   const cases: readonly [string, string, string][] = [
     ["https://a.test", "/x", "https://a.test/x"],
     ["https://a.test/", "/x", "https://a.test/x"],
@@ -130,6 +132,7 @@ describe("joinUrl", () => {
     ["https://a.test", "https://b.test/y", "https://b.test/y"],
     ["https://a.test", "http://b.test/y", "http://b.test/y"],
   ];
+
   it.each(cases)("joins %s and %s", (base, path, expected) => {
     expect(joinUrl(base, path)).toBe(expected);
   });

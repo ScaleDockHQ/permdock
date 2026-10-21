@@ -1,30 +1,25 @@
 import type { Decision, LimitDetail } from "../core/decision.ts";
+import type { ApprovalHint, ProblemDetails } from "../core/errors.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type { Disclosure } from "../core/problem-details.ts";
 import type { Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 
 import { compact } from "../core/compact.ts";
 import {
-  type ApprovalHint,
   PermDockValidationError,
-  type ProblemDetails,
   approvalMessage,
   deniedMessage,
 } from "../core/errors.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import {
-  type Disclosure,
   PROBLEM_BASE,
   notFoundDetails,
   problemDetails,
   stepUpOf,
 } from "../core/problem-details.ts";
 import { problemType, statusProblem } from "../core/problem-types.ts";
-import {
-  type Instant,
-  durationOf,
-  nowSeconds,
-  secondsOf,
-} from "../core/time.ts";
+import { durationOf, nowSeconds, secondsOf } from "../core/time.ts";
 
 export { PROBLEM_BASE, stepUpOf };
 

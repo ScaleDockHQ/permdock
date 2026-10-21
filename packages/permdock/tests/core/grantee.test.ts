@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { RelationGrantee } from "../../src/core/grantee.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
@@ -9,7 +10,6 @@ import {
 } from "../../src/core/grantee-conditions.ts";
 import { matchGrantee } from "../../src/core/grantee-match.ts";
 import {
-  type RelationGrantee,
   actor,
   asGrantee,
   assurance,
@@ -92,14 +92,14 @@ describe("relation() validation", () => {
   });
 });
 
-describe("asGrantee", () => {
+describe(asGrantee, () => {
   it("refuses a value that is no grantee", () => {
     // SAFETY: an untyped caller passing a non-grantee value.
     expect(() => asGrantee(42 as never)).toThrow(/invalid grantee/u);
   });
 });
 
-describe("matchGrantee", () => {
+describe(matchGrantee, () => {
   it.each([
     { name: "an empty list", to: [], subject: user(), reason: "no-grant" },
     {

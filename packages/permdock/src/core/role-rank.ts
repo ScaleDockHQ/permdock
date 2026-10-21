@@ -1,9 +1,10 @@
 import type { Policy, RoleBinding } from "./policy-types.ts";
 import type { Membership } from "./subject.ts";
+import type { RoleMeta } from "./vocabulary.ts";
 
 import { freezeDeep } from "./freeze.ts";
 import { isExternallyManaged } from "./memberships.ts";
-import { type RoleMeta, findRole, listRoles } from "./vocabulary.ts";
+import { findRole, listRoles } from "./vocabulary.ts";
 
 export function bindingOf(
   policy: Policy,

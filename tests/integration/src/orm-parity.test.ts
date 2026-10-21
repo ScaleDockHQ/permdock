@@ -1,6 +1,8 @@
 import type { SQL } from "drizzle-orm";
 import type { Permission, Principal, WhereResult } from "permdock";
+import type { PermDock } from "permdock";
 import type { MembershipsMapping } from "permdock/drizzle";
+import type { OrmParityCase, OrmParityScenario } from "permdock/testing";
 
 import { PGlite } from "@electric-sql/pglite";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -9,7 +11,7 @@ import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { Kysely, PostgresDialect } from "kysely";
 import { readFileSync } from "node:fs";
-import { getPermDock, memoryCustomRoleSource, type PermDock } from "permdock";
+import { getPermDock, memoryCustomRoleSource } from "permdock";
 import {
   checkRow as drizzleCheckRow,
   toWhere as drizzleWhere,
@@ -24,11 +26,7 @@ import {
   prismaModelFields,
   toWhere as prismaWhere,
 } from "permdock/prisma";
-import {
-  type OrmParityCase,
-  type OrmParityScenario,
-  testOrmParity,
-} from "permdock/testing";
+import { testOrmParity } from "permdock/testing";
 import {
   saasCustomRoles,
   saasMemberships as saasMembershipsOf,
@@ -43,11 +41,11 @@ import {
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type { ItemAction } from "../fixtures/items/policy.ts";
 import type { OrmDatabase } from "./support/orm-tables.ts";
 import type { Postgres } from "./support/postgres.ts";
 
 import {
-  type ItemAction,
   itemActions,
   itemMemberships,
   itemPermissions,

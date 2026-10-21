@@ -4,7 +4,7 @@ import { coveredByDelegation } from "../../src/index.ts";
 
 const update = { scope: "post:update", resource: "post", action: "update" };
 
-describe("coveredByDelegation", () => {
+describe(coveredByDelegation, () => {
   it("covers a caller with no delegation only when there is no actor", () => {
     expect(coveredByDelegation(update, undefined)).toBeUndefined();
     expect(coveredByDelegation(update, undefined, undefined, true)).toBe(

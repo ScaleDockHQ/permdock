@@ -27,7 +27,7 @@ const approvalPolicies = memoryApprovalPolicySource([
   { permission: "expense.read", tenant: "o1", approval: { by: "finance" } },
 ]);
 
-describe("instanceOptions", () => {
+describe(instanceOptions, () => {
   it("keeps the set data sources and drops adapter options", () => {
     const sink = { write: (): void => undefined };
     const adapterOptions = {

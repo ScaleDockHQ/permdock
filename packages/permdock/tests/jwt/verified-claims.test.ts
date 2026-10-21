@@ -2,7 +2,9 @@ import { SignJWT, importJWK } from "jose";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { type SubjectRef, principal } from "../../src/conditions/refs.ts";
+import type { SubjectRef } from "../../src/conditions/refs.ts";
+
+import { principal } from "../../src/conditions/refs.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";

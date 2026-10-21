@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { PermDock } from "../../src/core/permdock.ts";
 import type { Permission } from "../../src/core/permission-types.ts";
 import type { Membership, Principal } from "../../src/core/subject.ts";
 
@@ -8,7 +9,7 @@ import { evaluateCondition } from "../../src/conditions/evaluate.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
-import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";

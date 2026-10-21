@@ -26,7 +26,7 @@ const sample = `# permdock
 - abcdef0: Initial placeholder.
 `;
 
-describe("parseChangelog", () => {
+describe(parseChangelog, () => {
   test("groups versions, kinds and hashed bullets", () => {
     const releases = parseChangelog(sample, "permdock");
     expect(releases).toHaveLength(3);

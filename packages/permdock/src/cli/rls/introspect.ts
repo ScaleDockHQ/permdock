@@ -1,17 +1,19 @@
+import type { SqlClient, SqlConnect } from "../pg.ts";
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { RolePermission } from "./helpers.ts";
+import type { IndexTarget } from "./indexes.ts";
 import type { LevelKey } from "./rows.ts";
 import type { RlsFinding } from "./verify-findings.ts";
 
 import { escapeSqlIdent } from "../../core/sql.ts";
-import { type SqlClient, type SqlConnect, connectPgPool } from "../pg.ts";
+import { connectPgPool } from "../pg.ts";
 import { beforeFirst } from "../shared/text.ts";
 import {
   callsHelper,
   HELPER_TABLES,
   helperCallKeys,
 } from "../sql/helper-calls.ts";
-import { COLUMNS_SQL, INDEX_COLUMNS_SQL, type IndexTarget } from "./indexes.ts";
+import { COLUMNS_SQL, INDEX_COLUMNS_SQL } from "./indexes.ts";
 import { ACTOR_MAY_WRITE } from "./policies.ts";
 import { rlsFinding } from "./verify-findings.ts";
 

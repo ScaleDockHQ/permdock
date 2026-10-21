@@ -104,7 +104,7 @@ const orgTable = {
   columns: { org: "org_id" },
 };
 
-describe("ownershipRules", () => {
+describe(ownershipRules, () => {
   it("keeps assign pairs inside the scope chain and counts min, max and transferOnly", () => {
     expect(ownership).toStrictEqual({
       kinds: { operator: ["staff"] },

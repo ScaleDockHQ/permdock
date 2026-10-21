@@ -45,7 +45,7 @@ function permdock(
   });
 }
 
-describe("mayUse", () => {
+describe(mayUse, () => {
   it("is true for an allow and false without one", () => {
     expect(permdock([read]).mayUse(permissions.doc.read)).toBe(true);
     expect(permdock([read]).mayUse(permissions.doc.update)).toBe(false);
@@ -151,7 +151,7 @@ describe("an instance built from a snapshot", () => {
   });
 });
 
-describe("mayAccess", () => {
+describe(mayAccess, () => {
   const blanket = definePolicy(permissions, {
     roles: [
       role("member", [
