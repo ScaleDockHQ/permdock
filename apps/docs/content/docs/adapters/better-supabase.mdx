@@ -5,7 +5,7 @@ description: The permdock/better-supabase entry fills better-supabase's authoriz
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
 
-The entry needs `better-supabase` 0.11 or later as a peer (`>=0.11.0`). The range has no upper bound; CI tests the floor and the latest release. Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
+The entry needs `better-supabase` 0.11 or 0.12 as a peer (`>=0.11.0 <0.13.0`). The range ends below the minor after the newest release CI tests, and CI tests both ends: 0.11.0 and 0.12.0. Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
 
 ## Why
 
@@ -50,6 +50,7 @@ import {
   supportPolicy,
   subscriberPolicy,
   principalSource,
+  principalFromMemberships,
   accessReviewApplier,
   authorizationHooks,
 } from "permdock/better-supabase";
@@ -78,6 +79,7 @@ import {
 - `supportPolicy({ policy, subject?, options?, writable?, approval?, approved? })` returns the `authorize` option of `supportSessions` ([Support sessions](#support-sessions)).
 - `subscriberPolicy({ policy, principals, events, row?, sender?, options? })` returns the per-subscriber check for an outbox, webhook or realtime fan-out ([Subscriber fan-out](#subscriber-fan-out)).
 - `principalSource({ claims, identities?, subject? })` returns a `PrincipalSource` over the claims better-supabase mints ([Principals](#principals)).
+- `principalFromMemberships(userId, rows, { scope?, tenant? })` builds a frozen `Principal` from rows of the organizations block's `memberships` table (`BetterSupabaseMembershipRow`: `user_id`, `organization_id`, `role`, `disabled_at?`), for server code that reads the table instead of the token ([Server code](#server-code)).
 - `accessReviewApplier({ client, reviews, policy, demoteTo?, email?, permdockFor?, schema?, scope?, now? })` applies the revoked items of an [access review](/docs/concepts/access-reviews) through the organizations and invitations blocks, then marks each one applied ([Access reviews](#access-reviews)).
 - `authorizationHooks({ policy, claims, ... })` returns better-supabase's `AuthorizationHooks` for `createServer(betterSupabase, { authorization })` ([Authorization hooks](#authorization-hooks)).
 
@@ -179,6 +181,26 @@ export async function permdockFor() {
 ```
 
 The same subject works in the [Hono](/docs/adapters/hono), [oRPC](/docs/adapters/orpc) and `@supabase/middleware` adapters: map `c.get("auth")`, `context.auth` or the session the middleware put on the context.
+
+Server code that reads memberships from the database, such as a page that lists another member's rights, builds the principal from the rows with `principalFromMemberships`:
+
+```ts
+import { principalFromMemberships } from "permdock/better-supabase";
+
+const { data: rows } = await admin
+  .from("memberships")
+  .select("user_id, organization_id, role, disabled_at")
+  .eq("user_id", userId);
+const permdock = getPermDockSync(
+  policy,
+  principalFromMemberships(userId, rows ?? [], {
+    scope: "organization",
+    tenant: organizationId,
+  }),
+);
+```
+
+Each organization becomes one membership `{ scope, id: organization_id, roles }`. `scope` defaults to `tenant`, the policy's first declared scope. Rows of another user, disabled rows and rows without an organization or role are dropped. A scoped grant applies only in the active organization: pass `tenant`, or pick one with `permdock.tenant(id)`, or every scoped check denies with `no-tenant`. A role the policy does not declare grants nothing ([`isRoleName`](/docs/concepts/policies#type-safety) checks one).
 
 ## Authorizer
 

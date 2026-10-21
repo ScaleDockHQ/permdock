@@ -1,6 +1,6 @@
 # 0040. better-supabase 0.11.0 is the peer floor, with no upper bound, and skips the one-day release age
 
-- Status: accepted
+- Status: accepted; the "no upper bound" part is superseded by 0043
 - Date: 2026-10-20
 
 ## Context

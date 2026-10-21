@@ -18,6 +18,7 @@ import type { Role } from "./vocabulary.ts";
 
 import { assertDecision } from "./assert-decision.ts";
 import { type Assignable, assignableIn } from "./assignable.ts";
+import { canAllWith, decideAllWith } from "./checks.ts";
 import { compact, isReadonlyArray, isRecord } from "./compact.ts";
 import { customGrantsFor, unknownLevelsFor } from "./custom-roles.ts";
 import { decideForTarget, deniedFor } from "./decide-for.ts";
@@ -201,6 +202,8 @@ export function buildInstance(
   const instance: PermDock = {
     can: canImpl as PermDock["can"],
     decide: decideImpl as PermDock["decide"],
+    canAll: (checks, options) => canAllWith(canImpl, checks, options),
+    decideAll: (checks, options) => decideAllWith(decideImpl, checks, options),
     decideEach(
       permission: Permission,
       rows: readonly unknown[],

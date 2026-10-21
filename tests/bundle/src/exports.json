@@ -88,6 +88,7 @@
     "isPlan",
     "isPortableCondition",
     "isRole",
+    "isRoleName",
     "isSqlFunctionField",
     "limits",
     "linkPolicyViolation",
@@ -575,12 +576,16 @@
     "tenantFromPath"
   ],
   "./cloud": [
+    "CLOUD_BASE_URL",
+    "CloudAuthError",
     "approvalTokensOf",
     "cloud",
     "cloudApprovalWaiter",
     "cloudDeliveryTransport",
     "cloudEndpoints",
+    "cloudOAuth",
     "cloudSigner",
+    "isCloudAuthError",
     "parseCloudEvent",
     "resolveCloudEndpoints",
     "verifyWebhook"
@@ -683,6 +688,7 @@
     "credentialGuard",
     "handlerCan",
     "hookCan",
+    "principalFromMemberships",
     "principalSource",
     "subjectFromBetterSupabase",
     "subjectFromShareLink",

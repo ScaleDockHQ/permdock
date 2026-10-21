@@ -105,6 +105,44 @@ describe("permdock/pdp getPermDockSync", () => {
     }).toEqual({ outcome: "granted", calls: 0 });
   });
 
+  it("answers canAll and decideAll asynchronously, through the providers", async () => {
+    const decide = vi.fn<DecisionProvider["decide"]>(async () =>
+      deniedBy("pdp-denied"),
+    );
+    const permdock = getPermDockSync(
+      policyWith([
+        provider({
+          handles: (permission) => permission.key === "note.read",
+          decide,
+        }),
+      ]),
+      member,
+    );
+    expect(await permdock.canAll([[permissions.post.read, post]])).toBe(true);
+    expect(await permdock.canAll([])).toBe(false);
+    expect(
+      await permdock.canAll([
+        [permissions.post.read, post],
+        [permissions.note.read, { key: "n1" }],
+      ]),
+    ).toBe(false);
+    const decisions = await permdock.decideAll([
+      [permissions.post.update, post],
+      [permissions.post.delete, post],
+      [permissions.note.read, { key: "n1" }],
+    ]);
+    expect(decisions.map((decision) => decision.outcome)).toEqual([
+      "granted",
+      "denied",
+      "denied",
+    ]);
+    const [, , remote] = decisions;
+    expect(remote === undefined ? undefined : reasonOf(remote)).toBe(
+      "pdp-denied",
+    );
+    expect(Object.isFrozen(decisions)).toBe(true);
+  });
+
   it("keeps a policy with an empty provider list fully local", async () => {
     const permdock = getPermDockSync(policyWith([]), member);
     expect(await permdock.can(permissions.post.read, post)).toBe(true);

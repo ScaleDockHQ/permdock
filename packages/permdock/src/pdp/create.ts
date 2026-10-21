@@ -6,6 +6,7 @@ import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Membership, Principal, Subject } from "../core/subject.ts";
 import type { PdpPermDock } from "./types.ts";
 
+import { canAllAsync, decideAllAsync } from "../core/checks.ts";
 import { compact, isReadonlyArray } from "../core/compact.ts";
 import {
   PermDockApprovalRequiredError,
@@ -331,6 +332,8 @@ function wrap<V extends PolicyVocabulary>(
   const wrapped: PdpPermDock<V> = {
     can,
     decide,
+    canAll: (checks, options) => canAllAsync(can, checks, options),
+    decideAll: (checks, options) => decideAllAsync(decide, checks, options),
     async decideEach(permission, rows, options) {
       return Object.freeze(
         await Promise.all(rows.map((row) => decide(permission, row, options))),

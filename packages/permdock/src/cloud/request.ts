@@ -6,6 +6,7 @@ import type {
 
 import { isRecord } from "../core/compact.ts";
 import { timeoutSignal } from "../core/timeout.ts";
+import { CLOUD_BASE_URL } from "./base-url.ts";
 
 /** Milliseconds a PermDock Cloud request may take; a slower one fails like an unreachable Cloud. */
 const CLOUD_TIMEOUT_MS = 10_000;
@@ -33,13 +34,9 @@ function trimSlash(value: string): string {
 }
 
 function cloudUrl(options: CloudEndpointOptions): string {
-  const url = trimSlash(
-    firstNonEmpty(options.url, readEnv("PERMDOCK_CLOUD_URL")),
+  return trimSlash(
+    firstNonEmpty(options.url, readEnv("PERMDOCK_CLOUD_URL"), CLOUD_BASE_URL),
   );
-  if (url === "") {
-    throw new Error("PermDock: cloud() requires url and key.");
-  }
-  return url;
 }
 
 function endpointsOf(url: string, environment: string): CloudEndpoints {
@@ -114,14 +111,14 @@ async function keyEnvironment(
   return endpoints;
 }
 
-/** The authenticated connection every `permdock/cloud` client shares. Throws without a URL or key. */
+/** The authenticated connection every `permdock/cloud` client shares. Throws without a key. */
 export function cloudConnection(
   options: CloudConnectionOptions,
 ): CloudConnection {
   const key = firstNonEmpty(options.key, readEnv("PERMDOCK_CLOUD_KEY"));
   const url = cloudUrl(options);
   if (key === "") {
-    throw new Error("PermDock: cloud() requires url and key.");
+    throw new Error("PermDock: cloud() requires a key (PERMDOCK_CLOUD_KEY).");
   }
   const environment = configuredEnvironment(options);
   const known = environment === "" ? undefined : endpointsOf(url, environment);

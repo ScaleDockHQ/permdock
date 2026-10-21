@@ -35,12 +35,20 @@ function matrixOf(file: string): readonly string[] {
 }
 
 const peer = /^\s+better-supabase: "([^"]*)"$/mu.exec(workspace)?.[1];
-const floor = /^>=(\d+\.\d+\.\d+)$/u.exec(peer ?? "")?.[1];
+const range = /^>=(\d+\.\d+\.\d+) <(\d+\.\d+\.\d+)$/u.exec(peer ?? "");
+const floor = range?.[1];
+const bound = range?.[2];
 const catalog = /^ {2}better-supabase: ([\d.]+)$/mu.exec(workspace)?.[1];
 
 describe("better-supabase peer range", () => {
-  it("has a floor and no upper bound", () => {
+  it("has a floor and an upper bound", () => {
     expect(floor).toBeDefined();
+    expect(bound).toBeDefined();
+  });
+
+  it("ends below the minor after the catalog pin, the newest version CI tests", () => {
+    const [major, minor] = parse(catalog ?? "");
+    expect(bound).toBe(`${String(major)}.${String(minor + 1)}.0`);
   });
 
   for (const file of WORKFLOWS) {

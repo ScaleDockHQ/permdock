@@ -4,6 +4,7 @@ import type {
   ApprovalPolicies,
   LoadedApprovalPolicies,
 } from "./approval-policies.ts";
+import type { PermissionCheck } from "./checks.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { AuthEvent, DecisionEvent } from "./event-types.ts";
 import type { HostedPolicies } from "./hosted.ts";
@@ -183,6 +184,20 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
      */
     (permission: Permission, data: unknown, options?: DecideOptions): Decision;
   };
+  /**
+   * `can` for every check, on one instance: `true` only when each is
+   * granted, and `false` for an empty list. A check is a permission, or a
+   * `[permission, row]` pair. It stops at the first check that is not granted.
+   */
+  readonly canAll: (
+    checks: readonly PermissionCheck[],
+    options?: DecideOptions,
+  ) => boolean;
+  /** `decide` for every check, in check order; a check is a permission or a `[permission, row]` pair. */
+  readonly decideAll: (
+    checks: readonly PermissionCheck[],
+    options?: DecideOptions,
+  ) => readonly Decision[];
   /**
    * `decide` for each row, in row order. Each row is its own call: a limit
    * is consumed once per granted row, so rows past the cap are denied with

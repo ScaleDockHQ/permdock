@@ -207,8 +207,8 @@ catalogs:
     "@nestjs/platform-fastify": 11.2.7
   peers:
     "@anthropic-ai/claude-agent-sdk": ">=0.2"
-    # The floor is the first entry of the better-supabase CI matrices; no upper bound (decision 0040).
-    better-supabase: ">=0.11.0"
+    # The floor is the first entry of the better-supabase CI matrices; the bound is the minor after the catalog pin (decision 0043).
+    better-supabase: ">=0.11.0 <0.13.0"
     chat: ">=4"
     "@modelcontextprotocol/server": ">=2"
     "@napi-rs/keyring": ">=1"

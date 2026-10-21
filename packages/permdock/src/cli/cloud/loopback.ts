@@ -1,4 +1,3 @@
-import { createHash, randomBytes } from "node:crypto";
 import { createServer, type Server } from "node:http";
 
 import type {
@@ -6,6 +5,7 @@ import type {
   TerminalRuntime,
 } from "../../terminal/types.ts";
 
+import { pkce, randomToken } from "../../cloud/pkce.ts";
 import { secondsAt } from "../../core/time.ts";
 import { parseToken, postForm } from "../../terminal/device.ts";
 
@@ -21,10 +21,6 @@ export type LoopbackOptions = {
   readonly open?: (url: string) => void;
   readonly timeoutMs?: number;
 };
-
-function base64url(bytes: Buffer): string {
-  return bytes.toString("base64url");
-}
 
 function listen(server: Server): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -51,9 +47,8 @@ export async function runLoopbackFlow(
   options: LoopbackOptions,
   runtime: TerminalRuntime,
 ): Promise<StoredCredential | null> {
-  const verifier = base64url(randomBytes(32));
-  const challenge = base64url(createHash("sha256").update(verifier).digest());
-  const state = base64url(randomBytes(16));
+  const { verifier, challenge } = await pkce();
+  const state = randomToken(16);
   const { promise: callback, resolve: settle } =
     Promise.withResolvers<Callback>();
   const server = createServer((request, response) => {

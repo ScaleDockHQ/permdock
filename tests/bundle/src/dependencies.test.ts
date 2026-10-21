@@ -44,20 +44,15 @@ describe("invariant 12: runtime entries depend on @standard-schema/spec only", (
     }
   });
 
-  it("declares only @standard-schema/spec and the CLI packages as dependencies", () => {
+  it("declares only @standard-schema/spec and the two CLI packages that cannot be inlined", () => {
     // SAFETY: dist/../package.json is the built package's own manifest
     const manifest = JSON.parse(
       readFileSync(join(DIST, "..", "package.json"), "utf8"),
     ) as { readonly dependencies: Readonly<Record<string, string>> };
     expect(Object.keys(manifest.dependencies).toSorted()).toEqual([
-      "@clack/prompts",
       "@standard-schema/spec",
-      "diff",
-      "fastest-levenshtein",
       "jiti",
       "oxc-parser",
-      "package-manager-detector",
-      "smol-toml",
     ]);
   });
 });

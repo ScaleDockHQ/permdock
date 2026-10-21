@@ -189,9 +189,9 @@ describe("cloudDeliveryTransport", () => {
     expect(fake.posted).toEqual([]);
   });
 
-  it("requires a url and key", () => {
+  it("requires a key", () => {
     expect(() =>
       cloudDeliveryTransport("email", { url: CLOUD_URL, key: "" }),
-    ).toThrow(/requires url and key/);
+    ).toThrow(/requires a key/);
   });
 });

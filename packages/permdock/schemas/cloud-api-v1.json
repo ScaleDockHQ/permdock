@@ -30,6 +30,25 @@
         }
       }
     },
+    "/openapi.json": {
+      "get": {
+        "security": [],
+        "summary": "This document, the contract of https://permdock.com/api. permdock/schemas/cloud-api-v1.json ships the same document in the npm package.",
+        "responses": {
+          "200": {
+            "description": "The OpenAPI 3.1 document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["openapi", "paths"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/oauth/authorize": {
       "get": {
         "security": [],
@@ -330,6 +349,16 @@
       }
     },
     "/v1/projects": {
+      "parameters": [
+        {
+          "name": "cursor",
+          "in": "query",
+          "description": "The `next` of the previous page",
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
       "get": {
         "security": [
           {
@@ -378,7 +407,15 @@
             }
           },
           "401": {
-            "description": "Missing, expired or revoked token",
+            "description": "Missing, expired or revoked token; a refused token carries `error=\"invalid_token\"`",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "RFC 6750 Bearer challenge (`Bearer realm=\"permdock\", error=\"invalid_token\"`)",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -388,7 +425,15 @@
             }
           },
           "403": {
-            "description": "The token may not read this project; a PERMDOCK_CLOUD_TOKEN reads only its own environment",
+            "description": "The token lacks projects:read (`error=\"insufficient_scope\"` with `scope`), or may not read this project; a PERMDOCK_CLOUD_TOKEN reads only its own environment",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "RFC 6750 Bearer challenge (`Bearer realm=\"permdock\", error=\"insufficient_scope\", scope=\"projects:read\"`)",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -479,7 +524,15 @@
             }
           },
           "401": {
-            "description": "Missing, expired or revoked token",
+            "description": "Missing, expired or revoked token; a refused token carries `error=\"invalid_token\"`",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "RFC 6750 Bearer challenge (`Bearer realm=\"permdock\", error=\"invalid_token\"`)",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -489,7 +542,15 @@
             }
           },
           "403": {
-            "description": "The token may not read this project; a PERMDOCK_CLOUD_TOKEN reads only its own environment",
+            "description": "The token lacks projects:read (`error=\"insufficient_scope\"` with `scope`), or may not read this project; a PERMDOCK_CLOUD_TOKEN reads only its own environment",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "RFC 6750 Bearer challenge (`Bearer realm=\"permdock\", error=\"insufficient_scope\", scope=\"projects:read\"`)",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -590,7 +651,15 @@
             }
           },
           "401": {
-            "description": "Missing, expired or revoked token",
+            "description": "Missing, expired or revoked token; a refused token carries `error=\"invalid_token\"`",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "RFC 6750 Bearer challenge (`Bearer realm=\"permdock\", error=\"invalid_token\"`)",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -600,7 +669,15 @@
             }
           },
           "403": {
-            "description": "The token may not read this project; a PERMDOCK_CLOUD_TOKEN reads only its own environment",
+            "description": "The token lacks policy:read (`error=\"insufficient_scope\"` with `scope`), or may not read this project; a PERMDOCK_CLOUD_TOKEN reads only its own environment",
+            "headers": {
+              "WWW-Authenticate": {
+                "description": "RFC 6750 Bearer challenge (`Bearer realm=\"permdock\", error=\"insufficient_scope\", scope=\"policy:read\"`)",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/problem+json": {
                 "schema": {

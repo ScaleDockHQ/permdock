@@ -1,11 +1,14 @@
 import { isRecord } from "../../../src/core/compact.ts";
+import { CLOUD_API_DOCUMENT } from "../../../src/testing/cloud-api/document.ts";
 import { POLICY_NOT_PUBLISHED } from "../../../src/testing/cloud-api/platform.ts";
 
 /** The platform's deliberate contract breaks; `testCloudApi` must reject each. */
 export type ReferencePlatformMutation =
   | "no-ratelimit"
   | "token-writes"
-  | "policy-404-plain";
+  | "policy-404-plain"
+  | "no-challenge"
+  | "no-openapi";
 
 /** One `cloud push` as the reference Cloud holds it. */
 export type PushedEntry = {
@@ -22,6 +25,8 @@ export type ReferencePlatform = {
   readonly token: string;
   /** A login with `projects:read policy:read`, for every project of the person. */
   readonly login: string;
+  /** A login with `projects:read` only. */
+  readonly projectsOnly: string;
   /** A project of the person with nothing pushed. */
   readonly unpublished: string;
   /** Tokens revoked through `/oauth/revoke`. */
@@ -41,6 +46,7 @@ type Options = {
 
 const READ_TOKEN = "pt_read_test";
 const LOGIN_TOKEN = "at_login_test";
+const PROJECTS_ONLY_TOKEN = "at_projects_only_test";
 const UNPUBLISHED = "empty";
 
 function problem(
@@ -48,6 +54,7 @@ function problem(
   title: string,
   type = "about:blank",
   plain = false,
+  challenge?: string,
 ): Response {
   return Response.json(
     { type, title, status },
@@ -55,6 +62,7 @@ function problem(
       status,
       headers: {
         "content-type": plain ? "application/json" : "application/problem+json",
+        ...(challenge === undefined ? {} : { "www-authenticate": challenge }),
       },
     },
   );
@@ -93,6 +101,7 @@ export function referencePlatform(options: Options): ReferencePlatform {
   const { base, environment, mutation } = options;
   const scopes = new Map<string, string>([
     [LOGIN_TOKEN, "projects:read policy:read"],
+    [PROJECTS_ONLY_TOKEN, "projects:read"],
   ]);
   const refreshes = new Map<string, string>();
   const devices = new Map<string, string>();
@@ -246,14 +255,40 @@ export function referencePlatform(options: Options): ReferencePlatform {
     );
   }
 
-  function readable(bearer: string, scope: string): ReadonlySet<string> | null {
+  const challenge = (params: string): string | undefined =>
+    mutation === "no-challenge"
+      ? undefined
+      : `Bearer realm="permdock", ${params}`;
+
+  function readable(
+    bearer: string,
+    scope: string,
+  ): ReadonlySet<string> | Response {
     if (bearer === READ_TOKEN) {
       return new Set([environment]);
     }
     const granted = scopes.get(bearer);
-    return granted?.split(" ").includes(scope) === true
-      ? new Set(projects.map((project) => project.id))
-      : null;
+    if (granted === undefined) {
+      return problem(
+        401,
+        "Missing, expired or revoked token",
+        "about:blank",
+        false,
+        bearer === ""
+          ? 'Bearer realm="permdock"'
+          : challenge('error="invalid_token"'),
+      );
+    }
+    if (!granted.split(" ").includes(scope)) {
+      return problem(
+        403,
+        `The token lacks ${scope}`,
+        "about:blank",
+        false,
+        challenge(`error="insufficient_scope", scope="${scope}"`),
+      );
+    }
+    return new Set(projects.map((project) => project.id));
   }
 
   function read(request: Request, path: string): Response {
@@ -262,8 +297,8 @@ export function referencePlatform(options: Options): ReferencePlatform {
     const [, , , id, leaf] = path.split("/");
     const scope = leaf === "policy" ? "policy:read" : "projects:read";
     const allowed = readable(bearer, scope);
-    if (allowed === null) {
-      return problem(401, "Missing, expired or revoked token");
+    if (allowed instanceof Response) {
+      return allowed;
     }
     if (id === undefined) {
       return limited({
@@ -351,6 +386,9 @@ export function referencePlatform(options: Options): ReferencePlatform {
     if (route === "POST /oauth/register") {
       return register(request);
     }
+    if (route === "GET /openapi.json" && mutation !== "no-openapi") {
+      return Response.json(CLOUD_API_DOCUMENT);
+    }
     if (request.method === "GET" && pathname.startsWith("/v1/projects")) {
       return read(request, pathname);
     }
@@ -360,6 +398,7 @@ export function referencePlatform(options: Options): ReferencePlatform {
   return {
     token: READ_TOKEN,
     login: LOGIN_TOKEN,
+    projectsOnly: PROJECTS_ONLY_TOKEN,
     unpublished: UNPUBLISHED,
     revoked,
     scopeOf: (value) =>
@@ -367,6 +406,7 @@ export function referencePlatform(options: Options): ReferencePlatform {
     handles: (pathname) =>
       pathname.startsWith("/oauth/") ||
       pathname === "/.well-known/oauth-authorization-server" ||
+      pathname === "/openapi.json" ||
       pathname === "/v1/projects" ||
       pathname.startsWith("/v1/projects/"),
     handle,

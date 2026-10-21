@@ -13,6 +13,17 @@ PermDock Cloud itself, the hosted service, lives in the separate `PermDock-Cloud
 | [permdock.com/api](https://permdock.com/api) | Machine API (`PERMDOCK_CLOUD_URL`) and the [platform issuer](#platform-issuer) |
 | [permdock.com/mcp](https://permdock.com/mcp) | Read-only [MCP server](#mcp-server)                                            |
 
+## Base URL
+
+Every Cloud route sits under one base URL, `https://permdock.com/api`, exported as `CLOUD_BASE_URL` from `permdock/cloud`. `cloud()`, `cloudEndpoints()`, `cloudOAuth()` and the CLI default to it; `url` or `PERMDOCK_CLOUD_URL` points them at a self-hosted Cloud.
+
+| Paths under the base                                                   | Versioned | Why                                                                                                              |
+| ---------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------- |
+| `/.well-known/oauth-authorization-server`, `/oauth/*`, `/openapi.json` | No        | The base is the OAuth issuer, and RFC 8414 and RFC 6749 fix where its metadata and endpoints live                |
+| `/v1/projects`, `/v1/environments/:env/*`                              | `/v1`     | PermDock's own resources; a breaking change ships as `/v2` next to `/v1`, and `cloud-api-v1.json` describes `v1` |
+
+The OpenAPI 3.1 document of every route is served at `https://permdock.com/api/openapi.json` and ships in the package as `permdock/schemas/cloud-api-v1.json`.
+
 ## Platform issuer
 
 `https://permdock.com/api` is the platform issuer: the OAuth authorization server for people and their tools, separate from the per-environment issuers below that sign app tokens. [`permdock login`](/docs/cli/login) signs in at it, and MCP clients of `https://permdock.com/mcp` register and sign in at it.
@@ -22,6 +33,7 @@ PermDock Cloud itself, the hosted service, lives in the separate `PermDock-Cloud
 - **Clients.** The CLI is the public client `permdock-cli`. An MCP client registers itself through `/oauth/register` as a public client (`token_endpoint_auth_method: "none"`) with loopback or `https` redirect URIs; the Cloud MCP server names the issuer in its RFC 9728 metadata at `https://permdock.com/.well-known/oauth-protected-resource/mcp`.
 - **Scopes.** `projects:read` lists and reads the person's projects, `policy:read` reads a project's pushed catalog, manifest and policy, `catalog:write` lets `permdock cloud push` publish with a login instead of `PERMDOCK_CLOUD_KEY`, `evidence:read` reads a project's decision log and exports, and `approvals:read` reads its approval requests and verdicts. `evidence:read` and `approvals:read` are read-only: no scope lets a login write decisions or resolve an approval.
 - **Revocation.** `/oauth/revoke` answers `200` for a revoked token and for one it does not know (RFC 7009 section 2.2); `permdock logout` sends the refresh token.
+- **Challenges.** A refused token answers `401` with `WWW-Authenticate: Bearer realm="permdock", error="invalid_token"`. A token without the route's scope answers `403` with `error="insufficient_scope"` and the missing `scope` (RFC 6750 section 3.1), so a client knows to sign in again with that scope instead of refreshing.
 
 ### Projects read API
 
@@ -33,9 +45,52 @@ A project is one Cloud environment and shares its id, so `/v1/projects/prj_123` 
 | `GET /v1/projects/:id`        | `projects:read` | One project; `catalog` is `{ version, fingerprint }` of the last push                                                                                                                     |
 | `GET /v1/projects/:id/policy` | `policy:read`   | The [project policy](/docs/concepts/wire-formats#project-policy) `{ v: 1, project, version, fingerprint, permdockVersion, catalog, manifest?, policy? }`, or `404` `policy-not-published` |
 
-Every `200` carries `RateLimit` and `RateLimit-Policy` ([RateLimit header fields](/docs/standards/ratelimit-headers), draft 11); a `429` adds `Retry-After`. Errors are Problem Details: `401` for a missing, expired or revoked token, `403` for a project the token may not read, `404` for an unknown project. A project with nothing pushed answers `404` with `type` `https://permdock.com/problems/policy-not-published` ([Problem Details](/docs/standards/problem-details)).
+Every `200` carries `RateLimit` and `RateLimit-Policy` ([RateLimit header fields](/docs/standards/ratelimit-headers), draft 11); a `429` adds `Retry-After`. Errors are Problem Details: `401` for a missing, expired or revoked token, `403` for a missing scope or a project the token may not read, each with the [challenge](#platform-issuer) above, and `404` for an unknown project. A project with nothing pushed answers `404` with `type` `https://permdock.com/problems/policy-not-published` ([Problem Details](/docs/standards/problem-details)). `GET /v1/projects` pages with `next`: send it back as `?cursor=`.
 
 The Cloud stores what a push sent as text, so JSON member order survives and [`permdock cloud pull`](/docs/cli/cloud) writes the bytes `collect` and `supabase inspect --out` write.
+
+### OAuth client
+
+`cloudOAuth` signs an app's users in to PermDock Cloud and reads their projects. It discovers the endpoints from the issuer's RFC 8414 metadata and uses the authorization code flow with PKCE `S256`.
+
+```ts
+import { cloudOAuth, isCloudAuthError } from "permdock/cloud";
+
+const permdockCloud = cloudOAuth({
+  clientId: "app_123", // from the dashboard, or /oauth/register
+  redirectUri: "https://app.example.com/permdock/callback",
+  scopes: ["projects:read", "policy:read"], // the default
+});
+
+// 1. Start: keep state and codeVerifier server-side, then redirect.
+const { url, state, codeVerifier } = await permdockCloud.authorizeUrl();
+
+// 2. Callback: refuses a callback that does not echo state.
+const credential = await permdockCloud.exchangeCode(request.url, {
+  state,
+  codeVerifier,
+});
+
+// 3. Read. On invalid-token, refresh; on insufficient-scope, authorize again with error.scope.
+try {
+  const page = await permdockCloud.listProjects(credential.access_token);
+  console.log(
+    page.items.map((project) => project.name),
+    page.next,
+  );
+} catch (error) {
+  if (!isCloudAuthError(error)) throw error;
+  console.log(error.code, error.scope);
+}
+```
+
+- `authorizeUrl({ scopes? })` returns `{ url, state, codeVerifier }`, frozen. `state` is 16 random bytes and the verifier 32, both base64url.
+- `exchangeCode(callback, { state, codeVerifier })` throws `state-mismatch` unless the callback echoes `state`, `issuer-mismatch` for an RFC 9207 `iss` of another server, and `authorization-denied` for an `error` or a missing `code`.
+- `exchangeCode` and `refresh(refreshToken)` return a `CloudCredential` with RFC 6749 names: `access_token`, `token_type`, `refresh_token`, `scope` and `expires_at` in seconds since the epoch. A refused grant throws `token-refused` with the server's `error`.
+- `listProjects(accessToken, { cursor? })` returns `{ items, next? }` of `CloudProject`, checked against the `Project` schema; a list that does not match throws `unexpected-response`.
+- `clientSecret` makes a confidential client that authenticates with `client_secret_basic`. Without it the client is public and sends `client_id` in the body.
+- Every failure is a `CloudAuthError` with a `code`: `discovery-failed`, `state-mismatch`, `issuer-mismatch`, `authorization-denied`, `token-refused`, `invalid-token`, `insufficient-scope` (with `scope`), `forbidden`, `rate-limited`, `unreachable` or `unexpected-response`. `status` and `error` carry what the Cloud sent. `isCloudAuthError` matches by `name` and `code`.
+- The client holds no tokens. Store them like any other credential, server-side.
 
 ## Identity gateway
 
@@ -199,7 +254,7 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
   });
 ```
 
-- `cloud()` returns a frozen object; `approvals`, `sink` and `policies` are the interfaces, `snapshotsFor(token)` returns one `SnapshotSource` per subject, `catalog` publishes the catalog, `endpoints()` resolves the environment URL `<PERMDOCK_CLOUD_URL>/v1/environments/<env>` as `issuer` and the environment's JWK Set URL as `jwks`. The fields `issuer` and `jwks` are set at construction only when the environment is configured. `cloudEndpoints()` returns the same `issuer` and `jwks` synchronously, without a key, and throws when neither `environment` nor `PERMDOCK_CLOUD_ENV` is set; `await resolveCloudEndpoints()` asks the Cloud with the key instead. There is no `decide` on it.
+- `cloud()` returns a frozen object; `approvals`, `sink` and `policies` are the interfaces, `snapshotsFor(token)` returns one `SnapshotSource` per subject, `catalog` publishes the catalog, `endpoints()` resolves the environment URL `<PERMDOCK_CLOUD_URL>/v1/environments/<env>` as `issuer` and the environment's JWK Set URL as `jwks`. The fields `issuer` and `jwks` are set at construction only when the environment is configured. `cloudEndpoints()` returns the same `issuer` and `jwks` synchronously, without a key, and throws when neither `environment` nor `PERMDOCK_CLOUD_ENV` is set; `await resolveCloudEndpoints()` asks the Cloud with the key instead. `url` defaults to `PERMDOCK_CLOUD_URL`, then `CLOUD_BASE_URL`. There is no `decide` on it.
 - `verifyWebhook(request, { verifier })` (or `{ jwks, secret, replay }`) and `parseCloudEvent` verify the Cloud's Standard Webhooks deliveries of CloudEvents batches ([Cloud integrations](/docs/adapters/cloud-integrations)); there is no unsigned mode.
 - `policies` holds the last verified policy document ([hosted grants](#hosted-grants)). It needs `verifier`: a `TokenVerifier` over `jwks`, or a function `cloud()` calls once with the resolved endpoints, so the environment need not be known at import; the expected `iss` and `aud` are the environment URL, so there is no audience to configure. Without a verifier `current()` stays `null`.
 - `sink` batches events in memory and flushes on size (`flushAt`) and at the end of a request when the runtime exposes `waitUntil`. Each flush posts a CloudEvents JSON batch with `Content-Type: application/cloudevents-batch+json`: an array holding one `toCloudEvent(event, { source })` envelope per `SinkEvent`, where `source` is `cloud({ source })`, an absolute URI that defaults to the environment URL ([CloudEvents](/docs/standards/cloudevents), [wire formats](/docs/concepts/wire-formats)). A failed batch is re-queued, bounded by `capacity` (default 10 000, the same as `memoryDecisionSink`), and the oldest events are dropped first, so a Cloud outage never grows memory without limit. Every event is written; sampling is opt-in and never applies to the evidence log. Delivery failure never affects a decision and is reported through `on('error')`. The Cloud's export endpoint serves the same events back as signed batches (`vnd.permdock.evidence+jwt`), OCSF or CSV. The sink does not accept `permdock/otel` spans: traces go to your collector (the Cloud can export a copy of the log to it as OTLP) and evidence goes to the sink ([audit and observability](/docs/concepts/audit-and-observability)).
@@ -384,6 +439,7 @@ The platform issuer and the projects read API sit at the root of `PERMDOCK_CLOUD
 | Method | Path                                      | Credential                                            | Answer                                                                                       |
 | ------ | ----------------------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `GET`  | `/.well-known/oauth-authorization-server` | none                                                  | RFC 8414 metadata; also at `https://permdock.com/.well-known/oauth-authorization-server/api` |
+| `GET`  | `/openapi.json`                           | none                                                  | This document, `cloud-api-v1.json`                                                           |
 | `GET`  | `/oauth/authorize`                        | none                                                  | Authorization code with PKCE, `S256` only, loopback redirects for `permdock-cli`             |
 | `POST` | `/oauth/device_authorization`             | Public client                                         | RFC 8628 device authorization for `permdock login`                                           |
 | `POST` | `/oauth/token`                            | Public client                                         | `authorization_code` with `code_verifier`, `device_code` and `refresh_token`                 |

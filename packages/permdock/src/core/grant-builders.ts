@@ -40,7 +40,7 @@ function isClosure(value: unknown): value is ClosureGrantFn {
 }
 
 export function flattenPermissions(
-  input: Permission | readonly Permission[] | PermissionTree,
+  input: Permission | readonly (Permission | PermissionTree)[] | PermissionTree,
 ): Permission[] {
   if (isPermission(input)) {
     return [input];
@@ -256,6 +256,21 @@ function requiredKey(
 export function allow<T, K extends PermissionKind = PermissionKind>(
   permission: Permission<string, T, K> | readonly Permission<string, T, K>[],
   condition?: GrantCondition<T, K>,
+): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[];
+/**
+ * Every action of a resource (`permissions.post`), of several, or of the
+ * whole tree, unconditionally. Each grant is listed in the policy as if
+ * written out, and an action added to the resource later is granted too.
+ */
+export function allow(
+  permissions: PermissionTree | readonly (Permission | PermissionTree)[],
+): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[];
+export function allow(
+  permission:
+    | Permission
+    | readonly (Permission | PermissionTree)[]
+    | PermissionTree,
+  condition?: unknown,
 ): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[] {
   const permissions = flattenPermissions(permission);
   // SAFETY: T and K only type the caller's closure and where input; makeGrant takes the erased form.
@@ -272,6 +287,17 @@ export function allow<T, K extends PermissionKind = PermissionKind>(
 export function deny<T, K extends PermissionKind = PermissionKind>(
   permission: Permission<string, T, K> | readonly Permission<string, T, K>[],
   condition?: GrantCondition<T, K>,
+): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[];
+/** Every action of a resource, of several, or of the whole tree, unconditionally. */
+export function deny(
+  permissions: PermissionTree | readonly (Permission | PermissionTree)[],
+): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[];
+export function deny(
+  permission:
+    | Permission
+    | readonly (Permission | PermissionTree)[]
+    | PermissionTree,
+  condition?: unknown,
 ): Omit<Grant, "role" | "scope"> | Omit<Grant, "role" | "scope">[] {
   const permissions = flattenPermissions(permission);
   // SAFETY: T and K only type the caller's closure and where input; makeGrant takes the erased form.
