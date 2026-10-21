@@ -162,6 +162,7 @@ const customers = result.data;
 - `--json` prints one envelope on stdout: `status`, the result under `data`, Problem Details with a `code` under `error`, and the commands to run under `next`. `--yes` and `CI` turn prompts off.
 - Exit codes: 0 success, 1 a failure or finding (`--check` drift, doctor errors), 2 a usage, config or environment problem, 3 when the user has to act. Each error code is listed at https://bettersupabase.com/docs/cli/errors.
 - When the CLI detects an agent it prints JSON and never prompts. Exit code 3 with `input_required` lists `missing` flags and their `choices`; run the `next` command with the value filled in. `consent_required` means the user must agree first (`--force` over their files, `seed --apply` on a remote database): ask them, then run the `next` command with its `--confirm` token. Never pass `--confirm` without asking. See https://bettersupabase.com/docs/cli/agent-mode.
+- `better-supabase mcp` serves the same commands as MCP tools on stdio, read-only unless started with `--allow-writes`. A write tool first returns `consent_required` with a `token`; ask the user, then call it again with the same arguments and `confirm` set to the token. See https://bettersupabase.com/docs/cli/mcp.
 
 ## Don't
 
