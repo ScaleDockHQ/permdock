@@ -52,7 +52,7 @@ describe("postgresDirectoryStore", () => {
       { startIndex: 1, count: 1 },
     );
     expect(calls[0]?.text).not.toContain(hostile);
-    expect(calls[0]?.values).toEqual(["acme", hostile]);
+    expect(calls[0]?.values).toEqual(["acme", hostile, 0, 1]);
     expect(calls[0]?.text).toContain('"permdock"."scim_users"');
   });
 
@@ -213,7 +213,7 @@ describe("postgresDirectoryStore", () => {
     expect(users?.text).toContain(
       "starts_with(u.user_name, $5) or false or coalesce(u.external_id, '') <> '' or false or true or false or true)",
     );
-    expect(users?.values).toEqual(["acme", "true", "x", "ad", "a"]);
+    expect(users?.values).toEqual(["acme", "true", "x", "ad", "a", 0, 100]);
 
     await store.findGroups(
       "acme",
@@ -228,7 +228,7 @@ describe("postgresDirectoryStore", () => {
     );
     expect(calls[1]?.text).toContain("m.group_id = g.id and true) and exists");
     expect(calls[1]?.text).toContain("m.user_id = $2");
-    expect(calls[1]?.values).toEqual(["acme", "u1"]);
+    expect(calls[1]?.values).toEqual(["acme", "u1", 0, 100]);
   });
 
   it("pages by cursor or startIndex and answers the next cursor", async () => {
@@ -240,7 +240,8 @@ describe("postgresDirectoryStore", () => {
       cursor: "1",
       count: 1,
     });
-    expect(calls[0]?.text).toContain("offset 1 limit 1");
+    expect(calls[0]?.text).toContain("offset $2::bigint limit $3::bigint");
+    expect(calls[0]?.values).toEqual(["acme", 1, 1]);
     expect(byCursor).toMatchObject({
       totalResults: 3,
       startIndex: 2,
@@ -248,9 +249,16 @@ describe("postgresDirectoryStore", () => {
       nextCursor: "2",
     });
     await store.findUsers("acme", undefined, { cursor: "junk", count: 1 });
-    expect(calls[1]?.text).toContain("offset 0 limit 1");
+    expect(calls[1]?.values).toEqual(["acme", 0, 1]);
     await store.findUsers("acme", undefined, { startIndex: 3, count: 1 });
-    expect(calls[2]?.text).toContain("offset 2 limit 1");
+    expect(calls[2]?.values).toEqual(["acme", 2, 1]);
+    for (const [page, count] of [
+      [{ cursor: "1e21", count: Number.NaN }, 100],
+      [{ startIndex: Number.POSITIVE_INFINITY, count: -1 }, 0],
+    ] as const) {
+      await store.findUsers("acme", undefined, page);
+      expect(calls.at(-1)?.values).toEqual(["acme", 0, count]);
+    }
     const empty = postgresDirectoryStore(recorder(() => []).query);
     await expect(
       empty.findGroups("acme", undefined, {}),

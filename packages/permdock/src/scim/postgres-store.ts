@@ -301,23 +301,26 @@ function where(
   return { sql: `${alias}.tenant = $1 and ${clause}`, params };
 }
 
+/** A non-negative safe integer from `value`, or `fallback`. */
+function wholeOr(value: number | undefined, fallback: number): number {
+  const whole = value === undefined ? Number.NaN : Math.trunc(value);
+  return Number.isSafeInteger(whole) && whole >= 0 ? whole : fallback;
+}
+
 function window(page: ScimPage): {
   readonly offset: number;
   readonly count: number;
 } {
-  const count = Math.max(0, Math.trunc(page.count ?? DEFAULT_COUNT));
+  // RFC 7644 section 3.4.2.4: a negative count is 0.
+  const count =
+    page.count !== undefined && page.count < 0
+      ? 0
+      : wholeOr(page.count, DEFAULT_COUNT);
   if (page.cursor !== undefined && page.cursor !== "") {
-    const decoded = Math.trunc(Number(page.cursor));
-    return {
-      offset: Number.isFinite(decoded) && decoded > 0 ? decoded : 0,
-      count,
-    };
+    return { offset: wholeOr(Number(page.cursor), 0), count };
   }
   return {
-    offset:
-      page.startIndex !== undefined && page.startIndex > 0
-        ? Math.trunc(page.startIndex) - 1
-        : 0,
+    offset: Math.max(0, wholeOr(page.startIndex, 1) - 1),
     count,
   };
 }
@@ -496,7 +499,8 @@ function findSql(
   kind: Kind,
   tables: Tables,
   clause: string,
-  page: { readonly offset: number; readonly count: number },
+  /** The placeholders the offset and the count are bound to. */
+  page: { readonly offset: string; readonly count: string },
 ): string {
   const table = kind === "user" ? tables.users : tables.groups;
   const alias = kind === "user" ? "u" : "g";
@@ -508,7 +512,7 @@ function findSql(
       select ${alias}.seq from ${table} ${alias} where ${clause}
     ),
     paged as (
-      select seq from matched order by seq offset ${String(page.offset)} limit ${String(page.count)}
+      select seq from matched order by seq offset ${page.offset}::bigint limit ${page.count}::bigint
     )
     select (select count(*)::integer from matched) as total,
       coalesce((
@@ -566,9 +570,13 @@ export function postgresDirectoryStore(
   ): Promise<ScimPageResult<T>> {
     const paging = window(page);
     const clause = where(tenant, filter, kind, tables);
+    const next = clause.params.length;
     const [row] = await rows(
-      findSql(kind, tables, clause.sql, paging),
-      clause.params,
+      findSql(kind, tables, clause.sql, {
+        offset: `$${String(next + 1)}`,
+        count: `$${String(next + 2)}`,
+      }),
+      [...clause.params, paging.offset, paging.count],
     );
     const resources = parsed(row?.["resources"]);
     const items = Array.isArray(resources)
