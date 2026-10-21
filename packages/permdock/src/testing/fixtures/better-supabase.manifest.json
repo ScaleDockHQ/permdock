@@ -1,0 +1,314 @@
+{
+  "$schema": "https://permdock.com/schemas/supabase-manifest-v1.json",
+  "version": 1,
+  "hook": {
+    "schema": "permdock",
+    "function": "custom_access_token_hook",
+    "out": "supabase/schemas/permdock/functions/custom_access_token_hook.sql",
+    "schemas": "pg-delta"
+  },
+  "helpers": {
+    "schema": "permdock",
+    "functions": [
+      "permdock_has",
+      "permitted_organization_ids",
+      "member_organization_ids",
+      "member_organization_ids_for",
+      "permitted_customer_ids",
+      "member_customer_ids",
+      "member_customer_ids_for"
+    ]
+  },
+  "tenantClaim": "tenant_id",
+  "budget": {
+    "bytes": 1024,
+    "measure": "octet_length(memberships::text) + octet_length(attrs::text)"
+  },
+  "claims": [
+    {
+      "name": "user_role",
+      "source": "permdock",
+      "budget": false
+    },
+    {
+      "name": "roles",
+      "source": "permdock",
+      "budget": false
+    },
+    {
+      "name": "memberships",
+      "source": "permdock",
+      "budget": true
+    },
+    {
+      "name": "memberships_truncated",
+      "source": "permdock",
+      "budget": false
+    },
+    {
+      "name": "tenant_id",
+      "source": "permdock",
+      "budget": false
+    },
+    {
+      "name": "authz_ver",
+      "source": "permdock",
+      "budget": false
+    },
+    {
+      "name": "datetime_preferences",
+      "source": "public.datetime_preference_claims",
+      "budget": false
+    },
+    {
+      "name": "features",
+      "source": "public.feature_claims",
+      "budget": false
+    }
+  ],
+  "authzVersion": true,
+  "authzVersionBump": {
+    "schema": "permdock",
+    "function": "permdock_bump_authz_version_for",
+    "args": "p_users uuid[]"
+  },
+  "memberships": [
+    {
+      "table": "public.memberships",
+      "user": {
+        "column": "user_id"
+      },
+      "scope": {
+        "column": "scope"
+      },
+      "id": {
+        "column": "scope_id"
+      },
+      "role": {
+        "column": "role"
+      },
+      "columns": ["user_id", "scope", "scope_id", "role"]
+    },
+    {
+      "table": "public.contacts",
+      "user": {
+        "column": "user_id"
+      },
+      "scope": {
+        "value": "customer"
+      },
+      "id": {
+        "column": "customer_id"
+      },
+      "role": {
+        "value": ["contact"]
+      },
+      "within": {
+        "columns": {
+          "organization": "organization_id"
+        }
+      },
+      "via": {
+        "value": "contact"
+      },
+      "columns": ["user_id", "customer_id", "organization_id"]
+    }
+  ],
+  "rls": {
+    "schema": "permdock",
+    "mode": "database",
+    "tenantClaim": "tenant_id",
+    "scopes": [
+      {
+        "name": "organization",
+        "type": "uuid"
+      },
+      {
+        "name": "customer",
+        "type": "uuid",
+        "within": "organization"
+      }
+    ],
+    "helpers": [
+      {
+        "name": "permdock_has",
+        "args": "p_grant text",
+        "returns": "boolean",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "permitted_organization_ids",
+        "args": "p_grant text",
+        "returns": "setof uuid",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "member_organization_ids",
+        "args": "",
+        "returns": "setof uuid",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "member_organization_ids_for",
+        "args": "p_user uuid",
+        "returns": "setof uuid",
+        "execute": ["supabase_auth_admin"]
+      },
+      {
+        "name": "permitted_customer_ids",
+        "args": "p_grant text",
+        "returns": "setof uuid",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "member_customer_ids",
+        "args": "",
+        "returns": "setof uuid",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "member_customer_ids_for",
+        "args": "p_user uuid",
+        "returns": "setof uuid",
+        "execute": ["supabase_auth_admin"]
+      },
+      {
+        "name": "permdock_user_id",
+        "args": "",
+        "returns": "uuid",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "permdock_actor_may_write",
+        "args": "",
+        "returns": "boolean",
+        "execute": ["authenticated"]
+      },
+      {
+        "name": "permdock_has_for",
+        "args": "p_user uuid, p_grant text",
+        "returns": "boolean",
+        "execute": []
+      },
+      {
+        "name": "permitted_organization_ids_for",
+        "args": "p_user uuid, p_grant text",
+        "returns": "setof uuid",
+        "execute": []
+      },
+      {
+        "name": "permitted_customer_ids_for",
+        "args": "p_user uuid, p_grant text",
+        "returns": "setof uuid",
+        "execute": []
+      },
+      {
+        "name": "permitted_organization_permission_keys_for",
+        "args": "p_user uuid, p_id uuid",
+        "returns": "setof text",
+        "execute": []
+      },
+      {
+        "name": "permitted_customer_permission_keys_for",
+        "args": "p_user uuid, p_id uuid",
+        "returns": "setof text",
+        "execute": []
+      },
+      {
+        "name": "permitted_organization_users",
+        "args": "p_permission text, p_id uuid",
+        "returns": "setof uuid",
+        "execute": []
+      },
+      {
+        "name": "permitted_customer_users",
+        "args": "p_permission text, p_id uuid",
+        "returns": "setof uuid",
+        "execute": []
+      }
+    ],
+    "memberships": [
+      {
+        "table": "public.memberships",
+        "user": {
+          "column": "user_id"
+        },
+        "scope": {
+          "column": "scope"
+        },
+        "id": {
+          "column": "scope_id"
+        },
+        "role": {
+          "column": "role"
+        },
+        "columns": ["user_id", "scope", "scope_id", "role"]
+      },
+      {
+        "table": "public.contacts",
+        "user": {
+          "column": "user_id"
+        },
+        "scope": {
+          "value": "customer"
+        },
+        "id": {
+          "column": "customer_id"
+        },
+        "role": {
+          "value": ["contact"]
+        },
+        "within": {
+          "columns": {
+            "organization": "organization_id"
+          }
+        },
+        "via": {
+          "value": "contact"
+        },
+        "columns": ["user_id", "customer_id", "organization_id"]
+      }
+    ],
+    "customRoles": true,
+    "roles": {
+      "table": "permdock.user_roles",
+      "user": {
+        "column": "user_id"
+      },
+      "role": {
+        "column": "role"
+      }
+    }
+  },
+  "decidingColumns": [
+    "public.contacts.customer_id",
+    "public.contacts.organization_id",
+    "public.contacts.user_id",
+    "public.memberships.role",
+    "public.memberships.scope",
+    "public.memberships.scope_id",
+    "public.memberships.user_id"
+  ],
+  "markers": {
+    "hook": "v1",
+    "grants": "v1"
+  },
+  "requires": {
+    "matrix": "capability-matrix-v1.12.0",
+    "capabilities": [
+      "auth.session.get_claims",
+      "realtime.subscriptions.private_channel",
+      "storage.file_buckets.download",
+      "storage.file_buckets.list_files",
+      "storage.file_buckets.move",
+      "storage.file_buckets.remove",
+      "storage.file_buckets.update_file",
+      "storage.file_buckets.upload"
+    ]
+  },
+  "managementApi": {
+    "hook_custom_access_token_enabled": true,
+    "hook_custom_access_token_uri": "pg-functions://postgres/permdock/custom_access_token_hook",
+    "jwt_exp": 3600
+  }
+}

@@ -128,7 +128,7 @@ Between the ask and the answer, the pending approval is an `ApprovalRequest` rec
 - The approver comes from authentication, never from the resume request, and is never the request's actor: an agent cannot approve its own call. Nor is it the request's principal, unless the grant sets `distinct: false`; `requireDistinctApprover` on the handler refuses the principal even then. A delegate is held to the same distinctness, and so is the delegator they approve for. The handler resolves the delegator's subject server-side; the signature records the delegate as `by` and the delegator as `onBehalfOf`. One hop. A link or a feed cannot approve.
 - Only `pending` becomes `approved` or `rejected`; `expired` is terminal. A resume against anything but `approved` is `denied`.
 - An approval is spent once. A resume that enforces the call (`protect`, agent tool execution, MCP) calls the store's atomic `consume`, which sets `consumedAt`; a second resume is `denied` with detail `approval-consumed`. A store without `consume` cannot resume. The decision endpoint only inspects, so a UI check does not spend the approval.
-- `create` is idempotent per token: a pending, approved or rejected record is kept until it expires, so a consumed or rejected call cannot be asked again before `expiresAt`.
+- `create` is idempotent per token: a pending, approved or rejected record is kept until it expires, so a consumed or rejected call cannot be asked again before `expiresAt`. A store replaces a record only when its `status` is `expired` or its `expiresAt` has passed; nothing returns to `pending`.
 - A request with a tenant is resolvable only by an approver with a membership in that tenant.
 - A `quorum` counts principals, not clicks: the same approver is refused a second time, so one person can never satisfy a quorum of two, whatever role they hold.
 - A verdict the application vouches for (`vouchApproval`, `verdict.vouched`) skips the eligibility checks of `approvers`, the tenant membership and the quorum, because the application's own rules decided them, and resolves the request at once. It still refuses an unauthenticated approver, the actor, the principal unless `distinct: false`, a repeated approver and a request that is not pending or has expired, and the request records the rule's name. Only server code can set it: `approvalsHandler` never reads it from a body.
@@ -136,7 +136,12 @@ Between the ask and the answer, the pending approval is an `ApprovalRequest` rec
 - A `simulate()` plan produces one request per `approval-required` step; approving the plan approves each token, and each step is still re-checked at execution.
 - The ask, the answer and the resumed decision are three `on('decision')` records sharing `token`.
 
-Applications that need approvals to survive a restart implement the interface over their database (a Drizzle recipe is on the adapter page). PermDock Cloud implements the same interface with an inbox UI and delivery ([Cloud adapter](/docs/adapters/cloud)).
+Applications that need approvals to survive a restart implement the interface over their database (a Drizzle recipe is on the adapter page). PermDock Cloud implements the same interface with an inbox UI and delivery ([Cloud adapter](/docs/adapters/cloud)). Which approver facts the Cloud trusts depends on the environment's directory mode ([approver token](/docs/adapters/cloud#approver-token)):
+
+| Directory mode | Where the Cloud reads the approver's facts                                                                            | Signed facts on the approver token |
+| -------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Bring your own | The signed `PermDock-Approver` token: `roles`, `memberships`, `tenant`, and the entry's `permissions` and `relations` | The only input                     |
+| Cloud-native   | Its own directory, and the policy `policyFromCatalog` rebuilds from the pushed catalog                                | Ignored                            |
 
 ## Surfaces
 

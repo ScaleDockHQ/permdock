@@ -587,6 +587,36 @@ export function mapClaimsToSubject(
   };
 }
 
+/** `true` when a verified token is not an OpenID Connect ID token for one of `clients`. */
+export function idTokenMismatch(
+  claims: JwtClaims,
+  headerTyp: string | undefined,
+  clients: string | readonly string[] | undefined,
+): boolean {
+  const typ = headerTyp?.toLowerCase();
+  if (typ !== undefined && typ !== "jwt" && typ !== "application/jwt") {
+    return true;
+  }
+  // OpenID Connect Core section 2 requires iat; section 3.1.3.7 points 4
+  // and 5 require azp with several audiences and a client id when present.
+  if (typeof claims.iat !== "number") {
+    return true;
+  }
+  const aud = claims.aud;
+  const audiences = Array.isArray(aud) ? aud : aud === undefined ? [] : [aud];
+  const expected: readonly string[] =
+    clients === undefined
+      ? []
+      : typeof clients === "string"
+        ? [clients]
+        : clients;
+  const azp = claims["azp"];
+  if (azp === undefined) {
+    return audiences.length > 1;
+  }
+  return typeof azp !== "string" || !expected.includes(azp);
+}
+
 export function acceptMismatch(
   claims: JwtClaims,
   headerTyp: string | undefined,
@@ -596,27 +626,7 @@ export function acceptMismatch(
   const accept = options.accept ?? "access-token";
   const typ = headerTyp?.toLowerCase();
   if (accept === "id-token") {
-    if (typ !== undefined && typ !== "jwt" && typ !== "application/jwt") {
-      return true;
-    }
-    // OpenID Connect Core section 2 requires iat; section 3.1.3.7 points 4
-    // and 5 require azp with several audiences and a client id when present.
-    if (typeof claims.iat !== "number") {
-      return true;
-    }
-    const aud = claims.aud;
-    const audiences = Array.isArray(aud) ? aud : aud === undefined ? [] : [aud];
-    const clients: readonly string[] =
-      audience === undefined
-        ? []
-        : typeof audience === "string"
-          ? [audience]
-          : audience;
-    const azp = claims["azp"];
-    if (azp === undefined) {
-      return audiences.length > 1;
-    }
-    return typeof azp !== "string" || !clients.includes(azp);
+    return idTokenMismatch(claims, headerTyp, audience);
   }
   if (options.profile === "fapi2" && typ !== "at+jwt") {
     return true;

@@ -122,14 +122,12 @@ A Cloud admin can write grants such as "the `pro` plan may read audit logs" with
 
 ```ts
 import { getPermDock, hostedPolicies } from "permdock";
-import { cloud, cloudEndpoints } from "permdock/cloud";
+import { cloud } from "permdock/cloud";
 import { joseTokenVerifier } from "permdock/jwt";
 
 const permdockCloud = cloud({
-  verifier: joseTokenVerifier({
-    jwks: cloudEndpoints().jwks,
-    algorithms: ["Ed25519", "ES256"],
-  }),
+  verifier: ({ jwks }) =>
+    joseTokenVerifier({ jwks, algorithms: ["Ed25519", "ES256"] }),
 });
 await permdockCloud.policies.refresh();
 setInterval(() => void permdockCloud.policies.refresh(), 60_000);
@@ -188,7 +186,7 @@ import { cloud } from "permdock/cloud";
 const permdockCloud = cloud({
   url: process.env.PERMDOCK_CLOUD_URL, // set by the Marketplace integration or by hand
   key: process.env.PERMDOCK_CLOUD_KEY, // server-only; never in NEXT_PUBLIC_* or a client bundle
-  environment: "production", // defaults to VERCEL_ENV when present
+  environment: "production", // defaults to PERMDOCK_CLOUD_ENV, then the key's environment
 });
 
 // Plug into any adapter that accepts store / sink / policies
@@ -201,13 +199,13 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
   });
 ```
 
-- `cloud()` returns a frozen object; `approvals`, `sink` and `policies` are the interfaces, `snapshotsFor(token)` returns one `SnapshotSource` per subject, `catalog` publishes the catalog, `issuer` is the environment URL `<PERMDOCK_CLOUD_URL>/v1/environments/<env>` and `jwks` is the environment's JWK Set URL. `cloudEndpoints()` returns the same `issuer` and `jwks` without a key, for building a verifier first. There is no `decide` on it.
+- `cloud()` returns a frozen object; `approvals`, `sink` and `policies` are the interfaces, `snapshotsFor(token)` returns one `SnapshotSource` per subject, `catalog` publishes the catalog, `endpoints()` resolves the environment URL `<PERMDOCK_CLOUD_URL>/v1/environments/<env>` as `issuer` and the environment's JWK Set URL as `jwks`. The fields `issuer` and `jwks` are set at construction only when the environment is configured. `cloudEndpoints()` returns the same `issuer` and `jwks` synchronously, without a key, and throws when neither `environment` nor `PERMDOCK_CLOUD_ENV` is set; `await resolveCloudEndpoints()` asks the Cloud with the key instead. There is no `decide` on it.
 - `verifyWebhook(request, { verifier })` (or `{ jwks, secret, replay }`) and `parseCloudEvent` verify the Cloud's Standard Webhooks deliveries of CloudEvents batches ([Cloud integrations](/docs/adapters/cloud-integrations)); there is no unsigned mode.
-- `policies` holds the last verified policy document ([hosted grants](#hosted-grants)). It needs `verifier` (a `TokenVerifier` over `jwks`); the expected `iss` and `aud` are the environment URL, so there is no audience to configure. Without a verifier `current()` stays `null`.
+- `policies` holds the last verified policy document ([hosted grants](#hosted-grants)). It needs `verifier`: a `TokenVerifier` over `jwks`, or a function `cloud()` calls once with the resolved endpoints, so the environment need not be known at import; the expected `iss` and `aud` are the environment URL, so there is no audience to configure. Without a verifier `current()` stays `null`.
 - `sink` batches events in memory and flushes on size (`flushAt`) and at the end of a request when the runtime exposes `waitUntil`. Each flush posts a CloudEvents JSON batch with `Content-Type: application/cloudevents-batch+json`: an array holding one `toCloudEvent(event, { source })` envelope per `SinkEvent`, where `source` is `cloud({ source })`, an absolute URI that defaults to the environment URL ([CloudEvents](/docs/standards/cloudevents), [wire formats](/docs/concepts/wire-formats)). A failed batch is re-queued, bounded by `capacity` (default 10 000, the same as `memoryDecisionSink`), and the oldest events are dropped first, so a Cloud outage never grows memory without limit. Every event is written; sampling is opt-in and never applies to the evidence log. Delivery failure never affects a decision and is reported through `on('error')`. The Cloud's export endpoint serves the same events back as signed batches (`vnd.permdock.evidence+jwt`), OCSF or CSV. The sink does not accept `permdock/otel` spans: traces go to your collector (the Cloud can export a copy of the log to it as OTLP) and evidence goes to the sink ([audit and observability](/docs/concepts/audit-and-observability)).
 - `approvals` speaks the same `ApprovalRequest` wire shape as the in-memory store (`v: 1`, with the optional `approvers` and `subject.session`); a Cloud inbox rejects an unknown major rather than approve without checking eligibility. The inbox UI, Slack, Teams and email delivery, and approver groups are Cloud features layered on the same records. Slack and Teams delivery is the Vercel Chat SDK recipe from the [approvals adapter](/docs/adapters/approvals) "Delivery" section, run by the Cloud instead of by your application; a self-hoster who copies that recipe gets identical cards and the same signature-verified responder.
 - `approvals.resolve` proves who resolved with a `PermDock-Approver` token signed by `approver.signer` ([approver token](#approver-token)).
-- `snapshotsFor(token)` lets clients fetch a snapshot from the Cloud edge instead of from the application server. `token` is an `at+jwt` naming the subject, sent as the `PermDock-Subject` header: one the environment issued (Cloud-native mode, `aud` includes the environment URL), or one the application signed with a trusted issuer registered for purpose `subject` (bring-your-own mode). In both, `exp` is at most five minutes after `iat` and the Cloud refuses a `jti` it has seen; the Cloud never takes a subject from a query string or a body. It honours `session-revoked` and `credential-change` CAEP events received by the Cloud's SSF receiver ([Shared Signals](/docs/standards/shared-signals-caep)). Everything the Cloud serves is signed: a compact JWS with `typ: vnd.permdock.snapshot+jwt` and the unchanged Snapshot object under the `snapshot` claim ([wire formats](/docs/concepts/wire-formats)).
+- `snapshotsFor(token)` lets clients fetch a snapshot from the Cloud edge instead of from the application server. `token` is an `at+jwt` naming the subject, sent as the `PermDock-Subject` header: one the environment issued (Cloud-native mode, `aud` includes the environment URL), or one the application signed with a trusted issuer registered for purpose `subject` (bring-your-own mode). In both, `exp` is at most five minutes after `iat` and the Cloud refuses a `jti` it has seen, the checks `verifySubjectToken` in `permdock/jwt` makes ([JWT adapter](/docs/adapters/jwt#subject-and-id-tokens)); the Cloud never takes a subject from a query string or a body. It honours `session-revoked` and `credential-change` CAEP events received by the Cloud's SSF receiver ([Shared Signals](/docs/standards/shared-signals-caep)). Everything the Cloud serves is signed: a compact JWS with `typ: vnd.permdock.snapshot+jwt` and the unchanged Snapshot object under the `snapshot` claim ([wire formats](/docs/concepts/wire-formats)).
 - `catalog.push(catalog)` posts a `CatalogDocument` and its `catalogFingerprint` to `POST /catalog` and returns what the Cloud answers: `{ version, fingerprint, findings }` for a new version (`201`, the drift findings against the previous one, as `catalogDrift` computes them), or `{ version, fingerprint, unchanged: true }` (`200`). A non-2xx status or another shape throws. The document carries `operations` when it was built with an operations module, so the Cloud's dashboards and drift checks name the operations bound to each permission. `permdock cloud push` is the CI path to the same route.
 
 ### Approver token
@@ -332,10 +330,11 @@ The Cloud signs with a per-environment key through the `TokenSigner` interface (
 
 ### HTTP API
 
-The client speaks these paths under `PERMDOCK_CLOUD_URL`. In production that URL is `https://permdock.com/api`; a self-hosted deployment of the Cloud repository works by pointing `PERMDOCK_CLOUD_URL` at it, with no Marketplace involvement and no discovery step. `:env` is `environment`, then `PERMDOCK_CLOUD_ENV`, then `VERCEL_ENV`, then `production`. The OpenAPI 3.1 document of every route below is `permdock/schemas/cloud-api-v1.json`, and [`testCloudApi`](/docs/adapters/testing) checks a Cloud against it.
+The client speaks these paths under `PERMDOCK_CLOUD_URL`. In production that URL is `https://permdock.com/api`; a self-hosted deployment of the Cloud repository works by pointing `PERMDOCK_CLOUD_URL` at it, with no Marketplace involvement and no discovery step. `:env` is `environment`, then `PERMDOCK_CLOUD_ENV`, then the environment `GET /v1/environment` names for the key; `cloud()` asks once per instance, on its first request, and asks again after a failed lookup. `VERCEL_ENV` is not read: one key belongs to one environment. The OpenAPI 3.1 document of every route below is `permdock/schemas/cloud-api-v1.json`, and [`testCloudApi`](/docs/adapters/testing) checks a Cloud against it.
 
 | Method | Path                                               | Interface                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------ | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/v1/environment`                                  | `endpoints()` when no environment is configured: `{ environment, issuer, jwks_uri }` for the key, under `PERMDOCK_CLOUD_URL` rather than an environment URL                                                                                                                                                                                                                                    |
 | `POST` | `/v1/environments/:env/decisions`                  | `sink.write` / `sink.flush`: a CloudEvents JSON batch, `Content-Type: application/cloudevents-batch+json`, one `toCloudEvent` envelope per event                                                                                                                                                                                                                                               |
 | `POST` | `/v1/environments/:env/approvals`                  | `approvals.create`                                                                                                                                                                                                                                                                                                                                                                             |
 | `GET`  | `/v1/environments/:env/approvals/by-token`         | `approvals.get`: the token in the `PermDock-Approval` header, never in the URL (unreachable or unknown → `null`)                                                                                                                                                                                                                                                                               |
@@ -401,10 +400,12 @@ The platform issuer and the projects read API sit at the root of `PERMDOCK_CLOUD
 | `PERMDOCK_CLOUD_URL`       | Marketplace provisioning or you | Base URL of the Cloud API and the platform issuer: `https://permdock.com/api`, the CLI's default                                                     |
 | `PERMDOCK_CLOUD_KEY`       | Marketplace provisioning or you | Server-side `client` key for the store, sink, snapshot, policy and catalog endpoints; rotated from the dashboard                                     |
 | `PERMDOCK_CLOUD_ADMIN_KEY` | You, from the dashboard         | `admin` key for authoring scripts and the contract tests; never set in the application's runtime environment                                         |
-| `PERMDOCK_CLOUD_ENV`       | Optional                        | Overrides the environment name when `VERCEL_ENV` is absent                                                                                           |
+| `PERMDOCK_CLOUD_ENV`       | Optional                        | The environment name; without it the Cloud names the key's environment. Required where module code calls `cloudEndpoints()`                          |
 | `PERMDOCK_CLOUD_TOKEN`     | You, from the dashboard, in CI  | Read-only key pinned to one environment, for `permdock cloud pull` and `rls generate --project` without a login; never deployed with the application |
 
 `permdock doctor` reports whether the variables are present, whether the key reaches the API, and whether a client entry imports `permdock/cloud`.
+
+Upgrading from 0.6: the client and `permdock cloud push` no longer read `VERCEL_ENV` or fall back to `production`. An app whose key belongs to the environment it ran against needs no change. An app that called `cloudEndpoints()` or read `cloud().jwks` at import without `PERMDOCK_CLOUD_ENV` sets it, or moves to `cloud({ verifier: ({ jwks }) => … })` and `await cloud().endpoints()`.
 
 ## What stays local and what the Cloud adds
 
@@ -459,18 +460,20 @@ The ADS never reads a subject from the request body unless the caller is registe
 
 PermDock Cloud is listed as a native Marketplace integration so a Vercel project gets an environment, its variables and billing without leaving the dashboard.
 
-- **Resource model.** One Marketplace resource is one PermDock environment, created per Vercel project and environment (`production`, `preview`, `development`) so preview approvals never land in the production inbox. `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are written to the project's environment variables on provisioning and rotated from either dashboard.
+- **Resource model.** One Marketplace resource is one PermDock environment, created per Vercel project and environment (`production`, `preview`, `development`) so preview approvals never land in the production inbox. Provisioning writes only `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY`, a different key into each Vercel environment, and rotates them from either dashboard. It writes no `PERMDOCK_CLOUD_ENV`: the key names its environment through `GET /v1/environment`, so `cloud()` needs no `VERCEL_ENV` mapping. Module code that calls `cloudEndpoints()` at import still needs `PERMDOCK_CLOUD_ENV`.
 - **Integration server.** The Cloud repository implements the Marketplace provisioning API (install, resource create, update, delete, SSO, billing webhooks and invoices) per the [approval checklist](https://vercel.com/docs/integrations/create-integration/approval-checklist); this repository only documents the variables and the `doctor` check.
 - **Template.** `apps/examples/eve-agent` is the deploy template the listing requires: an Eve agent with `post` tools, `permdock/eve` approvals stored in the Cloud, and the inbox linked from the deployed app ([Eve adapter](/docs/adapters/eve)).
 - **Plans.** A free environment with a short retention window, then usage-based plans on five meters. The Cloud reports each daily per resource through the Marketplace billing API (`POST /v1/installations/{integrationConfigurationId}/billing`, one `usage` item per meter with the resource's `resourceId`; Vercel asks for at least one submission a day). Decisions made by the embedded engine are never metered.
 
 | Meter id             | `type`     | Counts                                                                    |
-| -------------------- | ---------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| -------------------- | ---------- | ------------------------------------------------------------------------- |
 | `active_principals`  | `total`    | Principals with an event this period; a human and each agent `actor` once |
 | `connected_tenants`  | `total`    | Tenants with a SCIM connection or a tenant-scoped inbox                   |
 | `resolved_approvals` | `interval` | Approvals resolved, above a free allowance                                |
 | `retention_tier`     | `total`    | Days of decision retention the plan keeps                                 |
-| `ads_evaluations`    | `interval` | Hosted ADS evaluations; one per item of an `evaluations` batch            | The exact numbers belong to the Cloud repository and the [landscape](/docs/research/landscape) research, not to the library docs. |
+| `ads_evaluations`    | `interval` | Hosted ADS evaluations; one per item of an `evaluations` batch            |
+
+Each meter is reported per resource, so usage is per environment: a preview deployment's approvals and principals never count against production. Prices and allowances belong to the Cloud repository and the [landscape](/docs/research/landscape) research, not to the library docs.
 
 ## MCP server
 

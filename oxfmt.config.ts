@@ -6,6 +6,7 @@ export default oxfmt({
     "**/.cursor/**",
     "**/.claude/**",
     "**/permissions.catalog.json",
+    "packages/permdock/src/testing/fixtures/better-supabase.catalog.json",
     "packages/ui/src/**",
     "apps/marketing/components/blocks/**",
     "apps/marketing/components/examples/**",

@@ -297,6 +297,43 @@ export { authed as GET, authed as POST };
 - **Other hosts.** The official MCP framework middleware for Express (Node `IncomingMessage` servers), Cloudflare's `McpAgent` in the Agents SDK (a Durable Object per session, which is also a natural `ApprovalStore`), FastMCP for TypeScript and xmcp each construct or expose the same `McpServer`; `protectServer` wraps it at the point of construction. None of them needs a PermDock entry ([ecosystem index](/docs/research/ecosystem-index)).
 - **SDK version.** `permdock/mcp` targets `@modelcontextprotocol/server` 2.x (a types-only optional peer; `protectServer` duck-types the server at runtime, [installation](/docs/getting-started/installation)). SDK 1.x (`@modelcontextprotocol/sdk`) and `mcp-handler` 1.x are not supported: `scopeChallenge` and `ctx.http.authInfo` are v2 features, and 1.x's variadic `server.tool()` and `extra.authInfo` have no equivalents the adapter can wrap. The `mcp-handler` migration notes cover the move (`registerTool` instead of `server.tool`, `ctx.http?.authInfo` instead of `extra.authInfo`, Standard Schema for `inputSchema`).
 
+### Resource server guard
+
+`mcpResourceGuard(options)` is the resource-server check for a host without `withMcpAuth`, such as a plain `fetch` handler or a gateway in front of several MCP servers. It reads the bearer token from `Authorization`, verifies it with a `TokenVerifier` for `resource` as the audience (RFC 8707), refuses a token for which `revoked(claims)` answers `true` or throws, and checks `scopes`. It answers `{ ok: true, authInfo }`, the `McpAuthInfo` that `protectServer` reads, or `{ ok: false, response }`. `protectedResourceMetadata(options)` serves the RFC 9728 document the challenges point at.
+
+```ts
+import { joseTokenVerifier } from "permdock/jwt";
+import { mcpResourceGuard, protectedResourceMetadata } from "permdock/mcp";
+
+const resource = "https://api.example.com/mcp";
+const guard = mcpResourceGuard({
+  resource,
+  scopes: ["mcp:connect"],
+  verifier: joseTokenVerifier({ discovery: issuer }),
+  issuer,
+  revoked: (claims) => revocations.has(String(claims.jti)),
+});
+export const metadata = protectedResourceMetadata({
+  resource,
+  authorizationServers: [issuer],
+  scopesSupported: catalog.scopes, // from `permdock collect`
+});
+
+export async function POST(request: Request): Promise<Response> {
+  const auth = await guard(request);
+  if (!auth.ok) return auth.response;
+  return transport.handleRequest(request, { authInfo: auth.authInfo });
+}
+```
+
+| Request                                     | Answer                                                                                    |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| No `Authorization` header                   | `401`, `WWW-Authenticate: Bearer resource_metadata="…"` with no error code (RFC 6750 3.1) |
+| Another scheme, an invalid or revoked token | `401`, `error="invalid_token"` with a generic description                                 |
+| A valid token without every `scopes` entry  | `403`, `error="insufficient_scope"`, `scope` listing every required scope                 |
+
+Every refusal carries a Problem Details body and `resource_metadata`, which defaults to `<origin>/.well-known/oauth-protected-resource<path>`; `resourceMetadataUrl` overrides it. `authInfo.scopes` comes from `scope` or `scp`, `clientId` from `client_id` or `azp`, and `extra.claims` holds the verified claims. The guard reads only the header: a token in the query string or the body is ignored. It does not check DPoP proofs. The metadata handler answers `GET`, `HEAD` and a CORS preflight from any origin, with `bearer_methods_supported: ["header"]`; any other method is `405`. Per-tool scopes stay with `protectServer`: the guard checks only what every request needs.
+
 ## Request lifecycle
 
 1. Transport: the SDK's bearer middleware (or `withMcpAuth` on a Fetch host, above) validates the access token, checks `iss` per RFC 9207 and attaches `authInfo`.

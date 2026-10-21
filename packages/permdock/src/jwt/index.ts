@@ -13,9 +13,23 @@ export { verifyDpopProof } from "./dpop.ts";
 export type { DpopProofOptions } from "./dpop.ts";
 export { memoryReplayStore } from "../ssf/replay.ts";
 export type { ReplayStore } from "../ssf/types.ts";
+export { verifyIdToken } from "./id-token.ts";
+export type {
+  IdTokenClaims,
+  IdTokenFailureCause,
+  VerifyIdTokenOptions,
+  VerifyIdTokenResult,
+} from "./id-token.ts";
 export { subjectFromIntrospection } from "./introspection.ts";
 export { joseTokenSigner } from "./signer.ts";
 export { jwtSubjectResolver, subjectFromJwt } from "./subject.ts";
+export { verifySubjectToken } from "./subject-token.ts";
+export type {
+  SubjectTokenClaims,
+  SubjectTokenFailureCause,
+  VerifySubjectTokenOptions,
+  VerifySubjectTokenResult,
+} from "./subject-token.ts";
 export type {
   DiscoveryInput,
   DpopProofResult,

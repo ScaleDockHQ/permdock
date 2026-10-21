@@ -90,6 +90,64 @@ export const POST = setPollHandler({
 - `SetQueue` is an [extension interface](/docs/concepts/extension-interfaces): `enqueue`, `pending`, `ack` and `fail`, each per stream. `memorySetQueue()` loses its SETs on restart; more than one instance needs a shared queue.
 - `streamVerificationEvent(stream, state)` is the SSF 1.0 verification event a transmitter sends when a receiver calls its verification endpoint. `SSF_PUSH_DELIVERY` and `SSF_POLL_DELIVERY` are the delivery method URNs.
 
+### Transmitter endpoints
+
+`ssfTransmitter` serves the SSF 1.0 stream-management API over an `SsfStreamStore` and a `SetQueue`, and `fanOutSet` sends one event to every stream that asked for it:
+
+```ts
+import {
+  caepEvents,
+  fanOutSet,
+  memorySetQueue,
+  memorySsfStreamStore,
+  ssfTransmitter,
+} from "permdock/ssf";
+
+const streams = memorySsfStreamStore();
+const queue = memorySetQueue();
+const transmitter = ssfTransmitter({
+  issuer: "https://signals.example.com",
+  endpoint: "https://signals.example.com/ssf",
+  streams,
+  queue,
+  signer,
+  authorize: (request) =>
+    receiverForBearer(request.headers.get("authorization")),
+});
+app.all("/ssf/*", (c) => transmitter(c.req.raw));
+app.get("/.well-known/ssf-configuration", (c) => transmitter(c.req.raw));
+
+await fanOutSet(
+  caepEvents.sessionRevoked({ subject, initiatingEntity: "admin" }),
+  {
+    streams,
+    queue,
+    signer,
+  },
+);
+```
+
+| Route                            | Method                                  | SSF 1.0                                                                      |
+| -------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------- |
+| `/.well-known/ssf-configuration` | `GET`, no credentials                   | Section 7.1 metadata: `issuer`, `jwks_uri`, both delivery methods, endpoints |
+| `<endpoint>/stream`              | `POST`, `GET`, `PATCH`, `PUT`, `DELETE` | Section 8.1.1 stream configuration                                           |
+| `<endpoint>/status`              | `GET`, `POST`                           | Section 8.1.2 stream status                                                  |
+| `<endpoint>/verify`              | `POST`                                  | Section 8.1.4 verification: signs `streamVerificationEvent` and delivers it  |
+| `<endpoint>/poll?stream_id=<id>` | `POST`                                  | RFC 8936 poll through `setPollHandler`, for a poll stream                    |
+
+- `authorize(request)` answers the receiver the credentials authenticate, or `null` (or a throw) for `401`. A receiver reads, changes and polls only the streams it created; another receiver's stream is `404`.
+- `POST /stream` takes the receiver-supplied `delivery`, `events_requested` and `description` and answers `201` with the full configuration. The transmitter sets the rest: `stream_id` (a UUID), `iss`, `aud` (`audience(receiver)`, default the receiver), `events_supported` (`eventsSupported`, default every CAEP and RISC event the receiver handles) and `events_delivered`, which is `events_requested` within `events_supported`. Without `delivery` a stream is poll, and a poll stream's `endpoint_url` is `<endpoint>/poll?stream_id=<id>`. A push stream needs an http or https `endpoint_url`.
+- `PATCH` keeps the receiver-supplied properties the body leaves out; `PUT` resets them to their defaults. Both name the stream in the body's `stream_id`; `GET` and `DELETE` take it as a query parameter, and `GET` without one lists the receiver's streams.
+- Every error is RFC 9457 Problem Details: `400` with a `detail` naming the property, `404`, `405` with `Allow`, `409` for verifying a disabled stream, `413` for a body over 64 KiB.
+- `fanOutSet(event, { streams, queue, signer, fetch? })` reads every stream, keeps the ones that are not `disabled` and list `event.type` in `events_delivered`, and signs the event once per distinct `aud`. A push stream gets it through `pushSet`; a poll stream, and a paused push stream, get it in the queue. It answers one `{ stream, jti, queued, delivery }` row per stream that took the event; a push with `delivery.retry` is the caller's to retry.
+- A `paused` stream holds its SETs: a poll answers no sets, and a push stream's queue is pushed in order when it is enabled again. `disabled` and `DELETE` drop the stream's pending SETs.
+- `SsfStreamStore` is an [extension interface](/docs/concepts/extension-interfaces): `create(owner, configuration)`, `get`, `list(owner?)`, `update(configuration)`, `delete`, `status` and `setStatus`. `get` and `status` answer `null` for an unknown stream, and a new stream is `enabled`. `memorySsfStreamStore()` loses its streams on restart. `testSsfStreamStore(store)` from `permdock/testing` is its conformance suite.
+- Subjects are not managed per stream: the metadata says `default_subjects: "ALL"`, and the add and remove subject endpoints are not served.
+
+### Poll client
+
+`pollSets({ endpoint, authorization?, acks?, setErrs?, maxEvents?, returnImmediately? })` is one RFC 8936 poll request for a receiver that verifies SETs itself, such as a Cloud relaying another transmitter's stream. It answers `{ ok: true, sets: [{ jti, set }], moreAvailable }` with the SETs unverified, or the same failure `pushSet` maps, plus `invalid-request` for a `2xx` body without a `sets` object. It never throws. `maxEvents` defaults to 100 and `0` only acknowledges; `returnImmediately` defaults to `true`. `receiver.poll` makes the same requests.
+
 ### Shared replay store
 
 ```ts

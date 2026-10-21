@@ -144,6 +144,40 @@ The result is `{ principal: { id, kind: 'link', issuer, memberships: [{ on, role
 
 `RunTicketFailureCause` is `TokenFailureCause` plus `automation-unavailable`, `automation-changed` and `owner-unavailable`, emitted by `subjectFromRunTicket` in `permdock/server` with `source: 'run-ticket'` ([run tickets](/docs/adapters/server-kernel#run-tickets)).
 
+## Subject and ID tokens
+
+Two verifiers answer `{ ok: true, claims, header }` or `{ ok: false, cause }` for a service that checks a token itself instead of resolving a subject:
+
+```ts
+import {
+  joseTokenVerifier,
+  memoryReplayStore,
+  verifyIdToken,
+  verifySubjectToken,
+} from "permdock/jwt";
+
+const subject = await verifySubjectToken(
+  request.headers.get("permdock-subject") ?? "",
+  {
+    verifiers: [environmentVerifier, ...trustedIssuerVerifiers],
+    audience: environmentUrl,
+    replay: memoryReplayStore(),
+  },
+);
+
+const upstream = joseTokenVerifier({ discovery: "https://login.example.com" });
+const login = await verifyIdToken(idToken, {
+  issuer: "https://login.example.com",
+  clientId: "gateway",
+  nonce: session.nonce,
+  verifier: upstream,
+});
+```
+
+- `verifySubjectToken(token, { verifiers, audience, replay, maxLifetime?, clockTolerance? })` checks a token naming one subject for one request, such as the Cloud's `PermDock-Subject` header. Each verifier is asked for a `typ: at+jwt` token with `audience`, in order, and the first that accepts it wins. When none does, the cause is the first that is not `wrong-issuer` or `unknown-kid`, the answers of a verifier for another issuer. The token must carry a non-empty `sub` and `jti` and numeric `iat` and `exp` (`malformed`), live at most `maxLifetime` seconds, 300 by default (`lifetime-exceeded`), and present its `jti` once per issuer (`replayed`). The `jti` goes through `replay.claim` when the store has it, else `seen` and `remember`, kept until `exp`; a store that throws refuses the token as `replayed`.
+- `verifyIdToken(token, { issuer, clientId, nonce?, verifier | jwks })` is the relying party's ID token check ([OpenID Connect](/docs/standards/openid-connect#id-token-validation-for-a-relying-party)). It applies the `accept: 'id-token'` rules above plus `iss`, a non-empty `sub` and, when `nonce` is given, `nonce` (`nonce-mismatch`). Pass a `verifier` you keep: with `jwks`, a new verifier is built on each call.
+- `SubjectTokenFailureCause` is `TokenFailureCause` plus `replayed` and `lifetime-exceeded`; `IdTokenFailureCause` is `TokenFailureCause` plus `nonce-mismatch`. A `TokenVerifier` never returns them.
+
 ## Behaviour on invalid tokens
 
 Every failure produces the same outcome: the anonymous subject (`principal: null`, no actor, no delegation) and one `on('auth')` audit event with `reason: 'invalid-token'` (the RFC 6750 error name, hyphenated) and a `cause` naming what failed. `can` on the resulting `PermDock` returns `false`; `decide` returns `denied` with reason `anonymous`. Nothing throws.

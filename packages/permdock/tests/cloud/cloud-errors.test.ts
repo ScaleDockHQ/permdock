@@ -25,6 +25,7 @@ function client(
     ...fake,
     client: cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: "k",
       fetch: fake.fetch,
       approver: { signer: approverSigner },

@@ -87,3 +87,4 @@ test-results/
 playwright-report/
 .preset-check/
 apps/marketing/public/r/
+apps/marketing/public/schemas/

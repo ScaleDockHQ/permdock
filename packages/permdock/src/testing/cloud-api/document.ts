@@ -444,6 +444,23 @@ const APPROVALS: Readonly<Record<string, Node>> = {
 };
 
 const RUNTIME: Readonly<Record<string, Node>> = {
+  "/v1/environment": {
+    get: client({
+      summary:
+        "The environment the key belongs to; cloud() calls it when no environment is configured",
+      responses: {
+        "200": json("The key's environment", {
+          type: "object",
+          required: ["environment", "issuer", "jwks_uri"],
+          properties: {
+            environment: { type: "string", minLength: 1 },
+            issuer: { type: "string", format: "uri" },
+            jwks_uri: { type: "string", format: "uri" },
+          },
+        }),
+      },
+    }),
+  },
   [`${ENV}/decisions`]: {
     post: client({
       summary: "sink.write and sink.flush",

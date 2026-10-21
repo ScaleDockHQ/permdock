@@ -73,6 +73,7 @@
             },
             "headers": {
               "type": "object",
+              "description": "Request headers sent to the collector, such as an Authorization header; write-only.",
               "additionalProperties": {
                 "type": "string"
               }
@@ -125,6 +126,13 @@
             "endpoint": {
               "type": "string",
               "pattern": "^https://"
+            },
+            "headers": {
+              "type": "object",
+              "description": "Request headers sent to the collector, such as the Splunk HEC Authorization or Datadog DD-API-KEY; write-only.",
+              "additionalProperties": {
+                "type": "string"
+              }
             }
           }
         }

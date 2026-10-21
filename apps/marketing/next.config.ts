@@ -9,13 +9,28 @@ import { env } from "./env.ts";
 
 export default function nextConfig(phase: string): NextConfig {
   const docsOrigin = env.DOCS_ORIGIN;
+  const base = createNextConfig({
+    nodeEnv: env.NODE_ENV,
+    exposeTestingApi: env.EXPOSE_TESTING_API === "1",
+  });
   return withSentryConfig(
     {
-      ...createNextConfig({
-        nodeEnv: env.NODE_ENV,
-        exposeTestingApi: env.EXPOSE_TESTING_API === "1",
-      }),
+      ...base,
       transpilePackages: ["@permdock/ui"],
+      async headers() {
+        const shared = (await base.headers?.()) ?? [];
+        return [
+          ...shared,
+          {
+            // Validators fetch a `$id` from any origin.
+            source: "/schemas/:name",
+            headers: [
+              { key: "Access-Control-Allow-Origin", value: "*" },
+              { key: "Cache-Control", value: "public, max-age=3600" },
+            ],
+          },
+        ];
+      },
       redirects() {
         return [
           {

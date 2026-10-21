@@ -84,6 +84,7 @@ async function target(): Promise<DeliveryTarget<"email">> {
 
 const options = (fake: ReturnType<typeof fakeCloud>) => ({
   url: CLOUD_URL,
+  environment: "production",
   key: KEY,
   fetch: fake.fetch,
 });

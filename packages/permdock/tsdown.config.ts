@@ -160,6 +160,7 @@ export default defineConfig({
     "src/unplugin/index.ts",
     "src/testing/index.ts",
     "src/testing/core.ts",
+    "src/testing/fixtures/index.ts",
     "src/testing/saas/index.ts",
     "src/testing/saas/permissions.ts",
   ],

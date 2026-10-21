@@ -69,6 +69,28 @@ export type RunTicket = {
   readonly binding?: RunBinding;
 };
 
+/**
+ * Every v1 claim of a `vnd.permdock.run+jwt`, the set `parseRunTicket` keeps.
+ * A signing service passes only these to its signer.
+ */
+export const RUN_TICKET_CLAIMS: readonly (keyof RunTicket)[] = Object.freeze([
+  "v",
+  "iss",
+  "sub",
+  "aud",
+  "jti",
+  "iat",
+  "exp",
+  "kind",
+  "act",
+  "scope",
+  "authorization_details",
+  "automation",
+  "tenant",
+  "trigger",
+  "binding",
+]);
+
 export type RunTicketInput = {
   /** The principal the run acts for (`sub`). */
   readonly principal: string;

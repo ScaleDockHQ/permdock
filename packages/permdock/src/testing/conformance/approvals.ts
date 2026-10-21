@@ -50,11 +50,20 @@ const admin = {
 
 export type ApprovalStoreOptions = {
   /**
-   * Opens a second store over the same backing storage, as a restarted process
-   * would. Omit it for stores that do not persist (the resume-after-restart
-   * case is then skipped).
+   * Opens a second client over the same backing storage, as a restarted
+   * process would: for a hosted store, `() => cloud(...).approvals`. Omit it
+   * for stores that do not persist (the resume-after-restart case is then
+   * skipped).
    */
   readonly reopen?: () => ApprovalStore | Promise<ApprovalStore>;
+  readonly capabilities?: {
+    /**
+     * Marks the record for `token` expired, or moves its `expiresAt` into the
+     * past, in the backing storage. Without it the replace-on-expiry case is
+     * skipped.
+     */
+    readonly expire?: (token: string) => Promise<void> | void;
+  };
 };
 
 function tenantApproval(token: string, tenant: string): ApprovalRequest {
@@ -131,6 +140,19 @@ export function testApprovalStore(
       expect((await reopened.get("restart-token"))?.status).toBe("approved");
       expect(await reopened.consume("restart-token")).not.toBeNull();
       expect(await store.consume("restart-token")).toBeNull();
+    },
+  );
+
+  it.skipIf(options.capabilities?.expire === undefined)(
+    "replaces an expired request on a new ask",
+    async () => {
+      await store.create(sampleApproval("renew-token"));
+      await options.capabilities!.expire!("renew-token");
+      const renewed = { ...sampleApproval("renew-token"), id: "apr_renewed" };
+      await store.create(renewed);
+      const loaded = await store.get("renew-token");
+      expect(loaded?.id).toBe("apr_renewed");
+      expect(loaded?.status).toBe("pending");
     },
   );
 

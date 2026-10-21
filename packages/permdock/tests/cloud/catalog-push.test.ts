@@ -34,6 +34,7 @@ describe("cloud().catalog.push", () => {
     const posted: unknown[] = [];
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: async (input, init) => {
         const request = new Request(input, init);
@@ -77,6 +78,7 @@ describe("cloud().catalog.push", () => {
   it("returns unchanged for a fingerprint already published", async () => {
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: () =>
         Promise.resolve(
@@ -99,6 +101,7 @@ describe("cloud().catalog.push", () => {
   ])("throws on an unknown answer %j", async (body) => {
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: () => Promise.resolve(Response.json(body)),
     });
@@ -110,6 +113,7 @@ describe("cloud().catalog.push", () => {
   it("throws when the Cloud rejects the catalog", async () => {
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: () => Promise.resolve(new Response(null, { status: 422 })),
     });

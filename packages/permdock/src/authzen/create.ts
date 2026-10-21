@@ -1,33 +1,33 @@
 import type { Decision } from "../core/decision.ts";
-import type { DecideOptions, PermDock } from "../core/permdock.ts";
+import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type {
+  AuthzenRequestKind,
+  AuthzenRequestOf,
+  ParseAuthzenRequestResult,
+} from "./parse.ts";
+import type { AuthzenSubjectRecord } from "./types.ts";
 import type { AuthzenFactory } from "./types.ts";
 
 import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { ownGet } from "../core/paths.ts";
-import { getResource, listPermissions } from "../core/permission-registry.ts";
+import { getResource } from "../core/permission-registry.ts";
 import { statusProblem } from "../core/problem-types.ts";
 import { resourceRef } from "../core/resource-ref.ts";
-import { readBodyText } from "../server/body-text.ts";
-import { bodyTooLarge } from "../server/body.ts";
 import { permissionLookup } from "../server/evaluation-items.ts";
 import {
   applyApprovalResume,
   authzenMetadata,
   evaluateBatch,
-  evaluationsSemantic,
-  unknownSemanticProblem,
   withRequestId,
 } from "../server/evaluations.ts";
 import { hasCredentials } from "../server/http.ts";
 import {
   DEFAULT_MAX_EVALUATIONS,
-  batchTooLarge,
   methodNotAllowed,
   problemResponse,
   unauthenticatedProblem,
-  validationProblem,
 } from "../server/problem.ts";
 import {
   type AuthzenItem,
@@ -37,9 +37,6 @@ import {
   delegationOf,
   endsWithPath,
   evaluationRow,
-  mergeEvaluationItem,
-  pageOf,
-  paged,
   pathnameOf,
   permissionOf,
   resourceData,
@@ -47,77 +44,18 @@ import {
   tenantOf,
   userFromEntity,
 } from "./map.ts";
+import { authzenPage, emptyAuthzenPage } from "./page.ts";
+import { readAuthzenRequest } from "./parse.ts";
+import {
+  decideAuthzen,
+  grantedActions,
+  grantedSubjects,
+  permissionsOfType,
+} from "./search.ts";
 
 function notFound(detail: string): Response {
   return problemResponse(statusProblem(404, detail));
 }
-
-async function readJson(request: Request): Promise<unknown> {
-  const type = request.headers
-    .get("content-type")
-    ?.split(";", 1)[0]
-    ?.trim()
-    .toLowerCase();
-  if (type !== "application/json") {
-    return validationProblem(
-      "AuthZEN requests must use Content-Type: application/json",
-    );
-  }
-  const read = await readBodyText(request);
-  if (!read.ok) {
-    return read.cause === "too-large"
-      ? bodyTooLarge()
-      : validationProblem("AuthZEN body was not valid JSON");
-  }
-  try {
-    const body: unknown = JSON.parse(read.text);
-    return body;
-  } catch {
-    return validationProblem("AuthZEN body was not valid JSON");
-  }
-}
-
-type Required = {
-  readonly subject?: "type" | "type-id";
-  readonly action?: true;
-  readonly resource?: "type" | "type-id";
-};
-
-/**
- * The 400 for a request missing a required entity or one of its required
- * fields (AuthZEN 1.0 sections 5, 6.1 and 10.1.1), or `undefined`.
- */
-function missingProblem(
-  body: Readonly<Record<string, unknown>>,
-  required: Required,
-): Response | undefined {
-  for (const name of ["subject", "resource"] as const) {
-    const needs = required[name];
-    if (needs === undefined) {
-      continue;
-    }
-    const entity = body[name];
-    if (!isRecord(entity) || typeof entity["type"] !== "string") {
-      return validationProblem(`${name}.type is required`);
-    }
-    if (needs === "type-id" && typeof entity["id"] !== "string") {
-      return validationProblem(`${name}.id is required`);
-    }
-  }
-  if (required.action === true) {
-    const action = body["action"];
-    if (!isRecord(action) || typeof action["name"] !== "string") {
-      return validationProblem("action.name is required");
-    }
-  }
-  return undefined;
-}
-
-const EVALUATION: Required = {
-  subject: "type-id",
-  action: true,
-  resource: "type-id",
-};
 
 const WELL_KNOWN = "/.well-known/authzen-configuration";
 
@@ -216,26 +154,8 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     }
     const { data, trusted } = resolved;
     const permdock = await instantiate(pep, item);
-    // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
-    const decide = permdock.decide as (
-      next: Permission,
-      row?: unknown,
-      options?: DecideOptions,
-    ) => Decision;
-    const decision = decide(
-      permission,
-      data,
-      trusted
-        ? { call: "endpoint", adapter: "authzen", trusted: true }
-        : {
-            call: "endpoint",
-            adapter: "authzen",
-            trusted: false,
-            boundary: "decision-endpoint",
-          },
-    );
     return applyApprovalResume(
-      decision,
+      decideAuthzen(permdock, permission, data, trusted),
       permission,
       permdock,
       options.store,
@@ -257,90 +177,61 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     );
   }
 
+  function read<K extends AuthzenRequestKind>(
+    kind: K,
+    request: Request,
+  ): Promise<ParseAuthzenRequestResult<AuthzenRequestOf<K>>> {
+    return readAuthzenRequest(kind, request, { maxEvaluations });
+  }
+
   async function evaluation(request: Request, pep: unknown): Promise<Response> {
-    const body = await readJson(request);
-    if (body instanceof Response) {
-      return body;
+    const parsed = await read("evaluation", request);
+    if (!parsed.ok) {
+      return problemResponse(parsed.problem);
     }
-    if (!isRecord(body)) {
-      return validationProblem("evaluation body must be an object");
-    }
-    const missing = missingProblem(body, EVALUATION);
-    if (missing !== undefined) {
-      return missing;
-    }
-    return Response.json(await rowOf(request, pep, body));
+    return Response.json(await rowOf(request, pep, parsed.request.item));
   }
 
   async function evaluations(
     request: Request,
     pep: unknown,
   ): Promise<Response> {
-    const body = await readJson(request);
-    if (body instanceof Response) {
-      return body;
+    const parsed = await read("evaluations", request);
+    if (!parsed.ok) {
+      return problemResponse(parsed.problem);
     }
-    if (!isRecord(body)) {
-      return validationProblem("evaluations body must be an object");
+    const body = parsed.request;
+    switch (body.kind) {
+      case "evaluation":
+        return Response.json(await rowOf(request, pep, body.item));
+      case "evaluations":
+        return Response.json({
+          evaluations: await evaluateBatch(body.items, body.semantic, (item) =>
+            rowOf(request, pep, item),
+          ),
+        });
+      default: {
+        const unreachable: never = body;
+        return unreachable;
+      }
     }
-    const items = body["evaluations"] ?? [];
-    if (!Array.isArray(items)) {
-      return validationProblem("evaluations must be an array");
-    }
-    if (items.length === 0) {
-      return (
-        missingProblem(body, EVALUATION) ??
-        Response.json(await rowOf(request, pep, body))
-      );
-    }
-    if (items.length > maxEvaluations) {
-      return batchTooLarge(maxEvaluations);
-    }
-    const semantic = evaluationsSemantic(body);
-    if (semantic === undefined) {
-      return unknownSemanticProblem();
-    }
-    const shared = compact<AuthzenItem>({
-      subject: isRecord(body["subject"]) ? body["subject"] : undefined,
-      action: isRecord(body["action"]) ? body["action"] : undefined,
-      resource: isRecord(body["resource"]) ? body["resource"] : undefined,
-      context: body["context"],
-    });
-    return Response.json({
-      evaluations: await evaluateBatch(items, semantic, (item) =>
-        rowOf(request, pep, mergeEvaluationItem(shared, item)),
-      ),
-    });
   }
 
   async function searchAction(
     request: Request,
     pep: unknown,
   ): Promise<Response> {
-    const body = await readJson(request);
-    if (body instanceof Response) {
-      return body;
+    const parsed = await read("search/action", request);
+    if (!parsed.ok) {
+      return problemResponse(parsed.problem);
     }
-    if (!isRecord(body)) {
-      return validationProblem("search/action body must be an object");
-    }
-    const missingAction = missingProblem(body, {
-      subject: "type-id",
-      resource: "type-id",
-    });
-    if (missingAction !== undefined) {
-      return missingAction;
-    }
-    const item: AuthzenItem = body;
+    const { item, page } = parsed.request;
     const type =
-      typeof item.resource?.type === "string" ? item.resource.type : undefined;
-    const leaves = listPermissions(policy.permissions).filter(
-      (leaf) => type === undefined || leaf.resource === type,
-    );
-    const decisions = await Promise.all(
-      leaves.map(async (leaf) => ({
-        leaf,
-        decision: await decideItem(
+      typeof item.resource?.type === "string" ? item.resource.type : "";
+    const actions = await grantedActions(
+      permissionsOfType(policy.permissions, type),
+      (leaf) =>
+        decideItem(
           request,
           pep,
           compact<AuthzenItem>({
@@ -350,22 +241,8 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
             action: { name: leaf.key },
           }),
         ),
-      })),
     );
-    const names: string[] = [];
-    for (const { leaf, decision } of decisions) {
-      if (decision.outcome === "granted" && !names.includes(leaf.action)) {
-        names.push(leaf.action);
-      }
-    }
-    const { offset, size } = pageOf(body);
-    return Response.json(
-      paged(
-        names.map((name) => ({ name })),
-        offset,
-        size,
-      ),
-    );
+    return Response.json(authzenPage(actions, page));
   }
 
   async function listRows(
@@ -387,27 +264,16 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     request: Request,
     pep: unknown,
   ): Promise<Response> {
-    const body = await readJson(request);
-    if (body instanceof Response) {
-      return body;
+    const parsed = await read("search/resource", request);
+    if (!parsed.ok) {
+      return problemResponse(parsed.problem);
     }
-    if (!isRecord(body)) {
-      return validationProblem("search/resource body must be an object");
-    }
-    const missingResource = missingProblem(body, {
-      subject: "type-id",
-      action: true,
-      resource: "type",
-    });
-    if (missingResource !== undefined) {
-      return missingResource;
-    }
-    const item: AuthzenItem = body;
+    const { item, page } = parsed.request;
     const type =
       typeof item.resource?.type === "string" ? item.resource.type : undefined;
     const permission = permissionOf(lookup, item);
     if (type === undefined || permission === undefined) {
-      return Response.json(paged([], 0, 1));
+      return Response.json(emptyAuthzenPage());
     }
     const rows = await listRows(
       type,
@@ -437,74 +303,51 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
         ? [{ type, id: String(id) }]
         : [];
     });
-    const { offset, size } = pageOf(body);
-    return Response.json(paged(entities, offset, size));
+    return Response.json(authzenPage(entities, page));
   }
 
   async function searchSubject(
     request: Request,
     pep: unknown,
   ): Promise<Response> {
-    if (options.subjects?.list === undefined) {
+    const lister = options.subjects;
+    if (lister?.list === undefined) {
       return notFound("search/subject is not configured");
     }
-    const body = await readJson(request);
-    if (body instanceof Response) {
-      return body;
+    const parsed = await read("search/subject", request);
+    if (!parsed.ok) {
+      return problemResponse(parsed.problem);
     }
-    if (!isRecord(body)) {
-      return validationProblem("search/subject body must be an object");
-    }
-    const missingSubject = missingProblem(body, {
-      subject: "type",
-      action: true,
-      resource: "type-id",
-    });
-    if (missingSubject !== undefined) {
-      return missingSubject;
-    }
-    let records: readonly {
-      readonly id: string;
-      readonly [key: string]: unknown;
-    }[];
+    const { item, page } = parsed.request;
+    let records: readonly AuthzenSubjectRecord[];
     try {
-      records = await options.subjects.list();
+      records = await lister.list(
+        compact({
+          type: typeof item.subject?.type === "string" ? item.subject.type : "",
+          action: item.action ?? {},
+          resource: item.resource ?? {},
+          context: item.context,
+        }),
+      );
     } catch {
-      return Response.json(paged([], 0, 1));
+      return Response.json(emptyAuthzenPage());
     }
-    const item: AuthzenItem = body;
-    const wanted = item.subject?.type;
-    if (typeof wanted === "string" && wanted !== "user") {
-      return Response.json(paged([], 0, 1));
-    }
-    const decisions = await Promise.all(
-      records.map(async (record) => {
-        const properties: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(record)) {
-          if (key !== "id") {
-            properties[key] = value;
-          }
-        }
-        return {
-          id: record.id,
-          decision: await decideItem(
-            request,
-            pep,
-            compact<AuthzenItem>({
-              action: item.action,
-              resource: item.resource,
-              context: item.context,
-              subject: { type: "user", id: record.id, properties },
-            }),
-          ),
-        };
-      }),
+    const matches = await grantedSubjects(
+      item.subject?.type,
+      records,
+      (subject) =>
+        decideItem(
+          request,
+          pep,
+          compact<AuthzenItem>({
+            action: item.action,
+            resource: item.resource,
+            context: item.context,
+            subject,
+          }),
+        ),
     );
-    const matches = decisions.flatMap(({ id, decision }) =>
-      decision.outcome === "granted" ? [{ type: "user", id }] : [],
-    );
-    const { offset, size } = pageOf(body);
-    return Response.json(paged(matches, offset, size));
+    return Response.json(authzenPage(matches, page));
   }
 
   function discovery(request: Request, pathname: string): Response {

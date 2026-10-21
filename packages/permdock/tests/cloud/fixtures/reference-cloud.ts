@@ -16,7 +16,9 @@ import { signPolicyDocument } from "../../../src/core/policy-sign.ts";
 import { CLOUDEVENTS_BATCH_CONTENT_TYPE } from "../../../src/core/sink.ts";
 import { signSnapshot } from "../../../src/core/snapshot-sign.ts";
 import { joseTokenSigner } from "../../../src/jwt/signer.ts";
+import { verifySubjectToken } from "../../../src/jwt/subject-token.ts";
 import { joseTokenVerifier } from "../../../src/jwt/verifier.ts";
+import { memoryReplayStore } from "../../../src/ssf/replay.ts";
 import { snapshotFixture } from "../../../src/testing/snapshot-fixture.ts";
 import {
   type PushedEntry,
@@ -178,6 +180,10 @@ export async function referenceCloud(
   const store = memoryApprovalStore();
   const versions = new Map<string, number>();
   const seen = new Set<string>();
+  const subjectReplay =
+    mutation === "replay-subject"
+      ? { seen: () => false, remember: () => undefined }
+      : memoryReplayStore();
   const deliveries = new Map<string, string>();
   const catalogs: (PushedEntry & { readonly catalog: CatalogDocument })[] = [];
   const grants = new Map<string, HostedGrant>();
@@ -308,17 +314,17 @@ export async function referenceCloud(
     const verified =
       header === null
         ? null
-        : await trusted.verify(header, { typ: "at+jwt", audience: ISSUER });
-    if (
-      verified === null ||
-      !verified.ok ||
-      Number(verified.claims.exp) - Number(verified.claims.iat) > SUBJECT_TTL ||
-      (mutation === "replay-subject" ? false : !fresh(verified.claims["jti"]))
-    ) {
+        : await verifySubjectToken(header, {
+            verifiers: [trusted],
+            audience: ISSUER,
+            replay: subjectReplay,
+            maxLifetime: SUBJECT_TTL,
+          });
+    if (verified === null || !verified.ok) {
       return fail(401, "No valid subject token");
     }
     const value = await snapshotFixture(policy, {
-      principal: { id: String(verified.claims.sub), roles: ["member"] },
+      principal: { id: verified.claims.sub, roles: ["member"] },
       context: {},
     });
     const signed = await signSnapshot(value, envSigner, { audience: ISSUER });
@@ -565,6 +571,16 @@ export async function referenceCloud(
     const { pathname } = new URL(request.url);
     if (platform.handles(pathname)) {
       return platform.handle(request);
+    }
+    if (pathname === "/v1/environment" && request.method === "GET") {
+      if (request.headers.get("authorization") !== `Bearer ${KEYS.client}`) {
+        return fail(401, "Missing or unknown key");
+      }
+      return Response.json({
+        environment: ENVIRONMENT,
+        issuer: ISSUER,
+        jwks_uri: `${ISSUER}/.well-known/jwks.json`,
+      });
     }
     if (!pathname.startsWith(ISSUER.slice(URL_BASE.length))) {
       return fail(404, "Unknown environment");

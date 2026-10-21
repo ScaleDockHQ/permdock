@@ -73,6 +73,7 @@ describe("cloudSigner", () => {
     const fake = fakeCloud();
     const signer = cloudSigner({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       audience: AUDIENCE,
       fetch: fake.fetch,
@@ -106,7 +107,12 @@ describe("cloudSigner", () => {
 
   it("refuses the Cloud's own token types and a missing audience without calling the Cloud", async () => {
     const fake = fakeCloud();
-    const signer = cloudSigner({ url: CLOUD_URL, key: KEY, fetch: fake.fetch });
+    const signer = cloudSigner({
+      url: CLOUD_URL,
+      environment: "production",
+      key: KEY,
+      fetch: fake.fetch,
+    });
     for (const typ of [
       "vnd.permdock.policy+jwt",
       "vnd.permdock.snapshot+jwt",
@@ -125,6 +131,7 @@ describe("cloudSigner", () => {
   it("throws when the Cloud refuses or returns a token of another type", async () => {
     const refused = cloudSigner({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       audience: AUDIENCE,
       fetch: fakeCloud({ status: 403 }).fetch,
@@ -140,6 +147,7 @@ describe("cloudSigner", () => {
     for (const token of [evidence, "not-a-jws"]) {
       const wrong = cloudSigner({
         url: CLOUD_URL,
+        environment: "production",
         key: KEY,
         audience: AUDIENCE,
         fetch: fakeCloud({ token }).fetch,
@@ -153,6 +161,7 @@ describe("cloudSigner", () => {
   it("returns no keys when the key set is unreachable", async () => {
     const signer = cloudSigner({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: () => Promise.reject(new TypeError("fetch failed")),
     });

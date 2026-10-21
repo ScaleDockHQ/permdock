@@ -139,7 +139,7 @@ Three consequences:
 
 ### Run tickets
 
-A run ticket is a signed `vnd.permdock.run+jwt` that lets background work act for a principal inside a ceiling: a saved automation, a queued job, or a caller's request handed to a worker. `signRunTicket(input, signer, options?)` signs one; `subjectFromRunTicket(token, options)` turns it back into a `Subject`; `parseRunTicket(claims)` validates claims and returns a frozen `RunTicket` or `undefined`.
+A run ticket is a signed `vnd.permdock.run+jwt` that lets background work act for a principal inside a ceiling: a saved automation, a queued job, or a caller's request handed to a worker. `signRunTicket(input, signer, options?)` signs one; `subjectFromRunTicket(token, options)` turns it back into a `Subject`; `parseRunTicket(claims)` validates claims and returns a frozen `RunTicket` or `undefined`. `RUN_TICKET_CLAIMS` lists the claim names `parseRunTicket` keeps, the properties of `run-v1.json`; a signing service that re-signs a parsed ticket passes only these to its signer.
 
 ```ts
 import { signRunTicket, subjectFromRunTicket } from "permdock/server";

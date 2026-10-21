@@ -106,9 +106,13 @@ Posture: name. NIST SP 800-63B-4 (final, August 2025) defines three authenticato
 
 `permdock/ssf` accepts a `logout_token` next to Shared Signals SETs: same `TokenVerifier`, `typ: logout+jwt` required, `events` must contain the back-channel logout member, `nonce` must be absent (Back-Channel Logout section 2.6), `sub` or `sid` must be present. A matching snapshot (by `principal.id` plus `issuer`, or by `session`) is invalidated exactly as for CAEP `session-revoked` ([Shared Signals](/docs/standards/shared-signals-caep)). This is a receiver for a token the OP already sends; PermDock does not implement the RP's logout endpoint routing.
 
+### ID token validation for a relying party
+
+An RP that receives an ID token after the code exchange, such as an identity gateway federating an upstream OP, checks it with `verifyIdToken(token, { issuer, clientId, nonce, verifier })` from `permdock/jwt`. It applies Core section 3.1.3.7: the signature, `iss` equal to `issuer`, `aud` containing `clientId`, `azp` equal to `clientId` when present and required with several audiences, `exp`, `iat`, `typ` `JWT` or absent, a non-empty `sub`, and `nonce` equal to the one the RP sent. It answers `{ ok: true, claims, header }` or `{ ok: false, cause }`, where a wrong `nonce` is `nonce-mismatch` ([JWT adapter](/docs/adapters/jwt#subject-and-id-tokens)). It does not check `at_hash`, `c_hash`, `auth_time` against `max_age`, or `acr`.
+
 ### What PermDock does not do
 
-It does not run the authorization code flow, exchange codes, refresh tokens, verify `nonce` on the RP's behalf, manage the RP session, or implement Federation trust-chain resolution; Federation stays a deployment concern, including for `permdock/pdp`. `discovery` takes one issuer: a deployment that trusts several issuers builds one resolver per issuer. Those are the provider SDK's or the OAuth client library's job; PermDock consumes their result. It does not support the Implicit Flow's `id_token` in a fragment as authorization material.
+It does not run the authorization code flow, exchange codes, refresh tokens, manage the RP session, or implement Federation trust-chain resolution; Federation stays a deployment concern, including for `permdock/pdp`. `discovery` takes one issuer: a deployment that trusts several issuers builds one resolver per issuer. Those are the provider SDK's or the OAuth client library's job; PermDock consumes their result. It does not support the Implicit Flow's `id_token` in a fragment as authorization material.
 
 ## Mapping table
 

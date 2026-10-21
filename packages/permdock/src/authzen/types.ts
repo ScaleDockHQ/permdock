@@ -2,6 +2,7 @@ import type { ApprovalStore } from "../approvals/types.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
+import type { AuthzenSubjectLister } from "./search.ts";
 
 export type AuthzenResourceAdapter = {
   readonly data?: (id: string) => unknown;
@@ -25,11 +26,8 @@ export type AuthzenPermDockOptions<TUser = unknown> = InstanceOptions & {
    */
   readonly trustedPep?: (pep: unknown) => boolean;
   readonly resources?: Readonly<Record<string, AuthzenResourceAdapter>>;
-  readonly subjects?: {
-    readonly list?: () =>
-      | readonly AuthzenSubjectRecord[]
-      | Promise<readonly AuthzenSubjectRecord[]>;
-  };
+  /** Enables `search/subject`; discovery advertises it only when set. */
+  readonly subjects?: AuthzenSubjectLister;
   readonly store?: ApprovalStore;
   readonly maxEvaluations?: number;
 };

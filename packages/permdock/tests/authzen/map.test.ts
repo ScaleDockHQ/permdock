@@ -8,14 +8,17 @@ import {
   delegationOf,
   evaluationRow,
   mergeEvaluationItem,
-  pageOf,
-  paged,
   permissionOf,
   resourceData,
   resourceIdOf,
   tenantOf,
   userFromEntity,
 } from "../../src/authzen/map.ts";
+import {
+  authzenPage,
+  emptyAuthzenPage,
+  readAuthzenPage,
+} from "../../src/authzen/page.ts";
 import { permissionLookup } from "../../src/server/evaluation-items.ts";
 import { permissions } from "../fixtures/quick-start.ts";
 
@@ -275,18 +278,26 @@ describe("mergeEvaluationItem and paging", () => {
     [{ page: { next_token: "3", size: 500 } }, { offset: 3, size: 200 }],
     [{ page: { token: "-2", limit: 0 } }, { offset: 0, size: 50 }],
     [{ page: { token: "abc", limit: "5" } }, { offset: 0, size: 50 }],
-  ])("pageOf(%j)", (body, page) => {
-    expect(pageOf(body)).toEqual(page);
+  ])("readAuthzenPage(%j)", (body, page) => {
+    expect(readAuthzenPage(body)).toEqual(page);
+  });
+
+  it("reads no page from a body that is not an object", () => {
+    expect(readAuthzenPage(null)).toEqual({ offset: 0, size: 50 });
   });
 
   it("pages with a next token until the end", () => {
-    expect(paged([1, 2, 3], 0, 2)).toEqual({
+    expect(authzenPage([1, 2, 3], { offset: 0, size: 2 })).toEqual({
       results: [1, 2],
       page: { next_token: "2", count: 2, total: 3 },
     });
-    expect(paged([1, 2, 3], 2, 2)).toEqual({
+    expect(authzenPage([1, 2, 3], { offset: 2, size: 2 })).toEqual({
       results: [3],
       page: { next_token: "", count: 1, total: 3 },
+    });
+    expect(emptyAuthzenPage()).toEqual({
+      results: [],
+      page: { next_token: "", count: 0, total: 0 },
     });
   });
 });

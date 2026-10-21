@@ -58,8 +58,11 @@ Invalidation is strictly per subject; there is no handler that invalidates every
 - **Pushes.** `pushSet(set, { endpoint, authorization })` is the RFC 8935 transmitter; it returns `{ ok: true }` or a `SetDeliveryFailureCause` mapped from the receiver's `err`, with `retry` set for a network failure or a `5xx`.
 - **Serves polls.** `setPollHandler({ queue, authorize })` is the RFC 8936 poll endpoint over a `SetQueue`; `memorySetQueue()` is the in-process default.
 - **Types the stream.** `SsfTransmitterConfiguration` (`/.well-known/ssf-configuration`), `SsfStreamConfiguration` and `SsfStreamStatus` follow SSF 1.0 sections 7 and 8.
+- **Manages streams.** `ssfTransmitter({ issuer, streams, queue, signer, authorize })` serves the metadata, stream configuration, status and verification endpoints and the per-stream poll endpoint over an `SsfStreamStore`; `memorySsfStreamStore()` is the in-process default.
+- **Fans out.** `fanOutSet(event, { streams, queue, signer })` delivers one event to every stream that requested it, signed once per audience, by push or into the poll queue.
+- **Polls another transmitter.** `pollSets({ endpoint, authorization, acks })` is one RFC 8936 poll request that answers the SETs unverified.
 
-Stream management (create, update, delete, add and remove subjects) is an HTTP API the transmitter hosts; PermDock types its documents and does not ship those routes.
+Adding and removing subjects per stream (SSF 1.0 section 8.1.3) is not supported: `ssfTransmitter` delivers every subject and says `default_subjects: "ALL"`.
 
 Outside Next.js, the `revocations` option carries the signal to clients: the receiver publishes `session-revoked` or `changed` on a `RevocationFeed`, and open connections end or revalidate ([streams](/docs/concepts/streams)). An app without long-lived connections relies on the client's next revalidation.
 
@@ -93,7 +96,7 @@ CAEP does not replace the TTL; it shortens the window. Snapshots still expire so
 | RISC `account-disabled`, `account-purged`, `credential-compromise` | With `revocations` and `approvals` set, revoke every session of the principal and cancel its pending approvals                               |
 | SSF `verification` event                                           | `onEvent.verification({ state, jti, issuer })` and a `verification` audit event                                                              |
 | Subject identifier formats                                         | Adapter option mapping to the application's `principal.id`                                                                                   |
-| Transmitter role                                                   | `signSet`, `pushSet`, `setPollHandler` over a `SetQueue`, with `caepEvents` and `riscEvents`                                                 |
+| Transmitter role                                                   | `ssfTransmitter` and `fanOutSet` over an `SsfStreamStore` and a `SetQueue`; `signSet`, `pushSet` and `setPollHandler` underneath             |
 | Unverifiable SET                                                   | Dropped and logged; no invalidation, no grant change                                                                                         |
 
 ## Sources

@@ -32,7 +32,7 @@ export const push: Leaf = defineLeaf({
     project: {
       type: "string",
       description:
-        "Cloud project id (default PERMDOCK_CLOUD_ENV, then VERCEL_ENV, then production)",
+        "Cloud project id (default PERMDOCK_CLOUD_ENV, then the key's environment)",
       valueHint: "id",
     },
     ...dryRunFlag,

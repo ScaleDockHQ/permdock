@@ -10,29 +10,47 @@ export type SignSnapshotOptions = {
   readonly audience?: string | readonly string[];
 };
 
+/** The claims of a `vnd.permdock.snapshot+jwt` apart from `iss`, `aud` and `jti`. */
+export type SnapshotClaims = {
+  readonly snapshot: Omit<Snapshot, "issuedAt" | "expiresAt">;
+  /** The principal's id; absent for an anonymous snapshot. */
+  readonly sub?: string;
+  /** `issuedAt` in NumericDate seconds; absent when it is not after the epoch. */
+  readonly iat?: number;
+  /** `expiresAt` in NumericDate seconds; absent when the snapshot has none, and the signer then sets its default. */
+  readonly exp?: number;
+};
+
 /**
- * Signs `snapshot` as a `vnd.permdock.snapshot+jwt`. `issuedAt` and
- * `expiresAt` become `iat` and `exp` and leave the `snapshot` claim, so the
- * registered claims are the only times a verifier reads.
+ * The claims `signSnapshot` signs for `snapshot`. `issuedAt` and `expiresAt`
+ * become `iat` and `exp` and leave the `snapshot` claim, so the registered
+ * claims are the only times a verifier reads.
  */
+export function snapshotClaims(snapshot: Snapshot): SnapshotClaims {
+  const { issuedAt, expiresAt, ...claim } = snapshot;
+  const iat = secondsOf(issuedAt);
+  return compact<SnapshotClaims>({
+    snapshot: claim,
+    sub: snapshot.subject.principal?.id,
+    iat: iat === undefined || iat <= 0 ? undefined : iat,
+    exp: secondsOf(expiresAt),
+  });
+}
+
+/** Signs `snapshot` as a `vnd.permdock.snapshot+jwt` with the claims `snapshotClaims` answers. */
 export function signSnapshot(
   snapshot: Snapshot,
   signer: TokenSigner,
   options: SignSnapshotOptions = {},
 ): Promise<string> {
-  const { issuedAt, expiresAt, ...claim } = snapshot;
-  const payload: Record<string, unknown> = { snapshot: claim };
-  if (snapshot.subject.principal !== null) {
-    payload["sub"] = snapshot.subject.principal.id;
-  }
-  const iat = secondsOf(issuedAt);
+  const { iat, exp, ...payload } = snapshotClaims(snapshot);
   return signer.sign(
     payload,
     compact<Parameters<TokenSigner["sign"]>[1]>({
       typ: "vnd.permdock.snapshot+jwt" as const,
       audience: options.audience,
-      issuedAt: iat === undefined || iat <= 0 ? undefined : iat,
-      expiresAt: secondsOf(expiresAt),
+      issuedAt: iat,
+      expiresAt: exp,
     }),
   );
 }

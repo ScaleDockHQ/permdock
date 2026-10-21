@@ -61,11 +61,11 @@ The environment's directory mode decides which rows apply. In Cloud-native mode 
 
 The Vercel connector is already specified on the [Cloud adapter](/docs/adapters/cloud) page ("Vercel Marketplace" and "Hosted Authorization Decision Service"); the Integrations page links those sections rather than duplicating them.
 
-| Connector          | Standard or interface                                          | What it carries                                                                                                                   | Never                                                                                       |
-| ------------------ | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Vercel Marketplace | Marketplace provisioning API (install, resource, SSO, billing) | One PermDock environment per Vercel project and environment; `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` written to the project | Write a `NEXT_PUBLIC_*` variable; share one environment between `preview` and `production`  |
-| Vercel OIDC        | Vercel's OIDC federation token verified against Vercel's JWKS  | ADS caller identity: `sub`, `project_id`, `environment` mapped to a workload principal                                            | Accept a static shared secret in place of the token; accept a token for another environment |
-| Vercel Chat SDK    | Chat SDK `requestApproval` (below, delivery)                   | Approval cards on Slack and Teams with signature-verified responders                                                              | Resolve an approval from a message body                                                     |
+| Connector          | Standard or interface                                          | What it carries                                                                                                                                                                          | Never                                                                                                              |
+| ------------------ | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Vercel Marketplace | Marketplace provisioning API (install, resource, SSO, billing) | One PermDock environment per Vercel project and environment; only `PERMDOCK_CLOUD_URL` and a per-environment `PERMDOCK_CLOUD_KEY` written to the project, the key naming its environment | Write a `NEXT_PUBLIC_*` variable or `PERMDOCK_CLOUD_ENV`; share one environment between `preview` and `production` |
+| Vercel OIDC        | Vercel's OIDC federation token verified against Vercel's JWKS  | ADS caller identity: `sub`, `project_id`, `environment` mapped to a workload principal                                                                                                   | Accept a static shared secret in place of the token; accept a token for another environment                        |
+| Vercel Chat SDK    | Chat SDK `requestApproval` (below, delivery)                   | Approval cards on Slack and Teams with signature-verified responders                                                                                                                     | Resolve an approval from a message body                                                                            |
 
 ## Outbound: observability (OTLP)
 
@@ -80,6 +80,24 @@ Because the attribute names are the same set `permdock/otel` emits from inside y
 | Connector                                                                                                                                                    | Standard or interface                                                                                                                                 | What it carries                                               | Never                                                                                                                                          |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | SIEM or security lake (Splunk HTTP Event Collector, Microsoft Sentinel data collector, AWS Security Lake, Google SecOps, Elastic ingest, Datadog Cloud SIEM) | The OCSF Authorize Session projection `toOcsf(event)` from [wire formats](/docs/concepts/wire-formats), posted over the destination's ingest HTTP API | Every decision and approval event, pinned to one OCSF version | Diverge from the projection a self-hosted `DecisionSink` recipe emits; the Cloud runs the documented projection, it does not own a private one |
+
+The collector credential goes in `config.headers`, never in `endpoint`:
+
+```json
+{
+  "kind": "siem",
+  "name": "Splunk",
+  "config": {
+    "destination": "splunk-hec",
+    "endpoint": "https://hec.example.com/services/collector/event",
+    "headers": {
+      "Authorization": "Splunk 00000000-0000-0000-0000-000000000000"
+    }
+  }
+}
+```
+
+The Cloud seals header values and lists only their names ([wire formats](/docs/concepts/wire-formats) "Connector").
 
 ## Outbound: webhooks
 

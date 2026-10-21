@@ -33,15 +33,16 @@ app.get("/.well-known/authzen-configuration", (c) => pdp(c.req.raw));
 | Endpoint                                 | PermDock call                                                                                                          | Certification level |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------- |
 | `POST /access/v1/evaluation`             | `decide(permission, resource)`                                                                                         | Basic               |
-| `POST /access/v1/evaluations`            | `simulate([[permission, resource], ...])`                                                                              | Batch               |
+| `POST /access/v1/evaluations`            | `evaluateBatch(items, semantic, …)`, one `decide` per item                                                             | Batch               |
 | `POST /access/v1/search/action`          | catalog of permitted actions on a resource for the subject ("what can I do")                                           | Search              |
 | `POST /access/v1/search/resource`        | `filter` / `where` over a resource type, materialised via `resources.<type>.list`; results are `{ type, id }` entities | Search              |
-| `POST /access/v1/search/subject`         | subjects permitted for an action on a resource (requires a subject enumerator)                                         | Search              |
+| `POST /access/v1/search/subject`         | subjects permitted for an action on a resource (requires `subjects`, an `AuthzenSubjectLister`)                        | Search              |
 | `GET /.well-known/authzen-configuration` | PDP metadata: endpoint URLs, supported features                                                                        | Discovery           |
 
 - `permdockHandler()` returns a Fetch handler (`Request` to `Response`), so it mounts on Hono, Next.js route handlers, Node and any [server kernel](/docs/adapters/server-kernel) adapter.
 - The same handler is what PermDock Cloud runs as a hosted Authorization Decision Service: publish the policy, and Kong, Envoy, Tyk, Zuplo or a service in another language calls the hosted `/access/v1/evaluation` with a Vercel OIDC or client-credentials token and gets the same `context` (`outcome`, denial reasons, approval `token`) that the embedded handler produces. Running the handler yourself and using the Cloud are interchangeable; the decision semantics are one code path ([Cloud adapter](/docs/adapters/cloud), [PermDock Cloud](/docs/adapters/cloud)).
-- `resources` tells the handler how to load an instance by id (for `where` conditions on instance actions) and how to enumerate for resource search.
+- `resources` tells the handler how to load an instance by id (`data(id)`, for `where` conditions on instance actions) and how to enumerate for resource search (`list({ where })`).
+- `subjects` is an `AuthzenSubjectLister`, `{ name?, list(query) }`. `list` receives `{ type, action, resource, context? }` and answers candidate records `{ id, ...properties }`; the handler decides each one and keeps the granted ones, so a lister may answer a superset.
 - `subject` authenticates the calling PEP or end user; see "decision endpoint auth" below.
 - `trustedPep(pep)` is the allow-list of authenticated PEPs that may evaluate on behalf of another subject. It is off by default; a missing predicate, `false`, a non-function value or a throw means the request-body subject, actor and delegation are ignored.
 
@@ -70,6 +71,42 @@ const rows = await evaluateBatch(body.evaluations, semantic, (item) =>
 - `mergeEvaluationItem(shared, item)` fills an item's missing `subject`, `action`, `resource` and `context` from the request's top-level fields; a non-object item is the shared fields alone.
 - `AuthzenItem` and `AuthzenEntity` type the unvalidated request; every field is `unknown` until the evaluator checks it.
 
+### Request parsing, paging and search
+
+A hosted PDP answers with the same 400s, pages and search results as `permdockHandler` by calling the functions the handler calls:
+
+```ts
+import {
+  authzenPage,
+  parseAuthzenRequest,
+  readAuthzenRequest,
+  searchActions,
+  searchSubjects,
+} from "permdock/authzen";
+
+const parsed = await readAuthzenRequest("search/action", request);
+if (!parsed.ok) {
+  return Response.json(parsed.problem, {
+    status: parsed.problem.status,
+    headers: { "content-type": "application/problem+json" },
+  });
+}
+const { item, page } = parsed.request;
+const actions = await searchActions(
+  policy,
+  user,
+  { type: "post", id: "p1" },
+  { data: row },
+);
+return Response.json(authzenPage(actions, page));
+```
+
+- `readAuthzenRequest(kind, request, { maxEvaluations? })` checks `Content-Type: application/json`, the 1 MiB body cap (413) and the JSON, then calls `parseAuthzenRequest`.
+- `parseAuthzenRequest(kind, body, { maxEvaluations? })` takes `evaluation`, `evaluations`, `search/subject`, `search/resource` or `search/action` and answers `{ ok: true, request }` or `{ ok: false, problem }`, the Problem Details the handler sends. The checks and their `detail`s are listed under "What it validates" below, in order. An `evaluations` body with no items parses as `kind: "evaluation"`; with items, each item already carries the shared top-level fields, and an over-size batch is a 413 (`maxEvaluations` defaults to 256).
+- `readAuthzenPage(body)` reads `page.token`, else `page.next_token`, as a decimal offset (anything else is 0) and `page.limit`, else `page.size`, capped at `AUTHZEN_MAX_PAGE` (200) and 50 by default. `authzenPage(items, page)` answers `{ results, page: { next_token, count, total } }`, with an empty `next_token` on the last page.
+- `searchActions(policy, user, resource, options?)` decides every permission of `resource.type` in the policy for `user` and answers the distinct granted actions, `{ name }[]`, in catalog order. `options.data` is the row the server loaded, trusted; without it `resource.properties` (or `{ id }`) is boundary-validated. `tenant`, `actor`, `delegation` and the `InstanceOptions` set the instance.
+- `searchSubjects(policy, lister, request, options?)` asks an `AuthzenSubjectLister` for candidates, decides each as the user it names and answers the granted ones as `{ type: "user", id }[]`. An unknown action, a subject type other than `user` or a lister that throws answers none. A hosted PDP lists directory principals this way, as `resources.<type>.list` lists rows.
+
 ## Request lifecycle
 
 1. The handler authenticates the request via `subject`. Unauthenticated requests get `401`; there is no anonymous evaluation unless the policy declares anonymous grants and the deployment opts in.
@@ -80,16 +117,31 @@ const rows = await evaluateBatch(body.evaluations, semantic, (item) =>
 | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `subject.type`, `subject.id`, `subject.properties`    | principal, only for a PEP that `trustedPep` accepts; `properties.actor` and `properties.delegation` (a `scope` string and `authorization_details`, or the same under `context.delegation`) fill the agent half of the subject under the same rule. Otherwise the authenticated caller from `subject` is the subject and the body's `subject` is ignored |
 | `action.name`                                         | joined with `resource.type` to look up `findPermission(permissions, 'post.update')`; `action.properties.scope` accepted as an alternative                                                                                                                                                                                                               |
-| `resource.type`, `resource.id`, `resource.properties` | the resource instance: `properties` used directly when complete, otherwise loaded via `resources.<type>.load`; `id: "*"` names the collection, a check with no row, as for `create`                                                                                                                                                                     |
+| `resource.type`, `resource.id`, `resource.properties` | the resource instance: `properties` used directly when present, otherwise loaded via `resources.<type>.data(id)`; `id: "*"` names the collection, a check with no row, as for `create`                                                                                                                                                                  |
 | `context`                                             | `context.<key>` values available to conditions                                                                                                                                                                                                                                                                                                          |
 
-4. The decision runs; `evaluations` uses `simulate` so a plan is evaluated as one boxcar with shared subject resolution.
+4. The decision runs: one `decide` per evaluation, and for `evaluations` one per item through `evaluateBatch` under the request's `evaluations_semantic`.
 5. The response is built: `decision: true|false` plus a `context` object whose `permdock` member carries `outcome`, `denials` (role and reason only) and `token` for `approval-required`. A denied or `approval-required` result adds `reason_admin` and `reason_user` (AuthZEN 1.0 section 7.2.1, in `en`); `reason_user` names only the permission. Matched grants, conditions and `alternatives` are never included.
 6. `on('decision')` fires once per evaluation with the AuthZEN request id for correlation.
 
 ## What it validates
 
-- Request bodies against the AuthZEN schemas; malformed requests get `400` with Problem Details. A request without `Content-Type: application/json` gets `400` (section 10.1). So does a missing required entity or field (section 10.1.1): `subject.type`, `subject.id`, `action.name`, `resource.type` and `resource.id` on an evaluation; `subject` and `resource` with both fields on an action search; `subject`, `action` and `resource.type` on a resource search; and `subject.type`, `action` and `resource` on a subject search. The body `subject` is still only trusted from a trusted PEP; it is required because the specification requires it.
+- Request bodies, in this order, each failure a `400` with Problem Details (`parseAuthzenRequest` answers the same):
+  1. `Content-Type: application/json` (section 10.1): `AuthZEN requests must use Content-Type: application/json`. A body over 1 MiB is a `413`.
+  2. Valid JSON: `AuthZEN body was not valid JSON`.
+  3. An object: `<kind> body must be an object`, such as `evaluation body must be an object`.
+  4. The required entities and fields (section 10.1.1), checked `subject`, then `resource`, then `action`: `subject.type is required`, `subject.id is required`, `resource.type is required`, `resource.id is required`, `action.name is required`. An `id` must be a string.
+  5. For `evaluations`: `evaluations must be an array`, then the batch size (`413`), then `options.evaluations_semantic must be one of execute_all, deny_on_first_deny, permit_on_first_permit`.
+
+  | Route             | `subject` | `resource` | `action.name` |
+  | ----------------- | --------- | ---------- | ------------- |
+  | `evaluation`      | type, id  | type, id   | required      |
+  | `search/action`   | type, id  | type, id   | not read      |
+  | `search/resource` | type, id  | type       | required      |
+  | `search/subject`  | type      | type, id   | required      |
+
+  An `evaluations` body with no items needs the `evaluation` fields at the top level; batch items are not checked one by one, and an item with no action fails closed as `unknown-permission`. The body `subject` is still only trusted from a trusted PEP; it is required because the specification requires it.
+
 - `resource.properties` against the resource's Standard Schema when they are used as the instance (boundary validation): a PEP is a trust boundary. When the handler loads the row itself, no validation runs.
 - Unknown `resource.type` or `action.name`: `decision: false` with a `context.permdock.reason` of `unknown-permission`; never an exception.
 - Decision-endpoint authentication must be real authentication (bearer tokens, mTLS, session), not a shared static secret; Kilpi's public-secret obfuscation is an explicit anti-pattern ([threat model](/docs/security/threat-model)). In-app, `subject` reads the application's session or a `subjectFromJwt` result; on the hosted ADS, callers present a Vercel OIDC token or an OAuth client-credentials token verified with `permdock/jwt`.

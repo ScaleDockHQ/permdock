@@ -212,6 +212,7 @@ describe("cloud", () => {
   it("returns a frozen client with approvals, sink and snapshotsFor", () => {
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: fakeCloud().fetch,
     });
@@ -259,6 +260,7 @@ describe("cloud", () => {
   it("returns null from get when the API is unreachable", async () => {
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: async () => {
         throw new Error("offline");
@@ -272,6 +274,7 @@ describe("cloud", () => {
   it("swallows sink delivery failures", async () => {
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       flushAt: 1,
       fetch: async () => {
@@ -305,6 +308,7 @@ describe("cloud", () => {
     const delivered: SinkEvent[][] = [];
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       flushAt: 1,
       capacity: 3,
@@ -345,6 +349,7 @@ describe("cloud", () => {
     const backend = fakeCloud();
     const client = cloud({
       url: `${CLOUD_URL}/`,
+      environment: "production",
       key: KEY,
       flushAt: 1,
       fetch: backend.fetch,
@@ -369,6 +374,7 @@ describe("cloud", () => {
     const jws = "aaa.bbb.ccc";
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: fakeCloud({ snapshot: jws }).fetch,
     });
@@ -380,6 +386,7 @@ describe("cloud", () => {
     const scheduled: Promise<void>[] = [];
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       flushAt: 8,
       waitUntil: (task) => {
@@ -407,6 +414,7 @@ describe("cloud", () => {
   it("creates, lists, resolves and expires approvals over HTTP", async () => {
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       approver,
       fetch: fakeCloud().fetch,
@@ -481,6 +489,7 @@ describe("cloud", () => {
   it("filters by session and cancels pending approvals over HTTP", async () => {
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: fakeCloud().fetch,
     });
@@ -514,6 +523,7 @@ describe("cloud", () => {
   it("throws when the Cloud rejects a cancel", async () => {
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: () => Promise.resolve(new Response(null, { status: 500 })),
     });
@@ -525,6 +535,7 @@ describe("cloud", () => {
   it("resumes an approval once through the Cloud store", async () => {
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       approver,
       fetch: fakeCloud().fetch,
@@ -624,6 +635,7 @@ describe("cloud", () => {
     });
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: fetchImpl,
       verifier,
@@ -655,6 +667,7 @@ describe("cloud", () => {
     let calls = 0;
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       fetch: () => {
         calls += 1;
@@ -670,6 +683,7 @@ describe("cloud", () => {
 describe("cloud conformance", () => {
   const client = cloud({
     url: CLOUD_URL,
+    environment: "production",
     key: KEY,
     approver,
     flushAt: 1,
@@ -724,6 +738,7 @@ describe("cloud approval refusals", () => {
   ])("maps %s", async (_name, response, code, message) => {
     const client = cloud({
       url: CLOUD_URL,
+      environment: "production",
       key: KEY,
       approver,
       fetch: () => Promise.resolve(response),
