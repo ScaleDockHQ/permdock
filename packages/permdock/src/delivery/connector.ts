@@ -29,7 +29,7 @@ export type SiemDestination =
   | "datadog";
 
 /** A connector body in wire format v1 (`schemas/connector-v1.json`), one member per kind. */
-export type ConnectorV1 =
+export type Connector =
   | ConnectorBase<
       "webhook",
       { readonly url: Https; readonly types?: readonly string[] }
@@ -97,7 +97,7 @@ export type ConnectorV1 =
       }
     >;
 
-export type ConnectorKind = ConnectorV1["kind"];
+export type ConnectorKind = Connector["kind"];
 
 /** One problem with a connector body; `path` is an RFC 6901 JSON pointer into it. */
 export type ConnectorIssue = {
@@ -106,7 +106,7 @@ export type ConnectorIssue = {
 };
 
 export type ParseConnectorResult =
-  | { readonly ok: true; readonly connector: ConnectorV1 }
+  | { readonly ok: true; readonly connector: Connector }
   | { readonly ok: false; readonly issues: readonly ConnectorIssue[] };
 
 const BRANCHES: ReadonlyMap<unknown, JsonSchemaNode> = new Map(
@@ -176,5 +176,5 @@ export function parseConnector(input: unknown): ParseConnectorResult {
     return fail(issues);
   }
   // SAFETY: `value` is a JSON copy that passed the connector-v1 branch for its kind.
-  return { ok: true, connector: freezeDeep(value as ConnectorV1) };
+  return { ok: true, connector: freezeDeep(value as Connector) };
 }

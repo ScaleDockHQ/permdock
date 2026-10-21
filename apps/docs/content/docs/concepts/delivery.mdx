@@ -183,7 +183,7 @@ export const smtpTransport: EmailTransport = {
 
 ## Connector bodies
 
-`parseConnector(input)` checks a PermDock Cloud connector body against `connector-v1.json` and answers `{ ok: true, connector }` or `{ ok: false, issues }` with a JSON pointer per issue. `ConnectorV1` is the typed union of the ten kinds. A hosted store and a self-hosted relay parse connectors with the same function ([wire formats](/docs/concepts/wire-formats) "Connector").
+`parseConnector(input)` checks a PermDock Cloud connector body against `connector-v1.json` and answers `{ ok: true, connector }` or `{ ok: false, issues }` with a JSON pointer per issue. `Connector` is the typed union of the ten kinds. A hosted store and a self-hosted relay parse connectors with the same function ([wire formats](/docs/concepts/wire-formats) "Connector").
 
 ## Delivery events
 

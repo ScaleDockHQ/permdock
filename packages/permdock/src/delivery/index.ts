@@ -6,7 +6,7 @@ export { CONNECTOR_KINDS, parseConnector } from "./connector.ts";
 export type {
   ConnectorIssue,
   ConnectorKind,
-  ConnectorV1,
+  Connector,
   ParseConnectorResult,
   SiemDestination,
 } from "./connector.ts";
