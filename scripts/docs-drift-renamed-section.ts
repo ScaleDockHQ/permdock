@@ -1,5 +1,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
+// oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the CLI rename table without a build
+import type { FlagRename } from "../packages/permdock/src/cli/core/renames.ts";
+
 import {
   RENAMES_0_5,
   SIGNATURE_CHANGES_0_5,
@@ -9,7 +12,6 @@ import {
   COMMAND_MOVES,
   DEFAULT_CHANGES,
   FLAG_RENAMES,
-  type FlagRename,
   // oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the CLI rename table without a build
 } from "../packages/permdock/src/cli/core/renames.ts";
 

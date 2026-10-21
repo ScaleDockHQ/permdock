@@ -1,9 +1,11 @@
 import { globSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
+// oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the codemod map without a build
+import type { Rename } from "../packages/permdock/src/cli/codemod/renames-0.5.ts";
+
 import {
   RENAMES_0_5,
-  type Rename,
   // oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the codemod map without a build
 } from "../packages/permdock/src/cli/codemod/renames-0.5.ts";
 import {
