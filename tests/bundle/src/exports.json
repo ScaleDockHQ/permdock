@@ -151,6 +151,7 @@
     "signPolicyDocument",
     "signSnapshot",
     "simulateArazzo",
+    "snapshotClaims",
     "snapshotFor",
     "snapshotFromClaims",
     "sqlFunction",
@@ -228,7 +229,9 @@
     "subjectFromCiOidc",
     "subjectFromIntrospection",
     "subjectFromJwt",
-    "verifyDpopProof"
+    "verifyDpopProof",
+    "verifyIdToken",
+    "verifySubjectToken"
   ],
   "./react": [
     "PermDockProvider",
@@ -296,6 +299,7 @@
     "PermDockDeniedError",
     "PermDockRevokedError",
     "PermDockValidationError",
+    "RUN_TICKET_CLAIMS",
     "apiKeyVerifier",
     "cacheLifeFor",
     "createPermDock",
@@ -474,13 +478,27 @@
   "./claude-agent": ["createPermDock"],
   "./eve": ["actorFromEve", "createPermDock", "rolesOf", "subjectFromEve"],
   "./openai": ["createPermDock"],
-  "./mcp": ["APPROVAL_META_KEY", "createPermDock", "subjectFromMcp"],
-  "./authzen": [
-    "EVALUATIONS_SEMANTICS",
+  "./mcp": [
+    "APPROVAL_META_KEY",
     "createPermDock",
+    "mcpResourceGuard",
+    "protectedResourceMetadata",
+    "subjectFromMcp"
+  ],
+  "./authzen": [
+    "AUTHZEN_MAX_PAGE",
+    "EVALUATIONS_SEMANTICS",
+    "authzenPage",
+    "createPermDock",
+    "emptyAuthzenPage",
     "evaluateBatch",
     "evaluationsSemantic",
-    "mergeEvaluationItem"
+    "mergeEvaluationItem",
+    "parseAuthzenRequest",
+    "readAuthzenPage",
+    "readAuthzenRequest",
+    "searchActions",
+    "searchSubjects"
   ],
   "./openapi": [
     "DRAFT_PINS",
@@ -567,6 +585,8 @@
     "verifyWebhook"
   ],
   "./delivery": [
+    "CONNECTOR_KINDS",
+    "CONNECTOR_SCHEMA",
     "approvalPrompt",
     "approvalUrlFor",
     "audience",
@@ -574,6 +594,7 @@
     "isAddrSpec",
     "isDeliveryTarget",
     "memoryDeliveryTransport",
+    "parseConnector",
     "subscribersFor",
     "webhookTransport"
   ],
@@ -632,12 +653,16 @@
     "SSF_PUSH_DELIVERY",
     "caepEvents",
     "createPermDock",
+    "fanOutSet",
     "memoryReplayStore",
     "memorySetQueue",
+    "memorySsfStreamStore",
+    "pollSets",
     "pushSet",
     "riscEvents",
     "setPollHandler",
     "signSet",
+    "ssfTransmitter",
     "streamVerificationEvent"
   ],
   "./better-auth": [
@@ -763,6 +788,7 @@
     "testSettingsSource",
     "testSnapshotSource",
     "testSnapshotStorage",
+    "testSsfStreamStore",
     "testSubjectResolver",
     "testSupportSessionSource",
     "testTokenSigner",
