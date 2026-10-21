@@ -12,7 +12,10 @@ const ignorePatterns: readonly string[] = [
 const tailwindFunctions = ["cn", "cva", "tv"];
 
 export interface TailwindStylesheet {
-  /** Globs, rooted at the consuming config file, of the files that use the stylesheet. */
+  /**
+   * Globs, rooted at the consuming config file, of the files that use the
+   * stylesheet.
+   */
   readonly files: readonly string[];
   /** The Tailwind v4 entry stylesheet, relative to the consuming config file. */
   readonly stylesheet: string;
@@ -31,8 +34,8 @@ export interface OxfmtOptions {
 /**
  * Shared Oxfmt configuration for every workspace in the repository.
  *
- * Oxfmt has no `extends`, so this is a factory. Formatting options are fixed
- * on purpose: only the ignore list and the Tailwind stylesheets vary.
+ * Oxfmt has no `extends`, so this is a factory. Formatting options are fixed on
+ * purpose: only the ignore list and the Tailwind stylesheets vary.
  *
  * ```ts
  * import { oxfmt } from "@permdock/ox-config/oxfmt";
@@ -45,6 +48,14 @@ export function oxfmt(options: OxfmtOptions = {}): OxfmtConfig {
     printWidth: 80,
     semi: true,
     trailingComma: "all",
+    // Descriptions open with identifiers and package names (`better-supabase`,
+    // `stdout`, fixture ids) whose case is part of the meaning.
+    jsdoc: {
+      addDefaultToDescription: false,
+      capitalizeDescriptions: false,
+      preferCodeFences: true,
+    },
+    objectWrap: "collapse",
     ignorePatterns: [...ignorePatterns, ...(options.ignorePatterns ?? [])],
     sortImports: {
       internalPattern: ["@/", "@permdock/"],
@@ -58,19 +69,21 @@ export function oxfmt(options: OxfmtOptions = {}): OxfmtConfig {
         "unknown",
       ],
     },
-    sortPackageJson: {
-      sortScripts: true,
-    },
-    sortTailwindcss: {
-      functions: tailwindFunctions,
-    },
-    overrides: (options.tailwindStylesheets ?? []).map(
-      ({ files, stylesheet }) => ({
+    sortPackageJson: { sortScripts: true },
+    sortTailwindcss: { functions: tailwindFunctions },
+    overrides: [
+      ...(options.tailwindStylesheets ?? []).map(({ files, stylesheet }) => ({
         files: [...files],
         options: {
           sortTailwindcss: { functions: tailwindFunctions, stylesheet },
         },
-      }),
-    ),
+      })),
+      // Generators write JSON with `JSON.stringify(value, null, 2)`, and
+      // `gen:check` compares their output byte for byte.
+      {
+        files: ["**/*.json", "**/*.jsonc", "**/*.json5"],
+        options: { objectWrap: "preserve" },
+      },
+    ],
   });
 }
