@@ -1,8 +1,6 @@
-import { Check } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { DataSource } from "@/components/data-source.tsx";
-import { SubmitButton } from "@/components/submit-button.tsx";
 import {
   Card,
   CardAction,
@@ -15,8 +13,8 @@ import {
 
 import type { Quote } from "../../permissions.ts";
 
-import { approveQuote } from "../../app/actions.ts";
 import { quoteAccess } from "../../lib/access.ts";
+import { ApproveQuoteForm } from "./approve-quote-form.tsx";
 import { customerName, money } from "./format.ts";
 import { StatusBadge } from "./status-badge.tsx";
 
@@ -68,16 +66,7 @@ export async function QuoteView(props: {
         data-testid="quote-actions"
         className="justify-end gap-2 border-t empty:hidden"
       >
-        {approve ? (
-          <form action={approveQuote.bind(null, org, quote.id)}>
-            <SubmitButton
-              data-action="approve"
-              icon={<Check data-icon="inline-start" />}
-            >
-              Approve quote
-            </SubmitButton>
-          </form>
-        ) : null}
+        {approve ? <ApproveQuoteForm organization={org} id={quote.id} /> : null}
       </CardFooter>
     </Card>
   );
