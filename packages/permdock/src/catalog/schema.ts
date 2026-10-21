@@ -197,6 +197,7 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
           },
           renamedFrom: strings,
           levels: strings,
+          orderedLevels: { const: true },
           hostable: { const: true },
           rowConditions: { type: "boolean" },
           approvals: { type: "array", items: approval },

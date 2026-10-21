@@ -25,6 +25,7 @@ import {
 } from "./approval-normalize.ts";
 import { canonicalJson } from "./canonical-json.ts";
 import { compact } from "./compact.ts";
+import { byCodePoint } from "./compare.ts";
 import { freezeDeep } from "./freeze.ts";
 import {
   completeGrant,
@@ -147,6 +148,24 @@ export function levelNames(
   return policyLevels(policy, resource).map(([name]) => name);
 }
 
+/**
+ * The levels a holder of `held` on `resource` may hand out, in declaration
+ * order: with `orderedLevels`, each held level and every level declared before
+ * it; otherwise `held` itself.
+ */
+export function coveredLevels(
+  policy: Pick<Policy, "levels" | "orderedLevels">,
+  resource: string,
+  held: readonly string[],
+): readonly string[] {
+  const names = levelNames(policy, resource);
+  if (policy.orderedLevels?.includes(resource) !== true) {
+    return names.filter((name) => held.includes(name));
+  }
+  const widest = Math.max(...held.map((name) => names.indexOf(name)));
+  return names.slice(0, widest + 1);
+}
+
 function isVocabularyInput(value: unknown): value is PolicyVocabulary {
   return (
     value !== null &&
@@ -255,11 +274,15 @@ export function definePolicy<
     normalizeDelegation(item, index, tree),
   );
   const levels = normalizeLevels(resources);
+  const orderedLevels = [...resources.values()]
+    .filter((node) => node.orderedLevels === true)
+    .map((node) => node.name)
+    .toSorted(byCodePoint);
   const oauthScopes = normalizeOAuthScopes(options.oauthScopes, tree);
   const fingerprint = sha256Digest(
     oauthScopes.length === 0
-      ? canonicalPolicy(grants, delegations, levels)
-      : `${canonicalPolicy(grants, delegations, levels)}\noauthScopes:${canonicalJson(oauthScopes)}`,
+      ? canonicalPolicy(grants, delegations, levels, orderedLevels)
+      : `${canonicalPolicy(grants, delegations, levels, orderedLevels)}\noauthScopes:${canonicalJson(oauthScopes)}`,
   );
   const hostable = [
     ...new Set(
@@ -296,6 +319,7 @@ export function definePolicy<
     fresh,
     delegations: delegations.length === 0 ? undefined : delegations,
     levels,
+    orderedLevels: orderedLevels.length === 0 ? undefined : orderedLevels,
     oauthScopes: oauthScopes.length === 0 ? undefined : oauthScopes,
     index: indexPolicy(roles, grants, vocabulary),
   }) as Policy<TUser, TPrincipal, VocabularyFromInput<Input>>;

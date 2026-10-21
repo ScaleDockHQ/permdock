@@ -22,7 +22,7 @@ import { emptyListeners } from "./events.ts";
 import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames, roleLeaf } from "./held-roles.ts";
 import { listPermissions } from "./permission-registry.ts";
-import { levelCondition, levelNames } from "./policy.ts";
+import { coveredLevels, levelCondition, levelNames } from "./policy.ts";
 import { rankRoles, roleMeta, usesAssigns } from "./role-rank.ts";
 import { resolveScope, rootScope, scopeList, tenantOf } from "./scopes.ts";
 import { collectSnapshotGrants } from "./snapshot-grants.ts";
@@ -80,24 +80,29 @@ export type Assignable = {
 /**
  * The levels a held allow of a permission covers: its own `level`, every level
  * when it has no row condition, or the levels whose condition equals its
- * condition.
+ * condition; with `orderedLevels`, also every narrower level.
  */
 function heldLevels(
   policy: Policy,
   grant: Grant,
   names: readonly string[],
 ): readonly string[] {
+  const resource = grant.permission.resource;
   if (grant.level !== undefined) {
-    return [grant.level];
+    return coveredLevels(policy, resource, [grant.level]);
   }
   if (grant.where === undefined) {
     return names;
   }
   const held = canonicalJson(grant.where);
-  return names.filter((name) => {
-    const condition = levelCondition(policy, grant.permission.resource, name);
-    return condition !== undefined && canonicalJson(condition) === held;
-  });
+  return coveredLevels(
+    policy,
+    resource,
+    names.filter((name) => {
+      const condition = levelCondition(policy, resource, name);
+      return condition !== undefined && canonicalJson(condition) === held;
+    }),
+  );
 }
 
 /**

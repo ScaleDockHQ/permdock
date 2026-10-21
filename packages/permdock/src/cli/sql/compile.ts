@@ -9,7 +9,7 @@ import { canonicalJson } from "../../core/canonical-json.ts";
 import { sole } from "../../core/compact.ts";
 import { andWhere, leveled } from "../../core/custom-roles.ts";
 import { requiresStandIn } from "../../core/delegation.ts";
-import { policyLevels } from "../../core/policy.ts";
+import { coveredLevels, policyLevels } from "../../core/policy.ts";
 import { defaultSqlCommand } from "../../core/sql.ts";
 import { scopeField } from "../../core/tenancy.ts";
 import {
@@ -137,22 +137,38 @@ function levelReachOf(
     ) {
       continue;
     }
-    const levels = policyLevels(policy, grant.permission.resource);
+    const resource = grant.permission.resource;
+    const levels = policyLevels(policy, resource);
     if (levels.length > 0) {
       const set = reach.get(grantKey) ?? new Set<string>();
-      for (const name of reachedLevels(grant.where, levels)) {
+      const reached = coveredLevels(
+        policy,
+        resource,
+        reachedLevels(grant.where, levels),
+      );
+      for (const name of reached) {
         set.add(name);
       }
       reach.set(grantKey, set);
     }
   }
+  const resourceOf = new Map(
+    [...keys].map(([entry, grantKey]) => [
+      grantKey,
+      entry.item.grant.permission.resource,
+    ]),
+  );
   const out: (readonly [string, string])[] = [];
   for (const grantKey of new Set(keys.values())) {
     const at = grantKey.lastIndexOf("@");
     const base = at === -1 ? grantKey : grantKey.slice(0, at);
     const level = at === -1 ? undefined : grantKey.slice(at + 1);
+    const covered =
+      level === undefined
+        ? undefined
+        : coveredLevels(policy, resourceOf.get(grantKey) ?? "", [level]);
     for (const name of reach.get(base) ?? []) {
-      if (level === undefined || level === name) {
+      if (covered === undefined || covered.includes(name)) {
         out.push([grantKey, name]);
       }
     }

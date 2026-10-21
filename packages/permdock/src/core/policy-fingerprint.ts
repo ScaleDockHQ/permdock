@@ -11,15 +11,20 @@ export function canonicalPolicy(
   grants: readonly Grant[],
   delegations: readonly PolicyDelegation[],
   levels: PolicyLevels | undefined,
+  orderedLevels: readonly string[] = [],
 ): string {
   const payload = canonicalGrants(grants);
   const withDelegations =
     delegations.length === 0
       ? payload
       : `${payload}\n${JSON.stringify(delegations)}`;
-  return levels === undefined
-    ? withDelegations
-    : `${withDelegations}\nlevels:${canonicalJson(levels)}`;
+  const withLevels =
+    levels === undefined
+      ? withDelegations
+      : `${withDelegations}\nlevels:${canonicalJson(levels)}`;
+  return orderedLevels.length === 0
+    ? withLevels
+    : `${withLevels}\norderedLevels:${JSON.stringify(orderedLevels)}`;
 }
 
 function canonicalGrants(grants: readonly Grant[]): string {

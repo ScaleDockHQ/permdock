@@ -31,6 +31,7 @@ describe("rls levels", () => {
     renamed = false,
     manager = false,
     create = false,
+    ordered = false,
   ): string {
     mkdirSync(TMP, { recursive: true });
     const dir = mkdtempSync(join(TMP, "rls-levels-"));
@@ -45,7 +46,13 @@ export const permissions = definePermissions({
     id: 'id',
     actions: ['read', 'update'${create ? ", 'create'" : ""}],
     relations: { org: { field: 'orgId', memberOf: 'tenant' } },
-    ${levels ? "levels: { own: { ownerId: principal.id }, all: {} }," : ""}
+    ${
+      ordered
+        ? "levels: { own: { ownerId: principal.id }, team: { status: 'open' }, all: {} }, orderedLevels: true,"
+        : levels
+          ? "levels: { own: { ownerId: principal.id }, all: {} },"
+          : ""
+    }
   }),
 }${renamed ? ", { renamed: { 'task.read': 'job.read' } }" : ""});
 
@@ -54,7 +61,7 @@ export const policy = definePolicy(permissions, {
     role('admin', [allow([permissions.job.read, permissions.job.update${create ? ", permissions.job.create" : ""}]), deny(permissions.job.update, { where: { locked: true } })], { on: 'tenant' }),
     role('owner', [allow(permissions.job.update)], { on: 'tenant', assignable: false }),${
       manager
-        ? "\n    role('manager', [allow(permissions.job.update, { where: { ownerId: principal.id } })], { on: 'tenant' }),"
+        ? `\n    role('manager', [allow(permissions.job.update, { where: ${ordered ? "{ status: 'open' }" : "{ ownerId: principal.id }"} })], { on: 'tenant' }),`
         : ""
     }
   ],
@@ -94,7 +101,7 @@ export const policy = definePolicy(permissions, {
       { cwd },
     );
     if (result.code !== 0) {
-      throw new Error(result.stdout);
+      throw new Error(result.stdout + result.stderr);
     }
     return readFileSync(join(cwd, "rls.sql"), "utf8");
   }
@@ -181,6 +188,24 @@ export const policy = definePolicy(permissions, {
       expect(reach).toContain(
         "('job.update#1', 'all'), ('job.update#1', 'own')",
       );
+    });
+
+    it("reaches every narrower level of an ordered resource", async () => {
+      const sql = await generate(
+        appWith(true, "database", false, true, false, true),
+      );
+      const reach = /reach \(grant_key, level\) as \(values ([^\n]+)\)/u.exec(
+        sql,
+      )?.[1];
+      expect(reach).toContain(
+        "('job.update#3', 'own'), ('job.update#3', 'team')",
+      );
+      expect(reach).toContain(
+        "('job.update#3@own', 'own'), ('job.update#3@team', 'own'), ('job.update#3@team', 'team')",
+      );
+      expect(reach).not.toContain("('job.update#3', 'all')");
+      expect(reach).toContain("('job.read@team', 'own')");
+      expect(reach).not.toContain("('job.read@own', 'team')");
     });
 
     it("gives an instance create one row-helper branch per level", async () => {
