@@ -4,6 +4,8 @@ import { relative, resolve } from "node:path";
 import type { CatalogDocument } from "../../catalog/types.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
+import type { Env } from "./issuer.ts";
+import type { CloudRequest, ProjectPolicy } from "./projects.ts";
 
 import { parseCatalog } from "../../catalog/parse.ts";
 import { catalogFingerprint } from "../../core/catalog-fingerprint.ts";
@@ -11,17 +13,13 @@ import { parseSupabaseManifest } from "../../supabase/manifest.ts";
 import { formatCatalogJson } from "../catalog-doc.ts";
 import { catalogPath } from "../catalog-path.ts";
 import { describeError } from "../core/errors.ts";
+import { nonEmptyOr } from "../core/output.ts";
 import { cliVersion } from "../core/version.ts";
 import { writeFileEnsuringDir } from "../files.ts";
 import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
 import { cliRuntime, readAuth } from "./auth.ts";
-import { cloudUrl, type Env } from "./issuer.ts";
-import {
-  type CloudRequest,
-  type ProjectPolicy,
-  projectPolicy,
-  resolveProject,
-} from "./projects.ts";
+import { cloudUrl } from "./issuer.ts";
+import { projectPolicy, resolveProject } from "./projects.ts";
 
 const COMMAND = "permdock cloud pull";
 
@@ -149,7 +147,7 @@ export async function runCloudPull(input: PullInput): Promise<CommandResult> {
     restore(before);
     return {
       code: 1,
-      output: `${COMMAND}: catalog fingerprint mismatch (Cloud ${pulled.fingerprint}, catalog ${catalog.fingerprint ?? "none"}, written ${written || "unreadable"}); restored the previous files`,
+      output: `${COMMAND}: catalog fingerprint mismatch (Cloud ${pulled.fingerprint}, catalog ${catalog.fingerprint ?? "none"}, written ${nonEmptyOr(written, "unreadable")}); restored the previous files`,
     };
   }
   const local = cliVersion();

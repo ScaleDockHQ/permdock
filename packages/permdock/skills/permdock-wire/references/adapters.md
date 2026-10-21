@@ -17,9 +17,7 @@ export const {
   requirePermission,
   PermDockProvider,
   permdockHandler,
-} = createPermDock(policy, {
-  subject: async () => getUser(),
-});
+} = createPermDock(policy, { subject: async () => getUser() });
 ```
 
 Needs Next.js 16.3 or later. Guard with `getPermission(permissions.post.update, post)` or `assert`. For a page or Server Action that must stop on a denial, `await requirePermission(permission, data, { tenant })` calls `forbidden()` (or `unauthorized()` for a signed-out user); enable `experimental.authInterrupts` and add `app/forbidden.tsx` and `app/unauthorized.tsx`. When only part of a page is gated, let a Server Component `assert` inside `<PermissionBoundary denied={...} approval={...}>` from `permdock/next/client` (with a `Suspense` inside it); `usePermissionBoundary()` in the fallback gives the permission, the approval `token` and `retry()`. Client components use `permdock/react` inside the server `PermDockProvider`, which never awaits: it streams a `snapshotPromise`, and permission hooks answer `pending` until it lands (add `suspend` to make them suspend).
@@ -104,9 +102,7 @@ import { createPermDock } from "permdock/authzen";
 
 export const { permdockHandler } = createPermDock(policy, {
   subject: fromBearer,
-  resources: {
-    post: { data: (id) => loadPost(id), list: () => listPosts() },
-  },
+  resources: { post: { data: (id) => loadPost(id), list: () => listPosts() } },
 });
 ```
 
@@ -193,11 +189,13 @@ export const { middleware, protect } = createPermDock(policy, {
   subject: ({ store }) => store.user ?? null,
 });
 
-const app = new Elysia().use(middleware()).delete("/posts/:id", handler, {
-  beforeHandle: protect(permissions.post.delete, ({ params }) =>
-    loadPost(params.id),
-  ),
-});
+const app = new Elysia()
+  .use(middleware())
+  .delete("/posts/:id", handler, {
+    beforeHandle: protect(permissions.post.delete, ({ params }) =>
+      loadPost(params.id),
+    ),
+  });
 ```
 
 Fetch-native plugin via `derive`. Denials are `403 application/problem+json`; anonymous callers get `401` plus `WWW-Authenticate`. For `.ws` routes, `connection(ws, { permission })` in `open` returns the socket's connection (memoised); it closes the socket with `1008` when revoked.
@@ -278,9 +276,7 @@ import { createPermDock } from "permdock/node";
 
 export const { getPermDock, protect, send, permdockHandler } = createPermDock(
   policy,
-  {
-    subject: (req) => userFromCookie(req.headers.cookie),
-  },
+  { subject: (req) => userFromCookie(req.headers.cookie) },
 );
 ```
 
@@ -360,9 +356,7 @@ import { PermDockProvider, Protected, usePermission } from 'permdock/solid';
 ```ts
 import { instrument } from "permdock/otel";
 
-instrument(permdock, {
-  logger: { info: console.info, warn: console.warn },
-});
+instrument(permdock, { logger: { info: console.info, warn: console.warn } });
 ```
 
 HTTP adapters accept the same options as `otel`. `@opentelemetry/api` is optional; without it the adapter writes only through `logger`.
@@ -540,9 +534,7 @@ import { createPermDock } from "permdock/supabase/middleware";
 const { withPermDock, permdockHandler } = createPermDock(policy, {
   subject: (ctx) =>
     subjectFromSupabase(ctx.jwtClaims, {
-      claims: {
-        roles: "user_role",
-      },
+      claims: { roles: "user_role" },
       declared: ["member", "admin"],
     }),
 });

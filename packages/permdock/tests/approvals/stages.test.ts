@@ -1,9 +1,9 @@
 import { describe as group, expect, it } from "vitest";
 
+import type { ApprovalRequest } from "../../src/approvals/index.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
-  type ApprovalRequest,
   approvalsHandler,
   approverRelations,
   memoryApprovalStore,
@@ -57,18 +57,15 @@ group("approval modes and approver kinds", () => {
         stages: [{ by: user("cfo") }, { by: "admin", quorum: 2 }],
         ttl: 86_400,
       }),
-    ).toEqual({
+    ).toStrictEqual({
       mode: "all",
       stages: [
         { by: { kind: "user", id: "cfo" } },
-        {
-          by: { kind: "role", role: "admin", scope: "global" },
-          quorum: 2,
-        },
+        { by: { kind: "role", role: "admin", scope: "global" }, quorum: 2 },
       ],
       ttl: 86_400,
     });
-    expect(normalizeApproval({ by: [user("cfo"), "admin"] })).toEqual({
+    expect(normalizeApproval({ by: [user("cfo"), "admin"] })).toStrictEqual({
       by: [
         { kind: "user", id: "cfo" },
         { kind: "role", role: "admin", scope: "global" },
@@ -124,9 +121,7 @@ group("approval modes and approver kinds", () => {
     ).toThrow(/needs an instance action/u);
     expect(
       build(
-        allow(tree.doc.read, {
-          approval: { by: relation(tree.team, "lead") },
-        }),
+        allow(tree.doc.read, { approval: { by: relation(tree.team, "lead") } }),
       ),
     ).toThrow(/must live on 'doc'/u);
     expect(
@@ -163,21 +158,22 @@ group("approval modes and approver kinds", () => {
   it("reads relation approvers by the request's resource id", async () => {
     const { request } = await pendingPayment();
     const options = { relations, permissions };
-    expect(await approverRelations(request, member("mia"), options)).toEqual([
-      JSON.stringify(["expense", "manager", null, null]),
-    ]);
-    expect(await approverRelations(request, member("rob"), options)).toEqual([
-      JSON.stringify(["report", "approver", ["report"], null]),
-    ]);
-    expect(await approverRelations(request, member("eve"), options)).toEqual(
+    expect(
+      await approverRelations(request, member("mia"), options),
+    ).toStrictEqual([JSON.stringify(["expense", "manager", null, null])]);
+    expect(
+      await approverRelations(request, member("rob"), options),
+    ).toStrictEqual([JSON.stringify(["report", "approver", ["report"], null])]);
+    expect(
+      await approverRelations(request, member("eve"), options),
+    ).toStrictEqual([]);
+    expect(await approverRelations(request, member("mia"), {})).toStrictEqual(
       [],
     );
-    expect(await approverRelations(request, member("mia"), {})).toEqual([]);
-    const noId: ApprovalRequest = {
-      ...request,
-      resource: { type: "expense" },
-    };
-    expect(await approverRelations(noId, member("mia"), options)).toEqual([]);
+    const noId: ApprovalRequest = { ...request, resource: { type: "expense" } };
+    expect(await approverRelations(noId, member("mia"), options)).toStrictEqual(
+      [],
+    );
   });
 
   it("runs the manager stage before the report approver through the handler", async () => {
@@ -202,13 +198,13 @@ group("approval modes and approver kinds", () => {
       };
       return body.items.map((item) => item.id);
     };
-    expect(await inbox()).toEqual([]);
+    expect(await inbox()).toStrictEqual([]);
     expect((await approve()).status).toBe(403);
     who = "mia";
-    expect(await inbox()).toEqual([request.id]);
+    expect(await inbox()).toStrictEqual([request.id]);
     expect((await approve()).status).toBe(200);
     who = "rob";
-    expect(await inbox()).toEqual([request.id]);
+    expect(await inbox()).toStrictEqual([request.id]);
     const done = await approve();
     expect(done.status).toBe(200);
     const body: unknown = await done.json();
@@ -240,7 +236,7 @@ group("approval modes and approver kinds", () => {
       { status: "approved", by: member("mia") },
       { relations, permissions },
     );
-    expect(first.approvals).toEqual([
+    expect(first.approvals).toStrictEqual([
       { by: "mia", at: expect.any(String), stage: 0 },
     ]);
     await expect(
@@ -294,6 +290,7 @@ group("approval modes and approver kinds", () => {
   it("describes every stage's approvers", async () => {
     const permdock = getPermDockSync(policy, { id: "alice" });
     const decision = permdock.decide(permissions.expense.pay, rows.expense[0]);
+    // oxlint-disable-next-line vitest/prefer-importing-vitest-globals -- permdock's describe(), not Vitest's
     expect(describe(decision).detail).toBe(
       "expense.pay requires approval from manager and approver.",
     );

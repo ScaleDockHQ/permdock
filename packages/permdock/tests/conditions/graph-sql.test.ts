@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { RelatedCondition } from "../../src/conditions/ast.ts";
+import type {
+  GraphSql,
+  GraphSqlOptions,
+} from "../../src/conditions/graph-sql.ts";
 import type { ResourceNode } from "../../src/core/permission-types.ts";
 
 import {
-  type GraphSql,
-  type GraphSqlOptions,
   holderIdsSql,
   quoteSqlName,
   relatedSql,
@@ -182,7 +184,7 @@ describe("graph SQL", () => {
     expect(listed.sql).toBe(
       "select v.id from (values ($1::text), ($2::text)) as v(id)",
     );
-    expect(listed.values).toEqual(["a", "b"]);
+    expect(listed.values).toStrictEqual(["a", "b"]);
   });
 
   it("carries reached ids back over link hops, or through the caller helper", () => {

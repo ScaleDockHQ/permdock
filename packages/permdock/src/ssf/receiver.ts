@@ -17,6 +17,7 @@ import type {
   SsfSubject,
   SsfSubjectResolver,
 } from "./types.ts";
+import type { IngestFail, IngestResult } from "./wire.ts";
 
 import { cancelApprovals } from "../approvals/helpers.ts";
 import { compact, isRecord } from "../core/compact.ts";
@@ -48,8 +49,6 @@ import {
   jsonResponse,
   parseEvery,
   rfc8935,
-  type IngestFail,
-  type IngestResult,
 } from "./wire.ts";
 
 type ReceiverConfig = {
@@ -76,8 +75,8 @@ const CHANGED_EVENTS: ReadonlySet<string> = new Set([
 
 /**
  * When the replay record of a SET may be dropped: its `exp`, or for a SET
- * without one (RFC 8417 section 2.2) the end of its acceptance window, so
- * the same `jti` cannot pass verification again once the record is gone.
+ * without one (RFC 8417 section 2.2) the end of its acceptance window, so the
+ * same `jti` cannot pass verification again once the record is gone.
  */
 function replayExpiresAt(
   claims: Readonly<Record<string, unknown>>,
@@ -366,12 +365,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     const named = eventName(uri);
     const type = named ?? uri;
     if (named === undefined && config.onEvent["*"] === undefined) {
-      emit({
-        type,
-        transmitter: issuer,
-        jti,
-        unknown: "event",
-      });
+      emit({ type, transmitter: issuer, jti, unknown: "event" });
       return dispatchEvents(tail, run);
     }
     const identifier = baseSubject ??
@@ -382,12 +376,7 @@ export function createReceiver(config: ReceiverConfig): SsfReceiver {
     const session = eventSession(payload) ?? subjectSession(identifier);
     const subject = await resolveSubject(identifier, session, issuer);
     if (subject === undefined) {
-      emit({
-        type,
-        transmitter: issuer,
-        jti,
-        unknown: "subject",
-      });
+      emit({ type, transmitter: issuer, jti, unknown: "subject" });
       return dispatchEvents(tail, run);
     }
     const result = await dispatch(

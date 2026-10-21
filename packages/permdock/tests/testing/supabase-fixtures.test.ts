@@ -78,16 +78,16 @@ describe("Supabase RBAC hook claims", () => {
         expect(subject.actor).toBeUndefined();
         return;
       }
-      expect(subject.actor).toEqual(fixture.expect.actor);
-      expect(subject.delegation).toEqual(fixture.expect.delegation);
-      expect(subject.principal.roles ?? []).toEqual(fixture.expect.roles);
-      expect(subject.principal.memberships ?? []).toEqual(
+      expect(subject.actor).toStrictEqual(fixture.expect.actor);
+      expect(subject.delegation).toStrictEqual(fixture.expect.delegation);
+      expect(subject.principal.roles ?? []).toStrictEqual(fixture.expect.roles);
+      expect(subject.principal.memberships ?? []).toStrictEqual(
         fixture.expect.memberships,
       );
       if ("tenant" in fixture.expect) {
         expect(subject.principal.tenant).toBe(fixture.expect.tenant);
       }
-      expect(subject.principal.plans).toEqual(fixture.expect.plans);
+      expect(subject.principal.plans).toStrictEqual(fixture.expect.plans);
       expect(subject.expiresAt).toBe(fixture.claims["exp"]);
     });
   }
@@ -95,7 +95,7 @@ describe("Supabase RBAC hook claims", () => {
   it("maps a structural session and treats every other kind as anonymous", () => {
     const claims = supabaseClaimFixtures.topLevelRole.claims;
     const session = { kind: "user", claims, user: {} };
-    expect(subjectFromSupabaseSession(session).principal?.roles).toEqual([
+    expect(subjectFromSupabaseSession(session).principal?.roles).toStrictEqual([
       "admin",
     ]);
     for (const kind of ["anon", "service", "invalid", "USER"]) {
@@ -144,7 +144,7 @@ describe("Supabase RBAC hook claims", () => {
   });
 });
 
-describe("supabaseHookManifestFixture", () => {
+describe("the supabaseHookManifestFixture fixture", () => {
   it("is what supabase inspect prints for one tenant scope and a features claim", () => {
     const manifest = supabaseHookManifest(
       defineScopes({ tenant: { key: "orgId" } }),
@@ -158,7 +158,7 @@ describe("supabaseHookManifestFixture", () => {
         },
       },
     );
-    expect(manifest).toEqual(supabaseHookManifestFixture);
+    expect(manifest).toStrictEqual(supabaseHookManifestFixture);
   });
 });
 
@@ -175,7 +175,7 @@ describe("supabase-claims-v1.json", () => {
 
   it("accepts every claim fixture and the hook output shape", () => {
     for (const [name, fixture] of Object.entries(supabaseClaimFixtures)) {
-      expect([name, validate(fixture.claims)]).toEqual([name, true]);
+      expect([name, validate(fixture.claims)]).toStrictEqual([name, true]);
     }
   });
 
@@ -202,7 +202,7 @@ describe("supabase-manifest-v1.json", () => {
 
   it("accepts the fixture and a manifest with junction sources, attrs and scope types", () => {
     validate(supabaseHookManifestFixture);
-    expect(validate.errors ?? []).toEqual([]);
+    expect(validate.errors ?? []).toStrictEqual([]);
     const manifest = supabaseHookManifest(
       defineScopes({
         organization: { key: "organization_id" },
@@ -248,7 +248,7 @@ describe("supabase-manifest-v1.json", () => {
       },
     );
     validate(manifest);
-    expect(validate.errors ?? []).toEqual([]);
+    expect(validate.errors ?? []).toStrictEqual([]);
   });
 
   it("refuses an unknown helper, mode or value shape", () => {
@@ -296,7 +296,7 @@ describe("manifest requires", () => {
       },
       supabase: { hook },
     });
-    expect(manifest.requires).toEqual({
+    expect(manifest.requires).toStrictEqual({
       matrix: "capability-matrix-v1.12.0",
       capabilities: [
         "auth.session.get_claims",
@@ -318,14 +318,14 @@ describe("manifest requires", () => {
       {},
       liveSessionPolicy,
     );
-    expect(manifest.requires?.capabilities).toEqual([
+    expect(manifest.requires?.capabilities).toStrictEqual([
       "auth.session.get_claims",
       "auth.session.get_user",
     ]);
   });
 });
 
-describe("supabaseClaimVectors", () => {
+describe("the supabaseClaimVectors fixture", () => {
   // SAFETY: the fixture is supabase/sdk's conformance.schema.json, a top-level object.
   const validate = new Ajv2020({ strict: false }).compile(
     JSON.parse(
@@ -338,20 +338,20 @@ describe("supabaseClaimVectors", () => {
 
   it("is a supabase/sdk conformance vector file", () => {
     validate(JSON.parse(JSON.stringify(supabaseClaimVectors)));
-    expect(validate.errors ?? []).toEqual([]);
+    expect(validate.errors ?? []).toStrictEqual([]);
   });
 
   it("carries every claim fixture, and each maps to its expected subject", () => {
-    expect(supabaseClaimVectors.cases.map((entry) => entry.name)).toEqual(
+    expect(supabaseClaimVectors.cases.map((entry) => entry.name)).toStrictEqual(
       Object.keys(supabaseClaimFixtures),
     );
     for (const { name, input, expected } of supabaseClaimVectors.cases) {
       const subject = subjectFromSupabase(input.claims, input.options);
-      expect([name, subject.principal?.id ?? null]).toEqual([
+      expect([name, subject.principal?.id ?? null]).toStrictEqual([
         name,
         expected.id,
       ]);
-      expect([name, subject.principal?.roles ?? []]).toEqual([
+      expect([name, subject.principal?.roles ?? []]).toStrictEqual([
         name,
         expected.roles,
       ]);

@@ -122,8 +122,8 @@ export function triggersSql(
 
 /**
  * `rls.audit`: one call of the audit function per generated table, which
- * registers the table with the application's audit module. Statements that
- * run code, so they travel with the seeds.
+ * registers the table with the application's audit module. Statements that run
+ * code, so they travel with the seeds.
  */
 export function auditSql(
   audit: RlsAudit | undefined,

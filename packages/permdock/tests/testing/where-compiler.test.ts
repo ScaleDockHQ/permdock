@@ -28,6 +28,9 @@ function like(value: unknown, pattern: string): Truth {
   if (value === null || value === undefined) {
     return null;
   }
+  if (typeof value !== "string") {
+    throw new TypeError("LIKE compares a text cell");
+  }
   let source = "";
   for (let index = 0; index < pattern.length; index += 1) {
     const char = pattern[index] ?? "";
@@ -42,7 +45,7 @@ function like(value: unknown, pattern: string): Truth {
       source += RegExp.escape(char);
     }
   }
-  return new RegExp(`^${source}$`, "su").test(String(value));
+  return new RegExp(`^${source}$`, "su").test(value);
 }
 
 function compareTruth(op: string, left: unknown, right: unknown): Truth {
@@ -151,8 +154,8 @@ function prismaTruth(where: unknown, row: Row): Truth {
           // SAFETY: toWhere builds in and notIn with an array operand.
           const found = (operand as unknown[]).includes(cell);
           parts.push(cell === null ? null : op === "in" ? found : !found);
-        } else if (op === "contains") {
-          parts.push(like(cell, `%${String(operand)}%`));
+        } else if (op === "contains" && typeof operand === "string") {
+          parts.push(like(cell, `%${operand}%`));
         } else {
           parts.push(compareTruth(op, cell, operand));
         }

@@ -2,11 +2,9 @@ import type * as PageTree from "fumadocs-core/page-tree";
 
 import { describe, expect, it } from "vitest";
 
-import {
-  compactMarkdownTables,
-  renderLlmsIndex,
-  type LlmsPage,
-} from "../lib/llms";
+import type { LlmsPage } from "../lib/llms";
+
+import { compactMarkdownTables, renderLlmsIndex } from "../lib/llms";
 
 const siteUrl = "https://docs.test";
 
@@ -81,7 +79,7 @@ const index = renderLlmsIndex(tree, {
   resolve: (url) => pages[url],
 });
 
-describe("renderLlmsIndex", () => {
+describe(renderLlmsIndex, () => {
   it("opens with the H1 and the root page's description as the summary", () => {
     expect(index.startsWith("# PermDock\n\n> Typed permissions.\n")).toBe(true);
   });
@@ -94,7 +92,7 @@ describe("renderLlmsIndex", () => {
 
   it("turns separators into H2 sections and folders into H3", () => {
     const headings = index.split("\n").filter((line) => line.startsWith("#"));
-    expect(headings).toEqual([
+    expect(headings).toStrictEqual([
       "# PermDock",
       "## Start",
       "### Getting started",
@@ -152,7 +150,7 @@ describe("renderLlmsIndex", () => {
   });
 });
 
-describe("compactMarkdownTables", () => {
+describe(compactMarkdownTables, () => {
   it("drops cell padding and shortens delimiter rows", () => {
     const table = [
       "| Name      | Kind          |",

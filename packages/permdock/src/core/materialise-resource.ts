@@ -216,7 +216,10 @@ function materialiseResource(
   return freezeDeep(node);
 }
 
-/** The resource a `definePermissions` resource node was built from, read from the node itself. */
+/**
+ * The resource a `definePermissions` resource node was built from, read from
+ * the node itself.
+ */
 export function resourceOfNode(
   node: PermissionTree | Permission,
 ): ResourceNode | undefined {

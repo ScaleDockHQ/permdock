@@ -322,7 +322,10 @@ function membershipsFromClaim(value: unknown): Membership[] {
   return out;
 }
 
-/** Zitadel's `role -> { orgId: orgDomain }` form: string values and no `roles` key. */
+/**
+ * Zitadel's `role -> { orgId: orgDomain }` form: string values and no `roles`
+ * key.
+ */
 function isRoleToOrganisations(value: Record<string, unknown>): boolean {
   const entries = Object.entries(value);
   return (
@@ -587,7 +590,10 @@ export function mapClaimsToSubject(
   };
 }
 
-/** `true` when a verified token is not an OpenID Connect ID token for one of `clients`. */
+/**
+ * `true` when a verified token is not an OpenID Connect ID token for one of
+ * `clients`.
+ */
 export function idTokenMismatch(
   claims: JwtClaims,
   headerTyp: string | undefined,

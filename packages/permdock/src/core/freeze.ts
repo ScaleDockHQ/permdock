@@ -53,7 +53,10 @@ function isPlain(value: object): boolean {
   return proto === Object.prototype || proto === null;
 }
 
-/** A deeply frozen copy of the plain objects and arrays in `value`; the caller's own objects stay writable. */
+/**
+ * A deeply frozen copy of the plain objects and arrays in `value`; the caller's
+ * own objects stay writable.
+ */
 export function freezeCopy<T>(value: T): T {
   if (value === null || typeof value !== "object") {
     return value;

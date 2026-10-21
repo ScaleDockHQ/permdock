@@ -11,10 +11,16 @@ import { idText } from "./ids.ts";
 import { expandRelation } from "./resource-relations.ts";
 import { isThenable } from "./thenable.ts";
 
-/** How deep groups of one resource may nest in each other; a group of another resource starts a fresh count. */
+/**
+ * How deep groups of one resource may nest in each other; a group of another
+ * resource starts a fresh count.
+ */
 export const DEFAULT_GROUP_DEPTH = 16;
 
-/** A holder as the reader returns it: tagged with the relation it was read under, after `includes`. */
+/**
+ * A holder as the reader returns it: tagged with the relation it was read
+ * under, after `includes`.
+ */
 export type ReadHolder = RelationHolder & { readonly relation: string };
 
 type CacheEntry =
@@ -22,7 +28,10 @@ type CacheEntry =
   | { readonly state: "pending"; readonly promise: Promise<void> }
   | { readonly state: "failed" };
 
-/** One instance's relation facts, keyed by query. Lives on the instance, never at module level. */
+/**
+ * One instance's relation facts, keyed by query. Lives on the instance, never
+ * at module level.
+ */
 export type RelationCache = Map<string, CacheEntry>;
 
 export type Unread = "pending" | "failed";
@@ -31,23 +40,23 @@ export type Unread = "pending" | "failed";
 export type RelationReader = {
   /** Whether a `RelationSource` was configured at all. */
   readonly available: boolean;
-  chain(query: {
+  chain: (query: {
     readonly resource: string;
     readonly id: string;
     readonly depth: number;
     /** `'parent'` (the default) or a link name. */
     readonly through?: string;
-  }): RelationChain | Unread;
-  row(query: {
+  }) => RelationChain | Unread;
+  row: (query: {
     readonly resource: string;
     readonly id: string;
-  }): { readonly row: Readonly<Record<string, unknown>> | null } | Unread;
+  }) => { readonly row: Readonly<Record<string, unknown>> | null } | Unread;
   /** Holders of `relation` and of every relation it includes. */
-  holders(query: {
+  holders: (query: {
     readonly resource: string;
     readonly id: string;
     readonly relation: string;
-  }): readonly ReadHolder[] | Unread;
+  }) => readonly ReadHolder[] | Unread;
 };
 
 export type RelatedVerdict =

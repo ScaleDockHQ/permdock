@@ -7,7 +7,7 @@ import { allow, isRoleName } from "../../src/index.ts";
 import { permissions as postPermissions } from "../fixtures/quick-start.ts";
 import { policy } from "../fixtures/vocabulary.ts";
 
-describe("isRoleName", () => {
+describe(isRoleName, () => {
   it("narrows to the role names of a defineRoles vocabulary", () => {
     expectTypeOf<RoleNameOf<typeof policy>>().toEqualTypeOf<
       "editor" | "viewer"
@@ -23,7 +23,7 @@ describe("isRoleName", () => {
   });
 });
 
-describe("allow", () => {
+describe(allow, () => {
   it("takes a resource, a list of resources or the whole tree, without a condition", () => {
     expectTypeOf(allow).toBeCallableWith(postPermissions.post);
     expectTypeOf(allow).toBeCallableWith(postPermissions);

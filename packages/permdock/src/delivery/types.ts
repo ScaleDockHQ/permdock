@@ -14,16 +14,18 @@ export type { DeliveryChannel, DeliveryFailureCause, EmailCategory };
  * Who a delivery goes to. `{ principal }` names an app principal and the
  * address the server loaded for it on `channel`. `{ address }` alone is an
  * email or chat identity that resolves through
- * `PrincipalSource.principalByIdentity`; with no principal linked it is
- * refused unless `trusted` is set for an address the server loaded itself,
- * such as a customer's billing email, and then the sender must hold the
- * permission.
+ * `PrincipalSource.principalByIdentity`; with no principal linked it is refused
+ * unless `trusted` is set for an address the server loaded itself, such as a
+ * customer's billing email, and then the sender must hold the permission.
  */
 export type Recipient =
   | {
       readonly principal: string;
       readonly channel: DeliveryChannel;
-      /** An RFC 5322 `addr-spec`, a chat platform user id, or an https webhook endpoint. */
+      /**
+       * An RFC 5322 `addr-spec`, a chat platform user id, or an https webhook
+       * endpoint.
+       */
       readonly address: string;
       /** The chat platform (`slack`, `teams`, …). */
       readonly provider?: string;
@@ -36,24 +38,36 @@ export type Recipient =
       /** The chat platform; required for a chat address. */
       readonly provider?: string;
       readonly workspace?: string;
-      /** `true` only for an address the server loaded itself, never one from a request. */
+      /**
+       * `true` only for an address the server loaded itself, never one from a
+       * request.
+       */
       readonly trusted?: boolean;
     };
 
-/** One-click unsubscribe (RFC 8058): an https URL, plus an optional `mailto:` address. */
+/**
+ * One-click unsubscribe (RFC 8058): an https URL, plus an optional `mailto:`
+ * address.
+ */
 export type EmailUnsubscribe = {
   readonly url: string;
   readonly mailto?: string;
 };
 
 export type EmailMessage = {
-  /** Defaults to the router's `from`. A name-addr (`Acme <billing@acme.test>`) is allowed here. */
+  /**
+   * Defaults to the router's `from`. A name-addr (`Acme <billing@acme.test>`)
+   * is allowed here.
+   */
   readonly from?: string;
   readonly replyTo?: string;
   readonly subject: string;
   readonly text: string;
   readonly html?: string;
-  /** Extra headers. `Auto-Submitted` and the `List-Unsubscribe` pair are the router's. */
+  /**
+   * Extra headers. `Auto-Submitted` and the `List-Unsubscribe` pair are the
+   * router's.
+   */
   readonly headers?: Readonly<Record<string, string>>;
   readonly category: EmailCategory;
   /** Required on `notification`, ignored on every other category. */
@@ -62,7 +76,10 @@ export type EmailMessage = {
     | ((target: DeliveryTarget<"email">) => EmailUnsubscribe);
 };
 
-/** An email as a transport receives it: `from` set and the standards headers added. */
+/**
+ * An email as a transport receives it: `from` set and the standards headers
+ * added.
+ */
 export type OutgoingEmail = Omit<
   EmailMessage,
   "from" | "unsubscribe" | "headers"
@@ -74,16 +91,11 @@ export type OutgoingEmail = Omit<
 export type ChatMessage = {
   readonly text: string;
   /** Rendered by the transport as its approval card, linking to `url`. */
-  readonly approval?: {
-    readonly prompt: ApprovalPrompt;
-    readonly url: string;
-  };
+  readonly approval?: { readonly prompt: ApprovalPrompt; readonly url: string };
 };
 
 /** A CloudEvents 1.0 event, posted as `application/cloudevents+json`. */
-export type WebhookMessage = {
-  readonly event: CloudEvent;
-};
+export type WebhookMessage = { readonly event: CloudEvent };
 
 export type DeliveryMessages = {
   readonly email: EmailMessage;
@@ -99,9 +111,9 @@ export type TransportMessages = {
 };
 
 /**
- * A recipient the router checked: the granted decision that let it through
- * and the address in the form the channel compares. A transport refuses a
- * target without a granted `decision` (`isDeliveryTarget`).
+ * A recipient the router checked: the granted decision that let it through and
+ * the address in the form the channel compares. A transport refuses a target
+ * without a granted `decision` (`isDeliveryTarget`).
  */
 export type DeliveryTarget<C extends DeliveryChannel = DeliveryChannel> = {
   readonly channel: C;
@@ -115,7 +127,10 @@ export type DeliveryTarget<C extends DeliveryChannel = DeliveryChannel> = {
 };
 
 export type TransportOptions = {
-  /** Stable for one delivery id and recipient: the provider's `Idempotency-Key` and the `webhook-id`. */
+  /**
+   * Stable for one delivery id and recipient: the provider's `Idempotency-Key`
+   * and the `webhook-id`.
+   */
   readonly idempotencyKey: string;
   /** The delivery id every recipient of one `deliver` call shares. */
   readonly delivery: string;
@@ -139,25 +154,25 @@ export type TransportItem<C extends DeliveryChannel = DeliveryChannel> = {
 };
 
 /**
- * One channel's sender. `deliver` resolves to a result; a throw or a
- * rejection counts as a retryable `unavailable` failure.
+ * One channel's sender. `deliver` resolves to a result; a throw or a rejection
+ * counts as a retryable `unavailable` failure.
  */
 export type DeliveryTransport<C extends DeliveryChannel = DeliveryChannel> = {
   readonly channel: C;
   /** The provider name delivery events carry (`resend`, `chat-sdk`, `webhook`). */
   readonly name: string;
-  deliver(
+  deliver: (
     target: DeliveryTarget<C>,
     message: TransportMessages[C],
     options: TransportOptions,
-  ): DeliveryResult | Promise<DeliveryResult>;
+  ) => DeliveryResult | Promise<DeliveryResult>;
   /**
-   * Sends several deliveries in one provider call, one result per item in
-   * item order. The router uses it for two or more ready recipients.
+   * Sends several deliveries in one provider call, one result per item in item
+   * order. The router uses it for two or more ready recipients.
    */
-  deliverBatch?(
+  deliverBatch?: (
     items: readonly TransportItem<C>[],
-  ): readonly DeliveryResult[] | Promise<readonly DeliveryResult[]>;
+  ) => readonly DeliveryResult[] | Promise<readonly DeliveryResult[]>;
   /** The most items one `deliverBatch` call takes. Defaults to 100. */
   readonly batchSize?: number;
 };
@@ -176,7 +191,10 @@ export type DeliveryTransports = {
 };
 
 export type DeliverOptions = {
-  /** Keep it across retries so each recipient's idempotency key repeats. Defaults to `dlv_` and a random UUID. */
+  /**
+   * Keep it across retries so each recipient's idempotency key repeats.
+   * Defaults to `dlv_` and a random UUID.
+   */
   readonly id?: string;
   /** The approval request id a prompt is delivered for, on every event. */
   readonly approval?: string;

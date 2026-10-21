@@ -1,10 +1,11 @@
+import type { GroupEntry } from "../core/manifest.ts";
+import type { FlagRename } from "../core/renames.ts";
 import type { CodemodChange, CodemodFollowUp } from "./context.ts";
 
-import { type GroupEntry, ROOT } from "../core/manifest.ts";
+import { ROOT } from "../core/manifest.ts";
 import {
   COMMAND_MOVES,
   DEFAULT_CHANGES,
-  type FlagRename,
   flagRename,
   renameMessage,
 } from "../core/renames.ts";
@@ -28,13 +29,16 @@ type Edit = {
   readonly from: string;
 };
 
-/** `permdock`, `npx permdock@0.4`, `pnpm exec permdock`: the bin name followed by a space. */
+/**
+ * `permdock`, `npx permdock@0.4`, `pnpm exec permdock`: the bin name followed
+ * by a space.
+ */
 const INVOCATION = /(?<![\w./@-])permdock(?:@[\w.^~-]+)?(?=[ \t])/gu;
 
 /**
- * Where a shell command ends: an operator, a pipe, a redirect, a comment or
- * a closing backtick. A JSON string also ends at its closing quote. `<id>`
- * is a placeholder, not a redirect, so a redirect needs a space on both sides.
+ * Where a shell command ends: an operator, a pipe, a redirect, a comment or a
+ * closing backtick. A JSON string also ends at its closing quote. `<id>` is a
+ * placeholder, not a redirect, so a redirect needs a space on both sides.
  */
 function commandEnd(text: string, from: number, json: boolean): number {
   const pattern = json
@@ -61,7 +65,10 @@ function lineColumn(
   return { line, column: offset - before.lastIndexOf("\n") };
 }
 
-/** The leaf path the positional tokens name, with the token after which a moved subcommand goes. */
+/**
+ * The leaf path the positional tokens name, with the token after which a moved
+ * subcommand goes.
+ */
 function commandOf(tokens: readonly Token[]): {
   readonly command: string | undefined;
   readonly insertAfter?: Token;
@@ -186,8 +193,8 @@ function mappedValue(
 }
 
 /**
- * Rewrites the 0.5.0 CLI renames in shell commands: package.json scripts,
- * CI workflows, shell scripts. A rename that needs a person, such as an
+ * Rewrites the 0.5.0 CLI renames in shell commands: package.json scripts, CI
+ * workflows, shell scripts. A rename that needs a person, such as an
  * environment name that must become a project id, is a follow-up instead.
  */
 export function rewriteCliCalls(

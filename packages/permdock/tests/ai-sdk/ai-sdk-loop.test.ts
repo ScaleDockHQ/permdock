@@ -17,6 +17,7 @@ import {
   permissions,
   policy,
 } from "../fixtures/quick-start.ts";
+import { defined } from "../support/defined.ts";
 
 const usage = {
   inputTokens: {
@@ -150,9 +151,7 @@ describe("permdock/ai-sdk inside generateText", () => {
       store,
     });
     const execute = vi.fn<() => string>(() => "deleted");
-    const tools = {
-      delete_post: tool({ inputSchema: input, execute }),
-    };
+    const tools = { delete_post: tool({ inputSchema: input, execute }) };
     const first = await generateText({
       model: callsTool("delete_post", { id: "p1" }),
       prompt: "delete p1",
@@ -165,7 +164,10 @@ describe("permdock/ai-sdk inside generateText", () => {
 
     await generateText({
       model: replies(),
-      messages: approve(first.finalStep.response.messages, request!.approvalId),
+      messages: approve(
+        first.finalStep.response.messages,
+        defined(request).approvalId,
+      ),
       tools,
       toolApproval,
     });
@@ -200,7 +202,7 @@ describe("permdock/ai-sdk inside generateText", () => {
         model: replies(),
         messages: approve(
           first.finalStep.response.messages,
-          request!.approvalId,
+          defined(request).approvalId,
         ),
         tools,
       }),
@@ -223,9 +225,10 @@ describe("permdock/ai-sdk inside generateText", () => {
       tools,
       toolApproval,
     });
-    const [pending] = (await store.list({ status: "pending" })).items;
+    const { items } = await store.list({ status: "pending" });
+    const [pending] = items;
     expect(pending).toBeDefined();
-    await store.resolve(pending!.token, {
+    await store.resolve(defined(pending).token, {
       status: "approved",
       by: { principal: { id: "u2", roles: ["admin"] }, context: {} },
     });
@@ -233,7 +236,8 @@ describe("permdock/ai-sdk inside generateText", () => {
       model: replies(),
       messages: approve(
         first.finalStep.response.messages,
-        approvalRequestOf(first.finalStep.response.messages)!.approvalId,
+        defined(approvalRequestOf(first.finalStep.response.messages))
+          .approvalId,
       ),
       tools,
       toolApproval,
@@ -258,8 +262,8 @@ describe("permdock/ai-sdk inside generateText", () => {
         publish_post: tool({ inputSchema: input, execute: () => "published" }),
       },
     });
-    expect(model.doGenerateCalls[0]?.tools?.map((next) => next.name)).toEqual([
-      "delete_post",
-    ]);
+    expect(
+      model.doGenerateCalls[0]?.tools?.map((next) => next.name),
+    ).toStrictEqual(["delete_post"]);
   });
 });

@@ -1,4 +1,7 @@
-/** Custom roles named by rows of the application's own roles table, which cascade to their grants. */
+/**
+ * Custom roles named by rows of the application's own roles table, which
+ * cascade to their grants.
+ */
 export default {
   permissions: "../custom-role-writes/permissions.ts",
   policy: "../custom-role-writes/policy.ts",

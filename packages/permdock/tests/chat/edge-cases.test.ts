@@ -50,9 +50,7 @@ const policy = definePolicy(p, {
 
 const invoices: Readonly<
   Record<string, { readonly id: string; readonly orgId: string }>
-> = {
-  i1: { id: "i1", orgId: "o1" },
-};
+> = { i1: { id: "i1", orgId: "o1" } };
 
 const operations = defineOperations(p, {
   "invoice.pay": {
@@ -64,9 +62,7 @@ const operations = defineOperations(p, {
     permission: p.invoice.export,
     meta: { risk: "medium", title: "Export invoices" },
   },
-  "invoice.ping": {
-    permission: p.invoice.ping,
-  },
+  "invoice.ping": { permission: p.invoice.ping },
 });
 
 function link(user: string, principal: string) {
@@ -152,9 +148,10 @@ describe("ChatPermDock.protect edge cases", () => {
     expect(result.outcome).toBe("approval-required");
     expect(
       result.outcome === "approval-required" && result.prompt?.resource,
-    ).toEqual({ type: "invoice" });
-    const [request] = (await store.list({})).items;
-    expect(request?.resource).toEqual({ type: "invoice" });
+    ).toStrictEqual({ type: "invoice" });
+    const { items } = await store.list({});
+    const [request] = items;
+    expect(request?.resource).toStrictEqual({ type: "invoice" });
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -168,7 +165,7 @@ describe("ChatPermDock.protect edge cases", () => {
         result.outcome === "denied" && result.decision.denials[0]?.reason,
       ).toBe("validation");
     }
-    expect(await ping(member, undefined)).toEqual({
+    expect(await ping(member, undefined)).toStrictEqual({
       outcome: "granted",
       value: "pong",
     });
@@ -183,7 +180,7 @@ describe("ChatPermDock.resolveAction edge cases", () => {
         approval: "apr_1",
         status: "approved",
       }),
-    ).toEqual({ ok: false, cause: "approval-not-found" });
+    ).toStrictEqual({ ok: false, cause: "approval-not-found" });
   });
 
   it("lets only a holder of the approver permission approve", async () => {
@@ -196,14 +193,14 @@ describe("ChatPermDock.resolveAction edge cases", () => {
         approval: id,
         status: "approved",
       }),
-    ).toEqual({ ok: false, cause: "approver-not-eligible" });
+    ).toStrictEqual({ ok: false, cause: "approver-not-eligible" });
     expect(
       await permdock.resolveAction(approver, {
         approval: id,
         status: "approved",
       }),
-    ).toEqual({ ok: true, id, status: "approved" });
-    expect(await pay(billing, { id: "i1" })).toEqual({
+    ).toStrictEqual({ ok: true, id, status: "approved" });
+    expect(await pay(billing, { id: "i1" })).toStrictEqual({
       outcome: "granted",
       value: "paid",
     });
@@ -228,13 +225,13 @@ describe("ChatPermDock.resolveAction edge cases", () => {
         status: "rejected",
         note: "not this month",
       }),
-    ).toEqual({ ok: true, id: second, status: "rejected" });
+    ).toStrictEqual({ ok: true, id: second, status: "rejected" });
     expect(pages() - before).toBe(2);
     expect(
       await permdock.resolveAction(approver, {
         approval: "apr_missing",
         status: "approved",
       }),
-    ).toEqual({ ok: false, cause: "approval-not-found" });
+    ).toStrictEqual({ ok: false, cause: "approval-not-found" });
   });
 });

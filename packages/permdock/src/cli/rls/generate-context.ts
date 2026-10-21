@@ -1,3 +1,5 @@
+import type { Policy } from "../../index.ts";
+import type { RlsSqlContext } from "../sql/context.ts";
 import type { RlsMemberships } from "../types.ts";
 import type { RlsMigrateConfig } from "../types.ts";
 import type {
@@ -5,15 +7,16 @@ import type {
   Refusal,
   RlsGenerateInput,
 } from "./generate-options.ts";
+import type { RbacAuthorizeMode } from "./rbac.ts";
 
 import { renamedKeys } from "../../core/permission-registry.ts";
 import { resolveScope, scopeList } from "../../core/scopes.ts";
-import { type Policy, listPermissions } from "../../index.ts";
+import { listPermissions } from "../../index.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { configError, describeError } from "../core/errors.ts";
 import { checkSuspension } from "../sql/active.ts";
-import { type RlsSqlContext, parseMembershipsFlag } from "../sql/context.ts";
+import { parseMembershipsFlag } from "../sql/context.ts";
 import { assignableRoles, roleNames } from "../sql/grants.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
@@ -22,10 +25,13 @@ import { apiKeysPlan } from "./api-keys.ts";
 import { customRoleSyncSql } from "./custom-role-sync.ts";
 import { closureDepths, graphPlan } from "./graph.ts";
 import { ownershipRules, unsatisfiedKinds } from "./ownership.ts";
-import { type RbacAuthorizeMode, resolveAuthorize } from "./rbac.ts";
+import { resolveAuthorize } from "./rbac.ts";
 import { tokenScopesPlan } from "./token-scopes.ts";
 
-/** The scopes an `rls.migrate` `role` helper names, so `rls generate` writes their role-filtered member helper. */
+/**
+ * The scopes an `rls.migrate` `role` helper names, so `rls generate` writes
+ * their role-filtered member helper.
+ */
 function roleMemberScopesOf(migrate: RlsMigrateConfig | undefined): {
   readonly roleMemberScopes?: readonly string[];
 } {
@@ -121,7 +127,10 @@ function skippedOwnershipTriggers(
   });
 }
 
-/** The SQL context every emitter reads, from the flags, `rls` config and the policy. */
+/**
+ * The SQL context every emitter reads, from the flags, `rls` config and the
+ * policy.
+ */
 export function buildContext(
   input: RlsGenerateInput,
   policy: Policy,

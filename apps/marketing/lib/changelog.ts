@@ -1,7 +1,4 @@
-export type ChangelogChange = {
-  readonly text: string;
-  readonly hash?: string;
-};
+export type ChangelogChange = { readonly text: string; readonly hash?: string };
 
 export type ChangelogRelease = {
   readonly packageName: string;
@@ -40,12 +37,7 @@ export function parseChangelog(
 
   function flush(): void {
     if (version !== undefined && kind !== undefined && changes.length > 0) {
-      releases.push({
-        packageName,
-        version,
-        kind,
-        changes,
-      });
+      releases.push({ packageName, version, kind, changes });
     }
     changes = [];
   }

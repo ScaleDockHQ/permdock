@@ -98,19 +98,19 @@ const EMPTY_SCAN: ScanResult = {
 describe("definePermissions renamed", () => {
   it("keeps leaves plain and records former keys out of band", () => {
     const leaf = permissions.customer.read;
-    expect(JSON.parse(JSON.stringify(leaf))).toEqual({
+    expect(JSON.parse(JSON.stringify(leaf))).toStrictEqual({
       key: "customer.read",
       resource: "customer",
       action: "read",
       scope: "customer:read",
       meta: {},
     });
-    expect(formerKeys(leaf)).toEqual([
+    expect(formerKeys(leaf)).toStrictEqual([
       "customer.view",
       "organization.customers.view",
     ]);
-    expect(formerKeys(permissions.customer.update)).toEqual([]);
-    expect(formerKeys(JSON.parse(JSON.stringify(leaf)))).toEqual([]);
+    expect(formerKeys(permissions.customer.update)).toStrictEqual([]);
+    expect(formerKeys(JSON.parse(JSON.stringify(leaf)))).toStrictEqual([]);
   });
 
   it("resolves a former key or scope to the current leaf", () => {
@@ -141,9 +141,7 @@ describe("definePermissions renamed", () => {
       definePermissions(shape, { renamed: { "a b": "customer.read" } }),
     ).toThrow("renamed key 'a b' is not a valid key");
     expect(() =>
-      definePermissions(shape, {
-        renamed: { "__proto__.x": "customer.read" },
-      }),
+      definePermissions(shape, { renamed: { "__proto__.x": "customer.read" } }),
     ).toThrow("is not a valid key");
     expect(() =>
       definePermissions(shape, {
@@ -191,7 +189,7 @@ describe("renamed keys in stored data", () => {
   };
 
   it("resolves a custom role stored under a former key and reports the rewrite", () => {
-    expect(validateCustomRole(policy, stored)).toEqual({
+    expect(validateCustomRole(policy, stored)).toStrictEqual({
       ok: true,
       permissions: ["customer.read", "customer.update"],
       dropped: [],
@@ -202,14 +200,16 @@ describe("renamed keys in stored data", () => {
         ...stored,
         grants: [{ permission: "customer:view" }],
       }).dropped,
-    ).toEqual([{ permission: "customer:view", reason: "unknown-permission" }]);
+    ).toStrictEqual([
+      { permission: "customer:view", reason: "unknown-permission" },
+    ]);
   });
 
   it("writes current keys into the claim when given the policy", () => {
-    expect(customRoleClaim([stored])).toEqual({
+    expect(customRoleClaim([stored])).toStrictEqual({
       support: ["customer.view", "customer.update"],
     });
-    expect(customRoleClaim([stored], policy)).toEqual({
+    expect(customRoleClaim([stored], policy)).toStrictEqual({
       support: ["customer.read", "customer.update"],
     });
   });
@@ -239,7 +239,7 @@ describe("catalog and diff", () => {
     const entry = catalogB.permissions.find(
       (item) => item.key === "customer.read",
     );
-    expect(entry?.renamedFrom).toEqual([
+    expect(entry?.renamedFrom).toStrictEqual([
       "customer.view",
       "organization.customers.view",
     ]);
@@ -254,13 +254,13 @@ describe("catalog and diff", () => {
       { source: "a", catalog: catalogA, policy: undefined },
       { source: "b", catalog: catalogB, policy: undefined },
     );
-    expect(result.permissions).toEqual({
+    expect(result.permissions).toStrictEqual({
       added: ["customer.read"],
       removed: [],
       renamed: [{ from: "customer.view", to: "customer.read" }],
     });
-    expect(result.grants?.removed).toEqual([]);
-    expect(result.breaking).toEqual([]);
+    expect(result.grants?.removed).toStrictEqual([]);
+    expect(result.breaking).toStrictEqual([]);
   });
 
   it("does not report an alias whose key is a permission again", () => {
@@ -284,7 +284,7 @@ describe("catalog and diff", () => {
       result.breaking
         .filter((change) => change.kind === "alias-removed")
         .map((change) => change.detail.split(" ")[0]),
-    ).toEqual(["organization.customers.view"]);
+    ).toStrictEqual(["organization.customers.view"]);
   });
 
   it("prints a rename in the text form", async () => {
@@ -322,6 +322,6 @@ describe("catalog and diff", () => {
       result.breaking
         .filter((change) => change.kind === "alias-removed")
         .map((change) => change.detail.split(" ")[0]),
-    ).toEqual(["customer.view", "organization.customers.view"]);
+    ).toStrictEqual(["customer.view", "organization.customers.view"]);
   });
 });

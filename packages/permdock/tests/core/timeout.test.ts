@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { timeoutSignal } from "../../src/core/timeout.ts";
 
-describe("timeoutSignal", () => {
+describe(timeoutSignal, () => {
   it("aborts with a TimeoutError after the deadline", async () => {
     const signal = timeoutSignal(10);
     await new Promise((resolve) => {
@@ -18,7 +18,7 @@ describe("timeoutSignal", () => {
     expect(signal.aborted).toBe(false);
     caller.abort(new Error("stopped"));
     expect(signal.aborted).toBe(true);
-    expect(signal.reason).toEqual(new Error("stopped"));
+    expect(signal.reason).toStrictEqual(new Error("stopped"));
   });
 
   it("treats a null caller signal as none", () => {

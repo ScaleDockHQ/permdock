@@ -1,19 +1,18 @@
 import type * as Vitest from "vitest";
+import type { TestContext } from "vitest";
 
-import { type TestContext, describe, vi } from "vitest";
+import { describe, vi } from "vitest";
 import { z } from "zod";
 
 import type { Decision } from "../../src/core/decision.ts";
+import type { PolicySource } from "../../src/core/hosted.ts";
 import type {
   RevocationEvent,
   RevocationFeed,
 } from "../../src/core/revocations.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
-import {
-  type PolicySource,
-  memoryPolicySource,
-} from "../../src/core/hosted.ts";
+import { memoryPolicySource } from "../../src/core/hosted.ts";
 import { memoryLimitStore } from "../../src/core/limits.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
@@ -38,7 +37,7 @@ const rejecting = vi.hoisted(() => {
   return state;
 });
 
-vi.mock("vitest", async (importOriginal) => {
+vi.mock(import("vitest"), async (importOriginal) => {
   const actual = await importOriginal<typeof Vitest>();
   const it = Object.assign(
     (

@@ -1,7 +1,9 @@
+import type { SupabaseRpcClient } from "permdock/supabase";
+
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { countHolders, getPermDock } from "permdock";
-import { type SupabaseRpcClient, postgrestSources } from "permdock/supabase";
+import { postgrestSources } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -87,7 +89,10 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     await db?.stop();
   });
 
-  /** A supabase-js shaped client over the superuser connection, as a `service_role` client would call it. */
+  /**
+   * A supabase-js shaped client over the superuser connection, as a
+   * `service_role` client would call it.
+   */
   const client = (): SupabaseRpcClient => ({
     schema(name) {
       return {
@@ -126,11 +131,11 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     });
     expect(
       owner?.memberships.map((membership) => [membership.id, membership.roles]),
-    ).toEqual([
+    ).toStrictEqual([
       ["B", ["mechanic"]],
       ["T", ["owner"]],
     ]);
-    expect(owner?.customRoles).toEqual([
+    expect(owner?.customRoles).toStrictEqual([
       {
         name: "mechanic",
         tenant: "B",
@@ -139,7 +144,7 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
       },
     ]);
     const contact = await sources.record(CONTACT);
-    expect(contact?.memberships).toEqual([
+    expect(contact?.memberships).toStrictEqual([
       {
         scope: "customer",
         id: "A",
@@ -148,7 +153,7 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
         via: "contact",
       },
     ]);
-    expect(await sources.record(SUSPENDED)).toEqual({
+    expect(await sources.record(SUSPENDED)).toStrictEqual({
       id: SUSPENDED,
       active: false,
       roles: [],
@@ -165,7 +170,7 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
       `select permdock.subject_for('${OWNER}') as subject, permdock.members_of('organization', 'N') as members`,
     );
     expect(JSON.stringify(raw.rows[0]?.subject)).not.toContain("null");
-    expect(raw.rows[0]?.members).toEqual([]);
+    expect(raw.rows[0]?.members).toStrictEqual([]);
     const row = raw.rows[0];
     if (row === undefined) {
       throw new Error("PermDock: subject_for returned no row");
@@ -202,14 +207,15 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     expect(permdock.tenant("B").can(permissions.asset.update, asset)).toBe(
       false,
     );
-    expect((await sources.subject(SUSPENDED)).principal).toBeNull();
+    const { principal } = await sources.subject(SUSPENDED);
+    expect(principal).toBeNull();
   });
 
   it("lists the live members of an instance through members_of", async () => {
     const sources = postgrestSources(client());
     expect(
       await sources.memberships.list({ scope: "organization", id: "T" }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         principal: { id: OWNER },
         membership: {
@@ -222,7 +228,7 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     ]);
     expect(
       await sources.memberships.list({ scope: "customer", id: "A" }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         principal: { id: CONTACT },
         membership: {
@@ -252,12 +258,12 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
       `select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
        where n.nspname = 'public' and p.prosecdef order by 1`,
     );
-    expect(definers.rows).toEqual([]);
+    expect(definers.rows).toStrictEqual([]);
     const wrappers = await target.admin.query<{ proname: string }>(
       `select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
        where n.nspname = 'public' and p.proname like 'permdock\\_%' order by 1`,
     );
-    expect(wrappers.rows.map((row) => row.proname)).toEqual([
+    expect(wrappers.rows.map((row) => row.proname)).toStrictEqual([
       "permdock_authz_version_for",
       "permdock_members_of",
       "permdock_subject_for",
@@ -302,19 +308,15 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
       throw new Error("PermDock: Postgres was not started");
     }
     const target = db;
-    const declared = (
-      await target.admin.query<{ key: string }>(
-        "select k as key from permdock.permdock_permission_keys() k",
-      )
-    ).rows.map((row) => row.key);
+    const { rows } = await target.admin.query<{ key: string }>(
+      "select k as key from permdock.permdock_permission_keys() k",
+    );
+    const declared = rows.map((row) => row.key);
     const pairs: string[][] = [];
     for (const id of ["T", "B", "X"]) {
       pairs.push(
         await target.as(
-          {
-            role: "authenticated",
-            settings: jwtClaims(OWNER),
-          },
+          { role: "authenticated", settings: jwtClaims(OWNER) },
           async () => {
             const one = await target.tester.query<{ key: string }>(
               "select k as key from permdock.permitted_organization_permission_keys($1) k order by 1",
@@ -342,8 +344,8 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
         pairs.at(-1)?.[1] ?? "",
       ]);
     }
-    expect(pairs.filter(([, one, each]) => one !== each)).toEqual([]);
-    expect(JSON.parse(pairs[0]?.[1] ?? "[]")).not.toEqual([]);
+    expect(pairs.filter(([, one, each]) => one !== each)).toStrictEqual([]);
+    expect(JSON.parse(pairs[0]?.[1] ?? "[]")).not.toStrictEqual([]);
     expect(JSON.parse(pairs[2]?.[1] ?? "[]")).toContain("asset.read");
   });
 });

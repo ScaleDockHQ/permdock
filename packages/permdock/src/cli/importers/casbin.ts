@@ -5,6 +5,7 @@ import type { CommandResult } from "../core/result.ts";
 import type { ImportedGrant, ImportedRole } from "./policy-module.ts";
 
 import { applyFiles } from "../core/files.ts";
+import { nonEmptyOr } from "../core/output.ts";
 import { emitPolicyModule, isIdentifier } from "./policy-module.ts";
 
 /** Why a Casbin policy line did not import. */
@@ -24,7 +25,10 @@ export type CasbinSkip = {
   readonly deny?: true;
 };
 
-/** A user's role, from a `g` line: PermDock reads it from a membership source, never from the policy. */
+/**
+ * A user's role, from a `g` line: PermDock reads it from a membership source,
+ * never from the policy.
+ */
 export type CasbinAssignment = {
   readonly user: string;
   readonly role: string;
@@ -111,7 +115,7 @@ export function readCasbinModel(
   const unsupported = terms.filter((term) => !MATCHER_TERMS.has(term));
   if (terms.length === 0 || unsupported.length > 0) {
     return {
-      refused: `the matcher has terms casbin import cannot read: ${unsupported.join(" && ") || "(empty)"}; it reads g(r.sub, p.sub[, r.dom]), r.dom == p.dom, r.obj == p.obj and r.act == p.act`,
+      refused: `the matcher has terms casbin import cannot read: ${nonEmptyOr(unsupported.join(" && "), "(empty)")}; it reads g(r.sub, p.sub[, r.dom]), r.dom == p.dom, r.obj == p.obj and r.act == p.act`,
     };
   }
   const effect = (model.get("policy_effect")?.get("e") ?? "").replaceAll(
@@ -161,7 +165,10 @@ export type CasbinImport = {
   readonly skipped: readonly CasbinSkip[];
 };
 
-/** Every grant `role` holds through `g` role-to-role lines, its own included; a cycle stops. */
+/**
+ * Every grant `role` holds through `g` role-to-role lines, its own included; a
+ * cycle stops.
+ */
 function inherited(
   role: string,
   own: ReadonlyMap<string, readonly ImportedGrant[]>,
@@ -313,17 +320,18 @@ export function runCasbinImport(input: {
     return { code: 2, output: "casbin import needs --out <file>" };
   }
   const modelText = readText(input.cwd, "--model", input.model);
-  const policyText = readText(input.cwd, "--policy", input.policy);
-  for (const read of [modelText, policyText]) {
-    if (typeof read !== "string") {
-      return { code: 2, output: read.error };
-    }
+  if (typeof modelText !== "string") {
+    return { code: 2, output: modelText.error };
   }
-  const model = readCasbinModel(String(modelText));
+  const policyText = readText(input.cwd, "--policy", input.policy);
+  if (typeof policyText !== "string") {
+    return { code: 2, output: policyText.error };
+  }
+  const model = readCasbinModel(modelText);
   if ("refused" in model) {
     return { code: 2, output: `casbin import --model: ${model.refused}` };
   }
-  const imported = importCasbin(model, String(policyText));
+  const imported = importCasbin(model, policyText);
   applyFiles(input.cwd, [
     {
       path: input.out,

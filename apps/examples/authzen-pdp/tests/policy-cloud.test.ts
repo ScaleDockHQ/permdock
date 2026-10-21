@@ -5,10 +5,13 @@ import { getPermDockSync } from "permdock";
 import { pushedPolicy } from "permdock/catalog";
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { type ProjectEnv, env } from "../src/env.ts";
+import type { ProjectEnv } from "../src/env.ts";
+import type { User } from "../src/policy.ts";
+
+import { env } from "../src/env.ts";
 import { otherPost, ownPost, permissions } from "../src/permissions.ts";
 import { cloudPolicy } from "../src/policy-cloud.ts";
-import { type User, adminUser, memberUser, policy } from "../src/policy.ts";
+import { adminUser, memberUser, policy } from "../src/policy.ts";
 
 const catalog: unknown = JSON.parse(
   readFileSync(new URL("../permissions.catalog.json", import.meta.url), "utf8"),

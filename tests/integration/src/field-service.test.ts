@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { runPipingDbUrl } from "./db-url.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const FIXTURE = join(
@@ -22,8 +23,8 @@ grant authenticated, anon to tester;
 
 /**
  * Tiers and organization roles on one membership row, platform roles in
- * `user_roles`, a tenant custom role at the `own` level, and the Sync
- * Streams that sync the same rows, against one database.
+ * `user_roles`, a tenant custom role at the `own` level, and the Sync Streams
+ * that sync the same rows, against one database.
  */
 describe("field-service fixture", () => {
   let db: Postgres | undefined;
@@ -53,10 +54,8 @@ describe("field-service fixture", () => {
 
   it("agrees with the policy on every fixture in the database", async () => {
     const result = await runPipingDbUrl(
-      ["rls", "verify", "--db-url", db!.uri],
-      {
-        cwd: FIXTURE,
-      },
+      ["rls", "verify", "--db-url", defined(db).uri],
+      { cwd: FIXTURE },
     );
     expect(result.stdout).toContain("verified 12 fixture(s) in-process");
     expect(result.code).toBe(0);
@@ -78,13 +77,14 @@ describe("field-service fixture", () => {
       const line = /- "(.*)"/u.exec(block)?.[1] ?? "";
       return line.replaceAll("auth.user_id()", "$1::text");
     };
-    const own = await db!.admin.query(query("permdock_organization_users"), [
-      "u-tech",
-    ]);
-    expect(own.rows).toEqual([
+    const own = await defined(db).admin.query(
+      query("permdock_organization_users"),
+      ["u-tech"],
+    );
+    expect(own.rows).toStrictEqual([
       { organization_id: "acme", user_id: "u-tech", tier: "pro", role_id: 2 },
     ]);
-    const roles = await db!.admin.query(query("permdock_roles"), [
+    const roles = await defined(db).admin.query(query("permdock_roles"), [
       "u-dispatch",
     ]);
     expect(roles.rows).toMatchObject([{ id: 10, key: "dispatcher" }]);
@@ -92,10 +92,8 @@ describe("field-service fixture", () => {
 
   it("syncs no row the policy denies", async () => {
     const result = await runPipingDbUrl(
-      ["powersync", "verify", "--db-url", db!.uri],
-      {
-        cwd: FIXTURE,
-      },
+      ["powersync", "verify", "--db-url", defined(db).uri],
+      { cwd: FIXTURE },
     );
     expect(result.stdout).toContain("no stream syncs a row the fixtures deny");
     expect(result.code).toBe(0);

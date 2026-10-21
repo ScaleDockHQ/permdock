@@ -43,7 +43,10 @@ export function encodeApprovalCursor(request: ApprovalRequest): string {
   return JSON.stringify(positionOf(request));
 }
 
-/** The `(createdAt, token)` position a `next` cursor names, or `null` for one that does not parse. */
+/**
+ * The `(createdAt, token)` position a `next` cursor names, or `null` for one
+ * that does not parse.
+ */
 export function decodeApprovalCursor(
   cursor: string,
 ): ApprovalCursorPosition | null {
@@ -63,8 +66,8 @@ export function decodeApprovalCursor(
 /**
  * Pages already-filtered requests in `(createdAt, token)` order, as the
  * built-in stores do: `limit` within 1 to 200 (50 when absent), `cursor` from
- * the previous page's `next`, and no items for a cursor that does not parse.
- * A custom `ApprovalStore` that filters in memory returns it from `list`.
+ * the previous page's `next`, and no items for a cursor that does not parse. A
+ * custom `ApprovalStore` that filters in memory returns it from `list`.
  */
 export function pageApprovals(
   matching: readonly ApprovalRequest[],
@@ -89,7 +92,10 @@ export function pageApprovals(
     : { items };
 }
 
-/** Every matching request of `store`, following `next` until the last page (at most 1000 pages of 200). */
+/**
+ * Every matching request of `store`, following `next` until the last page (at
+ * most 1000 pages of 200).
+ */
 export function listAllApprovals(
   store: ApprovalStore,
   filter: ApprovalListFilter,

@@ -17,7 +17,10 @@ const ANY_HELPER = new RegExp(
   "iu",
 );
 
-/** Whether a policy expression calls any generated helper, the key-less `member_<scope>_ids` included. */
+/**
+ * Whether a policy expression calls any generated helper, the key-less
+ * `member_<scope>_ids` included.
+ */
 export function callsHelper(sql: string): boolean {
   return ANY_HELPER.test(sql);
 }
@@ -25,11 +28,11 @@ export function callsHelper(sql: string): boolean {
 /**
  * The permission keys a policy expression passes to `permdock_has`,
  * `permitted_<scope>_ids` or their permission-key forms, `#n` stripped. With
- * `blind`, only the calls that ignore row conditions: the grant-key forms,
- * and a permission-key form asked for conditioned allows. A plain
+ * `blind`, only the calls that ignore row conditions: the grant-key forms, and
+ * a permission-key form asked for conditioned allows. A plain
  * `permdock_has_permission(key)` or `permitted_<scope>_ids_by_permission(key)`
- * counts only allows without a row condition, so it never grants more than
- * the application does.
+ * counts only allows without a row condition, so it never grants more than the
+ * application does.
  */
 export function helperCallKeys(sql: string, blind = false): readonly string[] {
   const keys = new Set<string>();
@@ -67,7 +70,10 @@ function helperTable(name: string): HelperTablePolicy["table"] | undefined {
   return HELPER_TABLES.find((candidate) => candidate === table);
 }
 
-/** `create policy` statements on {@link HELPER_TABLES} in migration SQL, with the keys their condition-blind helper calls pass. */
+/**
+ * `create policy` statements on {@link HELPER_TABLES} in migration SQL, with
+ * the keys their condition-blind helper calls pass.
+ */
 export function helperTablePolicies(sql: string): readonly HelperTablePolicy[] {
   const text = sql
     .replaceAll(/--[^\n]*/gu, "")
@@ -85,10 +91,17 @@ export function helperTablePolicies(sql: string): readonly HelperTablePolicy[] {
   return found;
 }
 
-/** `pg_policies` rows on {@link HELPER_TABLES}, read by `rls verify --db-url-stdin`. */
+/**
+ * `pg_policies` rows on {@link HELPER_TABLES}, read by `rls verify
+ * --db-url-stdin`.
+ */
 export const HELPER_TABLE_POLICIES_SQL = `select schemaname || '.' || tablename as target, policyname, coalesce(qual, '') || ' ' || coalesce(with_check, '') as body
 from pg_policies
 where (schemaname, tablename) in (('storage', 'objects'), ('realtime', 'messages'))`;
+
+function textOf(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
 
 /** The same rows as {@link helperTablePolicies}, from `pg_policies`. */
 export function helperTablePoliciesFromRows(
@@ -96,10 +109,10 @@ export function helperTablePoliciesFromRows(
 ): readonly HelperTablePolicy[] {
   const found: HelperTablePolicy[] = [];
   for (const row of rows) {
-    const table = helperTable(String(row["target"] ?? ""));
-    const keys = helperCallKeys(String(row["body"] ?? ""), true);
+    const table = helperTable(textOf(row["target"]));
+    const keys = helperCallKeys(textOf(row["body"]), true);
     if (table !== undefined && keys.length > 0) {
-      found.push({ table, name: String(row["policyname"] ?? ""), keys });
+      found.push({ table, name: textOf(row["policyname"]), keys });
     }
   }
   return found;

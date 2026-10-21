@@ -1,7 +1,8 @@
 import type { Policy } from "../../core/policy-types.ts";
+import type { Scope } from "../../core/scopes.ts";
 import type { RlsOwnership, RlsSqlContext } from "../sql/context.ts";
 
-import { type Scope, resolveScope, scopeChain } from "../../core/scopes.ts";
+import { resolveScope, scopeChain } from "../../core/scopes.ts";
 import { findRole } from "../../core/vocabulary.ts";
 import { scopeTable } from "../sql/names.ts";
 import { memberVia } from "../sql/subject.ts";
@@ -100,7 +101,10 @@ export function ownershipRules(
   return { kinds, assigns, counted };
 }
 
-/** A role whose `for` no membership source can satisfy: every source of its scope holds a constant `via` outside `for`. */
+/**
+ * A role whose `for` no membership source can satisfy: every source of its
+ * scope holds a constant `via` outside `for`.
+ */
 export type UnsatisfiedKind = {
   readonly role: string;
   readonly for: readonly string[];
@@ -111,8 +115,8 @@ export type UnsatisfiedKind = {
 /**
  * The roles whose `for` lists kinds that no membership source of the role's
  * scope can hold: such a role resolves to no one. A `via` read from a column
- * can hold any kind, and so does a source with no `via` (it is not
- * compared) and a scope with no table or source.
+ * can hold any kind, and so does a source with no `via` (it is not compared)
+ * and a scope with no table or source.
  */
 export function unsatisfiedKinds(
   ctx: RlsSqlContext,
@@ -129,13 +133,7 @@ export function unsatisfiedKinds(
       readonly via: string | null | undefined;
     }[] = [];
     const mapped = scopeTable(ctx, scope)?.table;
-    if (mapped !== undefined) {
-      const via = memberVia(mapped);
-      held.push({
-        label: mapped.table,
-        via: typeof via === "string" ? undefined : (via.value ?? undefined),
-      });
-    } else {
+    if (mapped === undefined) {
       for (const source of ctx.memberSources ?? ctx.sources ?? []) {
         if (source.sql.scope !== undefined && source.sql.scope !== scope) {
           continue;
@@ -151,6 +149,12 @@ export function unsatisfiedKinds(
                 : undefined,
         });
       }
+    } else {
+      const via = memberVia(mapped);
+      held.push({
+        label: mapped.table,
+        via: typeof via === "string" ? undefined : (via.value ?? undefined),
+      });
     }
     if (
       held.length === 0 ||
@@ -171,8 +175,8 @@ export function unsatisfiedKinds(
 
 /**
  * The ownership objects: holder-count and transfer-only triggers on each
- * scope's membership table, and `permdock_can_assign` for the application's
- * own policies on those tables. Empty when no role declares a rule.
+ * scope's membership table, and `permdock_can_assign` for the application's own
+ * policies on those tables. Empty when no role declares a rule.
  */
 export function ownershipSql(ctx: RlsSqlContext): string {
   const own = ctx.ownership;

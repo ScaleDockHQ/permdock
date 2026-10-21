@@ -5,6 +5,7 @@ import type {
   WebMcpPermDock,
   WebMcpRegisteredTool,
 } from "../../src/webmcp/types.ts";
+import type { User } from "../fixtures/quick-start.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
@@ -14,7 +15,6 @@ import {
   memberUser,
   permissions,
   policy,
-  type User,
 } from "../fixtures/quick-start.ts";
 
 const TOOL_NAME = /^[A-Za-z0-9_.-]{1,128}$/u;
@@ -23,7 +23,7 @@ async function clientOf(user: User): Promise<WebMcpPermDock> {
   const server = getPermDockSync(policy, user);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise || typeof snapshot === "string") {
-    throw new Error("expected JSON snapshot");
+    throw new TypeError("expected JSON snapshot");
   }
   return fromSnapshot(snapshot);
 }
@@ -81,7 +81,7 @@ describe("WebMCP draft: ModelContext.registerTool", () => {
       if (tool.inputSchema !== undefined) {
         expect(tool.inputSchema["type"]).toBe("object");
       }
-      expect(typeof tool.execute).toBe("function");
+      expect(tool.execute).toBeTypeOf("function");
     }
   });
 
@@ -93,7 +93,7 @@ describe("WebMCP draft: ModelContext.registerTool", () => {
     });
     for (const tool of active.values()) {
       for (const [key, value] of Object.entries(tool.annotations ?? {})) {
-        expect({ key, kind: typeof value }).toEqual({
+        expect({ key, kind: typeof value }).toStrictEqual({
           key: expect.stringMatching(/^(readOnlyHint|untrustedContentHint)$/u),
           kind: "boolean",
         });
@@ -138,7 +138,7 @@ describe("WebMCP draft: ModelContext.registerTool", () => {
     for (const listener of listeners) {
       listener();
     }
-    expect([...active.keys()].toSorted()).toEqual(before);
+    expect([...active.keys()].toSorted()).toStrictEqual(before);
   });
 
   it("execute resolves to a tool result of text content parts", async () => {
@@ -148,7 +148,7 @@ describe("WebMCP draft: ModelContext.registerTool", () => {
       handlers: { list: async () => [] },
     });
     const result = await active.get("post_list")?.execute({});
-    expect(result?.content).toEqual([{ type: "text", text: "[]" }]);
+    expect(result?.content).toStrictEqual([{ type: "text", text: "[]" }]);
   });
 
   it("does nothing when the document exposes no modelContext", async () => {
@@ -182,14 +182,14 @@ describe("WebMCP: agent-supplied arguments are untrusted", () => {
     expect(result?.structuredContent).toMatchObject({
       denials: [{ reason: "validation" }],
     });
-    expect(ran).toEqual([]);
+    expect(ran).toStrictEqual([]);
   });
 
   it("a simulated snapshot exposes no tools at all", async () => {
     const server = getPermDockSync(policy, adminUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise || typeof snapshot === "string") {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const { context, active } = strictContext();
     registerTools(context, permissions.post, {

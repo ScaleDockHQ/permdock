@@ -35,7 +35,7 @@ function legacyCheck(input: {
   return input.permission.key === "invoice.read" || roles.includes("admin");
 }
 
-describe("testLegacyParity", () => {
+describe(testLegacyParity, () => {
   testLegacyParity(policy, legacyCheck, [
     {
       name: "a member reads an invoice",

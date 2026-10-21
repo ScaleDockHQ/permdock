@@ -54,7 +54,7 @@ const ctx: RlsSqlContext = {
 
 describe("break-glass RLS generation", () => {
   it("lists the resources a break-glass grant targets, with the mapped table", () => {
-    expect(breakGlassEntries(policy, undefined)).toEqual([
+    expect(breakGlassEntries(policy, undefined)).toStrictEqual([
       {
         resource: "patient",
         table: "patient",
@@ -63,7 +63,7 @@ describe("break-glass RLS generation", () => {
         ],
       },
     ]);
-    expect(breakGlassEntries(policy, { patient: "patients" })).toEqual([
+    expect(breakGlassEntries(policy, { patient: "patients" })).toStrictEqual([
       {
         resource: "patient",
         table: "patients",
@@ -104,7 +104,7 @@ describe("break-glass RLS generation", () => {
       subject: (user: unknown) => user as never,
     });
     const entries = breakGlassEntries(twice, { patient: "clinic.patients" });
-    expect(entries).toEqual([
+    expect(entries).toStrictEqual([
       {
         resource: "patient",
         table: "clinic.patients",
@@ -135,9 +135,7 @@ describe("break-glass RLS generation", () => {
   });
 
   it("reads only the rows of instances where a role holds the break-glass grant", () => {
-    const Record = {
-      "~standard": Doc["~standard"],
-    } as const;
+    const Record = { "~standard": Doc["~standard"] } as const;
     const scoped = definePermissions({
       chart: resource(Record, {
         id: "id",

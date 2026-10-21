@@ -1,10 +1,12 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 
+import type { PlannedFile } from "../core/files.ts";
 import type { CommandResult } from "../core/result.ts";
+import type { CodemodChange, CodemodFollowUp, RenameSet } from "./transform.ts";
 
 import { CliError } from "../core/errors.ts";
-import { type PlannedFile, applyFiles, refuseDirty } from "../core/files.ts";
+import { applyFiles, refuseDirty } from "../core/files.ts";
 import { rel } from "../files.ts";
 import { rewriteCliCalls } from "./cli-calls.ts";
 import { RENAMES_0_5, SIGNATURE_CHANGES_0_5 } from "./renames-0.5.ts";
@@ -18,12 +20,7 @@ import {
   PROP_RENAMES_0_5,
   TEMPLATE_HINTS_0_5,
 } from "./shapes-0.5.ts";
-import {
-  type CodemodChange,
-  type CodemodFollowUp,
-  type RenameSet,
-  transformSource,
-} from "./transform.ts";
+import { transformSource } from "./transform.ts";
 
 export const CODEMOD_0_5: RenameSet = Object.freeze({
   renames: Object.freeze([...RENAMES_0_5, ...CALL_RENAMES_0_5]),
@@ -59,7 +56,10 @@ const EXTENSIONS: ReadonlySet<string> = new Set([
   ".svelte",
 ]);
 
-/** Files whose shell commands the codemod rewrites when the version renames CLI names. */
+/**
+ * Files whose shell commands the codemod rewrites when the version renames CLI
+ * names.
+ */
 const CLI_FILE_NAMES: ReadonlySet<string> = new Set([
   "package.json",
   "Makefile",
@@ -88,9 +88,7 @@ export type CodemodFileReport = {
   readonly changes: readonly CodemodChange[];
 };
 
-export type CodemodFollowUpReport = CodemodFollowUp & {
-  readonly file: string;
-};
+export type CodemodFollowUpReport = CodemodFollowUp & { readonly file: string };
 
 /** What `permdock codemod <version> --json` prints. */
 export type CodemodReport = {
@@ -213,9 +211,7 @@ function cliResult(
   file: string,
   source: string,
 ): ReturnType<typeof transformSource> {
-  const result = rewriteCliCalls(source, {
-    json: extname(file) === ".json",
-  });
+  const result = rewriteCliCalls(source, { json: extname(file) === ".json" });
   if (!CLI_REVIEW_EXTENSIONS.has(extname(file))) {
     return {
       source: result.text,

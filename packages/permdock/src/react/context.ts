@@ -1,4 +1,6 @@
-import { type Context, createContext } from "react";
+import type { Context } from "react";
+
+import { createContext } from "react";
 
 import type { ClientStore } from "../client/store.ts";
 import type { DescribeMessages } from "../core/describe.ts";

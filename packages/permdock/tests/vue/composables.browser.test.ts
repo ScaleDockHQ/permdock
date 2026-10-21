@@ -1,3 +1,5 @@
+import type { Component, VNode } from "vue";
+
 import { describe, expect, it } from "vitest";
 import {
   createApp,
@@ -6,8 +8,6 @@ import {
   nextTick,
   reactive,
   shallowRef,
-  type Component,
-  type VNode,
 } from "vue";
 
 import type { Decision } from "../../src/core/decision.ts";
@@ -27,6 +27,7 @@ import {
 } from "../../src/vue/composables.ts";
 import { permdockPlugin } from "../../src/vue/plugin.ts";
 import { Protected } from "../../src/vue/protected.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 import {
   memberUser,
   otherPost,
@@ -90,7 +91,7 @@ describe("permdock/vue composables", () => {
         },
       }),
     );
-    expect(String(failure)).toMatch(/composables require permdockPlugin/);
+    expect(String(failure)).toMatch(/composables require permdockPlugin/u);
     view.unmount();
   });
 
@@ -201,7 +202,7 @@ describe("permdock/vue composables", () => {
         snapshot: await memberSnapshot(),
         approvals: "/api/approvals",
         fetch: async (input) => {
-          posts.push(String(input));
+          posts.push(requestUrl(input));
           return new Response(JSON.stringify({ status: "pending" }));
         },
       },
@@ -209,7 +210,7 @@ describe("permdock/vue composables", () => {
     expect(view.root.textContent).toBe("required:pd1.token");
     await request?.("please");
     await nextTick();
-    expect(posts).toEqual(["/api/approvals"]);
+    expect(posts).toStrictEqual(["/api/approvals"]);
     expect(view.root.textContent).toBe("pending:pd1.token");
     decision.value = { outcome: "denied", denials: [], alternatives: [] };
     await nextTick();

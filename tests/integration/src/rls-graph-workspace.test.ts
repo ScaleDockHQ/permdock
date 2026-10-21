@@ -105,13 +105,13 @@ describe("relationship graph in RLS: match, includes, groups and link hops", () 
         }
       }
     }
-    expect(mismatches).toEqual([]);
-    expect(await visible(db, "otto", "team")).toEqual([
+    expect(mismatches).toStrictEqual([]);
+    expect(await visible(db, "otto", "team")).toStrictEqual([
       "eng-team",
       "oncall",
       "sre",
     ]);
-    expect(await visible(db, "lena", "doc")).toEqual(["deep-doc"]);
-    expect(await visible(db, "rob", "doc")).toEqual([]);
+    expect(await visible(db, "lena", "doc")).toStrictEqual(["deep-doc"]);
+    expect(await visible(db, "rob", "doc")).toStrictEqual([]);
   });
 });

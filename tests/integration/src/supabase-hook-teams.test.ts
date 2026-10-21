@@ -103,7 +103,7 @@ describe("supabase.hook.teams", () => {
     const claims = await mint(MEMBER, {
       app_metadata: { active_tenant: "acme" },
     });
-    expect(claims["team_ids"]).toEqual([TEAM(1), TEAM(2)]);
+    expect(claims["team_ids"]).toStrictEqual([TEAM(1), TEAM(2)]);
     expect(claims["memberships_truncated"]).toBeUndefined();
   });
 
@@ -113,7 +113,7 @@ describe("supabase.hook.teams", () => {
     });
     const teams = claims["team_ids"];
     if (!Array.isArray(teams)) {
-      throw new Error("team_ids is not an array");
+      throw new TypeError("team_ids is not an array");
     }
     expect(teams.length).toBeLessThan(31);
     expect(

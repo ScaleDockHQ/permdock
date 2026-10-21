@@ -170,12 +170,7 @@ describe("evaluateSnapshot", () => {
     const client = fromSnapshot(
       snapshotWith([
         allowRead,
-        {
-          ...allowRead,
-          effect: "deny",
-          portable: false,
-          fields: ["secret"],
-        },
+        { ...allowRead, effect: "deny", portable: false, fields: ["secret"] },
       ]),
     );
     const row = { id: "d1", title: "t", secret: "s" };
@@ -232,7 +227,7 @@ describe("a forged snapshot grantee", () => {
     expect({
       can: client.can(permissions.doc.read, { id: "d1" }),
       reason: reasonOf(client.decide(permissions.doc.read, { id: "d1" })),
-    }).toEqual({ can: false, reason: "no-grant" });
+    }).toStrictEqual({ can: false, reason: "no-grant" });
   });
 
   it("applies a deny whose grantee kind the client does not know", () => {

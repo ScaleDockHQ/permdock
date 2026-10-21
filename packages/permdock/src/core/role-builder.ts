@@ -8,6 +8,7 @@ import type {
   RoleOptions,
   RoleScope,
 } from "./policy-types.ts";
+import type { Role as RoleLeaf } from "./vocabulary.ts";
 
 import { activationApproval } from "./approval-normalize.ts";
 import { compact } from "./compact.ts";
@@ -16,7 +17,7 @@ import { flattenGrants, flattenPermissions } from "./grant-builders.ts";
 import { asGrantee, flattenGrantee, roleScopeOf } from "./grantee.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { assertDuration } from "./time.ts";
-import { type Role as RoleLeaf, isRole } from "./vocabulary.ts";
+import { isRole } from "./vocabulary.ts";
 
 function resolveRoleScope(on: RoleScope | undefined): Grant["scope"] {
   if (on === undefined) {
@@ -47,7 +48,10 @@ type RoleGrants = readonly (
   | readonly Omit<Grant, "role" | "scope">[]
 )[];
 
-/** A role held at a named scope: `on` is checked against `definePolicy({ scopes })`. */
+/**
+ * A role held at a named scope: `on` is checked against `definePolicy({ scopes
+ * })`.
+ */
 export function role<const S extends string>(
   name: string | RoleLeaf,
   grants: RoleGrants,
@@ -85,11 +89,7 @@ export function role(
   const rules = roleRules(roleName, scope, options);
   const activation = normalizeActivation(roleName, options?.activation);
   const roleGrantee = asGrantee(
-    freezeDeep({
-      kind: "role" as const,
-      role: roleName,
-      scope,
-    }),
+    freezeDeep({ kind: "role" as const, role: roleName, scope }),
   );
   const normalised = flattenGrants(grants).map((grant) => {
     const items = flattenGrantee(grant.to);
@@ -211,7 +211,10 @@ function holderCount(
   return value;
 }
 
-/** Ownership rules count holders per scope instance, so they need a named-scope role. */
+/**
+ * Ownership rules count holders per scope instance, so they need a named-scope
+ * role.
+ */
 function roleRules(
   roleName: string,
   scope: Grant["scope"],

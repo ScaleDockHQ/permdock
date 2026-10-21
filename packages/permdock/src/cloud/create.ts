@@ -9,11 +9,13 @@ import type {
 } from "../approvals/types.ts";
 import type { CatalogDocument } from "../catalog/types.ts";
 import type { SinkEvent } from "../core/event-types.ts";
+import type { PolicyDocument, PolicySource } from "../core/hosted.ts";
 import type {
   DecisionSink,
   SnapshotSource,
   TokenVerifier,
 } from "../core/interfaces.ts";
+import type { Instant } from "../core/time.ts";
 import type {
   CloudCatalog,
   CloudCatalogPush,
@@ -28,18 +30,14 @@ import { APPROVAL_HEADER } from "../approvals/types.ts";
 import { catalogFingerprint } from "../core/catalog-fingerprint.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import {
-  type PolicyDocument,
-  type PolicySource,
-  policyDocumentFromClaims,
-} from "../core/hosted.ts";
+import { policyDocumentFromClaims } from "../core/hosted.ts";
 import { parseCatalogEventData } from "../core/parse-sink-events.ts";
 import {
   CLOUDEVENTS_BATCH_CONTENT_TYPE,
   isAbsoluteUri,
   toCloudEvent,
 } from "../core/sink.ts";
-import { dateAt, type Instant } from "../core/time.ts";
+import { dateAt } from "../core/time.ts";
 import { approverHeaders } from "./approver.ts";
 import { cloudConnection, isCompactJws } from "./request.ts";
 
@@ -83,7 +81,10 @@ function asApproval(value: unknown): ApprovalRequest | null {
   return value as ApprovalRequest;
 }
 
-/** The refusal PermDock Cloud names in its body, else the one its status implies. */
+/**
+ * The refusal PermDock Cloud names in its body, else the one its status
+ * implies.
+ */
 async function approvalErrorFrom(response: Response): Promise<ApprovalError> {
   let body: unknown;
   try {

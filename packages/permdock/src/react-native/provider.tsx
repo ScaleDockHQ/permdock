@@ -1,4 +1,6 @@
-import { type ReactElement, useEffect, useMemo, useRef } from "react";
+import type { ReactElement } from "react";
+
+import { useEffect, useMemo, useRef } from "react";
 
 import type { ClientStore } from "../client/store.ts";
 import type { ReactNativePermDockProviderProps } from "./types.ts";
@@ -93,10 +95,10 @@ export function PermDockProvider(
       store
         .get()
         .refresh()
-        .catch(() => undefined)
         .finally(() => {
           inFlight = false;
-        });
+        })
+        .catch(() => undefined);
     };
     const startTimer = (): void => {
       if (typeof mode === "number" && timer === undefined) {

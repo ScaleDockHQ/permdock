@@ -38,9 +38,9 @@ export type ParseCatalogOptions = {
  * Reads a `permissions.catalog.json` document (parsed, or the JSON text),
  * validates it against `schemas/catalog-v1.json`, then checks its references:
  * role scopes, the permission keys operations, grants, delegations and OAuth
- * scopes name, unique keys, and `requireMeta`. Returns a deep-frozen copy
- * built from own keys; throws `PermDockValidationError` with every issue,
- * each with its `path`.
+ * scopes name, unique keys, and `requireMeta`. Returns a deep-frozen copy built
+ * from own keys; throws `PermDockValidationError` with every issue, each with
+ * its `path`.
  */
 export function parseCatalog(
   json: unknown,
@@ -86,7 +86,10 @@ export function parseCatalog(
   return freezeDeep(catalog);
 }
 
-/** Keys of the permissions the catalog marks `rowConditions: true`: the SQL helpers alone cannot enforce them. */
+/**
+ * Keys of the permissions the catalog marks `rowConditions: true`: the SQL
+ * helpers alone cannot enforce them.
+ */
 export function rowConditionKeys(
   catalog: CatalogDocument,
 ): ReadonlySet<string> {

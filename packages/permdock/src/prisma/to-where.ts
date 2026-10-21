@@ -1,19 +1,17 @@
 import type { Condition } from "../conditions/ast.ts";
+import type { CompiledWhere } from "../conditions/compile.ts";
+import type { RowCheck } from "../conditions/row-check.ts";
+import type { WithSubjectOptions } from "../conditions/subject-settings.ts";
 import type { WhereResult } from "../core/permdock.ts";
 import type { Subject } from "../core/subject.ts";
 import type { Instant } from "../core/time.ts";
 import type { PrismaModelFields } from "./model-fields.ts";
 
-import {
-  type CompiledWhere,
-  compileWhere,
-  escapeLike,
-} from "../conditions/compile.ts";
-import { type RowCheck, rowCheckOf } from "../conditions/row-check.ts";
+import { compileWhere, escapeLike } from "../conditions/compile.ts";
+import { rowCheckOf } from "../conditions/row-check.ts";
 import {
   statementText,
   subjectStatements,
-  type WithSubjectOptions,
 } from "../conditions/subject-settings.ts";
 import { compact } from "../core/compact.ts";
 import { assertSafeKey } from "../core/paths.ts";
@@ -21,13 +19,19 @@ import { assertSafeKey } from "../core/paths.ts";
 export type PrismaWhereOptions = {
   readonly fields?: Readonly<Record<string, string>>;
   readonly subject?: Subject;
-  /** The clock membership expiry is read at; a `Temporal.Instant` fits. Defaults to the current time. */
+  /**
+   * The clock membership expiry is read at; a `Temporal.Instant` fits. Defaults
+   * to the current time.
+   */
   readonly now?: Instant;
   readonly listFields?: readonly string[];
   // Prisma rejects a null filter on a required field, and its runtime data
   // model does not say which fields are required.
   readonly requiredFields?: readonly string[];
-  /** Required and list fields read from the schema by `prismaModelFields`; adds to `requiredFields` and `listFields`. */
+  /**
+   * Required and list fields read from the schema by `prismaModelFields`; adds
+   * to `requiredFields` and `listFields`.
+   */
   readonly model?: PrismaModelFields;
 };
 
@@ -145,24 +149,16 @@ function render(
         : { [name]: { equals: null } };
     }
     case "and":
-      return {
-        AND: node.items.map((item) => render(item, options, tests)),
-      };
+      return { AND: node.items.map((item) => render(item, options, tests)) };
     case "or":
-      return {
-        OR: node.items.map((item) => render(item, options, tests)),
-      };
+      return { OR: node.items.map((item) => render(item, options, tests)) };
     case "not":
       return { NOT: render(node.item, options, tests) };
     // Unreachable: Prisma takes no `memberships` mapping, so `memberOf`
     // compiles from the subject. Fail closed if it ever arrives.
     /* v8 ignore next 6 */
     case "exists":
-      return {
-        [fieldName(node.rowField, options.fields)]: {
-          in: [],
-        },
-      };
+      return { [fieldName(node.rowField, options.fields)]: { in: [] } };
     // Unreachable: Prisma takes no `relations` mapping, so `related` is
     // refused unless `resolveRelated` turned it into ids first.
     /* v8 ignore next 2 */
@@ -235,10 +231,7 @@ function rewriteEmptyOr<T extends Record<string, unknown>>(args: T): T {
   if (where === undefined || !containsEmptyOr(where)) {
     return args;
   }
-  return {
-    ...args,
-    where: { AND: [where, EMPTY_OR], OR: [] },
-  };
+  return { ...args, where: { AND: [where, EMPTY_OR], OR: [] } };
 }
 
 export function toWhere<
@@ -246,10 +239,7 @@ export function toWhere<
 >(input: Condition | WhereResult, options: PrismaWhereOptions = {}): T {
   const compiled = compileWhere(
     input,
-    compact({
-      subject: options.subject,
-      now: options.now,
-    }),
+    compact({ subject: options.subject, now: options.now }),
   );
   const tests = fieldTests(options);
   // SAFETY: T names the caller's Prisma where input, the shape render emits.
@@ -296,16 +286,17 @@ export function permdockExtension(): {
 }
 
 type PrismaTransactionClient = {
-  $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
+  $executeRawUnsafe: (query: string, ...values: unknown[]) => Promise<number>;
 };
 
 type PrismaLike<Tx> = {
-  $transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
+  $transaction: <T>(fn: (tx: Tx) => Promise<T>) => Promise<T>;
 };
 
 /**
- * Runs `fn` in an interactive transaction whose role and claims are `permdock.subject`'s, so
- * the generated RLS policies decide for the same subject as the in-process checks.
+ * Runs `fn` in an interactive transaction whose role and claims are
+ * `permdock.subject`'s, so the generated RLS policies decide for the same
+ * subject as the in-process checks.
  */
 export function withSubject<Tx extends PrismaTransactionClient, T>(
   prisma: PrismaLike<Tx>,
@@ -324,15 +315,16 @@ export function withSubject<Tx extends PrismaTransactionClient, T>(
 }
 
 type PrismaDelegate = {
-  findFirst(args: {
+  findFirst: (args: {
     readonly where: Record<string, unknown>;
-  }): Promise<unknown>;
+  }) => Promise<unknown>;
 };
 
 /**
- * Checks one row by its unique key, for `findUnique`, `update` and `delete`, which take no
- * filter: `{ found: false }` when `unique` matches nothing, otherwise whether the permission
- * filter keeps the row. One query when granted, two otherwise.
+ * Checks one row by its unique key, for `findUnique`, `update` and `delete`,
+ * which take no filter: `{ found: false }` when `unique` matches nothing,
+ * otherwise whether the permission filter keeps the row. One query when
+ * granted, two otherwise.
  */
 export async function checkRow(
   delegate: PrismaDelegate,

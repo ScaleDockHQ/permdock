@@ -1,11 +1,7 @@
 import type { Subject } from "../core/subject.ts";
+import type { Condition, ConditionValue, SqlFunctionArg } from "./ast.ts";
 
-import {
-  type Condition,
-  type ConditionValue,
-  type SqlFunctionArg,
-  isConditionRef,
-} from "./ast.ts";
+import { isConditionRef } from "./ast.ts";
 import { resolveConditionRef } from "./refs.ts";
 
 function isPrimitive(value: unknown): value is string | number | boolean {
@@ -58,10 +54,10 @@ function bindArg(
 
 /**
  * Replaces every `principal.*` / `context.*` ref with the subject's value, and
- * a `liveSession` node with a constant, so a `where()` result compiles the
- * same without the subject. A ref the subject
- * does not hold binds to `null` (or `[]` in a list), which never matches, as
- * in `evaluateCondition`. With `only`, refs it rejects stay refs.
+ * a `liveSession` node with a constant, so a `where()` result compiles the same
+ * without the subject. A ref the subject does not hold binds to `null` (or `[]`
+ * in a list), which never matches, as in `evaluateCondition`. With `only`, refs
+ * it rejects stay refs.
  */
 export function bindConditionRefs(
   condition: Condition,
@@ -89,10 +85,7 @@ export function bindConditionRefs(
         return condition;
       }
       const bound = bindValue(value, subject, only);
-      return {
-        ...condition,
-        value: Array.isArray(bound) ? bound : [],
-      };
+      return { ...condition, value: Array.isArray(bound) ? bound : [] };
     }
     case "eq":
     case "ne":
@@ -101,10 +94,7 @@ export function bindConditionRefs(
     case "lt":
     case "lte":
     case "contains":
-      return {
-        ...condition,
-        value: bindValue(condition.value, subject, only),
-      };
+      return { ...condition, value: bindValue(condition.value, subject, only) };
     case "sqlFunction":
       return {
         ...condition,

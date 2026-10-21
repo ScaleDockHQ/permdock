@@ -1,14 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { PermDock } from "../../src/core/permdock.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import { PermDockDeniedError } from "../../src/core/errors.ts";
 import { limits, memoryLimitStore } from "../../src/core/limits.ts";
-import {
-  type PermDock,
-  getPermDockSync as createCorePermDock,
-} from "../../src/core/permdock.ts";
+import { getPermDockSync as createCorePermDock } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import {
@@ -66,7 +64,8 @@ describe("rate limit responses", () => {
       limits: limits(memoryLimitStore()),
     });
     const guard = protect(permissions.report.export);
-    expect((await guard(request())).ok).toBe(true);
+    const { ok } = await guard(request());
+    expect(ok).toBe(true);
     expect((await guard(request())).ok).toBe(true);
     const refused = await guard(request());
     expect(refused.ok).toBe(false);
@@ -128,7 +127,7 @@ describe("rate limit responses", () => {
       },
       { epochMilliseconds: 1_000_000 },
     );
-    expect(headers).toEqual({
+    expect(headers).toStrictEqual({
       "Retry-After": "30",
       RateLimit: '"a";r=0;t=30, "b";r=0;t=500',
       "RateLimit-Policy": '"a";q=5;w=60, "b";q=100;w=3600',
@@ -142,9 +141,7 @@ describe("disclosure", () => {
     const policy = definePolicy(permissions, {
       roles: [
         role("member", [
-          allow(permissions.report.read, {
-            where: { ownerId: principal.id },
-          }),
+          allow(permissions.report.read, { where: { ownerId: principal.id } }),
           allow(permissions.report.export, {
             where: { ownerId: principal.id },
             to: assurance({ acr: "mfa" }),
@@ -191,8 +188,8 @@ describe("disclosure", () => {
         body: await response.text(),
       })),
     );
-    expect(bodies[0]).toEqual(bodies[1]);
-    expect(bodies[2]).toEqual(bodies[1]);
+    expect(bodies[0]).toStrictEqual(bodies[1]);
+    expect(bodies[2]).toStrictEqual(bodies[1]);
     expect(bodies[1]?.status).toBe(404);
     expect(JSON.parse(bodies[1]?.body ?? "{}")).toMatchObject({
       type: "about:blank",
@@ -311,7 +308,7 @@ describe("step-up challenges", () => {
       ownerId: "u1",
     });
     expect(glass.outcome).toBe("denied");
-    expect(stepUpOf(glass)).toEqual({ maxAge: 120 });
+    expect(stepUpOf(glass)).toStrictEqual({ maxAge: 120 });
     expect(wwwAuthenticate(glass, permissions.report.read)).toBe(
       'Bearer error="insufficient_user_authentication", max_age="120"',
     );
@@ -320,7 +317,10 @@ describe("step-up challenges", () => {
       scope: "tenant",
       id: "t1",
     });
-    expect(stepUpOf(elevated)).toEqual({ acrValues: ["mfa"], maxAge: 60 });
+    expect(stepUpOf(elevated)).toStrictEqual({
+      acrValues: ["mfa"],
+      maxAge: 60,
+    });
   });
 });
 
@@ -424,7 +424,7 @@ describe("assert and protect parity", () => {
       );
       const expected = await shape(fromProtect);
       expect(expected.status).toBe(status);
-      expect(await shape(fromAssert)).toEqual(expected);
+      expect(await shape(fromAssert)).toStrictEqual(expected);
     },
   );
 

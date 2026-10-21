@@ -38,15 +38,12 @@ export type ElysiaPermDockOptions<TUser = unknown> = ServerAdapterOptions<
 /** The `ws` Elysia passes to `.ws` handlers; `data` is the upgrade context. */
 export type ElysiaSocket = {
   readonly data: ElysiaRequestContext;
-  close(code?: number, reason?: string): unknown;
+  close: (code?: number, reason?: string) => unknown;
 };
 
 export type ElysiaPermDockContext<
   V extends PolicyVocabulary = PolicyVocabulary,
-> = ElysiaRequestContext & {
-  permdock: PermDock<V>;
-  permdockData?: unknown;
-};
+> = ElysiaRequestContext & { permdock: PermDock<V>; permdockData?: unknown };
 
 export type ElysiaProtect = (
   permission: Permission | null,
@@ -54,7 +51,10 @@ export type ElysiaProtect = (
   protectOptions?: ProtectOptions,
 ) => (ctx: ElysiaRequestContext) => Promise<Response | undefined>;
 
-/** The `middleware()` plugin: its global derive types `permdock` in every later handler. */
+/**
+ * The `middleware()` plugin: its global derive types `permdock` in every later
+ * handler.
+ */
 export type ElysiaPermDockPlugin<
   V extends PolicyVocabulary = PolicyVocabulary,
 > = Elysia<
@@ -70,13 +70,16 @@ export type ElysiaPermDockPlugin<
 >;
 
 export type ElysiaPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  /** The `PermDock` for one request, for code the middleware does not run before. */
+  /**
+   * The `PermDock` for one request, for code the middleware does not run
+   * before.
+   */
   readonly getPermDock: (ctx: ElysiaRequestContext) => Promise<PermDock<V>>;
   readonly middleware: () => ElysiaPermDockPlugin<V>;
   readonly protect: ElysiaProtect;
   /**
-   * One connection per socket: the same promise for every handler
-   * of that socket; closes it with `1008` when the connection aborts.
+   * One connection per socket: the same promise for every handler of that
+   * socket; closes it with `1008` when the connection aborts.
    */
   readonly connection: (
     ws: ElysiaSocket,
@@ -116,9 +119,7 @@ export function createPermDock<
         return { permdock: instance };
       })
       .onError({ as: "global" }, ({ error, request }) =>
-        problemFromError(error, {
-          credentials: hasCredentials(request),
-        }),
+        problemFromError(error, { credentials: hasCredentials(request) }),
       ) as unknown as ElysiaPermDockPlugin<V>;
 
   const protect: ElysiaProtect =

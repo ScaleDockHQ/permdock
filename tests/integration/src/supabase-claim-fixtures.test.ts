@@ -40,7 +40,7 @@ describe("better-supabase claim fixtures", () => {
           readOnly: actor.readOnly,
         });
       }
-      expect(subject.delegation?.scopes).toEqual(
+      expect(subject.delegation?.scopes).toStrictEqual(
         delegatedScopes(delegation?.scopes),
       );
     });

@@ -101,7 +101,10 @@ export function betterAuthCustomRoleSource(
   };
 }
 
-/** A team role sits in the second scope inside its organization; an organization role in the first. */
+/**
+ * A team role sits in the second scope inside its organization; an organization
+ * role in the first.
+ */
 function scopeOfChange(event: BetterAuthRoleChangeEvent): {
   readonly scope?: string;
   readonly id?: string;

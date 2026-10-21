@@ -24,7 +24,10 @@ export type H3PermDockOptions<TUser = unknown> = FetchAdapterOptions<
   TUser
 >;
 
-/** `event.context` once `middleware()` or `protect` ran: the instance and the loaded row. */
+/**
+ * `event.context` once `middleware()` or `protect` ran: the instance and the
+ * loaded row.
+ */
 export type H3PermDockContext<
   TData = unknown,
   V extends PolicyVocabulary = PolicyVocabulary,
@@ -51,8 +54,8 @@ export type H3PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   ) => Promise<Snapshot>;
   /**
    * Types `event.context.permdock` and `permdockData` for the handler, builds
-   * the instance when no middleware set it, and answers a thrown PermDock
-   * error with Problem Details.
+   * the instance when no middleware set it, and answers a thrown PermDock error
+   * with Problem Details.
    */
   readonly withPermDock: <TData = unknown>(
     handler: (event: H3PermDockEvent<TData, V>) => unknown,

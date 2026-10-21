@@ -23,7 +23,10 @@ const forged = { ...ownPost, published: "yes" };
 
 const src = path.join(import.meta.dirname, "../../src");
 
-/** Every `trusted: true` an adapter passes, and why the row is not request-derived. */
+/**
+ * Every `trusted: true` an adapter passes, and why the row is not
+ * request-derived.
+ */
 const TRUSTED_SITES: Readonly<Record<string, string>> = {
   "agent/create.ts":
     "the model row is { id } built from a key of the application's models map",
@@ -105,7 +108,7 @@ describe("invariant 9: boundary data is validated before a check", () => {
     const server = getPermDockSync(policy, adminUser);
     const initial = server.snapshot();
     if (initial instanceof Promise) {
-      throw new Error("expected a JSON snapshot");
+      throw new TypeError("expected a JSON snapshot");
     }
     const store = createClientStore({
       snapshot: initial,
@@ -117,7 +120,7 @@ describe("invariant 9: boundary data is validated before a check", () => {
         ),
     });
     await store.get().refresh();
-    expect(store.snapshot()).toEqual(initial);
+    expect(store.snapshot()).toStrictEqual(initial);
   });
 
   it("never marks request-derived data trusted in an adapter", () => {
@@ -141,6 +144,6 @@ describe("invariant 9: boundary data is validated before a check", () => {
     const allowed = Object.keys(TRUSTED_SITES).map((key) =>
       key.replace(/:\w+$/u, ""),
     );
-    expect(files.toSorted()).toEqual(allowed.toSorted());
+    expect(files.toSorted()).toStrictEqual(allowed.toSorted());
   });
 });

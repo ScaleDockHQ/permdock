@@ -53,7 +53,10 @@ export function approvalToolRefusal(
   };
 }
 
-/** An MCP `CallToolResult` with `isError` set, as MCP and WebMCP clients read it. */
+/**
+ * An MCP `CallToolResult` with `isError` set, as MCP and WebMCP clients read
+ * it.
+ */
 export function toolErrorResult(refusal: ToolRefusal): {
   readonly isError: true;
   readonly content: readonly [{ readonly type: "text"; readonly text: string }];

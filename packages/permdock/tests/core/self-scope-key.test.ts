@@ -9,7 +9,10 @@ import {
   role,
 } from "../../src/index.ts";
 
-/** Both tables are scope instances themselves: each row's own `id` is the scope id. */
+/**
+ * Both tables are scope instances themselves: each row's own `id` is the scope
+ * id.
+ */
 const permissions = definePermissions({
   organization: resource({
     id: "id",
@@ -75,7 +78,7 @@ describe("relations.self with a scope key and no other relation", () => {
   });
 
   it("filters the same rows through where()", () => {
-    expect(permdock.where(permissions.team.read).condition).toEqual({
+    expect(permdock.where(permissions.team.read).condition).toStrictEqual({
       op: "eq",
       field: "id",
       value: "t1",

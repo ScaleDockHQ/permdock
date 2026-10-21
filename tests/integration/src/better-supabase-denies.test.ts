@@ -17,7 +17,10 @@ import { ask, askAs } from "./support/pglite.ts";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/permission-denies");
 
-/** The inline SQL a policy carries; `"provider"` and a missing value fail the test. */
+/**
+ * The inline SQL a policy carries; `"provider"` and a missing value fail the
+ * test.
+ */
 function inlineSql<T>(sql: T | "provider" | undefined): T {
   if (sql === undefined || sql === "provider") {
     throw new Error("expected the policy to carry inline SQL");
@@ -138,7 +141,7 @@ describe("better-supabase SQL against a deny of the same permission", () => {
       suspended: await askAs(database(), SUSPENDED, fill(functions.isPlatform)),
       "staff for": await ask(database(), fill(isPlatformFor, STAFF)),
       "suspended for": await ask(database(), fill(isPlatformFor, SUSPENDED)),
-    }).toEqual({
+    }).toStrictEqual({
       reader: true,
       blocked: false,
       "reader for": true,
@@ -194,7 +197,7 @@ describe("better-supabase SQL against a deny of the same permission", () => {
         SUSPENDED,
         fill(inlineSql(platform.sql).isPlatform),
       ),
-    }).toEqual({
+    }).toStrictEqual({
       bucketReader: true,
       bucketBlocked: false,
       topicReader: true,

@@ -64,7 +64,7 @@ function setup() {
   return { sink, handler };
 }
 
-describe("resendWebhook", () => {
+describe(resendWebhook, () => {
   it("maps delivery outcomes to delivery events", async () => {
     const cases = [
       [emailEvent("email.delivered"), { operation: "delivered" }],
@@ -141,9 +141,10 @@ describe("resendWebhook", () => {
         data: {},
       },
     ]) {
-      expect((await handler(await signed(body))).status).toBe(200);
+      const { status } = await handler(await signed(body));
+      expect(status).toBe(200);
     }
-    expect(sink.events()).toEqual([]);
+    expect(sink.events()).toStrictEqual([]);
   });
 
   it("refuses a bad signature with 403 Problem Details and writes nothing", async () => {
@@ -166,13 +167,14 @@ describe("resendWebhook", () => {
       }),
     );
     expect(unsigned.status).toBe(400);
-    expect(sink.events()).toEqual([]);
+    expect(sink.events()).toStrictEqual([]);
   });
 
   it("writes a replayed message id once", async () => {
     const { sink, handler } = setup();
     const body = emailEvent("email.delivered");
-    expect((await handler(await signed(body, "msg_same"))).status).toBe(200);
+    const { status } = await handler(await signed(body, "msg_same"));
+    expect(status).toBe(200);
     expect((await handler(await signed(body, "msg_same"))).status).toBe(200);
     expect(sink.events()).toHaveLength(1);
   });
@@ -208,7 +210,8 @@ describe("resendWebhook", () => {
       replay: memoryReplayStore(),
     });
     const body = emailEvent("email.delivered");
-    expect((await handler(await signed(body, "msg_retry"))).status).toBe(503);
+    const { status } = await handler(await signed(body, "msg_retry"));
+    expect(status).toBe(503);
     expect((await handler(await signed(body, "msg_retry"))).status).toBe(200);
     expect(written).toHaveLength(1);
   });

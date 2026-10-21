@@ -6,7 +6,7 @@ function lines(count: number, prefix: string): string {
   return `${Array.from({ length: count }, (_, i) => `${prefix}${i}`).join("\n")}\n`;
 }
 
-describe("shortDiff", () => {
+describe(shortDiff, () => {
   it("labels both sides and drops the separator line", () => {
     const diff = shortDiff("a.sql", "one\n", "two\n");
     expect(diff).toContain("--- a.sql (on disk)");

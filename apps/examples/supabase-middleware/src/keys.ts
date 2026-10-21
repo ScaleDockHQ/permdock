@@ -1,4 +1,6 @@
-import { type JSONWebKeySet, SignJWT, exportJWK, generateKeyPair } from "jose";
+import type { JSONWebKeySet } from "jose";
+
+import { SignJWT, exportJWK, generateKeyPair } from "jose";
 
 // Development-only signing key. A real deployment points `withClaims` at the
 // project JWKS (`https://<ref>.supabase.co/auth/v1/.well-known/jwks.json`) and

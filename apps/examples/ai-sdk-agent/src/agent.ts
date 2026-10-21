@@ -16,13 +16,8 @@ export const { toolApproval, capabilityMiddleware, needsApproval } =
       ],
     }),
     operations: defineOperations(permissions, {
-      list_posts: {
-        permission: permissions.post.list,
-      },
-      delete_post: {
-        permission: permissions.post.delete,
-        data: () => ownPost,
-      },
+      list_posts: { permission: permissions.post.list },
+      delete_post: { permission: permissions.post.delete, data: () => ownPost },
       publish_post: {
         permission: permissions.post.publish,
         data: () => ownPost,

@@ -3,18 +3,17 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
+import type { AnyGuard, ServerAdapterOptions } from "./bind.ts";
 import type { Connection, ConnectionOptions } from "./connection.ts";
+import type { TenantScope } from "./create.ts";
 import type { ServerPermDock } from "./server-types.ts";
+import type { StreamProtectOptions } from "./stream.ts";
 
 import { compact } from "../core/compact.ts";
-import {
-  type AnyGuard,
-  type ServerAdapterOptions,
-  adapterKernel,
-} from "./bind.ts";
-import { type TenantScope, tenantScope } from "./create.ts";
+import { adapterKernel } from "./bind.ts";
+import { tenantScope } from "./create.ts";
 import { requestFromContext } from "./http.ts";
-import { type StreamProtectOptions, guardIterable } from "./stream.ts";
+import { guardIterable } from "./stream.ts";
 
 export type RpcCode =
   | "UNAUTHORIZED"
@@ -73,14 +72,23 @@ export type RpcKernel<TOpts, V extends PolicyVocabulary> = {
   /** Maps the context a middleware passes on to the `Request` it was bound to. */
   readonly attach: (ctx: object, request: Request) => void;
   readonly scopeOf: (opts: TOpts) => Promise<TenantScope>;
-  /** The connection for a subscription or event iterator, opened for `permission` and its row. */
+  /**
+   * The connection for a subscription or event iterator, opened for
+   * `permission` and its row.
+   */
   readonly connection: (
     opts: TOpts,
     connectionOptions?: ConnectionOptions,
   ) => Promise<Connection>;
-  /** Answers the decision endpoint outside the router, with `opts` as the only context. */
+  /**
+   * Answers the decision endpoint outside the router, with `opts` as the only
+   * context.
+   */
   readonly evaluate: (request: Request, opts: TOpts) => Promise<Response>;
-  /** `protect` for one procedure call, with the `Request` and tenant scope it resolved. */
+  /**
+   * `protect` for one procedure call, with the `Request` and tenant scope it
+   * resolved.
+   */
   readonly guard: (
     permission: Permission | null,
     data: ((opts: TOpts) => unknown) | undefined,
@@ -205,7 +213,10 @@ export function bindRpcKernel<
   };
 }
 
-/** Wraps a streamed result so revocation ends it and items the subscriber cannot read drop. */
+/**
+ * Wraps a streamed result so revocation ends it and items the subscriber cannot
+ * read drop.
+ */
 export async function guardStream(
   source: AsyncIterable<unknown>,
   open: (connectionOptions: ConnectionOptions) => Promise<Connection>,

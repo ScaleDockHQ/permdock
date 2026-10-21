@@ -22,16 +22,19 @@ export type ClientStoreStatus = "ready" | "pending" | "stale" | "server-only";
 
 /** The client surface every UI adapter hands to components. */
 export type ClientStorePermDock = PermDock & {
-  status(permission?: Permission, data?: unknown): ClientStoreStatus;
-  refresh(query?: { readonly tenant?: string }): Promise<void>;
-  clear(): void;
-  subscribe(listener: () => void): () => void;
+  status: (permission?: Permission, data?: unknown) => ClientStoreStatus;
+  refresh: (query?: { readonly tenant?: string }) => Promise<void>;
+  clear: () => void;
+  subscribe: (listener: () => void) => () => void;
 };
 
 export type ClientStoreHandle = {
-  get(): ClientStorePermDock;
-  /** Hydrate from a server-pushed snapshot (a Server Action result, a socket message). */
-  replace(value: unknown): void;
+  get: () => ClientStorePermDock;
+  /**
+   * Hydrate from a server-pushed snapshot (a Server Action result, a socket
+   * message).
+   */
+  replace: (value: unknown) => void;
 };
 
 export type ClientStoreFactoryOptions = {
@@ -164,9 +167,9 @@ function unreachable(): Response {
 
 /**
  * Race and cache scenarios for a client snapshot store: tenant switches,
- * `replace` and `refresh`, logout and a second user during a refresh, stale
- * and signed snapshots, and endpoint answers cached per tenant. Runs against
- * the saas domain; `createStore` wraps the store an adapter ships.
+ * `replace` and `refresh`, logout and a second user during a refresh, stale and
+ * signed snapshots, and endpoint answers cached per tenant. Runs against the
+ * saas domain; `createStore` wraps the store an adapter ships.
  */
 export function testClientStore(
   name: string,
@@ -207,7 +210,7 @@ export function testClientStore(
         fetch: net.fetch,
       });
       await store.get().refresh({ tenant: "globex" });
-      expect(net.calls.map((call) => call.url)).toEqual([
+      expect(net.calls.map((call) => call.url)).toStrictEqual([
         "/api/snapshot?v=1&tenant=globex",
       ]);
       expect(store.get().subject.principal?.tenant).toBe("acme");

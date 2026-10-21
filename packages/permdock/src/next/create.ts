@@ -1,8 +1,11 @@
+import type { ReactElement } from "react";
+
 import { forbidden, unauthorized, unstable_rethrow } from "#next/navigation";
 import { cacheLife, cacheTag, io } from "next/cache.js";
 import { after } from "next/server.js";
-import { cache, type ReactElement } from "react";
+import { cache } from "react";
 
+import type { Decision } from "../core/decision.ts";
 import type { DecisionSink } from "../core/interfaces.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
@@ -23,7 +26,7 @@ import type {
 import { withApp } from "../core/app.ts";
 import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
-import { type Decision, NO_GRANT } from "../core/decision.ts";
+import { NO_GRANT } from "../core/decision.ts";
 import { cacheLifeFor, snapshotTag } from "../core/snapshot-cache.ts";
 import { wrapPermDock } from "../core/wrap.ts";
 import { evaluationsHandler } from "../server/evaluations.ts";
@@ -117,10 +120,7 @@ function wrapInstance<V extends PolicyVocabulary>(
       )(
         permission,
         data,
-        compact({
-          ...options,
-          onDenied: options?.onDenied ?? onDenied,
-        }),
+        compact({ ...options, onDenied: options?.onDenied ?? onDenied }),
       )) as PermDock<V>["assert"],
   }));
 }
@@ -263,10 +263,7 @@ export function createPermDock<
       props.tenant === undefined ? undefined : { tenant: props.tenant },
     ).then((permdock): Snapshot | string | Promise<string> =>
       permdock.snapshot(
-        compact({
-          include: props.include,
-          tenants: props.tenants,
-        }),
+        compact({ include: props.include, tenants: props.tenants }),
       ),
     );
     return renderClientProvider(
@@ -283,13 +280,7 @@ export function createPermDock<
   };
 
   const permdockHandler = (): ReturnType<typeof evaluationsHandler> =>
-    evaluationsHandler(
-      compact({
-        policy,
-        getPermDock,
-        store: options.store,
-      }),
-    );
+    evaluationsHandler(compact({ policy, getPermDock, store: options.store }));
 
   return {
     getPermDock,

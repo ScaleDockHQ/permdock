@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { visibleIds } from "./support/rls.ts";
 
@@ -53,9 +54,12 @@ describe("membership rows with several role sources", () => {
     await db?.stop();
   });
 
-  /** The hint of the error the statements raise by commit, or `null` when they pass. */
+  /**
+   * The hint of the error the statements raise by commit, or `null` when they
+   * pass.
+   */
   const attempt = async (statements: string): Promise<string | null> => {
-    const admin = db!.admin;
+    const admin = defined(db).admin;
     await admin.query("begin");
     try {
       await admin.query(statements);
@@ -107,10 +111,10 @@ describe("membership rows with several role sources", () => {
 
   it("answers permdock_can_assign and the helpers from every source", async () => {
     const ask = <T>(user: string, sql: string, values: unknown[]) =>
-      db!.as(
+      defined(db).as(
         { role: "authenticated", settings: { "app.user_id": user } },
         async () =>
-          (await db!.tester.query<{ ok: T }>(sql, values)).rows[0]?.ok,
+          (await defined(db).tester.query<{ ok: T }>(sql, values)).rows[0]?.ok,
       );
     const can = (user: string, role: string) =>
       ask<boolean>(
@@ -126,20 +130,20 @@ describe("membership rows with several role sources", () => {
         "select array(select permdock.permitted_org_ids($1)) as ok",
         [key],
       );
-    expect(await permitted("u1", "payment.approve")).toEqual(["o1"]);
-    expect(await permitted("u2", "payment.read")).toEqual(["o1"]);
-    expect(await permitted("u3", "payment.read")).toEqual(["o1"]);
-    expect(await permitted("u2", "payment.approve")).toEqual([]);
+    expect(await permitted("u1", "payment.approve")).toStrictEqual(["o1"]);
+    expect(await permitted("u2", "payment.read")).toStrictEqual(["o1"]);
+    expect(await permitted("u3", "payment.read")).toStrictEqual(["o1"]);
+    expect(await permitted("u2", "payment.approve")).toStrictEqual([]);
   });
 
   it("compiles a resource membership condition over every source", async () => {
     const visible = (user: string) =>
       visibleIds(
-        db!,
+        defined(db),
         { role: "authenticated", settings: { "app.user_id": user } },
         "select id from ledger order by id",
       );
-    expect(await visible("u1")).toEqual(["l1", "l2"]);
-    expect(await visible("u2")).toEqual([]);
+    expect(await visible("u1")).toStrictEqual(["l1", "l2"]);
+    expect(await visible("u2")).toStrictEqual([]);
   });
 });

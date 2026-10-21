@@ -10,21 +10,36 @@ import {
   protectedResourceMetadataUrl,
 } from "../server/problem.ts";
 
-/** The `error_description` of every `invalid_token` challenge (RFC 6750 section 3.1). */
+/**
+ * The `error_description` of every `invalid_token` challenge (RFC 6750 section
+ * 3.1).
+ */
 const INVALID_TOKEN = "The access token is invalid";
 const BEARER = /^Bearer +([\w~+/.-]+=*)$/iu;
 
 export type McpResourceGuardOptions = {
-  /** The MCP server's resource identifier (RFC 8707); a token's `aud` must contain it. */
+  /**
+   * The MCP server's resource identifier (RFC 8707); a token's `aud` must
+   * contain it.
+   */
   readonly resource: string | URL;
-  /** Scopes every request needs; a token without one of them gets `403 insufficient_scope`. */
+  /**
+   * Scopes every request needs; a token without one of them gets `403
+   * insufficient_scope`.
+   */
   readonly scopes?: readonly string[];
   readonly verifier: TokenVerifier;
-  /** The authorization server's issuer, when the verifier does not check `iss` itself. */
+  /**
+   * The authorization server's issuer, when the verifier does not check `iss`
+   * itself.
+   */
   readonly issuer?: string;
   /** `true` for a revoked token; a throw also refuses it. */
   readonly revoked?: (claims: JwtClaims) => boolean | Promise<boolean>;
-  /** The RFC 9728 metadata URL in challenges; default `<origin>/.well-known/oauth-protected-resource<path>`. */
+  /**
+   * The RFC 9728 metadata URL in challenges; default
+   * `<origin>/.well-known/oauth-protected-resource<path>`.
+   */
   readonly resourceMetadataUrl?: string;
 };
 
@@ -36,7 +51,10 @@ export type ProtectedResourceMetadataOptions = {
   readonly resource: string | URL;
   /** `authorization_servers`: the issuers whose tokens the resource accepts. */
   readonly authorizationServers: readonly string[];
-  /** `scopes_supported`; list every permission's `scope` so clients can ask for them up front. */
+  /**
+   * `scopes_supported`; list every permission's `scope` so clients can ask for
+   * them up front.
+   */
   readonly scopesSupported?: readonly string[];
   readonly resourceName?: string;
   readonly resourceDocumentation?: string;
@@ -69,12 +87,12 @@ function refuse(
 }
 
 /**
- * The resource-server check in front of an MCP endpoint (MCP authorization,
- * RFC 6750, RFC 9728): reads the bearer token from `Authorization`, verifies
- * it for `resource`, refuses a revoked one and checks `scopes`. It answers
- * the `McpAuthInfo` the SDK's handlers read, or the `401` or `403` response
- * with a `WWW-Authenticate` challenge naming the metadata URL. A token in the
- * query string is never read. Never throws.
+ * The resource-server check in front of an MCP endpoint (MCP authorization, RFC
+ * 6750, RFC 9728): reads the bearer token from `Authorization`, verifies it for
+ * `resource`, refuses a revoked one and checks `scopes`. It answers the
+ * `McpAuthInfo` the SDK's handlers read, or the `401` or `403` response with a
+ * `WWW-Authenticate` challenge naming the metadata URL. A token in the query
+ * string is never read. Never throws.
  */
 export function mcpResourceGuard(
   options: McpResourceGuardOptions,
@@ -153,8 +171,8 @@ export function mcpResourceGuard(
 
 /**
  * The RFC 9728 Protected Resource Metadata document as a Fetch handler, for
- * `/.well-known/oauth-protected-resource<path>`. `bearer_methods_supported`
- * is `header`, the only method `mcpResourceGuard` reads. Any origin may read it.
+ * `/.well-known/oauth-protected-resource<path>`. `bearer_methods_supported` is
+ * `header`, the only method `mcpResourceGuard` reads. Any origin may read it.
  */
 export function protectedResourceMetadata(
   options: ProtectedResourceMetadataOptions,

@@ -20,18 +20,24 @@ export type RoleKeys = {
   readonly ref: string;
 };
 
-/** A role column as SQL over the row alias `alias`, joined to its roles table aliased `<alias>k` (or `joined`). */
+/**
+ * A role column as SQL over the row alias `alias`, joined to its roles table
+ * aliased `<alias>k` (or `joined`).
+ */
 export type RoleColumn = {
   /** The referencing table's column: the key itself, or the reference. */
   readonly column: string;
   /** The role key as text. */
   readonly sql: string;
-  /** `join <roles> <alias>k on ...` after a newline and `indent` (a space without one), or `''`. */
+  /**
+   * `join <roles> <alias>k on ...` after a newline and `indent` (a space
+   * without one), or `''`.
+   */
   readonly join: string;
   /**
-   * The role key as a scalar subquery, needing no `join`: for SQL that
-   * names columns of an outer row unqualified, which a joined roles table
-   * could capture.
+   * The role key as a scalar subquery, needing no `join`: for SQL that names
+   * columns of an outer row unqualified, which a joined roles table could
+   * capture.
    */
   readonly lookup: string;
   readonly through?: RoleKeys;
@@ -46,11 +52,17 @@ export type RoleColumn = {
   readonly lateral: boolean;
   /** The `map` of a mapped column: `sql` is then null for an unlisted value. */
   readonly map?: Readonly<Record<string, string | null>>;
-  /** Whether `sql` can be null for a row, so an aggregate has to leave those out. */
+  /**
+   * Whether `sql` can be null for a row, so an aggregate has to leave those
+   * out.
+   */
   readonly nullable: boolean;
 };
 
-/** One role source of a membership row: a key column, or a reference to a roles table. */
+/**
+ * One role source of a membership row: a key column, or a reference to a roles
+ * table.
+ */
 export type RoleSource = string | RoleThrough | RoleMap;
 
 /** A role source, or several the row holds at once. */
@@ -66,7 +78,10 @@ export type RoleGuard = {
   readonly table: string;
   /** The tenant column of the roles table. */
   readonly tenant: string;
-  /** A tenant row with this column true is the application's own copy of a declared role. */
+  /**
+   * A tenant row with this column true is the application's own copy of a
+   * declared role.
+   */
   readonly skip?: string | undefined;
   readonly declared: readonly string[];
 };
@@ -86,10 +101,10 @@ function isRoleList(role: RoleSpec): role is readonly RoleSource[] {
 
 /**
  * Resolves the role sources of `table` (`schema.table`, or `public`). An
- * unqualified `through` table is in `table`'s schema. `label` names the
- * option in the error for an `on` that is not exactly one column; `prefix`
- * starts every error. A row with several sources holds the union of their
- * non-null keys.
+ * unqualified `through` table is in `table`'s schema. `label` names the option
+ * in the error for an `on` that is not exactly one column; `prefix` starts
+ * every error. A row with several sources holds the union of their non-null
+ * keys.
  */
 export function roleColumn(
   role: RoleSpec,
@@ -205,7 +220,10 @@ function singleRole(
   };
 }
 
-/** The manifest entry of one role source: the column, and the roles table it references. */
+/**
+ * The manifest entry of one role source: the column, and the roles table it
+ * references.
+ */
 function sourceManifest(
   column: string,
   through: RoleKeys | undefined,
@@ -227,7 +245,10 @@ export function columnManifest(role: RoleColumn): SupabaseManifestRole {
   return sourceManifest(role.column, role.through);
 }
 
-/** The manifest entry of a role column, or one entry per source of a row with several. */
+/**
+ * The manifest entry of a role column, or one entry per source of a row with
+ * several.
+ */
 export function roleManifest(
   role: RoleColumn,
 ): SupabaseManifestRole | readonly SupabaseManifestRole[] {

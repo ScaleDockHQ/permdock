@@ -3,10 +3,11 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import { qualified, quoteIdent, quoteLiteral } from "../sql/quote.ts";
 import { subjectClaimJsonSql } from "../sql/subject.ts";
 
-/** The helper `--capabilities` adds: ids of one resource a link capability claim reaches. Part of the SQL contract. */
-const CAPABILITIES = {
-  ids: "permdock_capability_ids",
-} as const;
+/**
+ * The helper `--capabilities` adds: ids of one resource a link capability claim
+ * reaches. Part of the SQL contract.
+ */
+const CAPABILITIES = { ids: "permdock_capability_ids" } as const;
 
 /**
  * The `anon` branch access for a resource-scoped grant reached through a link

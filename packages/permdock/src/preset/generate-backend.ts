@@ -202,7 +202,10 @@ export function backendFiles(ctx: Context): GeneratedFile[] {
   }
 }
 
-/** What `permdock.ts` adds for the backend: imports, statements before `defineApp`, and its options. */
+/**
+ * What `permdock.ts` adds for the backend: imports, statements before
+ * `defineApp`, and its options.
+ */
 export function backendApp(ctx: Context): {
   readonly imports: readonly string[];
   readonly preamble: readonly string[];

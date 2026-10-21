@@ -31,7 +31,9 @@ export function InstallCopy({ command }: { readonly command: string }) {
   return (
     <button
       type="button"
-      onClick={handleCopy}
+      onClick={() => {
+        void handleCopy();
+      }}
       className="inline-flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 py-1.5 font-mono text-sm text-foreground transition-colors hover:bg-muted"
     >
       {command}

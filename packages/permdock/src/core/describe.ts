@@ -1,3 +1,4 @@
+import type { Approver } from "./approvers.ts";
 import type {
   Decision,
   DeniedDecision,
@@ -7,7 +8,7 @@ import type {
 import type { Grantee } from "./grantee.ts";
 import type { Permission } from "./permission-types.ts";
 
-import { type Approver, flattenApprovers } from "./approvers.ts";
+import { flattenApprovers } from "./approvers.ts";
 import { requiredPlans } from "./problem-details.ts";
 
 export { requiredPlans };
@@ -82,9 +83,9 @@ function labelGrantee(grantee: Grantee): string {
 export type DescribeMessages = {
   readonly titles?: Partial<Record<DecisionDescription["kind"], string>>;
   /**
-   * Text per denial reason; a denied detail joins the texts of its reasons
-   * with `separator`. The function form also sees the decision; `undefined`
-   * keeps the reason code, as a missing record entry does.
+   * Text per denial reason; a denied detail joins the texts of its reasons with
+   * `separator`. The function form also sees the decision; `undefined` keeps
+   * the reason code, as a missing record entry does.
    */
   readonly reasons?:
     | Partial<Record<DenialReason, string>>

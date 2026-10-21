@@ -33,7 +33,7 @@ describe("rls verify subject settings", () => {
       },
       subject,
     );
-    expect(settings).toEqual([
+    expect(settings).toStrictEqual([
       ["app.team_ids", '["blue"]'],
       ["app.region", "eu"],
       ["app.user_id", "u1"],
@@ -49,7 +49,7 @@ describe("rls verify subject settings", () => {
         { subject: { id: "u1" }, action: "job.read", row: {} },
         subject,
       ),
-    ).toEqual([
+    ).toStrictEqual([
       ["app.user_id", "u1"],
       ["app.user_role", ""],
       ["app.memberships", "[]"],
@@ -72,7 +72,7 @@ describe("rls verify custom-role rows", () => {
         ],
         [],
       ).map((row) => row.values),
-    ).toEqual([
+    ).toStrictEqual([
       [null, "global", null, "auditor", "job.read", "allow"],
       [null, "global", null, "auditor", "viewer"],
     ]);

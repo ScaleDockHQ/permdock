@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import type {
+  ApprovalPolicy,
+  ApprovalPolicySource,
+} from "../../src/core/approval-policies.ts";
 import type { Decision } from "../../src/core/decision.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
-  type ApprovalPolicy,
-  type ApprovalPolicySource,
   approvalPolicies,
   memoryApprovalPolicySource,
   validateApprovalPolicy,
@@ -58,7 +60,7 @@ const overLimit: ApprovalPolicy = {
   approval: { by: "finance" },
 };
 
-describe("ApprovalPolicySource", () => {
+describe("the ApprovalPolicySource type", () => {
   testApprovalPolicySource(
     memoryApprovalPolicySource([
       overLimit,
@@ -92,9 +94,12 @@ describe("ApprovalPolicySource", () => {
     const elsewhere = memoryApprovalPolicySource([
       { ...overLimit, tenant: "o2" },
     ]);
-    expect(
-      (await decide(elsewhere, permissions.expense.read, large)).outcome,
-    ).toBe("granted");
+    const { outcome } = await decide(
+      elsewhere,
+      permissions.expense.read,
+      large,
+    );
+    expect(outcome).toBe("granted");
     const agents = memoryApprovalPolicySource([
       { permission: "expense.read", actors: ["agent"], approval: "human" },
     ]);
@@ -165,7 +170,9 @@ describe("ApprovalPolicySource", () => {
       },
     ]);
     for (const source of [throwing, rejecting, escalating, junk, opaque]) {
-      expect(await decide(source, permissions.expense.read, small)).toEqual({
+      expect(
+        await decide(source, permissions.expense.read, small),
+      ).toStrictEqual({
         outcome: "denied",
         permission: "expense.read",
         denials: [
@@ -212,9 +219,8 @@ describe("ApprovalPolicySource", () => {
       ]),
     ];
     for (const source of sources) {
-      expect(
-        (await decide(source, permissions.expense.read, small)).outcome,
-      ).toBe("denied");
+      const { outcome } = await decide(source, permissions.expense.read, small);
+      expect(outcome).toBe("denied");
     }
   });
 
@@ -228,14 +234,11 @@ describe("ApprovalPolicySource", () => {
         },
       ],
     };
-    expect(
-      (
-        await decide(source, permissions.expense.read, {
-          current: small,
-          next: large,
-        })
-      ).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await decide(source, permissions.expense.read, {
+      current: small,
+      next: large,
+    });
+    expect(outcome).toBe("approval-required");
     expect(
       (await decide(source, permissions.expense.read, small)).outcome,
     ).toBe("granted");
@@ -286,9 +289,8 @@ describe("ApprovalPolicySource", () => {
     const source = memoryApprovalPolicySource([
       { permission: "expense.archive", approval: "human" },
     ]);
-    expect(
-      (await decide(source, permissions.expense.read, small)).outcome,
-    ).toBe("granted");
+    const { outcome } = await decide(source, permissions.expense.read, small);
+    expect(outcome).toBe("granted");
   });
 
   it("leaves a denial denied", async () => {
@@ -349,7 +351,7 @@ describe("ApprovalPolicySource", () => {
         where: { op: "gt", field: "amount", value: 1000 },
         approval: "human",
       };
-      expect(validateApprovalPolicy(ledgerPolicy, entry)).toEqual({
+      expect(validateApprovalPolicy(ledgerPolicy, entry)).toStrictEqual({
         ok: false,
         problem: "where-on-collection",
       });
@@ -367,8 +369,11 @@ describe("ApprovalPolicySource", () => {
         check: { op: "gt", field: "amount", value: 1000 },
         approval: "human",
       };
-      expect(validateApprovalPolicy(ledgerPolicy, entry)).toEqual({ ok: true });
-      expect((await decideCreate(entry)).outcome).toBe("approval-required");
+      expect(validateApprovalPolicy(ledgerPolicy, entry)).toStrictEqual({
+        ok: true,
+      });
+      const { outcome } = await decideCreate(entry);
+      expect(outcome).toBe("approval-required");
     });
 
     it("keeps where on an instance permission of the same resource", () => {
@@ -378,7 +383,7 @@ describe("ApprovalPolicySource", () => {
           where: { op: "gt", field: "amount", value: 1000 },
           approval: "human",
         }),
-      ).toEqual({ ok: true });
+      ).toStrictEqual({ ok: true });
     });
   });
 
@@ -410,7 +415,7 @@ describe("ApprovalPolicySource", () => {
       ],
     ];
     for (const [entry, expected] of cases) {
-      expect(validateApprovalPolicy(policy, entry)).toEqual(expected);
+      expect(validateApprovalPolicy(policy, entry)).toStrictEqual(expected);
     }
   });
 });

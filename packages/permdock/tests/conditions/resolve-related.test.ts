@@ -42,7 +42,7 @@ const unrestrictedViewerOfParent: RelatedCondition = {
   parent: true,
 };
 
-describe("resolveRelated", () => {
+describe(resolveRelated, () => {
   it("replaces each related node with the ids one query reads", async () => {
     const where = await graphWhere("vera");
     const queries: Query[] = [];
@@ -67,7 +67,7 @@ describe("resolveRelated", () => {
       '{"op":"in","field":"folderId","value":["root","eng"]}',
     );
     expect(resolved.subject).toBe(where.subject);
-    expect(Object.keys(resolved)).toEqual(["condition", "partial"]);
+    expect(Object.keys(resolved)).toStrictEqual(["condition", "partial"]);
     expect(Object.isFrozen(resolved)).toBe(true);
   });
 
@@ -81,7 +81,7 @@ describe("resolveRelated", () => {
           field === "parentId" && id !== "x" ? Number(id) : undefined,
       },
     );
-    expect(resolved.condition).toEqual({
+    expect(resolved.condition).toStrictEqual({
       op: "and",
       conditions: [
         { op: "in", field: "parentId", value: [7, 8] },
@@ -104,10 +104,7 @@ describe("resolveRelated", () => {
         op: "and",
         conditions: [
           eq,
-          {
-            op: "not",
-            condition: unrestrictedViewerOfParent,
-          },
+          { op: "not", condition: unrestrictedViewerOfParent },
           {
             op: "sqlFunction",
             name: "f",
@@ -119,7 +116,7 @@ describe("resolveRelated", () => {
       { run: () => Promise.resolve([]) },
     );
     const nothing = { op: "or", conditions: [] };
-    expect(resolved.condition).toEqual({
+    expect(resolved.condition).toStrictEqual({
       op: "and",
       conditions: [
         eq,
@@ -150,15 +147,13 @@ describe("resolveRelated", () => {
       },
     });
     expect(ran).toBe(false);
-    expect(resolved.condition).toEqual({ op: "or", conditions: [] });
+    expect(resolved.condition).toStrictEqual({ op: "or", conditions: [] });
 
     // SAFETY: deliberately a WhereResult without its resource graph, to exercise the refusal.
     await expect(
       resolveRelated(
         { condition: viewerOfParent, partial: false } as WhereResult,
-        {
-          run: () => Promise.resolve([]),
-        },
+        { run: () => Promise.resolve([]) },
       ),
     ).rejects.toMatchObject({ code: "non-portable-condition" });
   });
@@ -182,6 +177,6 @@ describe("resolveRelated", () => {
       },
     );
     expect(queries[0]?.sql).toContain('"permdock_closure"');
-    expect(queries[0]?.values).toEqual(["folder", "eng"]);
+    expect(queries[0]?.values).toStrictEqual(["folder", "eng"]);
   });
 });

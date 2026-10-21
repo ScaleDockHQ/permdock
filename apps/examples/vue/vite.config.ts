@@ -1,11 +1,10 @@
+import type { Plugin } from "vite";
+
 import vue from "@vitejs/plugin-vue";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig } from "vite";
 
 type HealthRequest = { readonly url?: string };
-type HealthResponse = {
-  statusCode: number;
-  end: (body: string) => void;
-};
+type HealthResponse = { statusCode: number; end: (body: string) => void };
 
 function healthHandle(
   req: HealthRequest,
@@ -34,14 +33,6 @@ function healthPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [vue(), healthPlugin()],
-  server: {
-    host: "127.0.0.1",
-    port: 3481,
-    strictPort: true,
-  },
-  preview: {
-    host: "127.0.0.1",
-    port: 3481,
-    strictPort: true,
-  },
+  server: { host: "127.0.0.1", port: 3481, strictPort: true },
+  preview: { host: "127.0.0.1", port: 3481, strictPort: true },
 });

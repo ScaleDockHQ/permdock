@@ -37,7 +37,7 @@ function streamed(
   return { request, pulled: () => pulled };
 }
 
-describe("readBodyText", () => {
+describe(readBodyText, () => {
   it("reads a body under the cap", async () => {
     const request = new Request("https://app.test/x", {
       method: "POST",
@@ -142,7 +142,7 @@ describe("readBodyText", () => {
   });
 });
 
-describe("bodyTooLarge", () => {
+describe(bodyTooLarge, () => {
   it("answers 413 Problem Details naming the cap", async () => {
     const response = bodyTooLarge();
     expect(response.status).toBe(413);

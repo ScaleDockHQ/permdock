@@ -5,8 +5,8 @@ import { gzipSync } from "node:zlib";
 
 /**
  * What an app ships for a typical import: each fixture is bundled the way a
- * consumer's bundler would (tree-shaken, minified, framework and peer
- * packages external), then gzipped.
+ * consumer's bundler would (tree-shaken, minified, framework and peer packages
+ * external), then gzipped.
  */
 const CONSUMERS = {
   "core definePolicy + getPermDockSync": `import { getPermDockSync, definePermissions, definePolicy } from 'permdock'; export { getPermDockSync, definePermissions, definePolicy };`,
@@ -29,7 +29,10 @@ const CONSUMERS = {
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
-/** The minified, tree-shaken output files a consumer's bundler emits for `source`. */
+/**
+ * The minified, tree-shaken output files a consumer's bundler emits for
+ * `source`.
+ */
 async function bundled(source: string): Promise<readonly Uint8Array[]> {
   const result = await build({
     stdin: { contents: source, resolveDir: HERE, loader: "js" },
@@ -46,6 +49,7 @@ async function bundled(source: string): Promise<readonly Uint8Array[]> {
       {
         name: "externals",
         setup(pluginBuild): void {
+          // oxlint-disable-next-line eslint/require-unicode-regexp -- esbuild runs the filter as a Go regexp, which has no u flag
           pluginBuild.onResolve({ filter: /^[^./]/ }, (args) =>
             args.path === "permdock" || args.path.startsWith("permdock/")
               ? undefined

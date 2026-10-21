@@ -14,10 +14,7 @@ import { role } from "../../src/core/role-builder.ts";
 const Report = z.object({ id: z.string() });
 
 const permissions = definePermissions({
-  report: resource(Report, {
-    id: "id",
-    actions: ["export", "delete"],
-  }),
+  report: resource(Report, { id: "id", actions: ["export", "delete"] }),
 });
 
 const report = { id: "r1" };

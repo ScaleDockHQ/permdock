@@ -9,10 +9,10 @@ import {
 import { z } from "zod";
 
 /**
- * A field-service app: organizations hold jobs and customers. A member's
- * plan tier and their organization role both grant roles, platform staff
- * hold global roles, and a tenant's custom roles pick an own, team or all
- * level of each job permission.
+ * A field-service app: organizations hold jobs and customers. A member's plan
+ * tier and their organization role both grant roles, platform staff hold global
+ * roles, and a tenant's custom roles pick an own, team or all level of each job
+ * permission.
  */
 export const permissions = definePermissions({
   job: resource(

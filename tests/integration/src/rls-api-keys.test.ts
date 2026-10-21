@@ -128,7 +128,7 @@ describe("rls.apiKeys", () => {
   };
 
   it("leaves a request without a key alone", async () => {
-    expect(await as({ sub: MEMBER })).toEqual({
+    expect(await as({ sub: MEMBER })).toStrictEqual({
       read: 3,
       updated: 1,
       has: false,
@@ -139,13 +139,13 @@ describe("rls.apiKeys", () => {
   it("caps a user key at its scopes", async () => {
     expect(
       await as({ sub: MEMBER, api_key: { id: "k1", scopes: ["task.read"] } }),
-    ).toEqual({ read: 3, updated: 0, has: false });
+    ).toStrictEqual({ read: 3, updated: 0, has: false });
     expect(
       await as({
         sub: MEMBER,
         api_key: { id: "k1", scopes: ["task.read", "task.update"] },
       }),
-    ).toEqual({ read: 3, updated: 1, has: false });
+    ).toStrictEqual({ read: 3, updated: 1, has: false });
     expect(
       await as({ sub: ADMIN, api_key: { id: "k2", scopes: ["task.update"] } }),
     ).toMatchObject({ read: 0, has: false });
@@ -166,8 +166,8 @@ describe("rls.apiKeys", () => {
   it("grants nothing to a key whose scopes are not a list", async () => {
     expect(
       await as({ sub: MEMBER, api_key: { id: "k1", scopes: "task.read" } }),
-    ).toEqual({ read: 0, updated: 0, has: false });
-    expect(await as({ sub: MEMBER, api_key: "k1" })).toEqual({
+    ).toStrictEqual({ read: 0, updated: 0, has: false });
+    expect(await as({ sub: MEMBER, api_key: "k1" })).toStrictEqual({
       read: 0,
       updated: 0,
       has: false,
@@ -180,7 +180,7 @@ describe("rls.apiKeys", () => {
         sub: "",
         api_key: { id: "k3", tenant: "acme", scopes: ["task.read"] },
       }),
-    ).toEqual({ read: 3, updated: 0, has: false });
+    ).toStrictEqual({ read: 3, updated: 0, has: false });
     expect(
       await as(
         {
@@ -194,7 +194,7 @@ describe("rls.apiKeys", () => {
         },
         "t-other",
       ),
-    ).toEqual({ read: 3, updated: 1, has: false });
+    ).toStrictEqual({ read: 3, updated: 1, has: false });
     expect(
       await as(
         {
@@ -207,12 +207,12 @@ describe("rls.apiKeys", () => {
         },
         "t-other",
       ),
-    ).toEqual({ read: 3, updated: 0, has: false });
+    ).toStrictEqual({ read: 3, updated: 0, has: false });
     expect(
       await as({
         sub: "",
         api_key: { id: "k3", tenant: "acme", roles: [], scopes: ["task.read"] },
       }),
-    ).toEqual({ read: 0, updated: 0, has: false });
+    ).toStrictEqual({ read: 0, updated: 0, has: false });
   });
 });

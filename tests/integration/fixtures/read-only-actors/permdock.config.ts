@@ -1,4 +1,7 @@
-/** Support and impersonation sessions are read-only in the database unless the token says otherwise. */
+/**
+ * Support and impersonation sessions are read-only in the database unless the
+ * token says otherwise.
+ */
 export default {
   permissions: "../assignments/policy.ts",
   policy: "../assignments/policy.ts",

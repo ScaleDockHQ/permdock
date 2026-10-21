@@ -9,10 +9,7 @@ import { adminUser, permissions, policy } from "../fixtures/quick-start.ts";
 const openapi = {
   paths: {
     "/posts/{id}": {
-      get: {
-        operationId: "getPost",
-        "x-permdock-permissions": ["post.read"],
-      },
+      get: { operationId: "getPost", "x-permdock-permissions": ["post.read"] },
       put: {
         operationId: "updatePost",
         "x-permdock-permissions": ["post.update"],
@@ -76,7 +73,7 @@ describe("simulate Arazzo", () => {
     });
     expect(plan.workflowId).toBe("publishPost");
     expect(plan.outcome).toBe("granted");
-    expect(plan.steps.map((step) => step.stepId)).toEqual([
+    expect(plan.steps.map((step) => step.stepId)).toStrictEqual([
       "loadDraft",
       "editDraft",
       "publish",
@@ -101,13 +98,7 @@ describe("simulate Arazzo", () => {
     const findings = arazzoFindings(
       {
         arazzo,
-        openapi: {
-          paths: {
-            "/x": {
-              get: { operationId: "getPost" },
-            },
-          },
-        },
+        openapi: { paths: { "/x": { get: { operationId: "getPost" } } } },
       },
       permissions,
     );

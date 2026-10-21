@@ -14,9 +14,7 @@ Usage:
 ```json
 {
   "extends": "@permdock/typescript-config/library.json",
-  "compilerOptions": {
-    "types": ["node"]
-  },
+  "compilerOptions": { "types": ["node"] },
   "include": ["src"]
 }
 ```

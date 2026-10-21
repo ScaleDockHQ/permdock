@@ -1,4 +1,10 @@
 import type { Condition } from "../conditions/ast.ts";
+import type {
+  CompiledExists,
+  CompiledSql,
+  CompiledWhere,
+} from "../conditions/compile.ts";
+import type { RowCheck } from "../conditions/row-check.ts";
 import type { WhereResult } from "../core/permdock.ts";
 import type { Subject } from "../core/subject.ts";
 import type {
@@ -8,15 +14,9 @@ import type {
   KyselyWithSubjectOptions,
 } from "./types.ts";
 
-import {
-  type CompiledExists,
-  type CompiledSql,
-  type CompiledWhere,
-  compileWhere,
-  escapeLike,
-} from "../conditions/compile.ts";
+import { compileWhere, escapeLike } from "../conditions/compile.ts";
 import { loadPeer } from "../conditions/peer.ts";
-import { type RowCheck, rowCheckFrom } from "../conditions/row-check.ts";
+import { rowCheckFrom } from "../conditions/row-check.ts";
 import {
   statementTemplate,
   subjectStatements,
@@ -220,16 +220,17 @@ export function toWhere(
 }
 
 type KyselyLike<Trx> = {
-  transaction(): {
-    execute<T>(fn: (trx: Trx) => Promise<T>): Promise<T>;
+  transaction: () => {
+    execute: <T>(fn: (trx: Trx) => Promise<T>) => Promise<T>;
   };
 };
 
-type Executable = { execute(db: unknown): Promise<unknown> };
+type Executable = { execute: (db: unknown) => Promise<unknown> };
 
 /**
- * Runs `fn` in a transaction whose role and claims are `permdock.subject`'s, so the generated
- * RLS policies decide for the same subject as the in-process checks.
+ * Runs `fn` in a transaction whose role and claims are `permdock.subject`'s, so
+ * the generated RLS policies decide for the same subject as the in-process
+ * checks.
  */
 export function withSubject<Trx, T>(
   db: KyselyLike<Trx>,
@@ -254,11 +255,11 @@ export function withSubject<Trx, T>(
 }
 
 type KyselySelectable = {
-  selectFrom(table: never): {
-    select(selection: (eb: never) => unknown): {
-      where(where: never): {
-        limit(count: number): {
-          execute(): Promise<readonly { readonly granted?: unknown }[]>;
+  selectFrom: (table: never) => {
+    select: (selection: (eb: never) => unknown) => {
+      where: (where: never) => {
+        limit: (count: number) => {
+          execute: () => Promise<readonly { readonly granted?: unknown }[]>;
         };
       };
     };
@@ -266,8 +267,9 @@ type KyselySelectable = {
 };
 
 /**
- * One query for one row: `{ found: false }` when `key` matches nothing, otherwise whether the
- * permission filter keeps the row. Throws when `key` matches more than one row.
+ * One query for one row: `{ found: false }` when `key` matches nothing,
+ * otherwise whether the permission filter keeps the row. Throws when `key`
+ * matches more than one row.
  */
 export async function checkRow(
   db: KyselySelectable,
@@ -284,7 +286,7 @@ export async function checkRow(
     .select(((eb: KyselyExpressionBuilder) =>
       (
         sql`coalesce(${filter(eb)}, false)` as {
-          as(alias: string): unknown;
+          as: (alias: string) => unknown;
         }
       ).as("granted")) as never)
     .where(key as never)

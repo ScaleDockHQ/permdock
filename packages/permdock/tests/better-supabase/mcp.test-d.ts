@@ -1,4 +1,6 @@
-import { type defineSchema, defineSupabase } from "better-supabase";
+import type { defineSchema } from "better-supabase";
+
+import { defineSupabase } from "better-supabase";
 import { createMcp, defineTool } from "better-supabase/mcp";
 import { describe, expectTypeOf, it } from "vitest";
 

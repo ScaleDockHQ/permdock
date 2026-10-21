@@ -17,7 +17,7 @@ import { expandRelation } from "../../src/core/resource-relations.ts";
 
 const Post = z.object({ id: z.string() });
 
-describe("isPermission", () => {
+describe(isPermission, () => {
   const permissions = definePermissions({
     post: resource(Post, {
       id: "id",
@@ -90,34 +90,30 @@ describe("permissions", () => {
       listPermissions(permissions)
         .map((leaf) => leaf.key)
         .toSorted(),
-    ).toEqual(["billing.invoice.list", "billing.invoice.pay"]);
+    ).toStrictEqual(["billing.invoice.list", "billing.invoice.pay"]);
   });
 
   it("merges trees and rejects duplicate keys and resource names", () => {
-    const posts = definePermissions({
-      post: resource({ actions: ["read"] }),
-    });
+    const posts = definePermissions({ post: resource({ actions: ["read"] }) });
     const billing = definePermissions({
       billing: resource({ actions: ["pay"] }),
     });
     const merged = mergePermissions(posts, billing);
     expect(listPermissions(merged)).toHaveLength(2);
     expect(() => mergePermissions(posts, posts)).toThrow(
-      /duplicate permission key/,
+      /duplicate permission key/u,
     );
   });
 
   it("rejects forbidden keys, empty resources and root resources", () => {
     expect(() =>
-      definePermissions({
-        constructor: resource({ actions: ["read"] }),
-      }),
-    ).toThrow(/forbidden/);
+      definePermissions({ constructor: resource({ actions: ["read"] }) }),
+    ).toThrow(/forbidden/u);
     expect(() => definePermissions({ post: resource({}) })).toThrow(
-      /no actions/,
+      /no actions/u,
     );
     expect(() => definePermissions(resource({ actions: ["read"] }))).toThrow(
-      /cannot be the root/,
+      /cannot be the root/u,
     );
   });
 
@@ -134,9 +130,12 @@ describe("permissions", () => {
       }),
     });
     const node = getResource(tree, "folder");
-    expect(node?.parent).toEqual({ field: "parentId", resource: "folder" });
+    expect(node?.parent).toStrictEqual({
+      field: "parentId",
+      resource: "folder",
+    });
     expect(node?.restricted).toBe("restricted");
-    expect(node?.relations["viewer"]).toEqual({
+    expect(node?.relations["viewer"]).toStrictEqual({
       edge: "folder_viewers",
       expiresAt: "expires_at",
     });
@@ -150,7 +149,7 @@ describe("permissions", () => {
           },
         }),
       }),
-    ).toThrow(/exactly one of field, edge, principal or includes/);
+    ).toThrow(/exactly one of field, edge, principal or includes/u);
     expect(() =>
       definePermissions({
         folder: resource({
@@ -158,12 +157,12 @@ describe("permissions", () => {
           relations: { viewer: { edge: "viewers; drop table x" } },
         }),
       }),
-    ).toThrow(/unsafe edge table/);
+    ).toThrow(/unsafe edge table/u);
     expect(() =>
       definePermissions({
         folder: resource({ actions: ["read"], restricted: "__proto__" }),
       }),
-    ).toThrow(/forbidden/);
+    ).toThrow(/forbidden/u);
   });
 
   it("caps group depth at 10", () => {
@@ -172,7 +171,7 @@ describe("permissions", () => {
       tree = { g: tree };
     }
     // SAFETY: a deliberately over-deep tree built above, which the type would reject.
-    expect(() => definePermissions(tree as never)).toThrow(/nesting exceeds/);
+    expect(() => definePermissions(tree as never)).toThrow(/nesting exceeds/u);
   });
 });
 
@@ -300,7 +299,7 @@ describe("definePermissions relation and graph validation", () => {
     const tree = folder({
       viewer: { edge: "m", match: { rank: 2, active: true } },
     });
-    expect(getResource(tree, "folder")?.relations["viewer"]).toEqual({
+    expect(getResource(tree, "folder")?.relations["viewer"]).toStrictEqual({
       edge: "m",
       match: { rank: 2, active: true },
     });
@@ -364,11 +363,10 @@ describe("definePermissions relation and graph validation", () => {
       editor: { field: "editorId", includes: ["owner"] },
       viewer: { includes: ["editor", "owner"] },
     });
-    expect(expandRelation(getResource(tree, "folder"), "viewer")).toEqual([
-      "editor",
-      "owner",
-    ]);
-    expect(expandRelation(undefined, "viewer")).toEqual([]);
+    expect(expandRelation(getResource(tree, "folder"), "viewer")).toStrictEqual(
+      ["editor", "owner"],
+    );
+    expect(expandRelation(undefined, "viewer")).toStrictEqual([]);
   });
 
   it("rejects non-object groups, duplicate resource names and unregistered trees", () => {
@@ -415,9 +413,7 @@ describe("definePermissions relation and graph validation", () => {
       definePermissions({ a: resource({ name: "1st", actions: ["read"] }) }),
     ).toThrow(/must start with a letter/u);
     expect(() =>
-      definePermissions({
-        a: resource({ name: "a.b", actions: ["read"] }),
-      }),
+      definePermissions({ a: resource({ name: "a.b", actions: ["read"] }) }),
     ).toThrow(/must start with a letter/u);
   });
 
@@ -431,7 +427,7 @@ describe("definePermissions relation and graph validation", () => {
         },
       }),
     });
-    expect(tree.invoice.send.meta.x).toEqual({
+    expect(tree.invoice.send.meta.x).toStrictEqual({
       risk: "high",
       effects: ["customer-facing"],
       undo: null,
@@ -475,7 +471,7 @@ describe("definePermissions relation and graph validation", () => {
     const plain = { extra: { read: leaf } } as unknown as PermissionTree;
     expect(
       listPermissions(mergePermissions(plain)).map((item) => item.key),
-    ).toEqual(["post.read"]);
+    ).toStrictEqual(["post.read"]);
     expect(() => mergePermissions()).toThrow(/at least one tree/u);
   });
 });

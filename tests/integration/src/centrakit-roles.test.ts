@@ -264,13 +264,13 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     expect(await mint(OTHER)).toMatchObject({ roles: ["support"] });
     expect(await has(PLATFORM, "organizations.read")).toBe(true);
     expect(await has(OTHER, "organizations.read")).toBe(false);
-    expect((await mint(OWNER))["memberships"]).toEqual(
+    expect((await mint(OWNER))["memberships"]).toStrictEqual(
       expect.arrayContaining([
         { scope: "organization", id: ORG_A, roles: ["owner"], via: "staff" },
         { scope: "organization", id: ORG_B, roles: ["viewer"], via: "staff" },
       ]),
     );
-    expect((await mint(DISPATCH_B))["memberships"]).toEqual([
+    expect((await mint(DISPATCH_B))["memberships"]).toStrictEqual([
       { scope: "organization", id: ORG_B, roles: ["dispatcher"], via: "staff" },
     ]);
   });
@@ -278,32 +278,32 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
   it("answers the database-mode helpers from roles.key", async () => {
     expect(
       await permitted("permdock", { sub: OWNER }, "customers.update"),
-    ).toEqual([ORG_A]);
+    ).toStrictEqual([ORG_A]);
     expect(
       await permitted("permdock", { sub: OWNER }, "customers.read"),
-    ).toEqual([ORG_A, ORG_B]);
-    expect(await members("permdock", { sub: OWNER })).toEqual([ORG_A, ORG_B]);
+    ).toStrictEqual([ORG_A, ORG_B]);
+    expect(await members("permdock", { sub: OWNER })).toStrictEqual([
+      ORG_A,
+      ORG_B,
+    ]);
     expect(
       await permitted("permdock", { sub: DISPATCH_A }, "customers.read"),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("answers the jwt-mode helpers from the claims the hook mints", async () => {
     const claims = await mint(OWNER);
-    expect(await permitted("permdock_jwt", claims, "customers.update")).toEqual(
-      [ORG_A],
-    );
-    expect(await members("permdock_jwt", claims)).toEqual([ORG_A, ORG_B]);
+    expect(
+      await permitted("permdock_jwt", claims, "customers.update"),
+    ).toStrictEqual([ORG_A]);
+    expect(await members("permdock_jwt", claims)).toStrictEqual([ORG_A, ORG_B]);
   });
 
   it("drops a suspended user and a suspended organization in the hook and both modes", async () => {
-    expect(await mint(SUSPENDED)).toMatchObject({
-      roles: [],
-      memberships: [],
-    });
+    expect(await mint(SUSPENDED)).toMatchObject({ roles: [], memberships: [] });
     expect(
       await permitted("permdock", { sub: SUSPENDED }, "customers.read"),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await permitted(
         "permdock_jwt",
@@ -320,7 +320,7 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
         },
         "customers.read",
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(JSON.stringify((await mint(OWNER))["memberships"])).not.toContain(
       ORG_CLOSED,
     );
@@ -374,7 +374,7 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
       const minted =
         subjectFromSupabase(await mint(user)).principal?.memberships ?? [];
       expect(live).toHaveLength(minted.length);
-      expect(live).toEqual(expect.arrayContaining([...minted]));
+      expect(live).toStrictEqual(expect.arrayContaining([...minted]));
     }
   });
 
@@ -405,8 +405,8 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     expect(await version(DISPATCH_A)).toBe(dispatcher);
     expect(
       await permitted("permdock", { sub: OWNER }, "customers.update"),
-    ).toEqual([]);
-    expect((await mint(OWNER))["memberships"]).toEqual(
+    ).toStrictEqual([]);
+    expect((await mint(OWNER))["memberships"]).toStrictEqual(
       expect.arrayContaining([
         {
           scope: "organization",
@@ -425,24 +425,26 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     expect(sql).toContain(
       'grant select on table "public"."contact_profiles" to supabase_auth_admin;',
     );
-    expect((await mint(CONTACT))["memberships"]).toEqual([
+    expect((await mint(CONTACT))["memberships"]).toStrictEqual([
       portal(CUST_A, ORG_A),
     ]);
-    expect((await mint(CONTACT_2))["memberships"]).toEqual([]);
+    expect((await mint(CONTACT_2))["memberships"]).toStrictEqual([]);
   });
 
   it("answers the customer helpers in both modes and drops a suspended organization's contacts", async () => {
-    expect(await members("permdock", { sub: CONTACT }, "customer")).toEqual([
+    expect(
+      await members("permdock", { sub: CONTACT }, "customer"),
+    ).toStrictEqual([CUST_A]);
+    expect(
+      await permittedCustomers("permdock", { sub: CONTACT }, "quotes.read"),
+    ).toStrictEqual([CUST_A]);
+    const claims = await mint(CONTACT);
+    expect(await members("permdock_jwt", claims, "customer")).toStrictEqual([
       CUST_A,
     ]);
     expect(
-      await permittedCustomers("permdock", { sub: CONTACT }, "quotes.read"),
-    ).toEqual([CUST_A]);
-    const claims = await mint(CONTACT);
-    expect(await members("permdock_jwt", claims, "customer")).toEqual([CUST_A]);
-    expect(
       await permittedCustomers("permdock_jwt", claims, "quotes.read"),
-    ).toEqual([CUST_A]);
+    ).toStrictEqual([CUST_A]);
     expect(
       await members(
         "permdock_jwt",
@@ -452,23 +454,23 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
         },
         "customer",
       ),
-    ).toEqual([CUST_A]);
+    ).toStrictEqual([CUST_A]);
     const composed = composeMemberships(sources(query));
-    expect(await composed.membershipsFor({ id: CONTACT }, {})).toEqual([
+    expect(await composed.membershipsFor({ id: CONTACT }, {})).toStrictEqual([
       portal(CUST_A, ORG_A),
     ]);
   });
 
   it("holds no membership for a contact profile without a login", async () => {
     const contacts = sources(query)[1];
-    expect(await contacts?.list?.({ scope: "customer", id: CUST_B })).toEqual(
-      [],
-    );
+    expect(
+      await contacts?.list?.({ scope: "customer", id: CUST_B }),
+    ).toStrictEqual([]);
     expect(
       (await contacts?.list?.({ scope: "customer", id: CUST_A }))?.map(
         (entry) => entry.principal.id,
       ),
-    ).toEqual([CONTACT, LEAVER].toSorted());
+    ).toStrictEqual([CONTACT, LEAVER].toSorted());
   });
 
   it("bumps the old and the new login when a contact profile is re-linked", async () => {
@@ -480,7 +482,7 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     );
     expect(await version(CONTACT_2)).toBe(second + 1);
     expect(await version(CONTACT)).toBe(contact);
-    expect((await mint(CONTACT_2))["memberships"]).toEqual([
+    expect((await mint(CONTACT_2))["memberships"]).toStrictEqual([
       portal(CUST_B, ORG_B),
     ]);
     await db?.admin.query(
@@ -493,11 +495,13 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
     );
     expect(await version(CONTACT)).toBe(contact + 1);
     expect(await version(CONTACT_2)).toBe(second + 3);
-    expect((await mint(CONTACT))["memberships"]).toEqual([]);
-    expect((await mint(CONTACT_2))["memberships"]).toEqual([
+    expect((await mint(CONTACT))["memberships"]).toStrictEqual([]);
+    expect((await mint(CONTACT_2))["memberships"]).toStrictEqual([
       portal(CUST_A, ORG_A),
     ]);
-    expect(await members("permdock", { sub: CONTACT }, "customer")).toEqual([]);
+    expect(
+      await members("permdock", { sub: CONTACT }, "customer"),
+    ).toStrictEqual([]);
     await db?.admin.query(
       `insert into customer_contacts (organization_id, customer_id, contact_profile_id) values ($1, $2, $3)`,
       [ORG_B, CUST_B, PROFILE],
@@ -517,8 +521,9 @@ describe("CentraKit user_roles and organization_users through roles.key", () => 
       `select user_id from contact_profiles where id = $1`,
       [PROFILE_LEAVER],
     );
-    expect(rows?.rows).toEqual([{ user_id: null }]);
+    expect(rows?.rows).toStrictEqual([{ user_id: null }]);
   });
+
   it("deletes an auth user whose memberships cascade, with and without a version row", async () => {
     const admin = db?.admin;
     if (admin === undefined) {

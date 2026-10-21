@@ -73,7 +73,7 @@ describe("terminal interactivity", () => {
         async ({ decision }) => decision.outcome,
       )(),
     ).resolves.toBe("granted");
-    expect(asked).toEqual(["environment.update:environment:42"]);
+    expect(asked).toStrictEqual(["environment.update:environment:42"]);
   });
 
   it("exits 75 for a self-approvable grant when not interactive", async () => {
@@ -126,7 +126,7 @@ describe("terminal interactivity", () => {
         async () => "ran",
       )(),
     ).resolves.toBe("ran");
-    expect(expected).toEqual(["environment.delete"]);
+    expect(expected).toStrictEqual(["environment.delete"]);
   });
 
   it("skips the typed prompt with -y in argv", async () => {
@@ -183,7 +183,7 @@ describe("terminal output", () => {
     const permdock = await permdockFor();
     const decision = permdock.decide(permissions.post.read, ownPost);
     expect(format(decision)).toBe("");
-    expect(JSON.parse(format(decision, { json: true }))).toEqual({
+    expect(JSON.parse(format(decision, { json: true }))).toStrictEqual({
       outcome: "granted",
       permission: "post.read",
     });
@@ -204,7 +204,7 @@ describe("terminal output", () => {
       expect({
         json,
         hint: lines.join("").includes("pass a store"),
-      }).toEqual({ json, hint: !json });
+      }).toStrictEqual({ json, hint: !json });
     }
   });
 });
@@ -232,7 +232,7 @@ describe("terminal subject and actor resolution", () => {
     const first = await permdockFor();
     expect(await permdockFor()).toBe(first);
     await permdockFor({ refresh: true, as: "home" });
-    expect(profiles).toEqual(["work", "home"]);
+    expect(profiles).toStrictEqual(["work", "home"]);
   });
 
   it("ignores --as without a value", async () => {
@@ -250,7 +250,7 @@ describe("terminal subject and actor resolution", () => {
       });
       await permdockFor();
     }
-    expect(profiles).toEqual(["default", "default"]);
+    expect(profiles).toStrictEqual(["default", "default"]);
   });
 
   it("maps every actor shape", async () => {
@@ -298,10 +298,10 @@ describe("terminal subject and actor resolution", () => {
         runtime: quiet().runtime,
       });
       const permdock = await permdockFor();
-      expect({ label: item.label, actor: permdock.subject.actor }).toEqual({
+      expect({
         label: item.label,
-        actor: item.actor,
-      });
+        actor: permdock.subject.actor,
+      }).toStrictEqual({ label: item.label, actor: item.actor });
     }
   });
 
@@ -317,7 +317,7 @@ describe("terminal subject and actor resolution", () => {
     expect({
       principal: permdock.subject.principal?.id,
       actor: permdock.subject.actor,
-    }).toEqual({ principal: "u1", actor: undefined });
+    }).toStrictEqual({ principal: "u1", actor: undefined });
   });
 });
 
@@ -345,12 +345,12 @@ describe("terminal filterCommands and logout", () => {
       subject: () => memberUser,
       runtime: quiet().runtime,
     });
-    expect(filterCommands(entries)).toEqual([]);
+    expect(filterCommands(entries)).toStrictEqual([]);
     expect(
       filterCommands(entries, { mode: "annotate" }).map(
         (entry) => entry.description,
       ),
-    ).toEqual([
+    ).toStrictEqual([
       "List posts (requires post:list)",
       "Read a post (requires post:read)",
       "Publish a post (requires post:publish)",
@@ -360,13 +360,10 @@ describe("terminal filterCommands and logout", () => {
   it("defaults to hide and reads instance permissions from the snapshot", async () => {
     const { getPermDock: permdockFor, filterCommands } = createPermDock(
       policy,
-      {
-        subject: () => memberUser,
-        runtime: quiet().runtime,
-      },
+      { subject: () => memberUser, runtime: quiet().runtime },
     );
     await permdockFor();
-    expect(filterCommands(entries).map((entry) => entry.name)).toEqual([
+    expect(filterCommands(entries).map((entry) => entry.name)).toStrictEqual([
       "list",
       "read",
     ]);

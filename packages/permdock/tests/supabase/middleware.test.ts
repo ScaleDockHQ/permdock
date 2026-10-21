@@ -2,6 +2,7 @@ import { defineMiddleware, pipeline } from "@supabase/middleware";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { SinkEvent } from "../../src/core/event-types.ts";
+import type { SupabaseJwtClaims } from "../../src/supabase/middleware.ts";
 import type { PermDockOf } from "../fixtures/vocabulary.ts";
 
 import {
@@ -10,10 +11,7 @@ import {
 } from "../../src/approvals/index.ts";
 import { APPROVAL_HEADER } from "../../src/approvals/types.ts";
 import { webBotAuthVerifier } from "../../src/server/web-bot-auth.ts";
-import {
-  type SupabaseJwtClaims,
-  createPermDock,
-} from "../../src/supabase/middleware.ts";
+import { createPermDock } from "../../src/supabase/middleware.ts";
 import { subjectFromSupabase } from "../../src/supabase/subject.ts";
 import {
   saasPermissions,
@@ -26,6 +24,7 @@ import {
   permissions,
   policy,
 } from "../fixtures/quick-start.ts";
+import { defined } from "../support/defined.ts";
 
 type FixtureClaimsConfig =
   | { readonly claims: SupabaseJwtClaims | null }
@@ -82,7 +81,7 @@ describe("permdock/supabase/middleware", () => {
     );
     const response = await fetch(request("/posts/p1", { method: "PATCH" }));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toStrictEqual({
       id: "u1",
       own: true,
       other: false,
@@ -102,7 +101,10 @@ describe("permdock/supabase/middleware", () => {
         }),
     );
     const response = await fetch(request("/posts"));
-    expect(await response.json()).toEqual({ anonymous: true, can: false });
+    expect(await response.json()).toStrictEqual({
+      anonymous: true,
+      can: false,
+    });
   });
 
   it("falls back to anonymous when the subject resolver throws", async () => {
@@ -117,7 +119,7 @@ describe("permdock/supabase/middleware", () => {
         Response.json({ anonymous: ctx.permdock.subject.principal === null }),
     );
     const response = await fetch(request("/posts"));
-    expect(await response.json()).toEqual({ anonymous: true });
+    expect(await response.json()).toStrictEqual({ anonymous: true });
   });
 
   it("short-circuits with Problem Details when protect denies", async () => {
@@ -165,7 +167,7 @@ describe("permdock/supabase/middleware", () => {
       request("/posts/p1/publish", { method: "POST" }),
     );
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ id: "u2" });
+    expect(await response.json()).toStrictEqual({ id: "u2" });
   });
 
   it("returns 404 when protect data loads nothing", async () => {
@@ -215,13 +217,13 @@ describe("permdock/supabase/middleware", () => {
         Response.json({ tenant: ctx.permdock.subject.principal?.tenant }),
     );
     const o2 = await (await fetch(request("/posts?tenant=o2"))).json();
-    expect(o2).toEqual({ tenant: "o2" });
+    expect(o2).toStrictEqual({ tenant: "o2" });
     const o1 = await (await fetch(request("/posts?tenant=o1"))).json();
-    expect(o1).toEqual({ tenant: "o1" });
+    expect(o1).toStrictEqual({ tenant: "o1" });
     // A requested tenant with no matching membership is no tenant.
     const o3 = await (await fetch(request("/posts?tenant=o3"))).json();
-    expect(o3).toEqual({});
-    expect(seen).toEqual(["u1", "u1", "u1"]);
+    expect(o3).toStrictEqual({});
+    expect(seen).toStrictEqual(["u1", "u1", "u1"]);
   });
 
   it("forwards decisions to the sink", async () => {
@@ -271,15 +273,15 @@ describe("permdock/supabase/middleware", () => {
       readonly token?: string;
     };
     expect(body.type).toBe("https://permdock.com/problems/approval-required");
-    expect(typeof body.token).toBe("string");
-    await resolveApproval(store, body.token!, {
+    expect(body.token).toBeTypeOf("string");
+    await resolveApproval(store, defined(body.token), {
       status: "approved",
       by: { principal: { id: "u9", roles: ["admin"] }, context: {} },
     });
     const resumed = await fetch(
       request("/posts/p1", {
         method: "DELETE",
-        headers: { [APPROVAL_HEADER]: body.token! },
+        headers: { [APPROVAL_HEADER]: defined(body.token) },
       }),
     );
     expect(resumed.status).toBe(204);
@@ -312,7 +314,7 @@ describe("permdock/supabase/middleware", () => {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };
     expect(body.evaluations[0]?.decision).toBe(true);
-    expect(openapi.security(permissions.post.update)).toEqual({
+    expect(openapi.security(permissions.post.update)).toStrictEqual({
       security: [{ oauth2: ["post:update"] }],
       "x-permdock-permissions": ["post.update"],
     });
@@ -437,7 +439,7 @@ describe("permdock/supabase/middleware", () => {
         { authMode: "secret" },
         { authMode: "publishable", authKeyName: "billing" },
       ]) {
-        expect(await (await run(auth)).json()).toEqual({
+        expect(await (await run(auth)).json()).toStrictEqual({
           principal: null,
           update: false,
           delete: false,
@@ -466,13 +468,13 @@ describe("permdock/supabase/middleware", () => {
           subject: () => null,
           secretKeys: { "*": key },
         }),
-      ).toThrow(/not a pattern/);
+      ).toThrow(/not a pattern/u);
       expect(() =>
         createPermDock(saasPolicy, {
           subject: () => null,
           secretKeys: { ops: { ...key, id: "" } },
         }),
-      ).toThrow(/non-empty id and tenant/);
+      ).toThrow(/non-empty id and tenant/u);
     });
   });
 

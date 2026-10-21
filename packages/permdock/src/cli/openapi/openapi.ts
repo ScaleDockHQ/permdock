@@ -1,18 +1,13 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { Permission, Policy } from "../../index.ts";
 import type { OverlayOperation } from "../../openapi/types.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
-import {
-  type Permission,
-  type Policy,
-  definePolicy,
-  findPermission,
-  getResource,
-} from "../../index.ts";
+import { definePolicy, findPermission, getResource } from "../../index.ts";
 import { openapiVersion } from "../../openapi/emit.ts";
 import { createPermDock } from "../../openapi/index.ts";
 import { configError } from "../core/errors.ts";
@@ -41,7 +36,10 @@ function mergeRecord(
   return result;
 }
 
-/** Keeps what the document already says about a scheme (flow URLs, other flows, description); PermDock owns the scopes. */
+/**
+ * Keeps what the document already says about a scheme (flow URLs, other flows,
+ * description); PermDock owns the scopes.
+ */
 function mergeSchemes(
   existing: Readonly<Record<string, unknown>>,
   emitted: Readonly<Record<string, unknown>>,
@@ -94,10 +92,7 @@ async function loadPolicy(
   const tree = asPermissionTree(
     pickNamed(await loadModule(resolve(cwd, permissionsPath)), ["permissions"]),
   );
-  return definePolicy(tree, {
-    roles: [],
-    subject: () => null,
-  });
+  return definePolicy(tree, { roles: [], subject: () => null });
 }
 
 function leavesOf(policy: Policy, keys: readonly unknown[]): Permission[] {
@@ -115,7 +110,10 @@ function leavesOf(policy: Policy, keys: readonly unknown[]): Permission[] {
   });
 }
 
-/** Operations carrying `x-permdock-permissions`, joined by `operationId`; those without one are findings. */
+/**
+ * Operations carrying `x-permdock-permissions`, joined by `operationId`; those
+ * without one are findings.
+ */
 function overlayOperations(
   document: Record<string, unknown>,
   policy: Policy,
@@ -153,7 +151,10 @@ function overlayOperations(
   return { operations, unnamed, secured };
 }
 
-/** `instance` when any listed permission acts on one row; the id is the last path template parameter. */
+/**
+ * `instance` when any listed permission acts on one row; the id is the last
+ * path template parameter.
+ */
 function arityOf(
   policy: Policy,
   leaves: readonly { readonly resource: string; readonly action: string }[],
@@ -296,10 +297,7 @@ export async function runOpenapi(input: {
 }): Promise<CommandResult> {
   const action = input.rest[0] ?? "emit";
   if (action !== "emit") {
-    return {
-      code: 2,
-      output: "openapi action must be emit or import",
-    };
+    return { code: 2, output: "openapi action must be emit or import" };
   }
   if (input.doc === undefined) {
     return { code: 2, output: "openapi --doc is required" };
@@ -370,19 +368,19 @@ export async function runOpenapi(input: {
     };
   }
   const result =
-    covered !== undefined
-      ? openapi.overlay({
-          extends: input.doc,
-          version: input.overlay,
-          operations: covered.operations,
-        })
-      : applyDocument(
+    covered === undefined
+      ? applyDocument(
           parsed,
           policy,
           openapi,
           input.arity === true,
           input.target,
-        );
+        )
+      : openapi.overlay({
+          extends: input.doc,
+          version: input.overlay,
+          operations: covered.operations,
+        });
   const conformance = outputConformance(
     parsed,
     result,

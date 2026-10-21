@@ -9,7 +9,10 @@ import { isoAt } from "../core/time.ts";
 
 export type TableApprovalDelegationSourceOptions = {
   readonly query: SqlQuery;
-  /** Defaults to `permdock.approval_delegations`, the table `rls.approvals.delegations` generates. */
+  /**
+   * Defaults to `permdock.approval_delegations`, the table
+   * `rls.approvals.delegations` generates.
+   */
   readonly table?: string;
 };
 
@@ -85,8 +88,8 @@ function delegationOf(
 /**
  * Approval delegations (out-of-office covers) from the table
  * `rls.approvals.delegations` generates, so `approvalsHandler` and
- * `permdock_is_approver` read the same rows. A cover without a tenant
- * applies everywhere; a malformed row is skipped.
+ * `permdock_is_approver` read the same rows. A cover without a tenant applies
+ * everywhere; a malformed row is skipped.
  */
 export function tableApprovalDelegationSource(
   options: TableApprovalDelegationSourceOptions,

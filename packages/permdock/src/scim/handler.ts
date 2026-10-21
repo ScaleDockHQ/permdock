@@ -1,3 +1,10 @@
+import type { ScimRoute } from "./route.ts";
+import type {
+  DirectoryGroup,
+  DirectoryUser,
+  ScimHandlerOptions,
+} from "./types.ts";
+
 import { compact, isRecord } from "../core/compact.ts";
 import { MAX_BODY_BYTES } from "../server/body-text.ts";
 import { authenticateScim } from "./auth.ts";
@@ -26,14 +33,8 @@ import {
   unauthorized,
   versionOf,
 } from "./render.ts";
-import { locationOf, pageFrom, parseRoute, type ScimRoute } from "./route.ts";
-import {
-  GROUP_SCHEMA,
-  USER_SCHEMA,
-  type DirectoryGroup,
-  type DirectoryUser,
-  type ScimHandlerOptions,
-} from "./types.ts";
+import { locationOf, pageFrom, parseRoute } from "./route.ts";
+import { GROUP_SCHEMA, USER_SCHEMA } from "./types.ts";
 
 /** One resource with its `meta.version` as the `ETag`. */
 function resourceResponse(
@@ -57,7 +58,10 @@ function renderedOf(
     : renderGroup(resource, locationOf(request, "Groups", resource.id));
 }
 
-/** `false` when `If-Match` names a version other than `current`'s; a missing resource passes to the store. */
+/**
+ * `false` when `If-Match` names a version other than `current`'s; a missing
+ * resource passes to the store.
+ */
 function matches(
   request: Request,
   current: DirectoryUser | DirectoryGroup | null,

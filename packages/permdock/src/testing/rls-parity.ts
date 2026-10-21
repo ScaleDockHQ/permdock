@@ -1,5 +1,14 @@
+import type { Scope } from "../core/scopes.ts";
+import type {
+  CustomRole,
+  Membership,
+  Permission,
+  Policy,
+  Subject,
+} from "../index.ts";
+
 import { membershipsClaim } from "../core/custom-roles.ts";
-import { type Scope, scopeList } from "../core/scopes.ts";
+import { scopeList } from "../core/scopes.ts";
 import {
   SQL_IDENT as IDENT,
   defaultSqlCommand,
@@ -7,15 +16,10 @@ import {
   quoteSqlTable as quoteTable,
 } from "../core/sql.ts";
 import {
-  type CustomRole,
   fromSnapshot,
   getPermDock,
-  type Membership,
   memoryCustomRoleSource,
   parseSnapshot,
-  type Permission,
-  type Policy,
-  type Subject,
 } from "../index.ts";
 import { supabaseTenantClaim } from "../supabase/budget.ts";
 
@@ -58,21 +62,29 @@ export type RlsParityOptions = {
   readonly fixtures: readonly RlsParityFixture[];
   /**
    * `supabase` and `neon` set `request.jwt.claims`; a test database stubs
-   * `auth.jwt()` / `auth.uid()` or `auth.session()` / `auth.user_id()` over it.
+   * `auth.jwt()` / `auth.uid()` or `auth.session()` / `auth.user_id()` over
+   * it.
    */
   readonly dialect?: "supabase" | "neon" | "guc";
   readonly gucPrefix?: string;
   readonly tenantClaim?: string;
-  /** Claim (or `guc` setting) the RLS helpers read global roles from. Default `user_role`. */
+  /**
+   * Claim (or `guc` setting) the RLS helpers read global roles from. Default
+   * `user_role`.
+   */
   readonly roleClaim?: string;
   readonly role?: "authenticated" | "anon";
   /**
-   * Tenant-defined roles the subjects' memberships may hold. `decide` resolves them through a
-   * `CustomRoleSource`; each membership's claim carries them as the compact `grants` map, which the
-   * helpers read in `jwt` mode. Seeding the `database`-mode tables is the caller's job.
+   * Tenant-defined roles the subjects' memberships may hold. `decide` resolves
+   * them through a `CustomRoleSource`; each membership's claim carries them as
+   * the compact `grants` map, which the helpers read in `jwt` mode. Seeding the
+   * `database`-mode tables is the caller's job.
    */
   readonly customRoles?: readonly CustomRole[];
-  /** Also decide each case from the subject's serialized snapshot (`fromSnapshot`); it must agree. */
+  /**
+   * Also decide each case from the subject's serialized snapshot
+   * (`fromSnapshot`); it must agree.
+   */
   readonly snapshot?: boolean;
   /**
    * With `rls generate --fields views`: for each instance read, the row of
@@ -94,7 +106,10 @@ export type RlsParityCase = {
   readonly database: RlsDbOutcome;
   /** The snapshot's decision, with `snapshot: true`. */
   readonly snapshot?: boolean;
-  /** The field view check, with `fieldViews: true`; `database` is an error code when the read failed. */
+  /**
+   * The field view check, with `fieldViews: true`; `database` is an error code
+   * when the read failed.
+   */
   readonly fields?: RlsFieldsOutcome;
   readonly ok: boolean;
 };
@@ -128,8 +143,8 @@ function setting(name: string, value: string): Setting {
 }
 
 /**
- * The session state the generated helpers read: JWT claims for `supabase`,
- * GUCs for `guc` (roles as a comma list, memberships as JSON).
+ * The session state the generated helpers read: JWT claims for `supabase`, GUCs
+ * for `guc` (roles as a comma list, memberships as JSON).
  */
 function subjectSettings(
   dialect: "supabase" | "neon" | "guc",
@@ -177,8 +192,8 @@ function subjectSettings(
 }
 
 /**
- * The statement a case runs. With field views it reads back only the key, so
- * a base table whose restricted columns are revoked does not reject it.
+ * The statement a case runs. With field views it reads back only the key, so a
+ * base table whose restricted columns are revoked does not reject it.
  */
 function statementSql(action: string, table: string, keyOnly: boolean): string {
   const quoted = quoteTable(table);

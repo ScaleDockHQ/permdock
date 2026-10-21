@@ -9,6 +9,8 @@ import {
 } from "ai";
 import { checkBotId } from "botid/server";
 
+import type { AskAiChecks } from "@/lib/ask-ai";
+
 import { env } from "@/env";
 import {
   askAiProblem,
@@ -17,7 +19,6 @@ import {
   pageInput,
   parseChatRequest,
   searchInput,
-  type AskAiChecks,
 } from "@/lib/ask-ai";
 import { docsTools } from "@/lib/docs-tools";
 

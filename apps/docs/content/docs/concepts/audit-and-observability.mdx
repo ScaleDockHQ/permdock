@@ -52,8 +52,8 @@ A handler is enough for one process. When events must leave the process, the ada
 
 ```ts
 interface DecisionSink {
-  write(events: readonly DecisionEvent[]): Promise<void> | void; // batched; never awaited by decide
-  flush?(): Promise<void>; // called at request end when the runtime has waitUntil
+  write: (events: readonly DecisionEvent[]) => Promise<void> | void; // batched; never awaited by decide
+  flush?: () => Promise<void>; // called at request end when the runtime has waitUntil
 }
 
 import { memoryDecisionSink } from "permdock";
@@ -154,10 +154,7 @@ A "freeze this agent" button in the Cloud is those two operations plus a recomme
 ```ts
 import { withOtel } from "permdock/otel";
 
-const permdock = withOtel(await getPermDock(policy, user), {
-  tracer,
-  meter,
-});
+const permdock = withOtel(await getPermDock(policy, user), { tracer, meter });
 ```
 
 `permdock/otel` is an optional entry that subscribes to `on('decision')` and emits:

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { RelationGrantee } from "../../src/core/grantee.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
@@ -9,7 +10,6 @@ import {
 } from "../../src/core/grantee-conditions.ts";
 import { matchGrantee } from "../../src/core/grantee-match.ts";
 import {
-  type RelationGrantee,
   actor,
   asGrantee,
   assurance,
@@ -49,10 +49,7 @@ const NOW = 1_800_000_000;
 const anonymous: Subject = { principal: null, context: {} };
 const user = (
   extra: Partial<NonNullable<Subject["principal"]>> = {},
-): Subject => ({
-  principal: { id: "u1", ...extra },
-  context: {},
-});
+): Subject => ({ principal: { id: "u1", ...extra }, context: {} });
 
 describe("relation() validation", () => {
   it.each([
@@ -95,14 +92,14 @@ describe("relation() validation", () => {
   });
 });
 
-describe("asGrantee", () => {
+describe(asGrantee, () => {
   it("refuses a value that is no grantee", () => {
     // SAFETY: an untyped caller passing a non-grantee value.
     expect(() => asGrantee(42 as never)).toThrow(/invalid grantee/u);
   });
 });
 
-describe("matchGrantee", () => {
+describe(matchGrantee, () => {
   it.each([
     { name: "an empty list", to: [], subject: user(), reason: "no-grant" },
     {
@@ -124,7 +121,7 @@ describe("matchGrantee", () => {
       reason: "no-grant",
     },
   ])("denies $name", ({ to, subject, reason }) => {
-    expect(matchGrantee(to, subject, NOW, undefined)).toEqual({
+    expect(matchGrantee(to, subject, NOW, undefined)).toStrictEqual({
       matched: false,
       reason,
     });
@@ -136,7 +133,7 @@ describe("matchGrantee", () => {
     expect({
       anonymous: matchGrantee(forged, anonymous, NOW, undefined),
       listed: matchGrantee([forged], user(), NOW, undefined),
-    }).toEqual({
+    }).toStrictEqual({
       anonymous: { matched: false, reason: "no-grant", unknown: true },
       listed: { matched: false, reason: "no-grant", unknown: true },
     });
@@ -165,7 +162,7 @@ describe("matchGrantee", () => {
         undefined,
         true,
       ),
-    }).toEqual({
+    }).toStrictEqual({
       alone: { matched: true },
       withKnown: { matched: false, reason: "no-grant" },
     });
@@ -195,7 +192,7 @@ describe("relation graph starts", () => {
         node("doc"),
         node("folder"),
       ),
-    }).toEqual({
+    }).toStrictEqual({
       own: { field: "id", parent: false, depth: 16 },
       parent: { field: "folderId", parent: true, depth: 16 },
       fractional: { field: "id", parent: false, depth: 0 },
@@ -220,7 +217,7 @@ describe("relation graph starts", () => {
         resources,
       ),
       flat: resourceRoleCondition(node("doc"), "team", ["t1"], resources),
-    }).toEqual({
+    }).toStrictEqual({
       own: {
         op: "related",
         resource: "folder",
@@ -263,7 +260,7 @@ describe("relation graph starts", () => {
         resources,
       ),
       deep: relationHops({ ...teamMember, depth: 1 }, node("doc"), resources),
-    }).toEqual({
+    }).toStrictEqual({
       hops: {
         field: "teamId",
         hops: [{ link: "team", resource: "team" }],

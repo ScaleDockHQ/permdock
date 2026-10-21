@@ -5,7 +5,10 @@ import type { ApprovalRequest } from "./types.ts";
 import { compact } from "../core/compact.ts";
 import { secondsOf } from "../core/time.ts";
 
-/** One recorded approval as the `approvals` claim of a `vnd.permdock.approval+jwt` carries it. */
+/**
+ * One recorded approval as the `approvals` claim of a
+ * `vnd.permdock.approval+jwt` carries it.
+ */
 export type ApprovalSignatureEntry = {
   readonly by: string;
   /** RFC 3339. */
@@ -17,9 +20,9 @@ export type ApprovalSignatureEntry = {
 };
 
 /**
- * The claims of a `vnd.permdock.approval+jwt` other than `iss`, `aud`,
- * `iat`, `exp` and `jti`, which the signer sets: `jti` is the request `id`,
- * `iat` its `resolvedAt` and `exp` its `expiresAt`.
+ * The claims of a `vnd.permdock.approval+jwt` other than `iss`, `aud`, `iat`,
+ * `exp` and `jti`, which the signer sets: `jti` is the request `id`, `iat` its
+ * `resolvedAt` and `exp` its `expiresAt`.
  */
 export type ApprovalSignatureClaims = {
   readonly sub?: string;

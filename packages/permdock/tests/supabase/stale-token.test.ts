@@ -55,7 +55,7 @@ describe("a stale token and global roles", () => {
       memberships: claimsFirst(sources.memberships, { onStale: "reread" }),
     });
     expect(permdock.can(permissions.organization.list)).toBe(false);
-    expect(permdock.subject.principal?.roles).toEqual([]);
+    expect(permdock.subject.principal?.roles).toStrictEqual([]);
   });
 
   it("keeps the global roles of a current token and of a still-held role", async () => {
@@ -101,12 +101,9 @@ describe("a stale token and global roles", () => {
       memberships: claimsFirst(sources.memberships, { onStale: "reread" }),
     });
     expect(viaClaimsFirst.can(permissions.organization.list)).toBe(false);
-    const refreshed = await sources.refresh({
-      ...delegated,
-      principal: stale,
-    });
+    const refreshed = await sources.refresh({ ...delegated, principal: stale });
     expect(refreshed.actor?.id).toBe("client-1");
-    expect(refreshed.delegation).toEqual(delegation);
+    expect(refreshed.delegation).toStrictEqual(delegation);
     const viaRefresh = await getPermDock(policy, refreshed);
     expect(viaRefresh.can(permissions.organization.list)).toBe(false);
     const rebuilt = await getPermDock(policy, await sources.subject("u1"));
@@ -116,7 +113,7 @@ describe("a stale token and global roles", () => {
   it("refresh rereads the principal and answers no principal for a suspended user", async () => {
     const sources = postgrestSources(client({ roles: [], version: 2 }));
     const refreshed = await sources.refresh(token({ session: "s1" }));
-    expect(refreshed.principal?.roles).toEqual([]);
+    expect(refreshed.principal?.roles).toStrictEqual([]);
     expect(refreshed.principal?.authzVersion).toBe(2);
     expect(refreshed.session).toBe("s1");
     const gone = postgrestSources({
@@ -136,22 +133,21 @@ describe("a stale token and global roles", () => {
 
 describe("globalRolesFor", () => {
   it("composes as the union of the sources and survives claimsFirst", async () => {
-    const one = {
-      membershipsFor: () => [],
-      globalRolesFor: () => ["a"],
-    };
+    const one = { membershipsFor: () => [], globalRolesFor: () => ["a"] };
     const two = {
       membershipsFor: () => [],
       globalRolesFor: async () => ["a", "b"],
     };
     const none = { membershipsFor: () => [] };
     const composed = composeMemberships([one, two, none]);
-    expect(await composed.globalRolesFor?.({ id: "u" })).toEqual(["a", "b"]);
-    expect(Reflect.get(claimsFirst(none), "globalRolesFor")).toBeUndefined();
-    expect(await claimsFirst(composed).globalRolesFor?.({ id: "u" })).toEqual([
+    expect(await composed.globalRolesFor?.({ id: "u" })).toStrictEqual([
       "a",
       "b",
     ]);
+    expect(Reflect.get(claimsFirst(none), "globalRolesFor")).toBeUndefined();
+    expect(
+      await claimsFirst(composed).globalRolesFor?.({ id: "u" }),
+    ).toStrictEqual(["a", "b"]);
     expect(
       Reflect.get(composeMemberships([none]), "globalRolesFor"),
     ).toBeUndefined();
@@ -179,7 +175,7 @@ describe("claims carried by subject_for", () => {
   it("puts team_ids and the hook's extra claims on subject() and refresh()", async () => {
     const sources = postgrestSources(withClaims);
     const built = await sources.subject("u1");
-    expect(built.principal?.["claims"]).toEqual({
+    expect(built.principal?.["claims"]).toStrictEqual({
       team_ids: ["t1", "t2"],
       plan: "pro",
     });
@@ -187,7 +183,7 @@ describe("claims carried by subject_for", () => {
       principal: { id: "u1", roles: [], claims: { other: 1, plan: "free" } },
       context: {},
     });
-    expect(refreshed.principal?.claims).toEqual({
+    expect(refreshed.principal?.claims).toStrictEqual({
       other: 1,
       plan: "pro",
       team_ids: ["t1", "t2"],

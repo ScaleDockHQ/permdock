@@ -47,7 +47,7 @@ const member = [
   { scope: "customer", id: "c1", within: { organization: "o1" }, roles: ["a"] },
 ];
 
-describe("fixtureMembershipSql", () => {
+describe(fixtureMembershipSql, () => {
   it("writes the ancestor columns of a nested scope's table", () => {
     const config = tables({
       scopes: {
@@ -59,7 +59,9 @@ describe("fixtureMembershipSql", () => {
         },
       },
     });
-    expect(fixtureMembershipSql(config, scopes, fixture(member), [])).toEqual([
+    expect(
+      fixtureMembershipSql(config, scopes, fixture(member), []),
+    ).toStrictEqual([
       `insert into "customer_members" ("user_id", "customer_id", "organization_id", "role") values ('u1', 'c1', 'o1', 'a') on conflict do nothing;`,
     ]);
   });
@@ -87,7 +89,7 @@ describe("fixtureMembershipSql", () => {
       fixture([{ tenant: "o1", roles: ["a"] }, ...member]),
       [],
     );
-    expect(rows).toEqual([
+    expect(rows).toStrictEqual([
       `insert into "org_members" ("user_id", "organization_id", "role") values ('u1', 'o1', 'a') on conflict do nothing;`,
       `insert into "customer_members" ("user_id", "customer_id", "role") values ('u1', 'c1', 'a') on conflict do nothing;`,
     ]);
@@ -102,7 +104,7 @@ describe("fixtureMembershipSql", () => {
         { subject: { id: "u1" } } as unknown as RlsFixture,
         [],
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("lists a membership without a scope instance", () => {
@@ -113,7 +115,7 @@ describe("fixtureMembershipSql", () => {
         fixture([{ on: { resource: "x", id: "1" }, roles: ["a"] }]),
         [],
       ),
-    ).toEqual(["-- no membership table holds on : not seeded"]);
+    ).toStrictEqual(["-- no membership table holds on : not seeded"]);
   });
 
   it("lists a membership no plain table holds", () => {
@@ -127,9 +129,9 @@ describe("fixtureMembershipSql", () => {
         },
       },
     });
-    expect(fixtureMembershipSql(mapped, scopes, fixture(member), [])).toEqual([
-      "-- no membership table holds customer c1: not seeded",
-    ]);
+    expect(
+      fixtureMembershipSql(mapped, scopes, fixture(member), []),
+    ).toStrictEqual(["-- no membership table holds customer c1: not seeded"]);
     expect(
       fixtureMembershipSql(
         tables(undefined),
@@ -137,7 +139,7 @@ describe("fixtureMembershipSql", () => {
         fixture([{ roles: ["a"] }]),
         [],
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("seeds only a source with plain columns that fits the scope", () => {
@@ -145,7 +147,7 @@ describe("fixtureMembershipSql", () => {
     const run = (entry: SupabaseManifestMembership) =>
       fixtureMembershipSql(config, scopes, fixture(member), [entry]);
     const plain = source({});
-    expect(run(plain)).toEqual([
+    expect(run(plain)).toStrictEqual([
       `insert into "app"."staff" ("person", "target", "kind", "role") values ('u1', 'c1', 'customer', 'a') on conflict do nothing;`,
     ]);
     const skipped = "-- no membership table holds customer c1: not seeded";
@@ -155,20 +157,22 @@ describe("fixtureMembershipSql", () => {
           user: loose({ column: "p", through: { table: "t", on: {} } }),
         }),
       ),
-    ).toEqual([skipped]);
-    expect(run(source({ scope: { value: "organization" } }))).toEqual([
+    ).toStrictEqual([skipped]);
+    expect(run(source({ scope: { value: "organization" } }))).toStrictEqual([
       skipped,
     ]);
-    expect(run(source({ role: [column("a"), column("b")] }))).toEqual([
+    expect(run(source({ role: [column("a"), column("b")] }))).toStrictEqual([
       skipped,
     ]);
     expect(
       run(source({ role: loose({ column: "r", map: { a: "x" } }) })),
-    ).toEqual([skipped]);
-    expect(run(source({ role: loose({ column: "r", through: {} }) }))).toEqual([
+    ).toStrictEqual([skipped]);
+    expect(
+      run(source({ role: loose({ column: "r", through: {} }) })),
+    ).toStrictEqual([skipped]);
+    expect(run(source({ role: loose({ roles: ["a"] }) }))).toStrictEqual([
       skipped,
     ]);
-    expect(run(source({ role: loose({ roles: ["a"] }) }))).toEqual([skipped]);
     expect(
       run(
         source({
@@ -176,10 +180,10 @@ describe("fixtureMembershipSql", () => {
           within: { columns: { organization: "org", missing: "m" } },
         }),
       ),
-    ).toEqual([
+    ).toStrictEqual([
       `insert into "app"."staff" ("person", "target", "org", "role") values ('u1', 'c1', 'o1', 'a') on conflict do nothing;`,
     ]);
-    expect(run(source({ within: column("within") }))).toEqual([
+    expect(run(source({ within: column("within") }))).toStrictEqual([
       `insert into "app"."staff" ("person", "target", "kind", "role") values ('u1', 'c1', 'customer', 'a') on conflict do nothing;`,
     ]);
   });

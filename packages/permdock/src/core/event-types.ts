@@ -15,15 +15,15 @@ export type DirectoryEvent = {
   readonly source: OpenUnion<"scim">;
   readonly operation: "create" | "replace" | "patch" | "delete";
   readonly tenant: string;
-  readonly resource: {
-    readonly type: "User" | "Group";
-    readonly id: string;
-  };
+  readonly resource: { readonly type: "User" | "Group"; readonly id: string };
   readonly credential:
     | { readonly kind: "token" }
     | { readonly kind: "jwt"; readonly iss?: string };
   readonly active?: boolean;
-  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  /**
+   * The application's own data, set where the event is built; plain JSON, never
+   * read by a decision.
+   */
   readonly x?: AppData;
 };
 
@@ -33,7 +33,10 @@ export type MembershipEvent = {
   readonly source: string;
   readonly operation: "added" | "removed" | "changed";
   readonly principal: { readonly id: string };
-  /** A declared scope name, or the `tenant` / `team` alias; absent for a global role change. */
+  /**
+   * A declared scope name, or the `tenant` / `team` alias; absent for a global
+   * role change.
+   */
   readonly scope?: string;
   /** The scope instance; present exactly when `scope` is. */
   readonly id?: string;
@@ -47,14 +50,17 @@ export type MembershipEvent = {
     readonly removed: readonly string[];
   };
   readonly by?: { readonly id: string; readonly kind: string };
-  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  /**
+   * The application's own data, set where the event is built; plain JSON, never
+   * read by a decision.
+   */
   readonly x?: AppData;
 };
 
 /**
  * An API key's lifecycle: `created`, `rotated` and `revoked` from the
- * application or a credential store, `used` from `subjectFromApiKey`. A
- * `used` event carries `sample`, the fraction of uses reported.
+ * application or a credential store, `used` from `subjectFromApiKey`. A `used`
+ * event carries `sample`, the fraction of uses reported.
  */
 export type CredentialEvent = {
   readonly type: "credential";
@@ -68,7 +74,10 @@ export type CredentialEvent = {
   readonly expiresAt?: string;
   readonly by?: { readonly id: string; readonly kind: string };
   readonly sample?: number;
-  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  /**
+   * The application's own data, set where the event is built; plain JSON, never
+   * read by a decision.
+   */
   readonly x?: AppData;
 };
 
@@ -98,7 +107,10 @@ export type AutomationEvent = {
   /** Set on `run` events only. */
   readonly run?: { readonly id: string };
   readonly by?: { readonly id: string; readonly kind: string };
-  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  /**
+   * The application's own data, set where the event is built; plain JSON, never
+   * read by a decision.
+   */
   readonly x?: AppData;
 };
 
@@ -122,8 +134,8 @@ export type EmailCategory =
   | "approval";
 
 /**
- * Why a delivery failed. `denied` and `unlinked` are the router's refusals of
- * a recipient; the rest come from a transport or a provider webhook.
+ * Why a delivery failed. `denied` and `unlinked` are the router's refusals of a
+ * recipient; the rest come from a transport or a provider webhook.
  */
 export type DeliveryFailureCause =
   | "denied"
@@ -141,8 +153,8 @@ export type DeliveryFailureCause =
 
 /**
  * One recipient's delivery: `sent` when a transport accepted it, then
- * `delivered`, `bounced` or `complained` from the provider, or `failed`.
- * It carries no address, only the principal the router checked.
+ * `delivered`, `bounced` or `complained` from the provider, or `failed`. It
+ * carries no address, only the principal the router checked.
  */
 export type DeliveryEvent = {
   readonly type: "delivery";
@@ -157,7 +169,10 @@ export type DeliveryEvent = {
   readonly channel: DeliveryChannel;
   /** The delivery's id and this recipient's key, sent as the `Idempotency-Key`. */
   readonly delivery: { readonly id: string; readonly key: string };
-  /** The checked principal, or `trusted` for an address the server loaded itself. */
+  /**
+   * The checked principal, or `trusted` for an address the server loaded
+   * itself.
+   */
   readonly recipient?: {
     readonly principal?: { readonly id: string };
     readonly trusted?: true;
@@ -176,7 +191,10 @@ export type DeliveryEvent = {
   readonly retryable?: boolean;
   /** The denial reason when `cause` is `denied`. */
   readonly reason?: string;
-  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  /**
+   * The application's own data, set where the event is built; plain JSON, never
+   * read by a decision.
+   */
   readonly x?: AppData;
 };
 
@@ -207,7 +225,10 @@ export type AccessEvent = {
   readonly session?: { readonly id: string; readonly principal: string };
   /** A `SupportSession`'s permission keys. */
   readonly permissions?: readonly string[];
-  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  /**
+   * The application's own data, set where the event is built; plain JSON, never
+   * read by a decision.
+   */
   readonly x?: AppData;
 };
 
@@ -226,14 +247,20 @@ export type DecisionEvent = {
       readonly tenant?: string;
     } | null;
     readonly actor?: { readonly id: string; readonly kind: string };
-    /** OAuth `scope` and RFC 9396 `authorization_details`, as every wire form carries a delegation. */
+    /**
+     * OAuth `scope` and RFC 9396 `authorization_details`, as every wire form
+     * carries a delegation.
+     */
     readonly delegation?: WireDelegation;
     /** The API key the subject came from. */
     readonly credential?: {
       readonly id: string;
       readonly kind: CredentialKind;
     };
-    /** The support session the subject came from: the `id` its `access` events carry as `session.id`. */
+    /**
+     * The support session the subject came from: the `id` its `access` events
+     * carry as `session.id`.
+     */
     readonly supportSession?: { readonly id: string };
   };
   readonly tenant?: string;
@@ -255,7 +282,10 @@ export type DecisionEvent = {
   };
   /** What a granted decision owes, as on `GrantedDecision.obligations`. */
   readonly obligations?: readonly Obligation[];
-  /** Purposes of use the caller asserted (`context.purpose`); present when any was. */
+  /**
+   * Purposes of use the caller asserted (`context.purpose`); present when any
+   * was.
+   */
   readonly purpose?: readonly string[];
   /** The justification the caller supplied (`context.reason`); present when set. */
   readonly reason?: string;
@@ -275,7 +305,10 @@ export type DecisionEvent = {
     | "simulate"
     | "explain";
   readonly adapter?: AdapterId;
-  /** The model id the agent model gate decided, or the model that drove the call. */
+  /**
+   * The model id the agent model gate decided, or the model that drove the
+   * call.
+   */
   readonly model?: string;
   /** Set on an approval lifecycle event (`com.permdock.approval.<phase>`). */
   readonly phase?: "requested" | "resolved" | "expired" | "cancelled";
@@ -284,7 +317,10 @@ export type DecisionEvent = {
     readonly denied: number;
     readonly approvalRequired: number;
   };
-  /** The application's own data, set where the event is built; plain JSON, never read by a decision. */
+  /**
+   * The application's own data, set where the event is built; plain JSON, never
+   * read by a decision.
+   */
   readonly x?: AppData;
 };
 

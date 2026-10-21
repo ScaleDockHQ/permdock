@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import type { Decision, Permission } from "../../src/index.ts";
 import type * as fixture from "../fixtures/quick-start.ts";
 
-import {
-  type Decision,
-  type Permission,
-  getPermDockSync,
-} from "../../src/index.ts";
+import { getPermDockSync } from "../../src/index.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 import {
   adminUser,
@@ -31,7 +28,10 @@ describe("invariant 5: identity is by key", () => {
       for (const row of [undefined, ownPost, otherPost]) {
         const cloned = decide(copy, row);
         const original = decide(leaf, row);
-        expect({ outcome: cloned.outcome, reason: reasonOf(cloned) }).toEqual({
+        expect({
+          outcome: cloned.outcome,
+          reason: reasonOf(cloned),
+        }).toStrictEqual({
           outcome: original.outcome,
           reason: reasonOf(original),
         });
@@ -68,7 +68,7 @@ describe("invariant 5: identity is by key", () => {
     const permdock = getPermDockSync(policy, memberUser);
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected a JSON snapshot");
+      throw new TypeError("expected a JSON snapshot");
     }
     expect(JSON.stringify(snapshot)).toContain('"post.update"');
   });

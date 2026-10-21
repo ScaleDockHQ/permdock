@@ -1,16 +1,18 @@
 import type { SupabaseHookManifest } from "../supabase/manifest.ts";
 
 /**
- * Claim sets in the shape the Supabase custom access token hook produces (the RBAC guide's
- * `user_role` claim, optionally mirrored into `app_metadata`, plus a `memberships` array for
- * multi-org apps). `tenantPlans` has scoped memberships, `tenant_id` and per-tenant plans in
- * `features`, read with `claims: { plans: 'features' }`. `full` sets every field of the
- * claim contract plus a `hook.claims` extra claim; `portalContact`, `oauthClient` and
- * `actChain` cover a customer contact, a Supabase OAuth server token and an RFC 8693 chain.
- * `supportSession`, `supportSessionReadOnly` and `impersonation` are the `act.kind` tokens
- * of a support tool; `anonymousSignIn` is a `signInAnonymously()` token read with
- * `anonymousSignIns: 'deny'`. Every fixture passes `supabaseClaims()` and
- * `schemas/supabase-claims-v1.json`. Plain data: no Supabase types.
+ * Claim sets in the shape the Supabase custom access token hook produces (the
+ * RBAC guide's `user_role` claim, optionally mirrored into `app_metadata`, plus
+ * a `memberships` array for multi-org apps). `tenantPlans` has scoped
+ * memberships, `tenant_id` and per-tenant plans in `features`, read with
+ * `claims: { plans: 'features' }`. `full` sets every field of the claim
+ * contract plus a `hook.claims` extra claim; `portalContact`, `oauthClient` and
+ * `actChain` cover a customer contact, a Supabase OAuth server token and an RFC
+ * 8693 chain. `supportSession`, `supportSessionReadOnly` and `impersonation`
+ * are the `act.kind` tokens of a support tool; `anonymousSignIn` is a
+ * `signInAnonymously()` token read with `anonymousSignIns: 'deny'`. Every
+ * fixture passes `supabaseClaims()` and `schemas/supabase-claims-v1.json`.
+ * Plain data: no Supabase types.
  */
 export type SupabaseClaimFixture = {
   readonly claims: Readonly<Record<string, unknown>>;
@@ -47,7 +49,10 @@ export type SupabaseClaimFixture = {
           readonly sessionId: string;
           readonly readOnly: boolean;
         };
-    /** `subject.delegation`: the `scope` claim and the `act` chain of an `oauth-client` actor. */
+    /**
+     * `subject.delegation`: the `scope` claim and the `act` chain of an
+     * `oauth-client` actor.
+     */
     readonly delegation?: {
       readonly scopes?: readonly string[];
       readonly chain?: Readonly<Record<string, unknown>>;
@@ -284,12 +289,7 @@ export const supabaseClaimFixtures: Readonly<
       tenant_id: org,
       memberships: [contactMembership],
     },
-    expect: {
-      id,
-      roles: [],
-      tenant: org,
-      memberships: [contactMembership],
-    },
+    expect: { id, roles: [], tenant: org, memberships: [contactMembership] },
   },
   oauthClient: {
     claims: {
@@ -406,7 +406,8 @@ export const supabaseClaimFixtures: Readonly<
  * `supabaseClaimFixtures` as a `supabase/sdk` conformance vector file
  * (`schema/conformance.schema.json`): each case's `input` is a verified
  * `getClaims()` payload and the `subjectFromSupabase` options, `expected` the
- * subject fields it maps to. `JSON.stringify` it for a port in another language.
+ * subject fields it maps to. `JSON.stringify` it for a port in another
+ * language.
  */
 export type SupabaseClaimVectors = {
   readonly feature: "auth.session.get_claims";
@@ -433,16 +434,17 @@ export const supabaseClaimVectors: SupabaseClaimVectors = {
 };
 
 /**
- * Suggested ceiling for the `memberships` claim in bytes of JSON: about 15 UUID-keyed
- * single-role memberships. `permdock supabase hook generate` truncates at it by default.
+ * Suggested ceiling for the `memberships` claim in bytes of JSON: about 15
+ * UUID-keyed single-role memberships. `permdock supabase hook generate`
+ * truncates at it by default.
  */
 export { supabaseMembershipsBudget } from "../supabase/budget.ts";
 
 /**
  * The `permdock supabase inspect --json` manifest for a policy with one
  * `tenant` scope, the default `supabase.hook` and a `features` claim from
- * `public.feature_claims`. A package that reads the manifest tests its
- * parser against this value.
+ * `public.feature_claims`. A package that reads the manifest tests its parser
+ * against this value.
  */
 export const supabaseHookManifestFixture: SupabaseHookManifest = {
   $schema: "https://permdock.com/schemas/supabase-manifest-v1.json",
@@ -473,11 +475,7 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
     { name: "memberships_truncated", source: "permdock", budget: false },
     { name: "tenant_id", source: "permdock", budget: false },
     { name: "authz_ver", source: "permdock", budget: false },
-    {
-      name: "features",
-      source: "public.feature_claims",
-      budget: false,
-    },
+    { name: "features", source: "public.feature_claims", budget: false },
   ],
   authzVersion: true,
   authzVersionBump: {

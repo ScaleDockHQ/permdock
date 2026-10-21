@@ -84,7 +84,10 @@ function postFromArgs(args: unknown): typeof ownPost {
   return id === "p1" ? ownPost : otherPost;
 }
 
-/** The agent tool map: `{ id: "p1" }` loads `ownPost`, any other args `otherPost`. */
+/**
+ * The agent tool map: `{ id: "p1" }` loads `ownPost`, any other args
+ * `otherPost`.
+ */
 export function postTools(): Readonly<
   Record<"delete_post" | "list_posts" | "publish_post", ToolBinding>
 > {

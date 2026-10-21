@@ -1,14 +1,17 @@
 import type { EntitlementSource } from "./interfaces.ts";
 
-/** The part of the Stripe Node SDK this source calls: `stripe.entitlements.activeEntitlements.list`. */
+/**
+ * The part of the Stripe Node SDK this source calls:
+ * `stripe.entitlements.activeEntitlements.list`.
+ */
 export type StripeEntitlementsClient = {
   readonly entitlements: {
     readonly activeEntitlements: {
-      list(params: {
+      list: (params: {
         readonly customer: string;
         readonly limit?: number;
         readonly starting_after?: string;
-      }): PromiseLike<{
+      }) => PromiseLike<{
         readonly data: readonly {
           readonly id: string;
           readonly lookup_key: string;

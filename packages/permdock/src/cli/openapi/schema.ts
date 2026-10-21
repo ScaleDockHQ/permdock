@@ -6,6 +6,7 @@ import { join } from "node:path";
 
 import { isRecord } from "../../core/compact.ts";
 import { DRAFT_PINS } from "../../openapi/pins.ts";
+import { nonEmptyOr } from "../core/output.ts";
 import { packageRoot } from "../project/package-root.ts";
 
 export type OpenapiVersion = "3.1" | "3.2" | "3.3";
@@ -145,11 +146,17 @@ function validatorFor(file: string): ValidateFunction {
 function describeErrors(errors: readonly ErrorObject[] | null | undefined) {
   return (errors ?? [])
     .slice(0, 5)
-    .map((error) => `  ${error.instancePath || "/"} ${error.message ?? ""}`)
+    .map(
+      (error) =>
+        `  ${nonEmptyOr(error.instancePath, "/")} ${error.message ?? ""}`,
+    )
     .join("\n");
 }
 
-/** Validates an OpenAPI 3.1 or 3.2 document against the official JSON Schema, and 3.3 against the pinned patch of 3.2. */
+/**
+ * Validates an OpenAPI 3.1 or 3.2 document against the official JSON Schema,
+ * and 3.3 against the pinned patch of 3.2.
+ */
 export function validateOpenapi(
   document: unknown,
 ):
@@ -159,10 +166,7 @@ export function validateOpenapi(
   const match =
     typeof version === "string" ? /^3\.([123])\.\d+$/u.exec(version) : null;
   if (match === null) {
-    return {
-      ok: false,
-      error: "expected an OpenAPI 3.1, 3.2 or 3.3 document",
-    };
+    return { ok: false, error: "expected an OpenAPI 3.1, 3.2 or 3.3 document" };
   }
   const minor = match[1] === "1" ? "3.1" : match[1] === "2" ? "3.2" : "3.3";
   const validate = validatorFor(`oas-${minor}.json`);

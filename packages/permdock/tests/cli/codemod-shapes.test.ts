@@ -17,7 +17,7 @@ describe("the denied slot", () => {
     expect(result.source.split("\n")[1]).toBe(
       "export const a = <Protected permission={p} denied={<Locked />}>x</Protected>;",
     );
-    expect(result.changes).toEqual([
+    expect(result.changes).toStrictEqual([
       { line: 2, column: 44, from: "fallback", to: "denied" },
     ]);
   });
@@ -39,7 +39,7 @@ describe("the denied slot", () => {
       "export const a = <PermDockProvider defaults={{ fallback }} />;",
       "export const b = <PermDockProvider defaults={{ fallback: null, pending: null }} />;",
     ]);
-    expect(result.source.split("\n").slice(2)).toEqual([
+    expect(result.source.split("\n").slice(2)).toStrictEqual([
       "export const a = <PermDockProvider defaults={{ denied: fallback }} />;",
       "export const b = <PermDockProvider defaults={{ denied: null, pending: null }} />;",
     ]);
@@ -52,8 +52,10 @@ describe("the denied slot", () => {
       "export const a = <PermDockProvider defaults={defaults} />;",
       "export const b = <kit.PermDockProvider defaults={{ fallback: null }} />;",
     ]);
-    expect(result.changes).toEqual([]);
-    expect(result.followUps.map((item) => [item.line, item.message])).toEqual([
+    expect(result.changes).toStrictEqual([]);
+    expect(
+      result.followUps.map((item) => [item.line, item.message]),
+    ).toStrictEqual([
       [3, "`defaults.fallback` of `<PermDockProvider>` is `defaults.denied`"],
       [4, "`defaults.fallback` of `<PermDockProvider>` is `defaults.denied`"],
     ]);
@@ -86,7 +88,7 @@ describe("the denied slot", () => {
       ].join("\n"),
       SET,
     );
-    expect(vue.followUps).toEqual([
+    expect(vue.followUps).toStrictEqual([
       {
         line: 5,
         column: 40,
@@ -104,9 +106,9 @@ describe("the denied slot", () => {
       ].join("\n"),
       SET,
     );
-    expect(svelte.followUps.map((item) => [item.line, item.column])).toEqual([
-      [4, 27],
-    ]);
+    expect(
+      svelte.followUps.map((item) => [item.line, item.column]),
+    ).toStrictEqual([[4, 27]]);
   });
 
   it("reports no template slot when the file does not import Protected", () => {
@@ -120,7 +122,7 @@ describe("the denied slot", () => {
       ].join("\n"),
       SET,
     );
-    expect(vue.followUps).toEqual([]);
+    expect(vue.followUps).toStrictEqual([]);
   });
 });
 
@@ -136,14 +138,14 @@ describe("awaited createPermDock", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n")).toEqual([
+    expect(result.source.split("\n")).toStrictEqual([
       'import { getPermDock } from "permdock";',
       'import { policy } from "./policy";',
       "export async function load(user: User) {",
       "  return await getPermDock(policy, user, { memberships });",
       "}",
     ]);
-    expect(result.changes).toEqual([
+    expect(result.changes).toStrictEqual([
       { line: 4, column: 16, from: "createPermDock", to: "getPermDock" },
     ]);
   });
@@ -157,7 +159,7 @@ describe("awaited createPermDock", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n")).toEqual([
+    expect(result.source.split("\n")).toStrictEqual([
       "import { getPermDockSync, definePolicy, getPermDock } from 'permdock';",
       "export const a = getPermDockSync(policy, user);",
       "export const b = await getPermDock(policy, user, options);",
@@ -173,7 +175,7 @@ describe("awaited createPermDock", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n")).toEqual([
+    expect(result.source.split("\n")).toStrictEqual([
       'import { can, getPermDock as load } from "permdock";',
       "export const b = await load(policy, user);",
       "export const c = can;",
@@ -198,7 +200,7 @@ describe("awaited createPermDock", () => {
     expect(result.source.split("\n")[4]).toBe(
       "  return await getPermDockSync(policy, user);",
     );
-    expect(result.followUps.map((item) => item.message)).toEqual([
+    expect(result.followUps.map((item) => item.message)).toStrictEqual([
       "`createPermDock` is `getPermDock` from `permdock` here; `getPermDock` is already bound in this scope",
     ]);
   });
@@ -213,13 +215,13 @@ describe("awaited createPermDock", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n")).toEqual([
+    expect(result.source.split("\n")).toStrictEqual([
       'import { getPermDockSync } from "permdock";',
       "export const a = (user: User) => getPermDockSync(policy, user);",
       "export function b(user: User) { return getPermDockSync(policy, user); }",
       "getPermDockSync(policy, null).then(use);",
     ]);
-    expect(result.followUps.map((item) => item.line)).toEqual([2, 3, 4]);
+    expect(result.followUps.map((item) => item.line)).toStrictEqual([2, 3, 4]);
     expect(result.followUps[0]?.message).toBe(
       "`createPermDock` without `await` is `getPermDockSync`, which returns the instance, never a Promise; call `getPermDock` when a source answers asynchronously",
     );
@@ -234,7 +236,7 @@ describe("awaited createPermDock", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n")).toEqual([
+    expect(result.source.split("\n")).toStrictEqual([
       'import { getPermDock } from "permdock/pdp";',
       'import { createPermDock as server } from "permdock/server";',
       "export const handler = server(policy, { pdp: getPermDock });",
@@ -252,7 +254,7 @@ describe("awaited createPermDock", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n")).toEqual([
+    expect(result.source.split("\n")).toStrictEqual([
       'import type { PermDock } from "permdock";',
       'import * as core from "permdock";',
       "const { createPermDock } = core;",
@@ -273,12 +275,12 @@ describe("the custom role reader", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n").slice(1)).toEqual([
+    expect(result.source.split("\n").slice(1)).toStrictEqual([
       "export const a = customRoleSource({ rolesFor: (tenant) => read(tenant) });",
       "export const b = customRoleSource({ async rolesFor(tenant) { return read(tenant); } });",
       "export const c = { rolesOf: 1 };",
     ]);
-    expect(result.followUps).toEqual([]);
+    expect(result.followUps).toStrictEqual([]);
   });
 });
 
@@ -296,7 +298,7 @@ describe("feature functions", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n")).toEqual([
+    expect(result.source.split("\n")).toStrictEqual([
       'import { definePolicy, decideRoleChange, whoCan, decideCredential } from "permdock";',
       "export async function run(permdock: PermDock, ctx: Ctx) {",
       "  const change = decideRoleChange(permdock, { role: 'admin' }, { trusted: true });",
@@ -307,7 +309,7 @@ describe("feature functions", () => {
     ]);
     expect(
       result.changes.map((item) => [item.line, item.from, item.to]),
-    ).toEqual([
+    ).toStrictEqual([
       [3, "decideRoleChange", "decideRoleChange"],
       [4, "whoCan", "whoCan"],
       [5, "decideCredential", "decideCredential"],
@@ -325,7 +327,7 @@ describe("feature functions", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n")).toEqual([
+    expect(result.source.split("\n")).toStrictEqual([
       'import { definePolicy, simulateArazzo, activate } from "permdock";',
       "export const plan = simulateArazzo(permdock, { arazzo, openapi });",
       "export const checks = permdock.simulate([[permissions.doc.read]]);",
@@ -343,7 +345,7 @@ describe("feature functions", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n")).toEqual([
+    expect(result.source.split("\n")).toStrictEqual([
       'import { whoCan as holders, memoryDecisionSink } from "permdock";',
       "export const a = holders(permdock, p, holders(other, q, memoryDecisionSink));",
       "export const b = holders;",
@@ -360,8 +362,10 @@ describe("feature functions", () => {
       ],
       "file.ts",
     );
-    expect(result.changes).toEqual([]);
-    expect(result.followUps.map((item) => [item.line, item.message])).toEqual([
+    expect(result.changes).toStrictEqual([]);
+    expect(
+      result.followUps.map((item) => [item.line, item.message]),
+    ).toStrictEqual([
       [
         2,
         "`permdock.decideRoleChange(…)` is `decideRoleChange(permdock, …)` from `permdock`",
@@ -384,7 +388,7 @@ describe("feature functions", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n").slice(1)).toEqual([
+    expect(result.source.split("\n").slice(1)).toStrictEqual([
       "export const a = whoCan(permdock);",
       "export const b = decideRoleChange(permdock,",
       "  change,",
@@ -403,11 +407,11 @@ describe("instance listing methods", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n")).toEqual([
+    expect(result.source.split("\n")).toStrictEqual([
       "export const ids = permdock.permittedIds(permissions.doc.read, 'project', { conditioned: true });",
       "export const ok = (await load()).mayUse(permissions.doc.read);",
     ]);
-    expect(result.followUps).toEqual([]);
+    expect(result.followUps).toStrictEqual([]);
   });
 
   it("keeps the import and reports it when the function is also read as a value", () => {
@@ -419,12 +423,12 @@ describe("instance listing methods", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n")).toEqual([
+    expect(result.source.split("\n")).toStrictEqual([
       'import { can, mayUse } from "permdock";',
       "export const ok = ctx.permdock.mayUse(p);",
       "export const check = [mayUse, can];",
     ]);
-    expect(result.followUps.map((item) => item.message)).toEqual([
+    expect(result.followUps.map((item) => item.message)).toStrictEqual([
       "`mayUse` is imported; `mayUse(permdock, permission)` is now `permdock.mayUse(permission)`",
     ]);
   });
@@ -436,7 +440,7 @@ describe("instance listing methods", () => {
     ].join("\n");
     const result = transformSource("file.ts", source, SET);
     expect(result.source).toBe(source);
-    expect(result.followUps).toEqual([]);
+    expect(result.followUps).toStrictEqual([]);
   });
 });
 
@@ -452,7 +456,7 @@ describe("feature options", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n")).toEqual([
+    expect(result.source.split("\n")).toStrictEqual([
       'import { getPermDockSync, approvalPolicies, hostedPolicies } from "permdock";',
       "export const a = getPermDockSync(policy, user, {",
       "  approvalPolicies: approvalPolicies(tableApprovalPolicies(db)),",
@@ -470,11 +474,11 @@ describe("feature options", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n").slice(1)).toEqual([
+    expect(result.source.split("\n").slice(1)).toStrictEqual([
       "export const a = await getPermDock(policy, user, { approvalPolicies: memoryApprovalPolicySource([]) });",
       "export const b = await getPermDock(policy, user, { approvalPolicies: approvalPolicies(source) });",
     ]);
-    expect(result.followUps).toEqual([]);
+    expect(result.followUps).toStrictEqual([]);
   });
 
   it("wraps at the permdock/pdp factory and reports options it cannot reach", () => {
@@ -490,7 +494,9 @@ describe("feature options", () => {
     expect(result.source.split("\n")[2]).toBe(
       "export const a = await getPermDock(policy, user, { approvalPolicies });",
     );
-    expect(result.followUps.map((item) => [item.line, item.message])).toEqual([
+    expect(
+      result.followUps.map((item) => [item.line, item.message]),
+    ).toStrictEqual([
       [
         3,
         "option `approvalPolicies` takes `approvalPolicies(source)` from `permdock`; `approvalPolicies` is already bound in this scope",
@@ -518,14 +524,14 @@ describe("duration strings", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n").slice(2, 7)).toEqual([
+    expect(result.source.split("\n").slice(2, 7)).toStrictEqual([
       "  approval: { ttl: 1800, escalation: { after: 7200 } },",
       "  activation: { maxDuration: 14400 },",
       "  consent: { durations: [86400, 604800, 3600] },",
       "  limit: { per: 3600, count: 5 },",
       "  label: { ttl: 'soon' },",
     ]);
-    expect(result.changes.map((item) => [item.from, item.to])).toEqual([
+    expect(result.changes.map((item) => [item.from, item.to])).toStrictEqual([
       ["30m", "1800"],
       ["2h", "7200"],
       ["4h", "14400"],
@@ -546,8 +552,10 @@ describe("duration strings", () => {
       ],
       "file.ts",
     );
-    expect(result.changes).toEqual([]);
-    expect(result.followUps.map((item) => [item.line, item.message])).toEqual([
+    expect(result.changes).toStrictEqual([]);
+    expect(
+      result.followUps.map((item) => [item.line, item.message]),
+    ).toStrictEqual([
       [
         3,
         'duration `"30m"` is `1800` (seconds) when this object reaches PermDock',
@@ -568,7 +576,7 @@ describe("import bookkeeping", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n").slice(0, 2)).toEqual([
+    expect(result.source.split("\n").slice(0, 2)).toStrictEqual([
       'import { can } from "permdock";',
       'import permdockDefault, { mayUse as allowed } from "permdock";',
     ]);
@@ -582,7 +590,7 @@ describe("import bookkeeping", () => {
       ],
       "file.ts",
     );
-    expect(result.source.split("\n")).toEqual([
+    expect(result.source.split("\n")).toStrictEqual([
       'import { whoCan } from "permdock";',
       'export { can } from "permdock";',
       "export const holders = await whoCan(permdock, p, row);",
@@ -599,6 +607,6 @@ describe("import bookkeeping", () => {
     ].join("\n");
     const result = transformSource("file.tsx", source, SET);
     expect(result.source).toBe(source);
-    expect(result.followUps).toEqual([]);
+    expect(result.followUps).toStrictEqual([]);
   });
 });

@@ -1,12 +1,18 @@
 import { assertSafeKey } from "../core/paths.ts";
 
-/** A model's non-nullable scalar fields and its scalar list fields, by Prisma field name. */
+/**
+ * A model's non-nullable scalar fields and its scalar list fields, by Prisma
+ * field name.
+ */
 export type PrismaModelFields = {
   readonly required: readonly string[];
   readonly lists: readonly string[];
 };
 
-/** The `datamodel` of Prisma's DMMF (`getDMMF`, or a generator's `options.dmmf.datamodel`). */
+/**
+ * The `datamodel` of Prisma's DMMF (`getDMMF`, or a generator's
+ * `options.dmmf.datamodel`).
+ */
 export type PrismaDatamodel = {
   readonly models: readonly {
     readonly name: string;
@@ -92,8 +98,9 @@ function fromDatamodel(
 }
 
 /**
- * Reads a model's required and list fields from `schema.prisma` text or a DMMF datamodel, for
- * the `model` option of `toWhere` and `toPredicate`. Relation fields are skipped.
+ * Reads a model's required and list fields from `schema.prisma` text or a DMMF
+ * datamodel, for the `model` option of `toWhere` and `toPredicate`. Relation
+ * fields are skipped.
  */
 export function prismaModelFields(
   datamodel: string | PrismaDatamodel,

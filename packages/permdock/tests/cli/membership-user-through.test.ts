@@ -93,7 +93,7 @@ describe("membership sources with a user through a profile table", () => {
     expect(sql).toContain(
       'create policy "permdock_auth_admin_read_member_users" on "public"."contact_profiles"',
     );
-    expect(manifest.memberships[1]?.user).toEqual({
+    expect(manifest.memberships[1]?.user).toStrictEqual({
       column: "contact_profile_id",
       through: {
         table: "public.contact_profiles",
@@ -188,7 +188,7 @@ describe("membership sources with a user through a profile table", () => {
   });
 
   it("counts the reference and the profile table's id and user as deciding columns", () => {
-    expect(decidingColumns(config)).toEqual([
+    expect(decidingColumns(config)).toStrictEqual([
       "public.contact_profiles.id",
       "public.contact_profiles.user_id",
       "public.customer_contacts.contact_profile_id",
@@ -273,7 +273,7 @@ describe("membership sources with a user through a profile table", () => {
       { ...base, sources: [customerContacts] },
       [],
     ).map((target) => `${target.table}(${target.columns.join(",")})`);
-    expect(targets).toEqual([
+    expect(targets).toStrictEqual([
       "public.contact_profiles(user_id)",
       "public.customer_contacts(contact_profile_id)",
     ]);

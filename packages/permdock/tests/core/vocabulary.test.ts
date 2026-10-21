@@ -20,12 +20,12 @@ describe("vocabulary", () => {
       viewer: undefined as never,
       admin: { on: "tenant" },
     });
-    expect(roles.viewer).toEqual({
+    expect(roles.viewer).toStrictEqual({
       key: "viewer",
       assignable: false,
       meta: {},
     });
-    expect(roles.admin).toEqual({
+    expect(roles.admin).toStrictEqual({
       key: "admin",
       on: "tenant",
       assignable: true,
@@ -34,7 +34,7 @@ describe("vocabulary", () => {
     expect(isRole(roles.viewer)).toBe(true);
     // SAFETY: an undefined init, as a JavaScript caller could pass it.
     const plans = definePlans({ free: undefined as never });
-    expect(plans.free).toEqual({ key: "free", meta: {} });
+    expect(plans.free).toStrictEqual({ key: "free", meta: {} });
     expect(isPlan(plans.free)).toBe(true);
     expect(isPlan(roles.viewer)).toBe(false);
   });
@@ -50,25 +50,31 @@ describe("vocabulary", () => {
     const roles = defineRoles({ a: {} });
     // SAFETY: a tree with a hole, as an untyped caller could build one.
     const holed = { ...roles, b: undefined } as unknown as RoleTree;
-    expect(listRoles(holed).map((leaf) => leaf.key)).toEqual(["a"]);
-    expect(listRoles(undefined)).toEqual([]);
+    expect(listRoles(holed).map((leaf) => leaf.key)).toStrictEqual(["a"]);
+    expect(listRoles(undefined)).toStrictEqual([]);
     const plans = definePlans({ pro: {} });
     // SAFETY: a tree with a hole, as an untyped caller could build one.
     const holedPlans = { ...plans, free: undefined } as unknown as PlanTree;
-    expect(listPlans(holedPlans).map((leaf) => leaf.key)).toEqual(["pro"]);
-    expect(listPlans(undefined)).toEqual([]);
+    expect(listPlans(holedPlans).map((leaf) => leaf.key)).toStrictEqual([
+      "pro",
+    ]);
+    expect(listPlans(undefined)).toStrictEqual([]);
   });
 
   it("synthesises roles with and without scope and meta", () => {
-    expect(synthesiseRole("x")).toEqual({
+    expect(synthesiseRole("x")).toStrictEqual({
       key: "x",
       assignable: false,
       meta: {},
     });
     expect(
       synthesiseRole("x", { meta: { audience: "staff" }, assignable: true }),
-    ).toEqual({ key: "x", assignable: true, meta: { audience: "staff" } });
-    expect(synthesiseRole("x", { on: "team" })).toEqual({
+    ).toStrictEqual({
+      key: "x",
+      assignable: true,
+      meta: { audience: "staff" },
+    });
+    expect(synthesiseRole("x", { on: "team" })).toStrictEqual({
       key: "x",
       on: "team",
       assignable: false,
@@ -76,7 +82,7 @@ describe("vocabulary", () => {
     });
     expect(
       synthesiseRole("x", { on: "team", meta: { audience: "portal" } }),
-    ).toEqual({
+    ).toStrictEqual({
       key: "x",
       on: "team",
       assignable: false,

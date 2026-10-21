@@ -229,7 +229,7 @@ describe("AuthZEN 1.0 section 8: Search APIs", () => {
         resource: { type: "post", id: otherPost.id },
       }),
     );
-    expect(body["results"]).toEqual([{ type: "user", id: adminUser.id }]);
+    expect(body["results"]).toStrictEqual([{ type: "user", id: adminUser.id }]);
     const groups = await json(
       await post("/access/v1/search/subject", {
         subject: { type: "group" },
@@ -237,7 +237,7 @@ describe("AuthZEN 1.0 section 8: Search APIs", () => {
         resource: { type: "post", id: otherPost.id },
       }),
     );
-    expect(groups["results"]).toEqual([]);
+    expect(groups["results"]).toStrictEqual([]);
   });
 
   it("resource search lists { type, id } for the permitted resources", async () => {
@@ -248,7 +248,7 @@ describe("AuthZEN 1.0 section 8: Search APIs", () => {
         resource: { type: "post" },
       }),
     );
-    expect(body["results"]).toEqual([own]);
+    expect(body["results"]).toStrictEqual([own]);
   });
 
   it("action search lists { name } for the permitted actions", async () => {
@@ -258,7 +258,7 @@ describe("AuthZEN 1.0 section 8: Search APIs", () => {
         resource: own,
       }),
     );
-    expect(body["results"]).toEqual(
+    expect(body["results"]).toStrictEqual(
       expect.arrayContaining([{ name: "read" }, { name: "update" }]),
     );
     expect(body["results"]).not.toContainEqual({ name: "delete" });
@@ -291,7 +291,7 @@ describe("AuthZEN 1.0 section 8: Search APIs", () => {
     );
     expect(last["results"]).toHaveLength(1);
     expect(last["page"]).toMatchObject({ next_token: "", count: 1 });
-    expect(last["results"]).not.toEqual(first["results"]);
+    expect(last["results"]).not.toStrictEqual(first["results"]);
   });
 });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import type { IntegrationKind, Preset, PresetInput } from "permdock/preset";
 import type { ReactNode } from "react";
 
 import { CircleAlertIcon } from "lucide-react";
@@ -11,10 +12,7 @@ import {
   FEATURES,
   FRAMEWORKS,
   INTEGRATIONS,
-  type IntegrationKind,
   PRESET_DEFAULTS,
-  type Preset,
-  type PresetInput,
   SERVICES,
   decodePreset,
   generatePreset,

@@ -85,10 +85,7 @@ function tools() {
       },
     },
     list_posts: { permission: permissions.post.list },
-    publish_post: {
-      permission: permissions.post.publish,
-      data: () => ownPost,
-    },
+    publish_post: { permission: permissions.post.publish, data: () => ownPost },
   };
 }
 
@@ -111,7 +108,7 @@ describe("permdock/eve", () => {
     expect(
       await approval.request(call("publish_post", { id: "p1" })),
     ).toMatchObject({ type: "denied" });
-    expect(await approval.request(call("explode", {}))).toEqual({
+    expect(await approval.request(call("explode", {}))).toStrictEqual({
       type: "denied",
       reason: "Denied: unmapped tool explode.",
     });
@@ -133,7 +130,7 @@ describe("permdock/eve", () => {
       await approval.response(
         respond({ principalId: "eve:app", roles: ["admin"] }, deleteOwn),
       ),
-    ).toEqual({
+    ).toStrictEqual({
       status: "rejected",
       reason: "approver is the actor of this request",
     });
@@ -141,12 +138,12 @@ describe("permdock/eve", () => {
       await approval.response(
         respond({ principalId: "u9", roles: ["member"] }, deleteOwn),
       ),
-    ).toEqual({ status: "rejected", reason: "approver is not eligible" });
+    ).toStrictEqual({ status: "rejected", reason: "approver is not eligible" });
     expect(
       await approval.response(
         respond({ principalId: "u2", roles: "admin" }, deleteOwn),
       ),
-    ).toEqual({ status: "allowed" });
+    ).toStrictEqual({ status: "allowed" });
 
     expect(await approval.request(call("delete_post", { id: "p1" }))).toBe(
       "not-applicable",
@@ -174,7 +171,7 @@ describe("permdock/eve", () => {
         ...cancel,
         response: { ...cancel.response, decision: "cancel" },
       }),
-    ).toEqual({ status: "allowed" });
+    ).toStrictEqual({ status: "allowed" });
     expect(
       await approval.request(call("delete_post", { id: "p1" })),
     ).toMatchObject({ type: "denied" });
@@ -213,7 +210,7 @@ describe("permdock/eve", () => {
       await second.approval.response(
         respond({ principalId: "u2", roles: ["admin"] }, deleteOwn),
       ),
-    ).toEqual({ status: "allowed" });
+    ).toStrictEqual({ status: "allowed" });
 
     const third = createPermDock(policy, {
       operations: tools(),
@@ -235,7 +232,7 @@ describe("permdock/eve", () => {
       await approval.response(
         respond({ principalId: "u2", roles: ["admin"] }, deleteOwn, "c9"),
       ),
-    ).toEqual({ status: "rejected", reason: "approval-not-found" });
+    ).toStrictEqual({ status: "rejected", reason: "approval-not-found" });
   });
 
   it("builds a single-tool pair with approvalFor and ignores tool-input subjects", async () => {

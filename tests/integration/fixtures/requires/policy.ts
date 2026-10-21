@@ -47,10 +47,7 @@ export const policy = definePolicy(permissions, {
     role("blocked", [deny(file.read)], { on: "tenant" }),
   ],
   grants: [
-    allow(drive.read, {
-      to: relation(drive, "viewer"),
-      requires: file.read,
-    }),
+    allow(drive.read, { to: relation(drive, "viewer"), requires: file.read }),
   ],
   subject: (user: RequiresUser) => ({
     id: user.id,

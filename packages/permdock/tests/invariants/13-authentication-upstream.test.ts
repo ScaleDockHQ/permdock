@@ -104,7 +104,7 @@ describe("invariant 13: authentication is upstream", () => {
         }
       }
     }
-    expect(offenders).toEqual([]);
+    expect(offenders).toStrictEqual([]);
   });
 
   it("turns an unverifiable token into the anonymous subject, never a throw", async () => {
@@ -207,9 +207,9 @@ describe("invariant 13: authentication is upstream", () => {
     const plain = permdock.snapshot();
     const delegated = asAgent.snapshot();
     if (plain instanceof Promise || delegated instanceof Promise) {
-      throw new Error("unsigned snapshot expected");
+      throw new TypeError("unsigned snapshot expected");
     }
     expect(plain.delegated).toBeUndefined();
-    expect(delegated.delegated).toEqual(["project.read"]);
+    expect(delegated.delegated).toStrictEqual(["project.read"]);
   });
 });

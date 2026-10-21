@@ -1,9 +1,10 @@
 import type { Policy, RoleBinding } from "./policy-types.ts";
 import type { Membership } from "./subject.ts";
+import type { RoleMeta } from "./vocabulary.ts";
 
 import { freezeDeep } from "./freeze.ts";
 import { isExternallyManaged } from "./memberships.ts";
-import { type RoleMeta, findRole, listRoles } from "./vocabulary.ts";
+import { findRole, listRoles } from "./vocabulary.ts";
 
 export function bindingOf(
   policy: Policy,
@@ -53,8 +54,8 @@ function mayHoldManaged(
 /**
  * Drops every role a membership's kind may not hold (fail-closed: a missing
  * `via` is no kind) and every non-assignable role on an identity-provider
- * membership. Global roles have no kind, so a role with `for` held globally
- * is dropped too.
+ * membership. Global roles have no kind, so a role with `for` held globally is
+ * dropped too.
  */
 export function applyRoleKinds(
   policy: Policy,
@@ -88,7 +89,10 @@ export function usesAssigns(policy: Policy): boolean {
   return policy.roles.some((binding) => binding.assigns !== undefined);
 }
 
-/** Declared role names in declaration order: bindings first, then vocabulary-only leaves. */
+/**
+ * Declared role names in declaration order: bindings first, then
+ * vocabulary-only leaves.
+ */
 function declarationOrder(policy: Policy): readonly string[] {
   const names = policy.roles.map((binding) => binding.name);
   const seen = new Set(names);
@@ -102,9 +106,9 @@ function declarationOrder(policy: Policy): readonly string[] {
 }
 
 /**
- * Each role's depth in the `assigns` graph: a role nobody else assigns is 0,
- * a role another assigns sits one below its deepest assigner. Cycles stop
- * after one pass per role.
+ * Each role's depth in the `assigns` graph: a role nobody else assigns is 0, a
+ * role another assigns sits one below its deepest assigner. Cycles stop after
+ * one pass per role.
  */
 function assignDepths(policy: Policy): ReadonlyMap<string, number> {
   const names = declarationOrder(policy);
@@ -166,4 +170,7 @@ export function audiencesOf(
   return out;
 }
 
-/** Whether `membership` is the instance itself or one of its ancestors named in `within`. */
+/**
+ * Whether `membership` is the instance itself or one of its ancestors named in
+ * `within`.
+ */

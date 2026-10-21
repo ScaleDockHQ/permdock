@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { Condition, Policy } from "../index.ts";
+import type { CollectOutcome } from "./collect.ts";
 import type { CommandResult } from "./core/result.ts";
 import type {
   CatalogUsage,
@@ -9,9 +11,9 @@ import type {
   ScanResult,
 } from "./types.ts";
 
-import { type Condition, type Policy, getResource } from "../index.ts";
+import { getResource } from "../index.ts";
 import { jsonSchemaOf } from "./catalog-doc.ts";
-import { type CollectOutcome, runCollect } from "./collect.ts";
+import { runCollect } from "./collect.ts";
 import { usageResult } from "./core/errors.ts";
 import { DOCS_BASE } from "./core/manifest.ts";
 import { findingOf } from "./core/output.ts";
@@ -56,7 +58,10 @@ export async function runUsage(input: {
   readonly io: CliIo;
   /** `collect --check` already run for this project. */
   readonly collected?: () => Promise<CollectOutcome>;
-  /** The configured policy already loaded, or `undefined` when it failed to load. */
+  /**
+   * The configured policy already loaded, or `undefined` when it failed to
+   * load.
+   */
   readonly policy?: () => Promise<Policy | undefined>;
 }): Promise<CommandResult> {
   const collected =
@@ -415,8 +420,11 @@ function ignored(key: string, patterns: readonly string[]): boolean {
 }
 
 function formatUsage(report: UsageReport): string {
-  const lines = ["permdock usage", ""];
-  lines.push(`  defined but unused (${String(report.unused.length)})`);
+  const lines = [
+    "permdock usage",
+    "",
+    `  defined but unused (${String(report.unused.length)})`,
+  ];
   for (const finding of report.unused) {
     lines.push(`    ${finding.key.padEnd(28)} ${finding.detail}`);
   }

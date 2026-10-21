@@ -7,7 +7,7 @@ const permissions = definePermissions({
   post: resource({ actions: ["read", "update"], collection: ["create"] }),
 });
 
-describe("rowIdOf", () => {
+describe(rowIdOf, () => {
   it.each([
     [null, undefined, "*"],
     ["p1", undefined, "*"],
@@ -24,12 +24,12 @@ describe("rowIdOf", () => {
   });
 });
 
-describe("rowValues", () => {
+describe(rowValues, () => {
   it("splits an instance pair and repeats a single row", () => {
     const pair = { current: { id: "a" }, next: { id: "b" } };
-    expect(rowValues(permissions.post.update, pair)).toEqual(pair);
+    expect(rowValues(permissions.post.update, pair)).toStrictEqual(pair);
     const row = { id: "a" };
-    expect(rowValues(permissions.post.read, row)).toEqual({
+    expect(rowValues(permissions.post.read, row)).toStrictEqual({
       current: row,
       next: row,
     });
@@ -37,7 +37,7 @@ describe("rowValues", () => {
 
   it("gives a collection check no current row", () => {
     const input = { current: 1, next: 2 };
-    expect(rowValues(permissions.post.create, input)).toEqual({
+    expect(rowValues(permissions.post.create, input)).toStrictEqual({
       current: undefined,
       next: input,
     });

@@ -88,7 +88,7 @@ describe("permdock/kysely toWhere", () => {
   it("maps operators and memberOf tenant equality", () => {
     expect(
       toWhere({ op: "eq", field: "authorId", value: "u1" }, "posts")(eb()),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "bin",
       left: { kind: "ref", column: "posts.authorId" },
       op: "=",
@@ -100,7 +100,7 @@ describe("permdock/kysely toWhere", () => {
         "posts",
         { subject },
       )(eb()),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "bin",
       left: { kind: "ref", column: "posts.orgId" },
       op: "=",
@@ -135,7 +135,7 @@ describe("permdock/kysely toWhere", () => {
       toWhere({ op: "contains", field: "tags", value: "a" }, "posts", {
         listFields: ["tags"],
       })(eb()),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "bin",
       left: { kind: "ref", column: "posts.tags" },
       op: "@>",
@@ -143,7 +143,7 @@ describe("permdock/kysely toWhere", () => {
     });
     expect(
       toWhere({ op: "contains", field: "title", value: "5%_" }, "posts")(eb()),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "bin",
       left: { kind: "ref", column: "posts.title" },
       op: "like",
@@ -208,10 +208,10 @@ describe("permdock/kysely toWhere", () => {
       { sql },
     );
     expect(result).toBe("ok");
-    expect(queries.map((query) => query.sql)).toEqual([
+    expect(queries.map((query) => query.sql)).toStrictEqual([
       "select set_config('role', ?, true), set_config('request.jwt.claims', ?, true)",
     ]);
-    expect(JSON.parse(String(queries[0]?.values[1]))).toEqual({
+    expect(JSON.parse(String(queries[0]?.values[1]))).toStrictEqual({
       sub: "u1",
       tenant_id: "o1",
       role: "authenticated",

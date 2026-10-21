@@ -19,10 +19,7 @@ const withClaims = defineMiddleware<
   undefined,
   Record<never, never>,
   SupabaseJwtClaims | null
->({
-  key: "jwtClaims",
-  run: () => async () => ({ jwtClaims: memberClaims }),
-});
+>({ key: "jwtClaims", run: () => async () => ({ jwtClaims: memberClaims }) });
 
 const subjectOptions = {
   claims: { roles: "user_role", tenant: "tenant_id" },
@@ -73,9 +70,12 @@ describe("permdock/supabase/middleware edges", () => {
         challenge: response.headers.get("www-authenticate"),
       };
     };
-    expect(await run(["chat"])).toEqual({ status: 200, challenge: null });
-    expect(await run(undefined)).toEqual({ status: 200, challenge: null });
-    expect(await run(["other"])).toEqual({
+    expect(await run(["chat"])).toStrictEqual({ status: 200, challenge: null });
+    expect(await run(undefined)).toStrictEqual({
+      status: 200,
+      challenge: null,
+    });
+    expect(await run(["other"])).toStrictEqual({
       status: 403,
       challenge: 'Bearer error="insufficient_scope", scope="chat"',
     });
@@ -94,7 +94,7 @@ describe("permdock/supabase/middleware edges", () => {
       get: get.status,
       put: put.status,
       allow: put.headers.get("Allow"),
-    }).toEqual({ get: 200, put: 405, allow: "GET, POST" });
+    }).toStrictEqual({ get: 200, put: 405, allow: "GET, POST" });
   });
 
   it("rethrows a build failure that is not a signature error", async () => {

@@ -1,18 +1,18 @@
+import type {
+  DirectoryGroup,
+  DirectoryStore,
+  DirectoryUser,
+  ScimFilter,
+  ScimPage,
+  ScimPageResult,
+  ScimPatchOp,
+} from "./types.ts";
+
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { isoNow } from "../core/time.ts";
 import { matchFilter } from "./filter.ts";
-import {
-  DirectoryNotFoundError,
-  DirectoryUniquenessError,
-  type DirectoryGroup,
-  type DirectoryStore,
-  type DirectoryUser,
-  type ScimFilter,
-  type ScimPage,
-  type ScimPageResult,
-  type ScimPatchOp,
-} from "./types.ts";
+import { DirectoryNotFoundError, DirectoryUniquenessError } from "./types.ts";
 
 const DEFAULT_COUNT = 100;
 

@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { permissions, policy } from "../fixtures/ownership/policy.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { visibleIds } from "./support/rls.ts";
 
@@ -61,9 +62,12 @@ describe("ownership triggers in generated RLS", () => {
     await db?.stop();
   });
 
-  /** The hint of the error the statements raise by commit, or `null` when they pass. */
+  /**
+   * The hint of the error the statements raise by commit, or `null` when they
+   * pass.
+   */
   const attempt = async (statements: string): Promise<string | null> => {
-    const admin = db!.admin;
+    const admin = defined(db).admin;
     await admin.query("begin");
     try {
       await admin.query(statements);
@@ -135,11 +139,11 @@ describe("ownership triggers in generated RLS", () => {
 
   it("answers permdock_can_assign for the primary only", async () => {
     const can = (user: string, role: string) =>
-      db!.as(
+      defined(db).as(
         { role: "authenticated", settings: { "app.user_id": user } },
         async () =>
           (
-            await db!.tester.query<{ readonly ok: boolean }>(
+            await defined(db).tester.query<{ readonly ok: boolean }>(
               "select permdock.permdock_can_assign($1, 'o1') as ok",
               [role],
             )
@@ -164,15 +168,15 @@ describe("ownership triggers in generated RLS", () => {
         ],
       });
       const visible = await visibleIds(
-        db!,
+        defined(db),
         { role: "authenticated", settings: { "app.user_id": user } },
         "select id from ledger order by id",
       );
       const expected = ["l1", "l2"].filter((id) =>
         permdock.can(permissions.ledger.read, { id }),
       );
-      expect(visible).toEqual(expected);
-      expect(visible).toEqual(via === "staff" ? ["l1"] : []);
+      expect(visible).toStrictEqual(expected);
+      expect(visible).toStrictEqual(via === "staff" ? ["l1"] : []);
     },
   );
 });

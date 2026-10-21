@@ -10,7 +10,10 @@ import { approvalOf } from "./approval.ts";
 
 export type QuotaState = Pick<GrantedDecision, "quota" | "obligations">;
 
-/** The quota verdict for one allow: free without a `limit`, unavailable without the `limits()` feature. */
+/**
+ * The quota verdict for one allow: free without a `limit`, unavailable without
+ * the `limits()` feature.
+ */
 function quotaOf(
   state: EvaluationState,
   grant: Grant,

@@ -19,7 +19,10 @@ export const plans = definePlans({ pro: {} });
 
 export type User = { readonly id: string };
 
-/** A policy whose vocabulary refines roles and plans, for the per-adapter generic propagation type tests. */
+/**
+ * A policy whose vocabulary refines roles and plans, for the per-adapter
+ * generic propagation type tests.
+ */
 export const policy = definePolicy(
   { permissions, roles, plans },
   {

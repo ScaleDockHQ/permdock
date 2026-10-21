@@ -30,9 +30,9 @@ export type SupportSessionFailureCause =
 /** The live state of each support session, so one can end before it expires. */
 export type SupportSessionSource = {
   /** The session as of now, or `null` for an unknown one. A throw ends it. */
-  session(
+  session: (
     id: string,
-  ):
+  ) =>
     | { readonly id: string; readonly ended?: boolean }
     | null
     | Promise<{ readonly id: string; readonly ended?: boolean } | null>;
@@ -63,8 +63,8 @@ export type SupportSessionContext = {
 
 /**
  * Signs a granted `SupportSession` as a `vnd.permdock.support-session+jwt`
- * (`sub` the viewed principal, `act` the support actor, `jti` the session
- * id) that expires with the session. Throws a `TypeError` for a record
+ * (`sub` the viewed principal, `act` the support actor, `jti` the session id)
+ * that expires with the session. Throws a `TypeError` for a record
  * `parseSupportSession` refuses.
  */
 export function signSupportSession(
@@ -162,11 +162,11 @@ async function ended(
 }
 
 /**
- * Resolves a `vnd.permdock.support-session+jwt` into the subject each
- * request of the session acts as: the viewed principal loaded live, a
- * `support` actor, the session's permissions as the delegation and
- * `context.supportSession`. The actor must still exist. Every failure is the
- * anonymous subject, never a throw.
+ * Resolves a `vnd.permdock.support-session+jwt` into the subject each request
+ * of the session acts as: the viewed principal loaded live, a `support` actor,
+ * the session's permissions as the delegation and `context.supportSession`. The
+ * actor must still exist. Every failure is the anonymous subject, never a
+ * throw.
  */
 export async function subjectFromSupportSession(
   token: string | undefined | null,

@@ -100,7 +100,7 @@ function pendingStore(): ApprovalStore {
 
 const verify = { jwks: JWKS, replay: memoryReplayStore() };
 
-describe("cloudApprovalWaiter", () => {
+describe(cloudApprovalWaiter, () => {
   it("wakes the run of each resolved, expired and cancelled approval", async () => {
     const waiter = recordingWaiter();
     const cloud = cloudApprovalWaiter({ ...verify, waiter });
@@ -113,7 +113,7 @@ describe("cloudApprovalWaiter", () => {
       ]),
     );
     expect(response.status).toBe(204);
-    expect(waiter.woken).toEqual([
+    expect(waiter.woken).toStrictEqual([
       "pd1.resolved",
       "pd1.expired",
       "pd1.cancelled",
@@ -127,9 +127,10 @@ describe("cloudApprovalWaiter", () => {
       store: pendingStore(),
     });
     let settled = false;
-    const waiting = cloud.wait("pd1.parked").then(() => {
+    const waiting = (async () => {
+      await cloud.wait("pd1.parked");
       settled = true;
-    });
+    })();
     await Promise.resolve();
     expect(settled).toBe(false);
     const response = await cloud.webhook(
@@ -162,9 +163,10 @@ describe("cloudApprovalWaiter", () => {
     expect(forgedResponse.headers.get("content-type")).toContain(
       "application/problem+json",
     );
-    expect((await cloud.webhook(unsigned)).status).toBe(400);
+    const { status } = await cloud.webhook(unsigned);
+    expect(status).toBe(400);
     expect((await cloud.webhook(notEvents)).status).toBe(400);
-    expect(waiter.woken).toEqual([]);
+    expect(waiter.woken).toStrictEqual([]);
   });
 
   it("acknowledges a replayed delivery without waking twice", async () => {
@@ -178,9 +180,10 @@ describe("cloudApprovalWaiter", () => {
       id: "msg_once",
     });
     const again = first.clone();
-    expect((await cloud.webhook(first)).status).toBe(204);
+    const { status } = await cloud.webhook(first);
+    expect(status).toBe(204);
     expect((await cloud.webhook(again)).status).toBe(204);
-    expect(waiter.woken).toEqual(["pd1.once"]);
+    expect(waiter.woken).toStrictEqual(["pd1.once"]);
   });
 
   it("answers 503 when it cannot verify", async () => {
@@ -210,7 +213,7 @@ describe("cloudApprovalWaiter", () => {
   });
 });
 
-describe("approvalTokensOf", () => {
+describe(approvalTokensOf, () => {
   it("reads only the tokens of events that end a wait", () => {
     const events = [
       lifecycle("requested", "pd1.a"),
@@ -221,6 +224,6 @@ describe("approvalTokensOf", () => {
       approvalTokensOf(
         events.flatMap((event) => (event === null ? [] : [event])),
       ),
-    ).toEqual(["pd1.b"]);
+    ).toStrictEqual(["pd1.b"]);
   });
 });

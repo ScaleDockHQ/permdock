@@ -9,10 +9,9 @@ import {
 } from "./scopes.ts";
 
 /**
- * The canonical form PermDock evaluates one membership in, or `undefined`
- * when it is malformed and grants nothing. `scopes` is the policy's or the
- * catalog's scope list; absent or empty means the implicit `tenant` and
- * `team` pair.
+ * The canonical form PermDock evaluates one membership in, or `undefined` when
+ * it is malformed and grants nothing. `scopes` is the policy's or the catalog's
+ * scope list; absent or empty means the implicit `tenant` and `team` pair.
  */
 export function normalizeMembership(
   input: unknown,
@@ -21,7 +20,10 @@ export function normalizeMembership(
   return normalizeOne(input, scopeList(scopes));
 }
 
-/** Every well-formed membership of `input` in canonical form; malformed entries are dropped. */
+/**
+ * Every well-formed membership of `input` in canonical form; malformed entries
+ * are dropped.
+ */
 export function normalizeMemberships(
   input: unknown,
   scopes?: readonly Scope[],

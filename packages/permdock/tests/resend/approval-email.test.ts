@@ -21,7 +21,7 @@ const prompt: ApprovalPrompt = {
   operation: { name: "invoice.pay", title: "Pay an invoice", risk: "high" },
 };
 
-describe("approvalEmail", () => {
+describe(approvalEmail, () => {
   it("renders an approval-category email that links to the approval page", () => {
     const email = approvalEmail(prompt, {
       approvalUrl: "https://acme.test/approvals",
@@ -45,7 +45,7 @@ describe("approvalEmail", () => {
     const links = [...(email.html ?? "").matchAll(/href="([^"]+)"/gu)].map(
       (match) => match[1],
     );
-    expect(links).toEqual(["https://acme.test/review?id=apr_1"]);
+    expect(links).toStrictEqual(["https://acme.test/review?id=apr_1"]);
     expect(email.text).not.toMatch(/approve=|decision=|token/iu);
   });
 

@@ -21,10 +21,7 @@ const request: ApprovalRequest = {
 };
 
 function approver(memberships: readonly Membership[]): Subject {
-  return {
-    principal: { id: "u_2", roles: [], memberships },
-    context: {},
-  };
+  return { principal: { id: "u_2", roles: [], memberships }, context: {} };
 }
 
 describe("approver tenancy", () => {
@@ -49,7 +46,7 @@ describe("approver tenancy", () => {
         },
         context: {},
       }),
-    ).toEqual(["o_0", "o_1", "o_3"]);
+    ).toStrictEqual(["o_0", "o_1", "o_3"]);
   });
 
   it("accepts an approver with a membership at the first scope", () => {

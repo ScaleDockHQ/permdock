@@ -8,6 +8,7 @@ import type {
 import type { Permission } from "./permission-types.ts";
 import type { Snapshot, SnapshotAssignable } from "./snapshot-types.ts";
 import type { Membership } from "./subject.ts";
+import type { Role } from "./vocabulary.ts";
 
 import { canAllWith, decideAllWith } from "./checks.ts";
 import { compact } from "./compact.ts";
@@ -27,12 +28,7 @@ import { normalizeMemberships, scopeList } from "./scopes.ts";
 import { evaluateSnapshot, whereFromSnapshot } from "./snapshot-evaluate.ts";
 import { signSnapshot } from "./snapshot-sign.ts";
 import { heldRoleNames, subjectFromSnapshot } from "./snapshot-subject.ts";
-import {
-  type Role,
-  findRole,
-  listRoles,
-  synthesiseRole,
-} from "./vocabulary.ts";
+import { findRole, listRoles, synthesiseRole } from "./vocabulary.ts";
 
 function resourceRef(
   snapshot: Snapshot,

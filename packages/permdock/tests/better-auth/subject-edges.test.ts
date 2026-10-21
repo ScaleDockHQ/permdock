@@ -24,7 +24,7 @@ describe("subjectFromBetterAuth edge cases", () => {
       ),
       subjectFromBetterAuth({ user: { id: "" } }, { auth: {} }),
     ]);
-    expect(subjects.map((subject) => subject.principal)).toEqual([
+    expect(subjects.map((subject) => subject.principal)).toStrictEqual([
       null,
       null,
       null,
@@ -50,7 +50,7 @@ describe("subjectFromBetterAuth edge cases", () => {
       );
       results.push(subject.principal?.claims);
     }
-    expect(results).toEqual([undefined, undefined]);
+    expect(results).toStrictEqual([undefined, undefined]);
   });
 
   it("lists organizations, skips malformed rows and falls back on failure", async () => {
@@ -90,7 +90,7 @@ describe("subjectFromBetterAuth edge cases", () => {
       listed: listed.principal?.memberships,
       notArray: notArray.principal?.memberships,
       noLister: noLister.principal?.memberships,
-    }).toEqual({
+    }).toStrictEqual({
       queried: ["acme"],
       listed: [{ tenant: "acme", roles: ["admin"] }],
       notArray: [],
@@ -114,7 +114,7 @@ describe("rolesFromAccessControl and onRoleChange", () => {
     expect({
       names: seeded.map((binding) => binding.name),
       unmatched: seeded.unmatched,
-    }).toEqual({
+    }).toStrictEqual({
       names: ["editor", "viewer"],
       unmatched: [{ role: "editor", resource: "post", action: "fly" }],
     });
@@ -139,7 +139,7 @@ describe("rolesFromAccessControl and onRoleChange", () => {
     await notify({ userId: "u1", role: "admin", previousRole: "admin" });
     await notify({ organizationId: "acme", role: "admin" });
     expect(written.length).toBe(4);
-    expect(written).toEqual([
+    expect(written).toStrictEqual([
       expect.objectContaining({ operation: "added" }),
       expect.objectContaining({ operation: "removed" }),
       expect.objectContaining({ operation: "changed" }),

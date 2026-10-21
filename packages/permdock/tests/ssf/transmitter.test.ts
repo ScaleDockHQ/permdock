@@ -98,7 +98,7 @@ function fetchTo(
   return (input, init) => handler(new Request(input, init));
 }
 
-describe("signSet", () => {
+describe(signSet, () => {
   it("writes an RFC 8417 SET with sub_id, one event and txn", async () => {
     const token = await signSet(
       caepEvents.sessionRevoked({
@@ -149,7 +149,7 @@ describe("event builders", () => {
         x509Serial: "01",
         fido2Aaguid: "aaguid",
       }).payload,
-    ).toEqual({
+    ).toStrictEqual({
       event_timestamp: 1,
       credential_type: "fido2-roaming",
       change_type: "revoke",
@@ -160,7 +160,7 @@ describe("event builders", () => {
     });
     expect(
       caepEvents.tokenClaimsChange({ ...at, claims: { role: "admin" } }),
-    ).toEqual({
+    ).toStrictEqual({
       type: `${CAEP}token-claims-change`,
       subject,
       payload: { event_timestamp: 1, claims: { role: "admin" } },
@@ -173,7 +173,7 @@ describe("event builders", () => {
         previousLevel: "nist-aal1",
         changeDirection: "increase",
       }).payload,
-    ).toEqual({
+    ).toStrictEqual({
       event_timestamp: 1,
       namespace: "NIST-AAL",
       current_level: "nist-aal2",
@@ -186,19 +186,19 @@ describe("event builders", () => {
         previousStatus: "compliant",
         currentStatus: "not-compliant",
       }).payload,
-    ).toEqual({
+    ).toStrictEqual({
       event_timestamp: 1,
       previous_status: "compliant",
       current_status: "not-compliant",
     });
     expect(
       riscEvents.accountDisabled({ subject, reason: "hijacking" }),
-    ).toEqual({
+    ).toStrictEqual({
       type: `${RISC}account-disabled`,
       subject,
       payload: { reason: "hijacking" },
     });
-    expect(riscEvents.accountPurged({ subject }).payload).toEqual({});
+    expect(riscEvents.accountPurged({ subject }).payload).toStrictEqual({});
     expect(
       riscEvents.credentialCompromise({
         subject,
@@ -210,7 +210,7 @@ describe("event builders", () => {
       reason_admin: { en: "Leaked" },
       event_timestamp: expect.any(Number),
     });
-    expect(streamVerificationEvent("s_1", "abc")).toEqual({
+    expect(streamVerificationEvent("s_1", "abc")).toStrictEqual({
       type: "https://schemas.openid.net/secevent/ssf/event-type/verification",
       subject: { format: "opaque", id: "s_1" },
       payload: { state: "abc" },
@@ -220,7 +220,7 @@ describe("event builders", () => {
   });
 });
 
-describe("pushSet", () => {
+describe(pushSet, () => {
   it("delivers to the PermDock receiver, which verifies and dispatches the SET", async () => {
     const { ssf, handled } = receiver();
     const token = await signSet(
@@ -233,8 +233,8 @@ describe("pushSet", () => {
       authorization: "Bearer stream-token",
       fetch: fetchTo((request) => ssf.push(request)),
     });
-    expect(result).toEqual({ ok: true });
-    expect(handled).toEqual(["account-disabled"]);
+    expect(result).toStrictEqual({ ok: true });
+    expect(handled).toStrictEqual(["account-disabled"]);
   });
 
   it("maps the receiver's err to a cause", async () => {
@@ -242,9 +242,7 @@ describe("pushSet", () => {
     const token = await signSet(
       caepEvents.sessionRevoked({ subject }),
       signer,
-      {
-        audience: "https://other.example.com",
-      },
+      { audience: "https://other.example.com" },
     );
     expect(
       await pushSet(token, {
@@ -282,7 +280,7 @@ describe("pushSet", () => {
         endpoint: AUDIENCE,
         fetch: () => Promise.reject(new TypeError("offline")),
       }),
-    ).toEqual({ ok: false, cause: "unavailable", retry: true });
+    ).toStrictEqual({ ok: false, cause: "unavailable", retry: true });
   });
 
   it("is invalid-request when the error body cannot be read", async () => {
@@ -296,11 +294,11 @@ describe("pushSet", () => {
         endpoint: AUDIENCE,
         fetch: () => Promise.resolve(new Response(body, { status: 400 })),
       }),
-    ).toEqual({ ok: false, cause: "invalid-request", retry: false });
+    ).toStrictEqual({ ok: false, cause: "invalid-request", retry: false });
   });
 });
 
-describe("setPollHandler", () => {
+describe(setPollHandler, () => {
   function poll(body: unknown, init: RequestInit = {}): Request {
     return new Request("https://cloud.example.com/ssf/poll", {
       method: "POST",
@@ -323,10 +321,7 @@ describe("setPollHandler", () => {
     const token = await signSet(
       caepEvents.sessionRevoked({ subject }),
       signer,
-      {
-        audience: AUDIENCE,
-        jti: "set_1",
-      },
+      { audience: AUDIENCE, jti: "set_1" },
     );
     await queue.enqueue("s_1", "set_1", token);
     await queue.enqueue("s_1", "set_2", "not-a-jwt");
@@ -336,9 +331,9 @@ describe("setPollHandler", () => {
       token: "s_1",
       fetch: fetchTo(handler),
     });
-    expect(result).toEqual({ acked: ["set_1"] });
-    expect(handled).toEqual(["session-revoked"]);
-    expect(await queue.pending("s_1", 10)).toEqual([]);
+    expect(result).toStrictEqual({ acked: ["set_1"] });
+    expect(handled).toStrictEqual(["session-revoked"]);
+    expect(await queue.pending("s_1", 10)).toStrictEqual([]);
   });
 
   it("caps maxEvents and reports moreAvailable", async () => {
@@ -353,7 +348,7 @@ describe("setPollHandler", () => {
     });
     const first = await handler(poll({ maxEvents: 5 }));
     expect(first.status).toBe(200);
-    expect(await first.json()).toEqual({
+    expect(await first.json()).toStrictEqual({
       sets: { a: "set-a", b: "set-b" },
       moreAvailable: true,
     });
@@ -364,11 +359,11 @@ describe("setPollHandler", () => {
         maxEvents: 0,
       }),
     );
-    expect(await acked.json()).toEqual({ sets: {} });
-    expect(await (await handler(poll(""))).json()).toEqual({
+    expect(await acked.json()).toStrictEqual({ sets: {} });
+    expect(await (await handler(poll(""))).json()).toStrictEqual({
       sets: { c: "set-c" },
     });
-    expect(await queue.pending("s_1", -1)).toEqual([]);
+    expect(await queue.pending("s_1", -1)).toStrictEqual([]);
   });
 
   it("refuses an unauthorised caller, a wrong method and a malformed body", async () => {
@@ -390,7 +385,8 @@ describe("setPollHandler", () => {
         throw new Error("down");
       },
     });
-    expect((await throwing(poll({}))).status).toBe(401);
+    const { status } = await throwing(poll({}));
+    expect(status).toBe(401);
     expect(
       (
         await handler(

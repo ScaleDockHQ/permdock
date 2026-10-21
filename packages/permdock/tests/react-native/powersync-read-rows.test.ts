@@ -108,9 +108,9 @@ const tables = {
   ],
 };
 
-describe("readRows", () => {
+describe(readRows, () => {
   it("lists every table the rows name, including through tables", () => {
-    expect(rowTables(rows)).toEqual([
+    expect(rowTables(rows)).toStrictEqual([
       "seats",
       "guests",
       "accounts",
@@ -119,17 +119,17 @@ describe("readRows", () => {
       "crp",
       "cri",
     ]);
-    expect(rowTables({ memberships: [] })).toEqual([]);
+    expect(rowTables({ memberships: [] })).toStrictEqual([]);
   });
 
   it("reads memberships through maps, fixed values, via and through tables", () => {
     const data = readRows(rows, tables, { id: "u1" });
-    expect(data.principal?.memberships).toEqual([
+    expect(data.principal?.memberships).toStrictEqual([
       { scope: "org", id: "7", roles: ["editor", "owner"] },
       { scope: "org", id: "9", roles: ["owner"], via: "sso" },
       { scope: "project", id: "p1", roles: ["guest"], via: "invite" },
     ]);
-    expect(data.principal?.roles).toEqual(["support"]);
+    expect(data.principal?.roles).toStrictEqual(["support"]);
     expect(data.principal).not.toHaveProperty("tenant");
     expect(data.principal).not.toHaveProperty("attributes");
   });
@@ -144,7 +144,7 @@ describe("readRows", () => {
       tenant: "t1",
       attributes: { claims: { team_ids: ["blue"] } },
     });
-    expect(data.customRoles).toEqual([
+    expect(data.customRoles).toStrictEqual([
       {
         name: "dispatch",
         tenant: "t1",
@@ -174,9 +174,9 @@ describe("readRows", () => {
 
   it("reads nothing from tables the device has not synced", () => {
     const data = readRows(rows, {}, { id: "u1" });
-    expect(data.principal?.memberships).toEqual([]);
-    expect(data.principal?.roles).toEqual([]);
-    expect(data.customRoles).toEqual([]);
+    expect(data.principal?.memberships).toStrictEqual([]);
+    expect(data.principal?.roles).toStrictEqual([]);
+    expect(data.customRoles).toStrictEqual([]);
     expect(
       readRows({ memberships: [] }, {}, { id: "u1" }).customRoles,
     ).toBeUndefined();

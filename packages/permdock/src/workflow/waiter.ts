@@ -4,25 +4,28 @@ import type { Instant } from "../core/time.ts";
 import { nowMillis } from "../core/time.ts";
 
 export type ApprovalWaitOptions = {
-  /** When the approval request expires; the wait ends then whatever the store says. */
+  /**
+   * When the approval request expires; the wait ends then whatever the store
+   * says.
+   */
   readonly expiresAt?: Instant;
   /** Aborting rejects the wait with the signal's reason. */
   readonly signal?: AbortSignal;
 };
 
 /**
- * Suspends a run until an approval request is decided. `wait` resolves once
- * the request is no longer pending, `wake` is called for its token, or it
- * expires; it never says how the request was decided, so the caller always
- * decides again with the token. A durable runner implements it with its own
- * suspension primitive.
+ * Suspends a run until an approval request is decided. `wait` resolves once the
+ * request is no longer pending, `wake` is called for its token, or it expires;
+ * it never says how the request was decided, so the caller always decides again
+ * with the token. A durable runner implements it with its own suspension
+ * primitive.
  */
 export type ApprovalWaiter = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  wait(token: string, options?: ApprovalWaitOptions): Promise<void>;
+  wait: (token: string, options?: ApprovalWaitOptions) => Promise<void>;
   /** Called after an approver resolves the request for `token`. */
-  wake(token: string): void | Promise<void>;
+  wake: (token: string) => void | Promise<void>;
 };
 
 export type PollingApprovalWaiterOptions = {

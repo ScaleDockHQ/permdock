@@ -1,3 +1,4 @@
+import type { Scope } from "../../core/scopes.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type {
   PermDockConfig,
@@ -6,7 +7,7 @@ import type {
   RoleThrough,
 } from "../types.ts";
 
-import { type Scope, resolveScope } from "../../core/scopes.ts";
+import { resolveScope } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { roleColumn } from "../../supabase/roles.ts";
 import { configError } from "../core/errors.ts";
@@ -24,10 +25,16 @@ import { subjectIdSql } from "../sql/subject.ts";
 import { storedTenant } from "./custom-roles.ts";
 import { ASSIGNMENTS, OWNERSHIP } from "./ownership-names.ts";
 
-/** The client roles whose writes the assignment triggers check; any other role is a trusted path. */
+/**
+ * The client roles whose writes the assignment triggers check; any other role
+ * is a trusted path.
+ */
 const CLIENT_ROLES = ["anon", "anonymous", "authenticated"] as const;
 
-/** One table whose rows assign a role at a scope instance, or a global role (`id` unset). */
+/**
+ * One table whose rows assign a role at a scope instance, or a global role
+ * (`id` unset).
+ */
 type AssignedTable = {
   readonly table: string;
   readonly scope: string;
@@ -37,7 +44,10 @@ type AssignedTable = {
   readonly user?: string;
 };
 
-/** The mapped membership tables, `rls.assignments.tables` and the global-roles table `rls.roles`. */
+/**
+ * The mapped membership tables, `rls.assignments.tables` and the global-roles
+ * table `rls.roles`.
+ */
 function assignedTables(ctx: RlsSqlContext): readonly AssignedTable[] {
   const out: AssignedTable[] = [];
   for (const { name } of ctx.scopes) {
@@ -86,7 +96,10 @@ function assignedTables(ctx: RlsSqlContext): readonly AssignedTable[] {
   return out;
 }
 
-/** The tables `rls.assignments.ownRole` refuses a caller's own rows on, by table key. */
+/**
+ * The tables `rls.assignments.ownRole` refuses a caller's own rows on, by table
+ * key.
+ */
 function ownRoleTables(
   ctx: RlsSqlContext,
   tables: readonly AssignedTable[],
@@ -248,8 +261,8 @@ ${grants}`;
 
 /**
  * The assignment triggers (\`rls.assignments\`): before a client role inserts,
- * updates or deletes a row that assigns a role, every role the old and new
- * row hold must be one the caller may assign at that instance, by
+ * updates or deletes a row that assigns a role, every role the old and new row
+ * hold must be one the caller may assign at that instance, by
  * \`permdock_can_assign\` for a declared role and
  * \`permdock_can_assign_custom_role\` for a custom one. The functions run as
  * the invoker, so \`current_user\` tells a client write from a trusted one.

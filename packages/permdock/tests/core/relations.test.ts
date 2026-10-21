@@ -37,10 +37,7 @@ const Doc = z.object({
   folderId: z.string(),
   ownerId: z.string(),
 });
-const Employee = z.object({
-  id: z.string(),
-  managerId: z.string().nullable(),
-});
+const Employee = z.object({ id: z.string(), managerId: z.string().nullable() });
 const Account = z.object({
   id: z.string(),
   delegateId: z.string().nullable(),
@@ -174,9 +171,7 @@ describe("relationship graph", () => {
     const stranger = permdock("sam");
     expect(
       stranger.decide(permissions.doc.read, doc("d1", "platform")),
-    ).toMatchObject({
-      outcome: "denied",
-    });
+    ).toMatchObject({ outcome: "denied" });
   });
 
   it("keeps ancestor grants out of a restricted branch but not grants on it", async () => {
@@ -418,7 +413,7 @@ describe("relationship graph", () => {
         ],
         subject,
       }),
-    ).toThrow(/add through: 'parent'/);
+    ).toThrow(/add through: 'parent'/u);
     expect(() =>
       definePolicy(permissions, {
         grants: [
@@ -430,7 +425,7 @@ describe("relationship graph", () => {
         ],
         subject,
       }),
-    ).toThrow(/needs account to parent itself/);
+    ).toThrow(/needs account to parent itself/u);
     expect(() =>
       definePolicy(permissions, {
         grants: [
@@ -440,16 +435,16 @@ describe("relationship graph", () => {
         ],
         subject,
       }),
-    ).toThrow(/has no parent on folder/);
+    ).toThrow(/has no parent on folder/u);
     expect(() => relation(permissions.folder, "viewer", { depth: 2 })).toThrow(
-      /depth needs through/,
+      /depth needs through/u,
     );
     expect(() =>
       relation(permissions.folder, "viewer", { through: "parent", depth: 33 }),
-    ).toThrow(/0 to 32/);
+    ).toThrow(/0 to 32/u);
     expect(
       relation(permissions.folder, "viewer", { through: "parent" }),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "relation",
       resource: "folder",
       relation: "viewer",
@@ -484,11 +479,11 @@ describe("relationship graph", () => {
     const platform = { ...folders[2], orgId: "acme" };
     const result = await whoCan(owner, permissions.folder.read, platform);
     expect(result.complete).toBe(true);
-    expect(result.holders.map((item) => item.principal.id)).toEqual([
+    expect(result.holders.map((item) => item.principal.id)).toStrictEqual([
       "rita",
       "vera",
     ]);
-    expect(result.holders[1]?.via).toEqual([
+    expect(result.holders[1]?.via).toStrictEqual([
       { kind: "share", resource: "folder", relation: "viewer", id: "root" },
     ]);
     expect(result.holders[0]?.via[0]).toMatchObject({
@@ -499,7 +494,7 @@ describe("relationship graph", () => {
       ...folders[5],
       orgId: "acme",
     });
-    expect(hr.holders.map((item) => item.principal.id)).toEqual([
+    expect(hr.holders.map((item) => item.principal.id)).toStrictEqual([
       "hana",
       "rita",
     ]);
@@ -514,19 +509,22 @@ describe("relationship graph", () => {
       { id: "olga" },
       { relations: source, memberships: { membershipsFor: () => [] } },
     );
-    expect(
-      (await whoCan(unlisted, permissions.folder.read, platform)).complete,
-    ).toBe(false);
+    const { complete } = await whoCan(
+      unlisted,
+      permissions.folder.read,
+      platform,
+    );
+    expect(complete).toBe(false);
     const owners = await whoCan(
       permdock("olga"),
       permissions.doc.read,
       doc("d1", "eng", "owen"),
     );
-    expect(owners.holders.map((item) => item.principal.id)).toEqual([
+    expect(owners.holders.map((item) => item.principal.id)).toStrictEqual([
       "owen",
       "vera",
     ]);
-    expect(owners.holders[0]?.via).toEqual([
+    expect(owners.holders[0]?.via).toStrictEqual([
       { kind: "relation", resource: "doc", relation: "owner", id: "d1" },
     ]);
   });
@@ -563,7 +561,9 @@ describe("hosted graph grants", () => {
         ],
       }),
     );
-    expect(merged.dropped.map((item) => [item.grant, item.reason])).toEqual([
+    expect(
+      merged.dropped.map((item) => [item.grant, item.reason]),
+    ).toStrictEqual([
       ["deep", "unknown-grantee"],
       ["sideways", "unknown-grantee"],
     ]);
@@ -590,10 +590,7 @@ describe("memoryRelationSource conformance", () => {
         "folder:payroll": ["hr"],
         "folder:root": [],
       },
-      holders: {
-        "folder:root#viewer": ["vera"],
-        "folder:eng#owner": ["olga"],
-      },
+      holders: { "folder:root#viewer": ["vera"], "folder:eng#owner": ["olga"] },
     },
   });
 });

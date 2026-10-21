@@ -19,16 +19,22 @@ import type { Snapshot } from "../core/snapshot-types.ts";
 
 export type PermDockPluginOptions = ProviderOptionsBase & {
   /**
-   * A ref or getter re-hydrates the store when it changes; a promise keeps
-   * the store `pending` until it settles (await the same promise in an async
+   * A ref or getter re-hydrates the store when it changes; a promise keeps the
+   * store `pending` until it settles (await the same promise in an async
    * `setup` under `<Suspense>`).
    */
   readonly snapshot:
     | MaybeRefOrGetter<Snapshot | string>
     | PromiseLike<Snapshot | string>;
-  /** A ref or getter switches the active tenant (`refresh({ tenant })`) when it changes. */
+  /**
+   * A ref or getter switches the active tenant (`refresh({ tenant })`) when it
+   * changes.
+   */
   readonly tenant?: MaybeRefOrGetter<string | undefined>;
-  /** Read on every request: a ref or getter carries a rotated token without rebuilding the store. */
+  /**
+   * Read on every request: a ref or getter carries a rotated token without
+   * rebuilding the store.
+   */
   readonly headers?: MaybeRefOrGetter<
     Readonly<Record<string, string>> | undefined
   >;
@@ -40,7 +46,10 @@ export type PermDockPluginOptions = ProviderOptionsBase & {
 
 type SlotOutput = VNode | VNode[] | string | null;
 
-/** Render functions for the `<Protected>` slots a component leaves out; they get the slot props. */
+/**
+ * Render functions for the `<Protected>` slots a component leaves out; they get
+ * the slot props.
+ */
 export type PermDockDefaults = {
   readonly pending?: () => SlotOutput;
   readonly denied?: (props: { readonly decision: Decision }) => SlotOutput;

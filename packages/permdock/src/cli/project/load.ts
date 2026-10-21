@@ -41,8 +41,8 @@ function loadsWithJiti(error: unknown): boolean {
 export type LoadOptions = {
   /**
    * Evaluate the module and its project imports again. Node keeps the first
-   * evaluation of an ESM graph for the life of the process, so a watcher
-   * that imports natively never sees an edited file.
+   * evaluation of an ESM graph for the life of the process, so a watcher that
+   * imports natively never sees an edited file.
    */
   readonly fresh?: boolean;
 };
@@ -60,10 +60,10 @@ function importWithJiti(abs: string, fresh: boolean): Promise<unknown> {
 
 /**
  * Imports a project module the way its bundler would. Node's own `import()`
- * comes first; a module it cannot resolve or parse (tsconfig `paths`
- * aliases, extensionless relative imports, `enum`, TSX) loads through jiti
- * with the `paths` of the nearest `tsconfig.json` above it. Exports are
- * returned as written; `default` is not merged into the namespace.
+ * comes first; a module it cannot resolve or parse (tsconfig `paths` aliases,
+ * extensionless relative imports, `enum`, TSX) loads through jiti with the
+ * `paths` of the nearest `tsconfig.json` above it. Exports are returned as
+ * written; `default` is not merged into the namespace.
  */
 export async function loadModule(
   abs: string,

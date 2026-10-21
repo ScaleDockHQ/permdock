@@ -10,6 +10,7 @@ import type { Postgres } from "./support/postgres.ts";
 import { permissions } from "../fixtures/graph/permissions.ts";
 import { policy } from "../fixtures/graph/policy.ts";
 import { runPipingDbUrl } from "./db-url.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -203,15 +204,15 @@ describe("relationship graph in RLS (closure table)", () => {
     }
     for (const sub of [VERA, HANA, EDITH]) {
       for (const table of ["doc", "folder"] as const) {
-        expect(await visible(db, sub, table)).toEqual(
+        expect(await visible(db, sub, table)).toStrictEqual(
           await inProcess(sub, table, FOLDERS),
         );
       }
     }
-    expect(await visible(db, VERA, "folder")).toEqual(
+    expect(await visible(db, VERA, "folder")).toStrictEqual(
       [f(1), f(2), f(3), f(4), f(5)].toSorted(),
     );
-    expect(await visible(db, HANA, "doc")).toEqual([d(7), d(8)]);
+    expect(await visible(db, HANA, "doc")).toStrictEqual([d(7), d(8)]);
   });
 
   it("keeps the closure current when a branch moves or a folder turns restricted", async () => {
@@ -231,7 +232,7 @@ describe("relationship graph in RLS (closure table)", () => {
       }),
     );
     for (const sub of [VERA, HANA, EDITH]) {
-      expect(await visible(db, sub, "folder")).toEqual(
+      expect(await visible(db, sub, "folder")).toStrictEqual(
         await inProcess(sub, "folder", folders),
       );
     }
@@ -253,7 +254,7 @@ describe("relationship graph in RLS (closure table)", () => {
       db.admin.query(
         `update public.folder set "parentId" = '${f(3)}' where id = '${f(1)}'`,
       ),
-    ).rejects.toThrow(/its own ancestor/);
+    ).rejects.toThrow(/its own ancestor/u);
   });
 
   it("shows a subject only the closure rows under what it holds, one InitPlan per helper", async () => {
@@ -264,28 +265,28 @@ describe("relationship graph in RLS (closure table)", () => {
       { role: "authenticated", settings: claims(HANA) },
       async () =>
         (
-          await db!.tester.query<{ ancestor: string }>(
+          await defined(db).tester.query<{ ancestor: string }>(
             "select distinct ancestor from permdock.permdock_closure",
           )
         ).rows.map((row) => row.ancestor),
     );
-    expect(rows).toEqual([f(7)]);
+    expect(rows).toStrictEqual([f(7)]);
     const plan = await db.as(
       { role: "authenticated", settings: claims(VERA) },
       async () =>
         (
-          await db!.tester.query<{ "QUERY PLAN": string }>(
+          await defined(db).tester.query<{ "QUERY PLAN": string }>(
             "explain (analyze, costs off, timing off, summary off) select id from public.doc",
           )
         ).rows.map((row) => row["QUERY PLAN"]),
     );
-    expect(plan.join("\n")).toMatch(/InitPlan/);
+    expect(plan.join("\n")).toMatch(/InitPlan/u);
     const helperScans = plan.filter((line) =>
-      /ProjectSet|Function Scan/.test(line),
+      /ProjectSet|Function Scan/u.test(line),
     );
     expect(helperScans.length).toBeGreaterThan(0);
     for (const line of helperScans) {
-      expect(line).toMatch(/loops=1\)|never executed/);
+      expect(line).toMatch(/loops=1\)|never executed/u);
     }
   });
 
@@ -295,9 +296,7 @@ describe("relationship graph in RLS (closure table)", () => {
     }
     const result = await runPipingDbUrl(
       ["rls", "verify", "--tree", "--db-url", db.uri],
-      {
-        cwd: FIXTURE,
-      },
+      { cwd: FIXTURE },
     );
     const counts =
       /verified (\d+) tree check\(s\) against the database \((\d+) granted\)/u.exec(

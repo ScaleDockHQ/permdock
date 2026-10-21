@@ -28,8 +28,8 @@ export function noAllowDecision(state: EvaluationState): Decision {
 
 /**
  * The allows a delegation leaves usable. A policy delegation is a ceiling for
- * the actor: outside it, nothing is delegated; inside it, a token delegation
- * on the call must still cover.
+ * the actor: outside it, nothing is delegated; inside it, a token delegation on
+ * the call must still cover.
  */
 export function delegatedAllows(state: EvaluationState): Allow[] | Decision {
   const { policy, subject, permission, current } = state;

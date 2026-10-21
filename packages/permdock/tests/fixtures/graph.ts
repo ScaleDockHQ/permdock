@@ -14,11 +14,11 @@ import {
 } from "../../src/index.ts";
 
 /**
- * A document workspace exercising the whole relationship graph: nested
- * folders, one `folder_members` edge table split by a `role` column, teams
- * as members of folders and of other teams, an expiring share, a restricted
- * branch, a folder role that walks down the tree, and a review path that
- * crosses from a document to its folder's owning team through named links.
+ * A document workspace exercising the whole relationship graph: nested folders,
+ * one `folder_members` edge table split by a `role` column, teams as members of
+ * folders and of other teams, an expiring share, a restricted branch, a folder
+ * role that walks down the tree, and a review path that crosses from a document
+ * to its folder's owning team through named links.
  *
  * ```
  * root (vera views)
@@ -191,7 +191,10 @@ const tables = {
 /** The graph above as an in-memory `RelationSource`. */
 export const relations = memoryRelationSource(permissions, { rows, tables });
 
-/** A folder administrator on `eng`: reaches every document below it, never above. */
+/**
+ * A folder administrator on `eng`: reaches every document below it, never
+ * above.
+ */
 export const engAdmin = {
   id: "ada",
   memberships: [

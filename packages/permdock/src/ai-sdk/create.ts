@@ -28,15 +28,18 @@ export type AiSdkPermDockOptions<TUser = unknown> = AgentAdapterOptions<
   TUser
 > & {
   /**
-   * Turns a denial the user can lift into `user-approval`: a missing
-   * step-up authentication, or a role the user is eligible to activate.
-   * The re-check decides again and runs the tool only when granted. `at` is
-   * the page the user signs in again at; `acr_values` and `max_age` are added.
+   * Turns a denial the user can lift into `user-approval`: a missing step-up
+   * authentication, or a role the user is eligible to activate. The re-check
+   * decides again and runs the tool only when granted. `at` is the page the
+   * user signs in again at; `acr_values` and `max_age` are added.
    */
   readonly stepUp?: { readonly at?: string };
 };
 
-/** What an AI SDK tool approval function may return; `undefined` is `not-applicable`. */
+/**
+ * What an AI SDK tool approval function may return; `undefined` is
+ * `not-applicable`.
+ */
 export type ToolApprovalResult =
   | ToolApprovalStatus
   | undefined
@@ -64,7 +67,10 @@ export type ToolApprovalStatus =
   | {
       readonly type: "user-approval";
       readonly reason: string;
-      /** What the user does before approving; there is no approval request in the store. */
+      /**
+       * What the user does before approving; there is no approval request in
+       * the store.
+       */
       readonly stepUp: StepUp;
     };
 
@@ -92,9 +98,7 @@ type CallParams = {
 };
 
 /** The part of `LanguageModelV4` the model gate reads. */
-type CallModel = {
-  readonly modelId?: unknown;
-};
+type CallModel = { readonly modelId?: unknown };
 
 /** Structural `LanguageModelMiddleware` (specification `v4`) from `ai`. */
 export type LanguageModelMiddleware = {
@@ -122,9 +126,9 @@ export type AiSdkPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
       app: AppToolApproval,
     ) => (call: ToolApprovalCall) => Promise<ToolApprovalResult>;
     /**
-     * Hides tools the subject in `context` can never use, before the model
-     * sees them. With `models`, a call to a model the subject is not granted
-     * throws `PermDockDeniedError` before the provider is called.
+     * Hides tools the subject in `context` can never use, before the model sees
+     * them. With `models`, a call to a model the subject is not granted throws
+     * `PermDockDeniedError` before the provider is called.
      */
     readonly capabilityMiddleware: (
       context: AiSdkContext,
@@ -179,8 +183,8 @@ function toolContextOf(options: NeedsApprovalOptions): AiSdkContext {
 
 /**
  * Whether `messages` already carry an approval request for `toolCallId`: the
- * SDK is re-checking a call a user approved, and treats any answer other
- * than `denied` as approval.
+ * SDK is re-checking a call a user approved, and treats any answer other than
+ * `denied` as approval.
  */
 function isRecheck(messages: unknown, toolCallId: unknown): boolean {
   if (!Array.isArray(messages) || typeof toolCallId !== "string") {

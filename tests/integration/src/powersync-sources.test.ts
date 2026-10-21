@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { runPipingDbUrl } from "./db-url.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const FIXTURE = join(
@@ -21,10 +22,9 @@ grant authenticated, anon to tester;
 `;
 
 /**
- * Two membership sources (a generated tier column, and role assignments
- * through `roles`), tenant custom roles at the own and team levels, and a
- * team level through a database function with a twin, against one
- * database.
+ * Two membership sources (a generated tier column, and role assignments through
+ * `roles`), tenant custom roles at the own and team levels, and a team level
+ * through a database function with a twin, against one database.
  */
 describe("powersync over rls.membershipSources", () => {
   let db: Postgres | undefined;
@@ -55,7 +55,7 @@ describe("powersync over rls.membershipSources", () => {
 
   it("agrees with the policy on every fixture in the database", async () => {
     const result = await runPipingDbUrl(
-      ["rls", "verify", "--db-url", db!.uri],
+      ["rls", "verify", "--db-url", defined(db).uri],
       { cwd: FIXTURE },
     );
     expect(result.stdout).toContain("verified 6 fixture(s) in-process");
@@ -73,7 +73,7 @@ describe("powersync over rls.membershipSources", () => {
 
   it("syncs every granted fixture row and no denied one", async () => {
     const result = await runPipingDbUrl(
-      ["powersync", "verify", "--db-url", db!.uri],
+      ["powersync", "verify", "--db-url", defined(db).uri],
       { cwd: FIXTURE },
     );
     expect(result.stdout).toContain("no stream syncs a row the fixtures deny");
@@ -86,34 +86,36 @@ describe("powersync over rls.membershipSources", () => {
 
   it("fails with PD058 while the publication leaves out a synced table", async () => {
     const verify = () =>
-      runPipingDbUrl(["powersync", "verify", "--db-url", db!.uri], {
+      runPipingDbUrl(["powersync", "verify", "--db-url", defined(db).uri], {
         cwd: FIXTURE,
       });
-    await db!.admin.query("create publication powersync for table jobs");
+    await defined(db).admin.query(
+      "create publication powersync for table jobs",
+    );
     try {
       const partial = await verify();
       expect(partial.code).toBe(1);
       expect(partial.stdout).toContain(
         "PD058: permdock.custom_role_permissions is not in the powersync publication",
       );
-      await db!.admin.query(
+      await defined(db).admin.query(
         'alter publication powersync add table "permdock".custom_role_includes, "permdock".custom_role_permissions, "permdock".user_roles',
       );
       const full = await verify();
       expect(full.stdout).not.toContain("PD058");
       expect(full.code).toBe(0);
     } finally {
-      await db!.admin.query("drop publication powersync");
+      await defined(db).admin.query("drop publication powersync");
     }
   });
 
   it("fails when a granted row does not sync and generate gave no warning", async () => {
-    await db!.admin.query(
+    await defined(db).admin.query(
       "delete from \"permdock\".custom_role_permissions where role = 'lead'",
     );
     try {
       const result = await runPipingDbUrl(
-        ["powersync", "verify", "--db-url", db!.uri],
+        ["powersync", "verify", "--db-url", defined(db).uri],
         { cwd: FIXTURE },
       );
       expect(result.code).toBe(1);
@@ -121,7 +123,7 @@ describe("powersync over rls.membershipSources", () => {
         "job.read for u-lead: granted, but stream job does not sync the row and generate gave no warning for it",
       );
     } finally {
-      await db!.admin.query(
+      await defined(db).admin.query(
         "insert into \"permdock\".custom_role_permissions (tenant_id, scope, role, permission, effect, level) values ('acme', 'tenant', 'lead', 'job.read', 'allow', 'team')",
       );
     }

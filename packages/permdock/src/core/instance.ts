@@ -1,5 +1,8 @@
+import type { Assignable } from "./assignable.ts";
 import type { Decision, ExplainedDecision, TraceSkip } from "./decision.ts";
 import type { AuthEvent } from "./event-types.ts";
+import type { EvalEnv } from "./events.ts";
+import type { InstanceEnv } from "./instance-env.ts";
 import type {
   DecideIdsOptions,
   DecideOptions,
@@ -12,38 +15,32 @@ import type {
 } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
+import type { RelationCache } from "./relations.ts";
+import type { SimulatePreview } from "./simulate-preview.ts";
 import type { Snapshot } from "./snapshot-types.ts";
 import type { Membership, Principal, Subject } from "./subject.ts";
 import type { Role } from "./vocabulary.ts";
 
 import { assertDecision } from "./assert-decision.ts";
-import { type Assignable, assignableIn } from "./assignable.ts";
+import { assignableIn } from "./assignable.ts";
 import { canAllWith, decideAllWith } from "./checks.ts";
 import { compact, isReadonlyArray, isRecord } from "./compact.ts";
 import { customGrantsFor, unknownLevelsFor } from "./custom-roles.ts";
 import { decideForTarget, deniedFor } from "./decide-for.ts";
 import { evaluate } from "./evaluate/index.ts";
-import { type EvalEnv, emitSafe, emptyListeners, finish } from "./events.ts";
+import { emitSafe, emptyListeners, finish } from "./events.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames, roleLeaf } from "./held-roles.ts";
-import { type InstanceEnv, deriveEnv } from "./instance-env.ts";
+import { deriveEnv } from "./instance-env.ts";
 import { snapshotOf } from "./instance-snapshot.ts";
 import { attachInternals } from "./internals.ts";
 import { mayUse, permittedIds } from "./may-use.ts";
 import { getResource, listPermissions } from "./permission-registry.ts";
-import {
-  type RelationCache,
-  pendingRelations,
-  relationReader,
-} from "./relations.ts";
+import { pendingRelations, relationReader } from "./relations.ts";
 import { audiencesOf } from "./role-rank.ts";
 import { scopeList } from "./scopes.ts";
-import {
-  type SimulatePreview,
-  previewSubject,
-  simulateEvent,
-} from "./simulate-preview.ts";
+import { previewSubject, simulateEvent } from "./simulate-preview.ts";
 import { collectSnapshotGrants, whereGrant } from "./snapshot-grants.ts";
 import { signSnapshot } from "./snapshot-sign.ts";
 import { snapshotGrant } from "./snapshot.ts";
@@ -56,7 +53,10 @@ import {
 } from "./tenancy.ts";
 import { whereFromGrants } from "./where-scope.ts";
 
-/** Each round reads one more layer: link hops, then the chain, then nested groups. */
+/**
+ * Each round reads one more layer: link hops, then the chain, then nested
+ * groups.
+ */
 const LOAD_ROUNDS = 48;
 
 export function buildInstance(
@@ -323,10 +323,7 @@ export function buildInstance(
           ? freezeDeep({
               outcome: "granted",
               subject,
-              matched: {
-                role: "*",
-                permission: permission.key,
-              },
+              matched: { role: "*", permission: permission.key },
               token: "pd1.filter",
             })
           : freezeDeep({

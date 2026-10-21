@@ -36,12 +36,7 @@ async function target(address: string): Promise<DeliveryTarget<"webhook">> {
   if (decision.outcome !== "granted") {
     throw new Error("expected granted");
   }
-  return {
-    channel: "webhook",
-    address,
-    principal: "u_1",
-    decision,
-  };
+  return { channel: "webhook", address, principal: "u_1", decision };
 }
 
 function capture(status: number) {
@@ -53,7 +48,7 @@ function capture(status: number) {
   return { requests, fetcher };
 }
 
-describe("webhookTransport", () => {
+describe(webhookTransport, () => {
   it("posts a signed CloudEvent that webhookVerifier accepts", async () => {
     const { requests, fetcher } = capture(204);
     const transport = webhookTransport(signer, { fetch: fetcher });
@@ -63,7 +58,7 @@ describe("webhookTransport", () => {
       { event },
       { idempotencyKey: "pdd_key", delivery: "dlv_1" },
     );
-    expect(result).toEqual({ status: "sent" });
+    expect(result).toStrictEqual({ status: "sent" });
     const request = requests[0];
     expect(request?.method).toBe("POST");
     expect(request?.headers.get("content-type")).toBe(
@@ -77,7 +72,7 @@ describe("webhookTransport", () => {
     const verified = await verifier.verify(request ?? new Request("https://x"));
     expect(verified.ok).toBe(true);
     if (verified.ok) {
-      expect(JSON.parse(verified.body)).toEqual(event);
+      expect(JSON.parse(verified.body)).toStrictEqual(event);
     }
   });
 
@@ -132,12 +127,12 @@ describe("webhookTransport", () => {
           { event },
           { idempotencyKey: "pdd_key", delivery: "dlv_1" },
         ),
-      ).toEqual({
+      ).toStrictEqual({
         status: "failed",
         cause: "invalid-recipient",
         retryable: false,
       });
     }
-    expect(requests).toEqual([]);
+    expect(requests).toStrictEqual([]);
   });
 });

@@ -113,7 +113,7 @@ describe("authorizationProvider canAssign with custom roles", () => {
         fill(canAssign, role),
       );
     }
-    expect(answers).toEqual({
+    expect(answers).toStrictEqual({
       member: true,
       "member for": true,
       "member by member": false,
@@ -141,7 +141,7 @@ describe("authorizationProvider canAssign with custom roles", () => {
     const assigning = (provider.requires ?? []).filter(({ function: fn }) =>
       fn.includes("can_assign"),
     );
-    expect(assigning.map(({ function: fn }) => fn)).toEqual([
+    expect(assigning.map(({ function: fn }) => fn)).toStrictEqual([
       "permdock.permdock_can_assign_any",
       "permdock.permdock_can_assign_any_for",
     ]);

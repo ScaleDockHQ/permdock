@@ -7,7 +7,10 @@ import { permissions, policy, rows } from "../fixtures/graph.ts";
 
 const WIDTH = 3;
 
-/** `layers` rows of `WIDTH` teams, every team holding every team of the next row. */
+/**
+ * `layers` rows of `WIDTH` teams, every team holding every team of the next
+ * row.
+ */
 function lattice(layers: number) {
   const team = (layer: number, index: number) => `t${layer}-${index}`;
   const teamMembers: Record<string, string>[] = [];

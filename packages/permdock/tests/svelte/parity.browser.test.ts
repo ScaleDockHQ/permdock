@@ -79,7 +79,7 @@ describe("permdock/svelte parity", () => {
     await store.get().refresh();
     token.value = "b";
     await store.get().refresh();
-    expect(seen).toEqual(["a", "b"]);
+    expect(seen).toStrictEqual(["a", "b"]);
     expect(tenantView(store.get()).tenant).toBe("acme");
     tenant.value = "globex";
     flushSync();

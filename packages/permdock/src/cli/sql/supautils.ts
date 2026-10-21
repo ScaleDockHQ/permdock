@@ -1,6 +1,9 @@
 import { group, sqlStatements } from "./statements.ts";
 
-/** `supautils.reserved_roles` of supabase/postgres 17.11.0.002 (supautils 3.4.4). */
+/**
+ * `supautils.reserved_roles` of supabase/postgres 17.11.0.002 (supautils
+ * 3.4.4).
+ */
 const RESERVED_ROLES: ReadonlySet<string> = new Set([
   "supabase_admin",
   "supabase_auth_admin",
@@ -18,7 +21,10 @@ const RESERVED_ROLES: ReadonlySet<string> = new Set([
   "anon",
 ]);
 
-/** The `*` entries of `reserved_roles`: `postgres` may still `set` or `reset` their settings. */
+/**
+ * The `*` entries of `reserved_roles`: `postgres` may still `set` or `reset`
+ * their settings.
+ */
 const CONFIGURABLE_ROLES: ReadonlySet<string> = new Set([
   "service_role",
   "authenticator",
@@ -61,7 +67,10 @@ const CREATE_IN_ROLE = new RegExp(
 );
 const CONFIG_CHANGE = /^(?:in\s+database\s+\S+\s+)?(?:set|reset)\s/iu;
 
-/** A statement the supautils extension refuses to run for `postgres` on Supabase. */
+/**
+ * A statement the supautils extension refuses to run for `postgres` on
+ * Supabase.
+ */
 export type SupautilsRejection = {
   readonly line: number;
   readonly reason: string;
@@ -116,9 +125,9 @@ function rejection(text: string): string | undefined {
 }
 
 /**
- * The statements of `sql` that supautils rejects for a non-superuser:
- * changing or dropping a reserved role, other than `set` or `reset` on the
- * four API roles, and granting a reserved membership.
+ * The statements of `sql` that supautils rejects for a non-superuser: changing
+ * or dropping a reserved role, other than `set` or `reset` on the four API
+ * roles, and granting a reserved membership.
  */
 export function supautilsRejections(
   sql: string,

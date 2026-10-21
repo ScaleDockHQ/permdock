@@ -1,12 +1,9 @@
+import type { Preset, PresetInput } from "../../preset/index.ts";
 import type { EnumFlag } from "../core/command.ts";
+import type { Leaf } from "../core/command.ts";
 
-import {
-  PRESET_DEFAULTS,
-  PRESET_FLAGS,
-  type Preset,
-  type PresetInput,
-} from "../../preset/index.ts";
-import { type Leaf, defineLeaf } from "../core/command.ts";
+import { PRESET_DEFAULTS, PRESET_FLAGS } from "../../preset/index.ts";
+import { defineLeaf } from "../core/command.ts";
 import { dryRunFlag, forceFlag, given } from "../core/flags.ts";
 
 function optionsOf(key: keyof Preset): string[] {

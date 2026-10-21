@@ -1,10 +1,11 @@
+import type { Scope } from "./scopes.ts";
 import type { Snapshot } from "./snapshot-types.ts";
 import type { Principal, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { sameId } from "./ids.ts";
-import { type Scope, resolveScope, scopeList, tenantOf } from "./scopes.ts";
+import { resolveScope, scopeList, tenantOf } from "./scopes.ts";
 import { isMembershipExpired, resolveActiveTenant } from "./tenancy.ts";
 import { secondsOf } from "./time.ts";
 import { fromWireDelegation } from "./wire-delegation.ts";

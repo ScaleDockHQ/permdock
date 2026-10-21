@@ -16,16 +16,19 @@ import {
   role,
 } from "../../src/index.ts";
 
-/** The mutators a `ReadonlyMap` type hides, which an adapter bug or a cast still reaches. */
+/**
+ * The mutators a `ReadonlyMap` type hides, which an adapter bug or a cast still
+ * reaches.
+ */
 type MapWriter = {
-  set(key: unknown, value: unknown): unknown;
-  delete(key: unknown): boolean;
-  clear(): void;
+  set: (key: unknown, value: unknown) => unknown;
+  delete: (key: unknown) => boolean;
+  clear: () => void;
 };
 
 function writer(collection: object): MapWriter {
   if (!(collection instanceof Map)) {
-    throw new Error("not a Map");
+    throw new TypeError("not a Map");
   }
   return collection;
 }
@@ -51,7 +54,7 @@ describe("freeze and paths", () => {
     expect(() => set.add("b")).toThrow("PermDock: this collection is frozen");
     expect(() => set.delete("a")).toThrow(TypeError);
     expect(() => set.clear()).toThrow(TypeError);
-    expect([...set]).toEqual(["a"]);
+    expect([...set]).toStrictEqual(["a"]);
   });
 
   it("shares no writable map between requests through a policy", () => {
@@ -81,7 +84,7 @@ describe("freeze and paths", () => {
   it("reads own paths only", () => {
     expect(readPath({ a: { b: 2 } }, "a.b")).toBe(2);
     expect(readPath({ a: 1 }, "constructor")).toBeUndefined();
-    expect(() => assertSafeKey("prototype", "x")).toThrow(/forbidden/);
+    expect(() => assertSafeKey("prototype", "x")).toThrow(/forbidden/u);
   });
 });
 

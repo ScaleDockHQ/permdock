@@ -50,6 +50,7 @@ export const SAAS_EXPIRED_AT = 1_000_000_000;
 
 /**
  * Users, one hazard each:
+ *
  * - alice: admin in acme, viewer in globex (different role per org)
  * - bob: member in acme (owns p1, p3, p4)
  * - carol: owner in acme
@@ -59,9 +60,11 @@ export const SAAS_EXPIRED_AT = 1_000_000_000;
  * - mallory: no memberships at all
  * - gina: `lead` of team-a in acme
  * - hank: viewer in acme, `collaborator` on project p3 only
- * - `user-2` and `2`: members of `org-1`; `Date.parse` maps both ids to one instant
+ * - `user-2` and `2`: members of `org-1`; `Date.parse` maps both ids to one
+ *   instant
  * - tina: member of `tenant-1`; `Date.parse('org-1') === Date.parse('tenant-1')`
- * - ivan: viewer in acme who holds the team role `lead` on the tenant membership (the wrong scope)
+ * - ivan: viewer in acme who holds the team role `lead` on the tenant membership
+ *   (the wrong scope)
  *
  * Acme's folders: `root` ─ `eng` ─ `platform` ─ `infra`, and `root` ─ `hr`
  * (restricted) ─ `payroll`. bob views `root`, hank views `hr`, gina edits
@@ -246,7 +249,10 @@ export const saasSeed: SaasSeed = Object.freeze({
   ],
 });
 
-/** The seed's folder tree and shares as a `RelationSource`, for `createPermDock({ relations })`. */
+/**
+ * The seed's folder tree and shares as a `RelationSource`, for
+ * `createPermDock({ relations })`.
+ */
 export function saasRelations(seed: SaasSeed = saasSeed): RelationSource {
   const edges = (relation: SaasShare["relation"]) =>
     seed.shares
@@ -315,9 +321,9 @@ export const saasCustomRoles: readonly CustomRole[] = saasSeed.orgs.flatMap(
 );
 
 /**
- * The principal for `user`, with the plans of the requested `tenant`'s org.
- * The tenant itself is passed to `createPermDock({ tenant })`, never trusted
- * from here.
+ * The principal for `user`, with the plans of the requested `tenant`'s org. The
+ * tenant itself is passed to `createPermDock({ tenant })`, never trusted from
+ * here.
  */
 export function saasPrincipal(user: string, tenant?: string): Principal {
   const org = tenant === undefined ? undefined : saasOrg(tenant);

@@ -89,18 +89,17 @@ describe("rls.tenants", () => {
   };
 
   it("narrows to the tenant claim by default and admits every member tenant without one", async () => {
-    expect(await visible("custom-role-writes", { tenant_id: "acme" })).toEqual([
-      "j1",
-    ]);
-    expect(await visible("custom-role-writes", {})).toEqual(["j1", "j2"]);
+    expect(
+      await visible("custom-role-writes", { tenant_id: "acme" }),
+    ).toStrictEqual(["j1"]);
+    expect(await visible("custom-role-writes", {})).toStrictEqual(["j1", "j2"]);
   });
 
   it("admits every member tenant whatever the claim says with tenants 'all'", async () => {
-    expect(await visible("rls-tenants-all", { tenant_id: "acme" })).toEqual([
-      "j1",
-      "j2",
-    ]);
-    expect(await visible("rls-tenants-all", {})).toEqual(["j1", "j2"]);
+    expect(
+      await visible("rls-tenants-all", { tenant_id: "acme" }),
+    ).toStrictEqual(["j1", "j2"]);
+    expect(await visible("rls-tenants-all", {})).toStrictEqual(["j1", "j2"]);
   });
 
   it("answers for a named user with the _for helpers, which no client role may call", async () => {
@@ -112,7 +111,7 @@ describe("rls.tenants", () => {
       "select id from permdock.permitted_tenant_ids_for($1, 'job.read') id order by id",
       [ADMIN],
     );
-    expect(ids.rows.map((row) => row.id)).toEqual(["acme", "globex"]);
+    expect(ids.rows.map((row) => row.id)).toStrictEqual(["acme", "globex"]);
     const has = await db.admin.query<{ has: boolean }>(
       "select permdock.permdock_has_for($1, 'job.read') as has",
       [ADMIN],

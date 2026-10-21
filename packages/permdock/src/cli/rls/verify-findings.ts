@@ -7,7 +7,10 @@ import { DOCS_BASE } from "../core/manifest.ts";
 
 const VERIFY_DOCS = `${DOCS_BASE}/rls#verify`;
 
-/** One difference `rls verify` reports. `table` and `key` make its id stable across runs. */
+/**
+ * One difference `rls verify` reports. `table` and `key` make its id stable
+ * across runs.
+ */
 export type RlsFinding = {
   readonly code: string;
   readonly table: string;
@@ -34,10 +37,7 @@ export function findingId(finding: RlsFinding): string {
 }
 
 /** An accepted finding: `rls.verify.ignore` entries, plus one per `--ignore` id. */
-export type VerifyIgnore = {
-  readonly id: string;
-  readonly reason: string;
-};
+export type VerifyIgnore = { readonly id: string; readonly reason: string };
 
 /** `rls.verify.ignore`, checked, then one entry per `--ignore` id. */
 export function verifyIgnores(
@@ -78,7 +78,10 @@ export type VerifyReport = {
   readonly stale: readonly VerifyIgnore[];
 };
 
-/** Splits `findings` by `ignores`; an id listed twice counts once, with its first reason. */
+/**
+ * Splits `findings` by `ignores`; an id listed twice counts once, with its
+ * first reason.
+ */
 function applyIgnores(
   findings: readonly RlsFinding[],
   ignores: readonly VerifyIgnore[],
@@ -125,13 +128,16 @@ function prefixOf(severity: Finding["severity"]): string {
 
 /**
  * The `rls verify` result: exit 1 when an error finding is left after the
- * ignores. Text lines carry each finding's id; `--json` data is
- * `{ findings, ignored, stale }`; `--format github|sarif` renders `findings`.
+ * ignores. Text lines carry each finding's id; `--json` data is `{ findings,
+ * ignored, stale }`; `--format github|sarif` renders `findings`.
  */
 export function verifyResult(input: {
   readonly findings: readonly RlsFinding[];
   readonly ignore: readonly VerifyIgnore[];
-  /** Lines printed after the findings that are not findings, such as `verified through twin`. */
+  /**
+   * Lines printed after the findings that are not findings, such as `verified
+   * through twin`.
+   */
   readonly notes?: readonly string[];
   /** The last line when nothing fails. */
   readonly summary: string;

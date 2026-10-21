@@ -7,10 +7,7 @@ const { board, project, task } = permissions;
 export const policy = definePolicy(permissions, {
   roles: [
     role("auditor", [allow([project.read, task.read])]),
-    role("owner", [allow(project.delete)], {
-      on: "tenant",
-      assignable: false,
-    }),
+    role("owner", [allow(project.delete)], { on: "tenant", assignable: false }),
     role(
       "admin",
       [

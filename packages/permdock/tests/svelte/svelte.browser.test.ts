@@ -32,11 +32,8 @@ async function snapshotOf(user: typeof memberUser): Promise<Snapshot> {
 }
 
 function latest<T>(readable: {
-  subscribe(run: (value: T) => void): () => void;
-}): {
-  readonly value: () => T;
-  readonly stop: () => void;
-} {
+  subscribe: (run: (value: T) => void) => () => void;
+}): { readonly value: () => T; readonly stop: () => void } {
   let current: T | undefined;
   const stop = readable.subscribe((value) => {
     current = value;

@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import type { PermDock } from "../../src/core/permdock.ts";
 import type { Principal } from "../../src/core/subject.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { authenticated, plan } from "../../src/core/grantee.ts";
-import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -39,7 +40,7 @@ describe("snapshot parity", () => {
       memberships: [{ on: { resource: "doc", id: "d1" }, roles: ["watcher"] }],
     };
     const [server, client] = await both(policy, user);
-    expect(parseSnapshot(JSON.stringify(server.snapshot())).ids).toEqual({
+    expect(parseSnapshot(JSON.stringify(server.snapshot())).ids).toStrictEqual({
       doc: "uuid",
     });
     for (const permdock of [server, client]) {

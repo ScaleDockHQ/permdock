@@ -33,7 +33,7 @@ describe("subjectFromClerk claim parsing", () => {
       session: subject.session,
       memberships: subject.principal?.memberships,
       clerkPermissions: subject.principal?.clerkPermissions,
-    }).toEqual({
+    }).toStrictEqual({
       id: "user_1",
       tenant: "org_1",
       session: "sess_1",
@@ -49,7 +49,7 @@ describe("subjectFromClerk claim parsing", () => {
       subjectFromClerk({ sub: "", sid: "s" }),
       subjectFromClerk(["user_1"]),
     ]);
-    expect(results.map((subject) => subject.principal)).toEqual([
+    expect(results.map((subject) => subject.principal)).toStrictEqual([
       null,
       null,
       null,
@@ -68,7 +68,7 @@ describe("subjectFromClerk claim parsing", () => {
         subject.principal?.id,
         subject.principal?.memberships,
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       ["u1", []],
       ["u2", [{ tenant: "org_1", roles: ["org:member"] }]],
       ["u3", [{ tenant: "org_2", roles: ["org:admin"] }]],
@@ -81,7 +81,7 @@ describe("subjectFromClerk claim parsing", () => {
       fea: "o:reports,o:billing,o:audit",
       o: { id: "org_1", rol: "", per: "read,write", fpm: "3,-1,x" },
     });
-    expect(subject.principal?.clerkPermissions).toEqual([
+    expect(subject.principal?.clerkPermissions).toStrictEqual([
       "org:reports:read",
       "org:reports:write",
     ]);
@@ -103,7 +103,7 @@ describe("subjectFromClerk claim parsing", () => {
       roles: subject.principal?.roles,
       memberships: subject.principal?.memberships,
       sources: subject.principal?.featureSources,
-    }).toEqual({
+    }).toStrictEqual({
       plans: ["pro", "free"],
       roles: ["api-user", "plain"],
       memberships: [
@@ -114,17 +114,9 @@ describe("subjectFromClerk claim parsing", () => {
   });
 
   it("reads globalRoles from a function, a string claim and a missing path", async () => {
-    const payload = {
-      sub: "u1",
-      sid: "s1",
-      metadata: { role: "staff" },
-    };
+    const payload = { sub: "u1", sid: "s1", metadata: { role: "staff" } };
     const results = await Promise.all([
-      subjectFromClerk(payload, {
-        claims: {
-          roles: () => ["ops"],
-        },
-      }),
+      subjectFromClerk(payload, { claims: { roles: () => ["ops"] } }),
       subjectFromClerk(payload, {
         claims: {
           roles: () => {
@@ -132,26 +124,14 @@ describe("subjectFromClerk claim parsing", () => {
           },
         },
       }),
-      subjectFromClerk(payload, {
-        claims: {
-          roles: "metadata.role",
-        },
-      }),
-      subjectFromClerk(payload, {
-        claims: {
-          roles: "metadata.missing.deep",
-        },
-      }),
+      subjectFromClerk(payload, { claims: { roles: "metadata.role" } }),
+      subjectFromClerk(payload, { claims: { roles: "metadata.missing.deep" } }),
       subjectFromClerk(
         { ...payload, metadata: { role: "" } },
-        {
-          claims: {
-            roles: "metadata.role",
-          },
-        },
+        { claims: { roles: "metadata.role" } },
       ),
     ]);
-    expect(results.map((subject) => subject.principal?.roles)).toEqual([
+    expect(results.map((subject) => subject.principal?.roles)).toStrictEqual([
       ["ops"],
       [],
       ["staff"],
@@ -165,11 +145,9 @@ describe("subjectFromClerk claim parsing", () => {
       '{"sub":"u1","sid":"s1","__proto__":{"role":"admin"}}',
     );
     const subject = await subjectFromClerk(payload, {
-      claims: {
-        roles: "__proto__.role",
-      },
+      claims: { roles: "__proto__.role" },
     });
-    expect(subject.principal?.roles).toEqual([]);
+    expect(subject.principal?.roles).toStrictEqual([]);
   });
 
   it("drops claims from an async or non-object schema result", async () => {
@@ -188,7 +166,7 @@ describe("subjectFromClerk claim parsing", () => {
         subjectFromClerk({ sub: "u1", sid: "s1", plan: "pro" }, { schema }),
       ),
     );
-    expect(results.map((subject) => subject.principal?.claims)).toEqual([
+    expect(results.map((subject) => subject.principal?.claims)).toStrictEqual([
       undefined,
       undefined,
     ]);
@@ -246,7 +224,7 @@ describe("subjectFromClerk Backend memberships", () => {
       memberships: subject.principal?.memberships,
       missing: missing.principal?.memberships,
       weird: weird.principal?.memberships,
-    }).toEqual({
+    }).toStrictEqual({
       calls: [0],
       memberships: [
         { tenant: "org_a", roles: ["org:member"] },

@@ -61,7 +61,7 @@ describe("cloud().catalog.push", () => {
       },
     });
     const fingerprint = catalogFingerprint(document);
-    expect(await client.catalog.push(document)).toEqual({
+    expect(await client.catalog.push(document)).toStrictEqual({
       version: 2,
       fingerprint,
       findings: [
@@ -72,7 +72,7 @@ describe("cloud().catalog.push", () => {
         },
       ],
     });
-    expect(posted).toEqual([{ fingerprint, catalog: document }]);
+    expect(posted).toStrictEqual([{ fingerprint, catalog: document }]);
   });
 
   it("returns unchanged for a fingerprint already published", async () => {
@@ -85,7 +85,7 @@ describe("cloud().catalog.push", () => {
           Response.json({ version: 1, fingerprint: "f", unchanged: true }),
         ),
     });
-    expect(await client.catalog.push(document)).toEqual({
+    expect(await client.catalog.push(document)).toStrictEqual({
       version: 1,
       fingerprint: "f",
       unchanged: true,

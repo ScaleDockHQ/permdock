@@ -58,7 +58,10 @@ export function clientCredentials(
   };
 }
 
-/** The hosted ADS: the same AuthZEN wire as the local PDP, at the environment URL. */
+/**
+ * The hosted ADS: the same AuthZEN wire as the local PDP, at the environment
+ * URL.
+ */
 export function cloudPdp(
   cloud: CloudEnv,
   fetcher: typeof fetch = fetch,

@@ -86,7 +86,7 @@ describe("permdock/openai edge cases", () => {
       ),
       { context: {} },
     );
-    expect(run.outcomes).toEqual([
+    expect(run.outcomes).toStrictEqual([
       "reject:a:Denied: unreadable tool call.",
       "approve:b",
       "reject:c:Denied: unreadable tool call.",
@@ -109,7 +109,7 @@ describe("permdock/openai edge cases", () => {
       rawItem: { type: "function_call", callId: "e" },
     } as unknown as OpenAiInterruption;
     await resolveInterruptions(run, [parsed], { context: {} });
-    expect(run.outcomes).toEqual(["approve:e"]);
+    expect(run.outcomes).toStrictEqual(["approve:e"]);
   });
 
   it("pauses for an unbound permission, a missing row and a throwing loader", async () => {
@@ -123,6 +123,6 @@ describe("permdock/openai edge cases", () => {
       await needsApproval(permissions.post.update)({ context: "x" }, "missing"),
       await needsApproval(permissions.post.read)(undefined, {}),
       await needsApproval(permissions.post.update)(undefined, {}),
-    ]).toEqual([true, true, true, false]);
+    ]).toStrictEqual([true, true, true, false]);
   });
 });

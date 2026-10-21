@@ -8,7 +8,10 @@ const PERMDOCK = join(ROOT, "packages", "permdock");
 const BUDGET = join(ROOT, "scripts", "typecheck-perf.json");
 /** Headroom over the recorded count before the gate fails. */
 const INSTANTIATION_SLACK = 1.1;
-/** CI runners share their cores with the rest of the turbo run, so check time there only reports. */
+/**
+ * CI runners share their cores with the rest of the turbo run, so check time
+ * there only reports.
+ */
 const ENFORCE_CHECK_TIME = process.env["CI"] === undefined;
 
 const PROJECTS = {
@@ -19,7 +22,10 @@ const PROJECTS = {
 type Project = keyof typeof PROJECTS;
 
 interface Budget {
-  /** Recorded with `--checkers 1`, the only setting that counts deterministically. */
+  /**
+   * Recorded with `--checkers 1`, the only setting that counts
+   * deterministically.
+   */
   readonly instantiations: number;
   /** Wall-clock ceiling in seconds, loose because it depends on the machine. */
   readonly maxCheckSeconds: number;

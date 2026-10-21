@@ -52,8 +52,8 @@ export function dataOf(output: string): unknown {
 const LOCATION = /^([^\s:]+\.[A-Za-z0-9]+):(\d+)\b/u;
 
 /**
- * A finding whose `file` and `line` default to the `path:line` a message
- * opens with, the form doctor, usage and scan already print.
+ * A finding whose `file` and `line` default to the `path:line` a message opens
+ * with, the form doctor, usage and scan already print.
  */
 export function findingOf(input: Finding): Finding {
   if (input.file !== undefined) {
@@ -172,4 +172,9 @@ export function sarifLog(
     null,
     2,
   )}\n`;
+}
+
+/** `text`, or `fallback` when `text` is empty. */
+export function nonEmptyOr<T>(text: string, fallback: T): string | T {
+  return text === "" ? fallback : text;
 }

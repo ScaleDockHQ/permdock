@@ -36,7 +36,10 @@ async function readJson(
   }
 }
 
-/** POSTs a form and reads a JSON object back; any network or parse failure is `null`. */
+/**
+ * POSTs a form and reads a JSON object back; any network or parse failure is
+ * `null`.
+ */
 export async function postForm(
   runtime: TerminalRuntime,
   url: string,
@@ -62,9 +65,9 @@ function withoutTrailingSlash(url: string): string {
 }
 
 /**
- * Where RFC 8414 metadata may live: the well-known segment inserted before
- * the issuer's path (section 3.1), then appended after it for servers that
- * predate the rule. An issuer without a path has one location.
+ * Where RFC 8414 metadata may live: the well-known segment inserted before the
+ * issuer's path (section 3.1), then appended after it for servers that predate
+ * the rule. An issuer without a path has one location.
  */
 function metadataUrls(issuer: string): readonly string[] {
   const parsed = new URL(issuer);
@@ -79,8 +82,8 @@ function metadataUrls(issuer: string): readonly string[] {
 }
 
 /**
- * The issuer's RFC 8414 metadata, or `null`. Metadata whose `issuer` is not
- * the configured issuer is refused (section 3.3), so a mix-up never routes a
+ * The issuer's RFC 8414 metadata, or `null`. Metadata whose `issuer` is not the
+ * configured issuer is refused (section 3.3), so a mix-up never routes a
  * credential to another server.
  */
 export async function discoverAuthorizationServer(

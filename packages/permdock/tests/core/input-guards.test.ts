@@ -15,10 +15,10 @@ describe("input guards", () => {
     expect(isSubject(null)).toBe(false);
     freezeDeep(() => undefined);
     expect(readPath({ a: null }, "a.b")).toBeUndefined();
-    expect(compact<{ readonly a: number }>({ a: 1, b: undefined })).toEqual({
-      a: 1,
-    });
-    expect(() => parseSnapshot([])).toThrow(/must be an object/);
+    expect(
+      compact<{ readonly a: number }>({ a: 1, b: undefined }),
+    ).toStrictEqual({ a: 1 });
+    expect(() => parseSnapshot([])).toThrow(/must be an object/u);
     expect(() =>
       parseSnapshot({
         v: 1,
@@ -31,10 +31,10 @@ describe("input guards", () => {
     const issuedAt = "2026-10-13T09:00:00Z";
     expect(parseSnapshot({ v: 1, issuedAt, grants: [] }).v).toBe(1);
     expect(() => parseSnapshot({ v: 1, issuedAt: 1, grants: [] })).toThrow(
-      /RFC 3339/,
+      /RFC 3339/u,
     );
     expect(() =>
       parseSnapshot({ v: 1, issuedAt, expiresAt: "tomorrow", grants: [] }),
-    ).toThrow(/RFC 3339/);
+    ).toThrow(/RFC 3339/u);
   });
 });

@@ -1,4 +1,6 @@
-import { createComponent, createRoot, createSignal, type JSX } from "solid-js";
+import type { JSX } from "solid-js";
+
+import { createComponent, createRoot, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { render } from "solid-js/web";
 import { describe, expect, it } from "vitest";
@@ -20,6 +22,7 @@ import {
 } from "../../src/solid/hooks.ts";
 import { Protected } from "../../src/solid/protected.ts";
 import { PermDockProvider } from "../../src/solid/provider.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 import {
   memberUser,
   otherPost,
@@ -97,7 +100,7 @@ describe("permdock/solid hooks", () => {
           dispose();
         }
       }),
-    ).toThrow(/hooks require <PermDockProvider>/);
+    ).toThrow(/hooks require <PermDockProvider>/u);
   });
 
   it("answer a permission set by key and through get", async () => {
@@ -168,7 +171,7 @@ describe("permdock/solid hooks", () => {
         snapshot: await memberSnapshot(),
         approvals: "/api/approvals",
         fetch: async (input) => {
-          posts.push(String(input));
+          posts.push(requestUrl(input));
           return new Response(JSON.stringify({ status: "pending" }));
         },
       },
@@ -182,7 +185,7 @@ describe("permdock/solid hooks", () => {
     );
     expect(view.root.textContent).toBe("required:pd1.token");
     await handle?.request("please");
-    expect(posts).toEqual(["/api/approvals"]);
+    expect(posts).toStrictEqual(["/api/approvals"]);
     expect(view.root.textContent).toBe("pending:pd1.token");
     setDecision({ outcome: "denied", denials: [], alternatives: [] });
     expect(view.root.textContent).toBe("not-needed:none");

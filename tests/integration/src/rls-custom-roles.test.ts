@@ -15,6 +15,7 @@ import type { Postgres } from "./support/postgres.ts";
 import { permissions } from "../fixtures/rls-custom-roles/permissions.ts";
 import { policy } from "../fixtures/rls-custom-roles/policy.ts";
 import { runPipingDbUrl } from "./db-url.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres, databaseUri, testerUri } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -317,7 +318,10 @@ language sql as $$ select null::text where false $$;
 grant usage on schema public to authenticated;
 `;
 
-/** `rls verify --kind pgtap` run in `cwd`, written to a temporary file; `stdout` is the script. */
+/**
+ * `rls verify --kind pgtap` run in `cwd`, written to a temporary file; `stdout`
+ * is the script.
+ */
 async function pgtapScript(
   cwd: string,
   fixturesPath: string,
@@ -500,7 +504,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
       const read = await client.query(
         `select id from public.project order by id`,
       );
-      expect(read.rows.map((row: { id: string }) => row.id)).toEqual([
+      expect(read.rows.map((row: { id: string }) => row.id)).toStrictEqual([
         "p-acme",
         "p-other",
       ]);
@@ -525,21 +529,21 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
         fixtures: [
           {
             name: "plus updates another task",
-            subject: SUBJECTS["plus"]!,
+            subject: defined(SUBJECTS["plus"]),
             permission: permissions.task.update,
             row: ROWS.task[1],
             table: "task",
           },
           {
             name: "plus cannot read projects",
-            subject: SUBJECTS["plus"]!,
+            subject: defined(SUBJECTS["plus"]),
             permission: permissions.project.read,
             row: ROWS.project[0],
             table: "project",
           },
           {
             name: "reviewer reads its team board",
-            subject: SUBJECTS["reviewer"]!,
+            subject: defined(SUBJECTS["reviewer"]),
             permission: permissions.board.read,
             row: ROWS.board[0],
             table: "board",
@@ -553,7 +557,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
           return { rows: result.rows, rowCount: result.rowCount ?? 0 };
         },
       });
-      expect(report.results).toEqual([
+      expect(report.results).toStrictEqual([
         {
           name: "plus updates another task",
           granted: true,
@@ -676,7 +680,9 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
         shape.name === "custom_jwt" ? testerUri(db.uri, shape.name) : admin;
       const results = await runPgtap(uri, emitted.stdout);
       expect(results).toHaveLength(fixtures().length);
-      expect(results.filter((line) => !line.startsWith("ok - "))).toEqual([]);
+      expect(results.filter((line) => !line.startsWith("ok - "))).toStrictEqual(
+        [],
+      );
       const open = new Client({ connectionString: admin });
       await open.connect();
       try {
@@ -811,7 +817,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
             include: ["viewer"],
           }),
         ).toBe("ok");
-        expect(await stored("triage")).toEqual([
+        expect(await stored("triage")).toStrictEqual([
           "allow:task.update",
           "deny:project.read",
           "include:viewer",
@@ -888,13 +894,13 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
           "42501 not-assignable-by",
         );
         expect(await rename(ADMIN, "triage", "triage-2")).toBe("ok");
-        expect(await stored("triage")).toEqual([]);
+        expect(await stored("triage")).toStrictEqual([]);
         expect(await stored("triage-2")).toHaveLength(3);
         expect(await remove(SHADOW, "triage-2")).toBe(
           "42501 not-assignable-by",
         );
         expect(await remove(ADMIN, "triage-2")).toBe("ok");
-        expect(await stored("triage-2")).toEqual([]);
+        expect(await stored("triage-2")).toStrictEqual([]);
       } finally {
         await client.query("rollback");
         await client.end();

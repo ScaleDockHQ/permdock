@@ -22,15 +22,15 @@ describe("invariant 12: runtime entries depend on @standard-schema/spec only", (
         }
       }
     }
-    expect(leaked).toEqual([]);
+    expect(leaked).toStrictEqual([]);
   });
 
   it("keeps the core entry free of every package but optional peers", () => {
-    expect(packageImports(walk(ENTRIES["."]))).toEqual([]);
+    expect(packageImports(walk(ENTRIES["."]))).toStrictEqual([]);
   });
 
   it("keeps permdock/testing/core free of vitest and every other package", () => {
-    expect(packageImports(walk(ENTRIES["./testing/core"]))).toEqual([]);
+    expect(packageImports(walk(ENTRIES["./testing/core"]))).toStrictEqual([]);
   });
 
   it("keeps the feature entries free of every vendor package", () => {
@@ -40,7 +40,7 @@ describe("invariant 12: runtime entries depend on @standard-schema/spec only", (
       "./delivery",
       "./chat",
     ] as const) {
-      expect(packageImports(walk(ENTRIES[entry]))).toEqual([]);
+      expect(packageImports(walk(ENTRIES[entry]))).toStrictEqual([]);
     }
   });
 
@@ -49,7 +49,7 @@ describe("invariant 12: runtime entries depend on @standard-schema/spec only", (
     const manifest = JSON.parse(
       readFileSync(join(DIST, "..", "package.json"), "utf8"),
     ) as { readonly dependencies: Readonly<Record<string, string>> };
-    expect(Object.keys(manifest.dependencies).toSorted()).toEqual([
+    expect(Object.keys(manifest.dependencies).toSorted()).toStrictEqual([
       "@standard-schema/spec",
       "jiti",
       "oxc-parser",

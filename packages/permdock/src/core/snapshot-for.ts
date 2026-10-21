@@ -1,4 +1,5 @@
 import type { AuthEvent } from "./event-types.ts";
+import type { SnapshotInclude } from "./instance-snapshot.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type { Snapshot } from "./snapshot-types.ts";
 import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
@@ -6,7 +7,7 @@ import type { Instant } from "./time.ts";
 
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
-import { type SnapshotInclude, snapshotOf } from "./instance-snapshot.ts";
+import { snapshotOf } from "./instance-snapshot.ts";
 import { resolveSubject } from "./resolve-subject.ts";
 import { scopeList } from "./scopes.ts";
 import { tenantsOf } from "./tenancy.ts";
@@ -20,7 +21,10 @@ export type SnapshotForOptions = {
   readonly memberships?: readonly Membership[];
   /** The tenant's custom roles, typically from a shared, tagged cache. */
   readonly customRoles?: readonly CustomRole[];
-  /** Per tenant, the role names `CustomRoleSource.assignable` returns; narrows `assignable`. */
+  /**
+   * Per tenant, the role names `CustomRoleSource.assignable` returns; narrows
+   * `assignable`.
+   */
   readonly assignable?: Readonly<Record<string, readonly string[]>>;
   /** Plans of the active tenant; replaces `principal.plans`. */
   readonly plans?: readonly string[];
@@ -49,10 +53,10 @@ function withPlans(
 }
 
 /**
- * Builds the serializable access snapshot for a subject without a request,
- * a network call or a cache directive: call it inside the app's own
- * `'use cache: private'` function. Synchronous; the policy's `subject` and
- * `context` mappers must be synchronous too.
+ * Builds the serializable access snapshot for a subject without a request, a
+ * network call or a cache directive: call it inside the app's own `'use cache:
+ * private'` function. Synchronous; the policy's `subject` and `context` mappers
+ * must be synchronous too.
  */
 export function snapshotFor<
   TUser,

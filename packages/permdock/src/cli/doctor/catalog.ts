@@ -11,8 +11,8 @@ import { runUsage } from "../usage.ts";
 import { collectedOf, policyOf } from "./inputs.ts";
 
 /**
- * A policy that declares `oauthScopes` against a catalog on disk without
- * them, or with another set. `authorizationProvider` builds better-supabase's
+ * A policy that declares `oauthScopes` against a catalog on disk without them,
+ * or with another set. `authorizationProvider` builds better-supabase's
  * `delegation.scopes` from the catalog, so its SQL checks deny a token that
  * holds only the coarse scope.
  */

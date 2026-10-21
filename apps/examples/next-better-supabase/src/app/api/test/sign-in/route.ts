@@ -8,20 +8,18 @@ import { env } from "../../../../env.ts";
 import { audience, cookieName } from "../../../../lib/supabase/index.ts";
 import { issuer, postgres } from "../../../../lib/supabase/server.ts";
 
-const SignIn = z.object({
-  user: z.uuid(),
-  next: z.string().startsWith("/"),
-});
+const SignIn = z.object({ user: z.uuid(), next: z.string().startsWith("/") });
 
-const HookEvent = z.object({
-  claims: z.looseObject({ sub: z.string() }),
-});
+const HookEvent = z.object({ claims: z.looseObject({ sub: z.string() }) });
 
 const SigningKey = z.looseObject({ kty: z.string(), kid: z.string() });
 
 const TTL = 900;
 
-/** The claims Supabase Auth would issue, after the PermDock access-token hook ran as `supabase_auth_admin`. */
+/**
+ * The claims Supabase Auth would issue, after the PermDock access-token hook
+ * ran as `supabase_auth_admin`.
+ */
 async function hookClaims(
   user: string,
   now: number,
@@ -65,7 +63,10 @@ function sessionCookie(token: string, user: string, now: number): string {
   return `base64-${Buffer.from(JSON.stringify(session)).toString("base64url")}`;
 }
 
-/** `serve` build only: what Supabase Auth does at sign-in, against the inline JWKS's private key. */
+/**
+ * `serve` build only: what Supabase Auth does at sign-in, against the inline
+ * JWKS's private key.
+ */
 export async function GET(request: NextRequest): Promise<Response> {
   if (!env.demoSignIn || typeof env.signingKey !== "string") {
     return new Response(null, { status: 404 });

@@ -2,12 +2,9 @@ import { describe, expectTypeOf, it } from "vitest";
 
 import type { TokenSigner } from "../../src/core/interfaces.ts";
 import type { Snapshot } from "../../src/core/snapshot-types.ts";
+import type { PermDock, SnapshotOptions } from "../../src/index.ts";
 
-import {
-  type PermDock,
-  type SnapshotOptions,
-  snapshotFor,
-} from "../../src/index.ts";
+import { snapshotFor } from "../../src/index.ts";
 import { alice, policy } from "../fixtures/saas.ts";
 
 type NotSerializable =
@@ -19,9 +16,9 @@ type NotSerializable =
   | bigint;
 
 /**
- * `true` when no property, at any depth, is a function, Map, Set, Date,
- * symbol or bigint. Primitives are checked first: an open union
- * (`'a' | (string & {})`) is a string, not an object with string's methods.
+ * `true` when no property, at any depth, is a function, Map, Set, Date, symbol
+ * or bigint. Primitives are checked first: an open union (`'a' | (string &
+ * {})`) is a string, not an object with string's methods.
  */
 type Serializable<T, Depth extends unknown[] = []> = Depth["length"] extends 12
   ? true
@@ -39,7 +36,7 @@ type Serializable<T, Depth extends unknown[] = []> = Depth["length"] extends 12
             : true
           : true;
 
-describe("Snapshot", () => {
+describe("the Snapshot type", () => {
   it("holds only plain, serializable data", () => {
     expectTypeOf<Serializable<Snapshot>>().toEqualTypeOf<true>();
     expectTypeOf<

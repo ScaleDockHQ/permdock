@@ -1,10 +1,6 @@
 <script lang="ts">
-  import {
-    boundaryDigest,
-    boundaryFallback,
-    type PermissionBoundaryProps,
-    type PermissionBoundaryState,
-  } from './runtime.ts';
+  import { boundaryDigest, boundaryFallback } from './runtime.ts';
+import type { PermissionBoundaryProps, PermissionBoundaryState } from './runtime.ts';
 
   let { children, denied, approval }: PermissionBoundaryProps = $props();
 

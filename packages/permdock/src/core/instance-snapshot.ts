@@ -1,3 +1,4 @@
+import type { CustomGrant } from "./custom-roles.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
 import type { Snapshot, SnapshotAssignable } from "./snapshot-types.ts";
@@ -5,7 +6,7 @@ import type { CustomRole, Subject } from "./subject.ts";
 
 import { assignableIn } from "./assignable.ts";
 import { compact } from "./compact.ts";
-import { type CustomGrant, customGrantsFor } from "./custom-roles.ts";
+import { customGrantsFor } from "./custom-roles.ts";
 import { delegatedPermissions, readOnlyActorRefuses } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames } from "./held-roles.ts";
@@ -24,7 +25,10 @@ export type SnapshotInclude = readonly (
   | { readonly [key: string]: unknown }
 )[];
 
-/** The one path from a resolved subject to a `Snapshot`; pure apart from the default clock. */
+/**
+ * The one path from a resolved subject to a `Snapshot`; pure apart from the
+ * default clock.
+ */
 export function snapshotOf(
   policy: Policy,
   subject: Subject,
@@ -120,7 +124,10 @@ export function snapshotOf(
   );
 }
 
-/** The policy's scopes as snapshots and `permdock cloud push` carry them, with the resources each partitions. */
+/**
+ * The policy's scopes as snapshots and `permdock cloud push` carry them, with
+ * the resources each partitions.
+ */
 export function snapshotScopes(policy: Policy): Snapshot["scopes"] {
   if (policy.scopes.length === 0) {
     return undefined;

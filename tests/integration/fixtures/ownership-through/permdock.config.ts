@@ -1,4 +1,7 @@
-/** The ownership fixture with `org_members.role_id` referencing `org_roles (id, key)`. */
+/**
+ * The ownership fixture with `org_members.role_id` referencing `org_roles (id,
+ * key)`.
+ */
 export default {
   permissions: "../ownership/policy.ts",
   policy: "../ownership/policy.ts",

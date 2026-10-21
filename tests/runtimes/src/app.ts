@@ -31,8 +31,8 @@ const verify = jwtSubjectResolver({
 });
 
 /**
- * The JWT proves identity only; memberships and plans come from the seed, as
- * a verifying auth layer in front of a real app would load them.
+ * The JWT proves identity only; memberships and plans come from the seed, as a
+ * verifying auth layer in front of a real app would load them.
  */
 export async function subjectOf(
   authorization: string | null | undefined,
@@ -89,9 +89,7 @@ const authzen = createAuthzen(saasPolicy, {
     // SAFETY: `principal` and `id` are optional; optional chaining covers null
     (pep as { principal?: { id?: string } } | null)?.principal?.id === "pep",
   resources: { project: { data: (id) => projectOf(id) } },
-  memberships: {
-    membershipsFor: (principal) => saasMemberships(principal.id),
-  },
+  memberships: { membershipsFor: (principal) => saasMemberships(principal.id) },
   customRoles,
 });
 

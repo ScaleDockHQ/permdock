@@ -44,7 +44,10 @@ function routedBefore(
   );
 }
 
-/** Cloud routes that are missing, incomplete or shadowed by the `/(.*)` catch-all. */
+/**
+ * Cloud routes that are missing, incomplete or shadowed by the `/(.*)`
+ * catch-all.
+ */
 function cloudRouteDrift(rules: readonly Rule[]): readonly string[] {
   const cloud = rules.filter(
     (rule) =>
@@ -90,7 +93,10 @@ function localDocsSources(root: string): ReadonlySet<string> {
   return local;
 }
 
-/** Paths vercel.json sends to the `docs` service that the marketing dev rewrites miss, and the reverse. */
+/**
+ * Paths vercel.json sends to the `docs` service that the marketing dev rewrites
+ * miss, and the reverse.
+ */
 export function rewriteDrift(root: string): readonly string[] {
   const rules = loadRules(root);
   const deployed = new Set(

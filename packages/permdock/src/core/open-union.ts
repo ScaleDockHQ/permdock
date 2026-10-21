@@ -7,7 +7,10 @@
  */
 export type OpenUnion<T extends string> = T | (string & NonNullable<unknown>);
 
-/** `actor.kind`: the values PermDock's adapters set, or an integrator's own; a policy delegation matches it by equality. */
+/**
+ * `actor.kind`: the values PermDock's adapters set, or an integrator's own; a
+ * policy delegation matches it by equality.
+ */
 export type ActorKind = OpenUnion<
   | "mcp-client"
   | "oauth-client"
@@ -26,7 +29,10 @@ export type ActorKind = OpenUnion<
   | "workload"
 >;
 
-/** The adapter a decision event names: a PermDock entry, or an integrator's own adapter. */
+/**
+ * The adapter a decision event names: a PermDock entry, or an integrator's own
+ * adapter.
+ */
 export type AdapterId = OpenUnion<
   | "server"
   | "next"
@@ -60,7 +66,10 @@ export type AdapterId = OpenUnion<
   | "delivery"
 >;
 
-/** How a membership was obtained (`membership.via`); `viaOnly` and support rules match it by equality. */
+/**
+ * How a membership was obtained (`membership.via`); `viaOnly` and support rules
+ * match it by equality.
+ */
 export type MembershipVia = OpenUnion<
   | "direct"
   | "contact"

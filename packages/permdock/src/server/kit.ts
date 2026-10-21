@@ -1,8 +1,8 @@
 /**
- * The kit every HTTP adapter builds on: its runtime imports come from here
- * (and `../node/http.ts` for the Node request bridge), never from core or
- * another adapter. The lint rule in `oxlint.config.ts` enforces it; type
- * imports may still name core types directly.
+ * The kit every HTTP adapter builds on: its runtime imports come from here (and
+ * `../node/http.ts` for the Node request bridge), never from core or another
+ * adapter. The lint rule in `oxlint.config.ts` enforces it; type imports may
+ * still name core types directly.
  */
 export { compact } from "../core/compact.ts";
 export {

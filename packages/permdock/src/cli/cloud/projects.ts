@@ -1,12 +1,16 @@
+import type { ProblemCode } from "../core/errors.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { CliIo } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
-import { CLI_ERRORS_URL, type ProblemCode } from "../core/errors.ts";
+import { CLI_ERRORS_URL } from "../core/errors.ts";
 import { authFailure, httpRequest } from "../core/http.ts";
 import { POLICY_NOT_PUBLISHED } from "./problem-types.ts";
 
-/** `GET /v1/projects/{id}/policy`: what the project's last `cloud push` sent, as pushed. */
+/**
+ * `GET /v1/projects/{id}/policy`: what the project's last `cloud push` sent, as
+ * pushed.
+ */
 export type ProjectPolicy = {
   readonly v: 1;
   readonly project: string;
@@ -18,10 +22,7 @@ export type ProjectPolicy = {
   readonly policy?: Readonly<Record<string, unknown>>;
 };
 
-export type ProjectSummary = {
-  readonly id: string;
-  readonly name?: string;
-};
+export type ProjectSummary = { readonly id: string; readonly name?: string };
 
 type Failure = { readonly ok: false; readonly result: CommandResult };
 
@@ -178,10 +179,7 @@ export async function projectPolicy(
   project: string,
 ): Promise<{ readonly ok: true; readonly value: ProjectPolicy } | Failure> {
   const fetched = await get(
-    {
-      ...request,
-      path: `/v1/projects/${encodeURIComponent(project)}/policy`,
-    },
+    { ...request, path: `/v1/projects/${encodeURIComponent(project)}/policy` },
     `project ${project}`,
   );
   if (!fetched.ok) {

@@ -10,7 +10,10 @@ import { rowIdOf } from "../row-pair.ts";
 import { decisionToken, tokenPayload, versionOf } from "../token.ts";
 import { complete } from "./complete.ts";
 
-/** The `granted` or `approval-required` decision for the chosen allow, with its token. */
+/**
+ * The `granted` or `approval-required` decision for the chosen allow, with its
+ * token.
+ */
 export function allowedDecision(
   state: EvaluationState,
   allow: Allow,
@@ -56,12 +59,7 @@ export function allowedDecision(
   return complete(
     state,
     requiresApproval(approval)
-      ? {
-          outcome: "approval-required",
-          grant: matched,
-          reason: "human",
-          token,
-        }
+      ? { outcome: "approval-required", grant: matched, reason: "human", token }
       : {
           outcome: "granted",
           subject,

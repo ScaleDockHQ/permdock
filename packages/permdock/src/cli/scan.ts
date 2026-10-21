@@ -1,11 +1,7 @@
+import type { Program, VisitorObject } from "oxc-parser";
+
 import { readFileSync } from "node:fs";
-import {
-  type Program,
-  type VisitorObject,
-  Visitor,
-  parseSync,
-  visitorKeys,
-} from "oxc-parser";
+import { Visitor, parseSync, visitorKeys } from "oxc-parser";
 
 import type {
   CatalogUsage,
@@ -18,7 +14,10 @@ import type {
 import { describeError } from "./core/errors.ts";
 import { rel } from "./files.ts";
 
-/** oxc reports recoverable problems as `Warning` or `Advice`; only `Error` leaves the program incomplete. */
+/**
+ * oxc reports recoverable problems as `Warning` or `Advice`; only `Error`
+ * leaves the program incomplete.
+ */
 const PARSE_ERRORS: ReadonlySet<string> = new Set(["Error"]);
 
 const CHECK_CALLS: ReadonlySet<string> = new Set([
@@ -117,11 +116,7 @@ export function scanSources(
       }
       parsed.push({ file, source, program: result.program });
     } catch (error) {
-      unparsed.push({
-        file: fileRel,
-        line: 1,
-        message: describeError(error),
-      });
+      unparsed.push({ file: fileRel, line: 1, message: describeError(error) });
     }
   }
   // Every `definePermissions` binding name, so an import of one resolves in any file.
@@ -222,7 +217,8 @@ function includeOf(
     (item) => item.key?.name === "include",
   );
   if (property === undefined) {
-    return options.properties?.some((item) => item.type === "SpreadElement")
+    return options.properties?.some((item) => item.type === "SpreadElement") ===
+      true
       ? null
       : undefined;
   }
@@ -264,7 +260,10 @@ function isDefinePermissions(node: Estree | null | undefined): boolean {
   );
 }
 
-/** An import binding of a permission tree: by its imported name, or a default import named `permissions`. */
+/**
+ * An import binding of a permission tree: by its imported name, or a default
+ * import named `permissions`.
+ */
 function importsRoot(spec: Estree, definitions: ReadonlySet<string>): boolean {
   if (spec.type === "ImportSpecifier") {
     const value = spec.imported?.value;
@@ -364,7 +363,10 @@ const FUNCTION_SCOPES: ReadonlySet<string | undefined> = new Set([
   "ArrowFunctionExpression",
 ]);
 
-/** The names a scope node declares, each with whether it is a permission tree; `undefined` for a node that opens no scope. */
+/**
+ * The names a scope node declares, each with whether it is a permission tree;
+ * `undefined` for a node that opens no scope.
+ */
 function bindingsOf(
   node: Estree,
   definitions: ReadonlySet<string>,
@@ -535,11 +537,7 @@ function recordMember(
     return;
   }
   const call = callName(parent);
-  const usage = {
-    file: fileRel,
-    line: lineAt(node.start),
-    call,
-  };
+  const usage = { file: fileRel, line: lineAt(node.start), call };
   if (call === "allow") {
     allowKeys.add(key);
   }
@@ -695,7 +693,10 @@ function collectObjectKeys(node: Estree | undefined, into: Set<string>): void {
   }
 }
 
-/** Every node in source order, with its parent: Oxc nodes carry none, so enter and exit keep a stack. */
+/**
+ * Every node in source order, with its parent: Oxc nodes carry none, so enter
+ * and exit keep a stack.
+ */
 function walk(
   program: Program,
   visit: (

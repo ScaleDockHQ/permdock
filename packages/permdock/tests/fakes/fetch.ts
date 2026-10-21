@@ -10,6 +10,23 @@ export type FakeFetch = {
   readonly calls: FetchCall[];
 };
 
+/** The URL a `fetch` input requests. */
+export function requestUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  return input instanceof URL ? input.href : input.url;
+}
+
+/** A string or form body as text; any other body is `""`. */
+export function requestBody(init?: RequestInit): string {
+  const body = init?.body;
+  if (typeof body === "string") {
+    return body;
+  }
+  return body instanceof URLSearchParams ? body.toString() : "";
+}
+
 /** A JSON response with `content-type: application/json`. */
 export function json(
   body: unknown,
@@ -24,8 +41,8 @@ export function json(
 
 /**
  * A `fetch` that records each request and answers through `reply`; a request
- * `reply` returns nothing for is answered 404. A thrown value becomes a
- * network failure.
+ * `reply` returns nothing for is answered 404. A thrown value becomes a network
+ * failure.
  */
 export function fakeFetch(
   reply: (

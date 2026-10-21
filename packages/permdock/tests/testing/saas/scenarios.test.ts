@@ -100,12 +100,12 @@ describe("saas scenario helpers", () => {
 
   it("primes each subject and tenant once with the used units", async () => {
     const store = saasLimitStore(3);
-    expect(store.remaining(input)).toEqual({ remaining: 2 });
-    expect(await store.consume(input)).toEqual({ remaining: 1 });
-    expect(store.remaining({ ...input, tenant: "globex" })).toEqual({
+    expect(store.remaining(input)).toStrictEqual({ remaining: 2 });
+    expect(await store.consume(input)).toStrictEqual({ remaining: 1 });
+    expect(store.remaining({ ...input, tenant: "globex" })).toStrictEqual({
       remaining: 2,
     });
-    expect(saasLimitStore().remaining(input)).toEqual({ remaining: 5 });
+    expect(saasLimitStore().remaining(input)).toStrictEqual({ remaining: 5 });
   });
 
   it("builds a principal, or a subject when an actor or delegation is set", () => {
@@ -125,7 +125,7 @@ describe("saas scenario helpers", () => {
           expected: base.expected,
         }),
       ),
-    }).toEqual({
+    }).toStrictEqual({
       plain: saasPrincipal("bob", "acme"),
       delegated: {
         principal: saasPrincipal("bob", "acme"),
@@ -182,10 +182,7 @@ describe("saas seed", () => {
     // SAFETY: deliberately incomplete project row to exercise boundary validation.
     const decision = permdock.decide(
       saasPermissions.project.update,
-      {
-        id: "p1",
-        orgId: "acme",
-      } as never,
+      { id: "p1", orgId: "acme" } as never,
       { trusted: false },
     );
     expect(reasonOf(decision)).toBe("validation");
@@ -225,13 +222,13 @@ describe("saas tokens", () => {
         currentDate: new Date(1_900_000_100_000),
       },
     );
-    expect(protectedHeader).toEqual({
+    expect(protectedHeader).toStrictEqual({
       alg: "ES256",
       kid: "e2e",
       typ: "at+jwt",
     });
     expect(payload.sub).toBe("alice");
-    expect(payload["memberships"]).toEqual([
+    expect(payload["memberships"]).toStrictEqual([
       { tenant: "acme", roles: ["admin"] },
       { tenant: "globex", roles: ["viewer"] },
     ]);

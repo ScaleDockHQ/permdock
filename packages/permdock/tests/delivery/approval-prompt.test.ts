@@ -23,12 +23,12 @@ const request: ApprovalRequest = {
   status: "pending",
 };
 
-describe("approvalPrompt", () => {
+describe(approvalPrompt, () => {
   it("is ApprovalPrompt v1 without the token, roles or membership", () => {
     const prompt = approvalPrompt(request, {
       operation: deliveryOperations["invoice.send"],
     });
-    expect(prompt).toEqual({
+    expect(prompt).toStrictEqual({
       v: 1,
       id: "apr_1",
       permission: "invoice.pay",
@@ -60,7 +60,7 @@ describe("approvalPrompt", () => {
   });
 });
 
-describe("approvalUrlFor", () => {
+describe(approvalUrlFor, () => {
   const prompt = approvalPrompt(request);
 
   it("appends the request id to a base URL", () => {

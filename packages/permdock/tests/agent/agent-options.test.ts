@@ -65,7 +65,7 @@ describe("agent adapter options", () => {
       type: "denied",
       reason: expect.stringMatching(/^Refused\. /u),
     });
-    expect(calls).toEqual(["otel", "wrap"]);
+    expect(calls).toStrictEqual(["otel", "wrap"]);
   });
 
   it("permdock/openai keeps unmapped tools under unmapped: 'allow' and leaves their interruptions", async () => {
@@ -82,7 +82,10 @@ describe("agent adapter options", () => {
       [{ name: "list_posts" }, { name: "publish_post" }, { name: "weather" }],
       {},
     );
-    expect(kept.map((tool) => tool.name)).toEqual(["list_posts", "weather"]);
+    expect(kept.map((tool) => tool.name)).toStrictEqual([
+      "list_posts",
+      "weather",
+    ]);
     const outcomes: string[] = [];
     // SAFETY: the two fields resolveInterruptions reads.
     const items = [
@@ -100,10 +103,10 @@ describe("agent adapter options", () => {
       items,
       { context: {} },
     );
-    expect(outcomes).toEqual(["reject:publish_post:Refused."]);
+    expect(outcomes).toStrictEqual(["reject:publish_post:Refused."]);
     const permdock = await getPermDock({ user: "x" });
     expect(permdock.subject.context).toMatchObject({ channel: "chat" });
-    expect(calls.slice(0, 2)).toEqual(["otel", "wrap"]);
+    expect(calls.slice(0, 2)).toStrictEqual(["otel", "wrap"]);
   });
 
   it("permdock/openai denies unmapped tools by default", async () => {
@@ -112,7 +115,7 @@ describe("agent adapter options", () => {
       operations,
     });
     const kept = await guardTools([{ name: "weather" }], {});
-    expect(kept).toEqual([]);
+    expect(kept).toStrictEqual([]);
   });
 
   it("permdock/claude-agent allows an unmapped tool from canUseTool and leaves the hook undecided", async () => {
@@ -122,7 +125,7 @@ describe("agent adapter options", () => {
       unmapped: "allow",
       deniedText,
     });
-    expect(await canUseTool("Read", { file: "a" })).toEqual({
+    expect(await canUseTool("Read", { file: "a" })).toStrictEqual({
       behavior: "allow",
       updatedInput: { file: "a" },
     });
@@ -132,7 +135,7 @@ describe("agent adapter options", () => {
         tool_name: "Read",
         tool_input: {},
       }),
-    ).toEqual({});
+    ).toStrictEqual({});
     expect(await canUseTool("publish_post", { id: ownPost.id })).toMatchObject({
       behavior: "deny",
       message: expect.stringMatching(/^Refused\. /u),
@@ -141,9 +144,7 @@ describe("agent adapter options", () => {
       await canUseTool(
         "mcp__other__tool",
         {},
-        {
-          mcpServer: { name: "other", source: "remote" },
-        },
+        { mcpServer: { name: "other", source: "remote" } },
       ),
     ).toMatchObject({ behavior: "deny" });
   });
@@ -165,18 +166,15 @@ describe("agent adapter options", () => {
         toolName: "publish_post",
         toolInput: { id: ownPost.id },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       type: "denied",
       reason: expect.stringMatching(/^Refused\. /u),
     });
-    expect(calls).toEqual(["otel", "wrap"]);
+    expect(calls).toStrictEqual(["otel", "wrap"]);
   });
 
   it("permdock/eve denies an unmapped tool by default", async () => {
-    const { approval } = eve(policy, {
-      subject: () => memberUser,
-      operations,
-    });
+    const { approval } = eve(policy, { subject: () => memberUser, operations });
     expect(await approval.request({ toolName: "weather" })).toMatchObject({
       type: "denied",
     });

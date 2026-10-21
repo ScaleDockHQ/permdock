@@ -1,12 +1,16 @@
 import type { ProblemDetails } from "../core/errors.ts";
 import type { Actor, JsonWebKeyLike } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
 
 import { compact } from "../core/compact.ts";
-import { type Instant, secondsAt } from "../core/time.ts";
+import { secondsAt } from "../core/time.ts";
 import { timeoutSignal } from "../core/timeout.ts";
 import { PROBLEM_BASE, problemResponse } from "./problem.ts";
 
-/** Milliseconds a key directory fetch may take before the signature counts as unverifiable. */
+/**
+ * Milliseconds a key directory fetch may take before the signature counts as
+ * unverifiable.
+ */
 const DIRECTORY_TIMEOUT_MS = 5000;
 
 const DEFAULT_MAX_AGE = 300;
@@ -25,9 +29,7 @@ export type WebBotAuthKeyLookup = (input: {
   readonly agent: string | undefined;
 }) => WebBotAuthJwk | undefined | Promise<WebBotAuthJwk | undefined>;
 
-export type WebBotAuthKeys = {
-  readonly lookup: WebBotAuthKeyLookup;
-};
+export type WebBotAuthKeys = { readonly lookup: WebBotAuthKeyLookup };
 
 export type WebBotAuthOptions = {
   readonly verify?: boolean;
@@ -39,13 +41,16 @@ export type WebBotAuthOptions = {
 };
 
 /**
- * An adapter's `webBotAuth` option: `webBotAuthVerifier(options)`,
- * so an app without it does not bundle RFC 9421 verification.
+ * An adapter's `webBotAuth` option: `webBotAuthVerifier(options)`, so an app
+ * without it does not bundle RFC 9421 verification.
  */
 export type WebBotAuthVerifier = {
   readonly name?: string;
-  /** The verified signer as an actor, `undefined` for an unsigned request; throws `InvalidSignatureError` for a bad signature. */
-  verify(request: Request): Promise<Actor | undefined>;
+  /**
+   * The verified signer as an actor, `undefined` for an unsigned request;
+   * throws `InvalidSignatureError` for a bad signature.
+   */
+  verify: (request: Request) => Promise<Actor | undefined>;
 };
 
 export type DiscoverViaSignatureAgentOptions = {
@@ -332,7 +337,9 @@ function dictionaryMember(header: string, label: string): string | undefined {
   return undefined;
 }
 
-function parseInnerListAndParams(value: string):
+function parseInnerListAndParams(
+  value: string,
+):
   | {
       readonly components: readonly string[];
       readonly created?: number;

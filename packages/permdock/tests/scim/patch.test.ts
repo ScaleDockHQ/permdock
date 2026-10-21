@@ -8,7 +8,7 @@ import {
 } from "../../src/scim/patch.ts";
 import { ROLES_EXTENSION } from "../../src/scim/types.ts";
 
-describe("normalizePatchOps", () => {
+describe(normalizePatchOps, () => {
   it.each<[string, unknown, readonly ScimPatchOp[]]>([
     [
       "op names case-insensitively",
@@ -115,7 +115,7 @@ describe("normalizePatchOps", () => {
       [{ op: "add", value: "x" }],
     ],
   ])("normalizes %s", (_label, raw, expected) => {
-    expect(normalizePatchOps([raw])).toEqual(expected);
+    expect(normalizePatchOps([raw])).toStrictEqual(expected);
   });
 
   it.each<[string, unknown]>([
@@ -129,7 +129,7 @@ describe("normalizePatchOps", () => {
   });
 });
 
-describe("readPatchOperations", () => {
+describe(readPatchOperations, () => {
   it.each<[unknown, readonly unknown[] | undefined]>([
     [{ Operations: [{ op: "add" }] }, [{ op: "add" }]],
     [{ operations: [] }, []],
@@ -139,6 +139,6 @@ describe("readPatchOperations", () => {
     [null, undefined],
     ["text", undefined],
   ])("%j", (body, expected) => {
-    expect(readPatchOperations(body)).toEqual(expected);
+    expect(readPatchOperations(body)).toStrictEqual(expected);
   });
 });

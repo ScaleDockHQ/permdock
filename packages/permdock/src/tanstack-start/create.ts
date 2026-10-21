@@ -1,8 +1,9 @@
-import {
-  type RequestMiddleware,
-  type RequestMiddlewareAfterServer,
-  createMiddleware,
+import type {
+  RequestMiddleware,
+  RequestMiddlewareAfterServer,
 } from "@tanstack/react-start";
+
+import { createMiddleware } from "@tanstack/react-start";
 
 import type { Operation, OperationInput } from "../core/operations.ts";
 import type { PermDock } from "../core/permdock.ts";
@@ -29,7 +30,10 @@ export type TanStackStartPermDockOptions<TUser = unknown> = FetchAdapterOptions<
   TUser
 >;
 
-/** The server context `middleware()` adds for later middleware, server functions and server routes. */
+/**
+ * The server context `middleware()` adds for later middleware, server functions
+ * and server routes.
+ */
 export type TanStackStartPermDockContext<
   V extends PolicyVocabulary = PolicyVocabulary,
 > = { readonly permdock: PermDock<V> };
@@ -40,14 +44,20 @@ export type TanStackStartGuardedContext<
   V extends PolicyVocabulary = PolicyVocabulary,
 > = TanStackStartPermDockContext<V> & { readonly permdockData: TData };
 
-/** A request middleware for `createStart`'s `requestMiddleware`, a server route's `server.middleware` or a server function's `.middleware([...])`. */
+/**
+ * A request middleware for `createStart`'s `requestMiddleware`, a server
+ * route's `server.middleware` or a server function's `.middleware([...])`.
+ */
 export type TanStackStartMiddleware<TContext> = RequestMiddlewareAfterServer<
   StartRegister,
   undefined,
   TContext
 >;
 
-/** The register `createMiddleware` builds with; Start's middleware types are invariant in it. */
+/**
+ * The register `createMiddleware` builds with; Start's middleware types are
+ * invariant in it.
+ */
 type StartRegister =
   ReturnType<typeof createMiddleware> extends RequestMiddleware<infer TRegister>
     ? TRegister
@@ -86,7 +96,10 @@ export type TanStackStartPermDock<
   readonly middleware: () => TanStackStartMiddleware<
     TanStackStartPermDockContext<V>
   >;
-  /** A refusal ends the request with Problem Details; a grant adds `context.permdock` and `context.permdockData`. */
+  /**
+   * A refusal ends the request with Problem Details; a grant adds
+   * `context.permdock` and `context.permdockData`.
+   */
   readonly protect: TanStackStartProtect<V>;
   /** The instance for a server function: `getPermDock(getRequest())`. */
   readonly getPermDock: (request: Request) => Promise<PermDock<V>>;

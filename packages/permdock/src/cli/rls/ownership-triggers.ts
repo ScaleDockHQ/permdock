@@ -16,7 +16,10 @@ export function objectName(prefix: string, scope: string): string {
   return quoteIdent(`${prefix}_${scope}`);
 }
 
-/** Live holders of `roleExpr` in instance `idExpr`, with the same kind and expiry rules as the helpers. */
+/**
+ * Live holders of `roleExpr` in instance `idExpr`, with the same kind and
+ * expiry rules as the helpers.
+ */
 function holdersSql(
   ctx: RlsSqlContext,
   table: RlsMembershipTable,
@@ -125,10 +128,10 @@ create constraint trigger ${objectName(OWNERSHIP.holders, scope)}
 }
 
 /**
- * `transferOnly` as statement triggers over transition tables: a statement
- * that changes a role's holder count in an instance that had holders before
- * and still has some after is refused. Creating the first holder and removing
- * the last (which `min` guards) are not transfers.
+ * `transferOnly` as statement triggers over transition tables: a statement that
+ * changes a role's holder count in an instance that had holders before and
+ * still has some after is refused. Creating the first holder and removing the
+ * last (which `min` guards) are not transfers.
  */
 export function transferTriggerSql(
   ctx: RlsSqlContext,

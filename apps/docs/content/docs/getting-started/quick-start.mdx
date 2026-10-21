@@ -32,10 +32,7 @@ export const permissions = definePermissions({
   ),
 });
 
-export const roles = defineRoles({
-  member: {},
-  admin: {},
-});
+export const roles = defineRoles({ member: {}, admin: {} });
 ```
 
 `permissions.post.update` is a `Permission<'post.update', Post>`: a plain frozen object with `key` (`'post.update'`), `scope` (`'post:update'`), `resource`, `action` and `meta`. Because the schema lives on the resource node and not on the leaf, a leaf can be passed as a React prop across the RSC boundary or logged as JSON. See [permissions](/docs/concepts/permissions).
@@ -156,9 +153,7 @@ import { cookies } from "next/headers";
 import { policy } from "@/policy";
 
 export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
-  createPermDock(policy, {
-    subject: async () => getUser(await cookies()),
-  });
+  createPermDock(policy, { subject: async () => getUser(await cookies()) });
 ```
 
 ```tsx

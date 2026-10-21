@@ -1,10 +1,11 @@
 import type { Decision } from "../core/decision.ts";
+import type { RevokedCode } from "../core/errors.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { RevocationEvent, RevocationFeed } from "../core/revocations.ts";
 
 import { compact } from "../core/compact.ts";
-import { PermDockRevokedError, type RevokedCode } from "../core/errors.ts";
+import { PermDockRevokedError } from "../core/errors.ts";
 import { durationOf, epochSeconds } from "../core/time.ts";
 
 /** `setTimeout` stores delays in a signed 32-bit integer. */
@@ -15,7 +16,10 @@ export type ConnectionData<T> =
   | (() => T | null | undefined | Promise<T | null | undefined>);
 
 export type ConnectionOptions<T = unknown> = {
-  /** The permission the stream or socket is opened for; re-checked after every revalidation. */
+  /**
+   * The permission the stream or socket is opened for; re-checked after every
+   * revalidation.
+   */
   readonly permission?: Permission;
   /** The row for `permission`, or a loader re-run on every revalidation. */
   readonly data?: ConnectionData<T>;
@@ -29,8 +33,8 @@ export type Connection = {
   /** Aborts with a `PermDockRevokedError` when the connection must end. */
   readonly signal: AbortSignal;
   /**
-   * Per-message decision. Data is validated against the resource schema
-   * first unless `{ trusted: true }` marks it as a row the server loaded.
+   * Per-message decision. Data is validated against the resource schema first
+   * unless `{ trusted: true }` marks it as a row the server loaded.
    */
   readonly check: (
     permission: Permission,
@@ -211,41 +215,41 @@ export async function openConnection<T>(
 
   let schedule: ((permdock: PermDock) => void) | undefined;
 
+  const step = async (): Promise<void> => {
+    if (controller.signal.aborted || closed) {
+      return;
+    }
+    let rebuilt: PermDock;
+    try {
+      rebuilt = await input.rebuild();
+    } catch {
+      abort("subject-changed");
+      return;
+    }
+    const id = principalId(rebuilt);
+    if (
+      id === undefined ||
+      current === undefined ||
+      id !== principalId(current)
+    ) {
+      abort("subject-changed");
+      return;
+    }
+    if (!(await admits(rebuilt))) {
+      return;
+    }
+    current = rebuilt;
+    for (const timer of timers) {
+      clearTimeout(timer);
+    }
+    timers.clear();
+    schedule?.(rebuilt);
+  };
+
   const revalidate = (): void => {
-    chain = chain
-      .then(async () => {
-        if (controller.signal.aborted || closed) {
-          return;
-        }
-        let next: PermDock;
-        try {
-          next = await input.rebuild();
-        } catch {
-          abort("subject-changed");
-          return;
-        }
-        const id = principalId(next);
-        if (
-          id === undefined ||
-          current === undefined ||
-          id !== principalId(current)
-        ) {
-          abort("subject-changed");
-          return;
-        }
-        if (!(await admits(next))) {
-          return;
-        }
-        current = next;
-        for (const timer of timers) {
-          clearTimeout(timer);
-        }
-        timers.clear();
-        schedule?.(next);
-      })
-      .catch(() => {
-        abort("subject-changed");
-      });
+    chain = chain.then(step).catch(() => {
+      abort("subject-changed");
+    });
   };
 
   schedule = (permdock: PermDock): void => {

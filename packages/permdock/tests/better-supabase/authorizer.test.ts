@@ -104,7 +104,7 @@ const request = (
 const pd = authorizer({ policy });
 const row = { id: "q1", organization_id: ORG };
 
-describe("authorizer", () => {
+describe(authorizer, () => {
   it("conforms to better-supabase's authorizer contract", async () => {
     await testAuthorizer(pd, {
       permissions: [quote.read, quote.update],
@@ -130,13 +130,9 @@ describe("authorizer", () => {
   it("grants a held permission for the claims' memberships", async () => {
     expect(
       await pd.evaluate(
-        request(quote.read, {
-          claims: claims(),
-          tenant: ORG,
-          properties: row,
-        }),
+        request(quote.read, { claims: claims(), tenant: ORG, properties: row }),
       ),
-    ).toEqual({ outcome: "granted" });
+    ).toStrictEqual({ outcome: "granted" });
   });
 
   it("denies a permission a deny overrides", async () => {
@@ -236,12 +232,12 @@ describe("authorizer", () => {
   });
 
   it("answers a batch in order with one instance per caller", async () => {
-    const outcomes = await pd.evaluations!([
+    const outcomes = await pd.evaluations?.([
       request(quote.read, { claims: claims(), tenant: ORG, properties: row }),
       request(quote.delete, { claims: claims(), tenant: ORG, properties: row }),
       request(quote.read, { tenant: ORG, properties: row }),
     ]);
-    expect(outcomes.map((o) => o.outcome)).toEqual([
+    expect(outcomes?.map((o) => o.outcome)).toStrictEqual([
       "granted",
       "denied",
       "denied",

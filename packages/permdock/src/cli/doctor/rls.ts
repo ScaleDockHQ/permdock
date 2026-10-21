@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 
+import type { Policy } from "../../index.ts";
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { RlsActions } from "../types.ts";
@@ -7,7 +8,7 @@ import type { RlsActions } from "../types.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { scopeList } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
-import { type Policy, hasConditionOp, listPermissions } from "../../index.ts";
+import { hasConditionOp, listPermissions } from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
 import { sqlFiles } from "../files.ts";
 import { graphPlan } from "../rls/graph.ts";
@@ -137,7 +138,10 @@ export async function pd020(
   ];
 }
 
-/** Columns of `resource` a field-limited read grant can hide: missing from an allow's list, or on a deny's. */
+/**
+ * Columns of `resource` a field-limited read grant can hide: missing from an
+ * allow's list, or on a deny's.
+ */
 function limitedColumns(
   policy: Policy,
   resource: string,
@@ -174,8 +178,8 @@ function limitedColumns(
 
 /**
  * `fields` redact in the application; RLS is row-level unless field views
- * compile, and a field view protects nothing while the base table still
- * returns the columns to a direct read.
+ * compile, and a field view protects nothing while the base table still returns
+ * the columns to a direct read.
  */
 export async function pd030(
   input: DoctorInput,
@@ -228,9 +232,9 @@ export async function pd030(
 }
 
 /**
- * A self-parented resource no `through` grant walks, or a `restricted`
- * column no graph grant reaches: the declaration has no effect on any
- * decision, and `rls generate` keeps no closure for it.
+ * A self-parented resource no `through` grant walks, or a `restricted` column
+ * no graph grant reaches: the declaration has no effect on any decision, and
+ * `rls generate` keeps no closure for it.
  */
 export async function pd031(
   input: DoctorInput,
@@ -274,8 +278,8 @@ export async function pd031(
 
 /**
  * Under an `rls` config, a graph resource `rls generate` cannot name a helper
- * for: one that shares a scope's name (its `permitted_<name>_ids` would
- * replace the scope helper) or is not a lowercase SQL name.
+ * for: one that shares a scope's name (its `permitted_<name>_ids` would replace
+ * the scope helper) or is not a lowercase SQL name.
  */
 export async function pd032(
   input: DoctorInput,
@@ -353,10 +357,10 @@ export async function pd034(
 }
 
 /**
- * PD076: `rls.actions` entries set to `'none'` that change nothing: a verb
- * that is not one of the six default verbs and does not read as a write
- * compiles to no policy anyway, and a verb no permission uses compiles to
- * nothing at all. A write-sounding `none` stays, because it silences PD071.
+ * PD076: `rls.actions` entries set to `'none'` that change nothing: a verb that
+ * is not one of the six default verbs and does not read as a write compiles to
+ * no policy anyway, and a verb no permission uses compiles to nothing at all. A
+ * write-sounding `none` stays, because it silences PD071.
  */
 export async function pd076(
   input: DoctorInput,
@@ -410,8 +414,9 @@ export async function pd076(
 }
 
 /**
- * Storage and Realtime policies written outside PermDock that call the SQL helpers for a permission whose grants
- * carry row conditions: the helpers check only role and scope.
+ * Storage and Realtime policies written outside PermDock that call the SQL
+ * helpers for a permission whose grants carry row conditions: the helpers check
+ * only role and scope.
  */
 export async function pd037(
   input: DoctorInput,
@@ -463,7 +468,10 @@ const WRITE_VERB_PREFIXES = [
   "pause",
 ] as const;
 
-/** `verb` starts with a write prefix that ends at a word boundary: `markPaid`, not `market`. */
+/**
+ * `verb` starts with a write prefix that ends at a word boundary: `markPaid`,
+ * not `market`.
+ */
 function suggestsWrite(verb: string): boolean {
   return WRITE_VERB_PREFIXES.some((prefix) => {
     if (!verb.startsWith(prefix)) {
@@ -496,17 +504,19 @@ export async function pd071(
     }
     byVerb.set(leaf.action, [...(byVerb.get(leaf.action) ?? []), leaf.key]);
   }
-  return [...byVerb.entries()].toSorted(byKey).map(([verb, keys]) => ({
-    code: "PD071",
-    severity: "warning" as const,
-    message: `action '${verb}' (${keys.toSorted().join(", ")}) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy`,
-    fix: `map it on purpose in rls.actions: ${verb}: "insert", "update", "delete" or "none"`,
-  }));
+  return [...byVerb.entries()]
+    .toSorted(byKey)
+    .map(([verb, keys]) => ({
+      code: "PD071",
+      severity: "warning" as const,
+      message: `action '${verb}' (${keys.toSorted().join(", ")}) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy`,
+      fix: `map it on purpose in rls.actions: ${verb}: "insert", "update", "delete" or "none"`,
+    }));
 }
 
 /**
- * PD072: a membership source reads role keys through the table of custom
- * roles (`rls.customRoleWrites.roles`), which tenants write.
+ * PD072: a membership source reads role keys through the table of custom roles
+ * (`rls.customRoleWrites.roles`), which tenants write.
  */
 export function pd072(input: DoctorInput): readonly DoctorFinding[] {
   const roles = input.config.rls?.customRoleWrites?.roles;

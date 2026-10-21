@@ -19,7 +19,10 @@ export type AuthzenAction = { readonly name: string };
 /** One `search/subject` result. */
 export type AuthzenSubject = { readonly type: "user"; readonly id: string };
 
-/** What `search/subject` asks a lister for: candidates of `type` for one action on one resource. */
+/**
+ * What `search/subject` asks a lister for: candidates of `type` for one action
+ * on one resource.
+ */
 export type AuthzenSubjectQuery = {
   readonly type: string;
   readonly action: AuthzenEntity;
@@ -28,9 +31,9 @@ export type AuthzenSubjectQuery = {
 };
 
 /**
- * The principals a policy decision point may answer `search/subject` with,
- * the way `AuthzenResourceAdapter.list` supplies rows. Each record is decided
- * as `{ type: "user", id, properties }`; only candidates that are granted are
+ * The principals a policy decision point may answer `search/subject` with, the
+ * way `AuthzenResourceAdapter.list` supplies rows. Each record is decided as `{
+ * type: "user", id, properties }`; only candidates that are granted are
  * returned, so a lister may answer a superset.
  */
 export type AuthzenSubjectLister = {
@@ -149,10 +152,10 @@ function scopeOf(options: AuthzenSearchOptions): {
 }
 
 /**
- * The AuthZEN `search/action` answer for `user` on `resource`: every
- * permission of `resource.type` in the policy is decided, and the distinct
- * actions of the granted ones are returned in catalog order. Paging is the
- * caller's (`authzenPage`).
+ * The AuthZEN `search/action` answer for `user` on `resource`: every permission
+ * of `resource.type` in the policy is decided, and the distinct actions of the
+ * granted ones are returned in catalog order. Paging is the caller's
+ * (`authzenPage`).
  */
 export async function searchActions<
   TUser,
@@ -180,8 +183,8 @@ export async function searchActions<
 /**
  * The AuthZEN `search/subject` answer: the candidates `lister` returns for
  * `request`, each decided as itself, filtered to those granted `action` on
- * `resource`. An unknown action, a subject type other than `user`, or a
- * lister that throws answers none.
+ * `resource`. An unknown action, a subject type other than `user`, or a lister
+ * that throws answers none.
  */
 export async function searchSubjects<
   TUser,

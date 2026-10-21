@@ -6,7 +6,10 @@ import { secondsOf } from "./time.ts";
 export type SignPolicyDocumentOptions = {
   /** `aud`: the environment URL `cloud().policies` checks it against. */
   readonly audience: string | readonly string[];
-  /** `exp`, a NumericDate; the signer's default (one hour after `iat`) when absent. */
+  /**
+   * `exp`, a NumericDate; the signer's default (one hour after `iat`) when
+   * absent.
+   */
   readonly expiresAt?: number;
 };
 

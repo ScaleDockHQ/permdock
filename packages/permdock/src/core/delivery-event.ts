@@ -7,9 +7,9 @@ import { requireEventInstant } from "./event-time.ts";
 import { isoNow } from "./time.ts";
 
 /**
- * A `delivery` sink event. Throws a `TypeError` when `cause` or `retryable`
- * is set on an operation other than `failed`, and a `RangeError` for a
- * malformed `at`.
+ * A `delivery` sink event. Throws a `TypeError` when `cause` or `retryable` is
+ * set on an operation other than `failed`, and a `RangeError` for a malformed
+ * `at`.
  */
 function checkedX(x: AppData): AppData {
   assertAppData(x, "x of a delivery event");

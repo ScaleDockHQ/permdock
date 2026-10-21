@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { AuthEvent } from "../../src/core/event-types.ts";
+import type { ClientNames } from "../../src/index.ts";
 
 import {
-  type ClientNames,
   allow,
   getPermDockSync,
   definePermissions,
@@ -20,7 +20,7 @@ import {
   supabaseRls,
 } from "../../src/supabase/index.ts";
 
-describe("subjectFromSupabase", () => {
+describe(subjectFromSupabase, () => {
   it("never throws and fails closed to anonymous", () => {
     expect(() => subjectFromSupabase(null)).not.toThrow();
     expect(subjectFromSupabase(null).principal).toBeNull();
@@ -41,12 +41,12 @@ describe("subjectFromSupabase", () => {
       user_metadata: { role: "superadmin", tenant_id: "evil" },
     });
     expect(subject.principal?.id).toBe("user-1");
-    expect(subject.principal?.roles).toEqual(["member"]);
+    expect(subject.principal?.roles).toStrictEqual(["member"]);
     expect(subject.principal?.tenant).toBe("org-1");
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "org-1", roles: ["admin"] },
     ]);
-    expect(subject.principal?.assurance).toEqual({ acr: "aal2" });
+    expect(subject.principal?.assurance).toStrictEqual({ acr: "aal2" });
     expect(subject.session).toBe("sess-1");
     expect(subject.principal?.claims).toMatchObject({ plan: "pro" });
     expect(subject.principal?.claims).not.toHaveProperty("role");
@@ -61,7 +61,7 @@ describe("subjectFromSupabase", () => {
         { tenant: "org-2", roles: ["nurse"], member: { group: "" } },
       ],
     });
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "org-1", roles: ["nurse"], member: { group: "night" } },
       { tenant: "org-2", roles: ["nurse"] },
     ]);
@@ -77,7 +77,9 @@ describe("subjectFromSupabase", () => {
           { tenant: "org-2", roles: ["owner"], keep: [7] },
         ],
       }).principal?.memberships,
-    ).toEqual([{ tenant: "org-1", roles: ["owner"], keep: ["org.restore"] }]);
+    ).toStrictEqual([
+      { tenant: "org-1", roles: ["owner"], keep: ["org.restore"] },
+    ]);
   });
 
   it("maps resource-scoped memberships from the hook claim", () => {
@@ -88,7 +90,7 @@ describe("subjectFromSupabase", () => {
         { on: { resource: "document", id: "d_1" }, roles: ["editor"] },
       ],
     });
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { on: { resource: "document", id: "d_1" }, roles: ["editor"] },
     ]);
   });
@@ -98,14 +100,11 @@ describe("subjectFromSupabase", () => {
       {
         sub: "user-2",
         role: "authenticated",
-        app_metadata: {
-          user_role: ["editor", "unknown"],
-          tenant_id: "org-2",
-        },
+        app_metadata: { user_role: ["editor", "unknown"], tenant_id: "org-2" },
       },
       { declared: ["editor"] },
     );
-    expect(subject.principal?.roles).toEqual(["editor"]);
+    expect(subject.principal?.roles).toStrictEqual(["editor"]);
     expect(subject.principal?.tenant).toBe("org-2");
   });
 
@@ -117,7 +116,7 @@ describe("subjectFromSupabase", () => {
       tenant_id: null,
       app_metadata: { user_role: "editor", tenant_id: "org-3" },
     });
-    expect(subject.principal?.roles).toEqual(["editor"]);
+    expect(subject.principal?.roles).toStrictEqual(["editor"]);
     expect(subject.principal?.tenant).toBe("org-3");
     expect(
       subjectFromSupabase({
@@ -125,7 +124,7 @@ describe("subjectFromSupabase", () => {
         role: "authenticated",
         app_metadata: { user_role: null },
       }).principal?.roles,
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("maps only user sessions from a structural session object", () => {
@@ -136,7 +135,7 @@ describe("subjectFromSupabase", () => {
     };
     expect(
       subjectFromSupabaseSession({ kind: "user", claims }).principal?.roles,
-    ).toEqual(["editor"]);
+    ).toStrictEqual(["editor"]);
     expect(
       subjectFromSupabaseSession({ kind: "anon", claims }).principal,
     ).toBeNull();
@@ -159,11 +158,7 @@ describe("subjectFromSupabase", () => {
 
   it("drops custom claims when the schema fails", () => {
     const subject = subjectFromSupabase(
-      {
-        sub: "user-3",
-        role: "authenticated",
-        app_metadata: { plan: 1 },
-      },
+      { sub: "user-3", role: "authenticated", app_metadata: { plan: 1 } },
       { schema: z.object({ plan: z.string() }) },
     );
     expect(subject.principal?.id).toBe("user-3");
@@ -203,10 +198,10 @@ describe("subjectFromSupabase", () => {
         },
       },
     );
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { scope: "tenant", id: "org-1", roles: ["admin"] },
     ]);
-    expect(events).toEqual([
+    expect(events).toStrictEqual([
       { reason: "schema", cause: "membership-dropped", source: "supabase" },
     ]);
   });
@@ -219,20 +214,14 @@ describe("subjectFromSupabase", () => {
       features: { "org-1": ["pro", "sso"], "org-2": ["enterprise"] },
     };
     expect(
-      subjectFromSupabase(claims, {
-        claims: {
-          plans: "features",
-        },
-      }).principal?.plans,
-    ).toEqual(["pro", "sso"]);
+      subjectFromSupabase(claims, { claims: { plans: "features" } }).principal
+        ?.plans,
+    ).toStrictEqual(["pro", "sso"]);
     expect(subjectFromSupabase(claims).principal?.plans).toBeUndefined();
     const { tenant_id: _, ...noTenant } = claims;
     expect(
-      subjectFromSupabase(noTenant, {
-        claims: {
-          plans: "features",
-        },
-      }).principal?.plans,
+      subjectFromSupabase(noTenant, { claims: { plans: "features" } }).principal
+        ?.plans,
     ).toBeUndefined();
   });
 
@@ -244,14 +233,17 @@ describe("subjectFromSupabase", () => {
       scope: "openid invoice:read",
     });
     expect(client.principal?.id).toBe("user-7");
-    expect(client.actor).toEqual({ id: "app-1", kind: "oauth-client" });
-    expect(client.delegation).toEqual({ scopes: ["invoice:read"] });
+    expect(client.actor).toStrictEqual({ id: "app-1", kind: "oauth-client" });
+    expect(client.delegation).toStrictEqual({ scopes: ["invoice:read"] });
     expect(client.principal?.claims).toBeUndefined();
 
     const act = { sub: "agent-1", act: { sub: "agent-2" } };
     const chained = subjectFromSupabase({ ...base, act, client_id: "app-1" });
-    expect(chained.actor).toEqual({ id: "agent-1", kind: "oauth-client" });
-    expect(chained.delegation).toEqual({ chain: act });
+    expect(chained.actor).toStrictEqual({
+      id: "agent-1",
+      kind: "oauth-client",
+    });
+    expect(chained.delegation).toStrictEqual({ chain: act });
 
     const events: AuthEvent[] = [];
     const broken = subjectFromSupabase(
@@ -314,9 +306,11 @@ describe("supabaseRls and authorizeSql", () => {
     expect(sql).toContain("requested_tenant text default null");
     expect(sql).toContain("security definer");
     expect(sql).toContain("set search_path = ''");
-    expect(sql).toMatch(/if requested_tenant is not null then\s+return false;/);
+    expect(sql).toMatch(
+      /if requested_tenant is not null then\s+return false;/u,
+    );
     expect(sql).not.toContain("perform requested_tenant");
-    expect(sql).not.toMatch(/service_role/);
+    expect(sql).not.toMatch(/service_role/u);
   });
 
   it("reads the memberships table or the hook claims for tenant requests", () => {
@@ -370,7 +364,7 @@ describe("supabaseRls and authorizeSql", () => {
         customRoles: { declared: [] },
       }),
     ).toContain("rp.scope = 'organization'");
-    expect(() => authorizeSql({ scope: "bad scope" })).toThrow(/unsafe scope/);
+    expect(() => authorizeSql({ scope: "bad scope" })).toThrow(/unsafe scope/u);
     expect(jwt).toContain("any('{}'::text[])");
     expect(jwt).not.toContain("custom_role_permissions");
   });
@@ -393,7 +387,7 @@ describe("subjectFromSupabase with Supabase OAuth server tokens", () => {
 
   it("reads the OpenID Connect identity scopes as no delegation", async () => {
     const subject = subjectFromSupabase(claims);
-    expect(subject.actor).toEqual({
+    expect(subject.actor).toStrictEqual({
       id: "first-party-cli",
       kind: "oauth-client",
     });
@@ -464,7 +458,7 @@ describe("subjectFromSupabase with Supabase OAuth server tokens", () => {
       const subject = subjectFromSupabase(claims, {
         clients: { cli: "first-party-cli" },
       });
-      expect(subject.actor).toEqual({
+      expect(subject.actor).toStrictEqual({
         id: "first-party-cli",
         kind: "oauth-client",
         client: "cli",

@@ -41,7 +41,7 @@ describe("rls verify --advisors", () => {
       env: { PATH: "/usr/bin" },
       exec: fake(JSON.stringify(ROWS), seen),
     });
-    expect(seen[0]?.slice(0, -1)).toEqual([
+    expect(seen[0]?.slice(0, -1)).toStrictEqual([
       "supabase",
       "db",
       "advisors",
@@ -89,7 +89,7 @@ describe("rls verify --advisors", () => {
         error: new Error("spawnSync supabase ENOENT"),
       }),
     });
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       code: 2,
       output: expect.stringMatching(
         /install it with \S+ (?:add|install) -D supabase/u,
@@ -117,7 +117,7 @@ describe("rls verify --advisors", () => {
       env: {},
       exec: () => ({ status: 3, stdout: "not json", stderr }),
     });
-    expect(result).toEqual({ code: 2, output });
+    expect(result).toStrictEqual({ code: 2, output });
   });
 
   it("reads missing fields of a malformed row as empty", async () => {
@@ -148,7 +148,7 @@ describe("rls verify --advisors", () => {
         }),
       ),
     });
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       code: 2,
       output:
         "supabase db advisors failed: failed to connect to postgres Set `sslmode=disable`.",

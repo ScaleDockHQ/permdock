@@ -1,12 +1,6 @@
-import {
-  type Decision,
-  fromSnapshot,
-  listPermissions,
-  getPermDock,
-  type PermDock,
-  type PermDockOptions,
-  type Policy,
-} from "../index.ts";
+import type { Decision, PermDock, PermDockOptions, Policy } from "../index.ts";
+
+import { fromSnapshot, listPermissions, getPermDock } from "../index.ts";
 
 export type MatrixOutcome = "granted" | "denied" | "approval-required";
 
@@ -19,7 +13,10 @@ export type MatrixCell =
         readonly reason: string;
       }[];
       readonly alternatives?: readonly string[];
-      /** Obligation kinds a granted decision carries, in order; `[]` asserts none. */
+      /**
+       * Obligation kinds a granted decision carries, in order; `[]` asserts
+       * none.
+       */
       readonly obligations?: readonly string[];
       /** The `name` of the deny grant `explain` reports as the one that won. */
       readonly deniedBy?: string;
@@ -35,15 +32,19 @@ export type DescribePolicyConfig<TSubject> = {
   readonly exhaustive?: boolean;
   readonly options?: PermDockOptions;
   /**
-   * Also assert every granted or denied cell against `fromSnapshot(permdock.snapshot())`,
-   * the client a Server Component hands down. Closures cannot cross a snapshot and deny on the client.
+   * Also assert every granted or denied cell against
+   * `fromSnapshot(permdock.snapshot())`, the client a Server Component hands
+   * down. Closures cannot cross a snapshot and deny on the client.
    */
   readonly snapshot?: boolean;
 };
 
 /** One cell of the matrix, decided. */
 export type PolicyMatrixCell = {
-  /** `<permission> / <subject>`, or `<permission> / <fixture> / <subject>` for a nested row. */
+  /**
+   * `<permission> / <subject>`, or `<permission> / <fixture> / <subject>` for a
+   * nested row.
+   */
   readonly name: string;
   readonly permission: string;
   readonly subject: string;
@@ -133,7 +134,10 @@ function decisionFailures(decision: Decision, cell: MatrixCell): string[] {
   return failures;
 }
 
-/** `deniedBy`, against the trace of a fresh `explain` call for the same arguments. */
+/**
+ * `deniedBy`, against the trace of a fresh `explain` call for the same
+ * arguments.
+ */
 function deniedByFailures(
   instance: PermDock,
   permission: unknown,
@@ -235,7 +239,10 @@ function pendingCells<TSubject>(
   return cells;
 }
 
-/** Where each cell sits, without deciding it: a test runner registers one test per cell. */
+/**
+ * Where each cell sits, without deciding it: a test runner registers one test
+ * per cell.
+ */
 export function policyMatrixLayout<TSubject>(
   policy: Policy,
   config: DescribePolicyConfig<TSubject>,

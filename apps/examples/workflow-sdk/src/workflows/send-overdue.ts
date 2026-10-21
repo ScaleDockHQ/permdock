@@ -8,7 +8,10 @@ import { openSend, send } from "./steps.ts";
 
 const waiter = workflowSdkWaiter({ createHook, resumeHook, sleep });
 
-/** Sends one overdue invoice as the automation's publisher, parking on the approval in between. */
+/**
+ * Sends one overdue invoice as the automation's publisher, parking on the
+ * approval in between.
+ */
 export async function sendOverdue(
   ticket: string,
   invoiceId: string,

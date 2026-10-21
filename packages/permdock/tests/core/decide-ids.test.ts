@@ -29,10 +29,7 @@ const policy = definePolicy(
   },
 );
 const subject: Subject = {
-  principal: {
-    id: "u1",
-    memberships: [{ tenant: "acme", roles: ["reader"] }],
-  },
+  principal: { id: "u1", memberships: [{ tenant: "acme", roles: ["reader"] }] },
   context: {},
 };
 const rows = [
@@ -57,8 +54,8 @@ describe("decideIds", () => {
         },
       },
     );
-    expect(seen).toEqual([["d2", "d1"]]);
-    expect(outcomes(decisions)).toEqual(["denied", "granted"]);
+    expect(seen).toStrictEqual([["d2", "d1"]]);
+    expect(outcomes(decisions)).toStrictEqual(["denied", "granted"]);
   });
 
   it("accepts a map and denies an id with no row as validation", async () => {
@@ -67,10 +64,8 @@ describe("decideIds", () => {
       ["d1", "d9"],
       { data: () => new Map(rows.map((row) => [row.id, row])) },
     );
-    expect(outcomes(decisions)).toEqual(["granted", "denied"]);
-    expect(decisions[1]).toMatchObject({
-      denials: [{ reason: "validation" }],
-    });
+    expect(outcomes(decisions)).toStrictEqual(["granted", "denied"]);
+    expect(decisions[1]).toMatchObject({ denials: [{ reason: "validation" }] });
   });
 
   it("denies every id with validation when the loader throws", async () => {
@@ -79,9 +74,7 @@ describe("decideIds", () => {
         throw new Error("down");
       },
     });
-    expect(decisions[0]).toMatchObject({
-      denials: [{ reason: "validation" }],
-    });
+    expect(decisions[0]).toMatchObject({ denials: [{ reason: "validation" }] });
   });
 
   it("denies a snapshot instance with unsupported", async () => {

@@ -10,7 +10,10 @@ export type Database = {
   readonly stop: () => Promise<void>;
 };
 
-/** The auth stub, then every migration in name order, then the seed: what `supabase db reset` applies. */
+/**
+ * The auth stub, then every migration in name order, then the seed: what
+ * `supabase db reset` applies.
+ */
 function setupSql(): string {
   const migrations = path.join(root, "supabase/migrations");
   const files = readdirSync(migrations)

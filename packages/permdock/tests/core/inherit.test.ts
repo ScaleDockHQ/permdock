@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { Membership, RelationSource } from "../../src/index.ts";
+
 import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls/graph.ts";
 import { inheritTargets, rowHelpersSql } from "../../src/cli/rls/rows.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
@@ -9,8 +11,6 @@ import { matchGrantee } from "../../src/core/grantee-match.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import {
-  type Membership,
-  type RelationSource,
   allow,
   anyone,
   getPermDockSync,
@@ -123,9 +123,9 @@ describe("inherit(): a permission held through a link to another row", () => {
         tenant: "acme",
         memberships: [{ tenant: "acme", roles: ["member"] }],
       }),
-    ).toEqual(["n1", "n2"]);
-    expect(await visible({ id: "vera" })).toEqual(["n2"]);
-    expect(await visible({ id: "nobody" })).toEqual([]);
+    ).toStrictEqual(["n1", "n2"]);
+    expect(await visible({ id: "vera" })).toStrictEqual(["n2"]);
+    expect(await visible({ id: "nobody" })).toStrictEqual([]);
   });
 
   it("follows the target's denies and skips a restricted row and a missing target", async () => {
@@ -135,7 +135,7 @@ describe("inherit(): a permission held through a link to another row", () => {
         tenant: "acme",
         memberships: [{ tenant: "acme", roles: ["blocked"] }],
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("chains through the parent and another inherit grant, ANDed with the grant's own where", async () => {
@@ -145,7 +145,7 @@ describe("inherit(): a permission held through a link to another row", () => {
       nodes
         .filter((row) => permdock.can(node.delete, row))
         .map((row) => row.id),
-    ).toEqual(["n1", "n2"]);
+    ).toStrictEqual(["n1", "n2"]);
   });
 
   it("denies with relation-unavailable when the source cannot read rows", async () => {
@@ -309,7 +309,7 @@ describe("inherit() in generated RLS", () => {
     expect(branch?.using).toBe(
       `(coalesce("driveId"::text in (select "permdock".permitted_drive_rows('drive.read')), false) and "restricted" is not true)`,
     );
-    expect(branch?.roles).toEqual(["authenticated"]);
+    expect(branch?.roles).toStrictEqual(["authenticated"]);
   });
 
   it("writes a stub for each inherited row helper before the helpers that call it", () => {
@@ -321,7 +321,7 @@ describe("inherit() in generated RLS", () => {
       graph: { resources: policy.resources, closures: {} },
     };
     const compiled = compileGrants(policy, ctx, undefined, [], false, true);
-    expect(inheritTargets(policy)).toEqual(["drive", "folder"]);
+    expect(inheritTargets(policy)).toStrictEqual(["drive", "folder"]);
     const sql = rowHelpersSql(
       ctx,
       policy,
@@ -363,8 +363,8 @@ describe("inherit() in generated RLS", () => {
       subject: () => null,
     });
     const plan = graphPlan(linked);
-    expect([...(plan.get("folder")?.links ?? [])]).toEqual(["drive"]);
-    expect(closureDepths(plan)).toEqual({});
+    expect([...(plan.get("folder")?.links ?? [])]).toStrictEqual(["drive"]);
+    expect(closureDepths(plan)).toStrictEqual({});
     expect(
       graphSql(
         {

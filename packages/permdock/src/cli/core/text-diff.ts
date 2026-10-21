@@ -3,8 +3,8 @@ import { createTwoFilesPatch } from "diff";
 const MAX_LINES = 40;
 
 /**
- * A unified diff from the file on disk to what the command would write,
- * cut to the first {@link MAX_LINES} lines so a CI log stays readable.
+ * A unified diff from the file on disk to what the command would write, cut to
+ * the first {@link MAX_LINES} lines so a CI log stays readable.
  */
 export function shortDiff(file: string, onDisk: string, next: string): string {
   const patch = createTwoFilesPatch(

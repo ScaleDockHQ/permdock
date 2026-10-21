@@ -1,13 +1,11 @@
+import type { DefineComponent, InjectionKey, ShallowRef, VNode } from "vue";
+
 import {
   defineComponent,
   inject,
   onErrorCaptured,
   provide,
   shallowRef,
-  type DefineComponent,
-  type InjectionKey,
-  type ShallowRef,
-  type VNode,
 } from "vue";
 
 import type { PermissionBoundaryState } from "../client/boundary.ts";
@@ -18,10 +16,10 @@ const boundaryKey: InjectionKey<ShallowRef<PermissionBoundaryState | null>> =
   Symbol("permdock-boundary");
 
 /**
- * Catches `PermDockDeniedError` and `PermDockApprovalRequiredError` thrown
- * by a descendant and renders the `denied` slot, or the `approval` slot for
- * an approval request (default `denied`). The slots receive the refused
- * permission and `retry()`. Any other error propagates.
+ * Catches `PermDockDeniedError` and `PermDockApprovalRequiredError` thrown by a
+ * descendant and renders the `denied` slot, or the `approval` slot for an
+ * approval request (default `denied`). The slots receive the refused permission
+ * and `retry()`. Any other error propagates.
  */
 export const PermissionBoundary: DefineComponent = defineComponent({
   name: "PermissionBoundary",
@@ -55,7 +53,10 @@ export const PermissionBoundary: DefineComponent = defineComponent({
   },
 });
 
-/** Inside a `PermissionBoundary`: what was refused and `retry()`, or `null` while the children render. */
+/**
+ * Inside a `PermissionBoundary`: what was refused and `retry()`, or `null`
+ * while the children render.
+ */
 export function usePermissionBoundary(): PermissionBoundaryState | null {
   return inject(boundaryKey, null)?.value ?? null;
 }

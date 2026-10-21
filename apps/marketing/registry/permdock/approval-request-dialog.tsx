@@ -24,9 +24,9 @@ type ApprovalRequestDialogProps = {
 };
 
 /**
- * For an action that returns approval-required: a button that opens a
- * dialog where the user adds a note and sends the request. It renders
- * nothing when the action needs no approval.
+ * For an action that returns approval-required: a button that opens a dialog
+ * where the user adds a note and sends the request. It renders nothing when the
+ * action needs no approval.
  */
 export function ApprovalRequestDialog({
   permission,

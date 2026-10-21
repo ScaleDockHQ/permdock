@@ -10,7 +10,10 @@ export const DEFAULT_TIMEOUT_MS = 300;
 const MAX_CACHE_TTL = 30;
 const CACHE_MAX = 1000;
 
-/** Milliseconds from `ttl` seconds, clamped to 30 s; a `ttl` that is not a whole number of seconds above 0 disables the cache. */
+/**
+ * Milliseconds from `ttl` seconds, clamped to 30 s; a `ttl` that is not a whole
+ * number of seconds above 0 disables the cache.
+ */
 export function ttlMs(cache: RemotePdpCache | undefined): number {
   const ttl = durationOf(cache?.ttl);
   return ttl === undefined ? 0 : Math.min(ttl, MAX_CACHE_TTL) * 1000;
@@ -51,11 +54,7 @@ export function granted(
   return {
     outcome: "granted",
     subject: { ...subject, principal },
-    matched: {
-      role: provider,
-      permission: permission.key,
-      provider,
-    },
+    matched: { role: provider, permission: permission.key, provider },
     token: decisionToken({
       key: permission.key,
       resourceId: resourceIdOf(data),
@@ -67,9 +66,9 @@ export function granted(
 }
 
 /**
- * The request that would be sent, plus what a custom mapping may drop
- * (issuer, tenant, actor): a tenant switch or a changed row never reuses a
- * cached answer.
+ * The request that would be sent, plus what a custom mapping may drop (issuer,
+ * tenant, actor): a tenant switch or a changed row never reuses a cached
+ * answer.
  */
 export function cacheKey(
   subject: Subject,

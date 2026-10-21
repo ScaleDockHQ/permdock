@@ -1,5 +1,6 @@
 import type { SqlMembershipSource } from "../../supabase/sources.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
+import type { Body } from "./helper-bodies.ts";
 
 import { scopeColumn } from "../../conditions/compile.ts";
 import { activeMembershipSql } from "../sql/active.ts";
@@ -20,7 +21,6 @@ import {
 } from "../sql/subject.ts";
 import { serviceKeyMemberSql } from "./api-keys.ts";
 import {
-  type Body,
   claimKeptLines,
   claimTenant,
   disabledColumn,
@@ -36,9 +36,9 @@ import {
 import { instancesActive, keyTenantLine, userActive } from "./helper-rows.ts";
 
 /**
- * The body of `member_<scope>_ids()`: instances of `scope` the subject holds
- * a live membership of, with any role. Not narrowed to the active tenant, and
- * no cascade: a membership of a child scope is not one of its parent.
+ * The body of `member_<scope>_ids()`: instances of `scope` the subject holds a
+ * live membership of, with any role. Not narrowed to the active tenant, and no
+ * cascade: a membership of a child scope is not one of its parent.
  */
 function memberBody(
   ctx: RlsSqlContext,
@@ -227,8 +227,8 @@ ${grants}`;
 /**
  * `member_<scope>_ids_for(p_user uuid)`: `member_<scope>_ids()` for a user the
  * caller names, read from the membership sources (or the mapped table) in
- * either mode, so a token hook can call it before any claim exists. Naming
- * the user is why no client role may execute it; the hook's grants give
+ * either mode, so a token hook can call it before any claim exists. Naming the
+ * user is why no client role may execute it; the hook's grants give
  * `supabase_auth_admin` execute.
  */
 export function memberForFunction(

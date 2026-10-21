@@ -19,7 +19,10 @@ const ROUTER_FIELDS: ReadonlySet<string> = new Set([
   "list-unsubscribe-post",
 ]);
 
-/** Fields that would add recipients or rewrite the envelope past the recipient check. */
+/**
+ * Fields that would add recipients or rewrite the envelope past the recipient
+ * check.
+ */
 const ENVELOPE_FIELDS: ReadonlySet<string> = new Set([
   "to",
   "cc",
@@ -96,8 +99,8 @@ function unsubscribeHeaders(
 /**
  * The email a transport sends to `target`: `from` resolved, the caller's
  * headers checked, `Auto-Submitted: auto-generated` (RFC 3834) on every
- * message, and the RFC 2369 / RFC 8058 unsubscribe pair on `notification`
- * only. A message that cannot be sent as given returns the reason.
+ * message, and the RFC 2369 / RFC 8058 unsubscribe pair on `notification` only.
+ * A message that cannot be sent as given returns the reason.
  */
 export function outgoingEmail(
   message: EmailMessage,

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { canonicalJson } from "../../src/core/canonical-json.ts";
 
-describe("canonicalJson", () => {
+describe(canonicalJson, () => {
   it("sorts keys, drops undefined members and nulls undefined items", () => {
     expect(canonicalJson({ b: 1, a: [undefined, 2], c: undefined })).toBe(
       '{"a":[null,2],"b":1}',

@@ -1,9 +1,6 @@
-import {
-  createComponent,
-  createSignal,
-  ErrorBoundary,
-  type JSX,
-} from "solid-js";
+import type { JSX } from "solid-js";
+
+import { createComponent, createSignal, ErrorBoundary } from "solid-js";
 import { render } from "solid-js/web";
 import { describe, expect, it, vi } from "vitest";
 
@@ -150,7 +147,7 @@ describe("permdock/solid parity", () => {
     await permdock?.refresh();
     setToken("b");
     await permdock?.refresh();
-    expect(seen).toEqual(["a", "b"]);
+    expect(seen).toStrictEqual(["a", "b"]);
     expect(view?.().tenant).toBe("acme");
     setTenant("globex");
     await vi.waitFor(() => {

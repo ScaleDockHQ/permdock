@@ -80,14 +80,14 @@ describe("runDeviceFlow (RFC 8628)", () => {
         written.push(text);
       },
     );
-    expect(credential).toEqual({
+    expect(credential).toStrictEqual({
       access_token: "at",
       refresh_token: "rt",
       expires_at: 304,
       token_type: "Bearer",
     });
-    expect(clock.slept).toEqual([2000, 2000]);
-    expect(prompts).toEqual([
+    expect(clock.slept).toStrictEqual([2000, 2000]);
+    expect(prompts).toStrictEqual([
       {
         user_code: "ABCD-EFGH",
         verification_uri: "https://auth.example/activate",
@@ -95,15 +95,15 @@ describe("runDeviceFlow (RFC 8628)", () => {
           "https://auth.example/activate?code=ABCD-EFGH",
       },
     ]);
-    expect(opened).toEqual([AUTHORIZATION.verification_uri_complete]);
-    expect(written).toEqual([
+    expect(opened).toStrictEqual([AUTHORIZATION.verification_uri_complete]);
+    expect(written).toStrictEqual([
       "Visit https://auth.example/activate and enter ABCD-EFGH\n",
     ]);
-    expect(form(http.calls[0])).toEqual({
+    expect(form(http.calls[0])).toStrictEqual({
       client_id: "cli",
       scope: "posts:read",
     });
-    expect(form(http.calls[1])).toEqual({
+    expect(form(http.calls[1])).toStrictEqual({
       grant_type: "urn:ietf:params:oauth:grant-type:device_code",
       device_code: "dc",
       client_id: "cli",
@@ -118,8 +118,8 @@ describe("runDeviceFlow (RFC 8628)", () => {
       ),
     );
     const credential = await runDeviceFlow(DEVICE, runtime, () => undefined);
-    expect(credential).toEqual({ access_token: "at" });
-    expect(clock.slept).toEqual([2000, 7000]);
+    expect(credential).toStrictEqual({ access_token: "at" });
+    expect(clock.slept).toStrictEqual([2000, 7000]);
   });
 
   it("defaults the interval to five seconds and stops at expires_in", async () => {
@@ -128,7 +128,7 @@ describe("runDeviceFlow (RFC 8628)", () => {
       { ...AUTHORIZATION, interval: undefined, expires_in: 12 },
     );
     expect(await runDeviceFlow(DEVICE, runtime, () => undefined)).toBeNull();
-    expect(clock.slept).toEqual([5000, 5000, 5000]);
+    expect(clock.slept).toStrictEqual([5000, 5000, 5000]);
   });
 
   it.each(["access_denied", "expired_token", "invalid_grant"])(
@@ -213,8 +213,8 @@ describe("runDeviceFlow (RFC 8628)", () => {
       { fetch: http.fetch, sleep: clock.sleep, now: clock.instant },
       () => undefined,
     );
-    expect(credential).toEqual({ access_token: "at" });
-    expect(http.calls.map((call) => call.url)).toEqual([
+    expect(credential).toStrictEqual({ access_token: "at" });
+    expect(http.calls.map((call) => call.url)).toStrictEqual([
       "https://id.example/.well-known/oauth-authorization-server",
       "https://id.example/da",
       "https://id.example/t",
@@ -241,7 +241,7 @@ describe("runDeviceFlow (RFC 8628)", () => {
     ).toMatchObject({
       token_endpoint: "https://permdock.example/api/oauth/token",
     });
-    expect(seen).toEqual([
+    expect(seen).toStrictEqual([
       "https://permdock.example/.well-known/oauth-authorization-server/api",
       "https://permdock.example/api/.well-known/oauth-authorization-server",
     ]);
@@ -305,8 +305,8 @@ describe("refreshCredential (RFC 6749 §6)", () => {
       { access_token: "at", refresh_token: "rt" },
       { fetch: http.fetch, now: () => ({ epochMilliseconds: 100_000 }) },
     );
-    expect(refreshed).toEqual({ access_token: "at2", expires_at: 110 });
-    expect(form(http.calls[0])).toEqual({
+    expect(refreshed).toStrictEqual({ access_token: "at2", expires_at: 110 });
+    expect(form(http.calls[0])).toStrictEqual({
       grant_type: "refresh_token",
       refresh_token: "rt",
       client_id: "cli",
@@ -361,7 +361,7 @@ describe("refreshCredential (RFC 6749 §6)", () => {
         { access_token: "at", refresh_token: "rt" },
         { fetch: http.fetch },
       ),
-    ).toEqual({ access_token: "at2" });
+    ).toStrictEqual({ access_token: "at2" });
   });
 });
 
@@ -374,7 +374,7 @@ describe("revokeCredential (RFC 7009)", () => {
       { fetch: http.fetch },
     );
     expect(http.calls[0]?.url).toBe("https://auth.example/revoke");
-    expect(form(http.calls[0])).toEqual({
+    expect(form(http.calls[0])).toStrictEqual({
       token: "rt",
       token_type_hint: "refresh_token",
       client_id: "cli",
@@ -407,7 +407,7 @@ describe("revokeCredential (RFC 7009)", () => {
         { fetch: http.fetch },
       ),
     ).resolves.toBeUndefined();
-    expect(http.calls.map((call) => call.url)).toEqual([
+    expect(http.calls.map((call) => call.url)).toStrictEqual([
       "https://id.example/.well-known/oauth-authorization-server",
       "https://auth.example/revoke",
     ]);

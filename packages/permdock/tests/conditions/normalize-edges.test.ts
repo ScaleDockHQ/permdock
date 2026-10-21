@@ -15,19 +15,17 @@ describe("normalizeWhere edges", () => {
     expect(isConditionDate({ date: "2020-01-01T00:00:00.000Z" })).toBe(true);
     expect(isConditionRef({ ref: "principal.id" })).toBe(true);
     expect(normalizeWhere({ sql: "1=1", fingerprint: "z" }).op).toBe("opaque");
-    expect(() => normalizeWhere({ and: { a: 1 } })).toThrow(/and requires/);
-    expect(() => normalizeWhere({ or: { a: 1 } })).toThrow(/or requires/);
-    expect(() => normalizeWhere({ a: { isNull: "yes" } })).toThrow(/boolean/);
-    expect(() => normalizeWhere({ a: { in: "x" } })).toThrow(/array/);
-    expect(() => normalizeWhere(1)).toThrow(/must be an object/);
-    expect(() => normalizeWhere({ a: { nope: true } })).toThrow(/unsupported/);
+    expect(() => normalizeWhere({ and: { a: 1 } })).toThrow(/and requires/u);
+    expect(() => normalizeWhere({ or: { a: 1 } })).toThrow(/or requires/u);
+    expect(() => normalizeWhere({ a: { isNull: "yes" } })).toThrow(/boolean/u);
+    expect(() => normalizeWhere({ a: { in: "x" } })).toThrow(/array/u);
+    expect(() => normalizeWhere(1)).toThrow(/must be an object/u);
+    expect(() => normalizeWhere({ a: { nope: true } })).toThrow(/unsupported/u);
     expect(normalizeWhere({ a: { in: principal.id } }).op).toBe("in");
-    const nested = normalizeWhere({
-      or: [{ a: 1 }, { or: [{ b: 2 }] }],
-    });
+    const nested = normalizeWhere({ or: [{ a: 1 }, { or: [{ b: 2 }] }] });
     expect(nested.op).toBe("or");
     expect(JSON.stringify(principal.id)).toContain("principal.id");
-    expect(Object.keys(principal.id)).toEqual(["ref"]);
+    expect(Object.keys(principal.id)).toStrictEqual(["ref"]);
     // SAFETY: deliberately a symbol key, to check the reference proxy ignores symbols.
     expect(
       principal.id[Symbol.toStringTag as unknown as string],
@@ -42,7 +40,7 @@ describe("normalizeWhere edges", () => {
       Object.getOwnPropertyDescriptor(principal.id, "missing"),
     ).toBeUndefined();
     expect(() => normalizeWhere({ op: "and", conditions: [] })).toThrow(
-      /empty and/,
+      /empty and/u,
     );
     expect(
       normalizeWhere({ authorId: opaque({ sql: "1", fingerprint: "f" }) }).op,

@@ -1,12 +1,8 @@
 import type { PermDockPluginOptions } from "./types.ts";
+import type { CollectScheduler } from "./watch.ts";
 
 import { describeError } from "./core/errors.ts";
-import {
-  collectOnce,
-  createCollectScheduler,
-  report,
-  type CollectScheduler,
-} from "./watch.ts";
+import { collectOnce, createCollectScheduler, report } from "./watch.ts";
 
 export type { PermDockPluginOptions } from "./types.ts";
 
@@ -68,5 +64,6 @@ export async function runPluginCollect(
   options: PermDockPluginOptions | undefined,
   check: boolean,
 ): Promise<string | undefined> {
-  return (await collectOnce(cwd, options, check, false)).message;
+  const { message } = await collectOnce(cwd, options, check, false);
+  return message;
 }

@@ -109,18 +109,14 @@ const USER_TEAMS = [
   },
 ];
 
-describe("subjectFromBetterAuth", () => {
+describe(subjectFromBetterAuth, () => {
   it("never throws and fails closed to anonymous", async () => {
     await expect(
       subjectFromBetterAuth(null, { auth: {} }),
-    ).resolves.toMatchObject({
-      principal: null,
-    });
+    ).resolves.toMatchObject({ principal: null });
     await expect(
       subjectFromBetterAuth(undefined, { auth: {} }),
-    ).resolves.toMatchObject({
-      principal: null,
-    });
+    ).resolves.toMatchObject({ principal: null });
     await expect(
       subjectFromBetterAuth({ cookie: "raw" }, { auth: {} }),
     ).resolves.toMatchObject({ principal: null });
@@ -133,11 +129,11 @@ describe("subjectFromBetterAuth", () => {
     const subject = await subjectFromBetterAuth(session, { auth: {} });
     expect(subject.principal?.id).toBe("user-1");
     expect(subject.principal?.tenant).toBe("o_acme");
-    expect(subject.principal?.roles).toEqual(["support"]);
+    expect(subject.principal?.roles).toStrictEqual(["support"]);
     expect(subject.principal?.email).toBe("ada@example.com");
     expect(subject.session).toBe("sess-1");
     expect(subject.expiresAt).toBe(1_767_225_600);
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_acme", roles: ["member", "billing-admin"] },
       { tenant: "o_other", roles: ["admin"] },
       {
@@ -155,7 +151,7 @@ describe("subjectFromBetterAuth", () => {
       auth: {},
       schema: z.object({ plan: z.string() }),
     });
-    expect(subject.principal?.claims).toEqual({ plan: "pro" });
+    expect(subject.principal?.claims).toStrictEqual({ plan: "pro" });
   });
 
   it("limits memberships to the active organization when requested", async () => {
@@ -163,7 +159,7 @@ describe("subjectFromBetterAuth", () => {
       auth: {},
       memberships: "active",
     });
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_acme", roles: ["member", "billing-admin"] },
       {
         tenant: "o_acme",
@@ -193,7 +189,7 @@ describe("subjectFromBetterAuth", () => {
         },
       },
     );
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_acme", roles: ["member"] },
       { tenant: "o_globex", roles: ["admin"] },
     ]);
@@ -239,11 +235,11 @@ describe("subjectFromBetterAuth", () => {
         },
       },
     );
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_acme", roles: ["member"] },
       { tenant: "o_globex", roles: ["admin"] },
     ]);
-    expect(queries).toEqual([
+    expect(queries).toStrictEqual([
       {
         model: "member",
         where: [{ field: "userId", value: "u_bob" }],
@@ -269,7 +265,7 @@ describe("subjectFromBetterAuth", () => {
         },
       },
     );
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_acme", roles: ["member"] },
       { tenant: "o_globex", roles: ["admin"] },
     ]);
@@ -288,7 +284,7 @@ describe("subjectFromBetterAuth", () => {
         memberships: "active",
       },
     );
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_acme", roles: ["member"] },
     ]);
   });
@@ -297,15 +293,11 @@ describe("subjectFromBetterAuth", () => {
     const subject = await subjectFromBetterAuth(
       { user: { id: "u_bob" }, session: { activeOrganizationId: "o_acme" } },
       {
-        auth: {
-          api: {
-            getActiveMember: async () => ACME_MEMBERS.members[0],
-          },
-        },
+        auth: { api: { getActiveMember: async () => ACME_MEMBERS.members[0] } },
         memberships: "active",
       },
     );
-    expect(subject.principal?.memberships).toEqual([]);
+    expect(subject.principal?.memberships).toStrictEqual([]);
     const injected = await subjectFromBetterAuth(
       {
         user: { id: "u_bob" },
@@ -316,7 +308,7 @@ describe("subjectFromBetterAuth", () => {
       },
       { auth: {} },
     );
-    expect(injected.principal?.memberships).toEqual([]);
+    expect(injected.principal?.memberships).toStrictEqual([]);
   });
 
   it("skips one organization whose lookup fails and keeps the rest", async () => {
@@ -336,7 +328,7 @@ describe("subjectFromBetterAuth", () => {
         },
       },
     );
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_globex", roles: ["admin"] },
     ]);
   });
@@ -355,7 +347,7 @@ describe("subjectFromBetterAuth", () => {
       auth: {},
       declared: ["admin"],
     });
-    expect(subject.principal?.roles).toEqual([]);
+    expect(subject.principal?.roles).toStrictEqual([]);
   });
 
   it("treats a thrown membership source as no memberships", async () => {
@@ -372,32 +364,29 @@ describe("subjectFromBetterAuth", () => {
       },
     );
     expect(subject.principal?.id).toBe("user-3");
-    expect(subject.principal?.memberships).toEqual([]);
+    expect(subject.principal?.memberships).toStrictEqual([]);
   });
 });
 
-describe("rolesFromAccessControl", () => {
+describe(rolesFromAccessControl, () => {
   it("maps matching statements and reports unmatched pairs", () => {
     const seeded = rolesFromAccessControl(
       {
         ac: {},
         roles: {
           member: { statements: { post: ["read", "create"] } },
-          admin: {
-            statements: { post: ["read", "delete"], ghost: ["haunt"] },
-          },
+          admin: { statements: { post: ["read", "delete"], ghost: ["haunt"] } },
         },
       },
       permissions,
       { on: "tenant" },
     );
-    expect(seeded.map((item) => item.name)).toEqual(["member", "admin"]);
-    expect(seeded[0]?.grants.map((grant) => grant.permission.key)).toEqual([
-      "post.read",
-      "post.create",
-    ]);
+    expect(seeded.map((item) => item.name)).toStrictEqual(["member", "admin"]);
+    expect(
+      seeded[0]?.grants.map((grant) => grant.permission.key),
+    ).toStrictEqual(["post.read", "post.create"]);
     expect(seeded[0]?.grants[0]?.scope).toBe("tenant");
-    expect(seeded.unmatched).toEqual([
+    expect(seeded.unmatched).toStrictEqual([
       { role: "admin", resource: "ghost", action: "haunt" },
     ]);
   });
@@ -430,7 +419,7 @@ describe("subjectFromBetterAuth conformance", () => {
   );
 });
 
-describe("betterAuthCustomRoleSource", () => {
+describe(betterAuthCustomRoleSource, () => {
   it("includes declared assignable roles whose statements the dynamic role covers", async () => {
     const source = betterAuthCustomRoleSource(
       {
@@ -454,7 +443,7 @@ describe("betterAuthCustomRoleSource", () => {
         ],
       },
     );
-    await expect(source.rolesFor("o_acme")).resolves.toEqual([
+    await expect(source.rolesFor("o_acme")).resolves.toStrictEqual([
       {
         tenant: "o_acme",
         name: "billing-admin",
@@ -462,7 +451,7 @@ describe("betterAuthCustomRoleSource", () => {
       },
       { tenant: "o_acme", name: "mystery", includes: [] },
     ]);
-    expect(source.assignable?.("o_acme")).toEqual(["member", "editor"]);
+    expect(source.assignable?.("o_acme")).toStrictEqual(["member", "editor"]);
   });
 
   it("resolves to nothing when the organization role API throws", async () => {
@@ -473,18 +462,20 @@ describe("betterAuthCustomRoleSource", () => {
         },
       },
     });
-    await expect(source.rolesFor("o_acme")).resolves.toEqual([]);
+    await expect(source.rolesFor("o_acme")).resolves.toStrictEqual([]);
   });
 });
 
-describe("onRoleChange", () => {
+describe(onRoleChange, () => {
   it("forwards the Better Auth hook payload to the refresh callback", async () => {
     const seen: unknown[] = [];
     const hook = onRoleChange((event) => {
       seen.push(event);
     });
     await hook({ userId: "user-1", organizationId: "o_acme" });
-    expect(seen).toEqual([{ userId: "user-1", organizationId: "o_acme" }]);
+    expect(seen).toStrictEqual([
+      { userId: "user-1", organizationId: "o_acme" },
+    ]);
   });
 
   it("writes a membership event when a sink is given", async () => {
@@ -498,7 +489,7 @@ describe("onRoleChange", () => {
       teamId: "t_1",
       by: { id: "admin-1", kind: "user" },
     });
-    expect(sink.events()).toEqual([
+    expect(sink.events()).toStrictEqual([
       expect.objectContaining({
         type: "membership",
         source: "better-auth",

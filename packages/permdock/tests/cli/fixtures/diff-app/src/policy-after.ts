@@ -2,10 +2,7 @@ import { allow, definePolicy, deny, principal, role } from "permdock";
 
 import { permissions } from "./permissions.ts";
 
-export type User = {
-  readonly id: string;
-  readonly roles: readonly string[];
-};
+export type User = { readonly id: string; readonly roles: readonly string[] };
 
 export const policy = definePolicy(permissions, {
   roles: [
@@ -20,9 +17,7 @@ export const policy = definePolicy(permissions, {
         approval: "human",
       }),
       // removed: publish
-      allow(permissions.post.archive, {
-        validUntil: "2030-01-01T00:00:00Z",
-      }),
+      allow(permissions.post.archive, { validUntil: "2030-01-01T00:00:00Z" }),
       // new deny
       deny(permissions.post.read, { where: { published: false } }),
     ]),

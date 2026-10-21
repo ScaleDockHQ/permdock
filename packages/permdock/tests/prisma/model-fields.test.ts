@@ -29,13 +29,13 @@ model User {
 }
 `;
 
-describe("prismaModelFields", () => {
+describe(prismaModelFields, () => {
   it("reads required and list scalars from schema.prisma, skipping relations", () => {
-    expect(prismaModelFields(SCHEMA, "Post")).toEqual({
+    expect(prismaModelFields(SCHEMA, "Post")).toStrictEqual({
       required: ["id", "orgId", "status", "authorId", "ownerId"],
       lists: ["tags"],
     });
-    expect(prismaModelFields(SCHEMA, "User")).toEqual({
+    expect(prismaModelFields(SCHEMA, "User")).toStrictEqual({
       required: ["id"],
       lists: [],
     });
@@ -80,22 +80,22 @@ describe("prismaModelFields", () => {
         },
         "Post",
       ),
-    ).toEqual({ required: ["id", "status"], lists: ["tags"] });
+    ).toStrictEqual({ required: ["id", "status"], lists: ["tags"] });
   });
 
   it("throws for an unknown model", () => {
     expect(() => prismaModelFields(SCHEMA, "Missing")).toThrow(
-      /not in the datamodel/,
+      /not in the datamodel/u,
     );
     expect(() => prismaModelFields({ models: [] }, "Post")).toThrow(
-      /not in the datamodel/,
+      /not in the datamodel/u,
     );
   });
 
   it("skips lines inside a model that are not field declarations", () => {
     expect(
       prismaModelFields("model Note {\n  id String @id\n  1x\n}\n", "Note"),
-    ).toEqual({ required: ["id"], lists: [] });
+    ).toStrictEqual({ required: ["id"], lists: [] });
   });
 
   it("feeds toWhere through the field mapping", () => {
@@ -104,11 +104,11 @@ describe("prismaModelFields", () => {
       op: "not",
       condition: { op: "eq", field: "org", value: "acme" },
     } as const;
-    expect(toWhere(negated, { model, fields: { org: "orgId" } })).toEqual({
-      NOT: { orgId: { equals: "acme" } },
-    });
+    expect(toWhere(negated, { model, fields: { org: "orgId" } })).toStrictEqual(
+      { NOT: { orgId: { equals: "acme" } } },
+    );
     expect(
       toWhere({ op: "contains", field: "tags", value: "a" }, { model }),
-    ).toEqual({ tags: { has: "a" } });
+    ).toStrictEqual({ tags: { has: "a" } });
   });
 });

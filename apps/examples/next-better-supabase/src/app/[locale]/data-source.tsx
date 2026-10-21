@@ -6,8 +6,8 @@ const clock = new Intl.DateTimeFormat("en-GB", {
 });
 
 /**
- * When the read behind a region ran and how long it took. A cache hit shows
- * the time of the run that filled the entry, so a revisit repeats it.
+ * When the read behind a region ran and how long it took. A cache hit shows the
+ * time of the run that filled the entry, so a revisit repeats it.
  */
 export function DataSource(props: {
   readonly name: string;

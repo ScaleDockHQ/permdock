@@ -1,5 +1,8 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
+// oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the CLI rename table without a build
+import type { FlagRename } from "../packages/permdock/src/cli/core/renames.ts";
+
 import {
   RENAMES_0_5,
   SIGNATURE_CHANGES_0_5,
@@ -9,7 +12,6 @@ import {
   COMMAND_MOVES,
   DEFAULT_CHANGES,
   FLAG_RENAMES,
-  type FlagRename,
   // oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the CLI rename table without a build
 } from "../packages/permdock/src/cli/core/renames.ts";
 
@@ -26,7 +28,10 @@ function cells(line: string): readonly string[] {
     .map((cell) => cell.trim());
 }
 
-/** The body rows of every table in `text` whose header starts with `first` and `second`. */
+/**
+ * The body rows of every table in `text` whose header starts with `first` and
+ * `second`.
+ */
 export function tableRows(
   text: string,
   first: string,
@@ -51,7 +56,10 @@ export function tableRows(
   return rows;
 }
 
-/** A table padded the way oxfmt pads it, so a generated section passes `format:check`. */
+/**
+ * A table padded the way oxfmt pads it, so a generated section passes
+ * `format:check`.
+ */
 function markdownTable(
   header: readonly string[],
   rows: readonly (readonly string[])[],
@@ -124,7 +132,10 @@ function cliRows(): readonly (readonly string[])[] {
   ];
 }
 
-/** The "Renamed in 0.5.0" section of the Naming page, generated from the codemod map. */
+/**
+ * The "Renamed in 0.5.0" section of the Naming page, generated from the codemod
+ * map.
+ */
 function renamedSection(): string {
   return [
     RENAMED_HEADING,
@@ -201,7 +212,10 @@ export function renamedSectionDrift(namingPage: string): readonly string[] {
       ];
 }
 
-/** Writes the generated "Renamed in 0.5.0" section; a new one goes before "Renamed before 0.1.0". */
+/**
+ * Writes the generated "Renamed in 0.5.0" section; a new one goes before
+ * "Renamed before 0.1.0".
+ */
 export function writeRenamedSection(namingPage: string): void {
   const text = readFileSync(namingPage, "utf8");
   const span = sectionSpan(text);

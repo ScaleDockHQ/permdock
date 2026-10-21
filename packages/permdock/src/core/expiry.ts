@@ -12,9 +12,9 @@ export function expiredAt(
 }
 
 /**
- * Unix seconds of a stored expiry: finite Unix seconds, an RFC 3339 string
- * (the Postgres `timestamptz` JSON form), a `Date` or an `Instant`.
- * `undefined` for anything else, which the caller treats as already expired.
+ * Unix seconds of a stored expiry: finite Unix seconds, an RFC 3339 string (the
+ * Postgres `timestamptz` JSON form), a `Date` or an `Instant`. `undefined` for
+ * anything else, which the caller treats as already expired.
  */
 export function expirySeconds(value: unknown): number | undefined {
   if (typeof value === "number") {

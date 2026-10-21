@@ -25,7 +25,10 @@ export function memorySnapshotStorage(
   };
 }
 
-/** What a persisted value may become: a plain snapshot, or a compact JWS the verifier still has to check. */
+/**
+ * What a persisted value may become: a plain snapshot, or a compact JWS the
+ * verifier still has to check.
+ */
 export type Stored =
   | { readonly kind: "snapshot"; readonly snapshot: Snapshot }
   | { readonly kind: "signed"; readonly jws: string };
@@ -90,10 +93,10 @@ function storedRead(
  * development builds warn once per store.
  */
 export type GuardedStorage = {
-  read(key: string): string | null | PromiseLike<string | null>;
-  write(key: string, value: string): void;
-  remove(key: string): void;
-  fail(error: unknown): void;
+  read: (key: string) => string | null | PromiseLike<string | null>;
+  write: (key: string, value: string) => void;
+  remove: (key: string) => void;
+  fail: (error: unknown) => void;
 };
 
 export function guardStorage(storage: SnapshotStorage): GuardedStorage {
@@ -139,7 +142,10 @@ export function guardStorage(storage: SnapshotStorage): GuardedStorage {
   };
 }
 
-/** `undefined` when the storage answers asynchronously; any failure reads as empty. */
+/**
+ * `undefined` when the storage answers asynchronously; any failure reads as
+ * empty.
+ */
 export function readStoredSync(
   storage: GuardedStorage,
   subjectId: string | null,

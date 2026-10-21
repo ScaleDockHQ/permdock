@@ -3,25 +3,34 @@ import type { Subject } from "../core/subject.ts";
 import { isRecord } from "../core/compact.ts";
 
 export type WithSubjectOptions = {
-  /** Which settings the generated policies read; match `rls.dialect`. Default `supabase`. */
+  /**
+   * Which settings the generated policies read; match `rls.dialect`. Default
+   * `supabase`.
+   */
   readonly dialect?: "supabase" | "guc" | "neon";
   /**
-   * The local `role` setting before the claims: `authenticated` with a principal, `anon` without.
-   * `false` keeps the connection's role, for a login role that RLS already applies to.
+   * The local `role` setting before the claims: `authenticated` with a
+   * principal, `anon` without. `false` keeps the connection's role, for a login
+   * role that RLS already applies to.
    */
   readonly role?: "authenticated" | "anon" | false;
   /** Prefix of the `guc` dialect's settings (`rls.gucPrefix`). Default `app`. */
   readonly gucPrefix?: string;
-  /** Claim holding the principal's tenant (`rls.tenantClaim`). Default `tenant_id`. */
+  /**
+   * Claim holding the principal's tenant (`rls.tenantClaim`). Default
+   * `tenant_id`.
+   */
   readonly tenantClaim?: string;
   /**
-   * Further claims from the verified token, such as `user_role` or `memberships` for `jwt`-mode
-   * helpers. `sub`, `role` and the tenant claim always come from the subject.
+   * Further claims from the verified token, such as `user_role` or
+   * `memberships` for `jwt`-mode helpers. `sub`, `role` and the tenant claim
+   * always come from the subject.
    */
   readonly claims?: Readonly<Record<string, unknown>>;
   /**
-   * Field names of the API-key claim written for a principal that acts through a credential
-   * (`rls.apiKeys`). Default `{ claim: 'api_key', scopes: 'scopes', tenant: 'tenant', roles: 'roles' }`.
+   * Field names of the API-key claim written for a principal that acts through
+   * a credential (`rls.apiKeys`). Default `{ claim: 'api_key', scopes:
+   * 'scopes', tenant: 'tenant', roles: 'roles' }`.
    */
   readonly apiKeys?: {
     readonly claim?: string;
@@ -31,7 +40,10 @@ export type WithSubjectOptions = {
   };
 };
 
-/** One statement of the preamble: `strings` and `values` interleave like a tagged template. */
+/**
+ * One statement of the preamble: `strings` and `values` interleave like a
+ * tagged template.
+ */
 export type SubjectStatement = {
   readonly strings: readonly string[];
   readonly values: readonly string[];
@@ -131,9 +143,10 @@ function setConfigs(
 }
 
 /**
- * The transaction preamble that makes Postgres see `permdock.subject`: one `select set_config(…)`
- * that sets the role, then the claims the generated policies read. Runs inside the caller's
- * transaction, so every setting is local to it.
+ * The transaction preamble that makes Postgres see `permdock.subject`: one
+ * `select set_config(…)` that sets the role, then the claims the generated
+ * policies read. Runs inside the caller's transaction, so every setting is
+ * local to it.
  */
 export function subjectStatements(
   permdock: SubjectHolder,

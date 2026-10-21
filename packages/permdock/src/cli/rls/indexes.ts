@@ -1,14 +1,19 @@
 import { createHash } from "node:crypto";
 
+import type { Condition } from "../../conditions/ast.ts";
+import type { SqlConnect } from "../pg.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 
-import { type Condition, isConditionRef } from "../../conditions/ast.ts";
+import { isConditionRef } from "../../conditions/ast.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
-import { type SqlConnect, connectPgPool } from "../pg.ts";
+import { connectPgPool } from "../pg.ts";
 import { scopeTable } from "../sql/names.ts";
 import { quoteIdent, quoteTable } from "../sql/quote.ts";
 
-/** An index a generated policy or helper needs, its first column the one it filters on. */
+/**
+ * An index a generated policy or helper needs, its first column the one it
+ * filters on.
+ */
 export type IndexTarget = {
   readonly table: string;
   readonly columns: readonly string[];
@@ -18,11 +23,11 @@ export type IndexTarget = {
 const MAX_IDENT = 63;
 
 /**
- * The row fields `condition` compares with the subject, a claim or a
- * membership (`ownerId: principal.id`, `memberOf`), through `and` and `or`:
- * the selective comparisons an index serves. A comparison with a constant
- * (`status: 'sent'`) narrows rows the scope key already found, a negation
- * scans anyway, and a dotted field is a JSON path a plain index does not serve.
+ * The row fields `condition` compares with the subject, a claim or a membership
+ * (`ownerId: principal.id`, `memberOf`), through `and` and `or`: the selective
+ * comparisons an index serves. A comparison with a constant (`status: 'sent'`)
+ * narrows rows the scope key already found, a negation scans anyway, and a
+ * dotted field is a JSON path a plain index does not serve.
  */
 export function indexedFields(condition: Condition | undefined): string[] {
   if (condition === undefined) {
@@ -63,9 +68,9 @@ function plainField(field: string): string[] {
 }
 
 /**
- * Every index the generated SQL reads through: the row columns policies
- * filter on (scope keys and selective condition fields), and the membership
- * tables' user column, followed by the scope column the helpers select.
+ * Every index the generated SQL reads through: the row columns policies filter
+ * on (scope keys and selective condition fields), and the membership tables'
+ * user column, followed by the scope column the helpers select.
  */
 export function indexTargets(
   ctx: RlsSqlContext,
@@ -120,14 +125,23 @@ export function indexesSql(targets: readonly IndexTarget[]): string {
     .join("\n");
 }
 
-/** What a database holds for the target tables: each table's columns and its indexes' key columns. */
+/**
+ * What a database holds for the target tables: each table's columns and its
+ * indexes' key columns.
+ */
 export type TableIndexFacts = {
   readonly columns: Readonly<Record<string, readonly string[]>>;
-  /** Key columns of each non-partial index in order, cut at the first expression. */
+  /**
+   * Key columns of each non-partial index in order, cut at the first
+   * expression.
+   */
   readonly indexes: Readonly<Record<string, readonly (readonly string[])[]>>;
 };
 
-/** Every live column of the tables in `$1` (`schema.table`), as `target` and `name`. */
+/**
+ * Every live column of the tables in `$1` (`schema.table`), as `target` and
+ * `name`.
+ */
 export const COLUMNS_SQL = `select n.nspname || '.' || c.relname as target, a.attname as name
 from pg_attribute a
 join pg_class c on c.oid = a.attrelid

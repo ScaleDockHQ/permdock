@@ -7,7 +7,10 @@ import {
   SERVER_SPECIFIERS,
 } from "../../src/cli/doctor/source.ts";
 
-/** Entries a client component may import: the definitions, client stores, wire readers and the condition lowering. */
+/**
+ * Entries a client component may import: the definitions, client stores, wire
+ * readers and the condition lowering.
+ */
 const CLIENT_SAFE = new Set([
   "permdock",
   "permdock/catalog",
@@ -51,11 +54,15 @@ describe("doctor entry lists follow package.json exports", () => {
     const serverOnly = entries().filter(
       (entry) => !CLIENT_SAFE.has(entry) && !TOOLING.has(entry),
     );
-    expect([...SERVER_SPECIFIERS].toSorted()).toEqual(serverOnly.toSorted());
+    expect([...SERVER_SPECIFIERS].toSorted()).toStrictEqual(
+      serverOnly.toSorted(),
+    );
   });
 
   it("PD007 lists only package entries", () => {
     const known = new Set(entries());
-    expect(ADAPTER_SPECIFIERS.filter((entry) => !known.has(entry))).toEqual([]);
+    expect(
+      ADAPTER_SPECIFIERS.filter((entry) => !known.has(entry)),
+    ).toStrictEqual([]);
   });
 });

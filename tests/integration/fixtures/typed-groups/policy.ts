@@ -51,9 +51,7 @@ export const policy = definePolicy(permissions, {
     allow(permissions.drive.read, {
       to: relation(permissions.drive, "viewer"),
     }),
-    allow(permissions.team.read, {
-      to: relation(permissions.team, "member"),
-    }),
+    allow(permissions.team.read, { to: relation(permissions.team, "member") }),
   ],
   subject: (user: { readonly id: string }) => ({ id: user.id }),
 });

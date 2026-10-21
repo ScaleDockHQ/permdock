@@ -16,9 +16,9 @@ const METHODS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * One declared operation: a permission, or a permission with the operation id
- * a tool name uses and the OAuth scopes that reach it, or only OAuth scopes
- * for a route that checks no permission (`protect(null)`).
+ * One declared operation: a permission, or a permission with the operation id a
+ * tool name uses and the OAuth scopes that reach it, or only OAuth scopes for a
+ * route that checks no permission (`protect(null)`).
  */
 export type OperationEntry =
   | Permission
@@ -40,20 +40,23 @@ export type OperationEntry =
  */
 export type OperationPermissions = {
   /**
-   * The permission of a request: the declared operation whose method and
-   * path template match, a literal segment winning over a `{param}`.
-   * `undefined` for an undeclared operation, which a gate denies, and for an
-   * operation that declares only OAuth scopes. A `HEAD` request matches the
-   * `GET` entry of its path when no `HEAD` entry matches.
+   * The permission of a request: the declared operation whose method and path
+   * template match, a literal segment winning over a `{param}`. `undefined` for
+   * an undeclared operation, which a gate denies, and for an operation that
+   * declares only OAuth scopes. A `HEAD` request matches the `GET` entry of its
+   * path when no `HEAD` entry matches.
    */
-  forRequest(method: string, path: string): Permission | undefined;
-  /** The permission of an operation id; pass it as `permissionFor` when tool names are operation ids. */
-  forOperation(id: string): Permission | undefined;
-  oauthScopesForRequest(
+  forRequest: (method: string, path: string) => Permission | undefined;
+  /**
+   * The permission of an operation id; pass it as `permissionFor` when tool
+   * names are operation ids.
+   */
+  forOperation: (id: string) => Permission | undefined;
+  oauthScopesForRequest: (
     method: string,
     path: string,
-  ): readonly string[] | undefined;
-  oauthScopesForOperation(id: string): readonly string[] | undefined;
+  ) => readonly string[] | undefined;
+  oauthScopesForOperation: (id: string) => readonly string[] | undefined;
 };
 
 type Route = {
@@ -71,7 +74,10 @@ function isParam(segment: string): boolean {
   return segment.startsWith("{") && segment.endsWith("}");
 }
 
-/** The number of literal segments that match, or -1 when the template does not match. */
+/**
+ * The number of literal segments that match, or -1 when the template does not
+ * match.
+ */
 function score(route: Route, segments: readonly string[]): number {
   if (route.segments.length !== segments.length) {
     return -1;
@@ -115,8 +121,8 @@ function scopesOf(
 }
 
 /**
- * Operations as `"METHOD /path/{param}"` keys, the OpenAPI path template, to
- * a permission. `base` is a prefix requests carry and the keys do not
+ * Operations as `"METHOD /path/{param}"` keys, the OpenAPI path template, to a
+ * permission. `base` is a prefix requests carry and the keys do not
  * (`/api/v1`). A key that is not a method and a path throws.
  */
 export function operationPermissions(
@@ -201,10 +207,10 @@ export function operationPermissions(
 }
 
 /**
- * The operation permissions an OpenAPI document declares: every operation
- * whose `x-permdock-permissions` names exactly one permission of `tree`, keyed
- * by its method, path and `operationId`. An operation naming none, several or
- * an unknown key is left out, so a gate denies it.
+ * The operation permissions an OpenAPI document declares: every operation whose
+ * `x-permdock-permissions` names exactly one permission of `tree`, keyed by its
+ * method, path and `operationId`. An operation naming none, several or an
+ * unknown key is left out, so a gate denies it.
  */
 export function operationPermissionsFromOpenApi(
   document: unknown,

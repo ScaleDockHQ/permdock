@@ -98,7 +98,7 @@ describe("rls verify --introspect", () => {
           (row: { id: string }) => row.id,
         ),
     );
-    expect(ids).toEqual(["open"]);
+    expect(ids).toStrictEqual(["open"]);
   });
 
   it("refuses a delete from a delegated oauth client", async () => {
@@ -127,7 +127,8 @@ describe("rls verify --introspect", () => {
     const pg = started();
     const warning =
       "warning: public.doc: no index starts with orgId, which the policies or helpers filter on";
-    expect((await verify(pg.uri)).out).toContain(warning);
+    const { out } = await verify(pg.uri);
+    expect(out).toContain(warning);
     await pg.admin.query('create index doc_org_id_tags on doc ("orgId", tags)');
     const result = await verify(pg.uri);
     expect(result.out).not.toContain(warning);
@@ -182,7 +183,7 @@ describe("rls verify --introspect", () => {
     `);
     const result = await verify(pg.uri);
     expect(result.code).toBe(1);
-    expect(result.out.split("\n")).toEqual(
+    expect(result.out.split("\n")).toStrictEqual(
       expect.arrayContaining([
         "public.doc: policy hand_written is not generated (permissive select); a permissive one widens access [policy-extra:public.doc:hand_written]",
         "public.doc: authenticated holds insert, which no generated policy allows [grant-extra:public.doc:authenticated.insert]",
@@ -191,8 +192,7 @@ describe("rls verify --introspect", () => {
       ]),
     );
     await pg.admin.query("alter table doc disable row level security");
-    expect((await verify(pg.uri)).out).toContain(
-      "public.doc: row level security is disabled",
-    );
+    const { out } = await verify(pg.uri);
+    expect(out).toContain("public.doc: row level security is disabled");
   });
 });

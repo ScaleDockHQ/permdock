@@ -3,8 +3,8 @@ import type { Actor } from "./subject.ts";
 import { isActor } from "./subject.ts";
 
 /**
- * The active tenant an adapter resolved from its own framework context.
- * Present means "use this tenant", even when `tenant` is `undefined`.
+ * The active tenant an adapter resolved from its own framework context. Present
+ * means "use this tenant", even when `tenant` is `undefined`.
  */
 export type TenantScope = { readonly tenant: string | undefined };
 
@@ -12,7 +12,10 @@ export type TenantOption<TContext> =
   | string
   | ((context: TContext) => string | undefined | Promise<string | undefined>);
 
-/** Resolves an adapter `tenant` option against its framework context; a throw is no tenant. */
+/**
+ * Resolves an adapter `tenant` option against its framework context; a throw is
+ * no tenant.
+ */
 export async function tenantScope<TContext>(
   option: TenantOption<TContext> | undefined,
   context: TContext,
@@ -27,7 +30,10 @@ export async function tenantScope<TContext>(
   }
 }
 
-/** Resolves an adapter `actor` option; anything but an `Actor`, or a throw, is no actor. */
+/**
+ * Resolves an adapter `actor` option; anything but an `Actor`, or a throw, is
+ * no actor.
+ */
 export async function actorFrom<TContext>(
   option: ((context: TContext) => unknown) | undefined,
   context: TContext,

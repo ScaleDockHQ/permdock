@@ -22,19 +22,20 @@ const TMP = join(HERE, "../../tmp");
 
 const temps: string[] = [];
 
-afterEach(() => {
-  for (const dir of temps.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
+describe("powersync cli", () => {
+  afterEach(() => {
+    for (const dir of temps.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 
-function project(): string {
-  mkdirSync(TMP, { recursive: true });
-  const dir = mkdtempSync(join(TMP, "powersync-"));
-  temps.push(dir);
-  writeFileSync(
-    join(dir, "policy.ts"),
-    `import { allow, authenticated, definePermissions, definePolicy, principal, resource } from '${join(HERE, "../../src/index.ts")}';
+  function project(): string {
+    mkdirSync(TMP, { recursive: true });
+    const dir = mkdtempSync(join(TMP, "powersync-"));
+    temps.push(dir);
+    writeFileSync(
+      join(dir, "policy.ts"),
+      `import { allow, authenticated, definePermissions, definePolicy, principal, resource } from '${join(HERE, "../../src/index.ts")}';
 
 export const permissions = definePermissions({
   note: resource({ id: 'id', actions: ['read'] }),
@@ -46,248 +47,250 @@ export const policy = definePolicy(permissions, {
   grants: [allow(permissions.note.read, { to: authenticated(), where: { author_id: principal.id } })],
 });
 `,
-  );
-  writeFileSync(
-    join(dir, "rls.fixtures.json"),
-    JSON.stringify([
-      {
-        subject: { id: "u1" },
-        action: "note.read",
-        row: { id: "n1", author_id: "u1", org_id: "o1" },
-      },
-      {
-        subject: { id: "u2" },
-        action: "note.read",
-        row: { id: "n1", author_id: "u1" },
-      },
-      { subject: { id: "u1" }, action: "note.read", row: { author_id: "u1" } },
-      { subject: { id: "u1" }, action: "ghost.read", row: { id: "n1" } },
-    ]),
-  );
-  return dir;
-}
-
-const projectConfig: PermDockConfig = { policy: "policy.ts", powersync: {} };
-
-function fakeDb(
-  synced: (values: readonly unknown[]) => boolean,
-): (db: string) => Promise<SqlClient> {
-  return async () => ({
-    query: async (_sql, values) => ({
-      rows: synced(values) ? [{ "?column?": 1 }] : [],
-    }),
-    end: async () => undefined,
-  });
-}
-
-describe("permdock powersync", () => {
-  it("generates, checks and verifies the file", async () => {
-    const cwd = project();
-    const base = { cwd, config: projectConfig, check: false };
-    expect(
-      await runPowerSync({ ...base, rest: ["generate"], check: true }),
-    ).toEqual({
-      code: 1,
-      output: "sync-config.yaml is stale: run permdock powersync generate",
-    });
-    expect(
-      (await runPowerSync({ ...base, rest: ["verify"] })).output,
-    ).toContain("sync-config.yaml is missing");
-    expect(await pd058({ cwd, config: projectConfig })).toMatchObject([
-      { code: "PD058", message: expect.stringContaining("is missing") },
-    ]);
-    expect((await runPowerSync({ ...base, rest: ["generate"] })).output).toBe(
-      "wrote sync-config.yaml",
     );
-    expect(readFileSync(join(cwd, "sync-config.yaml"), "utf8")).toContain(
-      "SELECT * FROM note WHERE note.author_id = auth.user_id()",
-    );
-    expect(
-      await runPowerSync({ ...base, rest: ["generate"], check: true }),
-    ).toEqual({
-      code: 0,
-      output: "sync-config.yaml is current",
-    });
-    expect(await runPowerSync({ ...base, rest: ["verify"] })).toEqual({
-      code: 0,
-      output: "sync-config.yaml matches the policy",
-    });
-    expect(await pd058({ cwd, config: projectConfig })).toEqual([]);
-    writeFileSync(join(cwd, "sync-config.yaml"), "streams: {}\n");
-    expect(await pd058({ cwd, config: projectConfig })).toMatchObject([
-      { message: expect.stringContaining("older policy") },
-    ]);
-  });
-
-  it("fails verify when a stream syncs a row the policy denies", async () => {
-    const cwd = project();
-    const base = { cwd, config: projectConfig, check: false };
-    await runPowerSync({ ...base, rest: ["generate"] });
-    const exact = await runPowerSync({
-      ...base,
-      rest: ["verify"],
-      db: "postgres://test",
-      connect: fakeDb((values) => values[0] === "u1"),
-    });
-    expect(exact.code).toBe(0);
-    expect(exact.output).toBe(
-      "sync-config.yaml matches the policy; no stream syncs a row the fixtures deny\nnote.read for u1: not checked against stream note: the fixture row has no id",
-    );
-    const over = await runPowerSync({
-      ...base,
-      rest: ["verify"],
-      db: "postgres://test",
-      connect: fakeDb(() => true),
-    });
-    expect(over.code).toBe(1);
-    expect(over.output).toContain(
-      "note.read for u2: stream note syncs a row the policy denies",
-    );
-    const under = await runPowerSync({
-      ...base,
-      rest: ["verify"],
-      db: "postgres://test",
-      connect: fakeDb(() => false),
-    });
-    expect(under.code).toBe(1);
-    expect(under.output).toContain(
-      "note.read for u1: granted, but stream note does not sync the row and generate gave no warning for it",
-    );
-    await expect(
-      runPowerSync({
-        ...base,
-        rest: ["verify"],
-        db: "postgres://test",
-        fixtures: "missing.json",
-      }),
-    ).rejects.toMatchObject({ code: "config_invalid" });
-    await expect(
-      runPowerSync({
-        ...base,
-        rest: ["verify"],
-        db: "postgres://permdock@127.0.0.1:1/none",
-      }),
-    ).rejects.toThrow("powersync verify --db-url-stdin could not connect");
-    writeFileSync(join(cwd, "sync-config.yaml"), "streams: {}\n");
-    expect((await runPowerSync({ ...base, rest: ["verify"] })).output).toBe(
-      "sync-config.yaml differs from the policy: run permdock powersync generate",
-    );
-  });
-
-  it("writes, checks and verifies the local-snapshot manifest", async () => {
-    const cwd = project();
-    const withManifest: PermDockConfig = {
-      ...projectConfig,
-      powersync: { manifest: "src/permdock-manifest.json" },
-    };
-    mkdirSync(join(cwd, "src"));
-    const base = { cwd, config: withManifest, check: false };
-    expect((await runPowerSync({ ...base, rest: ["generate"] })).output).toBe(
-      "wrote sync-config.yaml\nwrote src/permdock-manifest.json",
-    );
-    const manifest: unknown = JSON.parse(
-      readFileSync(join(cwd, "src/permdock-manifest.json"), "utf8"),
-    );
-    expect(manifest).toMatchObject({
-      v: 1,
-      grants: [{ permission: "note.read" }],
-    });
-    expect(
-      await runPowerSync({ ...base, rest: ["generate"], check: true }),
-    ).toEqual({
-      code: 0,
-      output:
-        "sync-config.yaml is current\nsrc/permdock-manifest.json is current",
-    });
     writeFileSync(
-      join(cwd, "src/permdock-manifest.json"),
-      JSON.stringify(manifest),
-    );
-    expect(
-      (await runPowerSync({ ...base, rest: ["generate"], check: true })).code,
-    ).toBe(0);
-    writeFileSync(join(cwd, "src/permdock-manifest.json"), "{}\n");
-    expect(await runPowerSync({ ...base, rest: ["verify"] })).toEqual({
-      code: 1,
-      output:
-        "src/permdock-manifest.json differs from the policy: run permdock powersync generate",
-    });
-    expect(await pd058({ cwd, config: withManifest })).toMatchObject([
-      {
-        message:
-          "src/permdock-manifest.json is not what the policy compiles to, so the device builds snapshots by an older policy",
-      },
-    ]);
-    writeFileSync(join(cwd, "src/permdock-manifest.json"), "not json\n");
-    expect(await pd058({ cwd, config: withManifest })).toHaveLength(1);
-    rmSync(join(cwd, "src/permdock-manifest.json"));
-    expect(await pd058({ cwd, config: withManifest })).toMatchObject([
-      {
-        message:
-          "src/permdock-manifest.json is missing, so the device builds no local snapshot",
-      },
-    ]);
-  });
-
-  it("passes fixture claims to the stream queries and checks own-row streams", async () => {
-    const cwd = project();
-    writeFileSync(
-      join(cwd, "rls.fixtures.json"),
+      join(dir, "rls.fixtures.json"),
       JSON.stringify([
         {
-          subject: { id: "u1", claims: { region: "eu" } },
+          subject: { id: "u1" },
+          action: "note.read",
+          row: { id: "n1", author_id: "u1", org_id: "o1" },
+        },
+        {
+          subject: { id: "u2" },
           action: "note.read",
           row: { id: "n1", author_id: "u1" },
         },
+        {
+          subject: { id: "u1" },
+          action: "note.read",
+          row: { author_id: "u1" },
+        },
+        { subject: { id: "u1" }, action: "ghost.read", row: { id: "n1" } },
       ]),
     );
-    const members: PermDockConfig = {
-      ...projectConfig,
-      rls: {
-        memberships: {
-          scopes: {
-            organization: {
-              table: "members",
-              user: "user_id",
-              role: "role",
-              columns: { organization: "org_id" },
+    return dir;
+  }
+
+  const projectConfig: PermDockConfig = { policy: "policy.ts", powersync: {} };
+
+  function fakeDb(
+    synced: (values: readonly unknown[]) => boolean,
+  ): (db: string) => Promise<SqlClient> {
+    return async () => ({
+      query: async (_sql, values) => ({
+        rows: synced(values) ? [{ "?column?": 1 }] : [],
+      }),
+      end: async () => undefined,
+    });
+  }
+
+  describe("permdock powersync", () => {
+    it("generates, checks and verifies the file", async () => {
+      const cwd = project();
+      const base = { cwd, config: projectConfig, check: false };
+      expect(
+        await runPowerSync({ ...base, rest: ["generate"], check: true }),
+      ).toStrictEqual({
+        code: 1,
+        output: "sync-config.yaml is stale: run permdock powersync generate",
+      });
+      expect(
+        (await runPowerSync({ ...base, rest: ["verify"] })).output,
+      ).toContain("sync-config.yaml is missing");
+      expect(await pd058({ cwd, config: projectConfig })).toMatchObject([
+        { code: "PD058", message: expect.stringContaining("is missing") },
+      ]);
+      expect((await runPowerSync({ ...base, rest: ["generate"] })).output).toBe(
+        "wrote sync-config.yaml",
+      );
+      expect(readFileSync(join(cwd, "sync-config.yaml"), "utf8")).toContain(
+        "SELECT * FROM note WHERE note.author_id = auth.user_id()",
+      );
+      expect(
+        await runPowerSync({ ...base, rest: ["generate"], check: true }),
+      ).toStrictEqual({ code: 0, output: "sync-config.yaml is current" });
+      expect(await runPowerSync({ ...base, rest: ["verify"] })).toStrictEqual({
+        code: 0,
+        output: "sync-config.yaml matches the policy",
+      });
+      expect(await pd058({ cwd, config: projectConfig })).toStrictEqual([]);
+      writeFileSync(join(cwd, "sync-config.yaml"), "streams: {}\n");
+      expect(await pd058({ cwd, config: projectConfig })).toMatchObject([
+        { message: expect.stringContaining("older policy") },
+      ]);
+    });
+
+    it("fails verify when a stream syncs a row the policy denies", async () => {
+      const cwd = project();
+      const base = { cwd, config: projectConfig, check: false };
+      await runPowerSync({ ...base, rest: ["generate"] });
+      const exact = await runPowerSync({
+        ...base,
+        rest: ["verify"],
+        db: "postgres://test",
+        connect: fakeDb((values) => values[0] === "u1"),
+      });
+      expect(exact.code).toBe(0);
+      expect(exact.output).toBe(
+        "sync-config.yaml matches the policy; no stream syncs a row the fixtures deny\nnote.read for u1: not checked against stream note: the fixture row has no id",
+      );
+      const over = await runPowerSync({
+        ...base,
+        rest: ["verify"],
+        db: "postgres://test",
+        connect: fakeDb(() => true),
+      });
+      expect(over.code).toBe(1);
+      expect(over.output).toContain(
+        "note.read for u2: stream note syncs a row the policy denies",
+      );
+      const under = await runPowerSync({
+        ...base,
+        rest: ["verify"],
+        db: "postgres://test",
+        connect: fakeDb(() => false),
+      });
+      expect(under.code).toBe(1);
+      expect(under.output).toContain(
+        "note.read for u1: granted, but stream note does not sync the row and generate gave no warning for it",
+      );
+      await expect(
+        runPowerSync({
+          ...base,
+          rest: ["verify"],
+          db: "postgres://test",
+          fixtures: "missing.json",
+        }),
+      ).rejects.toMatchObject({ code: "config_invalid" });
+      await expect(
+        runPowerSync({
+          ...base,
+          rest: ["verify"],
+          db: "postgres://permdock@127.0.0.1:1/none",
+        }),
+      ).rejects.toThrow("powersync verify --db-url-stdin could not connect");
+      writeFileSync(join(cwd, "sync-config.yaml"), "streams: {}\n");
+      const { output } = await runPowerSync({ ...base, rest: ["verify"] });
+      expect(output).toBe(
+        "sync-config.yaml differs from the policy: run permdock powersync generate",
+      );
+    });
+
+    it("writes, checks and verifies the local-snapshot manifest", async () => {
+      const cwd = project();
+      const withManifest: PermDockConfig = {
+        ...projectConfig,
+        powersync: { manifest: "src/permdock-manifest.json" },
+      };
+      mkdirSync(join(cwd, "src"));
+      const base = { cwd, config: withManifest, check: false };
+      expect((await runPowerSync({ ...base, rest: ["generate"] })).output).toBe(
+        "wrote sync-config.yaml\nwrote src/permdock-manifest.json",
+      );
+      const manifest: unknown = JSON.parse(
+        readFileSync(join(cwd, "src/permdock-manifest.json"), "utf8"),
+      );
+      expect(manifest).toMatchObject({
+        v: 1,
+        grants: [{ permission: "note.read" }],
+      });
+      expect(
+        await runPowerSync({ ...base, rest: ["generate"], check: true }),
+      ).toStrictEqual({
+        code: 0,
+        output:
+          "sync-config.yaml is current\nsrc/permdock-manifest.json is current",
+      });
+      writeFileSync(
+        join(cwd, "src/permdock-manifest.json"),
+        JSON.stringify(manifest),
+      );
+      expect(
+        (await runPowerSync({ ...base, rest: ["generate"], check: true })).code,
+      ).toBe(0);
+      writeFileSync(join(cwd, "src/permdock-manifest.json"), "{}\n");
+      expect(await runPowerSync({ ...base, rest: ["verify"] })).toStrictEqual({
+        code: 1,
+        output:
+          "src/permdock-manifest.json differs from the policy: run permdock powersync generate",
+      });
+      expect(await pd058({ cwd, config: withManifest })).toMatchObject([
+        {
+          message:
+            "src/permdock-manifest.json is not what the policy compiles to, so the device builds snapshots by an older policy",
+        },
+      ]);
+      writeFileSync(join(cwd, "src/permdock-manifest.json"), "not json\n");
+      expect(await pd058({ cwd, config: withManifest })).toHaveLength(1);
+      rmSync(join(cwd, "src/permdock-manifest.json"));
+      expect(await pd058({ cwd, config: withManifest })).toMatchObject([
+        {
+          message:
+            "src/permdock-manifest.json is missing, so the device builds no local snapshot",
+        },
+      ]);
+    });
+
+    it("passes fixture claims to the stream queries and checks own-row streams", async () => {
+      const cwd = project();
+      writeFileSync(
+        join(cwd, "rls.fixtures.json"),
+        JSON.stringify([
+          {
+            subject: { id: "u1", claims: { region: "eu" } },
+            action: "note.read",
+            row: { id: "n1", author_id: "u1" },
+          },
+        ]),
+      );
+      const members: PermDockConfig = {
+        ...projectConfig,
+        rls: {
+          memberships: {
+            scopes: {
+              organization: {
+                table: "members",
+                user: "user_id",
+                role: "role",
+                columns: { organization: "org_id" },
+              },
             },
           },
         },
-      },
-    };
-    const base = { cwd, config: members, check: false };
-    await runPowerSync({ ...base, rest: ["generate"] });
-    const seen: unknown[][] = [];
-    const leaking = await runPowerSync({
-      ...base,
-      rest: ["verify"],
-      db: "postgres://test",
-      connect: fakeDb((values) => {
-        seen.push([...values]);
-        return values.length === 2;
-      }),
+      };
+      const base = { cwd, config: members, check: false };
+      await runPowerSync({ ...base, rest: ["generate"] });
+      const seen: unknown[][] = [];
+      const leaking = await runPowerSync({
+        ...base,
+        rest: ["verify"],
+        db: "postgres://test",
+        connect: fakeDb((values) => {
+          seen.push([...values]);
+          return values.length === 2;
+        }),
+      });
+      expect(seen).toContainEqual(["u1", '{"region":"eu"}']);
+      expect(seen).toContainEqual(["u1", '{"region":"eu"}', "n1"]);
+      expect(leaking).toMatchObject({ code: 1 });
+      expect(leaking.output).toContain(
+        "stream permdock_members syncs another user's members rows to u1",
+      );
+      const own = await runPowerSync({
+        ...base,
+        rest: ["verify"],
+        db: "postgres://test",
+        connect: fakeDb((values) => values.length === 3),
+      });
+      expect(own.code).toBe(0);
     });
-    expect(seen).toContainEqual(["u1", '{"region":"eu"}']);
-    expect(seen).toContainEqual(["u1", '{"region":"eu"}', "n1"]);
-    expect(leaking).toMatchObject({ code: 1 });
-    expect(leaking.output).toContain(
-      "stream permdock_members syncs another user's members rows to u1",
-    );
-    const own = await runPowerSync({
-      ...base,
-      rest: ["verify"],
-      db: "postgres://test",
-      connect: fakeDb((values) => values.length === 3),
-    });
-    expect(own.code).toBe(0);
-  });
 
-  it("checks the powersync publication for the tables outside public", async () => {
-    const cwd = project();
-    writeFileSync(
-      join(cwd, "policy.ts"),
-      `import { allow, definePermissions, definePolicy, resource, role } from '${join(HERE, "../../src/index.ts")}';
+    it("checks the powersync publication for the tables outside public", async () => {
+      const cwd = project();
+      writeFileSync(
+        join(cwd, "policy.ts"),
+        `import { allow, definePermissions, definePolicy, resource, role } from '${join(HERE, "../../src/index.ts")}';
 
 export const permissions = definePermissions({
   job: resource({ id: 'id', actions: ['read'], relations: { tenant: { field: 'tenant_id', memberOf: 'tenant' } } }),
@@ -299,211 +302,212 @@ export const policy = definePolicy(permissions, {
   roles: [role('owner', [allow(permissions.job.read)], { on: 'tenant' })],
 });
 `,
-    );
-    writeFileSync(
-      join(cwd, "rls.fixtures.json"),
-      JSON.stringify([
-        {
-          subject: { id: "u9" },
-          action: "job.read",
-          row: { id: "j1", tenant_id: "t1" },
+      );
+      writeFileSync(
+        join(cwd, "rls.fixtures.json"),
+        JSON.stringify([
+          {
+            subject: { id: "u9" },
+            action: "job.read",
+            row: { id: "j1", tenant_id: "t1" },
+          },
+        ]),
+      );
+      const config: PermDockConfig = {
+        policy: "policy.ts",
+        rls: {
+          authorize: "database",
+          customRoles: true,
+          tables: { job: "jobs" },
+          membershipSources: [
+            junctionMembershipSource({
+              table: "tenant_users",
+              scope: "tenant",
+              id: "tenant_id",
+              roles: "tier_role",
+            }),
+          ],
         },
-      ]),
-    );
-    const config: PermDockConfig = {
-      policy: "policy.ts",
-      rls: {
-        authorize: "database",
-        customRoles: true,
-        tables: { job: "jobs" },
-        membershipSources: [
-          junctionMembershipSource({
-            table: "tenant_users",
-            scope: "tenant",
-            id: "tenant_id",
-            roles: "tier_role",
+        powersync: {},
+      };
+      const base = { cwd, config, check: false };
+      const { output } = await runPowerSync({ ...base, rest: ["generate"] });
+      expect(output).toContain(
+        "add the tables outside public to the powersync publication: alter publication powersync add table permdock.custom_role_includes, permdock.custom_role_permissions, permdock.user_roles;",
+      );
+      const publication =
+        (published: readonly (string | null)[] | undefined) =>
+        async (): Promise<SqlClient> => ({
+          query: async (sql) => ({
+            rows: sql.includes("pg_publication_tables")
+              ? (published ?? []).map((name) => ({ name }))
+              : sql.includes("pg_publication")
+                ? published === undefined
+                  ? []
+                  : [{ "?column?": 1 }]
+                : [],
           }),
-        ],
-      },
-      powersync: {},
-    };
-    const base = { cwd, config, check: false };
-    expect(
-      (await runPowerSync({ ...base, rest: ["generate"] })).output,
-    ).toContain(
-      "add the tables outside public to the powersync publication: alter publication powersync add table permdock.custom_role_includes, permdock.custom_role_permissions, permdock.user_roles;",
-    );
-    const publication =
-      (published: readonly (string | null)[] | undefined) =>
-      async (): Promise<SqlClient> => ({
-        query: async (sql) => ({
-          rows: sql.includes("pg_publication_tables")
-            ? (published ?? []).map((name) => ({ name }))
-            : sql.includes("pg_publication")
-              ? published === undefined
-                ? []
-                : [{ "?column?": 1 }]
-              : [],
-        }),
-        end: async () => undefined,
-      });
-    const verify = (published: readonly (string | null)[] | undefined) =>
-      runPowerSync({
-        ...base,
-        rest: ["verify"],
-        db: "postgres://test",
-        connect: publication(published),
-      });
-    const none = await verify(undefined);
-    expect(none.code).toBe(0);
-    expect(none.output).toContain(
-      "this database has no powersync publication; PowerSync needs the synced tables in it: alter publication powersync add table",
-    );
-    const partial = await verify(["public.jobs", null]);
-    expect(partial.code).toBe(1);
-    expect(partial.output).toContain(
-      "PD058: permdock.custom_role_permissions is not in the powersync publication, so PowerSync syncs none of its rows",
-    );
-    const full = await verify([
-      "permdock.custom_role_includes",
-      "permdock.custom_role_permissions",
-      "permdock.user_roles",
-    ]);
-    expect(full.code).toBe(0);
-    expect(full.output).not.toContain("publication");
-  });
-
-  it("rejects fixture claims that are not an object", async () => {
-    const cwd = project();
-    writeFileSync(
-      join(cwd, "rls.fixtures.json"),
-      JSON.stringify([
-        { subject: { id: "u1", claims: [] }, action: "note.read", row: {} },
-      ]),
-    );
-    await expect(
-      runPowerSync({
-        cwd,
-        config: projectConfig,
-        check: false,
-        rest: ["verify"],
-        db: "postgres://test",
-        connect: fakeDb(() => false),
-      }),
-    ).rejects.toMatchObject({
-      code: "config_invalid",
-      message: "PermDock CLI: fixture 0 subject.claims must be an object",
+          end: async () => undefined,
+        });
+      const verify = (published: readonly (string | null)[] | undefined) =>
+        runPowerSync({
+          ...base,
+          rest: ["verify"],
+          db: "postgres://test",
+          connect: publication(published),
+        });
+      const none = await verify(undefined);
+      expect(none.code).toBe(0);
+      expect(none.output).toContain(
+        "this database has no powersync publication; PowerSync needs the synced tables in it: alter publication powersync add table",
+      );
+      const partial = await verify(["public.jobs", null]);
+      expect(partial.code).toBe(1);
+      expect(partial.output).toContain(
+        "PD058: permdock.custom_role_permissions is not in the powersync publication, so PowerSync syncs none of its rows",
+      );
+      const full = await verify([
+        "permdock.custom_role_includes",
+        "permdock.custom_role_permissions",
+        "permdock.user_roles",
+      ]);
+      expect(full.code).toBe(0);
+      expect(full.output).not.toContain("publication");
     });
-  });
 
-  it("prints usage for an unknown verb or a missing policy", async () => {
-    const cwd = project();
-    expect(
-      (
-        await runPowerSync({
+    it("rejects fixture claims that are not an object", async () => {
+      const cwd = project();
+      writeFileSync(
+        join(cwd, "rls.fixtures.json"),
+        JSON.stringify([
+          { subject: { id: "u1", claims: [] }, action: "note.read", row: {} },
+        ]),
+      );
+      await expect(
+        runPowerSync({
           cwd,
           config: projectConfig,
           check: false,
-          rest: [],
-        })
-      ).code,
-    ).toBe(2);
-    await expect(
-      runPowerSync({ cwd, config: {}, check: false, rest: ["generate"] }),
-    ).rejects.toMatchObject({
-      code: "config_invalid",
-      message: "PermDock CLI: powersync needs policy in the config or --policy",
+          rest: ["verify"],
+          db: "postgres://test",
+          connect: fakeDb(() => false),
+        }),
+      ).rejects.toMatchObject({
+        code: "config_invalid",
+        message: "PermDock CLI: fixture 0 subject.claims must be an object",
+      });
     });
-    expect(await pd058({ cwd, config: { powersync: {} } })).toEqual([]);
-    const broken: PermDockConfig = {
-      ...projectConfig,
-      rls: { tables: { note: "bad name" } },
-    };
-    expect(await pd058({ cwd, config: broken })).toEqual([
-      {
-        code: "PD058",
-        severity: "warning",
+
+    it("prints usage for an unknown verb or a missing policy", async () => {
+      const cwd = project();
+      expect(
+        (
+          await runPowerSync({
+            cwd,
+            config: projectConfig,
+            check: false,
+            rest: [],
+          })
+        ).code,
+      ).toBe(2);
+      await expect(
+        runPowerSync({ cwd, config: {}, check: false, rest: ["generate"] }),
+      ).rejects.toMatchObject({
+        code: "config_invalid",
         message:
-          "the policy does not compile to Sync Streams: PermDock CLI: 'bad name' is not a plain identifier, which Sync Streams need",
-        fix: "fix the powersync and rls config, then run permdock powersync generate",
-      },
-    ]);
-    expect(
-      await runPowerSync({
-        cwd,
-        config: broken,
-        check: false,
-        rest: ["generate"],
-      }),
-    ).toEqual({
-      code: 2,
-      output:
-        "PermDock CLI: 'bad name' is not a plain identifier, which Sync Streams need",
-    });
-    expect(
-      await pd058({ cwd, config: { policy: "missing.ts", powersync: {} } }),
-    ).toEqual([]);
-  });
-
-  it("runs from the CLI", async () => {
-    const cwd = project();
-    writeFileSync(
-      join(cwd, "permdock.config.ts"),
-      "export default { policy: './policy.ts', powersync: { out: 'streams.yaml' } };\n",
-    );
-    const generated = await run(["powersync", "generate"], { cwd });
-    expect(generated.stdout).toContain("wrote streams.yaml");
-    const checked = await run(
-      ["powersync", "verify", "--policy", "./policy.ts"],
-      { cwd },
-    );
-    expect(checked.code).toBe(0);
-    const flagged = await run(
-      [
-        "powersync",
-        "verify",
-        "--out",
-        "streams.yaml",
-        "--fixtures",
-        "rls.fixtures.json",
-        "--db-url-stdin",
-      ],
-      {
-        cwd,
-        io: {
-          stdout: () => undefined,
-          stderr: () => undefined,
-          readStdin: () =>
-            Promise.resolve("postgres://permdock@127.0.0.1:1/none"),
+          "PermDock CLI: powersync needs policy in the config or --policy",
+      });
+      expect(await pd058({ cwd, config: { powersync: {} } })).toStrictEqual([]);
+      const broken: PermDockConfig = {
+        ...projectConfig,
+        rls: { tables: { note: "bad name" } },
+      };
+      expect(await pd058({ cwd, config: broken })).toStrictEqual([
+        {
+          code: "PD058",
+          severity: "warning",
+          message:
+            "the policy does not compile to Sync Streams: PermDock CLI: 'bad name' is not a plain identifier, which Sync Streams need",
+          fix: "fix the powersync and rls config, then run permdock powersync generate",
         },
-      },
-    );
-    expect(flagged).toMatchObject({
-      code: 1,
-      stderr: expect.stringContaining("could not connect"),
+      ]);
+      expect(
+        await runPowerSync({
+          cwd,
+          config: broken,
+          check: false,
+          rest: ["generate"],
+        }),
+      ).toStrictEqual({
+        code: 2,
+        output:
+          "PermDock CLI: 'bad name' is not a plain identifier, which Sync Streams need",
+      });
+      expect(
+        await pd058({ cwd, config: { policy: "missing.ts", powersync: {} } }),
+      ).toStrictEqual([]);
     });
-    const fromEnv = await run(
-      [
-        "powersync",
-        "verify",
-        "--out",
-        "streams.yaml",
-        "--fixtures",
-        "rls.fixtures.json",
-      ],
-      {
-        cwd,
-        io: {
-          stdout: () => undefined,
-          stderr: () => undefined,
-          env: { DATABASE_URL: "postgres://permdock@127.0.0.1:1/none" },
-        },
-      },
-    );
 
-    expect(fromEnv).toMatchObject({
-      code: 1,
-      stderr: expect.stringContaining("could not connect"),
+    it("runs from the CLI", async () => {
+      const cwd = project();
+      writeFileSync(
+        join(cwd, "permdock.config.ts"),
+        "export default { policy: './policy.ts', powersync: { out: 'streams.yaml' } };\n",
+      );
+      const generated = await run(["powersync", "generate"], { cwd });
+      expect(generated.stdout).toContain("wrote streams.yaml");
+      const checked = await run(
+        ["powersync", "verify", "--policy", "./policy.ts"],
+        { cwd },
+      );
+      expect(checked.code).toBe(0);
+      const flagged = await run(
+        [
+          "powersync",
+          "verify",
+          "--out",
+          "streams.yaml",
+          "--fixtures",
+          "rls.fixtures.json",
+          "--db-url-stdin",
+        ],
+        {
+          cwd,
+          io: {
+            stdout: () => undefined,
+            stderr: () => undefined,
+            readStdin: () =>
+              Promise.resolve("postgres://permdock@127.0.0.1:1/none"),
+          },
+        },
+      );
+      expect(flagged).toMatchObject({
+        code: 1,
+        stderr: expect.stringContaining("could not connect"),
+      });
+      const fromEnv = await run(
+        [
+          "powersync",
+          "verify",
+          "--out",
+          "streams.yaml",
+          "--fixtures",
+          "rls.fixtures.json",
+        ],
+        {
+          cwd,
+          io: {
+            stdout: () => undefined,
+            stderr: () => undefined,
+            env: { DATABASE_URL: "postgres://permdock@127.0.0.1:1/none" },
+          },
+        },
+      );
+
+      expect(fromEnv).toMatchObject({
+        code: 1,
+        stderr: expect.stringContaining("could not connect"),
+      });
     });
   });
 });

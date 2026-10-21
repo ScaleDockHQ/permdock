@@ -1,6 +1,7 @@
 import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type { AuthzenItem } from "./map.ts";
 import type {
   AuthzenRequestKind,
   AuthzenRequestOf,
@@ -30,7 +31,6 @@ import {
   unauthenticatedProblem,
 } from "../server/problem.ts";
 import {
-  type AuthzenItem,
   UNAVAILABLE,
   UNKNOWN,
   actorOf,
@@ -110,12 +110,10 @@ export const createPermDock: AuthzenFactory = (policy, options) => {
     return built.permdock;
   }
 
-  async function resourceOf(item: AuthzenItem): Promise<
-    | {
-        readonly data: unknown;
-        readonly trusted: boolean;
-      }
-    | undefined
+  async function resourceOf(
+    item: AuthzenItem,
+  ): Promise<
+    { readonly data: unknown; readonly trusted: boolean } | undefined
   > {
     const properties = item.resource?.properties;
     if (properties !== null && typeof properties === "object") {

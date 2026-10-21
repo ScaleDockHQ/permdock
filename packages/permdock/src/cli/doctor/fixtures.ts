@@ -1,17 +1,17 @@
 import { resolve } from "node:path";
 
+import type { CustomRole, TenantSettings } from "../../index.ts";
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 
 import { normalizeMemberships, scopeList } from "../../core/scopes.ts";
 import { quoteSqlLiteral } from "../../core/sql.ts";
 import {
-  type CustomRole,
-  type TenantSettings,
   parseCredential,
   separationConflicts,
   validateCustomRole,
 } from "../../index.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
+import { nonEmptyOr } from "../core/output.ts";
 import { filesOf, readJson } from "../shared/doctor-files.ts";
 import {
   asMembershipsFixture,
@@ -96,7 +96,7 @@ export async function pd018(
     findings.push({
       code: "PD018",
       severity: "warning",
-      message: `membership ${conflict.principal || "unknown"} holds exclusive roles ${conflict.roles.join(" and ")}`,
+      message: `membership ${nonEmptyOr(conflict.principal, "unknown")} holds exclusive roles ${conflict.roles.join(" and ")}`,
       fix: "remove one of the exclusive roles from the membership fixture",
     });
   }
@@ -155,9 +155,9 @@ export async function pd023(
 }
 
 /**
- * PD055: a stored custom role names a permission by a key it was renamed
- * from. It still resolves; the alias can only be dropped once storage holds
- * the current key.
+ * PD055: a stored custom role names a permission by a key it was renamed from.
+ * It still resolves; the alias can only be dropped once storage holds the
+ * current key.
  */
 export async function pd055(
   input: DoctorInput,
@@ -196,7 +196,10 @@ export async function pd055(
   return findings;
 }
 
-/** Fixture API keys that never expire, credential policies that allow it, and records that are not v1 credentials. */
+/**
+ * Fixture API keys that never expire, credential policies that allow it, and
+ * records that are not v1 credentials.
+ */
 export function pd029(input: DoctorInput): readonly DoctorFinding[] {
   const parsed = readFixture(input, input.config.doctor?.credentials);
   const findings: DoctorFinding[] = [];

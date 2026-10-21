@@ -15,19 +15,28 @@ export type CatalogPermission = {
   readonly arity: "instance" | "collection";
   readonly meta: Readonly<Record<string, unknown>>;
   readonly usages: readonly CatalogUsage[];
-  /** Keys the permission was renamed from (`definePermissions` `renamed`), sorted; absent when none. */
+  /**
+   * Keys the permission was renamed from (`definePermissions` `renamed`),
+   * sorted; absent when none.
+   */
   readonly renamedFrom?: readonly string[];
-  /** Level names a custom role may pick for the permission (`resource(…, { levels })`); absent when none. */
+  /**
+   * Level names a custom role may pick for the permission (`resource(…, {
+   * levels })`); absent when none.
+   */
   readonly levels?: readonly string[];
   /** Present only when the policy lists the permission in `hostable`. */
   readonly hostable?: true;
   /**
-   * `true` when a code grant for the key has a condition beyond role and
-   * scope, so the SQL helpers alone cannot enforce it, and when the catalog
-   * was built without the policy, which leaves it unknown.
+   * `true` when a code grant for the key has a condition beyond role and scope,
+   * so the SQL helpers alone cannot enforce it, and when the catalog was built
+   * without the policy, which leaves it unknown.
    */
   readonly rowConditions: boolean;
-  /** The approvals code allows on this permission require; a hosted grant must meet each. */
+  /**
+   * The approvals code allows on this permission require; a hosted grant must
+   * meet each.
+   */
   readonly approvals?: readonly CatalogApproval[];
   /** Present when a `breakGlass` override targets this permission. */
   readonly breakGlass?: CatalogBreakGlass;
@@ -71,7 +80,10 @@ export type CatalogResource = {
   readonly links?: Readonly<
     Record<string, { readonly field: string; readonly resource: string }>
   >;
-  /** `'hide'` answers a denied check on a loaded row as if the row did not exist; absent for `'reveal'`. */
+  /**
+   * `'hide'` answers a denied check on a loaded row as if the row did not
+   * exist; absent for `'reveal'`.
+   */
   readonly disclosure?: "hide";
   readonly relations?: Readonly<Record<string, ResourceRelation>>;
   /** The row field an `approval: { staleOn: 'resource-change' }` binds to. */
@@ -97,7 +109,10 @@ export type CatalogRole = {
   readonly for?: readonly string[];
   readonly exclusiveWith?: readonly string[];
   readonly audience?: string;
-  /** Present when the role is eligible-only and activated with `permdock.activate`. */
+  /**
+   * Present when the role is eligible-only and activated with
+   * `permdock.activate`.
+   */
   readonly activation?: CatalogActivation;
   /** Present when the role is a `supportAccess` role. */
   readonly supportAccess?: CatalogSupportAccess;
@@ -138,9 +153,9 @@ export type CatalogValidity = {
 };
 
 /**
- * One code grant as the catalog carries it: the normalised shape
- * `definePolicy` produced, minus closures. `permdock diff` compares these;
- * a hosted document is authored against them.
+ * One code grant as the catalog carries it: the normalised shape `definePolicy`
+ * produced, minus closures. `permdock diff` compares these; a hosted document
+ * is authored against them.
  */
 export type CatalogGrant = {
   readonly permission: string;
@@ -160,7 +175,10 @@ export type CatalogGrant = {
   readonly validity?: CatalogValidity;
   readonly name?: string;
   readonly purpose?: readonly string[];
-  /** The permission key the subject must also hold through a role on the row's scope instance (`requires`). */
+  /**
+   * The permission key the subject must also hold through a role on the row's
+   * scope instance (`requires`).
+   */
   readonly requires?: string | readonly string[];
   readonly limit?: {
     readonly count: number;
@@ -168,9 +186,15 @@ export type CatalogGrant = {
     readonly per: number;
     readonly mode?: "hard" | "soft";
   };
-  /** Present when the grant is a closure, reads the relation graph or is opaque; `where` and `check` are then omitted. */
+  /**
+   * Present when the grant is a closure, reads the relation graph or is opaque;
+   * `where` and `check` are then omitted.
+   */
   readonly portable?: false;
-  /** The grant's `meta`: a description plus the app's own `x`; absent when empty. */
+  /**
+   * The grant's `meta`: a description plus the app's own `x`; absent when
+   * empty.
+   */
   readonly meta?: Readonly<Record<string, unknown>>;
 };
 
@@ -180,7 +204,10 @@ export type CatalogDocument = {
   readonly version: 1;
   readonly generatedAt: string;
   readonly generator: string;
-  /** `catalogFingerprint` of this document; what hosted documents pin as `catalog`. */
+  /**
+   * `catalogFingerprint` of this document; what hosted documents pin as
+   * `catalog`.
+   */
   readonly fingerprint?: string;
   readonly resources: Readonly<Record<string, CatalogResource>>;
   readonly permissions: readonly CatalogPermission[];
@@ -188,23 +215,41 @@ export type CatalogDocument = {
   readonly scopes?: readonly CatalogScope[];
   readonly roles?: readonly CatalogRole[];
   readonly plans?: readonly { readonly key: string }[];
-  /** Every code grant, canonically ordered; present when the catalog was built with the policy. */
+  /**
+   * Every code grant, canonically ordered; present when the catalog was built
+   * with the policy.
+   */
   readonly grants?: readonly CatalogGrant[];
-  /** The policy's standing delegations, canonically ordered; present when the policy declares any. */
+  /**
+   * The policy's standing delegations, canonically ordered; present when the
+   * policy declares any.
+   */
   readonly delegations?: readonly CatalogDelegation[];
-  /** The `defineOperations` map in definition order; present when the config names an `operations` module. */
+  /**
+   * The `defineOperations` map in definition order; present when the config
+   * names an `operations` module.
+   */
   readonly operations?: readonly CatalogOperation[];
-  /** The policy's coarse OAuth scopes, sorted by scope; present when the policy declares any. */
+  /**
+   * The policy's coarse OAuth scopes, sorted by scope; present when the policy
+   * declares any.
+   */
   readonly oauthScopes?: readonly CatalogOAuthScope[];
 };
 
-/** One `definePolicy({ oauthScopes })` entry: the coarse scope an authorization server issues and the permission keys it covers, sorted by code point. */
+/**
+ * One `definePolicy({ oauthScopes })` entry: the coarse scope an authorization
+ * server issues and the permission keys it covers, sorted by code point.
+ */
 export type CatalogOAuthScope = {
   readonly scope: string;
   readonly permissions: readonly string[];
 };
 
-/** One `defineOperations` entry: its name, the permission keys it is bound to, and its meta. */
+/**
+ * One `defineOperations` entry: its name, the permission keys it is bound to,
+ * and its meta.
+ */
 export type CatalogOperation = {
   readonly name: string;
   readonly permission: string;
@@ -212,7 +257,10 @@ export type CatalogOperation = {
   readonly meta: OperationMeta;
 };
 
-/** One `definePolicy({ delegations })` entry: who hands over, to which actor, which permission keys, and when. */
+/**
+ * One `definePolicy({ delegations })` entry: who hands over, to which actor,
+ * which permission keys, and when.
+ */
 export type CatalogDelegation = {
   readonly from: unknown;
   readonly to: {

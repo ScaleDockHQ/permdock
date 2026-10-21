@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { assert, expect, it } from "vitest";
 
 import type {
   AccessReviewStore,
@@ -50,10 +50,9 @@ const admin = {
 
 export type ApprovalStoreOptions = {
   /**
-   * Opens a second client over the same backing storage, as a restarted
-   * process would: for a hosted store, `() => cloud(...).approvals`. Omit it
-   * for stores that do not persist (the resume-after-restart case is then
-   * skipped).
+   * Opens a second client over the same backing storage, as a restarted process
+   * would: for a hosted store, `() => cloud(...).approvals`. Omit it for stores
+   * that do not persist (the resume-after-restart case is then skipped).
    */
   readonly reopen?: () => ApprovalStore | Promise<ApprovalStore>;
   readonly capabilities?: {
@@ -108,9 +107,9 @@ export function testApprovalStore(
       store.consume("once-token"),
     ]);
     expect([first, second].filter((item) => item !== null)).toHaveLength(1);
-    expect((first ?? second)?.consumedAt).toEqual(expect.any(String));
+    expect((first ?? second)?.consumedAt).toStrictEqual(expect.any(String));
     expect(await store.consume("once-token")).toBeNull();
-    expect((await store.get("once-token"))?.consumedAt).toEqual(
+    expect((await store.get("once-token"))?.consumedAt).toStrictEqual(
       expect.any(String),
     );
   });
@@ -136,7 +135,8 @@ export function testApprovalStore(
         status: "approved",
         by: approver,
       });
-      const reopened = await options.reopen!();
+      assert.isDefined(options.reopen);
+      const reopened = await options.reopen();
       expect((await reopened.get("restart-token"))?.status).toBe("approved");
       expect(await reopened.consume("restart-token")).not.toBeNull();
       expect(await store.consume("restart-token")).toBeNull();
@@ -147,7 +147,8 @@ export function testApprovalStore(
     "replaces an expired request on a new ask",
     async () => {
       await store.create(sampleApproval("renew-token"));
-      await options.capabilities!.expire!("renew-token");
+      assert.isDefined(options.capabilities?.expire);
+      await options.capabilities.expire("renew-token");
       const renewed = { ...sampleApproval("renew-token"), id: "apr_renewed" };
       await store.create(renewed);
       const loaded = await store.get("renew-token");
@@ -160,8 +161,8 @@ export function testApprovalStore(
     const request = sampleApproval("opaque-token");
     await store.create(request);
     const loaded = await store.get("opaque-token");
-    expect(loaded).toEqual(request);
-    expect(JSON.parse(JSON.stringify(loaded))).toEqual(request);
+    expect(loaded).toStrictEqual(request);
+    expect(JSON.parse(JSON.stringify(loaded))).toStrictEqual(request);
     const listed = await store.list({ status: "pending" });
     expect(listed.items.some((item) => item.token === "opaque-token")).toBe(
       true,
@@ -175,7 +176,7 @@ export function testApprovalStore(
       Promise.resolve().then(() =>
         store.resolve("opaque-token", { status: "rejected", by: approver }),
       ),
-    ).rejects.toThrow(/not pending/);
+    ).rejects.toThrow(/not pending/u);
     await store.create(sampleApproval("stale-token"));
     const expired = await store.expire({
       epochMilliseconds: nowMillis() + 2 * 60 * 60 * 1000,
@@ -196,19 +197,23 @@ export function testApprovalStore(
       ),
     );
     const first = await store.list({ principalId: "u_pager", limit: 2 });
-    expect(first.items.map((item) => item.token)).toEqual(["page-a", "page-b"]);
-    expect(typeof first.next).toBe("string");
+    expect(first.items.map((item) => item.token)).toStrictEqual([
+      "page-a",
+      "page-b",
+    ]);
+    expect(first.next).toBeTypeOf("string");
+    assert.isDefined(first.next);
     const second = await store.list({
       principalId: "u_pager",
       limit: 2,
-      cursor: first.next!,
+      cursor: first.next,
     });
-    expect(second.items.map((item) => item.token)).toEqual(["page-c"]);
+    expect(second.items.map((item) => item.token)).toStrictEqual(["page-c"]);
     expect(second.next).toBeUndefined();
     expect(
       (await store.list({ principalId: "u_pager", cursor: "not a cursor" }))
         .items,
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("refuses an approver who does not match request.approvers", async () => {
@@ -227,7 +232,7 @@ export function testApprovalStore(
       Promise.resolve().then(() =>
         store.resolve("gated-token", { status: "approved", by: member }),
       ),
-    ).rejects.toThrow(/eligible|not pending|not found/);
+    ).rejects.toThrow(/eligible|not pending|not found/u);
   });
 
   it("refuses the principal as approver unless the grant sets distinct: false", async () => {
@@ -274,7 +279,9 @@ export function testApprovalStore(
       by: approver,
     });
     expect(first.status).toBe("pending");
-    expect(first.approvals).toEqual([{ by: "u_9", at: expect.any(String) }]);
+    expect(first.approvals).toStrictEqual([
+      { by: "u_9", at: expect.any(String) },
+    ]);
     expect(await store.consume("quorum-token")).toBeNull();
     await expect(
       Promise.resolve().then(() =>
@@ -286,7 +293,10 @@ export function testApprovalStore(
       by: secondApprover,
     });
     expect(second.status).toBe("approved");
-    expect(second.approvals?.map((item) => item.by)).toEqual(["u_9", "u_10"]);
+    expect(second.approvals?.map((item) => item.by)).toStrictEqual([
+      "u_9",
+      "u_10",
+    ]);
     expect(second.resolvedBy).toBe("u_10");
     expect(await store.consume("quorum-token")).not.toBeNull();
   });
@@ -312,7 +322,7 @@ export function testApprovalStore(
     });
     expect(resolved.status).toBe("approved");
     expect(resolved.vouched).toBe("app-rule");
-    expect(resolved.approvals).toEqual([
+    expect(resolved.approvals).toStrictEqual([
       { by: "u_outsider", at: expect.any(String), vouched: "app-rule" },
     ]);
   });
@@ -379,7 +389,7 @@ export function testApprovalStore(
       by: secondApprover,
     });
     expect(first.status).toBe("pending");
-    expect(first.approvals).toEqual([
+    expect(first.approvals).toStrictEqual([
       { by: "u_10", at: expect.any(String), stage: 0 },
     ]);
     const second = await store.resolve("stages-token", {
@@ -387,7 +397,7 @@ export function testApprovalStore(
       by: approver,
     });
     expect(second.status).toBe("approved");
-    expect(second.approvals?.map((item) => item.stage)).toEqual([0, 1]);
+    expect(second.approvals?.map((item) => item.stage)).toStrictEqual([0, 1]);
   });
 
   it("matches a relation approver only through the verdict's relations", async () => {
@@ -416,8 +426,8 @@ export function testApprovalStore(
 
 /**
  * Checks an `ApprovalPolicySource`: entries are plain JSON, belong to the
- * queried tenant or to none, and every entry loads against `policy` (an
- * entry that does not would deny every call).
+ * queried tenant or to none, and every entry loads against `policy` (an entry
+ * that does not would deny every call).
  */
 export function testApprovalPolicySource(
   source: ApprovalPolicySource,
@@ -433,7 +443,7 @@ export function testApprovalPolicySource(
     });
     expect(Array.isArray(entries)).toBe(true);
     for (const entry of entries) {
-      expect(JSON.parse(JSON.stringify(entry))).toEqual(entry);
+      expect(JSON.parse(JSON.stringify(entry))).toStrictEqual(entry);
       expect([undefined, options.tenant]).toContain(entry.tenant);
     }
     const loaded = await approvalPoliciesFor(
@@ -446,7 +456,9 @@ export function testApprovalPolicySource(
     const other = await source.approvalPoliciesFor({
       tenants: [options.unknown ?? "__permdock_unknown__"],
     });
-    expect(other.filter((entry) => entry.tenant !== undefined)).toEqual([]);
+    expect(other.filter((entry) => entry.tenant !== undefined)).toStrictEqual(
+      [],
+    );
   });
 }
 
@@ -486,7 +498,7 @@ export function testAccessReviewStore(store: AccessReviewStore): void {
     expect((await store.get("rev"))?.status).toBe("open");
     const page = await store.items({ review: "rev", limit: 1 });
     expect(page.items).toHaveLength(1);
-    expect(page.next).toEqual(expect.any(String));
+    expect(page.next).toStrictEqual(expect.any(String));
     const kept = await store.decide("rev", reviewItem.id, {
       status: "kept",
       decidedBy: "u_9",
@@ -556,7 +568,7 @@ export function testApprovalDelegationSource(
     ).toBe(true);
     const instant = Date.parse(at);
     for (const entry of entries) {
-      expect(JSON.parse(JSON.stringify(entry))).toEqual(entry);
+      expect(JSON.parse(JSON.stringify(entry))).toStrictEqual(entry);
       expect(entry.delegate).toBe(options.delegate);
       expect(Date.parse(entry.from)).toBeLessThanOrEqual(instant);
       expect(Date.parse(entry.until)).toBeGreaterThan(instant);
@@ -567,14 +579,14 @@ export function testApprovalDelegationSource(
         ...(options.tenant === undefined ? {} : { tenant: options.tenant }),
         at,
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 }
 
 /**
- * Checks an `IdempotencyStore`: a stored response comes back as written
- * until it expires, keys never share an entry, and a later `set` replaces an
- * earlier one.
+ * Checks an `IdempotencyStore`: a stored response comes back as written until
+ * it expires, keys never share an entry, and a later `set` replaces an earlier
+ * one.
  */
 export function testIdempotencyStore(store: IdempotencyStore): void {
   it("replays a stored response per key and keeps keys apart", async () => {
@@ -589,10 +601,10 @@ export function testIdempotencyStore(store: IdempotencyStore): void {
     const later = nowMillis() + 60 * 60 * 1000;
     expect(await store.get(key)).toBeUndefined();
     await store.set(key, response, later);
-    expect(await store.get(key)).toEqual(response);
+    expect(await store.get(key)).toStrictEqual(response);
     expect(await store.get(other)).toBeUndefined();
     const replaced = { ...response, status: 201 };
     await store.set(key, replaced, later);
-    expect(await store.get(key)).toEqual(replaced);
+    expect(await store.get(key)).toStrictEqual(replaced);
   });
 }

@@ -5,6 +5,7 @@ import { delimiter, join } from "node:path";
 
 import type { CommandResult } from "../core/result.ts";
 
+import { nonEmptyOr } from "../core/output.ts";
 import { addLine, packageManagerOf } from "../core/peer.ts";
 
 type ExecResult = {
@@ -158,7 +159,7 @@ export async function runRlsAdvisors(input: {
       .join(" ");
     return {
       code: 2,
-      output: `supabase db advisors failed: ${message === "" ? result.stderr.trim() || `exit ${String(result.status)}` : message}`,
+      output: `supabase db advisors failed: ${message === "" ? nonEmptyOr(result.stderr.trim(), `exit ${String(result.status)}`) : message}`,
     };
   }
   const failing = findings.filter(

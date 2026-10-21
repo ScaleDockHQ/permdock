@@ -41,13 +41,9 @@ const CRUD_COLLECTION: CrudCollection = {
   list: { readOnly: true },
 };
 
-const READABLE_ACTIONS: ReadableActions = {
-  read: { readOnly: true },
-};
+const READABLE_ACTIONS: ReadableActions = { read: { readOnly: true } };
 
-const READABLE_COLLECTION: ReadableCollection = {
-  list: { readOnly: true },
-};
+const READABLE_COLLECTION: ReadableCollection = { list: { readOnly: true } };
 
 const WRITABLE_ACTIONS: WritableActions = {
   read: { readOnly: true },

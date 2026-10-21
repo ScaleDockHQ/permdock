@@ -49,8 +49,8 @@ export type PolicyFromCatalogOptions<TUser = unknown> = {
 };
 
 /**
- * Stands in for a condition that only code can evaluate: an allow that holds
- * it never matches and a deny that holds it always applies.
+ * Stands in for a condition that only code can evaluate: an allow that holds it
+ * never matches and a deny that holds it always applies.
  */
 const CODE_CONDITION: Condition = freezeDeep({
   op: "opaque",
@@ -185,7 +185,10 @@ function permissionTree(catalog: CatalogDocument): PermissionTree {
   }
 }
 
-/** A portable grant's condition must be in the portable subset; a non-portable one is read as written and fails closed where it cannot evaluate. */
+/**
+ * A portable grant's condition must be in the portable subset; a non-portable
+ * one is read as written and fails closed where it cannot evaluate.
+ */
 function condition(
   value: unknown,
   label: string,
@@ -382,14 +385,14 @@ function identity<TUser>(user: TUser): Principal | null {
  * Rebuilds an evaluable `Policy` from a catalog (`permissions.catalog.json`)
  * and the policy `permdock cloud push` sent with it, for a service that holds
  * no application code: the hosted AuthZEN endpoint or a `mergeHostedGrants`
- * pre-check. Throws `PermDockValidationError` when either input is malformed
- * or the two disagree.
+ * pre-check. Throws `PermDockValidationError` when either input is malformed or
+ * the two disagree.
  *
- * What only code can answer fails closed: an allow whose condition is a
- * closure never grants and such a deny always applies; a resource schema
- * keyword outside the supported JSON Schema subset rejects every value; a
- * support role has no one who may consent. Grant levels and OAuth scopes
- * are not in a catalog, so the rebuilt policy has none.
+ * What only code can answer fails closed: an allow whose condition is a closure
+ * never grants and such a deny always applies; a resource schema keyword
+ * outside the supported JSON Schema subset rejects every value; a support role
+ * has no one who may consent. Grant levels and OAuth scopes are not in a
+ * catalog, so the rebuilt policy has none.
  */
 export function policyFromCatalog<TUser = unknown>(
   catalogInput: unknown,

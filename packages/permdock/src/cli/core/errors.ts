@@ -3,19 +3,18 @@ import { stripVTControlCharacters } from "node:util";
 import type { NextStep } from "./result.ts";
 
 /**
- * 0 success, 1 failure, 2 usage, 3 action required, 130 interrupted (SIGINT
- * or a cancelled prompt), 143 terminated (SIGTERM).
+ * 0 success, 1 failure, 2 usage, 3 action required, 130 interrupted (SIGINT or
+ * a cancelled prompt), 143 terminated (SIGTERM).
  */
 export type ExitCode = 0 | 1 | 2 | 3 | 130 | 143;
 
 /**
- * `usage`: a flag, config or definition module the command cannot use (exit
- * 2). `unavailable`: a database or service the command needs did not answer
- * (exit 1). `failed`: the check the command ran found a problem, such as
- * catalog drift (exit 1). `action`: the run needs input, consent or a login
- * it cannot get without a person (exit 3). `cancelled`: the person at the
- * terminal cancelled a prompt (exit 130). `internal`: the CLI itself failed
- * (exit 1).
+ * `usage`: a flag, config or definition module the command cannot use (exit 2).
+ * `unavailable`: a database or service the command needs did not answer (exit
+ * 1). `failed`: the check the command ran found a problem, such as catalog
+ * drift (exit 1). `action`: the run needs input, consent or a login it cannot
+ * get without a person (exit 3). `cancelled`: the person at the terminal
+ * cancelled a prompt (exit 130). `internal`: the CLI itself failed (exit 1).
  */
 export type CliErrorKind =
   | "usage"
@@ -131,7 +130,10 @@ export class CliError extends Error {
   }
 }
 
-/** RFC 9457 Problem Details for a run that failed, as `error` in the result envelope. */
+/**
+ * RFC 9457 Problem Details for a run that failed, as `error` in the result
+ * envelope.
+ */
 export type CliProblem = {
   readonly type: string;
   readonly title: string;
@@ -147,9 +149,9 @@ export function describeError(error: unknown): string {
 }
 
 /**
- * The exit code an error ends the run with: its code's, so a `CliError` and
- * the problem printed for it always agree. Anything that is not a
- * `CliError` is a bug in the CLI.
+ * The exit code an error ends the run with: its code's, so a `CliError` and the
+ * problem printed for it always agree. Anything that is not a `CliError` is a
+ * bug in the CLI.
  */
 export function exitCodeOfError(error: unknown): ExitCode {
   if (error instanceof CliError) {
@@ -161,12 +163,12 @@ export function exitCodeOfError(error: unknown): ExitCode {
 }
 
 /**
- * The library's own runtime checks throw plain errors whose message starts
- * with `PermDock` (an identifier, a condition, a policy it rejects). Those are
- * the project's to fix, so they count as `config_invalid`, not as a CLI bug.
+ * The library's own runtime checks throw plain errors whose message starts with
+ * `PermDock` (an identifier, a condition, a policy it rejects). Those are the
+ * project's to fix, so they count as `config_invalid`, not as a CLI bug.
  */
 function rejectedDefinition(error: unknown): error is Error {
-  return error instanceof Error && /^PermDock( CLI)?[:\s]/.test(error.message);
+  return error instanceof Error && /^PermDock( CLI)?[:\s]/u.test(error.message);
 }
 
 export function exitCodeOf(kind: CliErrorKind): ExitCode {
@@ -257,21 +259,21 @@ export function usageResult(error: unknown): {
   if (error instanceof CliError) {
     throw error;
   }
-  return {
-    code: 2,
-    output: describeError(error),
-  };
+  return { code: 2, output: describeError(error) };
 }
 
 /**
- * A config, policy or definition the command cannot compile: the project's
- * to fix, so a usage error (exit 2) and never an `internal` one.
+ * A config, policy or definition the command cannot compile: the project's to
+ * fix, so a usage error (exit 2) and never an `internal` one.
  */
 export function configError(message: string): CliError {
   return new CliError("usage", message, { code: "config_invalid" });
 }
 
-/** The run needs a value only the caller can supply: exit 3 with `missing` naming the flags. */
+/**
+ * The run needs a value only the caller can supply: exit 3 with `missing`
+ * naming the flags.
+ */
 export function missingInput(
   command: string,
   missing: readonly string[],

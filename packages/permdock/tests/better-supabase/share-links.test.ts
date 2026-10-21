@@ -1,15 +1,15 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it, vi } from "vitest";
 
+import type {
+  ShareLinkResolver,
+  ShareLinkRow,
+  ShareLinkSubjectOptions,
+} from "../../src/better-supabase/index.ts";
 import type { AuthEvent } from "../../src/core/event-types.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
-import {
-  type ShareLinkResolver,
-  type ShareLinkRow,
-  type ShareLinkSubjectOptions,
-  subjectFromShareLink,
-} from "../../src/better-supabase/index.ts";
+import { subjectFromShareLink } from "../../src/better-supabase/index.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
@@ -80,7 +80,7 @@ function permdockFor(subject: Subject) {
   return permdock;
 }
 
-describe("subjectFromShareLink", () => {
+describe(subjectFromShareLink, () => {
   it("builds a link subject holding the mapped roles on the row's subject", async () => {
     const subject = await subjectFromShareLink("tok", options());
     expect(subject.principal).toMatchObject({
@@ -133,9 +133,8 @@ describe("subjectFromShareLink", () => {
 
   it("is anonymous for a missing, unknown or expired token", async () => {
     const onAuth = vi.fn<(event: AuthEvent) => void>();
-    expect((await subjectFromShareLink(undefined, options())).principal).toBe(
-      null,
-    );
+    const { principal } = await subjectFromShareLink(undefined, options());
+    expect(principal).toBe(null);
     expect((await subjectFromShareLink("", options())).principal).toBe(null);
     const unknown = await subjectFromShareLink(
       "tok",
@@ -153,7 +152,7 @@ describe("subjectFromShareLink", () => {
       }),
     );
     expect(expired.principal).toBe(null);
-    expect(onAuth.mock.calls.map(([event]) => event.cause)).toEqual([
+    expect(onAuth.mock.calls.map(([event]) => event.cause)).toStrictEqual([
       "share-link-unknown",
       "expired",
     ]);
@@ -180,7 +179,7 @@ describe("subjectFromShareLink", () => {
     );
     expect(type.principal).toBe(null);
     expect(unknownRole.principal).toBe(null);
-    expect(onAuth.mock.calls.map(([event]) => event.reason)).toEqual([
+    expect(onAuth.mock.calls.map(([event]) => event.reason)).toStrictEqual([
       "invalid-token",
       "unknown-role",
     ]);
@@ -228,12 +227,12 @@ describe("subjectFromShareLink", () => {
         onAuth,
       }),
     );
-    expect([failed, threw, malformed].map((s) => s.principal)).toEqual([
+    expect([failed, threw, malformed].map((s) => s.principal)).toStrictEqual([
       null,
       null,
       null,
     ]);
-    expect(onAuth.mock.calls.map(([event]) => event.reason)).toEqual([
+    expect(onAuth.mock.calls.map(([event]) => event.reason)).toStrictEqual([
       "source-threw",
       "source-threw",
       "schema",
@@ -272,9 +271,11 @@ describe("subjectFromShareLink", () => {
       .mockResolvedValueOnce({ ok: true, data: row })
       .mockResolvedValueOnce({ ok: true, data: null });
     const shareLinks = { resolve };
-    expect(
-      (await subjectFromShareLink("tok", options({ shareLinks }))).principal,
-    ).not.toBe(null);
+    const { principal } = await subjectFromShareLink(
+      "tok",
+      options({ shareLinks }),
+    );
+    expect(principal).not.toBe(null);
     expect(
       (await subjectFromShareLink("tok", options({ shareLinks }))).principal,
     ).toBe(null);

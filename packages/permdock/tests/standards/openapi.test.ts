@@ -40,9 +40,7 @@ const policy = definePolicy(permissions, {
   roles: [
     role("member", [
       allow(permissions.post.read),
-      allow(permissions.post.delete, {
-        where: { authorId: principal.id },
-      }),
+      allow(permissions.post.delete, { where: { authorId: principal.id } }),
     ]),
   ],
   grants: [
@@ -88,7 +86,10 @@ function options(
   };
 }
 
-/** A whole document: one operation per permission, as an adapter would describe it. */
+/**
+ * A whole document: one operation per permission, as an adapter would describe
+ * it.
+ */
 function documentFor(config: OpenApiPermDockOptions): Record<string, unknown> {
   const factory = createPermDock(policy, config);
   const paths: Record<string, unknown> = {};
@@ -168,7 +169,7 @@ describe("OpenAPI", () => {
             ),
           ),
         ),
-      ).toEqual({ ok: true, version: target });
+      ).toStrictEqual({ ok: true, version: target });
     },
   );
 
@@ -177,7 +178,7 @@ describe("OpenAPI", () => {
     for (const flow of ["authorizationCode", "deviceAuthorization"]) {
       expect(
         Object.keys(record(record(flows[flow])["scopes"])).toSorted(),
-      ).toEqual(leaves.map((leaf) => leaf.scope).toSorted());
+      ).toStrictEqual(leaves.map((leaf) => leaf.scope).toSorted());
     }
   });
 
@@ -193,36 +194,34 @@ describe("OpenAPI", () => {
           operation(document, permissions.post.delete)["x-permdock-conditions"],
         ),
       ),
-    ).toEqual([permissions.post.delete.key]);
+    ).toStrictEqual([permissions.post.delete.key]);
   });
 
   it("answers security: [] only for a permission every subject is granted", () => {
     const document = documentFor(options("3.2"));
-    expect(operation(document, permissions.status.view)["security"]).toEqual(
-      [],
-    );
-    expect(operation(document, permissions.status.audit)["security"]).toEqual([
-      { oauth: [permissions.status.audit.scope] },
-    ]);
+    expect(
+      operation(document, permissions.status.view)["security"],
+    ).toStrictEqual([]);
+    expect(
+      operation(document, permissions.status.audit)["security"],
+    ).toStrictEqual([{ oauth: [permissions.status.audit.scope] }]);
     expect(
       operation(document, permissions.status.audit)["x-permdock-approval"],
-    ).toEqual({ [permissions.status.audit.key]: { reason: "human" } });
-    expect(operation(document, permissions.status.probe)["security"]).toEqual([
-      { oauth: [permissions.status.probe.scope] },
-    ]);
+    ).toStrictEqual({ [permissions.status.audit.key]: { reason: "human" } });
+    expect(
+      operation(document, permissions.status.probe)["security"],
+    ).toStrictEqual([{ oauth: [permissions.status.probe.scope] }]);
     const factory = createPermDock(policy, options("3.2"));
     expect(
       factory.security([permissions.status.view, permissions.post.read]),
-    ).toEqual([
-      {
-        oauth: [permissions.status.view.scope, permissions.post.read.scope],
-      },
+    ).toStrictEqual([
+      { oauth: [permissions.status.view.scope, permissions.post.read.scope] },
     ]);
     expect(
       factory.security([permissions.status.view, permissions.post.read], {
         anyOf: true,
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("uses the 3.2 fields natively on 3.2 and 3.3", () => {
@@ -239,7 +238,7 @@ describe("OpenAPI", () => {
       });
       expect(
         [...extensionKeys(scheme)].filter((key) => key.startsWith("x-oai-")),
-      ).toEqual([]);
+      ).toStrictEqual([]);
     }
   });
 
@@ -270,10 +269,7 @@ describe("OpenAPI", () => {
         expect({
           key,
           allowed: REGISTERED_OAI.has(key) || key.startsWith("x-permdock-"),
-        }).toEqual({
-          key,
-          allowed: true,
-        });
+        }).toStrictEqual({ key, allowed: true });
       }
     },
   );
@@ -287,7 +283,7 @@ describe("OpenAPI", () => {
           scheme: { ...options(target).scheme, ref },
         }).securitySchemes()["oauth"],
       );
-    expect(shared("3.2")).toEqual({ $ref: ref });
+    expect(shared("3.2")).toStrictEqual({ $ref: ref });
     expect(shared("3.1")).toMatchObject({ type: "oauth2" });
   });
 
@@ -304,7 +300,9 @@ describe("OpenAPI", () => {
     const components = record(document["components"]);
 
     it("adds a profile scheme with the registered name and PermDock parameters schema", () => {
-      expect(record(components["securitySchemes"])["permdockFapi2"]).toEqual({
+      expect(
+        record(components["securitySchemes"])["permdockFapi2"],
+      ).toStrictEqual({
         type: "profile",
         profileMetadata: {
           name: "fapi-20-security-profile",
@@ -319,7 +317,7 @@ describe("OpenAPI", () => {
     it("writes one requirement per distinct scope set", () => {
       const requirements = record(components["securityProfileRequirements"]);
       expect(Object.keys(requirements)).toHaveLength(leaves.length);
-      expect(requirements["permdockFapi2PostDelete"]).toEqual({
+      expect(requirements["permdockFapi2PostDelete"]).toStrictEqual({
         securityScheme: { $ref: "#/components/securitySchemes/permdockFapi2" },
         token_endpoint_auth_methods: ["private_key_jwt", "tls_client_auth"],
         grant_types: [
@@ -339,7 +337,7 @@ describe("OpenAPI", () => {
             ["post:delete", "post:read"],
           ]) ?? {},
         ),
-      ).toEqual(["permdockFapi2PostDeletePostRead"]);
+      ).toStrictEqual(["permdockFapi2PostDeletePostRead"]);
     });
 
     it("keeps the twin extension on the scheme and every operation", () => {
@@ -352,7 +350,7 @@ describe("OpenAPI", () => {
     });
 
     it("pins the drafts it depends on", () => {
-      expect(record(document["x-permdock-catalog"])["drafts"]).toEqual({
+      expect(record(document["x-permdock-catalog"])["drafts"]).toStrictEqual({
         oas: DRAFT_PINS.oas,
         securityProfiles: DRAFT_PINS.securityProfiles,
       });
@@ -412,7 +410,7 @@ describe("OpenAPI", () => {
         readFileSync(path.join(cwd, "out.json"), "utf8"),
       );
       expect(record(out)["openapi"]).toBe("3.3.0");
-      expect(validateOpenapi(out)).toEqual({ ok: true, version: "3.3" });
+      expect(validateOpenapi(out)).toStrictEqual({ ok: true, version: "3.3" });
       expect(
         Object.keys(
           record(

@@ -66,7 +66,7 @@ describe("permdock/otel registry fallbacks", () => {
         permdock.decide(permissions.post.update, ownPost).outcome,
       ];
     });
-    expect(results).toEqual([true, "granted"]);
+    expect(results).toStrictEqual([true, "granted"]);
   });
 
   it("ignores a non-object registry value", async () => {
@@ -112,8 +112,8 @@ describe("permdock/otel logging and spans", () => {
     expect([
       permdock.can(permissions.post.read, ownPost),
       loud.can(permissions.post.read, ownPost),
-    ]).toEqual([true, true]);
-    expect(errors).toEqual([
+    ]).toStrictEqual([true, true]);
+    expect(errors).toStrictEqual([
       ["permdock.otel", { cause: "Error: info failed" }],
     ]);
   });
@@ -134,7 +134,7 @@ describe("permdock/otel logging and spans", () => {
       },
     });
     permdock.can(permissions.post.read, ownPost);
-    expect(warns).toEqual([
+    expect(warns).toStrictEqual([
       "permdock.otel: @opentelemetry/api is present but no provider is registered",
     ]);
   });
@@ -171,7 +171,7 @@ describe("permdock/otel logging and spans", () => {
       },
     });
     permdock.can(permissions.post.read, ownPost);
-    expect({ app: attributes[0]?.["app"], warns }).toEqual({
+    expect({ app: attributes[0]?.["app"], warns }).toStrictEqual({
       app: { keep: 1 },
       warns: [
         "permdock.otel unmatched redact: app.missing, app.keep.deeper, app.__proto__, absent.key",

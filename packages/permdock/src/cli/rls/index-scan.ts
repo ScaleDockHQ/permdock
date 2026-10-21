@@ -5,7 +5,11 @@ import type { IndexTarget } from "./indexes.ts";
 import { sqlFiles } from "../files.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
 
-/** An index PermDock generated (`permdock_<table>_<columns>_idx`), in the indexes part or in a migration derived from it: it never counts as serving its own target. */
+/**
+ * An index PermDock generated (`permdock_<table>_<columns>_idx`), in the
+ * indexes part or in a migration derived from it: it never counts as serving
+ * its own target.
+ */
 const GENERATED_INDEX =
   /\bcreate\s+index\s+(?:if\s+not\s+exists\s+)?"?permdock_\w*_idx"?[^;]*;/giu;
 const IDENT = String.raw`(?:"(?:[^"]|"")+"|[A-Za-z_][\w$]*)`;
@@ -55,7 +59,10 @@ function stripComments(sql: string): string {
     .replaceAll(/--[^\n]*/gu, " ");
 }
 
-/** The text between the `(` that ends `match` and its closing `)`, and the index after it. */
+/**
+ * The text between the `(` that ends `match` and its closing `)`, and the index
+ * after it.
+ */
 function group(
   text: string,
   open: number,
@@ -125,7 +132,10 @@ function keyColumns(body: string): string[] {
   return columns;
 }
 
-/** Key columns of each index, unique constraint and primary key the SQL creates, per `schema.table`. */
+/**
+ * Key columns of each index, unique constraint and primary key the SQL creates,
+ * per `schema.table`.
+ */
 export function indexKeysFromSql(
   sql: string,
 ): Readonly<Record<string, readonly (readonly string[])[]>> {
@@ -168,7 +178,10 @@ export function indexKeysFromSql(
   return keys;
 }
 
-/** The index keys of the SQL files under the migration and schema folders of `cwd`. */
+/**
+ * The index keys of the SQL files under the migration and schema folders of
+ * `cwd`.
+ */
 export function indexKeysFromProject(
   cwd: string,
 ): Readonly<Record<string, readonly (readonly string[])[]>> {
@@ -193,7 +206,10 @@ export function tablesFromSql(sql: string): ReadonlySet<string> {
   );
 }
 
-/** Every `schema.table` the SQL files under the migration and schema folders of `cwd` create. */
+/**
+ * Every `schema.table` the SQL files under the migration and schema folders of
+ * `cwd` create.
+ */
 export function tablesFromProject(cwd: string): ReadonlySet<string> {
   const all = new Set<string>();
   for (const file of sqlFiles(cwd, [...MIGRATION_DIRS])) {
@@ -204,7 +220,10 @@ export function tablesFromProject(cwd: string): ReadonlySet<string> {
   return all;
 }
 
-/** The targets no index in `keys` leads with: its key columns start with the target's, as `pruneIndexTargets` reads a database. */
+/**
+ * The targets no index in `keys` leads with: its key columns start with the
+ * target's, as `pruneIndexTargets` reads a database.
+ */
 export function withoutServedTargets(
   targets: readonly IndexTarget[],
   keys: Readonly<Record<string, readonly (readonly string[])[]>>,

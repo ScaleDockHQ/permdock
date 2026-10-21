@@ -2,14 +2,23 @@ import type { Permission } from "../core/permission-types.ts";
 import type { OpenApiSecurityRequirement } from "./types.ts";
 
 export type SecurityForOptions = {
-  /** The security scheme name; defaults to `oauth2`, the name the adapters' `openapi.securitySchemes()` declares. */
+  /**
+   * The security scheme name; defaults to `oauth2`, the name the adapters'
+   * `openapi.securitySchemes()` declares.
+   */
   readonly scheme?: string;
-  /** Any one of the permissions suffices: one requirement per scope instead of one with every scope. */
+  /**
+   * Any one of the permissions suffices: one requirement per scope instead of
+   * one with every scope.
+   */
   readonly anyOf?: boolean;
   readonly security?: true;
 };
 
-/** `security: false` emits only `x-permdock-permissions`, for an API whose `security` is set elsewhere, such as OIDC-only bearer auth. */
+/**
+ * `security: false` emits only `x-permdock-permissions`, for an API whose
+ * `security` is set elsewhere, such as OIDC-only bearer auth.
+ */
 export type SecurityExtensionOptions = Omit<SecurityForOptions, "security"> & {
   readonly security: false;
 };
@@ -35,7 +44,10 @@ function listOf(
   return isList(permission) ? permission : [permission];
 }
 
-/** The `x-permdock-permissions` value: the permission keys an operation enforces. */
+/**
+ * The `x-permdock-permissions` value: the permission keys an operation
+ * enforces.
+ */
 export function permissionsExtension(
   permissions: Permission | readonly Permission[],
 ): readonly string[] {

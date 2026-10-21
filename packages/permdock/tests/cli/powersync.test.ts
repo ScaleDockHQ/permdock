@@ -204,7 +204,7 @@ describe("powersync streams", () => {
         },
       },
     });
-    expect(plan.subject).toEqual([
+    expect(plan.subject).toStrictEqual([
       {
         name: "permdock_organization_users",
         table: "organization_users",
@@ -274,7 +274,7 @@ describe("powersync streams", () => {
         roles: { table: "admins", user: "account_id", role: "level" },
       },
     });
-    expect(plan.subject).toEqual([
+    expect(plan.subject).toStrictEqual([
       {
         name: "permdock_members",
         table: "members",
@@ -298,7 +298,7 @@ describe("powersync streams", () => {
     expect(
       powersyncPlan(policy, { policy: "p.ts", rls: { authorize: "database" } })
         .subject,
-    ).toEqual([
+    ).toStrictEqual([
       {
         name: "permdock_user_roles",
         table: "user_roles",
@@ -308,7 +308,7 @@ describe("powersync streams", () => {
         ],
       },
     ]);
-    expect(powersyncPlan(policy, { policy: "p.ts" }).subject).toEqual([]);
+    expect(powersyncPlan(policy, { policy: "p.ts" }).subject).toStrictEqual([]);
   });
 
   it("compiles a scope role over every role source of the membership table", () => {
@@ -334,16 +334,16 @@ describe("powersync streams", () => {
   });
 
   it("compiles a resource role through the parent field and a schema-qualified table", () => {
-    expect(queries("file")).toEqual([
+    expect(queries("file")).toStrictEqual([
       'SELECT * FROM "app"."files" AS files WHERE files.folder_id IN (SELECT folder_members.folder_id FROM folder_members WHERE folder_members.user_id = auth.user_id() AND folder_members.role IN (\'editor\'))',
     ]);
-    expect(queries("folder")).toEqual([
+    expect(queries("folder")).toStrictEqual([
       "SELECT * FROM folder WHERE folder.id IN (SELECT folder_members.folder_id FROM folder_members WHERE folder_members.user_id = auth.user_id() AND folder_members.role IN ('editor'))",
     ]);
   });
 
   it("keeps only the authenticated grants whose conditions compile", () => {
-    expect(queries("note")).toEqual([
+    expect(queries("note")).toStrictEqual([
       "SELECT * FROM note WHERE note.author_id = auth.user_id() AND note.kind != 'draft' AND note.deleted IS NULL",
       "SELECT * FROM note",
     ]);
@@ -351,7 +351,7 @@ describe("powersync streams", () => {
 
   it("omits a resource with a deny, with break-glass only, or with nothing that compiles", () => {
     const plan = powersyncPlan(policy, config);
-    expect(plan.omitted).toEqual(
+    expect(plan.omitted).toStrictEqual(
       expect.arrayContaining([
         {
           resource: "secret",
@@ -361,7 +361,7 @@ describe("powersync streams", () => {
         { resource: "audit", reason: "no grant of audit.read compiles" },
       ]),
     );
-    expect(plan.warnings).toEqual(
+    expect(plan.warnings).toStrictEqual(
       expect.arrayContaining([
         "ops/job.read does not sync: global role ops is not a row filter",
         "authenticated/note.read does not sync: time-bounded",
@@ -385,8 +385,8 @@ describe("powersync streams", () => {
       ...bare,
       powersync: { resources: ["job", "file", "ghost"] },
     });
-    expect(plan.streams).toEqual([]);
-    expect(plan.omitted).toEqual([
+    expect(plan.streams).toStrictEqual([]);
+    expect(plan.omitted).toStrictEqual([
       { resource: "job", reason: "no grant of job.read compiles" },
       { resource: "file", reason: "no grant of file.read compiles" },
       { resource: "ghost", reason: "no grant of ghost.read" },
@@ -561,7 +561,7 @@ describe("powersync streams", () => {
       ],
     });
     const plan = powersyncPlan(odd, config);
-    expect(plan.omitted).toEqual([
+    expect(plan.omitted).toStrictEqual([
       { resource: "job", reason: "no grant of job.read compiles" },
       { resource: "note", reason: "no grant of note.read compiles" },
     ]);
@@ -620,7 +620,7 @@ describe("powersync streams", () => {
     });
     expect(
       plan.streams.find((stream) => stream.name === "note")?.queries,
-    ).toEqual([
+    ).toStrictEqual([
       expect.stringContaining(
         "WHERE note.rank IS NOT NULL AND note.gone IS NOT NULL AND note.kind NOT IN ('a') AND note.org_id IN (SELECT organization_users.organization_id",
       ),
@@ -628,10 +628,10 @@ describe("powersync streams", () => {
     ]);
     expect(
       plan.streams.find((stream) => stream.name === "folder")?.queries,
-    ).toEqual([
+    ).toStrictEqual([
       "SELECT * FROM folder WHERE folder.id IN (SELECT folder_members.id FROM folder_members WHERE folder_members.user_id = auth.user_id() AND folder_members.role IN ('editor'))",
     ]);
-    expect(plan.warnings).toEqual(
+    expect(plan.warnings).toStrictEqual(
       expect.arrayContaining([
         "editor/note.read does not sync: no rls.memberships.resource table for folder on the row",
       ]),
@@ -647,7 +647,7 @@ describe("powersync streams", () => {
       plan.subject.find(
         (stream) => stream.name === "permdock_custom_role_permissions",
       )?.queries,
-    ).toEqual([
+    ).toStrictEqual([
       'SELECT * FROM "permdock"."custom_role_permissions" AS custom_role_permissions WHERE custom_role_permissions.tenant_id IS NULL',
     ]);
   });
@@ -668,7 +668,7 @@ describe("powersync streams", () => {
         }),
       ],
     });
-    expect(powersyncPlan(wide, { policy: "p.ts" }).omitted).toEqual([
+    expect(powersyncPlan(wide, { policy: "p.ts" }).omitted).toStrictEqual([
       { resource: "note", reason: "64 queries, over the limit of 32" },
     ]);
   });

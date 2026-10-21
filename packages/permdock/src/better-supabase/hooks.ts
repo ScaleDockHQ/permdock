@@ -15,6 +15,7 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
 import type { ProviderApprovers } from "./approvers.ts";
+import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 import type { SubscriberPolicyEvent } from "./subscribers.ts";
 import type { SupportPolicyOptions } from "./support.ts";
 
@@ -27,10 +28,7 @@ import {
   findPermission,
   listPermissions,
 } from "../core/permission-registry.ts";
-import {
-  type BetterSupabaseSubjectOptions,
-  subjectFromBetterSupabase,
-} from "./subject.ts";
+import { subjectFromBetterSupabase } from "./subject.ts";
 import { subscriberPolicy } from "./subscribers.ts";
 import { supportPolicy } from "./support.ts";
 
@@ -51,7 +49,10 @@ export type AuthorizationHooksOptions = {
     userId: string,
     options: { readonly tenant?: string },
   ) => Maybe<Claims>;
-  /** How the claims map to a subject; the defaults of `subjectFromBetterSupabase`. */
+  /**
+   * How the claims map to a subject; the defaults of
+   * `subjectFromBetterSupabase`.
+   */
   readonly subject?: Omit<BetterSupabaseSubjectOptions, "apiKeys">;
   /** Sources for every instance the hooks build. */
   readonly options?: Omit<
@@ -59,32 +60,44 @@ export type AuthorizationHooksOptions = {
     "tenant" | "actor" | "delegation" | "session" | "expiresAt"
   >;
   /**
-   * The claims an organization-owned automation runs as in `tenant`, such
-   * as its default service principal's. Without it such an automation runs
-   * as no one.
+   * The claims an organization-owned automation runs as in `tenant`, such as
+   * its default service principal's. Without it such an automation runs as no
+   * one.
    */
   readonly service?: (tenant: string | null) => Maybe<Claims>;
-  /** The `principalSource` for `identities` and `delivery`; without it neither hook is set. */
+  /**
+   * The `principalSource` for `identities` and `delivery`; without it neither
+   * hook is set.
+   */
   readonly principals?: PrincipalSource;
-  /** The permission each event type needs, for `delivery` (`subscriberPolicy`'s `events`). */
+  /**
+   * The permission each event type needs, for `delivery` (`subscriberPolicy`'s
+   * `events`).
+   */
   readonly events?: Readonly<Record<string, Permission>>;
   /** The row a delivery check decides on; defaults to `event.payload`. */
   readonly row?: (event: SubscriberPolicyEvent) => unknown;
-  /** Who may approve each request kind, as for `authorizationProvider`; sets `approverOf`. */
+  /**
+   * Who may approve each request kind, as for `authorizationProvider`; sets
+   * `approverOf`.
+   */
   readonly approvers?: ProviderApprovers;
   /** `supportPolicy`'s options without `policy`; sets `support.authorize`. */
   readonly support?: Omit<SupportPolicyOptions, "policy">;
   /**
-   * The user and tenant a run ticket stands for, looked up in the app's
-   * store; `null` refuses the ticket. Sets `tickets.subject`, which loads
-   * the user's current claims, so a suspended user's ticket runs as no one.
+   * The user and tenant a run ticket stands for, looked up in the app's store;
+   * `null` refuses the ticket. Sets `tickets.subject`, which loads the user's
+   * current claims, so a suspended user's ticket runs as no one.
    */
   readonly tickets?: (
     ticket: string,
   ) => Maybe<{ readonly userId: string; readonly tenant?: string }>;
 };
 
-/** Whether `permdock` is granted `key` with no row; an unknown key and `approval-required` are `false`. */
+/**
+ * Whether `permdock` is granted `key` with no row; an unknown key and
+ * `approval-required` are `false`.
+ */
 function grants(permdock: PermDock, key: string): boolean {
   const permission = findPermission(permdock.permissions, key);
   return (
@@ -93,7 +106,10 @@ function grants(permdock: PermDock, key: string): boolean {
   );
 }
 
-/** A list matches when every entry does, `anyOf` when one does; other leaves match nobody, as in SQL. */
+/**
+ * A list matches when every entry does, `anyOf` when one does; other leaves
+ * match nobody, as in SQL.
+ */
 function matches(
   approvers: Approver | readonly Approver[],
   userId: string,
@@ -129,15 +145,15 @@ function matches(
 }
 
 /**
- * better-supabase's `AuthorizationHooks` (`createServer(betterSupabase,
- * { authorization })`), decided by `policy`. Every hook builds the
- * principal's instance from the claims `claims` loads now, never from the
- * request, and fails closed: a throw, an unknown key and `approval-required`
- * refuse. `automation` and `delegation` are always set; `identities`,
- * `delivery`, `approverOf`, `support` and `tickets` only with the options
- * they read. `delegation.permissions` maps each scope to the keys whose
- * `.scope` it is, was renamed from, or that a policy `oauthScopes` entry
- * covers, and reads no `authorization_details`.
+ * better-supabase's `AuthorizationHooks` (`createServer(betterSupabase, {
+ * authorization })`), decided by `policy`. Every hook builds the principal's
+ * instance from the claims `claims` loads now, never from the request, and
+ * fails closed: a throw, an unknown key and `approval-required` refuse.
+ * `automation` and `delegation` are always set; `identities`, `delivery`,
+ * `approverOf`, `support` and `tickets` only with the options they read.
+ * `delegation.permissions` maps each scope to the keys whose `.scope` it is,
+ * was renamed from, or that a policy `oauthScopes` entry covers, and reads no
+ * `authorization_details`.
  */
 export function authorizationHooks(
   options: AuthorizationHooksOptions,
@@ -300,9 +316,7 @@ export function authorizationHooks(
       : { identities: Object.freeze(identities) }),
     ...(fanOut === undefined
       ? {}
-      : {
-          delivery: Object.freeze({ subscribers: fanOut, audience: fanOut }),
-        }),
+      : { delivery: Object.freeze({ subscribers: fanOut, audience: fanOut }) }),
     ...(support === undefined
       ? {}
       : {

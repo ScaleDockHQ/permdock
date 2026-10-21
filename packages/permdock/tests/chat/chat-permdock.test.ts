@@ -33,7 +33,7 @@ describe("ChatPermDock.protect", () => {
     );
     const show = permdock.protect(chatOperations["invoice.show"], handler);
     const result = await show(member, { id: "i1" });
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       outcome: "granted",
       value: 'shown {"id":"i1","orgId":"o1"}',
     });
@@ -53,7 +53,8 @@ describe("ChatPermDock.protect", () => {
     expect(
       unlinked.outcome === "denied" && unlinked.decision.denials[0]?.reason,
     ).toBe("anonymous");
-    expect((await show(member, { id: "i2" })).outcome).toBe("denied");
+    const { outcome } = await show(member, { id: "i2" });
+    expect(outcome).toBe("denied");
     const missing = await show(member, { id: "nope" });
     expect(
       missing.outcome === "denied" && missing.decision.denials[0]?.reason,
@@ -74,7 +75,8 @@ describe("ChatPermDock.protect", () => {
       },
       handler,
     );
-    expect((await run(member, { id: "i1" })).outcome).toBe("denied");
+    const { outcome } = await run(member, { id: "i1" });
+    expect(outcome).toBe("denied");
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -99,7 +101,8 @@ describe("ChatPermDock.protect", () => {
     expect(again.outcome === "approval-required" && again.prompt?.id).toBe(
       first.prompt.id,
     );
-    expect((await store.list({})).items).toHaveLength(1);
+    const { items } = await store.list({});
+    expect(items).toHaveLength(1);
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -113,8 +116,8 @@ describe("ChatPermDock.protect", () => {
       approval: id ?? "",
       status: "approved",
     });
-    expect(resolved).toEqual({ ok: true, id, status: "approved" });
-    expect(await pay(billing, { id: "i1" })).toEqual({
+    expect(resolved).toStrictEqual({ ok: true, id, status: "approved" });
+    expect(await pay(billing, { id: "i1" })).toStrictEqual({
       outcome: "granted",
       value: "paid",
     });
@@ -184,10 +187,10 @@ describe("ChatPermDock.resolveAction", () => {
         approval: id,
         status: "approved",
       }),
-    ).toEqual({ ok: false, cause: "approver-unauthenticated" });
+    ).toStrictEqual({ ok: false, cause: "approver-unauthenticated" });
     expect(
       await permdock.resolveAction(null, { approval: id, status: "approved" }),
-    ).toEqual({ ok: false, cause: "approver-unauthenticated" });
+    ).toStrictEqual({ ok: false, cause: "approver-unauthenticated" });
   });
 
   it("refuses the requester approving their own request", async () => {
@@ -197,7 +200,7 @@ describe("ChatPermDock.resolveAction", () => {
         approval: id,
         status: "approved",
       }),
-    ).toEqual({ ok: false, cause: "approver-is-principal" });
+    ).toStrictEqual({ ok: false, cause: "approver-is-principal" });
   });
 
   it("refuses an unknown request id, a bad status and a second verdict", async () => {
@@ -207,14 +210,14 @@ describe("ChatPermDock.resolveAction", () => {
         approval: "apr_missing",
         status: "approved",
       }),
-    ).toEqual({ ok: false, cause: "approval-not-found" });
+    ).toStrictEqual({ ok: false, cause: "approval-not-found" });
     expect(
       await permdock.resolveAction(approver, {
         approval: id,
         // SAFETY: a status from an untrusted button payload.
         status: "maybe" as never,
       }),
-    ).toEqual({ ok: false, cause: "invalid-action" });
+    ).toStrictEqual({ ok: false, cause: "invalid-action" });
     await permdock.resolveAction(approver, {
       approval: id,
       status: "rejected",
@@ -224,6 +227,6 @@ describe("ChatPermDock.resolveAction", () => {
         approval: id,
         status: "approved",
       }),
-    ).toEqual({ ok: false, cause: "approval-not-pending" });
+    ).toStrictEqual({ ok: false, cause: "approval-not-pending" });
   });
 });

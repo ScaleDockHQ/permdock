@@ -34,7 +34,10 @@ function runtimeEntries(): readonly string[] {
     );
 }
 
-/** Specifiers a file loads at run time; `import type` and type-only re-exports are erased. */
+/**
+ * Specifiers a file loads at run time; `import type` and type-only re-exports
+ * are erased.
+ */
 function runtimeSpecifiers(file: string, text: string): readonly string[] {
   const { module } = parseSync(file, text);
   const found: string[] = [];
@@ -116,6 +119,6 @@ describe("invariant 12: runtime entries never load a CLI package", () => {
   });
 
   it.each(runtimeEntries())("%s reaches no CLI source or package", (entry) => {
-    expect(leaksFrom(entry)).toEqual([]);
+    expect(leaksFrom(entry)).toStrictEqual([]);
   });
 });

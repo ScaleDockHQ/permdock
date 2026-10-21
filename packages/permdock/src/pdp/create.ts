@@ -1,6 +1,13 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { Decision, ExplainedDecision } from "../core/decision.ts";
 import type { DecisionProvider } from "../core/interfaces.ts";
+import type {
+  PermDockOptions,
+  DecideOptions,
+  PermDock,
+  SimulateOptions,
+  WhereResult,
+} from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Membership, Principal, Subject } from "../core/subject.ts";
@@ -18,11 +25,6 @@ import {
 import { freezeDeep } from "../core/freeze.ts";
 import { attachInternals, internalsOf } from "../core/internals.ts";
 import {
-  type PermDockOptions,
-  type DecideOptions,
-  type PermDock,
-  type SimulateOptions,
-  type WhereResult,
   getPermDock as getCore,
   getPermDockSync as getCoreSync,
 } from "../core/permdock.ts";
@@ -175,18 +177,16 @@ function wrap<V extends PolicyVocabulary>(
       return local;
     }
     try {
-      return await provider.decide({
-        permission,
-        data,
-        subject,
-        local,
-      });
+      return await provider.decide({ permission, data, subject, local });
     } catch {
       return denied("pdp-unavailable");
     }
   };
 
-  /** The local trace; a remote decision evaluated no local grant, so its trace is empty. */
+  /**
+   * The local trace; a remote decision evaluated no local grant, so its trace
+   * is empty.
+   */
   const explain = async (
     permission: Permission,
     data?: unknown,
@@ -227,7 +227,8 @@ function wrap<V extends PolicyVocabulary>(
     options?: DecideOptions,
   ): Promise<boolean> => {
     try {
-      return (await decide(permission, data, options)).outcome === "granted";
+      const { outcome } = await decide(permission, data, options);
+      return outcome === "granted";
     } catch {
       return false;
     }
@@ -260,6 +261,7 @@ function wrap<V extends PolicyVocabulary>(
       readonly id?: string;
     }>({
       type: permission.resource,
+      // oxlint-disable-next-line typescript/no-base-to-string -- the audit id is the configured id column as text, whatever its type
       id: resourceId === undefined ? undefined : String(resourceId),
     });
     if (decision.outcome === "approval-required") {
@@ -435,7 +437,10 @@ function wrap<V extends PolicyVocabulary>(
   return wrapped;
 }
 
-/** The PDP-aware instance, built synchronously like core `getPermDockSync`; use `getPermDock` for asynchronous inputs. */
+/**
+ * The PDP-aware instance, built synchronously like core `getPermDockSync`; use
+ * `getPermDock` for asynchronous inputs.
+ */
 export function getPermDockSync<
   TUser,
   TPrincipal extends Principal = Principal,

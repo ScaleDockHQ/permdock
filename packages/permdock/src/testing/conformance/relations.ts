@@ -43,14 +43,16 @@ export function testRelationSource(
       });
       expect(Array.isArray(full.ancestors)).toBe(true);
       for (const ancestor of full.ancestors) {
-        expect(typeof ancestor.id).toBe("string");
+        expect(ancestor.id).toBeTypeOf("string");
         expect(ancestor.id).not.toBe("");
       }
       expect(full.ancestors.length).toBeLessThanOrEqual(32);
       const expected =
         options.expect?.ancestors?.[`${object.resource}:${object.id}`];
       if (expected !== undefined) {
-        expect(full.ancestors.map((ancestor) => ancestor.id)).toEqual(expected);
+        expect(full.ancestors.map((ancestor) => ancestor.id)).toStrictEqual(
+          expected,
+        );
       }
       if (full.ancestors.length > 1) {
         const short = await source.ancestors({
@@ -59,7 +61,7 @@ export function testRelationSource(
           through: "parent",
           depth: 1,
         });
-        expect(short.ancestors.map((ancestor) => ancestor.id)).toEqual([
+        expect(short.ancestors.map((ancestor) => ancestor.id)).toStrictEqual([
           full.ancestors[0]?.id,
         ]);
         expect(short.truncated).toBe(true);
@@ -70,7 +72,7 @@ export function testRelationSource(
         through: "parent",
         depth: 0,
       });
-      expect(none.ancestors).toEqual([]);
+      expect(none.ancestors).toStrictEqual([]);
     }
   });
 
@@ -92,11 +94,11 @@ export function testRelationSource(
             holder.group.id,
             holder.group.relation,
           ]) {
-            expect(typeof part).toBe("string");
+            expect(part).toBeTypeOf("string");
             expect(part).not.toBe("");
           }
         } else {
-          expect(typeof holder.principal.id).toBe("string");
+          expect(holder.principal.id).toBeTypeOf("string");
         }
         for (const instant of [holder.startsAt, holder.expiresAt]) {
           expect(
@@ -110,7 +112,7 @@ export function testRelationSource(
           `${object.resource}:${object.id}#${object.relation}`
         ];
       if (expected !== undefined) {
-        expect(holders.map(holderKey).toSorted()).toEqual(
+        expect(holders.map(holderKey).toSorted()).toStrictEqual(
           [...expected].toSorted(),
         );
       }
@@ -134,7 +136,9 @@ export function testRelationSource(
         through,
         depth: 1,
       });
-      expect(linked.ancestors.map((ancestor) => ancestor.id)).toEqual([id]);
+      expect(linked.ancestors.map((ancestor) => ancestor.id)).toStrictEqual([
+        id,
+      ]);
     }
   });
 
@@ -145,10 +149,7 @@ export function testRelationSource(
     const read = (query: { readonly resource: string; readonly id: string }) =>
       source.row?.(query);
     for (const object of options.objects) {
-      const row = await read({
-        resource: object.resource,
-        id: object.id,
-      });
+      const row = await read({ resource: object.resource, id: object.id });
       expect(
         row === null ||
           row === undefined ||
@@ -171,11 +172,11 @@ export function testRelationSource(
     expect(
       (await source.ancestors({ ...missing, through: "parent", depth: 16 }))
         .ancestors,
-    ).toEqual([]);
+    ).toStrictEqual([]);
     if (first.relation !== undefined) {
       expect(
         await source.related({ ...missing, relation: first.relation }),
-      ).toEqual([]);
+      ).toStrictEqual([]);
     }
   });
 }

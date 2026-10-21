@@ -1,4 +1,7 @@
-/** Role assignments checked in the database on the memberships table and the global-roles table, refusing writes to the caller's own rows. */
+/**
+ * Role assignments checked in the database on the memberships table and the
+ * global-roles table, refusing writes to the caller's own rows.
+ */
 export default {
   permissions: "./policy.ts",
   policy: "./policy.ts",

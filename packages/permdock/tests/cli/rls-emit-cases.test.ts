@@ -89,7 +89,7 @@ describe("emitSql and migrationSql", () => {
   });
 });
 
-describe("emitDrizzle", () => {
+describe(emitDrizzle, () => {
   it("declares roles for guc and neon and escapes quotes and template text", () => {
     const anon = policy({
       roles: ["anon", "authenticated"],
@@ -118,9 +118,7 @@ describe("emitDrizzle", () => {
   it("imports only the Supabase roles it uses", () => {
     const text = emitDrizzle(
       [policy({ check: "(select auth.uid()) = owner" })],
-      {
-        dialect: "supabase",
-      },
+      { dialect: "supabase" },
     );
     expect(text).toContain(
       "import { authenticatedRole, authUid } from 'drizzle-orm/supabase'",
@@ -144,7 +142,7 @@ describe("emitDrizzle", () => {
   });
 });
 
-describe("emitPrisma", () => {
+describe(emitPrisma, () => {
   it("lists every target model and writes withCheck", () => {
     const text = emitPrisma(
       [
@@ -183,6 +181,10 @@ describe("output paths", () => {
       defaultOut("sql"),
       defaultOut("drizzle"),
       defaultOut("prisma"),
-    ]).toEqual(["rls.sql", "src/db/policies.ts", "prisma/policies.prisma"]);
+    ]).toStrictEqual([
+      "rls.sql",
+      "src/db/policies.ts",
+      "prisma/policies.prisma",
+    ]);
   });
 });

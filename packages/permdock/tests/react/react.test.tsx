@@ -20,6 +20,7 @@ import {
 } from "../../src/react/hooks.ts";
 import { Protected } from "../../src/react/protected.tsx";
 import { PermDockProvider } from "../../src/react/provider.tsx";
+import { requestBody } from "../fakes/fetch.ts";
 import {
   memberUser,
   otherPost,
@@ -34,7 +35,7 @@ async function memberSnapshot() {
   const server = getPermDockSync(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error("expected JSON snapshot");
+    throw new TypeError("expected JSON snapshot");
   }
   return snapshot;
 }
@@ -60,12 +61,12 @@ function AssignableProbe(): string {
   return `${leaves.map((leaf) => leaf.key).join(",")}|${other.length}`;
 }
 
-describe("useAssignablePermissions", () => {
+describe(useAssignablePermissions, () => {
   it("reads the custom-role ceiling the subject may hand out from the snapshot", async () => {
     const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const html = renderToStaticMarkup(
       <PermDockProvider snapshot={snapshot}>
@@ -76,7 +77,7 @@ describe("useAssignablePermissions", () => {
     expect(acme.split(",")).toContain("project.update");
     expect(acme.split(",")).not.toContain("billing.read");
     expect(Number(globex)).toBeGreaterThan(0);
-    expect(acme.split(",")).toEqual(
+    expect(acme.split(",")).toStrictEqual(
       server.assignablePermissions().map((leaf) => leaf.key),
     );
   });
@@ -163,7 +164,7 @@ describe("permdock/react", () => {
     expect(state.status).toBe("server-only");
     expect(
       state.decision.outcome === "denied" && state.decision.denials,
-    ).toEqual([{ role: null, reason: "server-only" }]);
+    ).toStrictEqual([{ role: null, reason: "server-only" }]);
   });
 
   it("never fetches with endpoint false and hints once", async () => {
@@ -256,7 +257,7 @@ describe("permdock/react", () => {
       endpoint: "/api/permdock",
       server: false,
       fetch: async (_input, init) => {
-        calls.push(JSON.parse(String(init?.body)));
+        calls.push(JSON.parse(requestBody(init)));
         return new Response(
           JSON.stringify({
             evaluations: [
@@ -434,7 +435,7 @@ describe("permdock/react", () => {
   });
 
   it("builds the approval resume header", () => {
-    expect(approvalHeaders("pd1.abc")).toEqual({
+    expect(approvalHeaders("pd1.abc")).toStrictEqual({
       "PermDock-Approval": "pd1.abc",
     });
   });

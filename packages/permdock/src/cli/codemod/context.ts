@@ -1,3 +1,4 @@
+import type { Edit, Estree } from "./ast.ts";
 import type { Rename, SignatureChange } from "./renames-0.5.ts";
 import type {
   AwaitRename,
@@ -10,13 +11,7 @@ import type {
 } from "./shapes-0.5.ts";
 
 import { beforeFirst } from "../shared/text.ts";
-import {
-  type Edit,
-  type Estree,
-  bindingsCached,
-  nameOf,
-  nodes,
-} from "./ast.ts";
+import { bindingsCached, nameOf, nodes } from "./ast.ts";
 
 /** One version's rename map: what the codemod rewrites and what it only reports. */
 export const SCRIPT_BLOCK: RegExp = /<script\b([^>]*)>([\s\S]*?)<\/script>/gu;
@@ -94,10 +89,16 @@ export type Context = {
   readonly references: Reference[];
   readonly optionRows: readonly Rename[];
   readonly methodRows: readonly Rename[];
-  /** Module-level constants holding a factory result, to the entry the factory came from. */
+  /**
+   * Module-level constants holding a factory result, to the entry the factory
+   * came from.
+   */
   readonly factories: ReadonlyMap<string, string>;
   readonly handledKeys: Set<Estree>;
-  /** Signature changes called in their new shape, so the import is not reported as uncalled. */
+  /**
+   * Signature changes called in their new shape, so the import is not reported
+   * as uncalled.
+   */
   readonly newShapes: Set<string>;
   readonly scopes: WeakMap<Estree, ReadonlySet<string> | null>;
 };
@@ -172,7 +173,10 @@ export function listOf(items: readonly string[]): string {
   return new Intl.ListFormat("en-GB", { type: "disjunction" }).format(items);
 }
 
-/** The import a call's callee is bound to: a named import, or a member of a namespace import. */
+/**
+ * The import a call's callee is bound to: a named import, or a member of a
+ * namespace import.
+ */
 export function importedCallee(
   ctx: Context,
   callee: Estree | undefined,

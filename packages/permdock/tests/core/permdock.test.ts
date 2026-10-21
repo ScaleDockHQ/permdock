@@ -41,7 +41,7 @@ async function permdockFor(
   return getPermDockSync(policy, user, options);
 }
 
-describe("getPermDockSync", () => {
+describe(getPermDockSync, () => {
   it("is synchronous for the quick-start policy", async () => {
     const permdock = getPermDockSync(policy, memberUser);
     expect(permdock).not.toBeInstanceOf(Promise);
@@ -63,7 +63,7 @@ describe("getPermDockSync", () => {
     expect(permdock.can(permissions.post.publish, ownPost)).toBe(true);
     expect(permdock.can(permissions.post.publish, otherPost)).toBe(false);
     const portable = permdock.where(permissions.post.publish);
-    expect(portable.condition).toEqual({
+    expect(portable.condition).toStrictEqual({
       op: "not",
       condition: { op: "eq", field: "published", value: true },
     });
@@ -103,7 +103,7 @@ describe("getPermDockSync", () => {
     const decision = permdock.decide(filing.filing.pay, undefined);
     expect(decision.outcome).toBe("approval-required");
     if (decision.outcome === "approval-required") {
-      expect(decision.grant.approval).toEqual({
+      expect(decision.grant.approval).toStrictEqual({
         by: { kind: "role", role: "admin", scope: "global" },
         distinct: true,
       });
@@ -133,10 +133,10 @@ describe("getPermDockSync", () => {
     const sink = memoryDecisionSink();
     const permdock = await permdockFor(memberUser, { sink });
     const rows = permdock.filter(permissions.post.update, [ownPost, otherPost]);
-    expect(rows).toEqual([ownPost]);
+    expect(rows).toStrictEqual([ownPost]);
     expect(sink.events()).toHaveLength(1);
     const event = sink.events().find(isDecisionEvent);
-    expect(event?.counts).toEqual({
+    expect(event?.counts).toStrictEqual({
       granted: 1,
       denied: 1,
       approvalRequired: 0,
@@ -151,16 +151,19 @@ describe("getPermDockSync", () => {
     ]);
     expect(Array.isArray(batch)).toBe(true);
     if (Array.isArray(batch)) {
-      expect(batch.map((item) => item.outcome)).toEqual(["granted", "denied"]);
+      expect(batch.map((item) => item.outcome)).toStrictEqual([
+        "granted",
+        "denied",
+      ]);
     }
     const preview = permdock.simulate({ roles: ["admin"] });
     if (Array.isArray(preview)) {
-      throw new Error("expected instance");
+      throw new TypeError("expected instance");
     }
     expect(preview.can(permissions.post.publish, ownPost)).toBe(true);
     const snapshot = preview.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected json snapshot");
+      throw new TypeError("expected json snapshot");
     }
     expect(snapshot.simulated).toBe(true);
   });
@@ -169,7 +172,7 @@ describe("getPermDockSync", () => {
     const permdock = await permdockFor(memberUser);
     const snapshot = permdock.snapshot({ include: [permissions.post] });
     if (snapshot instanceof Promise) {
-      throw new Error("expected json snapshot");
+      throw new TypeError("expected json snapshot");
     }
     expect(snapshot.v).toBe(1);
     expect(
@@ -360,11 +363,7 @@ describe("getPermDockSync", () => {
   it("bounds custom roles by the tenant ceiling", async () => {
     const permdock = getPermDockSync(
       policy,
-      {
-        id: "u4",
-        orgId: "o1",
-        roles: ["staff"],
-      },
+      { id: "u4", orgId: "o1", roles: ["staff"] },
       {
         customRoles: memoryCustomRoleSource([
           { tenant: "unused", name: "staff", includes: ["member"] },
@@ -448,7 +447,7 @@ describe("getPermDockSync", () => {
     expect(permdock.can(permissions.post.read, otherPost)).toBe(false);
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const grant = snapshot.grants.find(
       (item) => item.permission === "post.read",
@@ -481,7 +480,7 @@ describe("getPermDockSync", () => {
       { id: "u1" },
       { tenant: "o1" },
     );
-    expect(permdock.tenants()).toEqual(["o1"]);
+    expect(permdock.tenants()).toStrictEqual(["o1"]);
     expect(
       permdock.tenant("o1").can(scoped.post.read, { id: "p1", orgId: "o1" }),
     ).toBe(true);
@@ -526,16 +525,13 @@ describe("decide alternatives", () => {
               ],
             },
     });
-    const permdock = getPermDockSync(tenancyPolicy, {
-      id: "u1",
-      tenant: "T",
-    });
+    const permdock = getPermDockSync(tenancyPolicy, { id: "u1", tenant: "T" });
     const decision = permdock.decide(tenancy.doc.create, undefined, {
       now: at(500),
     });
     expect(decision.outcome).toBe("denied");
     if (decision.outcome !== "denied") return;
-    expect(decision.alternatives.map((leaf) => leaf.key)).toEqual([
+    expect(decision.alternatives.map((leaf) => leaf.key)).toStrictEqual([
       "doc.read",
       "doc.list",
     ]);

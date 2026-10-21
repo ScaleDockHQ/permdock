@@ -91,7 +91,10 @@ describe("rls.customRoleWrites.roles", () => {
       )
     ).rows.map((row) => row.row);
 
-  /** Runs `sql` as the signed-in `user` and returns the grants inside that transaction, which then rolls back. */
+  /**
+   * Runs `sql` as the signed-in `user` and returns the grants inside that
+   * transaction, which then rolls back.
+   */
   const as = async (user: string, sql: string): Promise<string[]> => {
     const admin = started().admin;
     await admin.query("begin");
@@ -113,11 +116,11 @@ describe("rls.customRoleWrites.roles", () => {
     await admin.query(
       "update public.app_roles set name = 'auditor' where name = 'reviewer'",
     );
-    expect(await grants()).toEqual(["acme/tenant/auditor/job.read"]);
+    expect(await grants()).toStrictEqual(["acme/tenant/auditor/job.read"]);
     await admin.query(
       "update public.app_roles set name = 'reviewer' where name = 'auditor'",
     );
-    expect(await grants()).toEqual(["acme/tenant/reviewer/job.read"]);
+    expect(await grants()).toStrictEqual(["acme/tenant/reviewer/job.read"]);
   });
 
   it("checks a signed-in caller the way the write functions do", async () => {
@@ -138,8 +141,8 @@ describe("rls.customRoleWrites.roles", () => {
         ADMIN,
         "update public.app_roles set name = 'auditor' where name = 'reviewer'",
       ),
-    ).toEqual(["acme/tenant/auditor/job.read"]);
-    expect(await grants()).toEqual(["acme/tenant/reviewer/job.read"]);
+    ).toStrictEqual(["acme/tenant/auditor/job.read"]);
+    expect(await grants()).toStrictEqual(["acme/tenant/reviewer/job.read"]);
   });
 
   it("skips rows the skip column marks and deletes the grants with the row", async () => {
@@ -147,8 +150,8 @@ describe("rls.customRoleWrites.roles", () => {
     await admin.query(
       "update public.app_roles set name = 'owner' where name = 'admin'",
     );
-    expect(await grants()).toEqual(["acme/tenant/reviewer/job.read"]);
+    expect(await grants()).toStrictEqual(["acme/tenant/reviewer/job.read"]);
     await admin.query("delete from public.app_roles where name = 'reviewer'");
-    expect(await grants()).toEqual([]);
+    expect(await grants()).toStrictEqual([]);
   });
 });

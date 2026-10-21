@@ -85,12 +85,11 @@ const related = (extra: Partial<RelatedCondition> = {}): RelatedCondition => ({
 describe("graph grants in RLS", () => {
   it("plans the relations each resource needs and the deepest walk", () => {
     const plan = graphPlan(policy);
-    expect([...plan.keys()]).toEqual(["folder"]);
-    expect([...(plan.get("folder")?.relations ?? [])].toSorted()).toEqual([
-      "editor",
-      "viewer",
-    ]);
-    expect(closureDepths(plan)).toEqual({ folder: 8 });
+    expect([...plan.keys()]).toStrictEqual(["folder"]);
+    expect([...(plan.get("folder")?.relations ?? [])].toSorted()).toStrictEqual(
+      ["editor", "viewer"],
+    );
+    expect(closureDepths(plan)).toStrictEqual({ folder: 8 });
   });
 
   it("compiles to the closure subquery, a depth bound only below the cap, and the restricted row", () => {
@@ -173,8 +172,8 @@ describe("graph grants in RLS", () => {
         plan,
         undefined,
       ),
-    ).toThrow(/PD032/);
-    expect(closureDepths(plan)).toEqual({ team: 16 });
+    ).toThrow(/PD032/u);
+    expect(closureDepths(plan)).toStrictEqual({ team: 16 });
   });
 
   it("names the helpers, links and closure objects of a camelCase resource in snake_case", () => {
@@ -273,7 +272,7 @@ describe("graph grants in RLS", () => {
   });
 
   it("is refused by toWhere compilers without a relations mapping", () => {
-    expect(() => compileWhere(related())).toThrow(/related/);
+    expect(() => compileWhere(related())).toThrow(/related/u);
   });
 
   it("plans groups, includes and link hops, and emits a helper per link", () => {
@@ -323,11 +322,11 @@ describe("graph grants in RLS", () => {
       subject: () => null,
     });
     const plan = graphPlan(graphed);
-    expect([...(plan.get("squad")?.relations ?? [])].toSorted()).toEqual([
+    expect([...(plan.get("squad")?.relations ?? [])].toSorted()).toStrictEqual([
       "lead",
       "member",
     ]);
-    expect([...(plan.get("folder")?.links ?? [])]).toEqual(["squad"]);
+    expect([...(plan.get("folder")?.links ?? [])]).toStrictEqual(["squad"]);
     const ctx: RlsSqlContext = {
       dialect: "supabase",
       scopes: scopeList(graphed.scopes),

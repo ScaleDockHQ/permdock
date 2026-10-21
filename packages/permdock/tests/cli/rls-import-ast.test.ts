@@ -14,15 +14,10 @@ const memberships = {
     user: "user_id",
     role: "role",
   },
-  team: {
-    table: "team_users",
-    team: "teamId",
-    user: "user_id",
-    role: "role",
-  },
+  team: { table: "team_users", team: "teamId", user: "user_id", role: "role" },
 };
 
-describe("conditionFromAst", () => {
+describe(conditionFromAst, () => {
   it("maps auth.uid equality, compounds, isNull and claims", async () => {
     const unmapped: string[] = [];
     expect(
@@ -44,10 +39,10 @@ describe("conditionFromAst", () => {
         undefined,
         unmapped,
       ),
-    ).toEqual({ op: "isNull", field: "published", value: true });
+    ).toStrictEqual({ op: "isNull", field: "published", value: true });
     expect(
       await conditionFromAst('"n" is not null', undefined, undefined, unmapped),
-    ).toEqual({ op: "isNull", field: "n", value: false });
+    ).toStrictEqual({ op: "isNull", field: "n", value: false });
     expect(
       await conditionFromAst(
         "\"orgId\" = ((select auth.jwt()) ->> 'tenant_id')",
@@ -82,8 +77,8 @@ describe("conditionFromAst", () => {
     ).toMatchObject({ op: "or" });
     expect(
       await conditionFromAst("true", undefined, undefined, unmapped),
-    ).toEqual({ op: "eq", field: "_", value: true });
-    expect(unmapped).toEqual([]);
+    ).toStrictEqual({ op: "eq", field: "_", value: true });
+    expect(unmapped).toStrictEqual([]);
   });
 
   it("maps EXISTS and IN memberships and mapped functions", async () => {
@@ -143,14 +138,14 @@ describe("conditionFromAst", () => {
     const dump = await canonicalDump(
       'create policy "jobs_read" on job for select to authenticated using (job_permitted(id));',
     );
-    expect(dump).toMatch(/CREATE POLICY/i);
+    expect(dump).toMatch(/CREATE POLICY/iu);
     expect(dump).toContain("job_permitted");
   });
 });
 
-describe("sqlFunctionNames", () => {
+describe(sqlFunctionNames, () => {
   it("walks compounds and ignores leaves without a function", () => {
-    expect(sqlFunctionNames(undefined)).toEqual([]);
+    expect(sqlFunctionNames(undefined)).toStrictEqual([]);
     expect(
       sqlFunctionNames({
         op: "and",
@@ -164,9 +159,9 @@ describe("sqlFunctionNames", () => {
           { op: "not", condition: { op: "eq", field: "hidden", value: true } },
         ],
       }),
-    ).toEqual(["job_permitted"]);
+    ).toStrictEqual(["job_permitted"]);
     expect(
       sqlFunctionNames({ op: "opaque", sql: "1=1", fingerprint: "x" }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

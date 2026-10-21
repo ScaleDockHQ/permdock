@@ -78,7 +78,10 @@ export function NavSkeleton() {
   );
 }
 
-/** Shown while a click on a link waits for its route; a prefetched route usually never shows it. */
+/**
+ * Shown while a click on a link waits for its route; a prefetched route usually
+ * never shows it.
+ */
 function Pending() {
   const { pending } = useLinkStatus();
   return pending ? (

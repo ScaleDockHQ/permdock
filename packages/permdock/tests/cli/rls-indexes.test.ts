@@ -22,7 +22,7 @@ import {
 } from "../../src/index.ts";
 import { fakeSql } from "../fakes/sql.ts";
 
-describe("indexedFields", () => {
+describe(indexedFields, () => {
   it("keeps comparisons with the subject or a membership, through and and or", () => {
     expect(
       indexedFields({
@@ -71,12 +71,12 @@ describe("indexedFields", () => {
           },
         ],
       }),
-    ).toEqual(["owner_id", "region", "project_id"]);
-    expect(indexedFields(undefined)).toEqual([]);
+    ).toStrictEqual(["owner_id", "region", "project_id"]);
+    expect(indexedFields(undefined)).toStrictEqual([]);
   });
 });
 
-describe("pruneIndexTargets", () => {
+describe(pruneIndexTargets, () => {
   const targets = [
     { table: "public.ticket", columns: ["workspace_id"] },
     { table: "public.ticket", columns: ["project_id"] },
@@ -98,7 +98,7 @@ describe("pruneIndexTargets", () => {
           "public.members": [["user_id"]],
         },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       targets: [
         { table: "public.members", columns: ["user_id", "workspace_id"] },
         { table: "public.grants", columns: ["user_id"] },
@@ -134,7 +134,7 @@ describe("pruneIndexTargets", () => {
         ["public.ticket"],
         sql.connect,
       ),
-    ).toEqual({
+    ).toStrictEqual({
       columns: { "public.ticket": ["id", "workspace_id"] },
       indexes: { "public.ticket": [["workspace_id", "id"], ["id"]] },
     });
@@ -142,7 +142,7 @@ describe("pruneIndexTargets", () => {
   });
 });
 
-describe("indexName", () => {
+describe(indexName, () => {
   it("names the table and columns, and hashes a name over 63 bytes", () => {
     expect(indexName({ table: "public.invoice", columns: ["status"] })).toBe(
       "permdock_invoice_status_idx",
@@ -202,6 +202,6 @@ describe("index targets from compiled grants", () => {
       compiled.rowColumns
         .map((item) => `${item.table}.${item.column}`)
         .toSorted(),
-    ).toEqual(["ticket.owner_id", "ticket.workspace_id"]);
+    ).toStrictEqual(["ticket.owner_id", "ticket.workspace_id"]);
   });
 });

@@ -40,7 +40,7 @@ function client(
   };
 }
 
-describe("supabaseApprovalStore", () => {
+describe(supabaseApprovalStore, () => {
   it("calls one function per method with the stored bodies", async () => {
     const calls: Call[] = [];
     const opened: string[] = [];
@@ -74,7 +74,7 @@ describe("supabaseApprovalStore", () => {
     );
     expect(store.ttl).toBe(1000);
     await store.create(request);
-    expect(opened).toEqual(["t1"]);
+    expect(opened).toStrictEqual(["t1"]);
     expect(await store.get("t1")).toBe(request);
     expect(await store.get("nope")).toBeNull();
     const page = await store.list({
@@ -82,9 +82,11 @@ describe("supabaseApprovalStore", () => {
       tenant: "o1",
       limit: 1,
     });
-    expect(page.items).toEqual([request]);
+    expect(page.items).toStrictEqual([request]);
     expect(page.next).toBe(JSON.stringify([request.createdAt, "t1"]));
-    expect(await store.list({ cursor: "not json" })).toEqual({ items: [] });
+    expect(await store.list({ cursor: "not json" })).toStrictEqual({
+      items: [],
+    });
     expect(
       await store.consume("t1", {
         epochMilliseconds: Date.parse("2026-10-05T11:00:00Z"),
@@ -98,7 +100,7 @@ describe("supabaseApprovalStore", () => {
     expect(await store.cancel?.({ tenant: "o1" }, { by: "cleanup" })).toBe(2);
     expect(
       calls.find((call) => call.fn === "permdock_approval_list")?.args,
-    ).toEqual({
+    ).toStrictEqual({
       p_filter: { status: "pending", tenant: "o1" },
       p_after_created: null,
       p_after_token: null,
@@ -133,7 +135,7 @@ describe("supabaseApprovalStore", () => {
     );
     await store.create(request);
     await store.create({ ...request, createdAt: "2026-10-05T10:05:00.000Z" });
-    expect(opened).toEqual([request.createdAt]);
+    expect(opened).toStrictEqual([request.createdAt]);
     const lost = supabaseApprovalStore(
       client(() => ({ data: null, error: null })),
       {
@@ -144,7 +146,7 @@ describe("supabaseApprovalStore", () => {
       },
     );
     await lost.create(request);
-    expect(opened).toEqual([request.createdAt]);
+    expect(opened).toStrictEqual([request.createdAt]);
   });
 
   it("refuses a verdict on a missing or no longer pending request", async () => {
@@ -166,14 +168,10 @@ describe("supabaseApprovalStore", () => {
     };
     await expect(
       store.resolve("nope", { status: "approved", by }),
-    ).rejects.toMatchObject({
-      code: "approval-not-found",
-    });
+    ).rejects.toMatchObject({ code: "approval-not-found" });
     await expect(
       store.resolve("t1", { status: "approved", by }),
-    ).rejects.toMatchObject({
-      code: "approval-not-pending",
-    });
+    ).rejects.toMatchObject({ code: "approval-not-pending" });
   });
 
   it("rejects when a function fails and reads a non-number count as zero", async () => {
@@ -190,7 +188,8 @@ describe("supabaseApprovalStore", () => {
     );
     expect(await odd.expire()).toBe(0);
     expect(await odd.cancel?.({}, { by: "x", note: "n" })).toBe(0);
-    expect((await odd.list({})).items).toEqual([]);
+    const { items } = await odd.list({});
+    expect(items).toStrictEqual([]);
   });
 
   it("generates the store closed to client roles", () => {

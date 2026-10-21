@@ -4,9 +4,7 @@ import { defineRule } from "@oxlint/plugins";
 
 type BroadTypeKind = "top" | "object" | "record";
 
-type KnownValueEvidence = {
-  readonly type: ESTree.TSType | null;
-};
+type KnownValueEvidence = { readonly type: ESTree.TSType | null };
 
 const functionBoundaryTypes = new Set([
   "ArrowFunctionExpression",
@@ -363,7 +361,10 @@ function assertionIsNarrower(
   return isDefinitelyNarrowerRecordType(assertedType);
 }
 
-/** Detect immutable local bindings that erase a known type and are later asserted back to a narrower type. */
+/**
+ * Detect immutable local bindings that erase a known type and are later
+ * asserted back to a narrower type.
+ */
 export const noWidenThenAssertRule = defineRule({
   meta: {
     type: "problem",

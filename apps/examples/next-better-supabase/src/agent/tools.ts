@@ -14,14 +14,20 @@ export type CallerQuery = (
 ) => Promise<readonly unknown[]>;
 
 export type QuoteAgentContext = {
-  /** From `subjectFromBetterSupabase(session)` on the verified token; carries `act`. */
+  /**
+   * From `subjectFromBetterSupabase(session)` on the verified token; carries
+   * `act`.
+   */
   readonly subject: Subject;
   /** The organization the request acts in, from the route, never from the model. */
   readonly organization: string;
   readonly query: CallerQuery;
 };
 
-/** `pg` returns `bigint` as a string; the `Quote` schema the decision validates wants a number. */
+/**
+ * `pg` returns `bigint` as a string; the `Quote` schema the decision validates
+ * wants a number.
+ */
 const QuoteRecord = z.object({
   id: z.uuid(),
   organization_id: z.uuid(),
@@ -93,7 +99,10 @@ export function quoteAgent(context: QuoteAgentContext) {
   });
   const tools = quoteTools(context.query);
 
-  /** What the AI SDK does with `toolApproval`: run the tool only when it answers `approved`. */
+  /**
+   * What the AI SDK does with `toolApproval`: run the tool only when it answers
+   * `approved`.
+   */
   const call = async (
     toolName: QuoteToolName,
     input: unknown = {},

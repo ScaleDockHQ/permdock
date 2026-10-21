@@ -6,7 +6,7 @@ function base64url(bytes: Uint8Array): string {
   return btoa(binary)
     .replaceAll("+", "-")
     .replaceAll("/", "_")
-    .replace(/=+$/u, "");
+    .replace(/[=]+$/u, "");
 }
 
 /** `length` random bytes as base64url, from Web Crypto. */
@@ -14,10 +14,7 @@ export function randomToken(length: number): string {
   return base64url(globalThis.crypto.getRandomValues(new Uint8Array(length)));
 }
 
-export type Pkce = {
-  readonly verifier: string;
-  readonly challenge: string;
-};
+export type Pkce = { readonly verifier: string; readonly challenge: string };
 
 /** An RFC 7636 verifier of 43 characters and its `S256` challenge. */
 export async function pkce(): Promise<Pkce> {

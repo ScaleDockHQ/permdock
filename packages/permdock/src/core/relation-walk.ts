@@ -1,15 +1,11 @@
 import type { RelatedCondition } from "../conditions/ast.ts";
 import type { RelationGroup, RelationHolder } from "./interfaces.ts";
+import type { RelatedVerdict, RelationReader } from "./relations.ts";
 import type { Subject } from "./subject.ts";
 
 import { isRecord } from "./compact.ts";
 import { ownGet } from "./paths.ts";
-import {
-  DEFAULT_GROUP_DEPTH,
-  type RelatedVerdict,
-  type RelationReader,
-  relationId,
-} from "./relations.ts";
+import { DEFAULT_GROUP_DEPTH, relationId } from "./relations.ts";
 
 /** Whether the holder's period covers `now`. */
 function activeNow(holder: RelationHolder, now: number): boolean {
@@ -107,16 +103,16 @@ function restrictedAbove(
   return false;
 }
 
-/** The instances a graph relation reads: the start, then ancestors until a restricted one or `depth`. */
+/**
+ * The instances a graph relation reads: the start, then ancestors until a
+ * restricted one or `depth`.
+ */
 export function relationWalk(
   condition: RelatedCondition,
   row: unknown,
   reader: RelationReader,
 ):
-  | {
-      readonly ids: readonly string[];
-      readonly truncated: boolean;
-    }
+  | { readonly ids: readonly string[]; readonly truncated: boolean }
   | "relation-depth"
   | "relation-unavailable"
   | undefined {
@@ -178,10 +174,10 @@ export function relationWalk(
 }
 
 /**
- * Whether the subject holds the relation on the row's instance or an
- * ancestor within `depth`. A cycle is `relation-depth`; so is a chain that
- * goes on past `depth` with no holder below it. Any read the instance could
- * not answer is `relation-unavailable` unless a holder was found elsewhere.
+ * Whether the subject holds the relation on the row's instance or an ancestor
+ * within `depth`. A cycle is `relation-depth`; so is a chain that goes on past
+ * `depth` with no holder below it. Any read the instance could not answer is
+ * `relation-unavailable` unless a holder was found elsewhere.
  */
 export function resolveRelated(
   condition: RelatedCondition,
@@ -227,11 +223,7 @@ export function resolveRelated(
   const explored = new Map<string, number>();
   for (const id of walk.ids) {
     const verdict = holdsRelation(
-      {
-        resource: condition.resource,
-        id,
-        relation: condition.relation,
-      },
+      { resource: condition.resource, id, relation: condition.relation },
       principal.id,
       now,
       reader,
@@ -292,8 +284,8 @@ function groupKey(group: RelationGroup): string {
 
 /**
  * Whether the principal holds `at.relation` on one instance, directly or
- * through a group whose members hold it. Groups of `at`'s own resource nest
- * at most `budget` deep; a group of another resource gets a fresh budget
+ * through a group whose members hold it. Groups of `at`'s own resource nest at
+ * most `budget` deep; a group of another resource gets a fresh budget
  * (declarations rule out cycles across resources). A group met twice on one
  * path, or one past the budget, is `relation-depth`. `explored` holds the
  * budget each group was walked with across the whole walk: a group already

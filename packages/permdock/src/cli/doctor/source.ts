@@ -1,21 +1,24 @@
+import type {
+  Argument,
+  CallExpression,
+  Expression,
+  ObjectExpression,
+  ObjectProperty,
+} from "oxc-parser";
+
 import { createJiti } from "jiti";
 import { existsSync, realpathSync } from "node:fs";
 import { isBuiltin } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import {
-  type Argument,
-  type CallExpression,
-  type Expression,
-  type ObjectExpression,
-  type ObjectProperty,
-  Visitor,
-  parseSync,
-} from "oxc-parser";
+import { Visitor, parseSync } from "oxc-parser";
 
 import type { DoctorFinding, DoctorSource } from "../shared/doctor-types.ts";
 
-/** Entries a client file must not import; `tests/cli/doctor-entries.test.ts` keeps it in step with `exports`. */
+/**
+ * Entries a client file must not import; `tests/cli/doctor-entries.test.ts`
+ * keeps it in step with `exports`.
+ */
 export const SERVER_SPECIFIERS = [
   "permdock/a2a",
   "permdock/agent",
@@ -130,7 +133,10 @@ export function isClientSource(
   );
 }
 
-/** Specifiers a module loads at runtime: value imports, re-exports and literal dynamic imports. */
+/**
+ * Specifiers a module loads at runtime: value imports, re-exports and literal
+ * dynamic imports.
+ */
 export function runtimeSpecifiers(source: DoctorSource): readonly string[] {
   const { module } = parseSync(source.file, source.text);
   const out = new Set<string>();
@@ -169,10 +175,10 @@ function realFile(path: string): string {
 }
 
 /**
- * A resolver for imports of `file`, the way the bundler resolves them:
- * relative paths with or without an extension, the `paths` of the nearest
- * `tsconfig.json`, and package names through `node_modules` and each
- * package's `exports`. An unresolvable specifier gives `undefined`.
+ * A resolver for imports of `file`, the way the bundler resolves them: relative
+ * paths with or without an extension, the `paths` of the nearest
+ * `tsconfig.json`, and package names through `node_modules` and each package's
+ * `exports`. An unresolvable specifier gives `undefined`.
  */
 export function resolverFor(
   file: string,
@@ -332,7 +338,8 @@ export function pd011(
   for (const source of sources) {
     if (
       /tenant['"]?\s*:\s*['"]hd['"]/u.test(source.text) ||
-      (/accounts\.google\.com/u.test(source.text) && /tenant/.test(source.text))
+      (/accounts\.google\.com/u.test(source.text) &&
+        source.text.includes("tenant"))
     ) {
       findings.push({
         code: "PD011",
@@ -564,7 +571,10 @@ export function pd015(
 
 const SUPABASE_SUBJECT_CALL = /\bsubjectFromSupabase(?:Session)?\s*\(/gu;
 
-/** Top-level arguments of the call whose `(` ends at `open`, or undefined when unbalanced. */
+/**
+ * Top-level arguments of the call whose `(` ends at `open`, or undefined when
+ * unbalanced.
+ */
 function callArguments(
   text: string,
   open: number,
@@ -601,7 +611,10 @@ function callArguments(
   return undefined;
 }
 
-/** The claim a `subjectFromSupabase` call reads the tenant from, or undefined when the options are not a literal. */
+/**
+ * The claim a `subjectFromSupabase` call reads the tenant from, or undefined
+ * when the options are not a literal.
+ */
 function readTenantClaim(
   options: string | undefined,
   fallback: string,
@@ -652,9 +665,9 @@ export function pd038(
 }
 
 /**
- * PD057: `rls.anonymousSignIns` is `'deny'`, so RLS refuses `signInAnonymously()` users, but a
- * `subjectFromSupabase(Session)` call maps them as signed-in users. Options that are not a
- * literal object are not read.
+ * PD057: `rls.anonymousSignIns` is `'deny'`, so RLS refuses
+ * `signInAnonymously()` users, but a `subjectFromSupabase(Session)` call maps
+ * them as signed-in users. Options that are not a literal object are not read.
  */
 export function pd057(
   sources: readonly DoctorSource[],
@@ -691,7 +704,10 @@ export function pd057(
 
 const EXCHANGE_CALL = /\bexchangeCapability\s*\(/gu;
 
-/** PD041: `exchangeCapability` signing link tokens with the project's shared JWT secret. */
+/**
+ * PD041: `exchangeCapability` signing link tokens with the project's shared JWT
+ * secret.
+ */
 export function pd041(
   sources: readonly DoctorSource[],
 ): readonly DoctorFinding[] {
@@ -723,7 +739,10 @@ const ID_ROUTE =
   /['"`](\/[^'"`\s]*(?::[A-Za-z_$][\w$]*|\{[A-Za-z_$][\w$]*\})[^'"`\s]*)['"`]/gu;
 const DYNAMIC_SEGMENT = /(?:^|[\\/])(\[[^\]/\\]+\])(?=[\\/])/u;
 
-/** The id-bearing route a `protect` call at `index` sits in: the file's dynamic segment, or a route literal earlier in the same statement. */
+/**
+ * The id-bearing route a `protect` call at `index` sits in: the file's dynamic
+ * segment, or a route literal earlier in the same statement.
+ */
 function idRouteOf(source: DoctorSource, index: number): string | undefined {
   const segment = DYNAMIC_SEGMENT.exec(source.file);
   if (segment !== null) {
@@ -735,7 +754,10 @@ function idRouteOf(source: DoctorSource, index: number): string | undefined {
   return [...statement.matchAll(ID_ROUTE)].at(-1)?.[1];
 }
 
-/** PD036: a `protect(permission)` with no row loader on a route whose path names an object id (BOLA, OWASP API1). */
+/**
+ * PD036: a `protect(permission)` with no row loader on a route whose path names
+ * an object id (BOLA, OWASP API1).
+ */
 export function pd036(
   sources: readonly DoctorSource[],
 ): readonly DoctorFinding[] {

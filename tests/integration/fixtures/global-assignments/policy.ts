@@ -7,9 +7,9 @@ import {
 } from "permdock";
 
 /**
- * Owners assign every tenant role. The platform admin, a global role,
- * assigns the global support role and tenant owners; nobody else assigns a
- * global role.
+ * Owners assign every tenant role. The platform admin, a global role, assigns
+ * the global support role and tenant owners; nobody else assigns a global
+ * role.
  */
 export const permissions = definePermissions({
   job: resource({

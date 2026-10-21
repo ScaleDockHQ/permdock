@@ -55,7 +55,10 @@ export type WorkflowPermDockOptions = PermDockOptions & {
   readonly principals: PrincipalSource;
   /** The live automation records, read by `start` and on every `getPermDock`. */
   readonly automations: AutomationSource;
-  /** Where `awaitApproval` opens and resumes requests; the same option name as every other adapter. */
+  /**
+   * Where `awaitApproval` opens and resumes requests; the same option name as
+   * every other adapter.
+   */
   readonly store?: ApprovalStore;
   /** Suspends `awaitApproval` until a request is decided. */
   readonly waiter?: ApprovalWaiter;
@@ -77,7 +80,10 @@ export type AutomationOptions = {
   readonly caller?: PermDock;
   /** The row `run` is decided on, when it is an instance permission. */
   readonly row?: unknown;
-  /** The event that started the run, as JSON. Kept in `subject.context.trigger`; never a grant. */
+  /**
+   * The event that started the run, as JSON. Kept in `subject.context.trigger`;
+   * never a grant.
+   */
   readonly trigger?: Readonly<Record<string, unknown>>;
   /** The run id (`jti`); a fresh UUID when absent. */
   readonly id?: string;
@@ -94,7 +100,10 @@ export type StartAutomationResult =
   | { readonly outcome: "denied"; readonly denials: readonly Denial[] };
 
 export type AwaitApprovalOptions = DecideOptions & {
-  /** The resource the approval request names; defaults to the permission's resource and the row's `id`. */
+  /**
+   * The resource the approval request names; defaults to the permission's
+   * resource and the row's `id`.
+   */
   readonly resource?: { readonly type: string; readonly id?: string };
   /** Seconds the request stays open; the store's `ttl` when absent. */
   readonly ttl?: number;
@@ -103,27 +112,26 @@ export type AwaitApprovalOptions = DecideOptions & {
 
 export type WorkflowPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   /**
-   * Starts a run of the automation `id` and returns its run ticket. Denied
-   * when the automation is unknown or revoked (`validation`) or when the
-   * caller is not granted its `run` permission.
+   * Starts a run of the automation `id` and returns its run ticket. Denied when
+   * the automation is unknown or revoked (`validation`) or when the caller is
+   * not granted its `run` permission.
    */
   readonly start: (
     id: string,
     options?: AutomationOptions,
   ) => Promise<StartAutomationResult>;
   /**
-   * The PermDock of a run, rebuilt from its ticket: the principal loaded
-   * live, narrowed to the automation's permissions and to any policy
-   * delegation to `actor('automation')`. A changed, revoked or unknown
-   * automation, or a publisher who is gone, gives an anonymous instance
-   * that denies everything.
+   * The PermDock of a run, rebuilt from its ticket: the principal loaded live,
+   * narrowed to the automation's permissions and to any policy delegation to
+   * `actor('automation')`. A changed, revoked or unknown automation, or a
+   * publisher who is gone, gives an anonymous instance that denies everything.
    */
   readonly getPermDock: (ticket: string) => Promise<PermDock<V>>;
   /**
-   * Decides `permission`; on `approval-required` opens a request, waits on
-   * the `waiter`, then rebuilds the run from its ticket and decides again
-   * with the token. The second decision reads the publisher's rights as of
-   * then, so a demotion while waiting denies.
+   * Decides `permission`; on `approval-required` opens a request, waits on the
+   * `waiter`, then rebuilds the run from its ticket and decides again with the
+   * token. The second decision reads the publisher's rights as of then, so a
+   * demotion while waiting denies.
    */
   readonly awaitApproval: (
     ticket: string,
@@ -132,9 +140,9 @@ export type WorkflowPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     options?: AwaitApprovalOptions,
   ) => Promise<Decision>;
   /**
-   * The first half of `awaitApproval`, for runners that wait outside the
-   * call: decides, and on `approval-required` opens the request and returns
-   * the decision with its token.
+   * The first half of `awaitApproval`, for runners that wait outside the call:
+   * decides, and on `approval-required` opens the request and returns the
+   * decision with its token.
    */
   readonly openApproval: (
     ticket: string,
@@ -199,10 +207,10 @@ function targetOf(
 }
 
 /**
- * Creates the PermDock for durable runs of published automations. A run
- * acts as the automation's principal with that principal's rights at each
- * step, narrowed to the automation's operations; the trigger is recorded
- * and never grants.
+ * Creates the PermDock for durable runs of published automations. A run acts as
+ * the automation's principal with that principal's rights at each step,
+ * narrowed to the automation's operations; the trigger is recorded and never
+ * grants.
  */
 export function createPermDock<
   TUser,
@@ -385,10 +393,7 @@ export function createPermDock<
     permission: Permission,
     data: unknown,
     decideOptions: AwaitApprovalOptions,
-  ): Promise<{
-    readonly decision: Decision;
-    readonly expiresAt?: string;
-  }> => {
+  ): Promise<{ readonly decision: Decision; readonly expiresAt?: string }> => {
     const { resource, ttl, signal: _signal, ...rest } = decideOptions;
     const first = await getPermDock(ticket);
     const decision = first.decide(permission, data, rest);

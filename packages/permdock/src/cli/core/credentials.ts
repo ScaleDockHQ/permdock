@@ -7,7 +7,7 @@ const URL_PASSWORD = /\b([a-z][a-z0-9+.-]*:\/\/[^\s:/@]+:)([^\s@/]+)@/giu;
 
 /** `text` with every registered secret and every URL password masked. */
 export function redact(text: string, secrets: Iterable<string>): string {
-  let out = text.replace(URL_PASSWORD, "$1***@");
+  let out = text.replaceAll(URL_PASSWORD, "$1***@");
   for (const secret of secrets) {
     if (secret.length >= 4) {
       out = out.replaceAll(secret, "***");
@@ -17,8 +17,8 @@ export function redact(text: string, secrets: Iterable<string>): string {
 }
 
 /**
- * The secret piped in for `--<flag>-stdin`, when it was passed, registered
- * for redaction.
+ * The secret piped in for `--<flag>-stdin`, when it was passed, registered for
+ * redaction.
  */
 export async function secretInput(
   ctx: CliContext,

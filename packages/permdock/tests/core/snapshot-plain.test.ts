@@ -141,10 +141,7 @@ function nonPlain(value: unknown, path: string, out: string[]): string[] {
 
 describe("snapshots are plain data", () => {
   it("carries only plain, JSON and structured-clone safe values in every shape", async () => {
-    const permdock = getPermDockSync(policy, ana, {
-      relations,
-      customRoles,
-    });
+    const permdock = getPermDockSync(policy, ana, { relations, customRoles });
     const shapes = {
       own: permdock.snapshot(),
       all: permdock.snapshot({ tenants: "all" }),
@@ -160,7 +157,7 @@ describe("snapshots are plain data", () => {
       shapes.all.grants.some((grant) => grant.approval !== undefined),
     ).toBe(true);
     for (const [name, snapshot] of Object.entries(shapes)) {
-      expect(nonPlain(snapshot, name, [])).toEqual([]);
+      expect(nonPlain(snapshot, name, [])).toStrictEqual([]);
       expect(JSON.parse(JSON.stringify(snapshot))).toStrictEqual(snapshot);
       expect(structuredClone(snapshot)).toStrictEqual(snapshot);
     }

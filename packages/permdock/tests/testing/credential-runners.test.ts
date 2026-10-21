@@ -11,7 +11,7 @@ import { testSettingsSource } from "../../src/testing/conformance/identity.ts";
 const NOW = Math.floor(Date.now() / 1000);
 const iso = (seconds: number): string => new Date(seconds * 1000).toISOString();
 
-describe("testSettingsSource", () => {
+describe(testSettingsSource, () => {
   describe("a tenant with credential rules", () => {
     testSettingsSource(
       memorySettingsSource({

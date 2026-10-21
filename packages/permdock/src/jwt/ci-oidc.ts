@@ -6,15 +6,12 @@ import type {
   TokenFailureCause,
   TokenVerifier,
 } from "../core/interfaces.ts";
+import type { Principal, Subject } from "../core/subject.ts";
 import type { JoseTokenVerifierOptions } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import {
-  type Principal,
-  type Subject,
-  anonymousSubject,
-} from "../core/subject.ts";
+import { anonymousSubject } from "../core/subject.ts";
 import { decodeHeader } from "./header.ts";
 import { validateCustomClaims } from "./map-claims.ts";
 import { joseTokenVerifier } from "./verifier.ts";
@@ -50,14 +47,20 @@ export type CiOidcSubjectOptions = Omit<
    * from OpenID discovery unless `jwks` is set.
    */
   readonly issuer?: string;
-  /** Validates the verified claims; a failure or a Promise is the anonymous subject. */
+  /**
+   * Validates the verified claims; a failure or a Promise is the anonymous
+   * subject.
+   */
   readonly schema?: StandardSchemaV1;
   readonly verifier?: TokenVerifier;
   readonly onAuth?: (event: AuthEvent) => void;
   readonly requestId?: string;
 };
 
-/** A CI job: never a user. `ref` is a full ref (`refs/heads/main`, `refs/tags/v1`). */
+/**
+ * A CI job: never a user. `ref` is a full ref (`refs/heads/main`,
+ * `refs/tags/v1`).
+ */
 export type CiOidcPrincipal = Principal & {
   readonly kind: "workload";
   readonly issuer: string;

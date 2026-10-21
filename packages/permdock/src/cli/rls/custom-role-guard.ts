@@ -14,9 +14,9 @@ function column(name: string): string {
 /**
  * The trigger on the application's roles table (`rls.customRoleWrites.roles`)
  * that refuses a tenant row named like a declared role (`declared-role`) or
- * like a shared custom role (`name-taken`). A row the `skip` column marks is
- * a system role of the tenant and passes. Empty without a tenant column: then
- * no row is a tenant row.
+ * like a shared custom role (`name-taken`). A row the `skip` column marks is a
+ * system role of the tenant and passes. Empty without a tenant column: then no
+ * row is a tenant row.
  */
 export function customRoleNameGuardSql(ctx: RlsSqlContext): string {
   const custom = ctx.customRoles;

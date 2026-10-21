@@ -1,10 +1,13 @@
+import type {
+  ArgumentsHost,
+  CanActivate,
+  DynamicModule,
+  ExceptionFilter,
+  ExecutionContext,
+  Type,
+} from "@nestjs/common";
+
 import {
-  type ArgumentsHost,
-  type CanActivate,
-  type DynamicModule,
-  type ExceptionFilter,
-  type ExecutionContext,
-  type Type,
   Catch,
   Controller,
   Get,
@@ -27,6 +30,7 @@ import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type { TenantScope } from "../server/create.ts";
 import type { OpenApiHooks, ProtectOptions } from "../server/server-types.ts";
+import type { NestHttpRequest } from "./http.ts";
 
 import {
   compact,
@@ -44,7 +48,7 @@ import {
   InvalidSignatureError,
 } from "../server/kit.ts";
 import { decorateMethod } from "./decorate.ts";
-import { sendNestResponse, toRequest, type NestHttpRequest } from "./http.ts";
+import { sendNestResponse, toRequest } from "./http.ts";
 
 const PROTECT_KEY = "permdock:protect";
 
@@ -69,12 +73,15 @@ export type NestPermDockOptions<TUser = unknown> = ServerAdapterOptions<
 
 /** A gateway client: Socket.IO (`emit`, `disconnect`) or `ws` (`close`). */
 export type NestSocket = {
-  emit?(event: string, payload: unknown): unknown;
-  disconnect?(close?: boolean): unknown;
-  close?(code?: number, reason?: string): unknown;
+  emit?: (event: string, payload: unknown) => unknown;
+  disconnect?: (close?: boolean) => unknown;
+  close?: (code?: number, reason?: string) => unknown;
 };
 
-/** `Protect(null, data?, { oauthScopes })` needs a principal and one of the OAuth scopes, but no permission. */
+/**
+ * `Protect(null, data?, { oauthScopes })` needs a principal and one of the
+ * OAuth scopes, but no permission.
+ */
 export type NestProtect = (
   permission: Permission | null,
   data?: (req: NestRequest) => unknown,
@@ -82,12 +89,18 @@ export type NestProtect = (
 ) => ClassDecorator & MethodDecorator;
 
 export type NestHandlerOptions = {
-  /** Controller path; may hold route params such as `:org`. Default `api/permdock`. */
+  /**
+   * Controller path; may hold route params such as `:org`. Default
+   * `api/permdock`.
+   */
   readonly path?: string;
 };
 
 export type PermDockModuleOptions = {
-  /** `"global"` registers `PermDockGuard` as `APP_GUARD`, so every `Protect` rule runs without `UseGuards`. */
+  /**
+   * `"global"` registers `PermDockGuard` as `APP_GUARD`, so every `Protect`
+   * rule runs without `UseGuards`.
+   */
   readonly guard?: "global";
 };
 
@@ -122,8 +135,8 @@ type ProtectRule = {
 };
 
 type ReflectMeta = {
-  getMetadata(key: string, target: object): unknown;
-  defineMetadata(key: string, value: unknown, target: object): void;
+  getMetadata: (key: string, target: object) => unknown;
+  defineMetadata: (key: string, value: unknown, target: object) => void;
 };
 
 class PermDockHttpError extends Error {
@@ -159,7 +172,7 @@ function applyParameter(
 
 function hasEmit(
   value: unknown,
-): value is { emit(event: string, payload: unknown): unknown } {
+): value is { emit: (event: string, payload: unknown) => unknown } {
   // SAFETY: checked to be a non-null object first; emit is only typeof-checked.
   return (
     typeof value === "object" &&
@@ -172,7 +185,10 @@ type Loads = (
   loader: ((req: NestRequest) => unknown) | undefined,
 ) => (() => unknown) | undefined;
 
-/** One call per loader for a request, so class and method rules naming the same loader share its row. */
+/**
+ * One call per loader for a request, so class and method rules naming the same
+ * loader share its row.
+ */
 function loadsFor(req: NestRequest | undefined): Loads {
   const loaded = new Map<(req: NestRequest) => unknown, Promise<unknown>>();
   return (loader) => {
@@ -281,7 +297,10 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
       return conn;
     });
 
-  /** Decides each rule for a gateway message against the client's connection, as `protect` does for HTTP. */
+  /**
+   * Decides each rule for a gateway message against the client's connection, as
+   * `protect` does for HTTP.
+   */
   const checkMessage = async (
     rules: readonly ProtectRule[],
     conn: Connection,
@@ -430,10 +449,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         useFactory: (): PermDockExceptionFilter =>
           new PermDockExceptionFilter(),
       },
-      {
-        provide: APP_FILTER,
-        useExisting: PermDockExceptionFilter,
-      },
+      { provide: APP_FILTER, useExisting: PermDockExceptionFilter },
     ],
     exports: [PermDockGuard, PermDockExceptionFilter],
   })(PermDockRoot);

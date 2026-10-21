@@ -1,22 +1,22 @@
 import { expect, it } from "vitest";
 
-import { normalizeMemberships, scopeList } from "../../core/scopes.ts";
-import {
-  type EntitlementSource,
-  type Membership,
-  type MembershipSource,
-  type Policy,
-  type RevocationEvent,
-  type Role,
-  type CustomRoleSource,
-  type SettingsSource,
-  type Subject,
-  type SubjectResolver,
-  memoryRevocationFeed,
-  validateCustomRole,
+import type {
+  EntitlementSource,
+  Membership,
+  MembershipSource,
+  Policy,
+  RevocationEvent,
+  Role,
+  CustomRoleSource,
+  SettingsSource,
+  Subject,
+  SubjectResolver,
 } from "../../index.ts";
+import type { DirectoryStore } from "../../scim/index.ts";
+
+import { normalizeMemberships, scopeList } from "../../core/scopes.ts";
+import { memoryRevocationFeed, validateCustomRole } from "../../index.ts";
 import {
-  type DirectoryStore,
   directoryMembershipSource,
   scimHandler,
   sha256Hex,
@@ -45,13 +45,20 @@ export function testMembershipSource(
       readonly kind?: string;
     }[];
     readonly expect?: Record<string, readonly Membership[]>;
-    /** With the policy, every membership must name one of its scopes and carry its parent ids. */
+    /**
+     * With the policy, every membership must name one of its scopes and carry
+     * its parent ids.
+     */
     readonly policy?: Policy;
-    /** Passed to every `membershipsFor`; a source keyed by tenant answers nothing without one. */
+    /**
+     * Passed to every `membershipsFor`; a source keyed by tenant answers
+     * nothing without one.
+     */
     readonly tenant?: string;
   },
 ): void {
   const query = options.tenant === undefined ? {} : { tenant: options.tenant };
+
   it("returns well-formed memberships and fails closed on throw", async () => {
     for (const principal of options.principals) {
       let memberships: Membership[] = [];
@@ -80,7 +87,7 @@ export function testMembershipSource(
       }
       const expected = options.expect?.[principal.id];
       if (expected !== undefined) {
-        expect(memberships).toEqual(expected);
+        expect(memberships).toStrictEqual(expected);
       }
     }
   });
@@ -141,12 +148,16 @@ export function testEntitlementSource(
     });
     expect(Array.isArray(found)).toBe(true);
     for (const name of found) {
-      expect(typeof name).toBe("string");
+      expect(name).toBeTypeOf("string");
     }
     if (options.expect !== undefined) {
-      expect([...found].toSorted()).toEqual([...options.expect].toSorted());
+      expect([...found].toSorted()).toStrictEqual(
+        [...options.expect].toSorted(),
+      );
     }
-    expect(await source.entitlementsFor(options.principal, {})).toEqual([]);
+    expect(await source.entitlementsFor(options.principal, {})).toStrictEqual(
+      [],
+    );
   });
 }
 
@@ -175,7 +186,9 @@ export function testCustomRoleSource(
         expect(declared).toContain(included);
       }
       if (options.policy !== undefined) {
-        expect(validateCustomRole(options.policy, role).dropped).toEqual([]);
+        expect(validateCustomRole(options.policy, role).dropped).toStrictEqual(
+          [],
+        );
       }
     }
     if (source.assignable !== undefined) {
@@ -189,9 +202,9 @@ export function testCustomRoleSource(
   if (every !== undefined) {
     it("returns every custom role of the tenant, held or not", async () => {
       const roles = await source.rolesFor(options.tenant, { held: [] });
-      expect([...new Set(roles.map((role) => role.name))].toSorted()).toEqual(
-        [...new Set(every)].toSorted(),
-      );
+      expect(
+        [...new Set(roles.map((role) => role.name))].toSorted(),
+      ).toStrictEqual([...new Set(every)].toSorted());
     });
   }
 }
@@ -201,6 +214,7 @@ export function testDirectoryStore(
   options: { readonly tenants: readonly [string, string] },
 ): void {
   const [home, other] = options.tenants;
+
   it("round-trips users and groups, isolates tenants, and drops inactive memberships", async () => {
     const created = await store.putUser(home, {
       id: "",
@@ -222,7 +236,7 @@ export function testDirectoryStore(
         active: true,
         meta: { created: "", lastModified: "" },
       }),
-    ).rejects.toThrow(/userName/);
+    ).rejects.toThrow(/userName/u);
     const group = await store.putGroup(home, {
       id: "g_editors",
       displayName: "Editors",
@@ -230,10 +244,10 @@ export function testDirectoryStore(
       roles: ["editor"],
       meta: { created: "", lastModified: "" },
     });
-    expect(await store.groupsFor(home, created.id)).toEqual([
+    expect(await store.groupsFor(home, created.id)).toStrictEqual([
       expect.objectContaining({ id: group.id, displayName: "Editors" }),
     ]);
-    expect(await store.groupsFor(other, created.id)).toEqual([]);
+    expect(await store.groupsFor(other, created.id)).toStrictEqual([]);
     const patched = await store.patchUser(home, created.id, [
       { op: "replace", path: "active", value: false },
     ]);
@@ -241,13 +255,13 @@ export function testDirectoryStore(
     const source = directoryMembershipSource(store, { assignable: ["editor"] });
     expect(
       await source.membershipsFor({ id: "00u1" }, { tenant: home }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     await store.patchUser(home, created.id, [
       { op: "replace", path: "active", value: true },
     ]);
     expect(
       await source.membershipsFor({ id: "00u1" }, { tenant: home }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         tenant: home,
         roles: ["editor"],
@@ -256,13 +270,9 @@ export function testDirectoryStore(
       },
     ]);
     await store.patchGroup(home, group.id, [
-      {
-        op: "remove",
-        path: "members",
-        value: [{ value: created.id }],
-      },
+      { op: "remove", path: "members", value: [{ value: created.id }] },
     ]);
-    expect(await store.groupsFor(home, created.id)).toEqual([]);
+    expect(await store.groupsFor(home, created.id)).toStrictEqual([]);
   });
 
   it("ends sessions when scimHandler deactivates a user in this store", async () => {
@@ -313,7 +323,7 @@ export function testDirectoryStore(
       kind: "session-revoked",
     });
     expect(seen.every((event) => event.kind === "session-revoked")).toBe(true);
-    expect(kinds).toEqual(["changed", "session-revoked"]);
+    expect(kinds).toStrictEqual(["changed", "session-revoked"]);
   });
 }
 
@@ -325,7 +335,7 @@ export function testSettingsSource(
   it("answers per tenant with plain settings and nothing for an unknown tenant", async () => {
     const settings = await source.settingsFor(options.tenant);
     if (settings !== undefined) {
-      expect(typeof settings).toBe("object");
+      expect(settings).toBeTypeOf("object");
       const credentials = settings.credentials;
       if (credentials !== undefined) {
         expect(
@@ -340,7 +350,7 @@ export function testSettingsSource(
             ),
         ).toBe(true);
       }
-      expect(JSON.parse(JSON.stringify(settings))).toEqual(settings);
+      expect(JSON.parse(JSON.stringify(settings))).toStrictEqual(settings);
     }
     expect(
       await source.settingsFor(options.unknown ?? "__permdock_unknown__"),

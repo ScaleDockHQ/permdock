@@ -7,7 +7,10 @@ import { getPageImageUrl, source } from "./source";
 
 type DocsPage = NonNullable<ReturnType<typeof source.getPage>>;
 
-/** The `@id`s the marketing home page declares; docs pages reference them instead of repeating them. */
+/**
+ * The `@id`s the marketing home page declares; docs pages reference them
+ * instead of repeating them.
+ */
 const organizationId = `${env.NEXT_PUBLIC_SITE_URL}/#organization`;
 const websiteId = `${env.NEXT_PUBLIC_SITE_URL}/#website`;
 

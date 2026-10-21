@@ -19,17 +19,23 @@ import {
   resource,
 } from "../index.ts";
 
-/** How a provider fails on its next call: a retryable error, a final error, or a throw from its client. */
+/**
+ * How a provider fails on its next call: a retryable error, a final error, or a
+ * throw from its client.
+ */
 export type DeliveryFailureKind = "retryable" | "final" | "throw";
 
 export type DeliveryTransportHarness<C extends DeliveryChannel> = {
   readonly transport: DeliveryTransport<C>;
-  /** What the provider accepted, one entry per delivery, with the idempotency key it received. */
-  received():
+  /**
+   * What the provider accepted, one entry per delivery, with the idempotency
+   * key it received.
+   */
+  received: () =>
     | readonly { readonly idempotencyKey: string }[]
     | Promise<readonly { readonly idempotencyKey: string }[]>;
   /** Makes the provider's next call fail this way. */
-  fail(kind: DeliveryFailureKind): void;
+  fail: (kind: DeliveryFailureKind) => void;
 };
 
 export type DeliveryTransportOptions<C extends DeliveryChannel> = {
@@ -38,7 +44,7 @@ export type DeliveryTransportOptions<C extends DeliveryChannel> = {
   readonly address: string;
   readonly message: TransportMessages[C];
   /** A fresh harness per test. */
-  create(): DeliveryTransportHarness<C>;
+  create: () => DeliveryTransportHarness<C>;
 };
 
 const permissions = definePermissions({
@@ -69,9 +75,9 @@ function key(suffix: string): TransportOptions {
 
 /**
  * Conformance for a `DeliveryTransport`: it sends a checked target with its
- * idempotency key, keeps the key on a retry, refuses a target without a
- * granted decision before calling the provider, and maps provider errors to
- * retryable or final failures without rejecting.
+ * idempotency key, keeps the key on a retry, refuses a target without a granted
+ * decision before calling the provider, and maps provider errors to retryable
+ * or final failures without rejecting.
  */
 export function testDeliveryTransport<C extends DeliveryChannel>(
   name: string,
@@ -97,7 +103,7 @@ export function testDeliveryTransport<C extends DeliveryChannel>(
     it("names its channel and provider", () => {
       const { transport } = options.create();
       expect(transport.channel).toBe(options.channel);
-      expect(typeof transport.name).toBe("string");
+      expect(transport.name).toBeTypeOf("string");
       expect(transport.name).not.toBe("");
     });
 
@@ -109,7 +115,7 @@ export function testDeliveryTransport<C extends DeliveryChannel>(
         "a",
       );
       expect(result.status).toBe("sent");
-      expect(await harness.received()).toEqual([
+      expect(await harness.received()).toStrictEqual([
         { idempotencyKey: "pdd_runner_a" },
       ]);
     });
@@ -141,7 +147,7 @@ export function testDeliveryTransport<C extends DeliveryChannel>(
           retryable: false,
         });
       }
-      expect(await harness.received()).toEqual([]);
+      expect(await harness.received()).toStrictEqual([]);
     });
 
     it("maps a retryable provider error to a retryable failure", async () => {
@@ -176,7 +182,7 @@ export function testDeliveryTransport<C extends DeliveryChannel>(
       if (result !== undefined) {
         expect(result).toMatchObject({ status: "failed", retryable: true });
       }
-      expect(await harness.received()).toEqual([]);
+      expect(await harness.received()).toStrictEqual([]);
     });
   });
 }

@@ -23,7 +23,7 @@ const other = definePermissions({
   }),
 });
 
-describe("defineOperations", () => {
+describe(defineOperations, () => {
   it("returns a frozen map of frozen operations named by their key", () => {
     const data = (input: { readonly id: string }) => ({ id: input.id });
     const operations = defineOperations(permissions, {
@@ -39,13 +39,16 @@ describe("defineOperations", () => {
     });
 
     expect(Object.isFrozen(operations)).toBe(true);
-    expect(Object.keys(operations)).toEqual(["sendInvoice", "listInvoices"]);
+    expect(Object.keys(operations)).toStrictEqual([
+      "sendInvoice",
+      "listInvoices",
+    ]);
     const send = operations.sendInvoice;
     expect(Object.isFrozen(send)).toBe(true);
     expect(send.name).toBe("sendInvoice");
     expect(send.permission).toBe(permissions.invoice.send);
     expect(send.data).toBe(data);
-    expect(send.meta).toEqual({
+    expect(send.meta).toStrictEqual({
       risk: "medium",
       effects: ["send", "external"],
       title: "Send",
@@ -56,7 +59,7 @@ describe("defineOperations", () => {
 
     const list = operations.listInvoices;
     expect(list.results).toBe(permissions.invoice.read);
-    expect(list.meta).toEqual({});
+    expect(list.meta).toStrictEqual({});
     expect(Object.isFrozen(list.meta)).toBe(true);
     expect("data" in list).toBe(false);
   });
@@ -67,7 +70,7 @@ describe("defineOperations", () => {
       readInvoice: { permission: permissions.invoice.read, meta: { effects } },
     });
     effects.push("write");
-    expect(operations.readInvoice.meta.effects).toEqual(["read"]);
+    expect(operations.readInvoice.meta.effects).toStrictEqual(["read"]);
   });
 
   it("accepts a leaf of the tree that crossed JSON, matched by key", () => {
@@ -76,7 +79,9 @@ describe("defineOperations", () => {
       // SAFETY: a parsed leaf keeps key, scope, resource, action and meta.
       readInvoice: { permission: leaf as typeof permissions.invoice.read },
     });
-    expect(operations.readInvoice.permission).toEqual(permissions.invoice.read);
+    expect(operations.readInvoice.permission).toStrictEqual(
+      permissions.invoice.read,
+    );
   });
 
   it("throws for a permission or results leaf outside the tree", () => {
@@ -171,6 +176,6 @@ describe("defineOperations", () => {
     definitions["own"] = { permission: permissions.invoice.read };
     // SAFETY: a record of operation definitions with one inherited key.
     const operations = defineOperations(permissions, definitions as never);
-    expect(Object.keys(operations)).toEqual(["own"]);
+    expect(Object.keys(operations)).toStrictEqual(["own"]);
   });
 });

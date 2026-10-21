@@ -5,19 +5,16 @@ import type {
   RelatedHop,
   RestrictedAncestors,
 } from "../conditions/ast.ts";
+import type { InheritGrantee, RelationGrantee } from "./grantee.ts";
 import type {
   PrincipalRelation,
   ResourceLink,
   ResourceNode,
 } from "./permission-types.ts";
+import type { Scope } from "./scopes.ts";
 
 import { compact, sole } from "./compact.ts";
-import {
-  DEFAULT_RELATION_DEPTH,
-  type InheritGrantee,
-  MAX_RELATION_DEPTH,
-  type RelationGrantee,
-} from "./grantee.ts";
+import { DEFAULT_RELATION_DEPTH, MAX_RELATION_DEPTH } from "./grantee.ts";
 import {
   expandRelation,
   isComputedRelation,
@@ -28,7 +25,7 @@ import {
   restrictedFor,
   restrictedStops,
 } from "./resource-relations.ts";
-import { type Scope, resolveScope, rootScope, scopeList } from "./scopes.ts";
+import { resolveScope, rootScope, scopeList } from "./scopes.ts";
 import { isoNow } from "./time.ts";
 
 /**
@@ -37,17 +34,23 @@ import { isoNow } from "./time.ts";
  * instance of it". Shared with the RLS compiler.
  */
 export type RelationConditionOptions = {
-  /** The policy's resource graph, for a relation declared on the row's parent resource. */
+  /**
+   * The policy's resource graph, for a relation declared on the row's parent
+   * resource.
+   */
   readonly resources?: ReadonlyMap<string, ResourceNode> | undefined;
-  /** The instant a principal relation's `period` is compared against: a date in process, `{ ref: 'now' }` in SQL. */
+  /**
+   * The instant a principal relation's `period` is compared against: a date in
+   * process, `{ ref: 'now' }` in SQL.
+   */
   readonly now?: ConditionValue;
   /** `false` while expanding an `includes`: compile the named relation alone. */
   readonly includes?: boolean;
 };
 
 /**
- * Where a graph relation starts on the row: its own id when the relation is
- * on the row's resource, the parent field when it is on the parent resource.
+ * Where a graph relation starts on the row: its own id when the relation is on
+ * the row's resource, the parent field when it is on the parent resource.
  * `undefined` when `through` cannot reach the relation's resource.
  */
 export function relationStart(
@@ -55,11 +58,7 @@ export function relationStart(
   resource: ResourceNode | undefined,
   target: ResourceNode | undefined,
 ):
-  | {
-      readonly field: string;
-      readonly parent: boolean;
-      readonly depth: number;
-    }
+  | { readonly field: string; readonly parent: boolean; readonly depth: number }
   | undefined {
   if (
     resource === undefined ||
@@ -88,10 +87,10 @@ export function relationStart(
 }
 
 /**
- * A resource role held on self-parented `membershipResource` instances
- * (`ids`) reaches rows below them: the row itself when it is of that
- * resource, its parent field when its parent is, walked up to the default
- * depth. `undefined` when the row is not on such a chain.
+ * A resource role held on self-parented `membershipResource` instances (`ids`)
+ * reaches rows below them: the row itself when it is of that resource, its
+ * parent field when its parent is, walked up to the default depth. `undefined`
+ * when the row is not on such a chain.
  */
 export function resourceRoleCondition(
   resource: ResourceNode | undefined,
@@ -161,9 +160,9 @@ function linkStop(
 }
 
 /**
- * The link path from the row to the grantee's resource: the row field of
- * the first link and each hop. `undefined` when a link is not declared or
- * the path ends on another resource.
+ * The link path from the row to the grantee's resource: the row field of the
+ * first link and each hop. `undefined` when a link is not declared or the path
+ * ends on another resource.
  */
 export function relationHops(
   grantee: RelationGrantee,
@@ -350,11 +349,7 @@ export function relationCondition(
     }
     return { op: "memberOf", scope, field: spec.field, roles: [] };
   }
-  return {
-    op: "eq",
-    field: spec.field,
-    value: { ref: "principal.id" },
-  };
+  return { op: "eq", field: spec.field, value: { ref: "principal.id" } };
 }
 
 export function inheritCondition(

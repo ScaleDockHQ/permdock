@@ -20,7 +20,10 @@ export const roleKey = {
   column: "key",
 } as const;
 
-/** The login a portal contact row belongs to, read as `contact_profiles.user_id`. */
+/**
+ * The login a portal contact row belongs to, read as
+ * `contact_profiles.user_id`.
+ */
 export const contactUser = {
   through: "contact_profiles",
   on: { contact_profile_id: "id" },

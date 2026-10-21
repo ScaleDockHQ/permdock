@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "../src/support/postgres.ts";
 
+import { defined } from "../src/support/defined.ts";
 import { startPostgres } from "../src/support/postgres.ts";
 
 const USERS = 2_000;
@@ -39,7 +40,7 @@ describe("membership sources compare the user column uncast", () => {
   const source = tableMembershipSource({ table: "memberships" });
 
   async function plan(select: string): Promise<readonly PlanNode[]> {
-    const client = db!.admin;
+    const client = defined(db).admin;
     await client.query("deallocate all");
     await client.query(`prepare membership_rows as ${select}`);
     const result = await client.query<{ "QUERY PLAN": { Plan: PlanNode }[] }>(
@@ -72,7 +73,7 @@ describe("membership sources compare the user column uncast", () => {
           node["Relation Name"] === "memberships",
       ),
     ).toBe(false);
-    const rows = await db!.admin.query(source.sql.select("$1"), [USER]);
+    const rows = await defined(db).admin.query(source.sql.select("$1"), [USER]);
     expect(rows.rows).toHaveLength(PER_USER);
   });
 

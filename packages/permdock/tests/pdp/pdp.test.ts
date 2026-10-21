@@ -10,12 +10,10 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { getPermDockSync, remotePdp } from "../../src/pdp/index.ts";
+import { requestBody } from "../fakes/fetch.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 
-const Post = z.object({
-  id: z.string(),
-  authorId: z.string(),
-});
+const Post = z.object({ id: z.string(), authorId: z.string() });
 
 const permissions = definePermissions({
   post: resource(Post, {
@@ -64,10 +62,7 @@ describe("permdock/pdp", () => {
         fetch: async () => jsonResponse({ decision: true }),
       }),
     ]);
-    const permdock = createCore(policy, {
-      id: "user-1",
-      roles: ["member"],
-    });
+    const permdock = createCore(policy, { id: "user-1", roles: ["member"] });
     expect(permdock.can(permissions.post.read, post)).toBe(false);
     expect(reasonOf(permdock.decide(permissions.post.read, post))).toBe(
       "pdp-unavailable",
@@ -285,7 +280,7 @@ describe("permdock/pdp", () => {
           cache: { ttl: 5 },
           fetch: async (_url, init) => {
             // SAFETY: remotePdp posts an AuthZEN evaluation request as a JSON object body.
-            const body = JSON.parse(String(init?.body)) as {
+            const body = JSON.parse(requestBody(init)) as {
               readonly context?: { readonly tenant?: string };
             };
             return jsonResponse({ decision: body.context?.tenant === "acme" });
@@ -343,7 +338,7 @@ describe("permdock/pdp", () => {
       id: "user-1",
       roles: ["member"],
     });
-    expect(await permdock.where(permissions.post.read)).toEqual({
+    expect(await permdock.where(permissions.post.read)).toStrictEqual({
       condition: { op: "or", conditions: [] },
       partial: true,
     });
@@ -360,7 +355,7 @@ describe("permdock/pdp", () => {
         },
         fetch: async (_url, init) => {
           // SAFETY: remotePdp posts an AuthZEN request as a JSON object body.
-          const body = JSON.parse(String(init?.body)) as {
+          const body = JSON.parse(requestBody(init)) as {
             readonly page?: unknown;
           };
           bodies.push(body);
@@ -384,11 +379,11 @@ describe("permdock/pdp", () => {
     ];
     expect(
       (await permdock.filter(permissions.post.read, rows)).map((row) => row.id),
-    ).toEqual(["p1", "p3"]);
+    ).toStrictEqual(["p1", "p3"]);
     expect(bodies).toHaveLength(2);
     const where = await permdock.where(permissions.post.read);
     expect(where.partial).toBe(false);
-    expect(where.condition).toEqual({
+    expect(where.condition).toStrictEqual({
       op: "and",
       conditions: [
         expect.anything(),
@@ -413,8 +408,10 @@ describe("permdock/pdp", () => {
       id: "user-1",
       roles: ["member"],
     });
-    expect(await permdock.filter(permissions.post.read, [post])).toEqual([]);
-    expect(await permdock.where(permissions.post.read)).toEqual({
+    expect(await permdock.filter(permissions.post.read, [post])).toStrictEqual(
+      [],
+    );
+    expect(await permdock.where(permissions.post.read)).toStrictEqual({
       condition: { op: "or", conditions: [] },
       partial: false,
     });

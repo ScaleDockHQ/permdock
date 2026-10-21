@@ -52,7 +52,7 @@ describe("permdock/ai-sdk", () => {
       toolCall: { toolName: "explode", input: {} },
       runtimeContext: { user: memberUser },
     });
-    expect(unmapped).toEqual({
+    expect(unmapped).toStrictEqual({
       type: "denied",
       reason: "Denied: unmapped tool explode.",
     });
@@ -121,24 +121,19 @@ describe("permdock/ai-sdk", () => {
             throw new Error("boom");
           },
         },
-        missing: {
-          permission: permissions.post.delete,
-          data: () => undefined,
-        },
+        missing: { permission: permissions.post.delete, data: () => undefined },
       },
     });
     expect(
       await toolApproval({
         toolCall: { toolName: "delete_post", input: { id: "p1" } },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       type: "denied",
       reason: "Denied: delete_post failed closed.",
     });
     expect(
-      await toolApproval({
-        toolCall: { toolName: "missing", input: {} },
-      }),
+      await toolApproval({ toolCall: { toolName: "missing", input: {} } }),
     ).toMatchObject({ type: "denied" });
   });
 
@@ -161,26 +156,26 @@ describe("permdock/ai-sdk", () => {
     const member = await capabilityMiddleware({
       user: memberUser,
     }).transformParams({ params });
-    expect(member.tools?.map((tool) => tool.name)).toEqual([
+    expect(member.tools?.map((tool) => tool.name)).toStrictEqual([
       "delete_post",
       "list_posts",
     ]);
-    expect(member.toolChoice).toEqual({ type: "none" });
+    expect(member.toolChoice).toStrictEqual({ type: "none" });
 
     const admin = await capabilityMiddleware({
       user: adminUser,
     }).transformParams({ params });
-    expect(admin.tools?.map((tool) => tool.name)).toEqual([
+    expect(admin.tools?.map((tool) => tool.name)).toStrictEqual([
       "delete_post",
       "list_posts",
       "publish_post",
     ]);
-    expect(admin.toolChoice).toEqual(params.toolChoice);
+    expect(admin.toolChoice).toStrictEqual(params.toolChoice);
 
     const anonymous = await capabilityMiddleware({}).transformParams({
       params,
     });
-    expect(anonymous.tools).toEqual([]);
+    expect(anonymous.tools).toStrictEqual([]);
   });
 
   it("reads the subject for needsApproval from the tool context", async () => {
@@ -239,7 +234,7 @@ describe("permdock/ai-sdk", () => {
       store: memoryApprovalStore(),
       context: () => ({ channel: "chat" }),
       wrap: (permdock) => {
-        expect(permdock.subject.context).toEqual({ channel: "chat" });
+        expect(permdock.subject.context).toStrictEqual({ channel: "chat" });
         return permdock;
       },
       deniedText: ({ decision }) =>
@@ -248,7 +243,10 @@ describe("permdock/ai-sdk", () => {
     const denied = await toolApproval({
       toolCall: { toolName: "publish_post", input: { id: "p1" } },
     });
-    expect(denied).toEqual({ type: "denied", reason: "denied: ask an admin" });
+    expect(denied).toStrictEqual({
+      type: "denied",
+      reason: "denied: ask an admin",
+    });
     const asked = await toolApproval({
       toolCall: { toolName: "delete_post", input: { id: "p1" } },
     });
@@ -259,7 +257,7 @@ describe("permdock/ai-sdk", () => {
     const unmapped = await toolApproval({
       toolCall: { toolName: "explode", input: {} },
     });
-    expect(unmapped).toEqual({
+    expect(unmapped).toStrictEqual({
       type: "denied",
       reason: "unmapped: ask an admin",
     });

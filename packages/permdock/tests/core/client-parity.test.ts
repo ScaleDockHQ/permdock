@@ -199,18 +199,17 @@ describe("client parity", () => {
         subject: (user: Principal | null) => user,
         roles: [role("viewer", [allow(loose.memo.read)], { on: "tenant" })],
       }),
-    ).toThrow(/memo.read on 'tenant' roles/);
+    ).toThrow(/memo.read on 'tenant' roles/u);
   });
 
   it("reports only global roles when no tenant is active", async () => {
-    const server = getPermDockSync(policy, {
-      ...alice,
-      roles: ["support"],
-    });
-    expect(server.heldRoles().map((item) => item.key)).toEqual(["support"]);
+    const server = getPermDockSync(policy, { ...alice, roles: ["support"] });
+    expect(server.heldRoles().map((item) => item.key)).toStrictEqual([
+      "support",
+    ]);
     expect(
       server.heldRoles({ tenant: "globex" }).map((item) => item.key),
-    ).toEqual(["support", "viewer"]);
+    ).toStrictEqual(["support", "viewer"]);
   });
 });
 
@@ -225,7 +224,7 @@ describe("where() tenant scope", () => {
 
   it("returns nothing for tenant grants without an active tenant", async () => {
     const server = getPermDockSync(policy, alice);
-    expect(server.where(permissions.project.read).condition).toEqual({
+    expect(server.where(permissions.project.read).condition).toStrictEqual({
       op: "or",
       conditions: [],
     });
@@ -253,7 +252,7 @@ describe("where() tenant scope", () => {
     );
     const server = getPermDockSync(blocked, alice, { tenant: "acme" });
     expect(server.can(permissions.project.read, acme)).toBe(false);
-    expect(server.where(permissions.project.read).condition).toEqual({
+    expect(server.where(permissions.project.read).condition).toStrictEqual({
       op: "or",
       conditions: [],
     });

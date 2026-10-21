@@ -17,7 +17,10 @@ import type { evaluationsHandler } from "./evaluations.ts";
 import type { WebBotAuthVerifier } from "./web-bot-auth.ts";
 
 export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
-  /** The user, or a full `Subject` (core then skips `policy.subject`); `null` is anonymous. */
+  /**
+   * The user, or a full `Subject` (core then skips `policy.subject`); `null` is
+   * anonymous.
+   */
   readonly subject: (
     request: Request,
   ) => TUser | Subject | null | Promise<TUser | Subject | null>;
@@ -40,33 +43,45 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly approval?: ApprovalHint;
   readonly operations?: OperationScopes;
   /**
-   * Replaces the response of a refused guard. A status below 300, or a
-   * throw, keeps the default response and reports through `on('error')`.
+   * Replaces the response of a refused guard. A status below 300, or a throw,
+   * keeps the default response and reports through `on('error')`.
    */
   readonly deniedResponse?: DeniedResponse;
   /**
-   * Request values merged into `subject.context`, under `policy.context`.
-   * Only values the server derived belong here, never client input. A throw
-   * or a value that is not a JSON object adds nothing and reports through
+   * Request values merged into `subject.context`, under `policy.context`. Only
+   * values the server derived belong here, never client input. A throw or a
+   * value that is not a JSON object adds nothing and reports through
    * `on('error')`.
    */
   readonly context?: (
     request: Request,
   ) => RequestContext | undefined | Promise<RequestContext | undefined>;
-  /** Wraps each instance the factory builds; build it with `wrapPermDock` to cover derived instances. */
+  /**
+   * Wraps each instance the factory builds; build it with `wrapPermDock` to
+   * cover derived instances.
+   */
   readonly wrap?: PermDockWrap;
-  /** The `adapter` label on decision events, revocations and approvals. Defaults to `server`. */
+  /**
+   * The `adapter` label on decision events, revocations and approvals. Defaults
+   * to `server`.
+   */
   readonly adapter?: string;
 };
 
-/** What `deniedResponse` receives: the refusal and the default Problem Details for it. */
+/**
+ * What `deniedResponse` receives: the refusal and the default Problem Details
+ * for it.
+ */
 export type DeniedResponseEvent = {
   readonly decision: Exclude<Decision, { readonly outcome: "granted" }>;
   readonly problem: ProblemDetails;
   readonly request: Request | undefined;
 };
 
-/** Returns Problem Details with extra members, a `Response`, or nothing for the default. */
+/**
+ * Returns Problem Details with extra members, a `Response`, or nothing for the
+ * default.
+ */
 export type DeniedResponse = (
   event: DeniedResponseEvent,
 ) =>
@@ -76,10 +91,10 @@ export type DeniedResponse = (
   | Promise<ProblemDetails | Response | undefined>;
 
 export type OperationScopes = {
-  oauthScopesForRequest(
+  oauthScopesForRequest: (
     method: string,
     path: string,
-  ): readonly string[] | undefined;
+  ) => readonly string[] | undefined;
 };
 
 export type Guard<T = unknown, V extends PolicyVocabulary = PolicyVocabulary> =
@@ -92,7 +107,10 @@ export type Guard<T = unknown, V extends PolicyVocabulary = PolicyVocabulary> =
   | {
       readonly ok: false;
       readonly response: Response;
-      /** The refusal behind `response`; absent for a missing row or a bad signature. */
+      /**
+       * The refusal behind `response`; absent for a missing row or a bad
+       * signature.
+       */
       readonly decision?: Exclude<Decision, { readonly outcome: "granted" }>;
     };
 
@@ -113,7 +131,10 @@ export type ScopeGuard<
   | {
       readonly ok: false;
       readonly response: Response;
-      /** The refusal behind `response`; absent for a missing row or a bad signature. */
+      /**
+       * The refusal behind `response`; absent for a missing row or a bad
+       * signature.
+       */
       readonly decision?: Exclude<Decision, { readonly outcome: "granted" }>;
     };
 
@@ -122,8 +143,8 @@ export type Loader<T> = (
 ) => T | null | undefined | Promise<T | null | undefined>;
 
 /**
- * `protect(permission, data?, options?)`, or `protect(null, data?,
- * { oauthScopes })` for a route that needs a signed-in principal and, from a
+ * `protect(permission, data?, options?)`, or `protect(null, data?, {
+ * oauthScopes })` for a route that needs a signed-in principal and, from a
  * delegated token, one of the OAuth scopes it declares, but no permission.
  */
 export type Protect<
@@ -160,9 +181,9 @@ export type OpenApiHooks = {
 
 export type ProtectOptions = {
   /**
-   * `true` when `data` returns a row the server loaded itself, to skip
-   * schema validation. Anything else is validated against the resource
-   * schema before the check.
+   * `true` when `data` returns a row the server loaded itself, to skip schema
+   * validation. Anything else is validated against the resource schema before
+   * the check.
    */
   readonly trusted?: boolean;
   /**
@@ -178,7 +199,10 @@ export type ProtectOptions = {
 };
 
 export type SnapshotQuery = {
-  /** The active tenant; defaults to the `tenant` option resolved from the request. */
+  /**
+   * The active tenant; defaults to the `tenant` option resolved from the
+   * request.
+   */
   readonly tenant?: string;
   readonly include?: SnapshotOptions["include"];
   readonly tenants?: "all";
@@ -195,8 +219,9 @@ export type ServerPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     scope?: TenantScope,
   ) => Promise<PermDock<V>>;
   /**
-   * The JSON snapshot for a loader (React Router, TanStack Start, SvelteKit, Nuxt), built from the
-   * request's cached subject. Send it with `snapshotHeaders(snapshot)`.
+   * The JSON snapshot for a loader (React Router, TanStack Start, SvelteKit,
+   * Nuxt), built from the request's cached subject. Send it with
+   * `snapshotHeaders(snapshot)`.
    */
   readonly getSnapshot: (
     request: Request,
@@ -205,9 +230,11 @@ export type ServerPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly protect: Protect<V, [scope?: TenantScope]>;
   /**
    * `protect` against an instance the adapter already holds, such as a gateway
-   * connection's: the same OAuth scope check, loader, decision and approval resume.
-   * A method, so a `ServerPermDock<V>` stays assignable to `ServerPermDock`.
+   * connection's: the same OAuth scope check, loader, decision and approval
+   * resume. A method, so a `ServerPermDock<V>` stays assignable to
+   * `ServerPermDock`.
    */
+  // oxlint-disable-next-line typescript/method-signature-style -- bivariant in V
   protectOn<T = unknown>(
     instance: PermDock<V>,
     permission: Permission | null,
@@ -223,8 +250,8 @@ export type ServerPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   ) => Promise<Connection>;
   /**
    * Lets `to`, a second `Request` an adapter built for the same incoming
-   * request (to re-read a body a parser consumed), reuse the subject and
-   * actor already resolved for `from`.
+   * request (to re-read a body a parser consumed), reuse the subject and actor
+   * already resolved for `from`.
    */
   readonly shareSubject: (from: Request, to: Request) => void;
   readonly problem: (

@@ -102,10 +102,12 @@ describe("global roles through a roles table that also holds tenant roles", () =
   };
 
   it("inserts the one global row for a key that tenant roles share", async () => {
-    await expect(roleIds([replace(GLOBAL, ["support"])])).resolves.toEqual([1]);
+    await expect(
+      roleIds([replace(GLOBAL, ["support"])]),
+    ).resolves.toStrictEqual([1]);
     await expect(
       roleIds([replace(GLOBAL, ["support"]), replace(GLOBAL, ["support"])]),
-    ).resolves.toEqual([1]);
+    ).resolves.toStrictEqual([1]);
   });
 
   it("deletes a row that references a tenant role of the same key", async () => {
@@ -114,7 +116,7 @@ describe("global roles through a roles table that also holds tenant roles", () =
         `insert into public.user_roles values ('${GLOBAL}', 2)`,
         replace(GLOBAL, ["support"]),
       ]),
-    ).resolves.toEqual([1]);
+    ).resolves.toStrictEqual([1]);
   });
 
   it("refuses a key only a tenant role has", async () => {
@@ -130,10 +132,7 @@ describe("global roles through a roles table that also holds tenant roles", () =
     );
     const has = async (user: string): Promise<boolean> =>
       target.as(
-        {
-          role: "authenticated",
-          settings: jwtClaims(user),
-        },
+        { role: "authenticated", settings: jwtClaims(user) },
         async () => {
           const rows = await target.tester.query<{ has: boolean }>(
             "select permdock.permdock_has('job.read') as has",

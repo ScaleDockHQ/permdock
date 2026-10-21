@@ -1,16 +1,18 @@
 import type { DecisionEvent } from "../core/event-types.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
+import type {
+  OtelApi,
+  OtelOptions,
+  OtelSpan,
+  OtelTracer,
+  StructuralLogger,
+} from "./types.ts";
 
 import { compact } from "../core/compact.ts";
 import { appObligationNames } from "../core/ocsf.ts";
 import { wrapPermDock } from "../core/wrap.ts";
 import {
-  type OtelApi,
-  type OtelOptions,
-  type OtelSpan,
-  type OtelTracer,
-  type StructuralLogger,
   ERROR_TYPE,
   GENAI_SEMCONV_PIN,
   GEN_AI_AGENT_ID,
@@ -56,9 +58,7 @@ function registry(): OtelRegistry | undefined {
     : undefined;
 }
 
-const NOOP_TRACER: OtelTracer = {
-  startSpan: () => ({}),
-};
+const NOOP_TRACER: OtelTracer = { startSpan: () => ({}) };
 
 // Looked up per call, so a provider registered after `instrument()` is used.
 const registryApi: OtelApi = {
@@ -142,8 +142,8 @@ function omitPath(
 
 /**
  * `error.type` for a decision that failed: a boundary validation failure
- * always, and the first denial reason when `errorOnDeny` marks every denial
- * an error.
+ * always, and the first denial reason when `errorOnDeny` marks every denial an
+ * error.
  */
 function errorType(
   event: DecisionEvent,
@@ -367,7 +367,10 @@ function instrumented<V extends PolicyVocabulary>(
   });
 }
 
-/** Returns an instrumented instance: timed spans and histogram, derived instances included. */
+/**
+ * Returns an instrumented instance: timed spans and histogram, derived
+ * instances included.
+ */
 export function withOtel<V extends PolicyVocabulary = PolicyVocabulary>(
   permdock: PermDock<V>,
   options: OtelOptions = {},

@@ -34,7 +34,7 @@ const session = (claims: Record<string, unknown>) => ({
   claims: { sub: USER, role: "authenticated", ...claims },
 });
 
-describe("subjectFromBetterSupabase", () => {
+describe(subjectFromBetterSupabase, () => {
   it("reads memberships and the features claim as plans", () => {
     const subject = subjectFromBetterSupabase(
       session({

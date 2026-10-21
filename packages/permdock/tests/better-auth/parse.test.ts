@@ -17,7 +17,7 @@ describe("asRoles and asStatements", () => {
       asRoles("admin, member,,"),
       asRoles(["a", 1, "b"]),
       asRoles(7),
-    ]).toEqual([[], ["admin", "member"], ["a", "b"], []]);
+    ]).toStrictEqual([[], ["admin", "member"], ["a", "b"], []]);
   });
 
   it("keeps string actions of array-valued resources", () => {
@@ -25,11 +25,11 @@ describe("asRoles and asStatements", () => {
       asStatements(null),
       asStatements(["x"]),
       asStatements({ post: ["read", 2], skip: "write" }),
-    ]).toEqual([{}, {}, { post: ["read"] }]);
+    ]).toStrictEqual([{}, {}, { post: ["read"] }]);
   });
 });
 
-describe("expiresAtSeconds", () => {
+describe(expiresAtSeconds, () => {
   it("accepts seconds, milliseconds, dates and date strings", () => {
     expect([
       expiresAtSeconds(1_700_000_000),
@@ -40,7 +40,7 @@ describe("expiresAtSeconds", () => {
       expiresAtSeconds("2023-11-14T22:13:20.000Z"),
       expiresAtSeconds("not a date"),
       expiresAtSeconds(true),
-    ]).toEqual([
+    ]).toStrictEqual([
       1_700_000_000,
       1_700_000_000,
       undefined,
@@ -53,7 +53,7 @@ describe("expiresAtSeconds", () => {
   });
 });
 
-describe("parseMemberRows", () => {
+describe(parseMemberRows, () => {
   it("keeps only rows of the caller with a tenant and roles", () => {
     expect(
       parseMemberRows(
@@ -69,7 +69,7 @@ describe("parseMemberRows", () => {
         },
         "u1",
       ),
-    ).toEqual([{ tenant: "acme", roles: ["admin"] }]);
+    ).toStrictEqual([{ tenant: "acme", roles: ["admin"] }]);
   });
 
   it("accepts a single row and rows without userId when allowed", () => {
@@ -85,7 +85,7 @@ describe("parseMemberRows", () => {
       ),
       parseMemberRows({ unknown: [] }, "u1"),
       parseMemberRows("rows", "u1"),
-    ]).toEqual([
+    ]).toStrictEqual([
       [{ tenant: "acme", roles: ["owner"] }],
       [{ tenant: "acme", roles: ["member"] }],
       [],
@@ -94,7 +94,7 @@ describe("parseMemberRows", () => {
   });
 });
 
-describe("parseTeamRows", () => {
+describe(parseTeamRows, () => {
   it("reads the team and tenant from the row or the nested team", () => {
     expect(
       parseTeamRows(
@@ -116,7 +116,7 @@ describe("parseTeamRows", () => {
         },
         "u1",
       ),
-    ).toEqual([
+    ).toStrictEqual([
       { tenant: "acme", team: "t1", roles: ["lead"], via: "team:t1" },
       { tenant: "globex", team: "t2", roles: ["member"], via: "team:t2" },
       { team: "t3", roles: ["member"], via: "team:t3" },
@@ -124,7 +124,7 @@ describe("parseTeamRows", () => {
   });
 });
 
-describe("parseOrganizationRoles", () => {
+describe(parseOrganizationRoles, () => {
   it("reads role or name and any statements key", () => {
     expect(
       parseOrganizationRoles({
@@ -137,7 +137,7 @@ describe("parseOrganizationRoles", () => {
           { id: "nameless" },
         ],
       }),
-    ).toEqual([
+    ).toStrictEqual([
       { name: "editor", statements: { post: ["update"] } },
       { name: "viewer", statements: { post: ["read"] } },
       { name: "auditor", statements: { log: ["read"] } },
@@ -145,7 +145,7 @@ describe("parseOrganizationRoles", () => {
   });
 });
 
-describe("statementsCover", () => {
+describe(statementsCover, () => {
   it("requires every resource and action", () => {
     const held = { post: ["read", "update"] };
     expect([
@@ -153,6 +153,6 @@ describe("statementsCover", () => {
       statementsCover(held, { post: ["delete"] }),
       statementsCover(held, { team: ["read"] }),
       statementsCover(held, {}),
-    ]).toEqual([true, false, false, true]);
+    ]).toStrictEqual([true, false, false, true]);
   });
 });

@@ -34,7 +34,7 @@ const source: MembershipSource = {
       : [],
 };
 
-describe("countHolders", () => {
+describe(countHolders, () => {
   it("counts each live holder once and feeds decideRoleChange", async () => {
     expect(
       await countHolders(source, {

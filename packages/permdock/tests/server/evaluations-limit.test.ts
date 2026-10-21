@@ -34,7 +34,8 @@ describe("evaluationsHandler batch limit", () => {
       "application/problem+json",
     );
     expect(resolved).toBe(0);
-    expect((await handler.POST(batch(2))).status).toBe(200);
+    const { status } = await handler.POST(batch(2));
+    expect(status).toBe(200);
     expect(resolved).toBe(1);
   });
 
@@ -67,7 +68,8 @@ describe("evaluationsHandler batch limit", () => {
       policy,
       resolve: async () => createCorePermDock(policy, memberUser),
     });
-    expect((await handler.POST(batch(257))).status).toBe(413);
+    const { status } = await handler.POST(batch(257));
+    expect(status).toBe(413);
     expect((await handler.POST(batch(256))).status).toBe(200);
   });
 });

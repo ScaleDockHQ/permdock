@@ -12,7 +12,7 @@ export default oxfmt({
     "apps/marketing/components/examples/**",
     "tests/integration/src/support/prisma/**",
     "apps/examples/prisma/src/generated/**",
-    "apps/examples/next-better-supabase/src/lib/supabase/{generated.*,database.types.ts}",
+    "apps/examples/next-better-supabase/src/lib/supabase/{generated.*,blocks.generated.ts,database.types.ts}",
   ],
   tailwindStylesheets: [
     { files: ["apps/docs/**"], stylesheet: "apps/docs/app/global.css" },

@@ -7,7 +7,10 @@ import type { Principal, Subject } from "./subject.ts";
 import { freezeDeep } from "./freeze.ts";
 import { loadPrincipal } from "./principal-source.ts";
 
-/** Builds the target's instance in `tenant` from the caller's sources, with no sink, actor or delegation. */
+/**
+ * Builds the target's instance in `tenant` from the caller's sources, with no
+ * sink, actor or delegation.
+ */
 export type TargetFactory = (
   principal: Principal,
   tenant: string | undefined,
@@ -30,8 +33,8 @@ const PEEK: DecideOptions = Object.freeze({ call: "can" });
 
 /**
  * What `permission` on `row` decides for the principal `principalId` in the
- * caller's active tenant. Never throws, never consumes a limit, and grants
- * the caller nothing: the target is a separate instance with its own caches.
+ * caller's active tenant. Never throws, never consumes a limit, and grants the
+ * caller nothing: the target is a separate instance with its own caches.
  */
 export async function decideForTarget(
   caller: Subject,

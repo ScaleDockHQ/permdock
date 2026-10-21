@@ -8,6 +8,7 @@ import type {
   TerminalStorageOptions,
 } from "../../terminal/types.ts";
 import type { CliIo } from "../types.ts";
+import type { Env } from "./issuer.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { secondsAt } from "../../core/time.ts";
@@ -18,14 +19,12 @@ import {
   writeCredentials,
 } from "../../terminal/storage.ts";
 import { CliError } from "../core/errors.ts";
-import {
-  CLI_CLIENT_ID,
-  type Env,
-  issuerMetadata,
-  WRITE_SCOPE,
-} from "./issuer.ts";
+import { CLI_CLIENT_ID, issuerMetadata, WRITE_SCOPE } from "./issuer.ts";
 
-/** The service name credentials are stored under, in the keychain or the config directory. */
+/**
+ * The service name credentials are stored under, in the keychain or the config
+ * directory.
+ */
 export const CREDENTIAL_SERVICE = "permdock";
 
 /** Seconds before `expires_at` at which a stored access token counts as expired. */
@@ -88,7 +87,10 @@ function repositoryRoot(cwd: string): string | null {
   }
 }
 
-/** The credentials file when it would land inside the repository at `cwd`; `null` when it is outside. */
+/**
+ * The credentials file when it would land inside the repository at `cwd`;
+ * `null` when it is outside.
+ */
 export function credentialsInsideRepository(
   cwd: string,
   runtime: TerminalRuntime,
@@ -191,7 +193,10 @@ export async function readAuth(
   return { bearer: login.access_token, source: "login" };
 }
 
-/** The bearer for `cloud push`: `PERMDOCK_CLOUD_KEY`, then a login holding `catalog:write`. */
+/**
+ * The bearer for `cloud push`: `PERMDOCK_CLOUD_KEY`, then a login holding
+ * `catalog:write`.
+ */
 export async function pushAuth(
   issuer: string,
   env: Env,

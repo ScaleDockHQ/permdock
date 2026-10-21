@@ -100,9 +100,7 @@ describe("rls migrate on CentraKit, then verify --introspect with --helpers-only
   const cli = async (args: readonly string[]) => {
     const result = await runPipingDbUrl(
       ["rls", ...args, "--rbac", "supabase"],
-      {
-        cwd: FIXTURE,
-      },
+      { cwd: FIXTURE },
     );
     return { code: result.code, out: `${result.stdout}${result.stderr}` };
   };
@@ -193,15 +191,15 @@ describe("rls migrate on CentraKit, then verify --introspect with --helpers-only
           )
         ).rows.map((row) => row.id),
       );
-    expect(await held(["member"])).toEqual([ORG_A]);
-    expect(await held(["owner"])).toEqual([]);
+    expect(await held(["member"])).toStrictEqual([ORG_A]);
+    expect(await held(["owner"])).toStrictEqual([]);
   });
 
   it("enforces the migrated policies", async () => {
-    expect(await ids(MEMBER, "customers")).toEqual([CUST_A]);
-    expect(await ids(MEMBER, "organizations")).toEqual([ORG_A]);
-    expect(await ids(PLATFORM, "organizations")).toEqual([ORG_A, ORG_B]);
-    expect(await ids(PLATFORM, "customers")).toEqual([]);
+    expect(await ids(MEMBER, "customers")).toStrictEqual([CUST_A]);
+    expect(await ids(MEMBER, "organizations")).toStrictEqual([ORG_A]);
+    expect(await ids(PLATFORM, "organizations")).toStrictEqual([ORG_A, ORG_B]);
+    expect(await ids(PLATFORM, "customers")).toStrictEqual([]);
   });
 
   it("finds no drift and names the table that calls no helper", async () => {
@@ -278,7 +276,10 @@ export default {
   });
 });
 
-/** A permissions table CentraKit keeps in step with triggers, and the legacy helper that reads it. */
+/**
+ * A permissions table CentraKit keeps in step with triggers, and the legacy
+ * helper that reads it.
+ */
 const MATERIALISED = `create table public.user_permissions (user_id uuid not null, organization_id uuid not null, permission text not null);
 
 create function public.refresh_user_permissions() returns trigger
@@ -308,9 +309,7 @@ describe("rls migrate --retire-out on CentraKit's materialised permissions", () 
   const cli = async (args: readonly string[]) => {
     const result = await runPipingDbUrl(
       ["rls", ...args, "--rbac", "supabase"],
-      {
-        cwd: dir,
-      },
+      { cwd: dir },
     );
     return { code: result.code, out: `${result.stdout}${result.stderr}` };
   };
@@ -361,7 +360,8 @@ export default {
   });
 
   it("drops the table, its trigger and the uncalled helper, and the policies still answer", async () => {
-    expect((await cli(["migrate", "--sql", sql])).code).toBe(0);
+    const { code } = await cli(["migrate", "--sql", sql]);
+    expect(code).toBe(0);
     const retired = await cli([
       "migrate",
       "--sql",
@@ -403,7 +403,7 @@ drop table if exists "public"."user_permissions";
       { role: "authenticated", settings: jwtClaims(MEMBER) },
       "select id from customers order by id",
     );
-    expect(customers).toEqual([CUST_A]);
+    expect(customers).toStrictEqual([CUST_A]);
     expect(
       (
         await cli([

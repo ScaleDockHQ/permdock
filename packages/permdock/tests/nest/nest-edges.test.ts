@@ -83,7 +83,7 @@ describe("permdock/nest Protect", () => {
     expect(
       await guard.canActivate(httpContext(Posts, descriptor.value, req)),
     ).toBe(true);
-    expect(req.permdock?.subject.actor).toEqual({
+    expect(req.permdock?.subject.actor).toStrictEqual({
       id: "/posts/p1",
       kind: "agent",
     });
@@ -165,11 +165,11 @@ describe("permdock/nest Protect", () => {
     const { PermDockModule, PermDockGuard } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    expect(PermDockModule.forRoot({ guard: "global" })).toEqual({
+    expect(PermDockModule.forRoot({ guard: "global" })).toStrictEqual({
       module: PermDockModule,
       providers: [{ provide: APP_GUARD, useExisting: PermDockGuard }],
     });
-    expect(PermDockModule.forRoot().providers).toEqual([]);
+    expect(PermDockModule.forRoot().providers).toStrictEqual([]);
   });
 
   it("applies method decorators in order with decorateMethod", () => {
@@ -185,10 +185,10 @@ describe("permdock/nest Protect", () => {
         seen.push(`${name}:${String(key)}`);
       };
     decorateMethod(Posts, "update", tag("a"), tag("b"));
-    expect(seen).toEqual(["a:update", "b:update"]);
+    expect(seen).toStrictEqual(["a:update", "b:update"]);
     expect(() => {
       decorateMethod(Posts, "missing", tag("c"));
-    }).toThrow(/missing is not a method/);
+    }).toThrow(/missing is not a method/u);
   });
 
   it("requires reflect-metadata", () => {
@@ -264,7 +264,7 @@ describe("permdock/nest gateway messages", () => {
     };
     await connection(client, fakeRequest("handshake"));
     await revocations.revoke({ principal: "u1", kind: "session-revoked" });
-    expect(closes).toEqual([[1008, "session-revoked"]]);
+    expect(closes).toStrictEqual([[1008, "session-revoked"]]);
   });
 });
 
@@ -300,7 +300,7 @@ describe("permdock/nest http helpers", () => {
       send: (body: string) => sent.push(["body", body]),
     };
     await sendNestResponse(reply, new Response("hi", { status: 202 }));
-    expect(sent).toEqual([
+    expect(sent).toStrictEqual([
       ["code", 202],
       ["content-type", "text/plain;charset=UTF-8"],
       ["body", "hi"],
@@ -347,7 +347,7 @@ describe("permdock/nest http helpers", () => {
       url: "/x",
       raw: {},
     } as unknown as NestRequest;
-    expect([await text, await toRequest(bare).text()]).toEqual([
+    expect([await text, await toRequest(bare).text()]).toStrictEqual([
       "streamed",
       "",
     ]);

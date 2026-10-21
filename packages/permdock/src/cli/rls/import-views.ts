@@ -24,7 +24,10 @@ function sval(value: unknown): string | undefined {
   return typeof inner?.["sval"] === "string" ? inner["sval"] : undefined;
 }
 
-/** One restricted column of a generated field view, read back to the grants its mask names. */
+/**
+ * One restricted column of a generated field view, read back to the grants its
+ * mask names.
+ */
 export type ImportedFieldColumn = {
   readonly column: string;
   /** Helper-gated read allows that reveal the column. */
@@ -37,7 +40,10 @@ export type ImportedFieldColumn = {
 export type ImportedFieldView = {
   readonly view: string;
   readonly table: string;
-  /** The owner-rights `<table>_visible_fields` companion, with `--revoke-columns`. */
+  /**
+   * The owner-rights `<table>_visible_fields` companion, with
+   * `--revoke-columns`.
+   */
   readonly companion?: string;
   readonly passthrough: readonly string[];
   readonly restricted: readonly ImportedFieldColumn[];
@@ -181,7 +187,10 @@ function sourceOf(select: PgNode): Source | undefined {
   };
 }
 
-/** A mask is `allow`, `not deny` or `allow and not deny`; the generator puts the deny last. */
+/**
+ * A mask is `allow`, `not deny` or `allow and not deny`; the generator puts the
+ * deny last.
+ */
 function splitMask(mask: unknown): { allow?: unknown; deny?: unknown } {
   const bool = asNode(asNode(mask)?.["BoolExpr"]);
   if (bool?.["boolop"] === "NOT_EXPR") {
@@ -226,9 +235,9 @@ async function grantsOf(
 
 /**
  * Reads back the field views `rls generate --fields views` writes: a
- * `security_invoker` `<table>_visible` whose restricted columns are
- * `case when <mask> then col end`, either inline or through the
- * `<table>_visible_fields` companion it joins. Other views are ignored.
+ * `security_invoker` `<table>_visible` whose restricted columns are `case when
+ * <mask> then col end`, either inline or through the `<table>_visible_fields`
+ * companion it joins. Other views are ignored.
  */
 export async function fieldViewsFromSql(
   sql: string,
@@ -316,7 +325,10 @@ export async function fieldViewsFromSql(
 
 const quote = escapeSqlIdent;
 
-/** `create view` statements for every view in the database, from `pg_get_viewdef` and the view's options. */
+/**
+ * `create view` statements for every view in the database, from
+ * `pg_get_viewdef` and the view's options.
+ */
 export async function viewsSqlFromDb(
   query: (
     sql: string,

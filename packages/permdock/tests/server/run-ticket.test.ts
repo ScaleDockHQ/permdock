@@ -82,7 +82,10 @@ const automations = (
   automation: (id) => (id === "auto_1" ? { id, version, revoked } : null),
 });
 
-/** What a JavaScript caller can pass: any field, including an explicit `undefined`. */
+/**
+ * What a JavaScript caller can pass: any field, including an explicit
+ * `undefined`.
+ */
 type Loose<T> = { readonly [K in keyof T]?: T[K] | undefined };
 
 const base: RunTicketInput = {
@@ -157,16 +160,16 @@ describe("RunTicket", () => {
       tenant: "o1",
     });
     expect(Number(claims["exp"]) - Number(claims["iat"])).toBe(300);
-    expect(parseRunTicket(claims)).toEqual(claims);
+    expect(parseRunTicket(claims)).toStrictEqual(claims);
     expect(Object.isFrozen(parseRunTicket(claims)?.trigger)).toBe(true);
 
     const { subject, causes } = await resolve(token);
-    expect(causes).toEqual([]);
+    expect(causes).toStrictEqual([]);
     expect(subject.principal).toMatchObject({ id: "u_ann", tenant: "o1" });
     expect(subject.principal?.runTicket.jti).toBe(claims["jti"]);
-    expect(subject.actor).toEqual({ id: "auto_1", kind: "automation" });
-    expect(subject.delegation).toEqual({ scopes: ["doc:read"] });
-    expect(subject.context).toEqual({
+    expect(subject.actor).toStrictEqual({ id: "auto_1", kind: "automation" });
+    expect(subject.delegation).toStrictEqual({ scopes: ["doc:read"] });
+    expect(subject.context).toStrictEqual({
       trigger: { type: "doc.created", doc: "d1" },
       run: {
         id: claims["jti"],
@@ -199,12 +202,14 @@ describe("RunTicket", () => {
     expect(claims["jti"]).toBe("run_1");
     expect(claims["exp"]).toBe(Math.floor(expiresAt.epochMilliseconds / 1000));
     const { subject } = await resolve(token);
-    expect(subject.actor).toEqual({ id: "w_1", kind: "job" });
-    expect(subject.delegation).toEqual({
+    expect(subject.actor).toStrictEqual({ id: "w_1", kind: "job" });
+    expect(subject.delegation).toStrictEqual({
       authorizationDetails: [{ type: "doc", actions: ["read"] }],
       chain: { sub: "w_1", kind: "job", act: { sub: "scheduler" } },
     });
-    expect(subject.context).toEqual({ run: { id: "run_1", kind: "job" } });
+    expect(subject.context).toStrictEqual({
+      run: { id: "run_1", kind: "job" },
+    });
   });
 
   it("defaults the actor kind to the ticket kind and takes a caller without an actor", async () => {
@@ -215,7 +220,7 @@ describe("RunTicket", () => {
       automation: undefined,
       act: { sub: "c_1" },
     });
-    expect((await resolve(token)).subject.actor).toEqual({
+    expect((await resolve(token)).subject.actor).toStrictEqual({
       id: "c_1",
       kind: "caller",
     });
@@ -266,7 +271,7 @@ describe("RunTicket", () => {
     for (const [extra, cause] of cases) {
       const { subject, causes } = await resolve(token, extra);
       expect(subject.principal).toBeNull();
-      expect(causes).toEqual([cause]);
+      expect(causes).toStrictEqual([cause]);
     }
   });
 
@@ -284,7 +289,7 @@ describe("RunTicket", () => {
     for (const source of sources) {
       const { subject, causes } = await resolve(token, { principals: source });
       expect(subject.principal).toBeNull();
-      expect(causes).toEqual(["owner-unavailable"]);
+      expect(causes).toStrictEqual(["owner-unavailable"]);
     }
   });
 
@@ -296,20 +301,20 @@ describe("RunTicket", () => {
     ).toString("base64url");
     expect(
       (await resolve(`${header}.${tampered}.${signature}`)).causes,
-    ).toEqual(["invalid-signature"]);
+    ).toStrictEqual(["invalid-signature"]);
     expect(
       (await resolve(token, { audience: "https://other.example.com" })).causes,
-    ).toEqual(["wrong-audience"]);
+    ).toStrictEqual(["wrong-audience"]);
     expect(
       (await resolve(token, { issuer: "https://evil.example.com" })).causes,
-    ).toEqual(["wrong-issuer"]);
+    ).toStrictEqual(["wrong-issuer"]);
     expect(
       (
         await resolve(
           await rawToken(claimsOf(token), "vnd.permdock.capability+jwt"),
         )
       ).causes,
-    ).toEqual(["wrong-token-type"]);
+    ).toStrictEqual(["wrong-token-type"]);
     expect(
       (
         await resolve(token, {
@@ -322,7 +327,7 @@ describe("RunTicket", () => {
           },
         })
       ).causes,
-    ).toEqual(["wrong-token-type"]);
+    ).toStrictEqual(["wrong-token-type"]);
     expect(
       (
         await resolve(token, {
@@ -333,7 +338,7 @@ describe("RunTicket", () => {
           },
         })
       ).causes,
-    ).toEqual(["malformed"]);
+    ).toStrictEqual(["malformed"]);
     expect(
       (
         await resolve(token, {
@@ -353,9 +358,9 @@ describe("RunTicket", () => {
           },
         })
       ).causes,
-    ).toEqual(["expired"]);
+    ).toStrictEqual(["expired"]);
     expect((await resolve("")).subject.principal).toBeNull();
-    expect((await resolve(null)).causes).toEqual([]);
+    expect((await resolve(null)).causes).toStrictEqual([]);
   });
 
   it("rejects claims that break the kind and automation rules", async () => {
@@ -388,11 +393,11 @@ describe("RunTicket", () => {
       expect(parseRunTicket(value)).toBeUndefined();
     }
     expect(parseRunTicket(null)).toBeUndefined();
-    expect(parseRunTicket({ ...claims, aud: [AUDIENCE] })?.aud).toEqual([
+    expect(parseRunTicket({ ...claims, aud: [AUDIENCE] })?.aud).toStrictEqual([
       AUDIENCE,
     ]);
     const token = await rawToken({ ...claims, kind: "job" });
-    expect((await resolve(token)).causes).toEqual(["invalid-claims"]);
+    expect((await resolve(token)).causes).toStrictEqual(["invalid-claims"]);
   });
 
   it("is prototype-safe", async () => {
@@ -448,7 +453,7 @@ describe("RunTicket", () => {
   });
 });
 
-describe("RUN_TICKET_CLAIMS", () => {
+describe("the RUN_TICKET_CLAIMS list", () => {
   it("lists every claim parseRunTicket keeps and the run-v1 schema names", () => {
     const now = Math.floor(Date.now() / 1000);
     const full = {
@@ -470,7 +475,7 @@ describe("RUN_TICKET_CLAIMS", () => {
       extra: "dropped",
     };
     const parsed = parseRunTicket(full);
-    expect(Object.keys(parsed ?? {}).toSorted()).toEqual(
+    expect(Object.keys(parsed ?? {}).toSorted()).toStrictEqual(
       [...RUN_TICKET_CLAIMS].toSorted(),
     );
     expect(
@@ -478,7 +483,7 @@ describe("RUN_TICKET_CLAIMS", () => {
         // SAFETY: the schema literal declares `properties` as an object.
         RUN_TICKET_SCHEMA["properties"] as Record<string, unknown>,
       ).toSorted(),
-    ).toEqual([...RUN_TICKET_CLAIMS].toSorted());
+    ).toStrictEqual([...RUN_TICKET_CLAIMS].toSorted());
     expect(Object.isFrozen(RUN_TICKET_CLAIMS)).toBe(true);
   });
 });

@@ -17,6 +17,6 @@ describe("per-entry gzip", () => {
       string,
       number
     >;
-    expect(measureSizes()).toEqual(baseline);
+    expect(measureSizes()).toStrictEqual(baseline);
   });
 });

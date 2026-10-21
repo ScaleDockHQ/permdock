@@ -32,7 +32,10 @@ type StartServer<TContext> = (options: {
   }) => Promise<unknown>;
 }) => Promise<unknown>;
 
-/** Runs a request middleware the way Start does, with a `next` that records the context it was given. */
+/**
+ * Runs a request middleware the way Start does, with a `next` that records the
+ * context it was given.
+ */
 async function run<TContext>(
   middleware: TanStackStartMiddleware<TContext>,
   request: Request,
@@ -102,7 +105,7 @@ describe("permdock/tanstack-start", () => {
         },
       }),
     );
-    expect({ status: response?.status, context }).toEqual({
+    expect({ status: response?.status, context }).toStrictEqual({
       status: 403,
       context: undefined,
     });
@@ -119,8 +122,8 @@ describe("permdock/tanstack-start", () => {
     const own = await run(byPath, request("/posts/p1"));
     const other = await run(byPath, request("/posts/p2"));
     const operation = await run(byOperation, request("/posts/p2"));
-    expect(own.context?.permdockData).toEqual(ownPost);
-    expect([other.response?.status, operation.response?.status]).toEqual([
+    expect(own.context?.permdockData).toStrictEqual(ownPost);
+    expect([other.response?.status, operation.response?.status]).toStrictEqual([
       403, 403,
     ]);
   });
@@ -141,7 +144,7 @@ describe("permdock/tanstack-start", () => {
     expect([
       viaMiddleware.response?.status,
       viaProtect.response?.status,
-    ]).toEqual([403, 403]);
+    ]).toStrictEqual([403, 403]);
   });
 
   it("serves the decision endpoint, snapshots, instances and connections", async () => {
@@ -159,7 +162,7 @@ describe("permdock/tanstack-start", () => {
     const snapshot = await getSnapshot(request());
     const instance = await getPermDock(request());
     const conn = await connection(request());
-    expect([get.status, post.status]).toEqual([200, 200]);
+    expect([get.status, post.status]).toStrictEqual([200, 200]);
     expect(snapshot.v).toBe(1);
     expect(instance.can(permissions.post.read, ownPost)).toBe(true);
     expect(conn.signal.aborted).toBe(false);

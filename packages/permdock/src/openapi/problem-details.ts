@@ -69,8 +69,8 @@ function jsonSchema(
 }
 
 /**
- * The Problem Details body the adapters send on a denial, as a Standard
- * Schema with a JSON Schema, for `oc.errors({ FORBIDDEN: { data: problemDetails } })`.
+ * The Problem Details body the adapters send on a denial, as a Standard Schema
+ * with a JSON Schema, for `oc.errors({ FORBIDDEN: { data: problemDetails } })`.
  * Extension members pass through: RFC 9457 lets a problem type add them.
  */
 export const problemDetails: StandardSchemaV1<ProblemDetails> &

@@ -71,7 +71,10 @@ export type EvalEnv = {
   readonly customGrants: readonly CustomGrant[];
   readonly listeners: ListenerMap;
   readonly sink: DecisionSink | undefined;
-  /** The `limits()` feature; without it a grant with a `limit` denies with `limit-unavailable`. */
+  /**
+   * The `limits()` feature; without it a grant with a `limit` denies with
+   * `limit-unavailable`.
+   */
   readonly limits: Limits | undefined;
   readonly limitCache: Map<string, number>;
   readonly team: string | undefined;
@@ -98,7 +101,10 @@ function credentialRef(
     : undefined;
 }
 
-/** `context.supportSession` counts only next to the `support` actor `subjectFromSupportSession` sets. */
+/**
+ * `context.supportSession` counts only next to the `support` actor
+ * `subjectFromSupportSession` sets.
+ */
 function supportSessionRef(
   subject: Subject,
 ): DecisionEvent["subject"]["supportSession"] {
@@ -157,6 +163,7 @@ export function finish(
       scope: permission.scope,
       resource: compact<DecisionEvent["resource"]>({
         type: permission.resource,
+        // oxlint-disable-next-line typescript/no-base-to-string -- the audit id is the configured id column as text, whatever its type
         id: resourceId === undefined ? undefined : String(resourceId),
       }),
       subject: compact<DecisionEvent["subject"]>({

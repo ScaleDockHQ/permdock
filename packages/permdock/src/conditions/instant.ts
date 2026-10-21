@@ -5,8 +5,8 @@ const ISO_INSTANT =
 
 /**
  * Milliseconds since the epoch for an ISO 8601 date or date-time, or
- * `undefined`. A date-time without a zone and a bare date are UTC, the same
- * in memory, in the ORM compilers and in generated SQL.
+ * `undefined`. A date-time without a zone and a bare date are UTC, the same in
+ * memory, in the ORM compilers and in generated SQL.
  */
 export function isoInstant(value: string): number | undefined {
   const match = ISO_INSTANT.exec(value);

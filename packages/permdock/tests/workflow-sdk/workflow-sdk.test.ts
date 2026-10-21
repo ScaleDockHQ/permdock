@@ -127,7 +127,7 @@ function setup() {
   return { hooks, store, workflow };
 }
 
-describe("workflowSdkWaiter", () => {
+describe(workflowSdkWaiter, () => {
   it("parks on a hook named after the approval token and wakes on resume", async () => {
     const hooks = fakeHooks();
     const waiter = workflowSdkWaiter(hooks);
@@ -135,7 +135,7 @@ describe("workflowSdkWaiter", () => {
     await hooks.settled(approvalHookToken("tok_1"));
     await waiter.wake("tok_1");
     await expect(waiting).resolves.toBeUndefined();
-    expect(hooks.disposed).toEqual(["permdock:approval:tok_1"]);
+    expect(hooks.disposed).toStrictEqual(["permdock:approval:tok_1"]);
   });
 
   it("ends a wait at expiresAt when given sleep", async () => {
@@ -149,7 +149,7 @@ describe("workflowSdkWaiter", () => {
       },
     });
     await waiter.wait("tok_2", { expiresAt: { epochMilliseconds: 1000 } });
-    expect(slept).toEqual([1000]);
+    expect(slept).toStrictEqual([1000]);
     expect(hooks.parked.size).toBe(0);
   });
 
@@ -172,7 +172,8 @@ describe("workflowSdkWaiter", () => {
     );
     const token = await (async () => {
       for (;;) {
-        const first = (await store.list({ status: "pending" })).items[0];
+        const { items } = await store.list({ status: "pending" });
+        const first = items[0];
         if (first !== undefined) {
           return first.token;
         }
@@ -187,7 +188,8 @@ describe("workflowSdkWaiter", () => {
       by: userSubject("u_9", ["owner"]),
     });
     await workflowSdkWaiter(hooks).wake(token);
-    expect((await pending).outcome).toBe("granted");
+    const { outcome } = await pending;
+    expect(outcome).toBe("granted");
   });
 });
 
@@ -230,7 +232,7 @@ describe("openApproval and resumeApproval", () => {
   });
 });
 
-describe("startAutomation", () => {
+describe(startAutomation, () => {
   it("starts the Workflow SDK run with the ticket first, and nothing when denied", async () => {
     const { workflow } = setup();
     const calls: unknown[][] = [];
@@ -250,7 +252,7 @@ describe("startAutomation", () => {
       outcome: "started",
       workflowRun: { runId: "wrun_1" },
     });
-    expect(calls).toEqual([[expect.any(String), "inv_1"]]);
+    expect(calls).toStrictEqual([[expect.any(String), "inv_1"]]);
     const denied = await startAutomation(workflow, start, run, "missing", [
       "inv_1",
     ]);
@@ -265,7 +267,7 @@ describe("startAutomation", () => {
   });
 });
 
-describe("authorizeHook", () => {
+describe(authorizeHook, () => {
   it("resumes a hook only for a caller granted the permission", async () => {
     const hooks = fakeHooks();
     const waiting = hooks.createHook({ token: "input:inv_1" });
@@ -290,7 +292,7 @@ describe("authorizeHook", () => {
       { note: "ship it" },
     );
     expect(granted.outcome).toBe("granted");
-    await expect(waiting).resolves.toEqual({ note: "ship it" });
+    await expect(waiting).resolves.toStrictEqual({ note: "ship it" });
   });
 
   it("denies when the hook is gone", async () => {

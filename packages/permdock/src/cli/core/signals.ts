@@ -4,8 +4,8 @@ const EXIT_CODES = { SIGINT: 130, SIGTERM: 143 } as const;
 const GRACE_MS = 2000;
 
 /**
- * Turns SIGINT and SIGTERM into an aborted signal and the 128 + n exit code.
- * A second signal, or a run still busy after the grace period, exits at once.
+ * Turns SIGINT and SIGTERM into an aborted signal and the 128 + n exit code. A
+ * second signal, or a run still busy after the grace period, exits at once.
  */
 export function trapSignals(): {
   readonly signal: AbortSignal;

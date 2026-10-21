@@ -9,23 +9,26 @@ import type { PermDockDefaults } from "../react/types.ts";
 export type SnapshotStorage = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  getItem(key: string): string | null | Promise<string | null>;
-  setItem(key: string, value: string): void | Promise<void>;
-  removeItem(key: string): void | Promise<void>;
+  getItem: (key: string) => string | null | Promise<string | null>;
+  setItem: (key: string, value: string) => void | Promise<void>;
+  removeItem: (key: string) => void | Promise<void>;
 };
 
 export type NativeRevalidate = "launch" | "focus" | number;
 
 /**
- * Calls `listener` when the app changes state; `active` is `false` when it
- * goes to the background. A listener called without an argument counts as
- * a return to the foreground.
+ * Calls `listener` when the app changes state; `active` is `false` when it goes
+ * to the background. A listener called without an argument counts as a return
+ * to the foreground.
  */
 export type SubscribeForeground = (
   listener: (active?: boolean) => void,
 ) => () => void;
 
-/** Calls `listener` with `false` when the device loses connectivity and `true` when it returns. */
+/**
+ * Calls `listener` with `false` when the device loses connectivity and `true`
+ * when it returns.
+ */
 export type SubscribeOnline = (
   listener: (online: boolean) => void,
 ) => () => void;
@@ -39,7 +42,10 @@ export type ReactNativePermDockProviderProps = {
   readonly subjectId: string | null;
   readonly snapshot?: Snapshot | string;
   readonly snapshotUrl?: string;
-  /** Hydrates from the device's own rows (`localSnapshot`); with `snapshotUrl` too, the latest answer wins. */
+  /**
+   * Hydrates from the device's own rows (`localSnapshot`); with `snapshotUrl`
+   * too, the latest answer wins.
+   */
   readonly source?: SnapshotSource;
   readonly endpoint?: string;
   readonly approvals?: string;

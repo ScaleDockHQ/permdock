@@ -82,7 +82,7 @@ describe("adapter kits", () => {
     (_family, { folders, kits }) => {
       expect(
         folders.flatMap((folder) => runtimeImportsOutside(folder, kits)),
-      ).toEqual([]);
+      ).toStrictEqual([]);
     },
   );
 });

@@ -16,7 +16,10 @@ const Cloud = z.object({
 
 export type CloudEnv = z.infer<typeof Cloud>;
 
-/** `null` unless `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are both set; one without the other is a configuration error. */
+/**
+ * `null` unless `PERMDOCK_CLOUD_URL` and `PERMDOCK_CLOUD_KEY` are both set; one
+ * without the other is a configuration error.
+ */
 function cloudEnv(): CloudEnv | null {
   const url = read("PERMDOCK_CLOUD_URL");
   const key = read("PERMDOCK_CLOUD_KEY");

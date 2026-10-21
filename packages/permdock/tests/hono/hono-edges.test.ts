@@ -67,7 +67,7 @@ describe("permdock/hono sse", () => {
         (error: unknown) => error,
       );
     });
-    expect({ outcome, frames }).toEqual({
+    expect({ outcome, frames }).toStrictEqual({
       outcome: failure,
       frames: [{ data: '{"n":1}' }],
     });
@@ -88,7 +88,7 @@ describe("permdock/hono sse", () => {
       }
       await sse(conn, stream, after(), { unwrap: (item) => item });
     }, revocations);
-    expect(frames).toEqual([]);
+    expect(frames).toStrictEqual([]);
   });
 
   it("skips the revocation frame when the client left meanwhile", async () => {
@@ -115,7 +115,7 @@ describe("permdock/hono sse", () => {
       // SAFETY: sse reads only aborted, onAbort and writeSSE.
       await sse(conn, stream as unknown as SSEStreamingApi, source());
     }, revocations);
-    expect(frames).toEqual([{ data: JSON.stringify(ownPost) }]);
+    expect(frames).toStrictEqual([{ data: JSON.stringify(ownPost) }]);
   });
 });
 
@@ -143,7 +143,7 @@ describe("permdock/hono sockets", () => {
       bare.onClose?.(new CloseEvent("close"), ws);
       return conn.signal.aborted;
     }, revocations);
-    expect(calls).toEqual(["close"]);
+    expect(calls).toStrictEqual(["close"]);
   });
 });
 
@@ -165,7 +165,9 @@ describe("permdock/hono middleware", () => {
     const denied = await app.request("/denied");
     const boom = await app.request("/boom");
     const fine = await app.request("/fine");
-    expect([denied.status, boom.status, fine.status]).toEqual([403, 500, 200]);
+    expect([denied.status, boom.status, fine.status]).toStrictEqual([
+      403, 500, 200,
+    ]);
   });
 
   it("rethrows a build failure that is not a signature error", async () => {
@@ -193,9 +195,9 @@ describe("permdock/hono middleware", () => {
     app.route("/api/permdock", permdockHandler());
     const posts = await app.request("/posts");
     const snapshot = await app.request("/api/permdock");
-    expect({ posts: await posts.text(), snapshot: snapshot.status }).toEqual({
-      posts: "u1",
-      snapshot: 200,
-    });
+    expect({
+      posts: await posts.text(),
+      snapshot: snapshot.status,
+    }).toStrictEqual({ posts: "u1", snapshot: 200 });
   });
 });

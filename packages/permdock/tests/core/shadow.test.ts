@@ -36,7 +36,7 @@ const policy = definePolicy(permissions, {
 });
 const member = { id: "u1", roles: ["member"] };
 
-describe("shadowMode", () => {
+describe(shadowMode, () => {
   it("returns the legacy answer and reports where PermDock disagrees", async () => {
     const mismatches: ShadowMismatch[] = [];
     const permdock = shadowMode({
@@ -49,7 +49,7 @@ describe("shadowMode", () => {
     expect(permdock.can(permissions.post.update, { id: "p1" })).toBe(true);
     expect(permdock.can(permissions.post.list)).toBe(false);
     expect(permdock.can(permissions.post.read, { id: "p1" })).toBe(true);
-    expect(mismatches).toEqual([
+    expect(mismatches).toStrictEqual([
       {
         permission: "post.update",
         principal: "u1",
@@ -103,11 +103,11 @@ describe("shadowMode", () => {
       permdock
         .decideEach(permissions.post.update, [{ id: "a" }])
         .map((item) => item.outcome),
-    ).toEqual(["granted"]);
+    ).toStrictEqual(["granted"]);
   });
 });
 
-describe("wrapPermDock", () => {
+describe(wrapPermDock, () => {
   it("keeps feature functions working on a wrapped instance", async () => {
     const wrapped = wrapPermDock(getPermDockSync(policy, member), () => ({}));
     expect(internalsOf(wrapped)).toBeDefined();

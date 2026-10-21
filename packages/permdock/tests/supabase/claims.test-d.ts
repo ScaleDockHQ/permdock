@@ -4,11 +4,12 @@ import * as v from "valibot";
 import { describe, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 
-import {
-  type SupabaseClaims,
-  type SupabaseMembershipClaim,
-  supabaseClaims,
+import type {
+  SupabaseClaims,
+  SupabaseMembershipClaim,
 } from "../../src/supabase/index.ts";
+
+import { supabaseClaims } from "../../src/supabase/index.ts";
 
 describe("supabaseClaims() output types", () => {
   it("is SupabaseClaims for the default tenant claim", () => {

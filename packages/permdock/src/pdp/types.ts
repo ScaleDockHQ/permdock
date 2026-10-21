@@ -56,9 +56,9 @@ export type RemotePdpOptions = {
 };
 
 /**
- * One tuple callback per delegated permission. The callback receives the
- * row for a check and `undefined` for a listing; returning `null` denies
- * with `pdp-denied`, throwing denies with `pdp-invalid-response`.
+ * One tuple callback per delegated permission. The callback receives the row
+ * for a check and `undefined` for a listing; returning `null` denies with
+ * `pdp-denied`, throwing denies with `pdp-invalid-response`.
  */
 export type RelationMap<T> = readonly (readonly [
   Permission,
@@ -127,9 +127,9 @@ export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
   /** `permdock.derive` with the same providers: the result asks the PDP too. */
   readonly derive: (options: DeriveOptions) => Promise<PdpPermDock<V>>;
   /**
-   * For a delegated permission whose provider lists ids, an `in` over them
-   * (AND the local condition when local grants exist); otherwise the local
-   * `where`, or an always-false `partial` result.
+   * For a delegated permission whose provider lists ids, an `in` over them (AND
+   * the local condition when local grants exist); otherwise the local `where`,
+   * or an always-false `partial` result.
    */
   readonly where: (permission: Permission) => Promise<WhereResult>;
   readonly can: (
@@ -142,12 +142,18 @@ export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
     data?: unknown,
     options?: DecideOptions,
   ) => Promise<Decision>;
-  /** `can` for every check, asking the PDP for each in parallel; `false` for an empty list. */
+  /**
+   * `can` for every check, asking the PDP for each in parallel; `false` for an
+   * empty list.
+   */
   readonly canAll: (
     checks: readonly PermissionCheck[],
     options?: DecideOptions,
   ) => Promise<boolean>;
-  /** `decide` for every check, in check order, asking the PDP for each in parallel. */
+  /**
+   * `decide` for every check, in check order, asking the PDP for each in
+   * parallel.
+   */
   readonly decideAll: (
     checks: readonly PermissionCheck[],
     options?: DecideOptions,
@@ -163,7 +169,10 @@ export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
     data?: unknown,
     options?: DecideOptions,
   ) => Promise<Extract<Decision, { readonly outcome: "granted" }>>;
-  /** `decide` with a trace of the local grants; a decision the remote PDP made carries an empty trace. */
+  /**
+   * `decide` with a trace of the local grants; a decision the remote PDP made
+   * carries an empty trace.
+   */
   readonly explain: (
     permission: Permission,
     data?: unknown,

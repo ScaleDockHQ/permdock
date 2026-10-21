@@ -1,10 +1,7 @@
 import { definePermissions, resource } from "permdock";
 import { z } from "zod";
 
-export const Service = z.object({
-  id: z.string(),
-  env: z.string(),
-});
+export const Service = z.object({ id: z.string(), env: z.string() });
 
 export const permissions = definePermissions({
   deploy: resource(Service, {

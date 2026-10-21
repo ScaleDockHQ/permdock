@@ -6,6 +6,7 @@ import type {
 } from "../../terminal/types.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { CliIo } from "../types.ts";
+import type { Env } from "./issuer.ts";
 
 import { dateAt, instantAt, secondsAt } from "../../core/time.ts";
 import { runDeviceFlow } from "../../terminal/device.ts";
@@ -17,6 +18,7 @@ import {
 } from "../../terminal/storage.ts";
 import { CliError } from "../core/errors.ts";
 import { httpRequest } from "../core/http.ts";
+import { nonEmptyOr } from "../core/output.ts";
 import {
   CREDENTIAL_SERVICE,
   cliRuntime,
@@ -26,7 +28,6 @@ import {
 import {
   CLI_CLIENT_ID,
   cloudUrl,
-  type Env,
   issuerMetadata,
   READ_SCOPES,
 } from "./issuer.ts";
@@ -44,7 +45,10 @@ export type LoginInput = {
   readonly io: CliIo;
 };
 
-/** Opens `url` in the default browser; a failure leaves the printed URL to the user. */
+/**
+ * Opens `url` in the default browser; a failure leaves the printed URL to the
+ * user.
+ */
 function openBrowser(url: string): void {
   const [command, args] =
     process.platform === "darwin"
@@ -173,7 +177,10 @@ export type LogoutInput = {
   readonly io: CliIo;
 };
 
-/** Revokes the stored login (RFC 7009) and deletes it; a revocation failure still deletes it. */
+/**
+ * Revokes the stored login (RFC 7009) and deletes it; a revocation failure
+ * still deletes it.
+ */
 export async function runLogout(input: LogoutInput): Promise<CommandResult> {
   const issuer = cloudUrl(input.url, input.env);
   const runtime = cliRuntime(input.io, input.env);
@@ -262,7 +269,7 @@ export async function runWhoami(input: WhoamiInput): Promise<CommandResult> {
     code: 0,
     output: input.json
       ? JSON.stringify(data)
-      : `${issuer}: logged in (${scopes.join(" ") || "no scopes"})${expired ? "; the login has expired, run permdock login" : ""}`,
+      : `${issuer}: logged in (${nonEmptyOr(scopes.join(" "), "no scopes")})${expired ? "; the login has expired, run permdock login" : ""}`,
     data,
   };
 }

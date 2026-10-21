@@ -41,7 +41,7 @@ const user = {
   revision: 1,
 };
 
-describe("postgresDirectoryStore", () => {
+describe(postgresDirectoryStore, () => {
   it("binds filter values as parameters and never splices them into the SQL", async () => {
     const { query, calls } = recorder(() => [{ total: 0, resources: "[]" }]);
     const store = postgresDirectoryStore(query);
@@ -52,7 +52,7 @@ describe("postgresDirectoryStore", () => {
       { startIndex: 1, count: 1 },
     );
     expect(calls[0]?.text).not.toContain(hostile);
-    expect(calls[0]?.values).toEqual(["acme", hostile, 0, 1]);
+    expect(calls[0]?.values).toStrictEqual(["acme", hostile, 0, 1]);
     expect(calls[0]?.text).toContain('"permdock"."scim_users"');
   });
 
@@ -65,7 +65,7 @@ describe("postgresDirectoryStore", () => {
       ],
     }));
     const found = await postgresDirectoryStore(query).getUser("acme", "u1");
-    expect(found).toEqual({
+    expect(found).toStrictEqual({
       id: "u1",
       userName: "ada",
       externalId: "00u1",
@@ -186,8 +186,8 @@ describe("postgresDirectoryStore", () => {
     });
     expect(calls).toHaveLength(1);
     expect(calls[0]?.text).toContain('"identity"."scim_group_members"');
-    expect(calls[0]?.values.at(-1)).toEqual(["u1", "u2"]);
-    expect(group.members).toEqual([{ value: "u1" }, { value: "u2" }]);
+    expect(calls[0]?.values.at(-1)).toStrictEqual(["u1", "u2"]);
+    expect(group.members).toStrictEqual([{ value: "u1" }, { value: "u2" }]);
   });
 
   it("compiles every filter shape with bound values", async () => {
@@ -227,7 +227,15 @@ describe("postgresDirectoryStore", () => {
     expect(users?.text).toContain(
       "starts_with(u.user_name, $5) or false or coalesce(u.external_id, '') <> '' or false or true or false or true)",
     );
-    expect(users?.values).toEqual(["acme", "true", "x", "ad", "a", 0, 100]);
+    expect(users?.values).toStrictEqual([
+      "acme",
+      "true",
+      "x",
+      "ad",
+      "a",
+      0,
+      100,
+    ]);
 
     await store.findGroups(
       "acme",
@@ -242,7 +250,7 @@ describe("postgresDirectoryStore", () => {
     );
     expect(calls[1]?.text).toContain("m.group_id = g.id and true) and exists");
     expect(calls[1]?.text).toContain("m.user_id = $2");
-    expect(calls[1]?.values).toEqual(["acme", "u1", 0, 100]);
+    expect(calls[1]?.values).toStrictEqual(["acme", "u1", 0, 100]);
   });
 
   it("pages by cursor or startIndex and answers the next cursor", async () => {
@@ -255,7 +263,7 @@ describe("postgresDirectoryStore", () => {
       count: 1,
     });
     expect(calls[0]?.text).toContain("offset $2::bigint limit $3::bigint");
-    expect(calls[0]?.values).toEqual(["acme", 1, 1]);
+    expect(calls[0]?.values).toStrictEqual(["acme", 1, 1]);
     expect(byCursor).toMatchObject({
       totalResults: 3,
       startIndex: 2,
@@ -263,15 +271,15 @@ describe("postgresDirectoryStore", () => {
       nextCursor: "2",
     });
     await store.findUsers("acme", undefined, { cursor: "junk", count: 1 });
-    expect(calls[1]?.values).toEqual(["acme", 0, 1]);
+    expect(calls[1]?.values).toStrictEqual(["acme", 0, 1]);
     await store.findUsers("acme", undefined, { startIndex: 3, count: 1 });
-    expect(calls[2]?.values).toEqual(["acme", 2, 1]);
+    expect(calls[2]?.values).toStrictEqual(["acme", 2, 1]);
     for (const [page, count] of [
       [{ cursor: "1e21", count: Number.NaN }, 100],
       [{ startIndex: Number.POSITIVE_INFINITY, count: -1 }, 0],
     ] as const) {
       await store.findUsers("acme", undefined, page);
-      expect(calls.at(-1)?.values).toEqual(["acme", 0, count]);
+      expect(calls.at(-1)?.values).toStrictEqual(["acme", 0, count]);
     }
     const empty = postgresDirectoryStore(recorder(() => []).query);
     await expect(
@@ -328,7 +336,7 @@ describe("postgresDirectoryStore", () => {
       { op: "add", path: "members", value: [{ value: "u2" }] },
     ]);
     expect(calls[3]?.values[6]).toBe(4);
-    expect(calls[3]?.values[8]).toEqual(["u1", "u2"]);
+    expect(calls[3]?.values[8]).toStrictEqual(["u1", "u2"]);
   });
 
   it("maps a unique violation on a group PATCH and rethrows other write errors", async () => {
@@ -405,7 +413,7 @@ describe("postgresDirectoryStore", () => {
     await expect(store.deleteGroup("acme", "g2")).rejects.toSatisfy(
       isDirectoryNotFoundError,
     );
-    await expect(store.groupsFor("acme", "u1")).resolves.toEqual([
+    await expect(store.groupsFor("acme", "u1")).resolves.toStrictEqual([
       {
         id: "g1",
         displayName: "Editors",
@@ -417,7 +425,7 @@ describe("postgresDirectoryStore", () => {
         },
       },
     ]);
-    expect(calls[2]?.values).toEqual(["acme", "u1"]);
+    expect(calls[2]?.values).toStrictEqual(["acme", "u1"]);
   });
 
   it("refuses a schema that is not a plain identifier", () => {

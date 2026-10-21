@@ -31,12 +31,12 @@ export type AstroPermDockOptions<TUser = unknown> = FetchAdapterOptions<
 export type AstroPermDockLocals<
   TData = unknown,
   V extends PolicyVocabulary = PolicyVocabulary,
-> = {
-  readonly permdock: PermDock<V>;
-  readonly permdockData: TData;
-};
+> = { readonly permdock: PermDock<V>; readonly permdockData: TData };
 
-/** The context a wrapped endpoint receives: its own `APIContext` with typed `locals`. */
+/**
+ * The context a wrapped endpoint receives: its own `APIContext` with typed
+ * `locals`.
+ */
 export type AstroPermDockContext<
   TContext extends APIContext = APIContext,
   TData = unknown,
@@ -67,13 +67,25 @@ export type AstroProtect<V extends PolicyVocabulary = PolicyVocabulary> = {
 };
 
 export type AstroPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  /** `onRequest` in `src/middleware.ts`: sets `context.locals.permdock`; a bad Web Bot Auth signature is a `401`. */
+  /**
+   * `onRequest` in `src/middleware.ts`: sets `context.locals.permdock`; a bad
+   * Web Bot Auth signature is a `401`.
+   */
   readonly middleware: () => MiddlewareHandler;
-  /** `export const DELETE = protect(permissions.post.delete, loadPost)(handler)`. */
+  /**
+   * `export const DELETE = protect(permissions.post.delete,
+   * loadPost)(handler)`.
+   */
   readonly protect: AstroProtect<V>;
-  /** Types `context.locals.permdock` for an endpoint and answers a thrown PermDock error with Problem Details. */
+  /**
+   * Types `context.locals.permdock` for an endpoint and answers a thrown
+   * PermDock error with Problem Details.
+   */
   readonly withPermDock: AstroGuarded<unknown, V>;
-  /** The instance for an endpoint, an action or a page's frontmatter (`Astro` is an `APIContext`). */
+  /**
+   * The instance for an endpoint, an action or a page's frontmatter (`Astro` is
+   * an `APIContext`).
+   */
   readonly getPermDock: (context: APIContext) => Promise<PermDock<V>>;
   /** The snapshot a page passes to a `permdock/react` island. */
   readonly getSnapshot: (
@@ -84,7 +96,10 @@ export type AstroPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     context: APIContext,
     connectionOptions?: ConnectionOptions,
   ) => Promise<Connection>;
-  /** `export const { GET, POST } = permdockHandler()` in `src/pages/api/permdock.ts`. */
+  /**
+   * `export const { GET, POST } = permdockHandler()` in
+   * `src/pages/api/permdock.ts`.
+   */
   readonly permdockHandler: () => PermDockHandlers<APIContext>;
   readonly openapi: OpenApiHooks;
 };

@@ -1,6 +1,9 @@
 import type { JsonSchemaNode } from "../core/json-schema.ts";
 
-/** An RFC 3339 instant as `Temporal.Instant` prints it; pg_jsonschema asserts no `format`. */
+/**
+ * An RFC 3339 instant as `Temporal.Instant` prints it; pg_jsonschema asserts no
+ * `format`.
+ */
 const INSTANT = String.raw`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$`;
 
 const STRINGS = { type: "array", items: { type: "string" } } as const;

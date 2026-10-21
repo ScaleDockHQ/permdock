@@ -18,10 +18,10 @@ export type PermissionsOptions<PX = never, RX = never> = {
    */
   readonly renamed?: Readonly<Record<string, string>>;
   /**
-   * Standard Schemas for app data. `permission` checks every action's
-   * `meta.x` and types it on the leaves; `resource` checks every resource's
-   * `meta.x` and types it on `getResource`. Both validate synchronously at
-   * definition time and throw on invalid data.
+   * Standard Schemas for app data. `permission` checks every action's `meta.x`
+   * and types it on the leaves; `resource` checks every resource's `meta.x` and
+   * types it on `getResource`. Both validate synchronously at definition time
+   * and throw on invalid data.
    */
   readonly x?: {
     readonly permission?: AppDataSchema<PX>;
@@ -29,15 +29,24 @@ export type PermissionsOptions<PX = never, RX = never> = {
   };
 };
 
-/** A resource's metadata. PermDock carries it to the catalog and never reads `x`. */
+/**
+ * A resource's metadata. PermDock carries it to the catalog and never reads
+ * `x`.
+ */
 export type ResourceMeta<X = AppData> = {
   readonly title?: string;
   readonly description?: string;
-  /** Data the application owns. Plain JSON, typed by `definePermissions(…, { x: { resource } })`. */
+  /**
+   * Data the application owns. Plain JSON, typed by `definePermissions(…, { x:
+   * { resource } })`.
+   */
   readonly x?: X;
 };
 
-/** A tree whose resources carry `meta.x` of type `X`, read through `getResource`. */
+/**
+ * A tree whose resources carry `meta.x` of type `X`, read through
+ * `getResource`.
+ */
 export type ResourceXTree<X> = { readonly [RESOURCE_X]?: X };
 
 export type ActionMeta = {
@@ -45,7 +54,10 @@ export type ActionMeta = {
   readonly description?: string;
   readonly tags?: readonly string[];
   readonly readOnly?: boolean;
-  /** The action may destroy or overwrite data; only meaningful when not `readOnly`. */
+  /**
+   * The action may destroy or overwrite data; only meaningful when not
+   * `readOnly`.
+   */
   readonly destructive?: boolean;
   /** Repeating the action with the same input has no further effect. */
   readonly idempotent?: boolean;
@@ -54,12 +66,15 @@ export type ActionMeta = {
    * assign the whole custom-role ceiling, not only what they hold themselves.
    */
   readonly manageRoles?: boolean;
-  /** Set by a generator (`permdock openapi import`) to the operation an action was inferred from. */
+  /**
+   * Set by a generator (`permdock openapi import`) to the operation an action
+   * was inferred from.
+   */
   readonly inferredFrom?: string;
   /**
    * Data the application owns, such as a risk level or an undo window. Plain
-   * JSON; PermDock carries it on the leaf, the catalog and snapshots and
-   * never reads it. `definePermissions(…, { x: { permission } })` types it.
+   * JSON; PermDock carries it on the leaf, the catalog and snapshots and never
+   * reads it. `definePermissions(…, { x: { permission } })` types it.
    */
   readonly x?: AppData;
 };
@@ -85,24 +100,28 @@ export type ResourceParent = {
 };
 
 /** Relations on the same resource whose holders also hold this one. */
-export type RelationIncludes = {
-  readonly includes?: readonly string[];
-};
+export type RelationIncludes = { readonly includes?: readonly string[] };
 
 /** The row's `field` holds the principal id (or, with `memberOf`, a scope id). */
 export type FieldRelation = RelationIncludes & {
   readonly field: string;
-  /** A declared scope name (or the `tenant` / `team` alias): the field holds that scope's id. */
+  /**
+   * A declared scope name (or the `tenant` / `team` alias): the field holds
+   * that scope's id.
+   */
   readonly memberOf?: string;
 };
 
-/** Literal values an edge row's columns must hold, so one table backs several relations. */
+/**
+ * Literal values an edge row's columns must hold, so one table backs several
+ * relations.
+ */
 export type EdgeMatch = Readonly<Record<string, string | number | boolean>>;
 
 /**
- * One group resource of an edge: the relation whoever the row names must
- * hold on the group, and, when the group's id has its own typed column, that
- * column in place of the edge's `subject`.
+ * One group resource of an edge: the relation whoever the row names must hold
+ * on the group, and, when the group's id has its own typed column, that column
+ * in place of the edge's `subject`.
  */
 export type EdgeGroup =
   | string
@@ -110,12 +129,12 @@ export type EdgeGroup =
 
 /**
  * Edge rows that name a group instead of a principal: `column` holds the
- * resource name, `subject` the group's id, and the row holds for whoever
- * holds `resources[<name>]` on that group. A null `column` (or `direct`)
- * names a principal; any other value matches nothing. A group with its own
- * `subject` column reads the group's id from it; without `column`, a row
- * names that group when the column is not null, and a principal when the
- * edge's `subject` is not null.
+ * resource name, `subject` the group's id, and the row holds for whoever holds
+ * `resources[<name>]` on that group. A null `column` (or `direct`) names a
+ * principal; any other value matches nothing. A group with its own `subject`
+ * column reads the group's id from it; without `column`, a row names that group
+ * when the column is not null, and a principal when the edge's `subject` is not
+ * null.
  */
 export type EdgeGroups = {
   /** Required unless every group names its own `subject` column. */
@@ -129,13 +148,22 @@ export type EdgeGroups = {
 export type EdgeGroupEntry = {
   readonly resource: string;
   readonly relation: string;
-  /** The column holding the group's id: the group's own, else the edge's `subject`. */
+  /**
+   * The column holding the group's id: the group's own, else the edge's
+   * `subject`.
+   */
   readonly subject: string;
-  /** Whether the group reads its own typed column rather than the edge's `subject`. */
+  /**
+   * Whether the group reads its own typed column rather than the edge's
+   * `subject`.
+   */
   readonly typed: boolean;
 };
 
-/** One row per holder in an edge table: `object` holds the resource id, `subject` the principal id. */
+/**
+ * One row per holder in an edge table: `object` holds the resource id,
+ * `subject` the principal id.
+ */
 export type EdgeRelation = RelationIncludes & {
   readonly edge: string;
   /** Default `<resource>_id`. */
@@ -148,20 +176,21 @@ export type EdgeRelation = RelationIncludes & {
   readonly groups?: EdgeGroups;
 };
 
-/** On a principal resource: the row's `principal` column holds the principal who holds the relation over it. */
+/**
+ * On a principal resource: the row's `principal` column holds the principal who
+ * holds the relation over it.
+ */
 export type PrincipalRelation = RelationIncludes & {
   readonly principal: string;
-  /** Timestamp columns bounding when the relation holds; `null` leaves that side open. */
-  readonly period?: {
-    readonly startsAt?: string;
-    readonly expiresAt?: string;
-  };
+  /**
+   * Timestamp columns bounding when the relation holds; `null` leaves that side
+   * open.
+   */
+  readonly period?: { readonly startsAt?: string; readonly expiresAt?: string };
 };
 
 /** Held only through the relations it includes. */
-export type ComputedRelation = {
-  readonly includes: readonly string[];
-};
+export type ComputedRelation = { readonly includes: readonly string[] };
 
 export type ResourceRelation =
   | FieldRelation
@@ -171,7 +200,10 @@ export type ResourceRelation =
 
 export type ResourceRelationInput = string | ResourceRelation;
 
-/** A to-one link from a row to another resource's instance, walked by `through: [<link>]`. */
+/**
+ * A to-one link from a row to another resource's instance, walked by `through:
+ * [<link>]`.
+ */
 export type ResourceLink = {
   readonly field: string;
   readonly resource: string;
@@ -189,8 +221,8 @@ export type ResourceOptions<
   C extends ActionList | undefined = ActionList | undefined,
 > = {
   /**
-   * The resource name leaves, tables, relations and AuthZEN types use; the
-   * last path segment when absent. Names are unique across a tree.
+   * The resource name leaves, tables, relations and AuthZEN types use; the last
+   * path segment when absent. Names are unique across a tree.
    */
   readonly name?: string;
   readonly id?: string;
@@ -201,7 +233,8 @@ export type ResourceOptions<
   readonly relations?: Readonly<Record<string, ResourceRelationInput>>;
   /**
    * The row field that changes whenever the row does (`updatedAt`, a revision
-   * counter). An `approval: { staleOn: 'resource-change' }` binds to its value.
+   * counter). An `approval: { staleOn: 'resource-change' }` binds to its
+   * value.
    */
   readonly version?: string;
   /**
@@ -217,15 +250,21 @@ export type ResourceOptions<
   /**
    * Named grant levels a custom role may pick per permission, each a row
    * condition (`where` shorthand or a `Condition`), such as `own`, `team` and
-   * `all`. A level narrows the ceiling grant it applies to and never widens
-   * it; it reaches only instance actions. Names match `^[a-z][a-z0-9_]*$`.
+   * `all`. A level narrows the ceiling grant it applies to and never widens it;
+   * it reaches only instance actions. Names match `^[a-z][a-z0-9_]*$`.
    */
   readonly levels?: Readonly<Record<string, ResourceLevel>>;
-  /** Display text and app data for the resource; carried to the catalog, never read in evaluation. */
+  /**
+   * Display text and app data for the resource; carried to the catalog, never
+   * read in evaluation.
+   */
   readonly meta?: ResourceMeta;
 };
 
-/** A level's row condition: `where` shorthand or a normalised `Condition`, checked by `definePolicy`. */
+/**
+ * A level's row condition: `where` shorthand or a normalised `Condition`,
+ * checked by `definePolicy`.
+ */
 export type ResourceLevel = Readonly<Record<string, unknown>>;
 
 export type ResourceInit<
@@ -252,7 +291,10 @@ export type ResourceNode<T = unknown> = {
   readonly disclosure: "hide" | "reveal";
   readonly instanceActions: ReadonlySet<string>;
   readonly collectionActions: ReadonlySet<string>;
-  /** Declared level names to their raw condition; `definePolicy` normalises them. */
+  /**
+   * Declared level names to their raw condition; `definePolicy` normalises
+   * them.
+   */
   readonly levels?: Readonly<Record<string, ResourceLevel>>;
   /** The resource's `meta`, when it declares one. */
   readonly meta?: ResourceMeta;

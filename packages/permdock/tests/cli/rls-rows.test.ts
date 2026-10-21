@@ -143,7 +143,7 @@ describe("permitted_<resource>_rows", () => {
   });
 });
 
-describe("levelKeys", () => {
+describe(levelKeys, () => {
   it("lists each level of an instance permission and whether it has a condition", () => {
     const levelled = definePermissions({
       job: resource({
@@ -156,7 +156,7 @@ describe("levelKeys", () => {
       subject: () => null,
       roles: [role("owner", [allow(levelled.job.read)])],
     });
-    expect(levelKeys(jobs)).toEqual([
+    expect(levelKeys(jobs)).toStrictEqual([
       {
         key: "job.read@own",
         permission: "job.read",

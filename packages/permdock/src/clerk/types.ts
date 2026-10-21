@@ -41,7 +41,11 @@ export type ClerkSubjectOptions = {
   readonly customRoles?: CustomRoleSource;
   readonly permissions?: Readonly<Record<string, Permission>>;
   readonly schema?: StandardSchemaV1;
-  /** Where the session token carries platform roles (`claims.roles`): a path such as `publicMetadata.staff`, or a function. Organization roles come from the `o` claim. */
+  /**
+   * Where the session token carries platform roles (`claims.roles`): a path
+   * such as `publicMetadata.staff`, or a function. Organization roles come from
+   * the `o` claim.
+   */
   readonly claims?: Pick<ClaimsMap, "roles">;
   readonly features?: Readonly<Record<string, string>>;
   readonly declared?: readonly string[];

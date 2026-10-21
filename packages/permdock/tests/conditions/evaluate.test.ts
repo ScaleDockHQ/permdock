@@ -23,7 +23,7 @@ function sub(
   };
 }
 
-describe("evaluateCondition", () => {
+describe(evaluateCondition, () => {
   it("keys a keyed parent hop by the membership resource", () => {
     const condition = {
       op: "memberOf",

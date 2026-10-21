@@ -99,10 +99,10 @@ describe("edge groups with a typed subject column per group in RLS", () => {
         }
       }
     }
-    expect(mismatches).toEqual([]);
-    expect(await visible(db, "ivy", "drive")).toEqual(["budget"]);
-    expect(await visible(db, "ivy", "team")).toEqual(["1", "2", "4"]);
-    expect(await visible(db, "dana", "drive")).toEqual(["both", "plans"]);
-    expect(await visible(db, "otis", "drive")).toEqual(["both"]);
+    expect(mismatches).toStrictEqual([]);
+    expect(await visible(db, "ivy", "drive")).toStrictEqual(["budget"]);
+    expect(await visible(db, "ivy", "team")).toStrictEqual(["1", "2", "4"]);
+    expect(await visible(db, "dana", "drive")).toStrictEqual(["both", "plans"]);
+    expect(await visible(db, "otis", "drive")).toStrictEqual(["both"]);
   });
 });

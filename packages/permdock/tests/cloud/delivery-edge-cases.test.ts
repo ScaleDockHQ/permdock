@@ -53,7 +53,7 @@ describe("cloudDeliveryTransport edge cases", () => {
       );
       expect(
         await transport.deliver(await chatTarget(), { text: "hi" }, options),
-      ).toEqual({ status: "sent" });
+      ).toStrictEqual({ status: "sent" });
     }
   });
 
@@ -71,7 +71,11 @@ describe("cloudDeliveryTransport edge cases", () => {
     );
     expect(
       await transport.deliver(await chatTarget(), message, options),
-    ).toEqual({ status: "failed", cause: "invalid-message", retryable: false });
-    expect(requests).toEqual([]);
+    ).toStrictEqual({
+      status: "failed",
+      cause: "invalid-message",
+      retryable: false,
+    });
+    expect(requests).toStrictEqual([]);
   });
 });

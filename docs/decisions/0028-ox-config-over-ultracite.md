@@ -13,7 +13,7 @@ Lint and format stay on `packages/ox-config`, which the root `oxlint.config.ts` 
 
 ## Consequences
 
-Rule updates that Ultracite ships arrive only when copied by hand. Revisit as one migration: move the house rules after the Ultracite presets in the root config, keep the reasons and counts, then delete the workspace and its boundary tag.
+Rule updates that Ultracite ships arrive only when copied by hand. [0044](./0044-lint-rules-kept-off.md) lists the rules that stay off and the backlogs still open. Revisit as one migration: move the house rules after the Ultracite presets in the root config, keep the reasons and counts, then delete the workspace and its boundary tag.
 
 ## Alternatives considered
 

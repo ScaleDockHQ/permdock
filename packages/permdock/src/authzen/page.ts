@@ -13,7 +13,10 @@ export type AuthzenPageRequest = {
 export type AuthzenPage<T> = {
   readonly results: readonly T[];
   readonly page: {
-    /** The offset of the next page as a decimal string, or `""` on the last page. */
+    /**
+     * The offset of the next page as a decimal string, or `""` on the last
+     * page.
+     */
     readonly next_token: string;
     readonly count: number;
     readonly total: number;
@@ -40,10 +43,7 @@ export function readAuthzenPage(body: unknown): AuthzenPageRequest {
     typeof sizeRaw === "number" && sizeRaw > 0
       ? Math.min(sizeRaw, AUTHZEN_MAX_PAGE)
       : DEFAULT_PAGE;
-  return {
-    offset: Number.isFinite(parsed) && parsed > 0 ? parsed : 0,
-    size,
-  };
+  return { offset: Number.isFinite(parsed) && parsed > 0 ? parsed : 0, size };
 }
 
 /** One page of `items` with the AuthZEN `page` object. */

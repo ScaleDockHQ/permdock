@@ -28,7 +28,10 @@ export type SiemDestination =
   | "elastic"
   | "datadog";
 
-/** A connector body in wire format v1 (`schemas/connector-v1.json`), one member per kind. */
+/**
+ * A connector body in wire format v1 (`schemas/connector-v1.json`), one member
+ * per kind.
+ */
 export type Connector =
   | ConnectorBase<
       "webhook",
@@ -99,7 +102,10 @@ export type Connector =
 
 export type ConnectorKind = Connector["kind"];
 
-/** One problem with a connector body; `path` is an RFC 6901 JSON pointer into it. */
+/**
+ * One problem with a connector body; `path` is an RFC 6901 JSON pointer into
+ * it.
+ */
 export type ConnectorIssue = {
   readonly path: string;
   readonly message: string;
@@ -146,8 +152,8 @@ function fail(issues: readonly StandardSchemaV1.Issue[]): ParseConnectorResult {
 
 /**
  * Checks `input` against `connector-v1.json` and answers a frozen copy, or
- * every issue with a JSON pointer. The branch is chosen by `kind`, so an
- * issue names the field rather than "no branch matched".
+ * every issue with a JSON pointer. The branch is chosen by `kind`, so an issue
+ * names the field rather than "no branch matched".
  */
 export function parseConnector(input: unknown): ParseConnectorResult {
   const issues: StandardSchemaV1.Issue[] = [];

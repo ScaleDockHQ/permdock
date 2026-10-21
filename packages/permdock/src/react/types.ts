@@ -30,22 +30,25 @@ export type PermDockProviderProps = (
   | { readonly snapshot: Snapshot | string; readonly snapshotPromise?: never }
   | {
       /**
-       * An unawaited snapshot from a Server Component. Hooks never suspend on it: until it
-       * resolves they deny with `status: 'pending'`, then re-render. A rejection fails closed
-       * (`server-only`). Set `suspend` to suspend readers through `use()` instead.
+       * An unawaited snapshot from a Server Component. Hooks never suspend on
+       * it: until it resolves they deny with `status: 'pending'`, then
+       * re-render. A rejection fails closed (`server-only`). Set `suspend` to
+       * suspend readers through `use()` instead.
        */
       readonly snapshotPromise: PromiseLike<Snapshot | string>;
       readonly snapshot?: never;
     }
 ) & {
   /**
-   * With `snapshotPromise`: `true` suspends every hook to the nearest Suspense boundary until it
-   * resolves, and a rejection reaches the nearest error boundary. Defaults to `false`.
+   * With `snapshotPromise`: `true` suspends every hook to the nearest Suspense
+   * boundary until it resolves, and a rejection reaches the nearest error
+   * boundary. Defaults to `false`.
    */
   readonly suspend?: boolean;
   /**
-   * The AuthZEN evaluations endpoint for checks the snapshot cannot answer. `false` never
-   * fetches: those checks answer `denied` with reason `server-only`.
+   * The AuthZEN evaluations endpoint for checks the snapshot cannot answer.
+   * `false` never fetches: those checks answer `denied` with reason
+   * `server-only`.
    */
   readonly endpoint?: string | false;
   /** Where `refresh()` fetches a fresh snapshot. Defaults to `endpoint`. */

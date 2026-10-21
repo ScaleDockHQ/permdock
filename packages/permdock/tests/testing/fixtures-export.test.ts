@@ -18,7 +18,7 @@ function exampleJson(name: string): unknown {
 
 describe("permdock/testing/fixtures", () => {
   it("is the next-better-supabase catalog, parsed, with its own fingerprint", () => {
-    expect(betterSupabaseCatalog).toEqual(
+    expect(betterSupabaseCatalog).toStrictEqual(
       exampleJson("permissions.catalog.json"),
     );
     expect(catalogFingerprint(betterSupabaseCatalog)).toBe(
@@ -27,7 +27,7 @@ describe("permdock/testing/fixtures", () => {
   });
 
   it("is the next-better-supabase manifest, parsed", () => {
-    expect(betterSupabaseManifest).toEqual(
+    expect(betterSupabaseManifest).toStrictEqual(
       exampleJson("permdock.manifest.json"),
     );
   });

@@ -1,7 +1,4 @@
-export type Invariant = {
-  readonly title: string;
-  readonly body: string;
-};
+export type Invariant = { readonly title: string; readonly body: string };
 
 export const invariants: readonly Invariant[] = [
   {

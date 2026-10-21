@@ -9,16 +9,11 @@ import { Inter } from "next/font/google";
 import { WebMCP } from "@/components/webmcp";
 import { env } from "@/env";
 
-const inter = Inter({
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const rootMetadata: Metadata = {
   metadataBase: new URL(env.NEXT_PUBLIC_SITE_URL),
-  title: {
-    default: "PermDock",
-    template: "%s | PermDock",
-  },
+  title: { default: "PermDock", template: "%s | PermDock" },
   description:
     "Typed permissions for TypeScript apps, APIs, databases, and AI agents.",
 };

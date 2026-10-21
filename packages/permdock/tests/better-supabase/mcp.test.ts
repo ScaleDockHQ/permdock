@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import type { PermDock } from "../../src/core/permdock.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { toolPolicy } from "../../src/better-supabase/index.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -39,16 +40,18 @@ const dock = (): PermDock => {
 const tools = toolPolicy({ permdock: dock });
 const ctx = {};
 
-describe("toolPolicy", () => {
+describe(toolPolicy, () => {
   it("grants a granted permission and shows the tool", async () => {
-    expect(await tools.authorize(ctx, { meta: customer.read }, {})).toEqual({
-      allowed: true,
-    });
+    expect(
+      await tools.authorize(ctx, { meta: customer.read }, {}),
+    ).toStrictEqual({ allowed: true });
     expect(await tools.visible(ctx, { meta: customer.read })).toBe(true);
   });
 
   it("refuses and hides a denied permission", async () => {
-    expect(await tools.authorize(ctx, { meta: customer.delete }, {})).toEqual({
+    expect(
+      await tools.authorize(ctx, { meta: customer.delete }, {}),
+    ).toStrictEqual({
       allowed: false,
       reason: "PermDock denied customer.delete.",
     });
@@ -75,10 +78,9 @@ describe("toolPolicy", () => {
     const failing = toolPolicy({
       permdock: () => Promise.reject(new Error("down")),
     });
-    expect(await failing.authorize(ctx, { meta: customer.read }, {})).toEqual({
-      allowed: false,
-      reason: "The permission check failed.",
-    });
+    expect(
+      await failing.authorize(ctx, { meta: customer.read }, {}),
+    ).toStrictEqual({ allowed: false, reason: "The permission check failed." });
     expect(await failing.visible(ctx, { meta: customer.read })).toBe(false);
     const loader = toolPolicy({
       permdock: dock,

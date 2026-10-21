@@ -23,7 +23,10 @@ import { cloudUrl, firstNonEmpty } from "./issuer.ts";
 
 export { pushedPolicy };
 
-/** `--manifest`, else `permdock.manifest.json` when it exists; a file that does not parse is an error. */
+/**
+ * `--manifest`, else `permdock.manifest.json` when it exists; a file that does
+ * not parse is an error.
+ */
 function readManifest(
   cwd: string,
   flag: string | undefined,
@@ -49,7 +52,10 @@ function readManifest(
   }
 }
 
-/** The built catalog, or a `catalog_invalid` problem listing every issue with its path. */
+/**
+ * The built catalog, or a `catalog_invalid` problem listing every issue with
+ * its path.
+ */
 function checkedCatalog(output: string): CatalogDocument {
   try {
     return parseCatalog(output);
@@ -99,10 +105,7 @@ async function keyEnvironment(
           command: "permdock cloud push --project <environment>",
           when: "to name the environment",
         },
-        {
-          command: "export PERMDOCK_CLOUD_ENV=<environment>",
-          when: "in CI",
-        },
+        { command: "export PERMDOCK_CLOUD_ENV=<environment>", when: "in CI" },
       ],
     },
   );

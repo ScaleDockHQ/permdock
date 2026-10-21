@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import type {
+  ApprovalListQuery,
+  ApprovalStore,
+} from "../../src/approvals/index.ts";
+
 import {
-  type ApprovalListQuery,
-  type ApprovalStore,
   approvalPageSize,
   decodeApprovalCursor,
   encodeApprovalCursor,
@@ -12,7 +15,10 @@ import {
 } from "../../src/approvals/index.ts";
 import { testApprovalStore } from "../../src/testing/conformance/approvals.ts";
 
-/** A custom store that keeps its own list and pages it with the exported helpers. */
+/**
+ * A custom store that keeps its own list and pages it with the exported
+ * helpers.
+ */
 function pagedStore(): ApprovalStore {
   const inner = memoryApprovalStore();
   return {
@@ -33,7 +39,7 @@ describe("a custom ApprovalStore paging with the exported helpers", () => {
       createdAt: "2026-10-07T10:00:00.000Z",
       token: "t1",
     } as never);
-    expect(decodeApprovalCursor(cursor)).toEqual([
+    expect(decodeApprovalCursor(cursor)).toStrictEqual([
       "2026-10-07T10:00:00.000Z",
       "t1",
     ]);

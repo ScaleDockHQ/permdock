@@ -7,11 +7,12 @@ import { fileURLToPath } from "node:url";
 import { isPermission, parseSnapshot } from "permdock";
 import { describe, expect, it } from "vitest";
 
+import type { Entry } from "./graph.ts";
+
 import {
   CLIENT_ENTRIES,
   DIST,
   ENTRIES,
-  type Entry,
   clientApiLeaks,
   isClientBoundary,
   walk,
@@ -122,7 +123,7 @@ describe("react-server build", () => {
     expect(result.id).toMatch(
       /dist\/react\/provider-client\.js#PermDockProvider$/u,
     );
-    expect(clientReference(result.flight)).toEqual([
+    expect(clientReference(result.flight)).toStrictEqual([
       expect.stringMatching(/provider-client\.js$/u),
       [],
       "PermDockProvider",
@@ -139,7 +140,9 @@ describe("react-server build", () => {
   it("shares one React context between permdock/react and the provider reference", () => {
     const fromReact = contextChunks(walk(ENTRIES["./react"]));
     expect(fromReact).toHaveLength(1);
-    expect(contextChunks(walk("react/provider-client.js"))).toEqual(fromReact);
+    expect(contextChunks(walk("react/provider-client.js"))).toStrictEqual(
+      fromReact,
+    );
   });
 
   it("never reaches a client-only React API from a server entry", () => {
@@ -151,7 +154,7 @@ describe("react-server build", () => {
         leaks.push(...clientApiLeaks(ENTRIES[entry]));
       }
     }
-    expect(leaks).toEqual([]);
+    expect(leaks).toStrictEqual([]);
   });
 
   it("round-trips a snapshotFor() snapshot through React Flight", async () => {
@@ -160,8 +163,8 @@ describe("react-server build", () => {
       throw new Error(result.error);
     }
     const decoded = await decodeSnapshot(result.flight);
-    expect(decoded.snapshot).toEqual(result.snapshot);
-    expect(parseSnapshot(decoded.snapshot)).toEqual(result.snapshot);
+    expect(decoded.snapshot).toStrictEqual(result.snapshot);
+    expect(parseSnapshot(decoded.snapshot)).toStrictEqual(result.snapshot);
   });
 
   it("passes a tenant snapshot with vocabulary and assignable entries through development Flight", async () => {
@@ -171,7 +174,7 @@ describe("react-server build", () => {
     }
     expect(result.stderr).toBe("");
     const decoded = await decodeSnapshot(result.flight);
-    expect(decoded.snapshot).toEqual(result.snapshot);
+    expect(decoded.snapshot).toStrictEqual(result.snapshot);
     expect(result.snapshot).toMatchObject({
       vocabulary: { roles: { owner: { kind: "role" } } },
       assignable: [{ tenant: "acme" }, { tenant: "globex" }],
@@ -188,7 +191,7 @@ describe("react-server build", () => {
     const decoded = (await decodeFlight(result.flight)) as {
       readonly leaves: readonly unknown[];
     };
-    expect(decoded.leaves).toEqual([
+    expect(decoded.leaves).toStrictEqual([
       {
         key: "post.read",
         scope: "post:read",

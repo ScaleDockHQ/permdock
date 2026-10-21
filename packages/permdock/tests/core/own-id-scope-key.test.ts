@@ -13,7 +13,10 @@ import {
   role,
 } from "../../src/index.ts";
 
-/** The organizations table is the tenant itself: its own `id` is the organization id. */
+/**
+ * The organizations table is the tenant itself: its own `id` is the
+ * organization id.
+ */
 const permissions = definePermissions({
   organization: resource({
     id: "id",
@@ -23,9 +26,7 @@ const permissions = definePermissions({
   project: resource({
     id: "id",
     actions: ["read"],
-    relations: {
-      org: { field: "organization_id", memberOf: "organization" },
-    },
+    relations: { org: { field: "organization_id", memberOf: "organization" } },
   }),
 });
 
@@ -66,21 +67,16 @@ describe("a resource whose own id is the scope instance", () => {
       false,
     );
     expect(
-      permdock.can(permissions.project.read, {
-        id: "p",
-        organization_id: "T",
-      }),
+      permdock.can(permissions.project.read, { id: "p", organization_id: "T" }),
     ).toBe(true);
-    expect(permdock.where(permissions.organization.read).condition).toEqual({
-      op: "eq",
-      field: "id",
-      value: "T",
-    });
+    expect(
+      permdock.where(permissions.organization.read).condition,
+    ).toStrictEqual({ op: "eq", field: "id", value: "T" });
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");
     }
-    expect(snapshot.scopes).toEqual([
+    expect(snapshot.scopes).toStrictEqual([
       {
         name: "organization",
         key: "organization_id",

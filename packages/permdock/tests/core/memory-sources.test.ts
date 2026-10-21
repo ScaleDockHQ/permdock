@@ -52,17 +52,17 @@ describe("memoryCustomRoleSource conformance", () => {
   );
 });
 
-describe("memoryMembershipSource", () => {
+describe(memoryMembershipSource, () => {
   it("lists the members of one scope instance", async () => {
     const source = memoryMembershipSource(memberships);
     const members = await source.list?.({ scope: "organization", id: "o1" });
-    expect(members?.map((entry) => entry.principal.id)).toEqual([
+    expect(members?.map((entry) => entry.principal.id)).toStrictEqual([
       "alice",
       "bob",
     ]);
-    expect(await source.list?.({ scope: "organization", id: "o9" })).toEqual(
-      [],
-    );
+    expect(
+      await source.list?.({ scope: "organization", id: "o9" }),
+    ).toStrictEqual([]);
   });
 
   it("returns a copy a caller cannot use to change the source", async () => {
@@ -74,7 +74,7 @@ describe("memoryMembershipSource", () => {
   });
 });
 
-describe("memorySnapshotSource", () => {
+describe(memorySnapshotSource, () => {
   it("replaces the snapshot and notifies each subscriber until it leaves", async () => {
     const source = memorySnapshotSource(snapshot);
     const next: Snapshot = { ...snapshot, issuedAt: "1970-01-01T00:00:02Z" };
@@ -92,18 +92,18 @@ describe("memorySnapshotSource", () => {
   });
 });
 
-describe("memoryCustomRoleSource", () => {
+describe(memoryCustomRoleSource, () => {
   it("keeps global roles apart from tenant roles", async () => {
     const source = memoryCustomRoleSource([
       { tenant: "o1", name: "staff", includes: ["member"] },
       { scope: "global", name: "auditor", includes: ["viewer"] },
     ]);
-    expect((await source.rolesFor("o1")).map((role) => role.name)).toEqual([
-      "staff",
-    ]);
-    expect(await source.rolesFor("o2")).toEqual([]);
-    expect((await source.globalRoles?.())?.map((role) => role.name)).toEqual([
-      "auditor",
-    ]);
+    expect(
+      (await source.rolesFor("o1")).map((role) => role.name),
+    ).toStrictEqual(["staff"]);
+    expect(await source.rolesFor("o2")).toStrictEqual([]);
+    expect(
+      (await source.globalRoles?.())?.map((role) => role.name),
+    ).toStrictEqual(["auditor"]);
   });
 });

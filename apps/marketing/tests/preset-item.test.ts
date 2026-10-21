@@ -13,7 +13,7 @@ import { presetItem } from "../lib/preset-item";
 
 const ORIGIN = "https://permdock.com";
 
-describe("presetItem", () => {
+describe(presetItem, () => {
   it("builds a valid shadcn registry block that writes the preset's files", () => {
     const code = encodePreset(
       resolvePreset({
@@ -41,7 +41,7 @@ describe("presetItem", () => {
     });
     // SAFETY: presetItem builds files as an array of { path, type, target, content }.
     const files = (item?.["files"] ?? []) as readonly { target: string }[];
-    expect(files.map((file) => file.target)).toEqual(
+    expect(files.map((file) => file.target)).toStrictEqual(
       expect.arrayContaining([
         "~/src/policy.ts",
         "~/prisma/schema.prisma",

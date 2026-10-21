@@ -189,7 +189,7 @@ describe("permdock/vue parity", () => {
     await permdock?.refresh();
     token.value = "b";
     await permdock?.refresh();
-    expect(seen).toEqual(["a", "b"]);
+    expect(seen).toStrictEqual(["a", "b"]);
     app.unmount();
   });
 

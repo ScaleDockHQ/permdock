@@ -20,7 +20,10 @@ function toOpenapi(path: string): string {
     .replace(/\/\*$/u, "/{resource}");
 }
 
-/** The paths of one table cell: comma-separated, later ones relative to the environment. */
+/**
+ * The paths of one table cell: comma-separated, later ones relative to the
+ * environment.
+ */
 function cellPaths(cell: string): readonly string[] {
   const paths: string[] = [];
   for (const [, path = ""] of cell.matchAll(/`([^`]+)`/gu)) {
@@ -33,7 +36,10 @@ function cellPaths(cell: string): readonly string[] {
   );
 }
 
-/** `METHOD path` pairs of the route tables under "### HTTP API"; `any` rows list the path only. */
+/**
+ * `METHOD path` pairs of the route tables under "### HTTP API"; `any` rows list
+ * the path only.
+ */
 function documentedRoutes(page: string): {
   readonly routes: ReadonlySet<string>;
   readonly anyPaths: ReadonlySet<string>;
@@ -75,7 +81,10 @@ function documentedRoutes(page: string): {
   return { routes, anyPaths };
 }
 
-/** Differences between the `cloud.mdx` route tables and `schemas/cloud-api-v1.json`. */
+/**
+ * Differences between the `cloud.mdx` route tables and
+ * `schemas/cloud-api-v1.json`.
+ */
 export function cloudRouteDrift(root: string): readonly string[] {
   const page = readFileSync(
     join(root, "apps", "docs", "content", "docs", "adapters", "cloud.mdx"),

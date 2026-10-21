@@ -5,8 +5,9 @@ const MAX_TIME_VALUE = 8.64e15;
 
 /**
  * An event time as RFC 3339, or `undefined` when there is none or it is not a
- * time: NumericDate seconds are converted and an RFC 3339 string passes through.
- * Never throws, so a decision event never fails on a malformed expiry.
+ * time: NumericDate seconds are converted and an RFC 3339 string passes
+ * through. Never throws, so a decision event never fails on a malformed
+ * expiry.
  */
 export function eventInstant(
   value: number | string | undefined,
@@ -21,7 +22,10 @@ export function eventInstant(
   return Math.abs(millis) <= MAX_TIME_VALUE ? isoAt(millis) : undefined;
 }
 
-/** `eventInstant` for a builder input, where a malformed time is the caller's error. */
+/**
+ * `eventInstant` for a builder input, where a malformed time is the caller's
+ * error.
+ */
 export function requireEventInstant(
   value: number | string | undefined,
   field: string,

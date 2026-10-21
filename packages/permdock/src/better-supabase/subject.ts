@@ -1,35 +1,45 @@
 import type { EntitlementClaimOptions } from "better-supabase/blocks/entitlements";
 import type { AuthSession } from "better-supabase/server";
 
+import type { ApiKeyPrincipal } from "../core/credential.ts";
 import type { PermissionTree } from "../core/permission-types.ts";
+import type { Subject } from "../core/subject.ts";
 import type {
   SupabasePrincipal,
   SupabaseSessionLike,
   SupabaseSubjectOptions,
 } from "../supabase/types.ts";
+import type { KeyRecord, ServiceRoles } from "./api-keys.ts";
 
 import { isRecord } from "../core/compact.ts";
-import { type ApiKeyPrincipal, credentialSubject } from "../core/credential.ts";
+import { credentialSubject } from "../core/credential.ts";
 import { listPermissions } from "../core/permission-registry.ts";
-import { type Subject, anonymousSubject } from "../core/subject.ts";
+import { anonymousSubject } from "../core/subject.ts";
 import { rfc3339 } from "../core/time.ts";
 import { subjectFromSupabaseSession } from "../supabase/subject.ts";
-import {
-  type KeyRecord,
-  type ServiceRoles,
-  keyCredential,
-  manifestServiceRoles,
-} from "./api-keys.ts";
+import { keyCredential, manifestServiceRoles } from "./api-keys.ts";
 
-/** An `AuthSession` of kind `apiKey`, from better-supabase's api-keys middleware. */
+/**
+ * An `AuthSession` of kind `apiKey`, from better-supabase's api-keys
+ * middleware.
+ */
 export type ApiKeySession = Extract<AuthSession, { readonly kind: "apiKey" }>;
 
 export type ApiKeySessionOptions = {
-  /** The definitions: the key's scopes become the subject's delegation, and `*` stands for all of them. */
+  /**
+   * The definitions: the key's scopes become the subject's delegation, and `*`
+   * stands for all of them.
+   */
   readonly permissions: PermissionTree;
-  /** `permdock.manifest.json`, whose `rls.apiKeys.serviceRoles` is the default for `serviceRoles`. */
+  /**
+   * `permdock.manifest.json`, whose `rls.apiKeys.serviceRoles` is the default
+   * for `serviceRoles`.
+   */
   readonly manifest?: unknown;
-  /** The roles a tenant key holds in its tenant. Without it or a manifest with `rls.apiKeys`, a tenant key is anonymous. */
+  /**
+   * The roles a tenant key holds in its tenant. Without it or a manifest with
+   * `rls.apiKeys`, a tenant key is anonymous.
+   */
   readonly serviceRoles?: ServiceRoles<ApiKeySession>;
 };
 
@@ -40,7 +50,10 @@ export type BetterSupabaseSubjectOptions = Omit<
   SupabaseSubjectOptions,
   "claims"
 > & {
-  /** Where the token carries roles, the active tenant and memberships; plans come from `plans`. */
+  /**
+   * Where the token carries roles, the active tenant and memberships; plans
+   * come from `plans`.
+   */
   readonly claims?: Omit<
     NonNullable<SupabaseSubjectOptions["claims"]>,
     "plans"
@@ -48,10 +61,10 @@ export type BetterSupabaseSubjectOptions = Omit<
   /** How `kind: 'apiKey'` sessions map. Without it they are anonymous. */
   readonly apiKeys?: ApiKeySessionOptions;
   /**
-   * The claim `principal.plans` reads: its name (default `features`), or
-   * `{ claim, keys }` with the same `entitlements.claim.keys` better-supabase
-   * writes short codes with, so `plans` holds the feature keys. A code
-   * without a key is dropped.
+   * The claim `principal.plans` reads: its name (default `features`), or `{
+   * claim, keys }` with the same `entitlements.claim.keys` better-supabase
+   * writes short codes with, so `plans` holds the feature keys. A code without
+   * a key is dropped.
    */
   readonly plans?: string | FeatureClaim;
 };
@@ -134,8 +147,8 @@ function apiKeySubject(
 /**
  * `subjectFromSupabaseSession` for better-supabase's `AuthSession`, reading
  * `memberships` for the memberships and the entitlements module's `features`
- * claim for `principal.plans` (`plans` names another claim). With `apiKeys`,
- * a verified `apiKey` session is the key's credential subject: a personal key
+ * claim for `principal.plans` (`plans` names another claim). With `apiKeys`, a
+ * verified `apiKey` session is the key's credential subject: a personal key
  * acts as its user within the key's scopes, a tenant key as a `service`
  * principal holding `serviceRoles`. Without `apiKeys`, and for `anon`,
  * `service` and `invalid` sessions, the subject is anonymous.

@@ -12,6 +12,7 @@ import {
   personas,
   policy,
 } from "../fixtures/named-scopes.ts";
+import { defined } from "../support/defined.ts";
 
 function recording(source: CustomRoleSource): {
   readonly source: CustomRoleSource;
@@ -46,7 +47,7 @@ describe("CustomRoleSource.rolesFor receives the held role names", () => {
       ],
     };
     getPermDockSync(policy, principal, { customRoles: source });
-    expect(calls).toEqual([
+    expect(calls).toStrictEqual([
       ["T", ["member"]],
       ["B", ["contact"]],
     ]);
@@ -67,12 +68,16 @@ describe("CustomRoleSource.rolesFor receives the held role names", () => {
     const admin = getPermDockSync(policy, personas.admin, {
       customRoles: source,
     });
-    expect(admin.can(permissions.asset.delete, assets[0]!)).toBe(true);
+    expect(admin.can(permissions.asset.delete, defined(assets[0]))).toBe(true);
     const mechanic = getPermDockSync(policy, personas.mechanic, {
       customRoles: source,
     });
-    expect(reads).toEqual(["T"]);
-    expect(mechanic.can(permissions.asset.update, assets[0]!)).toBe(true);
-    expect(mechanic.can(permissions.asset.delete, assets[0]!)).toBe(false);
+    expect(reads).toStrictEqual(["T"]);
+    expect(mechanic.can(permissions.asset.update, defined(assets[0]))).toBe(
+      true,
+    );
+    expect(mechanic.can(permissions.asset.delete, defined(assets[0]))).toBe(
+      false,
+    );
   });
 });

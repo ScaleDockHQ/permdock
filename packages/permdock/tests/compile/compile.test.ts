@@ -32,7 +32,7 @@ function compare(
     case "lte":
       return left <= right;
     case "contains":
-      return String(value).includes(String(node.value));
+      return String(left).includes(String(right));
     case "in":
       return Array.isArray(node.value) && node.value.includes(value);
     case "notIn":

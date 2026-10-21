@@ -89,17 +89,17 @@ describe("permdock/drizzle toWhere", () => {
       toWhere({ op: "eq", field: "authorId", value: "u1" }, posts, {
         operators: ops(),
       }),
-    ).toEqual({ op: "eq", args: ["col.author", "u1"] });
+    ).toStrictEqual({ op: "eq", args: ["col.author", "u1"] });
     expect(
       toWhere({ op: "in", field: "orgId", value: ["o1", "o2"] }, posts, {
         operators: ops(),
       }),
-    ).toEqual({ op: "inArray", args: ["col.org", ["o1", "o2"]] });
+    ).toStrictEqual({ op: "inArray", args: ["col.org", ["o1", "o2"]] });
     expect(
       toWhere({ op: "contains", field: "tags", value: "draft" }, posts, {
         operators: ops(),
       }),
-    ).toEqual({ op: "like", args: ["col.tags", "%draft%"] });
+    ).toStrictEqual({ op: "like", args: ["col.tags", "%draft%"] });
   });
 
   it("compiles memberOf tenant equality and exists joins", () => {
@@ -109,7 +109,7 @@ describe("permdock/drizzle toWhere", () => {
         posts,
         { operators: ops(), subject },
       ),
-    ).toEqual({ op: "eq", args: ["col.org", "o1"] });
+    ).toStrictEqual({ op: "eq", args: ["col.org", "o1"] });
     const exists = asNode(
       toWhere(
         { op: "memberOf", scope: "tenant", field: "orgId", roles: ["viewer"] },
@@ -140,13 +140,13 @@ describe("permdock/drizzle toWhere", () => {
       toWhere({ op: "contains", field: "authorId", value: "100%_a" }, posts, {
         operators: ops(),
       }),
-    ).toEqual({ op: "like", args: ["col.author", "%100\\%\\_a%"] });
+    ).toStrictEqual({ op: "like", args: ["col.author", "%100\\%\\_a%"] });
     const arrays = { tags: { dataType: "array" } };
     expect(
       toWhere({ op: "contains", field: "tags", value: "draft" }, arrays, {
         operators: ops(),
       }),
-    ).toEqual({ op: "sql", args: ["? = any(?)", "draft", arrays.tags] });
+    ).toStrictEqual({ op: "sql", args: ["? = any(?)", "draft", arrays.tags] });
   });
 
   it("binds whole-second expiry and the active tenant in exists joins", () => {
@@ -181,7 +181,7 @@ describe("permdock/drizzle toWhere", () => {
       toWhere({ op: "eq", field: "missing", value: "x" }, posts, {
         operators: ops(),
       }),
-    ).toThrow(/unknown column/);
+    ).toThrow(/unknown column/u);
     expect(() =>
       toWhere(
         {

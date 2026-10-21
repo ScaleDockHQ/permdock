@@ -25,10 +25,7 @@ const permissions = definePermissions({
   node: resource(Node, {
     actions: ["read"],
     parent: { field: "parentId", resource: "node" },
-    relations: {
-      owner: { field: "ownerId" },
-      share: { edge: "node_shares" },
-    },
+    relations: { owner: { field: "ownerId" }, share: { edge: "node_shares" } },
   }),
   leaf: resource(Leaf, {
     actions: ["read"],
@@ -125,7 +122,7 @@ describe("verifyTree over other tree shapes", () => {
     ).toBe(true);
     const shares = byTable.get('"public"."node_shares"') ?? [];
     expect(shares.length).toBeGreaterThan(0);
-    expect(Object.keys(shares[0] ?? {}).toSorted()).toEqual([
+    expect(Object.keys(shares[0] ?? {}).toSorted()).toStrictEqual([
       "label",
       "node_id",
       "tenant_id",
@@ -272,6 +269,8 @@ describe("verifyTree over other tree shapes", () => {
       region: "permdock-tree",
     });
     expect(nodes[1]).toMatchObject({ name: "permdock-tree-2", position: 2 });
-    expect(new Set(nodes.map((row) => row["kind"]))).toEqual(new Set(["file"]));
+    expect(new Set(nodes.map((row) => row["kind"]))).toStrictEqual(
+      new Set(["file"]),
+    );
   });
 });

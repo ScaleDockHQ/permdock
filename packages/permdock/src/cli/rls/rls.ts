@@ -1,19 +1,22 @@
 import type { CommandResult } from "../core/result.ts";
 import type { SqlConnect } from "../pg.ts";
 import type { CliIo, PermDockConfig, RlsDialect, RlsTarget } from "../types.ts";
+import type { CliExec } from "./advisors.ts";
+import type { GenerateOutcome } from "./generate.ts";
+import type { ExpectedRls } from "./introspect.ts";
+import type { VerifyIgnore } from "./verify-findings.ts";
 
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { describeError, exitCodeOfError, usageResult } from "../core/errors.ts";
 import { requirePeer } from "../core/peer.ts";
 import { isSupabaseSchemas, schemasRefusal } from "../supabase-schemas.ts";
-import { type CliExec, runRlsAdvisors } from "./advisors.ts";
+import { runRlsAdvisors } from "./advisors.ts";
 import { describeExplain } from "./explain.ts";
-import { type GenerateOutcome, runRlsGenerate } from "./generate.ts";
+import { runRlsGenerate } from "./generate.ts";
 import { readTableIndexFacts } from "./indexes.ts";
 import {
   diffMixed,
   diffRls,
-  type ExpectedRls,
   expectedRls,
   introspectMixed,
   introspectRls,
@@ -21,11 +24,7 @@ import {
 } from "./introspect.ts";
 import { readOnlyActorKinds } from "./policies.ts";
 import { parseRbacAuthorize } from "./rbac.ts";
-import {
-  type VerifyIgnore,
-  verifyIgnores,
-  verifyResult,
-} from "./verify-findings.ts";
+import { verifyIgnores, verifyResult } from "./verify-findings.ts";
 import { runRlsVerify } from "./verify.ts";
 
 /** `rls migrate` and `rls import` read the pgsql-parser 18 AST. */
@@ -51,7 +50,10 @@ export type RlsRunInput = {
   readonly dialect: string | undefined;
   readonly out: string | undefined;
   readonly from: string | undefined;
-  /** `generate --project`: the policy comes from the Cloud project instead of a module. */
+  /**
+   * `generate --project`: the policy comes from the Cloud project instead of a
+   * module.
+   */
   readonly project?: string | undefined;
   readonly url?: string | undefined;
   readonly sql: string | undefined;
@@ -274,7 +276,10 @@ async function migrate(input: RlsRunInput): Promise<CommandResult> {
   });
 }
 
-/** `verify --introspect` with `--helpers-only`: helpers and seeds exactly, hand-written policies by their keys. */
+/**
+ * `verify --introspect` with `--helpers-only`: helpers and seeds exactly,
+ * hand-written policies by their keys.
+ */
 async function introspectHelpersOnly(
   db: string,
   expected: ExpectedRls,
@@ -309,7 +314,10 @@ async function introspectHelpersOnly(
   }
 }
 
-/** `verify --introspect`: the catalogs against what `generate` would write with the same flags. */
+/**
+ * `verify --introspect`: the catalogs against what `generate` would write with
+ * the same flags.
+ */
 async function introspect(
   input: RlsRunInput,
   ignore: readonly VerifyIgnore[],

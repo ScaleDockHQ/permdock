@@ -1,6 +1,7 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { WhereResult } from "./permdock.ts";
 import type { ResourceNode } from "./permission-types.ts";
+import type { Scope } from "./scopes.ts";
 import type { SnapshotGrant } from "./snapshot-types.ts";
 import type { Membership, Subject } from "./subject.ts";
 
@@ -8,7 +9,7 @@ import { bindConditionRefs } from "../conditions/bind.ts";
 import { sole } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { resourceRoleCondition } from "./grantee-conditions.ts";
-import { type Scope, findScope, scopeChain, scopeIdOf } from "./scopes.ts";
+import { findScope, scopeChain, scopeIdOf } from "./scopes.ts";
 import {
   activeFor,
   inTeam,
@@ -23,12 +24,18 @@ export type WhereScope = {
   readonly resource: string;
   /** The policy's resource graph; a snapshot carries none. */
   readonly resources?: ReadonlyMap<string, ResourceNode>;
-  /** A `RelationSource` decides in process, so resource roles walk self-parents here too. */
+  /**
+   * A `RelationSource` decides in process, so resource roles walk self-parents
+   * here too.
+   */
   readonly graph?: boolean;
   readonly scopes: readonly Scope[];
   /** Whether `resource`'s rows are partitioned by the scope's key. */
   readonly partitioned: (scope: string, key: string) => boolean;
-  /** The field of `resource` holding the scope's id, where it is not the scope's key. */
+  /**
+   * The field of `resource` holding the scope's id, where it is not the scope's
+   * key.
+   */
   readonly fieldOf: (scope: string) => string | undefined;
   readonly tenant: string | undefined;
   readonly team: string | undefined;
@@ -42,7 +49,10 @@ function eq(field: string, value: string | undefined): Condition {
     : { op: "eq", field, value };
 }
 
-/** One equality per partitioning scope key on the membership's chain, outermost first. */
+/**
+ * One equality per partitioning scope key on the membership's chain, outermost
+ * first.
+ */
 function namedFilters(
   membership: Membership,
   scope: WhereScope,
@@ -237,10 +247,7 @@ function collect(
   if (parts.length === 0) {
     return { condition: none, partial };
   }
-  return {
-    condition: sole(parts) ?? { op: "or", conditions: parts },
-    partial,
-  };
+  return { condition: sole(parts) ?? { op: "or", conditions: parts }, partial };
 }
 
 /**

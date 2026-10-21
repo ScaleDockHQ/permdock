@@ -89,11 +89,11 @@ describe("createPermDock (delivery) edge cases", () => {
       { email, chat: { text: "hi" } },
     );
     expect(report.sent).toBe(0);
-    expect(mail.deliveries).toEqual([]);
-    expect(report.events.map((event) => event.cause)).toEqual(
+    expect(mail.deliveries).toStrictEqual([]);
+    expect(report.events.map((event) => event.cause)).toStrictEqual(
       malformed.map(() => "invalid-recipient"),
     );
-    expect(report.events.map((event) => event.channel)).toEqual([
+    expect(report.events.map((event) => event.channel)).toStrictEqual([
       "email",
       "email",
       "email",
@@ -131,7 +131,7 @@ describe("createPermDock (delivery) edge cases", () => {
       principals: deliveryPrincipals,
       from: "billing@acme.test",
     }).deliver(permdock, p.invoice.read, invoice, [ann], { email });
-    expect(mail.deliveries).toEqual([]);
+    expect(mail.deliveries).toStrictEqual([]);
     expect(report.events[0]).toMatchObject({
       operation: "failed",
       cause: "denied",
@@ -178,7 +178,7 @@ describe("createPermDock (delivery) edge cases", () => {
       [ann],
       { email },
     );
-    expect(mail.deliveries).toEqual([]);
+    expect(mail.deliveries).toStrictEqual([]);
     expect(report.events[0]).toMatchObject({
       operation: "failed",
       cause: "denied",
@@ -204,7 +204,7 @@ describe("createPermDock (delivery) edge cases", () => {
         },
       },
     );
-    expect(mail.deliveries).toEqual([]);
+    expect(mail.deliveries).toStrictEqual([]);
     expect(report.events[0]).toMatchObject({
       cause: "invalid-message",
       retryable: false,
@@ -241,7 +241,7 @@ describe("createPermDock (delivery) edge cases", () => {
         [ann],
         { email: message },
       );
-      expect(mail.deliveries).toEqual([]);
+      expect(mail.deliveries).toStrictEqual([]);
       expect(report.events[0]).toMatchObject({
         cause: "invalid-message",
         reason,
@@ -262,7 +262,7 @@ describe("audience edge cases", () => {
       invoice,
       { candidates: ["u_1", "u_2"] },
     );
-    expect(found).toEqual({ principals: [], complete: true });
+    expect(found).toStrictEqual({ principals: [], complete: true });
   });
 
   it("is empty and incomplete for a collection permission without candidates", async () => {
@@ -271,14 +271,14 @@ describe("audience edge cases", () => {
       reports.report.export,
       undefined,
     );
-    expect(found).toEqual({ principals: [], complete: false });
+    expect(found).toStrictEqual({ principals: [], complete: false });
   });
 
   it("is empty and complete for an anonymous sender without candidates", async () => {
     const anonymous = createCorePermDock(deliveryPolicy, null, {
       principals: deliveryPrincipals,
     });
-    expect(await audience(anonymous, p.invoice.read, invoice)).toEqual({
+    expect(await audience(anonymous, p.invoice.read, invoice)).toStrictEqual({
       principals: [],
       complete: true,
     });
@@ -290,7 +290,7 @@ describe("audience edge cases", () => {
       p.invoice.read,
       invoice,
     );
-    expect(found).toEqual({ principals: [], complete: false });
+    expect(found).toStrictEqual({ principals: [], complete: false });
   });
 });
 
@@ -368,7 +368,11 @@ describe("webhookTransport edge cases", () => {
         { event },
         { idempotencyKey: "pdd_key", delivery: "dlv_1" },
       ),
-    ).toEqual({ status: "failed", cause: "invalid-message", retryable: false });
-    expect(requests).toEqual([]);
+    ).toStrictEqual({
+      status: "failed",
+      cause: "invalid-message",
+      retryable: false,
+    });
+    expect(requests).toStrictEqual([]);
   });
 });

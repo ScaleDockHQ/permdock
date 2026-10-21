@@ -8,10 +8,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 
-const Post = z.object({
-  id: z.string(),
-  authorId: z.string(),
-});
+const Post = z.object({ id: z.string(), authorId: z.string() });
 
 const permissions = definePermissions({
   post: resource(Post, {
@@ -54,7 +51,7 @@ describe("permdock/convex", () => {
       auth: { getUserIdentity: async () => ({ subject: "user-1" }) },
     };
     await expect(remove(ctx, { id: "p1" })).resolves.toBe("p1");
-    expect(seen).toEqual([ctx]);
+    expect(seen).toStrictEqual([ctx]);
   });
 
   it("maps assert denials to a ConvexError with Problem Details", async () => {
@@ -80,9 +77,7 @@ describe("permdock/convex", () => {
   });
 
   it("filter and can never throw for an anonymous caller", async () => {
-    const { withPermDock } = createPermDock(policy, {
-      subject: () => null,
-    });
+    const { withPermDock } = createPermDock(policy, { subject: () => null });
     const list = withPermDock((ctx) => {
       const rows = [
         { id: "p1", authorId: "user-1" },
@@ -93,7 +88,7 @@ describe("permdock/convex", () => {
         filtered: ctx.permdock.filter(permissions.post.read, rows),
       };
     });
-    await expect(list({}, {})).resolves.toEqual({
+    await expect(list({}, {})).resolves.toStrictEqual({
       can: false,
       filtered: [],
     });
@@ -108,9 +103,7 @@ describe("permdock/convex", () => {
       handler: (
         ctx: object,
         args: Record<string, never>,
-      ) => Promise<{
-        readonly grants: readonly unknown[];
-      }>;
+      ) => Promise<{ readonly grants: readonly unknown[] }>;
     };
     const snapshot = await query.handler({}, {});
     expect(snapshot.grants.length).toBeGreaterThan(0);
@@ -154,7 +147,7 @@ describe("permdock/convex", () => {
     });
     const read = withPermDock((ctx) => ctx.permdock.subject.actor?.id);
     await expect(read({ org: "t1" }, {})).resolves.toBe("agent-1");
-    expect(tenants).toEqual(["t1"]);
+    expect(tenants).toStrictEqual(["t1"]);
     const throwing = createPermDock(policy, {
       subject: () => ({ id: "user-1", roles: ["member"] }),
       tenant: () => {

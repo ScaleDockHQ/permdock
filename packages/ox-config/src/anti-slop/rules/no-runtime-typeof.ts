@@ -23,7 +23,10 @@ function isInsideTypeGuard(node: ESTree.Node): boolean {
   return false;
 }
 
-/** Disallow runtime typeof checks that narrow unparsed values instead of decoding them. */
+/**
+ * Disallow runtime typeof checks that narrow unparsed values instead of
+ * decoding them.
+ */
 export const noRuntimeTypeofRule = defineRule({
   meta: {
     type: "problem",
@@ -38,9 +41,7 @@ export const noRuntimeTypeofRule = defineRule({
     schema: [
       {
         type: "object",
-        properties: {
-          allowInTypeGuards: { type: "boolean" },
-        },
+        properties: { allowInTypeGuards: { type: "boolean" } },
         additionalProperties: false,
       },
     ],

@@ -4,16 +4,28 @@ export const HOOK_MARKER = "-- permdock:hook v1";
 /** The first line of a `--grants-out` file. */
 export const GRANTS_MARKER = "-- permdock:grants v1";
 
-/** The first line of the `seeds` part: the `role_permissions` rows, a versioned migration. */
+/**
+ * The first line of the `seeds` part: the `role_permissions` rows, a versioned
+ * migration.
+ */
 export const SEEDS_MARKER = "-- permdock:seeds v1";
 
-/** The first line of the `indexes` part: the indexes the policies and helpers read through. */
+/**
+ * The first line of the `indexes` part: the indexes the policies and helpers
+ * read through.
+ */
 export const INDEXES_MARKER = "-- permdock:indexes v1";
 
-/** The first line of a `--backfill-out` migration: existing custom roles copied into the custom-role tables. */
+/**
+ * The first line of a `--backfill-out` migration: existing custom roles copied
+ * into the custom-role tables.
+ */
 export const BACKFILL_MARKER = "-- permdock:backfill v1";
 
-/** The first line of a `rls migrate --retire-out` migration: a materialised permissions table and its refresh triggers dropped. */
+/**
+ * The first line of a `rls migrate --retire-out` migration: a materialised
+ * permissions table and its refresh triggers dropped.
+ */
 export const RETIRE_MARKER = "-- permdock:retire v1";
 
 const HOOK_LINE = /^-- permdock:hook v(?<version>[1-9]\d*)(?: (?<rest>.*))?$/u;
@@ -53,7 +65,10 @@ function pairs(rest: string | undefined): Readonly<Record<string, string>> {
   return fields;
 }
 
-/** The fields of a hook marker line, or undefined when `sql` does not start with one. */
+/**
+ * The fields of a hook marker line, or undefined when `sql` does not start with
+ * one.
+ */
 export function hookMarkerFields(
   sql: string,
 ): Readonly<Record<string, string>> | undefined {

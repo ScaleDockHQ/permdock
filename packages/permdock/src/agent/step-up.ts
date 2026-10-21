@@ -10,9 +10,9 @@ import { stepUpOf } from "../core/problem-details.ts";
 import { isMembershipExpired, nowSeconds } from "../core/tenancy.ts";
 
 /**
- * What the user can do to lift a denial: authenticate again with the `acr`
- * and `maxAge` the failing grants ask for, or activate a role they are
- * eligible for. A hint for the user; the call is decided again afterwards.
+ * What the user can do to lift a denial: authenticate again with the `acr` and
+ * `maxAge` the failing grants ask for, or activate a role they are eligible
+ * for. A hint for the user; the call is decided again afterwards.
  */
 export type StepUp =
   | {
@@ -108,11 +108,11 @@ function activationFor(
 /**
  * The step-up that could lift `decision`, or `undefined`. A denial with
  * `insufficient-user-authentication` asks for a fresh sign-in when the
- * delegation and the actor still cover the permission; any other
- * denial asks for the first eligible role whose activation the simulated
- * decision grants. A matched deny, a validation failure, an anonymous
- * subject, a delegation that does not cover the call, an undelegated tool
- * and a failed approval resume never step up.
+ * delegation and the actor still cover the permission; any other denial asks
+ * for the first eligible role whose activation the simulated decision grants. A
+ * matched deny, a validation failure, an anonymous subject, a delegation that
+ * does not cover the call, an undelegated tool and a failed approval resume
+ * never step up.
  */
 export function stepUpFor(
   permdock: PermDock,
@@ -144,9 +144,9 @@ export function stepUpFor(
 }
 
 /**
- * The subject's instance with every eligible role activated, for a tool
- * listing that keeps tools an activation would open. `undefined` when the
- * subject is eligible for nothing.
+ * The subject's instance with every eligible role activated, for a tool listing
+ * that keeps tools an activation would open. `undefined` when the subject is
+ * eligible for nothing.
  */
 export function eligiblePreview(permdock: PermDock): PermDock | undefined {
   const held = permdock.subject.principal?.memberships ?? [];
@@ -171,7 +171,10 @@ export function eligiblePreview(permdock: PermDock): PermDock | undefined {
   }
 }
 
-/** The URL the user signs in again at, with the RFC 9470 `acr_values` and `max_age` added. */
+/**
+ * The URL the user signs in again at, with the RFC 9470 `acr_values` and
+ * `max_age` added.
+ */
 function signInUrl(
   at: string,
   stepUp: Extract<StepUp, { readonly kind: "authentication" }>,

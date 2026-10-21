@@ -6,7 +6,10 @@ import { policy } from "../fixtures/graph.ts";
 
 type Row = Readonly<Record<string, unknown>>;
 
-/** Echoes inserts back as rows and answers every visibility select with `visible`. */
+/**
+ * Echoes inserts back as rows and answers every visibility select with
+ * `visible`.
+ */
 function database(
   visible: "all" | "none",
   required: Readonly<Record<string, readonly Row[]>> = {},
@@ -34,7 +37,7 @@ function database(
   return { query, inserts, selects };
 }
 
-describe("verifyTree", () => {
+describe(verifyTree, () => {
   it("seeds every walked tree, its child rows and its edges in one pass", async () => {
     const db = database("none");
     const bound: string[] = [];
@@ -90,7 +93,7 @@ describe("verifyTree", () => {
         },
       },
     });
-    expect([...bound].toSorted()).toEqual([
+    expect([...bound].toSorted()).toStrictEqual([
       "00000000-0000-4000-8000-000000000001",
       "00000000-0000-4000-8000-000000000002",
       "00000000-0000-4000-8000-000000000003",

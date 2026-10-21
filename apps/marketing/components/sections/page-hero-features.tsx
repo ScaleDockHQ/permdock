@@ -18,7 +18,10 @@ export type PageHeroFeature = {
   icon: ReactNode;
 };
 
-/** The feature grid; it highlights each feature in turn until a pointer or focus holds it. */
+/**
+ * The feature grid; it highlights each feature in turn until a pointer or focus
+ * holds it.
+ */
 export function PageHeroFeatures({
   features,
 }: {

@@ -1,4 +1,5 @@
 import type { PermDock, Permission } from "../../src/index.ts";
+import type { ServerPermDock } from "../../src/server/index.ts";
 import type {
   HttpCall,
   HttpMounted,
@@ -9,7 +10,6 @@ import type {
 import { APPROVAL_HEADER } from "../../src/approvals/index.ts";
 import {
   PermDockRevokedError,
-  type ServerPermDock,
   createPermDock,
   problemFromError,
 } from "../../src/server/index.ts";
@@ -172,9 +172,7 @@ function mountKernel(
     limits: domain.limits,
   });
   const evaluations = kernel.permdockHandler();
-  const eventsPath = new URLPattern({
-    pathname: "/:org/projects/:id/events",
-  });
+  const eventsPath = new URLPattern({ pathname: "/:org/projects/:id/events" });
   const evaluationsPath = new URLPattern({
     pathname: "/:org/permdock/access/v1/evaluations",
   });

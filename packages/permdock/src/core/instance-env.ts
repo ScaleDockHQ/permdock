@@ -25,7 +25,10 @@ import { scopeList } from "./scopes.ts";
 import { heldRoleNamesIn, tenantsOf } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
 
-/** What an instance reads besides the policy and subject; `tenant()`, `team()`, `simulate()` and `derive()` pass it on. */
+/**
+ * What an instance reads besides the policy and subject; `tenant()`, `team()`,
+ * `simulate()` and `derive()` pass it on.
+ */
 export type InstanceEnv = {
   readonly customRoles: readonly CustomRole[];
   readonly sink: DecisionSink | undefined;
@@ -36,10 +39,16 @@ export type InstanceEnv = {
   /** `CustomRoleSource.assignable` per tenant, loaded with the custom roles. */
   readonly assignable?: ReadonlyMap<string, readonly string[]>;
   readonly queuedAuth: readonly AuthEvent[];
-  /** Errors from building the instance (a dropped hosted grant), replayed to `on('error')`. */
+  /**
+   * Errors from building the instance (a dropped hosted grant), replayed to
+   * `on('error')`.
+   */
   readonly queuedErrors?: readonly unknown[];
   readonly relations?: RelationSource;
-  /** Relation facts read so far; shared by the instances `tenant()`, `team()` and `simulate()` derive. */
+  /**
+   * Relation facts read so far; shared by the instances `tenant()`, `team()`
+   * and `simulate()` derive.
+   */
   readonly relationCache?: RelationCache;
   /** The membership source, for `whoCan`'s member lists. */
   readonly memberships?: MembershipSource;
@@ -53,7 +62,10 @@ export type InstanceEnv = {
   readonly targets: TargetFactory;
 };
 
-/** The environment `derive(options)` builds on: `base` with the sources `options` replaces loaded again. */
+/**
+ * The environment `derive(options)` builds on: `base` with the sources
+ * `options` replaces loaded again.
+ */
 export function deriveEnv(
   policy: Policy,
   subject: Subject,

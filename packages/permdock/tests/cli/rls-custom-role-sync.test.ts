@@ -43,7 +43,7 @@ const ctx: RlsSqlContext = {
   },
 };
 
-describe("customRoleSyncSql", () => {
+describe(customRoleSyncSql, () => {
   it("rebuilds the role through the trusted replace on every legacy write", () => {
     const sql = customRoleSyncSql(ctx, from, undefined);
     expect(sql).toContain(
@@ -70,11 +70,7 @@ describe("customRoleSyncSql", () => {
       sync: "trigger",
       permissions: {
         ...from.permissions,
-        role: {
-          through: "public.roles",
-          on: { role_id: "id" },
-          column: "key",
-        },
+        role: { through: "public.roles", on: { role_id: "id" }, column: "key" },
       },
     };
     expect(customRoleSyncSql(ctx, qualifiedFrom, undefined)).toContain(

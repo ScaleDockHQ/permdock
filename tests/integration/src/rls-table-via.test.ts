@@ -111,8 +111,8 @@ describe("rls.tables via", () => {
       const expected = Object.keys(orgOf).filter((id) =>
         permdock.can(permissions.deploy.read, { id, org_id: orgOf[id] ?? "" }),
       );
-      expect(visible).toEqual(expected);
-      expect(visible).toEqual(["d1", "d3"]);
+      expect(visible).toStrictEqual(expected);
+      expect(visible).toStrictEqual(["d1", "d3"]);
     } finally {
       await client.end();
     }

@@ -2,8 +2,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { CommandResult } from "../core/result.ts";
+import type { SqlConnect } from "../pg.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 import type { RolePermission } from "./helpers.ts";
+import type { ImportedGrant } from "./import-ast.ts";
+import type { ImportedFieldView } from "./import-views.ts";
 
 import { configError, usageResult } from "../core/errors.ts";
 import { writeFileEnsuringDir } from "../files.ts";
@@ -12,21 +15,13 @@ import {
   emptySchema,
   isSchemaKind,
 } from "../generate.ts";
-import { type SqlConnect, pgConnector } from "../pg.ts";
+import { pgConnector } from "../pg.ts";
 import { parseMembershipsFlag } from "../sql/context.ts";
-import {
-  type ImportedGrant,
-  conditionFromAst,
-  helperGrants,
-} from "./import-ast.ts";
+import { conditionFromAst, helperGrants } from "./import-ast.ts";
 import { mapRoleValues } from "./import-membership.ts";
 import { canonicalDump, fingerprintSql } from "./import-nodes.ts";
 import { seedFromRow, seedsFromSql } from "./import-seeds.ts";
-import {
-  type ImportedFieldView,
-  fieldViewsFromSql,
-  viewsSqlFromDb,
-} from "./import-views.ts";
+import { fieldViewsFromSql, viewsSqlFromDb } from "./import-views.ts";
 
 type ImportedPolicy = {
   readonly table: string;
@@ -46,15 +41,18 @@ type CatalogEntry = {
   readonly condition: unknown;
   readonly fingerprint: string;
   readonly sourceSql: string;
-  /** Role-gated branches read back from RLS helper calls and the `role_permissions` seeds. */
+  /**
+   * Role-gated branches read back from RLS helper calls and the
+   * `role_permissions` seeds.
+   */
   readonly grants?: readonly ImportedGrant[];
 };
 
 const POLICY_RE =
-  /create\s+policy\s+"?([A-Za-z0-9_]+)"?\s+on\s+"?([A-Za-z0-9_]+)"?([\s\S]*?);/gi;
+  /create\s+policy\s+"?([A-Za-z0-9_]+)"?\s+on\s+"?([A-Za-z0-9_]+)"?([\s\S]*?);/giu;
 
 function extractParenClause(sql: string, keyword: string): string | undefined {
-  const match = new RegExp(`\\b${keyword}\\s*\\(`, "i").exec(sql);
+  const match = new RegExp(`\\b${keyword}\\s*\\(`, "iu").exec(sql);
   if (match?.index === undefined) {
     return undefined;
   }
@@ -80,13 +78,13 @@ function splitPolicies(sql: string): ImportedPolicy[] {
     const name = match[1] ?? "policy";
     const table = match[2] ?? "table";
     const body = match[3] ?? "";
-    const clauses = body.search(/\b(?:using|with\s+check)\s*\(/i);
+    const clauses = body.search(/\b(?:using|with\s+check)\s*\(/iu);
     const header = clauses === -1 ? body : body.slice(0, clauses);
-    const asRestrictive = /\bas\s+restrictive\b/i.test(header);
-    const cmdMatch = /\bfor\s+(all|select|insert|update|delete)\b/i.exec(
+    const asRestrictive = /\bas\s+restrictive\b/iu.test(header);
+    const cmdMatch = /\bfor\s+(all|select|insert|update|delete)\b/iu.exec(
       header,
     );
-    const toMatch = /\bto\s+([^\n]+)/i.exec(header);
+    const toMatch = /\bto\s+([^\n]+)/iu.exec(header);
     const using = extractParenClause(body, "using");
     const check = extractParenClause(body, "with\\s+check");
     const roles = (toMatch?.[1] ?? "authenticated")
@@ -152,7 +150,7 @@ function emitGenerated(
         catalog.filter((item) => item.table === table).map((item) => item.cmd),
       );
       return {
-        path: [table.replaceAll(/[^A-Za-z0-9_]/g, "_")],
+        path: [table.replaceAll(/[^A-Za-z0-9_]/gu, "_")],
         schema: emptySchema(kind),
         actions,
         collection,
@@ -162,7 +160,7 @@ function emitGenerated(
 }
 
 function assertNoServiceRole(sql: string): void {
-  if (/\bto\s+service_role\b|\bfrom\s+service_role\b/i.test(sql)) {
+  if (/\bto\s+service_role\b|\bfrom\s+service_role\b/iu.test(sql)) {
     throw configError(
       "PermDock CLI: imported SQL must never target service_role",
     );
@@ -195,14 +193,17 @@ async function seedsFromDb(query: Query): Promise<readonly RolePermission[]> {
   }
 }
 
-/** `pg_policies.roles` is a `name[]`, which `pg` returns as an array or, untyped, as `{a,b}`. */
+/**
+ * `pg_policies.roles` is a `name[]`, which `pg` returns as an array or,
+ * untyped, as `{a,b}`.
+ */
 function policyRoles(value: unknown): readonly string[] {
   if (Array.isArray(value)) {
     return value.map(String);
   }
   return typeof value === "string"
     ? value
-        .replaceAll(/[{}]/g, "")
+        .replaceAll(/[{}]/gu, "")
         .split(",")
         .map((item) => item.trim())
         .filter((item) => item !== "")
@@ -295,7 +296,13 @@ export async function runRlsImport(input: {
     if (policies.length === 0) {
       policies = splitPolicies(sql);
     }
-  } else if (input.db !== undefined) {
+  } else if (input.db === undefined) {
+    return {
+      code: 2,
+      output:
+        "PermDock CLI: rls import needs --sql <file> or a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL",
+    };
+  } else {
     try {
       const fromDb = await policiesFromDb(
         input.db,
@@ -309,12 +316,6 @@ export async function runRlsImport(input: {
     } catch (cause) {
       return usageResult(cause);
     }
-  } else {
-    return {
-      code: 2,
-      output:
-        "PermDock CLI: rls import needs --sql <file> or a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL",
-    };
   }
   const memberships =
     parseMembershipsFlag(input.memberships) ?? input.config.rls?.memberships;

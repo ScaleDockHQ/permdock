@@ -133,7 +133,7 @@ describe("verifyWebhook with an injected verifier", () => {
       await verifyWebhook(delivery(), {
         verifier: verifierWith({ ok: false, cause }),
       }),
-    ).toEqual({ ok: false, cause });
+    ).toStrictEqual({ ok: false, cause });
   });
 
   it.each<[string, string]>([
@@ -152,6 +152,6 @@ describe("verifyWebhook with an injected verifier", () => {
           body,
         }),
       }),
-    ).toEqual({ ok: false, cause: "invalid-events" });
+    ).toStrictEqual({ ok: false, cause: "invalid-events" });
   });
 });

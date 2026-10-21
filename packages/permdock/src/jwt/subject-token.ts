@@ -8,7 +8,10 @@ import type { ReplayStore } from "../ssf/types.ts";
 
 import { normalizeTyp } from "./header.ts";
 
-/** `TokenFailureCause` plus the two checks `verifySubjectToken` adds; a `TokenVerifier` never returns them. */
+/**
+ * `TokenFailureCause` plus the two checks `verifySubjectToken` adds; a
+ * `TokenVerifier` never returns them.
+ */
 export type SubjectTokenFailureCause =
   | TokenFailureCause
   | "replayed"
@@ -18,7 +21,10 @@ export type VerifySubjectTokenOptions = {
   /** Tried in order; the first that accepts the token wins. */
   readonly verifiers: readonly TokenVerifier[];
   readonly audience: string | readonly string[];
-  /** Records each `jti` once; `claim` when the store has it, else `seen` and `remember`. */
+  /**
+   * Records each `jti` once; `claim` when the store has it, else `seen` and
+   * `remember`.
+   */
   readonly replay: ReplayStore;
   /** The largest `exp - iat`, in seconds; default 300. */
   readonly maxLifetime?: number;
@@ -41,7 +47,10 @@ export type VerifySubjectTokenResult =
   | { readonly ok: false; readonly cause: SubjectTokenFailureCause };
 
 const DEFAULT_MAX_LIFETIME = 300;
-/** Causes a verifier for another issuer answers; a different cause names the token's real fault. */
+/**
+ * Causes a verifier for another issuer answers; a different cause names the
+ * token's real fault.
+ */
 const OTHER_ISSUER: ReadonlySet<TokenFailureCause> = new Set([
   "wrong-issuer",
   "unknown-kid",
@@ -101,10 +110,10 @@ async function claimOnce(
 
 /**
  * Verifies a subject token: an RFC 9068 `at+jwt` naming one subject for one
- * request, such as the `PermDock-Subject` header. The first of `verifiers`
- * that accepts it wins. The token must carry `sub`, `jti`, `iat` and `exp`,
- * live at most `maxLifetime` seconds, and present its `jti` once. A replay
- * store that throws refuses the token as `replayed`. Never throws.
+ * request, such as the `PermDock-Subject` header. The first of `verifiers` that
+ * accepts it wins. The token must carry `sub`, `jti`, `iat` and `exp`, live at
+ * most `maxLifetime` seconds, and present its `jti` once. A replay store that
+ * throws refuses the token as `replayed`. Never throws.
  */
 export async function verifySubjectToken(
   token: string,

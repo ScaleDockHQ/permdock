@@ -90,12 +90,10 @@ describe("subjectFromSupportSession: failures are anonymous", () => {
     const { options, causes } = setup();
     const subject = await subjectFromSupportSession("a.b.c", {
       ...options,
-      verifier: {
-        verify: () => Promise.reject(new Error("jwks down")),
-      },
+      verifier: { verify: () => Promise.reject(new Error("jwks down")) },
     });
     expect(subject.principal).toBeNull();
-    expect(causes).toEqual(["malformed"]);
+    expect(causes).toStrictEqual(["malformed"]);
   });
 
   it("reports malformed when the verified result throws on read", async () => {
@@ -114,7 +112,7 @@ describe("subjectFromSupportSession: failures are anonymous", () => {
       },
     });
     expect(subject.principal).toBeNull();
-    expect(causes).toEqual(["malformed"]);
+    expect(causes).toStrictEqual(["malformed"]);
   });
 
   it("refuses a token signed with another typ, also through a verifier that accepts several", async () => {
@@ -149,14 +147,10 @@ describe("subjectFromSupportSession: failures are anonymous", () => {
       (await subjectFromSupportSession(token, options)).principal,
     ).toBeNull();
     expect(
-      (
-        await subjectFromSupportSession(token, {
-          ...options,
-          verifier: shared,
-        })
-      ).principal,
+      (await subjectFromSupportSession(token, { ...options, verifier: shared }))
+        .principal,
     ).toBeNull();
-    expect(causes).toEqual(["wrong-token-type", "wrong-token-type"]);
+    expect(causes).toStrictEqual(["wrong-token-type", "wrong-token-type"]);
   });
 
   it("refuses claims that are not a support session", async () => {
@@ -191,7 +185,7 @@ describe("subjectFromSupportSession: failures are anonymous", () => {
         (await subjectFromSupportSession(token, options)).principal,
       ).toBeNull();
     }
-    expect(causes).toEqual([
+    expect(causes).toStrictEqual([
       "invalid-claims",
       "invalid-claims",
       "invalid-claims",
@@ -209,7 +203,7 @@ describe("subjectFromSupportSession: failures are anonymous", () => {
       clockTolerance: 86_400,
     });
     expect(subject.principal).toBeNull();
-    expect(causes).toEqual(["expired"]);
+    expect(causes).toStrictEqual(["expired"]);
   });
 
   it("reports the actor unavailable when the principal source throws", async () => {
@@ -224,7 +218,7 @@ describe("subjectFromSupportSession: failures are anonymous", () => {
       },
     });
     expect(subject.principal).toBeNull();
-    expect(causes).toEqual(["actor-unavailable"]);
+    expect(causes).toStrictEqual(["actor-unavailable"]);
   });
 
   it("refuses a session naming a permission the tree does not have", async () => {
@@ -236,7 +230,7 @@ describe("subjectFromSupportSession: failures are anonymous", () => {
     expect(
       (await subjectFromSupportSession(token, options)).principal,
     ).toBeNull();
-    expect(causes).toEqual(["invalid-claims"]);
+    expect(causes).toStrictEqual(["invalid-claims"]);
   });
 });
 
@@ -259,7 +253,7 @@ describe("decideSupportSession: the session record is validated", () => {
         approved: pending.token,
         approvedBy: "",
       }),
-    ).toEqual({
+    ).toStrictEqual({
       outcome: "denied",
       denials: [{ role: null, reason: "validation" }],
     });

@@ -7,7 +7,10 @@ import type {
 import { approvalUrlFor } from "../delivery/index.ts";
 
 export type ApprovalEmailOptions = {
-  /** The app's approval page: a base the request id is appended to, or a function of the prompt. Must be https. */
+  /**
+   * The app's approval page: a base the request id is appended to, or a
+   * function of the prompt. Must be https.
+   */
   readonly approvalUrl: ApprovalUrl;
   /** The product name in the footer line. */
   readonly product?: string;
@@ -38,11 +41,11 @@ function requesterLine(prompt: ApprovalPrompt): string {
 }
 
 /**
- * The default approval prompt email: an `approval`-category message whose
- * one link opens the app's approval page for the request. It carries no
- * approve or reject link; the signed-in approver decides on that page.
- * Throws a `TypeError` for an approval page that is not https. Replace it
- * with a React Email template by building the same `EmailMessage`.
+ * The default approval prompt email: an `approval`-category message whose one
+ * link opens the app's approval page for the request. It carries no approve or
+ * reject link; the signed-in approver decides on that page. Throws a
+ * `TypeError` for an approval page that is not https. Replace it with a React
+ * Email template by building the same `EmailMessage`.
  */
 export function approvalEmail(
   prompt: ApprovalPrompt,

@@ -29,14 +29,20 @@ import type { Delegation, Principal } from "../core/subject.ts";
 import type { PermDockWrap } from "../core/wrap.ts";
 import type { OtelWrap } from "../otel/types.ts";
 
-/** The verified `AuthInfo` the MCP SDK's bearer auth puts on `ctx.http.authInfo`. */
+/**
+ * The verified `AuthInfo` the MCP SDK's bearer auth puts on
+ * `ctx.http.authInfo`.
+ */
 export type McpAuthInfo = {
   readonly token?: string;
   readonly clientId?: string;
   readonly scopes?: readonly string[];
   readonly expiresAt?: number;
   readonly resource?: URL;
-  /** Stamped by the SDK's bearer-auth helpers from their `resourceMetadataUrl` option. */
+  /**
+   * Stamped by the SDK's bearer-auth helpers from their `resourceMetadataUrl`
+   * option.
+   */
   readonly resourceMetadataUrl?: string;
   readonly extra?: Readonly<Record<string, unknown>>;
 };
@@ -71,9 +77,9 @@ export type McpToolConfig<
   readonly oauthScopes?: readonly string[];
   readonly _meta?: Record<string, unknown>;
   /**
-   * Decide again when the handler resolves, without consuming quota, and
-   * return the refusal instead of the result unless the call is still
-   * allowed. The re-check withholds the result; it cannot undo the work.
+   * Decide again when the handler resolves, without consuming quota, and return
+   * the refusal instead of the result unless the call is still allowed. The
+   * re-check withholds the result; it cannot undo the work.
    */
   readonly longRunning?: boolean;
 };
@@ -86,14 +92,13 @@ export type McpResourceConfig<TArgs extends readonly unknown[]> = Guard<TArgs> &
 
 /**
  * An MCP Apps view (`ui://`). Without `permission` it takes the permission of
- * the tool whose `_meta.ui.resourceUri` names it, and denies while no tool does.
+ * the tool whose `_meta.ui.resourceUri` names it, and denies while no tool
+ * does.
  */
 export type McpUiResourceConfig = Omit<
   McpResourceConfig<[uri: URL]>,
   "permission"
-> & {
-  readonly permission?: Permission;
-};
+> & { readonly permission?: Permission };
 
 export type McpPromptConfig<
   TArgs extends StandardSchemaWithJSON | undefined = undefined,
@@ -111,37 +116,41 @@ export type GuardedMcpServer = Omit<
   McpServer,
   "registerTool" | "registerResource" | "registerPrompt"
 > & {
-  registerTool<
+  registerTool: <
     TInput extends StandardSchemaWithJSON | undefined = undefined,
     TOutput extends StandardSchemaWithJSON | undefined = undefined,
   >(
     name: string,
     config: McpToolConfig<TInput, TOutput>,
     handler: ToolCallback<TInput>,
-  ): RegisteredTool;
-  registerResource(
-    name: string,
-    uri: `ui://${string}`,
-    config: McpUiResourceConfig,
-    read: ReadResourceCallback,
-  ): RegisteredResource;
-  registerResource(
-    name: string,
-    uri: string,
-    config: McpResourceConfig<[uri: URL]>,
-    read: ReadResourceCallback,
-  ): RegisteredResource;
-  registerResource(
-    name: string,
-    template: ResourceTemplate,
-    config: McpResourceConfig<[uri: URL, variables: Variables]>,
-    read: ReadResourceTemplateCallback,
-  ): RegisteredResourceTemplate;
-  registerPrompt<TArgs extends StandardSchemaWithJSON | undefined = undefined>(
+  ) => RegisteredTool;
+  registerResource: {
+    (
+      name: string,
+      uri: `ui://${string}`,
+      config: McpUiResourceConfig,
+      read: ReadResourceCallback,
+    ): RegisteredResource;
+    (
+      name: string,
+      uri: string,
+      config: McpResourceConfig<[uri: URL]>,
+      read: ReadResourceCallback,
+    ): RegisteredResource;
+    (
+      name: string,
+      template: ResourceTemplate,
+      config: McpResourceConfig<[uri: URL, variables: Variables]>,
+      read: ReadResourceTemplateCallback,
+    ): RegisteredResourceTemplate;
+  };
+  registerPrompt: <
+    TArgs extends StandardSchemaWithJSON | undefined = undefined,
+  >(
     name: string,
     config: McpPromptConfig<TArgs>,
     handler: PromptCallback<TArgs>,
-  ): RegisteredPrompt;
+  ) => RegisteredPrompt;
 };
 
 /** A tool config when the tool's own procedure decides: no loader, no re-check. */
@@ -156,43 +165,53 @@ export type McpProcedureToolConfig<
   readonly permission?: Permission;
 };
 
-/** `GuardedMcpServer` whose tools are listed and annotated by permission but decided by the procedure they call. */
+/**
+ * `GuardedMcpServer` whose tools are listed and annotated by permission but
+ * decided by the procedure they call.
+ */
 export type ProcedureMcpServer = Omit<GuardedMcpServer, "registerTool"> & {
-  registerTool<
+  registerTool: <
     TInput extends StandardSchemaWithJSON | undefined = undefined,
     TOutput extends StandardSchemaWithJSON | undefined = undefined,
   >(
     name: string,
     config: McpProcedureToolConfig<TInput, TOutput>,
     handler: ToolCallback<TInput>,
-  ): RegisteredTool;
+  ) => RegisteredTool;
 };
 
 /**
- * Tools whose handler calls a procedure that already runs `protect`, such as
- * an oRPC procedure through `call()`. `tools/list` and annotations use the
+ * Tools whose handler calls a procedure that already runs `protect`, such as an
+ * oRPC procedure through `call()`. `tools/list` and annotations use the
  * permission; the call itself is not guarded, so each call decides once.
  */
 export type McpProcedureEnforcement = {
   readonly enforce: "procedure";
-  /** The permission of the tool `name`; `permissionOf(procedure)` from `permdock/orpc` reads it. `undefined` throws at registration. */
+  /**
+   * The permission of the tool `name`; `permissionOf(procedure)` from
+   * `permdock/orpc` reads it. `undefined` throws at registration.
+   */
   readonly permissionFor: (name: string) => Permission | undefined;
   readonly oauthScopesFor?: (name: string) => readonly string[] | undefined;
 };
 
 export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
-  /** Receives the verified auth info, or `{}` on a transport without one (stdio). */
+  /**
+   * Receives the verified auth info, or `{}` on a transport without one
+   * (stdio).
+   */
   readonly subject: (authInfo: McpAuthInfo) => TUser | Promise<TUser>;
   /**
-   * The `kind` of the actor built from `authInfo.clientId`; `'mcp-client'`
-   * when absent. `'oauth-client'` decides the token under the kind
+   * The `kind` of the actor built from `authInfo.clientId`; `'mcp-client'` when
+   * absent. `'oauth-client'` decides the token under the kind
    * `subjectFromSupabase`, `subjectFromJwt` and `permdock/a2a` give an OAuth
    * client, so one policy delegation covers the token on every surface.
    */
   readonly actorKind?: string;
   /**
    * Replaces the actor built from `authInfo.clientId`, `actorKind` and
-   * `clients`. Read it from the verified `authInfo`, never from tool arguments.
+   * `clients`. Read it from the verified `authInfo`, never from tool
+   * arguments.
    */
   readonly actor?: (authInfo: McpAuthInfo) => unknown;
   /**
@@ -202,7 +221,11 @@ export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly delegation?: (
     authInfo: McpAuthInfo,
   ) => Delegation | undefined | Promise<Delegation | undefined>;
-  /** Names for OAuth client ids (`ClientNames`): the actor gets `client` set to the name of `authInfo.clientId`, which a policy delegation matches with `to: { kind, client }`. */
+  /**
+   * Names for OAuth client ids (`ClientNames`): the actor gets `client` set to
+   * the name of `authInfo.clientId`, which a policy delegation matches with
+   * `to: { kind, client }`.
+   */
   readonly clients?: ClientNames;
   readonly tenant?:
     | string
@@ -213,19 +236,23 @@ export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly requireAuthInfo?: boolean;
   /**
    * This server's RFC 8707 resource identifier. A token whose
-   * `authInfo.resource` is absent or different is refused with `invalid_token`.
+   * `authInfo.resource` is absent or different is refused with
+   * `invalid_token`.
    */
   readonly resource?: string | URL;
   /**
-   * Where a human approves. With `at` set, `approval-required` answers a
-   * client that supports URL elicitation with an `input_required` result.
+   * Where a human approves. With `at` set, `approval-required` answers a client
+   * that supports URL elicitation with an `input_required` result.
    */
   readonly approval?: ApprovalHint;
-  /** Where the user re-authenticates; `acr_values` and `max_age` are appended to `at`. */
+  /**
+   * Where the user re-authenticates; `acr_values` and `max_age` are appended to
+   * `at`.
+   */
   readonly stepUp?: { readonly at: string };
   /**
-   * Seals the approval token into `requestState`. Pass the codec from the
-   * SDK's `createRequestStateCodec` when the server verifies request state.
+   * Seals the approval token into `requestState`. Pass the codec from the SDK's
+   * `createRequestStateCodec` when the server verifies request state.
    */
   readonly requestState?: {
     readonly mint: (token: string, context?: never) => Promise<string>;
@@ -233,11 +260,14 @@ export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
   readonly store?: ApprovalStore;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;
-  /** Wraps each instance after `otel`; build it with `wrapPermDock` to cover derived instances. */
+  /**
+   * Wraps each instance after `otel`; build it with `wrapPermDock` to cover
+   * derived instances.
+   */
   readonly wrap?: PermDockWrap;
   /**
-   * Request values merged into `subject.context`, under `policy.context`.
-   * Read them from the verified `authInfo`, never from tool arguments.
+   * Request values merged into `subject.context`, under `policy.context`. Read
+   * them from the verified `authInfo`, never from tool arguments.
    */
   readonly context?: (
     authInfo: McpAuthInfo,
@@ -250,7 +280,10 @@ export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
 };
 
 export type McpPermDock = {
-  /** Call before registering anything: later `register*` calls must carry a `permission`. */
+  /**
+   * Call before registering anything: later `register*` calls must carry a
+   * `permission`.
+   */
   readonly protectServer: {
     (server: McpServer): GuardedMcpServer;
     (server: McpServer, options: McpProcedureEnforcement): ProcedureMcpServer;

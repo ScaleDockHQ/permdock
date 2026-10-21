@@ -36,9 +36,7 @@ export type WideningTargetKind =
   | "open dictionary"
   | "unknown";
 
-export type WideningTarget = {
-  readonly kind: WideningTargetKind;
-};
+export type WideningTarget = { readonly kind: WideningTargetKind };
 
 export type TypeEnvironment = {
   readonly aliases: ReadonlyMap<string, ESTree.TSTypeAliasDeclaration>;

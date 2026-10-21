@@ -323,7 +323,10 @@ function permissionKeysOf(node: unknown): readonly string[] {
   return raw.filter((item): item is string => typeof item === "string");
 }
 
-/** `$inputs.a.b` against the frame's inputs; anything else that is a runtime expression is unknown. */
+/**
+ * `$inputs.a.b` against the frame's inputs; anything else that is a runtime
+ * expression is unknown.
+ */
 function valueOf(
   value: unknown,
   inputs: Readonly<Record<string, unknown>>,
@@ -511,10 +514,7 @@ function resolve(
   flat: FlatStep,
 ): ResolvedStep {
   const { step, workflow, inputs } = flat;
-  const base = {
-    stepId: step.stepId,
-    workflowId: workflow.workflowId,
-  };
+  const base = { stepId: step.stepId, workflowId: workflow.workflowId };
   const located = locate(doc, openapi, step);
   const { record, provisional } = bind(
     [
@@ -633,10 +633,9 @@ function combine(decisions: readonly Decision[]): Decision {
 }
 
 /**
- * Walks an Arazzo workflow against `permdock`: each step's operation is
- * decided as `permdock.simulate` would, and a server instance emits one
- * simulate event for the whole plan. Works on an instance built from a
- * snapshot too.
+ * Walks an Arazzo workflow against `permdock`: each step's operation is decided
+ * as `permdock.simulate` would, and a server instance emits one simulate event
+ * for the whole plan. Works on an instance built from a snapshot too.
  */
 export function simulateArazzo(
   permdock: PermDock,
@@ -674,11 +673,7 @@ export function planArazzo(
       workflowId: resolved.workflowId === "" ? "unknown" : resolved.workflowId,
       outcome: "denied",
       steps: [
-        {
-          stepId: "document",
-          permissions: [],
-          decision: denied("validation"),
-        },
+        { stepId: "document", permissions: [], decision: denied("validation") },
       ],
     });
   }

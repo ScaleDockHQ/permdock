@@ -1,10 +1,10 @@
+import type { SqlQuery } from "permdock/supabase";
 import type { Client } from "pg";
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock } from "permdock";
 import {
-  type SqlQuery,
   junctionMembershipSource,
   subjectFromSupabase,
 } from "permdock/supabase";
@@ -19,6 +19,7 @@ import {
   permissions,
   policy,
 } from "../fixtures/named-scopes/policy.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { rlsAndHook } from "./support/rls.ts";
 
@@ -134,7 +135,7 @@ describe.each([
   }
 
   it("writes a membership of the suspended organization with the keys it keeps", async () => {
-    expect((await mint(OWNER))["memberships"]).toEqual([
+    expect((await mint(OWNER))["memberships"]).toStrictEqual([
       {
         scope: "organization",
         id: "B",
@@ -156,7 +157,7 @@ describe.each([
 
   it("reads the same memberships through the in-process source", async () => {
     const query: SqlQuery = (text, params) =>
-      db!.admin.query(text, [...params]);
+      defined(db).admin.query(text, [...params]);
     const permdock = await getPermDock(
       policy,
       { id: OWNER, kind: "user" },
@@ -206,9 +207,7 @@ describe.each([
       for (const tenant of ["T", "B"]) {
         const claims = { ...(await mint(user)), tenant_id: tenant };
         const principal = subjectFromSupabase(claims, {
-          claims: {
-            memberships: "memberships",
-          },
+          claims: { memberships: "memberships" },
         }).principal;
         const permdock = await getPermDock(policy, principal);
         for (const [permission, table] of [
@@ -228,12 +227,12 @@ describe.each([
               )
             ).rows.map((row) => row.id),
           );
-          expect({ user, tenant, table, rows: actual.toSorted() }).toEqual({
+          expect({
             user,
             tenant,
             table,
-            rows: expected,
-          });
+            rows: actual.toSorted(),
+          }).toStrictEqual({ user, tenant, table, rows: expected });
           if (user === OWNER && tenant === "B") {
             expect(actual.length > 0).toBe(table !== "quote");
           }

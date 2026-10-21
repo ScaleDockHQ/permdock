@@ -1,6 +1,7 @@
 import type { ClientStore } from "../client/store.ts";
 import type { SnapshotSource } from "../core/interfaces.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
+import type { Stored } from "./storage.ts";
 import type {
   ReactNativePermDockProviderProps,
   SubscribeForeground,
@@ -17,7 +18,6 @@ import {
   persistSnapshot,
   readStored,
   readStoredSync,
-  type Stored,
 } from "./storage.ts";
 
 export type NativeStoreOptions = Omit<
@@ -27,7 +27,10 @@ export type NativeStoreOptions = Omit<
   readonly headers?:
     | Readonly<Record<string, string>>
     | (() => Readonly<Record<string, string>> | undefined);
-  /** A store this one replaces: its snapshot and tenant seed this store, so guards do not flip while it boots. */
+  /**
+   * A store this one replaces: its snapshot and tenant seed this store, so
+   * guards do not flip while it boots.
+   */
   readonly previous?: ClientStore;
 };
 
@@ -37,8 +40,8 @@ function contentKey(snapshot: Snapshot): string {
 }
 
 /**
- * Whether a source read changes nothing: same content as the snapshot the
- * store holds, and the store already settled on it.
+ * Whether a source read changes nothing: same content as the snapshot the store
+ * holds, and the store already settled on it.
  */
 function unchanged(store: ClientStore, next: Snapshot | string): boolean {
   if (typeof next === "string" || store.get().status() === "stale") {
@@ -53,9 +56,9 @@ function unchanged(store: ClientStore, next: Snapshot | string): boolean {
 
 /**
  * Hydrates `store` from `source` now, on every change it reports and on each
- * return to the foreground. Only the latest read applies; a read with
- * unchanged content re-renders nothing, and a failed read keeps the current
- * snapshot. Returns the unsubscribe.
+ * return to the foreground. Only the latest read applies; a read with unchanged
+ * content re-renders nothing, and a failed read keeps the current snapshot.
+ * Returns the unsubscribe.
  */
 export function connectSource(
   store: ClientStore,
@@ -70,9 +73,9 @@ export function connectSource(
     void Promise.resolve()
       .then(() => source.get())
       .then(
-        (next) => {
-          if (active && mine === seq && !unchanged(store, next)) {
-            store.replace(next);
+        (snapshot) => {
+          if (active && mine === seq && !unchanged(store, snapshot)) {
+            store.replace(snapshot);
           }
         },
         () => undefined,

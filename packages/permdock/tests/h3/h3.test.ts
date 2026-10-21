@@ -46,7 +46,7 @@ describe("permdock/h3", () => {
 
     const allowed = await app.request("/posts/p1", { method: "DELETE" });
     const denied = await app.request("/posts/p2", { method: "DELETE" });
-    expect(await allowed.json()).toEqual({ id: "p1", via: "u1" });
+    expect(await allowed.json()).toStrictEqual({ id: "p1", via: "u1" });
     expect(denied.status).toBe(403);
     expect(denied.headers.get("content-type")).toContain(
       "application/problem+json",
@@ -65,7 +65,7 @@ describe("permdock/h3", () => {
     });
     const own = await app.request("/posts/p1", { method: "PUT" });
     const other = await app.request("/posts/p2", { method: "PUT" });
-    expect([own.status, other.status]).toEqual([200, 403]);
+    expect([own.status, other.status]).toStrictEqual([200, 403]);
   });
 
   it("maps a downstream denial in middleware and in withPermDock", async () => {
@@ -92,7 +92,7 @@ describe("permdock/h3", () => {
     );
     const viaMiddleware = await app.request("/denied");
     const viaWrapper = await bare.request("/denied");
-    expect([viaMiddleware.status, viaWrapper.status]).toEqual([403, 403]);
+    expect([viaMiddleware.status, viaWrapper.status]).toStrictEqual([403, 403]);
   });
 
   it("answers a bad Web Bot Auth signature in middleware and withPermDock", async () => {
@@ -119,7 +119,7 @@ describe("permdock/h3", () => {
     );
     const viaMiddleware = await app.request("/", { headers });
     const viaWrapper = await bare.request("/", { headers });
-    expect([viaMiddleware.status, viaWrapper.status]).toEqual([403, 403]);
+    expect([viaMiddleware.status, viaWrapper.status]).toStrictEqual([403, 403]);
   });
 
   it("mounts the decision endpoint and builds snapshots and instances", async () => {

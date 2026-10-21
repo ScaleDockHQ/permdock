@@ -1,3 +1,5 @@
+import type { PermDock } from "permdock";
+
 import { PrismaPg } from "@prisma/adapter-pg";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
@@ -6,7 +8,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { getPermDockSync, type PermDock } from "permdock";
+import { getPermDockSync } from "permdock";
 import { run } from "permdock/cli";
 import { withSubject as drizzleWithSubject } from "permdock/drizzle";
 import { withSubject as kyselyWithSubject } from "permdock/kysely";
@@ -63,13 +65,13 @@ async function inProcess(permdock: PermDock, table: Table): Promise<string[]> {
 }
 
 type PrismaRawTx = {
-  $queryRawUnsafe<T>(query: string, ...values: unknown[]): Promise<T>;
-  $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
+  $queryRawUnsafe: <T>(query: string, ...values: unknown[]) => Promise<T>;
+  $executeRawUnsafe: (query: string, ...values: unknown[]) => Promise<number>;
 };
 
 type PrismaDb = {
-  $transaction<T>(fn: (tx: PrismaRawTx) => Promise<T>): Promise<T>;
-  $disconnect(): Promise<void>;
+  $transaction: <T>(fn: (tx: PrismaRawTx) => Promise<T>) => Promise<T>;
+  $disconnect: () => Promise<void>;
 };
 
 describe("withSubject runs Drizzle, Kysely and Prisma under the generated RLS", () => {
@@ -83,9 +85,7 @@ describe("withSubject runs Drizzle, Kysely and Prisma under the generated RLS", 
     const out = join(dir, "workspace.sql");
     const generated = await run(
       ["rls", "generate", "--target", "sql", "--out", out],
-      {
-        cwd: FIXTURE,
-      },
+      { cwd: FIXTURE },
     );
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
@@ -183,8 +183,8 @@ describe("withSubject runs Drizzle, Kysely and Prisma under the generated RLS", 
           }
         }
       }
-      expect(mismatches).toEqual([]);
-      expect(await read(await permdockFor("lena"), "doc")).toEqual([
+      expect(mismatches).toStrictEqual([]);
+      expect(await read(await permdockFor("lena"), "doc")).toStrictEqual([
         "deep-doc",
       ]);
     });

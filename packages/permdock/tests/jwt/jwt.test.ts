@@ -19,7 +19,9 @@ import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { jwtSubjectResolver, subjectFromJwt } from "../../src/jwt/subject.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 import { testSubjectResolver } from "../../src/testing/conformance/identity.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 import { memberUser, policy } from "../fixtures/quick-start.ts";
+import { defined } from "../support/defined.ts";
 
 const PRIVATE_JWK = {
   crv: "Ed25519",
@@ -82,7 +84,7 @@ function verifier() {
   });
 }
 
-describe("joseTokenSigner", () => {
+describe(joseTokenSigner, () => {
   it("writes only alg, kid and typ and round-trips a snapshot", async () => {
     const signer = joseTokenSigner({
       key: { ...PRIVATE_JWK },
@@ -98,10 +100,10 @@ describe("joseTokenSigner", () => {
     expect(encoded).toBeDefined();
     // SAFETY: a JWS protected header is a base64url-encoded JSON object (RFC 7515).
     const header = JSON.parse(
-      atob(encoded!.replaceAll("-", "+").replaceAll("_", "/")),
+      atob(defined(encoded).replaceAll("-", "+").replaceAll("_", "/")),
     ) as Record<string, unknown>;
-    expect(Object.keys(header).toSorted()).toEqual(["alg", "kid", "typ"]);
-    expect(header).toEqual({
+    expect(Object.keys(header).toSorted()).toStrictEqual(["alg", "kid", "typ"]);
+    expect(header).toStrictEqual({
       alg: "Ed25519",
       kid: "2026-09",
       typ: "vnd.permdock.snapshot+jwt",
@@ -116,7 +118,7 @@ describe("joseTokenSigner", () => {
     });
     expect(checked.ok).toBe(true);
     if (checked.ok) {
-      expect(checked.claims["snapshot"]).toEqual({ v: 1 });
+      expect(checked.claims["snapshot"]).toStrictEqual({ v: 1 });
     }
     const published = await signer.jwks?.();
     expect(published?.keys[0]).toMatchObject({ kid: "2026-09", kty: "OKP" });
@@ -124,7 +126,7 @@ describe("joseTokenSigner", () => {
   });
 });
 
-describe("joseTokenVerifier", () => {
+describe(joseTokenVerifier, () => {
   it("requires exp except on a Security Event Token (RFC 8417), which needs iat", async () => {
     const key = await importJWK({ ...PRIVATE_JWK }, "Ed25519");
     const unexpiring = (typ: string, iat = true) => {
@@ -231,17 +233,11 @@ describe("joseTokenVerifier", () => {
       .sign(await importJWK({ ...PRIVATE_JWK }, "Ed25519"));
     expect(
       await check.verify(unknownKid, { audience: AUDIENCE }),
-    ).toMatchObject({
-      ok: false,
-      cause: "unknown-kid",
-    });
+    ).toMatchObject({ ok: false, cause: "unknown-kid" });
 
     expect(
       await check.verify("not-a-jwt", { audience: AUDIENCE }),
-    ).toMatchObject({
-      ok: false,
-      cause: "malformed",
-    });
+    ).toMatchObject({ ok: false, cause: "malformed" });
 
     const jwe = "a.b.c.d.e";
     expect(await check.verify(jwe, { audience: AUDIENCE })).toMatchObject({
@@ -270,7 +266,7 @@ describe("joseTokenVerifier", () => {
   it("fetches discovery and JWKS over https", async () => {
     const token = await accessToken();
     const fetchImpl: typeof fetch = async (input) => {
-      const href = String(input);
+      const href = requestUrl(input);
       if (href.includes("openid-configuration")) {
         return new Response(
           JSON.stringify({
@@ -305,7 +301,7 @@ describe("jwtSubjectResolver conformance", () => {
   });
 });
 
-describe("subjectFromJwt", () => {
+describe(subjectFromJwt, () => {
   it("returns anonymous without an event when the token is missing", async () => {
     const events: unknown[] = [];
     const subject = await subjectFromJwt(undefined, {
@@ -317,7 +313,7 @@ describe("subjectFromJwt", () => {
       },
     });
     expect(subject.principal).toBeNull();
-    expect(events).toEqual([]);
+    expect(events).toStrictEqual([]);
   });
 
   it("maps RFC 9068 claims and never throws on invalid tokens", async () => {
@@ -345,13 +341,13 @@ describe("subjectFromJwt", () => {
     });
     expect(subject.principal?.id).toBe("u_1");
     expect(subject.principal?.issuer).toBe(ISSUER);
-    expect(subject.principal?.roles).toEqual(["member"]);
-    expect(subject.principal?.plans).toEqual(["billing"]);
+    expect(subject.principal?.roles).toStrictEqual(["member"]);
+    expect(subject.principal?.plans).toStrictEqual(["billing"]);
     expect(subject.principal?.tenant).toBe("o_1");
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_1", roles: ["lead"], via: "group:9f2c" },
     ]);
-    expect(subject.principal?.assurance).toEqual({
+    expect(subject.principal?.assurance).toStrictEqual({
       acr: "urn:example:acr:2",
       amr: ["pwd"],
       authTime: 1_700_000_100,
@@ -361,8 +357,11 @@ describe("subjectFromJwt", () => {
       id: "agent-1",
       kind: "oauth-client",
     });
-    expect(subject.actor?.binding).toEqual({ jkt: "thumb" });
-    expect(subject.delegation?.scopes).toEqual(["post:read", "post:update"]);
+    expect(subject.actor?.binding).toStrictEqual({ jkt: "thumb" });
+    expect(subject.delegation?.scopes).toStrictEqual([
+      "post:read",
+      "post:update",
+    ]);
 
     const denied = await subjectFromJwt("nope", {
       jwks: PUBLIC_JWKS,
@@ -403,7 +402,7 @@ describe("subjectFromJwt", () => {
         issuer: ISSUER,
         claims: { id: "__proto__.id" },
       }),
-    ).toThrow(/forbidden claim path/);
+    ).toThrow(/forbidden claim path/u);
   });
 
   it("rejects fapi2 tokens without cnf and query-string tokens", async () => {
@@ -440,7 +439,7 @@ describe("subjectFromJwt", () => {
   });
 });
 
-describe("verifyDpopProof", () => {
+describe(verifyDpopProof, () => {
   it("accepts a matching proof and rejects a missing header", async () => {
     const { privateKey, publicKey } = await generateKeyPair("Ed25519", {
       extractable: true,
@@ -461,29 +460,27 @@ describe("verifyDpopProof", () => {
       .sign(privateKey);
     request.headers.set("DPoP", proof);
     const ok = await verifyDpopProof(request, { cnf: { jkt } });
-    expect(ok).toEqual({ ok: true });
+    expect(ok).toStrictEqual({ ok: true });
     const missing = await verifyDpopProof(
       new Request("https://api.example.com/posts", { method: "PATCH" }),
       { cnf: { jkt } },
     );
-    expect(missing).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+    expect(missing).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
     const wrongMethod = new Request("https://api.example.com/posts", {
       method: "GET",
     });
     wrongMethod.headers.set("DPoP", proof);
-    expect(await verifyDpopProof(wrongMethod, { cnf: { jkt } })).toEqual({
+    expect(await verifyDpopProof(wrongMethod, { cnf: { jkt } })).toStrictEqual({
       ok: false,
       cause: "dpop-proof-invalid",
     });
-    expect(await verifyDpopProof(request, { cnf: { jkt: "nope" } })).toEqual({
-      ok: false,
-      cause: "dpop-proof-invalid",
-    });
+    expect(
+      await verifyDpopProof(request, { cnf: { jkt: "nope" } }),
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
     const access = "access.token.value";
-    expect(await verifyDpopProof(request, { cnf: { jkt } }, access)).toEqual({
-      ok: false,
-      cause: "dpop-proof-invalid",
-    });
+    expect(
+      await verifyDpopProof(request, { cnf: { jkt } }, access),
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 });
 
@@ -514,13 +511,13 @@ describe("verifyDpopProof htu and replay", () => {
         requestWith("https://api.example.com/posts?page=2#top", proof),
         { cnf: { jkt } },
       ),
-    ).toEqual({ ok: true });
+    ).toStrictEqual({ ok: true });
     expect(
       await verifyDpopProof(
         requestWith("https://api.example.com/posts/1", proof),
         { cnf: { jkt } },
       ),
-    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 
   it("rejects a reused jti when a replay store is set", async () => {
@@ -532,37 +529,28 @@ describe("verifyDpopProof htu and replay", () => {
         requestWith(url, proof),
         { cnf: { jkt } },
         undefined,
-        {
-          replay,
-        },
+        { replay },
       ),
-    ).toEqual({ ok: true });
+    ).toStrictEqual({ ok: true });
     expect(
       await verifyDpopProof(
         requestWith(url, proof),
         { cnf: { jkt } },
         undefined,
-        {
-          replay,
-        },
+        { replay },
       ),
-    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 });
 
 describe("configuration and remaining causes", () => {
   it("rejects mutually exclusive or unsafe setup", () => {
     expect(() =>
-      joseTokenVerifier({
-        jwks: PUBLIC_JWKS,
-        discovery: ISSUER,
-      }),
-    ).toThrow(/mutually exclusive/);
+      joseTokenVerifier({ jwks: PUBLIC_JWKS, discovery: ISSUER }),
+    ).toThrow(/mutually exclusive/u);
     expect(() =>
-      joseTokenVerifier({
-        discovery: "http://login.example.com",
-      }),
-    ).toThrow(/https/);
+      joseTokenVerifier({ discovery: "http://login.example.com" }),
+    ).toThrow(/https/u);
     expect(() =>
       jwtSubjectResolver({
         jwks: PUBLIC_JWKS,
@@ -570,18 +558,13 @@ describe("configuration and remaining causes", () => {
         profile: "fapi2",
         sender: "none",
       }),
-    ).toThrow(/sender constraint/);
+    ).toThrow(/sender constraint/u);
+    expect(() => jwtSubjectResolver({ jwks: PUBLIC_JWKS })).toThrow(
+      /issuer is required/u,
+    );
     expect(() =>
-      jwtSubjectResolver({
-        jwks: PUBLIC_JWKS,
-      }),
-    ).toThrow(/issuer is required/);
-    expect(() =>
-      jwtSubjectResolver({
-        jwks: PUBLIC_JWKS,
-        issuer: ISSUER,
-      }),
-    ).toThrow(/audience is required/);
+      jwtSubjectResolver({ jwks: PUBLIC_JWKS, issuer: ISSUER }),
+    ).toThrow(/audience is required/u);
     expect(() =>
       jwtSubjectResolver({
         jwks: PUBLIC_JWKS,
@@ -596,7 +579,7 @@ describe("configuration and remaining causes", () => {
         kid: "k",
         issuer: ISSUER,
       }),
-    ).toThrow(/refuses/);
+    ).toThrow(/refuses/u);
     expect(() =>
       joseTokenSigner({
         key: { ...PRIVATE_JWK },
@@ -604,12 +587,10 @@ describe("configuration and remaining causes", () => {
         kid: "",
         issuer: ISSUER,
       }),
-    ).toThrow(/requires kid/);
+    ).toThrow(/requires kid/u);
     expect(() =>
-      joseTokenVerifier({
-        jwks: { secret: new Uint8Array(8) },
-      }),
-    ).toThrow(/256 bits/);
+      joseTokenVerifier({ jwks: { secret: new Uint8Array(8) } }),
+    ).toThrow(/256 bits/u);
   });
 
   it("refuses HMAC material when signing outputs", async () => {
@@ -623,14 +604,14 @@ describe("configuration and remaining causes", () => {
         { snapshot: {} },
         { typ: "vnd.permdock.snapshot+jwt", audience: AUDIENCE },
       ),
-    ).rejects.toThrow(/HMAC/);
+    ).rejects.toThrow(/HMAC/u);
   });
 
   it("requires an issuer, an audience and a whole-second iat", async () => {
     const key = { ...PRIVATE_JWK };
     expect(() =>
       joseTokenSigner({ key, alg: "Ed25519", kid: "k", issuer: "" }),
-    ).toThrow(/requires issuer/);
+    ).toThrow(/requires issuer/u);
     const signer = joseTokenSigner({
       key,
       alg: "Ed25519",
@@ -639,13 +620,13 @@ describe("configuration and remaining causes", () => {
     });
     await expect(
       signer.sign({ snapshot: {} }, { typ: "vnd.permdock.snapshot+jwt" }),
-    ).rejects.toThrow(/audience/);
+    ).rejects.toThrow(/audience/u);
     await expect(
       signer.sign(
         { snapshot: {} },
         { typ: "vnd.permdock.snapshot+jwt", audience: AUDIENCE, issuedAt: 1.5 },
       ),
-    ).rejects.toThrow(/whole NumericDate/);
+    ).rejects.toThrow(/whole NumericDate/u);
     const withDefault = joseTokenSigner({
       key,
       alg: "Ed25519",
@@ -657,7 +638,7 @@ describe("configuration and remaining causes", () => {
       { snapshot: {}, iss: "forged", jti: "forged" },
       { typ: "vnd.permdock.snapshot+jwt", issuedAt: 1000, jti: "snap_1" },
     );
-    expect(decodeJwt(token)).toEqual({
+    expect(decodeJwt(token)).toStrictEqual({
       snapshot: {},
       iss: ISSUER,
       aud: AUDIENCE,
@@ -754,7 +735,7 @@ describe("configuration and remaining causes", () => {
     const crit = await accessToken();
     const [h, p, s] = crit.split(".");
     const critHeader = {
-      ...JSON.parse(atob(h!.replaceAll("-", "+").replaceAll("_", "/"))),
+      ...JSON.parse(atob(defined(h).replaceAll("-", "+").replaceAll("_", "/"))),
       crit: ["jku"],
       jku: "https://evil.example.com",
     };
@@ -842,9 +823,7 @@ describe("configuration and remaining causes", () => {
   });
 
   it("merges memberships and workload kind literals", async () => {
-    const token = await accessToken({
-      tenants: { o_1: ["owner"] },
-    });
+    const token = await accessToken({ tenants: { o_1: ["owner"] } });
     const subject = await subjectFromJwt(token, {
       jwks: PUBLIC_JWKS,
       issuer: ISSUER,
@@ -856,7 +835,7 @@ describe("configuration and remaining causes", () => {
       },
     });
     expect(subject.principal?.kind).toBe("workload");
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_1", roles: ["owner"] },
       { tenant: "o_2", roles: ["guest"] },
     ]);
@@ -880,10 +859,10 @@ describe("configuration and remaining causes", () => {
         events.push(event);
       },
     });
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_1", roles: ["owner"] },
     ]);
-    expect(events).toEqual([
+    expect(events).toStrictEqual([
       expect.objectContaining({
         reason: "source-threw",
         source: "memberships",
@@ -917,11 +896,8 @@ describe("configuration and remaining causes", () => {
       audience: AUDIENCE,
       sender: "none",
     });
-    expect(subject.actor).toMatchObject({
-      id: "edge",
-      kind: "oauth-client",
-    });
-    expect(subject.delegation?.chain).toEqual({
+    expect(subject.actor).toMatchObject({ id: "edge", kind: "oauth-client" });
+    expect(subject.delegation?.chain).toStrictEqual({
       sub: "edge",
       act: { sub: "inner-agent" },
     });
@@ -937,13 +913,13 @@ describe("configuration and remaining causes", () => {
       audience: AUDIENCE,
       sender: "none",
     });
-    expect(subject.delegation?.access).toEqual([
+    expect(subject.delegation?.access).toStrictEqual([
       { type: "post", actions: ["read"] },
     ]);
   });
 });
 
-describe("subjectFromIntrospection", () => {
+describe(subjectFromIntrospection, () => {
   it("maps RFC 9767 active responses and never throws", () => {
     const subject = subjectFromIntrospection({
       active: true,
@@ -955,14 +931,11 @@ describe("subjectFromIntrospection", () => {
     });
     expect(subject.principal?.id).toBe("u_1");
     expect(subject.principal?.issuer).toBe(ISSUER);
-    expect(subject.actor).toMatchObject({
-      id: "inst_9",
-      kind: "oauth-client",
-    });
-    expect(subject.actor?.binding).toEqual({
+    expect(subject.actor).toMatchObject({ id: "inst_9", kind: "oauth-client" });
+    expect(subject.actor?.binding).toStrictEqual({
       jwk: { kty: "OKP", crv: "Ed25519" },
     });
-    expect(subject.delegation?.access).toEqual([
+    expect(subject.delegation?.access).toStrictEqual([
       { type: "post", actions: ["read"] },
     ]);
     expect(
@@ -979,8 +952,11 @@ describe("subjectFromIntrospection", () => {
       scope: "post:read post:update",
       client_id: "app",
     });
-    expect(subject.delegation?.scopes).toEqual(["post:read", "post:update"]);
-    expect(subject.actor).toEqual({ id: "app", kind: "oauth-client" });
+    expect(subject.delegation?.scopes).toStrictEqual([
+      "post:read",
+      "post:update",
+    ]);
+    expect(subject.actor).toStrictEqual({ id: "app", kind: "oauth-client" });
   });
 });
 
@@ -997,7 +973,7 @@ describe("signed snapshot", () => {
       signer,
       audience: "https://app.example.com",
     });
-    expect(typeof jws).toBe("string");
+    expect(jws).toBeTypeOf("string");
     // SAFETY: the typeof check above confirmed snapshot({ signer }) returned a JWS string.
     const checked = await joseTokenVerifier({
       jwks: PUBLIC_JWKS,

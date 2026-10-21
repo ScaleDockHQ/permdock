@@ -56,7 +56,7 @@ describe("assertLimit windows", () => {
   });
 });
 
-describe("memoryLimitStore", () => {
+describe(memoryLimitStore, () => {
   const input = {
     key: "k",
     subjectId: "u1",
@@ -76,7 +76,7 @@ describe("memoryLimitStore", () => {
       consumed: store.consume({ ...input, ...change }),
       peeked: store.remaining({ ...input, ...change }),
       size: store.size(),
-    }).toEqual({
+    }).toStrictEqual({
       consumed: { remaining: -1 },
       peeked: { remaining: -1 },
       size: 0,
@@ -85,9 +85,9 @@ describe("memoryLimitStore", () => {
 
   it("sweeps only the counters whose window has passed", () => {
     const store = memoryLimitStore();
-    store.consume({ ...input, key: "minute", per: 60 });
-    store.consume({ ...input, key: "day", per: 86_400 });
-    store.consume({
+    void store.consume({ ...input, key: "minute", per: 60 });
+    void store.consume({ ...input, key: "day", per: 86_400 });
+    void store.consume({
       ...input,
       key: "later",
       per: 3600,
@@ -99,7 +99,7 @@ describe("memoryLimitStore", () => {
   it("counts against the clock when no time is given", () => {
     const store = memoryLimitStore();
     const { now: _now, ...live } = input;
-    expect([store.consume(live), store.remaining(live)]).toEqual([
+    expect([store.consume(live), store.remaining(live)]).toStrictEqual([
       { remaining: 1 },
       { remaining: 1 },
     ]);
@@ -110,7 +110,7 @@ describe("limits() peeking", () => {
   const limit = { count: 3, per: 3600 };
 
   it("refuses a window no store can count", () => {
-    expect(quota({ count: 3, per: 0.5 })).toEqual({
+    expect(quota({ count: 3, per: 0.5 })).toStrictEqual({
       ok: false,
       reason: "limit-unavailable",
     });
@@ -134,7 +134,7 @@ describe("limits() peeking", () => {
       2,
     );
     const cached = quota(limit, { store, cache });
-    expect({ missing, cached }).toEqual({
+    expect({ missing, cached }).toStrictEqual({
       missing: { ok: false, reason: "limit-unavailable" },
       cached: {
         ok: true,

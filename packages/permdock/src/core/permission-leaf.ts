@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import type { AppDataSchema } from "./app-data.ts";
 import type {
   ActionList,
   ActionMeta,
@@ -11,7 +12,7 @@ import type {
   ToolHints,
 } from "./permission-types.ts";
 
-import { type AppDataSchema, assertAppData, parseAppData } from "./app-data.ts";
+import { assertAppData, parseAppData } from "./app-data.ts";
 import { LEAF_FORMER, RESOURCE_BRAND } from "./brands.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
@@ -170,7 +171,10 @@ export function formerKeys(permission: object): readonly string[] {
     : [];
 }
 
-/** The OAuth scope strings `permission` used to have: each former key with `.` as `:`. */
+/**
+ * The OAuth scope strings `permission` used to have: each former key with `.`
+ * as `:`.
+ */
 export function formerScopes(permission: object): readonly string[] {
   return formerKeys(permission).map(keyToScope);
 }

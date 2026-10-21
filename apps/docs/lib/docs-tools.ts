@@ -1,4 +1,6 @@
-import { findPage, searchDocs, type DocsPageSummary } from "./docs-pages";
+import type { DocsPageSummary } from "./docs-pages";
+
+import { findPage, searchDocs } from "./docs-pages";
 import { getLLMText, source } from "./source";
 
 export type DocsTools = {
@@ -7,12 +9,14 @@ export type DocsTools = {
 };
 
 function pages(): readonly DocsPageSummary[] {
-  return source.getPages().map((page) => ({
-    title: page.data.title,
-    description: page.data.description ?? "",
-    url: page.url,
-    slugs: page.slugs,
-  }));
+  return source
+    .getPages()
+    .map((page) => ({
+      title: page.data.title,
+      description: page.data.description ?? "",
+      url: page.url,
+      slugs: page.slugs,
+    }));
 }
 
 /** Page search and fetch over the docs source, for the Ask AI tools. */

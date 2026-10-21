@@ -2,7 +2,10 @@ export type RevocationEvent = {
   readonly principal: string;
   readonly session?: string;
   readonly tenant?: string;
-  /** `session-revoked` ends a connection; `changed` makes it re-resolve its subject. */
+  /**
+   * `session-revoked` ends a connection; `changed` makes it re-resolve its
+   * subject.
+   */
   readonly kind: "session-revoked" | "changed";
 };
 
@@ -15,8 +18,8 @@ export type RevocationListener = (event: RevocationEvent) => void;
 export type RevocationFeed = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  subscribe(listener: RevocationListener): () => void;
-  revoke(event: RevocationEvent): void | Promise<void>;
+  subscribe: (listener: RevocationListener) => () => void;
+  revoke: (event: RevocationEvent) => void | Promise<void>;
 };
 
 function isRevocationEvent(value: unknown): value is RevocationEvent {

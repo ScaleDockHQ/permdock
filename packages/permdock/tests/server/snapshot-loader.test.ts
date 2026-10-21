@@ -35,13 +35,13 @@ describe("getSnapshot(request)", () => {
       tenants: "all",
     });
     expect(snapshot.subject.principal?.tenant).toBe("globex");
-    expect(snapshot.tenants).toEqual(
+    expect(snapshot.tenants).toStrictEqual(
       expect.arrayContaining(["acme", "globex"]),
     );
   });
 });
 
-describe("snapshotHeaders", () => {
+describe(snapshotHeaders, () => {
   const snapshotAt = async (issuedAt: string): Promise<Snapshot> => {
     const server = createPermDock(saasPolicy, {
       subject: () => alice,
@@ -60,7 +60,7 @@ describe("snapshotHeaders", () => {
       Vary: "Authorization, Cookie",
       "Cache-Tag": `${snapshotTag(alice.id)},org:acme`,
     });
-    expect(first.ETag).toMatch(/^"sha-256:[\w-]{43}"$/);
+    expect(first.ETag).toMatch(/^"sha-256:[\w-]{43}"$/u);
     expect(second.ETag).toBe(first.ETag);
   });
 

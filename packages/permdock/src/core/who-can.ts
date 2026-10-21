@@ -1,35 +1,32 @@
 import type { RelatedCondition } from "../conditions/ast.ts";
 import type { CustomGrant } from "./custom-roles.ts";
 import type { Decision } from "./decision.ts";
+import type { EvalEnv } from "./events.ts";
+import type { Grantee, RelationGrantee, RoleGrantee } from "./grantee.ts";
 import type {
   MembershipSource,
   RelationGroup,
   RelationHolder,
 } from "./interfaces.ts";
+import type { InstanceHandle } from "./internals.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Grant, Policy } from "./policy-types.ts";
+import type { ReadHolder, RelationCache, RelationReader } from "./relations.ts";
+import type { Scope } from "./scopes.ts";
 import type { Membership, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { byCodePoint } from "./compare.ts";
 import { evaluate } from "./evaluate/index.ts";
-import { type EvalEnv, emptyListeners } from "./events.ts";
+import { emptyListeners } from "./events.ts";
 import { freezeDeep } from "./freeze.ts";
 import { relationCondition } from "./grantee-conditions.ts";
-import {
-  type Grantee,
-  type RelationGrantee,
-  type RoleGrantee,
-  flattenGrantee,
-} from "./grantee.ts";
-import { type InstanceHandle, internalsOf } from "./internals.ts";
+import { flattenGrantee } from "./grantee.ts";
+import { internalsOf } from "./internals.ts";
 import { ownGet } from "./paths.ts";
 import { getResource } from "./permission-registry.ts";
 import { relationWalk } from "./relation-walk.ts";
 import {
-  type ReadHolder,
-  type RelationCache,
-  type RelationReader,
   DEFAULT_GROUP_DEPTH,
   pendingRelations,
   relationId,
@@ -41,7 +38,6 @@ import {
   isPrincipalRelation,
 } from "./resource-relations.ts";
 import {
-  type Scope,
   normalizeMemberships,
   resolveScope,
   rootScope,
@@ -61,7 +57,10 @@ export type HoldingVia =
       readonly kind: "relation";
       readonly resource: string;
       readonly relation: string;
-      /** The instance the relation is held on: the object or one of its ancestors. */
+      /**
+       * The instance the relation is held on: the object or one of its
+       * ancestors.
+       */
       readonly id: string;
     }
   | {
@@ -70,7 +69,10 @@ export type HoldingVia =
       readonly relation: string;
       readonly id: string;
       readonly expiresAt?: number;
-      /** The group the share names, when the principal holds it as one of its members. */
+      /**
+       * The group the share names, when the principal holds it as one of its
+       * members.
+       */
       readonly group?: RelationGroup;
     };
 
@@ -80,10 +82,10 @@ export type Holder = {
 };
 
 /**
- * Who holds a permission on one object, for share dialogs and access
- * reviews. It lists and never grants. `complete: false` means some grantee
- * could not be enumerated (a global role, a plan, a source without `list`,
- * an unavailable relation): holders may be missing, so check with `decide`.
+ * Who holds a permission on one object, for share dialogs and access reviews.
+ * It lists and never grants. `complete: false` means some grantee could not be
+ * enumerated (a global role, a plan, a source without `list`, an unavailable
+ * relation): holders may be missing, so check with `decide`.
  */
 export type WhoCan = {
   readonly permission: string;
@@ -128,7 +130,10 @@ async function settle(cache: RelationCache): Promise<void> {
   }
 }
 
-/** The holders on each instance a graph relation reads, or `undefined` when the graph cannot say. */
+/**
+ * The holders on each instance a graph relation reads, or `undefined` when the
+ * graph cannot say.
+ */
 async function walkHolders(
   condition: RelatedCondition,
   row: unknown,
@@ -226,7 +231,10 @@ function holderVia(
 
 type GroupWalk = {
   readonly members: readonly string[];
-  /** Whether a group was skipped for already being on the path, so `members` holds only this path's share. */
+  /**
+   * Whether a group was skipped for already being on the path, so `members`
+   * holds only this path's share.
+   */
   readonly cut: boolean;
 };
 
@@ -469,11 +477,11 @@ function memberLister(
 }
 
 /**
- * Who holds `permission` on `resource` for the instance's policy and how
- * (role, relation or share), from `MembershipSource.list` and
- * `RelationSource.related`. It lists and never grants; `complete: false`
- * means some holders could not be listed. An instance built from a
- * snapshot answers an empty, incomplete list.
+ * Who holds `permission` on `resource` for the instance's policy and how (role,
+ * relation or share), from `MembershipSource.list` and
+ * `RelationSource.related`. It lists and never grants; `complete: false` means
+ * some holders could not be listed. An instance built from a snapshot answers
+ * an empty, incomplete list.
  */
 export function whoCan(
   permdock: InstanceHandle,

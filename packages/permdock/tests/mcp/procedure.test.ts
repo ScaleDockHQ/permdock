@@ -1,9 +1,7 @@
+import type { AuthInfo } from "@modelcontextprotocol/server";
+
 import { Client } from "@modelcontextprotocol/client";
-import {
-  type AuthInfo,
-  InMemoryTransport,
-  McpServer,
-} from "@modelcontextprotocol/server";
+import { InMemoryTransport, McpServer } from "@modelcontextprotocol/server";
 import { call, ORPCError, os } from "@orpc/server";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -119,7 +117,7 @@ function decisions(events: readonly SinkEvent[]): readonly SinkEvent[] {
   return events.filter((event) => event.type === "decision");
 }
 
-describe("permissionOf", () => {
+describe(permissionOf, () => {
   it("reads the permission of the first protect", () => {
     const { router } = setup();
     expect(permissionOf(router.update)).toBe(permissions.post.update);
@@ -142,7 +140,7 @@ describe("protectServer with enforce: 'procedure'", () => {
     const { server } = setup();
     const client = await connect(server);
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name)).toEqual(["update"]);
+    expect(tools.map((tool) => tool.name)).toStrictEqual(["update"]);
     expect(tools[0]?.annotations).toMatchObject({ readOnlyHint: false });
   });
 
@@ -164,7 +162,7 @@ describe("protectServer with enforce: 'procedure'", () => {
       arguments: { id: otherPost.id },
     });
     expect(denied.isError).toBe(true);
-    expect(denied.content).toEqual([{ type: "text", text: "FORBIDDEN" }]);
+    expect(denied.content).toStrictEqual([{ type: "text", text: "FORBIDDEN" }]);
     expect(decisions(events)).toHaveLength(1);
   });
 

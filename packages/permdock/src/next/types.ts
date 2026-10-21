@@ -25,19 +25,20 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = InstanceOptions & {
   readonly store?: ApprovalStore;
   /** `(permdock) => withOtel(permdock, options)` from `permdock/otel`. */
   readonly otel?: OtelWrap;
-  /** Wraps each instance after `otel`; build it with `wrapPermDock` to cover derived instances. */
+  /**
+   * Wraps each instance after `otel`; build it with `wrapPermDock` to cover
+   * derived instances.
+   */
   readonly wrap?: PermDockWrap;
   /**
-   * Where `PermDockProvider` sends checks the snapshot cannot answer; default `/api/permdock`.
-   * `false` is snapshot-only: no `permdockHandler` route, and those checks are denied with
-   * reason `server-only`.
+   * Where `PermDockProvider` sends checks the snapshot cannot answer; default
+   * `/api/permdock`. `false` is snapshot-only: no `permdockHandler` route, and
+   * those checks are denied with reason `server-only`.
    */
   readonly endpoint?: string | false;
 };
 
-export type GetPermDockQuery = {
-  readonly tenant?: string;
-};
+export type GetPermDockQuery = { readonly tenant?: string };
 
 export type GetSnapshotQuery = GetPermDockQuery & {
   readonly include?: readonly (
@@ -45,7 +46,10 @@ export type GetSnapshotQuery = GetPermDockQuery & {
     | { readonly [key: string]: unknown }
   )[];
   readonly tenants?: "all";
-  /** Tags added next to `snapshotTag(sub)`, such as the app's own organisation tag. */
+  /**
+   * Tags added next to `snapshotTag(sub)`, such as the app's own organisation
+   * tag.
+   */
   readonly tags?: readonly string[];
 };
 
@@ -73,7 +77,10 @@ export type NextPermDockProviderProps = {
   readonly tenants?: "all";
   /** Overrides the factory's `endpoint`; `false` is snapshot-only. */
   readonly endpoint?: string | false;
-  /** Suspends permission readers until the snapshot streams in, instead of answering `pending`. */
+  /**
+   * Suspends permission readers until the snapshot streams in, instead of
+   * answering `pending`.
+   */
   readonly suspend?: boolean;
   /**
    * What every `<Protected>` below renders for a slot it leaves out. Nodes
@@ -98,9 +105,9 @@ export type PermDockHandler = {
 export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly getPermDock: (query?: GetPermDockQuery) => Promise<PermDock<V>>;
   /**
-   * `{ allowed, status: 'ready', decision }`. Any failure to build the
-   * instance denies; Next.js interrupts (`redirect()`, `notFound()`,
-   * request-time bailouts) from `subject` or `tenant` pass through.
+   * `{ allowed, status: 'ready', decision }`. Any failure to build the instance
+   * denies; Next.js interrupts (`redirect()`, `notFound()`, request-time
+   * bailouts) from `subject` or `tenant` pass through.
    */
   readonly getPermission: (
     permission: Permission,
@@ -109,8 +116,8 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   ) => Promise<ServerPermissionState>;
   /**
    * The session's snapshot for a `'use cache: private'` function the app owns:
-   * calls `cacheLife(cacheLifeFor(snapshot))` and `cacheTag(snapshotTag(sub), ...tags)`
-   * in that scope, and throws outside one.
+   * calls `cacheLife(cacheLifeFor(snapshot))` and `cacheTag(snapshotTag(sub),
+   * ...tags)` in that scope, and throws outside one.
    */
   readonly getSnapshot: (query?: GetSnapshotQuery) => Promise<Snapshot>;
   /**
@@ -124,7 +131,10 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     data?: unknown,
     options?: PermissionRequirementOptions,
   ) => Promise<Extract<Decision, { readonly outcome: "granted" }>>;
-  /** Never awaits: passes an unawaited snapshot to the client provider, whose hooks suspend. */
+  /**
+   * Never awaits: passes an unawaited snapshot to the client provider, whose
+   * hooks suspend.
+   */
   readonly PermDockProvider: (props: NextPermDockProviderProps) => ReactElement;
   readonly permdockHandler: () => PermDockHandler;
 };

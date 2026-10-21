@@ -22,9 +22,7 @@ import {
   website,
 } from "@/lib/structured-data";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/" },
-};
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 export default function HomePage() {
   const ships = loadRecentShips(1);

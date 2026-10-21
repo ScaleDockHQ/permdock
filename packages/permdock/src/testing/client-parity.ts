@@ -12,15 +12,13 @@ export type ClientParityCase = {
   readonly permission: Permission;
   readonly row?: unknown;
   /**
-   * `true` when the client may deny what the server grants, because the
-   * outcome depends on a closure, a quota or an approval the snapshot omits.
+   * `true` when the client may deny what the server grants, because the outcome
+   * depends on a closure, a quota or an approval the snapshot omits.
    */
   readonly stricter?: boolean;
 };
 
-export type ClientParityOptions = {
-  readonly customRoles?: CustomRoleSource;
-};
+export type ClientParityOptions = { readonly customRoles?: CustomRoleSource };
 
 async function outcomes(
   policy: Policy,
@@ -42,8 +40,8 @@ async function outcomes(
 }
 
 /**
- * Asserts that `fromSnapshot(permdock.snapshot())` never grants what the
- * server denies, and matches it exactly unless a case is marked `stricter`.
+ * Asserts that `fromSnapshot(permdock.snapshot())` never grants what the server
+ * denies, and matches it exactly unless a case is marked `stricter`.
  */
 export function testClientParity(
   policy: Policy,

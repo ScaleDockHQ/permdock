@@ -44,7 +44,7 @@ export function testDecisionProvider(
   });
 
   it("names itself and claims the permission synchronously", () => {
-    expect(typeof provider.name).toBe("string");
+    expect(provider.name).toBeTypeOf("string");
     expect(provider.name.length).toBeGreaterThan(0);
     expect(provider.handles(options.permission)).toBe(true);
   });

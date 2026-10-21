@@ -20,7 +20,7 @@ describe("permdock --version", () => {
   it.each([["--version"], ["-v"]])(
     "prints the package version for %s",
     async (flag) => {
-      expect(await run([flag])).toEqual({
+      expect(await run([flag])).toStrictEqual({
         code: 0,
         stdout: `${String(version)}\n`,
         stderr: "",
@@ -54,7 +54,7 @@ describe("Problem Details under --json", () => {
     const result = await run(["nope", "--json"]);
     expect(result.code).toBe(2);
     expect(result.stderr).toBe("");
-    expect(JSON.parse(result.stdout)).toEqual({
+    expect(JSON.parse(result.stdout)).toStrictEqual({
       $schema: ENVELOPE,
       status: "error",
       error: {
@@ -88,7 +88,7 @@ describe("Problem Details under --json", () => {
       },
     );
     expect(result.code).toBe(1);
-    expect(JSON.parse(result.stdout)).toEqual({
+    expect(JSON.parse(result.stdout)).toStrictEqual({
       $schema: ENVELOPE,
       status: "error",
       error: {
@@ -111,7 +111,7 @@ describe("Problem Details under --json", () => {
     });
     const result = await run(["collect", "--check", "--json", "--cwd", cwd]);
     expect(result.code).toBe(1);
-    expect(JSON.parse(result.stdout)).toEqual({
+    expect(JSON.parse(result.stdout)).toStrictEqual({
       $schema: ENVELOPE,
       status: "error",
       data: {
@@ -139,7 +139,8 @@ describe("Problem Details under --json", () => {
       "src/permissions.ts": PERMISSIONS,
       "src/use.ts": use(""),
     });
-    expect((await run(["collect", "--cwd", cwd])).code).toBe(0);
+    const { code } = await run(["collect", "--cwd", cwd]);
+    expect(code).toBe(0);
     writeFileSync(join(cwd, "src/use.ts"), use("\n"));
     const result = await run(["collect", "--check", "--json", "--cwd", cwd]);
     expect(result.code).toBe(0);
@@ -183,13 +184,13 @@ describe("Problem Details under --json", () => {
   });
 });
 
-describe("usageResult", () => {
+describe(usageResult, () => {
   it("reports a usage error and lets a CliError through to run()", () => {
-    expect(usageResult(new Error("bad flag"))).toEqual({
+    expect(usageResult(new Error("bad flag"))).toStrictEqual({
       code: 2,
       output: "bad flag",
     });
-    expect(usageResult("plain")).toEqual({ code: 2, output: "plain" });
+    expect(usageResult("plain")).toStrictEqual({ code: 2, output: "plain" });
     const down = new CliError("unavailable", "down");
     expect(() => usageResult(down)).toThrow(down);
   });

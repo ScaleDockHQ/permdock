@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { Membership } from "../../src/index.ts";
+
 import { catalogGrants } from "../../src/cli/catalog-doc.ts";
 import { requiresSql } from "../../src/cli/rls/permission-keys.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
@@ -7,7 +9,6 @@ import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import {
-  type Membership,
   allow,
   getPermDockSync,
   definePermissions,
@@ -54,10 +55,7 @@ const policy = definePolicy(permissions, {
     }),
   ],
   grants: [
-    allow(drive.read, {
-      to: relation(drive, "viewer"),
-      requires: file.read,
-    }),
+    allow(drive.read, { to: relation(drive, "viewer"), requires: file.read }),
   ],
   subject: (user: User) => ({
     id: user.id,
@@ -90,10 +88,7 @@ const customRoles = {
 };
 
 async function readable(user: User): Promise<readonly string[]> {
-  const permdock = getPermDockSync(policy, user, {
-    relations,
-    customRoles,
-  });
+  const permdock = getPermDockSync(policy, user, { relations, customRoles });
   await permdock.prefetchRelations(drive.read, drives);
   return drives
     .filter((row) => permdock.can(drive.read, row))
@@ -109,16 +104,16 @@ describe("requires: a grant that counts only where a permission is also held", (
   it("counts a share only in the organization where the subject also holds the permission", async () => {
     expect(
       await readable({ id: "ana", memberships: [member("acme", "member")] }),
-    ).toEqual(["d-acme"]);
+    ).toStrictEqual(["d-acme"]);
     expect(
       await readable({ id: "eve", memberships: [member("globex", "member")] }),
-    ).toEqual(["d-globex"]);
+    ).toStrictEqual(["d-globex"]);
     expect(
       await readable({ id: "gus", memberships: [member("acme", "guest")] }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await readable({ id: "nobody", memberships: [member("acme", "member")] }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("subtracts a deny of the required permission at that organization", async () => {
@@ -127,7 +122,7 @@ describe("requires: a grant that counts only where a permission is also held", (
         id: "bob",
         memberships: [member("acme", "member", "blocked")],
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await readable({
         id: "bob",
@@ -136,20 +131,20 @@ describe("requires: a grant that counts only where a permission is also held", (
           member("globex", "member"),
         ],
       }),
-    ).toEqual(["d-globex"]);
+    ).toStrictEqual(["d-globex"]);
   });
 
   it("counts a custom role that grants the required permission", async () => {
     expect(
       await readable({ id: "cora", memberships: [member("acme", "reader")] }),
-    ).toEqual(["d-acme"]);
+    ).toStrictEqual(["d-acme"]);
     expect(
       await readable({ id: "cora", memberships: [member("globex", "reader")] }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("passes every row when the subject holds the permission globally", async () => {
-    expect(await readable({ id: "aud", roles: ["auditor"] })).toEqual([
+    expect(await readable({ id: "aud", roles: ["auditor"] })).toStrictEqual([
       "d-acme",
       "d-globex",
     ]);
@@ -158,7 +153,7 @@ describe("requires: a grant that counts only where a permission is also held", (
   it("ignores a role grant of the required permission that carries a row condition", async () => {
     expect(
       await readable({ id: "own", memberships: [member("acme", "ownFiles")] }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("puts the requirement into where() and the snapshot", async () => {
@@ -249,9 +244,7 @@ describe("requires with a list of permissions", () => {
     },
   });
   const readableBy = async (user: User): Promise<readonly string[]> => {
-    const permdock = getPermDockSync(listPolicy, user, {
-      relations: shares,
-    });
+    const permdock = getPermDockSync(listPolicy, user, { relations: shares });
     await permdock.prefetchRelations(listed.drive.read, drives);
     return drives
       .filter((row) => permdock.can(listed.drive.read, row))
@@ -264,30 +257,30 @@ describe("requires with a list of permissions", () => {
         id: "ana",
         memberships: [member("acme", "reader", "downloader")],
       }),
-    ).toEqual(["d-acme"]);
+    ).toStrictEqual(["d-acme"]);
     expect(
       await readableBy({ id: "ana", memberships: [member("acme", "reader")] }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await readableBy({
         id: "ana",
         memberships: [member("acme", "reader"), member("globex", "downloader")],
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await readableBy({
         id: "ana",
         roles: ["auditor"],
         memberships: [member("globex", "downloader")],
       }),
-    ).toEqual(["d-globex"]);
+    ).toStrictEqual(["d-globex"]);
   });
 
   it("keeps each key once, ANDs one helper check per key in SQL and lists them in the catalog", () => {
     const grant = listPolicy.grants.find(
       (item) => item.permission.key === "drive.read",
     );
-    expect(grant?.requires).toEqual(["file.read", "file.download"]);
+    expect(grant?.requires).toStrictEqual(["file.read", "file.download"]);
     const compiled = compileGrants(
       listPolicy,
       {
@@ -310,7 +303,7 @@ describe("requires with a list of permissions", () => {
     expect(
       catalogGrants(listPolicy).find((item) => item.permission === "drive.read")
         ?.requires,
-    ).toEqual(["file.read", "file.download"]);
+    ).toStrictEqual(["file.read", "file.download"]);
     expect(
       catalogGrants(policy).find((item) => item.permission === "drive.read")
         ?.requires,
@@ -332,10 +325,7 @@ describe("requires and a delegated key's scopes", () => {
       role("driveAdmin", [allow(drive.read)], { on: "tenant" }),
     ],
     grants: [
-      allow(drive.read, {
-        to: relation(drive, "viewer"),
-        requires: file.read,
-      }),
+      allow(drive.read, { to: relation(drive, "viewer"), requires: file.read }),
     ],
     subject: () => null,
   });
@@ -364,15 +354,17 @@ describe("requires and a delegated key's scopes", () => {
   };
 
   it("lets a key scoped to the required permission use the grants that require it", async () => {
-    expect(await keyed("ana", ["member"], ["file:read"])).toEqual(["d-acme"]);
-    expect(await keyed("ana", ["member"], ["drive:read", "file:read"])).toEqual(
-      ["d-acme"],
-    );
-    expect(await keyed("ana", ["member"], ["file:write"])).toEqual([]);
+    expect(await keyed("ana", ["member"], ["file:read"])).toStrictEqual([
+      "d-acme",
+    ]);
+    expect(
+      await keyed("ana", ["member"], ["drive:read", "file:read"]),
+    ).toStrictEqual(["d-acme"]);
+    expect(await keyed("ana", ["member"], ["file:write"])).toStrictEqual([]);
   });
 
   it("counts a grant with requires only when the key also covers the required permission, as RLS does", async () => {
-    expect(await keyed("ana", ["member"], ["drive:read"])).toEqual([]);
+    expect(await keyed("ana", ["member"], ["drive:read"])).toStrictEqual([]);
     const permdock = getPermDockSync(
       scoped,
       {
@@ -391,7 +383,7 @@ describe("requires and a delegated key's scopes", () => {
       decision.outcome === "denied"
         ? decision.denials.map((denial) => denial.reason)
         : [],
-    ).toEqual(["not-delegated"]);
+    ).toStrictEqual(["not-delegated"]);
     expect(JSON.stringify(permdock.where(drive.read).condition)).not.toContain(
       "related",
     );
@@ -414,13 +406,15 @@ describe("requires and a delegated key's scopes", () => {
   });
 
   it("keeps every other grant of the permission out of reach of that scope", async () => {
-    expect(await keyed("nobody", ["driveAdmin"], ["file:read"])).toEqual([]);
-    expect(await keyed("nobody", ["driveAdmin"], ["drive:read"])).toEqual([
-      "d-acme",
-    ]);
+    expect(await keyed("nobody", ["driveAdmin"], ["file:read"])).toStrictEqual(
+      [],
+    );
+    expect(await keyed("nobody", ["driveAdmin"], ["drive:read"])).toStrictEqual(
+      ["d-acme"],
+    );
     expect(
       await keyed("ana", ["driveAdmin", "member"], ["drive:read"]),
-    ).toEqual(["d-acme"]);
+    ).toStrictEqual(["d-acme"]);
   });
 
   it("requires every listed permission to be covered", async () => {
@@ -456,9 +450,9 @@ describe("requires and a delegated key's scopes", () => {
         .filter((row) => permdock.can(drive.read, row))
         .map((row) => row.id);
     };
-    expect(await read(["file:read", "drive:create"])).toEqual(["d-acme"]);
-    expect(await read(["drive:read", "file:read"])).toEqual([]);
-    expect(await read(["drive:read", "drive:create"])).toEqual([]);
+    expect(await read(["file:read", "drive:create"])).toStrictEqual(["d-acme"]);
+    expect(await read(["drive:read", "file:read"])).toStrictEqual([]);
+    expect(await read(["drive:read", "drive:create"])).toStrictEqual([]);
   });
 
   it("checks only the required key in the RLS key ceiling of a read share", () => {
@@ -575,28 +569,28 @@ describe("requires and a key's scopes on a write", () => {
 
   it("keeps a key that covers only the required permission off a write share", async () => {
     const readOnly = await keyed(["member"], ["file:read"]);
-    expect(ids(readOnly, node.read)).toEqual(["n-edit"]);
-    expect(ids(readOnly, node.update)).toEqual([]);
+    expect(ids(readOnly, node.read)).toStrictEqual(["n-edit"]);
+    expect(ids(readOnly, node.update)).toStrictEqual([]);
     const decision = readOnly.decide(node.update, rows[0]);
     expect(
       decision.outcome === "denied"
         ? decision.denials.map((denial) => denial.reason)
         : [],
-    ).toEqual(["not-delegated"]);
+    ).toStrictEqual(["not-delegated"]);
     const writer = await keyed(["member"], ["node:update", "file:read"]);
-    expect(ids(writer, node.update)).toEqual(["n-edit"]);
+    expect(ids(writer, node.update)).toStrictEqual(["n-edit"]);
   });
 
   it("does not let the required permission stand in for a role grant's own", async () => {
     const reviewer = await keyed(["member", "reviewer"], ["file:read"]);
-    expect(ids(reviewer, node.read)).toEqual(["n-edit"]);
+    expect(ids(reviewer, node.read)).toStrictEqual(["n-edit"]);
     const roleOnly = await keyed(["member", "reviewer"], ["node:read"]);
-    expect(ids(roleOnly, node.read)).toEqual([]);
+    expect(ids(roleOnly, node.read)).toStrictEqual([]);
     const both = await keyed(
       ["member", "reviewer"],
       ["node:read", "file:read"],
     );
-    expect(ids(both, node.read)).toEqual(["n-edit", "n-other"]);
+    expect(ids(both, node.read)).toStrictEqual(["n-edit", "n-other"]);
   });
 
   it("checks the granted and every required key in the RLS key ceiling of a write share", () => {

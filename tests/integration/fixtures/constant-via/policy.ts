@@ -22,9 +22,6 @@ export const policy = definePolicy(permissions, {
   scopes: { org: { key: "org_id" } },
   subject: (user: Principal | null) => user,
   roles: [
-    role("admin", [allow(permissions.doc.read)], {
-      on: "org",
-      for: ["staff"],
-    }),
+    role("admin", [allow(permissions.doc.read)], { on: "org", for: ["staff"] }),
   ],
 });

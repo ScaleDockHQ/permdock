@@ -63,10 +63,7 @@ export const policy = definePolicy(permissions, {
       requires: [file.read, file.update],
     }),
   ],
-  subject: (user: KeysUser) => ({
-    id: user.id,
-    memberships: user.memberships,
-  }),
+  subject: (user: KeysUser) => ({ id: user.id, memberships: user.memberships }),
 });
 
 const uuid = (n: number): string =>

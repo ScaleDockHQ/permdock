@@ -5,8 +5,8 @@ import { saasPermissions as p, saasRoles as r } from "permdock/testing/saas";
 
 /**
  * The folder grants of `saasPolicy`, verbatim. The full policy also carries
- * plan gates, a closure deny and a quota, which RLS cannot compile, so
- * `rls generate` refuses it as a whole.
+ * plan gates, a closure deny and a quota, which RLS cannot compile, so `rls
+ * generate` refuses it as a whole.
  */
 export const policy = definePolicy(
   { permissions: p, roles: r },

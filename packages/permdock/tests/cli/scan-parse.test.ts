@@ -37,27 +37,29 @@ vi.mock(import("oxc-parser"), async (importOriginal) => {
   };
 });
 
-afterAll(removeProjects);
+describe("scan parse", () => {
+  afterAll(removeProjects);
 
-describe("scanSources parse failures", () => {
-  it("reports a file the parser throws on and keeps scanning the rest", () => {
-    const files = {
-      "throws.ts": "export const a = 1;",
-      "throws-value.ts": "export const b = 1;",
-      "unlabelled.ts": "const = ;",
-      "ok.ts": "can(permissions.post.read);",
-    };
-    const cwd = project(files);
-    const result = scanSources(
-      cwd,
-      Object.keys(files).map((file) => path.join(cwd, file)),
-      new Set(["post.read"]),
-    );
-    expect(result.unparsed).toEqual([
-      { file: "throws.ts", line: 1, message: "parser crashed" },
-      { file: "throws-value.ts", line: 1, message: "native failure" },
-      { file: "unlabelled.ts", line: 1, message: "unexpected token" },
-    ]);
-    expect(Object.keys(result.usages)).toEqual(["post.read"]);
+  describe("scanSources parse failures", () => {
+    it("reports a file the parser throws on and keeps scanning the rest", () => {
+      const files = {
+        "throws.ts": "export const a = 1;",
+        "throws-value.ts": "export const b = 1;",
+        "unlabelled.ts": "const = ;",
+        "ok.ts": "can(permissions.post.read);",
+      };
+      const cwd = project(files);
+      const result = scanSources(
+        cwd,
+        Object.keys(files).map((file) => path.join(cwd, file)),
+        new Set(["post.read"]),
+      );
+      expect(result.unparsed).toStrictEqual([
+        { file: "throws.ts", line: 1, message: "parser crashed" },
+        { file: "throws-value.ts", line: 1, message: "native failure" },
+        { file: "unlabelled.ts", line: 1, message: "unexpected token" },
+      ]);
+      expect(Object.keys(result.usages)).toStrictEqual(["post.read"]);
+    });
   });
 });

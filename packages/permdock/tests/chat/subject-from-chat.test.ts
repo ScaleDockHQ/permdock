@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { subjectFromChat } from "../../src/chat/index.ts";
 import { chatPrincipals, member, stranger } from "../fixtures/chat.ts";
 
-describe("subjectFromChat", () => {
+describe(subjectFromChat, () => {
   it("resolves a linked author through principalByIdentity", async () => {
     const subject = await subjectFromChat(member, {
       principals: chatPrincipals,
@@ -14,7 +14,8 @@ describe("subjectFromChat", () => {
 
   it("is anonymous for an unlinked, other-workspace or missing author", async () => {
     const options = { principals: chatPrincipals };
-    expect((await subjectFromChat(stranger, options)).principal).toBeNull();
+    const { principal } = await subjectFromChat(stranger, options);
+    expect(principal).toBeNull();
     expect(
       (await subjectFromChat({ ...member, workspace: "T2" }, options))
         .principal,

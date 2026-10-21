@@ -30,7 +30,10 @@ const server = createServer(betterSupabase, {
   auth: { jwks: signer.jwks },
 });
 
-/** The claims Supabase Auth issues for `user` after the PermDock access-token hook ran; `postgres` owns the hook. */
+/**
+ * The claims Supabase Auth issues for `user` after the PermDock access-token
+ * hook ran; `postgres` owns the hook.
+ */
 async function hookClaims(user: string): Promise<Record<string, unknown>> {
   const { rows } = await pool.query<{
     event: { claims: Record<string, unknown> };
@@ -48,12 +51,12 @@ async function hookClaims(user: string): Promise<Record<string, unknown>> {
   return claims;
 }
 
-type Act = {
-  readonly read_only: boolean;
-  readonly tools: readonly string[];
-};
+type Act = { readonly read_only: boolean; readonly tools: readonly string[] };
 
-/** Olivia's hook claims plus `act`, signed, then verified the way the app verifies a request. */
+/**
+ * Olivia's hook claims plus `act`, signed, then verified the way the app
+ * verifies a request.
+ */
 async function agentSession(act: Act) {
   const jwt = await signer.sign({
     ...(await hookClaims(OLIVIA)),
@@ -71,7 +74,10 @@ async function agentSession(act: Act) {
   return auth;
 }
 
-/** What PostgREST does with a verified token: `authenticated`, with the claims in `request.jwt.claims`; rolled back. */
+/**
+ * What PostgREST does with a verified token: `authenticated`, with the claims
+ * in `request.jwt.claims`; rolled back.
+ */
 function callerQuery(claims: unknown): CallerQuery {
   return async (sql, params = []) => {
     const client = await pool.connect();

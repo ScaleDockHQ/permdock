@@ -74,7 +74,7 @@ function subject(roleNames: readonly string[]): Subject {
 
 describe("global custom roles", () => {
   it("are capped by the allows of assignable global roles", () => {
-    expect(validateCustomRole(policy, platformRole)).toEqual({
+    expect(validateCustomRole(policy, platformRole)).toStrictEqual({
       ok: false,
       permissions: ["tenant.read", "tenant.suspend"],
       dropped: [
@@ -94,9 +94,7 @@ describe("global custom roles", () => {
 
   it("grant through principal.roles and nothing else", async () => {
     const customRoles = memoryCustomRoleSource([platformRole]);
-    const holder = getPermDockSync(policy, subject(["tier2"]), {
-      customRoles,
-    });
+    const holder = getPermDockSync(policy, subject(["tier2"]), { customRoles });
     expect(holder.can(permissions.tenant.suspend)).toBe(true);
     expect(holder.can(permissions.tenant.read)).toBe(true);
     expect(holder.can(permissions.tenant.delete)).toBe(false);
@@ -118,10 +116,7 @@ describe("global custom roles", () => {
 
   it("ignore a platform role that carries a tenant, team or id", async () => {
     // SAFETY: deliberately malformed input to check the runtime guard.
-    const forged = {
-      ...platformRole,
-      tenant: "o1",
-    } as unknown as CustomRole;
+    const forged = { ...platformRole, tenant: "o1" } as unknown as CustomRole;
     const permdock = getPermDockSync(policy, subject(["tier2"]), {
       customRoles: { rolesFor: () => [], globalRoles: () => [forged] },
     });
@@ -181,22 +176,22 @@ describe("global custom roles", () => {
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.tenant.suspend)).toBe(true);
     expect(client.can(permissions.tenant.delete)).toBe(false);
-    expect(client.assignablePermissions({ scope: "global" })).toEqual([]);
+    expect(client.assignablePermissions({ scope: "global" })).toStrictEqual([]);
   });
 
   it("lists the global ceiling the subject may hand out", async () => {
     const ops = getPermDockSync(policy, subject(["billingOps"]));
     expect(
       ops.assignablePermissions({ scope: "global" }).map((leaf) => leaf.key),
-    ).toEqual(["tenant.read", "tenant.suspend"]);
+    ).toStrictEqual(["tenant.read", "tenant.suspend"]);
     const support = getPermDockSync(policy, subject(["support"]));
     expect(
       support
         .assignablePermissions({ scope: "global" })
         .map((leaf) => leaf.key),
-    ).toEqual(["tenant.read"]);
+    ).toStrictEqual(["tenant.read"]);
     const nobody = getPermDockSync(policy, subject(["superadmin"]));
-    expect(nobody.assignablePermissions({ scope: "global" })).toEqual([]);
+    expect(nobody.assignablePermissions({ scope: "global" })).toStrictEqual([]);
   });
 
   it("keeps a deny of the role's own scope", () => {
@@ -225,13 +220,13 @@ describe("global custom roles", () => {
     });
     expect(
       resolved.grants.map((grant) => `${grant.effect} ${grant.permission.key}`),
-    ).toEqual(
+    ).toStrictEqual(
       expect.arrayContaining(["allow tenant.read", "deny tenant.suspend"]),
     );
   });
 
   it("write the claim under the role name", () => {
-    expect(customRoleClaim([platformRole])).toEqual({
+    expect(customRoleClaim([platformRole])).toStrictEqual({
       tier2: ["@support", "tenant.suspend", "tenant.delete", "invoice.read"],
     });
   });

@@ -29,7 +29,7 @@ async function memberSnapshot() {
   const server = getPermDockSync(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error("expected JSON snapshot");
+    throw new TypeError("expected JSON snapshot");
   }
   return snapshot;
 }
@@ -112,7 +112,7 @@ describe("permdock/vue", () => {
   });
 
   it("builds the approval resume header", () => {
-    expect(approvalHeaders("pd1.abc")).toEqual({
+    expect(approvalHeaders("pd1.abc")).toStrictEqual({
       "PermDock-Approval": "pd1.abc",
     });
   });

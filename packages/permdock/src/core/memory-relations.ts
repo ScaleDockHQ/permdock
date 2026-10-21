@@ -25,7 +25,10 @@ export type MemoryEdge = {
 };
 
 export type MemoryRelationSourceData = {
-  /** Rows per resource: parent pointers, links, restricted flags and relation columns are read from them. */
+  /**
+   * Rows per resource: parent pointers, links, restricted flags and relation
+   * columns are read from them.
+   */
   readonly rows?: Readonly<
     Record<string, readonly Readonly<Record<string, unknown>>[]>
   >;
@@ -34,16 +37,19 @@ export type MemoryRelationSourceData = {
     Record<string, Readonly<Record<string, readonly MemoryEdge[]>>>
   >;
   /**
-   * Edge tables as the database holds them, keyed by `edge` name: each row
-   * is read through the relation's `object`, `subject`, `expiresAt`, `match`
-   * and `groups` columns. A relation whose table is here ignores `edges`.
+   * Edge tables as the database holds them, keyed by `edge` name: each row is
+   * read through the relation's `object`, `subject`, `expiresAt`, `match` and
+   * `groups` columns. A relation whose table is here ignores `edges`.
    */
   readonly tables?: Readonly<
     Record<string, readonly Readonly<Record<string, unknown>>[]>
   >;
 };
 
-/** The holders one edge-table row names for `spec`: none when the row does not belong to it. */
+/**
+ * The holders one edge-table row names for `spec`: none when the row does not
+ * belong to it.
+ */
 function tableHolders(
   resourceName: string,
   spec: EdgeRelation,
@@ -142,9 +148,7 @@ function edgeHolder(edge: MemoryEdge): RelationHolder {
     principal: { id: string };
     startsAt?: number;
     expiresAt?: number;
-  } = {
-    principal: { id: edge.principal },
-  };
+  } = { principal: { id: edge.principal } };
   if (edge.startsAt !== undefined) {
     holder.startsAt = edge.startsAt;
   }

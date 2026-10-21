@@ -1,15 +1,25 @@
 import { basename } from "node:path";
 
+import type { Policy } from "../../index.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { PermDockConfig, RlsShimsConfig } from "../types.ts";
 import type { GenerateContext } from "./generate-context.ts";
+import type {
+  GenerateOptions,
+  Refusal,
+  RlsGenerateInput,
+} from "./generate-options.ts";
 import type { SplitSql } from "./generate-output.ts";
+import type { GeneratedPolicies } from "./generate-policies.ts";
+import type { RolePermission } from "./helpers.ts";
+import type { IndexTarget } from "./indexes.ts";
 
 import { compact } from "../../core/compact.ts";
 import { renamedKeys } from "../../core/permission-registry.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
-import { type Policy, listPermissions } from "../../index.ts";
+import { listPermissions } from "../../index.ts";
 import { describeError } from "../core/errors.ts";
+import { nonEmptyOr } from "../core/output.ts";
 import { INDEXES_MARKER, SEEDS_MARKER } from "../sql/markers.ts";
 import { graphHelper, scopeTable } from "../sql/names.ts";
 import { quoteQualified } from "../sql/quote.ts";
@@ -33,21 +43,11 @@ import {
   migrationSql,
 } from "./emit.ts";
 import { rowBranches } from "./fields.ts";
-import {
-  type GenerateOptions,
-  type Refusal,
-  type RlsGenerateInput,
-  isRefusal,
-  splitsPart,
-} from "./generate-options.ts";
-import {
-  type GeneratedPolicies,
-  generatePolicies,
-  withHelperTables,
-} from "./generate-policies.ts";
+import { isRefusal, splitsPart } from "./generate-options.ts";
+import { generatePolicies, withHelperTables } from "./generate-policies.ts";
 import { graphSql } from "./graph.ts";
-import { type RolePermission, helpersSql, seedSql } from "./helpers.ts";
-import { type IndexTarget, indexTargets, indexesSql } from "./indexes.ts";
+import { helpersSql, seedSql } from "./helpers.ts";
+import { indexTargets, indexesSql } from "./indexes.ts";
 import { ownershipSql } from "./ownership.ts";
 import { permissionHoldersSql } from "./permission-holders.ts";
 import { permissionHelpersSql } from "./permission-keys.ts";
@@ -59,7 +59,10 @@ import { auditSql, generatedTables, triggersSql } from "./triggers.ts";
 
 export type GeneratedSql = GeneratedPolicies & {
   readonly text: string;
-  /** For Drizzle and Prisma, the SQL written next to `text`; empty for `--target sql`. */
+  /**
+   * For Drizzle and Prisma, the SQL written next to `text`; empty for `--target
+   * sql`.
+   */
   readonly migration: string;
   readonly migrationRel: string | undefined;
   readonly outRel: string;
@@ -75,7 +78,10 @@ type Preflight = {
   readonly jsonSchema: NonNullable<PermDockConfig["rls"]>["jsonSchema"];
 };
 
-/** The checks that need the SQL context: `--backfill-out`, `rls.anonymousSignIns`, `rls.jsonSchema`. */
+/**
+ * The checks that need the SQL context: `--backfill-out`,
+ * `rls.anonymousSignIns`, `rls.jsonSchema`.
+ */
 function preflight(
   input: RlsGenerateInput,
   { ctx }: GenerateContext,
@@ -232,7 +238,10 @@ function sectionsSql(
   ];
 }
 
-/** Whether `anon` calls a helper: `rls.anonExecute`, an anon field view or an anon branch reading the user id. */
+/**
+ * Whether `anon` calls a helper: `rls.anonExecute`, an anon field view or an
+ * anon branch reading the user id.
+ */
 function anonExecutes(
   input: RlsGenerateInput,
   { compiled, views }: GeneratedPolicies,
@@ -252,7 +261,10 @@ function anonExecutes(
 
 type Preamble = { readonly preamble: string; readonly audit: string };
 
-/** Everything before the table policies: helpers, sections, shims, scaffold and triggers. */
+/**
+ * Everything before the table policies: helpers, sections, shims, scaffold and
+ * triggers.
+ */
 function preambleSql(
   input: RlsGenerateInput,
   policy: Policy,
@@ -325,7 +337,7 @@ function preambleSql(
         : { trustedReaders: rls.trustedReaders }),
     }),
     permissionHelpersSql(ctx, grants, renamed, anonExecute),
-    permissionHoldersSql(ctx) || undefined,
+    nonEmptyOr(permissionHoldersSql(ctx), undefined),
     actorKinds === undefined ? undefined : actorMayWriteSql(ctx, actorKinds),
     usesLiveSession ? sessionLiveHelperSql(ctx) : undefined,
     ...sections,
@@ -385,9 +397,9 @@ function forceWarnings({ graph }: GenerateContext, warnings: string[]): void {
 }
 
 /**
- * The row columns that belong to a table. With `rls.tables` set, a resource
- * it does not name is a table only when generated policies are written for
- * it; with `--helpers-only` it has none, so it gets no index.
+ * The row columns that belong to a table. With `rls.tables` set, a resource it
+ * does not name is a table only when generated policies are written for it;
+ * with `--helpers-only` it has none, so it gets no index.
  */
 function tableColumns(
   rowColumns: GeneratedPolicies["compiled"]["rowColumns"],
@@ -482,7 +494,10 @@ function emitTarget(
   return { text, migration, migrationRel, outRel };
 }
 
-/** The generated SQL for one run, before `--db-url-stdin` prunes the index targets. */
+/**
+ * The generated SQL for one run, before `--db-url-stdin` prunes the index
+ * targets.
+ */
 export function generateSql(
   input: RlsGenerateInput,
   policy: Policy,

@@ -17,16 +17,16 @@ export type PermissionState = {
 
 export type PermissionSet = {
   readonly granted: readonly Permission[];
-  get(permission: Permission): PermissionState | undefined;
+  get: (permission: Permission) => PermissionState | undefined;
 };
 
 export type ClientPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
   PermDock<V> & {
-    status(permission?: Permission, data?: unknown): ClientStatus;
-    invalidate(ref: Permission | { readonly [key: string]: unknown }): void;
-    refresh(options?: { readonly tenant?: string }): Promise<void>;
-    clear(): void;
-    subscribe(listener: () => void): () => void;
+    status: (permission?: Permission, data?: unknown) => ClientStatus;
+    invalidate: (ref: Permission | { readonly [key: string]: unknown }) => void;
+    refresh: (options?: { readonly tenant?: string }) => Promise<void>;
+    clear: () => void;
+    subscribe: (listener: () => void) => () => void;
   };
 
 export type ApprovalState =
@@ -60,12 +60,12 @@ export type TenantView = {
 
 export type FilterResult<T> = readonly T[] & { readonly partial: boolean };
 
-export type RolesOptions = {
-  readonly tenant?: string;
-  readonly team?: string;
-};
+export type RolesOptions = { readonly tenant?: string; readonly team?: string };
 
-/** The provider options Vue, Svelte and Solid share; each adds its own reactive `snapshot`, `tenant`, `headers`, `verifier` and `defaults`. */
+/**
+ * The provider options Vue, Svelte and Solid share; each adds its own reactive
+ * `snapshot`, `tenant`, `headers`, `verifier` and `defaults`.
+ */
 export type ProviderOptionsBase = {
   /**
    * The AuthZEN evaluations endpoint for checks the snapshot cannot answer.
@@ -88,13 +88,16 @@ export type ProviderOptionsBase = {
   readonly approvalInterval?: number;
 };
 
-/** How a control shows a permission it cannot use: hidden, or disabled with a reason. */
+/**
+ * How a control shows a permission it cannot use: hidden, or disabled with a
+ * reason.
+ */
 export type GateMode = "hide" | "disable";
 
 /**
- * Everything a permission-gated control renders from, in one value: a
- * button, a menu item or a link reads these fields and decides nothing
- * itself. The client is a hint; the server checks again.
+ * Everything a permission-gated control renders from, in one value: a button, a
+ * menu item or a link reads these fields and decides nothing itself. The client
+ * is a hint; the server checks again.
  */
 export type GateView = {
   /** The decision granted the action. */
@@ -103,11 +106,17 @@ export type GateView = {
   readonly pending: boolean;
   /** `mode: "hide"` and the action is not available: render nothing. */
   readonly hidden: boolean;
-  /** The control cannot run the action now (denied, pending or awaiting approval). */
+  /**
+   * The control cannot run the action now (denied, pending or awaiting
+   * approval).
+   */
   readonly disabled: boolean;
   /** The decision needs a person's approval first; offer to request it. */
   readonly needsApproval: boolean;
-  /** The plans that would grant the action, for an upgrade prompt; empty otherwise. */
+  /**
+   * The plans that would grant the action, for an upgrade prompt; empty
+   * otherwise.
+   */
   readonly upgrade: readonly string[];
   /** Title and detail for a tooltip or an accessible description. */
   readonly reason: DecisionDescription;

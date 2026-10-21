@@ -31,7 +31,10 @@ import {
   unauthenticatedProblem,
 } from "./problem.ts";
 
-/** What `guardOn` reads besides the request: the policy, the kernel options it honours and the adapter name. */
+/**
+ * What `guardOn` reads besides the request: the policy, the kernel options it
+ * honours and the adapter name.
+ */
 export type RouteGuardDeps = {
   readonly policy: Policy;
   readonly options: Pick<
@@ -220,12 +223,7 @@ export async function guardOn<T, V extends PolicyVocabulary>(
   );
   if (decision.outcome === "granted") {
     // SAFETY: T is the data loader's result type; data is undefined only when no loader was passed.
-    return {
-      ok: true,
-      permdock: instance,
-      decision,
-      data: data as T,
-    };
+    return { ok: true, permdock: instance, decision, data: data as T };
   }
   return refused(
     deps.options.deniedResponse,

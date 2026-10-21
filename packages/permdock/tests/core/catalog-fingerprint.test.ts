@@ -23,7 +23,7 @@ const catalog = {
   roles: [{ key: "member", assignable: true }],
 };
 
-describe("catalogFingerprint", () => {
+describe(catalogFingerprint, () => {
   it("is stable across key order, whitespace, clock, generator and usages", () => {
     const reordered: unknown = JSON.parse(
       JSON.stringify({

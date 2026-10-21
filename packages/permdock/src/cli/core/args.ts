@@ -30,7 +30,10 @@ type Lookup = ReadonlyMap<
   { readonly name: string; readonly negated: boolean }
 >;
 
-/** Every spelling a flag set accepts: `--name`, `--no-name` for booleans, `-x` aliases. */
+/**
+ * Every spelling a flag set accepts: `--name`, `--no-name` for booleans, `-x`
+ * aliases.
+ */
 function lookupOf(flags: Flags): Lookup {
   const lookup = new Map<string, { name: string; negated: boolean }>();
   for (const [name, flag] of Object.entries(flags)) {
@@ -49,7 +52,10 @@ export function flagSpellings(flags: Flags): readonly string[] {
   return [...lookupOf(flags).keys()];
 }
 
-/** A value never starts with `-`, bar `-` itself: `--out --check` is a bare `--out`. */
+/**
+ * A value never starts with `-`, bar `-` itself: `--out --check` is a bare
+ * `--out`.
+ */
 function isValue(token: string | undefined): token is string {
   return token !== undefined && (token === "-" || !token.startsWith("-"));
 }
@@ -84,8 +90,8 @@ export type RawParse = {
 };
 
 /**
- * Splits argv into the flags `flags` declares, positionals and the tokens
- * after `--`. An undeclared flag is a usage error naming the nearest one.
+ * Splits argv into the flags `flags` declares, positionals and the tokens after
+ * `--`. An undeclared flag is a usage error naming the nearest one.
  * `--name=value`, `--name value`, `--no-name` and `-x` aliases all read.
  */
 export function parseFlags(
@@ -127,7 +133,9 @@ export function parseFlags(
       continue;
     }
     if (flag.type === "boolean") {
-      if (eq !== -1) {
+      if (eq === -1) {
+        values.set(found.name, !found.negated);
+      } else {
         const raw = token.slice(eq + 1);
         if (raw !== "true" && raw !== "false") {
           throw new CliError(
@@ -137,8 +145,6 @@ export function parseFlags(
           );
         }
         values.set(found.name, (raw === "true") !== found.negated);
-      } else {
-        values.set(found.name, !found.negated);
       }
       continue;
     }

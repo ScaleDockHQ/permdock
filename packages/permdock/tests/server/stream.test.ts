@@ -49,7 +49,7 @@ async function collect(iterable: AsyncIterable<unknown>): Promise<unknown[]> {
   return out;
 }
 
-describe("isAsyncIterable", () => {
+describe(isAsyncIterable, () => {
   it.each<[unknown, boolean]>([
     [items([]), true],
     [{ [Symbol.asyncIterator]: 1 }, false],
@@ -61,7 +61,7 @@ describe("isAsyncIterable", () => {
   });
 });
 
-describe("guardIterable", () => {
+describe(guardIterable, () => {
   it("yields every item without an items permission and returns the source value", async () => {
     const { open } = kernel();
     const real = await open();
@@ -70,9 +70,9 @@ describe("guardIterable", () => {
     const guarded = guardIterable(items([1, 2]), connection, {
       onRevoked: (error) => error,
     });
-    expect(await guarded.next()).toEqual({ value: 1, done: false });
-    expect(await guarded.next()).toEqual({ value: 2, done: false });
-    expect(await guarded.next()).toEqual({ value: "done", done: true });
+    expect(await guarded.next()).toStrictEqual({ value: 1, done: false });
+    expect(await guarded.next()).toStrictEqual({ value: 2, done: false });
+    expect(await guarded.next()).toStrictEqual({ value: "done", done: true });
     expect(close).toHaveBeenCalledOnce();
   });
 
@@ -92,7 +92,7 @@ describe("guardIterable", () => {
         },
       ),
     );
-    expect(updatable).toEqual([{ data: ownPost }]);
+    expect(updatable).toStrictEqual([{ data: ownPost }]);
   });
 
   it("throws the framework error when the connection is revoked mid-stream", async () => {
@@ -151,7 +151,7 @@ describe("guardIterable", () => {
         }),
       ),
     ).rejects.toBeInstanceOf(PermDockRevokedError);
-    expect(codes).toEqual(["denied"]);
+    expect(codes).toStrictEqual(["denied"]);
 
     const failing: AsyncIterable<unknown> = {
       [Symbol.asyncIterator]: () => ({
@@ -166,7 +166,7 @@ describe("guardIterable", () => {
   });
 });
 
-describe("onRevoked", () => {
+describe(onRevoked, () => {
   it("ends once with the revocation Problem Details, now or on abort", async () => {
     const { open, revocations } = kernel();
     const connection = await open();
@@ -174,7 +174,7 @@ describe("onRevoked", () => {
     onRevoked(connection, (problem) => {
       ended.push(problem);
     });
-    expect(ended).toEqual([]);
+    expect(ended).toStrictEqual([]);
     await revocations.revoke({ principal: "u1", kind: "session-revoked" });
     expect(ended).toHaveLength(1);
     expect(ended[0]).toMatchObject({ status: expect.any(Number) });

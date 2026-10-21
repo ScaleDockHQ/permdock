@@ -42,12 +42,18 @@ const STATUSES: readonly SsfStreamStatus["status"][] = [
 export type SsfTransmitterOptions = {
   /** `iss` of every stream and of the metadata; the `iss` the signer writes. */
   readonly issuer: string;
-  /** The URL the handler is mounted at; endpoints are `<endpoint>/stream`, `/status`, `/verify` and `/poll`. Default `issuer`. */
+  /**
+   * The URL the handler is mounted at; endpoints are `<endpoint>/stream`,
+   * `/status`, `/verify` and `/poll`. Default `issuer`.
+   */
   readonly endpoint?: string;
   readonly streams: SsfStreamStore;
   readonly queue: SetQueue;
   readonly signer: TokenSigner;
-  /** The receiver the request's credentials authenticate, or `null` to refuse it with `401`. */
+  /**
+   * The receiver the request's credentials authenticate, or `null` to refuse it
+   * with `401`.
+   */
   readonly authorize: (
     request: Request,
   ) => string | null | Promise<string | null>;
@@ -68,7 +74,10 @@ export type FanOutSetOptions = {
   readonly fetch?: typeof fetch;
 };
 
-/** How one stream took a SET. `queued` is `true` for a poll stream and for a paused push stream. */
+/**
+ * How one stream took a SET. `queued` is `true` for a poll stream and for a
+ * paused push stream.
+ */
 export type SsfFanOut = {
   readonly stream: string;
   readonly jti: string;
@@ -120,9 +129,9 @@ function readDelivery(
 }
 
 /**
- * The receiver-supplied properties of a stream request (SSF 1.0 section
- * 8.1.1). `previous` keeps the properties a PATCH leaves out; without it an
- * absent property takes its default. Transmitter-supplied properties are ignored.
+ * The receiver-supplied properties of a stream request (SSF 1.0 section 8.1.1).
+ * `previous` keeps the properties a PATCH leaves out; without it an absent
+ * property takes its default. Transmitter-supplied properties are ignored.
  */
 function readProperties(
   body: Readonly<Record<string, unknown>>,
@@ -199,7 +208,10 @@ async function owned(
   return stream?.owner === owner ? stream : notFoundProblem();
 }
 
-/** Acknowledges every pending SET of `stream`; a queue that never empties is read at most until it repeats. */
+/**
+ * Acknowledges every pending SET of `stream`; a queue that never empties is
+ * read at most until it repeats.
+ */
 async function drain(queue: SetQueue, stream: string): Promise<void> {
   let previous: string | undefined;
   for (;;) {
@@ -217,7 +229,10 @@ async function drain(queue: SetQueue, stream: string): Promise<void> {
   }
 }
 
-/** Pushes the SETs a paused push stream held, oldest first, until one may be retried. */
+/**
+ * Pushes the SETs a paused push stream held, oldest first, until one may be
+ * retried.
+ */
 async function flush(
   queue: SetQueue,
   configuration: SsfStreamConfiguration,
@@ -291,9 +306,9 @@ async function deliver(
 
 /**
  * Signs `event` once per distinct stream audience and delivers it to every
- * stream that is not disabled and has the event in `events_delivered`: a
- * push stream through `pushSet`, a poll stream or a paused stream into the
- * queue. Answers one row per stream that took the event.
+ * stream that is not disabled and has the event in `events_delivered`: a push
+ * stream through `pushSet`, a poll stream or a paused stream into the queue.
+ * Answers one row per stream that took the event.
  */
 export async function fanOutSet(
   event: SetEvent,
@@ -347,10 +362,10 @@ export async function fanOutSet(
 
 /**
  * An SSF 1.0 transmitter as one Fetch handler, routed by path suffix:
- * `/.well-known/ssf-configuration` (section 7.1), `/stream` (8.1.1),
- * `/status` (8.1.2), `/verify` (8.1.4) and `/poll` (RFC 8936). Each receiver
- * sees only the streams it created. Disabling or deleting a stream drops its
- * pending SETs; a paused stream holds them until it is enabled again.
+ * `/.well-known/ssf-configuration` (section 7.1), `/stream` (8.1.1), `/status`
+ * (8.1.2), `/verify` (8.1.4) and `/poll` (RFC 8936). Each receiver sees only
+ * the streams it created. Disabling or deleting a stream drops its pending
+ * SETs; a paused stream holds them until it is enabled again.
  */
 export function ssfTransmitter(
   options: SsfTransmitterOptions,

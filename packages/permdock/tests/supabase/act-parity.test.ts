@@ -35,11 +35,13 @@ describe("act claim parity with better-supabase", () => {
       const read = actorOf(fixture.claims);
       expect(read.ok).toBe(true);
       expect(read.ok && read.actor).toMatchObject(fixture.expect.actor);
-      expect(betterSupabaseActor(fixture.claims)).toEqual(fixture.expect.actor);
+      expect(betterSupabaseActor(fixture.claims)).toStrictEqual(
+        fixture.expect.actor,
+      );
       const scopes = fixture.expect.delegation?.scopes.filter(
         (scope) => !IDENTITY.has(scope),
       );
-      expect(delegationOf(fixture.claims)?.scopes).toEqual(scopes);
+      expect(delegationOf(fixture.claims)?.scopes).toStrictEqual(scopes);
     },
   );
 
@@ -82,7 +84,7 @@ describe("act claim parity with better-supabase", () => {
     (actCase) => {
       const read = actorOf({ sub: agentRun.sub, ...actCase.claims });
       if (!actCase.valid) {
-        expect(read).toEqual({ ok: false, reason: "invalid-chain" });
+        expect(read).toStrictEqual({ ok: false, reason: "invalid-chain" });
         return;
       }
       expect(read.ok).toBe(true);
@@ -91,17 +93,17 @@ describe("act claim parity with better-supabase", () => {
       expect(
         actor !== undefined && "readOnly" in actor ? actor.readOnly : null,
       ).toBe(actCase.readOnly);
-      expect(actor?.kind === "agent" ? (actor.tools ?? null) : null).toEqual(
-        actCase.tools,
-      );
+      expect(
+        actor?.kind === "agent" ? (actor.tools ?? null) : null,
+      ).toStrictEqual(actCase.tools);
     },
   );
 
   it("covers every kept divergence with an act case", () => {
     const names = new Set(actCases.cases.map((c) => c.name));
-    expect([...KEPT_DIVERGENCES].filter((name) => !names.has(name))).toEqual(
-      [],
-    );
+    expect(
+      [...KEPT_DIVERGENCES].filter((name) => !names.has(name)),
+    ).toStrictEqual([]);
   });
 
   it.each([
@@ -113,7 +115,10 @@ describe("act claim parity with better-supabase", () => {
     "refuses an agent level with %s, which better-supabase drops",
     (_, extra) => {
       const claims = withAgent(extra);
-      expect(actorOf(claims)).toEqual({ ok: false, reason: "invalid-chain" });
+      expect(actorOf(claims)).toStrictEqual({
+        ok: false,
+        reason: "invalid-chain",
+      });
       expect(betterSupabaseActor(claims)).toBeUndefined();
     },
   );

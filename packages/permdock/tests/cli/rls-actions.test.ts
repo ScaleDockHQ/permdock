@@ -58,7 +58,7 @@ const base: RlsSqlContext = {
   gucPrefix: "app",
 };
 
-describe("commandFor", () => {
+describe(commandFor, () => {
   it("merges rls.actions over the default verbs", () => {
     expect(commandFor("read")).toBe("select");
     expect(commandFor("view")).toBeUndefined();
@@ -82,7 +82,7 @@ describe("rls.actions", () => {
       compiled.branches
         .filter((branch) => branch.permissionKey === "quote.view")
         .map((branch) => branch.command),
-    ).toEqual(["select", "select"]);
+    ).toStrictEqual(["select", "select"]);
     expect(
       compiled.branches.some((branch) =>
         ["quote.send", "quote.approve"].includes(branch.permissionKey),
@@ -91,7 +91,7 @@ describe("rls.actions", () => {
     const rows = compiled.rolePermissions.map(
       (row) => `${row.role} ${row.grantKey} ${row.effect}`,
     );
-    expect(rows).toEqual(
+    expect(rows).toStrictEqual(
       expect.arrayContaining([
         "admin quote.view allow",
         "admin quote.send#1 allow",
@@ -101,7 +101,7 @@ describe("rls.actions", () => {
       ]),
     );
     expect(rows.some((row) => row.includes("quote.archive"))).toBe(false);
-    expect(warnings).toEqual([
+    expect(warnings).toStrictEqual([
       "skipped admin/quote.archive: a role_permissions row cannot carry validFrom / validUntil, so a time-bounded grant on an action with no SQL command is not seeded",
     ]);
   });
@@ -125,8 +125,8 @@ describe("rls.actions", () => {
       archive: "none",
     });
     const partial = run({ view: "select" });
-    expect(partial.compiled).toEqual(mapped.compiled);
-    expect(partial.warnings).toEqual(mapped.warnings);
+    expect(partial.compiled).toStrictEqual(mapped.compiled);
+    expect(partial.warnings).toStrictEqual(mapped.warnings);
   });
 
   it("seeds an unconditional allow under its own key and skips non-role grants", () => {
@@ -140,7 +140,7 @@ describe("rls.actions", () => {
     );
     const warnings: string[] = [];
     const compiled = compileGrants(solo, base, undefined, warnings, false);
-    expect(compiled.rolePermissions).toEqual([
+    expect(compiled.rolePermissions).toStrictEqual([
       {
         role: "admin",
         permission: "quote.send",

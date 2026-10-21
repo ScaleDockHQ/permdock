@@ -6,11 +6,11 @@ describe("permdock/next/plugin", () => {
   it("returns a Next config function that resolves the wrapped config", async () => {
     const withPermDock = createPermDockPlugin({ onDrift: "warn" });
     const config = withPermDock(async (phase: string) => ({ phase }));
-    await expect(config("phase-production-server", {})).resolves.toEqual({
+    await expect(config("phase-production-server", {})).resolves.toStrictEqual({
       phase: "phase-production-server",
     });
     await expect(
       withPermDock({ reactStrictMode: true })("phase-export", {}),
-    ).resolves.toEqual({ reactStrictMode: true });
+    ).resolves.toStrictEqual({ reactStrictMode: true });
   });
 });

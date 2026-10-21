@@ -23,8 +23,8 @@ const row = { orgId: "o1", authorId: "u1", tags: ["a"], deletedAt: null };
 const eq: Condition = { op: "eq", field: "orgId", value: "o1" };
 
 /**
- * One sample per operator. `orm` and `rls` say which compilers may refuse it:
- * a refusal is only allowed as the explicit non-portable error.
+ * One sample per operator. `orm` and `rls` say which compilers may refuse it: a
+ * refusal is only allowed as the explicit non-portable error.
  */
 const samples: Record<
   Op,
@@ -153,16 +153,18 @@ describe("invariant 6: every operator is portable or refuses explicitly", () => 
       });
 
       it("evaluates in process to a boolean", () => {
-        expect(
-          typeof evaluateCondition(sample.condition, row, subject, 0),
-        ).toBe("boolean");
+        expect(evaluateCondition(sample.condition, row, subject, 0)).toBeTypeOf(
+          "boolean",
+        );
       });
 
       it("is plain JSON that round-trips", () => {
-        expect(JSON.parse(JSON.stringify(sample.condition))).toEqual(
+        expect(JSON.parse(JSON.stringify(sample.condition))).toStrictEqual(
           sample.condition,
         );
-        expect(structuredClone(sample.condition)).toEqual(sample.condition);
+        expect(structuredClone(sample.condition)).toStrictEqual(
+          sample.condition,
+        );
       });
 
       it(`ORM where: ${sample.orm}`, () => {
@@ -176,7 +178,7 @@ describe("invariant 6: every operator is portable or refuses explicitly", () => 
       });
 
       it(`RLS SQL: ${sample.rls}`, () => {
-        expect(typeof compileConditionSql(sample.condition, rlsContext)).toBe(
+        expect(compileConditionSql(sample.condition, rlsContext)).toBeTypeOf(
           "string",
         );
       });

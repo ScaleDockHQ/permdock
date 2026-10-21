@@ -8,6 +8,7 @@ import {
   permissions as fixture,
   policy as fixturePolicy,
 } from "../fixtures/named-scopes.ts";
+import { defined } from "../support/defined.ts";
 
 const read = (path: string): unknown =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
@@ -21,14 +22,14 @@ const catalog = read(`${EXAMPLE}permissions.catalog.json`) as {
 const permission = (key: string): Permission => ({
   key,
   scope: key.replace(".", ":"),
-  resource: key.split(".")[0]!,
-  action: key.split(".")[1]!,
+  resource: defined(key.split(".")[0]),
+  action: defined(key.split(".")[1]),
   meta: {},
   kind: "instance",
 });
 const options = { manifest, catalog, scope: "organization" } as const;
 
-describe("bucketPolicy", () => {
+describe(bucketPolicy, () => {
   it("checks catalog keys with the helpers at the scope", () => {
     const policy = bucketPolicy(
       {
@@ -39,7 +40,7 @@ describe("bucketPolicy", () => {
       },
       { ...options, segment: 2 },
     );
-    expect(policy).toEqual({
+    expect(policy).toStrictEqual({
       access: {
         read: "quotes.read",
         list: "quotes.list",
@@ -68,14 +69,11 @@ describe("bucketPolicy", () => {
       /is not in permissions.catalog.json/u,
     );
     const conditioned = structuredClone(catalog);
-    conditioned.permissions.find(
-      (entry) => entry.key === "quotes.read",
-    )!.rowConditions = true;
+    defined(
+      conditioned.permissions.find((entry) => entry.key === "quotes.read"),
+    ).rowConditions = true;
     expect(() =>
-      bucketPolicy(access("quotes.read"), {
-        ...options,
-        catalog: conditioned,
-      }),
+      bucketPolicy(access("quotes.read"), { ...options, catalog: conditioned }),
     ).toThrow(/has row conditions/u);
   });
 
@@ -98,14 +96,14 @@ describe("bucketPolicy", () => {
   });
 });
 
-describe("topicPolicy", () => {
+describe(topicPolicy, () => {
   it("checks receive and send", () => {
     expect(
       topicPolicy(
         { receive: permission("quotes.read"), send: permission("quotes.list") },
         { ...options, scope: "customer" },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       receive: "quotes.read",
       send: "quotes.list",
       scope: "customer",
@@ -129,7 +127,7 @@ describe("policies from the policy definition", () => {
         { read: fixture.asset.update, write: fixture.asset.update },
         { ...from, segment: 2 },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       access: { read: "asset.update", write: "asset.update" },
       scope: "organization",
       segment: 2,
@@ -186,7 +184,7 @@ describe("policies from the policy definition", () => {
         },
         from,
       ).access,
-    ).toEqual({
+    ).toStrictEqual({
       read: "asset.update",
       list: "asset.update",
       write: "asset.update",

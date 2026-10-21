@@ -183,10 +183,7 @@ An app whose client checks are all portable needs no decision route. `endpoint: 
 
 ```ts
 export const { PermDockProvider, getPermDock, requirePermission } =
-  createPermDock(policy, {
-    subject,
-    endpoint: false,
-  });
+  createPermDock(policy, { subject, endpoint: false });
 ```
 
 The client never fetches. A check the snapshot cannot answer (a closure, a graph relation, a `period` grant, or a key outside `include`) is `denied` with reason `server-only` and `status: 'server-only'`, and the provider logs the first such permission once with `console.info`. Those checks belong on the server: `getPermission` in a Server Component, or `permdock.can(p, row)` while building a cached list. `permdock doctor` PD044 warns when `usePermission` reads such a grant and the app has neither a `permdockHandler` route nor an `endpoint`.
@@ -269,16 +266,8 @@ import {
   subjectFromSupabaseSession,
 } from "permdock/supabase";
 
-subjectFromSupabase(claims, {
-  claims: {
-    memberships: "memberships",
-  },
-}); // verified claims
-subjectFromSupabaseSession(session, {
-  claims: {
-    memberships: "memberships",
-  },
-}); // any { kind, claims } session
+subjectFromSupabase(claims, { claims: { memberships: "memberships" } }); // verified claims
+subjectFromSupabaseSession(session, { claims: { memberships: "memberships" } }); // any { kind, claims } session
 ```
 
 `subjectFromSupabaseSession` maps only `kind: 'user'`. `anon`, `service`, `invalid` or an unknown `kind` become the anonymous subject whatever `claims` holds. A top-level `user_role: null` (what the RBAC hook writes for a user without a role row) falls back to `app_metadata.user_role`.
@@ -299,9 +288,7 @@ export async function loadSnapshot(orgId: string) {
   const { session } = await bs.cached({ tags: [`org:${orgId}`] });
   cacheTag(snapshotTag(session.kind === "user" ? session.user.id : null));
   const subject = subjectFromSupabaseSession(session, {
-    claims: {
-      memberships: "memberships",
-    },
+    claims: { memberships: "memberships" },
   });
   const snapshot = snapshotFor(policy, subject, { tenant: orgId });
   cacheLife({ stale: cacheLifeFor(snapshot).stale });

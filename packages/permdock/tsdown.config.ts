@@ -8,21 +8,21 @@ const SVELTE_SOURCES = ["Protected.svelte", "PermissionBoundary.svelte"];
 
 function sveltePlugin(): {
   readonly name: string;
-  resolveId(
+  resolveId: (
     source: string,
     importer: string | undefined,
-  ): { readonly id: string; readonly external: true } | null;
-  transform(
+  ) => { readonly id: string; readonly external: true } | null;
+  transform: (
     code: string,
     id: string,
-  ): { readonly code: string; readonly map: unknown } | undefined;
-  generateBundle(this: {
-    emitFile(file: {
+  ) => { readonly code: string; readonly map: unknown } | undefined;
+  generateBundle: (this: {
+    emitFile: (file: {
       readonly type: "asset";
       readonly fileName: string;
       readonly source: string;
-    }): string;
-  }): void;
+    }) => string;
+  }) => void;
 } {
   return {
     name: "svelte",
@@ -53,10 +53,7 @@ function sveltePlugin(): {
       if (!id.endsWith(".svelte")) {
         return undefined;
       }
-      const result = compile(code, {
-        filename: id,
-        css: "injected",
-      });
+      const result = compile(code, { filename: id, css: "injected" });
       return { code: result.js.code, map: result.js.map };
     },
   };
@@ -64,10 +61,10 @@ function sveltePlugin(): {
 
 function clientReferencePlugin(): {
   readonly name: string;
-  resolveId(
+  resolveId: (
     source: string,
     importer: string | undefined,
-  ): { readonly id: string; readonly external: true } | null;
+  ) => { readonly id: string; readonly external: true } | null;
 } {
   return {
     // The server entry imports the provider from the built
@@ -89,9 +86,7 @@ export default defineConfig({
   plugins: [sveltePlugin(), clientReferencePlugin()],
   // `sideEffects: false` in package.json promises consumers the same; externals
   // keep the default so a bare `import 'server-only'` survives.
-  treeshake: {
-    moduleSideEffects: [{ external: false, sideEffects: false }],
-  },
+  treeshake: { moduleSideEffects: [{ external: false, sideEffects: false }] },
   entry: [
     "src/index.ts",
     "src/approvals/index.ts",

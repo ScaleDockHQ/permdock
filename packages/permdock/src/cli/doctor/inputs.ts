@@ -1,10 +1,11 @@
 import { resolve } from "node:path";
 
 import type { CustomRole, Membership, Policy } from "../../index.ts";
+import type { CollectOutcome } from "../collect.ts";
 import type { DoctorInput } from "../shared/doctor-types.ts";
 import type { CliIo } from "../types.ts";
 
-import { type CollectOutcome, runCollect } from "../collect.ts";
+import { runCollect } from "../collect.ts";
 import { doctorSrcPath } from "../files.ts";
 import { loadConfiguredPolicy } from "../project/load.ts";
 import { filesOf, readJson } from "../shared/doctor-files.ts";

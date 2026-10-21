@@ -1,4 +1,6 @@
-import { ORPCError, type Middleware } from "@orpc/server";
+import type { Middleware } from "@orpc/server";
+
+import { ORPCError } from "@orpc/server";
 
 import type { PermDockRevokedError } from "../core/errors.ts";
 import type { PermDock } from "../core/permdock.ts";
@@ -42,10 +44,7 @@ export type OrpcMiddleware<
   V extends PolicyVocabulary = PolicyVocabulary,
 > = Middleware<
   TCtx,
-  TCtx & {
-    readonly permdock: PermDock<V>;
-    readonly permdockData?: unknown;
-  },
+  TCtx & { readonly permdock: PermDock<V>; readonly permdockData?: unknown },
   TInput,
   // oxlint-disable-next-line typescript/no-explicit-any -- oRPC's middleware default; `unknown` rejects procedures with a declared output
   any,
@@ -57,7 +56,10 @@ export type OrpcPermDockOptions<
   TCtx extends object = object,
   TUser = unknown,
 > = ServerAdapterOptions<OrpcMiddlewareOpts<TCtx>, TUser> & {
-  /** The Web `Request` behind a context; defaults to `context.request` or `context.req`. */
+  /**
+   * The Web `Request` behind a context; defaults to `context.request` or
+   * `context.req`.
+   */
   readonly request?: (context: TCtx) => Request | null | undefined;
   /** Ends or revalidates open event iterators. */
   readonly revocations?: RevocationFeed;
@@ -83,7 +85,10 @@ export type OrpcPermDock<
   TCtx extends object = object,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = {
-  /** The `PermDock` for one procedure call, for code the middleware does not run before. */
+  /**
+   * The `PermDock` for one procedure call, for code the middleware does not run
+   * before.
+   */
   readonly getPermDock: (
     opts: OrpcMiddlewareOpts<TCtx>,
   ) => Promise<PermDock<V>>;
@@ -107,12 +112,7 @@ function toOpts<TCtx extends object>(
   input: unknown,
   next: (opts?: { readonly context: TCtx }) => Promise<unknown>,
 ): OrpcMiddlewareOpts<TCtx> {
-  return compact({
-    context: mw.context,
-    input,
-    path: mw.path,
-    next,
-  });
+  return compact({ context: mw.context, input, path: mw.path, next });
 }
 
 /** The procedure's `errors` from its contract or `.errors()`, keyed by code. */
@@ -127,7 +127,10 @@ function isErrorConstructor(
   return typeof value === "function";
 }
 
-/** Uses the procedure's own constructor when it declares the code, so the declared status and `defined` apply. */
+/**
+ * Uses the procedure's own constructor when it declares the code, so the
+ * declared status and `defined` apply.
+ */
 function orpcError(
   code: string,
   message: string,
@@ -160,7 +163,10 @@ async function throwOrpcError(
   throw orpcError(code, problemMessage(data, code), data, errors);
 }
 
-/** A PermDock error thrown further down (an `assert` in a handler) becomes the ORPCError `protect` throws. */
+/**
+ * A PermDock error thrown further down (an `assert` in a handler) becomes the
+ * ORPCError `protect` throws.
+ */
 function mapDownstream<T>(
   run: () => T | PromiseLike<T>,
   errors?: ErrorConstructors,
@@ -198,9 +204,9 @@ function readOwn(value: unknown, key: PropertyKey): unknown {
 }
 
 /**
- * The permission the procedure's first `protect` decides, or `undefined`
- * when no `protect` is attached. Reads the procedure definition only and
- * never decides.
+ * The permission the procedure's first `protect` decides, or `undefined` when
+ * no `protect` is attached. Reads the procedure definition only and never
+ * decides.
  */
 export function permissionOf(procedure: unknown): Permission | undefined {
   const ordered = readOwn(readOwn(procedure, "~orpc"), "orderedMiddlewares");

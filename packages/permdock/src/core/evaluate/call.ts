@@ -14,7 +14,10 @@ import { inTeam, isMembershipExpired } from "../tenancy.ts";
 import { PermDockValidationError } from "../validation-error.ts";
 import { validateBoundary } from "../validation.ts";
 
-/** The rows after boundary validation; on `invalid`, the rows validated before the failure. */
+/**
+ * The rows after boundary validation; on `invalid`, the rows validated before
+ * the failure.
+ */
 export function validatedRows(
   call: EvaluationCall,
   data: unknown,

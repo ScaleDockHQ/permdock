@@ -8,12 +8,11 @@ import { DROPPED_LIST, rebuildPlan } from "./custom-role-rebuild.ts";
 export { legacyKeySql } from "./custom-role-rebuild.ts";
 
 /**
- * The `--backfill-out` migration: every custom role in the application's
- * roles table that has no rows in `custom_role_permissions` or
- * `custom_role_includes` yet is saved through
- * `permdock_trusted_replace_custom_role_grants`, with the entries PermDock
- * cannot hold left out and listed in one warning. Running it again copies
- * nothing, so a role edited after the copy keeps its edits.
+ * The `--backfill-out` migration: every custom role in the application's roles
+ * table that has no rows in `custom_role_permissions` or `custom_role_includes`
+ * yet is saved through `permdock_trusted_replace_custom_role_grants`, with the
+ * entries PermDock cannot hold left out and listed in one warning. Running it
+ * again copies nothing, so a role edited after the copy keeps its edits.
  */
 export function backfillSql(
   ctx: RlsSqlContext,

@@ -34,5 +34,6 @@ export const wrong: DescribeMessages = {
 };
 
 export function detail(decision: Decision): string {
+  // oxlint-disable-next-line vitest/prefer-importing-vitest-globals -- permdock's describe(), not Vitest's
   return describe(decision, { messages: translate }).detail;
 }

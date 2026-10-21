@@ -1,5 +1,6 @@
 import type { ResourceNode } from "../../core/permission-types.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
+import type { Body } from "./helper-bodies.ts";
 import type { ShimGrants } from "./shims.ts";
 
 import { partitionsOf, scopeField } from "../../core/tenancy.ts";
@@ -9,23 +10,32 @@ import { scopeTypeOf } from "../sql/columns.ts";
 import { permittedForHelper, permittedIdsHelper } from "../sql/names.ts";
 import { qualified, quoteIdent, quoteLiteral } from "../sql/quote.ts";
 import { HELPERS } from "../sql/shared.ts";
-import { type Body, functionBody } from "./helper-bodies.ts";
+import { functionBody } from "./helper-bodies.ts";
 import { forUserContext, grantBodies } from "./helpers.ts";
 
-/** The helpers that take a permission key instead of a grant key. Names are part of the SQL contract. */
+/**
+ * The helpers that take a permission key instead of a grant key. Names are part
+ * of the SQL contract.
+ */
 export const PERMISSION_HELPERS = {
   grantKeys: "grant_keys",
   has: "permdock_has_permission",
   hasFor: "permdock_has_permission_for",
 } as const;
 
-/** `permitted_<scope>_permission_keys(p_id)`: every permission key the subject holds on one instance. */
+/**
+ * `permitted_<scope>_permission_keys(p_id)`: every permission key the subject
+ * holds on one instance.
+ */
 function permissionKeysHelper(scope: string): string {
   permittedIdsHelper(scope);
   return `permitted_${scope}_permission_keys`;
 }
 
-/** `permitted_<scope>_permission_keys_for(p_user, p_id)`, written in `database` mode. */
+/**
+ * `permitted_<scope>_permission_keys_for(p_user, p_id)`, written in `database`
+ * mode.
+ */
 export function permissionKeysForHelper(scope: string): string {
   return `${permissionKeysHelper(scope)}_for`;
 }
@@ -58,7 +68,10 @@ export function requiresSql(
   return `(${parts.join(" or ")})`;
 }
 
-/** Postgres truncates an identifier past 63 bytes, which would merge two helpers. */
+/**
+ * Postgres truncates an identifier past 63 bytes, which would merge two
+ * helpers.
+ */
 export function checkName(name: string): string {
   if (new TextEncoder().encode(name).length > 63) {
     throw configError(
@@ -139,17 +152,17 @@ ${access}`;
 
 /**
  * The permission-key forms of the helpers: `grant_keys`, which maps a
- * permission key to the grant keys of its unconditional allows on a scope
- * (or every deny key, or the conditioned allow or deny keys),
+ * permission key to the grant keys of its unconditional allows on a scope (or
+ * every deny key, or the conditioned allow or deny keys),
  * `permdock_has_permission(p_permission)` and one
  * `permitted_<scope>_ids_by_permission(p_permission)` per scope, plus their
  * `_for(p_user, ...)` forms in `database` mode. They answer with the
- * unconditional allows minus any deny, so a permission whose allows all carry
- * a row condition answers nothing. The
+ * unconditional allows minus any deny, so a permission whose allows all carry a
+ * row condition answers nothing. The
  * `permitted_<scope>_ids_by_permission(p_permission, p_conditioned)` overload
  * with `true` also lists the instances a conditioned allow reaches and
- * subtracts only unconditional denies, leaving the row condition to the
- * caller, as `permittedIds(..., { conditioned: true })` does in process.
+ * subtracts only unconditional denies, leaving the row condition to the caller,
+ * as `permittedIds(..., { conditioned: true })` does in process.
  */
 export function permissionHelpersSql(
   ctx: RlsSqlContext,

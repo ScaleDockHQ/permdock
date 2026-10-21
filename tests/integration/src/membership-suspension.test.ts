@@ -1,4 +1,6 @@
 import type { Permission, Principal, WhereResult } from "permdock";
+import type { SqlQuery, SupabaseSuspension } from "permdock/supabase";
+import type { OrmParityScenario } from "permdock/testing";
 
 import { PGlite } from "@electric-sql/pglite";
 import { pgTable, text } from "drizzle-orm/pg-core";
@@ -7,12 +9,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock } from "permdock";
 import { toWhere } from "permdock/drizzle";
-import {
-  type SqlQuery,
-  type SupabaseSuspension,
-  subjectFromSupabase,
-} from "permdock/supabase";
-import { type OrmParityScenario, testOrmParity } from "permdock/testing";
+import { subjectFromSupabase } from "permdock/supabase";
+import { testOrmParity } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -239,12 +237,7 @@ describe.each([
   async function claimsFor(user: string, tenant: string): Promise<Claims> {
     return mode === "jwt"
       ? { ...(await mint(user)), tenant_id: tenant }
-      : {
-          sub: user,
-          role: "authenticated",
-          aal: "aal1",
-          tenant_id: tenant,
-        };
+      : { sub: user, role: "authenticated", aal: "aal1", tenant_id: tenant };
   }
 
   async function rlsRows(claims: Claims, table: Table): Promise<string[]> {
@@ -275,7 +268,7 @@ describe.each([
     const inB = permdock.subject.principal?.memberships?.filter(
       (membership) => membership.id === "B",
     );
-    expect(inB).toEqual(
+    expect(inB).toStrictEqual(
       keep === undefined
         ? []
         : [
@@ -316,16 +309,14 @@ describe.each([
           const fromClaims = await getPermDock(
             policy,
             subjectFromSupabase(claims, {
-              claims: {
-                memberships: "memberships",
-              },
+              claims: { memberships: "memberships" },
             }).principal,
           );
           expect(
             fromClaims.subject.principal?.memberships?.toSorted((a, b) =>
               `${a.scope}:${a.id}`.localeCompare(`${b.scope}:${b.id}`),
             ),
-          ).toEqual(
+          ).toStrictEqual(
             permdock.subject.principal?.memberships?.toSorted((a, b) =>
               `${a.scope}:${a.id}`.localeCompare(`${b.scope}:${b.id}`),
             ),
@@ -351,7 +342,7 @@ describe.each([
         }
       }
     }
-    expect(rlsFailures).toEqual([]);
+    expect(rlsFailures).toStrictEqual([]);
     const report = await testOrmParity(policy, scenarios, {
       run: async ({ scenario, where }) =>
         select(tableOf(scenario.permission), where),
@@ -360,22 +351,28 @@ describe.each([
       report.results
         .filter((result) => !result.ok)
         .map((result) => result.name),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("drops a disabled membership's permissions in RLS but for keep", async () => {
     const kept = (ids: readonly string[]) => (keep === undefined ? [] : ids);
-    expect(await rlsRows(await claimsFor(OWNER, "B"), "asset")).toEqual(
+    expect(await rlsRows(await claimsFor(OWNER, "B"), "asset")).toStrictEqual(
       kept(["a_b_draft", "a_c_sent"]),
     );
-    expect(await rlsRows(await claimsFor(OWNER, "B"), "invoice")).toEqual([]);
+    expect(await rlsRows(await claimsFor(OWNER, "B"), "invoice")).toStrictEqual(
+      [],
+    );
     expect(await rlsRows(await claimsFor(OWNER, "T"), "quote")).toHaveLength(4);
-    expect(await rlsRows(await claimsFor(STAFF, "T"), "quote")).toEqual([]);
-    expect(await rlsRows(await claimsFor(STAFF, "T"), "asset")).toEqual(
+    expect(await rlsRows(await claimsFor(STAFF, "T"), "quote")).toStrictEqual(
+      [],
+    );
+    expect(await rlsRows(await claimsFor(STAFF, "T"), "asset")).toStrictEqual(
       kept(["a_a_accepted", "a_a_draft", "a_a_sent", "a_g_sent"]),
     );
-    expect(await rlsRows(await claimsFor(PRIVATE, "T"), "invoice")).toEqual([]);
-    expect(await rlsRows(await claimsFor(PRIVATE, "T"), "asset")).toEqual(
+    expect(
+      await rlsRows(await claimsFor(PRIVATE, "T"), "invoice"),
+    ).toStrictEqual([]);
+    expect(await rlsRows(await claimsFor(PRIVATE, "T"), "asset")).toStrictEqual(
       kept(["a_a_accepted", "a_a_draft", "a_a_sent"]),
     );
   });
@@ -391,7 +388,7 @@ describe.each([
           )
         ).rows.map((row) => row.id),
     );
-    expect(ids).toEqual(["T"]);
+    expect(ids).toStrictEqual(["T"]);
   });
 
   it("refuses to disable the last live owner", async () => {

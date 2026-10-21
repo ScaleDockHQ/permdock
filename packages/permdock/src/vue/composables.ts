@@ -1,3 +1,5 @@
+import type { ComputedRef, MaybeRefOrGetter } from "vue";
+
 import {
   computed,
   getCurrentScope,
@@ -5,8 +7,6 @@ import {
   onScopeDispose,
   shallowRef,
   toValue,
-  type ComputedRef,
-  type MaybeRefOrGetter,
 } from "vue";
 
 import type { ClientStore } from "../client/store.ts";

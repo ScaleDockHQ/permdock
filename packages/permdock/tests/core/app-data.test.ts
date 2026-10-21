@@ -30,17 +30,15 @@ describe("permission and resource x", () => {
           meta: { title: "Invoice", x: { owner: "billing" } },
         }),
       },
-      {
-        x: {
-          permission: Risk,
-          resource: z.object({ owner: z.string() }),
-        },
-      },
+      { x: { permission: Risk, resource: z.object({ owner: z.string() }) } },
     );
-    expect(tree.invoice.send.meta.x).toEqual({ risk: "high" });
-    expect(tree.invoice.read.meta).toEqual({});
+    expect(tree.invoice.send.meta.x).toStrictEqual({ risk: "high" });
+    expect(tree.invoice.read.meta).toStrictEqual({});
     const node = getResource(tree, "invoice");
-    expect(node?.meta).toEqual({ title: "Invoice", x: { owner: "billing" } });
+    expect(node?.meta).toStrictEqual({
+      title: "Invoice",
+      x: { owner: "billing" },
+    });
     expect(Object.isFrozen(node?.meta)).toBe(true);
   });
 
@@ -53,12 +51,7 @@ describe("permission and resource x", () => {
     ).toThrow(/meta.x of action 'send' is invalid/u);
     expect(() =>
       definePermissions(
-        {
-          invoice: resource({
-            actions: ["send"],
-            meta: { x: { owner: 1 } },
-          }),
-        },
+        { invoice: resource({ actions: ["send"], meta: { x: { owner: 1 } } }) },
         { x: { resource: z.object({ owner: z.string() }) } },
       ),
     ).toThrow(/meta.x of resource 'invoice' is invalid/u);
@@ -93,7 +86,7 @@ describe("role and plan x", () => {
       { admin: { meta: { title: "Admin", x: { tier: 2 } } } },
       { x: z.object({ tier: z.number() }) },
     );
-    expect(roles.admin.meta).toEqual({ title: "Admin", x: { tier: 2 } });
+    expect(roles.admin.meta).toStrictEqual({ title: "Admin", x: { tier: 2 } });
     expect(() =>
       defineRoles(
         { admin: { meta: { x: { tier: "two" } } } },
@@ -108,7 +101,7 @@ describe("role and plan x", () => {
       { pro: { meta: { x: { seats: 5 } } } },
       { x: z.object({ seats: z.number() }) },
     );
-    expect(plans.pro.meta.x).toEqual({ seats: 5 });
+    expect(plans.pro.meta.x).toStrictEqual({ seats: 5 });
   });
 
   it("carries a custom role's meta onto assignableRoles, dropping an invalid x", async () => {
@@ -162,13 +155,12 @@ describe("role and plan x", () => {
       { customRoles, tenant: "o_1" },
     );
     const assignable = permdock.assignableRoles();
-    expect(assignable.find((leaf) => leaf.key === "reviewer")?.meta).toEqual({
-      title: "Reviewer",
-      x: { colour: "teal" },
-    });
-    expect(assignable.find((leaf) => leaf.key === "auditor")?.meta).toEqual({
-      title: "Auditor",
-    });
+    expect(
+      assignable.find((leaf) => leaf.key === "reviewer")?.meta,
+    ).toStrictEqual({ title: "Reviewer", x: { colour: "teal" } });
+    expect(
+      assignable.find((leaf) => leaf.key === "auditor")?.meta,
+    ).toStrictEqual({ title: "Auditor" });
   });
 });
 
@@ -251,7 +243,7 @@ describe("membership x", () => {
       id: "u_1",
       x: { department: "finance" },
     });
-    expect(permdock.subject.principal?.memberships?.[0]?.x).toEqual({
+    expect(permdock.subject.principal?.memberships?.[0]?.x).toStrictEqual({
       department: "finance",
     });
   });
@@ -264,7 +256,7 @@ describe("membership x", () => {
     const client = fromSnapshot(
       parseSnapshot(JSON.stringify(permdock.snapshot())),
     );
-    expect(client.memberships()[0]?.x).toEqual({ department: "finance" });
+    expect(client.memberships()[0]?.x).toStrictEqual({ department: "finance" });
   });
 
   it("drops an invalid x, keeps the membership and reports it", async () => {
@@ -277,9 +269,9 @@ describe("membership x", () => {
       auth.push(event);
     });
     const membership = permdock.subject.principal?.memberships?.[0];
-    expect(membership?.roles).toEqual(["viewer"]);
+    expect(membership?.roles).toStrictEqual(["viewer"]);
     expect(membership?.x).toBeUndefined();
-    expect(auth).toEqual([
+    expect(auth).toStrictEqual([
       { reason: "schema", source: "memberships", cause: "x" },
     ]);
   });

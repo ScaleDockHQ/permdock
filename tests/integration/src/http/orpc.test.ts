@@ -1,3 +1,4 @@
+import type { RouterClient } from "@orpc/server";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { HttpCall, HttpResult } from "permdock/testing";
@@ -6,7 +7,7 @@ import { createAdaptorServer } from "@hono/node-server";
 import { createORPCClient, ORPCError } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { BatchLinkPlugin } from "@orpc/client/plugins";
-import { os, type RouterClient } from "@orpc/server";
+import { os } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { BatchHandlerPlugin } from "@orpc/server/plugins";
 import { createPermDock } from "permdock/orpc";
@@ -29,10 +30,7 @@ const STATUS: Readonly<Record<string, number>> = {
 const Org = z.object({ org: z.string() });
 const Row = Org.extend({ id: z.string() });
 
-const ok = (status: number, body: unknown): HttpResult => ({
-  status,
-  body,
-});
+const ok = (status: number, body: unknown): HttpResult => ({ status, body });
 
 testHttpAdapter({
   name: "permdock/orpc over RPCHandler with BatchLinkPlugin",
@@ -79,9 +77,7 @@ testHttpAdapter({
               p.project.create,
               // SAFETY: this procedure's input schema is an object with a `body` field
               (opts) => (opts.input as { readonly body?: unknown }).body,
-              {
-                trusted: false,
-              },
+              { trusted: false },
             ),
           )
           .handler(({ context }) => context.permdockData),

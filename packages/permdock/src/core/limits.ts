@@ -55,7 +55,7 @@ function locate(
 
 export function memoryLimitStore(): LimitStore & {
   /** Live counters, for tests and diagnostics. */
-  size(): number;
+  size: () => number;
 } {
   const used = new Map<string, { count: number; until: number }>();
   let earliest = Number.POSITIVE_INFINITY;
@@ -156,7 +156,10 @@ function verdictFor(
     : { ok: true, quota: { remaining: left, resetsAt } };
 }
 
-/** What the quota stage of `evaluate` asks about one allow whose grant has a `limit`. */
+/**
+ * What the quota stage of `evaluate` asks about one allow whose grant has a
+ * `limit`.
+ */
 export type QuotaInput = {
   readonly cache: Map<string, number>;
   readonly limit: GrantLimit;

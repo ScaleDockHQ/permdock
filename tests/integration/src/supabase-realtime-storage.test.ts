@@ -15,8 +15,8 @@ const MEMBER = "00000000-0000-4000-8000-0000000000c3";
 
 /**
  * What the Realtime and Storage services' migrations add on a real project,
- * owned by `supabase_admin`: `postgres` may create policies on both tables
- * only through supautils `policy_grants`, as on a hosted project.
+ * owned by `supabase_admin`: `postgres` may create policies on both tables only
+ * through supautils `policy_grants`, as on a hosted project.
  */
 const SERVICES = `
 create table realtime.messages (
@@ -71,7 +71,10 @@ function started(): SupabasePostgres {
   return db;
 }
 
-/** Runs `sql` as `authenticated` with these claims and Realtime topic, then rolls back. */
+/**
+ * Runs `sql` as `authenticated` with these claims and Realtime topic, then
+ * rolls back.
+ */
 async function as<T extends Record<string, unknown>>(
   claims: Readonly<Record<string, unknown>>,
   sql: string,
@@ -85,7 +88,8 @@ async function as<T extends Record<string, unknown>>(
       "select set_config('request.jwt.claims', $1, true), set_config('realtime.topic', $2, true)",
       [JSON.stringify(claims), topic],
     );
-    return (await tester.query<T>(sql)).rows;
+    const { rows } = await tester.query<T>(sql);
+    return rows;
   } finally {
     await tester.query("rollback");
   }
@@ -101,115 +105,121 @@ const send = (topic: string): string =>
 const upload = (name: string, bucket = "files"): string =>
   `insert into storage.objects (bucket_id, name) values ('${bucket}', '${name}')`;
 
-beforeAll(async () => {
-  generated = await generateRls(join(HERE, "../fixtures/realtime-storage"));
-  db = await startSupabasePostgres();
-  await db.superuser.query(SERVICES);
-  await db.owner.query(APP);
-  await db.owner.query(generated);
-}, 240_000);
+describe("supabase realtime storage", () => {
+  beforeAll(async () => {
+    generated = await generateRls(join(HERE, "../fixtures/realtime-storage"));
+    db = await startSupabasePostgres();
+    await db.superuser.query(SERVICES);
+    await db.owner.query(APP);
+    await db.owner.query(generated);
+  }, 240_000);
 
-afterAll(async () => {
-  await db?.stop();
-});
-
-describe("rls.realtime on supabase/postgres", () => {
-  it("lets a member join the organization's channel and no other", async () => {
-    expect(
-      await as(
-        viewer,
-        "select extension from realtime.messages",
-        "org:acme:chat",
-      ),
-    ).toEqual([{ extension: "broadcast" }]);
-    expect(
-      await as(viewer, "select 1 from realtime.messages", "org:globex:chat"),
-    ).toEqual([]);
-    expect(
-      await as(viewer, "select 1 from realtime.messages", "team:acme:chat"),
-    ).toEqual([]);
+  afterAll(async () => {
+    await db?.stop();
   });
 
-  it("admits only the allows without a row condition for a conditioned permission", async () => {
-    const joinEdits = (claims: Readonly<Record<string, unknown>>) =>
-      as(claims, "select extension from realtime.messages", "org:acme:edits");
-    expect(await joinEdits(admin)).toEqual([{ extension: "broadcast" }]);
-    expect(await joinEdits(member)).toEqual([]);
-    expect(await joinEdits(viewer)).toEqual([]);
-  });
-
-  it("lets only a holder of the write permission send", async () => {
-    await expect(
-      as(admin, send("org:acme:chat"), "org:acme:chat"),
-    ).resolves.toEqual([]);
-    await expect(
-      as(viewer, send("org:acme:chat"), "org:acme:chat"),
-    ).rejects.toMatchObject({ code: "42501" });
-  });
-
-  it("keeps a support session read-only", async () => {
-    await expect(
-      as(support, send("org:acme:chat"), "org:acme:chat"),
-    ).rejects.toThrow(/realtime_messages_insert_read_only_actors/u);
-    expect(
-      await as(support, "select 1 from realtime.messages", "org:acme:chat"),
-    ).toHaveLength(1);
-  });
-});
-
-describe("rls.storage on supabase/postgres", () => {
-  it("lists only the bucket's objects under the member's organization folder", async () => {
-    expect(
-      await as(viewer, "select bucket_id, name from storage.objects"),
-    ).toEqual([{ bucket_id: "files", name: "acme/a.txt" }]);
-  });
-
-  it("lets a writer upload into the organization folder only", async () => {
-    await expect(as(admin, upload("acme/new.txt"))).resolves.toEqual([]);
-    for (const [claims, name, bucket] of [
-      [viewer, "acme/new.txt", "files"],
-      [admin, "globex/new.txt", "files"],
-      [admin, "acme/new.txt", "other"],
-      [support, "acme/new.txt", "files"],
-    ] as const) {
-      await expect(as(claims, upload(name, bucket))).rejects.toMatchObject({
-        code: "42501",
-      });
-    }
-  });
-
-  it("refuses moving an object into another organization's folder", async () => {
-    await expect(
-      as(
-        admin,
-        "update storage.objects set name = 'globex/a.txt' where name = 'acme/a.txt'",
-      ),
-    ).rejects.toMatchObject({ code: "42501" });
-  });
-
-  it("deletes for the delete permission, and not for a support session", async () => {
-    const remove =
-      "delete from storage.objects where name = 'acme/a.txt' returning name";
-    expect(await as(admin, remove)).toEqual([{ name: "acme/a.txt" }]);
-    expect(await as(support, remove)).toEqual([]);
-    expect(await as(viewer, remove)).toEqual([]);
-  });
-});
-
-describe("Splinter on the realtime and storage policies", () => {
-  it("raises no WARN or ERROR lint, public_bucket_allows_listing included", async () => {
-    const findings = await runSplinter(started().owner);
-    expect(
-      findings.filter(
-        (finding) => finding.name === "public_bucket_allows_listing",
-      ),
-    ).toEqual([]);
-    expect(generatedFindings(findings, generated)).toEqual([]);
-    const broad = await runSplinter(started().owner, {
-      sql: `create policy "anyone lists files" on storage.objects for select to anon using (bucket_id = 'files');`,
+  describe("rls.realtime on supabase/postgres", () => {
+    it("lets a member join the organization's channel and no other", async () => {
+      expect(
+        await as(
+          viewer,
+          "select extension from realtime.messages",
+          "org:acme:chat",
+        ),
+      ).toStrictEqual([{ extension: "broadcast" }]);
+      expect(
+        await as(viewer, "select 1 from realtime.messages", "org:globex:chat"),
+      ).toStrictEqual([]);
+      expect(
+        await as(viewer, "select 1 from realtime.messages", "team:acme:chat"),
+      ).toStrictEqual([]);
     });
-    expect(broad.map((finding) => finding.name)).toContain(
-      "public_bucket_allows_listing",
-    );
-  }, 120_000);
+
+    it("admits only the allows without a row condition for a conditioned permission", async () => {
+      const joinEdits = (claims: Readonly<Record<string, unknown>>) =>
+        as(claims, "select extension from realtime.messages", "org:acme:edits");
+      expect(await joinEdits(admin)).toStrictEqual([
+        { extension: "broadcast" },
+      ]);
+      expect(await joinEdits(member)).toStrictEqual([]);
+      expect(await joinEdits(viewer)).toStrictEqual([]);
+    });
+
+    it("lets only a holder of the write permission send", async () => {
+      await expect(
+        as(admin, send("org:acme:chat"), "org:acme:chat"),
+      ).resolves.toStrictEqual([]);
+      await expect(
+        as(viewer, send("org:acme:chat"), "org:acme:chat"),
+      ).rejects.toMatchObject({ code: "42501" });
+    });
+
+    it("keeps a support session read-only", async () => {
+      await expect(
+        as(support, send("org:acme:chat"), "org:acme:chat"),
+      ).rejects.toThrow(/realtime_messages_insert_read_only_actors/u);
+      expect(
+        await as(support, "select 1 from realtime.messages", "org:acme:chat"),
+      ).toHaveLength(1);
+    });
+  });
+
+  describe("rls.storage on supabase/postgres", () => {
+    it("lists only the bucket's objects under the member's organization folder", async () => {
+      expect(
+        await as(viewer, "select bucket_id, name from storage.objects"),
+      ).toStrictEqual([{ bucket_id: "files", name: "acme/a.txt" }]);
+    });
+
+    it("lets a writer upload into the organization folder only", async () => {
+      await expect(as(admin, upload("acme/new.txt"))).resolves.toStrictEqual(
+        [],
+      );
+      for (const [claims, name, bucket] of [
+        [viewer, "acme/new.txt", "files"],
+        [admin, "globex/new.txt", "files"],
+        [admin, "acme/new.txt", "other"],
+        [support, "acme/new.txt", "files"],
+      ] as const) {
+        await expect(as(claims, upload(name, bucket))).rejects.toMatchObject({
+          code: "42501",
+        });
+      }
+    });
+
+    it("refuses moving an object into another organization's folder", async () => {
+      await expect(
+        as(
+          admin,
+          "update storage.objects set name = 'globex/a.txt' where name = 'acme/a.txt'",
+        ),
+      ).rejects.toMatchObject({ code: "42501" });
+    });
+
+    it("deletes for the delete permission, and not for a support session", async () => {
+      const remove =
+        "delete from storage.objects where name = 'acme/a.txt' returning name";
+      expect(await as(admin, remove)).toStrictEqual([{ name: "acme/a.txt" }]);
+      expect(await as(support, remove)).toStrictEqual([]);
+      expect(await as(viewer, remove)).toStrictEqual([]);
+    });
+  });
+
+  describe("Splinter on the realtime and storage policies", () => {
+    it("raises no WARN or ERROR lint, public_bucket_allows_listing included", async () => {
+      const findings = await runSplinter(started().owner);
+      expect(
+        findings.filter(
+          (finding) => finding.name === "public_bucket_allows_listing",
+        ),
+      ).toStrictEqual([]);
+      expect(generatedFindings(findings, generated)).toStrictEqual([]);
+      const broad = await runSplinter(started().owner, {
+        sql: `create policy "anyone lists files" on storage.objects for select to anon using (bucket_id = 'files');`,
+      });
+      expect(broad.map((finding) => finding.name)).toContain(
+        "public_bucket_allows_listing",
+      );
+    }, 120_000);
+  });
 });

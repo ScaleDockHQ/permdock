@@ -35,7 +35,7 @@ describe("permdock/node", () => {
 
     const allowed = await request("/posts/p1", { method: "DELETE" });
     expect(allowed.status).toBe(200);
-    expect(await allowed.json()).toEqual({ ok: true, via: "u1" });
+    expect(await allowed.json()).toStrictEqual({ ok: true, via: "u1" });
 
     const denied = await request("/posts/p2", { method: "DELETE" });
     expect(denied.status).toBe(403);
@@ -45,9 +45,7 @@ describe("permdock/node", () => {
   });
 
   it("answers 401 with a bare Bearer challenge to a caller without credentials", async () => {
-    const { protect, send } = createPermDock(policy, {
-      subject: () => null,
-    });
+    const { protect, send } = createPermDock(policy, { subject: () => null });
     const request = await listen(async (req, res) => {
       const guard = await protect(permissions.post.read, () => ownPost)(req);
       if (!guard.ok) {
@@ -89,11 +87,7 @@ describe("permdock/node", () => {
 
   it("does not throw when Host is missing", () => {
     // SAFETY: toRequest reads only headers, method and url from the IncomingMessage.
-    const req = {
-      headers: {},
-      method: "GET",
-      url: "/",
-    } as IncomingMessage;
+    const req = { headers: {}, method: "GET", url: "/" } as IncomingMessage;
     expect(() => toRequest(req)).not.toThrow();
   });
 

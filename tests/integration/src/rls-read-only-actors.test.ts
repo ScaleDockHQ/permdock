@@ -98,7 +98,7 @@ describe("rls.readOnlyActors", () => {
   };
 
   it("keeps the user's own writes and makes a support session read-only", async () => {
-    expect(await as()).toEqual({ read: 1, updated: 1 });
+    expect(await as()).toStrictEqual({ read: 1, updated: 1 });
     expect(
       await as({
         sub: STAFF,
@@ -106,15 +106,15 @@ describe("rls.readOnlyActors", () => {
         session_id: "s1",
         read_only: true,
       }),
-    ).toEqual({ read: 1, updated: 0 });
-    expect(await as({ sub: STAFF, kind: "support", session_id: "s1" })).toEqual(
-      { read: 1, updated: 0 },
-    );
-    expect(await as({ sub: STAFF, session_id: "s1" })).toEqual({
+    ).toStrictEqual({ read: 1, updated: 0 });
+    expect(
+      await as({ sub: STAFF, kind: "support", session_id: "s1" }),
+    ).toStrictEqual({ read: 1, updated: 0 });
+    expect(await as({ sub: STAFF, session_id: "s1" })).toStrictEqual({
       read: 1,
       updated: 0,
     });
-    expect(await as({ sub: STAFF, kind: "impersonation" })).toEqual({
+    expect(await as({ sub: STAFF, kind: "impersonation" })).toStrictEqual({
       read: 1,
       updated: 0,
     });
@@ -128,8 +128,8 @@ describe("rls.readOnlyActors", () => {
         session_id: "s1",
         read_only: false,
       }),
-    ).toEqual({ read: 1, updated: 1 });
-    expect(await as({ sub: "agent-1", kind: "agent" })).toEqual({
+    ).toStrictEqual({ read: 1, updated: 1 });
+    expect(await as({ sub: "agent-1", kind: "agent" })).toStrictEqual({
       read: 1,
       updated: 1,
     });
@@ -235,7 +235,8 @@ describe("rls.readOnlyActors with --helpers-only", () => {
   });
 
   it("verify --introspect names a write policy without the check", async () => {
-    expect((await verify()).code).toBe(0);
+    const { code } = await verify();
+    expect(code).toBe(0);
     await started().admin.query("drop policy job_update_actor on public.job");
     const drift = await verify();
     expect(drift.code).toBe(1);

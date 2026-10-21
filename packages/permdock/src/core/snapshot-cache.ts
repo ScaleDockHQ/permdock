@@ -5,7 +5,10 @@ import { nowSeconds, secondsOf } from "./time.ts";
 import { payloadDigest } from "./token.ts";
 
 export type CacheLifeForOptions = {
-  /** Lower bound in seconds. Next.js includes a private entry in per-link prefetches from 30. */
+  /**
+   * Lower bound in seconds. Next.js includes a private entry in per-link
+   * prefetches from 30.
+   */
   readonly min?: number;
   /** Upper bound in seconds. Next.js keeps a per-session App Shell entry from 300. */
   readonly max?: number;
@@ -21,9 +24,10 @@ function epochSeconds(
 }
 
 /**
- * `{ stale }` in seconds: `max` when the value never expires, otherwise the seconds left, clamped
- * to `[min, max]`. A value with less than `min` seconds left gets its real remainder, so Next.js
- * leaves it out of prefetches and an HTTP cache does not serve it past `expiresAt`.
+ * `{ stale }` in seconds: `max` when the value never expires, otherwise the
+ * seconds left, clamped to `[min, max]`. A value with less than `min` seconds
+ * left gets its real remainder, so Next.js leaves it out of prefetches and an
+ * HTTP cache does not serve it past `expiresAt`.
  */
 export function cacheLifeFor(
   value: {
@@ -54,16 +58,20 @@ export function cacheLifeFor(
 }
 
 /**
- * The `cacheTag` for one subject's cached snapshots: `permdock:<sub>`, or `permdock:anon`
- * without a subject. Tag the private cache with it and pass it to `updateTag` or
- * `revalidateTag` on every write that changes the subject's snapshot.
+ * The `cacheTag` for one subject's cached snapshots: `permdock:<sub>`, or
+ * `permdock:anon` without a subject. Tag the private cache with it and pass it
+ * to `updateTag` or `revalidateTag` on every write that changes the subject's
+ * snapshot.
  */
 export function snapshotTag(sub?: string | null): string {
   return `permdock:${sub === undefined || sub === null || sub === "" ? "anon" : sub}`;
 }
 
 export type SnapshotHeadersOptions = CacheLifeForOptions & {
-  /** Sent in `Cache-Tag` after `snapshotTag(sub)`, such as the app's own organisation tag. */
+  /**
+   * Sent in `Cache-Tag` after `snapshotTag(sub)`, such as the app's own
+   * organisation tag.
+   */
   readonly tags?: readonly string[];
 };
 
@@ -75,9 +83,10 @@ export type SnapshotHeaders = {
 };
 
 /**
- * Response headers for a loader or route that returns `snapshot`: `Cache-Control: private` with
- * `max-age` from `cacheLifeFor`, `Vary: Authorization, Cookie`, an `ETag` over everything but
- * `issuedAt`, and `Cache-Tag` with `snapshotTag(sub)` and `tags`.
+ * Response headers for a loader or route that returns `snapshot`:
+ * `Cache-Control: private` with `max-age` from `cacheLifeFor`, `Vary:
+ * Authorization, Cookie`, an `ETag` over everything but `issuedAt`, and
+ * `Cache-Tag` with `snapshotTag(sub)` and `tags`.
  */
 export function snapshotHeaders(
   snapshot: Snapshot,

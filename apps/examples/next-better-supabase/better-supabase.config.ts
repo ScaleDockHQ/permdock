@@ -2,7 +2,10 @@ import { defineConfig } from "better-supabase/config";
 import { readFileSync } from "node:fs";
 import { authorizationProvider } from "permdock/better-supabase";
 
-/** Membership and PermDock tables stay off the Data API: only the token hook and the security definer helpers read them. */
+/**
+ * Membership and PermDock tables stay off the Data API: only the token hook and
+ * the security definer helpers read them.
+ */
 const internal = [
   "memberships",
   "contacts",

@@ -18,9 +18,9 @@ export type LegacyParityCase = {
 };
 
 /**
- * Asserts that the policy answers each case as the application's legacy
- * check does, or as the case's `expect` says where the difference is
- * intended. Run it before enforcing a permission with `shadowMode`.
+ * Asserts that the policy answers each case as the application's legacy check
+ * does, or as the case's `expect` says where the difference is intended. Run it
+ * before enforcing a permission with `shadowMode`.
  */
 export function testLegacyParity(
   policy: Policy,
@@ -37,10 +37,9 @@ export function testLegacyParity(
         data: entry.row,
         subject: permdock.subject,
       });
-      expect({ permission: entry.permission.key, granted: ours }).toEqual({
-        permission: entry.permission.key,
-        granted: entry.expect ?? theirs,
-      });
+      expect({ permission: entry.permission.key, granted: ours }).toStrictEqual(
+        { permission: entry.permission.key, granted: entry.expect ?? theirs },
+      );
     });
   }
 }

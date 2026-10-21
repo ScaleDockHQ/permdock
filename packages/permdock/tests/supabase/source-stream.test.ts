@@ -8,7 +8,7 @@ import {
 describe("MembershipSql.stream", () => {
   it("describes a table source with its default columns", () => {
     const { stream } = tableMembershipSource({ table: "memberships" }).sql;
-    expect(stream).toEqual({
+    expect(stream).toStrictEqual({
       table: "public.memberships",
       user: "user_id",
       scope: { column: "scope" },
@@ -49,7 +49,7 @@ describe("MembershipSql.stream", () => {
       via: "contact",
       disabledAt: "disabled_at",
     }).sql;
-    expect(stream).toEqual({
+    expect(stream).toStrictEqual({
       table: "public.customer_contacts",
       user: "user_id",
       scope: { value: "customer" },
@@ -105,6 +105,6 @@ describe("MembershipSql.stream", () => {
       roles: { through: "roles", on: { role_id: "id" }, column: "key" },
     });
     expect(source.sql.stream?.guard).toBeUndefined();
-    expect(source.guarded?.(guard).sql.stream?.guard).toEqual(guard);
+    expect(source.guarded?.(guard).sql.stream?.guard).toStrictEqual(guard);
   });
 });

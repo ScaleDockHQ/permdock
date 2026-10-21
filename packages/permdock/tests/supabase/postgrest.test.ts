@@ -71,16 +71,16 @@ describe("postgrestSources api", () => {
       fn: "custom_subject",
     });
     await sources.subject("u1");
-    expect(calls).toEqual(["api.custom_subject(u1)"]);
+    expect(calls).toStrictEqual(["api.custom_subject(u1)"]);
     const defaults: string[] = [];
     await postgrestSources(fakeClient({ u1: owner }, defaults), {
       api: { schema: "api", prefix: "pd_" },
     }).subject("u1");
-    expect(defaults).toEqual(["api.pd_subject_for(u1)"]);
+    expect(defaults).toStrictEqual(["api.pd_subject_for(u1)"]);
   });
 });
 
-describe("postgrestSources", () => {
+describe(postgrestSources, () => {
   it("reads one record per user and builds the subject the hook would mint", async () => {
     const calls: string[] = [];
     const sources = postgrestSources(fakeClient({ u1: owner }, calls), {
@@ -88,7 +88,7 @@ describe("postgrestSources", () => {
       fn: "permdock_subject_for",
     });
     const subject = await sources.subject("u1");
-    expect(subject.principal).toEqual({
+    expect(subject.principal).toStrictEqual({
       id: "u1",
       roles: ["support"],
       memberships: [
@@ -97,7 +97,7 @@ describe("postgrestSources", () => {
       authzVersion: 4,
     });
     const roles = sources.customRoles({ id: "u1" });
-    expect(await roles.rolesFor("acme")).toEqual([
+    expect(await roles.rolesFor("acme")).toStrictEqual([
       {
         name: "auditor",
         tenant: "acme",
@@ -108,7 +108,7 @@ describe("postgrestSources", () => {
         ],
       },
     ]);
-    expect(await roles.globalRoles?.()).toEqual([
+    expect(await roles.globalRoles?.()).toStrictEqual([
       {
         name: "helpdesk",
         scope: "global",
@@ -116,21 +116,22 @@ describe("postgrestSources", () => {
       },
     ]);
     expect(await sources.memberships.version?.({ id: "u1" })).toBe(4);
-    expect(calls).toEqual(["api.permdock_subject_for(u1)"]);
+    expect(calls).toStrictEqual(["api.permdock_subject_for(u1)"]);
   });
 
   it("answers an unknown or suspended user with no subject and no memberships", async () => {
     const sources = postgrestSources(
       fakeClient({ u2: { id: "u2", active: false, roles: ["admin"] } }),
     );
-    expect((await sources.subject("u2")).principal).toBeNull();
+    const { principal } = await sources.subject("u2");
+    expect(principal).toBeNull();
     expect((await sources.subject("u3")).principal).toBeNull();
-    expect(await sources.memberships.membershipsFor({ id: "u2" }, {})).toEqual(
-      [],
-    );
-    expect(await sources.customRoles({ id: "u2" }).rolesFor("acme")).toEqual(
-      [],
-    );
+    expect(
+      await sources.memberships.membershipsFor({ id: "u2" }, {}),
+    ).toStrictEqual([]);
+    expect(
+      await sources.customRoles({ id: "u2" }).rolesFor("acme"),
+    ).toStrictEqual([]);
   });
 
   it("rejects when the function fails, which createPermDock turns into a denial", async () => {
@@ -192,15 +193,15 @@ describe("postgrestSources", () => {
         calls,
       };
     };
-    expect(await canRead(4)).toEqual({
+    expect(await canRead(4)).toStrictEqual({
       allowed: false,
       calls: ["permdock.authz_version_for(u1)"],
     });
-    expect(await canRead(3)).toEqual({
+    expect(await canRead(3)).toStrictEqual({
       allowed: true,
       calls: ["permdock.authz_version_for(u1)", "permdock.subject_for(u1)"],
     });
-    expect(await canRead(4, "absent_version_for")).toEqual({
+    expect(await canRead(4, "absent_version_for")).toStrictEqual({
       allowed: false,
       calls: ["permdock.absent_version_for(u1)", "permdock.subject_for(u1)"],
     });
@@ -258,18 +259,18 @@ describe("postgrestSources", () => {
         calls,
       };
     };
-    expect(await run(["auditor"], 4)).toEqual({
+    expect(await run(["auditor"], 4)).toStrictEqual({
       allowed: true,
       calls: ["permdock.subject_for(u1)"],
     });
-    expect(await run(["auditor"], 3)).toEqual({
+    expect(await run(["auditor"], 3)).toStrictEqual({
       allowed: true,
       calls: ["permdock.subject_for(u1)"],
     });
-    expect((await run(["viewer"], 4)).calls).toEqual([
+    expect((await run(["viewer"], 4)).calls).toStrictEqual([
       "permdock.authz_version_for(u1)",
     ]);
-    expect((await run(["viewer"], 3)).calls).toEqual([
+    expect((await run(["viewer"], 3)).calls).toStrictEqual([
       "permdock.authz_version_for(u1)",
       "permdock.subject_for(u1)",
     ]);
@@ -283,18 +284,22 @@ describe("postgrestSources", () => {
       memberships: claimsFirst(sources.memberships),
     });
     expect(
-      permdock.tenant("acme").can(permissions.asset.read, {
-        id: "a1",
-        organization_id: "acme",
-        customer_id: "c1",
-      }),
+      permdock
+        .tenant("acme")
+        .can(permissions.asset.read, {
+          id: "a1",
+          organization_id: "acme",
+          customer_id: "c1",
+        }),
     ).toBe(true);
     expect(
-      permdock.tenant("acme").can(permissions.asset.update, {
-        id: "a1",
-        organization_id: "acme",
-        customer_id: "c1",
-      }),
+      permdock
+        .tenant("acme")
+        .can(permissions.asset.update, {
+          id: "a1",
+          organization_id: "acme",
+          customer_id: "c1",
+        }),
     ).toBe(false);
   });
 
@@ -341,7 +346,7 @@ describe("postgrestSources", () => {
     };
     const sources = postgrestSources(client, { membersFn: "list_members" });
     const query = { scope: "organization", id: "acme" };
-    expect(await sources.memberships.list(query)).toEqual([
+    expect(await sources.memberships.list(query)).toStrictEqual([
       {
         principal: { id: "u1" },
         membership: {
@@ -366,17 +371,15 @@ describe("postgrestSources", () => {
         role: "owner",
       }),
     ).toBe(2);
-    expect(calls).toEqual(["permdock.list_members(organization, acme)"]);
+    expect(calls).toStrictEqual(["permdock.list_members(organization, acme)"]);
     await expect(
       sources.memberships.list({ scope: "organization", id: "broken" }),
     ).rejects.toThrow("PermDock: permdock.list_members failed: boom");
     expect(
       await postgrestSources({
-        schema: () => ({
-          rpc: async () => ({ data: null, error: null }),
-        }),
+        schema: () => ({ rpc: async () => ({ data: null, error: null }) }),
       }).memberships.list(query),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await countHolders(sources.memberships, {
         scope: "organization",

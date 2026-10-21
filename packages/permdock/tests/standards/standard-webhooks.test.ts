@@ -52,7 +52,7 @@ describe("Standard Webhooks", () => {
     });
     expect(
       await signer.sign({ id: vector.id, body: vector.body, now: sentAt }),
-    ).toEqual(headersOf());
+    ).toStrictEqual(headersOf());
   });
 
   it("verifies the reference vector within the five-minute tolerance", async () => {
@@ -63,7 +63,7 @@ describe("Standard Webhooks", () => {
     });
     expect(
       await verifier.verify({ headers: headersOf(), body: vector.body }),
-    ).toEqual({
+    ).toStrictEqual({
       ok: true,
       id: vector.id,
       timestamp: "2021-02-25T15:02:10.000Z",
@@ -82,7 +82,8 @@ describe("Standard Webhooks", () => {
       headers: headersOf(),
       body: vector.body,
     });
-    expect((await verifier.verify(request)).ok).toBe(true);
+    const { ok } = await verifier.verify(request);
+    expect(ok).toBe(true);
   });
 
   it("rejects a delivery outside the tolerance either way", async () => {
@@ -94,7 +95,7 @@ describe("Standard Webhooks", () => {
       });
       expect(
         await verifier.verify({ headers: headersOf(), body: vector.body }),
-      ).toEqual({ ok: false, cause: "timestamp-out-of-range" });
+      ).toStrictEqual({ ok: false, cause: "timestamp-out-of-range" });
     }
   });
 
@@ -113,7 +114,7 @@ describe("Standard Webhooks", () => {
       body: vector.body,
     };
     expect((await verifier.verify(input)).ok).toBe(true);
-    expect(await verifier.verify(input)).toEqual({
+    expect(await verifier.verify(input)).toStrictEqual({
       ok: false,
       cause: "replayed",
     });
@@ -134,7 +135,7 @@ describe("Standard Webhooks", () => {
       now: at(0),
     });
     expect((await verifier.verify(input)).ok).toBe(true);
-    expect([...keys]).toEqual([`webhook:${vector.id}`]);
+    expect([...keys]).toStrictEqual([`webhook:${vector.id}`]);
     expect((await verifier.verify(input)).ok).toBe(false);
     const broken = webhookVerifier({
       secret: vector.secret,
@@ -146,7 +147,7 @@ describe("Standard Webhooks", () => {
       },
       now: at(0),
     });
-    expect(await broken.verify(input)).toEqual({
+    expect(await broken.verify(input)).toStrictEqual({
       ok: false,
       cause: "replayed",
     });
@@ -160,7 +161,7 @@ describe("Standard Webhooks", () => {
       now: at(0),
     });
     const tampered = { headers: headersOf(), body: `${vector.body} ` };
-    expect(await verifier.verify(tampered)).toEqual({
+    expect(await verifier.verify(tampered)).toStrictEqual({
       ok: false,
       cause: "invalid-signature",
     });
@@ -174,14 +175,11 @@ describe("Standard Webhooks", () => {
       now: at(0),
     });
     const other = `v1,${btoa("x".repeat(32))}`;
-    expect(
-      (
-        await verifier.verify({
-          headers: headersOf(`v2,abc ${other} ${vector.signature}`),
-          body: vector.body,
-        })
-      ).ok,
-    ).toBe(true);
+    const { ok } = await verifier.verify({
+      headers: headersOf(`v2,abc ${other} ${vector.signature}`),
+      body: vector.body,
+    });
+    expect(ok).toBe(true);
   });
 
   it.each([
@@ -197,10 +195,9 @@ describe("Standard Webhooks", () => {
       replay: memoryReplayStore(),
       now: at(0),
     });
-    expect(await verifier.verify({ headers, body: vector.body })).toEqual({
-      ok: false,
-      cause,
-    });
+    expect(await verifier.verify({ headers, body: vector.body })).toStrictEqual(
+      { ok: false, cause },
+    );
   });
 
   it("signs and verifies v1a with Ed25519 keys from a JWKS", async () => {
@@ -242,7 +239,7 @@ describe("Standard Webhooks", () => {
         },
         body: "{}",
       }),
-    ).toEqual({ ok: false, cause: "invalid-signature" });
+    ).toStrictEqual({ ok: false, cause: "invalid-signature" });
     expect(fetched).toBe(1);
   });
 
@@ -265,7 +262,7 @@ describe("Standard Webhooks", () => {
       now: () => now,
       fetch: async () => new Response(null, { status: 503 }),
     });
-    expect(await offline.verify({ headers, body: "{}" })).toEqual({
+    expect(await offline.verify({ headers, body: "{}" })).toStrictEqual({
       ok: false,
       cause: "keys-unavailable",
     });
@@ -274,7 +271,7 @@ describe("Standard Webhooks", () => {
       replay: memoryReplayStore(),
       now: () => now,
     });
-    expect(await secretOnly.verify({ headers, body: "{}" })).toEqual({
+    expect(await secretOnly.verify({ headers, body: "{}" })).toStrictEqual({
       ok: false,
       cause: "invalid-signature",
     });
@@ -298,7 +295,7 @@ describe("Standard Webhooks", () => {
       body: "{}",
     });
     await read.text();
-    expect(await inline.verify(read)).toEqual({
+    expect(await inline.verify(read)).toStrictEqual({
       ok: false,
       cause: "malformed",
     });
@@ -311,7 +308,7 @@ describe("Standard Webhooks", () => {
         throw new Error("offline");
       },
     });
-    expect(await unreachable.verify({ headers, body: "{}" })).toEqual({
+    expect(await unreachable.verify({ headers, body: "{}" })).toStrictEqual({
       ok: false,
       cause: "keys-unavailable",
     });

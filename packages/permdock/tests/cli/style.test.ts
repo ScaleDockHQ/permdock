@@ -10,11 +10,11 @@ function stream(tty: boolean, colors = true): NodeJS.WriteStream {
   } as unknown as NodeJS.WriteStream;
 }
 
-describe("createStyle", () => {
+describe(createStyle, () => {
   it("returns plain text and word marks without colour", () => {
     const style = createStyle(false);
     expect(style.paint("red", "x")).toBe("x");
-    expect([style.errorMark, style.warnMark]).toEqual(["error", "warn"]);
+    expect([style.errorMark, style.warnMark]).toStrictEqual(["error", "warn"]);
   });
 
   it("wraps text in ANSI codes and uses glyph marks with colour", () => {
@@ -25,7 +25,7 @@ describe("createStyle", () => {
   });
 });
 
-describe("streamHasColors", () => {
+describe(streamHasColors, () => {
   it("asks a TTY", () => {
     expect(streamHasColors(stream(true, true), {})).toBe(true);
     expect(streamHasColors(stream(true, false), {})).toBe(false);

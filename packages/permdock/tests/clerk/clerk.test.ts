@@ -35,7 +35,7 @@ const authObject = {
   has: () => false,
 };
 
-describe("subjectFromClerk", () => {
+describe(subjectFromClerk, () => {
   it("never throws and fails closed to anonymous", async () => {
     await expect(subjectFromClerk(null)).resolves.toMatchObject({
       principal: null,
@@ -44,35 +44,31 @@ describe("subjectFromClerk", () => {
       principal: null,
     });
     await expect(subjectFromClerk({ userId: "user_x" })).resolves.toMatchObject(
-      {
-        principal: null,
-      },
+      { principal: null },
     );
   });
 
   it("maps the Clerk auth object to a tenant-scoped subject", async () => {
     const subject = await subjectFromClerk(authObject, {
-      permissions: {
-        "org:invoices:create": permissions.billing.create,
-      },
+      permissions: { "org:invoices:create": permissions.billing.create },
       features: { reporting: "reporting", api_access: "api" },
     });
     expect(subject.principal?.id).toBe("user_1");
     expect(subject.principal?.tenant).toBe("org_1");
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       {
         tenant: "org_1",
         roles: ["org:admin", "org:invoices:create", "reporting"],
         entitlements: ["pro"],
       },
     ]);
-    expect(subject.principal?.clerkPermissions).toEqual([
+    expect(subject.principal?.clerkPermissions).toStrictEqual([
       "org:invoices:create",
       "org:unknown",
     ]);
-    expect(subject.principal?.roles).toEqual(["api"]);
+    expect(subject.principal?.roles).toStrictEqual(["api"]);
     expect(subject.principal?.plans).toBeUndefined();
-    expect(subject.principal?.featureSources).toEqual({
+    expect(subject.principal?.featureSources).toStrictEqual({
       reporting: "o",
       api: "u",
     });
@@ -96,7 +92,7 @@ describe("subjectFromClerk", () => {
         },
       },
     });
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "org_1", roles: ["org:admin"], entitlements: ["pro"] },
       { tenant: "org_2", roles: ["org:member"] },
     ]);
@@ -111,16 +107,12 @@ describe("subjectFromClerk", () => {
         org_role: "org:member",
         publicMetadata: { staff: "reviewer" },
       },
-      {
-        claims: {
-          roles: "publicMetadata.staff",
-        },
-      },
+      { claims: { roles: "publicMetadata.staff" } },
     );
     expect(subject.principal?.id).toBe("user_2");
     expect(subject.principal?.tenant).toBe("org_9");
-    expect(subject.principal?.roles).toEqual(["reviewer"]);
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.roles).toStrictEqual(["reviewer"]);
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "org_9", roles: ["org:member"] },
     ]);
   });
@@ -144,13 +136,13 @@ describe("subjectFromClerk", () => {
       { permissions: { "org:invoices:create": permissions.billing.create } },
     );
     expect(subject.principal?.tenant).toBe("org_7");
-    expect(subject.principal?.clerkPermissions).toEqual([
+    expect(subject.principal?.clerkPermissions).toStrictEqual([
       "org:invoices:create",
       "org:invoices:read",
       "org:reports:read",
       "org:reports:manage",
     ]);
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "org_7", roles: ["org:admin", "org:invoices:create"] },
     ]);
     expect(subject.principal?.claims).toBeUndefined();
@@ -179,7 +171,7 @@ describe("subjectFromClerk", () => {
         },
       },
     });
-    expect(pages).toEqual([
+    expect(pages).toStrictEqual([
       { userId: "user_1", limit: 100, offset: 0 },
       { userId: "user_1", limit: 100, offset: 100 },
       { userId: "user_1", limit: 100, offset: 200 },
@@ -210,7 +202,7 @@ describe("subjectFromClerk", () => {
     const subject = await subjectFromClerk(authObject, {
       declared: ["org:member"],
     });
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "org_1", roles: [], entitlements: ["pro"] },
     ]);
   });
@@ -226,7 +218,7 @@ describe("subjectFromClerk", () => {
         },
       },
     });
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "org_1", roles: ["org:admin"], entitlements: ["pro"] },
     ]);
   });
@@ -266,7 +258,7 @@ describe("subjectFromClerk", () => {
     );
     expect(subject.principal?.plans).toBeUndefined();
     expect(subject.principal?.roles ?? []).not.toContain("reporting");
-    expect(subject.principal?.memberships?.[0]).toEqual({
+    expect(subject.principal?.memberships?.[0]).toStrictEqual({
       tenant: "org_1",
       roles: ["org:member", "reporting"],
       entitlements: ["pro"],

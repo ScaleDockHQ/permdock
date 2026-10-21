@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import type { PermDock } from "../../src/core/permdock.ts";
 import type { Membership } from "../../src/core/subject.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -25,9 +26,7 @@ const permissions = definePermissions({
   note: resource({
     id: "id",
     actions: ["read"],
-    relations: {
-      workspace: { field: "workspaceId", memberOf: "workspace" },
-    },
+    relations: { workspace: { field: "workspaceId", memberOf: "workspace" } },
   }),
 });
 
@@ -110,7 +109,7 @@ async function both(
   );
   const snapshot = live.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error("expected JSON snapshot");
+    throw new TypeError("expected JSON snapshot");
   }
   return {
     live,

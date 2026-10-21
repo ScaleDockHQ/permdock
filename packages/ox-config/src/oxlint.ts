@@ -1,6 +1,8 @@
+import type { OxlintConfig } from "oxlint";
+
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { type OxlintConfig, defineConfig } from "oxlint";
+import { defineConfig } from "oxlint";
 
 type Rules = NonNullable<OxlintConfig["rules"]>;
 
@@ -15,8 +17,8 @@ interface TurboGlobal {
  * Build output and caches that no workspace should lint.
  *
  * `extends` merges `rules`, `plugins` and `overrides`, but a consumer's own
- * `ignorePatterns` replaces the inherited list. Consumers that add ignores
- * must spread this constant in front of their own patterns.
+ * `ignorePatterns` replaces the inherited list. Consumers that add ignores must
+ * spread this constant in front of their own patterns.
  */
 export const ignorePatterns: readonly string[] = [
   "**/{dist,.next,.nuxt,.output,.svelte-kit,.source,.expo,coverage,.turbo,node_modules}/**",
@@ -81,9 +83,9 @@ export const neverImport: {
 };
 
 /**
- * One library per concern for the docs and marketing apps and the packages
- * they share. The published package, its tests and the examples are exempt:
- * they exercise Zod, ArkType and third-party agent SDKs on purpose.
+ * One library per concern for the docs and marketing apps and the packages they
+ * share. The published package, its tests and the examples are exempt: they
+ * exercise Zod, ArkType and third-party agent SDKs on purpose.
  */
 export const oneLibraryPerConcern: Rules = {
   "eslint/no-restricted-imports": [
@@ -129,15 +131,12 @@ export const oneLibraryPerConcern: Rules = {
  * Shared Oxlint baseline for every workspace in the repository.
  *
  * Every workspace's `oxlint.config.ts` extends `core` plus the presets it
- * needs. The categories go beyond correctness and suspicious on purpose;
- * the pinned rules below stay on whatever a category change does.
+ * needs. The categories go beyond correctness and suspicious on purpose; the
+ * pinned rules below stay on whatever a category change does.
  */
 export const core: OxlintConfig = defineConfig({
   ignorePatterns: [...ignorePatterns],
-  options: {
-    denyWarnings: true,
-    reportUnusedDisableDirectives: "error",
-  },
+  options: { denyWarnings: true, reportUnusedDisableDirectives: "error" },
   // Oxlint resolves bare and relative specifiers from the consuming config,
   // so every plugin is handed over as an absolute path from this package.
   jsPlugins: [
@@ -186,6 +185,7 @@ export const core: OxlintConfig = defineConfig({
     "typescript/await-thenable": "error",
     "typescript/consistent-type-exports": "error",
     "typescript/consistent-type-imports": "error",
+    "import/consistent-type-specifier-style": ["error", "prefer-top-level"],
     // noPropertyAccessFromIndexSignature requires brackets for index-signature reads.
     "typescript/dot-notation": [
       "error",
@@ -197,11 +197,14 @@ export const core: OxlintConfig = defineConfig({
     "typescript/prefer-reduce-type-parameter": "error",
     "typescript/prefer-regexp-exec": "error",
     "typescript/prefer-return-this-type": "error",
+    "typescript/method-signature-style": ["error", "property"],
     "typescript/prefer-string-starts-ends-with": "error",
     "typescript/no-deprecated": "error",
     "typescript/no-explicit-any": "error",
     "typescript/no-floating-promises": "error",
     "typescript/no-misused-promises": "error",
+    "promise/catch-or-return": ["error", { allowThen: true }],
+    "promise/always-return": ["error", { ignoreLastCallback: true }],
     "typescript/no-non-null-assertion": "error",
     "typescript/no-unnecessary-condition": "error",
     "typescript/no-unsafe-argument": "error",
@@ -218,15 +221,29 @@ export const core: OxlintConfig = defineConfig({
     "typescript/prefer-nullish-coalescing": "error",
     "typescript/prefer-optional-chain": "error",
     "typescript/return-await": "error",
-    "typescript/strict-boolean-expressions": "error",
+    "typescript/strict-boolean-expressions": [
+      "error",
+      { allowString: false, allowNullableObject: true },
+    ],
     "typescript/switch-exhaustiveness-check": "error",
     "typescript/unbound-method": "error",
     "unicorn/prefer-module": "error",
-    // Node 24 and ES2025 targets: native syntax, never down-levelled (2369 findings).
+    "eslint/func-style": [
+      "error",
+      "declaration",
+      { allowArrowFunctions: true },
+    ],
+    // Key order is the wire and docs order, such as the permission leaf
+    // `{ key, resource, action, scope, meta }` (19130 findings).
+    "eslint/sort-keys": "off",
+    // Lazy `import()` loaders, optional reads, called members and repeated
+    // names in one test read worse through a temporary (718 findings).
+    "unicorn/no-await-expression-member": "off",
+    // Node 24 and ES2025 targets: native syntax, never down-levelled (6619 findings).
     "oxc/no-async-await": "off",
-    // Node 24 and ES2025 targets: native syntax, never down-levelled (1802 findings).
+    // Node 24 and ES2025 targets: native syntax, never down-levelled (4082 findings).
     "oxc/no-optional-chaining": "off",
-    // Node 24 and ES2025 targets: native syntax, never down-levelled (826 findings).
+    // Node 24 and ES2025 targets: native syntax, never down-levelled (3119 findings).
     "oxc/no-rest-spread-properties": "off",
     "anti-slop/no-module-mocking": "error",
     "anti-slop/no-reflect-apply": "error",
@@ -241,15 +258,15 @@ export const core: OxlintConfig = defineConfig({
     "anti-slop/no-runtime-typeof": "off",
     // Boundary entry points (refresh, tool args, remote decisions) take `unknown` and validate it (699 findings).
     "anti-slop/no-unknown-parameters": "off",
-    // Condition paths, claims and adapter hooks hand back `unknown` for the caller to validate (271 findings).
+    // Condition paths, claims and adapter hooks hand back `unknown` for the caller to validate under invariant 9 (427 findings).
     "anti-slop/no-unknown-returns": "off",
     // `Record<string, unknown>` is the JSON boundary type; noUncheckedIndexedAccess guards reads (547 findings).
     "anti-slop/no-unsafe-dictionary-type": "off",
-    // exactOptionalPropertyTypes forbids `key: undefined`; the conditional spread omits the key (177 findings).
+    // exactOptionalPropertyTypes forbids `key: undefined`; the conditional spread omits the key (649 findings).
     "anti-slop/no-conditional-empty-object-spread": "off",
-    // Explicit return and wire types (isolatedDeclarations on exports) are the contract by design (271 findings).
+    // Explicit return and wire types (isolatedDeclarations on exports) are the contract by design (567 findings).
     "anti-slop/no-known-value-widening": "off",
-    // `object` is the non-primitive bound for prototype-safe reads and foreign tables / contexts (20 findings).
+    // `object` is the non-primitive bound for prototype-safe reads, WeakMap keys and foreign tables / contexts (46 findings).
     "anti-slop/no-object-parameters": "off",
     // "Shape" is Standard Schema, tRPC and SQL vocabulary here, including public type parameters (179 findings).
     "anti-slop/no-shape-in-symbol-names": "off",
@@ -257,16 +274,14 @@ export const core: OxlintConfig = defineConfig({
     "typescript/no-generated-empty-object-type": "off",
     // Config files (`*.config.ts`) need a default export; `library` turns it back on (193 findings).
     "import/no-default-export": "off",
-    // Promise chains in adapters return the chain; `await` would add a microtask (83 findings).
+    // A promise handed on unresolved cannot be awaited: a Next.js layout passes
+    // `snapshotPromise` to the client so the page streams, and sync Node
+    // handlers end with a fire-and-forget `.catch` (93 findings).
     "promise/prefer-await-to-then": "off",
-    // Callback-style framework hooks (Express, Fastify, Nest) are the adapter contract (14 findings).
+    // Flags every parameter named `callback`, `error`, `next` or `done`, such as
+    // `it.each` rows and MCP handler wrappers, not only continuation-passing
+    // code (22 findings).
     "promise/prefer-await-to-callbacks": "off",
-    // `.then` callbacks that only run a side effect (store writes, UI state) have nothing to return (11 findings).
-    "promise/always-return": "off",
-    // Express `next` and resolver continuations are called from promise callbacks by contract (5 findings).
-    "promise/no-callback-in-promise": "off",
-    // `.then(onFulfilled, onRejected)` handles rejection, which this rule does not recognise (3 findings).
-    "promise/catch-or-return": "off",
   },
   overrides: [
     {
@@ -303,8 +318,8 @@ export const core: OxlintConfig = defineConfig({
 });
 
 /**
- * Published library code: named exports only, and the relaxations that
- * frozen JSON, closures and isolatedDeclarations need.
+ * Published library code: named exports only, and the relaxations that frozen
+ * JSON, closures and isolatedDeclarations need.
  */
 export const library: OxlintConfig = defineConfig({
   rules: {
@@ -317,7 +332,7 @@ export const library: OxlintConfig = defineConfig({
     "unicorn/no-useless-undefined": "off",
     // Modules read top-down from the export; helpers are hoisted below it (263 findings).
     "eslint/no-use-before-define": "off",
-    // Request, Response and framework contexts are never deeply readonly (1531 findings).
+    // Request, Response and framework contexts are never deeply readonly (3516 findings).
     "typescript/prefer-readonly-parameter-types": "off",
     // Fail-closed guards check untyped runtime input that the static types call impossible (116 findings).
     "typescript/no-unnecessary-condition": "off",
@@ -333,9 +348,7 @@ export const library: OxlintConfig = defineConfig({
     "typescript/no-unnecessary-type-parameters": "off",
     // `=== true` keeps fail-closed checks explicit on boolean-ish results (15 findings).
     "typescript/no-unnecessary-boolean-literal-compare": "off",
-    // `String(id)` formats unknown resource ids for audit events (24 findings).
-    "typescript/no-base-to-string": "off",
-    // Sources and sinks pass promises through without an extra microtask (249 findings).
+    // Sources and sinks pass promises through without an extra microtask (269 findings).
     "typescript/promise-function-async": "off",
     // One concept per file; past 1,000 code lines a module splits by concern.
     "eslint/max-lines": [
@@ -357,9 +370,7 @@ export const library: OxlintConfig = defineConfig({
   },
 });
 
-/**
- * Node tooling: repository scripts, test workspaces and fixture servers.
- */
+/** Node tooling: repository scripts, test workspaces and fixture servers. */
 export const node: OxlintConfig = defineConfig({
   rules: {
     // Tests pass `undefined` to probe optional inputs (358 findings).
@@ -386,15 +397,15 @@ export const node: OxlintConfig = defineConfig({
 });
 
 /**
- * Vitest suites. Test-only workspaces extend it for every file; packages
- * apply `test.rules` in an override on their `tests/` folder.
+ * Vitest suites. Test-only workspaces extend it for every file; packages apply
+ * `test.rules` in an override on their `tests/` folder.
  */
 export const test: OxlintConfig = defineConfig({
   plugins: ["vitest"],
   rules: {
     // Test helpers are local; inference is enough (430 findings).
     "typescript/explicit-function-return-type": "off",
-    // Test doubles mutate their inputs on purpose (1142 findings).
+    // Test doubles mutate their inputs on purpose (2611 findings).
     "typescript/prefer-readonly-parameter-types": "off",
     // Type tests probe the empty context on purpose (1 finding).
     "typescript/no-generated-empty-object-type": "off",
@@ -418,10 +429,6 @@ export const test: OxlintConfig = defineConfig({
     "eslint/max-lines": "off",
     // Integration tests wire many adapters (30 findings).
     "import/max-dependencies": "off",
-    // Test patterns match ASCII output (132 findings).
-    "eslint/require-unicode-regexp": "off",
-    // tsc noUnusedLocals already reports unused bindings (7 findings).
-    "eslint/no-unused-vars": "off",
     // Tests import the module under test from its folder (445 findings).
     "import/no-relative-parent-imports": "off",
     // Tests pass malformed input to prove fail-closed behaviour (54 findings).
@@ -434,42 +441,49 @@ export const test: OxlintConfig = defineConfig({
     "typescript/no-unsafe-assignment": "off",
     // Assertions pin literal types in fixtures (48 findings).
     "typescript/no-unnecessary-type-assertion": "off",
-    // Assertions follow an expect that proved the value exists (64 findings).
-    "typescript/no-non-null-assertion": "off",
     // Test doubles return untyped JSON and framework handles (31 findings).
     "typescript/no-unsafe-return": "off",
     // Async callbacks match the interface under test (161 findings).
     "typescript/require-await": "off",
     // Async callbacks match the interface under test (214 findings).
     "eslint/require-await": "off",
-    // Test doubles return promises without async (217 findings).
+    // Test doubles return promises without async (704 findings).
     "typescript/promise-function-async": "off",
-    // Store tests fire writes and assert on the next read (50 findings).
-    "typescript/no-floating-promises": "off",
     // Arrow shorthand returns void calls in callbacks (9 findings).
     "typescript/no-confusing-void-expression": "off",
-    // Template literals keep matrix titles uniform (1 finding).
-    "typescript/no-unnecessary-template-expression": "off",
-    // Tests throw plain Error to simulate failing closures and parsers (34 findings).
-    "unicorn/prefer-type-error": "off",
     // `void` marks deliberately ignored promises (15 findings).
     "eslint/no-void": "off",
-    // Ordered steps model sequential requests and pages (158 findings).
+    // Ordered steps model sequential requests and pages (441 findings).
     "eslint/no-await-in-loop": "off",
-    // Case-local helpers stay next to the assertions that use them (38 findings).
+    // Case-local helpers stay next to the assertions that use them (286 findings).
     "unicorn/consistent-function-scoping": "off",
     // Test files never import each other, so a focused or skipped case is always a mistake.
     "vitest/no-focused-tests": "error",
     "vitest/no-disabled-tests": "error",
+    "vitest/prefer-strict-equal": "error",
+    "vitest/prefer-import-in-mock": "error",
+    "vitest/require-top-level-describe": "error",
+    "vitest/padding-around-test-blocks": "error",
+    "vitest/padding-around-after-all-blocks": "error",
+    "vitest/prefer-describe-function-title": "error",
+    "vitest/prefer-expect-type-of": "error",
+    "vitest/consistent-test-filename": "error",
+    "vitest/prefer-importing-vitest-globals": "error",
+    // Extension methods return `T | Promise<T>`; `.resolves` throws on a plain
+    // value, `expect(await x)` takes both (1883 findings).
+    "vitest/prefer-expect-resolves": "off",
+    // Matrix and conformance cases assert every field of one decision; at the
+    // p95 of 6 expects per test (858 findings).
+    "vitest/max-expects": "off",
   },
 });
 
 /**
- * React, jsx-a11y and Next.js rules for UI apps, the React Doctor effect
- * rules, and the shadcn design-system rules.
+ * React, jsx-a11y and Next.js rules for UI apps, the React Doctor effect rules,
+ * and the shadcn design-system rules.
  *
  * This lists every rule of the react, jsx-a11y and nextjs plugins in the
- * categories `core` enables as of oxlint 1.86. Re-check it on oxlint upgrades.
+ * categories `core` enables as of oxlint 1.89. Re-check it on oxlint upgrades.
  */
 export const react: OxlintConfig = defineConfig({
   jsPlugins: [
@@ -563,6 +577,13 @@ export const react: OxlintConfig = defineConfig({
     "react/invariant": "error",
     // Its default allows JSX only in `.jsx`; the apps are TSX (66 findings).
     "react/jsx-filename-extension": "off",
+    "react/function-component-definition": [
+      "error",
+      {
+        namedComponents: "function-declaration",
+        unnamedComponents: "arrow-function",
+      },
+    ],
     "react/jsx-key": "error",
     "react/jsx-no-comment-textnodes": "error",
     "react/jsx-no-constructed-context-values": "error",
@@ -643,13 +664,16 @@ export const react: OxlintConfig = defineConfig({
     "react-doctor/prefer-use-effect-event": "error",
     "shadcn/no-inline-styles": "error",
     "shadcn/no-raw-colors": "error",
+    // Clearing it restyles the marketing site and the Next.js example and adds
+    // variants in packages/ui: a design pass with visual review (162 findings).
+    "shadcn/no-restyle": "off",
     // Framework file conventions infer page and layout types (140 findings).
     "typescript/explicit-function-return-type": "off",
     // Framework file conventions infer page and layout types (91 findings).
     "typescript/explicit-module-boundary-types": "off",
     // Pages, layouts and configs are default exports (91 findings).
     "import/no-default-export": "off",
-    // Framework props are not deeply readonly (215 findings).
+    // Framework props are not deeply readonly (366 findings).
     "typescript/prefer-readonly-parameter-types": "off",
     // CSS entries and `reflect-metadata` are side-effect imports (4 findings).
     "import/no-unassigned-import": "off",
@@ -658,9 +682,7 @@ export const react: OxlintConfig = defineConfig({
   },
 });
 
-/**
- * Adapter example apps under `apps/examples`.
- */
+/** Adapter example apps under `apps/examples`. */
 export const example: OxlintConfig = defineConfig({
   rules: {
     // App-router and factory files import across src/ folders (47 findings).

@@ -34,9 +34,7 @@ const policy = definePolicy(permissions, {
     role(
       "admin",
       [allow([permissions.invoice.read, permissions.invoice.void])],
-      {
-        on: "tenant",
-      },
+      { on: "tenant" },
     ),
     role(
       "clerk",
@@ -80,7 +78,7 @@ function map(text: string): unknown {
 describe("permission-key helpers", () => {
   it("maps a permission key to its unconditional allows and every deny, and its conditioned keys apart", () => {
     const text = sql(base);
-    expect(map(text)).toEqual({
+    expect(map(text)).toStrictEqual({
       tenant: {
         "invoice.read": {
           allow: ["invoice.read#1"],

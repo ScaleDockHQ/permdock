@@ -37,7 +37,7 @@ async function memberSnapshot() {
   const server = getPermDockSync(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error("expected JSON snapshot");
+    throw new TypeError("expected JSON snapshot");
   }
   return snapshot;
 }
@@ -85,8 +85,8 @@ describe("permdock/svelte", () => {
     expect(roles.roles.map((item) => item.key)).toContain("member");
     expect(subject.simulated).toBe(false);
     expect(permdock.status()).toBe("ready");
-    expect(get(assignableFor(store))).toEqual([]);
-    expect(get(assignablePermissionsFor(store))).toEqual([]);
+    expect(get(assignableFor(store))).toStrictEqual([]);
+    expect(get(assignablePermissionsFor(store))).toStrictEqual([]);
     expect(get(approvalFor(store, () => canEdit.decision)).state).toBe(
       "not-needed",
     );
@@ -96,7 +96,7 @@ describe("permdock/svelte", () => {
     const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
     const snapshot = server.snapshot({ tenants: "all" });
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const store = createSvelteStore({ snapshot, tenant: "globex" });
     const globexProject = { ...ownProject, id: "g1", orgId: "globex" };
@@ -109,14 +109,14 @@ describe("permdock/svelte", () => {
         scopedFor(store, "globex"),
       ),
     ].map((view) => [view.slot, view.status, view.allowed]);
-    expect(slots).toEqual([
+    expect(slots).toStrictEqual([
       ["default", "ready", true],
       ["denied", "ready", false],
     ]);
   });
 
   it("builds the approval resume header", () => {
-    expect(approvalHeaders("pd1.abc")).toEqual({
+    expect(approvalHeaders("pd1.abc")).toStrictEqual({
       "PermDock-Approval": "pd1.abc",
     });
   });

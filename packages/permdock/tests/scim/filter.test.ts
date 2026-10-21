@@ -8,7 +8,7 @@ import {
   parseScimFilter,
 } from "../../src/scim/filter.ts";
 
-describe("parseScimFilter", () => {
+describe(parseScimFilter, () => {
   it.each<[string, ScimFilter]>([
     ['userName eq "ada"', { op: "eq", attribute: "userName", value: "ada" }],
     ['userName EQ "ada"', { op: "eq", attribute: "userName", value: "ada" }],
@@ -67,7 +67,7 @@ describe("parseScimFilter", () => {
     ],
     ["( id pr )", { op: "pr", attribute: "id" }],
   ])("parses %s", (input, expected) => {
-    expect(parseScimFilter(input)).toEqual(expected);
+    expect(parseScimFilter(input)).toStrictEqual(expected);
   });
 
   it.each([
@@ -93,7 +93,7 @@ describe("parseScimFilter", () => {
   });
 });
 
-describe("matchFilter", () => {
+describe(matchFilter, () => {
   const user = {
     id: "u_1",
     userName: "ada",
@@ -143,7 +143,7 @@ describe("matchFilter", () => {
     ['id eq "x" or userName eq "bob"', user, false],
   ])("%s", (input, target, expected) => {
     const filter = parseScimFilter(input);
-    expect({ input, matched: matchFilter(target, filter) }).toEqual({
+    expect({ input, matched: matchFilter(target, filter) }).toStrictEqual({
       input,
       matched: expected,
     });
@@ -166,7 +166,7 @@ describe("matchFilter", () => {
   });
 });
 
-describe("filterSupported", () => {
+describe(filterSupported, () => {
   it.each<[string, boolean]>([
     ['id eq "1"', true],
     ['userName sw "a"', true],

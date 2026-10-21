@@ -61,16 +61,9 @@ const roles = defineRoles({
   support: {},
 });
 
-const plans = definePlans({
-  pro: { meta: { title: "Pro" } },
-});
+const plans = definePlans({ pro: { meta: { title: "Pro" } } });
 
-const row = {
-  id: "p1",
-  authorId: "u1",
-  orgId: "acme",
-  published: false,
-};
+const row = { id: "p1", authorId: "u1", orgId: "acme", published: false };
 
 describe("typed vocabulary", () => {
   it("builds frozen Role and Plan leaves", () => {
@@ -80,10 +73,10 @@ describe("typed vocabulary", () => {
     expect(roles.owner.assignable).toBe(true);
     expect(roles.support.assignable).toBe(false);
     expect(isPlan(plans.pro)).toBe(true);
-    expect(listRoles(roles).map((item) => item.key)).toEqual(
+    expect(listRoles(roles).map((item) => item.key)).toStrictEqual(
       expect.arrayContaining(["member", "owner", "support"]),
     );
-    expect(listPlans(plans).map((item) => item.key)).toEqual(["pro"]);
+    expect(listPlans(plans).map((item) => item.key)).toStrictEqual(["pro"]);
     expect(() => JSON.stringify(roles.owner)).not.toThrow();
   });
 
@@ -148,9 +141,7 @@ describe("grantee selectors", () => {
           allow(permissions.post.update, {
             to: relation(permissions.post, "author"),
           }),
-          allow(permissions.post.delete, {
-            to: [roles.member, plans.pro],
-          }),
+          allow(permissions.post.delete, { to: [roles.member, plans.pro] }),
           allow(permissions.post.create, {
             to: [roles.member, assurance({ acr: ["mfa"] })],
           }),
@@ -181,7 +172,7 @@ describe("grantee selectors", () => {
     expect(permdock.can(permissions.post.create)).toBe(true);
     expect(permdock.can(permissions.post.read, row)).toBe(true);
     const actions = permdock.actions(permissions.post, row);
-    expect(actions.map((item) => item.action)).toEqual(
+    expect(actions.map((item) => item.action)).toStrictEqual(
       expect.arrayContaining(["update", "read", "delete"]),
     );
   });
@@ -219,9 +210,7 @@ describe("principal refs and snapshots", () => {
       subject: () => ({ id: "u1", roles: ["member"] }),
       roles: [
         role("member", [
-          allow(permissions.post.update, {
-            where: { authorId: principal.id },
-          }),
+          allow(permissions.post.update, { where: { authorId: principal.id } }),
         ]),
       ],
     });
@@ -244,7 +233,7 @@ describe("principal refs and snapshots", () => {
     const permdock = getPermDockSync(policy, { id: "u1" });
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected json snapshot");
+      throw new TypeError("expected json snapshot");
     }
     expect(snapshot.v).toBe(1);
     expect(snapshot.grants[0]?.to).toMatchObject({
@@ -348,9 +337,9 @@ describe("grantee and vocabulary helpers", () => {
     expect(isActor(null)).toBe(false);
     expect(isRole({})).toBe(false);
     expect(isPlan(null)).toBe(false);
-    expect(listRoles(undefined)).toEqual([]);
-    expect(listPlans(undefined)).toEqual([]);
-    expect(() => defineRoles({ constructor: {} })).toThrow(/forbidden/);
-    expect(() => definePlans({ prototype: {} })).toThrow(/forbidden/);
+    expect(listRoles(undefined)).toStrictEqual([]);
+    expect(listPlans(undefined)).toStrictEqual([]);
+    expect(() => defineRoles({ constructor: {} })).toThrow(/forbidden/u);
+    expect(() => definePlans({ prototype: {} })).toThrow(/forbidden/u);
   });
 });

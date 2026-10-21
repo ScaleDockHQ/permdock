@@ -1,6 +1,9 @@
 import { timeoutSignal } from "../core/timeout.ts";
 
-/** Milliseconds a decision, refresh or approval request may take; a slower one is an error like a failed request. */
+/**
+ * Milliseconds a decision, refresh or approval request may take; a slower one
+ * is an error like a failed request.
+ */
 const STORE_TIMEOUT_MS = 10_000;
 
 export type StoreHeaders = Readonly<Record<string, string>>;

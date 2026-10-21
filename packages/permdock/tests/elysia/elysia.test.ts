@@ -1,11 +1,10 @@
 import { Elysia } from "elysia";
 import { describe, expect, it } from "vitest";
 
+import type { ElysiaPermDockContext } from "../../src/elysia/index.ts";
+
 import { memoryRevocationFeed } from "../../src/core/revocations.ts";
-import {
-  createPermDock,
-  type ElysiaPermDockContext,
-} from "../../src/elysia/index.ts";
+import { createPermDock } from "../../src/elysia/index.ts";
 import {
   memberUser,
   otherPost,
@@ -41,9 +40,9 @@ describe("permdock/elysia sockets", () => {
     expect(opened.check(permissions.post.update, otherPost).outcome).toBe(
       "denied",
     );
-    expect(closes).toEqual([]);
+    expect(closes).toStrictEqual([]);
     await revocations.revoke({ principal: "u1", kind: "session-revoked" });
-    expect(closes).toEqual([[1008, "session-revoked"]]);
+    expect(closes).toStrictEqual([[1008, "session-revoked"]]);
   });
 });
 
@@ -52,26 +51,28 @@ describe("permdock/elysia", () => {
     const { middleware, protect } = createPermDock(policy, {
       subject: () => memberUser,
     });
-    const app = new Elysia().use(middleware()).delete(
-      "/posts/:id",
-      (ctx) => ({
-        ok: true,
-        via: isElysiaPermDockContext(ctx)
-          ? ctx.permdock.subject.principal?.id
-          : undefined,
-      }),
-      {
-        beforeHandle: protect(permissions.post.update, ({ params }) =>
-          params?.["id"] === "p1" ? ownPost : otherPost,
-        ),
-      },
-    );
+    const app = new Elysia()
+      .use(middleware())
+      .delete(
+        "/posts/:id",
+        (ctx) => ({
+          ok: true,
+          via: isElysiaPermDockContext(ctx)
+            ? ctx.permdock.subject.principal?.id
+            : undefined,
+        }),
+        {
+          beforeHandle: protect(permissions.post.update, ({ params }) =>
+            params?.["id"] === "p1" ? ownPost : otherPost,
+          ),
+        },
+      );
 
     const allowed = await app.handle(
       new Request("http://localhost/posts/p1", { method: "DELETE" }),
     );
     expect(allowed.status).toBe(200);
-    expect(await allowed.json()).toEqual({ ok: true, via: "u1" });
+    expect(await allowed.json()).toStrictEqual({ ok: true, via: "u1" });
 
     const denied = await app.handle(
       new Request("http://localhost/posts/p2", { method: "DELETE" }),
@@ -83,9 +84,7 @@ describe("permdock/elysia", () => {
   });
 
   it("answers 401 with a bare Bearer challenge to a caller without credentials", async () => {
-    const { protect } = createPermDock(policy, {
-      subject: () => null,
-    });
+    const { protect } = createPermDock(policy, { subject: () => null });
     const app = new Elysia().get("/posts/:id", () => ({ ok: true }), {
       beforeHandle: protect(permissions.post.read, () => ownPost),
     });
@@ -157,7 +156,7 @@ describe("permdock/elysia getPermDock", () => {
       };
     });
     const response = await app.handle(new Request("http://localhost/"));
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toStrictEqual({
       id: "u1",
       own: true,
       other: false,

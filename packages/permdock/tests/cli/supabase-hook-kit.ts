@@ -61,10 +61,5 @@ export default {
   } catch {
     sql = "";
   }
-  return {
-    code: result.code,
-    output: result.stdout + result.stderr,
-    sql,
-    cwd,
-  };
+  return { code: result.code, output: result.stdout + result.stderr, sql, cwd };
 }

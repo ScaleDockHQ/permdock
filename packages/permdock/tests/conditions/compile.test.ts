@@ -23,18 +23,18 @@ function sub(
   return { principal: who, context: ctx };
 }
 
-describe("compileWhere", () => {
+describe(compileWhere, () => {
   it("fails closed on an empty or", () => {
-    expect(compileWhere({ op: "or", conditions: [] })).toEqual({
+    expect(compileWhere({ op: "or", conditions: [] })).toStrictEqual({
       kind: "never",
     });
   });
 
   it("treats unconditional allow as always and false as never", () => {
-    expect(compileWhere({ op: "eq", field: "_", value: true })).toEqual({
+    expect(compileWhere({ op: "eq", field: "_", value: true })).toStrictEqual({
       kind: "always",
     });
-    expect(compileWhere({ op: "eq", field: "_", value: false })).toEqual({
+    expect(compileWhere({ op: "eq", field: "_", value: false })).toStrictEqual({
       kind: "never",
     });
   });
@@ -45,7 +45,12 @@ describe("compileWhere", () => {
         condition: { op: "eq", field: "authorId", value: "u1" },
         partial: false,
       }),
-    ).toEqual({ kind: "compare", op: "eq", field: "authorId", value: "u1" });
+    ).toStrictEqual({
+      kind: "compare",
+      op: "eq",
+      field: "authorId",
+      value: "u1",
+    });
     expect(() =>
       compileWhere({
         condition: { op: "eq", field: "authorId", value: "u1" },
@@ -62,7 +67,12 @@ describe("compileWhere", () => {
           twin: { op: "eq", field: "authorId", value: "u1" },
         }),
       ),
-    ).toEqual({ kind: "compare", op: "eq", field: "authorId", value: "u1" });
+    ).toStrictEqual({
+      kind: "compare",
+      op: "eq",
+      field: "authorId",
+      value: "u1",
+    });
   });
 
   it("resolves subject refs and dates, and fails closed on empty in", () => {
@@ -72,29 +82,26 @@ describe("compileWhere", () => {
         { op: "eq", field: "authorId", value: principal.id },
         { subject: who },
       ),
-    ).toEqual({ kind: "compare", op: "eq", field: "authorId", value: "u1" });
+    ).toStrictEqual({
+      kind: "compare",
+      op: "eq",
+      field: "authorId",
+      value: "u1",
+    });
     expect(
       compileWhere(
-        {
-          op: "in",
-          field: "teamId",
-          value: { ref: "context.teamIds" },
-        },
+        { op: "in", field: "teamId", value: { ref: "context.teamIds" } },
         { subject: who },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "compare",
       op: "in",
       field: "teamId",
       value: ["t1", "t2"],
     });
     expect(
-      compileWhere({
-        op: "gt",
-        field: "due",
-        value: { date: "2026-01-01" },
-      }),
-    ).toEqual({
+      compileWhere({ op: "gt", field: "due", value: { date: "2026-01-01" } }),
+    ).toStrictEqual({
       kind: "compare",
       op: "gt",
       field: "due",
@@ -113,15 +120,13 @@ describe("compileWhere", () => {
         field: "due",
         value: { date: "January 2, 2020" },
       }),
-    ).toEqual({ kind: "never" });
-    expect(compileWhere({ op: "in", field: "id", value: [] })).toEqual({
+    ).toStrictEqual({ kind: "never" });
+    expect(compileWhere({ op: "in", field: "id", value: [] })).toStrictEqual({
       kind: "never",
     });
-    expect(compileWhere({ op: "notIn", field: "id", value: [] })).toEqual({
-      kind: "isNull",
-      field: "id",
-      negated: true,
-    });
+    expect(compileWhere({ op: "notIn", field: "id", value: [] })).toStrictEqual(
+      { kind: "isNull", field: "id", negated: true },
+    );
   });
 
   it("simplifies and / or / not and compiles isNull", () => {
@@ -133,7 +138,12 @@ describe("compileWhere", () => {
           { op: "eq", field: "authorId", value: "u1" },
         ],
       }),
-    ).toEqual({ kind: "compare", op: "eq", field: "authorId", value: "u1" });
+    ).toStrictEqual({
+      kind: "compare",
+      op: "eq",
+      field: "authorId",
+      value: "u1",
+    });
     expect(
       compileWhere({
         op: "or",
@@ -142,19 +152,24 @@ describe("compileWhere", () => {
           { op: "eq", field: "authorId", value: "u1" },
         ],
       }),
-    ).toEqual({ kind: "compare", op: "eq", field: "authorId", value: "u1" });
+    ).toStrictEqual({
+      kind: "compare",
+      op: "eq",
+      field: "authorId",
+      value: "u1",
+    });
     expect(
       compileWhere({
         op: "not",
         condition: { op: "eq", field: "_", value: true },
       }),
-    ).toEqual({ kind: "never" });
+    ).toStrictEqual({ kind: "never" });
     expect(
       compileWhere({ op: "isNull", field: "deletedAt", value: true }),
-    ).toEqual({ kind: "isNull", field: "deletedAt", negated: false });
+    ).toStrictEqual({ kind: "isNull", field: "deletedAt", negated: false });
     expect(
       compileWhere({ op: "isNull", field: "deletedAt", value: false }),
-    ).toEqual({ kind: "isNull", field: "deletedAt", negated: true });
+    ).toStrictEqual({ kind: "isNull", field: "deletedAt", negated: true });
   });
 
   it("refuses a memberOf clock that is not an Instant", () => {
@@ -190,13 +205,13 @@ describe("compileWhere", () => {
         { op: "memberOf", scope: "tenant", field: "orgId", roles: ["viewer"] },
         { subject: member, now: at(now) },
       ),
-    ).toEqual({ kind: "compare", op: "eq", field: "orgId", value: "o1" });
+    ).toStrictEqual({ kind: "compare", op: "eq", field: "orgId", value: "o1" });
     expect(
       compileWhere(
         { op: "memberOf", scope: "tenant", field: "orgId", roles: ["admin"] },
         { subject: member, now: at(now) },
       ),
-    ).toEqual({ kind: "never" });
+    ).toStrictEqual({ kind: "never" });
     const noActive = sub({
       id: "u1",
       memberships: [
@@ -209,7 +224,7 @@ describe("compileWhere", () => {
         { op: "memberOf", scope: "tenant", field: "orgId", roles: ["viewer"] },
         { subject: noActive, now: at(now) },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "compare",
       op: "in",
       field: "orgId",
@@ -233,7 +248,12 @@ describe("compileWhere", () => {
         { op: "memberOf", scope: "team", field: "teamId", roles: ["lead"] },
         { subject: member, now: at(now) },
       ),
-    ).toEqual({ kind: "compare", op: "eq", field: "teamId", value: "t1" });
+    ).toStrictEqual({
+      kind: "compare",
+      op: "eq",
+      field: "teamId",
+      value: "t1",
+    });
     expect(
       compileWhere(
         {
@@ -246,16 +266,11 @@ describe("compileWhere", () => {
         },
         { subject: member, now: at(now) },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "or",
       items: [
         { kind: "compare", op: "eq", field: "id", value: "d1" },
-        {
-          kind: "compare",
-          op: "in",
-          field: "folderId",
-          value: ["d1", "f1"],
-        },
+        { kind: "compare", op: "in", field: "folderId", value: ["d1", "f1"] },
       ],
     });
   });
@@ -278,7 +293,7 @@ describe("compileWhere", () => {
           },
         },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "exists",
       table: "organization_members",
       user: "user_id",
@@ -307,7 +322,7 @@ describe("compileWhere", () => {
           },
         },
       ),
-    ).toEqual({ kind: "never" });
+    ).toStrictEqual({ kind: "never" });
   });
 
   it("collapses and-of-always and or-of-never", () => {
@@ -319,7 +334,7 @@ describe("compileWhere", () => {
           { op: "eq", field: "_", value: true },
         ],
       }),
-    ).toEqual({ kind: "always" });
+    ).toStrictEqual({ kind: "always" });
     expect(
       compileWhere({
         op: "or",
@@ -328,7 +343,7 @@ describe("compileWhere", () => {
           { op: "in", field: "id", value: [] },
         ],
       }),
-    ).toEqual({ kind: "never" });
+    ).toStrictEqual({ kind: "never" });
   });
 
   it("short-circuits and / or / not against never and always", () => {
@@ -340,7 +355,7 @@ describe("compileWhere", () => {
           { op: "eq", field: "_", value: false },
         ],
       }),
-    ).toEqual({ kind: "never" });
+    ).toStrictEqual({ kind: "never" });
     expect(
       compileWhere({
         op: "or",
@@ -349,13 +364,13 @@ describe("compileWhere", () => {
           { op: "eq", field: "_", value: true },
         ],
       }),
-    ).toEqual({ kind: "always" });
+    ).toStrictEqual({ kind: "always" });
     expect(
       compileWhere({
         op: "not",
         condition: { op: "eq", field: "_", value: false },
       }),
-    ).toEqual({ kind: "always" });
+    ).toStrictEqual({ kind: "always" });
   });
 
   it("compiles not, compounds and more memberOf mapping cases", () => {
@@ -364,7 +379,7 @@ describe("compileWhere", () => {
         op: "not",
         condition: { op: "eq", field: "authorId", value: "u1" },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "or",
       items: [
         {
@@ -382,7 +397,7 @@ describe("compileWhere", () => {
           { op: "ne", field: "status", value: "draft" },
         ],
       }),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "and",
       items: [
         { kind: "compare", op: "eq", field: "authorId", value: "u1" },
@@ -414,12 +429,7 @@ describe("compileWhere", () => {
     });
     expect(
       compileWhere(
-        {
-          op: "memberOf",
-          scope: "resource",
-          field: "id",
-          roles: ["editor"],
-        },
+        { op: "memberOf", scope: "resource", field: "id", roles: ["editor"] },
         {
           subject: sub({ id: "u1" }),
           memberships: {
@@ -434,7 +444,7 @@ describe("compileWhere", () => {
           },
         },
       ),
-    ).toEqual({ kind: "never" });
+    ).toStrictEqual({ kind: "never" });
     expect(
       compileWhere(
         { op: "memberOf", scope: "tenant", field: "orgId", roles: ["viewer"] },
@@ -449,7 +459,7 @@ describe("compileWhere", () => {
           },
         },
       ),
-    ).toEqual({ kind: "never" });
+    ).toStrictEqual({ kind: "never" });
   });
 
   it("skips memberships that lack the scoped identifier", () => {
@@ -466,18 +476,18 @@ describe("compileWhere", () => {
         { op: "memberOf", scope: "team", field: "teamId", roles: ["lead"] },
         { subject: incomplete, now: at(now) },
       ),
-    ).toEqual({ kind: "compare", op: "eq", field: "teamId", value: "t1" });
+    ).toStrictEqual({
+      kind: "compare",
+      op: "eq",
+      field: "teamId",
+      value: "t1",
+    });
     expect(
       compileWhere(
-        {
-          op: "memberOf",
-          scope: "resource",
-          field: "id",
-          roles: ["editor"],
-        },
+        { op: "memberOf", scope: "resource", field: "id", roles: ["editor"] },
         { subject: incomplete, now: at(now) },
       ),
-    ).toEqual({ kind: "never" });
+    ).toStrictEqual({ kind: "never" });
   });
 
   it("resolves nested subject paths and defaults now", () => {
@@ -487,19 +497,19 @@ describe("compileWhere", () => {
         { op: "eq", field: "orgId", value: { ref: "principal.orgId" } },
         { subject: who },
       ),
-    ).toEqual({ kind: "compare", op: "eq", field: "orgId", value: "o9" });
+    ).toStrictEqual({ kind: "compare", op: "eq", field: "orgId", value: "o9" });
     expect(
       compileWhere(
         { op: "eq", field: "n", value: { ref: "context.deep.n" } },
         { subject: who },
       ),
-    ).toEqual({ kind: "compare", op: "eq", field: "n", value: 1 });
+    ).toStrictEqual({ kind: "compare", op: "eq", field: "n", value: 1 });
     expect(
       compileWhere(
         { op: "in", field: "id", value: { ref: "context.missing" } },
         { subject: who },
       ),
-    ).toEqual({ kind: "never" });
+    ).toStrictEqual({ kind: "never" });
     expect(
       compileWhere(
         {
@@ -547,14 +557,15 @@ describe("compileWhere", () => {
         },
         { subject: sub({ id: "u1", memberships: [] }), now: at(now) },
       ),
-    ).toEqual({ kind: "never" });
+    ).toStrictEqual({ kind: "never" });
   });
 
   it("rejects forbidden field keys", () => {
     expect(() =>
       compileWhere({ op: "eq", field: "constructor", value: "x" }),
-    ).toThrow(/forbidden/);
+    ).toThrow(/forbidden/u);
   });
+
   it("keys parent hops by resource in the in-list and exists forms", () => {
     const condition = {
       op: "memberOf",
@@ -574,7 +585,7 @@ describe("compileWhere", () => {
       },
       context: {},
     };
-    expect(compileWhere(condition, { subject: holder })).toEqual({
+    expect(compileWhere(condition, { subject: holder })).toStrictEqual({
       kind: "compare",
       op: "eq",
       field: "folderId",
@@ -612,12 +623,10 @@ describe("compileWhere", () => {
   it("negates every compiled node kind with SQL NULL in mind", () => {
     expect(
       compileWhere({ op: "not", condition: { op: "or", conditions: [] } }),
-    ).toEqual({
-      kind: "always",
-    });
+    ).toStrictEqual({ kind: "always" });
     expect(
       compileWhere({ op: "not", condition: { op: "and", conditions: [] } }),
-    ).toEqual({ kind: "never" });
+    ).toStrictEqual({ kind: "never" });
     expect(
       compileWhere({
         op: "not",
@@ -629,7 +638,7 @@ describe("compileWhere", () => {
           ],
         },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "or",
       items: [
         {
@@ -656,7 +665,7 @@ describe("compileWhere", () => {
           ],
         },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "and",
       items: [
         { kind: "isNull", field: "a", negated: true },
@@ -668,7 +677,7 @@ describe("compileWhere", () => {
         op: "not",
         condition: { op: "not", condition: { op: "eq", field: "a", value: 1 } },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "and",
       items: [
         { kind: "compare", op: "eq", field: "a", value: 1 },
@@ -707,20 +716,20 @@ describe("compileWhere", () => {
         { op: "memberOf", scope: "tenant", field: "orgId", roles: [] },
         { subject: member },
       ),
-    ).toEqual({ kind: "compare", op: "eq", field: "orgId", value: "o1" });
+    ).toStrictEqual({ kind: "compare", op: "eq", field: "orgId", value: "o1" });
   });
 
   it("fails closed on invalid dates, null values and unknown operators", () => {
     expect(
       compileWhere({ op: "gt", field: "due", value: { date: "not a date" } }),
-    ).toEqual({ kind: "never" });
-    expect(compileWhere({ op: "eq", field: "a", value: null })).toEqual({
+    ).toStrictEqual({ kind: "never" });
+    expect(compileWhere({ op: "eq", field: "a", value: null })).toStrictEqual({
       kind: "never",
     });
     // SAFETY: a deliberately unknown operator to exercise compileWhere's refusal.
     expect(() =>
       compileWhere({ op: "nope", field: "a" } as unknown as Condition),
-    ).toThrow(/unknown condition/);
+    ).toThrow(/unknown condition/u);
   });
 
   it("compiles a bare parent hop against the row table without a resource key", () => {

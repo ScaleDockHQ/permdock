@@ -17,10 +17,7 @@ export const permissions = definePermissions({
   }),
 });
 
-export const roles = defineRoles({
-  member: {},
-  admin: {},
-});
+export const roles = defineRoles({ member: {}, admin: {} });
 
 export const ownPost = {
   id: "p1",

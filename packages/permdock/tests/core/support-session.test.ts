@@ -1,13 +1,12 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import type { SupportSession } from "../../src/core/support-session.ts";
+
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { memorySettingsSource } from "../../src/core/memory-sources.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
-import {
-  type SupportSession,
-  parseSupportSession,
-} from "../../src/core/support-session.ts";
+import { parseSupportSession } from "../../src/core/support-session.ts";
 import { decideSupportSession } from "../../src/index.ts";
 import {
   permdockFor,
@@ -37,9 +36,11 @@ const request = {
   reason: "Ticket 4411: invoice totals look wrong",
 };
 
-describe("parseSupportSession", () => {
+describe(parseSupportSession, () => {
   it("keeps the v1 fields and freezes the copy", () => {
-    expect(parseSupportSession({ ...session, extra: 1 })).toEqual(session);
+    expect(parseSupportSession({ ...session, extra: 1 })).toStrictEqual(
+      session,
+    );
     expect(Object.isFrozen(parseSupportSession(session))).toBe(true);
   });
 
@@ -63,7 +64,7 @@ describe("parseSupportSession", () => {
   });
 });
 
-describe("decideSupportSession", () => {
+describe(decideSupportSession, () => {
   const staff = permdockFor(userSubject("u_staff", ["billing"]));
 
   it("asks for approval by default and defaults to the actor's read-only permissions", async () => {
@@ -87,7 +88,7 @@ describe("decideSupportSession", () => {
         approved: pending.token,
         approvedBy: "u_lead",
       }),
-    ).toEqual({
+    ).toStrictEqual({
       outcome: "granted",
       session: {
         ...session,
@@ -133,9 +134,10 @@ describe("decideSupportSession", () => {
   });
 
   it("grants without approval only when the server turns it off", async () => {
-    expect(
-      (await decideSupportSession(staff, request, { approval: false })).outcome,
-    ).toBe("granted");
+    const { outcome } = await decideSupportSession(staff, request, {
+      approval: false,
+    });
+    expect(outcome).toBe("granted");
   });
 
   it("requires a reason", async () => {
@@ -239,9 +241,8 @@ describe("decideSupportSession", () => {
     expect(await decideSupportSession(member, request)).toMatchObject({
       denials: [{ reason: "no-grant" }],
     });
-    expect((await decideSupportSession(nobody, request)).outcome).toBe(
-      "denied",
-    );
+    const { outcome } = await decideSupportSession(nobody, request);
+    expect(outcome).toBe("denied");
   });
 
   it("applies the tenant's supportSessions policy, which only tightens", async () => {
@@ -256,11 +257,7 @@ describe("decideSupportSession", () => {
     expect(
       await decideSupportSession(
         staff,
-        {
-          ...request,
-          expiresIn: 600,
-          permissions: [permissions.invoice.send],
-        },
+        { ...request, expiresIn: 600, permissions: [permissions.invoice.send] },
         { settings },
       ),
     ).toMatchObject({

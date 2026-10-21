@@ -1,8 +1,10 @@
 import type * as Vitest from "vitest";
+import type { TestContext } from "vitest";
 
-import { type TestContext, describe, vi } from "vitest";
+import { describe, vi } from "vitest";
 
 import type { CatalogDocument } from "../../src/catalog/types.ts";
+import type { ReferenceCloudMutation } from "./fixtures/reference-cloud.ts";
 
 import {
   allow,
@@ -12,17 +14,14 @@ import {
   role,
 } from "../../src/index.ts";
 import { testCloudApi } from "../../src/testing/cloud-api/index.ts";
-import {
-  type ReferenceCloudMutation,
-  referenceCloud,
-} from "./fixtures/reference-cloud.ts";
+import { referenceCloud } from "./fixtures/reference-cloud.ts";
 
 const rejecting = vi.hoisted(() => {
   const state: { pattern: RegExp | undefined } = { pattern: undefined };
   return state;
 });
 
-vi.mock("vitest", async (importOriginal) => {
+vi.mock(import("vitest"), async (importOriginal) => {
   const actual = await importOriginal<typeof Vitest>();
   const it = Object.assign(
     (

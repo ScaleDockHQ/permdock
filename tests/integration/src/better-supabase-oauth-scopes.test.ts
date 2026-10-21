@@ -84,7 +84,7 @@ describe("policy oauthScopes in better-supabase's SQL delegation cap", () => {
   };
 
   it("hands the provider the coarse scopes next to the per-permission ones", () => {
-    expect(scopes).toEqual({
+    expect(scopes).toStrictEqual({
       "mcp:read": ["task.read"],
       "mcp:write": ["task.read", "task.update"],
       "task:read": ["task.read"],
@@ -103,7 +103,7 @@ describe("policy oauthScopes in better-supabase's SQL delegation cap", () => {
       ),
       unscoped: await memberCan({ ...token, scope: "openid" }, "task.read"),
       user: await memberCan({}, "task.update"),
-    }).toEqual({
+    }).toStrictEqual({
       read: true,
       update: false,
       writeRead: true,

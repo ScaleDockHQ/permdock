@@ -19,9 +19,7 @@ type Ctx = { readonly user: typeof memberUser | null };
 const byId = z.object({ id: z.string() });
 
 const contract = {
-  posts: {
-    update: oc.input(byId).output(z.object({ id: z.string() })),
-  },
+  posts: { update: oc.input(byId).output(z.object({ id: z.string() })) },
 };
 
 describe("permdock/orpc with a contract", () => {
@@ -45,7 +43,7 @@ describe("permdock/orpc with a contract", () => {
 
     await expect(
       call(update, { id: ownPost.id }, { context: { user: memberUser } }),
-    ).resolves.toEqual({ id: ownPost.id });
+    ).resolves.toStrictEqual({ id: ownPost.id });
     await expect(
       call(update, { id: otherPost.id }, { context: { user: memberUser } }),
     ).rejects.toBeInstanceOf(ORPCError);
@@ -55,7 +53,7 @@ describe("permdock/orpc with a contract", () => {
     const { openapi } = createPermDock<Ctx>(policy, {
       subject: (opts) => opts.context.user,
     });
-    expect(securityFor(permissions.post.update)).toEqual(
+    expect(securityFor(permissions.post.update)).toStrictEqual(
       openapi.security(permissions.post.update),
     );
   });
@@ -115,7 +113,7 @@ describe("permdock/orpc typed errors", () => {
       throw new Error("expected a defined ORPCError");
     }
     expect(error.code).toBe("FORBIDDEN");
-    expect(problemDetails["~standard"].validate(error.data)).toEqual({
+    expect(problemDetails["~standard"].validate(error.data)).toStrictEqual({
       value: error.data,
     });
     expect(error.data).toMatchObject({
@@ -162,7 +160,7 @@ describe("permdock/orpc typed errors", () => {
   });
 });
 
-describe("problemDetails", () => {
+describe("the problemDetails schema", () => {
   const { validate, jsonSchema } = problemDetails["~standard"];
 
   it("accepts a PermDock problem with extension members", () => {
@@ -173,16 +171,16 @@ describe("problemDetails", () => {
       detail: "denied",
       denials: [],
     };
-    expect(validate(problem)).toEqual({ value: problem });
+    expect(validate(problem)).toStrictEqual({ value: problem });
   });
 
   it("rejects anything else with a path per missing member", () => {
-    expect(validate(null)).toEqual({
+    expect(validate(null)).toStrictEqual({
       issues: [{ message: "Expected a Problem Details object" }],
     });
     expect(validate([])).toHaveProperty("issues");
     const result = validate({ type: "x", title: "t", status: 200 });
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       issues: [
         { message: "Expected a string", path: ["detail"] },
         { message: "Expected an HTTP error status", path: ["status"] },

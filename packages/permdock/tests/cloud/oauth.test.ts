@@ -4,6 +4,7 @@ import { CLOUD_BASE_URL } from "../../src/cloud/base-url.ts";
 import { bearerChallenge } from "../../src/cloud/challenge.ts";
 import { isCloudAuthError } from "../../src/cloud/oauth-error.ts";
 import { cloudOAuth } from "../../src/cloud/oauth.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 import { referencePlatform } from "./fixtures/reference-platform.ts";
 
 const BASE = "https://cloud.test";
@@ -30,13 +31,16 @@ async function rejection(promise: Promise<unknown>): Promise<unknown> {
   throw new Error("expected a rejection");
 }
 
-/** Runs the browser leg: the platform's `/oauth/authorize` redirect back to the app. */
+/**
+ * Runs the browser leg: the platform's `/oauth/authorize` redirect back to the
+ * app.
+ */
 async function authorize(fetchFn: typeof fetch, url: string): Promise<string> {
   const response = await fetchFn(url, { redirect: "manual" });
   return response.headers.get("location") ?? "";
 }
 
-describe("cloudOAuth", () => {
+describe(cloudOAuth, () => {
   it("defaults to CLOUD_BASE_URL", () => {
     expect(cloudOAuth({ clientId: "app", redirectUri: REDIRECT }).issuer).toBe(
       CLOUD_BASE_URL,
@@ -76,7 +80,7 @@ describe("cloudOAuth", () => {
     });
 
     const page = await client.listProjects(credential.access_token);
-    expect(page.items.map((project) => project.id)).toEqual([
+    expect(page.items.map((project) => project.id)).toStrictEqual([
       "prj_ref",
       "empty",
     ]);
@@ -262,7 +266,7 @@ describe("cloudOAuth", () => {
       redirectUri: REDIRECT,
       url: BASE,
       fetch: (input) => {
-        urls.push(String(input));
+        urls.push(requestUrl(input));
         return Promise.resolve(answers.shift() ?? new Response(null));
       },
     });
@@ -296,7 +300,7 @@ describe("cloudOAuth", () => {
       await refused(Response.json({ items: [{ ...project, catalog: {} }] })),
     ).toMatchObject({ code: "unexpected-response" });
     answers.push(Response.json({ items: [project], next: "c2" }));
-    expect(await client.listProjects("at", { cursor: "c1" })).toEqual({
+    expect(await client.listProjects("at", { cursor: "c1" })).toStrictEqual({
       items: [project],
       next: "c2",
     });
@@ -310,7 +314,7 @@ describe("cloudOAuth", () => {
       url: BASE,
       fetch: (input) =>
         Promise.resolve(
-          String(input).endsWith("/oauth-authorization-server")
+          requestUrl(input).endsWith("/oauth-authorization-server")
             ? Response.json({
                 issuer: BASE,
                 authorization_endpoint: `${BASE}/oauth/authorize`,
@@ -346,13 +350,13 @@ describe("cloudOAuth", () => {
   });
 });
 
-describe("bearerChallenge", () => {
+describe(bearerChallenge, () => {
   it("reads quoted and token parameters with lower-case names", () => {
     expect(
       bearerChallenge(
         'Bearer realm="permdock", ERROR="insufficient_scope", scope="projects:read policy:read"',
       ),
-    ).toEqual({
+    ).toStrictEqual({
       scheme: "bearer",
       params: {
         realm: "permdock",
@@ -360,7 +364,7 @@ describe("bearerChallenge", () => {
         scope: "projects:read policy:read",
       },
     });
-    expect(bearerChallenge("bearer error=invalid_token")).toEqual({
+    expect(bearerChallenge("bearer error=invalid_token")).toStrictEqual({
       scheme: "bearer",
       params: { error: "invalid_token" },
     });
@@ -371,7 +375,7 @@ describe("bearerChallenge", () => {
       bearerChallenge(
         'Basic realm="x", Negotiate abc==, Bearer error_description="a \\"b\\""',
       ),
-    ).toEqual({
+    ).toStrictEqual({
       scheme: "bearer",
       params: { error_description: 'a "b"' },
     });

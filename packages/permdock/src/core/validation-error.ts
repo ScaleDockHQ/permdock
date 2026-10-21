@@ -4,7 +4,10 @@ import type { ProblemDetails } from "./errors.ts";
 
 import { compact } from "./compact.ts";
 
-/** The base of every Problem Details `type` URI; defined here so a validation error does not pull in the Problem Details builders. */
+/**
+ * The base of every Problem Details `type` URI; defined here so a validation
+ * error does not pull in the Problem Details builders.
+ */
 export const PROBLEM_BASE = "https://permdock.com/problems";
 
 export class PermDockValidationError extends Error {

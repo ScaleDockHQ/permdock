@@ -1,11 +1,8 @@
 import { describe, expectTypeOf, it } from "vitest";
 
-import {
-  allow,
-  getPermDockSync,
-  deny,
-  type Permission,
-} from "../../src/index.ts";
+import type { Permission } from "../../src/index.ts";
+
+import { allow, getPermDockSync, deny } from "../../src/index.ts";
 import { memberUser, permissions, policy } from "../fixtures/quick-start.ts";
 
 describe("invariant 3: permissions are references, not strings", () => {

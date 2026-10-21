@@ -1,14 +1,14 @@
 import type { SupabaseManifestRole } from "../../supabase/manifest.ts";
+import type { RoleKeys } from "../../supabase/roles.ts";
 import type { GlobalRoles, RlsCustomRoleTable } from "../types.ts";
 
-import {
-  type RoleKeys,
-  roleColumn,
-  roleManifest,
-} from "../../supabase/roles.ts";
+import { roleColumn, roleManifest } from "../../supabase/roles.ts";
 import { quoteIdent, quoteTable } from "./quote.ts";
 
-/** A global-roles source as SQL: the `from` clause and the user and role key expressions. */
+/**
+ * A global-roles source as SQL: the `from` clause and the user and role key
+ * expressions.
+ */
 export type RoleRows = {
   readonly table: string;
   readonly user: string;
@@ -20,7 +20,10 @@ export type RoleRows = {
   /** Set when the key is read through a roles table. */
   readonly through?: RoleKeys;
   readonly tenant?: string;
-  /** The roles table's column marking a row with no tenant as a shared custom role. */
+  /**
+   * The roles table's column marking a row with no tenant as a shared custom
+   * role.
+   */
   readonly shared?: string;
   /** The role column in the manifest's shape. */
   readonly role: SupabaseManifestRole | readonly SupabaseManifestRole[];
@@ -42,7 +45,10 @@ function throughTenant(
     : undefined;
 }
 
-/** Resolves `source` against `schema`, aliasing the table `alias` and the roles table `<alias>k`. */
+/**
+ * Resolves `source` against `schema`, aliasing the table `alias` and the roles
+ * table `<alias>k`.
+ */
 export function globalRoleSource(
   source: GlobalRoles,
   schema: string,

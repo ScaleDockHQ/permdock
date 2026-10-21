@@ -19,6 +19,7 @@ import {
   policy,
   quotes,
 } from "../fixtures/capabilities/policy.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -96,7 +97,10 @@ function link(extra: Partial<Link> = {}): Promise<string> {
   );
 }
 
-/** The `/portal/quotes?token=` handler: verify the link, then exchange it for a Supabase token. */
+/**
+ * The `/portal/quotes?token=` handler: verify the link, then exchange it for a
+ * Supabase token.
+ */
 async function portal(
   url: string,
   options: Partial<Parameters<typeof subjectFromCapability>[1]> = {},
@@ -150,9 +154,7 @@ describe("link capabilities through the Supabase exchange", () => {
     const out = join(dir, "rls.sql");
     const result = await run(
       ["rls", "generate", "--target", "sql", "--out", out],
-      {
-        cwd: FIXTURE,
-      },
+      { cwd: FIXTURE },
     );
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
@@ -178,7 +180,7 @@ describe("link capabilities through the Supabase exchange", () => {
       { role, settings: { "request.jwt.claims": JSON.stringify(claims) } },
       async () =>
         (
-          await db!.tester.query<{ readonly id: string }>(
+          await defined(db).tester.query<{ readonly id: string }>(
             `select id from public.${table} order by id`,
           )
         ).rows.map((row) => row.id),
@@ -209,10 +211,10 @@ describe("link capabilities through the Supabase exchange", () => {
     expect(jwt).toBeDefined();
     const claims = claimsOf(jwt);
     expect(claims["role"]).toBe("anon");
-    expect(await visible("quote", claims)).toEqual(
+    expect(await visible("quote", claims)).toStrictEqual(
       allowed(subject, permissions.quote.read, quotes),
     );
-    expect(await visible("file", claims)).toEqual(
+    expect(await visible("file", claims)).toStrictEqual(
       allowed(subject, permissions.file.read, files),
     );
   });
@@ -221,16 +223,21 @@ describe("link capabilities through the Supabase exchange", () => {
     const { subject, jwt } = await portal(
       `${APP}/portal/quotes?token=${await link()}`,
     );
-    expect(await visible("quote", claimsOf(jwt))).toEqual(["q_1"]);
-    expect(allowed(subject, permissions.quote.accept, quotes)).toEqual(["q_1"]);
-    expect(allowed(subject, permissions.quote.update, quotes)).toEqual([]);
+    expect(await visible("quote", claimsOf(jwt))).toStrictEqual(["q_1"]);
+    expect(allowed(subject, permissions.quote.accept, quotes)).toStrictEqual([
+      "q_1",
+    ]);
+    expect(allowed(subject, permissions.quote.update, quotes)).toStrictEqual(
+      [],
+    );
     await expect(
-      db!.as(
+      defined(db).as(
         {
           role: "anon",
           settings: { "request.jwt.claims": JSON.stringify(claimsOf(jwt)) },
         },
-        () => db!.tester.query(`update public.quote set status = 'sent'`),
+        () =>
+          defined(db).tester.query(`update public.quote set status = 'sent'`),
       ),
     ).rejects.toMatchObject({ code: "42501" });
   });
@@ -241,7 +248,7 @@ describe("link capabilities through the Supabase exchange", () => {
     );
     expect(expired.subject.principal).toBeNull();
     expect(expired.jwt).toBeUndefined();
-    expect(await visible("quote", claimsOf(expired.jwt))).toEqual([]);
+    expect(await visible("quote", claimsOf(expired.jwt))).toStrictEqual([]);
 
     const revoked = await portal(`${APP}/portal/quotes?token=${await link()}`, {
       revoked: (id) => id === "lnk_1",
@@ -251,7 +258,7 @@ describe("link capabilities through the Supabase exchange", () => {
     const replay = memoryReplayStore();
     const url = `${APP}/portal/quotes?token=${await link({ once: true })}`;
     const first = await portal(url, { replay });
-    expect(await visible("quote", claimsOf(first.jwt))).toEqual(["q_1"]);
+    expect(await visible("quote", claimsOf(first.jwt))).toStrictEqual(["q_1"]);
     const second = await portal(url, { replay });
     expect(second.jwt).toBeUndefined();
   });
@@ -266,7 +273,7 @@ describe("link capabilities through the Supabase exchange", () => {
         ...claims,
         capability: { ...capability, expires_at: 1 },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("leaves staff access to the organization unchanged", async () => {
@@ -277,6 +284,6 @@ describe("link capabilities through the Supabase exchange", () => {
         tenant_id: "T",
         memberships: [{ scope: "organization", id: "T", roles: ["staff"] }],
       }),
-    ).toEqual(["q_1", "q_2", "q_3"]);
+    ).toStrictEqual(["q_1", "q_2", "q_3"]);
   });
 });

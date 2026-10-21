@@ -52,8 +52,8 @@ export type DeliveryPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   /**
    * Checks every recipient against `target`'s permission on `row` with
    * `permdock.decideFor`, routes the granted ones to the transport of their
-   * channel, and writes one `delivery` event per recipient. Never rejects:
-   * a refused recipient or a transport error is a `failed` event.
+   * channel, and writes one `delivery` event per recipient. Never rejects: a
+   * refused recipient or a transport error is a `failed` event.
    */
   readonly deliver: (
     permdock: PermDock<V>,
@@ -89,7 +89,10 @@ function optionalString(value: unknown): string | undefined | null {
   return typeof value === "string" && value !== "" ? value : null;
 }
 
-/** The recipient in the form its channel compares, or `null` when it is malformed. */
+/**
+ * The recipient in the form its channel compares, or `null` when it is
+ * malformed.
+ */
 function checkRecipient(value: unknown): Checked | null {
   const record = ownRecord(value);
   const channel = record?.["channel"];
@@ -188,7 +191,7 @@ function resultOf(value: unknown): DeliveryResult | Failure {
 type Ready = {
   readonly transport: DeliveryTransport;
   readonly item: TransportItem;
-  finish(result: DeliveryResult | Failure): DeliveryEvent;
+  finish: (result: DeliveryResult | Failure) => DeliveryEvent;
 };
 
 const THREW: Failure = Object.freeze({
@@ -239,9 +242,9 @@ async function sendBatch(
 }
 
 /**
- * Sends every ready item: one batch call per `batchSize` items for a
- * transport with `deliverBatch`, one `deliver` call each otherwise. Events
- * keep recipient order.
+ * Sends every ready item: one batch call per `batchSize` items for a transport
+ * with `deliverBatch`, one `deliver` call each otherwise. Events keep recipient
+ * order.
  */
 async function send(
   prepared: readonly (DeliveryEvent | Ready)[],
@@ -285,7 +288,10 @@ async function send(
   return events as DeliveryEvent[];
 }
 
-/** Routes checked recipients to channel transports and records a delivery event for each. */
+/**
+ * Routes checked recipients to channel transports and records a delivery event
+ * for each.
+ */
 export function createPermDock<
   TUser,
   TPrincipal extends Principal = Principal,
@@ -536,12 +542,7 @@ export function createPermDock<
         // A sink outage never fails a delivery that already went out.
       }
       const sent = events.filter((entry) => entry.operation === "sent").length;
-      return freezeDeep({
-        id,
-        events,
-        sent,
-        failed: events.length - sent,
-      });
+      return freezeDeep({ id, events, sent, failed: events.length - sent });
     },
   });
 }

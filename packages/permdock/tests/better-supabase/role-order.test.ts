@@ -17,7 +17,7 @@ function catalog(roles: readonly CatalogRole[]): CatalogDocument {
   };
 }
 
-describe("roleOrderFromCatalog", () => {
+describe(roleOrderFromCatalog, () => {
   it("puts a role before the roles it assigns", () => {
     expect(
       roleOrderFromCatalog(
@@ -27,7 +27,7 @@ describe("roleOrderFromCatalog", () => {
           { key: "admin", on: "org", assigns: ["member", "viewer"] },
         ]),
       ),
-    ).toEqual(["admin", "member", "viewer"]);
+    ).toStrictEqual(["admin", "member", "viewer"]);
   });
 
   it("keeps catalog order for unordered roles and inside an assigns cycle", () => {
@@ -40,7 +40,7 @@ describe("roleOrderFromCatalog", () => {
           { key: "support", on: "org" },
         ]),
       ),
-    ).toEqual(["billing", "a", "b", "support"]);
+    ).toStrictEqual(["billing", "a", "b", "support"]);
   });
 
   it("keeps one scope and leaves the owner out", () => {
@@ -55,7 +55,7 @@ describe("roleOrderFromCatalog", () => {
         ]),
         { scope: "org", owner: "owner" },
       ),
-    ).toEqual(["admin", "member"]);
+    ).toStrictEqual(["admin", "member"]);
   });
 
   it("orders the next-better-supabase catalog's organization roles", () => {
@@ -65,7 +65,7 @@ describe("roleOrderFromCatalog", () => {
         scope: "organization",
         owner: "owner",
       }),
-    ).toEqual(["member"]);
+    ).toStrictEqual(["member"]);
     expect(Object.isFrozen(roleOrderFromCatalog(published))).toBe(true);
   });
 });

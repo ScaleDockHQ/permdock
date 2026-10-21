@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { RoleChange } from "../../src/core/ownership.ts";
+import type { PermDock } from "../../src/core/permdock.ts";
 import type { Principal } from "../../src/core/subject.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
-import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -46,10 +47,7 @@ async function actor(roles: readonly string[]): Promise<PermDock> {
   return getPermDockSync(policy, { id: "u_actor", roles }, {});
 }
 
-const target: { id: string; roles: string[] } = {
-  id: "u_target",
-  roles: [],
-};
+const target: { id: string; roles: string[] } = { id: "u_target", roles: [] };
 
 function reasons(decision: ReturnType<typeof decideRoleChange>) {
   return decision.outcome === "denied"
@@ -81,12 +79,14 @@ describe("decideRoleChange: global roles", () => {
     const admin = await actor(["platform-admin"]);
     expect(
       admin.assignableRoles({ scope: "global" }).map((leaf) => leaf.key),
-    ).toEqual(["platform-admin", "support", "auditor", "exclusive"]);
+    ).toStrictEqual(["platform-admin", "support", "auditor", "exclusive"]);
     const support = await actor(["support"]);
     expect(
       support.assignableRoles({ scope: "global" }).map((leaf) => leaf.key),
-    ).toEqual(["support", "auditor", "exclusive"]);
-    expect((await actor([])).assignableRoles({ scope: "global" })).toEqual([]);
+    ).toStrictEqual(["support", "auditor", "exclusive"]);
+    expect(
+      (await actor([])).assignableRoles({ scope: "global" }),
+    ).toStrictEqual([]);
   });
 
   it("refuses a lower global role that assigns or revokes a higher one", async () => {
@@ -101,7 +101,7 @@ describe("decideRoleChange: global roles", () => {
           roles: kind === "revoke" ? ["platform-admin"] : [],
         },
       });
-      expect(reasons(decision)).toEqual(["not-assignable-by"]);
+      expect(reasons(decision)).toStrictEqual(["not-assignable-by"]);
     }
   });
 
@@ -140,7 +140,7 @@ describe("decideRoleChange: global roles", () => {
           target: { ...target, roles: ["support"] },
         }),
       ),
-    ).toEqual(["conflicting-role"]);
+    ).toStrictEqual(["conflicting-role"]);
     expect(
       reasons(
         decideRoleChange(admin, {
@@ -150,7 +150,7 @@ describe("decideRoleChange: global roles", () => {
           target: { ...target, managedBy: "idp" },
         }),
       ),
-    ).toEqual(["externally-managed"]);
+    ).toStrictEqual(["externally-managed"]);
   });
 
   it("refuses a role that is not assignable or not global", async () => {
@@ -164,7 +164,7 @@ describe("decideRoleChange: global roles", () => {
           target,
         }),
       ),
-    ).toEqual(["not-assignable-by"]);
+    ).toStrictEqual(["not-assignable-by"]);
     expect(
       reasons(
         decideRoleChange(admin, {
@@ -174,7 +174,7 @@ describe("decideRoleChange: global roles", () => {
           target,
         }),
       ),
-    ).toEqual(["scope"]);
+    ).toStrictEqual(["scope"]);
     expect(
       reasons(
         decideRoleChange(admin, {
@@ -184,7 +184,7 @@ describe("decideRoleChange: global roles", () => {
           target,
         }),
       ),
-    ).toEqual(["unknown-role"]);
+    ).toStrictEqual(["unknown-role"]);
   });
 
   it("refuses a global role at a named scope and an id on a global change", async () => {
@@ -199,7 +199,7 @@ describe("decideRoleChange: global roles", () => {
           target,
         }),
       ),
-    ).toEqual(["scope"]);
+    ).toStrictEqual(["scope"]);
     const withId = {
       kind: "assign",
       role: "support",
@@ -210,7 +210,7 @@ describe("decideRoleChange: global roles", () => {
     expect(
       // @ts-expect-error a global change carries no id
       reasons(decideRoleChange(admin, withId)),
-    ).toEqual(["validation"]);
+    ).toStrictEqual(["validation"]);
   });
 
   it("denies an anonymous actor", async () => {
@@ -224,7 +224,7 @@ describe("decideRoleChange: global roles", () => {
           target,
         }),
       ),
-    ).toEqual(["anonymous"]);
+    ).toStrictEqual(["anonymous"]);
   });
 
   it("transfers only a role the actor holds globally", async () => {
@@ -246,7 +246,7 @@ describe("decideRoleChange: global roles", () => {
           target,
         }),
       ),
-    ).toEqual(["not-assignable-by"]);
+    ).toStrictEqual(["not-assignable-by"]);
   });
 });
 
@@ -277,24 +277,24 @@ describe("decideRoleChange: global roles with an assigns graph", () => {
       outcome: "granted",
       role: "root",
     });
-    expect(reasons(decideRoleChange(root, change("revoke", "other")))).toEqual([
-      "not-assignable-by",
-    ]);
-    expect(root.assignableRoles({ scope: "global" }).map((r) => r.key)).toEqual(
-      ["agent"],
-    );
+    expect(
+      reasons(decideRoleChange(root, change("revoke", "other"))),
+    ).toStrictEqual(["not-assignable-by"]);
+    expect(
+      root.assignableRoles({ scope: "global" }).map((r) => r.key),
+    ).toStrictEqual(["agent"]);
   });
 
   it("answers no global roles on a snapshot", async () => {
     const root = getPermDockSync(graph, { id: "u_actor", roles: ["root"] }, {});
     const snapshot = root.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     expect(
       fromSnapshot(JSON.parse(JSON.stringify(snapshot))).assignableRoles({
         scope: "global",
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

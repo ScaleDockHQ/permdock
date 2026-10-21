@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import type { DirectoryStore } from "../../src/scim/types.ts";
+
 import { groupFromBody, schemasOk, userFromBody } from "../../src/scim/body.ts";
 import {
   locationOf,
@@ -8,11 +10,7 @@ import {
 } from "../../src/scim/route.ts";
 import { directoryMembershipSource } from "../../src/scim/source.ts";
 import { memoryDirectoryStore } from "../../src/scim/store.ts";
-import {
-  type DirectoryStore,
-  PATCH_SCHEMA,
-  USER_SCHEMA,
-} from "../../src/scim/types.ts";
+import { PATCH_SCHEMA, USER_SCHEMA } from "../../src/scim/types.ts";
 import { testMembershipSource } from "../../src/testing/conformance/identity.ts";
 
 const TENANT = "o_acme";
@@ -66,20 +64,20 @@ describe("directoryMembershipSource conformance", async () => {
   );
 });
 
-describe("directoryMembershipSource", () => {
+describe(directoryMembershipSource, () => {
   it("answers nothing without a tenant", async () => {
     const source = directoryMembershipSource(await seeded());
-    expect(await source.membershipsFor({ id: "ext-1" }, {})).toEqual([]);
+    expect(await source.membershipsFor({ id: "ext-1" }, {})).toStrictEqual([]);
     expect(
       await source.membershipsFor({ id: "ext-1" }, { tenant: "" }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("never answers from another tenant", async () => {
     const source = directoryMembershipSource(await seeded());
     expect(
       await source.membershipsFor({ id: "ext-1" }, { tenant: "o_other" }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("maps groups through groupRoles and gives an unmapped group no roles", async () => {
@@ -88,7 +86,7 @@ describe("directoryMembershipSource", () => {
     });
     expect(
       await source.membershipsFor({ id: "ext-1" }, { tenant: TENANT }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         tenant: TENANT,
         roles: ["editor"],
@@ -123,10 +121,10 @@ describe("directoryMembershipSource", () => {
     });
     expect(
       await lookupFails.membershipsFor({ id: "ext-1" }, { tenant: TENANT }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await groupsFail.membershipsFor({ id: "ext-1" }, { tenant: TENANT }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 
@@ -149,7 +147,9 @@ describe("SCIM routes", () => {
     ["/scim/v2/Schemas/urn:x", { kind: "Schemas", id: "urn:x" }],
     ["/scim/v2/Bulk", undefined],
   ])("parseRoute(%s)", (path, route) => {
-    expect(parseRoute(new URL(`https://a.example${path}`))).toEqual(route);
+    expect(parseRoute(new URL(`https://a.example${path}`))).toStrictEqual(
+      route,
+    );
   });
 
   it("builds a location from the request prefix", () => {
@@ -190,7 +190,7 @@ describe("SCIM bodies", () => {
         },
         "u_1",
       ),
-    ).toEqual({
+    ).toStrictEqual({
       id: "u_1",
       userName: "ada",
       externalId: "e",
@@ -211,10 +211,7 @@ describe("SCIM bodies", () => {
   it("falls back to the configured roles without a roles extension", () => {
     expect(
       groupFromBody({ displayName: "Eng" }, "g", ["viewer"]),
-    ).toMatchObject({
-      roles: ["viewer"],
-      members: [],
-    });
+    ).toMatchObject({ roles: ["viewer"], members: [] });
     expect(groupFromBody({ displayName: "" }, "g", undefined)).toBeUndefined();
   });
 });

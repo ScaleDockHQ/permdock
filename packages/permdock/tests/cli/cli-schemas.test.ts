@@ -26,7 +26,7 @@ const commands = ajv.compile(schema("cli-commands-v1.json"));
 function expectResult(stdout: string): Record<string, unknown> {
   const parsed: unknown = JSON.parse(stdout);
   result(parsed);
-  expect(result.errors ?? []).toEqual([]);
+  expect(result.errors ?? []).toStrictEqual([]);
   // SAFETY: the schema just validated it as an object
   return parsed as Record<string, unknown>;
 }
@@ -42,7 +42,7 @@ describe("schemas/cli-result-v1.json", () => {
     const code = (
       defs as { problem: { properties: { code: { enum: string[] } } } }
     ).problem.properties.code;
-    expect(code.enum).toEqual([...PROBLEM_CODES]);
+    expect(code.enum).toStrictEqual([...PROBLEM_CODES]);
   });
 
   it("validates a success", async () => {
@@ -95,7 +95,7 @@ describe("schemas/cli-commands-v1.json", () => {
     expect(code).toBe(0);
     const parsed: unknown = JSON.parse(stdout);
     commands(parsed);
-    expect(commands.errors ?? []).toEqual([]);
+    expect(commands.errors ?? []).toStrictEqual([]);
     expect(parsed).toMatchObject({
       commands: leaves()
         .filter(({ entry }) => entry.hidden !== true)
@@ -107,7 +107,7 @@ describe("schemas/cli-commands-v1.json", () => {
     const { stdout } = await run(["skills", "install", "--help", "--json"]);
     const parsed: unknown = JSON.parse(stdout);
     commands(parsed);
-    expect(commands.errors ?? []).toEqual([]);
+    expect(commands.errors ?? []).toStrictEqual([]);
   });
 
   it("is printed only when asked for, not by default in agent mode", async () => {

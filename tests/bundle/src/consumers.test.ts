@@ -17,7 +17,7 @@ describe("consumer bundles", () => {
       string,
       number
     >;
-    expect(await measureConsumers()).toEqual(baseline);
+    expect(await measureConsumers()).toStrictEqual(baseline);
   });
 
   it("keep opt-in executors out of apps that do not use them", async () => {

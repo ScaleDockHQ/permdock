@@ -1,12 +1,17 @@
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { PermDockConfig } from "../types.ts";
+import type { TableBinding } from "./bindings.ts";
 import type { GeneratedPolicies } from "./generate-policies.ts";
+import type { GeneratedTrigger } from "./trigger-notes.ts";
 
 import { tableNames } from "../sql/tables.ts";
-import { type TableBinding, tableBindings } from "./bindings.ts";
-import { type GeneratedTrigger, generatedTriggers } from "./trigger-notes.ts";
+import { tableBindings } from "./bindings.ts";
+import { generatedTriggers } from "./trigger-notes.ts";
 
-/** What `permdock rls explain` reports: how the generated SQL binds to the application's schema. */
+/**
+ * What `permdock rls explain` reports: how the generated SQL binds to the
+ * application's schema.
+ */
 export type RlsExplain = {
   readonly schema: string;
   readonly authorize: string;
@@ -15,15 +20,24 @@ export type RlsExplain = {
     readonly key: string;
     readonly within?: string;
   }[];
-  /** The table each resource's policies target; `exists` is set with `--db-url-stdin`. */
+  /**
+   * The table each resource's policies target; `exists` is set with
+   * `--db-url-stdin`.
+   */
   readonly bindings: readonly (TableBinding & {
     readonly exists?: boolean;
-    /** `rls.tables` `via`: the helper the policies call and the parent column it reads. */
+    /**
+     * `rls.tables` `via`: the helper the policies call and the parent column it
+     * reads.
+     */
     readonly via?: string;
   })[];
   readonly membershipSources: readonly {
     readonly table: string;
-    /** The generated `select` of one user's memberships, with the role SQL as the helpers read it. */
+    /**
+     * The generated `select` of one user's memberships, with the role SQL as
+     * the helpers read it.
+     */
     readonly select: string;
   }[];
   readonly customRoles?: {

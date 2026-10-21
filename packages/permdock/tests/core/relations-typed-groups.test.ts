@@ -92,7 +92,9 @@ async function readable(user: string): Promise<readonly string[]> {
 
 describe("edge groups with a subject column per group", () => {
   it("normalises each group to its relation and subject column", () => {
-    expect(getResource(permissions, "drive")?.relations["viewer"]).toEqual({
+    expect(
+      getResource(permissions, "drive")?.relations["viewer"],
+    ).toStrictEqual({
       edge: "drive_shares",
       object: "drive_id",
       subject: "user_id",
@@ -103,11 +105,11 @@ describe("edge groups with a subject column per group", () => {
   });
 
   it("reads the principal from the edge subject and each group from its own column", async () => {
-    expect(await readable("dana")).toEqual(["plans", "both"]);
-    expect(await readable("uma")).toEqual(["budget"]);
-    expect(await readable("nina")).toEqual(["budget"]);
-    expect(await readable("otis")).toEqual(["both"]);
-    expect(await readable("nobody")).toEqual([]);
+    expect(await readable("dana")).toStrictEqual(["plans", "both"]);
+    expect(await readable("uma")).toStrictEqual(["budget"]);
+    expect(await readable("nina")).toStrictEqual(["budget"]);
+    expect(await readable("otis")).toStrictEqual(["both"]);
+    expect(await readable("nobody")).toStrictEqual([]);
   });
 
   it("answers a row with both columns set as a principal and a group holder", async () => {
@@ -116,7 +118,7 @@ describe("edge groups with a subject column per group", () => {
       id: "both",
       relation: "viewer",
     });
-    expect(holders).toEqual([
+    expect(holders).toStrictEqual([
       { principal: { id: "dana" } },
       { group: { resource: "team", id: "3", relation: "member" } },
     ]);
@@ -154,7 +156,7 @@ describe("edge groups with a subject column per group", () => {
     });
     expect(
       await source.related({ resource: "drive", id: "a", relation: "viewer" }),
-    ).toEqual([
+    ).toStrictEqual([
       { principal: { id: "dana" } },
       { group: { resource: "team", id: "7", relation: "member" } },
     ]);

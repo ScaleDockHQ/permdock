@@ -24,7 +24,7 @@ async function thrown(work: () => Promise<unknown>): Promise<unknown> {
   throw new Error("expected a throw");
 }
 
-describe("problemFromError", () => {
+describe(problemFromError, () => {
   it("maps a denial to a 403 problem", async () => {
     const permdock = getPermDockSync(policy, memberUser);
     const error = await thrown(() =>

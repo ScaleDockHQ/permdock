@@ -27,6 +27,6 @@ describe("permdock/claude-agent instance", () => {
     expect({
       principal: permdock.subject.principal?.id,
       behavior: result.behavior,
-    }).toEqual({ principal: "u1", behavior: "allow" });
+    }).toStrictEqual({ principal: "u1", behavior: "allow" });
   });
 });

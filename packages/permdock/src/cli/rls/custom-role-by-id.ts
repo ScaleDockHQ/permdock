@@ -27,8 +27,8 @@ const col = (name: string): string => `r.${quoteIdent(name)}`;
  * (`rls.customRoleWrites.roles.primaryKey`): the tenant, scope, instance and
  * name come from the row, never from the caller. The writers delegate to
  * `permdock_replace_custom_role_grants` (or its trusted variant), so every
- * caller and definition check applies, and keep the stored denies and
- * includes. The reader returns declared allow keys only and is executable by
+ * caller and definition check applies, and keep the stored denies and includes.
+ * The reader returns declared allow keys only and is executable by
  * `rls.trustedReaders` alone.
  */
 export function customRoleByIdSql(

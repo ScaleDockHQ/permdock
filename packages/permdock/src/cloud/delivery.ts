@@ -52,11 +52,11 @@ async function fromResponse(response: Response): Promise<DeliveryResult> {
 
 /**
  * A `DeliveryTransport` for `channel` that hands each checked recipient to
- * PermDock Cloud, which sends it from its hosted email, chat or webhook
- * sender and reports back through `com.permdock.delivery.*` events. The
- * router has already decided the recipient: the Cloud receives the target
- * and the permission that let it through, never a decision to make.
- * `Idempotency-Key` is the delivery's idempotency key, so a retry repeats it.
+ * PermDock Cloud, which sends it from its hosted email, chat or webhook sender
+ * and reports back through `com.permdock.delivery.*` events. The router has
+ * already decided the recipient: the Cloud receives the target and the
+ * permission that let it through, never a decision to make. `Idempotency-Key`
+ * is the delivery's idempotency key, so a retry repeats it.
  */
 export function cloudDeliveryTransport<C extends DeliveryChannel>(
   channel: C,

@@ -9,22 +9,24 @@ import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures
 const read = (path: string): unknown =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
 
-describe("parseSupabaseManifest", () => {
+describe(parseSupabaseManifest, () => {
   it("shares its schema with schemas/supabase-manifest-v1.json", () => {
-    expect(read("../../schemas/supabase-manifest-v1.json")).toEqual(
+    expect(read("../../schemas/supabase-manifest-v1.json")).toStrictEqual(
       supabaseManifestSchema,
     );
   });
 
   it("reads the fixture and the committed example manifest", () => {
-    expect(parseSupabaseManifest(supabaseHookManifestFixture)).toEqual(
+    expect(parseSupabaseManifest(supabaseHookManifestFixture)).toStrictEqual(
       supabaseHookManifestFixture,
     );
     const example = read(
       "../../../../apps/examples/next-better-supabase/permdock.manifest.json",
     );
-    expect(parseSupabaseManifest(example)).toEqual(example);
-    expect(parseSupabaseManifest(JSON.stringify(example))).toEqual(example);
+    expect(parseSupabaseManifest(example)).toStrictEqual(example);
+    expect(parseSupabaseManifest(JSON.stringify(example))).toStrictEqual(
+      example,
+    );
   });
 
   it("returns a frozen copy", () => {

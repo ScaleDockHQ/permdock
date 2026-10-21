@@ -63,7 +63,7 @@ function source(
   return { membershipsFor: memberships, ...extra };
 }
 
-describe("composeMemberships", () => {
+describe(composeMemberships, () => {
   it("merges duplicate instances and keeps different kinds apart", async () => {
     const composed = composeMemberships([
       source(() => [
@@ -74,7 +74,7 @@ describe("composeMemberships", () => {
         { scope: "organization", id: "T", roles: ["member"], via: "contact" },
       ]),
     ]);
-    expect(await composed.membershipsFor({ id: "u" }, {})).toEqual([
+    expect(await composed.membershipsFor({ id: "u" }, {})).toStrictEqual([
       {
         scope: "organization",
         id: "T",
@@ -111,7 +111,9 @@ describe("composeMemberships", () => {
       }),
       source(() => []),
     ]);
-    expect(await composed.list?.({ scope: "organization", id: "T" })).toEqual([
+    expect(
+      await composed.list?.({ scope: "organization", id: "T" }),
+    ).toStrictEqual([
       {
         principal: { id: "a" },
         membership: {
@@ -142,7 +144,7 @@ describe("composeMemberships", () => {
         ],
       },
     );
-    expect(permdock.subject.principal?.memberships?.[0]?.roles).toEqual([
+    expect(permdock.subject.principal?.memberships?.[0]?.roles).toStrictEqual([
       "member",
       "owner",
     ]);
@@ -192,7 +194,7 @@ describe("composeMemberships edge cases", () => {
     expect({
       listed: await composed.list?.({ scope: "doc", id: "d1" }),
       version: await composed.version?.({ id: "a" }),
-    }).toEqual({
+    }).toStrictEqual({
       listed: [
         {
           principal: { id: "a" },
@@ -204,7 +206,7 @@ describe("composeMemberships edge cases", () => {
   });
 });
 
-describe("claimsFirst", () => {
+describe(claimsFirst, () => {
   const token: Principal = {
     id: "u",
     roles: [],
@@ -229,7 +231,7 @@ describe("claimsFirst", () => {
       { memberships: claimsFirst([live]) },
     );
     expect(calls).toBe(1);
-    expect(truncated.subject.principal?.memberships?.[0]?.roles).toEqual([
+    expect(truncated.subject.principal?.memberships?.[0]?.roles).toStrictEqual([
       "owner",
     ]);
   });
@@ -355,7 +357,7 @@ describe("entitlements and seats", () => {
       memberships: [{ scope: "organization", id: "T", roles: ["member"] }],
     };
     const permdock = getPermDockSync(policy, member, { entitlements });
-    expect(permdock.subject.principal?.plans).toEqual(["dev-mode"]);
+    expect(permdock.subject.principal?.plans).toStrictEqual(["dev-mode"]);
     expect(permdock.can(permissions.doc.export, undefined)).toBe(true);
     const { tenant: _tenant, ...untenanted } = member;
     const outsider = getPermDockSync(
@@ -404,10 +406,7 @@ describe("entitlements and seats", () => {
                   data: [{ id: "ent_1", lookup_key: "dev-mode" }],
                   has_more: true,
                 }
-              : {
-                  data: [{ id: "ent_2", lookup_key: "sso" }],
-                  has_more: false,
-                };
+              : { data: [{ id: "ent_2", lookup_key: "sso" }], has_more: false };
           },
         },
       },
@@ -418,15 +417,17 @@ describe("entitlements and seats", () => {
     });
     expect(
       await stripeSource.entitlementsFor({ id: "u" }, { tenant: "T" }),
-    ).toEqual(["dev-mode", "sso"]);
-    expect(calls).toEqual([
+    ).toStrictEqual(["dev-mode", "sso"]);
+    expect(calls).toStrictEqual([
       { customer: "cus_1", limit: 100 },
       { customer: "cus_1", limit: 100, starting_after: "ent_1" },
     ]);
     expect(
       await stripeSource.entitlementsFor({ id: "u" }, { tenant: "B" }),
-    ).toEqual([]);
-    expect(await stripeSource.entitlementsFor({ id: "u" }, {})).toEqual([]);
+    ).toStrictEqual([]);
+    expect(await stripeSource.entitlementsFor({ id: "u" }, {})).toStrictEqual(
+      [],
+    );
   });
 });
 
@@ -476,6 +477,6 @@ describe("claimsFirst forwarding", () => {
       listed: await wrapped.list?.({ scope: "organization", id: "T" }),
       version: await wrapped.version?.({ id: "a" }),
       claimsFirst: wrapped.claimsFirst,
-    }).toEqual({ listed: [entry], version: 7, claimsFirst: true });
+    }).toStrictEqual({ listed: [entry], version: 7, claimsFirst: true });
   });
 });

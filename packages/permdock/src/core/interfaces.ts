@@ -16,61 +16,62 @@ import type { Instant } from "./time.ts";
 
 export type DecisionProvider = {
   readonly name: string;
-  handles(permission: Permission): boolean;
-  decide(request: {
+  handles: (permission: Permission) => boolean;
+  decide: (request: {
     readonly permission: Permission;
     readonly data?: unknown;
     readonly subject: Subject;
     readonly local: Decision;
-  }): Promise<Decision>;
+  }) => Promise<Decision>;
   /**
    * Ids of the resources of `permission.resource` the subject may act on.
    * `null` means the provider could not answer and every row is denied;
    * `undefined` means it cannot list, and each row is decided on its own.
    */
-  permitted?(request: {
+  permitted?: (request: {
     readonly permission: Permission;
     readonly subject: Subject;
-  }): Promise<readonly string[] | null | undefined>;
+  }) => Promise<readonly string[] | null | undefined>;
 };
 
 export type CustomRoleSource = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
   /**
-   * The custom roles of one tenant. `getPermDock` passes `held`, the role
-   * names the subject's live memberships hold there, declared or not, so a
-   * source can skip its read when none of them is a custom role.
+   * The custom roles of one tenant. `getPermDock` passes `held`, the role names
+   * the subject's live memberships hold there, declared or not, so a source can
+   * skip its read when none of them is a custom role.
    */
-  rolesFor(
+  rolesFor: (
     tenant: string,
     context?: { readonly held: readonly string[] },
-  ): CustomRole[] | Promise<CustomRole[]>;
-  assignable?(tenant: string): string[] | Promise<string[]>;
+  ) => CustomRole[] | Promise<CustomRole[]>;
+  assignable?: (tenant: string) => string[] | Promise<string[]>;
   /**
-   * Platform custom roles (`scope: 'global'`), read once per signed-in
-   * subject, with `held`, the global role names the subject holds. A role
-   * here with a tenant is ignored.
+   * Platform custom roles (`scope: 'global'`), read once per signed-in subject,
+   * with `held`, the global role names the subject holds. A role here with a
+   * tenant is ignored.
    */
-  globalRoles?(context?: {
+  globalRoles?: (context?: {
     readonly held: readonly string[];
-  }): CustomRole[] | Promise<CustomRole[]>;
+  }) => CustomRole[] | Promise<CustomRole[]>;
   /**
    * Shared custom roles (`shared: true`), defined once for every tenant and
-   * read once per subject with a tenant membership, with `held`, the role
-   * names its live memberships hold in any tenant. A role here without
-   * `shared: true` is ignored.
+   * read once per subject with a tenant membership, with `held`, the role names
+   * its live memberships hold in any tenant. A role here without `shared: true`
+   * is ignored.
    */
-  sharedRoles?(context?: {
+  sharedRoles?: (context?: {
     readonly held: readonly string[];
-  }): CustomRole[] | Promise<CustomRole[]>;
+  }) => CustomRole[] | Promise<CustomRole[]>;
 };
 
 /**
- * A `CustomRoleSource` built for the subject the instance serves, for an adapter
- * option shared by every request: it gets the resolved subject (principal,
- * actor and delegation) and returns that subject's source, or `undefined`
- * for none. A throw reads no custom roles and reports `source-threw`.
+ * A `CustomRoleSource` built for the subject the instance serves, for an
+ * adapter option shared by every request: it gets the resolved subject
+ * (principal, actor and delegation) and returns that subject's source, or
+ * `undefined` for none. A throw reads no custom roles and reports
+ * `source-threw`.
  */
 export type CustomRoleSourceFactory = (
   subject: Subject,
@@ -85,37 +86,40 @@ export type MemberEntry = {
 export type MembershipSource = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  membershipsFor(
+  membershipsFor: (
     principal: { readonly id: string; readonly kind?: string },
     options: { readonly tenant?: string },
-  ): Membership[] | Promise<Membership[]>;
-  /** Every membership held in one scope instance, for member lists and access reviews. */
-  list?(query: {
+  ) => Membership[] | Promise<Membership[]>;
+  /**
+   * Every membership held in one scope instance, for member lists and access
+   * reviews.
+   */
+  list?: (query: {
     readonly scope: string;
     readonly id: string;
-  }): MemberEntry[] | Promise<MemberEntry[]>;
+  }) => MemberEntry[] | Promise<MemberEntry[]>;
   /**
    * The principal's current authorization version, bumped on every membership
-   * change. A token whose `authzVersion` is behind it is stale for the
-   * policy's `fresh` permissions. `roles` and `memberships` are what the
-   * token claims, so a source can read more than the version in the same
-   * call when the claims show it will be needed.
+   * change. A token whose `authzVersion` is behind it is stale for the policy's
+   * `fresh` permissions. `roles` and `memberships` are what the token claims,
+   * so a source can read more than the version in the same call when the claims
+   * show it will be needed.
    */
-  version?(principal: {
+  version?: (principal: {
     readonly id: string;
     readonly roles?: readonly string[];
     readonly memberships?: readonly Membership[];
-  }): number | undefined | Promise<number | undefined>;
+  }) => number | undefined | Promise<number | undefined>;
   /**
-   * The global roles the principal holds now. With `onStale: 'reread'`, a
-   * stale token's `principal.roles` is replaced by this answer, so a revoked
-   * platform role is lost with the memberships. A throw or rejection leaves
-   * no global roles. Without it, a reread keeps the token's roles.
+   * The global roles the principal holds now. With `onStale: 'reread'`, a stale
+   * token's `principal.roles` is replaced by this answer, so a revoked platform
+   * role is lost with the memberships. A throw or rejection leaves no global
+   * roles. Without it, a reread keeps the token's roles.
    */
-  globalRolesFor?(principal: {
+  globalRolesFor?: (principal: {
     readonly id: string;
     readonly kind?: string;
-  }): readonly string[] | Promise<readonly string[]>;
+  }) => readonly string[] | Promise<readonly string[]>;
   /**
    * Keep the memberships the verified token carries and read this source only
    * when the token says they were truncated (`claimsFirst`).
@@ -125,9 +129,9 @@ export type MembershipSource = {
    * What a token behind `version` gets. Only permissions the policy marks
    * `fresh` look at staleness: `'deny'` (the default) denies those with
    * `stale-credentials` and leaves every other permission on the token's
-   * claims; `'reread'` replaces the token's memberships (and global roles,
-   * when the source has `globalRolesFor`) with a live read for the whole
-   * subject, so no decision keeps a revoked grant.
+   * claims; `'reread'` replaces the token's memberships (and global roles, when
+   * the source has `globalRolesFor`) with a live read for the whole subject, so
+   * no decision keeps a revoked grant.
    */
   readonly onStale?: "deny" | "reread";
 };
@@ -136,7 +140,10 @@ export type MembershipSource = {
 export type RelationChain = {
   /** Whether the object itself is restricted: nothing above it reaches it. */
   readonly restricted?: boolean;
-  /** Ancestors nearest first, at most `depth`; a restricted one ends the walk after itself. */
+  /**
+   * Ancestors nearest first, at most `depth`; a restricted one ends the walk
+   * after itself.
+   */
   readonly ancestors: readonly {
     readonly id: string;
     readonly restricted?: boolean;
@@ -152,7 +159,10 @@ type HolderPeriod = {
   readonly expiresAt?: number;
 };
 
-/** A group holding a relation on an object: whoever holds `relation` on the group's instance holds it too. */
+/**
+ * A group holding a relation on an object: whoever holds `relation` on the
+ * group's instance holds it too.
+ */
 export type RelationGroup = {
   readonly resource: string;
   readonly id: string;
@@ -170,10 +180,9 @@ export type RelationHolder = HolderPeriod &
   );
 
 /**
- * The object graph: parent chains, links and who holds a relation on an
- * object. A source answers facts and never decides; a thrown or rejected
- * call, or a Promise the instance has not loaded, denies with
- * `relation-unavailable`.
+ * The object graph: parent chains, links and who holds a relation on an object.
+ * A source answers facts and never decides; a thrown or rejected call, or a
+ * Promise the instance has not loaded, denies with `relation-unavailable`.
  */
 export type RelationSource = {
   /** Names the implementation in errors and events. */
@@ -182,35 +191,38 @@ export type RelationSource = {
    * With `through: 'parent'`, the parent chain; with a link name, the one
    * instance that link points to (`depth` is then 1).
    */
-  ancestors(query: {
+  ancestors: (query: {
     readonly resource: string;
     readonly id: string;
     readonly through: string;
     readonly depth: number;
-  }): RelationChain | Promise<RelationChain>;
-  related(query: {
+  }) => RelationChain | Promise<RelationChain>;
+  related: (query: {
     readonly resource: string;
     readonly id: string;
     readonly relation: string;
-  }): RelationHolder[] | Promise<RelationHolder[]>;
-  row?(query: {
+  }) => RelationHolder[] | Promise<RelationHolder[]>;
+  row?: (query: {
     readonly resource: string;
     readonly id: string;
-  }):
+  }) =>
     | Readonly<Record<string, unknown>>
     | null
     | undefined
     | Promise<Readonly<Record<string, unknown>> | null | undefined>;
 };
 
-/** Plan and seat names a principal holds in a tenant, from billing (Stripe Entitlements, a table). */
+/**
+ * Plan and seat names a principal holds in a tenant, from billing (Stripe
+ * Entitlements, a table).
+ */
 export type EntitlementSource = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  entitlementsFor(
+  entitlementsFor: (
     principal: { readonly id: string },
     options: { readonly tenant?: string },
-  ): string[] | Promise<string[]>;
+  ) => string[] | Promise<string[]>;
 };
 
 export type JwtClaims = {
@@ -264,7 +276,7 @@ export type VerificationFailure = {
 export type TokenVerifier<TClaims extends JwtClaims = JwtClaims> = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  verify(
+  verify: (
     token: string,
     expectations: {
       readonly typ?: string | readonly string[];
@@ -272,13 +284,13 @@ export type TokenVerifier<TClaims extends JwtClaims = JwtClaims> = {
       readonly issuer?: string;
       readonly clockTolerance?: number;
     },
-  ): Promise<VerifiedToken<TClaims> | VerificationFailure>;
+  ) => Promise<VerifiedToken<TClaims> | VerificationFailure>;
 };
 
 export type TokenSigner = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  sign(
+  sign: (
     payload: Readonly<Record<string, unknown>>,
     options: {
       readonly typ:
@@ -289,7 +301,10 @@ export type TokenSigner = {
         | "vnd.permdock.run+jwt"
         | "vnd.permdock.support-session+jwt"
         | "vnd.permdock.evidence+jwt"
-        /** RFC 9068: the `PermDock-Approver` token `cloud().approvals.resolve` sends. */
+        /**
+         * RFC 9068: the `PermDock-Approver` token `cloud().approvals.resolve`
+         * sends.
+         */
         | "at+jwt"
         /** RFC 8417: a Security Event Token from `signSet` in `permdock/ssf`. */
         | "secevent+jwt";
@@ -297,14 +312,17 @@ export type TokenSigner = {
       readonly audience?: string | readonly string[];
       /** `exp`, a NumericDate; one hour after `iat` when absent. */
       readonly expiresAt?: number;
-      /** `iat`, a NumericDate: the artefact's issue time. The signer's clock when absent. */
+      /**
+       * `iat`, a NumericDate: the artefact's issue time. The signer's clock
+       * when absent.
+       */
       readonly issuedAt?: number;
       /** `jti`: the artefact's id. A fresh UUID when absent. */
       readonly jti?: string;
     },
-  ): Promise<string>;
+  ) => Promise<string>;
   readonly kid?: string;
-  jwks?(): Promise<{ readonly keys: readonly JsonWebKeyLike[] }>;
+  jwks?: () => Promise<{ readonly keys: readonly JsonWebKeyLike[] }>;
 };
 
 export type SubjectResolver<
@@ -318,8 +336,8 @@ export type SubjectResolver<
 export type SnapshotSource = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  get(): Promise<Snapshot | string> | Snapshot | string;
-  subscribe?(listener: () => void): () => void;
+  get: () => Promise<Snapshot | string> | Snapshot | string;
+  subscribe?: (listener: () => void) => () => void;
 };
 
 export type WhereCompiler<TTarget, TOptions = unknown> = (
@@ -340,40 +358,40 @@ export type LimitConsumeInput = {
   readonly tenant?: string;
 };
 
-export type LimitRemaining = {
-  readonly remaining: number;
-};
+export type LimitRemaining = { readonly remaining: number };
 
 export type LimitStore = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  consume(input: LimitConsumeInput): Promise<LimitRemaining> | LimitRemaining;
-  remaining(input: LimitConsumeInput): LimitRemaining | undefined;
+  consume: (
+    input: LimitConsumeInput,
+  ) => Promise<LimitRemaining> | LimitRemaining;
+  remaining: (input: LimitConsumeInput) => LimitRemaining | undefined;
 };
 
 export type DecisionSink = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  write(events: readonly SinkEvent[]): Promise<void> | void;
-  flush?(): Promise<void>;
+  write: (events: readonly SinkEvent[]) => Promise<void> | void;
+  flush?: () => Promise<void>;
 };
 
 /**
  * Looks up the credential an API key stands for. `null` for a key that is
- * malformed, unknown, revoked or whose secret does not match; never throws
- * for bad input. Verification is the application's (or `apiKeyVerifier`'s),
- * never core's.
+ * malformed, unknown, revoked or whose secret does not match; never throws for
+ * bad input. Verification is the application's (or `apiKeyVerifier`'s), never
+ * core's.
  */
 export type CredentialVerifier = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  verify(secret: string): Credential | null | Promise<Credential | null>;
+  verify: (secret: string) => Credential | null | Promise<Credential | null>;
   /**
-   * Records a successful use at `at`, for a `lastUsedAt` column. Called
-   * after a key resolved and not awaited; a throw or a rejection is
-   * ignored, so it never changes the subject.
+   * Records a successful use at `at`, for a `lastUsedAt` column. Called after a
+   * key resolved and not awaited; a throw or a rejection is ignored, so it
+   * never changes the subject.
    */
-  touch?(id: string, at: Instant): void | Promise<void>;
+  touch?: (id: string, at: Instant) => void | Promise<void>;
 };
 
 /** What one tenant configures for itself. Every field only tightens. */
@@ -385,13 +403,13 @@ export type TenantSettings = {
 };
 
 /**
- * Per-tenant settings, a subject input like `CustomRoleSource`: they tighten what
- * a key may be and never grant. A throw denies.
+ * Per-tenant settings, a subject input like `CustomRoleSource`: they tighten
+ * what a key may be and never grant. A throw denies.
  */
 export type SettingsSource = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  settingsFor(
+  settingsFor: (
     tenant: string,
-  ): TenantSettings | undefined | Promise<TenantSettings | undefined>;
+  ) => TenantSettings | undefined | Promise<TenantSettings | undefined>;
 };

@@ -9,7 +9,7 @@ import {
 import { sha256Digest } from "../../src/index.ts";
 import { testIdempotencyStore } from "../../src/testing/index.ts";
 
-describe("idempotencyRecord", () => {
+describe(idempotencyRecord, () => {
   const call = { action: "approve", id: "apr_1", body: "" } as const;
 
   it("builds the record the approvals handler stores", async () => {
@@ -23,7 +23,7 @@ describe("idempotencyRecord", () => {
       }),
       now: 1000,
     });
-    expect(record).toEqual({
+    expect(record).toStrictEqual({
       key: "u_1\nk1",
       response: {
         fingerprint: `approve apr_1 ${sha256Digest("")}`,
@@ -48,7 +48,7 @@ describe("memoryIdempotencyStore conformance", () => {
   testIdempotencyStore(memoryIdempotencyStore());
 });
 
-describe("memoryIdempotencyStore", () => {
+describe(memoryIdempotencyStore, () => {
   it("drops an entry once it expires", () => {
     const store = memoryIdempotencyStore();
     const response = {
@@ -57,7 +57,7 @@ describe("memoryIdempotencyStore", () => {
       headers: [],
       body: "{}",
     };
-    store.set("expired", response, Date.now() - 1);
+    void store.set("expired", response, Date.now() - 1);
     expect(store.get("expired")).toBeUndefined();
     expect(store.get("expired")).toBeUndefined();
   });

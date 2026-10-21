@@ -44,7 +44,10 @@ const users: readonly Principal[] = [
 
 export const principals = memoryPrincipalSource({ principals: users });
 
-/** Published by `u_billing` through `permdock.decideAutomation`; every run acts with their live rights. */
+/**
+ * Published by `u_billing` through `permdock.decideAutomation`; every run acts
+ * with their live rights.
+ */
 const sendOverdue: Automation = {
   v: 1,
   id: "send-overdue",

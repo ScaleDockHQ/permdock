@@ -2,7 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseChangelog, type ChangelogRelease } from "./changelog";
+import type { ChangelogRelease } from "./changelog";
+
+import { parseChangelog } from "./changelog";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 

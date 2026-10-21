@@ -15,6 +15,7 @@ import {
   personas,
   policy,
 } from "../fixtures/named-scopes/policy.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { generateRls } from "./support/rls.ts";
 
@@ -205,23 +206,23 @@ describe.each([
       query,
       snapshot: true,
     });
-    expect(report.results.filter((item) => !item.ok)).toEqual([]);
+    expect(report.results.filter((item) => !item.ok)).toStrictEqual([]);
     const allowed = (name: string): string[] =>
       report.results
         .filter((item) => item.name.startsWith(`${name} `) && item.granted)
         .map((item) => item.name.slice(name.length + 1));
     expect(allowed("privateContact")).toContain("quote.read d_a_sent");
     expect(allowed("owner")).toContain("asset.delete a_g_sent");
-    expect(allowed("ownerInB")).toEqual([]);
-    expect(allowed("viewer")).toEqual([]);
-    expect(allowed("businessContact")).toEqual([]);
-    expect(allowed("staffContactInB")).toEqual([]);
+    expect(allowed("ownerInB")).toStrictEqual([]);
+    expect(allowed("viewer")).toStrictEqual([]);
+    expect(allowed("businessContact")).toStrictEqual([]);
+    expect(allowed("staffContactInB")).toStrictEqual([]);
   });
 
   it("drops a suspended instance even when the memberships still name it", async () => {
     const keysOf = async (scope: string): Promise<string[]> =>
       (
-        await db!.admin.query<{ readonly v: string }>(
+        await defined(db).admin.query<{ readonly v: string }>(
           `select distinct grant_key as v from permdock.role_permissions where permission = 'quote.read' and scope = $1`,
           [scope],
         )
@@ -234,9 +235,9 @@ describe.each([
         `select distinct v from unnest($1::text[]) k, permdock.permitted_organization_ids(k) v`,
         [organizationKeys],
       );
-    expect(await organizations(personas.owner, "T")).toEqual(["T"]);
-    expect(await organizations(personas.owner, "B")).toEqual([]);
-    expect(await organizations(personas.viewer, "B")).toEqual([]);
+    expect(await organizations(personas.owner, "T")).toStrictEqual(["T"]);
+    expect(await organizations(personas.owner, "B")).toStrictEqual([]);
+    expect(await organizations(personas.viewer, "B")).toStrictEqual([]);
     const keys = await keysOf("customer");
     const customers = await helper(
       personas.businessContact,
@@ -244,7 +245,7 @@ describe.each([
       `select distinct v from unnest($1::text[]) k, permdock.permitted_customer_ids(k) v`,
       [keys],
     );
-    expect(customers).toEqual([]);
+    expect(customers).toStrictEqual([]);
   });
 
   it("takes no global roles from a suspended user", async () => {
@@ -255,7 +256,7 @@ describe.each([
         `select permdock.permdock_has('organization.read')::text as v`,
         [],
       );
-    expect(await has(personas.platformSupport)).toEqual(["true"]);
-    expect(await has(personas.platformAdmin)).toEqual(["false"]);
+    expect(await has(personas.platformSupport)).toStrictEqual(["true"]);
+    expect(await has(personas.platformAdmin)).toStrictEqual(["false"]);
   });
 });

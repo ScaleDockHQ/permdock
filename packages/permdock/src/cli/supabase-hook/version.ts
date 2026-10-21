@@ -85,10 +85,10 @@ function signedUp(user: string): string {
 }
 
 /**
- * Every membership source whose user id lives in another table: a row of
- * the source bumps the users its old and new references hold, and a change
- * of that table's user id (a contact re-linked to another login) bumps the
- * old and the new user.
+ * Every membership source whose user id lives in another table: a row of the
+ * source bumps the users its old and new references hold, and a change of that
+ * table's user id (a contact re-linked to another login) bumps the old and the
+ * new user.
  */
 function memberUsersVersionSql(parts: Parts, bumpFor: string): string {
   const holders = new Map<
@@ -231,7 +231,10 @@ type RoleKeyHolder = {
   readonly through: RoleKeys;
 };
 
-/** Every table whose role column references a roles table: the global roles and the membership sources. */
+/**
+ * Every table whose role column references a roles table: the global roles and
+ * the membership sources.
+ */
 function roleKeyHolders(parts: Parts): readonly RoleKeyHolder[] {
   const holders: RoleKeyHolder[] = [];
   if (parts.roles?.through !== undefined) {
@@ -278,7 +281,10 @@ function roleKeyHolders(parts: Parts): readonly RoleKeyHolder[] {
   });
 }
 
-/** The bump for one roles table: unchanged keys and ids return early, else every holder of `old` is bumped. */
+/**
+ * The bump for one roles table: unchanged keys and ids return early, else every
+ * holder of `old` is bumped.
+ */
 function roleKeysBumpSql(
   holders: readonly RoleKeyHolder[],
   versionTable: string,
@@ -317,9 +323,9 @@ ${indent}on conflict (user_id) do update set version = v.version + 1;`;
 }
 
 /**
- * A renamed role key changes the `roles` claim of everyone who holds it and
- * the `roles` of every membership that references it, so updates to a roles
- * table bump each holder.
+ * A renamed role key changes the `roles` claim of everyone who holds it and the
+ * `roles` of every membership that references it, so updates to a roles table
+ * bump each holder.
  */
 function roleKeysVersionSql(parts: Parts, versionTable: string): string {
   const holders = roleKeyHolders(parts);

@@ -87,12 +87,12 @@ const clean: ActualRls = {
 describe("rls verify --introspect", () => {
   it("expects the security definer helpers, table grants and policies generate writes", () => {
     expect(normalizeTableName('"app"."post"')).toBe("app.post");
-    expect(expected.helpers).toEqual(["app.permdock_has"]);
-    expect(expected.tables).toEqual(["public.post"]);
-    expect(expected.grants).toEqual({
+    expect(expected.helpers).toStrictEqual(["app.permdock_has"]);
+    expect(expected.tables).toStrictEqual(["public.post"]);
+    expect(expected.grants).toStrictEqual({
       "public.post": { anon: [], authenticated: ["select"] },
     });
-    expect(diffRls(expected, clean)).toEqual([]);
+    expect(diffRls(expected, clean)).toStrictEqual([]);
   });
 
   it("names each difference", () => {
@@ -111,7 +111,7 @@ describe("rls verify --introspect", () => {
         grants: { "public.post": {} },
         helpers: {},
       }),
-    ).toEqual([
+    ).toStrictEqual([
       "public.post: policy post_select is missing",
       "public.post: policy deny_post_delete is for all, expected delete",
       "public.post: policy deny_post_delete is permissive, expected restrictive",
@@ -119,7 +119,7 @@ describe("rls verify --introspect", () => {
       "public.post: authenticated lacks select, so the policy answers 42501 instead of filtering",
       "app.permdock_has: helper is missing",
     ]);
-    expect(diffRls(expected, { ...clean, rlsEnabled: {} })).toEqual([
+    expect(diffRls(expected, { ...clean, rlsEnabled: {} })).toStrictEqual([
       "public.post: table is missing",
     ]);
     expect(
@@ -128,7 +128,7 @@ describe("rls verify --introspect", () => {
         { ...clean, grants: { "public.post": {} } },
         { columnGrants: true },
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("warns about each index target no index starts with", () => {
@@ -144,7 +144,7 @@ describe("rls verify --introspect", () => {
           "app.memberships": ["org_id"],
         },
       }),
-    ).toEqual([
+    ).toStrictEqual([
       "app.memberships: no index starts with user_id, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes",
     ]);
   });
@@ -160,7 +160,7 @@ describe("rls verify --introspect", () => {
         leadingColumns: { "public.post": ["id"] },
         columns: { "public.post": ["id", "author_id"] },
       }),
-    ).toEqual([
+    ).toStrictEqual([
       "public.post: no index starts with author_id, which the policies or helpers filter on; add it, or write it with rls generate --split ...,indexes",
     ]);
   });
@@ -231,7 +231,7 @@ describe("diffRls details", () => {
           },
         },
       }),
-    ).toEqual([
+    ).toStrictEqual([
       "public.post: policy post_select is restrictive, expected permissive",
       "public.post: policy hand_written is not generated (permissive all); a permissive one widens access",
       "public.post: policy hand_guard is not generated (restrictive delete); a permissive one widens access",
@@ -247,7 +247,7 @@ describe("diffRls details", () => {
         grants: {},
         helpers: {},
       }),
-    ).toEqual([
+    ).toStrictEqual([
       "public.post: policy post_select is missing",
       "public.post: row level security is disabled",
       "app.permdock_has: helper is missing",
@@ -263,7 +263,7 @@ describe("diffRls details", () => {
           grants: {},
         },
       ),
-    ).toEqual(["public.post: policy post_select is missing"]);
+    ).toStrictEqual(["public.post: policy post_select is missing"]);
   });
 });
 
@@ -330,7 +330,7 @@ describe("introspectRls and introspectMixed through an injected client", () => {
     });
     expect(
       await introspectRls("postgres://fake", expected, sql.connect),
-    ).toEqual({
+    ).toStrictEqual({
       policies: [
         {
           table: "public.post",
@@ -356,7 +356,7 @@ describe("introspectRls and introspectMixed through an injected client", () => {
         "app.b": { securityDefiner: false, emptySearchPath: false },
       },
     });
-    expect(sql.calls[0]?.values).toEqual([["public.post"]]);
+    expect(sql.calls[0]?.values).toStrictEqual([["public.post"]]);
     expect(sql.ended()).toBe(true);
   });
 
@@ -419,7 +419,7 @@ describe("introspectRls and introspectMixed through an injected client", () => {
     });
     expect(
       await introspectMixed("postgres://fake", 'my"schema', sql.connect),
-    ).toEqual({
+    ).toStrictEqual({
       seeds: [
         {
           role: "a",
@@ -515,13 +515,13 @@ describe("diffMixed", () => {
         "public.quote",
       ],
     });
-    expect(result.drift).toEqual([
+    expect(result.drift).toStrictEqual([
       "public.role_permissions: missing admin allow asset.update on organization",
       "public.role_permissions: unexpected admin allow asset.delete on organization",
       "public.quote: policy quotes_select passes quote.read, whose grants carry row conditions the helpers do not check: the policy grants more than the application does",
       "public.note: policy notes_select passes note.read, which the policy does not declare, so it always denies",
     ]);
-    expect(result.info).toEqual([
+    expect(result.info).toStrictEqual([
       "public.legacy: no policy calls a PermDock helper",
     ]);
   });
@@ -562,10 +562,10 @@ describe("diffMixed", () => {
         rlsTables: ["public.jobs"],
       },
     );
-    expect(result.drift).toEqual([
+    expect(result.drift).toStrictEqual([
       "public.jobs: policy jobs_insert_team passes jobs.create@team, which the policy does not declare, so it always denies",
     ]);
-    expect(result.info).toEqual([
+    expect(result.info).toStrictEqual([
       "public.jobs: policy jobs_insert passes jobs.create@own, which skips the level's row condition, so holders of it are denied there; use permitted_jobs_row(jobs, 'jobs.create')",
     ]);
   });
@@ -583,7 +583,7 @@ describe("diffMixed", () => {
       ],
       rlsTables: ["public.asset"],
     });
-    expect(result).toEqual({ drift: [], info: [] });
+    expect(result).toStrictEqual({ drift: [], info: [] });
   });
 
   it("with rls.readOnlyActors, names each write a client reaches without permdock_actor_may_write", () => {
@@ -615,11 +615,11 @@ describe("diffMixed", () => {
       ]),
     ];
     const actual = { seeds: [seed], policies, rlsTables: [] };
-    expect(diffMixed(mixed, actual).drift).toEqual([]);
-    expect(diffMixed({ ...mixed, readOnlyActors: true }, actual).drift).toEqual(
-      [
-        "public.quote: delete policies for authenticated do not call permdock_actor_may_write(), so a read-only support or impersonation session can write (rls.readOnlyActors)",
-      ],
-    );
+    expect(diffMixed(mixed, actual).drift).toStrictEqual([]);
+    expect(
+      diffMixed({ ...mixed, readOnlyActors: true }, actual).drift,
+    ).toStrictEqual([
+      "public.quote: delete policies for authenticated do not call permdock_actor_may_write(), so a read-only support or impersonation session can write (rls.readOnlyActors)",
+    ]);
   });
 });

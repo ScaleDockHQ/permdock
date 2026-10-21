@@ -5,7 +5,10 @@ import { RFC3339_PATTERN } from "./time.ts";
 
 const SCHEMA = "https://json-schema.org/draft/2020-12/schema";
 
-/** The URL each event family's schema is published at, and its CloudEvents `dataschema`. */
+/**
+ * The URL each event family's schema is published at, and its CloudEvents
+ * `dataschema`.
+ */
 export const EVENT_SCHEMA_IDS: {
   readonly decision: "https://permdock.com/schemas/decision-event-v1.json";
   readonly directory: "https://permdock.com/schemas/directory-event-v1.json";
@@ -54,10 +57,7 @@ const appData: JsonSchemaNode = {
   description:
     "The application's own data, set where the event is built: plain JSON, never read by a decision.",
 };
-const within: JsonSchemaNode = {
-  type: "object",
-  additionalProperties: text,
-};
+const within: JsonSchemaNode = { type: "object", additionalProperties: text };
 
 function family(
   key: keyof typeof EVENT_SCHEMA_IDS,

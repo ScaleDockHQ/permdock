@@ -8,9 +8,9 @@ import { approverLeaves } from "../core/approvers.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 
 /**
- * Who may approve each better-supabase request kind: `'ai-tool'` (a tool
- * call), `'support-session'`, or `'<subject type>.<action>'` from the
- * approvals block.
+ * Who may approve each better-supabase request kind: `'ai-tool'` (a tool call),
+ * `'support-session'`, or `'<subject type>.<action>'` from the approvals
+ * block.
  */
 export type ProviderApprovers = Readonly<Record<string, ApproverInput>>;
 
@@ -41,7 +41,10 @@ type IsApproverOutput = {
   readonly problems: readonly string[];
 };
 
-/** The resource a cover's `resources` names for a request kind: `job` for `job.update`, else the kind. */
+/**
+ * The resource a cover's `resources` names for a request kind: `job` for
+ * `job.update`, else the kind.
+ */
 function resourceOf(kind: string): string {
   const dot = kind.indexOf(".");
   return dot <= 0 ? kind : kind.slice(0, dot);
@@ -49,9 +52,9 @@ function resourceOf(kind: string): string {
 
 /**
  * better-supabase's `isApprover` template: one `case` over `{kind}` whose
- * branches call `permdock_is_approver` with the kind's approvers as JSON.
- * A kind with no branch is `false`. Only `user`, `holder` and `anyOf`
- * approvers match in SQL; other leaves are reported and match nobody.
+ * branches call `permdock_is_approver` with the kind's approvers as JSON. A
+ * kind with no branch is `false`. Only `user`, `holder` and `anyOf` approvers
+ * match in SQL; other leaves are reported and match nobody.
  */
 export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
   const problems: string[] = [];

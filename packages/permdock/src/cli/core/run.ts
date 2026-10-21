@@ -1,16 +1,16 @@
 import { existsSync, statSync } from "node:fs";
 import { stripVTControlCharacters } from "node:util";
 
+import type { LoadedConfig } from "../project/config.ts";
 import type { CliIo, RunResult } from "../types.ts";
 import type { Leaf } from "./command.ts";
+import type { CliContext, OutputFormat } from "./context.ts";
+import type { CliProblem, ExitCode } from "./errors.ts";
+import type { GroupEntry, LeafEntry } from "./manifest.ts";
 import type { CommandResult, NextStep } from "./result.ts";
 
 import { dateAt } from "../../core/time.ts";
-import {
-  type LoadedConfig,
-  readConfig,
-  resolveCwd,
-} from "../project/config.ts";
+import { readConfig, resolveCwd } from "../project/config.ts";
 import { beforeFirst } from "../shared/text.ts";
 import { agentMode } from "./agent.ts";
 import { flagSpellings, parseFlags, parseLeaf, suggestion } from "./args.ts";
@@ -21,11 +21,9 @@ import {
   quote,
   replayArgv,
 } from "./consent.ts";
-import { type CliContext, GLOBAL_FLAGS, type OutputFormat } from "./context.ts";
+import { GLOBAL_FLAGS } from "./context.ts";
 import { redact } from "./credentials.ts";
 import {
-  type CliProblem,
-  type ExitCode,
   CliError,
   cliProblem,
   describeError,
@@ -40,7 +38,7 @@ import {
   rootHelp,
 } from "./help.ts";
 import { progressReporter } from "./io.ts";
-import { type GroupEntry, type LeafEntry, resolve } from "./manifest.ts";
+import { resolve } from "./manifest.ts";
 import { dataOf, envelope, githubAnnotations, sarifLog } from "./output.ts";
 import { COMMAND_MOVES, flagRename, renameMessage } from "./renames.ts";
 import { createStyle } from "./style.ts";
@@ -153,8 +151,8 @@ function lined(text: string): string {
 }
 
 /**
- * The step that answers an `input_required` error without its own `next`:
- * the same command line with each missing flag or positional filled by a
+ * The step that answers an `input_required` error without its own `next`: the
+ * same command line with each missing flag or positional filled by a
  * placeholder the caller replaces.
  */
 function missingInputNext(
@@ -190,10 +188,7 @@ function typedFlags(argv: readonly string[]): readonly string[] {
 
 export async function run(
   argv: readonly string[],
-  options?: {
-    readonly cwd?: string;
-    readonly io?: CliIo;
-  },
+  options?: { readonly cwd?: string; readonly io?: CliIo },
 ): Promise<RunResult> {
   const stdoutChunks: string[] = [];
   const stderrChunks: string[] = [];
@@ -615,7 +610,7 @@ export async function run(
       const findings = result.findings ?? [];
       writeOut(
         format === "github"
-          ? githubAnnotations(findings) || ""
+          ? githubAnnotations(findings)
           : sarifLog(name, findings),
       );
       return done(result.code);

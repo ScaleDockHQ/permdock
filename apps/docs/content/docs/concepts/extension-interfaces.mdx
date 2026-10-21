@@ -67,11 +67,7 @@ Every `subjectFrom*` mapper takes its input first and its options second, so it 
 
 ```ts
 const resolve: SubjectResolver<unknown, SupabasePrincipal> = (claims) =>
-  subjectFromSupabase(claims, {
-    claims: {
-      tenant: "org_id",
-    },
-  });
+  subjectFromSupabase(claims, { claims: { tenant: "org_id" } });
 const resolveKey: SubjectResolver<string | null, ApiKeyPrincipal> = (
   key,
   scope,
@@ -86,7 +82,7 @@ A resolver never throws: an unverifiable token, a missing session or a failed sc
 
 ```ts
 interface TokenVerifier<TClaims extends JwtClaims = JwtClaims> {
-  verify(
+  verify: (
     token: string,
     expectations: {
       typ?: string | string[]; // 'at+jwt', 'JWT', 'logout+jwt', 'secevent+jwt', 'vnd.permdock.snapshot+jwt', ...
@@ -94,7 +90,7 @@ interface TokenVerifier<TClaims extends JwtClaims = JwtClaims> {
       issuer?: string; // when not fixed at construction (Discovery supplies it)
       clockTolerance?: number;
     },
-  ): Promise<VerifiedToken<TClaims> | VerificationFailure>;
+  ) => Promise<VerifiedToken<TClaims> | VerificationFailure>;
 }
 
 type VerifiedToken<TClaims> = {
@@ -115,7 +111,7 @@ type VerificationFailure = {
 
 ```ts
 interface TokenSigner {
-  sign(
+  sign: (
     payload: Record<string, unknown>,
     options: {
       typ:
@@ -132,9 +128,9 @@ interface TokenSigner {
       issuedAt?: number; // `iat`, NumericDate: the artefact's own time; default the signer's clock
       jti?: string; // the artefact id; default a random UUID
     },
-  ): Promise<string>; // compact JWS
+  ) => Promise<string>; // compact JWS
   readonly kid?: string;
-  jwks?(): Promise<JSONWebKeySet>; // public keys, for a /.well-known/jwks.json route
+  jwks?: () => Promise<JSONWebKeySet>; // public keys, for a /.well-known/jwks.json route
 }
 ```
 
@@ -156,10 +152,7 @@ const claims = z.object({
 
 const { data, error } = await supabase.auth.getClaims();
 export const subject = subjectFromSupabase(error ? null : data.claims, {
-  claims: {
-    roles: "user_role",
-    tenant: "tenant_id",
-  },
+  claims: { roles: "user_role", tenant: "tenant_id" },
   schema: claims, // invalid claims drop `principal.claims`, never the subject
 });
 // subject.principal is SupabasePrincipal; custom fields live on principal.claims
@@ -182,48 +175,48 @@ Two helper types cover the policy side: `PrincipalOf<typeof policy>` and `Subjec
 
 ```ts
 interface MembershipSource {
-  membershipsFor(
+  membershipsFor: (
     principal: { id: string; kind?: string },
     options: { tenant?: string },
-  ): Membership[] | Promise<Membership[]>;
-  list?(query: {
+  ) => Membership[] | Promise<Membership[]>;
+  list?: (query: {
     scope: string;
     id: string;
-  }): MemberEntry[] | Promise<MemberEntry[]>; // { principal: { id }, membership }
-  version?(principal: {
+  }) => MemberEntry[] | Promise<MemberEntry[]>; // { principal: { id }, membership }
+  version?: (principal: {
     id: string;
-  }): number | undefined | Promise<number | undefined>;
-  globalRolesFor?(principal: {
+  }) => number | undefined | Promise<number | undefined>;
+  globalRolesFor?: (principal: {
     id: string;
-  }): readonly string[] | Promise<readonly string[]>;
+  }) => readonly string[] | Promise<readonly string[]>;
   readonly claimsFirst?: boolean;
 }
 
 interface EntitlementSource {
-  entitlementsFor(
+  entitlementsFor: (
     principal: { id: string },
     options: { tenant?: string },
-  ): string[] | Promise<string[]>;
+  ) => string[] | Promise<string[]>;
 }
 
 interface CustomRoleSource {
-  rolesFor(
+  rolesFor: (
     tenant: string,
     context?: { held: string[] },
-  ): CustomRole[] | Promise<CustomRole[]>;
-  assignable?(tenant: string): string[] | Promise<string[]>;
-  globalRoles?(context?: {
+  ) => CustomRole[] | Promise<CustomRole[]>;
+  assignable?: (tenant: string) => string[] | Promise<string[]>;
+  globalRoles?: (context?: {
     held: string[];
-  }): CustomRole[] | Promise<CustomRole[]>; // scope: 'global'
-  sharedRoles?(context?: {
+  }) => CustomRole[] | Promise<CustomRole[]>; // scope: 'global'
+  sharedRoles?: (context?: {
     held: string[];
-  }): CustomRole[] | Promise<CustomRole[]>; // shared: true
+  }) => CustomRole[] | Promise<CustomRole[]>; // shared: true
 }
 
 interface ApprovalPolicySource {
-  approvalPoliciesFor(query: {
+  approvalPoliciesFor: (query: {
     tenants: string[];
-  }): ApprovalPolicy[] | Promise<ApprovalPolicy[]>;
+  }) => ApprovalPolicy[] | Promise<ApprovalPolicy[]>;
 }
 ```
 
@@ -262,21 +255,21 @@ const customRoles = customRoleSource({
 
 ```ts
 interface RelationSource {
-  ancestors(query: {
+  ancestors: (query: {
     resource: string;
     id: string;
     through: string;
     depth: number;
-  }): RelationChain | Promise<RelationChain>;
-  related(query: {
+  }) => RelationChain | Promise<RelationChain>;
+  related: (query: {
     resource: string;
     id: string;
     relation: string;
-  }): RelationHolder[] | Promise<RelationHolder[]>;
-  row?(query: {
+  }) => RelationHolder[] | Promise<RelationHolder[]>;
+  row?: (query: {
     resource: string;
     id: string;
-  }): Row | null | undefined | Promise<Row | null | undefined>;
+  }) => Row | null | undefined | Promise<Row | null | undefined>;
 }
 type RelationChain = {
   restricted?: boolean;
@@ -304,13 +297,13 @@ type PrincipalIdentity = {
 };
 
 interface PrincipalSource {
-  principal(
+  principal: (
     id: string,
     options?: { tenant?: string },
-  ): Principal | null | Promise<Principal | null>;
-  principalByIdentity?(
+  ) => Principal | null | Promise<Principal | null>;
+  principalByIdentity?: (
     identity: PrincipalIdentity,
-  ): Principal | null | Promise<Principal | null>;
+  ) => Principal | null | Promise<Principal | null>;
 }
 ```
 
@@ -337,14 +330,14 @@ const principals = memoryPrincipalSource({
 
 ```ts
 interface CredentialVerifier {
-  verify(secret: string): Credential | null | Promise<Credential | null>;
-  touch?(id: string, at: number): void | Promise<void>; // after a key resolved; not awaited, errors ignored
+  verify: (secret: string) => Credential | null | Promise<Credential | null>;
+  touch?: (id: string, at: number) => void | Promise<void>; // after a key resolved; not awaited, errors ignored
 }
 
 interface SettingsSource {
-  settingsFor(
+  settingsFor: (
     tenant: string,
-  ): TenantSettings | undefined | Promise<TenantSettings | undefined>;
+  ) => TenantSettings | undefined | Promise<TenantSettings | undefined>;
 }
 ```
 
@@ -355,48 +348,48 @@ A verifier is where an API key is authenticated, so it belongs next to the `subj
 ```ts
 interface DirectoryStore {
   name?: string;
-  getUser(
+  getUser: (
     tenant: string,
     id: string,
-  ): DirectoryUser | null | Promise<DirectoryUser | null>;
-  findUsers(
+  ) => DirectoryUser | null | Promise<DirectoryUser | null>;
+  findUsers: (
     tenant: string,
     filter: ScimFilter,
     page: ScimPage,
-  ): ScimPageResult<DirectoryUser> | Promise<ScimPageResult<DirectoryUser>>;
-  putUser(
+  ) => ScimPageResult<DirectoryUser> | Promise<ScimPageResult<DirectoryUser>>;
+  putUser: (
     tenant: string,
     user: DirectoryUser,
-  ): DirectoryUser | Promise<DirectoryUser>;
-  patchUser(
+  ) => DirectoryUser | Promise<DirectoryUser>;
+  patchUser: (
     tenant: string,
     id: string,
     ops: ScimPatchOp[],
-  ): DirectoryUser | Promise<DirectoryUser>;
-  deleteUser(tenant: string, id: string): void | Promise<void>;
-  getGroup(
+  ) => DirectoryUser | Promise<DirectoryUser>;
+  deleteUser: (tenant: string, id: string) => void | Promise<void>;
+  getGroup: (
     tenant: string,
     id: string,
-  ): DirectoryGroup | null | Promise<DirectoryGroup | null>;
-  findGroups(
+  ) => DirectoryGroup | null | Promise<DirectoryGroup | null>;
+  findGroups: (
     tenant: string,
     filter: ScimFilter,
     page: ScimPage,
-  ): ScimPageResult<DirectoryGroup> | Promise<ScimPageResult<DirectoryGroup>>;
-  putGroup(
+  ) => ScimPageResult<DirectoryGroup> | Promise<ScimPageResult<DirectoryGroup>>;
+  putGroup: (
     tenant: string,
     group: DirectoryGroup,
-  ): DirectoryGroup | Promise<DirectoryGroup>;
-  patchGroup(
+  ) => DirectoryGroup | Promise<DirectoryGroup>;
+  patchGroup: (
     tenant: string,
     id: string,
     ops: ScimPatchOp[],
-  ): DirectoryGroup | Promise<DirectoryGroup>;
-  deleteGroup(tenant: string, id: string): void | Promise<void>;
-  groupsFor(
+  ) => DirectoryGroup | Promise<DirectoryGroup>;
+  deleteGroup: (tenant: string, id: string) => void | Promise<void>;
+  groupsFor: (
     tenant: string,
     userId: string,
-  ): DirectoryGroup[] | Promise<DirectoryGroup[]>;
+  ) => DirectoryGroup[] | Promise<DirectoryGroup[]>;
 }
 ```
 
@@ -408,22 +401,22 @@ interface DirectoryStore {
 
 ```ts
 interface LimitStore {
-  consume(input: {
+  consume: (input: {
     key: string;
     subjectId: string;
     count: number;
     per: string;
     now?: number;
     tenant?: string;
-  }): { remaining: number } | Promise<{ remaining: number }>;
-  remaining(input: {
+  }) => { remaining: number } | Promise<{ remaining: number }>;
+  remaining: (input: {
     key: string;
     subjectId: string;
     count: number;
     per: string;
     now?: number;
     tenant?: string;
-  }): { remaining: number } | undefined;
+  }) => { remaining: number } | undefined;
 }
 ```
 
@@ -437,8 +430,8 @@ The rules follow from synchronous evaluation. `can`, `filter`, `simulate` and an
 
 ```ts
 interface PolicySource {
-  current(): PolicyDocument | null; // synchronous: the last verified document
-  refresh(): Promise<void>; // called by the application on its own schedule
+  current: () => PolicyDocument | null; // synchronous: the last verified document
+  refresh: () => Promise<void>; // called by the application on its own schedule
 }
 ```
 

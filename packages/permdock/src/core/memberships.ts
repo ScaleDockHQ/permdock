@@ -32,8 +32,8 @@ function identity(membership: Membership): string {
 /**
  * Merges memberships from several sources: entries naming the same instance
  * with the same `via`, expiry, owner and seats become one entry with the union
- * of their roles. Entries that differ in any of those stay separate, so a
- * staff role and a contact role in one instance keep their own `via`.
+ * of their roles. Entries that differ in any of those stay separate, so a staff
+ * role and a contact role in one instance keep their own `via`.
  */
 export function mergeMemberships(
   lists: readonly (readonly Membership[])[],
@@ -68,9 +68,9 @@ function all<T>(
 
 function then<T, R>(
   value: T | Promise<T>,
-  next: (resolved: T) => R,
+  map: (resolved: T) => R,
 ): R | Promise<R> {
-  return isThenable(value) ? Promise.resolve(value).then(next) : next(value);
+  return isThenable(value) ? Promise.resolve(value).then(map) : map(value);
 }
 
 /**
@@ -172,10 +172,10 @@ export function asMembershipSource(
 }
 
 /**
- * Trust the memberships the verified token carries, and read `source` only
- * when the token marks them truncated. With `version`, a token minted before
- * the latest membership change is stale for the policy's `fresh` permissions,
- * or with `onStale: 'reread'` has its memberships read from `source` instead.
+ * Trust the memberships the verified token carries, and read `source` only when
+ * the token marks them truncated. With `version`, a token minted before the
+ * latest membership change is stale for the policy's `fresh` permissions, or
+ * with `onStale: 'reread'` has its memberships read from `source` instead.
  */
 export function claimsFirst(
   source: MembershipSource | readonly MembershipSource[],
@@ -211,17 +211,20 @@ export function claimsFirst(
   };
 }
 
-/** Whether the identity provider owns `membership`: the application must not add, change or remove it. */
+/**
+ * Whether the identity provider owns `membership`: the application must not
+ * add, change or remove it.
+ */
 export function isExternallyManaged(membership: Membership): boolean {
   return membership.managedBy === "idp";
 }
 
 /**
- * How many principals hold `role` in one scope instance now, from the
- * source's member list (`MembershipSource.list`): live memberships of exactly
- * that scope and instance, each principal counted once. The `holders` a
- * `decideRoleChange` with `min`, `max` or `transferOnly` needs. `undefined`
- * when the source cannot list or the read fails, which that check denies.
+ * How many principals hold `role` in one scope instance now, from the source's
+ * member list (`MembershipSource.list`): live memberships of exactly that scope
+ * and instance, each principal counted once. The `holders` a `decideRoleChange`
+ * with `min`, `max` or `transferOnly` needs. `undefined` when the source cannot
+ * list or the read fails, which that check denies.
  */
 export async function countHolders(
   source: MembershipSource | readonly MembershipSource[],

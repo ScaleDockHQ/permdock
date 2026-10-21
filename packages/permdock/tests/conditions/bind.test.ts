@@ -13,7 +13,7 @@ const subject: Subject = {
   context: { region: "eu" },
 };
 
-describe("bindConditionRefs", () => {
+describe(bindConditionRefs, () => {
   it("replaces refs with the subject values", () => {
     expect(
       bindConditionRefs(
@@ -34,15 +34,12 @@ describe("bindConditionRefs", () => {
         },
         subject,
       ),
-    ).toEqual({
+    ).toStrictEqual({
       op: "and",
       conditions: [
         { op: "eq", field: "ownerId", value: "u1" },
         { op: "in", field: "teamId", value: ["t1", "t2"] },
-        {
-          op: "not",
-          condition: { op: "eq", field: "region", value: "eu" },
-        },
+        { op: "not", condition: { op: "eq", field: "region", value: "eu" } },
       ],
     });
   });
@@ -53,13 +50,13 @@ describe("bindConditionRefs", () => {
         { op: "eq", field: "ownerId", value: refAt(principal, "missing") },
         subject,
       ),
-    ).toEqual({ op: "eq", field: "ownerId", value: null });
+    ).toStrictEqual({ op: "eq", field: "ownerId", value: null });
     expect(
       bindConditionRefs(
         { op: "in", field: "teamId", value: refAt(principal, "missing") },
         subject,
       ),
-    ).toEqual({ op: "in", field: "teamId", value: [] });
+    ).toStrictEqual({ op: "in", field: "teamId", value: [] });
   });
 
   it("binds refs inside lists and sqlFunction args, and keeps other nodes", () => {
@@ -68,20 +65,16 @@ describe("bindConditionRefs", () => {
         { op: "in", field: "teamId", value: [principal.id, "x"] },
         subject,
       ),
-    ).toEqual({ op: "in", field: "teamId", value: ["u1", "x"] });
+    ).toStrictEqual({ op: "in", field: "teamId", value: ["u1", "x"] });
     expect(
       bindConditionRefs(
-        {
-          op: "eq",
-          field: "teamId",
-          value: { ref: "principal.teams" },
-        },
+        { op: "eq", field: "teamId", value: { ref: "principal.teams" } },
         {
           principal: { id: "u1", teams: ["t1", { nested: true }] },
           context: {},
         },
       ),
-    ).toEqual({ op: "eq", field: "teamId", value: ["t1"] });
+    ).toStrictEqual({ op: "eq", field: "teamId", value: ["t1"] });
     const fn = sqlFunction("is_member", {
       args: [{ field: "orgId" }, principal.id],
       twin: { ownerId: principal.id },
@@ -100,7 +93,7 @@ describe("bindConditionRefs", () => {
       },
       subject,
     );
-    expect(either).toEqual({
+    expect(either).toStrictEqual({
       op: "or",
       conditions: [{ op: "eq", field: "ownerId", value: "u1" }],
     });

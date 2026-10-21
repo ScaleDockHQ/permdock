@@ -11,7 +11,9 @@ import { ownPost, permissions, policy } from "../fixtures/quick-start.ts";
 
 type Row = { readonly user_id: string; readonly role: string };
 
-function fakeDb(tables: Record<string, Row[]>): PowerSyncWatchable & {
+function fakeDb(
+  tables: Record<string, Row[]>,
+): PowerSyncWatchable & {
   readonly change: () => void;
   readonly aborted: () => boolean;
 } {
@@ -53,7 +55,7 @@ async function settle(): Promise<void> {
   });
 }
 
-describe("powerSyncSource", () => {
+describe(powerSyncSource, () => {
   it("builds the snapshot from the watched rows and follows their changes", async () => {
     const tables: Record<string, Row[]> = {
       user_roles: [{ user_id: "u1", role: "member" }],

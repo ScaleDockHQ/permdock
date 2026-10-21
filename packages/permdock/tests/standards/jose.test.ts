@@ -45,7 +45,9 @@ async function causeOf(
   return result.ok ? "ok" : result.cause;
 }
 
-async function ed25519(kid: string): Promise<{
+async function ed25519(
+  kid: string,
+): Promise<{
   readonly privateJwk: Record<string, unknown>;
   readonly publicJwk: Record<string, unknown>;
 }> {
@@ -81,7 +83,7 @@ describe("RFC 8037 CFRG curves in JOSE (January 2017)", () => {
   it("appendix A.4 and A.5: the Ed25519 JWS verifies with the published key", async () => {
     const key = await importJWK(rfc8037.publicKey, "Ed25519");
     const { payload, protectedHeader } = await compactVerify(rfc8037.jws, key);
-    expect(protectedHeader).toEqual({ alg: "EdDSA" });
+    expect(protectedHeader).toStrictEqual({ alg: "EdDSA" });
     expect(new TextDecoder().decode(payload)).toBe(
       "Example of Ed25519 signing",
     );
@@ -106,7 +108,7 @@ describe("RFC 7520 JOSE Cookbook (May 2015)", () => {
   it("section 4.1: the RS256 example verifies with the figure 3 key", async () => {
     const key = await importJWK(rfc7520.rsaPublicKey, "RS256");
     const result = await compactVerify(rfc7520.rs256, key);
-    expect(result.protectedHeader).toEqual({
+    expect(result.protectedHeader).toStrictEqual({
       alg: "RS256",
       kid: "bilbo.baggins@hobbiton.example",
     });
@@ -325,7 +327,7 @@ describe("PermDock outputs: compact JWS with registered headers", () => {
         { typ, audience: "https://api.example.com", expiresAt: NOW + 60 },
       );
       expect(token.split(".")).toHaveLength(3);
-      expect(decodeProtectedHeader(token)).toEqual({
+      expect(decodeProtectedHeader(token)).toStrictEqual({
         alg: "Ed25519",
         kid: "2026-10",
         typ,
@@ -336,8 +338,8 @@ describe("PermDock outputs: compact JWS with registered headers", () => {
         aud: "https://api.example.com",
         exp: NOW + 60,
       });
-      expect(typeof claims.iat).toBe("number");
-      expect(typeof claims.jti).toBe("string");
+      expect(claims.iat).toBeTypeOf("number");
+      expect(claims.jti).toBeTypeOf("string");
       const verifier = joseTokenVerifier({
         jwks: { keys: jwks?.keys ?? [] },
         issuer: ISSUER,

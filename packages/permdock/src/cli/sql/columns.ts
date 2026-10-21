@@ -4,7 +4,10 @@ import { isRecord } from "../../core/compact.ts";
 import { isForbiddenKey } from "../../core/paths.ts";
 import { configError } from "../core/errors.ts";
 
-/** The Postgres type a JSON Schema property compares as; `undefined` for text or an unknown shape. */
+/**
+ * The Postgres type a JSON Schema property compares as; `undefined` for text or
+ * an unknown shape.
+ */
 function columnTypeOf(property: unknown): string | undefined {
   if (!isRecord(property)) {
     return undefined;
@@ -113,7 +116,10 @@ function teamTypeOf(ctx: RlsSqlContext): string {
   return sqlType(ctx.teamType ?? ctx.tenantType ?? "uuid");
 }
 
-/** Postgres type of scope `name`'s id: `scopeTypes`, then the tenant / team type by position. */
+/**
+ * Postgres type of scope `name`'s id: `scopeTypes`, then the tenant / team type
+ * by position.
+ */
 export function scopeTypeOf(ctx: RlsSqlContext, name: string): string {
   const declared = ctx.scopeTypes?.[name];
   if (declared !== undefined) {

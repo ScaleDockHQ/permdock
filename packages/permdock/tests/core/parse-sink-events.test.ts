@@ -153,7 +153,7 @@ describe("event JSON Schemas", () => {
               family as SinkEvent["type"]
             ];
       expect(schema.$id).toBe(id);
-      expect(schemaFile(`${family}-event-v1.json`)).toEqual(schema);
+      expect(schemaFile(`${family}-event-v1.json`)).toStrictEqual(schema);
     }
   });
 
@@ -164,8 +164,8 @@ describe("event JSON Schemas", () => {
       expect({
         type: event.type,
         errors: validate(json) ? [] : validate.errors,
-      }).toEqual({ type: event.type, errors: [] });
-      expect(parseSinkEvent(json)).toEqual(event);
+      }).toStrictEqual({ type: event.type, errors: [] });
+      expect(parseSinkEvent(json)).toStrictEqual(event);
     }
   });
 });
@@ -179,7 +179,7 @@ describe("the permdock entry", () => {
     expect(root.parseCatalogEventData).toBe(parseCatalogEventData);
     expect(root.SINK_EVENT_SCHEMAS).toBe(SINK_EVENT_SCHEMAS);
     expect(root.CATALOG_EVENT_SCHEMA).toBe(CATALOG_EVENT_SCHEMA);
-    expect(new Set(Object.keys(root.EVENT_SCHEMA_IDS))).toEqual(
+    expect(new Set(Object.keys(root.EVENT_SCHEMA_IDS))).toStrictEqual(
       new Set([...Object.keys(SINK_EVENT_SCHEMAS), "catalog"]),
     );
   });
@@ -191,16 +191,16 @@ describe("the permdock entry", () => {
     for (const type of produced) {
       expect(Object.values(CLOUD_EVENT_TYPES)).toContain(type);
     }
-    expect(new Set(families.map((event) => event.type))).toEqual(
+    expect(new Set(families.map((event) => event.type))).toStrictEqual(
       new Set(Object.keys(SINK_EVENT_SCHEMAS)),
     );
   });
 });
 
-describe("parseSinkEvents", () => {
+describe(parseSinkEvents, () => {
   it("returns frozen copies of valid events", () => {
     const parsed = parseSinkEvents(JSON.parse(JSON.stringify(families)));
-    expect(parsed).toEqual(families);
+    expect(parsed).toStrictEqual(families);
     expect(Object.isFrozen(parsed)).toBe(true);
     expect(Object.isFrozen(parsed[0])).toBe(true);
   });
@@ -219,10 +219,7 @@ describe("parseSinkEvents", () => {
       { ...decision, membership: { ...decision.membership, expiresAt: 1 } },
       { ...directory, operation: "upsert" },
       JSON.parse(`{"type":"decision","__proto__":{"trusted":true}}`),
-      {
-        ...families[2],
-        scope: undefined,
-      },
+      { ...families[2], scope: undefined },
       {
         ...families[2],
         within: { organization: "o1" },
@@ -234,21 +231,21 @@ describe("parseSinkEvents", () => {
       { ...families[3], sample: 1.5 },
       { ...families[4], expiresAt: "tomorrow" },
     ];
-    expect(parseSinkEvents([...invalid, decision])).toEqual([decision]);
+    expect(parseSinkEvents([...invalid, decision])).toStrictEqual([decision]);
   });
 
   it("returns an empty list for anything but an array", () => {
-    expect(parseSinkEvents({ events: [decision] })).toEqual([]);
-    expect(parseSinkEvents(undefined)).toEqual([]);
+    expect(parseSinkEvents({ events: [decision] })).toStrictEqual([]);
+    expect(parseSinkEvents(undefined)).toStrictEqual([]);
   });
 });
 
-describe("parseCloudEvent", () => {
+describe(parseCloudEvent, () => {
   it("round-trips every family through JSON", () => {
     for (const event of families) {
       const cloud = toCloudEvent(event, { source });
       const parsed = parseCloudEvent(JSON.parse(JSON.stringify(cloud)));
-      expect(parsed).toEqual(cloud);
+      expect(parsed).toStrictEqual(cloud);
       expect(Object.isFrozen(parsed)).toBe(true);
     }
   });
@@ -259,7 +256,7 @@ describe("parseCloudEvent", () => {
       fingerprint: "sha256:abc",
       previous: "sha256:def",
     };
-    expect(parseCatalogEventData(data)).toEqual(data);
+    expect(parseCatalogEventData(data)).toStrictEqual(data);
     expect(parseCatalogEventData({ ...data, kind: "sync" })).toBeNull();
     expect(parseCatalogEventData("catalog")).toBeNull();
     const operations = {
@@ -279,7 +276,7 @@ describe("parseCloudEvent", () => {
         },
       ],
     };
-    expect(parseCatalogEventData(operations)).toEqual(operations);
+    expect(parseCatalogEventData(operations)).toStrictEqual(operations);
     for (const finding of [
       { code: "operation-approval-removed", permission: "invoice.refund" },
       {
@@ -311,7 +308,7 @@ describe("parseCloudEvent", () => {
       dataschema: EVENT_SCHEMA_IDS.catalog,
       data,
     };
-    expect(parseCloudEvent(envelope)?.data).toEqual(data);
+    expect(parseCloudEvent(envelope)?.data).toStrictEqual(data);
     expect(
       parseCloudEvent({
         ...envelope,
@@ -339,9 +336,10 @@ describe("parseCloudEvent", () => {
       { traceparent: "00-xyz" },
       { data: { ...decision, outcome: "maybe" } },
     ]) {
-      expect({ patch, parsed: parseCloudEvent({ ...good, ...patch }) }).toEqual(
-        { patch, parsed: null },
-      );
+      expect({
+        patch,
+        parsed: parseCloudEvent({ ...good, ...patch }),
+      }).toStrictEqual({ patch, parsed: null });
     }
     expect(parseCloudEvent([good])).toBeNull();
   });

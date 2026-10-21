@@ -1,3 +1,4 @@
+import type { Scope } from "../../core/scopes.ts";
 import type {
   RlsActiveRow,
   RlsSuspendedScope,
@@ -5,7 +6,7 @@ import type {
 } from "../types.ts";
 import type { CheckedPermission, RlsSqlContext } from "./context.ts";
 
-import { type Scope, resolveScope, scopeChain } from "../../core/scopes.ts";
+import { resolveScope, scopeChain } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { keptKeys } from "../../supabase/keep.ts";
 import { configError } from "../core/errors.ts";
@@ -149,17 +150,20 @@ export function activeUserSql(
   return row === undefined ? [] : [activeRowSql(row, user)];
 }
 
-/** The permission of a grant key held in `grant`: `key#group` and `key@level` name `key`. */
+/**
+ * The permission of a grant key held in `grant`: `key#group` and `key@level`
+ * name `key`.
+ */
 export function grantPermissionSql(grant: string): CheckedPermission {
   return { sql: `split_part(split_part(${grant}, '#', 1), '@', 1)` };
 }
 
 /**
- * The active-instance check for every suspendable scope on `scope`'s chain:
- * its own and each ancestor's. `idOf` gives the SQL for the id the membership
- * holds for a scope on that chain. A scope's `keep` lets `permission` through
- * a suspended instance: a kept key known now drops its check, and one read
- * at run time is compared with the kept keys.
+ * The active-instance check for every suspendable scope on `scope`'s chain: its
+ * own and each ancestor's. `idOf` gives the SQL for the id the membership holds
+ * for a scope on that chain. A scope's `keep` lets `permission` through a
+ * suspended instance: a kept key known now drops its check, and one read at run
+ * time is compared with the kept keys.
  */
 export function activeInstancesSql(
   ctx: RlsSqlContext,

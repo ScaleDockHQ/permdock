@@ -30,8 +30,8 @@ import { wireValidity } from "../core/validity.ts";
 /**
  * One code grant as `permdock cloud push` sends it. `portable: false` marks a
  * grant a snapshot cannot evaluate; `closure: true` marks one whose condition
- * is code, which `policyFromCatalog` turns into an allow that never matches
- * and a deny that always applies.
+ * is code, which `policyFromCatalog` turns into an allow that never matches and
+ * a deny that always applies.
  */
 export type PushedGrant = {
   readonly permission: string;
@@ -58,7 +58,10 @@ export type PushedGrant = {
   readonly meta?: GrantMeta;
 };
 
-/** PushedPolicy v1: the `policy` of a `permdock cloud push` body, validated by `schemas/pushed-policy-v1.json`. */
+/**
+ * PushedPolicy v1: the `policy` of a `permdock cloud push` body, validated by
+ * `schemas/pushed-policy-v1.json`.
+ */
 export type PushedPolicy = {
   readonly v: 1;
   /** The code policy's `fingerprint`. */
@@ -115,9 +118,7 @@ export const PUSHED_POLICY_SCHEMA: JsonSchemaNode = freezeDeep({
           to: { oneOf: [grantee, { type: "array", items: grantee }] },
           where: condition,
           check: condition,
-          approval: {
-            oneOf: [{ const: "human" }, { type: "object" }],
-          },
+          approval: { oneOf: [{ const: "human" }, { type: "object" }] },
           scope: {
             oneOf: [
               { type: "string" },
@@ -171,10 +172,7 @@ export const PUSHED_POLICY_SCHEMA: JsonSchemaNode = freezeDeep({
             items: {
               type: "object",
               required: ["kind", "name"],
-              properties: {
-                kind: { const: "app" },
-                name: { type: "string" },
-              },
+              properties: { kind: { const: "app" }, name: { type: "string" } },
             },
           },
           meta: { type: "object" },
@@ -217,7 +215,10 @@ function pushedGrant(grant: Grant): PushedGrant {
   });
 }
 
-/** The code policy as `permdock cloud push` sends it; hosted grants are left out. */
+/**
+ * The code policy as `permdock cloud push` sends it; hosted grants are left
+ * out.
+ */
 export function pushedPolicy(policy: Policy): PushedPolicy {
   const scopes = snapshotScopes(policy);
   return {

@@ -7,9 +7,7 @@ export function cliVersion(): string {
   // SAFETY: packageRoot() finds permdock's own package.json, which always has a version.
   const raw = JSON.parse(
     readFileSync(join(packageRoot(), "package.json"), "utf8"),
-  ) as {
-    readonly version: string;
-  };
+  ) as { readonly version: string };
   return raw.version;
 }
 

@@ -1,17 +1,15 @@
 import type { AppData } from "../core/app-data.ts";
+import type { DirectoryGroup, DirectoryUser } from "./types.ts";
 
 import { readAppData } from "../core/app-data.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { readBodyText } from "../server/body-text.ts";
-import {
-  APP_DATA_EXTENSION,
-  PATCH_SCHEMA,
-  ROLES_EXTENSION,
-  type DirectoryGroup,
-  type DirectoryUser,
-} from "./types.ts";
+import { APP_DATA_EXTENSION, PATCH_SCHEMA, ROLES_EXTENSION } from "./types.ts";
 
-/** The parsed body; `undefined` for an empty or unreadable one. Invalid JSON throws a `SyntaxError`. */
+/**
+ * The parsed body; `undefined` for an empty or unreadable one. Invalid JSON
+ * throws a `SyntaxError`.
+ */
 export async function readJson(
   request: Request,
 ): Promise<
@@ -54,7 +52,10 @@ function readRoles(
   );
 }
 
-/** `x` from the `AppData` extension; a value that is not a plain JSON object is dropped. */
+/**
+ * `x` from the `AppData` extension; a value that is not a plain JSON object is
+ * dropped.
+ */
 function readX(body: Record<string, unknown>): AppData | undefined {
   const extension = body[APP_DATA_EXTENSION];
   return isRecord(extension) && extension["x"] !== undefined

@@ -56,7 +56,7 @@ describe("permdock/orpc request discovery and failures", () => {
       await codeOf(() =>
         call(read, undefined, { context: { req: "not a request" } }),
       ),
-    ]).toEqual(["FORBIDDEN", "resolved"]);
+    ]).toStrictEqual(["FORBIDDEN", "resolved"]);
   });
 
   it("resolves the actor and wraps the instance with otel", async () => {
@@ -76,8 +76,8 @@ describe("permdock/orpc request discovery and failures", () => {
     const request = new Request("http://localhost/orpc/read");
     expect(
       await call(read, undefined, { context: { request }, path: ["posts"] }),
-    ).toEqual({ id: "posts", kind: "agent" });
-    expect(wrapped).toEqual(["u1"]);
+    ).toStrictEqual({ id: "posts", kind: "agent" });
+    expect(wrapped).toStrictEqual(["u1"]);
   });
 
   it("treats a null or throwing request option as no request", async () => {
@@ -98,7 +98,7 @@ describe("permdock/orpc request discovery and failures", () => {
         .handler(({ context }) => context.permdock.subject.principal?.id);
       results.push(await call(read, undefined, { context: {} }));
     }
-    expect(results).toEqual(["u1", "u1"]);
+    expect(results).toStrictEqual(["u1", "u1"]);
   });
 
   it("rethrows a build failure from middleware()", async () => {
@@ -136,7 +136,7 @@ describe("permdock/orpc request discovery and failures", () => {
     expect([
       await codeOf(() => call(invalid, undefined, { context: {} })),
       await codeOf(() => call(missing, undefined, { context: {} })),
-    ]).toEqual(["BAD_REQUEST", "NOT_FOUND"]);
+    ]).toStrictEqual(["BAD_REQUEST", "NOT_FOUND"]);
   });
 
   it("opens an event iterator connection with the row loader", async () => {
@@ -163,7 +163,7 @@ describe("permdock/orpc request discovery and failures", () => {
     for await (const item of stream) {
       items.push(item);
     }
-    expect({ items, loaded: loads >= 1 }).toEqual({
+    expect({ items, loaded: loads >= 1 }).toStrictEqual({
       items: ["p1"],
       loaded: true,
     });
@@ -211,7 +211,7 @@ describe("permdock/orpc limit codes", () => {
       const second = await codeOf(() => call(run, undefined, { context: {} }));
       codes.push(first, second);
     }
-    expect(codes).toEqual([
+    expect(codes).toStrictEqual([
       "resolved",
       "TOO_MANY_REQUESTS",
       "SERVICE_UNAVAILABLE",

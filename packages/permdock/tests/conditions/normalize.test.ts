@@ -6,7 +6,7 @@ import { opaque } from "../../src/conditions/opaque.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import { sqlFunction } from "../../src/conditions/sql-function.ts";
 
-describe("normalizeWhere", () => {
+describe(normalizeWhere, () => {
   it("turns object shorthand into a tagged AST and flattens compounds", () => {
     const condition = normalizeWhere({
       authorId: principal.id,
@@ -26,12 +26,12 @@ describe("normalizeWhere", () => {
       field: "authorId",
       value: { ref: "principal.id" },
     });
-    expect(tagged).toEqual({
+    expect(tagged).toStrictEqual({
       op: "eq",
       field: "authorId",
       value: { ref: "principal.id" },
     });
-    expect(normalizeWhere({ published: { isNull: true } })).toEqual({
+    expect(normalizeWhere({ published: { isNull: true } })).toStrictEqual({
       op: "isNull",
       field: "published",
       value: true,
@@ -42,10 +42,7 @@ describe("normalizeWhere", () => {
     expect(normalizeWhere({ status: { in: ["open", "paid"] } }).op).toBe("in");
     expect(
       normalizeWhere({ createdAt: { gt: new Date("2020-01-01T00:00:00Z") } }),
-    ).toMatchObject({
-      op: "gt",
-      field: "createdAt",
-    });
+    ).toMatchObject({ op: "gt", field: "createdAt" });
     expect(
       normalizeWhere(
         opaque({ sql: "owner_id = auth.uid()", fingerprint: "abc" }),
@@ -73,25 +70,25 @@ describe("normalizeWhere", () => {
         args: [{ field: "id" }],
         twin: opaque({ sql: "1=1", fingerprint: "x" }),
       }),
-    ).toThrow(/twin must not be opaque/);
+    ).toThrow(/twin must not be opaque/u);
     expect(() =>
       sqlFunction("job_permitted", {
         args: [{ field: "id" }],
         twin: sqlFunction("other", { twin: { scope: "public" } }),
       }),
-    ).toThrow(/must not nest sqlFunction/);
+    ).toThrow(/must not nest sqlFunction/u);
     expect(() => sqlFunction("a.b.c", { twin: { scope: "public" } })).toThrow(
-      /SQL identifier/,
+      /SQL identifier/u,
     );
     expect(() =>
       sqlFunction("job-permitted", { twin: { scope: "public" } }),
-    ).toThrow(/SQL identifier/);
+    ).toThrow(/SQL identifier/u);
     expect(() =>
       sqlFunction("job_permitted", {
         args: [{ field: "constructor" }],
         twin: { scope: "public" },
       }),
-    ).toThrow(/forbidden/);
+    ).toThrow(/forbidden/u);
     expect(
       sqlFunction("public.job_permitted", {
         twin: { not: { scope: "private" } },
@@ -114,7 +111,7 @@ describe("normalizeWhere", () => {
   });
 
   it("rejects empty objects and forbidden field names", () => {
-    expect(() => normalizeWhere({})).toThrow(/empty condition/);
-    expect(() => normalizeWhere({ constructor: "x" })).toThrow(/forbidden/);
+    expect(() => normalizeWhere({})).toThrow(/empty condition/u);
+    expect(() => normalizeWhere({ constructor: "x" })).toThrow(/forbidden/u);
   });
 });

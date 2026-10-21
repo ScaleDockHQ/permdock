@@ -76,7 +76,10 @@ ${entries.join("\n")}
 `;
 }
 
-/** What a role's grant becomes under the preset's features; the matrix and the code read the same answer. */
+/**
+ * What a role's grant becomes under the preset's features; the matrix and the
+ * code read the same answer.
+ */
 export function grantShape(
   preset: Preset,
   role: RoleSpec,
@@ -565,7 +568,10 @@ ${options.join("\n")}
   );
 }
 
-/** The `@permdock` registry recipes for the preset's UI; native has the gate and the upgrade prompt. */
+/**
+ * The `@permdock` registry recipes for the preset's UI; native has the gate and
+ * the upgrade prompt.
+ */
 function recipesFor(ctx: Context): string[] {
   const web = ["gated-button"];
   if (ctx.has("approvals")) {
@@ -644,9 +650,9 @@ function docsFor(ctx: Context): string[] {
 }
 
 /**
- * The files, dependencies and recipes for `preset`. Pure: no file system
- * and no network, so the same function runs in the CLI, in a registry route
- * and in the browser preview on /create.
+ * The files, dependencies and recipes for `preset`. Pure: no file system and no
+ * network, so the same function runs in the CLI, in a registry route and in the
+ * browser preview on /create.
  */
 export function generatePreset(
   preset: Preset,

@@ -118,7 +118,7 @@ describe("approvalActions without a thread", () => {
       actions.onAction(threadlessEvent(id)),
     ).resolves.toBeUndefined();
     expect((await store.getById?.(id))?.status).toBe("approved");
-    expect(await pay(billing, { id: "i1" })).toEqual({
+    expect(await pay(billing, { id: "i1" })).toStrictEqual({
       outcome: "granted",
       value: "paid",
     });
@@ -136,11 +136,11 @@ describe("chatSdkTransport edge cases", () => {
     await transport.deliver(target(), { text: "b" }, key("pdd_b"));
     expect(
       await transport.deliver(target(), { text: "b" }, key("pdd_b")),
-    ).toEqual({ status: "sent", providerId: "m_2" });
+    ).toStrictEqual({ status: "sent", providerId: "m_2" });
     expect(
       await transport.deliver(target(), { text: "a" }, key("pdd_a")),
-    ).toEqual({ status: "sent", providerId: "m_3" });
-    expect(posted.map((entry) => entry.message)).toEqual(["a", "b", "a"]);
+    ).toStrictEqual({ status: "sent", providerId: "m_3" });
+    expect(posted.map((entry) => entry.message)).toStrictEqual(["a", "b", "a"]);
   });
 
   it("fails an approval message whose card cannot be built without posting", async () => {
@@ -155,7 +155,11 @@ describe("chatSdkTransport edge cases", () => {
         },
         key("pdd_card"),
       ),
-    ).toEqual({ status: "failed", cause: "invalid-message", retryable: false });
-    expect(posted).toEqual([]);
+    ).toStrictEqual({
+      status: "failed",
+      cause: "invalid-message",
+      retryable: false,
+    });
+    expect(posted).toStrictEqual([]);
   });
 });

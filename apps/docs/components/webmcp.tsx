@@ -45,7 +45,10 @@ function stringField(input: unknown, key: string): string {
   throw new Error(`${key} must be a string`);
 }
 
-/** The docs path of a model-supplied URL; anything off this origin or outside `/docs` throws. */
+/**
+ * The docs path of a model-supplied URL; anything off this origin or outside
+ * `/docs` throws.
+ */
 function docsPath(input: unknown): string {
   const raw = stringField(input, "url");
   const url = new URL(raw, window.location.origin);
@@ -64,7 +67,10 @@ function markdownUrl(path: string): string {
   return `${docsContentRoute}${slugs}/content.md`;
 }
 
-/** Registers `search_docs`, `read_page` and `open_page` with the browser's agent. */
+/**
+ * Registers `search_docs`, `read_page` and `open_page` with the browser's
+ * agent.
+ */
 export function WebMCP() {
   const router = useRouter();
 

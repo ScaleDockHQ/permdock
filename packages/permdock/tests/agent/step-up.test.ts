@@ -66,7 +66,7 @@ function throwing(
   };
 }
 
-describe("stepUpFor", () => {
+describe(stepUpFor, () => {
   it("skips an eligible role that `activate` refuses for a reason the user cannot fix", () => {
     const permdock = getPermDockSync(policy, user(["owner"]));
     const decision = permdock.decide(permissions.post.archive, row);
@@ -93,7 +93,7 @@ describe("stepUpFor", () => {
   });
 });
 
-describe("eligiblePreview", () => {
+describe(eligiblePreview, () => {
   it("answers undefined for a subject eligible for nothing", () => {
     expect(eligiblePreview(getPermDockSync(policy, user()))).toBeUndefined();
   });
@@ -104,7 +104,7 @@ describe("eligiblePreview", () => {
   });
 });
 
-describe("delegationAllows", () => {
+describe(delegationAllows, () => {
   it("answers false when the snapshot throws", () => {
     const permdock = getPermDockSync(policy, user());
     expect(delegationAllows(permdock, permissions.post.delete)).toBe(true);

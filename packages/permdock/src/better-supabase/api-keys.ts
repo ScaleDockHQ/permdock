@@ -4,10 +4,11 @@ import type {
   ApiKeys,
 } from "better-supabase/blocks/api-keys";
 
+import type { Credential } from "../core/credential.ts";
 import type { CredentialVerifier } from "../core/interfaces.ts";
 import type { Permission } from "../core/permission-types.ts";
 
-import { type Credential, parseCredential } from "../core/credential.ts";
+import { parseCredential } from "../core/credential.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { isoAt } from "../core/time.ts";
 import { parseSupabaseManifest } from "../supabase/manifest.ts";
@@ -21,8 +22,8 @@ export type ApiKeyVerifierOptions = {
   /** `createApiKeys()` over a service transport. */
   readonly keys: Pick<ApiKeys, "verify">;
   /**
-   * `permdock.manifest.json`, whose `rls.apiKeys.serviceRoles` is the
-   * default for `serviceRoles`.
+   * `permdock.manifest.json`, whose `rls.apiKeys.serviceRoles` is the default
+   * for `serviceRoles`.
    */
   readonly manifest?: unknown;
   /**
@@ -31,7 +32,10 @@ export type ApiKeyVerifierOptions = {
    * `null`.
    */
   readonly serviceRoles?: ServiceRoles<ApiKey>;
-  /** The permissions `*` stands for. Without it, a key with `*` verifies to `null`. */
+  /**
+   * The permissions `*` stands for. Without it, a key with `*` verifies to
+   * `null`.
+   */
   readonly allPermissions?: readonly Permission[];
 };
 
@@ -54,7 +58,10 @@ const EPOCH = "1970-01-01T00:00:00.000Z";
 const rfc3339Of = (instant: Temporal.Instant): string =>
   isoAt(instant.epochMilliseconds);
 
-/** When a key stops verifying: its expiry, or the end of a rotated key's grace period. */
+/**
+ * When a key stops verifying: its expiry, or the end of a rotated key's grace
+ * period.
+ */
 function endOf(key: ApiKey): Temporal.Instant | undefined {
   const { expiresAt, revokedAt } = key;
   if (revokedAt === undefined) return expiresAt;
@@ -74,9 +81,9 @@ export function manifestServiceRoles(
 }
 
 /**
- * A personal key as a `user` credential acting as its user, a tenant key as
- * a `service` credential holding `roles` in its tenant; `null` when `*`
- * has no expansion, a tenant key has no roles, or the record is invalid.
+ * A personal key as a `user` credential acting as its user, a tenant key as a
+ * `service` credential holding `roles` in its tenant; `null` when `*` has no
+ * expansion, a tenant key has no roles, or the record is invalid.
  */
 export function keyCredential(
   key: KeyRecord,
@@ -122,18 +129,18 @@ export function keyCredential(
 }
 
 /**
- * better-supabase's API keys as a `CredentialVerifier`, for
- * `subjectFromApiKey` from `permdock/server`, which reads PermDock's
- * `pdk_<id>_<secret>` format: create the keys with `prefix: "pdk"`. The
- * credential id is the key's `publicId`, the id in the token. A personal key
- * is a `user` credential acting as its user (inside its tenant when the key
- * is limited to one), a tenant key a `service` credential holding
- * `serviceRoles` in its tenant, and the key's scopes are the credential's
- * permissions. better-supabase records the use when it verifies, so there is
- * no `touch`. A rotated key in its grace period verifies, and its credential
- * expires when the grace period ends. An invalid, revoked, expired or
- * rate-limited key, and a failed lookup, are `null`. `permdock/server` exports a different
- * `apiKeyVerifier`, over the application's own key records.
+ * better-supabase's API keys as a `CredentialVerifier`, for `subjectFromApiKey`
+ * from `permdock/server`, which reads PermDock's `pdk_<id>_<secret>` format:
+ * create the keys with `prefix: "pdk"`. The credential id is the key's
+ * `publicId`, the id in the token. A personal key is a `user` credential acting
+ * as its user (inside its tenant when the key is limited to one), a tenant key
+ * a `service` credential holding `serviceRoles` in its tenant, and the key's
+ * scopes are the credential's permissions. better-supabase records the use when
+ * it verifies, so there is no `touch`. A rotated key in its grace period
+ * verifies, and its credential expires when the grace period ends. An invalid,
+ * revoked, expired or rate-limited key, and a failed lookup, are `null`.
+ * `permdock/server` exports a different `apiKeyVerifier`, over the
+ * application's own key records.
  */
 export function apiKeyVerifier(
   options: ApiKeyVerifierOptions,
@@ -177,10 +184,10 @@ export function apiKeyVerifier(
 }
 
 /**
- * The `claim` and `tenantClaim` options of better-supabase's
- * `apiKeyClaims()`, from the manifest's `rls.apiKeys`, so a key's token
- * carries the scopes ceiling, tenant and roles the `rls generate` helpers
- * read. Throws when the manifest has no `rls.apiKeys`.
+ * The `claim` and `tenantClaim` options of better-supabase's `apiKeyClaims()`,
+ * from the manifest's `rls.apiKeys`, so a key's token carries the scopes
+ * ceiling, tenant and roles the `rls generate` helpers read. Throws when the
+ * manifest has no `rls.apiKeys`.
  */
 export function apiKeyClaimOptions(
   manifest: unknown,

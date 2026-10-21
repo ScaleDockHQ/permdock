@@ -37,9 +37,7 @@ const policy = definePolicy(permissions, {
     role(
       "owner",
       [allow(permissions.billing.view), allow(permissions.billing.manage)],
-      {
-        on: "tenant",
-      },
+      { on: "tenant" },
     ),
     role("member", [allow(permissions.billing.view)], { on: "tenant" }),
     role("platform", [allow(permissions.billing.manage)]),
@@ -101,13 +99,13 @@ describe("access reviews", () => {
     );
     expect(review.complete).toBe(false);
     const page = await store.items({ review: "q4" });
-    expect(page.items.map((item) => [item.principal, item.permission])).toEqual(
-      [
-        ["ann", "billing.manage"],
-        ["ann", "billing.view"],
-        ["ben", "billing.view"],
-      ],
-    );
+    expect(
+      page.items.map((item) => [item.principal, item.permission]),
+    ).toStrictEqual([
+      ["ann", "billing.manage"],
+      ["ann", "billing.view"],
+      ["ben", "billing.view"],
+    ]);
   });
 
   it("uses a supplied holder list and refuses a reviewer deciding their own row", async () => {
@@ -282,7 +280,8 @@ describe("access reviews", () => {
           : inTenant("ann", ["owner"]),
     });
     const base = "https://api.example.com/access-reviews/round";
-    expect((await handler(new Request(base))).status).toBe(200);
+    const { status } = await handler(new Request(base));
+    expect(status).toBe(200);
     expect((await handler(new Request(`${base}/items`))).status).toBe(200);
     expect(
       (
@@ -356,8 +355,10 @@ describe("access reviews", () => {
         ],
       },
     );
-    expect(store.reviews().map((entry) => entry.id)).toEqual(["edges"]);
-    expect(await store.items({ review: "missing" })).toEqual({ items: [] });
+    expect(store.reviews().map((entry) => entry.id)).toStrictEqual(["edges"]);
+    expect(await store.items({ review: "missing" })).toStrictEqual({
+      items: [],
+    });
     const [item] = (await store.items({ review: "edges", status: "pending" }))
       .items;
     if (item === undefined) {
@@ -434,7 +435,7 @@ describe("access reviews", () => {
       { reviews: fresh, memberships: broken, policy },
     );
     expect(incomplete.complete).toBe(false);
-    expect(await fresh.items({ review: "down" })).toEqual({ items: [] });
+    expect(await fresh.items({ review: "down" })).toStrictEqual({ items: [] });
     expect(() =>
       decideAccessReviewItem(
         review,
@@ -487,7 +488,10 @@ describe("access reviews", () => {
         method: "POST",
       }),
     );
-    expect([post.status, post.headers.get("allow")]).toEqual([405, "GET"]);
+    expect([post.status, post.headers.get("allow")]).toStrictEqual([
+      405,
+      "GET",
+    ]);
     expect(
       (
         await handler(
@@ -518,9 +522,9 @@ describe("access reviews", () => {
       (await broken(new Request("https://api.example.com/access-reviews/http")))
         .status,
     ).toBe(500);
-    expect(await store.items({ review: "http", cursor: "nope" })).toEqual({
-      items: [],
-    });
+    expect(await store.items({ review: "http", cursor: "nope" })).toStrictEqual(
+      { items: [] },
+    );
     const [only] = (await store.items({ review: "http" })).items;
     if (only === undefined) {
       throw new Error("expected an item");

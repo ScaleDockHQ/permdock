@@ -22,14 +22,11 @@ type DiscoveryResult =
   | { readonly ok: true; readonly issuer: string; readonly jwks_uri: string }
   | { readonly ok: false; readonly cause: TokenFailureCause };
 
-type CachedDocument<T> = {
-  value: T;
-  expiresAt: number;
-};
+type CachedDocument<T> = { value: T; expiresAt: number };
 
 export type KeyCache = {
-  resolveJwks(now?: number): Promise<ResolvedKeys>;
-  refetchJwks(now?: number): Promise<ResolvedKeys>;
+  resolveJwks: (now?: number) => Promise<ResolvedKeys>;
+  refetchJwks: (now?: number) => Promise<ResolvedKeys>;
 };
 
 function clampTtl(seconds: number, minTtl: number, maxTtl: number): number {
@@ -72,10 +69,7 @@ export function createKeyCache(options: JoseTokenVerifierOptions): KeyCache {
   const jwksInFlight = new Map<string, Promise<ResolvedKeys>>();
   let discoveryInFlight: Promise<DiscoveryResult> | undefined;
   let discoveryCache:
-    | CachedDocument<{
-        readonly issuer: string;
-        readonly jwks_uri: string;
-      }>
+    | CachedDocument<{ readonly issuer: string; readonly jwks_uri: string }>
     | undefined;
   /** Keyed by `jwks_uri`: keys cached for one URI never answer for another. */
   let jwksCache:

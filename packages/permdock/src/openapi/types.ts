@@ -28,9 +28,7 @@ export type OpenApiSchemeOptions = {
   readonly deprecated?: boolean;
 };
 
-export type OpenApiDocsHints = {
-  readonly badges?: boolean;
-};
+export type OpenApiDocsHints = { readonly badges?: boolean };
 
 export type OpenApiPermDockOptions = {
   readonly scheme: OpenApiSchemeOptions;
@@ -66,7 +64,10 @@ export type OverlayOperation = {
 export type OpenApiOverlayOptions = {
   readonly extends?: string;
   readonly version?: OverlayVersion;
-  /** The operations to cover; without them, one per permission whose `operationId` is the permission key. */
+  /**
+   * The operations to cover; without them, one per permission whose
+   * `operationId` is the permission key.
+   */
   readonly operations?: readonly OverlayOperation[];
 };
 
@@ -88,7 +89,10 @@ export type OpenApiPermDock = {
   readonly overlay: (
     options?: OpenApiOverlayOptions,
   ) => Record<string, unknown>;
-  /** One requirement per distinct scope set; without `scopeSets`, one per permission. */
+  /**
+   * One requirement per distinct scope set; without `scopeSets`, one per
+   * permission.
+   */
   readonly securityProfileRequirements: (
     scopeSets?: readonly (readonly string[])[],
   ) => Readonly<Record<string, unknown>> | undefined;

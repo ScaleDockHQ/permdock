@@ -9,6 +9,7 @@ import {
   ownPost,
   policy,
 } from "../fixtures/quick-start.ts";
+import { defined } from "../support/defined.ts";
 
 const ORIGIN = "https://pdp.example";
 
@@ -130,12 +131,12 @@ describe("permdock/authzen", () => {
     const deniedBody = (await denied.json()) as {
       readonly context: { readonly permdock: Record<string, unknown> };
     };
-    expect(Object.keys(deniedBody.context).toSorted()).toEqual([
+    expect(Object.keys(deniedBody.context).toSorted()).toStrictEqual([
       "permdock",
       "reason_admin",
       "reason_user",
     ]);
-    expect(Object.keys(deniedBody.context.permdock).toSorted()).toEqual([
+    expect(Object.keys(deniedBody.context.permdock).toSorted()).toStrictEqual([
       "denials",
       "outcome",
     ]);
@@ -143,7 +144,7 @@ describe("permdock/authzen", () => {
     for (const denial of deniedBody.context.permdock[
       "denials"
     ] as readonly Record<string, unknown>[]) {
-      expect(Object.keys(denial).toSorted()).toEqual(["reason", "role"]);
+      expect(Object.keys(denial).toSorted()).toStrictEqual(["reason", "role"]);
     }
     const granted = await pdp()(
       request("/access/v1/evaluation", { json: memberBody() }),
@@ -152,7 +153,9 @@ describe("permdock/authzen", () => {
     const grantedBody = (await granted.json()) as {
       readonly context: Record<string, unknown>;
     };
-    expect(grantedBody.context).toEqual({ permdock: { outcome: "granted" } });
+    expect(grantedBody.context).toStrictEqual({
+      permdock: { outcome: "granted" },
+    });
   });
 
   it("uses the PEP identity unless trustedPep allows the PEP", async () => {
@@ -253,9 +256,7 @@ describe("permdock/authzen", () => {
   it("loads a trusted row when properties are omitted", async () => {
     const response = await pdp()(
       request("/access/v1/evaluation", {
-        json: memberBody({
-          resource: { type: "post", id: "p1" },
-        }),
+        json: memberBody({ resource: { type: "post", id: "p1" } }),
       }),
     );
     // SAFETY: response JSON produced by the AuthZEN handler under test.
@@ -365,12 +366,12 @@ describe("permdock/authzen", () => {
       }[];
     };
     expect(body.evaluations).toHaveLength(3);
-    expect(body.evaluations[0]!.decision).toBe(true);
-    expect(body.evaluations[1]!.decision).toBe(false);
-    expect(body.evaluations[1]!.context.permdock.outcome).toBe(
+    expect(defined(body.evaluations[0]).decision).toBe(true);
+    expect(defined(body.evaluations[1]).decision).toBe(false);
+    expect(defined(body.evaluations[1]).context.permdock.outcome).toBe(
       "approval-required",
     );
-    expect(body.evaluations[2]!.decision).toBe(false);
+    expect(defined(body.evaluations[2]).decision).toBe(false);
   });
 
   it("uses the top-level action and resource as batch defaults", async () => {
@@ -392,7 +393,10 @@ describe("permdock/authzen", () => {
     const body = (await response.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };
-    expect(body.evaluations.map((row) => row.decision)).toEqual([true, false]);
+    expect(body.evaluations.map((row) => row.decision)).toStrictEqual([
+      true,
+      false,
+    ]);
   });
 
   it("rejects a body over 1 MiB with 413", async () => {
@@ -407,9 +411,7 @@ describe("permdock/authzen", () => {
   it("rejects an oversized evaluations batch", async () => {
     const response = await pdp({ maxEvaluations: 2 })(
       request("/access/v1/evaluations", {
-        json: {
-          evaluations: [memberBody(), memberBody(), memberBody()],
-        },
+        json: { evaluations: [memberBody(), memberBody(), memberBody()] },
       }),
     );
     expect(response.status).toBe(413);
@@ -434,7 +436,7 @@ describe("permdock/authzen", () => {
       readonly page: { readonly next_token: string };
     };
     const names = body.results.map((row) => row.name).toSorted();
-    expect(names).toEqual(["create", "list", "read", "update"]);
+    expect(names).toStrictEqual(["create", "list", "read", "update"]);
     expect(body.page.next_token).toBe("");
   });
 
@@ -456,7 +458,7 @@ describe("permdock/authzen", () => {
     const body = (await response.json()) as {
       readonly results: readonly { readonly id: string }[];
     };
-    expect(body.results.map((row) => row.id)).toEqual(["p1"]);
+    expect(body.results.map((row) => row.id)).toStrictEqual(["p1"]);
   });
 
   it("enumerates subjects who may publish an unpublished post", async () => {
@@ -473,7 +475,7 @@ describe("permdock/authzen", () => {
     const body = (await response.json()) as {
       readonly results: readonly { readonly id: string }[];
     };
-    expect(body.results.map((row) => row.id)).toEqual(["u2"]);
+    expect(body.results.map((row) => row.id)).toStrictEqual(["u2"]);
   });
 
   it("omits search/subject from discovery when no enumerator is set", async () => {

@@ -1,10 +1,10 @@
 import type { Scope } from "../../core/scopes.ts";
+import type { OutputFile, SplitPart } from "../core/output-files.ts";
+import type { ResolvedSchemas } from "../supabase-schemas.ts";
 import type { RlsGenerateInput } from "./generate-options.ts";
 
 import { dateAt } from "../../core/time.ts";
 import {
-  type OutputFile,
-  type SplitPart,
   isSeedsDirectory,
   parseSplit,
   partPath,
@@ -18,13 +18,16 @@ import {
   grantsLabel,
   supabaseHookSql,
 } from "../supabase-hook/supabase-hook.ts";
-import { type ResolvedSchemas, resolveSchemas } from "../supabase-schemas.ts";
+import { resolveSchemas } from "../supabase-schemas.ts";
 
 export type SplitSql = {
   readonly policies: string;
   /** The policies part without the Realtime and Storage policies, for pg-delta. */
   readonly declarativePolicies: string;
-  /** The Realtime and Storage policies, each guarded by its table, for the seeds migration under pg-delta. */
+  /**
+   * The Realtime and Storage policies, each guarded by its table, for the seeds
+   * migration under pg-delta.
+   */
   readonly servicePolicies?: string;
   readonly helpers: string;
   readonly seeds: string;
@@ -59,7 +62,10 @@ function splitRefusal(
     readonly grantsOut: string | undefined;
     readonly seedsOut: string | undefined;
     readonly noSeeds: boolean;
-    /** `rls.seeds: 'function'`: the rows live in `<schema>.seed()`, which the helpers part creates. */
+    /**
+     * `rls.seeds: 'function'`: the rows live in `<schema>.seed()`, which the
+     * helpers part creates.
+     */
     readonly seedFunction: boolean;
     /** `rls.seeds: 'view'`: the rows are a view the helpers part creates. */
     readonly seedView: boolean;
@@ -117,7 +123,10 @@ function splitRefusal(
   }
 }
 
-/** The files `generate` writes: one, or one per `--split` part, plus the hook's grants under migra. */
+/**
+ * The files `generate` writes: one, or one per `--split` part, plus the hook's
+ * grants under migra.
+ */
 export function outputFiles(plan: {
   readonly input: RlsGenerateInput;
   readonly outRel: string;

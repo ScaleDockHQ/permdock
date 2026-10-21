@@ -63,7 +63,7 @@ describe("permdock/astro", () => {
       reached = true;
       return new Response("ok");
     });
-    expect({ reached, status: response?.status }).toEqual({
+    expect({ reached, status: response?.status }).toStrictEqual({
       reached: false,
       status: 403,
     });
@@ -78,7 +78,7 @@ describe("permdock/astro", () => {
     const other = await DELETE(
       contextFor("/posts/p2", undefined, { id: "p2" }),
     );
-    expect(await own.json()).toEqual({ id: "p1" });
+    expect(await own.json()).toStrictEqual({ id: "p1" });
     expect(other.status).toBe(403);
   });
 
@@ -90,7 +90,8 @@ describe("permdock/astro", () => {
       context.locals.permdock.assert(permissions.post.update, otherPost);
       return new Response("ok");
     });
-    expect((await GET(contextFor("/"))).status).toBe(403);
+    const { status } = await GET(contextFor("/"));
+    expect(status).toBe(403);
   });
 
   it("serves the decision endpoint, snapshots, instances and connections", async () => {
@@ -108,7 +109,7 @@ describe("permdock/astro", () => {
     const loaded = await getSnapshot(contextFor("/"));
     const instance = await getPermDock(contextFor("/"));
     const conn = await connection(contextFor("/"));
-    expect([snapshot.status, evaluations.status]).toEqual([200, 200]);
+    expect([snapshot.status, evaluations.status]).toStrictEqual([200, 200]);
     expect(loaded.v).toBe(1);
     expect(instance.can(permissions.post.read, ownPost)).toBe(true);
     expect(conn.signal.aborted).toBe(false);

@@ -1,4 +1,6 @@
 import type { Obligation, Decision, Denial, DenialReason } from "./decision.ts";
+import type { AssuranceGrantee } from "./grantee.ts";
+import type { InstanceHandle } from "./internals.ts";
 import type { Permission, PermissionTree } from "./permission-types.ts";
 import type {
   AssuranceRequirement,
@@ -10,26 +12,23 @@ import type {
   SupportAccessOptions,
   SupportSpec,
 } from "./policy-types.ts";
+import type { Scope } from "./scopes.ts";
 import type { Membership, Subject } from "./subject.ts";
+import type { Role } from "./vocabulary.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
 import { compact, isReadonlyArray, sole } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
-import {
-  type AssuranceGrantee,
-  asGrantee,
-  assurance,
-  authenticated,
-} from "./grantee.ts";
+import { asGrantee, assurance, authenticated } from "./grantee.ts";
 import { sameId } from "./ids.ts";
-import { type InstanceHandle, internalsOf } from "./internals.ts";
+import { internalsOf } from "./internals.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { normalizeAssurance, role } from "./role-builder.ts";
-import { type Scope, resolveScope, scopeList } from "./scopes.ts";
+import { resolveScope, scopeList } from "./scopes.ts";
 import { isMembershipExpired, nowSeconds } from "./tenancy.ts";
 import { assertDuration, durationOf } from "./time.ts";
 import { decisionToken } from "./token.ts";
-import { type Role, isRole } from "./vocabulary.ts";
+import { isRole } from "./vocabulary.ts";
 
 function flattenPermissions(
   input: Permission | readonly Permission[] | PermissionTree,
@@ -192,10 +191,7 @@ export function purposesOf(subject: Subject): readonly string[] {
 export type BreakGlassResult =
   | { readonly kind: "inactive" }
   | { readonly kind: "granted"; readonly obligations: readonly Obligation[] }
-  | {
-      readonly kind: "denied";
-      readonly reason: "purpose" | "reason-required";
-    }
+  | { readonly kind: "denied"; readonly reason: "purpose" | "reason-required" }
   | {
       readonly kind: "denied";
       readonly reason: "insufficient-user-authentication";
@@ -247,7 +243,10 @@ export function evaluateBreakGlass(
   return { kind: "granted", obligations };
 }
 
-/** Support memberships (`via: 'support'`) the subject holds that demand an actor. */
+/**
+ * Support memberships (`via: 'support'`) the subject holds that demand an
+ * actor.
+ */
 export function actorRequiredVias(
   supports: readonly SupportSpec[],
 ): ReadonlySet<string> {
@@ -285,7 +284,10 @@ function withinAgrees(
 
 export type ActivateInput = {
   readonly role: string | Role;
-  /** The scope the activation applies in (a declared name or the `tenant` / `team` alias). */
+  /**
+   * The scope the activation applies in (a declared name or the `tenant` /
+   * `team` alias).
+   */
   readonly scope: string;
   readonly id: string;
   /** Ancestor scope ids, keyed by scope name, for a nested-scope activation. */
@@ -301,26 +303,22 @@ function activationDenied(
 ): Decision {
   const denial: Denial =
     to === undefined ? { role: null, reason } : { role: null, reason, to };
-  return freezeDeep({
-    outcome: "denied",
-    denials: [denial],
-    alternatives: [],
-  });
+  return freezeDeep({ outcome: "denied", denials: [denial], alternatives: [] });
 }
 
 /**
- * Requests a just-in-time role activation. It never writes: a granted
- * decision carries the elevated membership under `elevation` for the app to
- * write. `approval-required` comes back first when the role's `activation`
- * sets `approval`. Fail-closed: an unknown role, an ineligible subject, a
- * missing justification or stale authentication all deny.
+ * Requests a just-in-time role activation. It never writes: a granted decision
+ * carries the elevated membership under `elevation` for the app to write.
+ * `approval-required` comes back first when the role's `activation` sets
+ * `approval`. Fail-closed: an unknown role, an ineligible subject, a missing
+ * justification or stale authentication all deny.
  */
 /**
  * Requests a just-in-time activation of an eligible role for the subject of
  * `permdock`. It never writes: a granted decision carries the elevated
- * membership under `elevation` for the app to write, and
- * `approval-required` comes back first when the role's `activation` sets
- * `approval`. An instance built from a snapshot denies with `unsupported`.
+ * membership under `elevation` for the app to write, and `approval-required`
+ * comes back first when the role's `activation` sets `approval`. An instance
+ * built from a snapshot denies with `unsupported`.
  */
 export function activate(
   permdock: InstanceHandle,

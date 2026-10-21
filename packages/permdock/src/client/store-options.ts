@@ -1,12 +1,9 @@
 import type { Permission } from "../core/permission-types.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
+import type { ClientStore, ClientStoreOptions } from "./store.ts";
 
 import { compact } from "../core/compact.ts";
-import {
-  type ClientStore,
-  type ClientStoreOptions,
-  createClientStore,
-} from "./store.ts";
+import { createClientStore } from "./store.ts";
 
 /** The provider options every UI adapter forwards to its client store. */
 export type AdapterStoreOptions = Pick<
@@ -32,7 +29,10 @@ export type AdapterStoreOptions = Pick<
   readonly endpoint?: string | false;
 };
 
-/** One hint per store: the first check `endpoint: false` turns into a `server-only` denial. */
+/**
+ * One hint per store: the first check `endpoint: false` turns into a
+ * `server-only` denial.
+ */
 function hintOnce(): (permission: Permission) => void {
   let shown = false;
   return (permission) => {

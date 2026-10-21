@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Automation } from "../../src/core/automation.ts";
 import type { TokenVerifier } from "../../src/core/interfaces.ts";
 import type { Principal } from "../../src/core/subject.ts";
+import type { WorkflowPermDockOptions } from "../../src/workflow/index.ts";
 
 import { memoryApprovalStore } from "../../src/approvals/store.ts";
 import { memoryApprovalPolicySource } from "../../src/core/approval-policies.ts";
@@ -13,7 +14,6 @@ import {
   subjectFromRunTicket,
 } from "../../src/server/run-ticket.ts";
 import {
-  type WorkflowPermDockOptions,
   createPermDock,
   memoryAutomationSource,
 } from "../../src/workflow/index.ts";
@@ -108,7 +108,7 @@ describe("permdock/workflow: start fails closed", () => {
         },
       },
     });
-    expect(await workflow.start("auto_1")).toEqual({
+    expect(await workflow.start("auto_1")).toStrictEqual({
       outcome: "denied",
       denials: [
         {
@@ -124,7 +124,7 @@ describe("permdock/workflow: start fails closed", () => {
     const { workflow } = setup({}, undefined, [
       { ...published, permissions: ["invoice.read", "invoice.archive"] },
     ]);
-    expect(await workflow.start("auto_1")).toEqual({
+    expect(await workflow.start("auto_1")).toStrictEqual({
       outcome: "denied",
       denials: [
         {
@@ -148,7 +148,7 @@ describe("permdock/workflow: start fails closed", () => {
     });
     const started = await workflow.start("auto_1");
     expect(started.outcome).toBe("started");
-    expect(written).toEqual([
+    expect(written).toStrictEqual([
       expect.objectContaining({ type: "automation", operation: "run" }),
     ]);
   });
@@ -169,7 +169,7 @@ describe("permdock/workflow: getPermDock", () => {
       { audience: AUDIENCE },
     );
     const run = await workflow.getPermDock(ticket);
-    expect(looked).toEqual(["u_1"]);
+    expect(looked).toStrictEqual(["u_1"]);
     expect(run.subject.principal?.id).toBe("u_1");
     expect(run.can(permissions.invoice.read, invoice)).toBe(true);
     expect(run.can(permissions.invoice.send, invoice)).toBe(false);
@@ -211,17 +211,14 @@ describe("permdock/workflow: getPermDock", () => {
       },
     });
     expect(subject.principal).toBeNull();
-    expect(causes).toEqual(["malformed"]);
+    expect(causes).toStrictEqual(["malformed"]);
   });
 });
 
 describe("permdock/workflow: approvals without a row or a store", () => {
   it("opens a request against the permission's resource type when the data is no object", async () => {
     const store = memoryApprovalStore();
-    const { workflow, ticketFor } = setup({
-      approvalPolicies,
-      store: store,
-    });
+    const { workflow, ticketFor } = setup({ approvalPolicies, store: store });
     const decision = await workflow.openApproval(
       await ticketFor(),
       permissions.invoice.send,
@@ -230,22 +227,19 @@ describe("permdock/workflow: approvals without a row or a store", () => {
     expect(decision.outcome).toBe("approval-required");
     const { items } = await store.list({ status: "pending" });
     expect(items).toHaveLength(1);
-    expect(items[0]?.resource).toEqual({ type: "invoice" });
+    expect(items[0]?.resource).toStrictEqual({ type: "invoice" });
   });
 
   it("returns the fresh decision from resumeApproval when no store is configured", async () => {
     const { workflow, ticketFor } = setup({ approvalPolicies });
     const ticket = await ticketFor();
-    expect(
-      (
-        await workflow.resumeApproval(
-          ticket,
-          permissions.invoice.send,
-          "pd1.unknown",
-          invoice,
-        )
-      ).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await workflow.resumeApproval(
+      ticket,
+      permissions.invoice.send,
+      "pd1.unknown",
+      invoice,
+    );
+    expect(outcome).toBe("approval-required");
     expect(
       (
         await workflow.resumeApproval(

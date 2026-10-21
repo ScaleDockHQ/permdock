@@ -76,7 +76,7 @@ describe("authzenTodoPolicy principal", () => {
       read: permdock.can(authzenTodoPermissions.todo.can_read_todos, {
         id: "t1",
       }),
-    }).toEqual({ anonymous, read });
+    }).toStrictEqual({ anonymous, read });
   });
 });
 

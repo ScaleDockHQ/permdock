@@ -24,7 +24,10 @@ const read = (name: string): string | null => {
   return value.trim() === "" ? null : value;
 };
 
-/** `null` unless every Cloud variable is set; a partial set is a configuration error. */
+/**
+ * `null` unless every Cloud variable is set; a partial set is a configuration
+ * error.
+ */
 function cloudEnv(): CloudEnv | null {
   const raw = {
     url: read("PERMDOCK_CLOUD_URL"),
@@ -38,7 +41,10 @@ function cloudEnv(): CloudEnv | null {
   return Cloud.parse(raw);
 }
 
-/** `null` unless the project and its read-only token are set; the URL defaults to production. */
+/**
+ * `null` unless the project and its read-only token are set; the URL defaults
+ * to production.
+ */
 function projectEnv(): ProjectEnv | null {
   const raw = {
     url: read("PERMDOCK_CLOUD_URL") ?? "https://permdock.com/api",
@@ -57,7 +63,10 @@ export const env = {
   project: projectEnv(),
   /** The `client` key; with it the parity test also runs `testCloudApi`. */
   cloudKey: read("PERMDOCK_CLOUD_KEY"),
-  /** A private JWK whose issuer the environment trusts, for the approver checks of `testCloudApi`. */
+  /**
+   * A private JWK whose issuer the environment trusts, for the approver checks
+   * of `testCloudApi`.
+   */
   approverJwk: read("PERMDOCK_CLOUD_APPROVER_JWK"),
   approverIssuer: read("PERMDOCK_CLOUD_APPROVER_ISSUER"),
 };

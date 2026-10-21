@@ -73,7 +73,7 @@ describe("rls import membership subqueries", () => {
       ["owner"],
     ],
   ])("imports %s as memberOf", async (_label, sql, roles) => {
-    expect(await imported(sql)).toEqual({
+    expect(await imported(sql)).toStrictEqual({
       op: "memberOf",
       scope: "tenant",
       field: "org_id",
@@ -86,7 +86,12 @@ describe("rls import membership subqueries", () => {
       await imported(
         '"org_id" = any (select tenant_id from org_members where user_id = auth.uid())',
       ),
-    ).toEqual({ op: "memberOf", scope: "tenant", field: "org_id", roles: [] });
+    ).toStrictEqual({
+      op: "memberOf",
+      scope: "tenant",
+      field: "org_id",
+      roles: [],
+    });
   });
 
   it.each([
@@ -156,7 +161,7 @@ describe("rls import membership subqueries", () => {
   });
 });
 
-describe("mapRoleValues", () => {
+describe(mapRoleValues, () => {
   it("renames memberOf roles anywhere in a condition and leaves other values", () => {
     expect(
       mapRoleValues(
@@ -174,7 +179,7 @@ describe("mapRoleValues", () => {
         },
         { org_admin: "owner" },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       op: "or",
       conditions: [
         {
@@ -189,7 +194,7 @@ describe("mapRoleValues", () => {
   });
 });
 
-describe("textArrayLiteral", () => {
+describe(textArrayLiteral, () => {
   it("quotes an empty element and one that reads as null", () => {
     expect(textArrayLiteral(["", "NULL", "ok"])).toBe(`'{"","NULL",ok}'`);
   });

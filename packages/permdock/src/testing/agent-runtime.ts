@@ -13,7 +13,10 @@ import { saasPermissions } from "./saas/permissions.ts";
 import { saasPolicy } from "./saas/policy.ts";
 import { saasCustomRoles, saasPrincipal, saasSeed } from "./saas/seed.ts";
 
-/** The server-side context of one call; the subject and tenant come from here, never from arguments. */
+/**
+ * The server-side context of one call; the subject and tenant come from here,
+ * never from arguments.
+ */
 export type AgentRuntimeContext = {
   /** `null` for a call with no authenticated user. */
   readonly user: string | null;
@@ -30,7 +33,10 @@ export type AgentRuntimeModel = "standard" | "frontier";
 /** What a mount wires into its `AgentPermDock`. */
 export type AgentRuntimeDomain = {
   readonly policy: typeof saasPolicy;
-  /** The principal for `user` with the plans of `org`, or `null`. Throws for `AGENT_THROWING_USER`. */
+  /**
+   * The principal for `user` with the plans of `org`, or `null`. Throws for
+   * `AGENT_THROWING_USER`.
+   */
   readonly subject: (user: string | null, org: string) => Principal | null;
   /**
    * `project_read` loads the row named by `args.id`; `project_search` has a
@@ -236,6 +242,7 @@ export function testAgentRuntime(options: AgentRuntimeOptions): void {
       run: () => Promise<void>,
     ): void => {
       const reason = options.skip?.[name];
+
       it.skipIf(reason !== undefined)(
         reason === undefined ? title : `${title} (${reason})`,
         run,
@@ -260,7 +267,9 @@ export function testAgentRuntime(options: AgentRuntimeOptions): void {
         const listed = await agent().allowedOperations(alice);
         expect(listed.has("project_read")).toBe(true);
         expect(listed.has("drop_database")).toBe(false);
-        expect([...(await agent().allowedOperations(mallory))]).toEqual([]);
+        expect([...(await agent().allowedOperations(mallory))]).toStrictEqual(
+          [],
+        );
       },
     );
 
@@ -268,9 +277,8 @@ export function testAgentRuntime(options: AgentRuntimeOptions): void {
       "model-gate",
       "grants a model by its permission and denies one the map does not name",
       async () => {
-        expect((await agent().decideModel("frontier", erin)).outcome).toBe(
-          "granted",
-        );
+        const { outcome } = await agent().decideModel("frontier", erin);
+        expect(outcome).toBe("granted");
         expect((await agent().decideModel("frontier", alice)).outcome).toBe(
           "denied",
         );
@@ -292,12 +300,14 @@ export function testAgentRuntime(options: AgentRuntimeOptions): void {
       "permitted-models",
       "returns the granted models in declaration order",
       async () => {
-        expect(await agent().permittedModels(erin)).toEqual([
+        expect(await agent().permittedModels(erin)).toStrictEqual([
           "standard",
           "frontier",
         ]);
-        expect(await agent().permittedModels(alice)).toEqual(["standard"]);
-        expect(await agent().permittedModels(mallory)).toEqual([]);
+        expect(await agent().permittedModels(alice)).toStrictEqual([
+          "standard",
+        ]);
+        expect(await agent().permittedModels(mallory)).toStrictEqual([]);
       },
     );
 
@@ -310,13 +320,13 @@ export function testAgentRuntime(options: AgentRuntimeOptions): void {
           (await agent().filterResults("project_search", rows, alice)).map(
             (row) => row.id,
           ),
-        ).toEqual(["p1", "p2"]);
+        ).toStrictEqual(["p1", "p2"]);
         expect(
           await agent().filterResults("project_search", rows, mallory),
-        ).toEqual([]);
+        ).toStrictEqual([]);
         expect(
           await agent().filterResults("drop_database", rows, alice),
-        ).toEqual([]);
+        ).toStrictEqual([]);
       },
     );
 

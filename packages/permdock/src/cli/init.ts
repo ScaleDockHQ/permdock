@@ -3,11 +3,10 @@ import type { Agent } from "package-manager-detector";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
+import type { Preset, PresetInput } from "../preset/index.ts";
 import type { CommandResult, NextStep } from "./core/result.ts";
 
 import {
-  type Preset,
-  type PresetInput,
   decodePreset,
   encodePreset,
   generatePreset,
@@ -16,6 +15,7 @@ import {
 } from "../preset/index.ts";
 import { CliError } from "./core/errors.ts";
 import { applyFiles } from "./core/files.ts";
+import { nonEmptyOr } from "./core/output.ts";
 import { addLine } from "./core/peer.ts";
 
 /** The page a preset code opens in the builder. */
@@ -57,11 +57,10 @@ function decoded(code: string, command: string): Preset {
 }
 
 /**
- * Writes the preset's owned files into `cwd` and lists what to install.
- * An existing file is kept unless `force` is set, so `init` never
- * overwrites code the application already changed. It installs nothing
- * and calls no network: the package manager and shadcn commands are
- * printed for the person to run.
+ * Writes the preset's owned files into `cwd` and lists what to install. An
+ * existing file is kept unless `force` is set, so `init` never overwrites code
+ * the application already changed. It installs nothing and calls no network:
+ * the package manager and shadcn commands are printed for the person to run.
  */
 export function runInit(options: InitOptions): CommandResult {
   const preset =
@@ -138,7 +137,7 @@ export function runPreset(
   }
   const rows = Object.entries(preset).map(
     ([key, value]) =>
-      `  ${key.padEnd(12)} ${Array.isArray(value) ? value.join(", ") || "none" : String(value)}`,
+      `  ${key.padEnd(12)} ${Array.isArray(value) ? nonEmptyOr(value.join(", "), "none") : String(value)}`,
   );
   return {
     code: 0,

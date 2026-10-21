@@ -6,13 +6,16 @@ export type TableBinding = {
   readonly resource: string;
   /** `schema.table`. */
   readonly table: string;
-  /** True when `rls.tables` does not name the resource, so the table is named after it. */
+  /**
+   * True when `rls.tables` does not name the resource, so the table is named
+   * after it.
+   */
   readonly inferred: boolean;
 };
 
 /**
- * The table each resource with row policies binds to. With `helpersOnly`,
- * a resource `rls.tables` does not name has no table and no binding.
+ * The table each resource with row policies binds to. With `helpersOnly`, a
+ * resource `rls.tables` does not name has no table and no binding.
  */
 export function tableBindings(
   resources: readonly string[],
@@ -34,7 +37,10 @@ export function tableBindings(
   return out;
 }
 
-/** The generate notes for `bindings`: the inferred ones, and where to see them all. */
+/**
+ * The generate notes for `bindings`: the inferred ones, and where to see them
+ * all.
+ */
 export function bindingNotes(
   bindings: readonly TableBinding[],
   withDatabase: boolean,
@@ -52,9 +58,9 @@ export function bindingNotes(
 }
 
 /**
- * The generate notes for the bindings whose table no project SQL file
- * creates. A project with no `create table` in those files gets none: its
- * schema lives elsewhere (an ORM, another repository).
+ * The generate notes for the bindings whose table no project SQL file creates.
+ * A project with no `create table` in those files gets none: its schema lives
+ * elsewhere (an ORM, another repository).
  */
 export function unknownTableNotes(
   bindings: readonly TableBinding[],

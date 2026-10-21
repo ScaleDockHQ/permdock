@@ -40,7 +40,7 @@ describe("numeric scope ids", () => {
       permdock
         .heldRoles({ scope: "customer", id: "42" })
         .map((role) => role.key),
-    ).toEqual(["contact"]);
+    ).toStrictEqual(["contact"]);
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");

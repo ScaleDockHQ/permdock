@@ -71,7 +71,7 @@ describe("relationship graph: match, includes, groups, links", () => {
   });
 
   it("reaches a deep document through ancestors, included relations and nested groups", async () => {
-    expect(await readers("deep-doc")).toEqual([
+    expect(await readers("deep-doc")).toStrictEqual([
       "vera",
       "eddie",
       "carl",
@@ -81,12 +81,12 @@ describe("relationship graph: match, includes, groups, links", () => {
   });
 
   it("never reads above a folder role or a relation holder", async () => {
-    expect(await readers("root-doc")).toEqual(["vera"]);
-    expect(await readers("eng-doc")).toEqual(["vera", "eddie", "ada"]);
+    expect(await readers("root-doc")).toStrictEqual(["vera"]);
+    expect(await readers("eng-doc")).toStrictEqual(["vera", "eddie", "ada"]);
   });
 
   it("reads a restricted branch only through its own holders", async () => {
-    expect(await readers("pay-doc")).toEqual(["hana"]);
+    expect(await readers("pay-doc")).toStrictEqual(["hana"]);
   });
 
   it("denies an expired share", async () => {
@@ -117,13 +117,7 @@ describe("relationship graph: match, includes, groups, links", () => {
         ],
       },
     });
-    const vera = getPermDockSync(
-      policy,
-      { id: "vera" },
-      {
-        relations: edit,
-      },
-    );
+    const vera = getPermDockSync(policy, { id: "vera" }, { relations: edit });
     await vera.prefetchRelations(permissions.doc.read, rows.doc);
     expect(vera.can(permissions.doc.read, docs["root-doc"])).toBe(false);
   });
@@ -142,13 +136,7 @@ describe("relationship graph: match, includes, groups, links", () => {
         ],
       },
     });
-    const vera = getPermDockSync(
-      policy,
-      { id: "vera" },
-      {
-        relations: odd,
-      },
-    );
+    const vera = getPermDockSync(policy, { id: "vera" }, { relations: odd });
     await vera.prefetchRelations(permissions.doc.read, rows.doc);
     expect(vera.can(permissions.doc.read, docs["root-doc"])).toBe(false);
   });
@@ -171,13 +159,7 @@ describe("relationship graph: match, includes, groups, links", () => {
         ],
       },
     });
-    const sam = getPermDockSync(
-      policy,
-      { id: "sam" },
-      {
-        relations: cyclic,
-      },
-    );
+    const sam = getPermDockSync(policy, { id: "sam" }, { relations: cyclic });
     await sam.prefetchRelations(permissions.doc.read, rows.doc);
     const decision = sam.decide(permissions.doc.read, docs["root-doc"]);
     expect(decision).toMatchObject({
@@ -210,14 +192,14 @@ describe("relationship graph: match, includes, groups, links", () => {
     // Folder-role holders need a MembershipSource that lists folder memberships.
     expect(result.complete).toBe(false);
     const ids = result.holders.map((holder) => holder.principal.id);
-    expect(ids).toEqual(
+    expect(ids).toStrictEqual(
       expect.arrayContaining(["vera", "eddie", "carl", "tina"]),
     );
     expect(ids).not.toContain("ex");
     const tina = result.holders.find(
       (holder) => holder.principal.id === "tina",
     );
-    expect(tina?.via).toEqual(
+    expect(tina?.via).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           kind: "share",
@@ -230,7 +212,7 @@ describe("relationship graph: match, includes, groups, links", () => {
     const eddie = result.holders.find(
       (holder) => holder.principal.id === "eddie",
     );
-    expect(eddie?.via).toEqual(
+    expect(eddie?.via).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({ relation: "editor", id: "eng" }),
       ]),
@@ -252,7 +234,7 @@ describe("relationship graph declarations", () => {
           },
         }),
       }),
-    ).toThrow(/cycle/);
+    ).toThrow(/cycle/u);
     expect(() =>
       definePermissions({
         folder: resource(Row, {
@@ -260,7 +242,7 @@ describe("relationship graph declarations", () => {
           relations: { a: { edge: "a", includes: ["missing"] } },
         }),
       }),
-    ).toThrow(/missing/);
+    ).toThrow(/missing/u);
   });
 
   it("rejects a group resource that is not declared", () => {
@@ -276,7 +258,7 @@ describe("relationship graph declarations", () => {
           },
         }),
       }),
-    ).toThrow(/team/);
+    ).toThrow(/team/u);
   });
 
   it("rejects a link named parent and a path that does not end at the relation", () => {
@@ -287,7 +269,7 @@ describe("relationship graph declarations", () => {
           links: { parent: { field: "parentId", resource: "folder" } },
         }),
       }),
-    ).toThrow(/parent/);
+    ).toThrow(/parent/u);
     expect(() =>
       definePolicy(permissions, {
         grants: [
@@ -297,6 +279,6 @@ describe("relationship graph declarations", () => {
         ],
         subject: (user: { readonly id: string }) => ({ id: user.id }),
       }),
-    ).toThrow(/do not end on team/);
+    ).toThrow(/do not end on team/u);
   });
 });

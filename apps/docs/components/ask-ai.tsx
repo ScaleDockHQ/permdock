@@ -55,7 +55,10 @@ const AskAiChat = dynamic(() => loadChat().then((module) => module.AskAiChat), {
   loading: () => <AskAiShell />,
 });
 
-/** Ask AI. The chat and its Markdown renderer load on first focus, prefetched on pointer enter. */
+/**
+ * Ask AI. The chat and its Markdown renderer load on first focus, prefetched on
+ * pointer enter.
+ */
 export function AskAi() {
   const [active, setActive] = useState(false);
   if (active) {

@@ -82,7 +82,7 @@ async function inDatabase(
           "select id from permdock.permitted_node_rows('node.update') id order by id",
         )
       ).rows.map((row) => row.id);
-      expect(rows).toEqual(update);
+      expect(rows).toStrictEqual(update);
       return { read, update };
     },
   );
@@ -143,27 +143,27 @@ describe("requires under rls.apiKeys: a key covers every required permission, an
     }
     const [owner, editor] = users;
     const readOnly = ["file.read"];
-    expect(await inDatabase(db, editor?.id ?? "", readOnly)).toEqual({
+    expect(await inDatabase(db, editor?.id ?? "", readOnly)).toStrictEqual({
       read: ["n-edit", "n-view"],
       update: [],
     });
-    expect(await inDatabase(db, owner?.id ?? "", readOnly)).toEqual({
+    expect(await inDatabase(db, owner?.id ?? "", readOnly)).toStrictEqual({
       read: ["n-owned"],
       update: [],
     });
     expect(
       await inDatabase(db, owner?.id ?? "", ["file.read", "node.update"]),
-    ).toEqual({ read: ["n-owned"], update: [] });
+    ).toStrictEqual({ read: ["n-owned"], update: [] });
     expect(
       await inDatabase(db, owner?.id ?? "", [
         "file.read",
         "file.update",
         "node.update",
       ]),
-    ).toEqual({ read: ["n-owned"], update: ["n-owned"] });
+    ).toStrictEqual({ read: ["n-owned"], update: ["n-owned"] });
     expect(
       await inDatabase(db, editor?.id ?? "", ["file.read", "node.update"]),
-    ).toEqual({ read: ["n-edit", "n-view"], update: ["n-edit"] });
+    ).toStrictEqual({ read: ["n-edit", "n-view"], update: ["n-edit"] });
   });
 
   it("agrees with can() for every user under every combination of scopes", async () => {
@@ -182,6 +182,6 @@ describe("requires under rls.apiKeys: a key covers every required permission, an
         }
       }
     }
-    expect(mismatches).toEqual([]);
+    expect(mismatches).toStrictEqual([]);
   });
 });

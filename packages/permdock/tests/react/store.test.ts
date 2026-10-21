@@ -7,6 +7,7 @@ import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
+import { requestBody, requestUrl } from "../fakes/fetch.ts";
 import {
   memberUser,
   ownPost,
@@ -56,7 +57,7 @@ describe("createClientStore approvals", () => {
       approvals: "/api/approvals",
       server: false,
       fetch: (input) => {
-        urls.push(String(input));
+        urls.push(requestUrl(input));
         return Promise.resolve(
           json({ status: statuses.shift() ?? "approved" }),
         );
@@ -131,11 +132,7 @@ describe("createClientStore approvals", () => {
     await store.requestApproval(required, "please");
     expect(store.approvalState(required)).toBe("pending");
     expect(
-      store.approvalState({
-        outcome: "denied",
-        denials: [],
-        alternatives: [],
-      }),
+      store.approvalState({ outcome: "denied", denials: [], alternatives: [] }),
     ).toBe("not-needed");
   });
 });
@@ -294,7 +291,7 @@ describe("createClientStore snapshot sources", () => {
   it("exposes the latest snapshot and the current client", async () => {
     const snapshot = await memberSnapshot();
     const store = createClientStore({ snapshot, server: false });
-    expect(store.snapshot()).toEqual(snapshot);
+    expect(store.snapshot()).toStrictEqual(snapshot);
     const first = store.get();
     store.replace(signedIn("u2"));
     // SAFETY: the store defines this symbol as a function returning the latest client.
@@ -316,12 +313,15 @@ async function memberSnapshot(): Promise<Snapshot> {
   const server = getPermDockSync(policy as never, memberUser);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error("expected JSON snapshot");
+    throw new TypeError("expected JSON snapshot");
   }
   return snapshot;
 }
 
-/** The member snapshot with `post.update` marked server-only, so checks go to the endpoint. */
+/**
+ * The member snapshot with `post.update` marked server-only, so checks go to
+ * the endpoint.
+ */
 async function closureSnapshot(
   extra: Partial<Snapshot> = {},
 ): Promise<Snapshot> {
@@ -359,7 +359,7 @@ describe("createClientStore endpoint evaluations", () => {
       headers: { "x-test": "1" },
       server: false,
       fetch: async (_input, init) => {
-        bodies.push(JSON.parse(String(init?.body)));
+        bodies.push(JSON.parse(requestBody(init)));
         return json({
           evaluations: [
             { context: { permdock: granted } },
@@ -540,7 +540,7 @@ describe("createClientStore endpoint evaluations", () => {
     await store.get().refresh();
     token = "two";
     await store.get().refresh();
-    expect(seen).toEqual(["Bearer one", "Bearer two"]);
+    expect(seen).toStrictEqual(["Bearer one", "Bearer two"]);
   });
 
   it("stops persisting and refreshing after dispose", async () => {
@@ -574,7 +574,7 @@ describe("createClientStore endpoint evaluations", () => {
       endpoint: "/api/permdock",
       server: false,
       fetch: async (_input, init) => {
-        const body = JSON.parse(String(init?.body));
+        const body = JSON.parse(requestBody(init));
         bodies.push(body);
         return json({
           evaluations: body.evaluations.map(() => ({
@@ -602,7 +602,7 @@ describe("createClientStore endpoint evaluations", () => {
       endpoint: "/api/permdock",
       server: false,
       fetch: async (_input, init) => {
-        bodies.push(JSON.parse(String(init?.body)));
+        bodies.push(JSON.parse(requestBody(init)));
         return json({ evaluations: [{ context: { permdock: granted } }, {}] });
       },
     });
@@ -672,12 +672,12 @@ describe("createClientStore invalidate and refresh", () => {
       snapshotUrl: "/api/snapshot?v=1#top",
       server: false,
       fetch: async (input) => {
-        urls.push(String(input));
+        urls.push(requestUrl(input));
         return json(signedIn("u1"));
       },
     });
     await store.get().refresh({ tenant: "globex" });
-    expect(urls).toEqual(["/api/snapshot?v=1&tenant=globex#top"]);
+    expect(urls).toStrictEqual(["/api/snapshot?v=1&tenant=globex#top"]);
     expect(store.get().status()).toBe("ready");
   });
 
@@ -706,7 +706,7 @@ describe("createClientStore invalidate and refresh", () => {
     });
     for (let attempt = 0; attempt < 3; attempt += 1) {
       await store.get().refresh();
-      expect({ attempt, status: store.get().status() }).toEqual({
+      expect({ attempt, status: store.get().status() }).toStrictEqual({
         attempt,
         status: "stale",
       });
@@ -954,7 +954,7 @@ describe("createClientStore approval edge cases", () => {
       input: string | URL | Request,
       init?: RequestInit,
     ): Promise<Response> => {
-      posts.push([String(input), JSON.parse(String(init?.body))]);
+      posts.push([requestUrl(input), JSON.parse(requestBody(init))]);
       return json({ status: "pending" });
     };
     const viaEndpoint = createClientStore({
@@ -964,7 +964,7 @@ describe("createClientStore approval edge cases", () => {
       fetch,
     });
     await viaEndpoint.requestApproval(required, "note");
-    expect(posts).toEqual([
+    expect(posts).toStrictEqual([
       [
         "/api/permdock",
         { permission: "post.publish", token: "pd1.token/one", note: "note" },

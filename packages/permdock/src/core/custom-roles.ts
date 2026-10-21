@@ -1,16 +1,17 @@
 import type { Condition } from "../conditions/ast.ts";
+import type { RoleGrantee } from "./grantee.ts";
 import type { Grant, Policy } from "./policy-types.ts";
+import type { Scope } from "./scopes.ts";
 import type { CustomRole, CustomRoleGrant, Membership } from "./subject.ts";
 
 import { freezeDeep } from "./freeze.ts";
-import { type RoleGrantee, flattenGrantee } from "./grantee.ts";
+import { flattenGrantee } from "./grantee.ts";
 import { sameId } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { formerKeys } from "./permission-leaf.ts";
 import { findPermission } from "./permission-registry.ts";
 import { declaredRoleNames, grantList, levelCondition } from "./policy.ts";
 import {
-  type Scope,
   normalizeMemberships,
   resolveScope,
   scopeList,
@@ -24,7 +25,10 @@ export type CustomRoleDropReason =
   | "condition-not-allowed"
   | "unknown-level";
 
-/** Why part of a custom role was left out: a permission, or an undeclared include. */
+/**
+ * Why part of a custom role was left out: a permission, or an undeclared
+ * include.
+ */
 export type CustomRoleDrop =
   | {
       readonly permission: string;
@@ -33,20 +37,26 @@ export type CustomRoleDrop =
       readonly level?: string;
     }
   | { readonly role: string; readonly reason: "unknown-role" }
-  /** A shared custom role already has this name; the tenant role would be ignored. */
+  /**
+   * A shared custom role already has this name; the tenant role would be
+   * ignored.
+   */
   | { readonly role: string; readonly reason: "name-taken" };
 
 /** A stored grant that named a permission by a key it was renamed from. */
-export type CustomRoleRename = {
-  readonly from: string;
-  readonly to: string;
-};
+export type CustomRoleRename = { readonly from: string; readonly to: string };
 
 export type ResolvedCustomRole = {
-  /** Declared grants re-targeted to the custom role; conditions and approvals kept. */
+  /**
+   * Declared grants re-targeted to the custom role; conditions and approvals
+   * kept.
+   */
   readonly grants: readonly Grant[];
   readonly dropped: readonly CustomRoleDrop[];
-  /** Grants stored under a former key (`definePermissions` `renamed`), resolved to the current one. */
+  /**
+   * Grants stored under a former key (`definePermissions` `renamed`), resolved
+   * to the current one.
+   */
   readonly renamed: readonly CustomRoleRename[];
 };
 
@@ -59,7 +69,10 @@ export type CustomRoleValidation = {
   readonly renamed: readonly CustomRoleRename[];
 };
 
-/** The current key for a stored key, current or former; `undefined` when neither. */
+/**
+ * The current key for a stored key, current or former; `undefined` when
+ * neither.
+ */
 function currentKey(policy: Policy, raw: string): string | undefined {
   const leaf = findPermission(policy.permissions, raw);
   if (leaf === undefined) {
@@ -71,10 +84,7 @@ function currentKey(policy: Policy, raw: string): string | undefined {
 }
 
 /** A resolved custom-role grant and the role it belongs to. */
-export type CustomGrant = {
-  readonly grant: Grant;
-  readonly role: CustomRole;
-};
+export type CustomGrant = { readonly grant: Grant; readonly role: CustomRole };
 
 const GRANT_KEYS: ReadonlySet<string> = new Set([
   "permission",
@@ -82,7 +92,10 @@ const GRANT_KEYS: ReadonlySet<string> = new Set([
   "level",
 ]);
 
-/** Every level of a permission an own allow reaches: `'all'` for an allow without a level. */
+/**
+ * Every level of a permission an own allow reaches: `'all'` for an allow
+ * without a level.
+ */
 type AllowLevels = "all" | Map<string, Condition>;
 
 /** `where` narrowed by a level; the empty level (`{}`) leaves it as is. */
@@ -120,8 +133,8 @@ export type CeilingScope = string;
 
 /**
  * The scope a custom role is held at: `scope` (a name or alias), the second
- * scope for the `team` input shape, else the first scope. `undefined` when
- * the policy does not declare it; such a role resolves to nothing.
+ * scope for the `team` input shape, else the first scope. `undefined` when the
+ * policy does not declare it; such a role resolves to nothing.
  */
 export function customRoleScope(
   role: Pick<CustomRole, "scope" | "team" | "shared">,
@@ -141,12 +154,18 @@ export function customRoleId(role: CustomRole): string | undefined {
   return role.scope === undefined ? role.team : role.id;
 }
 
-/** A platform custom role: held through `principal.roles`, capped by the assignable global roles. */
+/**
+ * A platform custom role: held through `principal.roles`, capped by the
+ * assignable global roles.
+ */
 export function isGlobalCustomRole(role: CustomRole): boolean {
   return role.scope === "global";
 }
 
-/** A shared custom role: defined once for every tenant, held on memberships of its scope in any tenant. */
+/**
+ * A shared custom role: defined once for every tenant, held on memberships of
+ * its scope in any tenant.
+ */
 export function isSharedCustomRole(role: CustomRole): boolean {
   return role.shared === true;
 }
@@ -185,7 +204,8 @@ function isAssignableRole(policy: Policy, name: string): boolean {
  * Every scope's ceiling, keyed by scope name (`global` for platform custom
  * roles): the code allows of declared `assignable` roles in that scope,
  * everything a custom role of the scope may ever reach. Hosted grants never
- * widen it. `assignable` narrows it to those role names (`CustomRoleSource.assignable`).
+ * widen it. `assignable` narrows it to those role names
+ * (`CustomRoleSource.assignable`).
  */
 function ceilings(
   policy: Policy,
@@ -349,17 +369,18 @@ export function resolveCustomRole(
         typeof level === "string" && leaf?.kind === "instance"
           ? levelCondition(policy, leaf.resource, level)
           : undefined;
-      if (condition === undefined) {
+      if (condition === undefined || typeof level !== "string") {
         drop({
           permission: key,
           reason: "unknown-level",
+          // oxlint-disable-next-line typescript/no-base-to-string -- reports the rejected value as written
           level: String(level),
         });
         // An unknown level never falls back to the wider grant.
         denyKeys.add(key);
         continue;
       }
-      narrowing = [String(level), condition];
+      narrowing = [level, condition];
     }
     if (!ceilingKeys.has(key)) {
       drop({ permission: key, reason: "outside-ceiling" });
@@ -422,7 +443,10 @@ export function resolveCustomRole(
 }
 
 export type ValidateCustomRoleOptions = {
-  /** The shared custom roles: a tenant role with one of their names is dropped as `name-taken`. */
+  /**
+   * The shared custom roles: a tenant role with one of their names is dropped
+   * as `name-taken`.
+   */
   readonly shared?: readonly CustomRole[];
 };
 
@@ -567,7 +591,10 @@ function effectiveCustomRoles(
       );
 }
 
-/** A custom role grant whose `level` its resource does not declare, so it grants nothing. */
+/**
+ * A custom role grant whose `level` its resource does not declare, so it grants
+ * nothing.
+ */
 export type UnknownLevel = {
   readonly role: string;
   readonly permission: string;
@@ -598,7 +625,10 @@ export function unknownLevelsFor(
   return out;
 }
 
-/** Every custom role's resolved grants, once per instance. Malformed roles resolve to nothing. */
+/**
+ * Every custom role's resolved grants, once per instance. Malformed roles
+ * resolve to nothing.
+ */
 export function customGrantsFor(
   policy: Policy,
   roles: readonly CustomRole[],
@@ -631,7 +661,10 @@ export function tenantCustomRoles(
   );
 }
 
-/** Whether a custom role held on memberships belongs to `tenant`: its own, or shared by every tenant. */
+/**
+ * Whether a custom role held on memberships belongs to `tenant`: its own, or
+ * shared by every tenant.
+ */
 export function customRoleOf(role: CustomRole, tenant: string): boolean {
   return isSharedCustomRole(role) || sameId(role.tenant, tenant);
 }
@@ -670,7 +703,10 @@ export function holdsGlobalCustomRole(
   return isGlobalCustomRole(role) && (roles ?? []).includes(role.name);
 }
 
-/** A tenant's custom role inside that tenant, a shared role in any tenant, or a platform custom role anywhere. */
+/**
+ * A tenant's custom role inside that tenant, a shared role in any tenant, or a
+ * platform custom role anywhere.
+ */
 export function isCustomRoleName(
   name: string,
   roles: readonly CustomRole[],
@@ -685,10 +721,10 @@ export function isCustomRoleName(
 }
 
 /**
- * The compact JWT form of custom roles for the `memberships[].grants` claim
- * RLS reads in `jwt` mode: role name to entries, where `key` allows, `-key`
- * denies and `@role` includes. Put a team custom role on its team membership.
- * Pass `policy` to write keys stored under a former name as the current key.
+ * The compact JWT form of custom roles for the `memberships[].grants` claim RLS
+ * reads in `jwt` mode: role name to entries, where `key` allows, `-key` denies
+ * and `@role` includes. Put a team custom role on its team membership. Pass
+ * `policy` to write keys stored under a former name as the current key.
  */
 export function customRoleClaim(
   roles: readonly CustomRole[],

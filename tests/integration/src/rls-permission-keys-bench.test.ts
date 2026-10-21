@@ -208,22 +208,22 @@ for (const mode of ["database", "jwt"] as const) {
           ),
         );
       }
-      expect(results.map((result) => result.oneKeys)).toEqual(
+      expect(results.map((result) => result.oneKeys)).toStrictEqual(
         results.map((result) => result.eachKeys),
       );
-      expect(results.map((result) => result.filtered)).toEqual(
+      expect(results.map((result) => result.filtered)).toStrictEqual(
         results.map((result) =>
           result.oneKeys.filter((key) =>
             ["area3.read", "area3.update", "area0.read"].includes(key),
           ),
         ),
       );
-      expect(results.map((result) => result.oneKeys.length)).toEqual([
+      expect(results.map((result) => result.oneKeys.length)).toStrictEqual([
         190, 78, 190, 2, 3, 10,
       ]);
-      expect(results.filter((result) => result.one * 3 >= result.each)).toEqual(
-        [],
-      );
+      expect(
+        results.filter((result) => result.one * 3 >= result.each),
+      ).toStrictEqual([]);
     });
 
     it.runIf(mode === "database")(
@@ -236,7 +236,7 @@ for (const mode of ["database", "jwt"] as const) {
           "select k as key from permdock.permitted_tenant_permission_keys_for($1, 'acme', array['area3.read', 'area7.delete', 'area9.read']) k",
           [USERS.custom],
         );
-        expect(named.rows.map((row) => row.key)).toEqual([
+        expect(named.rows.map((row) => row.key)).toStrictEqual([
           "area3.read",
           "area7.delete",
         ]);

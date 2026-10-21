@@ -36,7 +36,7 @@ describe("mapClaimsToSubject principal", () => {
       [{ admin: true }, undefined],
     ];
     for (const [roles, expected] of cases) {
-      expect({ roles, mapped: principalOf({ roles })?.roles }).toEqual({
+      expect({ roles, mapped: principalOf({ roles })?.roles }).toStrictEqual({
         roles,
         mapped: expected,
       });
@@ -57,14 +57,12 @@ describe("mapClaimsToSubject principal", () => {
       expect({
         kind,
         mapped: principalOf({ principal_type: "service" }, options)?.kind,
-      }).toEqual({ kind, mapped: expected });
+      }).toStrictEqual({ kind, mapped: expected });
     }
     expect(
       principalOf(
         { principal_type: "robot" },
-        {
-          claims: { kind: "principal_type" },
-        },
+        { claims: { kind: "principal_type" } },
       )?.kind,
     ).toBeUndefined();
   });
@@ -81,7 +79,7 @@ describe("mapClaimsToSubject principal", () => {
         auth_time: 1000,
         verified_claims: verified,
       })?.assurance,
-    ).toEqual({
+    ).toStrictEqual({
       acr: "aal2",
       amr: ["pwd", "otp"],
       authTime: 1000,
@@ -92,7 +90,7 @@ describe("mapClaimsToSubject principal", () => {
         { level: "aal3", amr: ["hwk"] },
         { claims: { assurance: "level" } },
       )?.assurance,
-    ).toEqual({ acr: "aal3", amr: ["hwk"] });
+    ).toStrictEqual({ acr: "aal3", amr: ["hwk"] });
     expect(
       principalOf(
         { ext: { acr: "x", amr: ["y"], at: 5, vc: [verified] } },
@@ -107,7 +105,12 @@ describe("mapClaimsToSubject principal", () => {
           },
         },
       )?.assurance,
-    ).toEqual({ acr: "x", amr: ["y"], authTime: 5, verified: [verified] });
+    ).toStrictEqual({
+      acr: "x",
+      amr: ["y"],
+      authTime: 5,
+      verified: [verified],
+    });
     expect(principalOf({ acr: 1 })?.assurance).toBeUndefined();
   });
 
@@ -142,9 +145,14 @@ describe("mapClaimsToSubject principal", () => {
           foo: 1,
         },
       })?.binding,
-    ).toEqual({ jkt: "j", "x5t#S256": "x", jwk: { kty: "EC" }, kid: "k" });
+    ).toStrictEqual({
+      jkt: "j",
+      "x5t#S256": "x",
+      jwk: { kty: "EC" },
+      kid: "k",
+    });
     for (const cnf of [null, "jkt", ["jkt"], { jwk: null, kid: 1 }]) {
-      expect({ cnf, binding: principalOf({ cnf })?.binding }).toEqual({
+      expect({ cnf, binding: principalOf({ cnf })?.binding }).toStrictEqual({
         cnf,
         binding: undefined,
       });
@@ -166,7 +174,7 @@ describe("mapClaimsToSubject memberships", () => {
         { scope: "tenant", id: "o1", roles: ["owner"], keep: ["org.restore"] },
         { scope: "tenant", id: "o2", roles: ["owner"], keep: "org.restore" },
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       { scope: "tenant", id: "o1", roles: ["owner"], keep: ["org.restore"] },
       { scope: "tenant", id: "o2", roles: ["owner"], keep: [] },
     ]);
@@ -200,7 +208,7 @@ describe("mapClaimsToSubject memberships", () => {
         },
         { scope: "project", id: "p2", within: "acme", roles: "viewer" },
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       {
         scope: "project",
         id: "p1",
@@ -222,7 +230,7 @@ describe("mapClaimsToSubject memberships", () => {
         "ignored",
         null,
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       { tenant: "acme", roles: ["admin"], team: "eng" },
       { tenant: "globex", roles: ["member"] },
     ]);
@@ -236,7 +244,7 @@ describe("mapClaimsToSubject memberships", () => {
         initech: { member: true },
         skipped: "x",
       }),
-    ).toEqual([
+    ).toStrictEqual([
       { tenant: "acme", roles: ["admin"] },
       { tenant: "globex", roles: ["viewer"] },
       { tenant: "initech", roles: [] },
@@ -246,7 +254,7 @@ describe("mapClaimsToSubject memberships", () => {
         admin: { "org-1": "acme.test", "org-2": "globex.test" },
         viewer: { "org-1": "acme.test" },
       }),
-    ).toEqual([
+    ).toStrictEqual([
       { tenant: "org-1", roles: ["admin", "viewer"] },
       { tenant: "org-2", roles: ["admin"] },
     ]);
@@ -255,7 +263,7 @@ describe("mapClaimsToSubject memberships", () => {
   it("never reads a Zitadel map with a forbidden key or an empty map as roles", () => {
     expect(
       memberships(JSON.parse('{"admin":{"__proto__":"x"},"empty":{}}')),
-    ).toEqual([
+    ).toStrictEqual([
       { tenant: "admin", roles: [] },
       { tenant: "empty", roles: [] },
     ]);
@@ -269,7 +277,7 @@ describe("mapClaimsToSubject memberships", () => {
     expect(
       principalOf({ org: "acme", groups: ["eng", "ops"] }, options)
         ?.memberships,
-    ).toEqual([
+    ).toStrictEqual([
       { tenant: "acme", roles: ["editor"], via: "group:eng" },
       { tenant: "acme", roles: [], via: "group:ops" },
     ]);
@@ -289,7 +297,7 @@ describe("mapClaimsToSubject actor and delegation", () => {
       actor: mapped.subject.actor,
       binding: mapped.subject.principal?.binding,
       chain: mapped.subject.delegation?.chain,
-    }).toEqual({
+    }).toStrictEqual({
       actor: { id: "agent-1", kind: "mcp-client", binding: { jkt: "j" } },
       binding: undefined,
       chain: { sub: "agent-1" },
@@ -309,7 +317,7 @@ describe("mapClaimsToSubject actor and delegation", () => {
         act,
         invalidChain: mapped.invalidChain,
         principal: mapped.subject.principal,
-      }).toEqual({ act, invalidChain: true, principal: null });
+      }).toStrictEqual({ act, invalidChain: true, principal: null });
     }
   });
 
@@ -321,7 +329,7 @@ describe("mapClaimsToSubject actor and delegation", () => {
     expect({
       actor: withActor.subject.actor,
       delegation: withActor.subject.delegation,
-    }).toEqual({
+    }).toStrictEqual({
       actor: { id: "fn", kind: "service" },
       delegation: { scopes: ["read"], chain: { sub: "x" } },
     });
@@ -345,7 +353,7 @@ describe("mapClaimsToSubject actor and delegation", () => {
           access: "gnap",
         },
       }).subject.delegation,
-    ).toEqual({
+    ).toStrictEqual({
       scopes: ["a", "b"],
       authorizationDetails: [{ type: "payment" }],
       access: [{ actions: ["read"] }],
@@ -365,7 +373,7 @@ describe("mapClaimsToSubject actor and delegation", () => {
     expect({
       expiresAt: mapped.subject.expiresAt,
       session: mapped.subject.session,
-    }).toEqual({ expiresAt: 1500, session: "s1" });
+    }).toStrictEqual({ expiresAt: 1500, session: "s1" });
     expect(
       mapClaimsToSubject({ iss: "x", sub: "u1", session_expiry: 1500 }, {})
         .subject.expiresAt,
@@ -379,12 +387,12 @@ describe("custom claims", () => {
     expect(
       principalOf({ plan: "pro", name: "Anne", roles: ["x"] }, { schema })
         ?.claims,
-    ).toEqual({ plan: "pro" });
+    ).toStrictEqual({ plan: "pro" });
     const invalid = mapClaimsToSubject({ ...base, plan: 1 }, { schema });
     expect({
       invalidClaims: invalid.invalidClaims,
       claims: invalid.subject.principal?.claims,
-    }).toEqual({ invalidClaims: true, claims: undefined });
+    }).toStrictEqual({ invalidClaims: true, claims: undefined });
   });
 
   it("rejects an async schema", () => {
@@ -395,11 +403,13 @@ describe("custom claims", () => {
         validate: async (value: unknown) => ({ value }),
       },
     };
-    expect(validateCustomClaims({ a: 1 }, asyncSchema)).toEqual({ ok: false });
+    expect(validateCustomClaims({ a: 1 }, asyncSchema)).toStrictEqual({
+      ok: false,
+    });
   });
 });
 
-describe("acceptMismatch", () => {
+describe(acceptMismatch, () => {
   const cases: readonly {
     readonly label: string;
     readonly claims: Record<string, unknown>;

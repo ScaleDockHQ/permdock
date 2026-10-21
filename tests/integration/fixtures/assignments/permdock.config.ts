@@ -1,4 +1,7 @@
-/** Role assignments checked in the database, on the memberships table and an invitations table. */
+/**
+ * Role assignments checked in the database, on the memberships table and an
+ * invitations table.
+ */
 export default {
   permissions: "./policy.ts",
   policy: "./policy.ts",

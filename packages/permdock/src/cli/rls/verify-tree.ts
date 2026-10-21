@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { MemoryEdge } from "../../core/memory-relations.ts";
+import type { Policy, ResourceNode } from "../../index.ts";
 import type { PermDockConfig } from "../types.ts";
 import type { RlsFinding } from "./verify-findings.ts";
 
@@ -14,8 +15,6 @@ import {
   listPermissions,
   getPermDock,
   memoryRelationSource,
-  type Policy,
-  type ResourceNode,
 } from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
 import { columnTypesOf } from "../sql/columns.ts";
@@ -43,7 +42,10 @@ type Query = (
   values?: readonly unknown[],
 ) => Promise<{ readonly rows: readonly Row[] }>;
 
-/** One generated object in a tree: its parent, whether it is restricted, and its depth. */
+/**
+ * One generated object in a tree: its parent, whether it is restricted, and its
+ * depth.
+ */
 type TreeNode = {
   readonly id: string | number;
   readonly parent: string | number | null;
@@ -67,9 +69,9 @@ function idFactory(
 }
 
 /**
- * Two spines one level deeper than the walk depth, so the depth cap is
- * crossed; side branches under the first levels alternate restricted, and
- * the second spine is restricted two levels down.
+ * Two spines one level deeper than the walk depth, so the depth cap is crossed;
+ * side branches under the first levels alternate restricted, and the second
+ * spine is restricted two levels down.
  */
 function generateTree(
   node: ResourceNode,
@@ -251,9 +253,9 @@ function asRequiredColumn(row: Row): RequiredColumn | undefined {
 }
 
 /**
- * Values for the required columns a generated row leaves out, such as a
- * tenant column or a name: an existing value of the referenced table for a
- * foreign key, a placeholder of the column's type otherwise.
+ * Values for the required columns a generated row leaves out, such as a tenant
+ * column or a name: an existing value of the referenced table for a foreign
+ * key, a placeholder of the column's type otherwise.
  */
 async function requiredValues(
   query: Query,
@@ -320,7 +322,10 @@ async function seedRows(
 
 export type TreeVerification = {
   readonly checked: number;
-  /** Checks both sides granted, so a tree nobody reaches cannot pass by agreeing. */
+  /**
+   * Checks both sides granted, so a tree nobody reaches cannot pass by
+   * agreeing.
+   */
   readonly granted: number;
   readonly mismatches: readonly RlsFinding[];
   readonly notes: readonly string[];
@@ -328,10 +333,10 @@ export type TreeVerification = {
 
 /**
  * Parity between `decide` and RLS on a generated object graph: for every
- * self-parented resource a graph grant walks, a tree with restricted
- * branches and a chain past the walk depth, child rows under it, and edges
- * for a few generated principals. Everything runs in one transaction that
- * is rolled back.
+ * self-parented resource a graph grant walks, a tree with restricted branches
+ * and a chain past the walk depth, child rows under it, and edges for a few
+ * generated principals. Everything runs in one transaction that is rolled
+ * back.
  */
 export async function verifyTree(input: {
   readonly policy: Policy;

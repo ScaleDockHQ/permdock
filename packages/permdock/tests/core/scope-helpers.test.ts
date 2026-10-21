@@ -18,7 +18,7 @@ describe("scope helpers", () => {
         { tenant: "o_1", team: "p_1", roles: ["dev"] },
         scopes,
       ),
-    ).toEqual({
+    ).toStrictEqual({
       scope: "project",
       id: "p_1",
       within: { org: "o_1" },
@@ -27,11 +27,9 @@ describe("scope helpers", () => {
   });
 
   it("use the implicit tenant and team pair without scopes", () => {
-    expect(normalizeMembership({ tenant: "o_1", roles: ["admin"] })).toEqual({
-      scope: "tenant",
-      id: "o_1",
-      roles: ["admin"],
-    });
+    expect(
+      normalizeMembership({ tenant: "o_1", roles: ["admin"] }),
+    ).toStrictEqual({ scope: "tenant", id: "o_1", roles: ["admin"] });
   });
 
   it("drop malformed memberships", () => {
@@ -47,7 +45,7 @@ describe("scope helpers", () => {
         ],
         scopes,
       ),
-    ).toEqual([{ scope: "org", id: "o_1", roles: ["admin"] }]);
+    ).toStrictEqual([{ scope: "org", id: "o_1", roles: ["admin"] }]);
   });
 
   it("resolve declared names and aliases", () => {

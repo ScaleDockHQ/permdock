@@ -33,10 +33,7 @@ function tools() {
       },
     },
     Read: { permission: permissions.post.read, data: () => ownPost },
-    Publish: {
-      permission: permissions.post.publish,
-      data: () => ownPost,
-    },
+    Publish: { permission: permissions.post.publish, data: () => ownPost },
   };
 }
 
@@ -73,7 +70,7 @@ describe("permdock/claude-agent", () => {
       { file_path: "/posts/p1" },
       { signal },
     );
-    expect(allowed).toEqual({
+    expect(allowed).toStrictEqual({
       behavior: "allow",
       updatedInput: { file_path: "/posts/p1" },
     });
@@ -89,7 +86,7 @@ describe("permdock/claude-agent", () => {
       { command: "rm -rf /" },
       { signal },
     );
-    expect(unmapped).toEqual({
+    expect(unmapped).toStrictEqual({
       behavior: "deny",
       message: "Denied: unmapped tool Bash.",
     });
@@ -111,7 +108,8 @@ describe("permdock/claude-agent", () => {
       sdkServer,
     );
     expect(parked.behavior).toBe("deny");
-    const [pending] = (await store.list({ status: "pending" })).items;
+    const { items } = await store.list({ status: "pending" });
+    const [pending] = items;
     if (pending === undefined || parked.behavior !== "deny") {
       throw new Error("expected a pending approval");
     }
@@ -123,7 +121,7 @@ describe("permdock/claude-agent", () => {
     });
     expect(
       await canUseTool("mcp__posts__delete_post", { id: "p1" }, sdkServer),
-    ).toEqual({ behavior: "allow", updatedInput: { id: "p1" } });
+    ).toStrictEqual({ behavior: "allow", updatedInput: { id: "p1" } });
     expect(
       (await canUseTool("mcp__posts__delete_post", { id: "p1" }, sdkServer))
         .behavior,
@@ -183,11 +181,9 @@ describe("permdock/claude-agent", () => {
       await permissionRequestHook(
         hookInput("Read", { file_path: "/p1" }),
         "t1",
-        {
-          signal,
-        },
+        { signal },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       hookSpecificOutput: {
         hookEventName: "PermissionRequest",
         decision: { behavior: "allow", updatedInput: { file_path: "/p1" } },
@@ -197,10 +193,7 @@ describe("permdock/claude-agent", () => {
       hookInput(
         "mcp__posts__delete_post",
         { id: "p1" },
-        {
-          name: "posts",
-          source: "sdk",
-        },
+        { name: "posts", source: "sdk" },
       ),
       "t2",
       { signal },
@@ -212,10 +205,7 @@ describe("permdock/claude-agent", () => {
       hookInput(
         "mcp__posts__delete_post",
         { id: "p2" },
-        {
-          name: "posts",
-          source: "user",
-        },
+        { name: "posts", source: "user" },
       ),
       "t3",
       { signal },
@@ -229,7 +219,7 @@ describe("permdock/claude-agent", () => {
         undefined,
         { signal },
       ),
-    ).toEqual({});
+    ).toStrictEqual({});
   });
 
   it("ignores a subject smuggled in tool input", async () => {

@@ -1,18 +1,19 @@
 import { describe, expect, it } from "vitest";
 
+import type { AskAiChecks } from "../lib/ask-ai";
+
 import {
   guardAskAi,
   maxCharacters,
   maxMessages,
   parseChatRequest,
-  type AskAiChecks,
 } from "../lib/ask-ai";
 
 function user(id: string, text: string) {
   return { id, role: "user", parts: [{ type: "text", text }] };
 }
 
-describe("parseChatRequest", () => {
+describe(parseChatRequest, () => {
   it("keeps user and assistant text and drops tool parts", async () => {
     const parsed = await parseChatRequest({
       messages: [
@@ -36,7 +37,7 @@ describe("parseChatRequest", () => {
     });
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
-    expect(parsed.history.map((message) => message.parts)).toEqual([
+    expect(parsed.history.map((message) => message.parts)).toStrictEqual([
       [{ type: "text", text: "What is decide?" }],
       [{ type: "text", text: "It returns a Decision." }],
       [{ type: "text", text: "And can?" }],
@@ -50,9 +51,9 @@ describe("parseChatRequest", () => {
         user("1", "Hi"),
       ],
     });
-    expect(parsed.ok && parsed.history.map((message) => message.role)).toEqual([
-      "user",
-    ]);
+    expect(
+      parsed.ok && parsed.history.map((message) => message.role),
+    ).toStrictEqual(["user"]);
   });
 
   it("rejects a body without messages", async () => {
@@ -91,7 +92,7 @@ describe("parseChatRequest", () => {
   });
 });
 
-describe("guardAskAi", () => {
+describe(guardAskAi, () => {
   const request = new Request("https://permdock.com/docs/api/chat", {
     method: "POST",
   });

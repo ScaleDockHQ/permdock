@@ -11,9 +11,10 @@ const ROW_GRANTEES: ReadonlySet<string> = new Set([
 /**
  * Whether a grant depends on more than the role and the scope: a row or body
  * condition, a closure, a field list, a purpose, a break-glass override, a
- * validity window, a `requires`, or a relation, plan, actor or assurance grantee. The SQL helpers
- * (`permdock_has`, `permitted_<scope>_ids`) check only role and scope, so a
- * policy that calls them for such a permission would widen access.
+ * validity window, a `requires`, or a relation, plan, actor or assurance
+ * grantee. The SQL helpers (`permdock_has`, `permitted_<scope>_ids`) check only
+ * role and scope, so a policy that calls them for such a permission would widen
+ * access.
  */
 function grantHasRowConditions(grant: Grant): boolean {
   const grantees = Array.isArray(grant.to) ? grant.to : [grant.to];

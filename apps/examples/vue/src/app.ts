@@ -1,10 +1,12 @@
+import type { VNode } from "vue";
+
 import {
   PermissionBoundary,
   Protected,
   usePermDock,
   usePermission,
 } from "permdock/vue";
-import { defineComponent, h, type VNode } from "vue";
+import { defineComponent, h } from "vue";
 
 import { ownPost, permissions } from "./permissions.ts";
 
@@ -48,10 +50,7 @@ export const App = defineComponent({
       h(
         Protected,
         { permission: permissions.post.update, data: ownPost },
-        {
-          default: () => h("span", "edit"),
-          denied: () => h("span", "locked"),
-        },
+        { default: () => h("span", "edit"), denied: () => h("span", "locked") },
       ),
       h(DeleteButton),
       h(PermissionBoundary, null, {

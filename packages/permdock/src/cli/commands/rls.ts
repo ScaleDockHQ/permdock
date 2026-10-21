@@ -1,9 +1,10 @@
 import type { FlagValues } from "../core/command.ts";
+import type { Leaf } from "../core/command.ts";
 import type { CliContext } from "../core/context.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { RlsRunInput } from "../rls/rls.ts";
 
-import { type Leaf, defineLeaf } from "../core/command.ts";
+import { defineLeaf } from "../core/command.ts";
 import { missingInput } from "../core/errors.ts";
 import {
   checkFlag,
@@ -25,7 +26,10 @@ const membershipsFlag = {
   },
 } as const;
 
-/** The flags that shape the generated SQL; verify --introspect and migrate take them too. */
+/**
+ * The flags that shape the generated SQL; verify --introspect and migrate take
+ * them too.
+ */
 const shapeFlags = {
   target: {
     type: "enum",
@@ -156,7 +160,10 @@ const SHAPE_DEFAULTS: ShapeValues = {
   "db-url-stdin": false,
 };
 
-/** Every RlsRunInput field at its "not given" value, with the shape flags applied. */
+/**
+ * Every RlsRunInput field at its "not given" value, with the shape flags
+ * applied.
+ */
 async function rlsInput(
   ctx: CliContext,
   verb: string,
@@ -235,7 +242,8 @@ export const generate: Leaf = defineLeaf({
       list: true,
       async complete() {
         // Lazy: the writer module loads only when completion asks for the parts.
-        return (await import("../core/output-files.ts")).SPLIT_PARTS;
+        const { SPLIT_PARTS } = await import("../core/output-files.ts");
+        return SPLIT_PARTS;
       },
     },
     "grants-out": {

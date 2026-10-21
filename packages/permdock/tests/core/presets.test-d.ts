@@ -12,10 +12,7 @@ describe("preset arity", () => {
     const permissions = definePermissions({
       post: resource(
         Post,
-        crud({
-          id: "id",
-          actions: { publish: { title: "Publish post" } },
-        }),
+        crud({ id: "id", actions: { publish: { title: "Publish post" } } }),
       ),
     });
     expectTypeOf(permissions.post.publish.key).toEqualTypeOf<"post.publish">();
@@ -23,6 +20,23 @@ describe("preset arity", () => {
     expectTypeOf(permissions.post.create.kind).toEqualTypeOf<"collection">();
     expectTypeOf(permissions.post.read.kind).toEqualTypeOf<"instance">();
     expectTypeOf(permissions.post.list.kind).toEqualTypeOf<"collection">();
+  });
+
+  it("overlays an extra action on a base action of the same name", () => {
+    const permissions = definePermissions({
+      post: resource(
+        Post,
+        crud({
+          actions: { update: { title: "Edit post" }, publish: {} },
+          collection: { create: { title: "New post" } },
+        }),
+      ),
+    });
+    expectTypeOf(permissions.post.update.key).toEqualTypeOf<"post.update">();
+    expectTypeOf(permissions.post.update.kind).toEqualTypeOf<"instance">();
+    expectTypeOf(permissions.post.publish.kind).toEqualTypeOf<"instance">();
+    expectTypeOf(permissions.post.create.kind).toEqualTypeOf<"collection">();
+    expectTypeOf(permissions.post.delete.key).toEqualTypeOf<"post.delete">();
   });
 
   it("keeps extra array literals as literal keys", () => {

@@ -15,10 +15,7 @@ import {
 } from "../../src/testing/conformance/providers.ts";
 
 const permissions = definePermissions({
-  post: resource(z.object({ id: z.string() }), {
-    id: "id",
-    actions: ["read"],
-  }),
+  post: resource(z.object({ id: z.string() }), { id: "id", actions: ["read"] }),
 });
 
 const subject: Subject = Object.freeze({

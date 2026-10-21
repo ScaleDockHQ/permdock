@@ -7,6 +7,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { getPermDockSync, openfga, spicedb } from "../../src/pdp/index.ts";
+import { requestBody, requestUrl } from "../fakes/fetch.ts";
 
 const permissions = definePermissions({
   doc: resource(z.object({ id: z.string() }), {
@@ -27,8 +28,8 @@ function recorder(answer: (call: Call) => Response): {
     fetch: async (input, init) => {
       // SAFETY: the provider under test posts a JSON object body on every call.
       const call = {
-        url: String(input),
-        body: JSON.parse(String(init?.body)) as Record<string, unknown>,
+        url: requestUrl(input),
+        body: JSON.parse(requestBody(init)) as Record<string, unknown>,
       };
       calls.push(call);
       return answer(call);
@@ -59,7 +60,7 @@ function policyWith(provider: ReturnType<typeof openfga>) {
 
 const rows = [{ id: "d1" }, { id: "d2" }, { id: "d3" }];
 
-describe("openfga", () => {
+describe(openfga, () => {
   const map = [
     [
       permissions.doc.read,
@@ -99,10 +100,9 @@ describe("openfga", () => {
       ),
       { id: "anne" },
     );
-    expect((await permdock.decide(permissions.doc.read, rows[0])).outcome).toBe(
-      "granted",
-    );
-    expect(fga.calls[0]).toEqual({
+    const { outcome } = await permdock.decide(permissions.doc.read, rows[0]);
+    expect(outcome).toBe("granted");
+    expect(fga.calls[0]).toStrictEqual({
       url: "http://fga.test/stores/s1/check",
       body: {
         authorization_model_id: "m1",
@@ -115,8 +115,8 @@ describe("openfga", () => {
     });
     expect(
       (await permdock.filter(permissions.doc.read, rows)).map((row) => row.id),
-    ).toEqual(["d1", "d3"]);
-    expect(fga.calls[1]).toEqual({
+    ).toStrictEqual(["d1", "d3"]);
+    expect(fga.calls[1]).toStrictEqual({
       url: "http://fga.test/stores/s1/list-objects",
       body: {
         authorization_model_id: "m1",
@@ -125,7 +125,7 @@ describe("openfga", () => {
         user: "user:anne",
       },
     });
-    expect(await permdock.where(permissions.doc.read)).toEqual({
+    expect(await permdock.where(permissions.doc.read)).toStrictEqual({
       condition: { op: "in", field: "id", value: ["d1", "d3"] },
       partial: true,
     });
@@ -146,10 +146,11 @@ describe("openfga", () => {
       ),
       { id: "anne" },
     );
-    expect(
-      (await permdock.decide(permissions.doc.delete, rows[0])).outcome,
-    ).toBe("denied");
-    expect(await permdock.filter(permissions.doc.delete, rows)).toEqual([]);
+    const { outcome } = await permdock.decide(permissions.doc.delete, rows[0]);
+    expect(outcome).toBe("denied");
+    expect(await permdock.filter(permissions.doc.delete, rows)).toStrictEqual(
+      [],
+    );
     expect(fga.calls.every((call) => !call.url.endsWith("/check"))).toBe(true);
   });
 
@@ -186,7 +187,7 @@ describe("openfga", () => {
       ),
       { id: "anne" },
     );
-    expect(await permdock.filter(permissions.doc.read, rows)).toEqual([]);
+    expect(await permdock.filter(permissions.doc.read, rows)).toStrictEqual([]);
   });
 
   it("denies with pdp-invalid-response when the tuple callback throws", async () => {
@@ -215,17 +216,14 @@ describe("openfga", () => {
   });
 });
 
-describe("spicedb", () => {
+describe(spicedb, () => {
   const map = [
     [
       permissions.doc.read,
       (subject, data) => ({
         subject: { type: "user", id: subject.principal?.id ?? "" },
         permission: "view",
-        resource: {
-          type: "document",
-          ...docId(data),
-        },
+        resource: { type: "document", ...docId(data) },
       }),
     ],
   ] as const satisfies Parameters<typeof spicedb>[0]["map"];
@@ -237,8 +235,8 @@ describe("spicedb", () => {
       authorizations.push(new Headers(init?.headers).get("authorization"));
       // SAFETY: the provider under test posts a JSON object body on every call.
       const call = {
-        url: String(input),
-        body: JSON.parse(String(init?.body)) as Record<string, unknown>,
+        url: requestUrl(input),
+        body: JSON.parse(requestBody(init)) as Record<string, unknown>,
       };
       calls.push(call);
       if (call.url.endsWith("/check")) {
@@ -274,10 +272,9 @@ describe("spicedb", () => {
       ),
       { id: "anne" },
     );
-    expect((await permdock.decide(permissions.doc.read, rows[0])).outcome).toBe(
-      "granted",
-    );
-    expect(calls[0]).toEqual({
+    const { outcome } = await permdock.decide(permissions.doc.read, rows[0]);
+    expect(outcome).toBe("granted");
+    expect(calls[0]).toStrictEqual({
       url: "http://spicedb.test/v1/permissions/check",
       body: {
         consistency: { minimizeLatency: true },
@@ -288,14 +285,14 @@ describe("spicedb", () => {
     });
     expect(
       (await permdock.filter(permissions.doc.read, rows)).map((row) => row.id),
-    ).toEqual(["d2"]);
-    expect(calls[1]?.body).toEqual({
+    ).toStrictEqual(["d2"]);
+    expect(calls[1]?.body).toStrictEqual({
       consistency: { minimizeLatency: true },
       resourceObjectType: "document",
       permission: "view",
       subject: { object: { objectType: "user", objectId: "anne" } },
     });
-    expect(authorizations).toEqual(["Bearer key", "Bearer key"]);
+    expect(authorizations).toStrictEqual(["Bearer key", "Bearer key"]);
   });
 
   it("treats a conditional check as a denial and an unknown one as invalid", async () => {
@@ -334,6 +331,6 @@ describe("spicedb", () => {
       ),
       { id: "anne" },
     );
-    expect(await permdock.filter(permissions.doc.read, rows)).toEqual([]);
+    expect(await permdock.filter(permissions.doc.read, rows)).toStrictEqual([]);
   });
 });

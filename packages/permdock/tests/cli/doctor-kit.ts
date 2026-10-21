@@ -38,7 +38,10 @@ export const permissions = definePermissions({
 });
 `;
 
-/** A policy module over `./permissions.ts` whose `definePolicy` options start with `body`. */
+/**
+ * A policy module over `./permissions.ts` whose `definePolicy` options start
+ * with `body`.
+ */
 export function policyModule(body: string): string {
   return `import { allow, authenticated, breakGlass, context, deny, definePolicy, opaque, principal, relation, role, sqlFunction, supportAccess } from 'permdock';
 import { permissions } from './permissions.ts';
@@ -50,7 +53,10 @@ ${body}
 `;
 }
 
-/** Writes `files` (relative path to contents) into a fresh directory under `tmp/`. */
+/**
+ * Writes `files` (relative path to contents) into a fresh directory under
+ * `tmp/`.
+ */
 export function project(files: Readonly<Record<string, string>>): string {
   mkdirSync(TMP, { recursive: true });
   const cwd = mkdtempSync(path.join(TMP, "doctor-coverage-"));
@@ -62,7 +68,10 @@ export function project(files: Readonly<Record<string, string>>): string {
   return cwd;
 }
 
-/** A project with `src/permissions.ts` and each named policy module under `src/`. */
+/**
+ * A project with `src/permissions.ts` and each named policy module under
+ * `src/`.
+ */
 export function policyProject(
   policies: Readonly<Record<string, string>>,
   extra: Readonly<Record<string, string>> = {},

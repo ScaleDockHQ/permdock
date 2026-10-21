@@ -17,7 +17,10 @@ import {
 
 type Post = { readonly id: string; readonly title: string };
 
-/** A dependency-free implementer: trims `title`, so a rule sees the parsed value. */
+/**
+ * A dependency-free implementer: trims `title`, so a rule sees the parsed
+ * value.
+ */
 function handWritten(
   extra: Readonly<Record<string, unknown>> = {},
 ): StandardSchemaV1<unknown, Post> {
@@ -91,7 +94,7 @@ describe("Standard Schema", () => {
         const { permissions } = setup(schema);
         const leaf = permissions.post.update;
         expect(Object.isFrozen(leaf)).toBe(true);
-        expect(Object.keys(leaf).toSorted()).toEqual(
+        expect(Object.keys(leaf).toSorted()).toStrictEqual(
           ["action", "key", "meta", "resource", "scope"].toSorted(),
         );
         expect(JSON.stringify(leaf)).not.toContain("~standard");
@@ -201,11 +204,11 @@ describe("Standard Schema", () => {
       if (node === undefined) {
         return;
       }
-      expect(jsonSchemaOf(node)).toEqual({
+      expect(jsonSchemaOf(node)).toStrictEqual({
         type: "object",
         properties: { id: { type: "string" } },
       });
-      expect(targets).toEqual([{ target: "draft-2020-12" }]);
+      expect(targets).toStrictEqual([{ target: "draft-2020-12" }]);
     });
 
     it("exports Zod output as a 2020-12 JSON Schema", () => {

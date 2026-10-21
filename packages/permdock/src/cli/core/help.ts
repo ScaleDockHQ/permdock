@@ -1,16 +1,10 @@
 import type { Flag, Flags, Leaf, Positional } from "./command.ts";
+import type { Entry, GroupEntry, LeafEntry } from "./manifest.ts";
+import type { Style } from "./style.ts";
 
 import { GLOBAL_FLAGS } from "./context.ts";
-import {
-  DOCS_BASE,
-  type Entry,
-  type GroupEntry,
-  type LeafEntry,
-  ROOT,
-  SECTIONS,
-  leaves,
-} from "./manifest.ts";
-import { type Style, createStyle } from "./style.ts";
+import { DOCS_BASE, ROOT, SECTIONS, leaves } from "./manifest.ts";
+import { createStyle } from "./style.ts";
 import { cliVersion } from "./version.ts";
 
 export const CLI_COMMANDS_SCHEMA =
@@ -255,7 +249,10 @@ function document(
   };
 }
 
-/** `<command> --help --json`: the `cli-commands-v1` document with that command only. */
+/**
+ * `<command> --help --json`: the `cli-commands-v1` document with that command
+ * only.
+ */
 export function leafDocument(
   path: readonly string[],
   entry: LeafEntry,

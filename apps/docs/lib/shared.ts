@@ -6,7 +6,10 @@ export const chatRoute = `${docsRoute}/api/chat`;
 export const docsImageRoute = "/og/docs";
 export const docsContentRoute = "/llms.mdx/docs";
 
-/** Docs text changes only on deploy; browsers and the CDN keep it an hour and serve stale for a day. */
+/**
+ * Docs text changes only on deploy; browsers and the CDN keep it an hour and
+ * serve stale for a day.
+ */
 export const publicCacheControl =
   "public, max-age=3600, stale-while-revalidate=86400";
 
@@ -17,11 +20,7 @@ export const markdownHeaders = {
 
 /** Marketing pages and the changelog, which live outside the docs page tree. */
 export const siteLinks = [
-  {
-    title: "Home",
-    path: "/",
-    description: "What PermDock is, in one page.",
-  },
+  { title: "Home", path: "/", description: "What PermDock is, in one page." },
   {
     title: "Create",
     path: "/create",

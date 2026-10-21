@@ -14,7 +14,10 @@ export type McpSubjectOptions = Pick<
   JwtSubjectOptions,
   "claims" | "groupRoles" | "schema" | "delegation"
 > & {
-  /** The `kind` of the actor built from `authInfo.clientId`; `'mcp-client'` when absent. Match `createPermDock`'s `actorKind`. */
+  /**
+   * The `kind` of the actor built from `authInfo.clientId`; `'mcp-client'` when
+   * absent. Match `createPermDock`'s `actorKind`.
+   */
   readonly actorKind?: string;
   /** Names for OAuth client ids; match `createPermDock`'s `clients`. */
   readonly clients?: ClientNames;
@@ -22,7 +25,10 @@ export type McpSubjectOptions = Pick<
 
 const DEFAULT_MCP_ACTOR_KIND = "mcp-client";
 
-/** `kind`, or the default when absent; `undefined` for a kind that is not a non-empty string. */
+/**
+ * `kind`, or the default when absent; `undefined` for a kind that is not a
+ * non-empty string.
+ */
 export function mcpActorKind(kind: unknown): string | undefined {
   if (kind === undefined) {
     return DEFAULT_MCP_ACTOR_KIND;
@@ -32,11 +38,10 @@ export function mcpActorKind(kind: unknown): string | undefined {
 
 /**
  * Maps the `AuthInfo` the MCP SDK's bearer verification produced to a
- * `Subject`: the principal from the verified claims in `extra`, the client
- * as an actor of kind `actorKind` (`mcp-client` by default), the granted
- * scopes as the delegation. Never verifies and never throws; anything
- * unusable, including an `actorKind` that is not a non-empty string, is
- * the anonymous subject.
+ * `Subject`: the principal from the verified claims in `extra`, the client as
+ * an actor of kind `actorKind` (`mcp-client` by default), the granted scopes as
+ * the delegation. Never verifies and never throws; anything unusable, including
+ * an `actorKind` that is not a non-empty string, is the anonymous subject.
  */
 export function subjectFromMcp(
   authInfo: McpAuthInfo | undefined,

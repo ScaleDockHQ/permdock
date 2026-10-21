@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import type { RlsExplain } from "../../src/cli/rls/explain.ts";
 import type { RlsRunInput } from "../../src/cli/rls/rls.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { describeExplain, type RlsExplain } from "../../src/cli/rls/explain.ts";
+import { describeExplain } from "../../src/cli/rls/explain.ts";
 import { runRls } from "../../src/cli/rls/rls.ts";
 
-describe("describeExplain", () => {
+describe(describeExplain, () => {
   const base: RlsExplain = {
     schema: "permdock",
     authorize: "database",
@@ -98,7 +99,7 @@ describe("runRls explain with options", () => {
         },
       },
     });
-    expect(report.customRoles).toEqual({
+    expect(report.customRoles).toStrictEqual({
       table: "app_roles",
       key: "key",
       tenant: "organization_id",
@@ -107,7 +108,7 @@ describe("runRls explain with options", () => {
       holds: ["tenant", "shared", "global"],
     });
     expect(report.rowHelpers.length).toBeGreaterThan(0);
-    expect(report.triggers).toEqual(expect.any(Array));
+    expect(report.triggers).toStrictEqual(expect.any(Array));
   });
 
   it("lists the resources a rowHelpers array names", async () => {
@@ -115,7 +116,7 @@ describe("runRls explain with options", () => {
       dialect: "supabase",
       rowHelpers: ["quote"],
     });
-    expect(report.rowHelpers.map((helper) => helper.resource)).toEqual([
+    expect(report.rowHelpers.map((helper) => helper.resource)).toStrictEqual([
       "quote",
     ]);
   });
@@ -128,7 +129,7 @@ describe("runRls explain with options", () => {
         roles: { table: "app_roles", key: "key", tenant: "organization_id" },
       },
     });
-    expect(report.customRoles?.holds).toEqual(["tenant", "global"]);
+    expect(report.customRoles?.holds).toStrictEqual(["tenant", "global"]);
   });
 
   it("marks a table-less roles table as global only", async () => {
@@ -137,6 +138,6 @@ describe("runRls explain with options", () => {
       customRoles: true,
       customRoleWrites: { roles: { table: "app_roles", key: "key" } },
     });
-    expect(report.customRoles?.holds).toEqual(["global"]);
+    expect(report.customRoles?.holds).toStrictEqual(["global"]);
   });
 });

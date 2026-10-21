@@ -14,9 +14,9 @@ export type ToolPolicyOptions<C> = {
   /** The request's PermDock instance, from the hook's context. */
   readonly permdock: (ctx: C) => PermDock | Promise<PermDock>;
   /**
-   * The row an instance permission is decided on, from the validated
-   * arguments. Without it the call is decided without a row, which an
-   * instance permission with a row condition denies.
+   * The row an instance permission is decided on, from the validated arguments.
+   * Without it the call is decided without a row, which an instance permission
+   * with a row condition denies.
    */
   readonly data?: (ctx: C, tool: McpToolRef, args: unknown) => unknown;
 };
@@ -37,10 +37,10 @@ const refused = (reason: string): McpToolDecision => ({
 
 /**
  * The `authorize` and `visible` hooks of better-supabase's `createMcp`, for
- * tools whose `meta` is a PermDock permission. A tool without a permission
- * is hidden and refused. `authorize` grants only a `granted` decision: an
- * approval-required call is refused, because `createMcp`
- * has no approval flow. A throw anywhere refuses.
+ * tools whose `meta` is a PermDock permission. A tool without a permission is
+ * hidden and refused. `authorize` grants only a `granted` decision: an
+ * approval-required call is refused, because `createMcp` has no approval flow.
+ * A throw anywhere refuses.
  */
 export function toolPolicy<C>(options: ToolPolicyOptions<C>): ToolPolicy<C> {
   return Object.freeze({

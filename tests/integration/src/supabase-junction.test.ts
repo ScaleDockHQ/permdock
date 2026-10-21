@@ -95,13 +95,13 @@ describe("junctionMembershipSource over a schema-qualified table", () => {
       { scope: "organization", id: "B", roles: ["viewer"] },
       { scope: "organization", id: "T", roles: ["admin"] },
     ];
-    expect((await mint(MEMBER))["memberships"]).toEqual(expected);
-    expect((await mint(OUTSIDER))["memberships"]).toEqual([]);
+    expect((await mint(MEMBER))["memberships"]).toStrictEqual(expected);
+    expect((await mint(OUTSIDER))["memberships"]).toStrictEqual([]);
     const loaded = await membership(query).membershipsFor({ id: MEMBER }, {});
     expect(
       loaded.toSorted((a, b) =>
         ("id" in a ? a.id : "").localeCompare("id" in b ? b.id : ""),
       ),
-    ).toEqual(expected);
+    ).toStrictEqual(expected);
   });
 });

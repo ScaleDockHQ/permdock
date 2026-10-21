@@ -2,20 +2,22 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { Policy } from "../../core/policy-types.ts";
+import type { Scope } from "../../core/scopes.ts";
 import type {
   SupabaseDatabaseManifest,
   SupabaseHookManifest,
 } from "../../supabase/manifest.ts";
+import type { OutputFile } from "../core/output-files.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { CliIo, PermDockConfig, SupabaseSchemas } from "../types.ts";
+import type { HookOverrides } from "./sql.ts";
 
 import { isRecord } from "../../core/compact.ts";
-import { type Scope, scopeList } from "../../core/scopes.ts";
+import { scopeList } from "../../core/scopes.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import {
   driftOf,
   pgDeltaPath,
-  type OutputFile,
   STDOUT,
   writeOutputFiles,
 } from "../core/output-files.ts";
@@ -56,7 +58,6 @@ import {
   manifestOf,
 } from "./manifest.ts";
 import {
-  type HookOverrides,
   configToml,
   grantsSql,
   hookParts,
@@ -83,7 +84,10 @@ budget, the claims the hook writes, the membership sources and the columns that 
 file differs.
 `;
 
-/** `supabase.hook.out`, else pg-delta's per-schema path under pg-delta, else `supabase/permdock-hook.sql`. */
+/**
+ * `supabase.hook.out`, else pg-delta's per-schema path under pg-delta, else
+ * `supabase/permdock-hook.sql`.
+ */
 export function hookOut(
   cwd: string,
   config: PermDockConfig,
@@ -168,8 +172,8 @@ function hooklessDatabase(config: PermDockConfig): boolean {
 }
 
 /**
- * The hook migration. With `grantsOut`, the statements `supabase db diff`
- * drops are left out of `sql` and returned in `grants` for that file.
+ * The hook migration. With `grantsOut`, the statements `supabase db diff` drops
+ * are left out of `sql` and returned in `grants` for that file.
  */
 export function supabaseHookSql(
   scopes: readonly Scope[],

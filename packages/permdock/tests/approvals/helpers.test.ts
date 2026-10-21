@@ -93,8 +93,8 @@ const deletePost = {
 
 function approved(token: string, overrides: Partial<ApprovalRequest> = {}) {
   const store = memoryApprovalStore();
-  store.create(pending(token, overrides));
-  store.resolve(token, { status: "approved", by: approver });
+  void store.create(pending(token, overrides));
+  void store.resolve(token, { status: "approved", by: approver });
   return store;
 }
 
@@ -121,16 +121,16 @@ const detailOf = (decision: Decision): unknown =>
     ? decision.denials[0]?.detail
     : decision.outcome;
 
-describe("summarizeSubject", () => {
+describe(summarizeSubject, () => {
   it("keeps an anonymous principal and defaults missing roles", () => {
-    expect(summarizeSubject(anonymous)).toEqual({ principal: null });
-    expect(summarizeSubject({ principal: { id: "u" }, context: {} })).toEqual({
-      principal: { id: "u", roles: [] },
-    });
+    expect(summarizeSubject(anonymous)).toStrictEqual({ principal: null });
+    expect(
+      summarizeSubject({ principal: { id: "u" }, context: {} }),
+    ).toStrictEqual({ principal: { id: "u", roles: [] } });
   });
 });
 
-describe("requestApproval", () => {
+describe(requestApproval, () => {
   it.each([
     ["Unix seconds", 1_700_000_000],
     ["a Date", new Date("2026-03-01T10:00:00.000Z")],
@@ -156,7 +156,9 @@ describe("requestApproval", () => {
       subject: requester,
       x: { ticket: "OPS-12" },
     });
-    expect((await store.get(request.token))?.x).toEqual({ ticket: "OPS-12" });
+    expect((await store.get(request.token))?.x).toStrictEqual({
+      ticket: "OPS-12",
+    });
     await expect(
       requestApproval(store, pendingOf("t-bad-x"), {
         permission: deletePost,
@@ -185,7 +187,7 @@ describe("requestApproval", () => {
       now: { epochMilliseconds: now.getTime() },
     });
     const { ttl: _ttl, ...approvers } = grant;
-    expect(request.approvers).toEqual(approvers);
+    expect(request.approvers).toStrictEqual(approvers);
     expect(request.approvals).toBeUndefined();
     expect(request.expiresAt).toBe("2026-03-01T10:30:00.000Z");
     const longer = await requestApproval(
@@ -223,15 +225,12 @@ describe("resumeDecision edges", () => {
   });
 
   it("returns the decision unchanged for a foreign token without a store", async () => {
-    expect(
-      (
-        await resume({
-          decision: required("t1"),
-          store: undefined,
-          token: "other",
-        })
-      ).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await resume({
+      decision: required("t1"),
+      store: undefined,
+      token: "other",
+    });
+    expect(outcome).toBe("approval-required");
   });
 
   it.each<[string, Partial<ApprovalRequest>]>([
@@ -264,16 +263,13 @@ describe("resumeDecision edges", () => {
 
   it("does not consume when consume is false", async () => {
     const store = approved("t1");
-    expect(
-      (
-        await resume({
-          decision: required("t1"),
-          store,
-          token: "t1",
-          consume: false,
-        })
-      ).outcome,
-    ).toBe("granted");
+    const { outcome } = await resume({
+      decision: required("t1"),
+      store,
+      token: "t1",
+      consume: false,
+    });
+    expect(outcome).toBe("granted");
     expect((await store.get("t1"))?.consumedAt).toBeUndefined();
   });
 
@@ -306,15 +302,12 @@ describe("resumeDecision edges", () => {
       ...approved("t-old"),
       get: () => Promise.reject(new Error("down")),
     };
-    expect(
-      (
-        await resume({
-          decision: required("t-new", STALE_ON_CHANGE),
-          store: failing,
-          token: "t-old",
-        })
-      ).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await resume({
+      decision: required("t-new", STALE_ON_CHANGE),
+      store: failing,
+      token: "t-old",
+    });
+    expect(outcome).toBe("approval-required");
     const store = approved("t-old");
     expect(
       (
@@ -396,17 +389,17 @@ describe("resumeDecision ttl", () => {
   );
 });
 
-describe("consumeApproval", () => {
+describe(consumeApproval, () => {
   it("reports a store that lost the race to consume", async () => {
     const store: ApprovalStore = { ...approved("t1"), consume: () => null };
-    expect(await consumeApproval(store, "t1")).toEqual({
+    expect(await consumeApproval(store, "t1")).toStrictEqual({
       ok: false,
       cause: "approval-consumed",
     });
   });
 });
 
-describe("cancelApprovals", () => {
+describe(cancelApprovals, () => {
   it("uses the store cancel when there is one", async () => {
     const cancel = vi.fn<NonNullable<ApprovalStore["cancel"]>>(() => 3);
     const store: ApprovalStore = { ...memoryApprovalStore(), cancel };
@@ -417,9 +410,9 @@ describe("cancelApprovals", () => {
 
   it("rejects each pending request as the system when the store has no cancel", async () => {
     const inner = memoryApprovalStore();
-    inner.create(pending("a"));
-    inner.create(pending("b"));
-    inner.create(pending("c"));
+    void inner.create(pending("a"));
+    void inner.create(pending("b"));
+    void inner.create(pending("c"));
     const store: ApprovalStore = {
       create: (record) => inner.create(record),
       get: (token) => inner.get(token),
@@ -441,7 +434,7 @@ describe("cancelApprovals", () => {
   });
 });
 
-describe("storedApprovalToken", () => {
+describe(storedApprovalToken, () => {
   it.each<
     [string, Partial<ApprovalRequest> | null, boolean, string | undefined]
   >([
@@ -460,7 +453,7 @@ describe("storedApprovalToken", () => {
   ])("answers %s", async (_label, overrides, denyPending, expected) => {
     const store = memoryApprovalStore();
     if (overrides !== null) {
-      store.create(pending("t1", overrides));
+      void store.create(pending("t1", overrides));
     }
     expect(
       await storedApprovalToken(store, required("t1"), { denyPending }),
@@ -482,19 +475,19 @@ describe("storedApprovalToken", () => {
       await storedApprovalToken(undefined, required("t1")),
       await storedApprovalToken(memoryApprovalStore(), denied),
       await storedApprovalToken(failing, required("t1")),
-    ]).toEqual([undefined, undefined, undefined]);
+    ]).toStrictEqual([undefined, undefined, undefined]);
   });
 
   it("reads expiry against the now option", async () => {
     const store = memoryApprovalStore();
-    store.create(pending("t1", { status: "approved" }));
+    void store.create(pending("t1", { status: "approved" }));
     const later = new Date(Date.parse(future) + 1_000);
     expect([
       await storedApprovalToken(store, required("t1")),
       await storedApprovalToken(store, required("t1"), {
         now: { epochMilliseconds: later.getTime() },
       }),
-    ]).toEqual(["t1", undefined]);
+    ]).toStrictEqual(["t1", undefined]);
   });
 
   it("resumes a call in an application gate without the caller carrying the token", async () => {

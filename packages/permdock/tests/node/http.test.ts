@@ -31,7 +31,7 @@ function asMessage(stream: PassThrough): IncomingMessage {
   return stream as unknown as IncomingMessage;
 }
 
-describe("toRequest", () => {
+describe(toRequest, () => {
   it("builds the URL from protocol, an array host and originalUrl", () => {
     const request = toRequest(
       message({
@@ -50,7 +50,7 @@ describe("toRequest", () => {
       method: request.method,
       accept: request.headers.get("accept"),
       empty: request.headers.has("x-empty"),
-    }).toEqual({
+    }).toStrictEqual({
       url: "https://api.test/mounted/posts",
       method: "GET",
       accept: "a/b, c/d",
@@ -60,7 +60,7 @@ describe("toRequest", () => {
 
   it("falls back to localhost, / and GET", () => {
     const request = toRequest(message({ headers: { host: [] } }));
-    expect({ url: request.url, method: request.method }).toEqual({
+    expect({ url: request.url, method: request.method }).toStrictEqual({
       url: "http://localhost/",
       method: "GET",
     });
@@ -86,7 +86,7 @@ describe("toRequest", () => {
       json.headers.get("content-type"),
       await json.text(),
       typed.headers.get("content-type"),
-    ]).toEqual([
+    ]).toStrictEqual([
       "plain",
       "application/json",
       '{"a":1}',
@@ -177,16 +177,13 @@ describe("sendResponse and isServerResponse", () => {
     // SAFETY: sendResponse uses only statusCode, setHeader and end.
     await sendResponse(
       res as unknown as ServerResponse,
-      new Response("ok", {
-        status: 201,
-        headers: { "x-a": "1" },
-      }),
+      new Response("ok", { status: 201, headers: { "x-a": "1" } }),
     );
     expect({
       status: res.statusCode,
       headers,
       body: body?.toString("utf8"),
-    }).toEqual({
+    }).toStrictEqual({
       status: 201,
       headers: { "content-type": "text/plain;charset=UTF-8", "x-a": "1" },
       body: "ok",
@@ -203,7 +200,7 @@ describe("sendResponse and isServerResponse", () => {
         null,
         "res",
       ].map((value) => isServerResponse(value)),
-    ).toEqual([true, false, false, false, false, false]);
+    ).toStrictEqual([true, false, false, false, false, false]);
   });
 });
 

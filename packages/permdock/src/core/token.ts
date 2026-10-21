@@ -4,8 +4,8 @@ import { canonicalJson } from "./canonical-json.ts";
 import { sha256Digest } from "./sha256.ts";
 
 /**
- * Only stable identity goes into the token, so refreshing a session (new
- * roles, assurance or claims) does not orphan an outstanding approval.
+ * Only stable identity goes into the token, so refreshing a session (new roles,
+ * assurance or claims) does not orphan an outstanding approval.
  */
 function principalIdentity(principal: Principal | null): unknown {
   if (principal === null) {
@@ -18,7 +18,10 @@ function principalIdentity(principal: Principal | null): unknown {
   };
 }
 
-/** A row's `version` field as token input; `null` when it is missing or not a scalar. */
+/**
+ * A row's `version` field as token input; `null` when it is missing or not a
+ * scalar.
+ */
 export function versionOf(row: unknown, field: string): string | null {
   if (row === null || typeof row !== "object" || !Object.hasOwn(row, field)) {
     return null;
@@ -42,9 +45,9 @@ export function payloadDigest(data: unknown): string {
 }
 
 /**
- * The payload a decision token binds: the call's `args` when the caller
- * passes them (an agent or MCP tool call, row or not), otherwise the data of
- * a call without a row id. `undefined` binds nothing beyond the row id.
+ * The payload a decision token binds: the call's `args` when the caller passes
+ * them (an agent or MCP tool call, row or not), otherwise the data of a call
+ * without a row id. `undefined` binds nothing beyond the row id.
  */
 export function tokenPayload(
   resourceId: string,
@@ -60,11 +63,10 @@ export function tokenPayload(
 }
 
 /**
- * `version` is set only for an approval that goes stale on a resource
- * change; without it the payload, and so every other token, is unchanged.
- * `payload` is set when `resourceId` is `*` (a collection action or a row
- * without an id), so an approval covers the arguments it was given and no
- * others.
+ * `version` is set only for an approval that goes stale on a resource change;
+ * without it the payload, and so every other token, is unchanged. `payload` is
+ * set when `resourceId` is `*` (a collection action or a row without an id), so
+ * an approval covers the arguments it was given and no others.
  */
 export function decisionToken(input: {
   readonly key: string;

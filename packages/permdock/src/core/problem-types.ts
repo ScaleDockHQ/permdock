@@ -4,8 +4,8 @@ import { compact } from "./compact.ts";
 import { PROBLEM_BASE } from "./validation-error.ts";
 
 /**
- * The Problem Details types PermDock defines (RFC 9457 section 4). Every
- * other status answers with `about:blank` and its RFC 9110 reason phrase.
+ * The Problem Details types PermDock defines (RFC 9457 section 4). Every other
+ * status answers with `about:blank` and its RFC 9110 reason phrase.
  */
 export const PROBLEM_TYPES = [
   "denied",

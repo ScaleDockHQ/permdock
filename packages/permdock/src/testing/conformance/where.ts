@@ -96,10 +96,10 @@ const WHERE_CASES: readonly (readonly [name: string, condition: Condition])[] =
 const WHERE_SUBJECT: Subject = { principal: null, context: {} };
 
 /**
- * `matches` answers whether the compiled output selects `row`, for example
- * by running it against a table holding only that row. With it, every case
- * must select the rows the in-memory evaluator keeps, including rows whose
- * fields are NULL.
+ * `matches` answers whether the compiled output selects `row`, for example by
+ * running it against a table holding only that row. With it, every case must
+ * select the rows the in-memory evaluator keeps, including rows whose fields
+ * are NULL.
  */
 export function testWhereCompiler<TTarget>(
   compiler: WhereCompiler<TTarget>,
@@ -113,6 +113,7 @@ export function testWhereCompiler<TTarget>(
   },
 ): void {
   const { matches } = options;
+
   it.skipIf(matches === undefined).each(WHERE_CASES)(
     "selects the rows the evaluator keeps: %s",
     async (_name, condition) => {
@@ -126,7 +127,7 @@ export function testWhereCompiler<TTarget>(
           selected.push(row["id"]);
         }
       }
-      expect(selected).toEqual(
+      expect(selected).toStrictEqual(
         WHERE_ROWS.filter((row) =>
           evaluateCondition(condition, row, WHERE_SUBJECT),
         ).map((row) => row["id"]),

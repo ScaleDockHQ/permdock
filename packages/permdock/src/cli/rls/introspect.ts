@@ -1,22 +1,27 @@
+import type { SqlClient, SqlConnect } from "../pg.ts";
 import type { CompiledPolicy } from "../sql/compile.ts";
 import type { RolePermission } from "./helpers.ts";
+import type { IndexTarget } from "./indexes.ts";
 import type { LevelKey } from "./rows.ts";
 import type { RlsFinding } from "./verify-findings.ts";
 
 import { escapeSqlIdent } from "../../core/sql.ts";
-import { type SqlClient, type SqlConnect, connectPgPool } from "../pg.ts";
+import { connectPgPool } from "../pg.ts";
 import { beforeFirst } from "../shared/text.ts";
 import {
   callsHelper,
   HELPER_TABLES,
   helperCallKeys,
 } from "../sql/helper-calls.ts";
-import { COLUMNS_SQL, INDEX_COLUMNS_SQL, type IndexTarget } from "./indexes.ts";
+import { COLUMNS_SQL, INDEX_COLUMNS_SQL } from "./indexes.ts";
 import { ACTOR_MAY_WRITE } from "./policies.ts";
 import { rlsFinding } from "./verify-findings.ts";
 
 const ROLES = ["anon", "authenticated"] as const;
-/** Neon's `anonymous` is the role `rls generate` writes as `anon` for the other dialects. */
+/**
+ * Neon's `anonymous` is the role `rls generate` writes as `anon` for the other
+ * dialects.
+ */
 function liveRole(role: string): string {
   return role === "anonymous" ? "anon" : role;
 }
@@ -41,11 +46,17 @@ export type ExpectedRls = {
   >;
   /** `security definer` functions, as `schema.name`. */
   readonly helpers: readonly string[];
-  /** The indexes the policies and helpers read through; only their first column is checked. */
+  /**
+   * The indexes the policies and helpers read through; only their first column
+   * is checked.
+   */
   readonly indexes: readonly IndexTarget[];
 };
 
-/** The same facts, read from `pg_policies`, `pg_class`, the table grants and `pg_proc`. */
+/**
+ * The same facts, read from `pg_policies`, `pg_class`, the table grants and
+ * `pg_proc`.
+ */
 export type ActualRls = {
   readonly policies: readonly {
     readonly table: string;
@@ -61,15 +72,15 @@ export type ActualRls = {
   readonly helpers: Readonly<
     Record<
       string,
-      {
-        readonly securityDefiner: boolean;
-        readonly emptySearchPath: boolean;
-      }
+      { readonly securityDefiner: boolean; readonly emptySearchPath: boolean }
     >
   >;
   /** Per table, the first column of each of its plain-column indexes. */
   readonly leadingColumns: Readonly<Record<string, readonly string[]>>;
-  /** Per table, its columns; a target on a column the table lacks is not checked. */
+  /**
+   * Per table, its columns; a target on a column the table lacks is not
+   * checked.
+   */
   readonly columns?: Readonly<Record<string, readonly string[]>>;
 };
 
@@ -138,8 +149,8 @@ export function expectedRls(
 }
 
 /**
- * One warning per index target no index starts with. A missing index slows
- * the policy down but grants nothing, so these do not fail `verify`.
+ * One warning per index target no index starts with. A missing index slows the
+ * policy down but grants nothing, so these do not fail `verify`.
  */
 export function missingIndexes(
   expected: ExpectedRls,
@@ -170,7 +181,10 @@ function sameList(left: readonly string[], right: readonly string[]): boolean {
   return a.length === b.length && a.every((item, index) => item === b[index]);
 }
 
-/** One finding per difference; policy expressions are not compared, since Postgres rewrites their text. */
+/**
+ * One finding per difference; policy expressions are not compared, since
+ * Postgres rewrites their text.
+ */
 export function diffRls(
   expected: ExpectedRls,
   actual: ActualRls,
@@ -353,7 +367,7 @@ join pg_namespace n on n.oid = p.pronamespace
 where n.nspname || '.' || p.proname = any($1::text[])`;
 
 function commandOf(cmd: unknown): string {
-  const text = String(cmd ?? "").toLowerCase();
+  const text = typeof cmd === "string" ? cmd.toLowerCase() : "";
   return text === "*" ? "all" : text;
 }
 
@@ -361,7 +375,10 @@ function connectIntrospect(db: string): Promise<SqlClient> {
   return connectPgPool(db, "permdock rls verify --introspect");
 }
 
-/** Reads the catalogs for the tables and helpers `expected` names (postgres-meta's queries, trimmed). */
+/**
+ * Reads the catalogs for the tables and helpers `expected` names
+ * (postgres-meta's queries, trimmed).
+ */
 export async function introspectRls(
   db: string,
   expected: ExpectedRls,
@@ -440,7 +457,10 @@ export async function introspectRls(
   }
 }
 
-/** A helpers-only setup: the seeds `generate` would write and the keys hand-written policies may pass. */
+/**
+ * A helpers-only setup: the seeds `generate` would write and the keys
+ * hand-written policies may pass.
+ */
 export type ExpectedMixed = {
   readonly schema: string;
   readonly seeds: readonly RolePermission[];
@@ -448,7 +468,10 @@ export type ExpectedMixed = {
   readonly rowConditions: readonly string[];
   /** Declared `<permission>@<level>` keys a custom role may hold. */
   readonly levels?: readonly LevelKey[];
-  /** `rls.readOnlyActors` is set: every write a client role reaches calls `permdock_actor_may_write()`. */
+  /**
+   * `rls.readOnlyActors` is set: every write a client role reaches calls
+   * `permdock_actor_may_write()`.
+   */
   readonly readOnlyActors?: boolean;
 };
 
@@ -459,7 +482,10 @@ export type ActualMixed = {
     readonly table: string;
     readonly name: string;
     readonly expression: string;
-    /** `pg_policies.cmd` in lower case: `select`, `insert`, `update`, `delete` or `all`. */
+    /**
+     * `pg_policies.cmd` in lower case: `select`, `insert`, `update`, `delete`
+     * or `all`.
+     */
     readonly command?: string;
     readonly restrictive?: boolean;
     readonly roles?: readonly string[];
@@ -470,10 +496,10 @@ export type ActualMixed = {
 const WRITES = ["insert", "update", "delete"] as const;
 
 /**
- * Each table and write command whose permissive policies reach
- * `authenticated` (or `public`) without the read-only actor check: no
- * restrictive policy for the command calls `permdock_actor_may_write()`, and
- * some permissive one does not.
+ * Each table and write command whose permissive policies reach `authenticated`
+ * (or `public`) without the read-only actor check: no restrictive policy for
+ * the command calls `permdock_actor_may_write()`, and some permissive one does
+ * not.
  */
 function unguardedWrites(
   policies: ActualMixed["policies"],
@@ -555,7 +581,10 @@ function seedKey(line: string): string {
   return line.replace(" on ", " ").replaceAll(" ", "/");
 }
 
-/** Drift is an error; `info` names RLS tables whose policies call no PermDock helper. */
+/**
+ * Drift is an error; `info` names RLS tables whose policies call no PermDock
+ * helper.
+ */
 export function diffMixed(
   expected: ExpectedMixed,
   actual: ActualMixed,
@@ -671,7 +700,10 @@ where c.relkind in ('r', 'p') and c.relrowsecurity`;
 
 const quoteIdent = escapeSqlIdent;
 
-/** Reads `role_permissions`, `pg_policies` and the RLS-enabled tables for {@link diffMixed}. */
+/**
+ * Reads `role_permissions`, `pg_policies` and the RLS-enabled tables for
+ * {@link diffMixed}.
+ */
 export async function introspectMixed(
   db: string,
   schema: string,
@@ -702,7 +734,7 @@ export async function introspectMixed(
           expression: String(row["expression"]),
           command: String(row["command"]),
           restrictive: row["restrictive"] === true,
-          roles: String(row["roles"] ?? "")
+          roles: (typeof row["roles"] === "string" ? row["roles"] : "")
             .split(",")
             .filter((role) => role !== ""),
         }))

@@ -89,7 +89,7 @@ describe("fieldViews masks", () => {
         read({ roles: ["anon"], fields: ["id", "title", "body"], using: "b" }),
         read({ roles: ["reporting"], using: "c" }),
       ]),
-    ).toEqual({
+    ).toStrictEqual({
       id: undefined,
       title: undefined,
       body: `((not (${signedIn})) and (b)) or (c)`,
@@ -151,12 +151,12 @@ describe("fieldViews skips and warnings", () => {
       [read(), read({ effect: "deny", fields: ["ghost"] })],
     ],
   ])("skips %s", (_name, branches) => {
-    expect(views(branches).views).toEqual([]);
+    expect(views(branches).views).toStrictEqual([]);
   });
 
   it("warns that the key passes through and that direct reads still return hidden columns", () => {
     const result = views([read({ fields: ["title"], using: "a" })]);
-    expect(result.warnings).toEqual([
+    expect(result.warnings).toStrictEqual([
       "field view doc_visible: the key id passes through, although a read grant on doc omits it",
       "field view doc_visible: doc still returns body, secret to direct reads; add --revoke-columns so clients read through the view",
     ]);
@@ -171,9 +171,9 @@ describe("fieldViews skips and warnings", () => {
       true,
     );
     const [view] = result.views;
-    expect(view?.roles).toEqual(["anon", "authenticated"]);
+    expect(view?.roles).toStrictEqual(["anon", "authenticated"]);
     expect(view?.companion).toBe("permdock.doc_visible_fields");
-    expect(result.warnings).toEqual([]);
+    expect(result.warnings).toStrictEqual([]);
     expect(fieldViewsSql(result.views)).toContain(
       'grant select on table "public"."doc_visible" to anon, authenticated;',
     );
@@ -187,9 +187,7 @@ describe("fieldViews skips and warnings", () => {
       views(
         [read({ table: "blob", resource: "blob", fields: ["id"] })],
         false,
-        {
-          mask: true,
-        },
+        { mask: true },
       ),
     ).toThrow("--fields mask needs the blob schema's JSON Schema");
   });
@@ -198,12 +196,9 @@ describe("fieldViews skips and warnings", () => {
     const result = views(
       [read({ fields: ["id", "title"], using: "a" })],
       false,
-      {
-        helpersOnly: true,
-        mask: true,
-      },
+      { helpersOnly: true, mask: true },
     );
-    expect(result.warnings).toEqual([
+    expect(result.warnings).toStrictEqual([
       "field view doc_visible: doc still returns body, secret to direct reads; revoke select on those columns from client roles in your own grants, or read them through a function",
     ]);
     expect(result.views[0]?.maskFunction).toBe("permdock.doc_mask");

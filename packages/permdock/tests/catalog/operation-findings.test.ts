@@ -30,11 +30,7 @@ function operation(
   key: string,
   risk?: CatalogOperation["meta"]["risk"],
 ): CatalogOperation {
-  return {
-    name,
-    permission: key,
-    meta: risk === undefined ? {} : { risk },
-  };
+  return { name, permission: key, meta: risk === undefined ? {} : { risk } };
 }
 
 function catalog(
@@ -54,13 +50,13 @@ function catalog(
   };
 }
 
-describe("operationFindings", () => {
+describe(operationFindings, () => {
   it("reports a raised risk with the previous and new level", () => {
     const findings = operationFindings(
       catalog([operation("refundInvoice", "invoice.refund", "medium")]),
       catalog([operation("refundInvoice", "invoice.refund", "critical")]),
     );
-    expect(findings).toEqual([
+    expect(findings).toStrictEqual([
       {
         code: "operation-risk-raised",
         operation: "refundInvoice",
@@ -76,7 +72,7 @@ describe("operationFindings", () => {
       catalog([operation("refundInvoice", "invoice.refund")]),
       catalog([operation("refundInvoice", "invoice.refund", "high")]),
     );
-    expect(findings).toEqual([
+    expect(findings).toStrictEqual([
       expect.objectContaining({ previous: "low", risk: "high" }),
     ]);
   });
@@ -94,7 +90,7 @@ describe("operationFindings", () => {
         operation("added", "invoice.refund", "critical"),
       ]),
     );
-    expect(findings).toEqual([]);
+    expect(findings).toStrictEqual([]);
   });
 
   it("reports an operation whose permission no longer requires approval", () => {
@@ -108,7 +104,7 @@ describe("operationFindings", () => {
         [permission("invoice.refund")],
       ),
     );
-    expect(findings).toEqual([
+    expect(findings).toStrictEqual([
       {
         code: "operation-approval-removed",
         operation: "refundInvoice",
@@ -128,7 +124,7 @@ describe("operationFindings", () => {
         [permission("invoice.refund", ["human"]), permission("invoice.read")],
       ),
     );
-    expect(findings).toEqual([
+    expect(findings).toStrictEqual([
       {
         code: "operation-approval-removed",
         operation: "refundInvoice",
@@ -138,8 +134,8 @@ describe("operationFindings", () => {
   });
 
   it("returns nothing for catalogs without operations", () => {
-    expect(operationFindings(catalog(undefined), catalog(undefined))).toEqual(
-      [],
-    );
+    expect(
+      operationFindings(catalog(undefined), catalog(undefined)),
+    ).toStrictEqual([]);
   });
 });

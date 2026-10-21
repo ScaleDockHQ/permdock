@@ -89,7 +89,4 @@ export function agentDelegation() {
   return { scopes: [p.project.delete.scope, p.apiKey.revokeAll.scope] };
 }
 
-export const owner = {
-  principal: saasPrincipal("carol", TENANT),
-  context: {},
-};
+export const owner = { principal: saasPrincipal("carol", TENANT), context: {} };

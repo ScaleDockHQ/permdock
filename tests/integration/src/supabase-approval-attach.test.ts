@@ -88,79 +88,85 @@ function request(token: string): ApprovalRequest {
 
 let generated = "";
 
-beforeAll(async () => {
-  const dir = mkdtempSync(join(tmpdir(), "permdock-approval-attach-"));
-  try {
-    const out = join(dir, "rls.sql");
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: join(HERE, "../fixtures/approvals-attach") },
-    );
-    if (result.code !== 0) {
-      throw new Error(`rls generate: ${result.stdout}`);
+describe("supabase approval attach", () => {
+  beforeAll(async () => {
+    const dir = mkdtempSync(join(tmpdir(), "permdock-approval-attach-"));
+    try {
+      const out = join(dir, "rls.sql");
+      const result = await run(
+        ["rls", "generate", "--target", "sql", "--out", out],
+        { cwd: join(HERE, "../fixtures/approvals-attach") },
+      );
+      if (result.code !== 0) {
+        throw new Error(`rls generate: ${result.stdout}`);
+      }
+      generated = readFileSync(out, "utf8");
+      db = await startPostgres([SETUP, generated]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
-    generated = readFileSync(out, "utf8");
-    db = await startPostgres([SETUP, generated]);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-}, 120_000);
+  }, 120_000);
 
-afterAll(async () => {
-  await db?.stop();
-});
-
-describe("supabaseApprovalStore attaching requests to the app's own rows", () => {
-  it("writes the store functions in public, where an exposed schema reaches them", () => {
-    expect(generated).toContain(
-      'create or replace function "public".permdock_approval_open(p_request jsonb)',
-    );
-    expect(generated).not.toContain('"permdock".permdock_approval_');
+  afterAll(async () => {
+    await db?.stop();
   });
 
-  it("attaches a request to the row the app inserted with its own required columns", async () => {
-    if (db === undefined) {
-      throw new Error("PermDock: Postgres was not started");
-    }
-    const store = supabaseApprovalStore(rpcClient(), { schema: "public" });
-    await db.admin.query(
-      "insert into public.approvals (organization_id, title, permdock_token) values ('acme', 'Update job j1', 'attach-token')",
-    );
-    await store.create(request("attach-token"));
-    expect((await store.get("attach-token"))?.status).toBe("pending");
-    const opened = await db.admin.query<{ title: string; state: string }>(
-      "select title, state from public.approvals where permdock_token = 'attach-token'",
-    );
-    expect(opened.rows).toEqual([{ title: "Update job j1", state: "pending" }]);
-    await store.create({ ...request("attach-token"), detail: "again" });
-    expect((await store.get("attach-token"))?.detail).toBe("approval");
-    const resolved = await store.resolve("attach-token", {
-      status: "approved",
-      by: {
-        principal: {
-          id: "boss",
-          roles: [],
-          tenant: "acme",
-          memberships: [{ tenant: "acme", roles: ["admin"] }],
-        },
-        context: {},
-      },
+  describe("supabaseApprovalStore attaching requests to the app's own rows", () => {
+    it("writes the store functions in public, where an exposed schema reaches them", () => {
+      expect(generated).toContain(
+        'create or replace function "public".permdock_approval_open(p_request jsonb)',
+      );
+      expect(generated).not.toContain('"permdock".permdock_approval_');
     });
-    expect(resolved.status).toBe("approved");
-    const after = await db.admin.query<{
-      state: string;
-      approval_count: number;
-    }>(
-      "select state, approval_count from public.approvals where permdock_token = 'attach-token'",
-    );
-    expect(after.rows).toEqual([{ state: "approved", approval_count: 1 }]);
-  });
 
-  it("refuses to open a request no application row holds", async () => {
-    const store = supabaseApprovalStore(rpcClient(), { schema: "public" });
-    await expect(store.create(request("orphan-token"))).rejects.toThrow(
-      /no row of public.approvals holds approval token orphan-token/u,
-    );
-    expect(await store.get("orphan-token")).toBeNull();
+    it("attaches a request to the row the app inserted with its own required columns", async () => {
+      if (db === undefined) {
+        throw new Error("PermDock: Postgres was not started");
+      }
+      const store = supabaseApprovalStore(rpcClient(), { schema: "public" });
+      await db.admin.query(
+        "insert into public.approvals (organization_id, title, permdock_token) values ('acme', 'Update job j1', 'attach-token')",
+      );
+      await store.create(request("attach-token"));
+      expect((await store.get("attach-token"))?.status).toBe("pending");
+      const opened = await db.admin.query<{ title: string; state: string }>(
+        "select title, state from public.approvals where permdock_token = 'attach-token'",
+      );
+      expect(opened.rows).toStrictEqual([
+        { title: "Update job j1", state: "pending" },
+      ]);
+      await store.create({ ...request("attach-token"), detail: "again" });
+      expect((await store.get("attach-token"))?.detail).toBe("approval");
+      const resolved = await store.resolve("attach-token", {
+        status: "approved",
+        by: {
+          principal: {
+            id: "boss",
+            roles: [],
+            tenant: "acme",
+            memberships: [{ tenant: "acme", roles: ["admin"] }],
+          },
+          context: {},
+        },
+      });
+      expect(resolved.status).toBe("approved");
+      const after = await db.admin.query<{
+        state: string;
+        approval_count: number;
+      }>(
+        "select state, approval_count from public.approvals where permdock_token = 'attach-token'",
+      );
+      expect(after.rows).toStrictEqual([
+        { state: "approved", approval_count: 1 },
+      ]);
+    });
+
+    it("refuses to open a request no application row holds", async () => {
+      const store = supabaseApprovalStore(rpcClient(), { schema: "public" });
+      await expect(store.create(request("orphan-token"))).rejects.toThrow(
+        /no row of public.approvals holds approval token orphan-token/u,
+      );
+      expect(await store.get("orphan-token")).toBeNull();
+    });
   });
 });

@@ -8,8 +8,9 @@ const bin = path.join(cwd, "node_modules/.bin/better-supabase");
 
 /**
  * Runs `better-supabase <args>` against a fresh database with the migrations
- * applied, never against a local stack another project left running:
- * `gen` regenerates `src/lib/supabase/*`, `gen --check` fails on drift, `doctor` lints.
+ * applied, never against a local stack another project left running: `gen`
+ * regenerates `src/lib/supabase/*`, `gen --check` fails on drift, `doctor`
+ * lints.
  */
 const args = process.argv.slice(2);
 const database = await startDatabase();

@@ -1,11 +1,11 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import type { Capability } from "../../src/core/capability.ts";
 import type { TokenSigner } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import {
-  type Capability,
   capabilityFromClaims,
   capabilityOf,
   capabilitySubject,
@@ -22,6 +22,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
+import { defined } from "../support/defined.ts";
 
 const JKT = "0ZcOCORZNYy-DWpqq30jZyJGHTN0d2HglBV3uiguA4I";
 
@@ -137,7 +138,7 @@ describe("capabilities", () => {
     expect(
       permdock.can(permissions.file.update, { id: "x_1", folderId: "f_1" }),
     ).toBe(false);
-    expect(permdock.where(permissions.file.read).condition).toEqual({
+    expect(permdock.where(permissions.file.read).condition).toStrictEqual({
       op: "eq",
       field: "folderId",
       value: "f_1",
@@ -202,11 +203,11 @@ describe("capabilities", () => {
       expiresAt: future(),
     });
     expect(capability).toBeDefined();
-    expect(capabilitySubject(capability!).principal).toBeNull();
+    expect(capabilitySubject(defined(capability)).principal).toBeNull();
   });
 });
 
-describe("parseCapability", () => {
+describe(parseCapability, () => {
   const valid = {
     v: 1,
     id: "lnk_1",
@@ -218,7 +219,7 @@ describe("parseCapability", () => {
 
   it("keeps only v1 fields and freezes the result", () => {
     const parsed = parseCapability({ ...valid, extra: true, once: true });
-    expect(parsed).toEqual({ ...valid, once: true });
+    expect(parsed).toStrictEqual({ ...valid, once: true });
     expect(Object.isFrozen(parsed)).toBe(true);
     expect(Object.isFrozen(parsed?.on)).toBe(true);
   });
@@ -245,7 +246,7 @@ describe("parseCapability", () => {
   });
 });
 
-describe("redeemerAllows", () => {
+describe(redeemerAllows, () => {
   const member: Subject = {
     principal: {
       id: "u_1",
@@ -297,7 +298,7 @@ describe("redeemerAllows", () => {
   });
 });
 
-describe("signCapability", () => {
+describe(signCapability, () => {
   it("signs the capability under typ vnd.permdock.capability+jwt", async () => {
     const calls: unknown[] = [];
     const signer: TokenSigner = {
@@ -325,7 +326,7 @@ describe("signCapability", () => {
         ),
       },
     );
-    expect(calls).toEqual([
+    expect(calls).toStrictEqual([
       {
         payload: {
           sub: "lnk_1",
@@ -364,10 +365,10 @@ describe("signCapability", () => {
         exp: expiresAt,
         cnf: { jkt: JKT },
       }),
-    ).toEqual({ ...claim, id: "lnk_1", expiresAt, cnf: { jkt: JKT } });
+    ).toStrictEqual({ ...claim, id: "lnk_1", expiresAt, cnf: { jkt: JKT } });
     expect(
       capabilityFromClaims({ capability: claim, sub: "lnk_1", exp: expiresAt }),
-    ).toEqual({ ...claim, id: "lnk_1", expiresAt });
+    ).toStrictEqual({ ...claim, id: "lnk_1", expiresAt });
     expect(
       capabilityFromClaims({
         capability: claim,
@@ -407,7 +408,7 @@ describe("signCapability", () => {
   });
 });
 
-describe("linkPolicyViolation", () => {
+describe(linkPolicyViolation, () => {
   const issuedAt = 1_900_000_000;
   const base = capabilityOf({
     id: "lnk_1",

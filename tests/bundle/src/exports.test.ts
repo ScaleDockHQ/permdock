@@ -17,6 +17,6 @@ describe("public exports", () => {
       string,
       readonly string[]
     >;
-    expect(measureExports()).toEqual(recorded);
+    expect(measureExports()).toStrictEqual(recorded);
   });
 });

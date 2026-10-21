@@ -12,7 +12,10 @@ export type ExchangeCapabilityOptions = {
    * secret (`HS256`).
    */
   readonly key: Record<string, unknown> | { readonly secret: string };
-  /** Default `ES256`, Supabase's asymmetric signing key; the legacy secret needs `HS256` named. */
+  /**
+   * Default `ES256`, Supabase's asymmetric signing key; the legacy secret needs
+   * `HS256` named.
+   */
   readonly alg?: "ES256" | "RS256" | "HS256";
   readonly kid?: string;
   readonly issuer?: string;

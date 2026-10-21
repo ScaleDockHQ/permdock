@@ -159,7 +159,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     expect(verified.header.typ).toBe("at+jwt");
     expect(verified.claims.sub).toBe("u_9");
     expect(verified.claims).not.toHaveProperty("act");
-    expect(verified.claims["jti"]).toEqual(expect.any(String));
+    expect(verified.claims["jti"]).toStrictEqual(expect.any(String));
     const { iat, exp } = verified.claims;
     expect(typeof iat === "number" && typeof exp === "number").toBe(true);
     expect(Number(exp) - Number(iat)).toBe(60);
@@ -196,14 +196,13 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
       approver: { signer },
     });
     await client.approvals.resolve("opaque-token", approve);
-    expect(backend.sent.map((item) => `${item.method} ${item.path}`)).toEqual([
-      `GET ${LOOKUP_PATH}`,
-      `POST ${RESOLVE_PATH}`,
-    ]);
+    expect(
+      backend.sent.map((item) => `${item.method} ${item.path}`),
+    ).toStrictEqual([`GET ${LOOKUP_PATH}`, `POST ${RESOLVE_PATH}`]);
     expect(backend.sent[0]?.approval).toBe("opaque-token");
     expect(backend.sent[0]?.approver).toBeNull();
     const claims = await approverClaims(backend.resolves()[0]?.approver);
-    expect(claims["authorization_details"]).toEqual([
+    expect(claims["authorization_details"]).toStrictEqual([
       {
         type: "permdock_approval",
         id: "apr_1",
@@ -228,7 +227,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
       status: "rejected",
     });
     const claims = await approverClaims(backend.resolves()[0]?.approver);
-    expect(claims["authorization_details"]).toEqual([
+    expect(claims["authorization_details"]).toStrictEqual([
       {
         type: "permdock_approval",
         id: "apr_1",
@@ -250,7 +249,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     });
     await client.approvals.resolve("opaque-token", approve);
     const claims = await approverClaims(backend.resolves()[0]?.approver);
-    expect(claims["authorization_details"]).toEqual([
+    expect(claims["authorization_details"]).toStrictEqual([
       {
         type: "permdock_approval",
         id: "apr_1",
@@ -281,7 +280,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     await client.approvals.resolve("opaque-token", approve);
     await client.approvals.resolve("opaque-token", approve);
     expect(seen).toHaveLength(2);
-    expect(seen[0]).toEqual(expect.any(String));
+    expect(seen[0]).toStrictEqual(expect.any(String));
     expect(seen[0]).not.toBe(seen[1]);
   });
 
@@ -306,7 +305,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     );
     expect(refused).toMatchObject({ code: "approval-not-found" });
     expect(signed).toBe(0);
-    expect(backend.resolves()).toEqual([]);
+    expect(backend.resolves()).toStrictEqual([]);
   });
 
   it("refuses to resolve without an approver signer and sends nothing", async () => {
@@ -322,7 +321,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     );
     expect(isApprovalError(refused)).toBe(true);
     expect(refused).toMatchObject({ code: "approver-unauthenticated" });
-    expect(backend.sent).toEqual([]);
+    expect(backend.sent).toStrictEqual([]);
   });
 
   it.each<[string, ApprovalVerdict]>([
@@ -350,7 +349,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
       client.approvals.resolve("opaque-token", verdict),
     );
     expect(refused).toMatchObject({ code: "approver-unauthenticated" });
-    expect(backend.sent).toEqual([]);
+    expect(backend.sent).toStrictEqual([]);
   });
 
   it.each<[string, ApprovalVerdict]>([
@@ -389,7 +388,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
       client.approvals.resolve("opaque-token", verdict),
     );
     expect(refused).toMatchObject({ code: "approver-not-eligible" });
-    expect(backend.sent).toEqual([]);
+    expect(backend.sent).toStrictEqual([]);
   });
 
   it("sends a system rejection without an approver token", async () => {
@@ -431,7 +430,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
       client.approvals.resolve("opaque-token", approve),
     );
     expect(refused).toMatchObject({ code: "approver-unauthenticated" });
-    expect(backend.resolves()).toEqual([]);
+    expect(backend.resolves()).toStrictEqual([]);
   });
 
   it("cloudSigner never mints an approver token", async () => {
@@ -448,7 +447,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     });
     await expect(
       tickets.sign({ sub: "u_9" }, { typ: "at+jwt" }),
-    ).rejects.toThrow(/never signs at\+jwt/);
+    ).rejects.toThrow(/never signs at\+jwt/u);
     expect(calls).toBe(0);
   });
 });
@@ -498,7 +497,7 @@ describe("approver facts on the PermDock-Approver token", () => {
         relations: () => Promise.resolve(["editor"]),
       }),
     ).toMatchObject({ permissions: ["post.delete"], relations: ["editor"] });
-    expect(seen).toEqual(["apr_1 u_2"]);
+    expect(seen).toStrictEqual(["apr_1 u_2"]);
   });
 
   it("signs no facts when a reader throws", async () => {

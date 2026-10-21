@@ -6,8 +6,8 @@ import { onTestFinished } from "vitest";
 export type Fetcher = (path: string, init?: RequestInit) => Promise<Response>;
 
 /**
- * Serves `handler` (a Node handler or an Express app) on a free loopback
- * port until the current test finishes. A rejected handler answers 500.
+ * Serves `handler` (a Node handler or an Express app) on a free loopback port
+ * until the current test finishes. A rejected handler answers 500.
  */
 export async function listen(
   handler: (req: IncomingMessage, res: ServerResponse) => unknown,

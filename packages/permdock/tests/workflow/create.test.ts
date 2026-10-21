@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ApprovalStore } from "../../src/approvals/types.ts";
 import type { Automation } from "../../src/core/automation.ts";
 import type { Principal } from "../../src/core/subject.ts";
+import type { WorkflowPermDockOptions } from "../../src/workflow/index.ts";
 
 import { resolveApproval } from "../../src/approvals/helpers.ts";
 import { memoryApprovalStore } from "../../src/approvals/store.ts";
@@ -11,7 +12,6 @@ import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 import {
-  type WorkflowPermDockOptions,
   createPermDock,
   memoryAutomationSource,
   pollingApprovalWaiter,
@@ -79,9 +79,7 @@ function setup(
   using = policy,
 ) {
   const directory = new Map(people.map((entry) => [entry.id, entry]));
-  const principals = {
-    principal: (id: string) => directory.get(id) ?? null,
-  };
+  const principals = { principal: (id: string) => directory.get(id) ?? null };
   const automations = memoryAutomationSource([published, serviceRun]);
   const workflow = createPermDock(using, {
     signer,
@@ -122,7 +120,7 @@ describe("permdock/workflow: runs of a publisher automation", () => {
     const sink = memoryDecisionSink();
     const { ticketFor } = setup(undefined, { sink });
     await ticketFor("auto_1", { id: "run_1" });
-    expect(sink.events()).toEqual([
+    expect(sink.events()).toStrictEqual([
       expect.objectContaining({
         type: "automation",
         operation: "run",
@@ -138,7 +136,7 @@ describe("permdock/workflow: runs of a publisher automation", () => {
         },
       },
     });
-    await expect(broken.ticketFor()).resolves.toEqual(expect.any(String));
+    await expect(broken.ticketFor()).resolves.toStrictEqual(expect.any(String));
   });
 
   it("acts as the publisher, capped at the automation's permissions", async () => {
@@ -196,7 +194,10 @@ describe("permdock/workflow: runs of a publisher automation", () => {
     ).toBe(true);
     automations.put({ ...published, version: 2, revoked: true });
     expect((await workflow.getPermDock(fresh)).subject.principal).toBeNull();
-    expect(causes).toEqual(["automation-changed", "automation-unavailable"]);
+    expect(causes).toStrictEqual([
+      "automation-changed",
+      "automation-unavailable",
+    ]);
     expect(await workflow.start("auto_1")).toMatchObject({
       outcome: "denied",
       denials: [{ reason: "validation" }],
@@ -230,7 +231,7 @@ describe("permdock/workflow: the trigger never grants", () => {
       await ticketFor("auto_1", { caller, trigger }),
     );
     expect(run.subject.principal?.id).toBe("u_1");
-    expect(run.subject.context["trigger"]).toEqual(trigger);
+    expect(run.subject.context["trigger"]).toStrictEqual(trigger);
     expect(run.can(permissions.invoice.delete, invoice)).toBe(false);
   });
 
@@ -255,7 +256,8 @@ describe("permdock/workflow: the trigger never grants", () => {
     expect(await workflow.start("auto_1", { caller: owner })).toMatchObject({
       denials: [{ reason: "no-grant" }],
     });
-    expect((await workflow.start("auto_1")).outcome).toBe("started");
+    const { outcome } = await workflow.start("auto_1");
+    expect(outcome).toBe("started");
   });
 });
 
@@ -307,8 +309,9 @@ describe("permdock/workflow: awaitApproval", () => {
       status: "approved",
       by: userSubject("u_9", ["owner"]),
     });
-    waiter.wake(token);
-    expect((await pending).outcome).toBe("granted");
+    void waiter.wake(token);
+    const { outcome } = await pending;
+    expect(outcome).toBe("granted");
     expect(
       (await workflow.awaitApproval(ticket, permissions.invoice.read, invoice))
         .outcome,
@@ -335,7 +338,8 @@ describe("permdock/workflow: awaitApproval", () => {
       status: "approved",
       by: userSubject("u_9", ["owner"]),
     });
-    expect((await pending).outcome).toBe("denied");
+    const { outcome } = await pending;
+    expect(outcome).toBe("denied");
   });
 
   it("denies a rejected request and returns approval-required without a waiter", async () => {
@@ -374,7 +378,7 @@ describe("permdock/workflow: awaitApproval", () => {
   });
 });
 
-describe("pollingApprovalWaiter", () => {
+describe(pollingApprovalWaiter, () => {
   it("rejects on abort and refuses a non-positive interval", async () => {
     const store = memoryApprovalStore();
     const waiter = pollingApprovalWaiter({ store, interval: 5 });

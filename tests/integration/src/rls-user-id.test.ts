@@ -125,13 +125,13 @@ describe("permdock_user_id with Supabase's auth.uid()", () => {
     JSON.stringify({ role: "authenticated", ...value });
 
   it("reads the subject from the request.jwt.claims JSON", async () => {
-    expect(await as({ "request.jwt.claims": claims({ sub: MEMBER }) })).toEqual(
-      { user: MEMBER, read: 3, updated: 1, tenants: ["acme"] },
-    );
+    expect(
+      await as({ "request.jwt.claims": claims({ sub: MEMBER }) }),
+    ).toStrictEqual({ user: MEMBER, read: 3, updated: 1, tenants: ["acme"] });
   });
 
   it("ignores the legacy request.jwt.claim.sub setting", async () => {
-    expect(await as({ "request.jwt.claim.sub": MEMBER })).toEqual({
+    expect(await as({ "request.jwt.claim.sub": MEMBER })).toStrictEqual({
       user: null,
       read: 0,
       updated: 0,
@@ -172,7 +172,7 @@ describe("permdock_user_id with Supabase's auth.uid()", () => {
         api_key: { id: "k3", tenant: "acme", scopes: ["task.read"] },
       }),
     };
-    expect(await as(settings)).toEqual({
+    expect(await as(settings)).toStrictEqual({
       user: null,
       read: 3,
       updated: 0,

@@ -71,7 +71,10 @@ grant select, update on public.invoice to anon, authenticated;
 type Scenario = {
   readonly name: string;
   readonly tables: string;
-  /** A fixture folder under `tests/integration/fixtures`, or an inline `rls` block. */
+  /**
+   * A fixture folder under `tests/integration/fixtures`, or an inline `rls`
+   * block.
+   */
   readonly fixture?: string;
   readonly config?: {
     readonly permissions: string;
@@ -163,7 +166,7 @@ describe("Splinter on the generated RLS", () => {
       const findings = await runSplinter(db.owner, {
         sql: `${scenario.tables}\n${generated}`,
       });
-      expect(generatedFindings(findings, generated)).toEqual([]);
+      expect(generatedFindings(findings, generated)).toStrictEqual([]);
     },
     120_000,
   );

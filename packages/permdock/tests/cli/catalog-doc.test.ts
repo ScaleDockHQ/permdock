@@ -75,7 +75,7 @@ describe("catalog app data", () => {
   const catalog = buildCatalog(tree, scan, "2026-09-29T00:00:00Z", withMeta);
 
   it("carries resource meta and grant meta, and omits them when empty", () => {
-    expect(catalog.resources["invoice"]?.meta).toEqual({
+    expect(catalog.resources["invoice"]?.meta).toStrictEqual({
       title: "Invoice",
       x: { team: "billing" },
     });
@@ -84,7 +84,7 @@ describe("catalog app data", () => {
       catalog.grants?.find((grant) => grant.permission === "invoice.pay"),
       catalog.grants?.find((grant) => grant.permission === "note.read"),
     ];
-    expect(pays?.meta).toEqual({
+    expect(pays?.meta).toStrictEqual({
       description: "Clerks pay invoices",
       x: { ticket: "FIN-1" },
     });
@@ -114,10 +114,10 @@ describe("catalog resource versions", () => {
   it("carries staleOn in the approvals of a permission", () => {
     const approvals = (key: string): unknown =>
       catalog.permissions.find((item) => item.key === key)?.approvals;
-    expect(approvals("invoice.pay")).toEqual([
+    expect(approvals("invoice.pay")).toStrictEqual([
       { by: { kind: "authenticated" }, staleOn: "resource-change" },
     ]);
-    expect(approvals("invoice.void")).toEqual(["human"]);
+    expect(approvals("invoice.void")).toStrictEqual(["human"]);
     expect(catalogFingerprint(catalog)).toBe(catalog.fingerprint);
   });
 });
@@ -162,7 +162,9 @@ describe("catalog rowConditions", () => {
       grants: [allow(rows.doc.share, { to: [plan("pro"), plan("team")] })],
       subject: () => null,
     });
-    expect(policyRowConditionKeys(listed)).toEqual(new Set(["doc.share"]));
+    expect(policyRowConditionKeys(listed)).toStrictEqual(
+      new Set(["doc.share"]),
+    );
   });
 });
 
@@ -219,11 +221,13 @@ describe("catalog approvals and roles", () => {
   it("lists one approval per distinct requirement", () => {
     expect(
       catalog.permissions.find((item) => item.key === "doc.sign")?.approvals,
-    ).toEqual(["human"]);
+    ).toStrictEqual(["human"]);
   });
 
   it("lists the declared scopes", () => {
-    expect(catalog.scopes).toEqual([{ name: "tenant", key: "tenant_id" }]);
+    expect(catalog.scopes).toStrictEqual([
+      { name: "tenant", key: "tenant_id" },
+    ]);
   });
 
   it("describes ownership, activation, resource and support roles", () => {
@@ -233,7 +237,7 @@ describe("catalog approvals and roles", () => {
       approver: roleOf("approver"),
       reviewer: roleOf("reviewer"),
       support: roleOf("support"),
-    }).toEqual({
+    }).toStrictEqual({
       owner: {
         key: "owner",
         on: "tenant",
@@ -285,9 +289,9 @@ describe("catalog approvals and roles", () => {
   });
 
   it("lists scanned roles as bare keys without a policy", () => {
-    expect(buildCatalog(tree, scan, "2026-10-01T00:00:00Z").roles).toEqual([
-      { key: "clerk" },
-    ]);
+    expect(
+      buildCatalog(tree, scan, "2026-10-01T00:00:00Z").roles,
+    ).toStrictEqual([{ key: "clerk" }]);
     expect(
       buildCatalog(tree, { ...scan, roleNames: [] }, "2026-10-01T00:00:00Z"),
     ).not.toHaveProperty("roles");
@@ -295,7 +299,7 @@ describe("catalog approvals and roles", () => {
 
   it("lists a scanned role the policy does not bind as a bare key", () => {
     expect(roleOf("clerk")).toBeUndefined();
-    expect(scoped.roles?.map((item) => item.key)).toEqual([
+    expect(scoped.roles?.map((item) => item.key)).toStrictEqual([
       "approver",
       "clerk",
       "owner",
@@ -303,7 +307,7 @@ describe("catalog approvals and roles", () => {
       "signer",
       "support",
     ]);
-    expect(scoped.roles?.[1]).toEqual({ key: "clerk" });
+    expect(scoped.roles?.[1]).toStrictEqual({ key: "clerk" });
   });
 });
 
@@ -323,7 +327,7 @@ describe("catalog oauthScopes", () => {
 
   it("lists each coarse scope with its keys, sorted by code point", () => {
     const catalog = buildCatalog(tree, scan, "2026-10-18T00:00:00Z", scoped);
-    expect(catalog.oauthScopes).toEqual([
+    expect(catalog.oauthScopes).toStrictEqual([
       { scope: "mcp:read", permissions: ["note.read", "task.read"] },
       { scope: "mcp:write", permissions: ["task.read", "task.update"] },
     ]);
@@ -383,7 +387,7 @@ describe("catalog grants", () => {
       "2026-09-29T00:00:00Z",
       build("a"),
     );
-    expect(catalog.grants).toEqual([
+    expect(catalog.grants).toStrictEqual([
       {
         permission: "doc.delete",
         effect: "allow",
@@ -425,7 +429,7 @@ describe("catalog grants", () => {
         validity: { from: "2023-11-14T22:13:20.000Z" },
       },
     ]);
-    expect(catalogGrants(build("b"))).toEqual(catalog.grants);
+    expect(catalogGrants(build("b"))).toStrictEqual(catalog.grants);
   });
 
   it("is part of the fingerprint and validates against the schema", () => {

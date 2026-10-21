@@ -154,7 +154,7 @@ describe("activate", () => {
         defaulted.outcome === "granted"
           ? defaulted.elevation?.expiresAt
           : undefined,
-    }).toEqual({
+    }).toStrictEqual({
       capped: {
         scope: "project",
         id: "p1",
@@ -209,7 +209,7 @@ describe("activate", () => {
           decision.outcome === "granted"
             ? decision.elevation?.expiresAt
             : undefined,
-      }).toEqual({
+      }).toStrictEqual({
         outcome,
         reason:
           outcome === "denied" ? "insufficient-user-authentication" : undefined,
@@ -219,7 +219,7 @@ describe("activate", () => {
   });
 });
 
-describe("breakGlass", () => {
+describe(breakGlass, () => {
   it("builds one grant per permission of a list or tree, without overrides", () => {
     const fromList = breakGlass([permissions.doc.read, permissions.doc.write]);
     // SAFETY: breakGlass returns a grant list for more than one permission; the test reads the keys.
@@ -227,7 +227,7 @@ describe("breakGlass", () => {
     expect({
       keys: list.map((grant) => grant.permission.key),
       overrides: list[0]?.breakGlass?.overrides,
-    }).toEqual({ keys: ["doc.read", "doc.write"], overrides: [] });
+    }).toStrictEqual({ keys: ["doc.read", "doc.write"], overrides: [] });
   });
 
   it("grants without a justify obligation when no reason is given", () => {
@@ -244,7 +244,7 @@ describe("breakGlass", () => {
             { principal: { id: "u1" }, context: { purpose: ["incident", 7] } },
             NOW,
           ),
-    ).toEqual({ kind: "granted", obligations: [{ kind: "notify" }] });
+    ).toStrictEqual({ kind: "granted", obligations: [{ kind: "notify" }] });
   });
 
   it.each([
@@ -253,7 +253,7 @@ describe("breakGlass", () => {
     { purpose: 7, expected: [] },
     { purpose: undefined, expected: [] },
   ])("reads purpose $purpose as $expected", ({ purpose, expected }) => {
-    expect(purposesOf({ principal: null, context: { purpose } })).toEqual(
+    expect(purposesOf({ principal: null, context: { purpose } })).toStrictEqual(
       expected,
     );
   });

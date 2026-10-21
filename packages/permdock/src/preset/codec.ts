@@ -1,3 +1,5 @@
+import type { Preset } from "./catalog.ts";
+
 import {
   ARCHETYPES,
   AUTH,
@@ -5,18 +7,17 @@ import {
   FEATURES,
   FRAMEWORKS,
   INTEGRATIONS,
-  type Preset,
   SERVICES,
   resolvePreset,
 } from "./catalog.ts";
 
 /**
- * Preset codes: `p1` followed by base64url bytes. Version 1 packs, in
- * order, one byte each for the archetype, auth, backend and framework
- * index, then a bitset per multi-select list (features, agent
- * integrations, UI integrations, services), each as many bytes as the list
- * needs. A list only grows at the end, so a code keeps its meaning as the
- * catalogue grows; a new layout gets a new version prefix.
+ * Preset codes: `p1` followed by base64url bytes. Version 1 packs, in order,
+ * one byte each for the archetype, auth, backend and framework index, then a
+ * bitset per multi-select list (features, agent integrations, UI integrations,
+ * services), each as many bytes as the list needs. A list only grows at the
+ * end, so a code keeps its meaning as the catalogue grows; a new layout gets a
+ * new version prefix.
  */
 const VERSION = "p1";
 
@@ -117,8 +118,8 @@ export function encodePreset(preset: Preset): string {
 }
 
 /**
- * The preset a code stands for, resolved, or `undefined` for a code that
- * is not a version this package reads or does not decode.
+ * The preset a code stands for, resolved, or `undefined` for a code that is not
+ * a version this package reads or does not decode.
  */
 export function decodePreset(code: string): Preset | undefined {
   if (!code.startsWith(VERSION)) {

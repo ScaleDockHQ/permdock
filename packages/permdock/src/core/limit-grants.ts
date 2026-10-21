@@ -40,7 +40,10 @@ export function assertLimit(
   }
 }
 
-/** The declared fields of a validated `limit`, so extra keys never reach the grant. */
+/**
+ * The declared fields of a validated `limit`, so extra keys never reach the
+ * grant.
+ */
 export function normalizeLimit(
   limit: GrantLimit | undefined,
 ): GrantLimit | undefined {

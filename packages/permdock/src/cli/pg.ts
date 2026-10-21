@@ -42,7 +42,10 @@ function unreachable(command: string, cause: unknown): CliError {
   );
 }
 
-/** The default `connect` of a command: one connection, failing with a message that names `command`. */
+/**
+ * The default `connect` of a command: one connection, failing with a message
+ * that names `command`.
+ */
 export function pgConnector(
   command: string,
   cwd: string = process.cwd(),

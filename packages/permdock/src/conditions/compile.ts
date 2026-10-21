@@ -1,12 +1,15 @@
 import type { WhereResult } from "../core/permdock.ts";
 import type { ResourceNode } from "../core/permission-types.ts";
+import type { Scope } from "../core/scopes.ts";
 import type { Membership, Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
+import type { Condition, ConditionValue, RelatedCondition } from "./ast.ts";
+import type { GraphSql, RelationsMapping } from "./graph-sql.ts";
 
 import { compact, isReadonlyArray, sole } from "../core/compact.ts";
 import { expiredAt } from "../core/expiry.ts";
 import { assertSafeKey } from "../core/paths.ts";
 import {
-  type Scope,
   resolveScope,
   rootScope,
   scopeChain,
@@ -14,21 +17,10 @@ import {
   subjectMemberships,
   tenantOf,
 } from "../core/scopes.ts";
-import { epochSeconds, type Instant, INVALID_NOW } from "../core/time.ts";
+import { epochSeconds, INVALID_NOW } from "../core/time.ts";
 import { PermDockValidationError } from "../core/validation-error.ts";
-import {
-  type Condition,
-  type ConditionValue,
-  type RelatedCondition,
-  isConditionDate,
-  isConditionRef,
-  parentHop,
-} from "./ast.ts";
-import {
-  type GraphSql,
-  type RelationsMapping,
-  relatedSql,
-} from "./graph-sql.ts";
+import { isConditionDate, isConditionRef, parentHop } from "./ast.ts";
+import { relatedSql } from "./graph-sql.ts";
 import { isoInstant } from "./instant.ts";
 import { resolveConditionRef } from "./refs.ts";
 
@@ -36,16 +28,25 @@ export type MembershipTable = {
   readonly table: string;
   readonly user: string;
   readonly role: string;
-  /** Per scope name, the column holding that scope's id (the row's own scope and its ancestors). */
+  /**
+   * Per scope name, the column holding that scope's id (the row's own scope and
+   * its ancestors).
+   */
   readonly columns?: Readonly<Record<string, string>>;
   /** Column of the first scope's id; shorthand for `columns[<first scope>]`. */
   readonly tenant?: string;
   /** Column of the second scope's id; shorthand for `columns[<second scope>]`. */
   readonly team?: string;
   readonly id?: string;
-  /** Column naming the membership's resource, when one table holds several kinds. */
+  /**
+   * Column naming the membership's resource, when one table holds several
+   * kinds.
+   */
   readonly resource?: string;
-  /** Column holding the membership kind (`Membership.via`); roles with `for` need it. */
+  /**
+   * Column holding the membership kind (`Membership.via`); roles with `for`
+   * need it.
+   */
   readonly via?: string;
   /** Unix seconds, like `Membership.expiresAt`; `null` never expires. */
   readonly expiresAt?: string;
@@ -64,9 +65,15 @@ export type MembershipsMapping = {
 export type CompileWhereOptions = {
   readonly subject?: Subject;
   readonly memberships?: MembershipsMapping;
-  /** The clock membership expiry is read at; a `Temporal.Instant` fits. Defaults to the current time. */
+  /**
+   * The clock membership expiry is read at; a `Temporal.Instant` fits. Defaults
+   * to the current time.
+   */
   readonly now?: Instant;
-  /** The policy's scopes; `where()` results carry them. Defaults to the implicit `tenant` / `team` pair. */
+  /**
+   * The policy's scopes; `where()` results carry them. Defaults to the implicit
+   * `tenant` / `team` pair.
+   */
   readonly scopes?: readonly Scope[];
   /** Where the relation graph lives; without it a `related` node is refused. */
   readonly relations?: RelationsMapping;
@@ -74,7 +81,10 @@ export type CompileWhereOptions = {
   readonly resources?: ReadonlyMap<string, ResourceNode>;
 };
 
-/** The membership table mapped for scope `name`, through the `tenant` / `team` shorthands. */
+/**
+ * The membership table mapped for scope `name`, through the `tenant` / `team`
+ * shorthands.
+ */
 export function scopeMembershipTable<T extends Pick<MembershipTable, "table">>(
   mapping:
     | {
@@ -99,7 +109,10 @@ export function scopeMembershipTable<T extends Pick<MembershipTable, "table">>(
   return undefined;
 }
 
-/** The column of `table` holding scope `name`'s id, through the `tenant` / `team` shorthands. */
+/**
+ * The column of `table` holding scope `name`'s id, through the `tenant` /
+ * `team` shorthands.
+ */
 export function scopeColumn(
   table: Pick<MembershipTable, "columns" | "tenant" | "team">,
   scopes: readonly Scope[],
@@ -147,7 +160,10 @@ export type CompiledExists = {
   readonly expiresAt?: string;
   /** Unix seconds the `expiresAt` column is compared against. */
   readonly now: number;
-  /** A membership row matches when this column is `null` or equals `tenantValue`. */
+  /**
+   * A membership row matches when this column is `null` or equals
+   * `tenantValue`.
+   */
   readonly tenantColumn?: string;
   readonly tenantValue?: string;
   readonly resourceColumn?: string;
@@ -168,7 +184,10 @@ export type CompiledWhere =
   | CompiledExists
   | CompiledSql;
 
-/** A Postgres boolean over the row that is never NULL: a `related` node's subquery. */
+/**
+ * A Postgres boolean over the row that is never NULL: a `related` node's
+ * subquery.
+ */
 export type CompiledSql = {
   readonly kind: "sql";
   readonly parts: GraphSql;
@@ -233,7 +252,10 @@ function asPortableCondition(input: Condition | WhereResult): Condition {
   return input as Condition;
 }
 
-/** A `contains` pattern for `LIKE`: `%`, `_` and the escape itself match literally. */
+/**
+ * A `contains` pattern for `LIKE`: `%`, `_` and the escape itself match
+ * literally.
+ */
 export function escapeLike(value: string): string {
   return value.replaceAll(/[\\%_]/gu, (char) => `\\${char}`);
 }
@@ -261,10 +283,10 @@ function anyOf(items: readonly CompiledWhere[]): CompiledWhere {
 }
 
 /**
- * Negation normal form. In memory a comparison against a NULL field is
- * false, so its negation is true; SQL's `NOT (NULL)` stays NULL. Every
- * negated comparison therefore also admits the NULL field explicitly, and
- * `not` only ever wraps a comparison or an `exists`.
+ * Negation normal form. In memory a comparison against a NULL field is false,
+ * so its negation is true; SQL's `NOT (NULL)` stays NULL. Every negated
+ * comparison therefore also admits the NULL field explicitly, and `not` only
+ * ever wraps a comparison or an `exists`.
  */
 function negate(node: CompiledWhere): CompiledWhere {
   switch (node.kind) {
@@ -343,7 +365,10 @@ function existsOn(
   rowField: string,
   scoped: {
     readonly now: number;
-    /** The column holding the first scope's id, when the active tenant narrows the membership. */
+    /**
+     * The column holding the first scope's id, when the active tenant narrows
+     * the membership.
+     */
     readonly tenantColumn: string | undefined;
     readonly resource: string | undefined;
   },
@@ -440,11 +465,7 @@ function compileExists(
         condition.roles,
         hopTable.id,
         hop.field,
-        {
-          now,
-          tenantColumn: undefined,
-          resource: hop.resource,
-        },
+        { now, tenantColumn: undefined, resource: hop.resource },
       );
     }),
   ]);

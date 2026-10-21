@@ -145,15 +145,17 @@ describe("policyFromCatalog structure", () => {
       rebuilt.grants.find(
         (grant) => grant.permission.key === "billing.invoice.read",
       )?.permission.meta,
-    ).toEqual({ readOnly: true });
+    ).toStrictEqual({ readOnly: true });
   });
 
   it("carries scopes, plans, vocabulary roles, activation and support", () => {
-    expect(rebuilt.scopes).toEqual([{ name: "organization", key: "orgId" }]);
+    expect(rebuilt.scopes).toStrictEqual([
+      { name: "organization", key: "orgId" },
+    ]);
     expect(rebuilt.vocabulary.plans).toHaveProperty("pro");
     expect(rebuilt.vocabulary.roles).toHaveProperty("owner");
     expect(rebuilt.vocabulary.roles).toHaveProperty("auditor");
-    expect(rebuilt.rolesByName.get("clerk")?.activation).toEqual({
+    expect(rebuilt.rolesByName.get("clerk")?.activation).toStrictEqual({
       justification: "required",
       approval: "human",
     });
@@ -161,8 +163,8 @@ describe("policyFromCatalog structure", () => {
       role: "support",
       consent: { by: [], durations: [3600] },
     });
-    expect(rebuilt.delegations).toEqual(policy.delegations);
-    expect(rebuilt.hostable).toEqual(policy.hostable);
+    expect(rebuilt.delegations).toStrictEqual(policy.delegations);
+    expect(rebuilt.hostable).toStrictEqual(policy.hostable);
   });
 
   it("keeps validity, purpose, names and break-glass on grants", () => {
@@ -181,7 +183,9 @@ describe("policyFromCatalog structure", () => {
   it("takes catalog scopes when the push has none, and passes the user through by default", () => {
     const { scopes: _scopes, ...unscoped } = pushed;
     const hosted = policyFromCatalog(catalogOf(), unscoped);
-    expect(hosted.scopes).toEqual([{ name: "organization", key: "orgId" }]);
+    expect(hosted.scopes).toStrictEqual([
+      { name: "organization", key: "orgId" },
+    ]);
     const principal = { id: "u1", plans: ["pro"] };
     const permdock = getPermDockSync(hosted, principal);
     expect(hosted.subject(principal)).toBe(principal);
@@ -351,7 +355,7 @@ describe("resourceSchemaFromJson keywords", () => {
         extra: { type: "object", additionalProperties: { type: "string" } },
       },
     };
-    expect(validate(schema, { id: "r1", tags: ["a"], n: null })).toEqual({
+    expect(validate(schema, { id: "r1", tags: ["a"], n: null })).toStrictEqual({
       value: { id: "r1", tags: ["a"], n: null },
     });
     for (const bad of [
@@ -385,14 +389,14 @@ describe("resourceSchemaFromJson keywords", () => {
       { anyOf: [{ if: true }] },
       { items: { else: {} } },
     ]) {
-      expect(validate(schema, "x")).toEqual({
+      expect(validate(schema, "x")).toStrictEqual({
         issues: [{ message: expect.stringMatching(/does not interpret/u) }],
       });
     }
   });
 
   it("reports a $ref to a missing definition as an issue", () => {
-    expect(validate({ $ref: "#/$defs/missing" }, "x")).toEqual({
+    expect(validate({ $ref: "#/$defs/missing" }, "x")).toStrictEqual({
       issues: [{ message: "Unresolvable $ref" }],
     });
   });

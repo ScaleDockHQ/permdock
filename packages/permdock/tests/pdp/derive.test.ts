@@ -24,10 +24,7 @@ const policy = definePolicy(permissions, {
 
 describe("permdock/pdp derive", () => {
   it("keeps the PDP wrapper on a derived instance, sync and async", async () => {
-    const permdock = getPermDockSync(policy, {
-      id: "u1",
-      roles: ["member"],
-    });
+    const permdock = getPermDockSync(policy, { id: "u1", roles: ["member"] });
     const same = await permdock.derive({});
     expect(await same.can(permissions.post.read, { id: "p" })).toBe(true);
     const gated = await permdock.derive({
@@ -40,8 +37,7 @@ describe("permdock/pdp derive", () => {
           ),
       }),
     });
-    expect(
-      (await gated.decide(permissions.post.read, { id: "p" })).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await gated.decide(permissions.post.read, { id: "p" });
+    expect(outcome).toBe("approval-required");
   });
 });

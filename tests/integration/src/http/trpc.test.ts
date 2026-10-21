@@ -17,10 +17,7 @@ type Context = { readonly req: Request };
 const Org = z.object({ org: z.string() });
 const Row = Org.extend({ id: z.string() });
 
-const ok = (status: number, body: unknown): HttpResult => ({
-  status,
-  body,
-});
+const ok = (status: number, body: unknown): HttpResult => ({ status, body });
 
 testHttpAdapter({
   name: "permdock/trpc over fetchRequestHandler with httpBatchLink",
@@ -68,9 +65,7 @@ testHttpAdapter({
               p.project.create,
               // SAFETY: this procedure's input schema is an object with a `body` field
               (opts) => (opts.input as { readonly body?: unknown }).body,
-              {
-                trusted: false,
-              },
+              { trusted: false },
             ),
           )
           .mutation(({ ctx }) => ctx["permdockData"]),

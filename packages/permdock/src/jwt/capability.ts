@@ -1,25 +1,31 @@
+import type {
+  Capability,
+  LinkPolicy,
+  CapabilityPrincipal,
+} from "../core/capability.ts";
 import type { AuthEvent } from "../core/event-types.ts";
 import type { TokenFailureCause, TokenVerifier } from "../core/interfaces.ts";
+import type { Subject } from "../core/subject.ts";
 import type { ReplayStore } from "../ssf/types.ts";
 import type { JoseTokenVerifierOptions } from "./types.ts";
 
 import {
-  type Capability,
-  type LinkPolicy,
-  type CapabilityPrincipal,
   capabilityFromClaims,
   capabilitySubject,
   linkPolicyViolation,
   redeemerAllows,
 } from "../core/capability.ts";
 import { compact } from "../core/compact.ts";
-import { type Subject, anonymousSubject } from "../core/subject.ts";
+import { anonymousSubject } from "../core/subject.ts";
 import { epochSeconds } from "../core/time.ts";
 import { verifyDpopProof } from "./dpop.ts";
 import { decodeHeader, normalizeTyp } from "./header.ts";
 import { joseTokenVerifier } from "./verifier.ts";
 
-/** `on('auth')` causes: a verification failure, or one of the three capability checks. */
+/**
+ * `on('auth')` causes: a verification failure, or one of the three capability
+ * checks.
+ */
 export type CapabilityFailureCause =
   | TokenFailureCause
   | "capability-revoked"
@@ -37,8 +43,8 @@ export type CapabilitySubjectOptions = Omit<
   readonly audience: string | readonly string[];
   readonly verifier?: TokenVerifier;
   /**
-   * The link policies of the scope instances the linked resource sits in
-   * (its tenant, its customer); every one must hold. A throw denies.
+   * The link policies of the scope instances the linked resource sits in (its
+   * tenant, its customer); every one must hold. A throw denies.
    */
   readonly linkPolicy?: (
     capability: Capability,
@@ -49,14 +55,20 @@ export type CapabilitySubjectOptions = Omit<
     | Promise<LinkPolicy | readonly LinkPolicy[] | undefined>;
   /** `true` when the application revoked the link id (`sub`); a throw denies. */
   readonly revoked?: (id: string) => boolean | Promise<boolean>;
-  /** Claims the `jti` of a one-time capability; a one-time capability without it is refused. */
+  /**
+   * Claims the `jti` of a one-time capability; a one-time capability without it
+   * is refused.
+   */
   readonly replay?: ReplayStore;
-  /** The request's own verified subject, checked against the capability's `redeemer`. */
+  /**
+   * The request's own verified subject, checked against the capability's
+   * `redeemer`.
+   */
   readonly viewer?: Subject;
   /**
    * The incoming request. A capability with `cnf` resolves only when the
-   * request carries a DPoP proof (RFC 9449) signed by the bound key;
-   * without one it is refused.
+   * request carries a DPoP proof (RFC 9449) signed by the bound key; without
+   * one it is refused.
    */
   readonly request?: Request;
   readonly onAuth?: (event: AuthEvent) => void;
@@ -142,8 +154,8 @@ async function stores(
 
 /**
  * Resolves a `vnd.permdock.capability+jwt` into the `link` subject it acts as.
- * Every failure (signature, `typ`, `iss`, `aud`, expiry, a malformed claim,
- * a revoked link, a replayed one-time token, a redeemer the viewer does not
+ * Every failure (signature, `typ`, `iss`, `aud`, expiry, a malformed claim, a
+ * revoked link, a replayed one-time token, a redeemer the viewer does not
  * satisfy, a `cnf` without a matching DPoP proof, a throwing store) is the
  * anonymous subject, never a throw.
  */
@@ -171,10 +183,7 @@ export async function subjectFromCapability(
   try {
     verifier =
       options.verifier ??
-      joseTokenVerifier({
-        ...options,
-        typ: "vnd.permdock.capability+jwt",
-      });
+      joseTokenVerifier({ ...options, typ: "vnd.permdock.capability+jwt" });
   } catch {
     return deny("malformed");
   }

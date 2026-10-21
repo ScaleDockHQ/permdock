@@ -15,6 +15,7 @@ import {
   personas,
   policy,
 } from "../fixtures/named-scopes/policy.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { generateRls } from "./support/rls.ts";
 
@@ -168,7 +169,7 @@ describe.each([
     expect(generated).toContain("permitted_organization_ids(p_grant text)");
     expect(generated).toContain("permitted_customer_ids(p_grant text)");
     expect(generated).not.toContain("permitted_tenant_ids");
-    expect(generated).not.toMatch(/service_role/i);
+    expect(generated).not.toMatch(/service_role/iu);
   });
 
   it("agrees with decide and the snapshot for every persona, permission and row", async () => {
@@ -178,12 +179,12 @@ describe.each([
       query,
       snapshot: true,
     });
-    expect(report.results.filter((item) => !item.ok)).toEqual([]);
+    expect(report.results.filter((item) => !item.ok)).toStrictEqual([]);
     const allowed = (name: string): string[] =>
       report.results
         .filter((item) => item.name.startsWith(`${name} `) && item.granted)
         .map((item) => item.name.slice(name.length + 1));
-    expect(allowed("privateContact")).toEqual([
+    expect(allowed("privateContact")).toStrictEqual([
       "quote.read d_a_sent",
       "quote.read d_a_accepted",
       "invoice.read d_a_sent",
@@ -192,13 +193,13 @@ describe.each([
       "asset.read a_a_draft",
       "asset.read a_a_accepted",
     ]);
-    expect(allowed("staffContactInB")).toEqual([
+    expect(allowed("staffContactInB")).toStrictEqual([
       "quote.read d_c_sent",
       "invoice.read d_c_sent",
       "asset.read a_c_sent",
     ]);
-    expect(allowed("platformAdmin")).toEqual([]);
-    expect(allowed("sneaky")).toEqual([]);
+    expect(allowed("platformAdmin")).toStrictEqual([]);
+    expect(allowed("sneaky")).toStrictEqual([]);
   });
 
   const claimsOf = (principal: Principal): Record<string, string> => ({
@@ -210,11 +211,11 @@ describe.each([
 
   it("answers permdock_can_assign from the assigns graph", async () => {
     const can = (principal: Principal, role: string, id: string) =>
-      db!.as(
+      defined(db).as(
         { role: "authenticated", settings: claimsOf(principal) },
         async () =>
           (
-            await db!.tester.query<{ readonly ok: boolean }>(
+            await defined(db).tester.query<{ readonly ok: boolean }>(
               "select permdock.permdock_can_assign($1, $2) as ok",
               [role, id],
             )
@@ -232,7 +233,7 @@ describe.each([
   it.runIf(mode === "database")(
     "keeps an owner per organization at commit and lets a transfer through",
     async () => {
-      const admin = db!.admin;
+      const admin = defined(db).admin;
       const attempt = async (statements: string): Promise<string | null> => {
         await admin.query("begin");
         try {
@@ -285,20 +286,19 @@ describe.each([
       "app.tenant_id": "T",
       "app.memberships": JSON.stringify(personas.owner.memberships),
     };
-    const keys = (
-      await db.admin.query<{ readonly grant_key: string }>(
-        `select distinct grant_key from permdock.role_permissions where permission = 'quote.read'`,
-      )
-    ).rows.map((row) => row.grant_key);
+    const { rows } = await db.admin.query<{ readonly grant_key: string }>(
+      `select distinct grant_key from permdock.role_permissions where permission = 'quote.read'`,
+    );
+    const keys = rows.map((row) => row.grant_key);
     const ids = async (helper: string): Promise<string[]> =>
-      db!.as({ role: "authenticated", settings: claims }, async () => {
-        const result = await db!.tester.query<{ readonly id: string }>(
+      defined(db).as({ role: "authenticated", settings: claims }, async () => {
+        const result = await defined(db).tester.query<{ readonly id: string }>(
           `select distinct id from unnest($1::text[]) k, permdock.${helper}(k) id`,
           [keys],
         );
         return result.rows.map((row) => row.id);
       });
-    expect(await ids("permitted_organization_ids")).toEqual(["T"]);
-    expect(await ids("permitted_customer_ids")).toEqual([]);
+    expect(await ids("permitted_organization_ids")).toStrictEqual(["T"]);
+    expect(await ids("permitted_customer_ids")).toStrictEqual([]);
   });
 });

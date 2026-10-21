@@ -14,8 +14,8 @@ export function approvalView(request: ApprovalRequest): ApprovalView {
 
 /**
  * A strong RFC 9110 entity tag: the quoted `sha-256:` digest of
- * `approvalView(request)` as RFC 8785 JSON. A field outside
- * `ApprovalRequest` changes the tag, so hash the stored request as is.
+ * `approvalView(request)` as RFC 8785 JSON. A field outside `ApprovalRequest`
+ * changes the tag, so hash the stored request as is.
  */
 export function approvalEntityTag(request: ApprovalRequest): string {
   return `"${sha256Digest(canonicalJson(approvalView(request)))}"`;

@@ -1,5 +1,7 @@
+import type { Leaf } from "../core/command.ts";
+
 import { suggestion } from "../core/args.ts";
-import { type Leaf, defineLeaf } from "../core/command.ts";
+import { defineLeaf } from "../core/command.ts";
 import { candidates, completionScript, SHELLS } from "../core/completion.ts";
 import { CliError } from "../core/errors.ts";
 

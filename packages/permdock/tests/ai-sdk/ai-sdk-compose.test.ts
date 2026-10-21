@@ -55,14 +55,12 @@ describe("permdock/ai-sdk composition", () => {
         toolChoice: { type: "tool", toolName: "weather" },
       },
     });
-    expect(params.tools).toEqual([{ name: "read_post" }]);
-    expect(params.toolChoice).toEqual({ type: "none" });
+    expect(params.tools).toStrictEqual([{ name: "read_post" }]);
+    expect(params.toolChoice).toStrictEqual({ type: "none" });
     expect(
       await composeToolApproval(registry(asked))(call("weather")),
-    ).toMatchObject({
-      type: "denied",
-    });
-    expect(asked).toEqual([]);
+    ).toMatchObject({ type: "denied" });
+    expect(asked).toStrictEqual([]);
   });
 
   it("passes unmapped tools through with unmapped 'allow'", async () => {
@@ -75,13 +73,16 @@ describe("permdock/ai-sdk composition", () => {
         toolChoice: { type: "tool", toolName: "weather" },
       },
     });
-    expect(params.tools).toEqual([{ name: "weather" }]);
-    expect(params.toolChoice).toEqual({ type: "tool", toolName: "weather" });
+    expect(params.tools).toStrictEqual([{ name: "weather" }]);
+    expect(params.toolChoice).toStrictEqual({
+      type: "tool",
+      toolName: "weather",
+    });
     expect(await toolApproval(call("weather"))).toBe("approved");
     const approve = composeToolApproval(registry(asked));
     expect(await approve(call("weather"))).toBeUndefined();
     expect(await approve(call("send_email"))).toBe("user-approval");
-    expect(asked).toEqual(["weather", "send_email"]);
+    expect(asked).toStrictEqual(["weather", "send_email"]);
   });
 
   it("asks the application only after PermDock grants, and never past a denial", async () => {
@@ -91,7 +92,7 @@ describe("permdock/ai-sdk composition", () => {
     expect(await approve(call("publish_post"))).toMatchObject({
       type: "denied",
     });
-    expect(asked).toEqual(["read_post"]);
+    expect(asked).toStrictEqual(["read_post"]);
   });
 
   it("passes the application's answers through and denies one it cannot read", async () => {
@@ -105,7 +106,7 @@ describe("permdock/ai-sdk composition", () => {
     for (const answer of answers) {
       // SAFETY: the test feeds every documented answer shape through the app callback.
       const approve = permdock().composeToolApproval(() => answer as never);
-      expect(await approve(call("read_post"))).toEqual(answer);
+      expect(await approve(call("read_post"))).toStrictEqual(answer);
     }
     for (const answer of [
       "yes",
@@ -116,7 +117,7 @@ describe("permdock/ai-sdk composition", () => {
     ]) {
       // SAFETY: an app callback that breaks its own type, as untyped code can.
       const approve = permdock().composeToolApproval(() => answer as never);
-      expect(await approve(call("read_post"))).toEqual({
+      expect(await approve(call("read_post"))).toStrictEqual({
         type: "denied",
         reason: "The tool approval answer was not valid.",
       });

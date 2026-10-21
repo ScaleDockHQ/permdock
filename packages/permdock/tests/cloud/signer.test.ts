@@ -68,7 +68,7 @@ function fakeCloud(
   return { fetch: fetchImpl, signed };
 }
 
-describe("cloudSigner", () => {
+describe(cloudSigner, () => {
   it("signs a run ticket with the environment's key", async () => {
     const fake = fakeCloud();
     const signer = cloudSigner({
@@ -82,7 +82,7 @@ describe("cloudSigner", () => {
       { sub: "run_1", iss: "https://forged.example", run: { id: "run_1" } },
       { typ: "vnd.permdock.run+jwt", jti: "run_1" },
     );
-    expect(fake.signed).toEqual([
+    expect(fake.signed).toStrictEqual([
       {
         typ: "vnd.permdock.run+jwt",
         claims: { sub: "run_1", run: { id: "run_1" } },
@@ -124,8 +124,8 @@ describe("cloudSigner", () => {
     }
     await expect(
       signer.sign({}, { typ: "vnd.permdock.run+jwt" }),
-    ).rejects.toThrow(/requires an audience/);
-    expect(fake.signed).toEqual([]);
+    ).rejects.toThrow(/requires an audience/u);
+    expect(fake.signed).toStrictEqual([]);
   });
 
   it("throws when the Cloud refuses or returns a token of another type", async () => {
@@ -138,7 +138,7 @@ describe("cloudSigner", () => {
     });
     await expect(
       refused.sign({}, { typ: "vnd.permdock.run+jwt" }),
-    ).rejects.toThrow(/HTTP 403/);
+    ).rejects.toThrow(/HTTP 403/u);
 
     const evidence = await kms.sign(
       {},
@@ -154,7 +154,7 @@ describe("cloudSigner", () => {
       });
       await expect(
         wrong.sign({}, { typ: "vnd.permdock.run+jwt" }),
-      ).rejects.toThrow(/not a vnd\.permdock\.run\+jwt JWS/);
+      ).rejects.toThrow(/not a vnd\.permdock\.run\+jwt JWS/u);
     }
   });
 
@@ -165,6 +165,6 @@ describe("cloudSigner", () => {
       key: KEY,
       fetch: () => Promise.reject(new TypeError("fetch failed")),
     });
-    expect(await signer.jwks?.()).toEqual({ keys: [] });
+    expect(await signer.jwks?.()).toStrictEqual({ keys: [] });
   });
 });

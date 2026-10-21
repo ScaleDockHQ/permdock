@@ -8,6 +8,7 @@ import type { CatalogDocument } from "../../catalog/types.ts";
 import type { CloudApproverOptions } from "../../cloud/types.ts";
 import type { SnapshotSource, Subject, TokenVerifier } from "../../index.ts";
 import type { AuthzenVectors } from "../authzen.ts";
+import type { TestCloudPlatformOptions } from "./platform-checks.ts";
 
 import { APPROVAL_HEADER } from "../../approvals/types.ts";
 import { approverHeaders } from "../../cloud/approver.ts";
@@ -22,10 +23,7 @@ import {
   testPolicySource,
   testSnapshotSource,
 } from "../conformance/runtime-stores.ts";
-import {
-  type TestCloudPlatformOptions,
-  testCloudPlatform,
-} from "./platform-checks.ts";
+import { testCloudPlatform } from "./platform-checks.ts";
 import { cloudApiValidator } from "./validate.ts";
 
 export type { TestCloudPlatformOptions };
@@ -42,13 +40,22 @@ export type CloudApiKeys = {
 export type TestCloudApiOptions = {
   readonly environment?: string;
   readonly fetch?: typeof globalThis.fetch;
-  /** Signs the `PermDock-Approver` tokens; its issuer is a trusted issuer for `approver`. */
+  /**
+   * Signs the `PermDock-Approver` tokens; its issuer is a trusted issuer for
+   * `approver`.
+   */
   readonly approver: CloudApproverOptions;
-  /** A fresh `PermDock-Subject` token per call; the snapshot checks are skipped without it. */
+  /**
+   * A fresh `PermDock-Subject` token per call; the snapshot checks are skipped
+   * without it.
+   */
   readonly subject?: () => string | Promise<string>;
   /** Verifies the environment's policy documents for `testPolicySource`. */
   readonly verifier?: TokenVerifier;
-  /** AuthZEN vectors for the hosted ADS, with the caller's credentials as `headers`. */
+  /**
+   * AuthZEN vectors for the hosted ADS, with the caller's credentials as
+   * `headers`.
+   */
   readonly authzen?: {
     readonly vectors: AuthzenVectors;
     readonly headers?: Readonly<Record<string, string>>;
@@ -109,8 +116,8 @@ async function problemCode(response: Response): Promise<unknown> {
  * Runs the conformance runners and the HTTP contract checks against one
  * PermDock Cloud environment, and validates every response body against
  * `cloud-api-v1.json`. Point it at a test environment: it creates approvals,
- * sends decision events and deliveries to `.invalid` addresses, and pushes
- * the catalog the environment already holds.
+ * sends decision events and deliveries to `.invalid` addresses, and pushes the
+ * catalog the environment already holds.
  */
 export function testCloudApi(
   baseUrl: string,
@@ -123,8 +130,7 @@ export function testCloudApi(
   const environment = options.environment ?? "production";
   const { issuer } = cloudEndpoints({ url, environment });
   const check = cloudApiValidator();
-  const problems: string[] = [];
-  const checks: Promise<void>[] = [];
+  const checks: Promise<readonly string[]>[] = [];
   const recording = async (
     input: Request | string | URL,
     init?: RequestInit,
@@ -136,11 +142,7 @@ export function testCloudApi(
       pathname === `${METADATA}${prefix}`
         ? METADATA
         : pathname.slice(prefix.length);
-    checks.push(
-      check(request.method, path, response.clone()).then((found) => {
-        problems.push(...found);
-      }),
-    );
+    checks.push(check(request.method, path, response.clone()));
     return response;
   };
   const client = cloud({
@@ -241,11 +243,13 @@ export function testCloudApi(
       issuer,
       jwks_uri: `${issuer}/.well-known/jwks.json`,
     });
-    expect((await recording(`${url}/v1/environment`)).status).toBe(401);
+    const { status } = await recording(`${url}/v1/environment`);
+    expect(status).toBe(401);
   });
 
   it("answers 403 to a key of another kind", async () => {
-    expect((await call("/hosted-grants", keys.client)).status).toBe(403);
+    const { status } = await call("/hosted-grants", keys.client);
+    expect(status).toBe(403);
     if (keys.export !== undefined) {
       expect((await call("/approvals", keys.export)).status).toBe(403);
     }
@@ -255,7 +259,7 @@ export function testCloudApi(
     const token = tag();
     await client.approvals.create(sample(token));
     const { request, etag } = await current(token);
-    expect(etag).toEqual(expect.any(String));
+    expect(etag).toStrictEqual(expect.any(String));
     const verdict: ApprovalVerdict = { status: "approved", by: admin };
     const stale = await resolveRaw(token, verdict, async () => ({
       request,
@@ -328,7 +332,7 @@ export function testCloudApi(
         headers: { accept: "application/jwt" },
         body: JSON.stringify({ typ, claims: { sub: "u_1" }, aud: issuer }),
       });
-      expect([typ, response.status]).toEqual([typ, 422]);
+      expect([typ, response.status]).toStrictEqual([typ, 422]);
     }
   });
 
@@ -355,7 +359,8 @@ export function testCloudApi(
     expect(first.ok && second.ok).toBe(true);
     const [a, b]: unknown[] = await Promise.all([first.json(), second.json()]);
     expect(isRecord(a) && isRecord(b) && a["id"] === b["id"]).toBe(true);
-    expect((await send({})).status).toBe(400);
+    const { status } = await send({});
+    expect(status).toBe(400);
   });
 
   it("answers unchanged for the catalog it already holds", async (context) => {
@@ -400,12 +405,12 @@ export function testCloudApi(
     const first = await get({ "permdock-subject": token });
     expect(first.status).toBe(200);
     expect(first.headers.get("content-type")).toMatch(/^application\/jwt/u);
-    expect((await get({ "permdock-subject": token })).status).toBe(401);
+    const { status } = await get({ "permdock-subject": token });
+    expect(status).toBe(401);
     expect((await get({})).status).toBe(401);
   });
 
   it("answers every request in the shapes cloud-api-v1.json documents", async () => {
-    await Promise.all(checks);
-    expect(problems).toEqual([]);
+    expect((await Promise.all(checks)).flat()).toStrictEqual([]);
   });
 }

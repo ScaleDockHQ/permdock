@@ -1,6 +1,8 @@
+import type { RlsParityFixture } from "permdock/testing";
+
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type RlsParityFixture, testRlsParity } from "permdock/testing";
+import { testRlsParity } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -358,8 +360,8 @@ describe.each(["supabase", "neon", "guc"] as const)(
         Object.fromEntries(
           report.results.map((item) => [item.name, item.granted]),
         ),
-      ).toEqual(expected);
-      expect(report.results.filter((item) => !item.ok)).toEqual([]);
+      ).toStrictEqual(expected);
+      expect(report.results.filter((item) => !item.ok)).toStrictEqual([]);
     });
   },
 );

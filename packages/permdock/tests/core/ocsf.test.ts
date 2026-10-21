@@ -25,9 +25,9 @@ const base: DecisionEvent = {
   adapter: "mcp",
 };
 
-describe("toOcsf", () => {
+describe(toOcsf, () => {
   it("maps a denial onto Authorize Session", () => {
-    expect(toOcsf(base)).toEqual({
+    expect(toOcsf(base)).toStrictEqual({
       class_uid: 3003,
       category_uid: 3,
       activity_id: 1,
@@ -69,7 +69,7 @@ describe("toOcsf", () => {
     });
     expect(granted?.status_id).toBe(1);
     expect(granted?.status_detail).toBeUndefined();
-    expect(granted?.user).toEqual({ name: "anonymous" });
+    expect(granted?.user).toStrictEqual({ name: "anonymous" });
     expect(granted?.unmapped.role).toBe("admin");
     const pending = toOcsf({
       ...base,
@@ -81,7 +81,7 @@ describe("toOcsf", () => {
     expect(pending?.status).toBe("Approval Required");
     expect(pending?.status_detail).toBe("approval-required");
     expect(pending?.metadata.correlation_uid).toBe("tok_1");
-    expect(JSON.parse(JSON.stringify(pending))).toEqual(pending);
+    expect(JSON.parse(JSON.stringify(pending))).toStrictEqual(pending);
   });
 
   it("drops an event whose time does not parse", () => {
@@ -95,21 +95,21 @@ describe("toOcsf", () => {
       subject: { principal: null, actor: { id: "agent_1", kind: "agent" } },
     });
     expect(event?.status_detail).toBeUndefined();
-    expect(event?.actor).toEqual({ app_name: "agent_1" });
+    expect(event?.actor).toStrictEqual({ app_name: "agent_1" });
   });
 
   it("maps an outcome it does not know to Unknown", () => {
     // SAFETY: a forged outcome, as a sink could receive from a newer producer.
     const forged = { ...base, outcome: "maybe" } as unknown as DecisionEvent;
     const event = toOcsf(forged);
-    expect({ id: event?.status_id, status: event?.status }).toEqual({
+    expect({ id: event?.status_id, status: event?.status }).toStrictEqual({
       id: 0,
       status: "Unknown",
     });
   });
 });
 
-describe("accessToOcsf", () => {
+describe(accessToOcsf, () => {
   const access = {
     type: "access",
     at: "2026-09-28T10:00:00.000Z",

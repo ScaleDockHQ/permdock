@@ -84,9 +84,8 @@ function scenarios(
   describe(name, () => {
     it("decides one row with check", async () => {
       const anne = await getPermDock(policyFor(provider()), { id: "anne" });
-      expect((await anne.decide(permissions.doc.read, docs[0])).outcome).toBe(
-        "granted",
-      );
+      const { outcome } = await anne.decide(permissions.doc.read, docs[0]);
+      expect(outcome).toBe("granted");
       expect((await anne.decide(permissions.doc.read, docs[3])).outcome).toBe(
         "denied",
       );
@@ -96,37 +95,36 @@ function scenarios(
       const anne = await getPermDock(policyFor(provider()), { id: "anne" });
       expect(
         (await anne.filter(permissions.doc.read, docs)).map((row) => row.id),
-      ).toEqual(["d1", "d2", "d3"]);
+      ).toStrictEqual(["d1", "d2", "d3"]);
       const where = await anne.where(permissions.doc.read);
       expect(where.partial).toBe(true);
-      expect(sortedIds(where.condition)).toEqual(["d1", "d2", "d3"]);
+      expect(sortedIds(where.condition)).toStrictEqual(["d1", "d2", "d3"]);
     });
 
     it("intersects the remote answer with local grants and denies", async () => {
       const bob = await getPermDock(policyFor(provider()), { id: "bob" });
       expect(
         (await bob.filter(permissions.doc.delete, docs)).map((row) => row.id),
-      ).toEqual(["d4"]);
+      ).toStrictEqual(["d4"]);
       const where = await bob.where(permissions.doc.delete);
       if (where.condition.op !== "and") {
         throw new Error(`expected an and, got ${where.condition.op}`);
       }
       const [local, remote] = where.condition.conditions;
       expect(local).toBeDefined();
-      expect(sortedIds(remote)).toEqual(["d3", "d4"]);
+      expect(sortedIds(remote)).toStrictEqual(["d3", "d4"]);
       const anne = await getPermDock(policyFor(provider()), { id: "anne" });
-      expect(await anne.filter(permissions.doc.delete, docs)).toEqual([]);
+      expect(await anne.filter(permissions.doc.delete, docs)).toStrictEqual([]);
     });
 
     it("denies after the relation is removed", async () => {
       await revoke();
       const anne = await getPermDock(policyFor(provider()), { id: "anne" });
-      expect((await anne.decide(permissions.doc.read, docs[0])).outcome).toBe(
-        "denied",
-      );
+      const { outcome } = await anne.decide(permissions.doc.read, docs[0]);
+      expect(outcome).toBe("denied");
       expect(
         (await anne.filter(permissions.doc.read, docs)).map((row) => row.id),
-      ).toEqual(["d2", "d3"]);
+      ).toStrictEqual(["d2", "d3"]);
     });
 
     it("fails closed when the server is unreachable", async () => {
@@ -138,8 +136,8 @@ function scenarios(
       expect(decision.outcome === "denied" && decision.denials[0]?.reason).toBe(
         "pdp-unavailable",
       );
-      expect(await anne.filter(permissions.doc.read, docs)).toEqual([]);
-      expect(await anne.where(permissions.doc.read)).toEqual({
+      expect(await anne.filter(permissions.doc.read, docs)).toStrictEqual([]);
+      expect(await anne.where(permissions.doc.read)).toStrictEqual({
         condition: { op: "or", conditions: [] },
         partial: false,
       });
@@ -201,10 +199,7 @@ describe("permdock/pdp relation presets", () => {
         },
         {
           type: "document",
-          relations: {
-            owner: { this: {} },
-            viewer: { this: {} },
-          },
+          relations: { owner: { this: {} }, viewer: { this: {} } },
           metadata: {
             relations: {
               owner: { directly_related_user_types: [{ type: "user" }] },

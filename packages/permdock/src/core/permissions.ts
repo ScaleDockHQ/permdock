@@ -19,10 +19,7 @@ export function definePermissions<const Input, PX = never, RX = never>(
   const registry = new Map<string, ResourceNode>();
   const leaves: Permission[] = [];
   const former = formerByKey(options?.renamed);
-  const tree = walk(input, [], registry, leaves, 0, {
-    former,
-    x: options?.x,
-  });
+  const tree = walk(input, [], registry, leaves, 0, { former, x: options?.x });
   assertKeys(leaves, former);
   assertGraphTargets(registry);
   const built: unknown = freezeDeep(attachRegistry(tree, registry, leaves));

@@ -37,7 +37,10 @@ export function loadFailedProblem(permission: Permission | null): Response {
   );
 }
 
-/** The `403` `insufficient_scope` for a token that holds none of a route's OAuth scopes. */
+/**
+ * The `403` `insufficient_scope` for a token that holds none of a route's OAuth
+ * scopes.
+ */
 export function scopeProblem(
   permission: Permission | null,
   subject: Subject,

@@ -37,7 +37,7 @@ async function body(response: Response): Promise<Record<string, unknown>> {
   return (await response.json()) as Record<string, unknown>;
 }
 
-describe("bearerChallenge", () => {
+describe(bearerChallenge, () => {
   it("writes every parameter, deduplicating scopes and dropping quotes", () => {
     expect(
       bearerChallenge({
@@ -87,7 +87,7 @@ describe("stepUpOf and wwwAuthenticate", () => {
         ],
       },
     );
-    expect(stepUpOf(decision)).toEqual({
+    expect(stepUpOf(decision)).toStrictEqual({
       acrValues: ["silver", "gold"],
       maxAge: 300,
     });
@@ -95,11 +95,11 @@ describe("stepUpOf and wwwAuthenticate", () => {
       stepUpOf(
         denied({ role: null, reason: "insufficient-user-authentication" }),
       ),
-    ).toEqual({});
+    ).toStrictEqual({});
     // SAFETY: stepUpOf returns early on any outcome but denied, before reading another field.
     expect(
       stepUpOf({ outcome: "approval-required" } as unknown as Decision),
-    ).toEqual({});
+    ).toStrictEqual({});
     expect(wwwAuthenticate(decision, undefined)).toBe(
       'Bearer error="insufficient_user_authentication", acr_values="silver gold", max_age="300"',
     );
@@ -152,7 +152,7 @@ describe("stepUpOf and wwwAuthenticate", () => {
   });
 });
 
-describe("rateLimitHeaders", () => {
+describe(rateLimitHeaders, () => {
   it("names one policy per role, percent-encodes non-ASCII and escapes quotes", () => {
     const detail = { count: 5, per: 60, resetsAt: at(1_000) };
     const headers = rateLimitHeaders(
@@ -174,22 +174,22 @@ describe("rateLimitHeaders", () => {
       ),
       { epochMilliseconds: 980_000 },
     );
-    expect(headers).toEqual({
+    expect(headers).toStrictEqual({
       "Retry-After": "10",
       RateLimit: '"r%C3%A9le \\"x\\"";r=0;t=20, "default";r=0;t=10',
       "RateLimit-Policy": '"r%C3%A9le \\"x\\"";q=5;w=60, "default";q=1;w=1',
     });
     expect(
       rateLimitHeaders(denied({ role: null, reason: "no-grant" })),
-    ).toEqual({});
+    ).toStrictEqual({});
     // SAFETY: rateLimitHeaders returns early on any outcome but denied, before reading another field.
     expect(
       rateLimitHeaders({ outcome: "granted" } as unknown as Decision),
-    ).toEqual({});
+    ).toStrictEqual({});
   });
 });
 
-describe("problemFromDecision", () => {
+describe(problemFromDecision, () => {
   it("answers 204 for a granted decision", async () => {
     const permdock = createCorePermDock(policy, memberUser);
     const decision = permdock.decide(permissions.post.read, ownPost);
@@ -250,10 +250,7 @@ describe("problemFromDecision", () => {
     expect({
       status: response.status,
       challenge: response.headers.get("www-authenticate"),
-    }).toEqual({
-      status: 401,
-      challenge: "Bearer",
-    });
+    }).toStrictEqual({ status: 401, challenge: "Bearer" });
   });
 
   it("answers a validation problem helper with 400", async () => {

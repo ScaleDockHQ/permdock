@@ -13,7 +13,10 @@ export function isThenable<T>(
   );
 }
 
-/** Settles a promise nobody awaits, so its rejection is not reported as unhandled. */
+/**
+ * Settles a promise nobody awaits, so its rejection is not reported as
+ * unhandled.
+ */
 export function ignoreRejection(value: PromiseLike<unknown>): void {
   void Promise.resolve(value).then(undefined, () => undefined);
 }
@@ -26,7 +29,10 @@ export type SyncValidation =
       readonly issues?: readonly StandardSchemaV1.Issue[];
     };
 
-/** Runs a Standard Schema that must answer synchronously; an asynchronous answer fails. */
+/**
+ * Runs a Standard Schema that must answer synchronously; an asynchronous answer
+ * fails.
+ */
 export function validateSync(
   schema: StandardSchemaV1,
   value: unknown,
@@ -41,7 +47,10 @@ export function validateSync(
     : { ok: false, issues: result.issues };
 }
 
-/** `validateSync` for a schema whose output must be an object; anything else is `undefined`. */
+/**
+ * `validateSync` for a schema whose output must be an object; anything else is
+ * `undefined`.
+ */
 export function validateRecord(
   schema: StandardSchemaV1,
   value: unknown,

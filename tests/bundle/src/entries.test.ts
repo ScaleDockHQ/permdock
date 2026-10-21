@@ -35,7 +35,7 @@ const exported = Object.entries(manifest.exports).filter(
 
 describe("every package entry is listed everywhere a gate reads it", () => {
   it("graph.ts ENTRIES matches package.json exports", () => {
-    expect(ENTRIES).toEqual(
+    expect(ENTRIES).toStrictEqual(
       Object.fromEntries(
         exported.map(([entry, target]) => [
           entry,
@@ -49,7 +49,7 @@ describe("every package entry is listed everywhere a gate reads it", () => {
     const missing = Object.values(ENTRIES).filter(
       (file) => !tsdownEntries.has(file),
     );
-    expect(missing).toEqual([]);
+    expect(missing).toStrictEqual([]);
   });
 
   it("every entry folder is classified as server, client or neutral", () => {
@@ -65,6 +65,6 @@ describe("every package entry is listed everywhere a gate reads it", () => {
         (folder) =>
           !server.has(folder) && !client.has(folder) && !neutral.has(folder),
       );
-    expect(unclassified).toEqual([]);
+    expect(unclassified).toStrictEqual([]);
   });
 });

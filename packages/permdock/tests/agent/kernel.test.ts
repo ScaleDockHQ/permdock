@@ -39,10 +39,7 @@ function tools() {
         return id === "p1" ? ownPost : otherPost;
       },
     },
-    missing_row: {
-      permission: permissions.post.update,
-      data: () => null,
-    },
+    missing_row: { permission: permissions.post.update, data: () => null },
     explode: {
       permission: permissions.post.update,
       data: () => {
@@ -52,7 +49,7 @@ function tools() {
   };
 }
 
-describe("createAgentKernel", () => {
+describe(createAgentKernel, () => {
   it("maps granted, denied and unmapped tools", async () => {
     const kernel = createAgentKernel(policy, {
       adapter: "test",
@@ -130,7 +127,10 @@ describe("createAgentKernel", () => {
       tools: tools(),
     });
     const permdock = await kernel.instance({});
-    expect(permdock.subject.actor).toEqual({ id: "agent-1", kind: "test" });
+    expect(permdock.subject.actor).toStrictEqual({
+      id: "agent-1",
+      kind: "test",
+    });
   });
 
   it("keeps the read-only flag and client name of the actor", async () => {
@@ -146,7 +146,7 @@ describe("createAgentKernel", () => {
       tools: tools(),
     });
     const permdock = await kernel.instance({});
-    expect(permdock.subject.actor).toEqual({
+    expect(permdock.subject.actor).toStrictEqual({
       id: "support-1",
       kind: "support",
       readOnly: true,
@@ -166,15 +166,16 @@ describe("createAgentKernel", () => {
         tools: tools(),
       });
     const listed = kernel(["list_posts"]);
-    expect((await listed.decideTool("list_posts", {}, {})).outcome).toBe(
-      "granted",
-    );
+    const { outcome } = await listed.decideTool("list_posts", {}, {});
+    expect(outcome).toBe("granted");
     const refused = await listed.decideTool("delete_post", { id: "p1" }, {});
     expect(refused.outcome).toBe("denied");
     expect(
       refused.decision?.outcome === "denied" && refused.decision.denials,
-    ).toEqual([{ role: null, reason: "agent-tool-not-delegated" }]);
-    expect([...(await listed.allowedToolNames({}))]).toEqual(["list_posts"]);
+    ).toStrictEqual([{ role: null, reason: "agent-tool-not-delegated" }]);
+    expect([...(await listed.allowedToolNames({}))]).toStrictEqual([
+      "list_posts",
+    ]);
 
     const none = kernel([]);
     expect((await none.decideTool("list_posts", {}, {})).outcome).toBe(
@@ -238,9 +239,12 @@ describe("createAgentKernel", () => {
       tools: tools(),
     });
     const ctx = { session: "s1" };
-    expect(
-      (await kernel.decideTool("publish_post", { id: "p1" }, ctx)).outcome,
-    ).toBe("granted");
+    const { outcome } = await kernel.decideTool(
+      "publish_post",
+      { id: "p1" },
+      ctx,
+    );
+    expect(outcome).toBe("granted");
     user = memberUser;
     expect(
       (await kernel.decideTool("publish_post", { id: "p1" }, ctx)).outcome,
@@ -262,11 +266,14 @@ describe("createAgentKernel", () => {
       },
     });
     const acme = await kernel.allowedToolNames({ tenant: "acme" });
-    expect([...acme].toSorted()).toEqual(["delete_project", "read_project"]);
+    expect([...acme].toSorted()).toStrictEqual([
+      "delete_project",
+      "read_project",
+    ]);
     const globex = await kernel.allowedToolNames({ tenant: "globex" });
-    expect([...globex]).toEqual(["read_project"]);
+    expect([...globex]).toStrictEqual(["read_project"]);
     const none = await kernel.allowedToolNames({ tenant: "initech" });
-    expect([...none]).toEqual([]);
+    expect([...none]).toStrictEqual([]);
   });
 
   it("lists tools granted to anyone and hides unconditionally denied ones", async () => {
@@ -287,7 +294,9 @@ describe("createAgentKernel", () => {
         list_posts: { permission: permissions.post.list },
       },
     });
-    expect([...(await kernel.allowedToolNames({}))]).toEqual(["read_post"]);
+    expect([...(await kernel.allowedToolNames({}))]).toStrictEqual([
+      "read_post",
+    ]);
   });
 
   it("hides tools outside the delegated scopes", async () => {
@@ -310,9 +319,12 @@ describe("createAgentKernel", () => {
     if (asked.outcome !== "approval-required") {
       throw new Error("expected approval-required");
     }
-    expect(
-      (await kernel.decideTool("delete_post", { id: "p1" }, {})).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await kernel.decideTool(
+      "delete_post",
+      { id: "p1" },
+      {},
+    );
+    expect(outcome).toBe("approval-required");
     await store.resolve(asked.token, {
       status: "approved",
       by: { principal: { id: "u2", roles: ["admin"] }, context: {} },
@@ -364,9 +376,12 @@ describe("createAgentKernel", () => {
       status: "approved",
       by: { principal: { id: "u2", roles: ["admin"] }, context: {} },
     });
-    expect(
-      (await kernel.decideTool(tool, { to: "attacker@evil" }, {})).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await kernel.decideTool(
+      tool,
+      { to: "attacker@evil" },
+      {},
+    );
+    expect(outcome).toBe("approval-required");
     expect(
       (await kernel.decideTool(tool, { to: "boss@corp" }, {})).outcome,
     ).toBe("granted");
@@ -415,9 +430,7 @@ describe("createAgentKernel", () => {
       "delete_post",
       { id: "p1" },
       {},
-      {
-        resumeToken: asked.token,
-      },
+      { resumeToken: asked.token },
     );
     expect(pending.outcome).toBe("denied");
     if (pending.outcome === "denied") {

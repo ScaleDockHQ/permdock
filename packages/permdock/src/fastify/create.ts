@@ -35,10 +35,7 @@ export type FastifyPermDockOptions<TUser = unknown> = ServerAdapterOptions<
 export type FastifyPermDockRequest<
   Route extends RouteGenericInterface = RouteGenericInterface,
   V extends PolicyVocabulary = PolicyVocabulary,
-> = FastifyRequest<Route> & {
-  permdock: PermDock<V>;
-  permdockData?: unknown;
-};
+> = FastifyRequest<Route> & { permdock: PermDock<V>; permdockData?: unknown };
 
 /** A request typed by the route, its schema and the app's type provider. */
 export type ProtectRequest<
@@ -71,12 +68,18 @@ export type FastifyProtect = <
 ) => Promise<void>;
 
 export type FastifyPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  /** The `PermDock` for one request, for code the middleware does not run before. */
+  /**
+   * The `PermDock` for one request, for code the middleware does not run
+   * before.
+   */
   readonly getPermDock: (request: FastifyRequest) => Promise<PermDock<V>>;
   readonly middleware: () => FastifyPluginAsync;
   readonly protect: FastifyProtect;
   readonly permdockHandler: () => FastifyPluginAsync;
-  /** Types `request.permdock` for a route registered after `middleware()` or `protect`. */
+  /**
+   * Types `request.permdock` for a route registered after `middleware()` or
+   * `protect`.
+   */
   readonly withPermDock: <
     Route extends RouteGenericInterface = RouteGenericInterface,
   >(
@@ -93,7 +96,10 @@ function breakEncapsulation(plugin: FastifyPluginAsync): FastifyPluginAsync {
   return plugin;
 }
 
-/** A route registered with `config: { permdock: false }`, such as a health check, gets no instance. */
+/**
+ * A route registered with `config: { permdock: false }`, such as a health
+ * check, gets no instance.
+ */
 function skipped(request: FastifyRequest): boolean {
   const config: unknown = request.routeOptions.config;
   return (

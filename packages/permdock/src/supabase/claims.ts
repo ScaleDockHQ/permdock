@@ -3,7 +3,10 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { isRecord } from "../core/compact.ts";
 import { supabaseTenantClaim } from "./budget.ts";
 
-/** One entry of the `memberships` claim, as `schemas/supabase-claims-v1.json` defines it. */
+/**
+ * One entry of the `memberships` claim, as `schemas/supabase-claims-v1.json`
+ * defines it.
+ */
 export type SupabaseMembershipClaim = {
   readonly scope?: string;
   /** Canonical text of the scope instance id, compared exactly. */
@@ -23,7 +26,10 @@ export type SupabaseMembershipClaim = {
   readonly member?: { readonly group: string };
   readonly managed_by?: "idp";
   readonly entitlements?: readonly string[];
-  /** The instance or an ancestor is suspended: the permission keys the membership still grants. */
+  /**
+   * The instance or an ancestor is suspended: the permission keys the
+   * membership still grants.
+   */
   readonly keep?: readonly string[];
   /** Custom roles in compact form, read by the RLS helpers in `jwt` mode. */
   readonly grants?: Readonly<Record<string, unknown>>;
@@ -44,9 +50,15 @@ export type SupabasePermDockClaims<TenantClaim extends string = "tenant_id"> = {
   readonly memberships?: readonly SupabaseMembershipClaim[];
   /** `true` when the size budget cut `memberships` or `attrs`. */
   readonly memberships_truncated?: boolean;
-  /** Allow-listed server-owned attributes, read as `principal.claims.attrs.<key>`. */
+  /**
+   * Allow-listed server-owned attributes, read as
+   * `principal.claims.attrs.<key>`.
+   */
   readonly attrs?: Readonly<Record<string, unknown>>;
-  /** The uuid of every team the user belongs to (`supabase.hook.teams`), cut by the same budget as `memberships`. */
+  /**
+   * The uuid of every team the user belongs to (`supabase.hook.teams`), cut by
+   * the same budget as `memberships`.
+   */
   readonly team_ids?: readonly string[];
   /** The principal's authorization version. */
   readonly authz_ver?: number;
@@ -78,16 +90,19 @@ export type SupabaseClaimsSchema<
   TenantClaim extends string = "tenant_id",
   Extra = unknown,
 > = StandardSchemaV1<unknown, SupabaseClaims<TenantClaim> & Extra> & {
-  extend<App extends StandardSchemaV1>(
+  extend: <App extends StandardSchemaV1>(
     app: App,
-  ): SupabaseClaimsSchema<
+  ) => SupabaseClaimsSchema<
     TenantClaim,
     Extra & StandardSchemaV1.InferOutput<App>
   >;
 };
 
 export type SupabaseClaimsOptions<TenantClaim extends string = "tenant_id"> = {
-  /** The claim holding the active tenant; `rls.tenantClaim`, default `tenant_id`. */
+  /**
+   * The claim holding the active tenant; `rls.tenantClaim`, default
+   * `tenant_id`.
+   */
   readonly tenantClaim?: TenantClaim;
 };
 
@@ -272,7 +287,11 @@ function checkPermDockClaims(
   );
 }
 
-/** The outer level's `kind`: none, `support` with a `session_id`, `impersonation`, or `agent` with optional `tools` and `read_only` and no `session_id`. */
+/**
+ * The outer level's `kind`: none, `support` with a `session_id`,
+ * `impersonation`, or `agent` with optional `tools` and `read_only` and no
+ * `session_id`.
+ */
 function checkActKind(
   level: Record<string, unknown>,
   path: Path,
@@ -460,7 +479,9 @@ function schemaOf<TenantClaim extends string, Extra>(
  * Needs no validation library.
  *
  * ```ts
- * sb.claims(supabaseClaims().extend(z.object({ datetime_preferences: Prefs })))
+ * sb.claims(
+ *   supabaseClaims().extend(z.object({ datetime_preferences: Prefs })),
+ * );
  * ```
  */
 export function supabaseClaims<TenantClaim extends string = "tenant_id">(

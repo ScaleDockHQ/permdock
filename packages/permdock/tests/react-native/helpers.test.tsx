@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import type { Permission } from "../../src/core/permission-types.ts";
+import type { SecureStoreModule } from "../../src/react-native/storage-adapters.ts";
 import type { SnapshotStorage } from "../../src/react-native/types.ts";
 
 import { localSnapshotManifest } from "../../src/core/local-manifest.ts";
@@ -17,7 +18,6 @@ import { PermDockProvider } from "../../src/react-native/provider.tsx";
 import {
   mmkvStorage,
   secureStoreStorage,
-  type SecureStoreModule,
 } from "../../src/react-native/storage-adapters.ts";
 import {
   memorySnapshotStorage,
@@ -66,7 +66,7 @@ function fakeSecureStore(): SecureStoreModule & {
   return store;
 }
 
-describe("secureStoreStorage", () => {
+describe(secureStoreStorage, () => {
   it("round-trips a value larger than one SecureStore item", async () => {
     const fake = fakeSecureStore();
     const storage = secureStoreStorage(fake);
@@ -82,7 +82,7 @@ describe("secureStoreStorage", () => {
     await storage.setItem("k", "x".repeat(5000));
     await storage.setItem("k", "short");
     expect(storage.getItem("k")).toBe("short");
-    expect([...fake.items.keys()].toSorted()).toEqual(["k", "k.0"]);
+    expect([...fake.items.keys()].toSorted()).toStrictEqual(["k", "k.0"]);
     await storage.removeItem("k");
     expect(fake.items.size).toBe(0);
   });
@@ -105,7 +105,7 @@ describe("secureStoreStorage", () => {
   });
 });
 
-describe("mmkvStorage", () => {
+describe(mmkvStorage, () => {
   it("works with the v4 remove and the v3 delete", () => {
     for (const method of ["remove", "delete"] as const) {
       const items = new Map<string, string>();
@@ -121,9 +121,9 @@ describe("mmkvStorage", () => {
         instance as Parameters<typeof mmkvStorage>[0],
       );
       expect(storage.getItem("k")).toBeNull();
-      storage.setItem("k", "v");
+      void storage.setItem("k", "v");
       expect(storage.getItem("k")).toBe("v");
-      storage.removeItem("k");
+      void storage.removeItem("k");
       expect(items.size).toBe(0);
     }
   });
@@ -151,7 +151,7 @@ describe("appStateForeground and netInfoOnline", () => {
     emit("background");
     emit("active");
     off();
-    expect(seen).toEqual([false, true]);
+    expect(seen).toStrictEqual([false, true]);
     expect(removed).toBe(true);
   });
 
@@ -173,11 +173,11 @@ describe("appStateForeground and netInfoOnline", () => {
     emit({ isConnected: null });
     emit({ isConnected: true, isInternetReachable: false });
     emit({ isConnected: false });
-    expect(seen).toEqual([true, true, false, false]);
+    expect(seen).toStrictEqual([true, true, false, false]);
   });
 });
 
-describe("parseLocalSnapshotManifest", () => {
+describe(parseLocalSnapshotManifest, () => {
   it("accepts what localSnapshotManifest writes, after a JSON round trip", () => {
     const json: unknown = JSON.parse(
       JSON.stringify(localSnapshotManifest(policy)),

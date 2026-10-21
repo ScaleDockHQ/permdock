@@ -8,13 +8,19 @@ import { qualified } from "../sql/quote.ts";
 import { subjectClaimJsonSql } from "../sql/subject.ts";
 
 export type PolicyShape = {
-  /** One policy per role and permission (the pre-helper layout) instead of one per table and command. */
+  /**
+   * One policy per role and permission (the pre-helper layout) instead of one
+   * per table and command.
+   */
   readonly perRole: boolean;
   /** Name template: `{table}`, `{op}`, `{role}`, `{permission}`. */
   readonly name?: string;
 };
 
-/** Each database role gets its own policy, so no role sees two permissive policies for one command. */
+/**
+ * Each database role gets its own policy, so no role sees two permissive
+ * policies for one command.
+ */
 const AUDIENCES = ["authenticated", "anon"] as const;
 
 const DEFAULT_POLICY_NAME = "{table}_{op}";
@@ -23,7 +29,7 @@ const DEFAULT_PER_ROLE_NAME = "{role}_{permission}";
 const PLACEHOLDER = /\{(table|op|role|permission)\}/gu;
 
 function sanitize(name: string): string {
-  return name.replaceAll(/[^A-Za-z0-9_]/g, "_");
+  return name.replaceAll(/[^A-Za-z0-9_]/gu, "_");
 }
 
 function render(
@@ -38,7 +44,10 @@ function render(
   );
 }
 
-/** Rejects a template that cannot name every policy of the chosen shape uniquely. */
+/**
+ * Rejects a template that cannot name every policy of the chosen shape
+ * uniquely.
+ */
 function assertPolicyName(template: string, perRole: boolean): void {
   if (!perRole && /\{(role|permission)\}/u.test(template)) {
     throw configError(
@@ -211,9 +220,9 @@ function collapsedPolicies(
 }
 
 /**
- * Assembles policies. The default is one PERMISSIVE policy per table,
- * command and database role (Splinter `multiple_permissive_policies` stays
- * quiet), with denies in one RESTRICTIVE policy per table, command and role.
+ * Assembles policies. The default is one PERMISSIVE policy per table, command
+ * and database role (Splinter `multiple_permissive_policies` stays quiet), with
+ * denies in one RESTRICTIVE policy per table, command and role.
  */
 export function assemblePolicies(
   branches: readonly CompiledBranch[],
@@ -247,13 +256,16 @@ export function readOnlyActorKinds(
   return [...new Set(kinds)];
 }
 
-/** `permdock_actor_may_write()`, for hand-written write policies. Names are part of the SQL contract. */
+/**
+ * `permdock_actor_may_write()`, for hand-written write policies. Names are part
+ * of the SQL contract.
+ */
 export const ACTOR_MAY_WRITE = "permdock_actor_may_write";
 
 /**
- * True unless the token's `act` claim (`act`, as SQL `jsonb`) is a session
- * of one of `kinds` that is not `read_only: false`, or an agent with
- * `read_only: true` (agents default to writable, as better-supabase reads them).
+ * True unless the token's `act` claim (`act`, as SQL `jsonb`) is a session of
+ * one of `kinds` that is not `read_only: false`, or an agent with `read_only:
+ * true` (agents default to writable, as better-supabase reads them).
  */
 function readOnlyActorPasses(act: string, kinds: readonly string[]): string {
   const list = `array[${kinds.map((kind) => `'${kind}'`).join(", ")}]::text[]`;
@@ -290,10 +302,10 @@ grant execute on function ${fn}() to authenticated;
 }
 
 /**
- * One restrictive policy per table and write command the allow policies
- * grant to `authenticated`: the write passes unless the token's `act` claim
- * (`act`, as SQL `jsonb`) is a session of one of `kinds` that is not
- * `read_only: false`. Reads are never touched.
+ * One restrictive policy per table and write command the allow policies grant
+ * to `authenticated`: the write passes unless the token's `act` claim (`act`,
+ * as SQL `jsonb`) is a session of one of `kinds` that is not `read_only:
+ * false`. Reads are never touched.
  */
 export function readOnlyActorPolicies(
   policies: readonly CompiledPolicy[],

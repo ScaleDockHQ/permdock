@@ -1,5 +1,6 @@
 import type { AuthEvent } from "../core/event-types.ts";
 import type { JwtClaims } from "../core/interfaces.ts";
+import type { Membership, Subject } from "../core/subject.ts";
 import type {
   JwtPrincipal,
   JwtSubjectOptions,
@@ -8,11 +9,7 @@ import type {
 
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import {
-  type Membership,
-  type Subject,
-  anonymousSubject,
-} from "../core/subject.ts";
+import { anonymousSubject } from "../core/subject.ts";
 import {
   assertSubjectConfig,
   fail,
@@ -67,10 +64,10 @@ function mtlsThumbprint(claims: JwtClaims): string | undefined {
 
 /**
  * The sender constraint to enforce. Without a configured `sender`, a token
- * whose `cnf` binds it to a key or a certificate is held to that binding,
- * never accepted as a bearer token (RFC 9449 section 7.1, RFC 8705
- * section 3). An explicit `sender: "none"` is the opt-out for a gateway
- * that verified the binding upstream.
+ * whose `cnf` binds it to a key or a certificate is held to that binding, never
+ * accepted as a bearer token (RFC 9449 section 7.1, RFC 8705 section 3). An
+ * explicit `sender: "none"` is the opt-out for a gateway that verified the
+ * binding upstream.
  */
 function senderFor(
   options: JwtSubjectOptions,

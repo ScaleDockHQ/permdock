@@ -42,7 +42,7 @@ export type WebhookMessage = {
 };
 
 export type WebhookSigner = {
-  sign(message: WebhookMessage): Promise<WebhookHeaders>;
+  sign: (message: WebhookMessage) => Promise<WebhookHeaders>;
 };
 
 /** An Ed25519 public JWK set for `v1a`, or the URL that serves one. */
@@ -92,10 +92,13 @@ export type VerifiedWebhookMessage =
 
 export type WebhookVerifier = {
   /** Never throws; claims the `webhook-id` only after a signature verifies. */
-  verify(input: WebhookInput): Promise<VerifiedWebhookMessage>;
+  verify: (input: WebhookInput) => Promise<VerifiedWebhookMessage>;
 };
 
-/** Derived from Web Crypto, so the declaration needs neither the DOM lib nor `@types/node` 25+. */
+/**
+ * Derived from Web Crypto, so the declaration needs neither the DOM lib nor
+ * `@types/node` 25+.
+ */
 type SubtleKey = Awaited<ReturnType<typeof crypto.subtle.importKey>>;
 
 const DEFAULT_TOLERANCE = 300;
@@ -168,9 +171,9 @@ function validId(id: string): boolean {
 }
 
 /**
- * Signs Standard Webhooks deliveries: `v1` HMAC-SHA256 with a `whsec_`
- * secret, `v1a` Ed25519 with a private JWK. Throws on an invalid key or id,
- * because both come from the sender's own configuration.
+ * Signs Standard Webhooks deliveries: `v1` HMAC-SHA256 with a `whsec_` secret,
+ * `v1a` Ed25519 with a private JWK. Throws on an invalid key or id, because
+ * both come from the sender's own configuration.
  */
 export function webhookSigner(options: WebhookSignerOptions): WebhookSigner {
   if (options.keys.length === 0) {
@@ -466,12 +469,7 @@ export function webhookVerifier(
       if (!(await claim(id, sent + tolerance))) {
         return { ok: false, cause: "replayed" };
       }
-      return {
-        ok: true,
-        id,
-        timestamp: rfc3339(sent),
-        body,
-      };
+      return { ok: true, id, timestamp: rfc3339(sent), body };
     },
   };
 }

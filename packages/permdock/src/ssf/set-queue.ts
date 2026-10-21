@@ -4,14 +4,17 @@ import { isRecord } from "../core/compact.ts";
 import { readBodyText } from "../server/body-text.ts";
 import { rfc8935, jsonResponse } from "./wire.ts";
 
-/** The largest poll request body read: acknowledgements and errors for many SETs. */
+/**
+ * The largest poll request body read: acknowledgements and errors for many
+ * SETs.
+ */
 const MAX_POLL_BYTES = 262_144;
 const DEFAULT_MAX_EVENTS = 100;
 
 /**
  * An in-process `SetQueue`: pending SETs per stream in insertion order. A
- * process restart loses them; a deployment with more than one instance needs
- * a shared queue.
+ * process restart loses them; a deployment with more than one instance needs a
+ * shared queue.
  */
 export function memorySetQueue(): SetQueue {
   const streams = new Map<string, Map<string, string>>();
@@ -100,10 +103,10 @@ function parsePollRequest(text: string): PollRequest | undefined {
 }
 
 /**
- * The RFC 8936 poll endpoint over a `SetQueue`. It applies the request's
- * `acks` and `setErrs`, then answers `{ sets, moreAvailable }` with up to
- * `maxEvents` pending SETs. It answers at once whatever `returnImmediately`
- * says, which RFC 8936 section 2.4 allows.
+ * The RFC 8936 poll endpoint over a `SetQueue`. It applies the request's `acks`
+ * and `setErrs`, then answers `{ sets, moreAvailable }` with up to `maxEvents`
+ * pending SETs. It answers at once whatever `returnImmediately` says, which RFC
+ * 8936 section 2.4 allows.
  */
 export function setPollHandler(
   options: SetPollHandlerOptions,

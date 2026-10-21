@@ -1,6 +1,8 @@
 import type { SQL } from "drizzle-orm";
 
 import type { Condition } from "../conditions/ast.ts";
+import type { CompiledExists, CompiledWhere } from "../conditions/compile.ts";
+import type { RowCheck } from "../conditions/row-check.ts";
 import type { WhereResult } from "../core/permdock.ts";
 import type { Subject } from "../core/subject.ts";
 import type {
@@ -9,14 +11,9 @@ import type {
   DrizzleWithSubjectOptions,
 } from "./types.ts";
 
-import {
-  type CompiledExists,
-  type CompiledWhere,
-  compileWhere,
-  escapeLike,
-} from "../conditions/compile.ts";
+import { compileWhere, escapeLike } from "../conditions/compile.ts";
 import { loadPeer } from "../conditions/peer.ts";
-import { type RowCheck, rowCheckFrom } from "../conditions/row-check.ts";
+import { rowCheckFrom } from "../conditions/row-check.ts";
 import {
   statementTemplate,
   subjectStatements,
@@ -63,7 +60,10 @@ function column(
   return mapped;
 }
 
-/** Drizzle's Postgres array columns (`text().array()`) report `dataType: 'array'`. */
+/**
+ * Drizzle's Postgres array columns (`text().array()`) report `dataType:
+ * 'array'`.
+ */
 function isArrayColumn(col: unknown): boolean {
   if (col === null || typeof col !== "object") {
     return false;
@@ -244,7 +244,10 @@ function render(
   }
 }
 
-/** Compiles a condition into a Drizzle `SQL` filter over `table`; no grant compiles to `false`. */
+/**
+ * Compiles a condition into a Drizzle `SQL` filter over `table`; no grant
+ * compiles to `false`.
+ */
 export function toWhere<T extends object>(
   input: Condition | WhereResult,
   table: T,
@@ -269,14 +272,18 @@ export function toWhere<T extends object>(
 }
 
 type DrizzleDatabase<Tx> = {
-  transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
+  transaction: <T>(fn: (tx: Tx) => Promise<T>) => Promise<T>;
 };
 
 /**
- * Runs `fn` in a transaction whose role and claims are `permdock.subject`'s, so the generated
- * RLS policies decide for the same subject as the in-process checks.
+ * Runs `fn` in a transaction whose role and claims are `permdock.subject`'s, so
+ * the generated RLS policies decide for the same subject as the in-process
+ * checks.
  */
-export function withSubject<Tx extends { execute(query: never): unknown }, T>(
+export function withSubject<
+  Tx extends { execute: (query: never) => unknown },
+  T,
+>(
   db: DrizzleDatabase<Tx>,
   permdock: { readonly subject: Subject },
   fn: (tx: Tx) => Promise<T>,
@@ -296,20 +303,21 @@ export function withSubject<Tx extends { execute(query: never): unknown }, T>(
 }
 
 type DrizzleSelectable = {
-  select(fields: Record<string, unknown>): {
-    from(table: never): {
-      where(where: unknown): {
-        limit(
+  select: (fields: Record<string, unknown>) => {
+    from: (table: never) => {
+      where: (where: unknown) => {
+        limit: (
           count: number,
-        ): PromiseLike<readonly { readonly granted?: unknown }[]>;
+        ) => PromiseLike<readonly { readonly granted?: unknown }[]>;
       };
     };
   };
 };
 
 /**
- * One query for one row: `{ found: false }` when `key` matches nothing, otherwise whether the
- * permission filter keeps the row. Throws when `key` matches more than one row.
+ * One query for one row: `{ found: false }` when `key` matches nothing,
+ * otherwise whether the permission filter keeps the row. Throws when `key`
+ * matches more than one row.
  */
 export async function checkRow<T extends object>(
   db: DrizzleSelectable,

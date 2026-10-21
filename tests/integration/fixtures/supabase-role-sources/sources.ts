@@ -2,7 +2,10 @@ import type { SqlQuery } from "permdock/supabase";
 
 import { junctionMembershipSource } from "permdock/supabase";
 
-/** An organization membership row holding a plan `tier` key and a `roles` reference. */
+/**
+ * An organization membership row holding a plan `tier` key and a `roles`
+ * reference.
+ */
 export function membership(query?: SqlQuery) {
   return junctionMembershipSource({
     table: "organization_users",

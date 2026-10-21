@@ -16,9 +16,15 @@ import { parseSupabaseManifest } from "../supabase/manifest.ts";
 import { PERMDOCK_SCHEMA } from "../supabase/sources.ts";
 
 type AccessScope = {
-  /** A scope in the policy's scopes (or the manifest's `rls.scopes`), or `platform` for permissions granted globally. */
+  /**
+   * A scope in the policy's scopes (or the manifest's `rls.scopes`), or
+   * `platform` for permissions granted globally.
+   */
   readonly scope: string;
-  /** 1-based path or topic segment holding the scope id; better-supabase's default is the `{organizationId}` segment. */
+  /**
+   * 1-based path or topic segment holding the scope id; better-supabase's
+   * default is the `{organizationId}` segment.
+   */
   readonly segment?: number;
 };
 
@@ -30,17 +36,29 @@ type AccessScope = {
 export type AccessPolicyOptions = AccessScope &
   (
     | {
-        /** `permdock.manifest.json`, parsed or as JSON text: it names the helpers' schema and the scopes. */
+        /**
+         * `permdock.manifest.json`, parsed or as JSON text: it names the
+         * helpers' schema and the scopes.
+         */
         readonly manifest: unknown;
-        /** `permissions.catalog.json`: only keys it marks `rowConditions: false` are accepted. */
+        /**
+         * `permissions.catalog.json`: only keys it marks `rowConditions: false`
+         * are accepted.
+         */
         readonly catalog: unknown;
         readonly policy?: undefined;
         readonly schema?: undefined;
       }
     | {
-        /** The `definePolicy` result: only keys with no row condition in it are accepted. */
+        /**
+         * The `definePolicy` result: only keys with no row condition in it are
+         * accepted.
+         */
         readonly policy: Policy;
-        /** The schema `rls generate` put the helpers in (`rls.schema`). Default `permdock`. */
+        /**
+         * The schema `rls generate` put the helpers in (`rls.schema`). Default
+         * `permdock`.
+         */
         readonly schema?: string;
         readonly manifest?: undefined;
         readonly catalog?: undefined;
@@ -70,7 +88,10 @@ export type TopicAccess = {
   readonly send?: Permission;
 };
 
-/** PermDock splits a key with row conditions into `key#1`, `key#2`, ... in the policies it generates. */
+/**
+ * PermDock splits a key with row conditions into `key#1`, `key#2`, ... in the
+ * policies it generates.
+ */
 const SPLIT_KEY = /#\d+$/u;
 
 function checkedKey(
@@ -165,11 +186,10 @@ function target(options: AccessPolicyOptions): {
 }
 
 /**
- * A better-supabase bucket `policy` that checks PermDock permissions with
- * the `rls generate` helpers at `scope`. The helpers check role and scope
- * only, so a permission with row conditions (`rowConditions: true` in the
- * catalog, or a conditioned grant in `policy`), or one not granted at
- * `scope`, throws.
+ * A better-supabase bucket `policy` that checks PermDock permissions with the
+ * `rls generate` helpers at `scope`. The helpers check role and scope only, so
+ * a permission with row conditions (`rowConditions: true` in the catalog, or a
+ * conditioned grant in `policy`), or one not granted at `scope`, throws.
  */
 export function bucketPolicy(
   access: BucketAccess,

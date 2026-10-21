@@ -11,22 +11,13 @@ import { site } from "@/lib/site";
 import { TooltipProvider } from "@permdock/ui/components/tooltip";
 import { cn } from "@permdock/ui/lib/utils";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-});
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-});
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const rootMetadata: Metadata = {
   metadataBase: new URL(site.url),
-  title: {
-    default: site.name,
-    template: `%s | ${site.name}`,
-  },
+  title: { default: site.name, template: `%s | ${site.name}` },
   description: site.tagline,
   applicationName: site.name,
   keywords: [

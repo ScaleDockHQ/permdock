@@ -41,7 +41,7 @@ const withLimit = definePolicy(permissions, {
   subject,
 });
 
-describe("defineApp", () => {
+describe(defineApp, () => {
   it("returns a policy that core and adapters read the app definition from", async () => {
     const sink = memoryDecisionSink();
     const app = defineApp(plain, { sink });
@@ -61,13 +61,13 @@ describe("defineApp", () => {
       { sink: callSink },
     );
     permdock.can(permissions.post.read, { id: "p1" });
-    expect(appSink.events()).toEqual([]);
+    expect(appSink.events()).toStrictEqual([]);
     expect(callSink.events().length).toBeGreaterThan(0);
   });
 
   it("throws under prod when a grant needs a store or limits the app lacks", () => {
-    expect(() => defineApp(withApproval)).toThrow(/needs a store/);
-    expect(() => defineApp(withLimit)).toThrow(/needs limits/);
+    expect(() => defineApp(withApproval)).toThrow(/needs a store/u);
+    expect(() => defineApp(withLimit)).toThrow(/needs limits/u);
     expect(() =>
       defineApp(withApproval, { store: memoryApprovalStore() }),
     ).not.toThrow();

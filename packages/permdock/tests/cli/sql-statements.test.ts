@@ -6,29 +6,29 @@ import {
   sqlStatements,
 } from "../../src/cli/sql/statements.ts";
 
-describe("sqlStatements", () => {
+describe(sqlStatements, () => {
   it("keeps an unterminated string or dollar-quoted body as the last statement", () => {
-    expect(sqlStatements("select 1;\nselect 'open; still open")).toEqual([
+    expect(sqlStatements("select 1;\nselect 'open; still open")).toStrictEqual([
       { line: 1, text: "select 1" },
       { line: 2, text: "select 'open; still open" },
     ]);
     expect(
       sqlStatements("select 1;\ncreate function f() as $body$ select 2;"),
-    ).toEqual([
+    ).toStrictEqual([
       { line: 1, text: "select 1" },
       { line: 2, text: "create function f() as $body$ select 2;" },
     ]);
   });
 });
 
-describe("group", () => {
+describe(group, () => {
   it("reads an optional group that took no part as empty", () => {
     const match = /^(a)(b)?$/u.exec("a");
     expect(match === null ? undefined : group(match, 2)).toBe("");
   });
 });
 
-describe("splitUndiffed", () => {
+describe(splitUndiffed, () => {
   it("moves the schema, function and view privileges and view options supabase db diff drops", () => {
     const sql = [
       "create schema if not exists app;",
@@ -46,7 +46,7 @@ describe("splitUndiffed", () => {
       "",
     ].join("\n");
     const { kept, moved } = splitUndiffed(sql);
-    expect(moved).toEqual([
+    expect(moved).toStrictEqual([
       "revoke all on schema app from public;",
       "alter view app.safe set (security_invoker = true);",
       "grant select on app.open to authenticated;",

@@ -26,7 +26,7 @@ type Runtime = {
   readonly name: string;
   readonly prefixes: readonly string[];
   readonly available: boolean;
-  start(): Promise<{ readonly base: string; stop(): Promise<void> }>;
+  start: () => Promise<{ readonly base: string; stop: () => Promise<void> }>;
 };
 
 function freePort(): Promise<number> {
@@ -102,7 +102,10 @@ function onPath(binary: string): boolean {
   return spawnSync(binary, ["--version"], { stdio: "ignore" }).status === 0;
 }
 
-/** The native binary the `deno` package installs; its `bin.cjs` launcher exits before Deno does. */
+/**
+ * The native binary the `deno` package installs; its `bin.cjs` launcher exits
+ * before Deno does.
+ */
 const deno = join(
   dirname(createRequire(import.meta.url).resolve("deno/bin.cjs")),
   process.platform === "win32" ? "deno.exe" : "deno",
@@ -131,10 +134,7 @@ const workerd: Runtime = {
       compatibilityDate: "2026-07-01",
     });
     const url = await miniflare.ready;
-    return {
-      base: url.origin,
-      stop: () => miniflare.dispose(),
-    };
+    return { base: url.origin, stop: () => miniflare.dispose() };
   },
 };
 
@@ -169,14 +169,14 @@ function suite(runtime: Runtime): void {
 
   for (const prefix of runtime.prefixes) {
     it(`serves the saas scenarios through ${prefix}`, async () => {
-      expect(await adapterOutcomes(state.server?.base ?? "", prefix)).toEqual(
-        ADAPTER_EXPECTED,
-      );
+      expect(
+        await adapterOutcomes(state.server?.base ?? "", prefix),
+      ).toStrictEqual(ADAPTER_EXPECTED);
     });
   }
 
   it("answers AuthZEN evaluations", async () => {
-    expect(await authzenOutcomes(state.server?.base ?? "")).toEqual(
+    expect(await authzenOutcomes(state.server?.base ?? "")).toStrictEqual(
       AUTHZEN_EXPECTED,
     );
   });

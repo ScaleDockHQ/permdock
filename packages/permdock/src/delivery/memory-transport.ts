@@ -22,14 +22,20 @@ export type MemoryDeliveryTransport<C extends DeliveryChannel> =
   };
 
 export type MemoryDeliveryTransportOptions<C extends DeliveryChannel> = {
-  /** The result per delivery; defaults to `sent`. A throw propagates, as from a provider client. */
+  /**
+   * The result per delivery; defaults to `sent`. A throw propagates, as from a
+   * provider client.
+   */
   readonly respond?: (
     target: DeliveryTarget<C>,
     message: TransportMessages[C],
   ) => DeliveryResult;
 };
 
-/** An in-process transport for tests and examples: it records what it would have sent. */
+/**
+ * An in-process transport for tests and examples: it records what it would have
+ * sent.
+ */
 export function memoryDeliveryTransport<C extends DeliveryChannel>(
   channel: C,
   options: MemoryDeliveryTransportOptions<C> = {},

@@ -108,7 +108,7 @@ describe("approver kinds", () => {
     const dana = inTenant("dana", ["controller"]);
     expect(() => assertApprover(request, dana, false)).toThrow(/eligible/u);
     const held = approverPermissions(request, getPermDockSync(policy, dana));
-    expect(held).toEqual(["payment.approve"]);
+    expect(held).toStrictEqual(["payment.approve"]);
     expect(() =>
       assertApprover(
         request,
@@ -134,7 +134,9 @@ describe("approver kinds", () => {
         },
       ]),
     });
-    expect(approverPermissions(request, instance)).toEqual(["payment.approve"]);
+    expect(approverPermissions(request, instance)).toStrictEqual([
+      "payment.approve",
+    ]);
   });
 
   it("an instance for another tenant or principal holds nothing", async () => {
@@ -150,7 +152,7 @@ describe("approver kinds", () => {
     };
     expect(
       approverPermissions(request, getPermDockSync(policy, elsewhere)),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("approvalsHandler reads holders through permdockFor", async () => {
@@ -170,7 +172,9 @@ describe("approver kinds", () => {
   });
 
   it("allOf is a list, and a list inside anyOf needs every entry", () => {
-    expect(normalizeApproval({ by: allOf(user("a"), "controller") })).toEqual({
+    expect(
+      normalizeApproval({ by: allOf(user("a"), "controller") }),
+    ).toStrictEqual({
       by: [
         { kind: "user", id: "a" },
         { kind: "role", role: "controller", scope: "global" },
@@ -178,7 +182,7 @@ describe("approver kinds", () => {
     });
     expect(
       normalizeApproval({ by: anyOf([user("a"), "controller"], user("b")) }),
-    ).toEqual({
+    ).toStrictEqual({
       by: {
         kind: "any-of",
         of: [
@@ -219,7 +223,7 @@ describe("escalation in data and per stage", () => {
           escalation: { after: 14_400, to: "auditor" },
         },
       }),
-    ).toEqual({ ok: true });
+    ).toStrictEqual({ ok: true });
     const tightened = tightenApproval(
       code,
       [

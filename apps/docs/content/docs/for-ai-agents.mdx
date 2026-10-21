@@ -50,10 +50,7 @@ import { Post } from "./schemas"; // any Standard Schema validator
 export const permissions = definePermissions({
   post: resource(
     Post,
-    crud({
-      id: "id",
-      actions: { publish: { title: "Publish post" } },
-    }),
+    crud({ id: "id", actions: { publish: { title: "Publish post" } } }),
   ),
 });
 
@@ -92,9 +89,7 @@ import { createPermDock } from "permdock/next";
 import { policy } from "../policy";
 
 export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
-  createPermDock(policy, {
-    subject: async () => getUser(await cookies()),
-  });
+  createPermDock(policy, { subject: async () => getUser(await cookies()) });
 ```
 
 Then, in a Server Component or Server Action:

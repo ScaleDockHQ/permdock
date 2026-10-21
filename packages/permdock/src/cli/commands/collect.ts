@@ -1,4 +1,6 @@
-import { type Leaf, defineLeaf } from "../core/command.ts";
+import type { Leaf } from "../core/command.ts";
+
+import { defineLeaf } from "../core/command.ts";
 import { CliError } from "../core/errors.ts";
 import { checkFlag, fileOut } from "../core/flags.ts";
 
@@ -32,14 +34,11 @@ export const collect: Leaf = defineLeaf({
         throw new CliError(
           "usage",
           "collect: --watch writes the catalog; drop --check",
-          {
-            code: "invalid_value",
-          },
+          { code: "invalid_value" },
         );
       }
       // Lazy: the watcher loads only when this command runs, not for --help.
-      const { watchCollect } = await import("../watch.ts");
-      return watchCollect(ctx, overrides);
+      return (await import("../watch.ts")).watchCollect(ctx, overrides);
     }
     // Lazy: the implementation loads only when this command runs, not for --help.
     const result = await (

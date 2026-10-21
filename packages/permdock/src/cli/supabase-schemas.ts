@@ -8,7 +8,10 @@ const MODES = [
   "migrations",
 ] as const satisfies readonly SupabaseSchemas[];
 
-/** The schema workflow PermDock generates for, after the flag, the config and `config.toml`. */
+/**
+ * The schema workflow PermDock generates for, after the flag, the config and
+ * `config.toml`.
+ */
 export type ResolvedSchemas =
   | {
       readonly mode: "pg-delta";
@@ -33,9 +36,9 @@ export function schemasRefusal(
 }
 
 /**
- * `--schemas`, else `supabase.schemas`, else `migra` when `config.toml`
- * sets `[experimental.pgdelta] enabled = false`, else `pg-delta`: the default
- * of new Supabase projects and of the next Supabase CLI major.
+ * `--schemas`, else `supabase.schemas`, else `migra` when `config.toml` sets
+ * `[experimental.pgdelta] enabled = false`, else `pg-delta`: the default of new
+ * Supabase projects and of the next Supabase CLI major.
  */
 export function resolveSchemas(
   cwd: string,
@@ -49,10 +52,7 @@ export function resolveSchemas(
     (toml?.enabled === false ? "migra" : "pg-delta");
   switch (mode) {
     case "pg-delta":
-      return {
-        mode,
-        schemaDir: toml?.schemaDir ?? declarativeSchemaDir(),
-      };
+      return { mode, schemaDir: toml?.schemaDir ?? declarativeSchemaDir() };
     case "migra":
     case "migrations":
       return { mode };

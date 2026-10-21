@@ -4,7 +4,10 @@ import type { RlsTable } from "../types.ts";
 import { configError } from "../core/errors.ts";
 import { permittedIdsHelper } from "./names.ts";
 
-/** The `schema.table` an `rls.tables` entry names, or `resource` when it names none or is `false`. */
+/**
+ * The `schema.table` an `rls.tables` entry names, or `resource` when it names
+ * none or is `false`.
+ */
 export function tableNameOf(
   entry: RlsTable | undefined,
   resource: string,
@@ -15,7 +18,10 @@ export function tableNameOf(
   return typeof entry === "string" ? entry : (entry.table ?? resource);
 }
 
-/** `rls.tables` as resource to table name, the `via` objects reduced to their `table` and the `false` entries left out. */
+/**
+ * `rls.tables` as resource to table name, the `via` objects reduced to their
+ * `table` and the `false` entries left out.
+ */
 export function tableNames(
   tables: Readonly<Record<string, RlsTable>> | undefined,
 ): Readonly<Record<string, string>> | undefined {

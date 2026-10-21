@@ -13,15 +13,23 @@ import { approvalCard } from "./card.ts";
 
 /** The part of a Chat SDK `Chat` the transport calls; a `new Chat(...)` fits. */
 export type ChatSdkClient = {
-  openDM(user: string): Promise<{
-    post(message: string | CardElement): Promise<{ readonly id: string }>;
+  openDM: (
+    user: string,
+  ) => Promise<{
+    post: (message: string | CardElement) => Promise<{ readonly id: string }>;
   }>;
 };
 
 export type ChatSdkTransportOptions = {
-  /** The adapter name recipients are on (`slack`, `teams`, …); a target for another provider is rejected. */
+  /**
+   * The adapter name recipients are on (`slack`, `teams`, …); a target for
+   * another provider is rejected.
+   */
   readonly provider: string;
-  /** The workspace the bot is installed in; a target for another workspace is rejected. */
+  /**
+   * The workspace the bot is installed in; a target for another workspace is
+   * rejected.
+   */
   readonly workspace?: string;
   /** Keys this transport remembers to skip a repeat post. Defaults to 1000. */
   readonly remember?: number;
@@ -62,9 +70,9 @@ function chatSdkFailure(error: unknown): DeliveryResult {
 /**
  * The chat channel of `permdock/delivery` over the Chat SDK: opens a direct
  * message with the target's platform user id and posts the text, or the
- * approval card when the message carries an approval prompt. The Chat SDK
- * takes no idempotency key, so the transport skips a key it already sent,
- * per instance and in memory only.
+ * approval card when the message carries an approval prompt. The Chat SDK takes
+ * no idempotency key, so the transport skips a key it already sent, per
+ * instance and in memory only.
  */
 export function chatSdkTransport(
   chat: ChatSdkClient,

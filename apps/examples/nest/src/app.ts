@@ -7,9 +7,7 @@ import { memberUser, policy } from "./policy.ts";
 
 export const { PermDockModule, Protect, permdockHandler } = createPermDock(
   policy,
-  {
-    subject: () => memberUser,
-  },
+  { subject: () => memberUser },
 );
 
 class HealthController {

@@ -23,7 +23,7 @@ function ctx(extra: Partial<RlsSqlContext> = {}): RlsSqlContext {
   };
 }
 
-describe("rolesTableScope", () => {
+describe(rolesTableScope, () => {
   it("reads a row with no tenant as a platform role without a shared column", () => {
     expect(
       rolesTableScope({ table: "roles", key: "key" }, "t", "org", column),

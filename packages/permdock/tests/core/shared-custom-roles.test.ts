@@ -91,7 +91,7 @@ function memberOf(
 
 describe("shared custom roles", () => {
   it("resolve against the ceiling of their scope", () => {
-    expect(validateCustomRole(policy, viewer)).toEqual({
+    expect(validateCustomRole(policy, viewer)).toStrictEqual({
       ok: true,
       permissions: ["invoice.read", "post.read"],
       dropped: [],
@@ -105,7 +105,7 @@ describe("shared custom roles", () => {
         name: "assigner",
         grants: [{ permission: "member.assignRole" }],
       }).dropped,
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("grant through a membership in any tenant", () => {
@@ -141,7 +141,7 @@ describe("shared custom roles", () => {
     expect(permdock.can(permissions.post.update)).toBe(false);
     expect(
       validateCustomRole(policy, tenantViewer, { shared: [viewer] }),
-    ).toEqual({
+    ).toStrictEqual({
       ok: false,
       permissions: [],
       dropped: [{ role: "viewer", reason: "name-taken" }],
@@ -183,7 +183,10 @@ describe("shared custom roles", () => {
           rolesFor: () => [],
           sharedRoles: (context) => {
             calls += 1;
-            expect(context?.held.toSorted()).toEqual(["reader", "viewer"]);
+            expect(context?.held.toSorted()).toStrictEqual([
+              "reader",
+              "viewer",
+            ]);
             return [reader, viewer];
           },
         },
@@ -206,7 +209,7 @@ describe("shared custom roles", () => {
       auth.push(event);
     });
     expect(throwing.can(permissions.post.read)).toBe(false);
-    expect(auth).toEqual([
+    expect(auth).toStrictEqual([
       { reason: "source-threw", source: "customRoles", name: "roles-table" },
     ]);
     const async = await getPermDock(policy, memberOf(["acme", ["viewer"]]), {
@@ -264,13 +267,10 @@ describe("shared custom roles", () => {
     const steward = getPermDockSync(
       policy,
       memberOf(["acme", ["steward"]], ["globex", ["steward"]]),
-      {
-        tenant: "acme",
-        customRoles: memoryCustomRoleSource([viewer, reader]),
-      },
+      { tenant: "acme", customRoles: memoryCustomRoleSource([viewer, reader]) },
     );
     const offered = steward.assignableRoles();
-    expect(offered.map((leaf) => leaf.key)).toEqual([
+    expect(offered.map((leaf) => leaf.key)).toStrictEqual([
       "editor",
       "billing",
       "steward",
@@ -340,7 +340,7 @@ describe("shared custom roles", () => {
       grants: { viewer: ["post.read", "invoice.read"] },
     });
     expect(claim[1]).not.toHaveProperty("grants");
-    expect(customRoleClaim([viewer])).toEqual({
+    expect(customRoleClaim([viewer])).toStrictEqual({
       viewer: ["post.read", "invoice.read"],
     });
   });

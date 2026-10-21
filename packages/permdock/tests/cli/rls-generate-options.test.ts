@@ -47,144 +47,28 @@ export const policy = definePolicy(permissions, {
 `,
 );
 
-afterAll(() => {
-  rmSync(cwd, { recursive: true, force: true });
-});
-
-const io = { stdout: () => undefined, stderr: () => undefined };
-const memberships = {
-  tenant: {
-    table: "organization_members",
-    tenant: "organization_id",
-    user: "user_id",
-    role: "role",
-  },
-};
-
-function generate(rls: NonNullable<PermDockConfig["rls"]>) {
-  return runRlsGenerate({
-    cwd,
-    config: {
-      policy: "./manage.ts",
-      rls: { authorize: "database", customRoles: true, memberships, ...rls },
-    },
-    target: "sql",
-    dialect: "supabase",
-    rbac: false,
-    check: false,
-    skipClosures: false,
-    inlineFunctions: false,
-    io,
-    write: false,
-  });
-}
-
 describe("rls generate options", () => {
-  it("splits the seed function into helpers and a seeds part that calls it", async () => {
-    const outcome = await runRlsGenerate({
-      cwd,
-      config: {
-        policy: "./manage.ts",
-        rls: { authorize: "database", memberships, seeds: "function" },
-      },
-      target: "sql",
-      dialect: "supabase",
-      rbac: false,
-      check: false,
-      skipClosures: false,
-      inlineFunctions: false,
-      io,
-      write: true,
-      split: "helpers,seeds",
-      out: "split/permdock_{part}.sql",
-      seedsOut: "split/permdock_seeds.sql",
-    });
-    expect(outcome.code).toBe(0);
-    expect(
-      readFileSync(path.join(cwd, "split/permdock_seeds.sql"), "utf8"),
-    ).toContain('select "permdock"."seed"();');
-    expect(
-      readFileSync(path.join(cwd, "split/permdock_helpers.sql"), "utf8"),
-    ).toContain('create or replace function "permdock".seed()');
-    expect(outcome.output).toContain(
-      "select permdock.seed(); after each deploy",
-    );
+  afterAll(() => {
+    rmSync(cwd, { recursive: true, force: true });
   });
 
-  it.each([
-    ["jwt", true],
-    ["database", false],
-  ] as const)(
-    "warns about holder() covers with approval delegations under --authorize %s: %s",
-    async (authorize, warns) => {
-      const outcome = await runRlsGenerate({
-        cwd,
-        config: {
-          policy: "./manage.ts",
-          rls: {
-            authorize,
-            memberships,
-            approvals: { delegations: true },
-          },
-        },
-        target: "sql",
-        dialect: "supabase",
-        rbac: false,
-        check: false,
-        skipClosures: false,
-        inlineFunctions: false,
-        io,
-        write: false,
-      });
-      expect(outcome.code).toBe(0);
-      expect(
-        outcome.output.includes("a cover never satisfies a holder()"),
-      ).toBe(warns);
+  const io = { stdout: () => undefined, stderr: () => undefined };
+  const memberships = {
+    tenant: {
+      table: "organization_members",
+      tenant: "organization_id",
+      user: "user_id",
+      role: "role",
     },
-  );
+  };
 
-  it("writes role_permissions as a security_invoker view and keeps the part names", async () => {
-    const outcome = await runRlsGenerate({
+  function generate(rls: NonNullable<PermDockConfig["rls"]>) {
+    return runRlsGenerate({
       cwd,
       config: {
         policy: "./manage.ts",
-        rls: { authorize: "database", memberships, seeds: "view" },
+        rls: { authorize: "database", customRoles: true, memberships, ...rls },
       },
-      target: "sql",
-      dialect: "supabase",
-      rbac: false,
-      check: false,
-      skipClosures: false,
-      inlineFunctions: false,
-      io,
-      write: true,
-      split: "helpers,seeds",
-      out: "view/permdock_{part}.sql",
-    });
-    expect(outcome.code).toBe(0);
-    const helpers = readFileSync(
-      path.join(cwd, "view/permdock_helpers.sql"),
-      "utf8",
-    );
-    expect(helpers).toMatch(
-      /create or replace view "?permdock"?\."?role_permissions"?/u,
-    );
-    expect(helpers).toContain("with (security_invoker = true)");
-    expect(helpers).not.toMatch(
-      /create table if not exists "?permdock"?\."?role_permissions"?/u,
-    );
-    expect(helpers).not.toMatch(
-      /insert into "?permdock"?\."?role_permissions"?/u,
-    );
-    expect(
-      readFileSync(path.join(cwd, "view/permdock_seeds.sql"), "utf8"),
-    ).toContain("rls.seeds: 'view'");
-  });
-
-  it("exits 1, not 2, when --db-url-stdin cannot be reached", async () => {
-    const outcome = await runRlsGenerate({
-      cwd,
-      config: { policy: "./manage.ts", rls: { memberships } },
       target: "sql",
       dialect: "supabase",
       rbac: false,
@@ -193,174 +77,291 @@ describe("rls generate options", () => {
       inlineFunctions: false,
       io,
       write: false,
-      db: "postgres://unreachable.invalid/app",
-      connect: () =>
-        Promise.reject(
-          new CliError(
-            "unavailable",
-            "PermDock CLI: rls generate could not connect",
+    });
+  }
+
+  describe("rls generate options", () => {
+    it("splits the seed function into helpers and a seeds part that calls it", async () => {
+      const outcome = await runRlsGenerate({
+        cwd,
+        config: {
+          policy: "./manage.ts",
+          rls: { authorize: "database", memberships, seeds: "function" },
+        },
+        target: "sql",
+        dialect: "supabase",
+        rbac: false,
+        check: false,
+        skipClosures: false,
+        inlineFunctions: false,
+        io,
+        write: true,
+        split: "helpers,seeds",
+        out: "split/permdock_{part}.sql",
+        seedsOut: "split/permdock_seeds.sql",
+      });
+      expect(outcome.code).toBe(0);
+      expect(
+        readFileSync(path.join(cwd, "split/permdock_seeds.sql"), "utf8"),
+      ).toContain('select "permdock"."seed"();');
+      expect(
+        readFileSync(path.join(cwd, "split/permdock_helpers.sql"), "utf8"),
+      ).toContain('create or replace function "permdock".seed()');
+      expect(outcome.output).toContain(
+        "select permdock.seed(); after each deploy",
+      );
+    });
+
+    it.each([
+      ["jwt", true],
+      ["database", false],
+    ] as const)(
+      "warns about holder() covers with approval delegations under --authorize %s: %s",
+      async (authorize, warns) => {
+        const outcome = await runRlsGenerate({
+          cwd,
+          config: {
+            policy: "./manage.ts",
+            rls: { authorize, memberships, approvals: { delegations: true } },
+          },
+          target: "sql",
+          dialect: "supabase",
+          rbac: false,
+          check: false,
+          skipClosures: false,
+          inlineFunctions: false,
+          io,
+          write: false,
+        });
+        expect(outcome.code).toBe(0);
+        expect(
+          outcome.output.includes("a cover never satisfies a holder()"),
+        ).toBe(warns);
+      },
+    );
+
+    it("writes role_permissions as a security_invoker view and keeps the part names", async () => {
+      const outcome = await runRlsGenerate({
+        cwd,
+        config: {
+          policy: "./manage.ts",
+          rls: { authorize: "database", memberships, seeds: "view" },
+        },
+        target: "sql",
+        dialect: "supabase",
+        rbac: false,
+        check: false,
+        skipClosures: false,
+        inlineFunctions: false,
+        io,
+        write: true,
+        split: "helpers,seeds",
+        out: "view/permdock_{part}.sql",
+      });
+      expect(outcome.code).toBe(0);
+      const helpers = readFileSync(
+        path.join(cwd, "view/permdock_helpers.sql"),
+        "utf8",
+      );
+      expect(helpers).toMatch(
+        /create or replace view "?permdock"?\."?role_permissions"?/u,
+      );
+      expect(helpers).toContain("with (security_invoker = true)");
+      expect(helpers).not.toMatch(
+        /create table if not exists "?permdock"?\."?role_permissions"?/u,
+      );
+      expect(helpers).not.toMatch(
+        /insert into "?permdock"?\."?role_permissions"?/u,
+      );
+      expect(
+        readFileSync(path.join(cwd, "view/permdock_seeds.sql"), "utf8"),
+      ).toContain("rls.seeds: 'view'");
+    });
+
+    it("exits 1, not 2, when --db-url-stdin cannot be reached", async () => {
+      const outcome = await runRlsGenerate({
+        cwd,
+        config: { policy: "./manage.ts", rls: { memberships } },
+        target: "sql",
+        dialect: "supabase",
+        rbac: false,
+        check: false,
+        skipClosures: false,
+        inlineFunctions: false,
+        io,
+        write: false,
+        db: "postgres://unreachable.invalid/app",
+        connect: () =>
+          Promise.reject(
+            new CliError(
+              "unavailable",
+              "PermDock CLI: rls generate could not connect",
+            ),
           ),
-        ),
+      });
+      expect(outcome.code).toBe(1);
+      expect(outcome.output).toBe(
+        "PermDock CLI: rls generate could not connect",
+      );
     });
-    expect(outcome.code).toBe(1);
-    expect(outcome.output).toBe("PermDock CLI: rls generate could not connect");
-  });
 
-  it("writes --out and prints nothing else when every part goes to a file", async () => {
-    const outcome = await runRlsGenerate({
-      cwd,
-      config: { policy: "./manage.ts", rls: { memberships } },
-      target: "sql",
-      dialect: "supabase",
-      rbac: false,
-      check: false,
-      skipClosures: false,
-      inlineFunctions: false,
-      io,
-      write: true,
-      out: "out/permdock.sql",
+    it("writes --out and prints nothing else when every part goes to a file", async () => {
+      const outcome = await runRlsGenerate({
+        cwd,
+        config: { policy: "./manage.ts", rls: { memberships } },
+        target: "sql",
+        dialect: "supabase",
+        rbac: false,
+        check: false,
+        skipClosures: false,
+        inlineFunctions: false,
+        io,
+        write: true,
+        out: "out/permdock.sql",
+      });
+      expect(outcome.code).toBe(0);
+      expect(outcome.output.split("\n")[0]).toBe("wrote out/permdock.sql");
+      expect(readFileSync(path.join(cwd, "out/permdock.sql"), "utf8")).toBe(
+        outcome.text,
+      );
     });
-    expect(outcome.code).toBe(0);
-    expect(outcome.output.split("\n")[0]).toBe("wrote out/permdock.sql");
-    expect(readFileSync(path.join(cwd, "out/permdock.sql"), "utf8")).toBe(
-      outcome.text,
-    );
-  });
 
-  it("reads manageRoles for the write requirement and the hand-out lift", async () => {
-    const outcome = await generate({
-      customRoleWrites: { requires: "manageRoles" },
+    it("reads manageRoles for the write requirement and the hand-out lift", async () => {
+      const outcome = await generate({
+        customRoleWrites: { requires: "manageRoles" },
+      });
+      expect(outcome.code).toBe(0);
+      expect(outcome.text).toContain(
+        "rp.permission = any(array['member.assignRole']::text[])",
+      );
     });
-    expect(outcome.code).toBe(0);
-    expect(outcome.text).toContain(
-      "rp.permission = any(array['member.assignRole']::text[])",
-    );
-  });
 
-  it("writes the by-id custom-role functions for roles.primaryKey and refuses an audit without it", async () => {
-    const roles = { table: "app_roles", key: "name", tenant: "org_id" };
-    const outcome = await generate({
-      customRoleWrites: { roles: { ...roles, primaryKey: "id" } },
+    it("writes the by-id custom-role functions for roles.primaryKey and refuses an audit without it", async () => {
+      const roles = { table: "app_roles", key: "name", tenant: "org_id" };
+      const outcome = await generate({
+        customRoleWrites: { roles: { ...roles, primaryKey: "id" } },
+      });
+      expect(outcome.text).toContain(
+        "permdock_replace_custom_role_grants_by_id",
+      );
+      const served = await generate({
+        trustedReaders: ["service_role"],
+        customRoleWrites: { roles: { ...roles, primaryKey: "id" } },
+      });
+      expect(served.code).toBe(0);
+      expect(
+        served.text
+          .split("\n")
+          .filter(
+            (line) =>
+              line.startsWith("grant execute") && line.includes("service_role"),
+          )
+          .map((line) => /permdock_trusted_\w+/u.exec(line)?.[0]),
+      ).toStrictEqual([
+        "permdock_trusted_role_permissions_by_id",
+        "permdock_trusted_role_permissions",
+      ]);
+      const { text } = await generate({ customRoleWrites: { roles } });
+      expect(text).not.toContain("_by_id");
+      const refused = await generate({
+        customRoleWrites: { roles, audit: { function: "app.audit" } },
+      });
+      expect(refused.code).toBe(2);
+      expect(refused.output).toContain("rls.customRoleWrites.audit needs");
     });
-    expect(outcome.text).toContain("permdock_replace_custom_role_grants_by_id");
-    const served = await generate({
-      trustedReaders: ["service_role"],
-      customRoleWrites: { roles: { ...roles, primaryKey: "id" } },
+
+    it("leaves holder triggers out per scope and refuses an unknown scope", async () => {
+      const off = await generate({ ownershipTriggers: { tenant: false } });
+      expect(off.text).toContain(
+        "-- tenant: rls.ownershipTriggers leaves out the triggers",
+      );
+      await expect(
+        generate({ ownershipTriggers: { region: false } }),
+      ).rejects.toThrow("rls.ownershipTriggers.region names a scope");
+      const { text } = await generate({ ownershipTriggers: false });
+      expect(text).toContain(
+        "-- tenant: rls.ownershipTriggers leaves out the triggers",
+      );
     });
-    expect(served.code).toBe(0);
-    expect(
-      served.text
-        .split("\n")
-        .filter(
-          (line) =>
-            line.startsWith("grant execute") && line.includes("service_role"),
-        )
-        .map((line) => /permdock_trusted_\w+/u.exec(line)?.[0]),
-    ).toEqual([
-      "permdock_trusted_role_permissions_by_id",
-      "permdock_trusted_role_permissions",
-    ]);
-    expect(
-      (await generate({ customRoleWrites: { roles } })).text,
-    ).not.toContain("_by_id");
-    const refused = await generate({
-      customRoleWrites: { roles, audit: { function: "app.audit" } },
+
+    it("checks custom roles in the assignment triggers", async () => {
+      const outcome = await generate({ assignments: true });
+      expect(outcome.text).toContain("permdock_can_assign_custom_role");
+      expect(outcome.text).toContain(
+        "case when v_role = any(array['member', 'owner']::text[]) then",
+      );
+      const none = await generate({ assignments: true, customRoles: false });
+      expect(none.text).not.toContain("permdock_can_assign_custom_role");
     });
-    expect(refused.code).toBe(2);
-    expect(refused.output).toContain("rls.customRoleWrites.audit needs");
-  });
 
-  it("leaves holder triggers out per scope and refuses an unknown scope", async () => {
-    const off = await generate({ ownershipTriggers: { tenant: false } });
-    expect(off.text).toContain(
-      "-- tenant: rls.ownershipTriggers leaves out the triggers",
-    );
-    await expect(
-      generate({ ownershipTriggers: { region: false } }),
-    ).rejects.toThrow("rls.ownershipTriggers.region names a scope");
-    expect((await generate({ ownershipTriggers: false })).text).toContain(
-      "-- tenant: rls.ownershipTriggers leaves out the triggers",
-    );
-  });
-
-  it("checks custom roles in the assignment triggers", async () => {
-    const outcome = await generate({ assignments: true });
-    expect(outcome.text).toContain("permdock_can_assign_custom_role");
-    expect(outcome.text).toContain(
-      "case when v_role = any(array['member', 'owner']::text[]) then",
-    );
-    const none = await generate({ assignments: true, customRoles: false });
-    expect(none.text).not.toContain("permdock_can_assign_custom_role");
-  });
-
-  it("guards the global-roles table and the caller's own rows", async () => {
-    const outcome = await generate({
-      roles: { table: "app.user_roles" },
-      assignments: { ownRole: "refuse" },
+    it("guards the global-roles table and the caller's own rows", async () => {
+      const outcome = await generate({
+        roles: { table: "app.user_roles" },
+        assignments: { ownRole: "refuse" },
+      });
+      expect(outcome.text).toContain(
+        `-- app.user_roles: a client role may write only the global roles it may assign, and none on its own rows`,
+      );
+      expect(outcome.text).toContain(
+        `-- organization_members: a client role may write only the tenant roles it may assign, and none on its own rows`,
+      );
     });
-    expect(outcome.text).toContain(
-      `-- app.user_roles: a client role may write only the global roles it may assign, and none on its own rows`,
-    );
-    expect(outcome.text).toContain(
-      `-- organization_members: a client role may write only the tenant roles it may assign, and none on its own rows`,
-    );
-  });
 
-  it("writes no assignment trigger for a policy without assigns", () => {
-    const scopes = scopeList(namedScopes.scopes);
-    const ownership = ownershipRules(namedScopes, scopes);
-    const ctx: RlsSqlContext = {
-      dialect: "supabase",
-      tenantClaim: "tenant_id",
-      scopes,
-      gucPrefix: "app",
-      authorize: "database",
-      assignments: { tables: [] },
-      customRoles: { declared: [], assignable: [] },
-      ...(ownership === undefined
-        ? {}
-        : { ownership: { ...ownership, assigns: [] } }),
-    };
-    expect(assignmentSql(ctx)).toBe("");
-  });
+    it("writes no assignment trigger for a policy without assigns", () => {
+      const scopes = scopeList(namedScopes.scopes);
+      const ownership = ownershipRules(namedScopes, scopes);
+      const ctx: RlsSqlContext = {
+        dialect: "supabase",
+        tenantClaim: "tenant_id",
+        scopes,
+        gucPrefix: "app",
+        authorize: "database",
+        assignments: { tables: [] },
+        customRoles: { declared: [], assignable: [] },
+        ...(ownership === undefined
+          ? {}
+          : { ownership: { ...ownership, assigns: [] } }),
+      };
+      expect(assignmentSql(ctx)).toBe("");
+    });
 
-  it("puts the held custom roles in subject_for in database mode", () => {
-    const hook = supabaseHookSql(scopeList(namedScopes.scopes), {
-      rls: { authorize: "database", customRoles: true },
-      supabase: {
-        hook: {
-          memberships: [
-            junctionMembershipSource({
-              table: "organization_users",
-              scope: "organization",
-              roles: "role",
-            }),
-          ],
+    it("puts the held custom roles in subject_for in database mode", () => {
+      const hook = supabaseHookSql(scopeList(namedScopes.scopes), {
+        rls: { authorize: "database", customRoles: true },
+        supabase: {
+          hook: {
+            memberships: [
+              junctionMembershipSource({
+                table: "organization_users",
+                scope: "organization",
+                roles: "role",
+              }),
+            ],
+          },
         },
-      },
-    });
-    expect(hook.sql).toContain('"permdock".subject_for(p_user uuid)');
-    expect(hook.sql).toContain('from "permdock".custom_role_permissions p');
-    const jwt = supabaseHookSql(scopeList(namedScopes.scopes), {
-      supabase: {
-        hook: {
-          memberships: [
-            junctionMembershipSource({
-              table: "organization_users",
-              scope: "organization",
-              roles: "role",
-            }),
-          ],
+      });
+      expect(hook.sql).toContain('"permdock".subject_for(p_user uuid)');
+      expect(hook.sql).toContain('from "permdock".custom_role_permissions p');
+      const jwt = supabaseHookSql(scopeList(namedScopes.scopes), {
+        supabase: {
+          hook: {
+            memberships: [
+              junctionMembershipSource({
+                table: "organization_users",
+                scope: "organization",
+                roles: "role",
+              }),
+            ],
+          },
         },
-      },
+      });
+      expect(jwt.sql).not.toContain("custom_role_permissions");
     });
-    expect(jwt.sql).not.toContain("custom_role_permissions");
   });
-});
 
-writeFileSync(
-  path.join(cwd, "fields.ts"),
-  `import { allow, definePermissions, definePolicy, resource, role } from 'permdock';
+  writeFileSync(
+    path.join(cwd, "fields.ts"),
+    `import { allow, definePermissions, definePolicy, resource, role } from 'permdock';
 import { z } from 'zod';
 
 const Quote = z.object({ id: z.string(), orgId: z.string(), customerId: z.string(), total: z.number(), margin: z.number() });
@@ -384,48 +385,49 @@ export const policy = definePolicy(permissions, {
   subject: () => null,
 });
 `,
-);
+  );
 
-describe("field views with hand-written policies", () => {
-  const run = (rls: NonNullable<PermDockConfig["rls"]>) =>
-    runRlsGenerate({
-      cwd,
-      config: { policy: "./fields.ts", rls },
-      target: "sql",
-      dialect: "supabase",
-      rbac: false,
-      check: false,
-      skipClosures: false,
-      inlineFunctions: false,
-      io,
-      write: false,
+  describe("field views with hand-written policies", () => {
+    const run = (rls: NonNullable<PermDockConfig["rls"]>) =>
+      runRlsGenerate({
+        cwd,
+        config: { policy: "./fields.ts", rls },
+        target: "sql",
+        dialect: "supabase",
+        rbac: false,
+        check: false,
+        skipClosures: false,
+        inlineFunctions: false,
+        io,
+        write: false,
+      });
+
+    it("writes the per-scope field view next to the helpers and no policy", async () => {
+      const outcome = await run({
+        helpersOnly: true,
+        fields: "views",
+        tables: { quote: "quotes" },
+      });
+      expect(outcome.code).toBe(0);
+      expect(outcome.text).toContain(
+        'create or replace view "public"."quotes_visible" with (security_invoker = true) as',
+      );
+      expect(outcome.text).toContain(
+        `case when "orgId" in (select "permdock".permitted_tenant_ids('quote.read#1'))`,
+      );
+      expect(outcome.text).not.toContain("create policy");
+      expect(outcome.output).toContain(
+        "revoke select on those columns from client roles in your own grants",
+      );
     });
 
-  it("writes the per-scope field view next to the helpers and no policy", async () => {
-    const outcome = await run({
-      helpersOnly: true,
-      fields: "views",
-      tables: { quote: "quotes" },
+    it("refuses --revoke-columns, whose grants it does not own", async () => {
+      const outcome = await run({
+        helpersOnly: true,
+        fields: "views",
+        revokeColumns: true,
+      });
+      expect(outcome.code).toBe(2);
     });
-    expect(outcome.code).toBe(0);
-    expect(outcome.text).toContain(
-      'create or replace view "public"."quotes_visible" with (security_invoker = true) as',
-    );
-    expect(outcome.text).toContain(
-      `case when "orgId" in (select "permdock".permitted_tenant_ids('quote.read#1'))`,
-    );
-    expect(outcome.text).not.toContain("create policy");
-    expect(outcome.output).toContain(
-      "revoke select on those columns from client roles in your own grants",
-    );
-  });
-
-  it("refuses --revoke-columns, whose grants it does not own", async () => {
-    const outcome = await run({
-      helpersOnly: true,
-      fields: "views",
-      revokeColumns: true,
-    });
-    expect(outcome.code).toBe(2);
   });
 });

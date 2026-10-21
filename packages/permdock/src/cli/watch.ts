@@ -1,4 +1,6 @@
-import { type FSWatcher, watch } from "node:fs";
+import type { FSWatcher } from "node:fs";
+
+import { watch } from "node:fs";
 import { basename, dirname, relative, resolve, sep } from "node:path";
 
 import type { CliContext } from "./core/context.ts";
@@ -208,9 +210,9 @@ export function createCollectScheduler(
 }
 
 /**
- * `collect --watch`: one collect now, then one per change until Ctrl-C.
- * Under `--json` each collect is an NDJSON event on stdout; otherwise a
- * line on stderr.
+ * `collect --watch`: one collect now, then one per change until Ctrl-C. Under
+ * `--json` each collect is an NDJSON event on stdout; otherwise a line on
+ * stderr.
  */
 export async function watchCollect(
   ctx: CliContext,

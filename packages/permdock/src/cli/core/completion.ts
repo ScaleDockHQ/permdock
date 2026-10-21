@@ -13,7 +13,10 @@ function flagNames(flags: Flags): readonly string[] {
     .map(([name]) => `--${name}`);
 }
 
-/** The flag `token` names when it waits for a separate value, as `--only` does and `--only=x` does not. */
+/**
+ * The flag `token` names when it waits for a separate value, as `--only` does
+ * and `--only=x` does not.
+ */
 function valueFlag(flags: Flags, token: string | undefined) {
   if (token === undefined || !token.startsWith("--") || token.includes("=")) {
     return undefined;
@@ -22,7 +25,10 @@ function valueFlag(flags: Flags, token: string | undefined) {
   return flag === undefined || flag.type === "boolean" ? undefined : flag;
 }
 
-/** The positional the next bare word fills, after the words already typed past the leaf's path. */
+/**
+ * The positional the next bare word fills, after the words already typed past
+ * the leaf's path.
+ */
 function positionalAt(leaf: Leaf, typed: readonly string[]) {
   let index = 0;
   for (let i = 0; i < typed.length; i += 1) {
@@ -43,7 +49,10 @@ function positionalAt(leaf: Leaf, typed: readonly string[]) {
   return positionals[index] ?? (last?.variadic === true ? last : undefined);
 }
 
-/** Values from `complete`, matched against what follows the last comma when the value is a list. */
+/**
+ * Values from `complete`, matched against what follows the last comma when the
+ * value is a list.
+ */
 async function valuesFor(
   complete: CompleteValues,
   partial: string,
@@ -59,8 +68,8 @@ async function valuesFor(
 }
 
 /**
- * Candidates for the last word of `words`, the tokens typed after
- * `permdock`. An empty list leaves the shell to complete file names.
+ * Candidates for the last word of `words`, the tokens typed after `permdock`.
+ * An empty list leaves the shell to complete file names.
  */
 export async function candidates(
   words: readonly string[],

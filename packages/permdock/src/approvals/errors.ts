@@ -35,7 +35,10 @@ export function isApprovalErrorCode(
   return typeof value === "string" && CODES.has(value);
 }
 
-/** Matches by `name` and `code`, so an error from another copy of the module still maps. */
+/**
+ * Matches by `name` and `code`, so an error from another copy of the module
+ * still maps.
+ */
 export function isApprovalError(value: unknown): value is ApprovalError {
   if (!(value instanceof Error) || value.name !== "ApprovalError") {
     return false;

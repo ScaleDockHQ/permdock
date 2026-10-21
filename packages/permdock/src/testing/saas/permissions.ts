@@ -39,7 +39,10 @@ export const SaasFolderSchema: StandardSchemaV1<SaasFolder> = rowSchema({
   restricted: "boolean",
 });
 
-/** A folder in an org's tree; `restricted` keeps grants held on its ancestors out. */
+/**
+ * A folder in an org's tree; `restricted` keeps grants held on its ancestors
+ * out.
+ */
 export type SaasFolder = {
   readonly id: string;
   readonly orgId: string;
@@ -142,7 +145,10 @@ export const saasRoles: { readonly [K in SaasRoleName]: Role<K> } = defineRoles(
     member: { on: "tenant", assignable: true },
     viewer: { on: "tenant", assignable: true },
     lead: { on: "team", assignable: true },
-    /** Resource-scoped; `role(..., { on: saasPermissions.project })` in the policy. */
+    /**
+     * Resource-scoped; `role(..., { on: saasPermissions.project })` in the
+     * policy.
+     */
     collaborator: { assignable: true },
   },
 );

@@ -62,9 +62,7 @@ describe("a deny that cannot be evaluated denies", () => {
 
   it("denies when a deny nests an opaque condition", async () => {
     const policy = policyWith(
-      deny(permissions.invoice.update, {
-        where: nestedOpaque,
-      }),
+      deny(permissions.invoice.update, { where: nestedOpaque }),
     );
     const permdock = getPermDockSync(policy, user);
     const decision = permdock.decide(permissions.invoice.update, invoice);
@@ -74,14 +72,12 @@ describe("a deny that cannot be evaluated denies", () => {
 
   it("denies the same way from a snapshot", async () => {
     const policy = policyWith(
-      deny(permissions.invoice.update, {
-        where: nestedOpaque,
-      }),
+      deny(permissions.invoice.update, { where: nestedOpaque }),
     );
     const server = getPermDockSync(policy, user);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(snapshot);
     const decision = client.decide(permissions.invoice.update, invoice);

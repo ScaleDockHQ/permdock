@@ -13,6 +13,7 @@ import {
   discoverViaSignatureAgent,
 } from "../../src/server/index.ts";
 import { webBotAuthVerifier } from "../../src/server/web-bot-auth.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 import {
   adminUser,
   memberUser,
@@ -21,6 +22,7 @@ import {
   permissions,
   policy,
 } from "../fixtures/quick-start.ts";
+import { defined } from "../support/defined.ts";
 
 function request(
   path = "https://api.example/posts/p1",
@@ -61,9 +63,7 @@ describe("permdock/server", () => {
   });
 
   it("protects a granted instance action and 404s a missing row", async () => {
-    const { protect } = createPermDock(policy, {
-      subject: () => memberUser,
-    });
+    const { protect } = createPermDock(policy, { subject: () => memberUser });
     const granted = await protect(
       permissions.post.update,
       () => ownPost,
@@ -71,7 +71,7 @@ describe("permdock/server", () => {
     expect(granted.ok).toBe(true);
     if (granted.ok) {
       expect(granted.decision.outcome).toBe("granted");
-      expect(granted.data).toEqual(ownPost);
+      expect(granted.data).toStrictEqual(ownPost);
     }
 
     const missing = await protect(
@@ -85,9 +85,7 @@ describe("permdock/server", () => {
   });
 
   it("returns Problem Details with WWW-Authenticate on a deny", async () => {
-    const { protect } = createPermDock(policy, {
-      subject: () => memberUser,
-    });
+    const { protect } = createPermDock(policy, { subject: () => memberUser });
     const denied = await protect(
       permissions.post.update,
       () => otherPost,
@@ -110,9 +108,7 @@ describe("permdock/server", () => {
   });
 
   it("answers 401 with a bare Bearer challenge to a caller without credentials", async () => {
-    const { protect } = createPermDock(policy, {
-      subject: () => null,
-    });
+    const { protect } = createPermDock(policy, { subject: () => null });
     const denied = await protect(
       permissions.post.read,
       () => ownPost,
@@ -151,7 +147,7 @@ describe("permdock/server", () => {
     const body = (await problem(decision, {
       permission: permissions.post.delete,
     }).json()) as { readonly approval?: unknown };
-    expect(body.approval).toEqual({
+    expect(body.approval).toStrictEqual({
       at: "https://app.example/approvals",
       hint: "Ask an admin.",
     });
@@ -236,17 +232,14 @@ describe("permdock/server", () => {
     const store = memoryApprovalStore();
     const { getPermDock: permdockFor, permdockHandler } = createPermDock(
       policy,
-      {
-        subject: () => memberUser,
-        store,
-      },
+      { subject: () => memberUser, store },
     );
     const permdock = await permdockFor(request());
     const required = permdock.decide(permissions.post.delete, ownPost);
     if (required.outcome !== "approval-required") {
       throw new Error("expected approval-required");
     }
-    store.create({
+    void store.create({
       v: 1,
       id: "r1",
       token: required.token,
@@ -318,17 +311,15 @@ describe("permdock/server", () => {
     expect(body.evaluations[0]?.decision).toBe(true);
 
     const security = openapi.security(permissions.post.delete);
-    expect(security.security[0]?.["oauth2"]).toEqual(["post:delete"]);
-    expect(security["x-permdock-permissions"]).toEqual(["post.delete"]);
+    expect(security.security[0]?.["oauth2"]).toStrictEqual(["post:delete"]);
+    expect(security["x-permdock-permissions"]).toStrictEqual(["post.delete"]);
     expect(openapi.securitySchemes()["oauth2"]).toBeDefined();
   });
 });
 
 describe("permdock/server protect", () => {
   it("validates a loader unless it is marked trusted", async () => {
-    const { protect } = createPermDock(policy, {
-      subject: () => adminUser,
-    });
+    const { protect } = createPermDock(policy, { subject: () => adminUser });
     const forged = { id: "p2", authorId: "u9", orgId: "o1" };
     const trusted = await protect(permissions.post.publish, () => forged, {
       trusted: true,
@@ -381,7 +372,7 @@ describe("permdock/server decision endpoint", () => {
           };
         }[];
       };
-      return body.evaluations[0]!;
+      return defined(body.evaluations[0]);
     };
     expect((await evaluate(ownPost)).decision).toBe(true);
     const forged = await evaluate({ id: "p2", authorId: "u9", orgId: "o1" });
@@ -425,7 +416,7 @@ describe("permdock/server webBotAuth", () => {
     const permdock = await permdockFor(
       await signedRequest(privateKey, "bot-1"),
     );
-    expect(permdock.subject.actor).toEqual({
+    expect(permdock.subject.actor).toStrictEqual({
       id: "bot-1",
       kind: "web-bot-auth",
     });
@@ -527,7 +518,7 @@ describe("permdock/server webBotAuth", () => {
         keys: discoverViaSignatureAgent({
           allow: ["agents.example.com"],
           fetch: async (input) => {
-            expect(String(input)).toBe(
+            expect(requestUrl(input)).toBe(
               "https://agents.example.com/.well-known/http-message-signatures-directory",
             );
             return Response.json({ keys: [{ ...publicJwk, kid: "bot-1" }] });
@@ -543,7 +534,7 @@ describe("permdock/server webBotAuth", () => {
 });
 
 function tamperSignature(header: string): string {
-  const match = /:(.+):/.exec(header);
+  const match = /:(.+):/u.exec(header);
   if (match?.[1] === undefined) {
     return `${header}x`;
   }

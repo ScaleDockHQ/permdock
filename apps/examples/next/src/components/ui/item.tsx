@@ -49,10 +49,7 @@ const itemVariants = cva(
         xs: "gap-2 px-2.5 py-2 in-data-[slot=dropdown-menu-content]:p-0",
       },
     },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
+    defaultVariants: { variant: "default", size: "default" },
   },
 );
 
@@ -66,17 +63,11 @@ function Item({
   return useRender({
     defaultTagName: "div",
     props: mergeProps<"div">(
-      {
-        className: cn(itemVariants({ variant, size, className })),
-      },
+      { className: cn(itemVariants({ variant, size, className })) },
       props,
     ),
     render,
-    state: {
-      slot: "item",
-      variant,
-      size,
-    },
+    state: { slot: "item", variant, size },
   });
 }
 
@@ -91,9 +82,7 @@ const itemMediaVariants = cva(
           "size-10 overflow-hidden rounded-sm group-data-[size=sm]/item:size-8 group-data-[size=xs]/item:size-6 [&_img]:size-full [&_img]:object-cover",
       },
     },
-    defaultVariants: {
-      variant: "default",
-    },
+    defaultVariants: { variant: "default" },
   },
 );
 

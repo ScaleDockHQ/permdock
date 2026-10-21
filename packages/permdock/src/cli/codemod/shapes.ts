@@ -1,3 +1,4 @@
+import type { Estree, LineAt } from "./ast.ts";
 import type {
   CodemodFollowUp,
   Context,
@@ -12,14 +13,7 @@ import type {
   PropRename,
 } from "./shapes-0.5.ts";
 
-import {
-  type Estree,
-  child,
-  type LineAt,
-  nameOf,
-  nodes,
-  position,
-} from "./ast.ts";
+import { child, nameOf, nodes, position } from "./ast.ts";
 import {
   boundImport,
   SCRIPT_BLOCK,
@@ -360,11 +354,7 @@ export function visitFunctionCall(
   }
   const plain = PLAIN_RECEIVERS.has(receiver.type);
   ctx.edits.push(
-    {
-      start: node.callee.start,
-      end: receiver.start,
-      text: plain ? "" : "(",
-    },
+    { start: node.callee.start, end: receiver.start, text: plain ? "" : "(" },
     {
       start: receiver.end,
       end: next?.start ?? node.end - 1,

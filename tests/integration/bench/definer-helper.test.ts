@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "../src/support/postgres.ts";
 
+import { defined } from "../src/support/defined.ts";
 import { startPostgres } from "../src/support/postgres.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -116,15 +117,9 @@ type PlanNode = {
   readonly Plans?: readonly PlanNode[];
 };
 
-type Explain = {
-  readonly Plan: PlanNode;
-  readonly "Execution Time": number;
-};
+type Explain = { readonly Plan: PlanNode; readonly "Execution Time": number };
 
-type Measured = {
-  readonly ids: readonly string[];
-  readonly medianMs: number;
-};
+type Measured = { readonly ids: readonly string[]; readonly medianMs: number };
 
 function median(values: readonly number[]): number {
   const sorted = values.toSorted((a, b) => a - b);
@@ -231,21 +226,21 @@ describe("a per-row security definer helper against permitted_<scope>_ids", () =
 
   it("returns the same rows in every shape", () => {
     expect(database?.ids).toHaveLength(ROWS / TENANTS);
-    expect(definer?.ids).toEqual(database?.ids);
-    expect(jwt?.ids).toEqual(database?.ids);
+    expect(definer?.ids).toStrictEqual(database?.ids);
+    expect(jwt?.ids).toStrictEqual(database?.ids);
   });
 
   it("reports the median execution time of each shape", async ({
     annotate,
   }) => {
-    const version = await db!.admin.query<{ server_version: string }>(
+    const version = await defined(db).admin.query<{ server_version: string }>(
       "show server_version",
     );
     // Surfaced in the reporter so the existing-apps page can quote the numbers.
     await annotate(
-      `definer-bench: Postgres ${version.rows[0]?.server_version ?? "?"}, ${String(ROWS)} rows, ${String(TENANTS)} tenants, median of ${String(RUNS)}: per-row has_permission ${definer!.medianMs.toFixed(2)} ms, permitted_tenant_ids database ${database!.medianMs.toFixed(2)} ms, jwt ${jwt!.medianMs.toFixed(2)} ms`,
+      `definer-bench: Postgres ${version.rows[0]?.server_version ?? "?"}, ${String(ROWS)} rows, ${String(TENANTS)} tenants, median of ${String(RUNS)}: per-row has_permission ${defined(definer).medianMs.toFixed(2)} ms, permitted_tenant_ids database ${defined(database).medianMs.toFixed(2)} ms, jwt ${defined(jwt).medianMs.toFixed(2)} ms`,
     );
-    expect(database!.medianMs).toBeLessThan(definer!.medianMs);
-    expect(jwt!.medianMs).toBeLessThan(definer!.medianMs);
+    expect(defined(database).medianMs).toBeLessThan(defined(definer).medianMs);
+    expect(defined(jwt).medianMs).toBeLessThan(defined(definer).medianMs);
   });
 });

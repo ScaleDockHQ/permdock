@@ -17,6 +17,7 @@ import type { CommandResult } from "./core/result.ts";
 
 import { byCodePoint } from "../core/compare.ts";
 import { didYouMean } from "./core/args.ts";
+import { nonEmptyOr } from "./core/output.ts";
 import { readJsonFile } from "./files.ts";
 import { packageRoot } from "./project/package-root.ts";
 
@@ -40,7 +41,10 @@ const AGENT_FOLDERS: Readonly<Record<string, string>> = {
 /** The `--for` names `skills install` knows, with the folder each writes. */
 export const SKILL_AGENTS: Readonly<Record<string, string>> = AGENT_FOLDERS;
 
-/** Agents whose config folder (`.claude`, `.cursor`, `.agents`) the project already has. */
+/**
+ * Agents whose config folder (`.claude`, `.cursor`, `.agents`) the project
+ * already has.
+ */
 export function detectedAgents(cwd: string): readonly string[] {
   return Object.entries(AGENT_FOLDERS)
     .filter(([, folder]) => existsSync(join(cwd, dirname(folder))))
@@ -82,7 +86,10 @@ export function runSkills(input: {
 export function runSkillsInstall(input: {
   readonly cwd: string;
   readonly agents: readonly string[];
-  /** The skills shipped with this CLI, used when the project resolves no permdock package. */
+  /**
+   * The skills shipped with this CLI, used when the project resolves no
+   * permdock package.
+   */
   readonly bundled?: string;
 }): CommandResult {
   const source = resolveSkillsRoot(
@@ -115,14 +122,14 @@ export function runSkillsInstall(input: {
   const links = linked.length === 0 ? "" : `; linked ${linked.join(", ")}`;
   return {
     code: 0,
-    output: `installed ${copied.join(", ") || "no skills"}${links} (permdock@${version})`,
+    output: `installed ${nonEmptyOr(copied.join(", "), "no skills")}${links} (permdock@${version})`,
   };
 }
 
 /**
  * Compares the installed skills with the ones this version ships and writes
- * nothing: exit 1 lists every file that is missing or differs. Without
- * agents it checks the agent folders the project has, else every folder.
+ * nothing: exit 1 lists every file that is missing or differs. Without agents
+ * it checks the agent folders the project has, else every folder.
  */
 export function runSkillsCheck(input: {
   readonly cwd: string;
@@ -254,9 +261,7 @@ function listSkills(cwd: string): CommandResult {
   const lockPath = join(cwd, ".permdock/skills-lock.json");
   // SAFETY: the lock file is written by permdock skills; version is only interpolated into text.
   const lock = existsSync(lockPath)
-    ? (readJsonFile(lockPath) as {
-        readonly version?: string;
-      })
+    ? (readJsonFile(lockPath) as { readonly version?: string })
     : {};
   const lines = ["permdock skills", ""];
   for (const name of SKILL_NAMES) {
@@ -310,8 +315,6 @@ function readPermdockVersion(skillsRoot: string): string {
     return "0.0.0";
   }
   // SAFETY: the package.json next to the skills folder is permdock's own, which has a version.
-  const raw = readJsonFile(pkg) as {
-    readonly version: string;
-  };
+  const raw = readJsonFile(pkg) as { readonly version: string };
   return raw.version;
 }

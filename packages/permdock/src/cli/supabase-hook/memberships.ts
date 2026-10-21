@@ -1,3 +1,4 @@
+import type { Scope } from "../../core/scopes.ts";
 import type { SupabaseManifestMembership } from "../../supabase/manifest.ts";
 import type { SqlMembershipSource } from "../../supabase/sources.ts";
 import type {
@@ -8,7 +9,7 @@ import type {
 import type { Parts } from "./parts.ts";
 
 import { scopeColumn } from "../../conditions/compile.ts";
-import { type Scope, resolveScope, scopeChain } from "../../core/scopes.ts";
+import { resolveScope, scopeChain } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { roleManifest } from "../../supabase/roles.ts";
 import { configError } from "../core/errors.ts";
@@ -50,7 +51,10 @@ export function memberForPlan(input: MemberForInput): {
   return { memberFor, holders, memberships: [...entries.values()] };
 }
 
-/** An `rls.memberships` table in the manifest's `tableMembershipSource` / `junctionMembershipSource` shape, for scope `name`. */
+/**
+ * An `rls.memberships` table in the manifest's `tableMembershipSource` /
+ * `junctionMembershipSource` shape, for scope `name`.
+ */
 function mappedMembership(
   mapped: RlsMembershipTable,
   scopes: readonly Scope[],
@@ -123,9 +127,7 @@ export function activeFromSql(
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(key)) {
       throw configError(`PermDock CLI: unsafe app_metadata key '${key}'`);
     }
-    return {
-      sql: `claims -> 'app_metadata' ->> ${quoteLiteral(key)}`,
-    };
+    return { sql: `claims -> 'app_metadata' ->> ${quoteLiteral(key)}` };
   }
   const parsed =
     typeof spec === "string"

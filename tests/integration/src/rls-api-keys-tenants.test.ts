@@ -127,10 +127,10 @@ describe("rls.apiKeys with rls.tenants all", () => {
       tenants: ["acme", "globex"],
       has: false,
     };
-    expect(await as({ sub: MEMBER })).toEqual(every);
+    expect(await as({ sub: MEMBER })).toStrictEqual(every);
     expect(
       await as({ sub: MEMBER, api_key: { id: "k1", scopes: ["task.read"] } }),
-    ).toEqual(every);
+    ).toStrictEqual(every);
   });
 
   it("narrows a user key to the tenant it names", async () => {
@@ -139,7 +139,7 @@ describe("rls.apiKeys with rls.tenants all", () => {
         sub: MEMBER,
         api_key: { id: "k1", tenant: "acme", scopes: ["task.read"] },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       tasks: ["t-acme-1", "t-acme-2"],
       tenants: ["acme"],
       has: false,
@@ -149,7 +149,7 @@ describe("rls.apiKeys with rls.tenants all", () => {
         sub: MEMBER,
         api_key: { id: "k2", tenant: "globex", scopes: ["task.read"] },
       }),
-    ).toEqual({ tasks: ["t-globex"], tenants: ["globex"], has: false });
+    ).toStrictEqual({ tasks: ["t-globex"], tenants: ["globex"], has: false });
   });
 
   it("admits nothing when the key names a tenant the user is not a member of", async () => {
@@ -158,7 +158,7 @@ describe("rls.apiKeys with rls.tenants all", () => {
         sub: MEMBER,
         api_key: { id: "k3", tenant: "initech", scopes: ["task.read"] },
       }),
-    ).toEqual({ tasks: [], tenants: [], has: false });
+    ).toStrictEqual({ tasks: [], tenants: [], has: false });
   });
 
   it("drops global grants for a key that names a tenant", async () => {
@@ -171,7 +171,7 @@ describe("rls.apiKeys with rls.tenants all", () => {
         sub: AUDITOR,
         api_key: { id: "k4", tenant: "initech", scopes: ["task.read"] },
       }),
-    ).toEqual({ tasks: [], tenants: [], has: false });
+    ).toStrictEqual({ tasks: [], tenants: [], has: false });
   });
 
   it("keeps a tenant service key to its tenant", async () => {
@@ -180,6 +180,6 @@ describe("rls.apiKeys with rls.tenants all", () => {
         sub: "",
         api_key: { id: "k5", tenant: "globex", scopes: ["task.read"] },
       }),
-    ).toEqual({ tasks: ["t-globex"], tenants: ["globex"], has: false });
+    ).toStrictEqual({ tasks: ["t-globex"], tenants: ["globex"], has: false });
   });
 });

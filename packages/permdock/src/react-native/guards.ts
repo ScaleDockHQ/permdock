@@ -5,7 +5,10 @@ import type { Permission } from "../core/permission-types.ts";
 import { storeOf } from "../client/store.ts";
 import { usePermDock } from "../react/hooks.ts";
 
-/** `true` once the provider has a snapshot to answer from: storage was read or a seed was given. Hide the splash screen on it. */
+/**
+ * `true` once the provider has a snapshot to answer from: storage was read or a
+ * seed was given. Hide the splash screen on it.
+ */
 export function useSnapshotReady(): boolean {
   return usePermDock().status() !== "pending";
 }

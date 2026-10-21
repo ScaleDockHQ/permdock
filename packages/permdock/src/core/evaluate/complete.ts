@@ -7,7 +7,10 @@ import { traceOf } from "../evaluation-trace.ts";
 import { finish } from "../events.ts";
 import { freezeDeep } from "../freeze.ts";
 
-/** Every exit of `evaluate`: names the permission, freezes, attaches the trace and emits. */
+/**
+ * Every exit of `evaluate`: names the permission, freezes, attaches the trace
+ * and emits.
+ */
 export function complete(
   call: EvaluationCall & { readonly current: unknown },
   raw: Decision,

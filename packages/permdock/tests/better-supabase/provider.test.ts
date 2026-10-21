@@ -9,6 +9,7 @@ import { authorizationProvider } from "../../src/better-supabase/index.ts";
 import { anyOf, holder, user } from "../../src/core/approvers.ts";
 import { PermDockValidationError } from "../../src/core/validation-error.ts";
 import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures.ts";
+import { defined } from "../support/defined.ts";
 
 const read = (path: string): unknown =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
@@ -31,7 +32,7 @@ const withRls = (
   rls: { ...supabaseHookManifestFixture.rls, ...rls },
 });
 
-describe("authorizationProvider", () => {
+describe(authorizationProvider, () => {
   it("passes better-supabase's conformance kit for the fixture", async () => {
     const provider = authorizationProvider({
       manifest: supabaseHookManifestFixture,
@@ -61,7 +62,7 @@ describe("authorizationProvider", () => {
     });
     expect(provider.functions.idsWithFor).toBeUndefined();
     expect(provider.functions.canAssign).toBeUndefined();
-    expect(provider.permissions).toEqual([]);
+    expect(provider.permissions).toStrictEqual([]);
     expect(provider.problems).toBeUndefined();
     expect(Object.isFrozen(provider.functions)).toBe(true);
   });
@@ -70,7 +71,7 @@ describe("authorizationProvider", () => {
     const provider = authorizationProvider({
       manifest: supabaseHookManifestFixture,
     });
-    expect(provider.problems).toEqual([
+    expect(provider.problems).toStrictEqual([
       expect.stringContaining("Pass `catalog`"),
     ]);
   });
@@ -79,7 +80,7 @@ describe("authorizationProvider", () => {
     const provider = authorizationProvider({
       manifest: supabaseHookManifestFixture,
     });
-    expect(provider.requires).toEqual([
+    expect(provider.requires).toStrictEqual([
       {
         function: "permdock.permitted_tenant_ids_by_permission",
         args: "text",
@@ -110,7 +111,7 @@ describe("authorizationProvider", () => {
     } = supabaseHookManifestFixture;
     const provider = authorizationProvider({ manifest: hookless });
     expect(provider.tokenHook).toBeUndefined();
-    expect(provider.scopes).toEqual(
+    expect(provider.scopes).toStrictEqual(
       authorizationProvider({ manifest: supabaseHookManifestFixture }).scopes,
     );
   });
@@ -119,7 +120,7 @@ describe("authorizationProvider", () => {
     const { tokenHook } = authorizationProvider({
       manifest: supabaseHookManifestFixture,
     });
-    expect(tokenHook).toEqual({
+    expect(tokenHook).toStrictEqual({
       function: "permdock.custom_access_token_hook",
       tenantClaim: "tenant_id",
       ownedClaims: [
@@ -138,10 +139,7 @@ describe("authorizationProvider", () => {
         bytes: 1024,
         truncatedClaim: "memberships_truncated",
       },
-      markers: {
-        hook: "-- permdock:hook v1",
-        grants: "-- permdock:grants v1",
-      },
+      markers: { hook: "-- permdock:hook v1", grants: "-- permdock:grants v1" },
       grantsCommand:
         "permdock supabase hook generate && supabase db schema declarative sync -f permdock_hook",
     });
@@ -173,7 +171,7 @@ describe("authorizationProvider", () => {
     });
     await expect(testAuthorizationProvider(provider)).resolves.toBeDefined();
     expect(provider.tenantScope).toBe("organization");
-    expect(provider.scopes).toEqual([
+    expect(provider.scopes).toStrictEqual([
       { name: "organization", idType: "uuid" },
       { name: "customer", idType: "uuid", parent: "organization" },
     ]);
@@ -236,13 +234,13 @@ describe("authorizationProvider", () => {
     const catalog = structuredClone(exampleCatalog) as {
       permissions: { key: string; rowConditions: boolean }[];
     };
-    catalog.permissions[0]!.rowConditions = true;
+    defined(catalog.permissions[0]).rowConditions = true;
     const provider = authorizationProvider({
       manifest: exampleManifest,
       catalog,
     });
     expect(provider.permissions?.[0]).toMatchObject({
-      key: catalog.permissions[0]!.key,
+      key: defined(catalog.permissions[0]).key,
       sqlComplete: false,
     });
   });
@@ -326,7 +324,7 @@ describe("authorizationProvider", () => {
     );
     expect(provider.functions.memberIds).toBeUndefined();
     expect(provider.memberships).toBeUndefined();
-    expect(provider.problems).toEqual([
+    expect(provider.problems).toStrictEqual([
       expect.stringContaining("has no AuthZ.permitted_tenant_ids"),
       expect.stringContaining("has no AuthZ.permdock_has"),
       expect.stringContaining("reads its user id through public.people"),
@@ -394,7 +392,7 @@ describe("authorizationProvider", () => {
       args: "uuid, text, text",
       role: "postgres",
     });
-    expect(provider.roleSources).toEqual([
+    expect(provider.roleSources).toStrictEqual([
       {
         table: "public.memberships",
         role: {
@@ -403,7 +401,7 @@ describe("authorizationProvider", () => {
         },
       },
     ]);
-    expect(provider.suspension).toEqual({
+    expect(provider.suspension).toStrictEqual({
       user: { table: "public.profiles", id: "id", disabledAt: "disabled_at" },
       tenant: {
         table: "public.tenants",
@@ -419,12 +417,7 @@ describe("authorizationProvider", () => {
       name: string,
       args: string,
       execute = ["authenticated"],
-    ) => ({
-      name,
-      args,
-      returns: "boolean",
-      execute,
-    });
+    ) => ({ name, args, returns: "boolean", execute });
     const provider = authorizationProvider({
       catalog: emptyCatalog,
       manifest: withRls({
@@ -456,7 +449,7 @@ describe("authorizationProvider", () => {
       canAssignFor:
         "permdock.permdock_can_assign_any_for({user}, {role}, {tenant}, '{scope}', {tenant}::text)",
     });
-    expect(provider.requires).toEqual(
+    expect(provider.requires).toStrictEqual(
       expect.arrayContaining([
         {
           function: "permdock.permdock_can_assign_any",
@@ -512,7 +505,7 @@ describe("authorizationProvider", () => {
     expect(provider.functions.canAssign).toBe(
       "permdock.permdock_can_assign({role}, {tenant}::text)",
     );
-    expect(provider.problems).toEqual([
+    expect(provider.problems).toStrictEqual([
       expect.stringContaining(
         'The tenant scope "project" is not a root scope, so canAssign checks declared roles only',
       ),
@@ -625,7 +618,7 @@ describe("authorizationProvider", () => {
         args: "jsonb, text",
         role: "postgres",
       });
-      expect(provider.problems).toEqual([
+      expect(provider.problems).toStrictEqual([
         expect.stringContaining("tools.approve is not in the catalog"),
       ]);
     });
@@ -695,18 +688,14 @@ describe("authorizationProvider", () => {
           "invoice.send": { kind: "role", role: "admin", scope: "tenant" },
         },
       });
-      expect(provider.problems).toEqual([
+      expect(provider.problems).toStrictEqual([
         expect.stringContaining("empty kind"),
         expect.stringContaining("a role approver"),
       ]);
       expect(provider.functions.isApprover).toContain("'invoice.send'");
-      const none = authorizationProvider({
-        manifest,
-        catalog,
-        approvers: {},
-      });
+      const none = authorizationProvider({ manifest, catalog, approvers: {} });
       expect(none.functions).not.toHaveProperty("isApprover");
-      expect(none.problems).toEqual([expect.stringContaining("no kind")]);
+      expect(none.problems).toStrictEqual([expect.stringContaining("no kind")]);
     });
 
     it("sets no approver template without permdock_is_approver", () => {
@@ -747,7 +736,9 @@ describe("authorizationProvider", () => {
     const scoped = (type: string) =>
       authorizationProvider({
         manifest: withRls({
-          scopes: [{ ...supabaseHookManifestFixture.rls.scopes[0]!, type }],
+          scopes: [
+            { ...defined(supabaseHookManifestFixture.rls.scopes[0]), type },
+          ],
         }),
       });
     for (const type of [
@@ -761,7 +752,7 @@ describe("authorizationProvider", () => {
       "int",
       "INT4",
     ]) {
-      expect(scoped(type).scopes).toEqual([
+      expect(scoped(type).scopes).toStrictEqual([
         { name: "tenant", idType: moduleIdType(type) },
       ]);
     }
@@ -780,7 +771,7 @@ describe("authorizationProvider", () => {
       for (const permission of catalog.permissions) {
         permission.rowConditions = true;
       }
-      catalog.permissions[0]!.rowConditions = false;
+      defined(catalog.permissions[0]).rowConditions = false;
       const ids = (scope: string) =>
         `select ids::text from permdock.permitted_${scope}_ids_by_permission({permission}) as ids`;
       expect(
@@ -789,7 +780,7 @@ describe("authorizationProvider", () => {
       ).toBe(
         `case when {resource} = 'organization' then {id} in (${ids("organization")}) ` +
           `when {resource} = 'customer' then {id} in (${ids("customer")}) ` +
-          `else {permission} in ('${catalog.permissions[0]!.key}') and {tenant} in (${ids("organization")}) end`,
+          `else {permission} in ('${defined(catalog.permissions[0]).key}') and {tenant} in (${ids("organization")}) end`,
       );
     });
 
@@ -849,7 +840,7 @@ describe("authorizationProvider", () => {
       permission: "invoice.send",
       meta: { risk: "high", effects: ["external", "write"] },
     };
-    expect(provider.operations).toEqual({
+    expect(provider.operations).toStrictEqual({
       "ai.tool.send_invoice": sent,
       "mcp.tool.send_invoice": sent,
       "workflow.node.http": {
@@ -862,7 +853,7 @@ describe("authorizationProvider", () => {
     expect(
       authorizationProvider({ manifest: supabaseHookManifestFixture }),
     ).not.toHaveProperty("operations");
-    expect(provider.delegation).toEqual({
+    expect(provider.delegation).toStrictEqual({
       scopes: {
         "invoice:send": ["invoice.send"],
         "http:call": ["http.call"],
@@ -892,16 +883,13 @@ describe("authorizationProvider", () => {
         permissions: ["task.read", "task.update", "task.delete"].map(leaf),
         oauthScopes: [
           { scope: "mcp:read", permissions: ["task.read"] },
-          {
-            scope: "mcp:write",
-            permissions: ["task.update", "task.read"],
-          },
+          { scope: "mcp:write", permissions: ["task.update", "task.read"] },
           { scope: "task:read", permissions: ["task.update"] },
         ],
       },
     });
     await expect(testAuthorizationProvider(provider)).resolves.toBeDefined();
-    expect(provider.delegation).toEqual({
+    expect(provider.delegation).toStrictEqual({
       scopes: {
         "mcp:read": ["task.read"],
         "mcp:write": ["task.read", "task.update"],
@@ -942,7 +930,7 @@ describe("authorizationProvider", () => {
         ],
       },
     });
-    expect(provider.delegation).toEqual({
+    expect(provider.delegation).toStrictEqual({
       scopes: { "doc:read": ["doc.read"], "doc:view": ["doc.read"] },
     });
   });

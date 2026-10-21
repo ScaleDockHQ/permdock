@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 
 import type { Policy } from "../../index.ts";
+import type { CollectOutcome } from "../collect.ts";
 import type {
   DoctorFiles,
   DoctorInput,
@@ -8,7 +9,7 @@ import type {
 } from "../shared/doctor-types.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
 
-import { type CollectOutcome, runCollect } from "../collect.ts";
+import { runCollect } from "../collect.ts";
 import { describeError } from "../core/errors.ts";
 import { doctorSrcPath, listSourceFiles, rel } from "../files.ts";
 import { nodeFiles } from "../shared/doctor-files.ts";
@@ -24,9 +25,9 @@ export type PolicyLoad =
     };
 
 /**
- * One command's view of the project: the config, the source files, the
- * policy module and the `collect --check` scan. Each load runs at most once,
- * on first use, so a `doctor --only` run reads only what its checks need.
+ * One command's view of the project: the config, the source files, the policy
+ * module and the `collect --check` scan. Each load runs at most once, on first
+ * use, so a `doctor --only` run reads only what its checks need.
  */
 export type Project = Required<DoctorInput> & {
   readonly now: Date;
@@ -102,10 +103,6 @@ async function readPolicy(
     );
     return { status: "loaded", policy };
   } catch (error) {
-    return {
-      status: "failed",
-      path,
-      message: describeError(error),
-    };
+    return { status: "failed", path, message: describeError(error) };
   }
 }

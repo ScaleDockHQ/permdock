@@ -1,4 +1,6 @@
-import { type ReactNode, Suspense, use, useMemo } from "react";
+import type { ReactNode } from "react";
+
+import { Suspense, use, useMemo } from "react";
 
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { ProtectedProps } from "./types.ts";

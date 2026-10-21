@@ -23,6 +23,7 @@ import {
   startAgentDb,
   TENANT,
 } from "../support/agents.ts";
+import { defined } from "../support/defined.ts";
 
 type ToolApproval = NonNullable<
   Parameters<typeof streamText>[0]["toolApproval"]
@@ -89,9 +90,9 @@ const carol = principal("carol");
 const session = { id: "session-1", auth: { initiator: alice, current: alice } };
 
 /**
- * The toolApproval eve 0.58.1 builds in `harness/tools.js`
- * (`buildApprovalFn` + `buildToolApproval`): it calls the tool's
- * `approval.request` with the session context and passes the answer through.
+ * The toolApproval eve 0.58.1 builds in `harness/tools.js` (`buildApprovalFn` +
+ * `buildToolApproval`): it calls the tool's `approval.request` with the session
+ * context and passes the answer through.
  */
 function eveToolApproval(adapter: EvePermDock): ToolApproval {
   // SAFETY: mirrors the approval function eve 0.58.1 builds, which reads only toolCall
@@ -142,109 +143,113 @@ const none = jsonSchema<Record<string, never>>({
 let db: AgentDb;
 let rows: ReturnType<typeof projectLoader>;
 
-beforeAll(async () => {
-  db = await startAgentDb();
-  rows = projectLoader(db.pg.uri);
-});
-
-afterAll(async () => {
-  await rows.close();
-  await db.stop();
-});
-
-async function permdock(): Promise<EvePermDock> {
-  return createPermDock(saasPolicy, {
-    subject: ({ session: current }) =>
-      agentSubject({ user: current?.auth?.initiator?.principalId }),
-    tenant: TENANT,
-    delegation: agentDelegation,
-    operations: agentTools(rows.load),
-    store: await db.openStore(),
+describe("eve", () => {
+  beforeAll(async () => {
+    db = await startAgentDb();
+    rows = projectLoader(db.pg.uri);
   });
-}
 
-describe("permdock/eve through the eve harness toolApproval on Postgres", () => {
-  it("parks, takes an owner response on another instance, runs once on the re-check and denies the replay", async () => {
-    const deleted = vi.fn<(input: { readonly id: string }) => string>(
-      ({ id }) => `deleted ${id}`,
-    );
-    const revoked = vi.fn<() => string>(() => "revoked");
-    const tools = {
-      delete_project: tool({ inputSchema: byId, execute: deleted }),
-      revoke_api_keys: tool({ inputSchema: none, execute: revoked }),
-    };
+  afterAll(async () => {
+    await rows.close();
+    await db.stop();
+  });
 
-    const first = streamText({
-      model: scripted([
-        toolCalls([
-          ["c1", "delete_project", { id: "p1" }],
-          ["c2", "delete_project", { id: "p4" }],
+  async function permdock(): Promise<EvePermDock> {
+    return createPermDock(saasPolicy, {
+      subject: ({ session: current }) =>
+        agentSubject({ user: current?.auth?.initiator?.principalId }),
+      tenant: TENANT,
+      delegation: agentDelegation,
+      operations: agentTools(rows.load),
+      store: await db.openStore(),
+    });
+  }
+
+  describe("permdock/eve through the eve harness toolApproval on Postgres", () => {
+    it("parks, takes an owner response on another instance, runs once on the re-check and denies the replay", async () => {
+      const deleted = vi.fn<(input: { readonly id: string }) => string>(
+        ({ id }) => `deleted ${id}`,
+      );
+      const revoked = vi.fn<() => string>(() => "revoked");
+      const tools = {
+        delete_project: tool({ inputSchema: byId, execute: deleted }),
+        revoke_api_keys: tool({ inputSchema: none, execute: revoked }),
+      };
+
+      const first = streamText({
+        model: scripted([
+          toolCalls([
+            ["c1", "delete_project", { id: "p1" }],
+            ["c2", "delete_project", { id: "p4" }],
+          ]),
+          toolCalls([["c3", "revoke_api_keys", {}]]),
+          reply,
         ]),
-        toolCalls([["c3", "revoke_api_keys", {}]]),
-        reply,
-      ]),
-      prompt: "clean up acme",
-      tools,
-      toolApproval: eveToolApproval(await permdock()),
-      stopWhen: stepCountIs(5),
-    });
-    await first.consumeStream();
-    const { messages } = (await first.finalStep).response;
-    expect(deleted.mock.calls.map(([input]) => input.id)).toEqual(["p1"]);
-    const approvalId = approvalIdOf(messages);
-    expect(approvalId).toBeDefined();
+        prompt: "clean up acme",
+        tools,
+        toolApproval: eveToolApproval(await permdock()),
+        stopWhen: stepCountIs(5),
+      });
+      await first.consumeStream();
+      const { messages } = (await first.finalStep).response;
+      expect(deleted.mock.calls.map(([input]) => input.id)).toStrictEqual([
+        "p1",
+      ]);
+      const approvalId = approvalIdOf(messages);
+      expect(approvalId).toBeDefined();
 
-    const request = {
-      callId: "c3",
-      toolName: "revoke_api_keys",
-      toolInput: {},
-    };
-    const reviewer = await permdock();
-    expect(
-      await reviewer.approval.response({
-        request,
-        response: { decision: "approve", principal: alice },
-        session: { id: session.id, initiator: alice },
-      }),
-    ).toMatchObject({ status: "rejected" });
-    expect(
-      await reviewer.approval.response({
-        request,
-        response: { decision: "approve", principal: carol },
-        session: { id: session.id, initiator: alice },
-      }),
-    ).toEqual({ status: "allowed" });
+      const request = {
+        callId: "c3",
+        toolName: "revoke_api_keys",
+        toolInput: {},
+      };
+      const reviewer = await permdock();
+      expect(
+        await reviewer.approval.response({
+          request,
+          response: { decision: "approve", principal: alice },
+          session: { id: session.id, initiator: alice },
+        }),
+      ).toMatchObject({ status: "rejected" });
+      expect(
+        await reviewer.approval.response({
+          request,
+          response: { decision: "approve", principal: carol },
+          session: { id: session.id, initiator: alice },
+        }),
+      ).toStrictEqual({ status: "allowed" });
 
-    const resumed: ModelMessage[] = [
-      { role: "user", content: "clean up acme" },
-      ...messages,
-      {
-        role: "tool",
-        content: [
-          {
-            type: "tool-approval-response",
-            approvalId: approvalId!,
-            approved: true,
-          },
-        ],
-      },
-    ];
-    const recheck = streamText({
-      model: scripted([reply]),
-      messages: resumed,
-      tools,
-      toolApproval: eveToolApproval(await permdock()),
-    });
-    await recheck.consumeStream();
-    expect(revoked).toHaveBeenCalledTimes(1);
+      const resumed: ModelMessage[] = [
+        { role: "user", content: "clean up acme" },
+        ...messages,
+        {
+          role: "tool",
+          content: [
+            {
+              type: "tool-approval-response",
+              approvalId: defined(approvalId),
+              approved: true,
+            },
+          ],
+        },
+      ];
+      const recheck = streamText({
+        model: scripted([reply]),
+        messages: resumed,
+        tools,
+        toolApproval: eveToolApproval(await permdock()),
+      });
+      await recheck.consumeStream();
+      expect(revoked).toHaveBeenCalledTimes(1);
 
-    const replay = streamText({
-      model: scripted([reply]),
-      messages: resumed,
-      tools,
-      toolApproval: eveToolApproval(await permdock()),
+      const replay = streamText({
+        model: scripted([reply]),
+        messages: resumed,
+        tools,
+        toolApproval: eveToolApproval(await permdock()),
+      });
+      await replay.consumeStream();
+      expect(revoked).toHaveBeenCalledTimes(1);
     });
-    await replay.consumeStream();
-    expect(revoked).toHaveBeenCalledTimes(1);
   });
 });

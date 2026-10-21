@@ -205,8 +205,8 @@ describe("the hook grants for member_<scope>_ids_for", () => {
     const staff = manifest.rls?.memberships?.find(
       (entry) => entry.table === "public.staff_members",
     );
-    expect(staff?.via).toEqual({ value: "staff" });
-    expect(staff?.columns).toEqual(["user_id", "org_id", "role"]);
+    expect(staff?.via).toStrictEqual({ value: "staff" });
+    expect(staff?.columns).toStrictEqual(["user_id", "org_id", "role"]);
   });
 
   it("puts them in the hook file without --grants-out, with usage on the helper schema", () => {

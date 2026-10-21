@@ -10,7 +10,10 @@ import { declaredRoleNames } from "../core/policy.ts";
 import { isSelfParented } from "../core/resource-relations.ts";
 import { findRole, listPlans } from "../core/vocabulary.ts";
 
-/** The declared roles held at one scope: a scope name as declared, `resource`, or `global` for a role with no `on`. */
+/**
+ * The declared roles held at one scope: a scope name as declared, `resource`,
+ * or `global` for a role with no `on`.
+ */
 export type HostedGrantRoleOption = {
   readonly scope: string;
   readonly roles: readonly string[];
@@ -22,7 +25,10 @@ export type HostedGrantRelationOption = {
   readonly through?: "parent";
 };
 
-/** What a hosted grant on one hostable permission may say; any other value is dropped by `mergeHostedGrants`. */
+/**
+ * What a hosted grant on one hostable permission may say; any other value is
+ * dropped by `mergeHostedGrants`.
+ */
 export type HostedGrantOption = {
   readonly permission: string;
   readonly resource: string;
@@ -34,11 +40,17 @@ export type HostedGrantOption = {
     readonly relations: readonly HostedGrantRelationOption[];
   };
   readonly approval: {
-    /** `true` when a code allow carries an approval: a hosted allow without one at least as strict is dropped (`weaker-approval`). */
+    /**
+     * `true` when a code allow carries an approval: a hosted allow without one
+     * at least as strict is dropped (`weaker-approval`).
+     */
     readonly required: boolean;
     /** The approvals code allows carry; a hosted allow must meet each. */
     readonly meets: readonly ("human" | ApprovalRequirement)[];
-    /** `human` is `approval: 'human'`; `any` is the object form, any one approver per approval. `all` and `sequential` stages are never accepted. */
+    /**
+     * `human` is `approval: 'human'`; `any` is the object form, any one
+     * approver per approval. `all` and `sequential` stages are never accepted.
+     */
     readonly modes: readonly ("human" | "any")[];
     /** The object-form fields a hosted approval may set. */
     readonly fields: readonly string[];
@@ -48,7 +60,10 @@ export type HostedGrantOption = {
   readonly conditions: {
     /** `where` and `check` accept the portable condition subset only. */
     readonly portable: true;
-    /** The resource's top-level fields, from its JSON Schema; `null` when the schema exposes none. */
+    /**
+     * The resource's top-level fields, from its JSON Schema; `null` when the
+     * schema exposes none.
+     */
     readonly fields: readonly string[] | null;
   };
 };
@@ -158,10 +173,10 @@ function optionFor(policy: Policy, key: string): HostedGrantOption | null {
 }
 
 /**
- * What a hosted grant may say on each permission the policy marks
- * `hostable`, in `hostable` order: the grantees, approval forms and
- * conditions `mergeHostedGrants` accepts. For an authoring form; every
- * grant it builds from these still goes through `checkHostedGrant`.
+ * What a hosted grant may say on each permission the policy marks `hostable`,
+ * in `hostable` order: the grantees, approval forms and conditions
+ * `mergeHostedGrants` accepts. For an authoring form; every grant it builds
+ * from these still goes through `checkHostedGrant`.
  */
 export function hostedGrantOptions(
   policy: Policy,

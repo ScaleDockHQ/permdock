@@ -7,7 +7,7 @@ const leaves = Object.values(permissions.post);
 describe("invariant 4: permission leaves are plain frozen JSON", () => {
   it("has exactly the five leaf fields", () => {
     for (const leaf of leaves) {
-      expect(Object.keys(leaf).toSorted()).toEqual([
+      expect(Object.keys(leaf).toSorted()).toStrictEqual([
         "action",
         "key",
         "meta",
@@ -32,20 +32,20 @@ describe("invariant 4: permission leaves are plain frozen JSON", () => {
     for (const leaf of leaves) {
       expect(Object.getPrototypeOf(leaf)).toBe(Object.prototype);
       expect(Object.getPrototypeOf(leaf.meta)).toBe(Object.prototype);
-      expect(Object.getOwnPropertySymbols(leaf)).toEqual([]);
+      expect(Object.getOwnPropertySymbols(leaf)).toStrictEqual([]);
       for (const descriptor of Object.values(
         Object.getOwnPropertyDescriptors(leaf),
       )) {
         expect(descriptor.get).toBeUndefined();
-        expect(typeof descriptor.value).not.toBe("function");
+        expect(descriptor.value).not.toBeTypeOf("function");
       }
     }
   });
 
   it("survives structuredClone and a JSON round trip unchanged", () => {
     for (const leaf of leaves) {
-      expect(structuredClone(leaf)).toEqual(leaf);
-      expect(JSON.parse(JSON.stringify(leaf))).toEqual(leaf);
+      expect(structuredClone(leaf)).toStrictEqual(leaf);
+      expect(JSON.parse(JSON.stringify(leaf))).toStrictEqual(leaf);
     }
   });
 

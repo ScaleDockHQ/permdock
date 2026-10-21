@@ -115,10 +115,7 @@ import { org } from "next/root-params";
 
 export const { getPermDock, getPermission, requirePermission } = createPermDock(
   policy,
-  {
-    subject: async () => getUser(await cookies()),
-    tenant: org,
-  },
+  { subject: async () => getUser(await cookies()), tenant: org },
 );
 ```
 

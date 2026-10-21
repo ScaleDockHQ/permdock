@@ -89,15 +89,12 @@ describe("a tenant row named like a declared role", () => {
 
 describe("PD072", () => {
   const config = (roles: RlsCustomRoleTable) => ({
-    rls: {
-      membershipSources: [source],
-      customRoleWrites: { roles },
-    },
+    rls: { membershipSources: [source], customRoleWrites: { roles } },
   });
 
   it("warns when a source reads keys through the tenant-writable roles table", () => {
     const findings = pd072({ cwd: ".", config: config(table) });
-    expect(findings.map((finding) => finding.code)).toEqual(["PD072"]);
+    expect(findings.map((finding) => finding.code)).toStrictEqual(["PD072"]);
   });
 
   it("reads the sources of the Supabase hook when rls names none", () => {
@@ -109,21 +106,21 @@ describe("PD072", () => {
           supabase: { hook: { memberships: [source] } },
         },
       }).map((finding) => finding.code),
-    ).toEqual(["PD072"]);
+    ).toStrictEqual(["PD072"]);
     expect(
       pd072({
         cwd: ".",
         config: { rls: { customRoleWrites: { roles: table } } },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("is quiet when the roles table has no tenant column or is not read", () => {
     expect(
       pd072({ cwd: ".", config: config({ table: "app_roles", key: "name" }) }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       pd072({ cwd: ".", config: config({ ...table, table: "x" }) }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

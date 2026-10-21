@@ -83,13 +83,18 @@ describe("cloud approvals over a failing API", () => {
       consume: await failing.approvals.consume("t", { epochMilliseconds: 0 }),
       list: await failing.approvals.list({}),
       expire: await failing.approvals.expire({ epochMilliseconds: 0 }),
-    }).toEqual({ get: null, consume: null, list: { items: [] }, expire: 0 });
+    }).toStrictEqual({
+      get: null,
+      consume: null,
+      list: { items: [] },
+      expire: 0,
+    });
 
     const { client: shaped } = client(() => json({ items: "x", expired: "x" }));
     expect({
       list: await shaped.approvals.list({ limit: 5 }),
       expire: await shaped.approvals.expire(),
-    }).toEqual({ list: { items: [] }, expire: 0 });
+    }).toStrictEqual({ list: { items: [] }, expire: 0 });
 
     const { client: offline } = client(() => {
       throw new Error("offline");
@@ -99,7 +104,12 @@ describe("cloud approvals over a failing API", () => {
       consume: await offline.approvals.consume("t"),
       list: await offline.approvals.list({}),
       expire: await offline.approvals.expire(),
-    }).toEqual({ get: null, consume: null, list: { items: [] }, expire: 0 });
+    }).toStrictEqual({
+      get: null,
+      consume: null,
+      list: { items: [] },
+      expire: 0,
+    });
   });
 
   it("drops malformed list items and keeps a non-empty cursor only", async () => {
@@ -107,9 +117,9 @@ describe("cloud approvals over a failing API", () => {
     const { client: c, calls } = client(() =>
       json({ items: [good, { v: 1 }, null], next: "" }),
     );
-    expect(await c.approvals.list({ status: "pending", tenant: "o1" })).toEqual(
-      { items: [good] },
-    );
+    expect(
+      await c.approvals.list({ status: "pending", tenant: "o1" }),
+    ).toStrictEqual({ items: [good] });
     expect(calls[0]?.url).toBe(
       `${CLOUD_URL}/v1/environments/production/approvals?status=pending&tenant=o1`,
     );
@@ -149,7 +159,7 @@ describe("cloud sink and snapshots over a failing API", () => {
       calls.map((call) =>
         parseCloudEventBatch(JSON.parse(call.body))?.map((item) => item.data),
       ),
-    ).toEqual([[event], [event]]);
+    ).toStrictEqual([[event], [event]]);
   });
 
   it("does not schedule a flush through waitUntil when the batch flushed inline", async () => {

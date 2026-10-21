@@ -11,9 +11,9 @@ import { GLOBAL_ROLES } from "../sql/shared.ts";
 
 /**
  * `permdock_replace_global_roles(p_user, p_roles)`: sets the global roles of
- * one user in `rls.roles` in one statement pair. It runs as the invoker, so
- * the table's policies and the `rls.assignments` trigger judge every row it
- * deletes or inserts.
+ * one user in `rls.roles` in one statement pair. It runs as the invoker, so the
+ * table's policies and the `rls.assignments` trigger judge every row it deletes
+ * or inserts.
  */
 export function globalRolesSql(ctx: RlsSqlContext): string {
   if (ctx.roles === undefined) {

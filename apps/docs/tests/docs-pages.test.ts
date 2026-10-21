@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  findPage,
-  normalizeDocsPath,
-  searchDocs,
-  type DocsPageSummary,
-} from "../lib/docs-pages";
+import type { DocsPageSummary } from "../lib/docs-pages";
+
+import { findPage, normalizeDocsPath, searchDocs } from "../lib/docs-pages";
 
 const pages: readonly DocsPageSummary[] = [
   {
@@ -28,14 +25,14 @@ const pages: readonly DocsPageSummary[] = [
   },
 ];
 
-describe("searchDocs", () => {
+describe(searchDocs, () => {
   it("ranks title matches above path matches", () => {
     const hits = searchDocs(pages, "hono");
     expect(hits[0]?.url).toBe("/docs/adapters/hono");
   });
 
   it("returns nothing for an empty query", () => {
-    expect(searchDocs(pages, "   ")).toEqual([]);
+    expect(searchDocs(pages, "   ")).toStrictEqual([]);
   });
 
   it("caps the limit", () => {
@@ -43,23 +40,23 @@ describe("searchDocs", () => {
   });
 });
 
-describe("normalizeDocsPath", () => {
+describe(normalizeDocsPath, () => {
   it("strips /docs, hosts and suffixes", () => {
-    expect(normalizeDocsPath("/docs/adapters/hono")).toEqual([
+    expect(normalizeDocsPath("/docs/adapters/hono")).toStrictEqual([
       "adapters",
       "hono",
     ]);
     expect(
       normalizeDocsPath("https://permdock.com/docs/adapters/hono.md"),
-    ).toEqual(["adapters", "hono"]);
-    expect(normalizeDocsPath("llms.mdx/docs/adapters/hono")).toEqual([
+    ).toStrictEqual(["adapters", "hono"]);
+    expect(normalizeDocsPath("llms.mdx/docs/adapters/hono")).toStrictEqual([
       "adapters",
       "hono",
     ]);
   });
 });
 
-describe("findPage", () => {
+describe(findPage, () => {
   it("resolves a slug path", () => {
     expect(findPage(pages, "adapters/hono")?.title).toBe("Hono");
   });

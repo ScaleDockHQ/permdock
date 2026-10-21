@@ -74,11 +74,11 @@ async function setup() {
   return { chat, store, id, pay };
 }
 
-describe("approvalActions", () => {
+describe(approvalActions, () => {
   it("names the approve and reject action ids", async () => {
     const { chat } = await setup();
     const actions = approvalActions(chat, { workspace: "T1" });
-    expect(actions.actionIds).toEqual([APPROVE_ACTION, REJECT_ACTION]);
+    expect(actions.actionIds).toStrictEqual([APPROVE_ACTION, REJECT_ACTION]);
   });
 
   it("approves as the clicking user and posts the outcome to the thread", async () => {
@@ -86,8 +86,8 @@ describe("approvalActions", () => {
     const actions = approvalActions(chat, { workspace: "T1" });
     const replies: Reply[] = [];
     await actions.onAction(event(APPROVE_ACTION, user("U3"), id, replies));
-    expect(replies).toEqual([{ kind: "post", text: "Approved by U3." }]);
-    expect(await pay(billing, { id: "i1" })).toEqual({
+    expect(replies).toStrictEqual([{ kind: "post", text: "Approved by U3." }]);
+    expect(await pay(billing, { id: "i1" })).toStrictEqual({
       outcome: "granted",
       value: "paid",
     });
@@ -102,7 +102,7 @@ describe("approvalActions", () => {
     await actions.onAction(
       event(APPROVE_ACTION, user("U3", { isBot: true }), id, replies),
     );
-    expect(replies.map((reply) => reply.kind)).toEqual([
+    expect(replies.map((reply) => reply.kind)).toStrictEqual([
       "ephemeral",
       "ephemeral",
       "ephemeral",
@@ -115,7 +115,7 @@ describe("approvalActions", () => {
     const actions = approvalActions(chat, { workspace: "T1" });
     const replies: Reply[] = [];
     await actions.onAction(event("other", user("U3"), id, replies));
-    expect(replies).toEqual([]);
+    expect(replies).toStrictEqual([]);
     await actions.onAction(
       event(REJECT_ACTION, user("U3"), undefined, replies),
     );
@@ -134,7 +134,7 @@ describe("approvalActions", () => {
     });
     const replies: Reply[] = [];
     await actions.onAction(event(REJECT_ACTION, user("U3"), id, replies));
-    expect(results).toEqual([{ ok: true, id, status: "rejected" }]);
-    expect(replies).toEqual([]);
+    expect(results).toStrictEqual([{ ok: true, id, status: "rejected" }]);
+    expect(replies).toStrictEqual([]);
   });
 });

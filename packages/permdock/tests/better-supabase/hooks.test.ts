@@ -2,12 +2,10 @@ import { testAuthorizationHooks } from "better-supabase/testing";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { AuthorizationHooksOptions } from "../../src/better-supabase/index.ts";
 import type { Principal } from "../../src/index.ts";
 
-import {
-  type AuthorizationHooksOptions,
-  authorizationHooks,
-} from "../../src/better-supabase/index.ts";
+import { authorizationHooks } from "../../src/better-supabase/index.ts";
 import { holder, user } from "../../src/core/approvers.ts";
 import {
   allow,
@@ -18,6 +16,7 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
+import { defined } from "../support/defined.ts";
 
 const ORG = "11111111-1111-4111-8111-111111111111";
 const OTHER = "33333333-3333-4333-8333-333333333333";
@@ -110,9 +109,9 @@ const hooks = authorizationHooks({
         ? { userId: "deleted-user" }
         : null,
 });
-const automation = hooks.automation!;
+const automation = defined(hooks.automation);
 
-describe("authorizationHooks", () => {
+describe(authorizationHooks, () => {
   it("passes better-supabase's conformance kit with every hook set", async () => {
     await expect(testAuthorizationHooks(hooks)).resolves.toBeDefined();
     await expect(
@@ -127,53 +126,60 @@ describe("authorizationHooks", () => {
       publisher: EDITOR,
       tenant: ORG,
       permissions: [doc.read.key, doc.update.key],
-      claims: users[EDITOR]!,
+      claims: defined(users[EDITOR]),
     };
 
     it("lets a publisher publish only keys they hold in the tenant", async () => {
-      expect(await automation.mayPublish!(ref)).toBe(true);
+      expect(await automation.mayPublish?.(ref)).toBe(true);
       expect(
-        await automation.mayPublish!({ ...ref, claims: users[VIEWER]! }),
+        await automation.mayPublish?.({
+          ...ref,
+          claims: defined(users[VIEWER]),
+        }),
       ).toBe(false);
-      expect(await automation.mayPublish!({ ...ref, tenant: OTHER })).toBe(
+      expect(await automation.mayPublish?.({ ...ref, tenant: OTHER })).toBe(
         false,
       );
       expect(
-        await automation.mayPublish!({ ...ref, permissions: ["doc.unknown"] }),
+        await automation.mayPublish?.({ ...ref, permissions: ["doc.unknown"] }),
       ).toBe(false);
-      expect(await automation.mayPublish!({ ...ref, publisher: null })).toBe(
+      expect(await automation.mayPublish?.({ ...ref, publisher: null })).toBe(
         false,
       );
     });
 
     it("runs as the publisher's current claims capped to the automation's keys", async () => {
       const { claims: _claims, ...run } = ref;
-      expect(await automation.runAs!(run)).toEqual({
+      expect(await automation.runAs?.(run)).toStrictEqual({
         ...users[EDITOR],
         bs_permission_cap: [doc.read.key, doc.update.key],
       });
-      expect(await automation.runAs!({ ...run, publisher: VIEWER })).toBeNull();
       expect(
-        await automation.runAs!({ ...run, publisher: "deleted-user" }),
+        await automation.runAs?.({ ...run, publisher: VIEWER }),
+      ).toBeNull();
+      expect(
+        await automation.runAs?.({ ...run, publisher: "deleted-user" }),
       ).toBeNull();
     });
 
     it("runs an organization-owned automation as the service claims, or as no one", async () => {
       const run = { publisher: null, tenant: ORG, permissions: [doc.read.key] };
-      expect(await automation.runAs!(run)).toMatchObject({
+      expect(await automation.runAs?.(run)).toMatchObject({
         sub: "service-account",
         bs_permission_cap: [doc.read.key],
       });
-      expect(await authorizationHooks(base).automation!.runAs!(run)).toBeNull();
+      expect(
+        await defined(authorizationHooks(base).automation).runAs?.(run),
+      ).toBeNull();
     });
 
     it("refuses claims whose sub is not the publisher", async () => {
       const forged = authorizationHooks({
         policy,
-        claims: () => users[EDITOR]!,
+        claims: () => defined(users[EDITOR]),
       });
       expect(
-        await forged.automation!.runAs!({
+        await defined(forged.automation).runAs?.({
           publisher: VIEWER,
           tenant: ORG,
           permissions: [doc.read.key],
@@ -184,13 +190,13 @@ describe("authorizationHooks", () => {
 
   it("maps delegated scopes to the keys whose scope they are", async () => {
     expect(
-      await hooks.delegation!.permissions({
+      await defined(hooks.delegation).permissions({
         userId: EDITOR,
         tenant: ORG,
         clientId: "c",
         scopes: [doc.read.scope, "unmapped:scope"],
       }),
-    ).toEqual([doc.read.key]);
+    ).toStrictEqual([doc.read.key]);
   });
 
   it("maps a coarse oauthScopes scope to the keys it covers", async () => {
@@ -212,14 +218,17 @@ describe("authorizationHooks", () => {
     });
     const ref = { userId: EDITOR, tenant: ORG, clientId: "c" };
     expect(
-      await scoped.delegation!.permissions({
+      await defined(scoped.delegation).permissions({
         ...ref,
         scopes: ["openid", "mcp:read"],
       }),
-    ).toEqual([doc.read.key]);
+    ).toStrictEqual([doc.read.key]);
     expect(
-      await scoped.delegation!.permissions({ ...ref, scopes: ["mcp:write"] }),
-    ).toEqual([doc.read.key, doc.update.key]);
+      await defined(scoped.delegation).permissions({
+        ...ref,
+        scopes: ["mcp:write"],
+      }),
+    ).toStrictEqual([doc.read.key, doc.update.key]);
   });
 
   describe("approverOf", () => {
@@ -229,29 +238,29 @@ describe("authorizationHooks", () => {
       tenant: ORG,
       requester: EDITOR,
     };
-    const as = (userId: string) => ({ userId, claims: users[userId]! });
+    const as = (userId: string) => ({ userId, claims: defined(users[userId]) });
 
     it("lets a holder of the approver permission approve, never the requester", async () => {
-      expect(await hooks.approverOf!(as(LEAD), request)).toBe(true);
-      expect(await hooks.approverOf!(as(VIEWER), request)).toBe(false);
+      expect(await hooks.approverOf?.(as(LEAD), request)).toBe(true);
+      expect(await hooks.approverOf?.(as(VIEWER), request)).toBe(false);
       expect(
-        await hooks.approverOf!(as(LEAD), { ...request, requester: LEAD }),
+        await hooks.approverOf?.(as(LEAD), { ...request, requester: LEAD }),
       ).toBe(false);
       expect(
-        await hooks.approverOf!(as(LEAD), { ...request, tenant: OTHER }),
+        await hooks.approverOf?.(as(LEAD), { ...request, tenant: OTHER }),
       ).toBe(false);
     });
 
     it("matches a user approver by id and refuses an unknown kind or forged claims", async () => {
       const deploy = { ...request, kind: "deploy", requester: VIEWER };
-      expect(await hooks.approverOf!(as(EDITOR), deploy)).toBe(true);
-      expect(await hooks.approverOf!(as(LEAD), deploy)).toBe(false);
+      expect(await hooks.approverOf?.(as(EDITOR), deploy)).toBe(true);
+      expect(await hooks.approverOf?.(as(LEAD), deploy)).toBe(false);
       expect(
-        await hooks.approverOf!(as(LEAD), { ...request, kind: "toString" }),
+        await hooks.approverOf?.(as(LEAD), { ...request, kind: "toString" }),
       ).toBe(false);
       expect(
-        await hooks.approverOf!(
-          { userId: LEAD, claims: users[EDITOR]! },
+        await hooks.approverOf?.(
+          { userId: LEAD, claims: defined(users[EDITOR]) },
           request,
         ),
       ).toBe(false);
@@ -261,25 +270,25 @@ describe("authorizationHooks", () => {
   it("maps a linked identity to a user or a contact", async () => {
     const { identities } = hooks;
     expect(
-      await identities!.principalByIdentity({
+      await defined(identities).principalByIdentity({
         kind: "email",
         value: "viewer@example.com",
       }),
-    ).toEqual({ kind: "user", userId: VIEWER });
+    ).toStrictEqual({ kind: "user", userId: VIEWER });
     expect(
-      await identities!.principalByIdentity({
+      await defined(identities).principalByIdentity({
         kind: "email",
         value: "client@example.com",
       }),
-    ).toEqual({ kind: "contact", contactId: "c1" });
+    ).toStrictEqual({ kind: "contact", contactId: "c1" });
   });
 
   it("resolves a ticket to the user's current claims, or null", async () => {
-    expect(await hooks.tickets!.subject("t-editor")).toEqual({
+    expect(await defined(hooks.tickets).subject("t-editor")).toStrictEqual({
       claims: users[EDITOR],
       tenant: ORG,
     });
-    expect(await hooks.tickets!.subject("t-gone")).toBeNull();
-    expect(await hooks.tickets!.subject("t-unknown")).toBeNull();
+    expect(await defined(hooks.tickets).subject("t-gone")).toBeNull();
+    expect(await defined(hooks.tickets).subject("t-unknown")).toBeNull();
   });
 });

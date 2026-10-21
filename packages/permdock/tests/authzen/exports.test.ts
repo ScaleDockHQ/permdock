@@ -25,7 +25,7 @@ function detail(result: ReturnType<typeof parseAuthzenRequest>): unknown {
   return result.ok ? result.request : result.problem.detail;
 }
 
-describe("parseAuthzenRequest", () => {
+describe(parseAuthzenRequest, () => {
   it.each<[Parameters<typeof parseAuthzenRequest>[0], unknown, string]>([
     ["evaluation", [], "evaluation body must be an object"],
     ["evaluation", { action, resource }, "subject.type is required"],
@@ -85,13 +85,15 @@ describe("parseAuthzenRequest", () => {
     );
     const parsed = parseAuthzenRequest("evaluation", body);
     expect(parsed.ok).toBe(false);
-    expect(await response.json()).toEqual(parsed.ok ? null : parsed.problem);
+    expect(await response.json()).toStrictEqual(
+      parsed.ok ? null : parsed.problem,
+    );
   });
 
   it("parses an empty evaluations batch as one evaluation and merges items", () => {
     expect(
       parseAuthzenRequest("evaluations", { subject, action, resource }),
-    ).toEqual({
+    ).toStrictEqual({
       ok: true,
       request: { kind: "evaluation", item: { subject, action, resource } },
     });
@@ -101,7 +103,7 @@ describe("parseAuthzenRequest", () => {
         resource,
         evaluations: [{ action }, { action: { name: "update" } }],
       }),
-    ).toEqual({
+    ).toStrictEqual({
       ok: true,
       request: {
         kind: "evaluations",
@@ -130,7 +132,7 @@ describe("parseAuthzenRequest", () => {
         resource,
         page: { next_token: "4", size: 900 },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       ok: true,
       request: {
         kind: "search/action",
@@ -141,7 +143,7 @@ describe("parseAuthzenRequest", () => {
   });
 });
 
-describe("readAuthzenRequest", () => {
+describe(readAuthzenRequest, () => {
   function request(body: string, type = "application/json"): Request {
     return new Request(`${ORIGIN}/access/v1/evaluation`, {
       method: "POST",
@@ -166,7 +168,7 @@ describe("readAuthzenRequest", () => {
           ? result.request.kind
           : [result.problem.status, result.problem.detail],
       ),
-    ).toEqual([
+    ).toStrictEqual([
       [400, "AuthZEN requests must use Content-Type: application/json"],
       [400, "AuthZEN body was not valid JSON"],
       [413, "request body exceeds 1048576 bytes"],
@@ -175,18 +177,15 @@ describe("readAuthzenRequest", () => {
   });
 });
 
-describe("searchActions", () => {
+describe(searchActions, () => {
   it("answers the distinct granted actions of the resource type", async () => {
     const member = await searchActions(
       policy,
       memberUser,
-      {
-        type: "post",
-        id: "p1",
-      },
+      { type: "post", id: "p1" },
       { data: ownPost },
     );
-    expect(member.map((entry) => entry.name)).toEqual([
+    expect(member.map((entry) => entry.name)).toStrictEqual([
       "read",
       "update",
       "create",
@@ -196,7 +195,7 @@ describe("searchActions", () => {
       type: "post",
       properties: otherPost,
     });
-    expect(admin.map((entry) => entry.name)).toEqual([
+    expect(admin.map((entry) => entry.name)).toStrictEqual([
       "read",
       "update",
       "delete",
@@ -205,7 +204,7 @@ describe("searchActions", () => {
     ]);
     expect(
       await searchActions(policy, memberUser, { type: "comment" }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("agrees with the handler's search/action", async () => {
@@ -224,7 +223,7 @@ describe("searchActions", () => {
     );
     // SAFETY: a search/action response is an AuthZEN page object.
     const body = (await response.json()) as { readonly results: unknown };
-    expect(body.results).toEqual(
+    expect(body.results).toStrictEqual(
       await searchActions(policy, memberUser, {
         type: "post",
         properties: ownPost,
@@ -233,7 +232,7 @@ describe("searchActions", () => {
   });
 });
 
-describe("searchSubjects", () => {
+describe(searchSubjects, () => {
   const records = [
     { id: memberUser.id, orgId: "o1", roles: memberUser.roles },
     { id: adminUser.id, orgId: "o1", roles: adminUser.roles },
@@ -256,8 +255,8 @@ describe("searchSubjects", () => {
         resource: { type: "post", id: "p1", properties: ownPost },
       },
     );
-    expect(found).toEqual([{ type: "user", id: adminUser.id }]);
-    expect(queries).toEqual([
+    expect(found).toStrictEqual([{ type: "user", id: adminUser.id }]);
+    expect(queries).toStrictEqual([
       {
         type: "user",
         action: { name: "publish" },
@@ -275,10 +274,7 @@ describe("searchSubjects", () => {
     };
     expect(
       await Promise.all([
-        searchSubjects(policy, lister, {
-          ...request,
-          action: { name: "fly" },
-        }),
+        searchSubjects(policy, lister, { ...request, action: { name: "fly" } }),
         searchSubjects(policy, lister, {
           ...request,
           subject: { type: "agent" },
@@ -289,6 +285,6 @@ describe("searchSubjects", () => {
           request,
         ),
       ]),
-    ).toEqual([[], [], []]);
+    ).toStrictEqual([[], [], []]);
   });
 });

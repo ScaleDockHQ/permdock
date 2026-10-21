@@ -1,25 +1,30 @@
 import type { RelatedCondition } from "../conditions/ast.ts";
+import type { Approver } from "../core/approvers.ts";
 import type { RelationGrantee } from "../core/grantee.ts";
 import type { RelationSource } from "../core/interfaces.ts";
 import type { PermissionTree, ResourceNode } from "../core/permission-types.ts";
+import type { RelationCache, RelationReader } from "../core/relations.ts";
 import type { Subject } from "../core/subject.ts";
+import type { Instant } from "../core/time.ts";
+import type { ApprovalRequest } from "./types.ts";
 
-import { type Approver, approverLeaves } from "../core/approvers.ts";
+import { approverLeaves } from "../core/approvers.ts";
 import { getRegistry } from "../core/permission-registry.ts";
 import { resolveRelated } from "../core/relation-walk.ts";
-import {
-  type RelationCache,
-  type RelationReader,
-  pendingRelations,
-  relationReader,
-} from "../core/relations.ts";
-import { dateAt, type Instant } from "../core/time.ts";
-import { type ApprovalRequest, approverRelationKey } from "./types.ts";
+import { pendingRelations, relationReader } from "../core/relations.ts";
+import { dateAt } from "../core/time.ts";
+import { approverRelationKey } from "./types.ts";
 
 export type ApproverRelationsOptions = {
-  /** The object graph relation approvers are read from; without it they match nobody. */
+  /**
+   * The object graph relation approvers are read from; without it they match
+   * nobody.
+   */
   readonly relations?: RelationSource;
-  /** The permission tree the policy declares; needed to follow `through` links and `includes`. */
+  /**
+   * The permission tree the policy declares; needed to follow `through` links
+   * and `includes`.
+   */
   readonly permissions?: PermissionTree;
   /** The clock relation expiry is read at; defaults to the current time. */
   readonly now?: Instant;
@@ -27,7 +32,10 @@ export type ApproverRelationsOptions = {
 
 const DEFAULT_PARENT_DEPTH = 16;
 
-/** Every approver a request names: `by`, each stage and its escalation, and `escalation.to`, inside `anyOf` groups too. */
+/**
+ * Every approver a request names: `by`, each stage and its escalation, and
+ * `escalation.to`, inside `anyOf` groups too.
+ */
 export function requestApprovers(
   approvers: NonNullable<ApprovalRequest["approvers"]>,
 ): readonly Approver[] {
@@ -60,7 +68,10 @@ async function settled<T>(
   }
 }
 
-/** The id of `item.resource` the walk starts from, after following `through` links. */
+/**
+ * The id of `item.resource` the walk starts from, after following `through`
+ * links.
+ */
 async function startOf(
   item: RelationGrantee,
   resource: string,
@@ -114,8 +125,8 @@ function depthOf(item: RelationGrantee): number {
 /**
  * The relation approvers of `request` that `subject` holds on its resource,
  * keyed by `approverRelationKey`, for `ApprovalVerdict.relations`. Reads go
- * through `relations` by the request's resource id; a request without an id,
- * a missing source or a read that fails holds nothing.
+ * through `relations` by the request's resource id; a request without an id, a
+ * missing source or a read that fails holds nothing.
  */
 export async function approverRelations(
   request: ApprovalRequest,

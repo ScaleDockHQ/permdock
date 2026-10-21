@@ -83,7 +83,7 @@ function outcome(policy: Policy, scenario: SaasScenario): string {
   ).outcome;
 }
 
-describe("PUSHED_POLICY_SCHEMA", () => {
+describe("the PUSHED_POLICY_SCHEMA constant", () => {
   it("matches schemas/pushed-policy-v1.json", () => {
     const file: unknown = JSON.parse(
       readFileSync(
@@ -91,13 +91,15 @@ describe("PUSHED_POLICY_SCHEMA", () => {
         "utf8",
       ),
     );
-    expect(file).toEqual(JSON.parse(JSON.stringify(PUSHED_POLICY_SCHEMA)));
+    expect(file).toStrictEqual(
+      JSON.parse(JSON.stringify(PUSHED_POLICY_SCHEMA)),
+    );
   });
 
   it("accepts what pushedPolicy builds and refuses unsafe keys", () => {
     const pushed = pushedPolicy(saasPolicy);
     expect(pushed.v).toBe(1);
-    expect(parsePushedPolicy(JSON.stringify(pushed))).toEqual(
+    expect(parsePushedPolicy(JSON.stringify(pushed))).toStrictEqual(
       JSON.parse(JSON.stringify(pushed)),
     );
     const unsafe = JSON.parse(JSON.stringify(pushed));
@@ -109,16 +111,16 @@ describe("PUSHED_POLICY_SCHEMA", () => {
   });
 });
 
-describe("policyFromCatalog", () => {
+describe(policyFromCatalog, () => {
   const rebuilt = rebuild(saasPolicy);
 
   it("keeps the fingerprint, hostable list and role bindings", () => {
     expect(rebuilt.fingerprint).toBe(saasPolicy.fingerprint);
-    expect(rebuilt.hostable).toEqual(saasPolicy.hostable);
-    expect(rebuilt.roles.map((item) => item.name)).toEqual(
+    expect(rebuilt.hostable).toStrictEqual(saasPolicy.hostable);
+    expect(rebuilt.roles.map((item) => item.name)).toStrictEqual(
       expect.arrayContaining(saasPolicy.roles.map((item) => item.name)),
     );
-    expect([...rebuilt.index.declaredRoles].toSorted()).toEqual(
+    expect([...rebuilt.index.declaredRoles].toSorted()).toStrictEqual(
       [...saasPolicy.index.declaredRoles].toSorted(),
     );
   });
@@ -129,7 +131,7 @@ describe("policyFromCatalog", () => {
       const code = outcome(saasPolicy, scenario);
       const hosted = outcome(rebuilt, scenario);
       if (code !== hosted) {
-        expect({ scenario: scenario.name, hosted }).toEqual({
+        expect({ scenario: scenario.name, hosted }).toStrictEqual({
           scenario: scenario.name,
           hosted: "denied",
         });
@@ -154,10 +156,7 @@ describe("policyFromCatalog", () => {
           deny(tree.doc.purge, () => false),
         ]),
       ],
-      subject: (user: { id: string }) => ({
-        id: user.id,
-        roles: ["member"],
-      }),
+      subject: (user: { id: string }) => ({ id: user.id, roles: ["member"] }),
     });
     const hosted = rebuild(policy);
     const row = { id: "d1", ownerId: "u1" };
@@ -182,10 +181,7 @@ describe("policyFromCatalog", () => {
     });
     const policy = definePolicy(tree, {
       roles: [role("member", [allow(tree.doc.update)])],
-      subject: (user: { id: string }) => ({
-        id: user.id,
-        roles: ["member"],
-      }),
+      subject: (user: { id: string }) => ({ id: user.id, roles: ["member"] }),
     });
     const hosted = rebuild(policy);
     const copy = getPermDockSync(hosted, { id: "u1" });
@@ -225,7 +221,7 @@ describe("policyFromCatalog", () => {
     const code = mergeHostedGrants(saasPolicy, document);
     const hosted = mergeHostedGrants(rebuilt, document);
     expect(code.dropped.length).toBeGreaterThan(0);
-    expect(hosted.dropped).toEqual(code.dropped);
+    expect(hosted.dropped).toStrictEqual(code.dropped);
   });
 
   it("refuses a pushed policy that names a permission the catalog lacks", () => {
@@ -246,13 +242,13 @@ describe("policyFromCatalog", () => {
   });
 });
 
-describe("resourceSchemaFromJson", () => {
+describe(resourceSchemaFromJson, () => {
   it("rejects every value under an unsupported keyword", () => {
     const schema = resourceSchemaFromJson({
       type: "object",
       properties: { id: { type: "string", if: { const: "x" } } },
     });
-    expect(schema?.["~standard"].validate({ id: "a" })).toEqual({
+    expect(schema?.["~standard"].validate({ id: "a" })).toStrictEqual({
       issues: [
         {
           message:

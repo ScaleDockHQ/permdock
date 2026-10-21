@@ -1,7 +1,6 @@
+import type { CompiledQuery, DatabaseConnection, Driver } from "kysely";
+
 import {
-  type CompiledQuery,
-  type DatabaseConnection,
-  type Driver,
   Kysely,
   PostgresAdapter,
   PostgresIntrospector,
@@ -208,7 +207,7 @@ describe("permdock/kysely toWhere with Kysely", () => {
 
   for (const { condition, sql: text, parameters } of cases) {
     it(`compiles ${JSON.stringify(condition)}`, () => {
-      expect(compile(condition)).toEqual({ sql: text, parameters });
+      expect(compile(condition)).toStrictEqual({ sql: text, parameters });
     });
   }
 
@@ -218,19 +217,19 @@ describe("permdock/kysely toWhere with Kysely", () => {
         { op: "eq", field: "orgId", value: "o1" },
         { columns: { orgId: "org_id" } },
       ),
-    ).toEqual({ sql: '"posts"."org_id" = $1', parameters: ["o1"] });
+    ).toStrictEqual({ sql: '"posts"."org_id" = $1', parameters: ["o1"] });
     expect(() => compile({ op: "eq", field: "org id", value: "o1" })).toThrow(
-      /unsafe SQL identifier 'org id'/,
+      /unsafe SQL identifier 'org id'/u,
     );
     expect(() => compile({ op: "eq", field: "constructor", value: 1 })).toThrow(
-      /forbidden/,
+      /forbidden/u,
     );
   });
 
   it("refuses opaque SQL", () => {
     expect(() =>
       compile({ op: "opaque", sql: "true", fingerprint: "f" }),
-    ).toThrow(/non-portable-condition/);
+    ).toThrow(/non-portable-condition/u);
   });
 });
 
@@ -260,7 +259,7 @@ describe("permdock/kysely memberships tables", () => {
         { op: "memberOf", scope: "team", field: "team_id", roles: [] },
         { subject, memberships },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       sql: 'exists (select 1 from "team_members" as "m" where "m"."team_id" = "posts"."team_id" and "m"."user_id" = $1 and ("m"."org_id" is null or "m"."org_id" = $2))',
       parameters: ["u1", "o1"],
     });
@@ -278,7 +277,7 @@ describe("permdock/kysely memberships tables", () => {
         },
         { subject, memberships },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       sql: 'exists (select 1 from "grants" as "m" where "m"."object_id" = "posts"."id" and "m"."user_id" = $1 and "m"."role" in ($2, $3) and "m"."object_type" = $4)',
       parameters: ["u1", "editor", "owner", "document"],
     });
@@ -302,7 +301,7 @@ describe("permdock/kysely memberships tables", () => {
         "posts",
         { subject, memberships },
       )(stub),
-    ).toEqual({ lit: false });
+    ).toStrictEqual({ lit: false });
   });
 });
 
@@ -337,7 +336,7 @@ describe("permdock/kysely relationship grants", () => {
       .mockReturnValue(undefined);
     try {
       expect(() => compile(input, { relations: {} })).toThrow(
-        /need the kysely peer/,
+        /need the kysely peer/u,
       );
     } finally {
       spy.mockRestore();
@@ -345,7 +344,7 @@ describe("permdock/kysely relationship grants", () => {
   });
 
   it("refuses a related node without relations", () => {
-    expect(() => compile(folderViewer)).toThrow(/non-portable-condition/);
+    expect(() => compile(folderViewer)).toThrow(/non-portable-condition/u);
   });
 });
 
@@ -354,7 +353,7 @@ describe("permdock/kysely withSubject and checkRow", () => {
     const { db: inner, executed } = database();
     const result = await withSubject(inner, { subject }, async () => "ok");
     expect(result).toBe("ok");
-    expect(executed.map((query) => query.sql)).toEqual([
+    expect(executed.map((query) => query.sql)).toStrictEqual([
       "select set_config('role', $1, true), set_config('request.jwt.claims', $2, true)",
     ]);
     expect(JSON.parse(String(executed[0]?.parameters[1]))).toMatchObject({
@@ -368,28 +367,28 @@ describe("permdock/kysely withSubject and checkRow", () => {
 
   it("selects the coalesced filter for at most two rows", async () => {
     const { db: inner, executed } = database([{ granted: true }]);
-    expect(await checkRow(inner, "posts", condition, key)).toEqual({
+    expect(await checkRow(inner, "posts", condition, key)).toStrictEqual({
       found: true,
       granted: true,
     });
     expect(executed[0]?.sql).toBe(
       'select coalesce("posts"."org_id" = $1, false) as "granted" from "posts" where "posts"."id" = $2 limit $3',
     );
-    expect(executed[0]?.parameters).toEqual(["o1", "p1", 2]);
+    expect(executed[0]?.parameters).toStrictEqual(["o1", "p1", 2]);
   });
 
   it("reads denied, missing and ambiguous rows", async () => {
     expect(
       await checkRow(database([{ granted: 0 }]).db, "posts", condition, key),
-    ).toEqual({ found: true, granted: false });
+    ).toStrictEqual({ found: true, granted: false });
     expect(
       await checkRow(database([{ granted: 1 }]).db, "posts", condition, key),
-    ).toEqual({ found: true, granted: true });
-    expect(await checkRow(database([]).db, "posts", condition, key)).toEqual({
-      found: false,
-    });
+    ).toStrictEqual({ found: true, granted: true });
+    expect(
+      await checkRow(database([]).db, "posts", condition, key),
+    ).toStrictEqual({ found: false });
     await expect(
       checkRow(database([{}, {}]).db, "posts", condition, key),
-    ).rejects.toThrow(/more than one row/);
+    ).rejects.toThrow(/more than one row/u);
   });
 });

@@ -1,9 +1,10 @@
+import type { JSX } from "solid-js";
+
 import {
   createComponent,
   createContext,
   ErrorBoundary,
   useContext,
-  type JSX,
 } from "solid-js";
 
 import type { PermissionBoundaryState } from "../client/boundary.ts";
@@ -19,9 +20,9 @@ type ErrorBoundaryProps = Parameters<typeof ErrorBoundary>[0];
 
 /**
  * Catches `PermDockDeniedError` and `PermDockApprovalRequiredError` thrown
- * below it and renders `denied`, or `approval` for an approval request
- * (default `denied`), with the refused permission and `retry()`. Any other
- * error goes to the next `ErrorBoundary` up.
+ * below it and renders `denied`, or `approval` for an approval request (default
+ * `denied`), with the refused permission and `retry()`. Any other error goes to
+ * the next `ErrorBoundary` up.
  */
 export function PermissionBoundary(
   props: PermissionBoundaryProps,

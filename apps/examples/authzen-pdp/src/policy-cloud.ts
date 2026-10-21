@@ -4,8 +4,9 @@ import { policyFromCatalog } from "permdock/catalog";
 import { z } from "zod";
 
 import type { ProjectEnv } from "./env.ts";
+import type { User } from "./policy.ts";
 
-import { type User, subjectOf } from "./policy.ts";
+import { subjectOf } from "./policy.ts";
 
 const ProjectPolicy = z.object({
   catalog: z.unknown(),

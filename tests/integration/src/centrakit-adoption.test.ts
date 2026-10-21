@@ -23,6 +23,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { permissions, policy } from "../fixtures/centrakit-adoption/policy.ts";
+import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { visibleIds, jwtClaims } from "./support/rls.ts";
 
@@ -215,9 +216,9 @@ describe("CentraKit adoption shapes", () => {
   it("compiles the view verb to a select policy and archive to none", async () => {
     expect(generated).toContain('create policy "customers_select"');
     expect(generated).not.toMatch(/customers_archive|for archive/u);
-    expect(await ids(VIEWER, "customers")).toEqual([CUST_A]);
-    expect(await ids(ADMIN, "billing")).toEqual([BILL_A]);
-    expect(await ids(VIEWER, "billing")).toEqual([]);
+    expect(await ids(VIEWER, "customers")).toStrictEqual([CUST_A]);
+    expect(await ids(ADMIN, "billing")).toStrictEqual([BILL_A]);
+    expect(await ids(VIEWER, "billing")).toStrictEqual([]);
   });
 
   it("answers a lifecycle verb and legacy keys through the shims", async () => {
@@ -232,7 +233,7 @@ describe("CentraKit adoption shapes", () => {
         )
       ).rows.map((row) => row.id),
     );
-    expect(legacyView).toEqual([ORG_A]);
+    expect(legacyView).toStrictEqual([ORG_A]);
     expect(
       await answer(
         TIER2,
@@ -254,7 +255,7 @@ describe("CentraKit adoption shapes", () => {
         )
       ).rows.map((row) => row.id),
     );
-    expect(orgs).toEqual([ORG_A]);
+    expect(orgs).toStrictEqual([ORG_A]);
   });
 
   it("lets a caller without usage on the helper schema call a shim", async () => {
@@ -265,13 +266,10 @@ describe("CentraKit adoption shapes", () => {
       "create role shim_caller nologin; grant shim_caller to tester; grant execute on function public.has_org_permission(uuid, text) to shim_caller",
     );
     const ok = await db.as(
-      {
-        role: "shim_caller",
-        settings: jwtClaims(ADMIN),
-      },
+      { role: "shim_caller", settings: jwtClaims(ADMIN) },
       async () =>
         (
-          await db!.tester.query<{ ok: boolean }>(
+          await defined(db).tester.query<{ ok: boolean }>(
             `select public.has_org_permission($1::uuid, 'organization.customers.archive') as ok`,
             [ORG_A],
           )
@@ -287,8 +285,8 @@ describe("CentraKit adoption shapes", () => {
     });
     expect(permissions.billing.view.resource).toBe("billing");
     expect(generated).toContain('create policy "platform_billing_select"');
-    expect(await ids(TIER2, "platform_billing")).toEqual([PLATFORM_BILL]);
-    expect(await ids(ADMIN, "platform_billing")).toEqual([]);
+    expect(await ids(TIER2, "platform_billing")).toStrictEqual([PLATFORM_BILL]);
+    expect(await ids(ADMIN, "platform_billing")).toStrictEqual([]);
   });
 
   it("resolves legacy keys in code and in stored custom roles", async () => {
@@ -321,8 +319,8 @@ describe("CentraKit adoption shapes", () => {
     expect(generated).toContain(
       'join "public"."roles" mk on mk."id" = m."role_id"',
     );
-    expect(await ids(ADMIN, "customers")).toEqual([CUST_A]);
-    expect(await ids(MEMBER, "billing")).toEqual([]);
+    expect(await ids(ADMIN, "customers")).toStrictEqual([CUST_A]);
+    expect(await ids(MEMBER, "billing")).toStrictEqual([]);
     expect(
       await answer(
         ADMIN,
@@ -340,8 +338,8 @@ describe("CentraKit adoption shapes", () => {
   });
 
   it("resolves an organization custom role by its key within that organization", async () => {
-    expect(await ids(DISPATCHER, "customers")).toEqual([CUST_A]);
-    expect(await ids(DISPATCHER, "billing")).toEqual([BILL_B]);
+    expect(await ids(DISPATCHER, "customers")).toStrictEqual([CUST_A]);
+    expect(await ids(DISPATCHER, "billing")).toStrictEqual([BILL_B]);
     expect(
       await answer(
         DISPATCHER,
@@ -359,7 +357,7 @@ describe("CentraKit adoption shapes", () => {
   });
 
   it("caps a global custom role at the assignable global roles in SQL", async () => {
-    expect(await ids(TIER2, "customers")).toEqual([CUST_A, CUST_B]);
+    expect(await ids(TIER2, "customers")).toStrictEqual([CUST_A, CUST_B]);
     expect(
       await answer(
         TIER2,
@@ -386,14 +384,16 @@ describe("CentraKit adoption shapes", () => {
           [permission, org],
         )
       ).rows.map((row) => row.user_id);
-    expect(await users("customers.view", ORG_A)).toEqual(
+    expect(await users("customers.view", ORG_A)).toStrictEqual(
       [ADMIN, MEMBER, VIEWER, TIER2, DISPATCHER].toSorted(),
     );
-    expect(await users("customers.view", ORG_B)).toEqual([TIER2]);
-    expect(await users("billing.view", ORG_A)).toEqual([ADMIN]);
-    expect(await users("billing.view", ORG_B)).toEqual([DISPATCHER]);
-    expect(await users("customers.archive", ORG_A)).toEqual([ADMIN]);
-    expect(await users("organization.customers.view", ORG_B)).toEqual([TIER2]);
+    expect(await users("customers.view", ORG_B)).toStrictEqual([TIER2]);
+    expect(await users("billing.view", ORG_A)).toStrictEqual([ADMIN]);
+    expect(await users("billing.view", ORG_B)).toStrictEqual([DISPATCHER]);
+    expect(await users("customers.archive", ORG_A)).toStrictEqual([ADMIN]);
+    expect(await users("organization.customers.view", ORG_B)).toStrictEqual([
+      TIER2,
+    ]);
     for (const [user, roles] of [
       [ADMIN, ["admin"]],
       [MEMBER, ["member"]],
@@ -424,7 +424,9 @@ describe("CentraKit adoption shapes", () => {
        insert into permdock.custom_role_permissions (tenant_id, scope, scope_id, role, permission)
          values (null, 'global', null, 'billing-reader', 'system.billing.view')`,
     );
-    expect(await ids(MANAGER, "platform_billing")).toEqual([PLATFORM_BILL]);
+    expect(await ids(MANAGER, "platform_billing")).toStrictEqual([
+      PLATFORM_BILL,
+    ]);
   });
 
   it("signs an expense off by its manager, then the report's approver", async () => {
@@ -458,10 +460,7 @@ describe("CentraKit adoption shapes", () => {
     expect(request.approvers).toMatchObject({ mode: "sequential" });
     const approve = async (who: string) => {
       const handler = approvalsHandler(store, {
-        subject: () => ({
-          principal: staff(who, ["viewer"]),
-          context: {},
-        }),
+        subject: () => ({ principal: staff(who, ["viewer"]), context: {} }),
         relations,
         permissions,
       });
@@ -486,7 +485,10 @@ describe("CentraKit adoption shapes", () => {
   });
 });
 
-/** CentraKit's own custom-role grants, before adoption, and an audit module that registers a table by creating its trigger. */
+/**
+ * CentraKit's own custom-role grants, before adoption, and an audit module that
+ * registers a table by creating its trigger.
+ */
 const LEGACY_ROLES = `
 create table role_permissions (role_id uuid not null references roles (id), permission text not null);
 insert into role_permissions values
@@ -611,16 +613,16 @@ export default {
     expect(backfill.split("\n")[0]).toBe(
       "-- permdock:backfill v1 schema=permdock",
     );
-    expect(await rows()).toEqual([
+    expect(await rows()).toStrictEqual([
       { role: `${ORG_A}:dispatcher`, permission: "customers.view" },
       { role: `${ORG_B}:dispatcher`, permission: "billing.view" },
     ]);
-    expect(await ids(DISPATCHER, "customers")).toEqual([CUST_A]);
-    expect(await ids(DISPATCHER, "billing")).toEqual([BILL_B]);
+    expect(await ids(DISPATCHER, "customers")).toStrictEqual([CUST_A]);
+    expect(await ids(DISPATCHER, "billing")).toStrictEqual([BILL_B]);
   });
 
   it("audits each row the replace function writes, through the registered trigger", async () => {
-    expect(await audited()).toEqual([
+    expect(await audited()).toStrictEqual([
       { tbl: "custom_role_permissions", op: "INSERT", n: 2 },
     ]);
   });
@@ -631,11 +633,11 @@ export default {
       `select permdock.permdock_trusted_replace_custom_role_grants('${ORG_B}'::uuid, 'organization', null, 'dispatcher', array['customers.view'], null, null)`,
     );
     await pg.admin.query(backfill);
-    expect(await rows()).toEqual([
+    expect(await rows()).toStrictEqual([
       { role: `${ORG_A}:dispatcher`, permission: "customers.view" },
       { role: `${ORG_B}:dispatcher`, permission: "customers.view" },
     ]);
-    expect(await audited()).toEqual([
+    expect(await audited()).toStrictEqual([
       { tbl: "custom_role_permissions", op: "DELETE", n: 1 },
       { tbl: "custom_role_permissions", op: "INSERT", n: 3 },
     ]);

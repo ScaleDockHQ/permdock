@@ -4,8 +4,8 @@ const FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "
 const FRAME_MS = 80;
 
 /**
- * A spinner on a terminal stderr; a plain line elsewhere, so logs and CI
- * output stay readable. `done` replaces the spinner with a final line.
+ * A spinner on a terminal stderr; a plain line elsewhere, so logs and CI output
+ * stay readable. `done` replaces the spinner with a final line.
  */
 export function progressReporter(input: {
   readonly write: (text: string) => void;

@@ -2,14 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { Scope } from "../../src/core/scopes.ts";
 import type { SnapshotGrant } from "../../src/core/snapshot-types.ts";
+import type { WhereScope } from "../../src/core/where-scope.ts";
 
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
-import {
-  type WhereScope,
-  whereFromGrants,
-} from "../../src/core/where-scope.ts";
+import { whereFromGrants } from "../../src/core/where-scope.ts";
 
 const scopes: readonly Scope[] = [
   { name: "tenant", key: "orgId" },
@@ -99,7 +97,7 @@ describe("whereFromGrants scope filters", () => {
       },
     },
   ])("$name", ({ grants, expected }) => {
-    expect(whereFromGrants(grants, scope()).condition).toEqual(expected);
+    expect(whereFromGrants(grants, scope()).condition).toStrictEqual(expected);
   });
 
   it("adds no filter for a scope that does not partition the resource", () => {
@@ -108,7 +106,7 @@ describe("whereFromGrants scope filters", () => {
         [grant({ scope: "tenant", membership: tenantMember })],
         scope({ partitioned: () => false }),
       ).condition,
-    ).toEqual({ op: "eq", field: "_", value: true });
+    ).toStrictEqual({ op: "eq", field: "_", value: true });
   });
 
   it("matches only the row id without the resource graph", () => {
@@ -120,7 +118,10 @@ describe("whereFromGrants scope filters", () => {
     expect({
       own: whereFromGrants([on("doc")], scope()).condition,
       other: whereFromGrants([on("folder")], scope()).condition,
-    }).toEqual({ own: { op: "eq", field: "id", value: "x1" }, other: NONE });
+    }).toStrictEqual({
+      own: { op: "eq", field: "id", value: "x1" },
+      other: NONE,
+    });
   });
 
   it("walks the parent field with the resource graph and refuses an unrelated resource", () => {
@@ -139,7 +140,7 @@ describe("whereFromGrants scope filters", () => {
         [viaFolder],
         scope({ resources, resource: "note" }),
       ).condition,
-    }).toEqual({
+    }).toStrictEqual({
       folder: { op: "eq", field: "folderId", value: "f1" },
       note: NONE,
       unrelated: NONE,
@@ -155,7 +156,7 @@ describe("whereFromGrants denies", () => {
       [globalAllow, grant({ effect: "deny" })],
       scope(),
     );
-    expect(result).toEqual({ condition: NONE, partial: false });
+    expect(result).toStrictEqual({ condition: NONE, partial: false });
   });
 
   it("ignores a deny whose membership reaches no row", () => {
@@ -171,7 +172,7 @@ describe("whereFromGrants denies", () => {
         ],
         scope(),
       ).condition,
-    ).toEqual({ op: "eq", field: "_", value: true });
+    ).toStrictEqual({ op: "eq", field: "_", value: true });
   });
 
   it("subtracts a scoped deny from a global allow", () => {
@@ -183,7 +184,7 @@ describe("whereFromGrants denies", () => {
         ],
         scope(),
       ).condition,
-    ).toEqual({
+    ).toStrictEqual({
       op: "not",
       condition: { op: "eq", field: "orgId", value: "o1" },
     });
@@ -205,7 +206,7 @@ describe("whereFromGrants denies", () => {
         [onDoc("d2", "allow"), onDoc("d1", "deny")],
         scope(),
       ).condition,
-    }).toEqual({
+    }).toStrictEqual({
       covered: NONE,
       other: {
         op: "and",
@@ -229,7 +230,7 @@ describe("whereFromGrants denies", () => {
         ],
         scope(),
       ).condition,
-    ).toEqual({
+    ).toStrictEqual({
       op: "and",
       conditions: [
         { op: "eq", field: "id", value: "d1" },

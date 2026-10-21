@@ -42,7 +42,7 @@ function request(authorization?: string): Request {
   });
 }
 
-describe("mcpResourceGuard", () => {
+describe(mcpResourceGuard, () => {
   it("answers McpAuthInfo for a token with every required scope", async () => {
     const seen: unknown[] = [];
     const guard = mcpResourceGuard({
@@ -52,7 +52,7 @@ describe("mcpResourceGuard", () => {
       issuer: "https://auth.example.com",
     });
     const result = await guard(request("Bearer full"));
-    expect(seen).toEqual([
+    expect(seen).toStrictEqual([
       { audience: RESOURCE, issuer: "https://auth.example.com" },
     ]);
     expect(result.ok).toBe(true);
@@ -133,9 +133,7 @@ describe("mcpResourceGuard", () => {
   it("refuses when the verifier throws", async () => {
     const result = await mcpResourceGuard({
       resource: RESOURCE,
-      verifier: {
-        verify: () => Promise.reject(new Error("jwks down")),
-      },
+      verifier: { verify: () => Promise.reject(new Error("jwks down")) },
     })(request("Bearer full"));
     expect(!result.ok && result.response.status).toBe(401);
   });
@@ -154,7 +152,7 @@ describe("mcpResourceGuard", () => {
   });
 });
 
-describe("protectedResourceMetadata", () => {
+describe(protectedResourceMetadata, () => {
   const handler = protectedResourceMetadata({
     resource: RESOURCE,
     authorizationServers: ["https://auth.example.com"],
@@ -166,7 +164,7 @@ describe("protectedResourceMetadata", () => {
     const response = handler(new Request(METADATA));
     expect(response.status).toBe(200);
     expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toStrictEqual({
       resource: RESOURCE,
       authorization_servers: ["https://auth.example.com"],
       scopes_supported: ["post:read", "post:write"],

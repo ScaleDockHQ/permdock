@@ -75,15 +75,13 @@ describe("rls verify --tree over the shared SaaS folder tree", () => {
     }
     const result = await runPipingDbUrl(
       ["rls", "verify", "--tree", "--db-url", db.uri],
-      {
-        cwd: FIXTURE,
-      },
+      { cwd: FIXTURE },
     );
     const counts =
       /verified (\d+) tree check\(s\) against the database \((\d+) granted\)/u.exec(
         result.stdout,
       );
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       code: 0,
       stderr: "",
       stdout: expect.stringMatching(/verified/u),

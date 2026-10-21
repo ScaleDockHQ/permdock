@@ -28,7 +28,10 @@ import { globalRoleRows, membershipRows, roleRows } from "./helper-rows.ts";
 import { ASSIGNMENTS, OWNERSHIP } from "./ownership-names.ts";
 import { pairsSql, sourceRowsSql } from "./ownership-sources.ts";
 
-/** Whether the signed-in user (or `p_user` in the `_for` form) holds, in instance `p_scope_id`, a role whose `assigns` lists `p_role`. */
+/**
+ * Whether the signed-in user (or `p_user` in the `_for` form) holds, in
+ * instance `p_scope_id`, a role whose `assigns` lists `p_role`.
+ */
 export function canAssignSql(
   base: RlsSqlContext,
   own: RlsOwnership,
@@ -183,12 +186,18 @@ revoke execute on function ${fn}(text, text) from public, anon;
 grant execute on function ${fn}(text, text) to authenticated;`;
 }
 
-/** Whether the helpers keep custom roles in tables, so assigning one is checked against its stored definition. */
+/**
+ * Whether the helpers keep custom roles in tables, so assigning one is checked
+ * against its stored definition.
+ */
 export function assignsCustomRoles(ctx: RlsSqlContext): boolean {
   return ctx.customRoles !== undefined && ctx.authorize === "database";
 }
 
-/** Whether `permdock_can_assign_any_for` is written: every function it calls has a `_for` form. */
+/**
+ * Whether `permdock_can_assign_any_for` is written: every function it calls has
+ * a `_for` form.
+ */
 export function hasCanAssignAnyFor(ctx: RlsSqlContext): boolean {
   return (
     ctx.authorize === "database" &&
@@ -197,9 +206,9 @@ export function hasCanAssignAnyFor(ctx: RlsSqlContext): boolean {
 }
 
 /**
- * `permdock_can_assign_any`: one check for a declared or a custom role, so
- * SQL that assigns roles calls one function: `permdock_can_assign` for a
- * declared role, `permdock_can_assign_custom_role` for a custom one. `p_scope`
+ * `permdock_can_assign_any`: one check for a declared or a custom role, so SQL
+ * that assigns roles calls one function: `permdock_can_assign` for a declared
+ * role, `permdock_can_assign_custom_role` for a custom one. `p_scope`
  * `'global'` (no tenant, no instance) assigns a platform role.
  */
 export function canAssignAnySql(

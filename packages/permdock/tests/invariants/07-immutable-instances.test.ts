@@ -86,16 +86,16 @@ describe("invariant 7: immutable, request-scoped instances", () => {
   });
 
   it("holds no module-level mutable state in core", () => {
-    expect(coreSources.flatMap(moduleState)).toEqual([]);
+    expect(coreSources.flatMap(moduleState)).toStrictEqual([]);
   });
 
   it("holds module-level state elsewhere in src only as a listed memo cache", () => {
     const offenders = sources("")
       .filter((file) => !(file in MEMO_CACHES))
       .flatMap(moduleState);
-    expect(offenders).toEqual([]);
+    expect(offenders).toStrictEqual([]);
     expect(
       Object.keys(MEMO_CACHES).filter((file) => moduleState(file).length === 0),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

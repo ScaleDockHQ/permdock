@@ -11,7 +11,10 @@ import { findQuote, quotesOf, staffOf } from "./store.ts";
 
 export const orgTag = (organization: string): string => `org:${organization}`;
 
-/** A store read with when it ran and how long it took; a cache hit keeps both from the run that filled it. */
+/**
+ * A store read with when it ran and how long it took; a cache hit keeps both
+ * from the run that filled it.
+ */
 export type Loaded<T> = {
   readonly value: T;
   /** Milliseconds since the epoch. */
@@ -29,7 +32,10 @@ async function timed<T>(read: Promise<T>): Promise<Loaded<T>> {
   };
 }
 
-/** Shared layer: rows every member of the organization may be shown, before a permission check. */
+/**
+ * Shared layer: rows every member of the organization may be shown, before a
+ * permission check.
+ */
 export async function getQuotes(
   organization: string,
 ): Promise<Loaded<Quote[]>> {
@@ -75,7 +81,10 @@ export async function loadSnapshot(organization: string): Promise<Snapshot> {
   return snapshot;
 }
 
-/** The quotes this session may read: every quote for staff, only their customer's for a contact. */
+/**
+ * The quotes this session may read: every quote for staff, only their
+ * customer's for a contact.
+ */
 export async function visibleQuotes(
   organization: string,
 ): Promise<Loaded<Quote[]>> {

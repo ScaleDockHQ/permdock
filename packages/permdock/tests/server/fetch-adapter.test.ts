@@ -64,7 +64,7 @@ const signedHeaders = {
   "Signature-Agent": '"https://agents.example.com"',
 };
 
-describe("guardedRoute", () => {
+describe(guardedRoute, () => {
   it("runs the handler with the row on a grant and answers a denial with Problem Details", async () => {
     const adapter = adapterFor();
     const handler = guardedRoute(
@@ -78,7 +78,7 @@ describe("guardedRoute", () => {
 
     const granted = await handler(eventFor("/p1"));
     const denied = await handler(eventFor("/p2"));
-    expect(await granted.json()).toEqual(ownPost);
+    expect(await granted.json()).toStrictEqual(ownPost);
     expect(denied.status).toBe(403);
     expect(denied.headers.get("content-type")).toContain(
       "application/problem+json",
@@ -102,7 +102,8 @@ describe("guardedRoute", () => {
       undefined,
     )(() => new Response("ok"));
 
-    expect((await guarded(eventFor("/p1"))).status).toBe(200);
+    const { status } = await guarded(eventFor("/p1"));
+    expect(status).toBe(200);
     expect((await guarded(eventFor("/p2"))).status).toBe(403);
     expect((await unloaded(eventFor("/"))).status).toBe(403);
   });
@@ -124,7 +125,7 @@ describe("guardedRoute", () => {
   });
 });
 
-describe("instanceRoute", () => {
+describe(instanceRoute, () => {
   it("builds the instance once and reuses one already on the locals", async () => {
     const adapter = adapterFor();
     const seen: unknown[] = [];
@@ -161,7 +162,8 @@ describe("instanceRoute", () => {
     )(() => {
       throw new Error("boom");
     });
-    expect((await denied(eventFor())).status).toBe(403);
+    const { status } = await denied(eventFor());
+    expect(status).toBe(403);
     await expect(boom(eventFor())).rejects.toThrow("boom");
   });
 
@@ -176,14 +178,14 @@ describe("instanceRoute", () => {
       return new Response("ok");
     });
     const response = await handler(eventFor("/", { headers: signedHeaders }));
-    expect({ reached, status: response.status }).toEqual({
+    expect({ reached, status: response.status }).toStrictEqual({
       reached: false,
       status: 403,
     });
   });
 });
 
-describe("fetchAdapter", () => {
+describe(fetchAdapter, () => {
   it("routes the decision endpoint by method and answers others with 405", async () => {
     const handler = adapterFor().handler();
     const get = await handler(eventFor("/api/permdock"));
@@ -207,7 +209,9 @@ describe("fetchAdapter", () => {
     const body = (await post.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };
-    expect([get.status, head.status, put.status]).toEqual([200, 200, 405]);
+    expect([get.status, head.status, put.status]).toStrictEqual([
+      200, 200, 405,
+    ]);
     expect(put.headers.get("allow")).toBe("GET, HEAD, POST");
     expect(body.evaluations[0]?.decision).toBe(true);
   });
@@ -239,14 +243,14 @@ describe("fetchAdapter", () => {
   });
 });
 
-describe("protectTarget", () => {
+describe(protectTarget, () => {
   it("passes a permission and null through with their loader", () => {
     const load = () => ownPost;
-    expect(protectTarget(permissions.post.update, load)).toEqual({
+    expect(protectTarget(permissions.post.update, load)).toStrictEqual({
       permission: permissions.post.update,
       data: load,
     });
-    expect(protectTarget(null, undefined)).toEqual({
+    expect(protectTarget(null, undefined)).toStrictEqual({
       permission: null,
       data: undefined,
     });

@@ -30,9 +30,9 @@ function chunkOf(chunk: string | Buffer): Uint8Array {
 }
 
 /**
- * Pull-based with `highWaterMark: 0`: nothing is read from `req` until the
- * Web body is consumed, so a later body parser (multer, `express.json()`)
- * still sees the whole stream.
+ * Pull-based with `highWaterMark: 0`: nothing is read from `req` until the Web
+ * body is consumed, so a later body parser (multer, `express.json()`) still
+ * sees the whole stream.
  */
 function incomingBody(req: IncomingMessage): ReadableStream<Uint8Array> {
   return new ReadableStream<Uint8Array>(

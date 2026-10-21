@@ -96,21 +96,23 @@ describe("grant change descriptions", () => {
       approval: { by: { role: "admin" } },
       limit: { count: 2, per: 86_400 },
     });
-    expect(changesOf(compare([open], [conditioned]))).toEqual([
+    expect(changesOf(compare([open], [conditioned]))).toStrictEqual([
       "where added",
       "check added",
       "approval added",
       "limit added",
     ]);
-    expect(kinds(compare([open], [conditioned]))).toEqual(["allow-narrowed"]);
-    expect(changesOf(compare([conditioned], [open]))).toEqual([
+    expect(kinds(compare([open], [conditioned]))).toStrictEqual([
+      "allow-narrowed",
+    ]);
+    expect(changesOf(compare([conditioned], [open]))).toStrictEqual([
       "where removed",
       "check removed",
       "approval removed",
       "limit removed",
     ]);
-    expect(kinds(compare([conditioned], [open]))).toEqual([]);
-    expect(changesOf(compare([conditioned], [other]))).toEqual([
+    expect(kinds(compare([conditioned], [open]))).toStrictEqual([]);
+    expect(changesOf(compare([conditioned], [other]))).toStrictEqual([
       "where changed",
       "check changed",
       "approval changed",
@@ -121,10 +123,12 @@ describe("grant change descriptions", () => {
   it("tells a narrowed field list from a widened one", () => {
     const two = grant({ fields: ["title", "body"] });
     const one = grant({ fields: ["title"] });
-    expect(changesOf(compare([open], [one]))).toEqual(["fields narrowed"]);
-    expect(changesOf(compare([one], [open]))).toEqual(["fields widened"]);
-    expect(changesOf(compare([two], [one]))).toEqual(["fields narrowed"]);
-    expect(changesOf(compare([one], [two]))).toEqual(["fields widened"]);
+    expect(changesOf(compare([open], [one]))).toStrictEqual([
+      "fields narrowed",
+    ]);
+    expect(changesOf(compare([one], [open]))).toStrictEqual(["fields widened"]);
+    expect(changesOf(compare([two], [one]))).toStrictEqual(["fields narrowed"]);
+    expect(changesOf(compare([one], [two]))).toStrictEqual(["fields widened"]);
   });
 
   it("tells a narrowed validity window from a widened one", () => {
@@ -133,18 +137,22 @@ describe("grant change descriptions", () => {
     const shorter = grant({
       validity: { from: "2026-01-02T00:00:00Z", until: "2026-01-09T00:00:00Z" },
     });
-    expect(changesOf(compare([open], [later]))).toEqual(["validity narrowed"]);
-    expect(changesOf(compare([later], [open]))).toEqual(["validity widened"]);
-    expect(changesOf(compare([later], [earlier]))).toEqual([
+    expect(changesOf(compare([open], [later]))).toStrictEqual([
+      "validity narrowed",
+    ]);
+    expect(changesOf(compare([later], [open]))).toStrictEqual([
       "validity widened",
     ]);
-    expect(changesOf(compare([earlier], [later]))).toEqual([
+    expect(changesOf(compare([later], [earlier]))).toStrictEqual([
+      "validity widened",
+    ]);
+    expect(changesOf(compare([earlier], [later]))).toStrictEqual([
       "validity narrowed",
     ]);
-    expect(changesOf(compare([earlier], [shorter]))).toEqual([
+    expect(changesOf(compare([earlier], [shorter]))).toStrictEqual([
       "validity narrowed",
     ]);
-    expect(changesOf(compare([later], [shorter]))).toEqual([
+    expect(changesOf(compare([later], [shorter]))).toStrictEqual([
       "validity narrowed",
     ]);
   });
@@ -156,18 +164,22 @@ describe("grant change descriptions", () => {
       portable: false,
     });
     const renamed = grant({ name: "viewers", purpose: ["billing"] });
-    expect(changesOf(compare([named], [renamed]))).toEqual([
+    expect(changesOf(compare([named], [renamed]))).toStrictEqual([
       "purpose changed",
       "name changed",
       "portable",
     ]);
-    expect(changesOf(compare([renamed], [named]))).toEqual([
+    expect(changesOf(compare([renamed], [named]))).toStrictEqual([
       "purpose changed",
       "name changed",
       "portable: false",
     ]);
-    expect(kinds(compare([renamed], [named]))).toEqual(["allow-narrowed"]);
-    expect(kinds(compare([named], [renamed]))).toEqual(["allow-narrowed"]);
+    expect(kinds(compare([renamed], [named]))).toStrictEqual([
+      "allow-narrowed",
+    ]);
+    expect(kinds(compare([named], [renamed]))).toStrictEqual([
+      "allow-narrowed",
+    ]);
   });
 
   it("describes top-level, scoped and resource grants and a changed deny", () => {
@@ -175,14 +187,14 @@ describe("grant change descriptions", () => {
     const scoped = grant({ scope: "tenant" });
     const onResource = grant({ scope: { resource: "post" } });
     const diff = compare([top, scoped, onResource], []);
-    expect(diff.breaking.map((change) => change.detail)).toEqual([
+    expect(diff.breaking.map((change) => change.detail)).toStrictEqual([
       "allow post.read (top-level) removed",
       "allow post.read (role member in tenant) removed",
       "allow post.read (role member on post) removed",
     ]);
     const deny = grant({ effect: "deny", where: eq });
     const looser = grant({ effect: "deny" });
-    expect(compare([deny], [looser]).breaking).toEqual([
+    expect(compare([deny], [looser]).breaking).toStrictEqual([
       {
         kind: "deny-changed",
         permission: "post.read",
@@ -190,18 +202,16 @@ describe("grant change descriptions", () => {
         detail: "deny post.read (role member): where removed",
       },
     ]);
-    expect(kinds(compare([deny], []))).toEqual([]);
+    expect(kinds(compare([deny], []))).toStrictEqual([]);
   });
 
   it("does not list an allow removed with its role or permission", () => {
-    const diff = compare([open], [], {
-      b: { roles: [], permissions: [] },
-    });
-    expect(kinds(diff)).toEqual(["permission-removed", "role-removed"]);
+    const diff = compare([open], [], { b: { roles: [], permissions: [] } });
+    expect(kinds(diff)).toStrictEqual(["permission-removed", "role-removed"]);
     const scoped = compare([grant({ scope: "tenant" })], [], {
       a: { scopes: [{ name: "tenant", key: "tenantId" }] },
     });
-    expect(kinds(scoped)).toEqual(["scope-removed", "allow-removed"]);
+    expect(kinds(scoped)).toStrictEqual(["scope-removed", "allow-removed"]);
   });
 
   it("skips the grants and delegations sections without both grant lists", () => {
@@ -213,7 +223,7 @@ describe("grant change descriptions", () => {
     );
     expect(diff.grants).toBeUndefined();
     expect(diff.delegations).toBeUndefined();
-    expect(diff.a).toEqual({ source: "a.json" });
+    expect(diff.a).toStrictEqual({ source: "a.json" });
   });
 });
 
@@ -244,7 +254,7 @@ describe("operation findings", () => {
         ],
       },
     });
-    expect(diff.operations).toEqual([
+    expect(diff.operations).toStrictEqual([
       {
         code: "operation-risk-raised",
         operation: "readPost",
@@ -258,8 +268,8 @@ describe("operation findings", () => {
         permission: "post.read",
       },
     ]);
-    expect(diff.breaking).toEqual([]);
-    expect(compare([], []).operations).toEqual([]);
+    expect(diff.breaking).toStrictEqual([]);
+    expect(compare([], []).operations).toStrictEqual([]);
   });
 });
 
@@ -285,11 +295,11 @@ describe("delegation change descriptions", () => {
       a: { delegations: [toOne] },
       b: { delegations: [wider] },
     });
-    expect(diff.delegations?.changed[0]?.changes).toEqual([
+    expect(diff.delegations?.changed[0]?.changes).toStrictEqual([
       "permissions added: post.delete",
       "validity widened",
     ]);
-    expect(diff.breaking).toEqual([]);
+    expect(diff.breaking).toStrictEqual([]);
     const removed = compare([open], [open], { a: { delegations: [toOne] } });
     expect(removed.breaking[0]?.detail).toBe(
       'delegation {"role":"member"} → eve agent-1 (post.read, post.update) removed',
@@ -301,6 +311,10 @@ describe("delegation change descriptions", () => {
       a: { delegations: [toKind] },
       b: { delegations: [toKind] },
     });
-    expect(diff.delegations).toEqual({ added: [], removed: [], changed: [] });
+    expect(diff.delegations).toStrictEqual({
+      added: [],
+      removed: [],
+      changed: [],
+    });
   });
 });

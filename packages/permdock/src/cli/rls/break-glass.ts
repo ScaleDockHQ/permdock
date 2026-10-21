@@ -19,7 +19,10 @@ import {
 import { subjectClaimJsonSql, subjectIdSql } from "../sql/subject.ts";
 import { accessSql } from "./helpers.ts";
 
-/** The audit table every generated break-glass read writes to. Part of the SQL contract. */
+/**
+ * The audit table every generated break-glass read writes to. Part of the SQL
+ * contract.
+ */
 const BREAK_GLASS_AUDIT = "permdock_break_glass_audit";
 
 const IDENT = /^[a-z][a-z0-9_]*$/u;
@@ -29,9 +32,15 @@ type BreakGlassGrant = {
   readonly permission: string;
   /** `'global'`, a scope name, or `'anyone'` for a grant to no role. */
   readonly scope: string;
-  /** The row's column for `scope`, or for an `'anyone'` grant the root scope's; `undefined` for `'global'`. */
+  /**
+   * The row's column for `scope`, or for an `'anyone'` grant the root scope's;
+   * `undefined` for `'global'`.
+   */
   readonly column: string | undefined;
-  /** For an `'anyone'` grant: the policy's root scope, or `undefined` when it declares none. */
+  /**
+   * For an `'anyone'` grant: the policy's root scope, or `undefined` when it
+   * declares none.
+   */
   readonly root?: string;
 };
 
@@ -100,10 +109,10 @@ export function breakGlassEntries(
 }
 
 /**
- * Rows the subject's roles reach for `p_permission`: a break-glass grant
- * lifts denies, never the tenant boundary. A grant to no role reads the rows
- * of the root scopes the subject is a member of, or every row when the
- * policy declares no scopes.
+ * Rows the subject's roles reach for `p_permission`: a break-glass grant lifts
+ * denies, never the tenant boundary. A grant to no role reads the rows of the
+ * root scopes the subject is a member of, or every row when the policy declares
+ * no scopes.
  */
 function rowsFilter(ctx: RlsSqlContext, entry: BreakGlassEntry): string {
   const arms = entry.grants.flatMap((grant) => {
@@ -196,12 +205,12 @@ grant execute on function ${fn}(text) to authenticated;`;
 }
 
 /**
- * The `security definer` read path for every `breakGlass` grant: an audit
- * table and one `permdock_break_glass_<resource>(permission)` per resource
- * that checks a signed break-glass session, writes an audit row and returns
- * the rows in the scope instances where the subject holds a role with the
- * break-glass grant (bypassing the table's policies as the definer). Empty
- * when the policy has no break-glass grant.
+ * The `security definer` read path for every `breakGlass` grant: an audit table
+ * and one `permdock_break_glass_<resource>(permission)` per resource that
+ * checks a signed break-glass session, writes an audit row and returns the rows
+ * in the scope instances where the subject holds a role with the break-glass
+ * grant (bypassing the table's policies as the definer). Empty when the policy
+ * has no break-glass grant.
  */
 export function breakGlassSql(
   ctx: RlsSqlContext,

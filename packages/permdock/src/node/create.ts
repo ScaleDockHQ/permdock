@@ -11,9 +11,10 @@ import type {
   ProtectOptions,
   ScopeGuard,
 } from "../server/server-types.ts";
+import type { NodeRequest } from "./http.ts";
 
 import { bindKernel } from "../server/kit.ts";
-import { sendResponse, toRequest, type NodeRequest } from "./http.ts";
+import { sendResponse, toRequest } from "./http.ts";
 
 export type NodePermDockOptions<TUser = unknown> = ServerAdapterOptions<
   NodeRequest,

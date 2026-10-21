@@ -1,10 +1,16 @@
 import { parseSync } from "oxc-parser";
 
+import type { Edit, Estree } from "./ast.ts";
+import type {
+  CodemodChange,
+  CodemodFollowUp,
+  Context,
+  ImportBinding,
+  RenameSet,
+} from "./context.ts";
 import type { Rename } from "./renames-0.5.ts";
 
 import {
-  type Edit,
-  type Estree,
   applyEdits,
   lineIndex,
   nameOf,
@@ -15,11 +21,6 @@ import {
   walk,
 } from "./ast.ts";
 import {
-  type CodemodChange,
-  type CodemodFollowUp,
-  type Context,
-  type ImportBinding,
-  type RenameSet,
   SCRIPT_BLOCK,
   declaredBetween,
   edit,
@@ -59,12 +60,18 @@ export type TransformResult = {
 
 type Lang = "jsx" | "ts" | "tsx";
 
-/** A parseable stretch of a file: the whole file, or one `<script>` block of a Vue or Svelte file. */
+/**
+ * A parseable stretch of a file: the whole file, or one `<script>` block of a
+ * Vue or Svelte file.
+ */
 type Segment = {
   readonly code: string;
   readonly offset: number;
   readonly lang: Lang;
-  /** Template markup can read an import, so a renamed import keeps its local name. */
+  /**
+   * Template markup can read an import, so a renamed import keeps its local
+   * name.
+   */
   readonly keepLocals: boolean;
 };
 
@@ -352,7 +359,10 @@ function visitMember(
   }
 }
 
-/** `const x = f(…)` or `const x = await f(…)` at module level, where `f` is imported from a permdock entry. */
+/**
+ * `const x = f(…)` or `const x = await f(…)` at module level, where `f` is
+ * imported from a permdock entry.
+ */
 function factoryValues(
   program: Estree,
   bindings: ReadonlyMap<string, ImportBinding>,
@@ -489,8 +499,8 @@ function renameOptions(
 }
 
 /**
- * Rows with `calls` are renamed at those calls and nowhere else: their old
- * key (`store`) is still a valid option on every other factory. Rows without
+ * Rows with `calls` are renamed at those calls and nowhere else: their old key
+ * (`store`) is still a valid option on every other factory. Rows without
  * `calls` are reported only on an object that reaches a permdock call.
  */
 function reportOptions(
@@ -530,9 +540,9 @@ const PASS_THROUGH = new Set([
 ]);
 
 /**
- * The permdock call an object literal is an argument of, directly or nested
- * in another argument's object, array or property value. `entry` is unset
- * for a method on a receiver named after PermDock, whose entry is unknown.
+ * The permdock call an object literal is an argument of, directly or nested in
+ * another argument's object, array or property value. `entry` is unset for a
+ * method on a receiver named after PermDock, whose entry is unknown.
  */
 function optionTarget(
   ctx: Context,
@@ -592,18 +602,18 @@ function rewriteImports(ctx: Context, removed: ReadonlySet<string>): void {
     if (rename === undefined || imported === undefined || removed.has(local)) {
       continue;
     }
-    if (local !== binding.imported) {
+    if (local === binding.imported) {
       replace(
         ctx,
         imported,
-        imported.type === "Literal" ? JSON.stringify(rename.to) : rename.to,
+        ctx.kept.has(local) ? `${rename.to} as ${local}` : rename.to,
         rename.from,
       );
     } else {
       replace(
         ctx,
         imported,
-        ctx.kept.has(local) ? `${rename.to} as ${local}` : rename.to,
+        imported.type === "Literal" ? JSON.stringify(rename.to) : rename.to,
         rename.from,
       );
     }
@@ -637,7 +647,10 @@ function rewriteReferences(ctx: Context): void {
   }
 }
 
-/** `export { a } from 'permdock'` keeps exporting `a`: the module's own export name is not the codemod's to change. */
+/**
+ * `export { a } from 'permdock'` keeps exporting `a`: the module's own export
+ * name is not the codemod's to change.
+ */
 function rewriteReexports(ctx: Context): void {
   for (const statement of nodes(ctx.program.body)) {
     const entry = statement.source?.value;

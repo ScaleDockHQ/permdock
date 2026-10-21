@@ -25,7 +25,10 @@ type Item = {
 const SF_STRING = /^"((?:[\u0020\u0021\u0023-\u005B\u005D-\u007E]|\\["\\])*)"/u;
 const SF_PARAM = /^;([a-z*][a-z0-9_.*-]*)=(-?\d{1,15})/u;
 
-/** An RFC 9651 List of sf-string Items with integer parameters; throws on anything else. */
+/**
+ * An RFC 9651 List of sf-string Items with integer parameters; throws on
+ * anything else.
+ */
 function parseList(field: string): readonly Item[] {
   const items: Item[] = [];
   let rest = field;
@@ -89,7 +92,8 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
     });
     const guard = protect(permissions.report.export);
     const request = (): Request => new Request("https://api.example/reports");
-    expect((await guard(request())).ok).toBe(true);
+    const { ok } = await guard(request());
+    expect(ok).toBe(true);
     expect((await guard(request())).ok).toBe(true);
     const refused = await guard(request());
     expect(refused.ok).toBe(false);
@@ -102,8 +106,11 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
     expect(retryAfter).toMatch(/^[1-9]\d*$/u);
     const [policyItem] = parseList(headers.get("RateLimit-Policy") ?? "");
     const [limitItem] = parseList(headers.get("RateLimit") ?? "");
-    expect(policyItem).toEqual({ name: "member", params: { q: 2, w: 86_400 } });
-    expect(limitItem).toEqual({
+    expect(policyItem).toStrictEqual({
+      name: "member",
+      params: { q: 2, w: 86_400 },
+    });
+    expect(limitItem).toStrictEqual({
       name: "member",
       params: { r: 0, t: Number(retryAfter) },
     });
@@ -130,11 +137,11 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
       ]),
       CLOCK,
     );
-    expect(parseList(headers["RateLimit-Policy"] ?? "")).toEqual([
+    expect(parseList(headers["RateLimit-Policy"] ?? "")).toStrictEqual([
       { name: "member", params: { q: 100, w: 86_400 } },
       { name: "default", params: { q: 10, w: 60 } },
     ]);
-    expect(parseList(headers["RateLimit"] ?? "")).toEqual([
+    expect(parseList(headers["RateLimit"] ?? "")).toStrictEqual([
       { name: "member", params: { r: 0, t: 3600 } },
       { name: "default", params: { r: 0, t: 20 } },
     ]);
@@ -176,7 +183,7 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
         CLOCK,
       );
       const [item] = parseList(headers["RateLimit-Policy"] ?? "");
-      expect(item?.params).toEqual({ q: 1, w: 60 });
+      expect(item?.params).toStrictEqual({ q: 1, w: 60 });
       expect(/^[\u0020-\u007E]*$/u.test(item?.name ?? "\n")).toBe(true);
     }
     const [quotes] = parseList(
@@ -200,28 +207,26 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
         limited([{ role: "member", reason: "condition" }]),
         CLOCK,
       ),
-    ).toEqual({});
+    ).toStrictEqual({});
     expect(
       rateLimitHeaders(
         limited([{ role: "member", reason: "limit", detail: { count: "x" } }]),
         CLOCK,
       ),
-    ).toEqual({});
+    ).toStrictEqual({});
     expect(
       rateLimitHeaders(
         limited([{ role: "member", reason: "limit", detail: null }]),
         CLOCK,
       ),
-    ).toEqual({});
+    ).toStrictEqual({});
   });
 
   it("keeps a 403 when another denial is not a limit, and a 503 without Retry-After when the store fails", async () => {
     const policy = definePolicy(permissions, {
       roles: [
         role("member", [
-          allow(permissions.report.export, {
-            limit: { count: 1, per: 3600 },
-          }),
+          allow(permissions.report.export, { limit: { count: 1, per: 3600 } }),
         ]),
         role("viewer", [allow(permissions.report.read)]),
       ],

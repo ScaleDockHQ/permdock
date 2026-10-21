@@ -1,9 +1,10 @@
 import type { Request } from "express";
+import type { ExpressPermDockRequest } from "permdock/express";
 
 import express from "express";
 import multer from "multer";
 import { createServer } from "node:http";
-import { createPermDock, type ExpressPermDockRequest } from "permdock/express";
+import { createPermDock } from "permdock/express";
 import { testHttpAdapter } from "permdock/testing";
 import { saasPermissions as p } from "permdock/testing/saas";
 

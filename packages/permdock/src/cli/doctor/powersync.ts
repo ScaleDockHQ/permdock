@@ -9,7 +9,10 @@ import { scopeSourcesOf, streamOf } from "../powersync/sources.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
 import { policyOf } from "./inputs.ts";
 
-/** Why each membership source of a scope the streams read through sources has no stream form, once per source. */
+/**
+ * Why each membership source of a scope the streams read through sources has no
+ * stream form, once per source.
+ */
 function sourceGaps(policy: Policy, config: PermDockConfig): readonly string[] {
   const scopes = scopeList(policy.scopes);
   const sources = membershipSourcesOf(config);
@@ -33,10 +36,10 @@ function sourceGaps(policy: Policy, config: PermDockConfig): readonly string[] {
 
 /**
  * PD058: `sync-config.yaml` or the `powersync.manifest` file is not what the
- * policy compiles to, so PowerSync syncs rows, or the device builds
- * snapshots, by an older policy. A policy that does not compile is a finding
- * too, and so is each membership source of a synced scope with no stream
- * form: its members sync none of the rows it grants.
+ * policy compiles to, so PowerSync syncs rows, or the device builds snapshots,
+ * by an older policy. A policy that does not compile is a finding too, and so
+ * is each membership source of a synced scope with no stream form: its members
+ * sync none of the rows it grants.
  */
 export async function pd058(
   input: DoctorInput,

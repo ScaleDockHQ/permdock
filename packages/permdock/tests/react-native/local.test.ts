@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type { CustomRole, Principal } from "../../src/core/subject.ts";
+import type { LocalSnapshotData } from "../../src/react-native/local.ts";
 
 import { principal } from "../../src/conditions/refs.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
@@ -17,7 +18,6 @@ import { role } from "../../src/core/role-builder.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 import {
-  type LocalSnapshotData,
   buildLocalSnapshot,
   localSnapshot,
 } from "../../src/react-native/local.ts";
@@ -272,7 +272,7 @@ function local(user: Principal, tenant: string | undefined): LocalSnapshotData {
   };
 }
 
-describe("localSnapshot", () => {
+describe(localSnapshot, () => {
   it("decides every check the way the server snapshot does", async () => {
     for (const user of users) {
       for (const tenant of ["acme", "globex", undefined]) {
@@ -282,7 +282,7 @@ describe("localSnapshot", () => {
           epochMilliseconds: 1_700_000_000_000,
         });
         const device = fromSnapshot(parseSnapshot(JSON.stringify(snapshot)));
-        expect(snapshot.roles, `${user.id} in ${String(tenant)}`).toEqual(
+        expect(snapshot.roles, `${user.id} in ${String(tenant)}`).toStrictEqual(
           serverRaw.roles,
         );
         expect(device.can(report.export), `${user.id} report.export`).toBe(

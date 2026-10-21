@@ -33,7 +33,10 @@ export function memorySettingsSource(
   });
 }
 
-/** Memberships keyed by principal id; `tenant` is not a filter, as for a database source. */
+/**
+ * Memberships keyed by principal id; `tenant` is not a filter, as for a
+ * database source.
+ */
 export function memoryMembershipSource(
   entries: Readonly<Record<string, readonly Membership[]>>,
 ): MembershipSource {
@@ -62,9 +65,7 @@ export function memoryMembershipSource(
 /** A snapshot held in memory; `set` replaces it and notifies every subscriber. */
 export function memorySnapshotSource(
   initial: Snapshot | string,
-): SnapshotSource & {
-  set(snapshot: Snapshot | string): void;
-} {
+): SnapshotSource & { set: (snapshot: Snapshot | string) => void } {
   let current = initial;
   const listeners = new Set<() => void>();
   return Object.freeze({

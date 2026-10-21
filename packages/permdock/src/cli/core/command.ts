@@ -36,7 +36,10 @@ export type EnumFlag = FlagBase & {
   readonly options: readonly string[];
   readonly default?: string;
   readonly repeatable?: boolean;
-  /** Help shows `<valueHint>` and lists the options in the description, for a list too long to read inline. */
+  /**
+   * Help shows `<valueHint>` and lists the options in the description, for a
+   * list too long to read inline.
+   */
   readonly valueHint?: string;
 };
 
@@ -67,7 +70,10 @@ type FlagValue<F extends Flag> = F extends BooleanFlag
           : F["options"][number] | undefined
       : never;
 
-/** The values a leaf's flags parse to: booleans default to `false`, a bare string flag is `""`. */
+/**
+ * The values a leaf's flags parse to: booleans default to `false`, a bare
+ * string flag is `""`.
+ */
 export type FlagValues<F extends Flags> = {
   readonly [K in keyof F]: FlagValue<F[K]>;
 };

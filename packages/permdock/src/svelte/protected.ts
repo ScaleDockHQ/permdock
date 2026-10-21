@@ -24,7 +24,10 @@ export type ProtectedProps = {
   readonly approval?: Snippet<[ApprovalRequiredDecision]>;
 };
 
-/** The instance for `tenant`, built once per store change rather than once per check. */
+/**
+ * The instance for `tenant`, built once per store change rather than once per
+ * check.
+ */
 export function scopedFor(
   store: ClientStore,
   tenant: string | undefined,

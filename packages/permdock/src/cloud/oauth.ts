@@ -1,4 +1,5 @@
 import type { Instant } from "../core/time.ts";
+import type { CloudScope } from "./base-url.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
 import { secondsAt } from "../core/time.ts";
@@ -9,12 +10,15 @@ import {
   parseToken,
   stringField,
 } from "../terminal/device.ts";
-import { CLOUD_BASE_URL, type CloudScope } from "./base-url.ts";
+import { CLOUD_BASE_URL } from "./base-url.ts";
 import { bearerChallenge } from "./challenge.ts";
 import { CloudAuthError } from "./oauth-error.ts";
 import { pkce, randomToken } from "./pkce.ts";
 
-/** Milliseconds a Cloud OAuth or read request may take; a slower one fails with `unreachable`. */
+/**
+ * Milliseconds a Cloud OAuth or read request may take; a slower one fails with
+ * `unreachable`.
+ */
 const OAUTH_TIMEOUT_MS = 10_000;
 
 const DEFAULT_SCOPES: readonly CloudScope[] = ["projects:read", "policy:read"];
@@ -22,9 +26,15 @@ const DEFAULT_SCOPES: readonly CloudScope[] = ["projects:read", "policy:read"];
 export type CloudOAuthOptions = {
   /** The client id the dashboard issued, or one from `/oauth/register`. */
   readonly clientId: string;
-  /** Registered with the client; the Cloud redirects here with `code` and `state`. */
+  /**
+   * Registered with the client; the Cloud redirects here with `code` and
+   * `state`.
+   */
   readonly redirectUri: string;
-  /** A confidential client's secret, sent as `client_secret_basic` (RFC 6749 section 2.3.1). Server-only. */
+  /**
+   * A confidential client's secret, sent as `client_secret_basic` (RFC 6749
+   * section 2.3.1). Server-only.
+   */
   readonly clientSecret?: string;
   /** The Cloud base URL and platform issuer; defaults to `CLOUD_BASE_URL`. */
   readonly url?: string;
@@ -35,7 +45,10 @@ export type CloudOAuthOptions = {
   readonly now?: () => Instant;
 };
 
-/** A token response, with RFC 6749 field names; `expires_at` is seconds since the epoch. */
+/**
+ * A token response, with RFC 6749 field names; `expires_at` is seconds since
+ * the epoch.
+ */
 export type CloudCredential = {
   readonly access_token: string;
   readonly token_type?: string;
@@ -44,7 +57,10 @@ export type CloudCredential = {
   readonly scope?: string;
 };
 
-/** A started authorization. Keep `state` and `codeVerifier` server-side until the callback. */
+/**
+ * A started authorization. Keep `state` and `codeVerifier` server-side until
+ * the callback.
+ */
 export type CloudAuthorization = {
   /** Where to send the browser. */
   readonly url: string;
@@ -52,17 +68,17 @@ export type CloudAuthorization = {
   readonly codeVerifier: string;
 };
 
-/** `GET /v1/projects` item. A project is one environment: `id` is the `{env}` of `/v1/environments/{env}`. */
+/**
+ * `GET /v1/projects` item. A project is one environment: `id` is the `{env}` of
+ * `/v1/environments/{env}`.
+ */
 export type CloudProject = {
   readonly id: string;
   readonly name: string;
   readonly environment: string;
   readonly slug?: string;
   readonly issuer?: string;
-  readonly catalog?: {
-    readonly version: number;
-    readonly fingerprint: string;
-  };
+  readonly catalog?: { readonly version: number; readonly fingerprint: string };
   readonly updatedAt?: string;
 };
 
@@ -81,8 +97,8 @@ export type CloudOAuthClient = {
   }) => Promise<CloudAuthorization>;
   /**
    * Redeems the callback URL. Throws `state-mismatch` unless it echoes
-   * `pending.state`, `issuer-mismatch` for an RFC 9207 `iss` of another
-   * server, and `authorization-denied` for an `error` or a missing `code`.
+   * `pending.state`, `issuer-mismatch` for an RFC 9207 `iss` of another server,
+   * and `authorization-denied` for an `error` or a missing `code`.
    */
   readonly exchangeCode: (
     callback: string | URL,
@@ -96,16 +112,16 @@ export type CloudOAuthClient = {
   ) => Promise<CloudProjectPage>;
 };
 
-type Endpoints = {
-  readonly authorization: string;
-  readonly token: string;
-};
+type Endpoints = { readonly authorization: string; readonly token: string };
 
 function trimSlash(value: string): string {
   return value.replace(/\/+$/u, "");
 }
 
-/** The form-urlencoding RFC 6749 section 2.3.1 applies to client_secret_basic credentials. */
+/**
+ * The form-urlencoding RFC 6749 section 2.3.1 applies to client_secret_basic
+ * credentials.
+ */
 function formEncode(value: string): string {
   return encodeURIComponent(value).replaceAll("%20", "+");
 }
@@ -116,7 +132,10 @@ function isLoopback(hostname: string): boolean {
   );
 }
 
-/** An endpoint must be `https:`, except on a loopback issuer, which a local Cloud serves over plain HTTP. */
+/**
+ * An endpoint must be `https:`, except on a loopback issuer, which a local
+ * Cloud serves over plain HTTP.
+ */
 function secureEndpoint(value: string, issuer: string): boolean {
   try {
     const url = new URL(value);
@@ -341,11 +360,7 @@ export function cloudOAuth(options: CloudOAuthOptions): CloudOAuthClient {
       url.searchParams.set("state", state);
       url.searchParams.set("code_challenge", challenge);
       url.searchParams.set("code_challenge_method", "S256");
-      return Object.freeze({
-        url: url.href,
-        state,
-        codeVerifier: verifier,
-      });
+      return Object.freeze({ url: url.href, state, codeVerifier: verifier });
     },
     async exchangeCode(callback, pending) {
       let params: URLSearchParams;

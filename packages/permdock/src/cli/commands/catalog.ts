@@ -1,4 +1,6 @@
-import { type Leaf, defineLeaf } from "../core/command.ts";
+import type { Leaf } from "../core/command.ts";
+
+import { defineLeaf } from "../core/command.ts";
 import { missingInput } from "../core/errors.ts";
 import { checkFlag, given, outFlag, permissionsFlag } from "../core/flags.ts";
 

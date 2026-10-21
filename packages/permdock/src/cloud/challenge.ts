@@ -1,4 +1,7 @@
-/** The `Bearer` challenge of a `WWW-Authenticate` field (RFC 6750 section 3), parameter names in lower case. */
+/**
+ * The `Bearer` challenge of a `WWW-Authenticate` field (RFC 6750 section 3),
+ * parameter names in lower case.
+ */
 export type BearerChallenge = {
   readonly scheme: "bearer";
   readonly params: Readonly<Record<string, string>>;
@@ -10,8 +13,8 @@ const PARAM =
 const TOKEN68 = /^\s*[A-Za-z0-9._~+/-]+=*\s*(?:,|$)/u;
 
 /**
- * The first `Bearer` challenge in `header` (RFC 9110 section 11.6.1 syntax),
- * or `null`. Other schemes in the same field are skipped.
+ * The first `Bearer` challenge in `header` (RFC 9110 section 11.6.1 syntax), or
+ * `null`. Other schemes in the same field are skipped.
  */
 export function bearerChallenge(header: string | null): BearerChallenge | null {
   if (header === null) {

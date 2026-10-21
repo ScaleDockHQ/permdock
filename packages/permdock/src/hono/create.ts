@@ -1,7 +1,8 @@
+import type { Context, MiddlewareHandler, Next } from "hono";
 import type { SSEMessage, SSEStreamingApi } from "hono/streaming";
 import type { WSEvents } from "hono/ws";
 
-import { Hono, type Context, type MiddlewareHandler, type Next } from "hono";
+import { Hono } from "hono";
 
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
@@ -43,7 +44,10 @@ export type HonoPermDockEnv<
 };
 
 export type HonoPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  /** The `PermDock` for one request, for code the middleware does not run before. */
+  /**
+   * The `PermDock` for one request, for code the middleware does not run
+   * before.
+   */
   readonly getPermDock: (c: Context) => Promise<PermDock<V>>;
   readonly middleware: () => MiddlewareHandler<HonoPermDockEnv<unknown, V>>;
   readonly protect: <TData = unknown>(
@@ -56,7 +60,10 @@ export type HonoPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     c: Context,
     connectionOptions?: ConnectionOptions,
   ) => Promise<Connection>;
-  /** `upgradeWebSocket` events that close with `1008` when the connection aborts. */
+  /**
+   * `upgradeWebSocket` events that close with `1008` when the connection
+   * aborts.
+   */
   readonly socket: <T = unknown>(
     connection: Connection,
     events: WSEvents<T>,
@@ -64,8 +71,8 @@ export type HonoPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   /**
    * Writes `source` to a `streamSSE` stream, dropping items the subscriber
    * cannot read, and resolves when it ends: after an `event: permdock` frame
-   * when the connection aborts, when the client disconnects, or when the
-   * source is done. Await it as the last statement of the callback.
+   * when the connection aborts, when the client disconnects, or when the source
+   * is done. Await it as the last statement of the callback.
    */
   readonly sse: <T>(
     connection: Connection,

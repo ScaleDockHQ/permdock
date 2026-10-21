@@ -11,11 +11,11 @@ import {
   role,
 } from "../../src/index.ts";
 
-/** Members read invoices with any token and update them only on a session the Auth server still holds. */
-const Invoice = z.object({
-  id: z.string(),
-  organization_id: z.string(),
-});
+/**
+ * Members read invoices with any token and update them only on a session the
+ * Auth server still holds.
+ */
+const Invoice = z.object({ id: z.string(), organization_id: z.string() });
 
 export const permissions = definePermissions({
   invoice: resource(Invoice, {

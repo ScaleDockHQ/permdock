@@ -10,8 +10,10 @@ import {
 } from "permdock/orpc";
 import { z } from "zod";
 
+import type { User } from "./policy.ts";
+
 import { ownPost, permissions } from "./permissions.ts";
-import { policy, type User } from "./policy.ts";
+import { policy } from "./policy.ts";
 
 type Ctx = { readonly user: User | null };
 
@@ -42,7 +44,10 @@ const procedures: ReadonlyMap<string, unknown> = new Map(
   Object.entries(router),
 );
 
-/** A procedure's output as a tool result; its Problem Details refusal as a tool error. */
+/**
+ * A procedure's output as a tool result; its Problem Details refusal as a tool
+ * error.
+ */
 async function toolResult(pending: Promise<unknown>): Promise<CallToolResult> {
   try {
     const output = await pending;

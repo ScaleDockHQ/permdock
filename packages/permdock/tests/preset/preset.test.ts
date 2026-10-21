@@ -129,7 +129,10 @@ function name(preset: Preset): string {
   return encodePreset(preset).replaceAll(/[^\w]/gu, "_");
 }
 
-/** Writes each case under .preset-check/<code>, with permdock imports pointed at src. */
+/**
+ * Writes each case under .preset-check/<code>, with permdock imports pointed at
+ * src.
+ */
 function writeCases(): readonly string[] {
   rmSync(OUT, { recursive: true, force: true });
   const dirs: string[] = [];
@@ -196,8 +199,8 @@ describe("preset codes", () => {
       const preset = resolvePreset(input);
       const code = encodePreset(preset);
       expect(code.startsWith("p1")).toBe(true);
-      expect(decodePreset(code)).toEqual(preset);
-      expect(resolvePreset(preset)).toEqual(preset);
+      expect(decodePreset(code)).toStrictEqual(preset);
+      expect(resolvePreset(preset)).toStrictEqual(preset);
     }
   });
 
@@ -208,7 +211,7 @@ describe("preset codes", () => {
   });
 
   it("decodes codes written before the integrations rename to the same choices", () => {
-    expect(decodePreset("p1AQAAAxwAAwAD")).toEqual(
+    expect(decodePreset("p1AQAAAxwAAwAD")).toStrictEqual(
       resolvePreset({
         archetype: "agent",
         framework: "none",
@@ -224,7 +227,7 @@ describe("preset codes", () => {
       integrations: ["mcp"],
       features: ["custom-roles"],
     });
-    expect(preset.features).toEqual([
+    expect(preset.features).toStrictEqual([
       "tenancy",
       "custom-roles",
       "operations",
@@ -276,10 +279,7 @@ describe("generated presets", () => {
         expect({
           preset: preset.archetype,
           can: permdock.can(list, undefined),
-        }).toEqual({
-          preset: preset.archetype,
-          can: true,
-        });
+        }).toStrictEqual({ preset: preset.archetype, can: true });
       }
       const appModule: { readonly app: unknown } = await import(
         path.join(dir, "permdock.ts")
@@ -290,7 +290,7 @@ describe("generated presets", () => {
   }, 120_000);
 });
 
-describe("presetMatrix", () => {
+describe(presetMatrix, () => {
   it("agrees with the generated policy on the demo user's collection actions", async () => {
     writeCases();
     vi.stubEnv("PERMDOCK_CLOUD_URL", "https://cloud.example.com");
@@ -307,9 +307,8 @@ describe("presetMatrix", () => {
         readonly demoUser: unknown;
       } = await import(path.join(dir, "policy.ts"));
       // The generated app: profile dev, so limits have a memory store.
-      const appModule: {
-        readonly app: Parameters<typeof getPermDockSync>[0];
-      } = await import(path.join(dir, "permdock.ts"));
+      const appModule: { readonly app: Parameters<typeof getPermDockSync>[0] } =
+        await import(path.join(dir, "permdock.ts"));
       const permdock = getPermDockSync(appModule.app, policyModule.demoUser);
       // SAFETY: a permission tree maps each resource name to its permission leaves.
       const tree = permdock.permissions as Record<
@@ -339,7 +338,11 @@ describe("presetMatrix", () => {
               ? "approval-required"
               : "granted"
             : "denied";
-        expect({ preset: preset.archetype, key: leaf.key, outcome }).toEqual({
+        expect({
+          preset: preset.archetype,
+          key: leaf.key,
+          outcome,
+        }).toStrictEqual({
           preset: preset.archetype,
           key: leaf.key,
           outcome: expected,

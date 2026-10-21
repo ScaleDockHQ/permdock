@@ -1,8 +1,9 @@
 import type { FastifyRequest } from "fastify";
+import type { FastifyPermDockRequest } from "permdock/fastify";
 
 import multipart from "@fastify/multipart";
 import Fastify from "fastify";
-import { createPermDock, type FastifyPermDockRequest } from "permdock/fastify";
+import { createPermDock } from "permdock/fastify";
 import { testHttpAdapter } from "permdock/testing";
 import { saasPermissions as p } from "permdock/testing/saas";
 

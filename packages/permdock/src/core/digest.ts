@@ -1,8 +1,8 @@
 /**
  * What a PermDock error's `digest` says. React keeps `digest` when an error
- * crosses from a Server Component to the client, where production builds
- * redact the message, so a client error boundary can still tell a denial or
- * an approval request from any other failure.
+ * crosses from a Server Component to the client, where production builds redact
+ * the message, so a client error boundary can still tell a denial or an
+ * approval request from any other failure.
  */
 export type PermDockDigest =
   | { readonly outcome: "denied"; readonly permission: string }

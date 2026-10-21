@@ -1,12 +1,12 @@
 import type { ResourceNode } from "./permission-types.ts";
 import type { GrantScope } from "./policy-types.ts";
+import type { Scope } from "./scopes.ts";
 import type { Membership, Principal, Subject } from "./subject.ts";
 
 import { expiredAt } from "./expiry.ts";
 import { sameId } from "./ids.ts";
 import { isFieldRelation } from "./resource-relations.ts";
 import {
-  type Scope,
   activeFor,
   findScope,
   resolveScope,
@@ -73,7 +73,10 @@ export function heldRoleNamesIn(
   return [...names];
 }
 
-/** `requested` when a live membership sits in that instance of the first scope; never a default. */
+/**
+ * `requested` when a live membership sits in that instance of the first scope;
+ * never a default.
+ */
 export function resolveActiveTenant(
   principal: Principal,
   requested: string | undefined,
@@ -92,7 +95,10 @@ export function resolveActiveTenant(
   return match ? requested : undefined;
 }
 
-/** `permdock.team(id)`: only memberships inside that instance of the second scope. */
+/**
+ * `permdock.team(id)`: only memberships inside that instance of the second
+ * scope.
+ */
 export function inTeam(
   membership: Membership,
   scopes: readonly Scope[],
@@ -106,9 +112,9 @@ export function inTeam(
 }
 
 /**
- * Whether `resource` declares a `memberOf` relation to `scope` on `field`:
- * its rows are partitioned by that scope, so a row without the field matches
- * no membership.
+ * Whether `resource` declares a `memberOf` relation to `scope` on `field`: its
+ * rows are partitioned by that scope, so a row without the field matches no
+ * membership.
  */
 export function relatesTo(
   resource: ResourceNode | undefined,
@@ -148,11 +154,11 @@ export function memberOfFields(
 }
 
 /**
- * The field of `resource` that holds `scope`'s instance id: the scope's
- * `key` when one of the resource's `memberOf` relations names it, otherwise
- * the field of its one `memberOf` relation to the scope. A table whose own
- * id is the instance (`organizations.id`) declares
- * `{ self: { field: 'id', memberOf: 'organization' } }`.
+ * The field of `resource` that holds `scope`'s instance id: the scope's `key`
+ * when one of the resource's `memberOf` relations names it, otherwise the field
+ * of its one `memberOf` relation to the scope. A table whose own id is the
+ * instance (`organizations.id`) declares `{ self: { field: 'id', memberOf:
+ * 'organization' } }`.
  */
 export function scopeField(
   resource: ResourceNode | undefined,
@@ -224,19 +230,16 @@ export function rowInScope(
       (value !== undefined || partitioned(name, key)) &&
       !sameId(value, scopeIdOf(membership, name))
     ) {
-      return {
-        ok: false,
-        reason: name === root ? "tenant-mismatch" : "scope",
-      };
+      return { ok: false, reason: name === root ? "tenant-mismatch" : "scope" };
     }
   }
   return { ok: true };
 }
 
 /**
- * Whether a membership answers an instance check for `row`: any membership
- * with a row object, otherwise only the first scope or the instance of the
- * second scope that `team(id)` selected.
+ * Whether a membership answers an instance check for `row`: any membership with
+ * a row object, otherwise only the first scope or the instance of the second
+ * scope that `team(id)` selected.
  */
 export function nestedAppliesWithoutRow(
   membership: Membership,
@@ -267,7 +270,10 @@ export type ScopeMatch =
         | "relation-unavailable";
     };
 
-/** Whether a resource-role membership reaches the row through the self-parent chain. */
+/**
+ * Whether a resource-role membership reaches the row through the self-parent
+ * chain.
+ */
 export type ResourceRoleWalk = (
   membership: Membership,
   row: unknown,
@@ -443,8 +449,8 @@ function matchResourceMembership(
 /**
  * The row field that holds the id of a `membershipResource` membership: the
  * row's own id field when the row is of that resource, the declared parent
- * field of the matching ancestor otherwise (the row carries it, never a
- * walk-up query), `undefined` when the resource is not on the row's chain.
+ * field of the matching ancestor otherwise (the row carries it, never a walk-up
+ * query), `undefined` when the resource is not on the row's chain.
  */
 export function membershipField(
   resource: ResourceNode | undefined,

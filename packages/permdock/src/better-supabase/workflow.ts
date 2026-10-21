@@ -7,12 +7,18 @@ import type { PermDock } from "../core/permdock.ts";
 
 import { findPermission } from "../core/permission-registry.ts";
 
-/** Where `handlerCan` gets the request's instance, such as `permdock/server`'s `createPermDock` result. */
+/**
+ * Where `handlerCan` gets the request's instance, such as `permdock/server`'s
+ * `createPermDock` result.
+ */
 export type HandlerPermDockSource = {
   readonly getPermDock: (request: Request) => PermDock | Promise<PermDock>;
 };
 
-/** Whether `permdock` is granted the permission `key` (a catalog key or scope) with no row. */
+/**
+ * Whether `permdock` is granted the permission `key` (a catalog key or scope)
+ * with no row.
+ */
 function grants(permdock: PermDock, key: string): boolean {
   try {
     const permission = findPermission(permdock.permissions, key);
@@ -27,9 +33,9 @@ function grants(permdock: PermDock, key: string): boolean {
 
 /**
  * The `can` option of better-supabase's `authorizeHook`, for the caller's
- * `permdock`: `true` only when the caller is a member of the hook's tenant
- * and `decide` grants the permission its `hookMetadata` names there. An
- * unknown key, `approval-required` and a throw are `false`.
+ * `permdock`: `true` only when the caller is a member of the hook's tenant and
+ * `decide` grants the permission its `hookMetadata` names there. An unknown
+ * key, `approval-required` and a throw are `false`.
  */
 export function hookCan(
   permdock: PermDock,
@@ -47,10 +53,10 @@ export function hookCan(
 }
 
 /**
- * The `can` option of better-supabase's `protectWebHandler`: `undefined`
- * (401) when the request has no signed-in principal or `getPermDock`
- * throws, otherwise whether `decide` grants the permission in the request's
- * active tenant. An unknown key and `approval-required` are `false` (403).
+ * The `can` option of better-supabase's `protectWebHandler`: `undefined` (401)
+ * when the request has no signed-in principal or `getPermDock` throws,
+ * otherwise whether `decide` grants the permission in the request's active
+ * tenant. An unknown key and `approval-required` are `false` (403).
  */
 export function handlerCan(
   source: HandlerPermDockSource,

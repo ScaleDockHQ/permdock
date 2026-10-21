@@ -1,9 +1,17 @@
+import type { AppDataSchema } from "./app-data.ts";
 import type { AuthEvent } from "./event-types.ts";
 import type { MembershipSource } from "./interfaces.ts";
 import type { PermDockOptions } from "./permdock.ts";
 import type { Policy } from "./policy-types.ts";
+import type {
+  Actor,
+  Delegation,
+  Membership,
+  Principal,
+  Subject,
+} from "./subject.ts";
 
-import { type AppDataSchema, readAppData } from "./app-data.ts";
+import { readAppData } from "./app-data.ts";
 import { compact } from "./compact.ts";
 import { contactMemberships, isContact } from "./contact.ts";
 import { sanitizeContext } from "./fields.ts";
@@ -14,21 +22,13 @@ import { policyX } from "./policy-fingerprint.ts";
 import { applyRoleKinds } from "./role-rank.ts";
 import { normalizeMemberships, scopeList, tenantOf } from "./scopes.ts";
 import { sourceName } from "./source-name.ts";
-import {
-  type Actor,
-  type Delegation,
-  type Membership,
-  type Principal,
-  type Subject,
-  anonymousSubject,
-  isSubject,
-} from "./subject.ts";
+import { anonymousSubject, isSubject } from "./subject.ts";
 import { resolveActiveTenant } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
 
 /**
- * The tenant a user API key holds its owner to (`Credential.tenant`): only
- * the memberships inside it count, and no global role.
+ * The tenant a user API key holds its owner to (`Credential.tenant`): only the
+ * memberships inside it count, and no global role.
  */
 function heldTenantOf(principal: Principal): string | undefined {
   const credential: unknown = principal["credential"];
@@ -78,9 +78,15 @@ function assemblePrincipal(
   readonly session: string | undefined;
   readonly expiresAt: number | undefined;
   readonly memberships: readonly Membership[] | Promise<readonly Membership[]>;
-  /** Global roles a stale-token reread read live; they replace the token's `principal.roles`. */
+  /**
+   * Global roles a stale-token reread read live; they replace the token's
+   * `principal.roles`.
+   */
   readonly roles?: readonly string[] | Promise<readonly string[] | undefined>;
-  /** The memberships came from a live `MembershipSource` call, not from the token. */
+  /**
+   * The memberships came from a live `MembershipSource` call, not from the
+   * token.
+   */
   readonly live: boolean;
   readonly stale?: boolean | Promise<boolean>;
   /** The resolver checked the session live; only a `Subject` input carries it. */
@@ -360,7 +366,10 @@ function finishSubject(
   );
 }
 
-/** Runs the policy's membership schema over each `x`; an invalid one is dropped and reported, never the membership. */
+/**
+ * Runs the policy's membership schema over each `x`; an invalid one is dropped
+ * and reported, never the membership.
+ */
 function checkMembershipX(
   memberships: readonly Membership[],
   schema: AppDataSchema<unknown> | undefined,

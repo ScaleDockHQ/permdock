@@ -4,7 +4,10 @@ import { z } from "zod";
 
 import { schema } from "./generated.ts";
 
-/** The app's own claim (`supabase.hook.claims`); `supabaseClaims()` covers PermDock's. */
+/**
+ * The app's own claim (`supabase.hook.claims`); `supabaseClaims()` covers
+ * PermDock's.
+ */
 const appClaims = z.object({
   datetime_preferences: z
     .object({

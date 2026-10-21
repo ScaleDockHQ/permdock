@@ -3,7 +3,10 @@ import type { Membership, Principal } from "../core/subject.ts";
 import { isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 
-/** A row of the better-supabase `memberships` table (organizations block), as `select user_id, organization_id, role, disabled_at` returns it. */
+/**
+ * A row of the better-supabase `memberships` table (organizations block), as
+ * `select user_id, organization_id, role, disabled_at` returns it.
+ */
 export type BetterSupabaseMembershipRow = {
   readonly user_id: string;
   readonly organization_id: string;
@@ -12,7 +15,10 @@ export type BetterSupabaseMembershipRow = {
 };
 
 export type PrincipalFromMembershipsOptions = {
-  /** The policy scope an `organization_id` is an instance of; defaults to `tenant`, the first declared scope. */
+  /**
+   * The policy scope an `organization_id` is an instance of; defaults to
+   * `tenant`, the first declared scope.
+   */
   readonly scope?: string;
   /**
    * The organization the request acts in, the principal's active tenant. A
@@ -39,9 +45,9 @@ function isLiveRow(
 
 /**
  * The principal `userId` is in the better-supabase organizations block: one
- * membership per organization, keyed on `organization_id`, holding the role
- * of each of the user's rows. Rows of another user, disabled rows and
- * malformed rows are dropped, so a user with none holds no membership.
+ * membership per organization, keyed on `organization_id`, holding the role of
+ * each of the user's rows. Rows of another user, disabled rows and malformed
+ * rows are dropped, so a user with none holds no membership.
  */
 export function principalFromMemberships(
   userId: string,

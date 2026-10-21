@@ -10,7 +10,7 @@ const fixture: unknown = JSON.parse(
   ),
 );
 
-describe("parseSnapshot", () => {
+describe(parseSnapshot, () => {
   it("freezes a copy and leaves the caller’s object untouched", () => {
     // SAFETY: the snapshot fixture is a JSON object, so its round trip is one too.
     const input = JSON.parse(JSON.stringify(fixture)) as Record<
@@ -27,10 +27,10 @@ describe("parseSnapshot", () => {
     expect(parseSnapshot(fixture).v).toBe(1);
     expect(parseSnapshot(JSON.stringify(fixture)).v).toBe(1);
     expect(() => parseSnapshot({ v: 9 })).toThrow(
-      /unsupported snapshot version/,
+      /unsupported snapshot version/u,
     );
     expect(() => parseSnapshot({ v: 1, constructor: {} })).toThrow(
-      /unsafe snapshot key/,
+      /unsafe snapshot key/u,
     );
   });
 });

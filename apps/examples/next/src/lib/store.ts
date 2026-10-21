@@ -19,11 +19,7 @@ export type Person = {
 type StaffRow = { user: string; organization: string; role: RoleName };
 type ContactRow = { user: string; organization: string; customer: string };
 
-type Store = {
-  staff: StaffRow[];
-  contacts: ContactRow[];
-  quotes: Quote[];
-};
+type Store = { staff: StaffRow[]; contacts: ContactRow[]; quotes: Quote[] };
 
 export const organizations: readonly Organization[] = [
   { id: "acme", name: "Acme Field Services" },
@@ -37,11 +33,7 @@ export const customers: readonly Customer[] = [
 ];
 
 export const people: readonly Person[] = [
-  {
-    id: "olivia",
-    name: "Olivia",
-    title: "Admin at Acme, member at Globex",
-  },
+  { id: "olivia", name: "Olivia", title: "Admin at Acme, member at Globex" },
   { id: "max", name: "Max", title: "Member at Acme" },
   { id: "carol", name: "Carol", title: "Northwind Offices contact at Acme" },
 ];

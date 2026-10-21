@@ -7,7 +7,10 @@ import { env } from "../../env.ts";
 import { policy } from "../../policy.ts";
 import { audience, betterSupabase, cookieName } from "./index.ts";
 
-/** Direct Postgres: `bs.cached()` hands out `sql`, typed repositories that run as the caller, so RLS applies. */
+/**
+ * Direct Postgres: `bs.cached()` hands out `sql`, typed repositories that run
+ * as the caller, so RLS applies.
+ */
 export const postgres = createPostgres({ connectionString: env.databaseUrl });
 
 export const issuer = `${env.supabaseUrl}/auth/v1`;

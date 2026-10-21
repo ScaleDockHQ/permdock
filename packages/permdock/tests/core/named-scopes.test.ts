@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { PermDock } from "../../src/core/permdock.ts";
 import type { Permission } from "../../src/core/permission-types.ts";
 import type { Membership, Principal } from "../../src/core/subject.ts";
 
@@ -8,7 +9,7 @@ import { evaluateCondition } from "../../src/conditions/evaluate.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";
-import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -23,6 +24,7 @@ import {
   personas,
   policy,
 } from "../fixtures/named-scopes.ts";
+import { defined } from "../support/defined.ts";
 
 async function permdockFor(
   principal: Principal,
@@ -91,19 +93,23 @@ describe("named scopes: decide, snapshot and where agree", () => {
 describe("named scopes: the scenario", () => {
   it("shows a portal contact only their customer's sent documents", async () => {
     const permdock = await permdockFor(personas.privateContact);
-    expect(readable(permdock, permissions.quote.read)).toEqual([
+    expect(readable(permdock, permissions.quote.read)).toStrictEqual([
       "d_a_sent",
       "d_a_accepted",
     ]);
-    expect(readable(permdock, permissions.quote.accept)).toEqual(["d_a_sent"]);
-    expect(readable(permdock, permissions.quote.update)).toEqual([]);
+    expect(readable(permdock, permissions.quote.accept)).toStrictEqual([
+      "d_a_sent",
+    ]);
+    expect(readable(permdock, permissions.quote.update)).toStrictEqual([]);
     const business = await permdockFor(personas.businessContact);
-    expect(readable(business, permissions.invoice.read)).toEqual(["d_g_sent"]);
+    expect(readable(business, permissions.invoice.read)).toStrictEqual([
+      "d_g_sent",
+    ]);
   });
 
   it("gives an owner every quote of the active organization and no customer reach", async () => {
     const permdock = await permdockFor(personas.owner);
-    expect(readable(permdock, permissions.quote.read)).toEqual([
+    expect(readable(permdock, permissions.quote.read)).toStrictEqual([
       "d_a_sent",
       "d_a_draft",
       "d_a_accepted",
@@ -111,7 +117,7 @@ describe("named scopes: the scenario", () => {
     ]);
     expect(
       permdock.memberships().filter((item) => item.scope === "customer"),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");
@@ -122,46 +128,47 @@ describe("named scopes: the scenario", () => {
           .filter((grant) => grant.permission === "quote.read")
           .map((grant) => grant.scope),
       ),
-    ).toEqual(new Set(["organization"]));
-    expect(permdock.where(permissions.quote.read).condition).toEqual({
+    ).toStrictEqual(new Set(["organization"]));
+    expect(permdock.where(permissions.quote.read).condition).toStrictEqual({
       op: "eq",
       field: "organization_id",
       value: "T",
     });
-    expect(readable(permdock.tenant("B"), permissions.quote.read)).toEqual([
-      "d_c_sent",
-      "d_b_draft",
-    ]);
+    expect(
+      readable(permdock.tenant("B"), permissions.quote.read),
+    ).toStrictEqual(["d_c_sent", "d_b_draft"]);
   });
 
   it("keeps a viewer to reading their own organization", async () => {
     const permdock = await permdockFor(personas.viewer);
-    expect(readable(permdock, permissions.quote.read)).toEqual([
+    expect(readable(permdock, permissions.quote.read)).toStrictEqual([
       "d_c_sent",
       "d_b_draft",
     ]);
-    expect(readable(permdock, permissions.quote.update)).toEqual([]);
+    expect(readable(permdock, permissions.quote.update)).toStrictEqual([]);
     expect(
-      permdock.tenant("T").can(permissions.quote.read, documents[0]!),
+      permdock.tenant("T").can(permissions.quote.read, defined(documents[0])),
     ).toBe(false);
   });
 
   it("lets each membership of a staff member who is also a contact grant only in its own scope", async () => {
     const permdock = await permdockFor(personas.staffContact);
     expect(permdock.subject.principal?.tenant).toBe("T");
-    expect(permdock.tenants()).toEqual(["T", "B"]);
-    expect(readable(permdock, permissions.quote.read)).toEqual([
+    expect(permdock.tenants()).toStrictEqual(["T", "B"]);
+    expect(readable(permdock, permissions.quote.read)).toStrictEqual([
       "d_a_sent",
       "d_a_draft",
       "d_a_accepted",
       "d_g_sent",
     ]);
     const portal = permdock.tenant("B");
-    expect(readable(portal, permissions.quote.read)).toEqual(["d_c_sent"]);
-    expect(readable(portal, permissions.quote.update)).toEqual([]);
-    expect(portal.decide(permissions.quote.read, documents[5]!).outcome).toBe(
-      "denied",
-    );
+    expect(readable(portal, permissions.quote.read)).toStrictEqual([
+      "d_c_sent",
+    ]);
+    expect(readable(portal, permissions.quote.update)).toStrictEqual([]);
+    expect(
+      portal.decide(permissions.quote.read, defined(documents[5])).outcome,
+    ).toBe("denied");
   });
 
   it("answers an instance check without a row from the first scope only", async () => {
@@ -175,7 +182,7 @@ describe("named scopes: the scenario", () => {
       parseSnapshot(JSON.stringify(contact.snapshot())),
     );
     expect(client.can(permissions.asset.read, undefined)).toBe(false);
-    expect(contact.can(permissions.asset.read, assets[0]!)).toBe(true);
+    expect(contact.can(permissions.asset.read, defined(assets[0]))).toBe(true);
     expect(contact.team("A").can(permissions.asset.read, undefined)).toBe(true);
     expect(contact.team("G").can(permissions.asset.read, undefined)).toBe(
       false,
@@ -197,9 +204,9 @@ describe("named scopes: the scenario", () => {
     expect(admin.can(permissions.organization.disable, { id: "T" })).toBe(true);
     expect(admin.can(permissions.organization.list)).toBe(true);
     for (const leaf of instanceLeaves) {
-      expect(readable(admin, leaf)).toEqual([]);
+      expect(readable(admin, leaf)).toStrictEqual([]);
     }
-    expect(admin.where(permissions.quote.read).condition).toEqual({
+    expect(admin.where(permissions.quote.read).condition).toStrictEqual({
       op: "or",
       conditions: [],
     });
@@ -211,14 +218,14 @@ describe("named scopes: the scenario", () => {
 
   it("applies org T's custom role and its tenant deny", async () => {
     const permdock = await permdockFor(personas.mechanic);
-    expect(readable(permdock, permissions.asset.update)).toEqual([
+    expect(readable(permdock, permissions.asset.update)).toStrictEqual([
       "a_a_sent",
       "a_a_draft",
       "a_a_accepted",
       "a_g_sent",
     ]);
-    expect(readable(permdock, permissions.asset.delete)).toEqual([]);
-    expect(readable(permdock, permissions.quote.read)).toEqual([]);
+    expect(readable(permdock, permissions.asset.delete)).toStrictEqual([]);
+    expect(readable(permdock, permissions.quote.read)).toStrictEqual([]);
   });
 
   it("blocks every path into a suspended organization through the membership source", async () => {
@@ -235,12 +242,10 @@ describe("named scopes: the scenario", () => {
       personas.staffContact,
     ]) {
       const permdock = getPermDockSync(policy, principal, {
-        memberships: {
-          membershipsFor: () => active(principal.memberships),
-        },
+        memberships: { membershipsFor: () => active(principal.memberships) },
       });
-      expect(readable(permdock, permissions.quote.read)).toEqual([]);
-      expect(permdock.where(permissions.quote.read).condition).toEqual({
+      expect(readable(permdock, permissions.quote.read)).toStrictEqual([]);
+      expect(permdock.where(permissions.quote.read).condition).toStrictEqual({
         op: "or",
         conditions: [],
       });
@@ -263,10 +268,12 @@ describe("named scopes: permissions a suspended organization keeps", () => {
       const permdock = getPermDockSync(policy, principal, {
         memberships: { membershipsFor: () => keep(principal.memberships) },
       });
-      expect(readable(permdock, permissions.quote.read)).toEqual([]);
-      expect(readable(permdock, permissions.asset.read)).toEqual([]);
-      expect(readable(permdock, permissions.invoice.read)).not.toEqual([]);
-      expect(permdock.where(permissions.quote.read).condition).toEqual({
+      expect(readable(permdock, permissions.quote.read)).toStrictEqual([]);
+      expect(readable(permdock, permissions.asset.read)).toStrictEqual([]);
+      expect(readable(permdock, permissions.invoice.read)).not.toStrictEqual(
+        [],
+      );
+      expect(permdock.where(permissions.quote.read).condition).toStrictEqual({
         op: "or",
         conditions: [],
       });
@@ -275,21 +282,21 @@ describe("named scopes: permissions a suspended organization keeps", () => {
         throw new TypeError("expected an unsigned snapshot");
       }
       const client = fromSnapshot(parseSnapshot(JSON.stringify(snapshot)));
-      expect(readable(client, permissions.quote.read)).toEqual([]);
-      expect(readable(client, permissions.invoice.read)).toEqual(
+      expect(readable(client, permissions.quote.read)).toStrictEqual([]);
+      expect(readable(client, permissions.invoice.read)).toStrictEqual(
         readable(permdock, permissions.invoice.read),
       );
     }
     const owner = getPermDockSync(policy, personas.owner, {
       memberships: { membershipsFor: () => keep(personas.owner.memberships) },
     });
-    expect(owner.heldRoles()).toEqual([]);
+    expect(owner.heldRoles()).toStrictEqual([]);
     expect(
       owner
         .tenant("B")
         .heldRoles()
         .map((item) => item.key),
-    ).toEqual(["owner"]);
+    ).toStrictEqual(["owner"]);
   });
 
   it("drops a membership whose keep is not a list of keys", async () => {
@@ -305,7 +312,7 @@ describe("named scopes: permissions a suspended organization keeps", () => {
         },
       },
     });
-    expect(readable(permdock, permissions.invoice.read)).toEqual([]);
+    expect(readable(permdock, permissions.invoice.read)).toStrictEqual([]);
   });
 });
 
@@ -318,15 +325,17 @@ describe("named scopes: snapshot scope list", () => {
     }
     const { scopes: _dropped, ...stripped } = snapshot;
     const client = fromSnapshot(parseSnapshot(JSON.stringify(stripped)));
-    expect(client.can(permissions.quote.read, documents[0]!)).toBe(false);
-    expect(client.where(permissions.quote.read).condition).toEqual({
+    expect(client.can(permissions.quote.read, defined(documents[0]))).toBe(
+      false,
+    );
+    expect(client.where(permissions.quote.read).condition).toStrictEqual({
       op: "or",
       conditions: [],
     });
     expect(
       fromSnapshot(parseSnapshot(JSON.stringify(snapshot))).can(
         permissions.quote.read,
-        documents[0]!,
+        defined(documents[0]),
       ),
     ).toBe(true);
   });
@@ -337,8 +346,8 @@ describe("named scopes: snapshot scope list", () => {
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");
     }
-    expect(pushedPolicy(policy).scopes).toEqual(snapshot.scopes);
-    expect(pushedPolicy(policy).scopes?.[1]).toEqual({
+    expect(pushedPolicy(policy).scopes).toStrictEqual(snapshot.scopes);
+    expect(pushedPolicy(policy).scopes?.[1]).toStrictEqual({
       name: "customer",
       key: "customer_id",
       within: "organization",
@@ -363,7 +372,7 @@ describe("named scopes: no implicit cascade", () => {
       ],
     });
     for (const leaf of instanceLeaves) {
-      expect(readable(crossed, leaf)).toEqual([]);
+      expect(readable(crossed, leaf)).toStrictEqual([]);
     }
   });
 
@@ -373,7 +382,7 @@ describe("named scopes: no implicit cascade", () => {
       tenant: "T",
       memberships: [{ scope: "customer", id: "A", roles: ["contact"] }],
     });
-    expect(permdock.memberships()).toEqual([]);
+    expect(permdock.memberships()).toStrictEqual([]);
   });
 
   it("accepts tenant and team aliases for the first two scopes", async () => {
@@ -385,7 +394,7 @@ describe("named scopes: no implicit cascade", () => {
         { tenant: "T", roles: ["viewer"], via: "staff" },
       ],
     });
-    expect(permdock.memberships()).toEqual([
+    expect(permdock.memberships()).toStrictEqual([
       {
         scope: "customer",
         id: "A",
@@ -425,37 +434,31 @@ describe("named scopes: definition", () => {
           organization: { key: "organization_id" },
         },
       }),
-    ).toThrow(/not declared before it/);
+    ).toThrow(/not declared before it/u);
     expect(() =>
-      definePolicy(tree, {
-        subject,
-        scopes: { global: { key: "x" } },
-      }),
-    ).toThrow(/scope name 'global'/);
+      definePolicy(tree, { subject, scopes: { global: { key: "x" } } }),
+    ).toThrow(/scope name 'global'/u);
     expect(() =>
       definePolicy(tree, {
         subject,
         scopes: { organization: { key: "o" }, tenant: { key: "t" } },
       }),
-    ).toThrow(/'tenant' must be declared first/);
+    ).toThrow(/'tenant' must be declared first/u);
     expect(() =>
       definePolicy(tree, {
         subject,
         scopes: { tenant: { key: "orgId" }, team: { key: "teamId" } },
       }),
-    ).toThrow(/scopes.team needs within/);
+    ).toThrow(/scopes.team needs within/u);
     expect(() =>
       definePolicy(tree, {
         subject,
         scopes: { organization: { key: "o" }, region: { key: "r" } },
       }),
-    ).toThrow(/scopes.region needs within/);
+    ).toThrow(/scopes.region needs within/u);
     expect(() =>
-      definePolicy(tree, {
-        subject,
-        scopes: { organization: { key: "" } },
-      }),
-    ).toThrow(/needs a key/);
+      definePolicy(tree, { subject, scopes: { organization: { key: "" } } }),
+    ).toThrow(/needs a key/u);
   });
 
   it("requires the scope key on every resource an instance grant touches", () => {
@@ -465,7 +468,7 @@ describe("named scopes: definition", () => {
         scopes: { organization: { key: "organization_id" } },
         roles: [role("reader", [allow(tree.doc.read)], { on: "organization" })],
       }),
-    ).toThrow(/doc.read on 'organization' roles/);
+    ).toThrow(/doc.read on 'organization' roles/u);
     expect(
       definePolicy(tree, {
         subject,
@@ -475,13 +478,13 @@ describe("named scopes: definition", () => {
         },
         roles: [role("reader", [allow(tree.doc.read)], { on: "workspace" })],
       }).scopes.map((scope) => scope.name),
-    ).toEqual(["organization", "workspace"]);
+    ).toStrictEqual(["organization", "workspace"]);
   });
 
   it("reserves the restricted role option", () => {
     // SAFETY: a deliberately reserved option, to exercise role()'s refusal.
     expect(() => role("x", [], { restricted: undefined as never })).toThrow(
-      /reserved/,
+      /reserved/u,
     );
   });
 });

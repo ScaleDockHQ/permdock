@@ -65,84 +65,86 @@ function text(result: Awaited<ReturnType<Client["callTool"]>>): string {
   return first?.type === "text" ? first.text : "";
 }
 
-afterEach(async () => {
-  await Promise.all(clients.splice(0).map((client) => client.close()));
-});
-
-describe("docs MCP", () => {
-  it("names itself with the docs package version", async () => {
-    const client = await connect();
-    expect(client.getServerVersion()).toMatchObject({
-      name: "permdock-docs",
-      version: packageJson.version,
-    });
+describe("docs mcp", () => {
+  afterEach(async () => {
+    await Promise.all(clients.splice(0).map((client) => client.close()));
   });
 
-  it("lists only the read-only fumadocs tools", async () => {
-    const client = await connect();
-    const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).toSorted()).toEqual([
-      "get_page",
-      "list_pages",
-      "search",
-    ]);
-  });
-
-  it("searches, lists and fetches pages", async () => {
-    const client = await connect();
-    const search = await client.callTool({
-      name: "search",
-      arguments: { query: "hono" },
+  describe("docs MCP", () => {
+    it("names itself with the docs package version", async () => {
+      const client = await connect();
+      expect(client.getServerVersion()).toMatchObject({
+        name: "permdock-docs",
+        version: packageJson.version,
+      });
     });
-    expect(text(search)).toContain("/docs/adapters/hono");
 
-    const list = await client.callTool({ name: "list_pages", arguments: {} });
-    expect(text(list)).toContain("[Hono](/docs/adapters/hono)");
-
-    const page = await client.callTool({
-      name: "get_page",
-      arguments: { url: "/docs/adapters/hono" },
+    it("lists only the read-only fumadocs tools", async () => {
+      const client = await connect();
+      const { tools } = await client.listTools();
+      expect(tools.map((tool) => tool.name).toSorted()).toStrictEqual([
+        "get_page",
+        "list_pages",
+        "search",
+      ]);
     });
-    expect(text(page)).toBe("# Hono\n\nFetch kernel adapter for Hono");
-  });
 
-  it("reports an unknown page as a tool error", async () => {
-    const client = await connect();
-    const result = await client.callTool({
-      name: "get_page",
-      arguments: { url: "/docs/nope" },
+    it("searches, lists and fetches pages", async () => {
+      const client = await connect();
+      const search = await client.callTool({
+        name: "search",
+        arguments: { query: "hono" },
+      });
+      expect(text(search)).toContain("/docs/adapters/hono");
+
+      const list = await client.callTool({ name: "list_pages", arguments: {} });
+      expect(text(list)).toContain("[Hono](/docs/adapters/hono)");
+
+      const page = await client.callTool({
+        name: "get_page",
+        arguments: { url: "/docs/adapters/hono" },
+      });
+      expect(text(page)).toBe("# Hono\n\nFetch kernel adapter for Hono");
     });
-    expect(result).toMatchObject({ isError: true });
-  });
 
-  it("never answers with a protocol version it does not serve", async () => {
-    const response = await handler.fetch(
-      new Request(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json, text/event-stream",
-        },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: 1,
-          method: "initialize",
-          params: {
-            protocolVersion: "2025-11-05",
-            capabilities: {},
-            clientInfo: { name: "raw", version: "1.0.0" },
+    it("reports an unknown page as a tool error", async () => {
+      const client = await connect();
+      const result = await client.callTool({
+        name: "get_page",
+        arguments: { url: "/docs/nope" },
+      });
+      expect(result).toMatchObject({ isError: true });
+    });
+
+    it("never answers with a protocol version it does not serve", async () => {
+      const response = await handler.fetch(
+        new Request(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json, text/event-stream",
           },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: {
+              protocolVersion: "2025-11-05",
+              capabilities: {},
+              clientInfo: { name: "raw", version: "1.0.0" },
+            },
+          }),
         }),
-      }),
-    );
-    expect(await response.text()).not.toContain("2025-11-05");
+      );
+      expect(await response.text()).not.toContain("2025-11-05");
+    });
   });
-});
 
-describe("withCors", () => {
-  it("adds the CORS headers and keeps the status", () => {
-    const response = withCors(new Response(null, { status: 202 }));
-    expect(response.status).toBe(202);
-    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  describe(withCors, () => {
+    it("adds the CORS headers and keeps the status", () => {
+      const response = withCors(new Response(null, { status: 202 }));
+      expect(response.status).toBe(202);
+      expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    });
   });
 });

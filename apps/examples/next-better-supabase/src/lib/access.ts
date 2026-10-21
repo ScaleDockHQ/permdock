@@ -17,7 +17,10 @@ export type Organization = {
 
 export const orgTag = (organization: string): string => `org:${organization}`;
 
-/** An RLS read with when it ran and how long it took; a cache hit keeps both from the run that filled it. */
+/**
+ * An RLS read with when it ran and how long it took; a cache hit keeps both
+ * from the run that filled it.
+ */
 export type Loaded<T> = {
   readonly value: T;
   /** Milliseconds since the epoch. */
@@ -36,7 +39,10 @@ async function timed<T>(read: () => Promise<T>): Promise<Loaded<T>> {
   };
 }
 
-/** Shared layer: slugs are public, so the lookup reads no session and every visitor shares it. */
+/**
+ * Shared layer: slugs are public, so the lookup reads no session and every
+ * visitor shares it.
+ */
 export async function organizationBySlug(
   slug: string,
 ): Promise<Organization | null> {
@@ -53,16 +59,14 @@ export async function organizationBySlug(
 
 /**
  * Private layer: the session's snapshot for one organization. `bs.cached()`
- * caps `stale` at the token's expiry and at 300 s, which joins the App Shell
- * so a prefetch carries the snapshot; `cacheLifeFor` caps it at the
- * snapshot's, and Next keeps the smaller of the two.
+ * caps `stale` at the token's expiry and at 300 s, which joins the App Shell so
+ * a prefetch carries the snapshot; `cacheLifeFor` caps it at the snapshot's,
+ * and Next keeps the smaller of the two.
  */
 export async function loadSnapshot(organization: string): Promise<Snapshot> {
   "use cache: private";
   await latency();
-  const { session } = await bs.cached({
-    tags: [orgTag(organization)],
-  });
+  const { session } = await bs.cached({ tags: [orgTag(organization)] });
   cacheTag(snapshotTag(session.kind === "user" ? session.user.id : null));
   const subject = subjectFromBetterSupabase(session);
   const snapshot = snapshotFor(policy, subject, { tenant: organization });
@@ -70,7 +74,10 @@ export async function loadSnapshot(organization: string): Promise<Snapshot> {
   return snapshot;
 }
 
-/** The layout's snapshot: an unknown slug gets the empty one, and the page answers 404. */
+/**
+ * The layout's snapshot: an unknown slug gets the empty one, and the page
+ * answers 404.
+ */
 export async function snapshotForSlug(slug: string): Promise<Snapshot> {
   const organization = await organizationBySlug(slug);
   return organization === null
@@ -84,7 +91,10 @@ export type StaffRow = {
   readonly title: string;
 };
 
-/** Read through RLS as the caller: `permitted_organization_ids('staff.list')` filters the rows. */
+/**
+ * Read through RLS as the caller: `permitted_organization_ids('staff.list')`
+ * filters the rows.
+ */
 export async function visibleStaff(
   organization: string,
 ): Promise<Loaded<readonly StaffRow[]>> {
@@ -114,7 +124,10 @@ export type QuoteRow = {
   readonly currency: string;
 };
 
-/** A contact reads only their customer's quotes; the policy on `quotes` decides, not this filter. */
+/**
+ * A contact reads only their customer's quotes; the policy on `quotes` decides,
+ * not this filter.
+ */
 export async function visibleQuotes(
   organization: string,
 ): Promise<Loaded<readonly QuoteRow[]>> {

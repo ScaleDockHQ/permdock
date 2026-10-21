@@ -81,17 +81,17 @@ const deletePost = {
 describe("single-use approvals", () => {
   it("consumes an approved request exactly once", async () => {
     const store = memoryApprovalStore();
-    store.create(pending("pd1.a", "o_1"));
+    void store.create(pending("pd1.a", "o_1"));
     expect(store.consume("pd1.a")).toBeNull();
-    store.resolve("pd1.a", {
+    void store.resolve("pd1.a", {
       status: "approved",
       by: approver("u_9", ["o_1"]),
     });
     const first = await consumeApproval(store, "pd1.a");
     expect(first.ok).toBe(true);
     const second = await consumeApproval(store, "pd1.a");
-    expect(second).toEqual({ ok: false, cause: "approval-consumed" });
-    expect(await inspectApproval(store, "pd1.a")).toEqual({
+    expect(second).toStrictEqual({ ok: false, cause: "approval-consumed" });
+    expect(await inspectApproval(store, "pd1.a")).toStrictEqual({
       ok: false,
       cause: "approval-consumed",
     });
@@ -99,13 +99,13 @@ describe("single-use approvals", () => {
 
   it("keeps a consumed request when the same call asks again", async () => {
     const store = memoryApprovalStore();
-    store.create(pending("pd1.a", "o_1"));
-    store.resolve("pd1.a", {
+    void store.create(pending("pd1.a", "o_1"));
+    void store.resolve("pd1.a", {
       status: "approved",
       by: approver("u_9", ["o_1"]),
     });
-    store.consume("pd1.a");
-    store.create(pending("pd1.a", "o_1"));
+    void store.consume("pd1.a");
+    void store.create(pending("pd1.a", "o_1"));
     expect((await store.get("pd1.a"))?.consumedAt).toBeDefined();
   });
 
@@ -158,8 +158,8 @@ describe("single-use approvals", () => {
 
   it("treats a token issued for another call as no resume", async () => {
     const store = memoryApprovalStore();
-    store.create(pending("pd1.other", "o_1"));
-    store.resolve("pd1.other", {
+    void store.create(pending("pd1.other", "o_1"));
+    void store.resolve("pd1.other", {
       status: "approved",
       by: approver("u_9", ["o_1"]),
     });
@@ -179,8 +179,8 @@ describe("single-use approvals", () => {
 
   it("denies a resume when the store cannot consume", async () => {
     const inner = memoryApprovalStore();
-    inner.create(pending("pd1.d", "o_1"));
-    inner.resolve("pd1.d", {
+    void inner.create(pending("pd1.d", "o_1"));
+    void inner.resolve("pd1.d", {
       status: "approved",
       by: approver("u_9", ["o_1"]),
     });
@@ -226,12 +226,12 @@ describe("memory store retention", () => {
   it("drops settled records one ttl after they expire", async () => {
     const store = memoryApprovalStore({ ttl: 1 });
     const expiresAt = new Date(Date.now() + 1000).toISOString();
-    store.create(pending("pd1.old", "o_1", { expiresAt }));
-    store.create(pending("pd1.new", "o_1"));
+    void store.create(pending("pd1.old", "o_1", { expiresAt }));
+    void store.create(pending("pd1.new", "o_1"));
     const later = new Date(Date.now() + 1500);
     expect(store.expire({ epochMilliseconds: later.getTime() })).toBe(1);
     expect((await store.get("pd1.old"))?.status).toBe("expired");
-    store.expire({ epochMilliseconds: Date.now() + 2500 });
+    void store.expire({ epochMilliseconds: Date.now() + 2500 });
     expect(store.get("pd1.old")).toBeNull();
     expect((await store.get("pd1.new"))?.status).toBe("pending");
   });
@@ -240,7 +240,7 @@ describe("memory store retention", () => {
 describe("approval tenancy", () => {
   it("refuses a human approval from another tenant", async () => {
     const store = memoryApprovalStore();
-    store.create(pending("pd1.t", "o_1"));
+    void store.create(pending("pd1.t", "o_1"));
     await expect(
       resolveApproval(store, "pd1.t", {
         status: "approved",
@@ -257,9 +257,9 @@ describe("approval tenancy", () => {
 
   it("scopes the inbox to the approver membership tenants", async () => {
     const store = memoryApprovalStore();
-    store.create(pending("pd1.o1", "o_1"));
-    store.create(pending("pd1.o2", "o_2"));
-    store.create(pending("pd1.none", undefined));
+    void store.create(pending("pd1.o1", "o_1"));
+    void store.create(pending("pd1.o2", "o_2"));
+    void store.create(pending("pd1.none", undefined));
     const inbox = async (subject: Subject) => {
       const fetch = approvalsHandler(store, { subject: () => subject });
       const response = await fetch(
@@ -271,28 +271,28 @@ describe("approval tenancy", () => {
       };
       return body.items.map((request) => request.id).toSorted();
     };
-    expect(await inbox(approver("u_9", ["o_1"]))).toEqual([
+    expect(await inbox(approver("u_9", ["o_1"]))).toStrictEqual([
       "pd1.none",
       "pd1.o1",
     ]);
-    expect(await inbox(approver("u_9", []))).toEqual(["pd1.none"]);
+    expect(await inbox(approver("u_9", []))).toStrictEqual(["pd1.none"]);
   });
 
   it("lists only the requests the caller may resolve", async () => {
     const store = memoryApprovalStore();
-    store.create(pending("pd1.own", "o_1"));
-    store.create(
+    void store.create(pending("pd1.own", "o_1"));
+    void store.create(
       pending("pd1.optout", "o_1", {
         approvers: { by: { kind: "authenticated" }, distinct: false },
       }),
     );
-    store.create(
+    void store.create(
       pending("pd1.owner", "o_1", {
         subject: { principal: { id: "u_2", roles: ["member"], tenant: "o_1" } },
         approvers: { by: { kind: "role", role: "owner", scope: "global" } },
       }),
     );
-    store.create(
+    void store.create(
       pending("pd1.agent", "o_1", {
         subject: {
           principal: { id: "u_3", roles: ["member"], tenant: "o_1" },
@@ -314,8 +314,8 @@ describe("approval tenancy", () => {
       };
       return body.items.map((request) => request.id).toSorted();
     };
-    expect(await inbox(true)).toEqual([]);
-    expect(await inbox(false)).toEqual(["pd1.optout"]);
+    expect(await inbox(true)).toStrictEqual([]);
+    expect(await inbox(false)).toStrictEqual(["pd1.optout"]);
   });
 });
 
@@ -340,7 +340,7 @@ describe("self-approval", () => {
   for (const [name, approvers] of shapes) {
     it(`refuses the principal on a ${name} approval`, async () => {
       const store = memoryApprovalStore();
-      store.create(
+      void store.create(
         pending(
           "pd1.self",
           "o_1",
@@ -373,7 +373,7 @@ describe("self-approval", () => {
 
   it("lets the principal approve when the grant sets distinct: false", async () => {
     const store = memoryApprovalStore();
-    store.create(
+    void store.create(
       pending("pd1.optout", "o_1", {
         approvers: {
           by: { kind: "role", role: "admin", scope: "global" },
@@ -388,7 +388,7 @@ describe("self-approval", () => {
 
   it("keeps requireDistinctApprover as a floor over distinct: false", async () => {
     const store = memoryApprovalStore();
-    store.create(
+    void store.create(
       pending("pd1.floor", "o_1", {
         approvers: { by: { kind: "authenticated" }, distinct: false },
       }),

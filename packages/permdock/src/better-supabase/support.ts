@@ -11,17 +11,18 @@ import type {
   SupportSessionDecision,
   SupportSessionRequest,
 } from "../core/support-session.ts";
+import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 
 import { canonicalJson } from "../core/canonical-json.ts";
 import { getPermDock } from "../core/permdock.ts";
 import { sha256Digest } from "../core/sha256.ts";
 import { decideSupportSession } from "../core/support-session.ts";
-import {
-  type BetterSupabaseSubjectOptions,
-  subjectFromBetterSupabase,
-} from "./subject.ts";
+import { subjectFromBetterSupabase } from "./subject.ts";
 
-/** A start `decideSupportSession` holds for approval: the session it would start and the token an approval binds to. */
+/**
+ * A start `decideSupportSession` holds for approval: the session it would start
+ * and the token an approval binds to.
+ */
 export type PendingSupportSession = {
   readonly token: string;
   readonly session: SupportSession;
@@ -29,25 +30,34 @@ export type PendingSupportSession = {
 
 export type SupportPolicyOptions = {
   readonly policy: Policy;
-  /** How the admin's verified claims map to a subject; the defaults of `subjectFromBetterSupabase`. */
+  /**
+   * How the admin's verified claims map to a subject; the defaults of
+   * `subjectFromBetterSupabase`.
+   */
   readonly subject?: Omit<BetterSupabaseSubjectOptions, "apiKeys">;
-  /** Sources and sinks for the admin's instance; `settings` also supplies the tenant's `supportSessions` rules. */
+  /**
+   * Sources and sinks for the admin's instance; `settings` also supplies the
+   * tenant's `supportSessions` rules.
+   */
   readonly options?: Omit<
     PermDockOptions,
     "tenant" | "actor" | "delegation" | "session" | "expiresAt"
   >;
   /**
-   * The session's permissions when a start asks for `readOnly: false`.
-   * Without it such a start is refused; a read-only start gets every
-   * `readOnlyHint` permission the admin can use.
+   * The session's permissions when a start asks for `readOnly: false`. Without
+   * it such a start is refused; a read-only start gets every `readOnlyHint`
+   * permission the admin can use.
    */
   readonly writable?: readonly Permission[];
-  /** Approval by someone other than the admin is required unless this is `false`. */
+  /**
+   * Approval by someone other than the admin is required unless this is
+   * `false`.
+   */
   readonly approval?: boolean;
   /**
-   * The approval the application recorded for `pending.token`, or
-   * `undefined` while none exists. `approvedBy` is the approver's principal
-   * id and never the admin's.
+   * The approval the application recorded for `pending.token`, or `undefined`
+   * while none exists. `approvedBy` is the approver's principal id and never
+   * the admin's.
    */
   readonly approved?: (
     input: SupportAuthorizeInput,
@@ -59,8 +69,8 @@ export type SupportPolicyOptions = {
 };
 
 /**
- * Bound to the admin, target, tenant, reason and mode, so the same start
- * gets the same approval token each time.
+ * Bound to the admin, target, tenant, reason and mode, so the same start gets
+ * the same approval token each time.
  */
 function requestId(input: SupportAuthorizeInput): string {
   return sha256Digest(
@@ -80,8 +90,8 @@ function requestId(input: SupportAuthorizeInput): string {
  * verified claims become a PermDock subject, and the start is decided with
  * `permdock.decideSupportSession` in the requested tenant. `true` only for
  * `granted`: an `approval-required` start passes once `approved` returns a
- * distinct approver for its token. `readOnly: false` needs `writable`. A
- * throw is `false`.
+ * distinct approver for its token. `readOnly: false` needs `writable`. A throw
+ * is `false`.
  */
 export function supportPolicy(options: SupportPolicyOptions): SupportAuthorize {
   return async (input) => {

@@ -1,13 +1,17 @@
+import type { AppData } from "./app-data.ts";
 import type { Membership, Subject } from "./subject.ts";
 
-import { type AppData, readAppData } from "./app-data.ts";
+import { readAppData } from "./app-data.ts";
 import { isRecord } from "./compact.ts";
 import { expirySeconds } from "./expiry.ts";
 import { freezeCopy } from "./freeze.ts";
 import { idText } from "./ids.ts";
 import { isForbiddenKey } from "./paths.ts";
 
-/** One entry of `definePolicy({ scopes })`: the row field holding the scope id, and its parent scope. */
+/**
+ * One entry of `definePolicy({ scopes })`: the row field holding the scope id,
+ * and its parent scope.
+ */
 export type ScopeDeclaration = {
   readonly key: string;
   readonly within?: string;
@@ -16,8 +20,8 @@ export type ScopeDeclaration = {
 export type PolicyScopesInput = Readonly<Record<string, ScopeDeclaration>>;
 
 /**
- * A declared scope, in declaration order. `key` is absent only on the
- * implicit `tenant` / `team` pair of a policy that declares no scopes.
+ * A declared scope, in declaration order. `key` is absent only on the implicit
+ * `tenant` / `team` pair of a policy that declares no scopes.
  */
 export type Scope = {
   readonly name: string;
@@ -25,7 +29,10 @@ export type Scope = {
   readonly within?: string;
 };
 
-/** The names `role(..., { on })`, `memberOf` and memberships may use: declared names plus the aliases. */
+/**
+ * The names `role(..., { on })`, `memberOf` and memberships may use: declared
+ * names plus the aliases.
+ */
 export type ScopeNames<S> = [S] extends [PolicyScopesInput]
   ? string extends keyof S
     ? string
@@ -35,7 +42,10 @@ export type ScopeNames<S> = [S] extends [PolicyScopesInput]
 const RESERVED: ReadonlySet<string> = new Set(["global", "resource"]);
 const NAME = /^[a-z][a-z0-9_]*$/u;
 
-/** A policy without `scopes` keeps the historical pair: `tenant`, and `team` inside it. */
+/**
+ * A policy without `scopes` keeps the historical pair: `tenant`, and `team`
+ * inside it.
+ */
 const IMPLICIT: readonly Scope[] = Object.freeze([
   Object.freeze({ name: "tenant" }),
   Object.freeze({ name: "team", within: "tenant" }),
@@ -48,9 +58,9 @@ function fail(message: string): never {
 /**
  * Validates `definePolicy({ scopes })`. Declaration order is the scope order;
  * every scope after the first names an earlier one in `within`, so the scopes
- * form one tree rooted at the first and have no cycles.
- * A scope named `tenant` is the first and `team` the second, so the aliases
- * never point at two different scopes.
+ * form one tree rooted at the first and have no cycles. A scope named `tenant`
+ * is the first and `team` the second, so the aliases never point at two
+ * different scopes.
  */
 export function defineScopes(
   input: PolicyScopesInput | undefined,
@@ -112,7 +122,10 @@ export function defineScopes(
   return Object.freeze(out);
 }
 
-/** The scopes a policy or snapshot evaluates with: the declared list, or the implicit pair. */
+/**
+ * The scopes a policy or snapshot evaluates with: the declared list, or the
+ * implicit pair.
+ */
 export function scopeList(
   declared: readonly Scope[] | undefined,
 ): readonly Scope[] {
@@ -168,7 +181,10 @@ export function rootScope(scopes: readonly Scope[]): string | undefined {
   return scopes[0]?.name;
 }
 
-/** The id a membership holds for `scope`: its own id, or the `within` entry of an ancestor. */
+/**
+ * The id a membership holds for `scope`: its own id, or the `within` entry of
+ * an ancestor.
+ */
 export function scopeIdOf(
   membership: Membership,
   scope: string,
@@ -184,8 +200,8 @@ export function scopeIdOf(
 }
 
 /**
- * A membership of the first scope itself (the only scope without a parent):
- * its id is a tenant. Needs no scope list, for code that holds only a subject.
+ * A membership of the first scope itself (the only scope without a parent): its
+ * id is a tenant. Needs no scope list, for code that holds only a subject.
  */
 export function rootMembershipId(membership: Membership): string | undefined {
   if (membership.scope !== undefined) {
@@ -194,7 +210,10 @@ export function rootMembershipId(membership: Membership): string | undefined {
   return membership.team === undefined ? membership.tenant : undefined;
 }
 
-/** The instance of the first scope a membership sits in; what the active tenant selects. */
+/**
+ * The instance of the first scope a membership sits in; what the active tenant
+ * selects.
+ */
 export function tenantOf(
   membership: Membership,
   scopes: readonly Scope[],
@@ -203,7 +222,10 @@ export function tenantOf(
   return root === undefined ? undefined : scopeIdOf(membership, root);
 }
 
-/** A non-empty string. Unlike `isId` in `./ids.ts` it has no length cap: membership fields come from the app, not the wire. */
+/**
+ * A non-empty string. Unlike `isId` in `./ids.ts` it has no length cap:
+ * membership fields come from the app, not the wire.
+ */
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value !== "";
 }
@@ -217,10 +239,10 @@ function roleList(value: unknown): readonly string[] | undefined {
 
 /**
  * The canonical form of one membership, or `undefined` when it is malformed
- * (fail-closed: it grants nothing). A named membership is
- * `{ scope, id, within }` with one `within` entry per ancestor of `scope`;
- * the `tenant` / `team` input shape and alias names normalise to it. A
- * resource membership keeps `on`. Shapes are exclusive.
+ * (fail-closed: it grants nothing). A named membership is `{ scope, id, within
+ * }` with one `within` entry per ancestor of `scope`; the `tenant` / `team`
+ * input shape and alias names normalise to it. A resource membership keeps
+ * `on`. Shapes are exclusive.
  */
 export function normalizeMembership(
   input: unknown,
@@ -396,8 +418,8 @@ export function normalizeMemberships(
 
 /**
  * A subject's memberships in canonical form. Resolved subjects already are;
- * this accepts a hand-built subject passed straight to a condition evaluator
- * or compiler.
+ * this accepts a hand-built subject passed straight to a condition evaluator or
+ * compiler.
  */
 export function subjectMemberships(
   memberships: readonly Membership[] | undefined,
@@ -431,14 +453,17 @@ export function activeFor(
   return active !== undefined && scopeIdOf(membership, root) === active;
 }
 
-/** Whether `membership` counts for `key`: always, unless a suspension limits it to `keep`. */
+/**
+ * Whether `membership` counts for `key`: always, unless a suspension limits it
+ * to `keep`.
+ */
 export function keepsPermission(membership: Membership, key: string): boolean {
   return membership.keep === undefined || membership.keep.includes(key);
 }
 
 /**
- * The subject as it stands for one permission: memberships a suspension
- * limits to other permissions are left out. The same object when none is.
+ * The subject as it stands for one permission: memberships a suspension limits
+ * to other permissions are left out. The same object when none is.
  */
 export function subjectForPermission(subject: Subject, key: string): Subject {
   const principal = subject.principal;

@@ -1,7 +1,9 @@
+import type { Scope } from "../../core/scopes.ts";
 import type { PermDockConfig } from "../types.ts";
+import type { ExtraClaim } from "./claims.ts";
 import type { Parts } from "./parts.ts";
 
-import { type Scope, rootScope } from "../../core/scopes.ts";
+import { rootScope } from "../../core/scopes.ts";
 import {
   AUTHZ_VERSION_TABLE,
   PERMDOCK_SCHEMA,
@@ -22,7 +24,6 @@ import {
 } from "../sql/quote.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
 import {
-  type ExtraClaim,
   attrsPlan,
   beforePlan,
   beforeSql,

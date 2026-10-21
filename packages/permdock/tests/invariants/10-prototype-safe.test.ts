@@ -4,16 +4,12 @@ import { describe, expect, it } from "vitest";
 
 import type { Condition } from "../../src/conditions/ast.ts";
 import type { Subject } from "../../src/core/subject.ts";
+import type { ownPost } from "../fixtures/quick-start.ts";
 
 import { evaluateCondition } from "../../src/conditions/evaluate.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { allow, getPermDockSync, principal } from "../../src/index.ts";
-import {
-  type ownPost,
-  adminUser,
-  permissions,
-  policy,
-} from "../fixtures/quick-start.ts";
+import { adminUser, permissions, policy } from "../fixtures/quick-start.ts";
 
 const FORBIDDEN = ["__proto__", "constructor", "prototype"];
 const subject: Subject = {
@@ -40,11 +36,7 @@ describe("invariant 10: prototype-safe, no eval", () => {
       { op: "eq", field: "constructor.name", value: "Object" },
       { op: "eq", field: "nested.constructor.name", value: "Object" },
       { op: "isNull", field: "__proto__", value: false },
-      {
-        op: "eq",
-        field: "name",
-        value: { ref: "principal.constructor.name" },
-      },
+      { op: "eq", field: "name", value: { ref: "principal.constructor.name" } },
     ];
     for (const condition of conditions) {
       expect(evaluateCondition(condition, row, subject, 0)).toBe(false);
@@ -62,7 +54,8 @@ describe("invariant 10: prototype-safe, no eval", () => {
   });
 
   it("does not let a principal ref climb the prototype chain", () => {
-    expect(principal.id).toEqual({ ref: "principal.id" });
+    // The ref proxy refuses `constructor`, which a strict type check reads.
+    expect({ ...principal.id }).toStrictEqual({ ref: "principal.id" });
     for (const key of FORBIDDEN) {
       expect(
         evaluateCondition(
@@ -103,6 +96,6 @@ describe("invariant 10: prototype-safe, no eval", () => {
         offenders.push(file);
       }
     }
-    expect(offenders).toEqual([]);
+    expect(offenders).toStrictEqual([]);
   });
 });

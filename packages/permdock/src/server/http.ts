@@ -1,4 +1,7 @@
-/** Node-style headers (`IncomingHttpHeaders`, Fastify's) as Fetch `Headers`; repeated values stay separate. */
+/**
+ * Node-style headers (`IncomingHttpHeaders`, Fastify's) as Fetch `Headers`;
+ * repeated values stay separate.
+ */
 export function headersFrom(
   source: Readonly<Record<string, string | readonly string[] | undefined>>,
 ): Headers {
@@ -25,9 +28,9 @@ export function firstHeader(
 }
 
 /**
- * A body a framework already parsed, as the text a Fetch `Request` carries.
- * A non-string body is serialised as JSON and, without a `content-type`,
- * labelled `application/json` on `headers`.
+ * A body a framework already parsed, as the text a Fetch `Request` carries. A
+ * non-string body is serialised as JSON and, without a `content-type`, labelled
+ * `application/json` on `headers`.
  */
 export function parsedBody(
   body: unknown,
@@ -48,8 +51,8 @@ export function parsedBody(
 type StreamRequestInit = RequestInit & { readonly duplex: "half" };
 
 /**
- * A Fetch `Request` for a framework request. A `GET` or `HEAD` carries no
- * body; otherwise the body the framework parsed, or else `stream()`.
+ * A Fetch `Request` for a framework request. A `GET` or `HEAD` carries no body;
+ * otherwise the body the framework parsed, or else `stream()`.
  */
 export function fetchRequest(
   url: string,
@@ -79,9 +82,9 @@ export function fetchRequest(
 
 /** A Fastify-style reply: `code`, `header` and `send`. */
 export type ReplyLike = {
-  code(status: number): unknown;
-  header(key: string, value: string): unknown;
-  send(body: string): unknown;
+  code: (status: number) => unknown;
+  header: (key: string, value: string) => unknown;
+  send: (body: string) => unknown;
 };
 
 /** Writes `response` to a Fastify-style reply. */
@@ -107,7 +110,10 @@ export function requestFromContext(context: object): Request | undefined {
   return undefined;
 }
 
-/** Whether the caller sent credentials, which turns a `401` into a `WWW-Authenticate` challenge. */
+/**
+ * Whether the caller sent credentials, which turns a `401` into a
+ * `WWW-Authenticate` challenge.
+ */
 export function hasCredentials(
   request: Request | { readonly headers: { readonly authorization?: unknown } },
 ): boolean {

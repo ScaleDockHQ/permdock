@@ -1,5 +1,6 @@
 import type { PermissionTree, ResourceNode } from "./permission-types.ts";
 import type { Grant, RoleBinding, RoleScope } from "./policy-types.ts";
+import type { Scope } from "./scopes.ts";
 
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
@@ -12,7 +13,7 @@ import {
 import { flattenGrantee } from "./grantee.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { isFieldRelation, isSelfParented } from "./resource-relations.ts";
-import { type Scope, resolveScope } from "./scopes.ts";
+import { resolveScope } from "./scopes.ts";
 import { memberOfFields, relatesTo, scopeField } from "./tenancy.ts";
 
 export function assertParentGraph(
@@ -32,8 +33,8 @@ export function assertParentGraph(
 
 /**
  * Graph relation grantees must reach their resource: `through: 'parent'` from
- * the row to its parent resource or along its own self-parent, and never over
- * a `memberOf` relation, which is tenancy, not the object graph.
+ * the row to its parent resource or along its own self-parent, and never over a
+ * `memberOf` relation, which is tenancy, not the object graph.
  */
 export function assertRelationGrants(
   grants: readonly Grant[],
@@ -186,7 +187,10 @@ function rescopeGrantee(
   return single ?? to;
 }
 
-/** Resolves `tenant` / `team` aliases to declared names; an undeclared scope throws. */
+/**
+ * Resolves `tenant` / `team` aliases to declared names; an undeclared scope
+ * throws.
+ */
 export function rescopeGrant(grant: Grant, declared: readonly Scope[]): Grant {
   const scope = scopeOfGrant(grant.scope, declared);
   const to = rescopeGrantee(grant.to, declared);

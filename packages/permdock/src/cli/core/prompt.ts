@@ -15,7 +15,10 @@ export async function ask(message: string): Promise<boolean | undefined> {
   return answer;
 }
 
-/** Pick one or more of `options`, `initial` preselected; `undefined` when cancelled. */
+/**
+ * Pick one or more of `options`, `initial` preselected; `undefined` when
+ * cancelled.
+ */
 export async function pick(
   message: string,
   options: readonly { readonly value: string; readonly hint: string }[],

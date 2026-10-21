@@ -73,7 +73,7 @@ describe("permdock.derive", () => {
     const asset = { id: "a", organization_id: "T", customer_id: "c" };
     expect(permdock.tenant("T").can(scoped.asset.read, asset)).toBe(false);
     const derived = await permdock.tenant("T").derive({ customRoles: source });
-    expect(asked).toEqual(["T"]);
+    expect(asked).toStrictEqual(["T"]);
     expect(derived.subject.principal?.tenant).toBe("T");
     expect(derived.can(scoped.asset.read, asset)).toBe(true);
     expect(derived.can(scoped.asset.delete, asset)).toBe(false);
@@ -96,9 +96,7 @@ describe("permdock.derive", () => {
         },
         context: {},
       },
-      {
-        customRoles: { rolesFor: () => Promise.resolve([...mechanic]) },
-      },
+      { customRoles: { rolesFor: () => Promise.resolve([...mechanic]) } },
     );
     const derived = await permdock.derive({});
     const asset = { id: "a", organization_id: "T", customer_id: "c" };
@@ -139,6 +137,8 @@ describe("derive on other instances", () => {
     derived.on("auth", (event) => {
       events.push(event);
     });
-    expect(events).toEqual([{ reason: "source-threw", source: "customRoles" }]);
+    expect(events).toStrictEqual([
+      { reason: "source-threw", source: "customRoles" },
+    ]);
   });
 });

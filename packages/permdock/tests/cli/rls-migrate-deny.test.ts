@@ -4,7 +4,7 @@ import type { GenerateOutcome } from "../../src/cli/rls/generate.ts";
 
 import { migrateTarget } from "../../src/cli/rls/migrate.ts";
 
-describe("migrateTarget", () => {
+describe(migrateTarget, () => {
   it("counts only allow seeds as granted keys", () => {
     // SAFETY: migrateTarget reads only seeds, schema, text and keys; the rest of the outcome is unused here.
     const generated = {
@@ -27,7 +27,7 @@ describe("migrateTarget", () => {
       ],
     } as unknown as GenerateOutcome;
     const target = migrateTarget(generated);
-    expect([...(target.granted.get("organization") ?? [])]).toEqual([
+    expect([...(target.granted.get("organization") ?? [])]).toStrictEqual([
       "quote.read",
     ]);
   });

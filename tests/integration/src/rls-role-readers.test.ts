@@ -222,7 +222,7 @@ describe("permdock_role_permissions and permdock_permission_keys", () => {
       );
       return result.rows.map((row) => row.key);
     });
-    expect(keys).toEqual(catalogKeys);
+    expect(keys).toStrictEqual(catalogKeys);
     expect(keys).toContain("board.update");
   });
 
@@ -255,20 +255,24 @@ describe("permdock_role_permissions and permdock_permission_keys", () => {
       await keysOn("tenant"),
       await keysOn("team"),
     ];
-    expect(got).toEqual(scopes.map(allowedOn));
+    expect(got).toStrictEqual(scopes.map(allowedOn));
     expect(got.flat().every((key) => catalogKeys.includes(key))).toBe(true);
-    expect(await keysOn("nowhere")).toEqual([]);
+    expect(await keysOn("nowhere")).toStrictEqual([]);
   });
 
   it("matches the declared roles of the policy on every scope", async () => {
     for (const name of ["auditor", "owner", "admin", "member", "viewer"]) {
       for (const scope of ["global", "tenant", "team"]) {
-        expect(await read(PLUS, name, scope)).toEqual(declared(name, scope));
+        expect(await read(PLUS, name, scope)).toStrictEqual(
+          declared(name, scope),
+        );
       }
     }
-    expect(await read(PLUS, "lead", "team")).toEqual(declared("lead", "team"));
+    expect(await read(PLUS, "lead", "team")).toStrictEqual(
+      declared("lead", "team"),
+    );
     expect(await read(PLUS, "member", "tenant")).toContain("task.update:deny");
-    expect(await read(PLUS, "nobody", "tenant", "acme")).toEqual([]);
+    expect(await read(PLUS, "nobody", "tenant", "acme")).toStrictEqual([]);
   });
 
   it("matches resolveCustomRole for each custom role of the tenant", async () => {
@@ -278,9 +282,9 @@ describe("permdock_role_permissions and permdock_permission_keys", () => {
         role.team === undefined
           ? await read(user, role.name, "tenant", role.tenant)
           : await read(PLUS, role.name, "team", role.tenant, role.team);
-      expect(got, `${role.tenant} ${role.name}`).toEqual(custom(role));
+      expect(got, `${role.tenant} ${role.name}`).toStrictEqual(custom(role));
     }
-    expect(await read(PLUS, "editor-plus", "tenant", "acme")).toEqual(
+    expect(await read(PLUS, "editor-plus", "tenant", "acme")).toStrictEqual(
       expect.arrayContaining(["task.update:allow", "task.read:allow"]),
     );
     expect(await read(PLUS, "editor-plus", "tenant", "acme")).not.toContain(
@@ -304,9 +308,9 @@ describe("permdock_role_permissions and permdock_permission_keys", () => {
     await expect(
       read(GLOBEX, "reviewer", "team", "acme", "t1"),
     ).rejects.toMatchObject({ code: "42501" });
-    expect(await read(REVIEWER, "reviewer", "team", "acme", "t1")).toEqual(
-      custom(REVIEWER_ROLE),
-    );
+    expect(
+      await read(REVIEWER, "reviewer", "team", "acme", "t1"),
+    ).toStrictEqual(custom(REVIEWER_ROLE));
     await expect(read(PLUS, "writer", "global")).rejects.toMatchObject({
       code: "42501",
     });
@@ -316,9 +320,13 @@ describe("permdock_role_permissions and permdock_permission_keys", () => {
   });
 
   it("answers a shared custom role to every signed-in caller", async () => {
-    expect(await read(PLUS, "reader", "tenant")).toEqual(custom(SHARED_ROLE));
-    expect(await read(GLOBEX, "reader", "tenant")).toEqual(custom(SHARED_ROLE));
-    expect(await read(PLUS, "writer", "tenant")).toEqual([]);
+    expect(await read(PLUS, "reader", "tenant")).toStrictEqual(
+      custom(SHARED_ROLE),
+    );
+    expect(await read(GLOBEX, "reader", "tenant")).toStrictEqual(
+      custom(SHARED_ROLE),
+    );
+    expect(await read(PLUS, "writer", "tenant")).toStrictEqual([]);
     await expect(read(undefined, "reader", "tenant")).rejects.toMatchObject({
       code: "42501",
     });
@@ -356,14 +364,14 @@ describe("permdock_role_permissions and permdock_permission_keys", () => {
           role.team ?? null,
         ],
       );
-      expect(sorted(result.rows), `${role.tenant} ${role.name}`).toEqual(
+      expect(sorted(result.rows), `${role.tenant} ${role.name}`).toStrictEqual(
         custom(role),
       );
     }
     const admin = await db.admin.query<Row>(
       "select permission, effect from permdock.permdock_trusted_role_permissions('admin', 'tenant')",
     );
-    expect(sorted(admin.rows)).toEqual(declared("admin", "tenant"));
+    expect(sorted(admin.rows)).toStrictEqual(declared("admin", "tenant"));
     await expect(
       db.admin.query(
         "select * from permdock.permdock_trusted_role_permissions('writer', 'nowhere', 'acme')",

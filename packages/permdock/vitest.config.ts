@@ -1,8 +1,10 @@
+import type { Plugin } from "vitest/config";
+
 import { transformAsync } from "@babel/core";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import reactCompiler from "babel-plugin-react-compiler";
 import { existsSync } from "node:fs";
-import { defineConfig, type Plugin } from "vitest/config";
+import { defineConfig } from "vitest/config";
 
 declare module "vitest" {
   interface ProvidedContext {

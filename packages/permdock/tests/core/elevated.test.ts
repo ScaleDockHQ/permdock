@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { AccessEvent, DecisionEvent } from "../../src/core/event-types.ts";
+import type { PermDock } from "../../src/core/permdock.ts";
 import type { Principal, Subject } from "../../src/core/subject.ts";
 
 import { breakGlass, supportAccess } from "../../src/core/elevated.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { accessToOcsf, toOcsf } from "../../src/core/ocsf.ts";
-import { type PermDock, getPermDockSync } from "../../src/core/permdock.ts";
+import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
@@ -123,12 +124,7 @@ describe("E1 role activation", () => {
     id: "u2",
     assurance: { authTime: Math.floor(Date.now() / 1000) },
     memberships: [
-      {
-        scope: "organization",
-        id: "T",
-        roles: ["nurse"],
-        eligible: ["admin"],
-      },
+      { scope: "organization", id: "T", roles: ["nurse"], eligible: ["admin"] },
     ],
   };
 
@@ -231,7 +227,7 @@ describe("E2 break-glass", () => {
     expect(decision.outcome).toBe("granted");
     if (decision.outcome !== "granted") return;
     expect(decision.matched.breakGlass).toBe(true);
-    expect(decision.obligations).toEqual([
+    expect(decision.obligations).toStrictEqual([
       { kind: "notify" },
       { kind: "review" },
       { kind: "justify", reason: "cardiac arrest" },
@@ -450,10 +446,7 @@ describe("activate binds a nested elevation to the eligible membership", () => {
   };
 
   it("refuses a within that differs from the eligible membership", async () => {
-    const permdock = getPermDockSync(nested(false), {
-      principal,
-      context: {},
-    });
+    const permdock = getPermDockSync(nested(false), { principal, context: {} });
     const forged = activate(permdock, {
       role: "team-admin",
       scope: "team",
@@ -467,10 +460,7 @@ describe("activate binds a nested elevation to the eligible membership", () => {
   });
 
   it("mints the eligible membership ancestors when within is omitted", async () => {
-    const permdock = getPermDockSync(nested(false), {
-      principal,
-      context: {},
-    });
+    const permdock = getPermDockSync(nested(false), { principal, context: {} });
     const decision = activate(permdock, {
       role: "team-admin",
       scope: "team",
@@ -478,15 +468,12 @@ describe("activate binds a nested elevation to the eligible membership", () => {
     });
     expect(decision.outcome).toBe("granted");
     if (decision.outcome === "granted") {
-      expect(decision.elevation?.within).toEqual({ org: "A" });
+      expect(decision.elevation?.within).toStrictEqual({ org: "A" });
     }
   });
 
   it("binds the approval token to the ancestors", async () => {
-    const root = getPermDockSync(nested(true), {
-      principal,
-      context: {},
-    });
+    const root = getPermDockSync(nested(true), { principal, context: {} });
     const other = getPermDockSync(nested(true), {
       principal: {
         ...principal,

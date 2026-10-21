@@ -10,11 +10,11 @@ import {
 import { z } from "zod";
 
 /**
- * A CentraKit-shaped app: a plan tier on `tenant_users` grants `owner`
- * through a generated `tier_role` column, `user_roles` assigns roles from
- * `roles` (declared or a tenant's custom roles), and a custom role picks the
- * own, team or all level of `job.read`. The team level is a database
- * function with a portable twin.
+ * A CentraKit-shaped app: a plan tier on `tenant_users` grants `owner` through
+ * a generated `tier_role` column, `user_roles` assigns roles from `roles`
+ * (declared or a tenant's custom roles), and a custom role picks the own, team
+ * or all level of `job.read`. The team level is a database function with a
+ * portable twin.
  */
 export const permissions = definePermissions({
   job: resource(

@@ -11,7 +11,7 @@ const permissions = definePermissions({
   post: resource(Post, { actions: ["update"], collection: ["create"] }),
 });
 
-describe("validateBoundary", () => {
+describe(validateBoundary, () => {
   it("returns data when trusted and mode is boundary", () => {
     expect(
       validateBoundary(
@@ -21,7 +21,7 @@ describe("validateBoundary", () => {
         "boundary",
         true,
       ),
-    ).toEqual({ id: 1 });
+    ).toStrictEqual({ id: 1 });
   });
 
   it("validates with Standard Schema and throws on invalid data", () => {
@@ -52,7 +52,7 @@ describe("validateBoundary", () => {
   it("throws no-schema when validate is always", () => {
     expect(() =>
       validateBoundary(permissions.post.update, undefined, {}, "always", false),
-    ).toThrow(/no schema/);
+    ).toThrow(/no schema/u);
   });
 
   it("rejects async schemas", () => {
@@ -84,6 +84,6 @@ describe("validateBoundary", () => {
         "always",
         false,
       ),
-    ).toThrow(/async/);
+    ).toThrow(/async/u);
   });
 });

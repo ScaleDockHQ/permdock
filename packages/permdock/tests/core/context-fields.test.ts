@@ -51,7 +51,7 @@ describe("async context", () => {
     const created = getPermDock(policy, { id: "u1" });
     expect(created).toBeInstanceOf(Promise);
     const permdock = await created;
-    expect(permdock.subject.context).toEqual({ teamIds: ["t1"] });
+    expect(permdock.subject.context).toStrictEqual({ teamIds: ["t1"] });
     expect(permdock.can(permissions.post.read, row)).toBe(true);
     expect(
       permdock.can(permissions.post.read, { ...row, teamId: "other" }),
@@ -81,7 +81,7 @@ describe("async context", () => {
       reason: "source-threw",
       source: "context",
     });
-    expect(syncPermdock.subject.context).toEqual({});
+    expect(syncPermdock.subject.context).toStrictEqual({});
     expect(syncPermdock.can(permissions.post.read, row)).toBe(false);
 
     const rejecting = definePolicy(permissions, {
@@ -98,7 +98,7 @@ describe("async context", () => {
       },
     });
     const asyncPermdock = await getPermDock(rejecting, { id: "u1" });
-    expect(asyncPermdock.subject.context).toEqual({});
+    expect(asyncPermdock.subject.context).toStrictEqual({});
     expect(asyncPermdock.can(permissions.post.read, row)).toBe(false);
   });
 
@@ -110,11 +110,11 @@ describe("async context", () => {
       context: () => null as unknown as Record<string, unknown>,
     });
     const permdock = getPermDockSync(policy, { id: "u1" });
-    expect(permdock.subject.context).toEqual({});
+    expect(permdock.subject.context).toStrictEqual({});
     // SAFETY: a deliberately null row, which pick() answers with an empty object.
     expect(
       permdock.pick(permissions.post.read, null as unknown as typeof row),
-    ).toEqual({});
+    ).toStrictEqual({});
   });
 
   it("strips forbidden keys from loaded context", async () => {
@@ -128,7 +128,7 @@ describe("async context", () => {
       }),
     });
     const permdock = getPermDockSync(policy, { id: "u1" });
-    expect(permdock.subject.context).toEqual({ teamIds: ["t1"] });
+    expect(permdock.subject.context).toStrictEqual({ teamIds: ["t1"] });
     expect(permdock.subject.context).not.toHaveProperty("constructor");
   });
 });
@@ -151,7 +151,7 @@ describe("schema-aware field-level grants", () => {
     expect(permdock.can(permissions.post.read, row, { field: "secret" })).toBe(
       false,
     );
-    expect(permdock.pick(permissions.post.read, row)).toEqual({
+    expect(permdock.pick(permissions.post.read, row)).toStrictEqual({
       title: "Hello",
       body: "World",
     });
@@ -172,7 +172,7 @@ describe("schema-aware field-level grants", () => {
     expect(permdock.can(permissions.post.read, row, { field: "secret" })).toBe(
       false,
     );
-    expect(permdock.pick(permissions.post.read, row)).toEqual({
+    expect(permdock.pick(permissions.post.read, row)).toStrictEqual({
       id: "p1",
       title: "Hello",
       body: "World",
@@ -187,7 +187,7 @@ describe("schema-aware field-level grants", () => {
     });
     const permdock = getPermDockSync(policy, { id: "u1" });
     expect(permdock.can(permissions.post.read, row)).toBe(false);
-    expect(permdock.pick(permissions.post.read, row)).toEqual({});
+    expect(permdock.pick(permissions.post.read, row)).toStrictEqual({});
   });
 
   it("ships fields on the snapshot and evaluates them fromSnapshot", async () => {
@@ -199,10 +199,12 @@ describe("schema-aware field-level grants", () => {
     });
     const server = getPermDockSync(policy, { id: "u1" });
     const snapshot = unsigned(server.snapshot());
-    expect(snapshot.grants[0]?.fields).toEqual(["title"]);
+    expect(snapshot.grants[0]?.fields).toStrictEqual(["title"]);
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.post.read, row)).toBe(true);
-    expect(client.pick(permissions.post.read, row)).toEqual({ title: "Hello" });
+    expect(client.pick(permissions.post.read, row)).toStrictEqual({
+      title: "Hello",
+    });
     expect(client.can(permissions.post.read, row, { field: "body" })).toBe(
       false,
     );

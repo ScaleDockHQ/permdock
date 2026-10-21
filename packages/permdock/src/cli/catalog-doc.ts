@@ -45,7 +45,11 @@ function leafLevels(
   return names.length === 0 ? undefined : names;
 }
 
-/** With `policy`, permissions carry `hostable` and a known `rowConditions` (without, it is `true`), and roles carry `on`, `assignable` and their ownership rules. */
+/**
+ * With `policy`, permissions carry `hostable` and a known `rowConditions`
+ * (without, it is `true`), and roles carry `on`, `assignable` and their
+ * ownership rules.
+ */
 export function buildCatalog(
   tree: PermissionTree,
   scan: ScanResult,
@@ -152,8 +156,8 @@ function catalogApproval(
 /**
  * Every code grant in canonical order: by permission, allows before denies,
  * then by role (top-level grants last) and finally by canonical JSON, so two
- * catalogs of the same policy list the same grants in the same order
- * whatever the declaration order was.
+ * catalogs of the same policy list the same grants in the same order whatever
+ * the declaration order was.
  */
 function catalogGrant(grant: Grant): CatalogGrant {
   const limit =
@@ -187,7 +191,10 @@ function catalogGrant(grant: Grant): CatalogGrant {
   };
 }
 
-/** The sort key of a catalog grant: permission, allows first, role (top-level last), then the canonical JSON. */
+/**
+ * The sort key of a catalog grant: permission, allows first, role (top-level
+ * last), then the canonical JSON.
+ */
 function catalogGrantKey(grant: CatalogGrant): string {
   return [
     grant.permission,
@@ -213,7 +220,10 @@ export function catalogGrants(policy: Policy): readonly CatalogGrant[] {
   });
 }
 
-/** Every policy delegation, sorted by canonical JSON so declaration order does not matter. */
+/**
+ * Every policy delegation, sorted by canonical JSON so declaration order does
+ * not matter.
+ */
 export function catalogDelegations(
   policy: Policy,
 ): readonly CatalogDelegation[] {
@@ -244,7 +254,10 @@ export function catalogOAuthScopes(
     .toSorted((a, b) => byCodePoint(a.scope, b.scope));
 }
 
-/** Per permission key, the distinct approvals the code allows require, in policy order. */
+/**
+ * Per permission key, the distinct approvals the code allows require, in policy
+ * order.
+ */
 function codeApprovals(
   policy: Policy | undefined,
 ): ReadonlyMap<string, readonly CatalogApproval[]> {

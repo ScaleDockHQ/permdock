@@ -20,9 +20,7 @@ type Database = {
   permdock: {
     Tables: Record<never, never>;
     Views: Record<never, never>;
-    Functions: {
-      subject_for: { Args: { p_user: string }; Returns: unknown };
-    };
+    Functions: { subject_for: { Args: { p_user: string }; Returns: unknown } };
     Enums: Record<never, never>;
     CompositeTypes: Record<never, never>;
   };

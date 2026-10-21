@@ -1,5 +1,6 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
+import type { Condition } from "../conditions/index.ts";
 import type { PermissionTree, ResourceNode } from "./permission-types.ts";
 import type {
   PolicyOptions,
@@ -13,10 +14,11 @@ import type {
   SeparationConflict,
   VocabularyFromInput,
 } from "./policy-types.ts";
+import type { PolicyScopesInput } from "./scopes.ts";
 import type { Principal } from "./subject.ts";
 import type { RoleTree } from "./vocabulary.ts";
 
-import { type Condition, normalizeWhere } from "../conditions/index.ts";
+import { normalizeWhere } from "../conditions/index.ts";
 import {
   assertApprovalRelations,
   assertApprovalVersions,
@@ -45,7 +47,7 @@ import {
   normalizeOAuthScopes,
 } from "./policy-delegation.ts";
 import { POLICY_X, canonicalPolicy } from "./policy-fingerprint.ts";
-import { type PolicyScopesInput, defineScopes } from "./scopes.ts";
+import { defineScopes } from "./scopes.ts";
 import { sha256Digest } from "./sha256.ts";
 import { listRoles } from "./vocabulary.ts";
 
@@ -322,7 +324,10 @@ export function declaredRoleNames(policy: Policy): ReadonlySet<string> {
   return policy.index.declaredRoles;
 }
 
-/** The role names a policy declares: the keys of its `defineRoles` vocabulary, else `string`. */
+/**
+ * The role names a policy declares: the keys of its `defineRoles` vocabulary,
+ * else `string`.
+ */
 export type RoleNameOf<P> = P extends { readonly vocabulary: infer V }
   ? V extends { readonly roles: infer R extends RoleTree }
     ? R[keyof R]["key"]
@@ -330,10 +335,10 @@ export type RoleNameOf<P> = P extends { readonly vocabulary: infer V }
   : string;
 
 /**
- * Whether `value` names a role the policy declares, for a role read as a
- * string from a database or a token. A name it rejects is an unknown role,
- * which grants nothing (`unknown-role`). A tenant's custom roles are not
- * declared; `CustomRoleSource` resolves them.
+ * Whether `value` names a role the policy declares, for a role read as a string
+ * from a database or a token. A name it rejects is an unknown role, which
+ * grants nothing (`unknown-role`). A tenant's custom roles are not declared;
+ * `CustomRoleSource` resolves them.
  */
 export function isRoleName<P extends Policy<never>>(
   policy: P,

@@ -33,16 +33,16 @@ const SEED_VIEW =
 const SEED_FUNCTION =
   /^create\s+(?:or\s+replace\s+)?function\s+(?:"[^"]+"|\w+)\.(?:"seed"|seed)\s*\(\s*\)[\s\S]*?\$(\w*)\$([\s\S]*)\$\1\$/iu;
 
-type Seeded = {
-  readonly file: string;
-  readonly rows: ReadonlySet<string>;
-};
+type Seeded = { readonly file: string; readonly rows: ReadonlySet<string> };
 
 function rowKey(values: readonly string[]): string {
   return values.join(" ");
 }
 
-/** The statements of a file, with the body of `<schema>.seed()` (`rls.seeds: 'function'`) in place of its `create function`. */
+/**
+ * The statements of a file, with the body of `<schema>.seed()` (`rls.seeds:
+ * 'function'`) in place of its `create function`.
+ */
 function seedStatements(sql: string): readonly { readonly text: string }[] {
   return sqlStatements(sql).flatMap((statement) => {
     const fn = SEED_FUNCTION.exec(statement.text);
@@ -50,7 +50,10 @@ function seedStatements(sql: string): readonly { readonly text: string }[] {
   });
 }
 
-/** The rows of the last statement that seeds or clears `table`, in migration order. */
+/**
+ * The rows of the last statement that seeds or clears `table`, in migration
+ * order.
+ */
 function lastSeed(
   files: DoctorFiles,
   cwd: string,
@@ -92,8 +95,8 @@ function sample(rows: readonly string[]): string {
 }
 
 /**
- * PD054: the `role_permissions` rows the migrations seed last are not the
- * rows the policy compiles to, so the helpers answer from a stale policy.
+ * PD054: the `role_permissions` rows the migrations seed last are not the rows
+ * the policy compiles to, so the helpers answer from a stale policy.
  */
 export async function pd054(
   input: DoctorInput,

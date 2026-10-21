@@ -1,6 +1,7 @@
 import type { Condition } from "../conditions/ast.ts";
 import type { DenialReason } from "./decision.ts";
 import type { Permission, PermissionTree } from "./permission-types.ts";
+import type { Plan, Role } from "./vocabulary.ts";
 
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
@@ -8,7 +9,7 @@ import {
   isPermission as isPermissionLeaf,
   listPermissions,
 } from "./permission-registry.ts";
-import { type Plan, type Role, isPlan, isRole } from "./vocabulary.ts";
+import { isPlan, isRole } from "./vocabulary.ts";
 
 export type RoleGrantee = {
   readonly kind: "role";
@@ -29,7 +30,10 @@ export type RelationGrantee = {
    * to `resource`, then walk its parents only when `depth` is set.
    */
   readonly through?: "parent" | readonly string[];
-  /** Parent hops walked above the first `resource` instance; absent means `DEFAULT_RELATION_DEPTH` for `'parent'` and `0` for links. */
+  /**
+   * Parent hops walked above the first `resource` instance; absent means
+   * `DEFAULT_RELATION_DEPTH` for `'parent'` and `0` for links.
+   */
   readonly depth?: number;
 };
 

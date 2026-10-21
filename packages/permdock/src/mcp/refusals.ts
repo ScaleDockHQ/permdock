@@ -2,6 +2,8 @@ import type { CheckFailure } from "../agent/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type { BearerChallenge } from "../server/problem.ts";
+import type { Context } from "./mcp-auth.ts";
 import type { McpPermDockOptions } from "./types.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
@@ -12,12 +14,8 @@ import {
   deniedToolRefusal,
   toolErrorResult,
 } from "../core/tool-refusal.ts";
-import {
-  type BearerChallenge,
-  bearerChallenge,
-  stepUpOf,
-} from "../server/problem.ts";
-import { CLIENT_CAPABILITIES, type Context } from "./mcp-auth.ts";
+import { bearerChallenge, stepUpOf } from "../server/problem.ts";
+import { CLIENT_CAPABILITIES } from "./mcp-auth.ts";
 
 export type Refusal = {
   readonly text: string;
@@ -150,9 +148,7 @@ export function failedRefusal(
       return plainRefusal(
         permission,
         `Denied: ${permission.key} failed closed.`,
-        {
-          denials: [{ role: null, reason: "validation" }],
-        },
+        { denials: [{ role: null, reason: "validation" }] },
       );
     case "no-data":
       return plainRefusal(
@@ -184,7 +180,10 @@ export function throwRefusal(refusal: Refusal): unknown {
   throw new Error(refusal.text);
 }
 
-/** The MRTR URL elicitation that sends the user to `options.approval.at`, when the client accepts one. */
+/**
+ * The MRTR URL elicitation that sends the user to `options.approval.at`, when
+ * the client accepts one.
+ */
 export async function approvalInput(
   options: Pick<McpPermDockOptions, "approval" | "requestState">,
   decision: Extract<Decision, { readonly outcome: "approval-required" }>,
@@ -216,7 +215,10 @@ export async function approvalInput(
   );
 }
 
-/** A step-up denial: the RFC 9470 challenge, and a URL elicitation to `stepUpAt` when the client accepts one. */
+/**
+ * A step-up denial: the RFC 9470 challenge, and a URL elicitation to `stepUpAt`
+ * when the client accepts one.
+ */
 export function stepUpRefusal(
   stepUpAt: string | undefined,
   decision: Extract<Decision, { readonly outcome: "denied" }>,

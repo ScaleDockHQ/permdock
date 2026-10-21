@@ -93,10 +93,10 @@ describe("contact principals", () => {
       entitlements: { entitlementsFor: () => ["enterprise"] },
     });
     const principal = permdock.subject.principal;
-    expect(principal?.roles).toEqual([]);
+    expect(principal?.roles).toStrictEqual([]);
     expect(principal?.plans).toBeUndefined();
     expect(principal?.tenant).toBeUndefined();
-    expect(principal?.memberships).toEqual([
+    expect(principal?.memberships).toStrictEqual([
       {
         on: { resource: "invoice", id: "i1" },
         roles: ["customer", "payer"],
@@ -108,7 +108,7 @@ describe("contact principals", () => {
         via: "contact",
       },
     ]);
-    expect(permdock.tenants()).toEqual([]);
+    expect(permdock.tenants()).toStrictEqual([]);
   });
 
   it("reads through a resource membership", async () => {
@@ -144,14 +144,12 @@ describe("contact principals", () => {
 
   it("narrows where and snapshots the same way", async () => {
     const permdock = getPermDockSync(policy, contact);
-    expect(permdock.where(permissions.invoice.comment).condition).toEqual({
-      op: "or",
-      conditions: [],
-    });
-    expect(permdock.where(permissions.invoice.read).condition).not.toEqual({
-      op: "or",
-      conditions: [],
-    });
+    expect(permdock.where(permissions.invoice.comment).condition).toStrictEqual(
+      { op: "or", conditions: [] },
+    );
+    expect(
+      permdock.where(permissions.invoice.read).condition,
+    ).not.toStrictEqual({ op: "or", conditions: [] });
     const offline = fromSnapshot(permdock.snapshot());
     expect(offline.can(permissions.invoice.read, i1)).toBe(true);
     expect(offline.can(permissions.invoice.comment, i1)).toBe(false);
@@ -160,7 +158,7 @@ describe("contact principals", () => {
 
   it("keeps a user with the same memberships unchanged", async () => {
     const user = getPermDockSync(policy, { ...contact, kind: "user" });
-    expect(user.subject.principal?.roles).toEqual(["admin"]);
+    expect(user.subject.principal?.roles).toStrictEqual(["admin"]);
     expect(user.decide(permissions.invoice.comment, i1).outcome).toBe(
       "granted",
     );
@@ -180,9 +178,12 @@ describe("contact principals", () => {
       },
       { principals: memoryPrincipalSource({ principals: [contact] }) },
     );
-    expect(
-      (await member.decideFor("c_1", permissions.invoice.read, i1)).outcome,
-    ).toBe("granted");
+    const { outcome } = await member.decideFor(
+      "c_1",
+      permissions.invoice.read,
+      i1,
+    );
+    expect(outcome).toBe("granted");
     expect(
       reasonOf(await member.decideFor("c_1", permissions.invoice.comment, i1)),
     ).toBe("not-delegated");
@@ -268,10 +269,7 @@ describe("contact principals", () => {
 describePolicy(policy, {
   exhaustive: false,
   snapshot: true,
-  subjects: {
-    contact,
-    user: { ...contact, kind: "user" },
-  },
+  subjects: { contact, user: { ...contact, kind: "user" } },
   fixtures: { i1, i2, i3: { id: "i3", orgId: "o1" } },
   matrix: {
     [permissions.invoice.read.key]: {

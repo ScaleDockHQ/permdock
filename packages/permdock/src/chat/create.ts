@@ -37,9 +37,15 @@ import { isChatAuthor, subjectFromChat } from "./subject.ts";
 const ADAPTER = "chat";
 
 export type ChatPermDockOptions = PermDockOptions & {
-  /** Resolves chat authors through `principalByIdentity`; also the instance's principal source. */
+  /**
+   * Resolves chat authors through `principalByIdentity`; also the instance's
+   * principal source.
+   */
   readonly principals: PrincipalSource;
-  /** Where approval requests open and resolve. Without it an approval-required command only reports the decision. */
+  /**
+   * Where approval requests open and resolve. Without it an approval-required
+   * command only reports the decision.
+   */
   readonly store?: ApprovalStore;
 };
 
@@ -59,17 +65,26 @@ export type ChatCommandResult<T> =
   | {
       readonly outcome: "approval-required";
       readonly decision: ApprovalRequiredDecision;
-      /** The open request to deliver to approvers; `null` without an approval store. */
+      /**
+       * The open request to deliver to approvers; `null` without an approval
+       * store.
+       */
       readonly prompt: ApprovalPrompt | null;
     };
 
-/** A command guarded by `protect`. Never throws for a refusal; the handler's own errors propagate. */
+/**
+ * A command guarded by `protect`. Never throws for a refusal; the handler's own
+ * errors propagate.
+ */
 export type ChatCommand<TInput, T> = (
   author: ChatAuthor | null | undefined,
   input: TInput,
 ) => Promise<ChatCommandResult<T>>;
 
-/** A verdict from a chat button or reaction, by approval request `id`; the token never leaves the server. */
+/**
+ * A verdict from a chat button or reaction, by approval request `id`; the token
+ * never leaves the server.
+ */
 export type ChatAction = {
   readonly approval: string;
   readonly status: "approved" | "rejected";
@@ -77,40 +92,39 @@ export type ChatAction = {
 };
 
 export type ChatActionResult =
-  | {
-      readonly ok: true;
-      readonly id: string;
-      readonly status: ApprovalStatus;
-    }
+  | { readonly ok: true; readonly id: string; readonly status: ApprovalStatus }
   | {
       readonly ok: false;
       readonly cause: ApprovalErrorCode | "invalid-action";
     };
 
 /**
- * The runtime-neutral chat contract: commands decided as the linked
- * principal of a verified chat author, and approval verdicts from chat
- * actions. `permdock/chat-sdk` implements it for Chat SDK bots.
+ * The runtime-neutral chat contract: commands decided as the linked principal
+ * of a verified chat author, and approval verdicts from chat actions.
+ * `permdock/chat-sdk` implements it for Chat SDK bots.
  */
 export type ChatPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
-  /** The instance for `author`; anonymous, and so denying, when the author is unlinked. */
+  /**
+   * The instance for `author`; anonymous, and so denying, when the author is
+   * unlinked.
+   */
   readonly getPermDock: (
     author: ChatAuthor | null | undefined,
   ) => Promise<PermDock<V>>;
   /**
-   * Guards `handler` with `operation`: loads the row through the
-   * operation's `data`, decides as the author, and on `approval-required`
-   * opens one request per author, permission and row. The handler runs only
-   * when granted; an approved request runs it once.
+   * Guards `handler` with `operation`: loads the row through the operation's
+   * `data`, decides as the author, and on `approval-required` opens one request
+   * per author, permission and row. The handler runs only when granted; an
+   * approved request runs it once.
    */
   readonly protect: <TInput, T>(
     operation: Operation<TInput>,
     handler: (context: ChatCommandContext<TInput, V>) => T | Promise<T>,
   ) => ChatCommand<TInput, T>;
   /**
-   * Resolves approval request `action.approval` as `author`. The author must
-   * be linked and an eligible, distinct approver; the request's requester
-   * never approves their own request.
+   * Resolves approval request `action.approval` as `author`. The author must be
+   * linked and an eligible, distinct approver; the request's requester never
+   * approves their own request.
    */
   readonly resolveAction: (
     author: ChatAuthor | null | undefined,

@@ -47,7 +47,10 @@ function activeRow(row: SupabaseActiveRow, id: string): string {
 
 export type Shape = {
   readonly table: string;
-  /** Joins after `from <table> m`: the user table of a `through` user, the roles table of a `through` role column. */
+  /**
+   * Joins after `from <table> m`: the user table of a `through` user, the roles
+   * table of a `through` role column.
+   */
   readonly join: string;
   readonly through: RoleKeys | undefined;
   readonly throughs: readonly RoleKeys[];
@@ -69,9 +72,15 @@ export type Shape = {
   readonly managedColumn: string | undefined;
   readonly seats: string;
   readonly x: string | undefined;
-  /** SQL for the id the row holds for scope `name`, or `null` when it holds none. */
+  /**
+   * SQL for the id the row holds for scope `name`, or `null` when it holds
+   * none.
+   */
   readonly idOf: (name: string) => string | undefined;
-  /** The id column, and the filter keeping the rows of scope `name` over `alias` (`undefined` for none). */
+  /**
+   * The id column, and the filter keeping the rows of scope `name` over `alias`
+   * (`undefined` for none).
+   */
   readonly idColumn: string;
   readonly holds: (name: string, alias: string) => string | undefined;
   /** The role key of one row, after `join` and `roleJoin`: one row per held key. */
@@ -84,8 +93,8 @@ export type Shape = {
 };
 
 /**
- * The suspendable instances on the row's chain whose scope keeps
- * permissions: each one's active check and its kept keys.
+ * The suspendable instances on the row's chain whose scope keeps permissions:
+ * each one's active check and its kept keys.
  */
 function keeping(
   shape: Shape,
@@ -117,9 +126,8 @@ function keepsDisabled(shape: Shape): boolean {
 }
 
 /**
- * The keys a row on a suspended chain still grants, as a sorted `jsonb`
- * array: the keys every suspended instance on it keeps. `null` when nothing
- * is kept.
+ * The keys a row on a suspended chain still grants, as a sorted `jsonb` array:
+ * the keys every suspended instance on it keeps. `null` when nothing is kept.
  */
 function keptSql(shape: Shape): string | undefined {
   const list = keeping(shape);

@@ -2,12 +2,12 @@ import { actor, allow, definePolicy, deny, principal, role } from "permdock";
 
 import { permissions } from "./permissions.ts";
 
-export type User = {
-  readonly id: string;
-  readonly roles: readonly string[];
-};
+export type User = { readonly id: string; readonly roles: readonly string[] };
 
-/** `policy-delegated` with the delegation narrowed to one permission and an end date. */
+/**
+ * `policy-delegated` with the delegation narrowed to one permission and an end
+ * date.
+ */
 export const policy = definePolicy(permissions, {
   roles: [
     role("member", [

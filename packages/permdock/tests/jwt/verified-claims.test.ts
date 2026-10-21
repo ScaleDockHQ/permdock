@@ -2,7 +2,9 @@ import { SignJWT, importJWK } from "jose";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { type SubjectRef, principal } from "../../src/conditions/refs.ts";
+import type { SubjectRef } from "../../src/conditions/refs.ts";
+
+import { principal } from "../../src/conditions/refs.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
@@ -81,7 +83,7 @@ async function assuranceOf(claims: Record<string, unknown>) {
 describe("verified_claims", () => {
   it("maps one object or an array into frozen evidence", async () => {
     const single = await assuranceOf({ verified_claims: EIDAS, acr: "high" });
-    expect(single).toEqual({ acr: "high", verified: [EIDAS] });
+    expect(single).toStrictEqual({ acr: "high", verified: [EIDAS] });
     expect(Object.isFrozen(single?.verified?.[0]?.verification)).toBe(true);
     const many = await assuranceOf({
       verified_claims: [
@@ -91,7 +93,7 @@ describe("verified_claims", () => {
     });
     expect(
       many?.verified?.map((entry) => entry.verification.trust_framework),
-    ).toEqual(["eidas", "uk_tfida"]);
+    ).toStrictEqual(["eidas", "uk_tfida"]);
   });
 
   it("drops entries without a trust framework, claims or with unsafe keys", async () => {

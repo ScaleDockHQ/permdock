@@ -3,7 +3,9 @@ import type { ToolBinding } from "../agent/types.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
+import type { Context, McpCall, Reach } from "./mcp-auth.ts";
 import type { Handler } from "./protect-server.ts";
+import type { Checked, Refusal } from "./refusals.ts";
 import type { McpAuthInfo, McpPermDockOptions } from "./types.ts";
 
 import { refusalText } from "../agent/denied-text.ts";
@@ -16,17 +18,12 @@ import {
 } from "../core/oauth-scopes.ts";
 import { bearerChallenge } from "../server/problem.ts";
 import {
-  type Context,
-  type McpCall,
-  type Reach,
   approvalTokenOf,
   contextOf,
   resourceMetadataOf,
   sameResource,
 } from "./mcp-auth.ts";
 import {
-  type Checked,
-  type Refusal,
   approvalInput,
   approvalRefusal,
   deniedRefusal,
@@ -36,7 +33,10 @@ import {
   stillAllowed,
 } from "./refusals.ts";
 
-/** What every MCP call check reads: the policy, the options it honours and the agent kernel. */
+/**
+ * What every MCP call check reads: the policy, the options it honours and the
+ * agent kernel.
+ */
 export type McpChecks = {
   readonly policy: Policy;
   readonly options: Pick<
@@ -82,7 +82,10 @@ function reachable(
         hasScope(authInfo.scopes, reach.scopes);
 }
 
-/** The refusal a token earns before any decision: none, the wrong resource, or a missing scope. */
+/**
+ * The refusal a token earns before any decision: none, the wrong resource, or a
+ * missing scope.
+ */
 function credentialRefusal(
   checks: McpChecks,
   permission: Permission,
@@ -126,7 +129,10 @@ function credentialRefusal(
   );
 }
 
-/** The completion re-check of a long-running tool: the call must still be allowed, or approved with the same token. */
+/**
+ * The completion re-check of a long-running tool: the call must still be
+ * allowed, or approved with the same token.
+ */
 async function recheck(
   checks: McpChecks,
   binding: ToolBinding,
@@ -296,11 +302,7 @@ async function checkCall(
       ...refusal,
       text: refusalText(
         deniedText,
-        {
-          decision: refusal.decision ?? null,
-          permission,
-          text: refusal.text,
-        },
+        { decision: refusal.decision ?? null, permission, text: refusal.text },
         (error) => {
           checks.kernel.report(refusal.permdock, error);
         },
@@ -310,8 +312,9 @@ async function checkCall(
 }
 
 /**
- * The keys a list shows: unguarded ones, and guarded ones the token reaches and the subject may use.
- * With `tools`, a guarded key is also a tool name an `agent` actor's `tools` list must name.
+ * The keys a list shows: unguarded ones, and guarded ones the token reaches and
+ * the subject may use. With `tools`, a guarded key is also a tool name an
+ * `agent` actor's `tools` list must name.
  */
 export async function visible(
   checks: McpChecks,
@@ -325,10 +328,8 @@ export async function visible(
 ): Promise<ReadonlySet<string>> {
   const authInfo = context.http?.authInfo;
   const shown = new Set<string>();
-  const guarded: {
-    readonly key: string;
-    readonly permission: Permission;
-  }[] = [];
+  const guarded: { readonly key: string; readonly permission: Permission }[] =
+    [];
   for (const key of keys) {
     const permission = permissionOf(key);
     if (permission === undefined) {

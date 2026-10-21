@@ -1,16 +1,20 @@
 import type { Decision } from "./decision.ts";
+import type { EvalEnv } from "./events.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
 import type { Membership, Principal, Subject } from "./subject.ts";
 import type { Role } from "./vocabulary.ts";
 
 import { compact } from "./compact.ts";
-import { type EvalEnv, finish } from "./events.ts";
+import { finish } from "./events.ts";
 import { freezeDeep } from "./freeze.ts";
 import { applyRoleKinds } from "./role-rank.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
 
-/** The roles, memberships and tenant `simulate()` previews in place of the subject's. */
+/**
+ * The roles, memberships and tenant `simulate()` previews in place of the
+ * subject's.
+ */
 export type SimulatePreview = {
   readonly roles?: readonly (string | Role)[];
   readonly memberships?: readonly Membership[];

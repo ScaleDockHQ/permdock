@@ -1,8 +1,9 @@
+import type { ProblemDetails } from "../core/errors.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Connection } from "./connection.ts";
 import type { ProtectOptions } from "./server-types.ts";
 
-import { PermDockRevokedError, type ProblemDetails } from "../core/errors.ts";
+import { PermDockRevokedError } from "../core/errors.ts";
 
 export function isAsyncIterable(
   value: unknown,
@@ -20,15 +21,22 @@ export function isAsyncIterable(
 export type StreamProtectOptions = ProtectOptions & {
   /**
    * For a procedure that returns an async iterable: each outbound item is
-   * checked against this permission and dropped when the subscriber cannot read it.
+   * checked against this permission and dropped when the subscriber cannot read
+   * it.
    */
   readonly items?: Permission<string, unknown, "instance">;
 };
 
 export type GuardIterableOptions = {
-  /** Outbound items the subscriber cannot read under this permission are dropped. */
+  /**
+   * Outbound items the subscriber cannot read under this permission are
+   * dropped.
+   */
   readonly items?: Permission<string, unknown, "instance">;
-  /** The row to check for an item (for example the data inside a tracked envelope). */
+  /**
+   * The row to check for an item (for example the data inside a tracked
+   * envelope).
+   */
   readonly unwrap?: (item: unknown) => unknown;
   /** The framework error thrown to the subscriber when the connection aborts. */
   readonly onRevoked: (error: PermDockRevokedError) => unknown;
@@ -94,8 +102,8 @@ export async function* guardIterable(
 }
 
 /**
- * The connection loader for a stream `protect` already admitted: the first
- * read returns the row `protect` loaded, and each revalidation reloads it.
+ * The connection loader for a stream `protect` already admitted: the first read
+ * returns the row `protect` loaded, and each revalidation reloads it.
  */
 export function reloadAfter(
   loaded: unknown,
@@ -115,8 +123,8 @@ export function reloadAfter(
 export const POLICY_VIOLATION = 1008;
 
 /**
- * The close reason for a problem: its PermDock type URI, or its `detail`
- * code for an `about:blank` one. RFC 6455 caps a reason at 123 bytes.
+ * The close reason for a problem: its PermDock type URI, or its `detail` code
+ * for an `about:blank` one. RFC 6455 caps a reason at 123 bytes.
  */
 export function closeReason(problem: ProblemDetails): string {
   return problem.type === "about:blank" ? problem.detail : problem.type;

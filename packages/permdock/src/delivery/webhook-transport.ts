@@ -43,9 +43,9 @@ function fromStatus(status: number): DeliveryResult {
 
 /**
  * Posts each CloudEvent to the target's https endpoint as
- * `application/cloudevents+json`, signed with the Standard Webhooks
- * headers. `webhook-id` is the idempotency key, so a retry repeats it and
- * the receiver drops the duplicate. Redirects are not followed.
+ * `application/cloudevents+json`, signed with the Standard Webhooks headers.
+ * `webhook-id` is the idempotency key, so a retry repeats it and the receiver
+ * drops the duplicate. Redirects are not followed.
  */
 export function webhookTransport(
   signer: WebhookSigner,

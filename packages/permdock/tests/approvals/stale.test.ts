@@ -117,7 +117,7 @@ describe("approvals that go stale on a resource change", () => {
     await approve(store, old);
 
     const stale = await run(v2, old, store);
-    expect(stale.resumed).toEqual({
+    expect(stale.resumed).toStrictEqual({
       outcome: "denied",
       denials: [{ role: null, reason: "stale-approval" }],
       alternatives: [],
@@ -135,14 +135,16 @@ describe("approvals that go stale on a resource change", () => {
     );
 
     await approve(store, fresh);
-    expect((await run(v2, fresh, store)).resumed.outcome).toBe("granted");
+    const { resumed } = await run(v2, fresh, store);
+    expect(resumed.outcome).toBe("granted");
   });
 
   it("treats a pending request for an earlier version as stale too", async () => {
     const store = memoryApprovalStore();
     const { decision } = await run(v1, undefined, store);
     const old = decision.outcome === "approval-required" ? decision.token : "";
-    expect((await run(v2, old, store)).resumed.outcome).toBe("denied");
+    const { resumed } = await run(v2, old, store);
+    expect(resumed.outcome).toBe("denied");
   });
 
   it("keeps an approval without staleOn valid across a row change", async () => {
@@ -152,9 +154,8 @@ describe("approvals that go stale on a resource change", () => {
     const token =
       decision.outcome === "approval-required" ? decision.token : "";
     await approve(store, token);
-    expect((await run(v2, token, store, permission)).resumed.outcome).toBe(
-      "granted",
-    );
+    const { resumed } = await run(v2, token, store, permission);
+    expect(resumed.outcome).toBe("granted");
   });
 
   it("asks again, without stale-approval, for a token from another row", async () => {
@@ -164,9 +165,8 @@ describe("approvals that go stale on a resource change", () => {
       decision.outcome === "approval-required" ? decision.token : "";
     await approve(store, token);
     const other = { ...v1, id: "inv_2" };
-    expect((await run(other, token, store)).resumed.outcome).toBe(
-      "approval-required",
-    );
+    const { resumed } = await run(other, token, store);
+    expect(resumed.outcome).toBe("approval-required");
   });
 });
 
@@ -231,7 +231,7 @@ describe("staleOn definition checks", () => {
         approval: { staleOn: "resource-change" },
       }),
     ].flat();
-    expect(grant?.approval).toEqual({
+    expect(grant?.approval).toStrictEqual({
       by: { kind: "authenticated" },
       staleOn: "resource-change",
     });

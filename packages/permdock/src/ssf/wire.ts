@@ -11,7 +11,10 @@ export type IngestFail = {
   readonly err: string;
   readonly description: string;
   readonly cause?: TokenFailureCause;
-  /** A handler failed: the receiver answers `500` so the transmitter retries the SET. */
+  /**
+   * A handler failed: the receiver answers `500` so the transmitter retries the
+   * SET.
+   */
   readonly retry?: true;
 };
 

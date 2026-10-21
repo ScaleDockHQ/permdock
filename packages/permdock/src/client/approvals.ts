@@ -33,10 +33,10 @@ export type Approvals = {
   readonly state: (decision: Decision) => ApprovalState;
   readonly request: (decision: Decision, note?: string) => Promise<void>;
   /** Drops every token: a poll answer for the previous user is ignored. */
-  forget(): void;
-  stop(): void;
+  forget: () => void;
+  stop: () => void;
   /** Polls the watched tokens again after the first subscriber returns. */
-  resume(): void;
+  resume: () => void;
 };
 
 export function createApprovals(options: ApprovalOptions): Approvals {

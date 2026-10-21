@@ -31,7 +31,7 @@ type Posted = { readonly user: string; readonly message: unknown };
 type FakeChat = {
   readonly client: ChatSdkClient;
   readonly posted: Posted[];
-  failNext(error: Error): void;
+  failNext: (error: Error) => void;
 };
 
 function chatError(code: string): Error {
@@ -101,7 +101,7 @@ function options(key = "pdd_k"): {
   return { idempotencyKey: key, delivery: "dlv_1" };
 }
 
-describe("chatSdkTransport", () => {
+describe(chatSdkTransport, () => {
   it("opens a DM with the address and posts the text", async () => {
     const { client, posted } = fakeChat();
     const transport = chatSdkTransport(client, {
@@ -115,8 +115,10 @@ describe("chatSdkTransport", () => {
       { text: "Invoice i1 is ready" },
       options(),
     );
-    expect(result).toEqual({ status: "sent", providerId: "m_1" });
-    expect(posted).toEqual([{ user: "U2", message: "Invoice i1 is ready" }]);
+    expect(result).toStrictEqual({ status: "sent", providerId: "m_1" });
+    expect(posted).toStrictEqual([
+      { user: "U2", message: "Invoice i1 is ready" },
+    ]);
   });
 
   it("posts an approval card that links to the approval page", async () => {
@@ -149,7 +151,7 @@ describe("chatSdkTransport", () => {
       { text: "x" },
       options("pdd_same"),
     );
-    expect(again).toEqual(first);
+    expect(again).toStrictEqual(first);
     expect(posted).toHaveLength(1);
   });
 
@@ -173,7 +175,7 @@ describe("chatSdkTransport", () => {
         options(),
       ),
     ).toMatchObject({ status: "failed", cause: "rejected", retryable: false });
-    expect(posted).toEqual([]);
+    expect(posted).toStrictEqual([]);
   });
 
   it("maps Chat SDK error codes", async () => {
@@ -203,7 +205,7 @@ describe("chatSdkTransport", () => {
   });
 });
 
-describe("approvalCard", () => {
+describe(approvalCard, () => {
   it("has one link to the approval page and approve and reject buttons by request id", () => {
     const card = approvalCard(prompt, {
       approvalUrl: "https://acme.test/approvals",

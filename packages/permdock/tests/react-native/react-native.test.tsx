@@ -32,7 +32,7 @@ async function snapshotOf(user: typeof memberUser): Promise<Snapshot> {
   const server = getPermDockSync(policy as never, user);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise) {
-    throw new Error("expected JSON snapshot");
+    throw new TypeError("expected JSON snapshot");
   }
   // SAFETY: snapshot() without a signer returns a Snapshot; the erased generic hides its type.
   return snapshot as Snapshot;
@@ -184,7 +184,7 @@ describe("permdock/react-native storage", () => {
   it("accepts only a signed copy when a verifier is configured", async () => {
     const raw = JSON.stringify(await memberSnapshot());
     expect(acceptStored(raw, "u1", true)).toBeUndefined();
-    expect(acceptStored("a.b.c", "u1", true)).toEqual({
+    expect(acceptStored("a.b.c", "u1", true)).toStrictEqual({
       kind: "signed",
       jws: "a.b.c",
     });
@@ -206,7 +206,7 @@ describe("permdock/react-native storage", () => {
         "u1",
         false,
       ),
-    ).toEqual({ stored: undefined, tenant: undefined });
+    ).toStrictEqual({ stored: undefined, tenant: undefined });
     expect(
       readStoredSync(guardStorage(asyncStorage(values)), "u1", false),
     ).toBeUndefined();
@@ -217,24 +217,23 @@ describe("permdock/react-native storage", () => {
     );
     expect(stored.tenant).toBe("o1");
     expect(stored.stored).toMatchObject({ kind: "snapshot" });
-    expect(await readStored(guardStorage(asyncStorage()), "u1", false)).toEqual(
-      { stored: undefined, tenant: undefined },
-    );
+    expect(
+      await readStored(guardStorage(asyncStorage()), "u1", false),
+    ).toStrictEqual({ stored: undefined, tenant: undefined });
   });
 
   it("reads a throwing or rejecting storage as empty", async () => {
     expect(
       readStoredSync(guardStorage(throwingStorage()), "u1", false),
-    ).toEqual({ stored: undefined, tenant: undefined });
+    ).toStrictEqual({ stored: undefined, tenant: undefined });
     const rejecting: SnapshotStorage = {
       getItem: () => Promise.reject(new Error("io")),
       setItem: () => undefined,
       removeItem: () => undefined,
     };
-    expect(await readStored(guardStorage(rejecting), "u1", false)).toEqual({
-      stored: undefined,
-      tenant: undefined,
-    });
+    expect(
+      await readStored(guardStorage(rejecting), "u1", false),
+    ).toStrictEqual({ stored: undefined, tenant: undefined });
   });
 
   it("persists and clears through storage that rejects or throws without throwing", async () => {
@@ -245,7 +244,7 @@ describe("permdock/react-native storage", () => {
     persistSnapshot(guarded, raw, "o1");
     clearStorage(guarded);
     await settle();
-    expect(storage.writes).toEqual([
+    expect(storage.writes).toStrictEqual([
       SNAPSHOT_KEY,
       SNAPSHOT_KEY,
       TENANT_KEY,
@@ -378,10 +377,7 @@ describe("permdock/react-native nativeStore", () => {
     expect(
       store.permissionState(permissions.post.update, ownPost).allowed,
     ).toBe(false);
-    const empty = nativeStore({
-      storage: asyncStorage(),
-      subjectId: "u1",
-    });
+    const empty = nativeStore({ storage: asyncStorage(), subjectId: "u1" });
     await settle();
     expect(empty.get().subject.principal).toBeNull();
     expect(empty.get().status()).toBe("server-only");
@@ -407,11 +403,7 @@ describe("permdock/react-native nativeStore", () => {
     const storage = asyncStorage({ [SNAPSHOT_KEY]: JSON.stringify(snapshot) });
     const first = nativeStore({ storage, subjectId: "u1" });
     await settle();
-    const second = nativeStore({
-      storage,
-      subjectId: "u1",
-      previous: first,
-    });
+    const second = nativeStore({ storage, subjectId: "u1", previous: first });
     expect(second.get().status()).not.toBe("pending");
     expect(
       second.permissionState(permissions.post.update, ownPost).allowed,

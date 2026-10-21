@@ -11,9 +11,9 @@ export function isRowPair(value: unknown): value is RowPair<unknown> {
 }
 
 /**
- * The row a `where` reads and the row a `check` reads. An instance check
- * takes a `{ current, next }` pair or one row for both; a collection check
- * has no current row, only the input it creates.
+ * The row a `where` reads and the row a `check` reads. An instance check takes
+ * a `{ current, next }` pair or one row for both; a collection check has no
+ * current row, only the input it creates.
  */
 export function rowValues(
   permission: Permission,
@@ -28,7 +28,10 @@ export function rowValues(
   return { current: data, next: data };
 }
 
-/** The row's id under `field` as a string, or `*` when the row has no string or number there. */
+/**
+ * The row's id under `field` as a string, or `*` when the row has no string or
+ * number there.
+ */
 export function rowIdOf(row: unknown, field = "id"): string {
   if (row === null || typeof row !== "object" || !Object.hasOwn(row, field)) {
     return "*";

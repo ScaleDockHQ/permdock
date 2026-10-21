@@ -1,18 +1,16 @@
 import type { Decision, DenialReason } from "../core/decision.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Actor, Delegation } from "../core/subject.ts";
+import type { PermissionLookup } from "../server/evaluation-items.ts";
+import type { EvaluationReasons } from "../server/evaluations.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
 import { fromWireDelegation } from "../core/wire-delegation.ts";
 import {
-  type PermissionLookup,
   itemResourceData,
   wireResourceId,
 } from "../server/evaluation-items.ts";
-import {
-  type EvaluationReasons,
-  evaluationReasons,
-} from "../server/evaluations.ts";
+import { evaluationReasons } from "../server/evaluations.ts";
 
 export type AuthzenEntity = {
   readonly type?: unknown;
@@ -62,7 +60,10 @@ export function resourceData(item: AuthzenItem): unknown {
   return itemResourceData(item.resource);
 }
 
-/** The row id an item names; `undefined` for none and for the collection sentinel `id: "*"`. */
+/**
+ * The row id an item names; `undefined` for none and for the collection
+ * sentinel `id: "*"`.
+ */
 export function resourceIdOf(item: AuthzenItem): string | undefined {
   return wireResourceId(item.resource?.id);
 }
@@ -131,7 +132,10 @@ export type PermDockContext = {
   readonly reason?: "unknown-permission";
 };
 
-/** Only the outcome, denial reasons and token leave the PDP; `alternatives` are `search/action`. */
+/**
+ * Only the outcome, denial reasons and token leave the PDP; `alternatives` are
+ * `search/action`.
+ */
 export type EvaluationContext = EvaluationReasons & {
   readonly permdock: PermDockContext;
 };
@@ -165,10 +169,7 @@ function permdockContext(decision: Decision): PermDockContext {
 export function evaluationRow(
   decision: Decision,
   permission: string,
-): {
-  readonly decision: boolean;
-  readonly context: EvaluationContext;
-} {
+): { readonly decision: boolean; readonly context: EvaluationContext } {
   return {
     decision: decision.outcome === "granted",
     context: {

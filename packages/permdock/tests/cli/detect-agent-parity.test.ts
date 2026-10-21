@@ -53,45 +53,47 @@ const CASES: readonly Readonly<Record<string, string>>[] = [
   { GEMINI_CLI: "1", CODEX_CI: "1" },
 ];
 
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
-
-describe("detectAgent", () => {
-  it.each(CASES)(
-    "matches @vercel/detect-agent for %j off a TTY",
-    async (env) => {
-      for (const name of SIGNALS) {
-        vi.stubEnv(name, env[name] ?? "");
-      }
-      const expected = await determineAgent();
-      const actual = detectAgent(env, {
-        stdoutIsTty: false,
-        exists: existsSync,
-      });
-      expect(actual).toEqual(
-        expected.isAgent
-          ? { isAgent: true, name: expected.agent.name }
-          : { isAgent: false },
-      );
-    },
-  );
-
-  it("ignores CURSOR_TRACE_ID on a TTY, which Cursor sets in a person's terminal too", () => {
-    expect(
-      detectAgent(
-        { CURSOR_TRACE_ID: "t" },
-        { stdoutIsTty: true, exists: () => false },
-      ),
-    ).toEqual({ isAgent: false });
+describe("detect agent parity", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
-  it("detects Devin from its marker file", () => {
-    expect(
-      detectAgent(
-        {},
-        { stdoutIsTty: false, exists: (path) => path === "/opt/.devin" },
-      ),
-    ).toEqual({ isAgent: true, name: "devin" });
+  describe(detectAgent, () => {
+    it.each(CASES)(
+      "matches @vercel/detect-agent for %j off a TTY",
+      async (env) => {
+        for (const name of SIGNALS) {
+          vi.stubEnv(name, env[name] ?? "");
+        }
+        const expected = await determineAgent();
+        const actual = detectAgent(env, {
+          stdoutIsTty: false,
+          exists: existsSync,
+        });
+        expect(actual).toStrictEqual(
+          expected.isAgent
+            ? { isAgent: true, name: expected.agent.name }
+            : { isAgent: false },
+        );
+      },
+    );
+
+    it("ignores CURSOR_TRACE_ID on a TTY, which Cursor sets in a person's terminal too", () => {
+      expect(
+        detectAgent(
+          { CURSOR_TRACE_ID: "t" },
+          { stdoutIsTty: true, exists: () => false },
+        ),
+      ).toStrictEqual({ isAgent: false });
+    });
+
+    it("detects Devin from its marker file", () => {
+      expect(
+        detectAgent(
+          {},
+          { stdoutIsTty: false, exists: (path) => path === "/opt/.devin" },
+        ),
+      ).toStrictEqual({ isAgent: true, name: "devin" });
+    });
   });
 });

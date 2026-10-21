@@ -13,8 +13,8 @@ type CustomRoleEditorProps = {
 
 /**
  * The permissions a custom role may include: only those the editor holds
- * themselves, so nobody builds a role wider than their own reach. The
- * server validates the saved role again.
+ * themselves, so nobody builds a role wider than their own reach. The server
+ * validates the saved role again.
  */
 export function CustomRoleEditor({ value, onChange }: CustomRoleEditorProps) {
   const permissions = useAssignablePermissions();

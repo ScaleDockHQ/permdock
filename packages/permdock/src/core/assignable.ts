@@ -1,12 +1,14 @@
+import type { CustomGrant } from "./custom-roles.ts";
+import type { EvalEnv } from "./events.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Grant, Policy } from "./policy-types.ts";
 import type { CustomRole, Principal, Subject } from "./subject.ts";
+import type { Role } from "./vocabulary.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
 import { compact } from "./compact.ts";
 import { byCodePoint } from "./compare.ts";
 import {
-  type CustomGrant,
   ceilingGrants,
   customRoleOf,
   customRoleScope,
@@ -16,7 +18,7 @@ import {
   tenantCustomRoles,
 } from "./custom-roles.ts";
 import { evaluate } from "./evaluate/index.ts";
-import { type EvalEnv, emptyListeners } from "./events.ts";
+import { emptyListeners } from "./events.ts";
 import { freezeDeep } from "./freeze.ts";
 import { heldRoleNames, roleLeaf } from "./held-roles.ts";
 import { listPermissions } from "./permission-registry.ts";
@@ -31,7 +33,6 @@ import {
 } from "./tenancy.ts";
 import { instantAt } from "./time.ts";
 import {
-  type Role,
   listRoles,
   sourceRoleMeta,
   synthesiseRole,
@@ -62,18 +63,24 @@ function assignableCandidates(policy: Policy): readonly Role[] {
 export type Assignable = {
   readonly roles: readonly Role[];
   readonly permissions: readonly Permission[];
-  /** Per assignable permission key with levels, the levels the subject may hand out. */
+  /**
+   * Per assignable permission key with levels, the levels the subject may hand
+   * out.
+   */
   readonly levels: Readonly<Record<string, readonly string[]>>;
   /** A `meta.manageRoles` role or permission lifted the intersection. */
   readonly manage: boolean;
-  /** Custom roles held at a scope the subject assigns at that allow nothing: never offered, still revocable. */
+  /**
+   * Custom roles held at a scope the subject assigns at that allow nothing:
+   * never offered, still revocable.
+   */
   readonly inert: readonly string[];
 };
 
 /**
- * The levels a held allow of a permission covers: its own `level`, every
- * level when it has no row condition, or the levels whose condition equals
- * its condition.
+ * The levels a held allow of a permission covers: its own `level`, every level
+ * when it has no row condition, or the levels whose condition equals its
+ * condition.
  */
 function heldLevels(
   policy: Policy,
@@ -95,9 +102,10 @@ function heldLevels(
 
 /**
  * What the subject may hand out in `tenant`: declared assignable roles and the
- * tenant custom-role ceiling, narrowed by `allowed` (`CustomRoleSource.assignable`),
- * then intersected with the permissions the subject holds there. Holding a
- * role or a granted permission with `meta.manageRoles` lifts the intersection.
+ * tenant custom-role ceiling, narrowed by `allowed`
+ * (`CustomRoleSource.assignable`), then intersected with the permissions the
+ * subject holds there. Holding a role or a granted permission with
+ * `meta.manageRoles` lifts the intersection.
  */
 export function assignableIn(
   policy: Policy,

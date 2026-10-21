@@ -123,7 +123,7 @@ const appliedAt = async (
     (item) => item.principal === principal,
   )?.appliedAt;
 
-describe("accessReviewApplier", () => {
+describe(accessReviewApplier, () => {
   it("demotes to a fallback role that lacks the permission, then marks the item applied", async () => {
     const reviews = await reviewWith([
       { principal: "u1", via: ["admin"], status: "revoked" },
@@ -136,11 +136,11 @@ describe("accessReviewApplier", () => {
       demoteTo: { admin: "member" },
       now: NOW,
     });
-    await expect(apply("r1")).resolves.toEqual({
+    await expect(apply("r1")).resolves.toStrictEqual({
       applied: ["r1:u1:billing.manage"],
       failed: [],
     });
-    expect(calls).toEqual([
+    expect(calls).toStrictEqual([
       {
         fn: "better_supabase.update_member_role",
         args: { organization: ORG, member: "u1", role: "member" },
@@ -164,15 +164,9 @@ describe("accessReviewApplier", () => {
     });
     const result = await apply("r1");
     expect(result.applied).toHaveLength(2);
-    expect(calls).toEqual([
-      {
-        fn: "app.remove_member",
-        args: { organization: ORG, member: "u1" },
-      },
-      {
-        fn: "app.remove_member",
-        args: { organization: ORG, member: "u2" },
-      },
+    expect(calls).toStrictEqual([
+      { fn: "app.remove_member", args: { organization: ORG, member: "u1" } },
+      { fn: "app.remove_member", args: { organization: ORG, member: "u2" } },
     ]);
   });
 
@@ -187,7 +181,7 @@ describe("accessReviewApplier", () => {
       policy,
       demoteTo: "custom-viewer",
     })("r1");
-    expect(calls.map((call) => call.fn)).toEqual([
+    expect(calls.map((call) => call.fn)).toStrictEqual([
       "better_supabase.remove_member",
     ]);
   });
@@ -209,7 +203,7 @@ describe("accessReviewApplier", () => {
           : { error: { message: "Not a member", code: "P0002" } },
     });
     const result = await accessReviewApplier({ client, reviews, policy })("r1");
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       applied: ["r1:u1:billing.manage", "r1:u2:billing.manage"],
       failed: [],
     });
@@ -232,7 +226,7 @@ describe("accessReviewApplier", () => {
           : {},
     });
     const result = await accessReviewApplier({ client, reviews, policy })("r1");
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       applied: ["r1:u2:billing.manage"],
       failed: [
         {
@@ -264,7 +258,7 @@ describe("accessReviewApplier", () => {
       policy,
       email: (id) => (id === "u1" ? "ann@example.com" : null),
     })("r1");
-    expect(calls).toEqual([
+    expect(calls).toStrictEqual([
       {
         fn: "better_supabase.remove_member",
         args: { organization: ORG, member: "u1" },
@@ -295,7 +289,7 @@ describe("accessReviewApplier", () => {
       email: (id) => (id === "u1" ? "" : "b@example.com"),
     })("r1");
     expect(result.applied).toHaveLength(2);
-    expect(calls.map((call) => call.fn)).toEqual([
+    expect(calls.map((call) => call.fn)).toStrictEqual([
       "better_supabase.remove_member",
       "better_supabase.remove_member",
       "better_supabase.list_organization_invitations",
@@ -328,7 +322,7 @@ describe("accessReviewApplier", () => {
           context: {},
         }),
     })("r1");
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       applied: ["r1:u2:billing.manage"],
       failed: [
         {
@@ -370,7 +364,7 @@ describe("accessReviewApplier", () => {
           context: {},
         }),
     })("r1");
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       applied: [],
       failed: [
         {
@@ -421,7 +415,7 @@ describe("accessReviewApplier", () => {
       permdockFor: (id) =>
         getPermDockSync(policy, { principal: { id }, context: {} }),
     })("r1");
-    expect(result.failed).toEqual([
+    expect(result.failed).toStrictEqual([
       {
         item: "r1:u1:gone.manage",
         cause:

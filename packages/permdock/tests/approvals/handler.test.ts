@@ -36,12 +36,14 @@ function pending(
 
 function seeded(): ApprovalStore {
   const store = memoryApprovalStore();
-  store.create(pending("own", { id: "u_1", roles: ["member"], tenant: "o_1" }));
-  store.create(
+  void store.create(
+    pending("own", { id: "u_1", roles: ["member"], tenant: "o_1" }),
+  );
+  void store.create(
     pending("acme", { id: "u_2", roles: ["member"], tenant: "o_acme" }),
   );
-  store.create(pending("loose", { id: "u_3", roles: ["member"] }));
-  store.create(pending("anon", null));
+  void store.create(pending("loose", { id: "u_3", roles: ["member"] }));
+  void store.create(pending("anon", null));
   return store;
 }
 
@@ -68,7 +70,7 @@ describe("approvalsHandler GET by id", () => {
 
   it("hides a tenantless request from a principal who may not resolve it", async () => {
     const store = memoryApprovalStore();
-    store.create({
+    void store.create({
       ...pending("closed", { id: "u_3", roles: ["member"] }),
       approvers: { by: { kind: "user", id: "u_8" } },
     });
@@ -89,7 +91,7 @@ describe("approvalsHandler GET by id", () => {
 
   it("keeps a resolved tenantless request visible to who resolved it", async () => {
     const store = memoryApprovalStore();
-    store.create({
+    void store.create({
       ...pending("done", { id: "u_3", roles: ["member"] }),
       approvers: { by: { kind: "user", id: "u_8" } },
     });
@@ -98,10 +100,10 @@ describe("approvalsHandler GET by id", () => {
       context: {},
     };
     const handler = approvalsHandler(store, { subject: () => approver });
-    expect(
-      (await handler(new Request(`${BASE}/done/approve`, { method: "POST" })))
-        .status,
-    ).toBe(200);
+    const { status } = await handler(
+      new Request(`${BASE}/done/approve`, { method: "POST" }),
+    );
+    expect(status).toBe(200);
     expect((await handler(new Request(`${BASE}/done`))).status).toBe(200);
   });
 
@@ -116,9 +118,8 @@ describe("approvalsHandler GET by id", () => {
           body,
         }),
       );
-    expect(
-      (await post(JSON.stringify({ note: "x".repeat(2001) }))).status,
-    ).toBe(400);
+    const { status } = await post(JSON.stringify({ note: "x".repeat(2001) }));
+    expect(status).toBe(400);
     expect(
       (await post("{}", { "content-length": String(16 * 1024 + 1) })).status,
     ).toBe(413);
@@ -130,13 +131,20 @@ describe("approvalsHandler GET by id", () => {
 
   it("refuses an undefined subject, a wrong method and an unknown path", async () => {
     const handler = approvalsHandler(seeded(), { subject: () => undefined });
-    expect((await handler(new Request(`${BASE}/own`))).status).toBe(401);
+    const { status } = await handler(new Request(`${BASE}/own`));
+    expect(status).toBe(401);
     const wrong = await handler(
       new Request(`${BASE}/own`, { method: "DELETE" }),
     );
-    expect([wrong.status, wrong.headers.get("allow")]).toEqual([405, "GET"]);
+    expect([wrong.status, wrong.headers.get("allow")]).toStrictEqual([
+      405,
+      "GET",
+    ]);
     const post = await handler(new Request(`${BASE}/own/approve`));
-    expect([post.status, post.headers.get("allow")]).toEqual([405, "POST"]);
+    expect([post.status, post.headers.get("allow")]).toStrictEqual([
+      405,
+      "POST",
+    ]);
     const unknown = await handler(new Request("https://api.example.com/"));
     expect(unknown.status).toBe(404);
     expect(await unknown.json()).toMatchObject({ type: "about:blank" });
@@ -211,11 +219,7 @@ describe("approvalsHandler inbox", () => {
       status: response.status,
       paged: body.items.length <= 1,
       next: typeof body.next,
-    }).toEqual({
-      status: 200,
-      paged: true,
-      next: "string",
-    });
+    }).toStrictEqual({ status: 200, paged: true, next: "string" });
     const next = new URL(`${BASE}/pending?limit=1`);
     next.searchParams.set("cursor", body.next ?? "");
     expect(response.headers.get("link")).toBe(`<${next.href}>; rel="next"`);
@@ -231,7 +235,7 @@ describe("approvalsHandler HTTP semantics", () => {
 
   function closed(): ApprovalStore {
     const store = memoryApprovalStore();
-    store.create({
+    void store.create({
       ...pending("closed", { id: "u_3", roles: ["member"] }),
       approvers: { by: { kind: "user", id: "u_8" } },
     });
@@ -249,7 +253,10 @@ describe("approvalsHandler HTTP semantics", () => {
         headers: { "if-none-match": `W/${etag ?? ""}` },
       }),
     );
-    expect([cached.status, cached.headers.get("etag")]).toEqual([304, etag]);
+    expect([cached.status, cached.headers.get("etag")]).toStrictEqual([
+      304,
+      etag,
+    ]);
   });
 
   it("answers 412 when If-Match names another version", async () => {
@@ -301,12 +308,13 @@ describe("approvalsHandler HTTP semantics", () => {
       );
     const first = await approve('"k-1"', "ok");
     const retry = await approve('"k-1"', "ok");
-    expect([first.status, retry.status]).toEqual([200, 200]);
-    expect(await retry.json()).toEqual(await first.json());
+    expect([first.status, retry.status]).toStrictEqual([200, 200]);
+    expect(await retry.json()).toStrictEqual(await first.json());
     expect(retry.headers.get("etag")).toBe(first.headers.get("etag"));
     const reused = await approve('"k-1"', "changed");
     expect(reused.status).toBe(422);
-    expect((await approve('"k-2"', "ok")).status).toBe(409);
+    const { status } = await approve('"k-2"', "ok");
+    expect(status).toBe(409);
     expect((await approve("k-3", "ok")).status).toBe(400);
     expect((await approve(`"${"k".repeat(257)}"`, "ok")).status).toBe(400);
   });
@@ -320,9 +328,8 @@ describe("approvalsHandler HTTP semantics", () => {
           Promise.resolve(`signed.${options.jti ?? ""}`),
       },
     });
-    expect(
-      (await handler(new Request(`${BASE}/closed/signature`))).status,
-    ).toBe(404);
+    const { status } = await handler(new Request(`${BASE}/closed/signature`));
+    expect(status).toBe(404);
     const approved = await handler(
       new Request(`${BASE}/closed/approve`, { method: "POST" }),
     );
@@ -335,7 +342,7 @@ describe("approvalsHandler HTTP semantics", () => {
       signature.status,
       signature.headers.get("content-type"),
       await signature.text(),
-    ]).toEqual([200, "application/jwt", "signed.closed"]);
+    ]).toStrictEqual([200, "application/jwt", "signed.closed"]);
     expect(
       (await handler(new Request(`${BASE}/missing/signature`))).status,
     ).toBe(404);
@@ -343,7 +350,7 @@ describe("approvalsHandler HTTP semantics", () => {
 
   it("serves the signature to an earlier quorum approver and not to a stranger, and 404s an undecodable id", async () => {
     const store = memoryApprovalStore();
-    store.create({
+    void store.create({
       ...pending("quorum", { id: "u_3", roles: ["member"] }),
       status: "approved",
       approvals: [
@@ -396,7 +403,8 @@ describe("approvalsHandler HTTP semantics", () => {
       consume: (token, now) => inner.consume(token, now),
     };
     const handler = approvalsHandler(store, { subject: () => approver });
-    expect((await handler(new Request(`${BASE}/closed`))).status).toBe(200);
+    const { status } = await handler(new Request(`${BASE}/closed`));
+    expect(status).toBe(200);
     expect((await handler(new Request(`${BASE}/nope`))).status).toBe(404);
   });
 });

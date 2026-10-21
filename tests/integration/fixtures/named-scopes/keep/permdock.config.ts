@@ -4,7 +4,10 @@ import { junctionMembershipSource } from "permdock/supabase";
 
 import { permissions } from "../policy.ts";
 
-/** Organization B is suspended; its members may still read invoices and assets, to export them before a purge. */
+/**
+ * Organization B is suspended; its members may still read invoices and assets,
+ * to export them before a purge.
+ */
 export const suspension: SupabaseSuspension = {
   users: { table: "profiles", id: "id", disabledAt: "disabled_at" },
   scopes: {
@@ -37,10 +40,7 @@ export const memberships = {
       user: "user_id",
       role: "role",
       via: "via",
-      columns: {
-        customer: "customer_id",
-        organization: "organization_id",
-      },
+      columns: { customer: "customer_id", organization: "organization_id" },
       expiresAt: "expires_at",
     },
   },

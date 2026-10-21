@@ -7,6 +7,7 @@ import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { membershipField } from "../../src/core/tenancy.ts";
 import { memberPrincipal, policy, tree } from "../fixtures/org-tree.ts";
+import { defined } from "../support/defined.ts";
 
 describe("membership and role source edges", () => {
   it("resolves scoped memberships and delegation, and fails closed on throwing sources", async () => {
@@ -39,7 +40,7 @@ describe("membership and role source edges", () => {
     expect(
       permdock.can(tree.post.read, { id: "p1", orgId: "o1", teamId: "t1" }),
     ).toBe(true);
-    expect(permdock.heldRoles({ tenant: "missing" })).toEqual([]);
+    expect(permdock.heldRoles({ tenant: "missing" })).toStrictEqual([]);
     expect(
       permdock
         .team("t9")
@@ -74,21 +75,15 @@ describe("membership and role source edges", () => {
     const org = getResource(tree, "org");
     const post = getResource(tree, "post");
     const graph = new Map([
-      ["org", org!],
-      ["post", post!],
+      ["org", defined(org)],
+      ["post", defined(post)],
     ]);
     expect(membershipField(post, "org", graph)).toBe("orgId");
     expect(membershipField(post, "post", graph)).toBe("id");
     expect(membershipField(post, "team", graph)).toBeUndefined();
-    const cycled = post!;
+    const cycled = defined(post);
     const looping = new Map([
-      [
-        "post",
-        {
-          ...cycled,
-          parent: { field: "orgId", resource: "post" },
-        },
-      ],
+      ["post", { ...cycled, parent: { field: "orgId", resource: "post" } }],
     ]);
     expect(
       membershipField(looping.get("post"), "org", looping),
@@ -163,8 +158,8 @@ describe("membership and role source edges", () => {
     expect(anonymous.tenant("o1").can(tree.post.read, { id: "p1" })).toBe(
       false,
     );
-    expect(anonymous.heldRoles()).toEqual([]);
-    expect(anonymous.memberships()).toEqual([]);
+    expect(anonymous.heldRoles()).toStrictEqual([]);
+    expect(anonymous.memberships()).toStrictEqual([]);
     expect(
       anonymous
         .simulate({ roles: ["member"] })

@@ -6,8 +6,8 @@ const AUDIENCE = {
 
 /**
  * `schemas/run-v1.json`: the claims of a `vnd.permdock.run+jwt`, as
- * `signRunTicket` writes them and `parseRunTicket` accepts them. Unknown
- * claims are allowed; `parseRunTicket` drops them.
+ * `signRunTicket` writes them and `parseRunTicket` accepts them. Unknown claims
+ * are allowed; `parseRunTicket` drops them.
  */
 export const RUN_TICKET_SCHEMA: Readonly<Record<string, unknown>> = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -67,11 +67,7 @@ export const RUN_TICKET_SCHEMA: Readonly<Record<string, unknown>> = {
         "RFC 8693 act: the party running the work; at most 8 nested levels.",
       type: "object",
       required: ["sub"],
-      properties: {
-        sub: ID,
-        kind: ID,
-        act: { $ref: "#/$defs/act" },
-      },
+      properties: { sub: ID, kind: ID, act: { $ref: "#/$defs/act" } },
     },
   },
 };
@@ -116,12 +112,7 @@ export const SUPPORT_SESSION_SCHEMA: Readonly<Record<string, unknown>> = {
     },
     tenant: ID,
     reason: { type: "string", minLength: 1, maxLength: 1000 },
-    permissions: {
-      type: "array",
-      items: ID,
-      minItems: 1,
-      maxItems: 64,
-    },
+    permissions: { type: "array", items: ID, minItems: 1, maxItems: 64 },
     approved_by: ID,
     reference: ID,
   },

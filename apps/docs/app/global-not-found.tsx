@@ -7,10 +7,7 @@ import { docsIndex } from "@/lib/shared";
 
 import "./global.css";
 
-export const metadata: Metadata = {
-  ...rootMetadata,
-  title: "Page not found",
-};
+export const metadata: Metadata = { ...rootMetadata, title: "Page not found" };
 
 export default function GlobalNotFound() {
   return (

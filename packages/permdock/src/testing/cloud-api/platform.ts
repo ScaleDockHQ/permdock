@@ -60,7 +60,10 @@ const TOO_MANY = problem("Rate limited; retry after Retry-After seconds", {
   },
 });
 
-/** The RFC 6750 section 3 challenge a refused read carries, so a client tells a dead token from a missing scope. */
+/**
+ * The RFC 6750 section 3 challenge a refused read carries, so a client tells a
+ * dead token from a missing scope.
+ */
 const challenge = (example: string): Node => ({
   "WWW-Authenticate": {
     description: `RFC 6750 Bearer challenge (\`${example}\`)`,
@@ -222,7 +225,10 @@ const PROJECT_ID = {
   schema: { type: "string", minLength: 1 },
 };
 
-/** Routes of the platform issuer and its read API; they sit at the API root, outside /v1/environments/{env}. */
+/**
+ * Routes of the platform issuer and its read API; they sit at the API root,
+ * outside /v1/environments/{env}.
+ */
 export const PLATFORM_PATHS: Readonly<Record<string, Node>> = {
   "/.well-known/oauth-authorization-server": {
     get: {
@@ -286,9 +292,7 @@ export const PLATFORM_PATHS: Readonly<Record<string, Node>> = {
       requestBody: {
         required: true,
         content: {
-          [OAUTH_FORM]: {
-            schema: { type: "object", required: ["client_id"] },
-          },
+          [OAUTH_FORM]: { schema: { type: "object", required: ["client_id"] } },
         },
       },
       responses: {
@@ -361,9 +365,7 @@ export const PLATFORM_PATHS: Readonly<Record<string, Node>> = {
               required: ["token"],
               properties: {
                 token: { type: "string" },
-                token_type_hint: {
-                  enum: ["access_token", "refresh_token"],
-                },
+                token_type_hint: { enum: ["access_token", "refresh_token"] },
               },
             },
           },

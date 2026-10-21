@@ -1,17 +1,19 @@
 import type { ApprovalStore } from "../approvals/types.ts";
+import type { Decision } from "../core/decision.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
+import type { WireDecision } from "../core/wire-denial.ts";
+import type { PermissionLookup } from "./evaluation-items.ts";
 
 import { readApprovalHeader, resumeDecision } from "../approvals/helpers.ts";
 import { compact, isRecord } from "../core/compact.ts";
-import { type Decision, NO_GRANT } from "../core/decision.ts";
+import { NO_GRANT } from "../core/decision.ts";
 import { resourceRef } from "../core/resource-ref.ts";
-import { type WireDecision, wireDenials } from "../core/wire-denial.ts";
+import { wireDenials } from "../core/wire-denial.ts";
 import { readBodyText } from "./body-text.ts";
 import { bodyTooLarge } from "./body.ts";
 import {
-  type PermissionLookup,
   itemResourceData,
   permissionLookup,
   wireResourceId,
@@ -41,7 +43,10 @@ export const EVALUATIONS_SEMANTICS = [
 
 export type EvaluationsSemantic = (typeof EVALUATIONS_SEMANTICS)[number];
 
-/** The batch's `evaluations_semantic`: `execute_all` when absent, `undefined` for an unknown value. */
+/**
+ * The batch's `evaluations_semantic`: `execute_all` when absent, `undefined`
+ * for an unknown value.
+ */
 export function evaluationsSemantic(
   body: Readonly<Record<string, unknown>>,
 ): EvaluationsSemantic | undefined {
@@ -131,9 +136,9 @@ export type EvaluationReasons = {
 };
 
 /**
- * `reason_admin` and `reason_user` for a decision that is not granted, from
- * the denial roles and reasons the context already carries. The user reason
- * names no role, grant or subject.
+ * `reason_admin` and `reason_user` for a decision that is not granted, from the
+ * denial roles and reasons the context already carries. The user reason names
+ * no role, grant or subject.
  */
 export function evaluationReasons(
   decision: Decision,
@@ -313,7 +318,10 @@ export function evaluationsHandler(options: {
   }) => Promise<PermDock>;
   readonly store?: ApprovalStore;
   readonly adapter?: string;
-  /** The most evaluations one POST may carry; a larger batch is a 413 before any instance is resolved. */
+  /**
+   * The most evaluations one POST may carry; a larger batch is a 413 before any
+   * instance is resolved.
+   */
   readonly maxEvaluations?: number;
 }): {
   readonly POST: (request: Request) => Promise<Response>;

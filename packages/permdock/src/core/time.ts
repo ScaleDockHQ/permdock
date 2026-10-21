@@ -1,7 +1,7 @@
 /**
- * The one time rule: NumericDate (whole seconds) for JWT registered claims
- * and the claims SQL reads, RFC 3339 for every other JSON field, integer
- * seconds for durations, and an `Instant` for every runtime `now`.
+ * The one time rule: NumericDate (whole seconds) for JWT registered claims and
+ * the claims SQL reads, RFC 3339 for every other JSON field, integer seconds
+ * for durations, and an `Instant` for every runtime `now`.
  */
 
 /**
@@ -31,22 +31,34 @@ export function rfc3339(seconds: number): string {
   return new Date(seconds * 1000).toISOString();
 }
 
-/** Milliseconds since the epoch as RFC 3339 in UTC, milliseconds kept; throws a `RangeError` for a value outside the `Date` range. */
+/**
+ * Milliseconds since the epoch as RFC 3339 in UTC, milliseconds kept; throws a
+ * `RangeError` for a value outside the `Date` range.
+ */
 export function isoAt(millis: number): string {
   return new Date(millis).toISOString();
 }
 
-/** RFC 3339 in UTC of `now`, or of the clock when absent; throws a `RangeError` for a `now` that is not an `Instant`. */
+/**
+ * RFC 3339 in UTC of `now`, or of the clock when absent; throws a `RangeError`
+ * for a `now` that is not an `Instant`.
+ */
 export function isoNow(now?: Instant): string {
   return dateAt(now).toISOString();
 }
 
-/** Whole seconds since the epoch of an RFC 3339 instant; `undefined` for anything else. */
+/**
+ * Whole seconds since the epoch of an RFC 3339 instant; `undefined` for
+ * anything else.
+ */
 export function secondsOf(value: unknown): number | undefined {
   return isRfc3339(value) ? Math.floor(Date.parse(value) / 1000) : undefined;
 }
 
-/** Whole seconds since the epoch of an RFC 3339 string or an `Instant`; `undefined` for anything else, Unix seconds included. */
+/**
+ * Whole seconds since the epoch of an RFC 3339 string or an `Instant`;
+ * `undefined` for anything else, Unix seconds included.
+ */
 export function instantOf(value: unknown): number | undefined {
   if (typeof value === "string") {
     return secondsOf(value);
@@ -70,7 +82,10 @@ export function durationOf(value: unknown): number | undefined {
     : undefined;
 }
 
-/** Throws at definition time unless `value` is a whole number of seconds above zero. */
+/**
+ * Throws at definition time unless `value` is a whole number of seconds above
+ * zero.
+ */
 export function assertDuration(
   value: unknown,
   label: string,
@@ -95,7 +110,10 @@ export const INVALID_NOW: { readonly field: "now"; readonly message: string } =
       "now must be an Instant ({ epochMilliseconds }), such as a Temporal.Instant",
   });
 
-/** The `Date` of `now`, or of the clock when absent; throws a `RangeError` for a `now` that is not an `Instant`. */
+/**
+ * The `Date` of `now`, or of the clock when absent; throws a `RangeError` for a
+ * `now` that is not an `Instant`.
+ */
 export function dateAt(now?: Instant): Date {
   const millis = nowMillis(now);
   if (!Number.isFinite(millis)) {
@@ -104,7 +122,10 @@ export function dateAt(now?: Instant): Date {
   return new Date(millis);
 }
 
-/** Whole seconds since the epoch of `now`, or of the clock when absent; throws a `RangeError` for a `now` that is not an `Instant`. */
+/**
+ * Whole seconds since the epoch of `now`, or of the clock when absent; throws a
+ * `RangeError` for a `now` that is not an `Instant`.
+ */
 export function secondsAt(now?: Instant): number {
   return Math.floor(dateAt(now).getTime() / 1000);
 }
@@ -119,7 +140,10 @@ export function epochSeconds(now?: Instant): number {
   return nowMillis(now) / 1000;
 }
 
-/** Milliseconds since the epoch of `now`, or of the clock when absent; `NaN` for a `now` that is not an `Instant`. */
+/**
+ * Milliseconds since the epoch of `now`, or of the clock when absent; `NaN` for
+ * a `now` that is not an `Instant`.
+ */
 export function nowMillis(now?: Instant): number {
   if (now === undefined) {
     return Date.now();

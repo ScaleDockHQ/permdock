@@ -1,8 +1,9 @@
+import type { PollSetsOptions } from "./poll-client.ts";
 import type { PollOptions, SetError, SsfAuditEvent } from "./types.ts";
 import type { IngestResult } from "./wire.ts";
 
 import { compact } from "../core/compact.ts";
-import { type PollSetsOptions, pollSets } from "./poll-client.ts";
+import { pollSets } from "./poll-client.ts";
 
 /**
  * One RFC 8936 poll round: fetch the pending SETs, ingest them and acknowledge

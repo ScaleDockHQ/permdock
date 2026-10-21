@@ -11,49 +11,51 @@ const problem = (status: number, type = "application/problem+json") =>
     headers: { "content-type": type },
   });
 
-describe("cloudApiValidator", () => {
+describe(cloudApiValidator, () => {
   it("accepts a documented response", async () => {
     expect(
       await check("GET", `${ENV}/approvals/by-token`, problem(404)),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await check(
         "POST",
         `${ENV}/catalog`,
         Response.json({ version: 2, fingerprint: "f", unchanged: true }),
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await check(
         "POST",
         `${ENV}/decisions`,
         new Response(null, { status: 202 }),
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("matches a literal path before a parameter", async () => {
     expect(
       await check("GET", `${ENV}/approvals/apr_1`, Response.json({ v: 1 })),
-    ).not.toEqual([]);
+    ).not.toStrictEqual([]);
     expect(
       await check("GET", `${ENV}/approvals/by-token`, problem(404)),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("reports an unknown route, an undocumented status and a wrong content type", async () => {
-    expect(await check("GET", `${ENV}/nowhere`, problem(404))).toEqual([
+    expect(await check("GET", `${ENV}/nowhere`, problem(404))).toStrictEqual([
       `GET ${ENV}/nowhere is not in cloud-api-v1.json`,
     ]);
-    expect(await check("GET", `${ENV}/policy`, problem(418))).toEqual([
+    expect(await check("GET", `${ENV}/policy`, problem(418))).toStrictEqual([
       expect.stringContaining("documents no 418"),
     ]);
     expect(
       await check("GET", `${ENV}/policy`, problem(404, "application/json")),
-    ).toEqual([expect.stringContaining('content type "application/json"')]);
+    ).toStrictEqual([
+      expect.stringContaining('content type "application/json"'),
+    ]);
     expect(
       await check("GET", `${ENV}/policy`, new Response("x", { status: 404 })),
-    ).toEqual([expect.stringContaining('content type "text/plain"')]);
+    ).toStrictEqual([expect.stringContaining('content type "text/plain"')]);
   });
 
   it("reports a body that is not JSON or does not match the schema", async () => {
@@ -66,14 +68,14 @@ describe("cloudApiValidator", () => {
           headers: { "content-type": "application/problem+json" },
         }),
       ),
-    ).toEqual([expect.stringContaining("is not JSON")]);
+    ).toStrictEqual([expect.stringContaining("is not JSON")]);
     expect(
       await check(
         "POST",
         `${ENV}/catalog`,
         Response.json({ version: 0, fingerprint: "f" }),
       ),
-    ).toEqual([expect.stringContaining(`POST ${ENV}/catalog 200`)]);
+    ).toStrictEqual([expect.stringContaining(`POST ${ENV}/catalog 200`)]);
     expect(
       await check(
         "GET",
@@ -82,7 +84,7 @@ describe("cloudApiValidator", () => {
           headers: { "content-type": "application/jwt" },
         }),
       ),
-    ).toEqual([expect.stringContaining("pattern")]);
+    ).toStrictEqual([expect.stringContaining("pattern")]);
   });
 
   it("matches a SCIM path below the connection", async () => {
@@ -94,6 +96,6 @@ describe("cloudApiValidator", () => {
           headers: { "content-type": "application/scim+json" },
         }),
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

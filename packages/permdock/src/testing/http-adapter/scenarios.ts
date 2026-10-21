@@ -1,24 +1,23 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type {
+  HttpAdapterOptions,
+  HttpCall,
+  HttpMounted,
+  HttpOp,
+  HttpResult,
+  HttpScenarioName,
+} from "./domain.ts";
+import type { EventStream } from "./wire.ts";
+
 import { resolveApproval } from "../../approvals/index.ts";
 import { getPermDock } from "../../index.ts";
 import { problemFromDecision } from "../../server/index.ts";
 import { saasPolicy } from "../saas/policy.ts";
 import { saasPrincipal } from "../saas/seed.ts";
 import { signSaasToken } from "../saas/tokens.ts";
+import { approverSubject, createDomain, project } from "./domain.ts";
 import {
-  type HttpAdapterOptions,
-  type HttpCall,
-  type HttpMounted,
-  type HttpOp,
-  type HttpResult,
-  type HttpScenarioName,
-  approverSubject,
-  createDomain,
-  project,
-} from "./domain.ts";
-import {
-  type EventStream,
   PARALLEL,
   eventStream,
   field,
@@ -45,6 +44,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
       (name.startsWith("stream-") && options.streams !== true
         ? "no events stream"
         : undefined);
+
     it.skipIf(reason !== undefined)(
       reason === undefined ? title : `${title} (${reason})`,
       run,
@@ -128,10 +128,12 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
       "tenant",
       "resolves the tenant from the path on every protect",
       async () => {
-        expect(
-          (await send("alice", { op: "project.get", org: "acme", id: "p2" }))
-            .status,
-        ).toBe(200);
+        const { status } = await send("alice", {
+          op: "project.get",
+          org: "acme",
+          id: "p2",
+        });
+        expect(status).toBe(200);
         expect(
           (await send("alice", { op: "project.get", org: "globex", id: "g1" }))
             .status,
@@ -155,10 +157,12 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
       "roles",
       "applies the role held in the requested org",
       async () => {
-        expect(
-          (await send("alice", { op: "project.update", org: "acme", id: "p1" }))
-            .status,
-        ).toBe(200);
+        const { status } = await send("alice", {
+          op: "project.update",
+          org: "acme",
+          id: "p1",
+        });
+        expect(status).toBe(200);
         expect(
           (
             await send("alice", {
@@ -187,10 +191,12 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         name: "Contract",
         archived: false,
       };
-      expect(
-        (await send("dave", { op: "project.create", org: "acme", body }))
-          .status,
-      ).toBe(201);
+      const { status } = await send("dave", {
+        op: "project.create",
+        org: "acme",
+        body,
+      });
+      expect(status).toBe(201);
       expect(
         (await send("hank", { op: "project.create", org: "acme", body }))
           .status,
@@ -201,32 +207,38 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
       "plans",
       "gates a feature on the plan of the requested org",
       async () => {
-        expect(
-          (await send("erin", { op: "analytics.read", org: "globex" })).status,
-        ).toBe(200);
+        const { status } = await send("erin", {
+          op: "analytics.read",
+          org: "globex",
+        });
+        expect(status).toBe(200);
         const upgrade = await send("erin", {
           op: "analytics.read",
           org: "acme",
         });
         expect(upgrade.status).toBe(403);
-        expect(new Set(reasonsOf(upgrade.body))).toEqual(
+        expect(new Set(reasonsOf(upgrade.body))).toStrictEqual(
           new Set(["not-entitled"]),
         );
       },
     );
 
     scenario("expired", "ignores an expired membership", async () => {
-      expect(
-        (await send("frank", { op: "project.get", org: "acme", id: "p1" }))
-          .status,
-      ).toBe(403);
+      const { status } = await send("frank", {
+        op: "project.get",
+        org: "acme",
+        id: "p1",
+      });
+      expect(status).toBe(403);
     });
 
     scenario("limits", "counts a quota per subject and tenant", async () => {
       for (let index = 0; index < 5; index += 1) {
-        expect(
-          (await send("erin", { op: "apiKey.create", org: "acme" })).status,
-        ).toBe(201);
+        const { status } = await send("erin", {
+          op: "apiKey.create",
+          org: "acme",
+        });
+        expect(status).toBe(201);
       }
       const exhausted = await send("erin", {
         op: "apiKey.create",
@@ -250,15 +262,12 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           name: "New",
           archived: false,
         };
-        expect(
-          (
-            await send("bob", {
-              op: "project.create",
-              org: "acme",
-              body: valid,
-            })
-          ).status,
-        ).toBe(201);
+        const { status } = await send("bob", {
+          op: "project.create",
+          org: "acme",
+          body: valid,
+        });
+        expect(status).toBe(201);
         const invalid = await send("bob", {
           op: "project.create",
           org: "acme",
@@ -305,12 +314,16 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         );
         expect(denied.status).toBe(fromProtect.status);
         for (const key of ["type", "title", "permission", "denials"]) {
-          expect(field(denied.body, key)).toEqual(field(fromProtect.body, key));
+          expect(field(denied.body, key)).toStrictEqual(
+            field(fromProtect.body, key),
+          );
         }
-        expect(
-          (await send("bob", { op: "project.delete", org: "acme", id: "p3" }))
-            .status,
-        ).toBe(204);
+        const { status } = await send("bob", {
+          op: "project.delete",
+          org: "acme",
+          id: "p3",
+        });
+        expect(status).toBe(204);
         expect(
           (await send("bob", { op: "project.delete", org: "acme", id: "p4" }))
             .status,
@@ -331,7 +344,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           "https://permdock.com/problems/approval-required",
         );
         const token = field(asked.body, "token");
-        expect(typeof token).toBe("string");
+        expect(token).toBeTypeOf("string");
         await resolveApproval(domain.store, String(token), {
           status: "approved",
           by: await approverSubject("carol", "acme"),
@@ -364,15 +377,12 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
       "stale-approval",
       "ignores an approval header meant for another request",
       async () => {
-        expect(
-          (
-            await send(
-              "bob",
-              { op: "project.get", org: "acme", id: "p1" },
-              "pd1.not-a-real-token",
-            )
-          ).status,
-        ).toBe(200);
+        const { status } = await send(
+          "bob",
+          { op: "project.get", org: "acme", id: "p1" },
+          "pd1.not-a-real-token",
+        );
+        expect(status).toBe(200);
       },
     );
 
@@ -410,7 +420,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           Array.isArray(rows)
             ? rows.map((row: unknown) => field(row, "decision"))
             : rows,
-        ).toEqual([true, false]);
+        ).toStrictEqual([true, false]);
       },
     );
 
@@ -426,24 +436,23 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           file,
         });
         expect(uploaded.status).toBe(201);
-        expect(uploaded.body).toEqual({ name: "notes.txt", size: 5 });
-        expect(
-          (
-            await send("bob", {
-              op: "project.upload",
-              org: "acme",
-              id: "p2",
-              file,
-            })
-          ).status,
-        ).toBe(403);
+        expect(uploaded.body).toStrictEqual({ name: "notes.txt", size: 5 });
+        const { status } = await send("bob", {
+          op: "project.upload",
+          org: "acme",
+          id: "p2",
+          file,
+        });
+        expect(status).toBe(403);
       },
     );
 
     scenario("sub-app", "protects a route inside a sub-app", async () => {
-      expect(
-        (await send("alice", { op: "admin.members", org: "acme" })).status,
-      ).toBe(200);
+      const { status } = await send("alice", {
+        op: "admin.members",
+        org: "acme",
+      });
+      expect(status).toBe(200);
       expect(
         (await send("bob", { op: "admin.members", org: "acme" })).status,
       ).toBe(403);
@@ -472,7 +481,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
               ).status,
           ),
         );
-        expect(statuses).toEqual(calls.map((entry) => entry.status));
+        expect(statuses).toStrictEqual(calls.map((entry) => entry.status));
       },
     );
 
@@ -554,7 +563,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
             expect(frame?.event).toBe("message");
             ids.push(String(field(JSON.parse(frame?.data ?? "{}"), "id")));
           }
-          expect(new Set(ids)).toEqual(new Set(["p1", "p3", "p4"]));
+          expect(new Set(ids)).toStrictEqual(new Set(["p1", "p3", "p4"]));
         } finally {
           await stream.cancel();
         }

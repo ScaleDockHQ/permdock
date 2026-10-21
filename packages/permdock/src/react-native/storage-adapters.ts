@@ -2,18 +2,27 @@ import type { SnapshotStorage } from "./types.ts";
 
 /** The `expo-secure-store` functions `secureStoreStorage` calls. */
 export type SecureStoreModule = {
-  getItem(key: string, options?: object): string | null;
-  setItem(key: string, value: string, options?: object): void;
-  deleteItemAsync(key: string, options?: object): Promise<void>;
+  getItem: (key: string, options?: object) => string | null;
+  setItem: (key: string, value: string, options?: object) => void;
+  deleteItemAsync: (key: string, options?: object) => Promise<void>;
 };
 
-/** The `react-native-mmkv` instance methods `mmkvStorage` calls: `remove` (v4) or `delete` (v3). */
+/**
+ * The `react-native-mmkv` instance methods `mmkvStorage` calls: `remove` (v4)
+ * or `delete` (v3).
+ */
 export type MmkvInstance = {
-  getString(key: string): string | undefined;
-  set(key: string, value: string): void;
-} & ({ remove(key: string): unknown } | { delete(key: string): unknown });
+  getString: (key: string) => string | undefined;
+  set: (key: string, value: string) => void;
+} & (
+  | { remove: (key: string) => unknown }
+  | { delete: (key: string) => unknown }
+);
 
-/** SecureStore warns above 2048 bytes and may refuse larger values on some devices. */
+/**
+ * SecureStore warns above 2048 bytes and may refuse larger values on some
+ * devices.
+ */
 const SECURE_STORE_CHUNK_BYTES = 2048;
 const INDEX_PREFIX = "permdock-chunks:";
 
@@ -59,9 +68,9 @@ function chunkKey(key: string, index: number): string {
 }
 
 /**
- * A `SnapshotStorage` over `expo-secure-store`. Values are split into chunks
- * of at most 2048 bytes under `<key>.<n>`; `<key>` holds the chunk count and
- * is written last, so an interrupted write reads as absent.
+ * A `SnapshotStorage` over `expo-secure-store`. Values are split into chunks of
+ * at most 2048 bytes under `<key>.<n>`; `<key>` holds the chunk count and is
+ * written last, so an interrupted write reads as absent.
  */
 export function secureStoreStorage(
   store: SecureStoreModule,
@@ -111,7 +120,10 @@ export function secureStoreStorage(
   };
 }
 
-/** A synchronous `SnapshotStorage` over a `react-native-mmkv` instance: the first frame already has the snapshot. */
+/**
+ * A synchronous `SnapshotStorage` over a `react-native-mmkv` instance: the
+ * first frame already has the snapshot.
+ */
 export function mmkvStorage(mmkv: MmkvInstance): SnapshotStorage {
   return {
     getItem: (key) => mmkv.getString(key) ?? null,

@@ -6,6 +6,7 @@ import type {
   WebMcpRegisteredTool,
   WebMcpToolResult,
 } from "../../src/webmcp/types.ts";
+import type { User } from "../fixtures/quick-start.ts";
 
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot, fromSnapshot } from "../../src/core/from-snapshot.ts";
@@ -17,14 +18,13 @@ import {
   ownPost,
   permissions,
   policy,
-  type User,
 } from "../fixtures/quick-start.ts";
 
 async function clientOf(user: User) {
   const server = getPermDockSync(policy, user);
   const snapshot = server.snapshot();
   if (snapshot instanceof Promise || typeof snapshot === "string") {
-    throw new Error("expected JSON snapshot");
+    throw new TypeError("expected JSON snapshot");
   }
   return fromSnapshot(snapshot);
 }
@@ -52,12 +52,12 @@ function fakeContext(): {
   };
 }
 
-describe("registerTools", () => {
+describe(registerTools, () => {
   it("registers only snapshot-allowed tools for a member", async () => {
     const permdock = await clientOf(memberUser);
     const { context, tools } = fakeContext();
     registerTools(context, permissions.post, { permdock });
-    expect([...tools.keys()].toSorted()).toEqual([
+    expect([...tools.keys()].toSorted()).toStrictEqual([
       "post_create",
       "post_delete",
       "post_list",
@@ -80,7 +80,7 @@ describe("registerTools", () => {
     const server = getPermDockSync(policy, memberUser);
     const snapshot = server.snapshot();
     if (snapshot instanceof Promise || typeof snapshot === "string") {
-      throw new Error("expected JSON snapshot");
+      throw new TypeError("expected JSON snapshot");
     }
     const permdock = fromSnapshot({ ...snapshot, simulated: true });
     const { context, tools } = fakeContext();
@@ -134,9 +134,7 @@ describe("registerTools", () => {
     );
     registerTools(context, permissions.post, {
       permdock,
-      handlers: {
-        update: handler,
-      },
+      handlers: { update: handler },
     });
     const update = tools.get("post_update");
     if (update === undefined) {
@@ -160,18 +158,14 @@ describe("registerTools", () => {
     const { context, tools } = fakeContext();
     registerTools(context, permissions.post, {
       permdock: member,
-      handlers: {
-        publish: async () => "published",
-      },
+      handlers: { publish: async () => "published" },
     });
     expect(tools.get("post_publish")).toBeUndefined();
     const admin = await clientOf(adminUser);
     const adminTools = fakeContext();
     registerTools(adminTools.context, permissions.post, {
       permdock: admin,
-      handlers: {
-        publish: async () => "published",
-      },
+      handlers: { publish: async () => "published" },
     });
     const publish = adminTools.tools.get("post_publish");
     if (publish === undefined) {
@@ -248,10 +242,7 @@ describe("registerTools", () => {
     const permdock = await clientOf(memberUser);
     const { context, tools } = fakeContext();
     registerTools(context, permissions.post, {
-      permdock: {
-        ...permdock,
-        status: () => "server-only",
-      },
+      permdock: { ...permdock, status: () => "server-only" },
     });
     expect(tools.size).toBe(0);
   });
@@ -285,8 +276,8 @@ describe("registerTools", () => {
       readonly input: unknown;
       readonly token: unknown;
     };
-    expect(call.input).toEqual(ownPost);
-    expect(typeof call.token).toBe("string");
+    expect(call.input).toStrictEqual(ownPost);
+    expect(call.token).toBeTypeOf("string");
   });
 
   it("reads the input JSON Schema through the Standard JSON Schema input()", async () => {
@@ -307,7 +298,7 @@ describe("registerTools", () => {
         },
       } as never,
     });
-    expect(tools.get("post_update")?.inputSchema).toEqual({
+    expect(tools.get("post_update")?.inputSchema).toStrictEqual({
       type: "object",
       required: ["id"],
     });

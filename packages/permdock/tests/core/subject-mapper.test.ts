@@ -35,7 +35,7 @@ describe("the policy's subject mapper", () => {
       roles: ["admin"],
       verified: false,
     });
-    expect(permdock.subject.principal?.roles).toEqual([]);
+    expect(permdock.subject.principal?.roles).toStrictEqual([]);
     expect(permdock.can(permissions.report.list)).toBe(false);
   });
 

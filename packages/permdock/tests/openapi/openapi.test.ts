@@ -44,15 +44,15 @@ describe("permdock/openapi", () => {
     expect(oauth.flows.authorizationCode.scopes["post:update"]).toBe(
       "post.update",
     );
-    expect(security(permissions.post.delete)).toEqual([
+    expect(security(permissions.post.delete)).toStrictEqual([
       { oauth: ["post:delete"] },
     ]);
     expect(
       describeOp(permissions.post.delete)["x-permdock-permissions"],
-    ).toEqual(["post.delete"]);
-    expect(describeOp(permissions.post.delete)["x-permdock-approval"]).toEqual({
-      "post.delete": { reason: "human" },
-    });
+    ).toStrictEqual(["post.delete"]);
+    expect(
+      describeOp(permissions.post.delete)["x-permdock-approval"],
+    ).toStrictEqual({ "post.delete": { reason: "human" } });
   });
 
   it("marks every approval shape as requiring approval, not only human", () => {
@@ -90,10 +90,10 @@ describe("permdock/openapi", () => {
       tree.invoice.refund,
       tree.invoice.close,
     ]) {
-      expect(describeOp(leaf)["x-permdock-approval"]).toEqual({
+      expect(describeOp(leaf)["x-permdock-approval"]).toStrictEqual({
         [leaf.key]: { reason: "human" },
       });
-      expect(describeOp(leaf)["x-badges"]).toEqual([
+      expect(describeOp(leaf)["x-badges"]).toStrictEqual([
         { name: "Approval required" },
       ]);
     }
@@ -155,7 +155,7 @@ describe("permdock/openapi", () => {
     expect(profile.type).toBe("profile");
     expect(profile.profileMetadata.name).toBe("fapi-20-security-profile");
     expect(securityProfileRequirements()).toBeTruthy();
-    expect(catalog()["drafts"]).toEqual({
+    expect(catalog()["drafts"]).toStrictEqual({
       oas: DRAFT_PINS.oas,
       securityProfiles: DRAFT_PINS.securityProfiles,
     });

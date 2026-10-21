@@ -1,9 +1,7 @@
+import type { Condition, SqlFunctionArg } from "./ast.ts";
+
 import { assertSafeKey } from "../core/paths.ts";
-import {
-  type Condition,
-  type SqlFunctionArg,
-  isSqlFunctionField,
-} from "./ast.ts";
+import { isSqlFunctionField } from "./ast.ts";
 
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 

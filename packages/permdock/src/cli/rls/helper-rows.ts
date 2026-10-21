@@ -1,7 +1,8 @@
 import type { CheckedPermission, RlsSqlContext } from "../sql/context.ts";
+import type { RoleRows } from "../sql/global-roles.ts";
 
 import { activeInstancesSql, activeUserSql } from "../sql/active.ts";
-import { type RoleRows, globalRoleSource } from "../sql/global-roles.ts";
+import { globalRoleSource } from "../sql/global-roles.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { CUSTOM_ROLES } from "../sql/shared.ts";
 import {
@@ -23,12 +24,18 @@ export function keyTenantLine(
   return keyed === undefined ? "" : `\n    and ${keyed}`;
 }
 
-/** Whether the helper for `scope` narrows to the tenant claim: unless `rls.tenants` is `'all'`, when the first scope is on its chain. */
+/**
+ * Whether the helper for `scope` narrows to the tenant claim: unless
+ * `rls.tenants` is `'all'`, when the first scope is on its chain.
+ */
 export function narrowsTo(ctx: RlsSqlContext, scope: string): boolean {
   return ctx.tenants !== "all" && underRoot(ctx, scope);
 }
 
-/** Whether the active tenant narrows memberships of `scope`: the first scope is on its chain. */
+/**
+ * Whether the active tenant narrows memberships of `scope`: the first scope is
+ * on its chain.
+ */
 function underRoot(ctx: RlsSqlContext, scope: string): boolean {
   const root = ctx.scopes[0]?.name;
   let current = ctx.scopes.find((item) => item.name === scope);
@@ -47,7 +54,10 @@ function underRoot(ctx: RlsSqlContext, scope: string): boolean {
   return false;
 }
 
-/** `and exists (...)` lines for an active user; empty without `rls.suspension.users`. */
+/**
+ * `and exists (...)` lines for an active user; empty without
+ * `rls.suspension.users`.
+ */
 export function userActive(
   ctx: RlsSqlContext,
   indent: string,
@@ -56,7 +66,10 @@ export function userActive(
   return activeUserSql(ctx, user).map((part) => `${indent}and ${part}`);
 }
 
-/** `and exists (...)` lines for every suspendable instance on the chain of `scope`'s membership. */
+/**
+ * `and exists (...)` lines for every suspendable instance on the chain of
+ * `scope`'s membership.
+ */
 export function instancesActive(
   ctx: RlsSqlContext,
   scope: string,

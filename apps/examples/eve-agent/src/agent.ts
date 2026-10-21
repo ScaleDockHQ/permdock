@@ -32,13 +32,8 @@ export const { approval, approvalFor, getPermDock } = createPermDock(policy, {
     scopes: [permissions.post.list.scope, permissions.post.delete.scope],
   }),
   operations: defineOperations(permissions, {
-    list_posts: {
-      permission: permissions.post.list,
-    },
-    delete_post: {
-      permission: permissions.post.delete,
-      data: () => ownPost,
-    },
+    list_posts: { permission: permissions.post.list },
+    delete_post: { permission: permissions.post.delete, data: () => ownPost },
   }),
 });
 

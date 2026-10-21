@@ -47,7 +47,10 @@ function tableFor(
   return tables?.[resource] ?? resource;
 }
 
-/** One resource the graph grants read: the relations they name, the links they cross and, when they walk it, the closure depth. */
+/**
+ * One resource the graph grants read: the relations they name, the links they
+ * cross and, when they walk it, the closure depth.
+ */
 export type GraphResource = {
   readonly node: ResourceNode;
   /** Relations asked for, as grants and groups name them (before `includes`). */
@@ -69,7 +72,10 @@ type PlanEntry = {
   restrictedAncestors?: RestrictedAncestors;
 };
 
-/** Every `related` condition the policy's grants compile to, with the resource graph they need, groups included. */
+/**
+ * Every `related` condition the policy's grants compile to, with the resource
+ * graph they need, groups included.
+ */
 export function graphPlan(policy: Policy): GraphPlan {
   const scopes = scopeList(policy.scopes);
   const plan = new Map<string, PlanEntry>();
@@ -168,10 +174,10 @@ export function closureDepths(
 }
 
 /**
- * The `permitted_<resource>_ids(relation)` arm for one concrete relation:
- * ids of `resource` the subject holds it on, directly or through a group.
- * `asked` are the relation names that include it, so a call for any of them
- * (or for all, with null) reads this arm.
+ * The `permitted_<resource>_ids(relation)` arm for one concrete relation: ids
+ * of `resource` the subject holds it on, directly or through a group. `asked`
+ * are the relation names that include it, so a call for any of them (or for
+ * all, with null) reads this arm.
  */
 function relationArm(
   ctx: RlsSqlContext,
@@ -254,7 +260,10 @@ revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;`;
 }
 
-/** `permdock_link_<resource>_<link>(ids)`: ids of `resource` whose link points into `ids`, read past the table's own policies. */
+/**
+ * `permdock_link_<resource>_<link>(ids)`: ids of `resource` whose link points
+ * into `ids`, read past the table's own policies.
+ */
 function linkSql(
   ctx: RlsSqlContext,
   node: ResourceNode,
@@ -497,7 +506,10 @@ function groupTargets(entry: GraphResource): readonly string[] {
   return [...out].toSorted();
 }
 
-/** Plan entries by name, each after the group resources its helper calls (SQL function bodies are checked on create). */
+/**
+ * Plan entries by name, each after the group resources its helper calls (SQL
+ * function bodies are checked on create).
+ */
 function dependencyOrder(plan: GraphPlan): readonly GraphResource[] {
   const out: GraphResource[] = [];
   const done = new Set<string>();
@@ -520,8 +532,8 @@ function dependencyOrder(plan: GraphPlan): readonly GraphResource[] {
 
 /**
  * The graph preamble: `permitted_<resource>_ids` for every resource a graph
- * grant reads, and the closure table with its triggers for every
- * self-parented resource a grant walks. Empty when no grant is a graph grant.
+ * grant reads, and the closure table with its triggers for every self-parented
+ * resource a grant walks. Empty when no grant is a graph grant.
  */
 export function graphSql(
   ctx: RlsSqlContext,

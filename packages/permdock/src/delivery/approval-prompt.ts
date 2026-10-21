@@ -5,9 +5,9 @@ import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 
 /**
- * What an email or chat prompt shows an approver, wire format v1. It carries
- * no approval token and no roles: a prompt links to the app's approval page,
- * where the signed-in approver decides. A link never approves.
+ * What an email or chat prompt shows an approver, wire format v1. It carries no
+ * approval token and no roles: a prompt links to the app's approval page, where
+ * the signed-in approver decides. A link never approves.
  */
 export type ApprovalPrompt = {
   readonly v: 1;
@@ -34,15 +34,18 @@ export type ApprovalPrompt = {
   };
 };
 
-/** The approval page for a prompt: a base URL the request id is appended to, or a function of the prompt. */
+/**
+ * The approval page for a prompt: a base URL the request id is appended to, or
+ * a function of the prompt.
+ */
 export type ApprovalUrl =
   | string
   | URL
   | ((prompt: ApprovalPrompt) => string | URL);
 
 /**
- * The prompt for a pending request. Throws a `TypeError` for a request that
- * is not pending: a resolved or expired request has nothing to approve.
+ * The prompt for a pending request. Throws a `TypeError` for a request that is
+ * not pending: a resolved or expired request has nothing to approve.
  */
 export function approvalPrompt(
   request: ApprovalRequest,
@@ -89,9 +92,8 @@ export function approvalPrompt(
 }
 
 /**
- * The approval page URL for `prompt`. A string or `URL` is a base the
- * encoded request id is appended to. Throws a `TypeError` for a URL that is
- * not https.
+ * The approval page URL for `prompt`. A string or `URL` is a base the encoded
+ * request id is appended to. Throws a `TypeError` for a URL that is not https.
  */
 export function approvalUrlFor(
   prompt: ApprovalPrompt,

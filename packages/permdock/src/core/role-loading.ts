@@ -33,7 +33,10 @@ function onlyShared(roles: unknown): CustomRole[] {
   return Array.isArray(roles) ? roles.filter(isSharedRole) : [];
 }
 
-/** The `customRoles` option as a source: a factory is called with the resolved subject, and a throw reads none. */
+/**
+ * The `customRoles` option as a source: a factory is called with the resolved
+ * subject, and a throw reads none.
+ */
 export function roleSourceFor(
   option: CustomRoleSource | CustomRoleSourceFactory | undefined,
   subject: Subject,
@@ -163,8 +166,8 @@ export function assignableNamesFor(
 }
 
 /**
- * The declared role names among `names`. A custom role of `tenant` is known
- * but contributes no declared name: its grants are resolved separately
+ * The declared role names among `names`. A custom role of `tenant` is known but
+ * contributes no declared name: its grants are resolved separately
  * (`customGrantsFor`), bounded by the ceiling. A tenant's custom role is
  * unknown inside another tenant and for a membership without one.
  */

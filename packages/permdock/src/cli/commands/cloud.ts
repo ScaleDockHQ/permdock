@@ -1,7 +1,8 @@
+import type { Leaf } from "../core/command.ts";
 import type { CliContext } from "../core/context.ts";
 import type { Env } from "../core/env.ts";
 
-import { type Leaf, defineLeaf } from "../core/command.ts";
+import { defineLeaf } from "../core/command.ts";
 import { secretInput } from "../core/credentials.ts";
 import { dryRunFlag, given } from "../core/flags.ts";
 
@@ -86,8 +87,7 @@ export const pull: Leaf = defineLeaf({
       "PERMDOCK_CLOUD_TOKEN",
     );
     // Lazy: the implementation loads only when this command runs, not for --help.
-    const { runCloudPull } = await import("../cloud/pull.ts");
-    return runCloudPull({
+    return (await import("../cloud/pull.ts")).runCloudPull({
       cwd: ctx.cwd,
       config: ctx.config,
       url: given(flags.url),

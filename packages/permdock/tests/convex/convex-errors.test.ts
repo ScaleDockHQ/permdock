@@ -36,7 +36,7 @@ describe("permdock/convex errors and registration", () => {
         return { registered: true };
       },
     });
-    expect(snapshotQuery()).toEqual({ registered: true });
+    expect(snapshotQuery()).toStrictEqual({ registered: true });
     expect(registered.length).toBe(1);
   });
 });

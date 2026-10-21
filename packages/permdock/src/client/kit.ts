@@ -1,8 +1,8 @@
 /**
  * The kit every UI adapter (`react`, `vue`, `svelte`, `solid`) builds on: its
- * runtime imports come from here, never from core or another adapter. The
- * lint rule in `oxlint.config.ts` enforces it. Client entries stay free of
- * server imports (invariant 8), so nothing here reaches one.
+ * runtime imports come from here, never from core or another adapter. The lint
+ * rule in `oxlint.config.ts` enforces it. Client entries stay free of server
+ * imports (invariant 8), so nothing here reaches one.
  */
 export { boundaryDigest, boundaryFallback } from "./boundary.ts";
 export { approvalHeaders } from "./headers.ts";

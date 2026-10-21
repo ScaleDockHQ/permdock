@@ -10,7 +10,7 @@ import {
   policy,
 } from "../fixtures/quick-start.ts";
 
-describe("boundedMap", () => {
+describe(boundedMap, () => {
   it("evicts the least recently used key past the limit", () => {
     const map = boundedMap<string, number>(2);
     map.set("a", 1);
@@ -22,17 +22,17 @@ describe("boundedMap", () => {
       b: map.get("b"),
       c: map.get("c"),
       size: map.size(),
-    }).toEqual({ a: 1, b: undefined, c: 3, size: 2 });
+    }).toStrictEqual({ a: 1, b: undefined, c: 3, size: 2 });
     map.delete("a");
     expect({
       a: map.get("a"),
       missing: map.get("zz"),
       size: map.size(),
-    }).toEqual({ a: undefined, missing: undefined, size: 1 });
+    }).toStrictEqual({ a: undefined, missing: undefined, size: 1 });
   });
 });
 
-describe("approvalTokenOf", () => {
+describe(approvalTokenOf, () => {
   it("reads only a non-empty string token from an object", () => {
     expect(
       [
@@ -43,11 +43,18 @@ describe("approvalTokenOf", () => {
         null,
         "tok",
       ].map((context) => approvalTokenOf(context)),
-    ).toEqual(["tok", undefined, undefined, undefined, undefined, undefined]);
+    ).toStrictEqual([
+      "tok",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
   });
 });
 
-describe("modelReason", () => {
+describe(modelReason, () => {
   it("names an unknown permission in a denial", () => {
     expect(
       modelReason(
@@ -95,7 +102,7 @@ describe("createAgentKernel edge cases", () => {
       });
       seen.push((await kernel.instance({})).subject.actor);
     }
-    expect(seen).toEqual([undefined, undefined, undefined, undefined]);
+    expect(seen).toStrictEqual([undefined, undefined, undefined, undefined]);
   });
 
   it("passes a delegation through and drops a throwing one", async () => {
@@ -116,7 +123,10 @@ describe("createAgentKernel edge cases", () => {
     expect({
       delegated: (await delegated.instance({})).subject.delegation,
       broken: (await broken.instance({})).subject.delegation,
-    }).toEqual({ delegated: { scopes: ["post:list"] }, broken: undefined });
+    }).toStrictEqual({
+      delegated: { scopes: ["post:list"] },
+      broken: undefined,
+    });
   });
 
   it("builds a fresh instance for a primitive context", async () => {
@@ -146,7 +156,7 @@ describe("createAgentKernel edge cases", () => {
       missing: await kernel.tokenFor(tools.delete_post, "missing", {}),
       granted: await kernel.tokenFor(tools.list_posts, {}, {}),
       thrown: await kernel.tokenFor(tools.explode, {}, {}),
-    }).toEqual({
+    }).toStrictEqual({
       approval: "string",
       missing: undefined,
       granted: undefined,
@@ -217,7 +227,7 @@ describe("createAgentKernel check", () => {
       },
     });
     const checked = await kernel.check(update, {}, {});
-    expect(checked).toEqual({ ok: false, failure: "failed" });
+    expect(checked).toStrictEqual({ ok: false, failure: "failed" });
   });
 
   it("decides on the wrapped instance", async () => {
@@ -252,6 +262,6 @@ describe("createAgentKernel check", () => {
     });
     await kernel.check(update, {}, {}, { simulate: true });
     await kernel.check(update, {}, {});
-    expect(sources).toEqual(["adapter"]);
+    expect(sources).toStrictEqual(["adapter"]);
   });
 });

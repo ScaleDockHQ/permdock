@@ -45,7 +45,8 @@ describe("an approval covers the arguments it was given", () => {
       { signal },
     );
     expect(parked.behavior).toBe("deny");
-    const [pending] = (await store.list({ status: "pending" })).items;
+    const { items } = await store.list({ status: "pending" });
+    const [pending] = items;
     if (pending === undefined) {
       throw new Error("expected a pending approval");
     }
@@ -64,6 +65,9 @@ describe("an approval covers the arguments it was given", () => {
 
     expect(
       await canUseTool("Refund", { amount: 5, to: "c_1" }, { signal }),
-    ).toEqual({ behavior: "allow", updatedInput: { amount: 5, to: "c_1" } });
+    ).toStrictEqual({
+      behavior: "allow",
+      updatedInput: { amount: 5, to: "c_1" },
+    });
   });
 });

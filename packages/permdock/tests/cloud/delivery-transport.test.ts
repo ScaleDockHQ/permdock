@@ -18,15 +18,12 @@ const CLOUD_URL = "https://cloud.permdock.test";
 const KEY = "env-key";
 const DELIVERIES = `${CLOUD_URL}/v1/environments/production/deliveries`;
 
-type Posted = {
-  readonly idempotencyKey: string;
-  readonly body: unknown;
-};
+type Posted = { readonly idempotencyKey: string; readonly body: unknown };
 
 function fakeCloud(): {
   readonly fetch: typeof fetch;
   readonly posted: Posted[];
-  respond(status: number | "throw"): void;
+  respond: (status: number | "throw") => void;
 } {
   const posted: Posted[] = [];
   let next: number | "throw" | undefined;
@@ -112,7 +109,7 @@ testDeliveryTransport("cloudDeliveryTransport", {
   },
 });
 
-describe("cloudDeliveryTransport", () => {
+describe(cloudDeliveryTransport, () => {
   it("posts the checked recipient, the permission that let it through and the message", async () => {
     const fake = fakeCloud();
     const transport = cloudDeliveryTransport("email", options(fake));
@@ -124,8 +121,8 @@ describe("cloudDeliveryTransport", () => {
       idempotencyKey: "pdd_abc",
       delivery: "dlv_1",
     });
-    expect(result).toEqual({ status: "sent", providerId: "cdl_1" });
-    expect(fake.posted).toEqual([
+    expect(result).toStrictEqual({ status: "sent", providerId: "cdl_1" });
+    expect(fake.posted).toStrictEqual([
       {
         idempotencyKey: "pdd_abc",
         body: {
@@ -164,7 +161,7 @@ describe("cloudDeliveryTransport", () => {
           outgoing,
           { idempotencyKey: "pdd_abc", delivery: "dlv_1" },
         ),
-      ).toEqual({
+      ).toStrictEqual({
         status: "failed",
         cause,
         retryable,
@@ -186,12 +183,12 @@ describe("cloudDeliveryTransport", () => {
       status: "failed",
       cause: "invalid-recipient",
     });
-    expect(fake.posted).toEqual([]);
+    expect(fake.posted).toStrictEqual([]);
   });
 
   it("requires a key", () => {
     expect(() =>
       cloudDeliveryTransport("email", { url: CLOUD_URL, key: "" }),
-    ).toThrow(/requires a key/);
+    ).toThrow(/requires a key/u);
   });
 });

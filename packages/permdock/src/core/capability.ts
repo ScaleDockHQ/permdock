@@ -1,5 +1,6 @@
 import type { TokenSigner } from "./interfaces.ts";
 import type { Permission, PermissionTree } from "./permission-types.ts";
+import type { Membership, Principal, Subject } from "./subject.ts";
 import type { Instant } from "./time.ts";
 
 import { compact } from "./compact.ts";
@@ -8,18 +9,13 @@ import { freezeDeep } from "./freeze.ts";
 import { idList, isId, sameId } from "./ids.ts";
 import { ownRecord } from "./paths.ts";
 import { listPermissions } from "./permission-registry.ts";
-import {
-  type Membership,
-  type Principal,
-  type Subject,
-  anonymousSubject,
-} from "./subject.ts";
+import { anonymousSubject } from "./subject.ts";
 import { epochSeconds, nowSeconds } from "./time.ts";
 
 /**
- * Who may redeem a capability: anyone holding it, any signed-in principal,
- * one user, or a member of one scope instance. The viewer is the request's
- * own verified subject, never a claim of the capability.
+ * Who may redeem a capability: anyone holding it, any signed-in principal, one
+ * user, or a member of one scope instance. The viewer is the request's own
+ * verified subject, never a claim of the capability.
  */
 export type CapabilityRedeemer =
   | "anyone"
@@ -27,14 +23,17 @@ export type CapabilityRedeemer =
   | { readonly user: string }
   | { readonly scope: string; readonly id: string };
 
-/** RFC 7800 confirmation: the SHA-256 JWK thumbprint (RFC 7638) of the key that must redeem it. */
+/**
+ * RFC 7800 confirmation: the SHA-256 JWK thumbprint (RFC 7638) of the key that
+ * must redeem it.
+ */
 export type CapabilityConfirmation = { readonly jkt: string };
 
 /**
- * Capability v1: the `capability` claim of a `vnd.permdock.capability+jwt`.
- * It holds `roles` on one resource instance (`on`, the `Membership.on`
- * shape), optionally narrowed to `permissions` (keys). The link id is the
- * token's `sub` and its expiry the token's `exp`; neither repeats here.
+ * Capability v1: the `capability` claim of a `vnd.permdock.capability+jwt`. It
+ * holds `roles` on one resource instance (`on`, the `Membership.on` shape),
+ * optionally narrowed to `permissions` (keys). The link id is the token's `sub`
+ * and its expiry the token's `exp`; neither repeats here.
  */
 export type CapabilityClaim = {
   readonly v: 1;
@@ -44,13 +43,16 @@ export type CapabilityClaim = {
   readonly roles: readonly string[];
   readonly permissions?: readonly string[];
   readonly redeemer?: CapabilityRedeemer;
-  /** One request per token: the resolver claims the token's `jti` in a `ReplayStore`. */
+  /**
+   * One request per token: the resolver claims the token's `jti` in a
+   * `ReplayStore`.
+   */
   readonly once?: true;
 };
 
 /**
- * A verified capability: the claim plus `id` (the token's `sub`, the handle
- * an application revokes), `expiresAt` (its `exp`, Unix seconds, also the
+ * A verified capability: the claim plus `id` (the token's `sub`, the handle an
+ * application revokes), `expiresAt` (its `exp`, Unix seconds, also the
  * membership's `expiresAt`) and `cnf` when the token binds a redeemer key.
  */
 export type Capability = CapabilityClaim & {
@@ -76,7 +78,10 @@ export type CapabilityInput = {
   readonly once?: boolean;
   /** `exp`, Unix seconds. */
   readonly expiresAt: number;
-  /** Binds the link to the key with this RFC 7638 thumbprint; redeeming it then needs a DPoP proof from that key. */
+  /**
+   * Binds the link to the key with this RFC 7638 thumbprint; redeeming it then
+   * needs a DPoP proof from that key.
+   */
   readonly cnf?: CapabilityConfirmation;
 };
 
@@ -87,7 +92,10 @@ export type CapabilityInput = {
 export type LinkPolicy = {
   /** Longest a link may live, in seconds from when it was issued. */
   readonly maxLifetime?: number;
-  /** Redeemer kinds allowed; `anyone` also covers a capability without `redeemer`. */
+  /**
+   * Redeemer kinds allowed; `anyone` also covers a capability without
+   * `redeemer`.
+   */
   readonly redeemers?: readonly ("anyone" | "signed-in" | "user" | "scope")[];
   /** Every link must be one-time. */
   readonly once?: boolean;
@@ -113,9 +121,9 @@ function redeemerKind(
 }
 
 /**
- * The first rule of `policy` the capability breaks, or `undefined`. A
- * lifetime rule without a known `issuedAt`, or one that is not a finite
- * non-negative number, is broken: the check fails closed.
+ * The first rule of `policy` the capability breaks, or `undefined`. A lifetime
+ * rule without a known `issuedAt`, or one that is not a finite non-negative
+ * number, is broken: the check fails closed.
  */
 export function linkPolicyViolation(
   capability: Capability,
@@ -178,8 +186,8 @@ function parseConfirmation(input: unknown): CapabilityConfirmation | undefined {
 }
 
 /**
- * Validates a verified capability (a claim plus `id`, `expiresAt` and
- * an optional `cnf`) and returns a frozen copy, or `undefined`.
+ * Validates a verified capability (a claim plus `id`, `expiresAt` and an
+ * optional `cnf`) and returns a frozen copy, or `undefined`.
  */
 export function parseCapability(input: unknown): Capability | undefined {
   const value = ownRecord(input);
@@ -202,9 +210,9 @@ export function parseCapability(input: unknown): Capability | undefined {
 }
 
 /**
- * The capability verified claims carry: the `capability` claim, `sub` as
- * `id`, `exp` as `expiresAt` and the RFC 7800 `cnf`. `undefined` when any
- * of them is missing or malformed.
+ * The capability verified claims carry: the `capability` claim, `sub` as `id`,
+ * `exp` as `expiresAt` and the RFC 7800 `cnf`. `undefined` when any of them is
+ * missing or malformed.
  */
 export function capabilityFromClaims(
   claims: Readonly<Record<string, unknown>>,
@@ -224,9 +232,9 @@ export function capabilityFromClaims(
 }
 
 /**
- * Validates an untrusted `capability` claim and returns a frozen copy with
- * only the v1 fields, or `undefined`. Unknown fields are dropped; a wrong
- * type in a known field rejects the whole claim.
+ * Validates an untrusted `capability` claim and returns a frozen copy with only
+ * the v1 fields, or `undefined`. Unknown fields are dropped; a wrong type in a
+ * known field rejects the whole claim.
  */
 export function parseCapabilityClaim(
   input: unknown,
@@ -287,7 +295,10 @@ function resourceName(resource: Permission | PermissionTree): string {
   return name;
 }
 
-/** Builds the v1 `Capability` for `input`; throws on an input no resolver would accept. */
+/**
+ * Builds the v1 `Capability` for `input`; throws on an input no resolver would
+ * accept.
+ */
 export function capabilityOf(input: CapabilityInput): Capability {
   const capability = parseCapability(
     compact({
@@ -312,9 +323,9 @@ export function capabilityOf(input: CapabilityInput): Capability {
 }
 
 /**
- * Signs a capability as a `vnd.permdock.capability+jwt`: `sub` is the link
- * id, `exp` is `expiresAt`, `cnf` binds the redeemer's key, and the signer
- * sets `iss`, `aud`, `iat` (`issuedAt`, else now) and a fresh `jti`.
+ * Signs a capability as a `vnd.permdock.capability+jwt`: `sub` is the link id,
+ * `exp` is `expiresAt`, `cnf` binds the redeemer's key, and the signer sets
+ * `iss`, `aud`, `iat` (`issuedAt`, else now) and a fresh `jti`.
  */
 export function signCapability(
   input: CapabilityInput,
@@ -362,7 +373,10 @@ function holdsScope(
   );
 }
 
-/** Whether `viewer`, the request's own verified subject, may redeem a capability. */
+/**
+ * Whether `viewer`, the request's own verified subject, may redeem a
+ * capability.
+ */
 export function redeemerAllows(
   redeemer: CapabilityRedeemer | undefined,
   viewer: Subject | undefined,
@@ -391,10 +405,10 @@ export function redeemerAllows(
 }
 
 /**
- * The subject a verified capability acts as: a `link` principal holding
- * `roles` on `on` and nothing else, with `delegation.scopes` narrowing it to
- * `permissions` when the capability lists them. A `key` holder resolves to
- * the anonymous subject until user-bound credentials ship.
+ * The subject a verified capability acts as: a `link` principal holding `roles`
+ * on `on` and nothing else, with `delegation.scopes` narrowing it to
+ * `permissions` when the capability lists them. A `key` holder resolves to the
+ * anonymous subject until user-bound credentials ship.
  */
 export function capabilitySubject(
   capability: Capability,

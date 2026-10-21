@@ -18,20 +18,21 @@ const TMP = join(HERE, "../../tmp");
 
 const temps: string[] = [];
 
-afterEach(() => {
-  for (const dir of temps.splice(0)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
+describe("rls team reach", () => {
+  afterEach(() => {
+    for (const dir of temps.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 
-async function generate(authorize: "database" | "jwt"): Promise<string> {
-  mkdirSync(TMP, { recursive: true });
-  const dir = mkdtempSync(join(TMP, "rls-team-reach-"));
-  temps.push(dir);
-  cpSync(FIXTURE, dir, { recursive: true });
-  writeFileSync(
-    join(dir, "src/team-reach.ts"),
-    `import { allow, definePermissions, definePolicy, principal, resource, role } from 'permdock';
+  async function generate(authorize: "database" | "jwt"): Promise<string> {
+    mkdirSync(TMP, { recursive: true });
+    const dir = mkdtempSync(join(TMP, "rls-team-reach-"));
+    temps.push(dir);
+    cpSync(FIXTURE, dir, { recursive: true });
+    writeFileSync(
+      join(dir, "src/team-reach.ts"),
+      `import { allow, definePermissions, definePolicy, principal, resource, role } from 'permdock';
 
 export const permissions = definePermissions({
   job: resource({
@@ -52,10 +53,10 @@ export const policy = definePolicy(permissions, {
   subject: () => null,
 });
 `,
-  );
-  writeFileSync(
-    join(dir, "permdock.config.ts"),
-    `export default {
+    );
+    writeFileSync(
+      join(dir, "permdock.config.ts"),
+      `export default {
   permissions: './src/team-reach.ts',
   policy: './src/team-reach.ts',
   rls: {
@@ -70,28 +71,29 @@ export const policy = definePolicy(permissions, {
   },
 };
 `,
-  );
-  const result = await run(
-    ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
-    { cwd: dir },
-  );
-  if (result.code !== 0) {
-    throw new Error(result.stdout);
+    );
+    const result = await run(
+      ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
+      { cwd: dir },
+    );
+    if (result.code !== 0) {
+      throw new Error(result.stdout);
+    }
+    return readFileSync(join(dir, "rls.sql"), "utf8");
   }
-  return readFileSync(join(dir, "rls.sql"), "utf8");
-}
 
-describe("rls generate for an organisation role with team reach", () => {
-  it.each(["database", "jwt"] as const)(
-    "%s: compiles the team list to one array comparison, not a per-row helper",
-    async (authorize) => {
-      const sql = await generate(authorize);
-      expect(sql).toContain(
-        `("teamId" = any (array(select (e #>> '{}') from jsonb_array_elements(case when jsonb_typeof(((select auth.jwt()) -> 'team_ids')) = 'array'`,
-      );
-      expect(sql).toContain(
-        `"orgId" in (select "permdock".permitted_tenant_ids('job.read'))`,
-      );
-    },
-  );
+  describe("rls generate for an organisation role with team reach", () => {
+    it.each(["database", "jwt"] as const)(
+      "%s: compiles the team list to one array comparison, not a per-row helper",
+      async (authorize) => {
+        const sql = await generate(authorize);
+        expect(sql).toContain(
+          `("teamId" = any (array(select (e #>> '{}') from jsonb_array_elements(case when jsonb_typeof(((select auth.jwt()) -> 'team_ids')) = 'array'`,
+        );
+        expect(sql).toContain(
+          `"orgId" in (select "permdock".permitted_tenant_ids('job.read'))`,
+        );
+      },
+    );
+  });
 });

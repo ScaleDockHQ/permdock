@@ -23,6 +23,7 @@ import {
   EX_USAGE,
   TerminalExit,
 } from "../../src/terminal/index.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 import {
   memberUser,
   ownPost,
@@ -45,11 +46,7 @@ describe("permdock/terminal", () => {
     expect(
       exitCode({
         outcome: "approval-required",
-        grant: {
-          role: "member",
-          permission: "post.delete",
-          approval: "human",
-        },
+        grant: { role: "member", permission: "post.delete", approval: "human" },
         reason: "human",
         token: "pd1.x",
       }),
@@ -73,7 +70,7 @@ describe("permdock/terminal", () => {
     const decision = permdock.decide(permissions.post.publish, ownPost);
     const body = format(decision, { permission: permissions.post.publish });
     const parsed: unknown = JSON.parse(body);
-    expect(parsed).toEqual(
+    expect(parsed).toStrictEqual(
       expect.objectContaining({
         type: "https://permdock.com/problems/denied",
         title: "Permission denied",
@@ -123,7 +120,7 @@ describe("permdock/terminal", () => {
     ];
     expect(
       filterCommands(entries, { mode: "hide" }).map((e) => e.name),
-    ).toEqual(["list"]);
+    ).toStrictEqual(["list"]);
     const annotated = filterCommands(entries, { mode: "annotate" });
     expect(annotated[1]?.description).toContain("requires post:publish");
   });
@@ -192,7 +189,7 @@ describe("permdock/terminal", () => {
     });
     await expect(run()).rejects.toMatchObject({ code: 75 });
     const parsed: unknown = JSON.parse(lines.join(""));
-    expect(parsed).toEqual(
+    expect(parsed).toStrictEqual(
       expect.objectContaining({
         type: "https://permdock.com/problems/approval-required",
         approval: {
@@ -201,7 +198,8 @@ describe("permdock/terminal", () => {
         },
       }),
     );
-    expect((await store.list({ status: "pending" })).items).toHaveLength(1);
+    const { items } = await store.list({ status: "pending" });
+    expect(items).toHaveLength(1);
   });
 
   it("never asks the requester to approve their own human approval", async () => {
@@ -244,7 +242,8 @@ describe("permdock/terminal", () => {
       () => ownPost,
     )(async ({ decision }) => decision.outcome);
     await expect(run()).rejects.toMatchObject({ code: 75 });
-    const [pending] = (await store.list({ status: "pending" })).items;
+    const { items } = await store.list({ status: "pending" });
+    const [pending] = items;
     if (pending === undefined) {
       throw new Error("expected a pending approval");
     }
@@ -270,9 +269,7 @@ describe("permdock/terminal", () => {
     it("continues after an interactive confirm when the token still matches", async () => {
       const { protect } = createPermDock(selfApproved, {
         subject: () => memberUser,
-        interactive: {
-          confirm: async () => true,
-        },
+        interactive: { confirm: async () => true },
         runtime: { exit: throwExit, write: (): void => undefined },
       });
       const run = protect(
@@ -285,9 +282,7 @@ describe("permdock/terminal", () => {
     it("exits 77 when the interactive prompt is declined", async () => {
       const { protect } = createPermDock(selfApproved, {
         subject: () => memberUser,
-        interactive: {
-          confirm: async () => false,
-        },
+        interactive: { confirm: async () => false },
         runtime: { exit: throwExit, write: (): void => undefined },
       });
       const run = protect(
@@ -405,7 +400,7 @@ describe("permdock/terminal", () => {
       ],
       { mode: "hide" },
     );
-    expect(visible.map((entry) => entry.name)).toEqual(["list"]);
+    expect(visible.map((entry) => entry.name)).toStrictEqual(["list"]);
   });
 
   it("runs device flow, stores the token, and logout revokes it", async () => {
@@ -431,7 +426,7 @@ describe("permdock/terminal", () => {
         configDir: dir,
         // SAFETY: the device flow calls fetch with a URL and init only, which this stub accepts.
         fetch: (async (input) => {
-          const url = String(input);
+          const url = requestUrl(input);
           calls.push(url);
           if (url.endsWith("/device")) {
             return Response.json({
@@ -489,9 +484,7 @@ describe("permdock/terminal", () => {
     const file = path.join(dir, "credentials.json");
     writeFileSync(
       file,
-      JSON.stringify({
-        profiles: { default: { access_token: "leaked" } },
-      }),
+      JSON.stringify({ profiles: { default: { access_token: "leaked" } } }),
       { mode: 0o644 },
     );
     chmodSync(file, 0o644);
@@ -579,10 +572,10 @@ describe("permdock/terminal", () => {
       },
     });
     await permdockFor();
-    expect(requested).toEqual([
+    expect(requested).toStrictEqual([
       "https://gha.example/oidc?api-version=2.0&audience=https%3A%2F%2Fdeploy.acme.dev",
     ]);
-    expect(seen).toEqual(["gha-oidc", "gitlab-oidc"]);
+    expect(seen).toStrictEqual(["gha-oidc", "gitlab-oidc"]);
   });
 });
 
@@ -635,7 +628,7 @@ describe("permdock/terminal destructive and dry-run", () => {
     });
     expect(EX_USAGE).toBe(64);
     await expect(run()).rejects.toMatchObject({ code: 64 });
-    expect(ran).toEqual([]);
+    expect(ran).toStrictEqual([]);
     expect(lines.join("")).toContain("pass --yes");
   });
 
@@ -649,7 +642,7 @@ describe("permdock/terminal destructive and dry-run", () => {
     )(async () => {
       ran.push("delete");
     })();
-    expect(ran).toEqual(["delete"]);
+    expect(ran).toStrictEqual(["delete"]);
   });
 
   it("asks for the id to be typed in a terminal", async () => {
@@ -668,8 +661,8 @@ describe("permdock/terminal destructive and dry-run", () => {
     )(async () => {
       typedOk.ran.push("delete");
     })();
-    expect(asked).toEqual(["staging"]);
-    expect(typedOk.ran).toEqual(["delete"]);
+    expect(asked).toStrictEqual(["staging"]);
+    expect(typedOk.ran).toStrictEqual(["delete"]);
 
     const typedWrong = terminal({
       interactive: { typed: async () => "production" },
@@ -682,7 +675,7 @@ describe("permdock/terminal destructive and dry-run", () => {
         typedWrong.ran.push("delete");
       })(),
     ).rejects.toMatchObject({ code: 77 });
-    expect(typedWrong.ran).toEqual([]);
+    expect(typedWrong.ran).toStrictEqual([]);
   });
 
   it("does not ask for a non-destructive action", async () => {
@@ -690,7 +683,7 @@ describe("permdock/terminal destructive and dry-run", () => {
     await protect(deploys.environment.deploy)(async () => {
       ran.push("deploy");
     })();
-    expect(ran).toEqual(["deploy"]);
+    expect(ran).toStrictEqual(["deploy"]);
   });
 
   it("prints the decision on --dry-run without running or consuming", async () => {
@@ -705,8 +698,8 @@ describe("permdock/terminal destructive and dry-run", () => {
     });
     await expect(run()).rejects.toMatchObject({ code: 0 });
     await expect(run()).rejects.toMatchObject({ code: 0 });
-    expect(dry.ran).toEqual([]);
-    expect(JSON.parse(dry.lines[0] ?? "")).toEqual({
+    expect(dry.ran).toStrictEqual([]);
+    expect(JSON.parse(dry.lines[0] ?? "")).toStrictEqual({
       outcome: "granted",
       permission: "environment.deploy",
       dryRun: true,
@@ -716,14 +709,14 @@ describe("permdock/terminal destructive and dry-run", () => {
     await real.protect(deploys.environment.deploy)(async () => {
       real.ran.push("deploy");
     })();
-    expect(real.ran).toEqual(["deploy"]);
+    expect(real.ran).toStrictEqual(["deploy"]);
     const exhausted = terminal({ limits: limits(counter), dryRun: true });
     await expect(
       exhausted.protect(deploys.environment.deploy)(async () => {
         exhausted.ran.push("deploy");
       })(),
     ).rejects.toMatchObject({ code: 77 });
-    expect(exhausted.ran).toEqual([]);
+    expect(exhausted.ran).toStrictEqual([]);
   });
 
   it("skips the destructive prompt on --dry-run", async () => {
@@ -736,7 +729,7 @@ describe("permdock/terminal destructive and dry-run", () => {
         ran.push("delete");
       })(),
     ).rejects.toMatchObject({ code: 0 });
-    expect(ran).toEqual([]);
+    expect(ran).toStrictEqual([]);
     expect(lines.join("")).toBe(
       "dry run: environment.delete on environment staging is granted; nothing ran\n",
     );

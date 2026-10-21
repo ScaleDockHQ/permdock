@@ -14,10 +14,7 @@ import { dirname, relative, resolve } from "node:path";
 import { CliError } from "./errors.ts";
 
 /** A file a command writes, relative to the working directory or absolute. */
-export type PlannedFile = {
-  readonly path: string;
-  readonly text: string;
-};
+export type PlannedFile = { readonly path: string; readonly text: string };
 
 export type FileOutcome = "created" | "updated" | "unchanged";
 
@@ -26,7 +23,10 @@ export type AppliedFile = {
   readonly outcome: FileOutcome;
 };
 
-/** `/dev/null` and its kin: a rename over a device is refused, so it is written in place. */
+/**
+ * `/dev/null` and its kin: a rename over a device is refused, so it is written
+ * in place.
+ */
 function isCharacterDevice(abs: string): boolean {
   try {
     return statSync(abs).isCharacterDevice();
@@ -93,10 +93,7 @@ export function applyFiles(
     throw new CliError(
       "failed",
       `could not write ${describe(error)}; wrote nothing`,
-      {
-        code: "write_failed",
-        cause: error,
-      },
+      { code: "write_failed", cause: error },
     );
   }
   for (const { temp, target } of staged) {
@@ -126,8 +123,8 @@ export function fileSummary(
 }
 
 /**
- * The files among `paths` with uncommitted changes in git. Outside a git
- * work tree, or without git, nothing counts as dirty.
+ * The files among `paths` with uncommitted changes in git. Outside a git work
+ * tree, or without git, nothing counts as dirty.
  */
 export function dirtyFiles(
   cwd: string,

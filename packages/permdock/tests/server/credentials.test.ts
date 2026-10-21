@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { Credential } from "../../src/core/credential.ts";
 import type { AuthEvent } from "../../src/core/event-types.ts";
 import type { Subject } from "../../src/core/subject.ts";
+import type { ApiKeySubjectOptions } from "../../src/server/credentials.ts";
 
 import { compact } from "../../src/core/compact.ts";
 import { allow } from "../../src/core/grant-builders.ts";
@@ -19,7 +20,6 @@ import { role } from "../../src/core/role-builder.ts";
 import { memoryDecisionSink } from "../../src/core/sink.ts";
 import { createPermDock as createHonoPermDock } from "../../src/hono/index.ts";
 import {
-  type ApiKeySubjectOptions,
   apiKeyVerifier,
   generateApiKey,
   hashApiKey,
@@ -30,6 +30,7 @@ import {
 import { createPermDock as createServerPermDock } from "../../src/server/index.ts";
 import { testCredentialVerifier } from "../../src/testing/conformance/credentials.ts";
 import { testSubjectResolver } from "../../src/testing/conformance/identity.ts";
+import { defined } from "../support/defined.ts";
 
 const org = { organization: { field: "orgId", memberOf: "organization" } };
 const permissions = definePermissions({
@@ -141,8 +142,8 @@ describe("testCredentialVerifier on apiKeyVerifier", () => {
 describe("API key format", () => {
   it("generates pdk_<id>_<secret><checksum> keys that parse back, ids with underscores included", () => {
     const key = generateApiKey("key_1");
-    expect(key).toMatch(/^pdk_key_1_[A-Za-z0-9]{49}$/);
-    expect(parseApiKey(key)).toEqual({
+    expect(key).toMatch(/^pdk_key_1_[A-Za-z0-9]{49}$/u);
+    expect(parseApiKey(key)).toStrictEqual({
       id: "key_1",
       secret: key.slice(10, 53),
     });
@@ -193,28 +194,28 @@ describe("API key format", () => {
   });
 });
 
-describe("memoryCredentialStore", () => {
+describe(memoryCredentialStore, () => {
   it("issues, rotates and revokes, reporting each to the sink", async () => {
     const sink = memoryDecisionSink();
     const store = memoryCredentialStore({ sink, source: "app" });
     const first = await store.issue(credential());
     expect(parseApiKey(first)?.id).toBe("key_1");
-    expect(store.list()).toEqual([credential()]);
+    expect(store.list()).toStrictEqual([credential()]);
     const second = await store.rotate("key_1");
     expect(second).toBeDefined();
     expect(await store.verify(first)).toBeNull();
-    expect(await store.verify(second!)).toMatchObject({ id: "key_1" });
+    expect(await store.verify(defined(second))).toMatchObject({ id: "key_1" });
     expect(await store.rotate("missing")).toBeUndefined();
     expect(store.revoke("key_1")).toBe(true);
     expect(store.revoke("key_1")).toBe(false);
-    expect(await store.verify(second!)).toBeNull();
+    expect(await store.verify(defined(second))).toBeNull();
     expect(
       sink
         .events()
         .map((event) =>
           event.type === "credential" ? [event.operation, event.source] : [],
         ),
-    ).toEqual([
+    ).toStrictEqual([
       ["created", "app"],
       ["rotated", "app"],
       ["revoked", "app"],
@@ -226,7 +227,7 @@ describe("memoryCredentialStore", () => {
     await expect(store.issue(credential({ kind: "robot" }))).rejects.toThrow(
       TypeError,
     );
-    await expect(store.issue(credential())).rejects.toThrow(/exists/);
+    await expect(store.issue(credential())).rejects.toThrow(/exists/u);
   });
 
   it("keeps working when the sink throws", async () => {
@@ -242,7 +243,7 @@ describe("memoryCredentialStore", () => {
   });
 });
 
-describe("apiKeyVerifier", () => {
+describe(apiKeyVerifier, () => {
   it("returns null for a wrong hash, a mismatched id or an invalid record", async () => {
     const key = generateApiKey("key_1");
     const hash = await hashApiKey(key);
@@ -268,7 +269,7 @@ describe("apiKeyVerifier", () => {
   });
 });
 
-describe("subjectFromApiKey", () => {
+describe(subjectFromApiKey, () => {
   const verifier = memoryCredentialStore();
   testSubjectResolver(
     (key: string | undefined | null, scope?: { readonly tenant?: string }) =>
@@ -311,7 +312,7 @@ describe("subjectFromApiKey", () => {
       kind: "user",
       credential: { id: "key_1", kind: "user" },
     });
-    expect(subject.delegation).toEqual({ scopes: ["repo:read"] });
+    expect(subject.delegation).toStrictEqual({ scopes: ["repo:read"] });
     const permdock = permdockFor(subject);
     expect(permdock.can(repo.read, r1)).toBe(true);
     expect(permdock.can(repo.write, r1)).toBe(false);
@@ -367,15 +368,12 @@ describe("subjectFromApiKey", () => {
       },
     });
     expect(subject.principal?.id).toBe("u_1");
-    expect(asked).toEqual([["u_1", { tenant: "o_1" }]]);
+    expect(asked).toStrictEqual([["u_1", { tenant: "o_1" }]]);
   });
 
   it("takes the owner rights from getPermDockSync memberships without an owner loader", async () => {
     const { store, key } = await issue();
-    const subject = await resolve(key, {
-      verifier: store,
-      permissions,
-    });
+    const subject = await resolve(key, { verifier: store, permissions });
     const permdock = getPermDockSync(policy, subject, {
       tenant: "o_1",
       memberships: {
@@ -493,7 +491,7 @@ describe("subjectFromApiKey", () => {
         row.tenant,
       );
       expect(subject.principal).toBeNull();
-      expect(events).toEqual([
+      expect(events).toStrictEqual([
         {
           reason: row.reason ?? "invalid-token",
           ...(row.cause === undefined ? {} : { cause: row.cause }),
@@ -502,23 +500,15 @@ describe("subjectFromApiKey", () => {
         },
       ]);
     }
-    const none = await resolve(undefined, {
-      verifier: store,
-      permissions,
-    });
+    const none = await resolve(undefined, { verifier: store, permissions });
     expect(none.principal).toBeNull();
   });
 
   it("reports sampled uses to the sink and never lets the sink decide", async () => {
     const { store, key } = await issue();
     const sink = memoryDecisionSink();
-    await resolve(key, {
-      verifier: store,
-      permissions,
-      sink,
-      source: "api",
-    });
-    expect(sink.events()).toEqual([
+    await resolve(key, { verifier: store, permissions, sink, source: "api" });
+    expect(sink.events()).toStrictEqual([
       expect.objectContaining({
         type: "credential",
         operation: "used",
@@ -530,12 +520,7 @@ describe("subjectFromApiKey", () => {
     ]);
     const quiet = memoryDecisionSink();
     for (const sample of [0, 2, Number.NaN]) {
-      await resolve(key, {
-        verifier: store,
-        permissions,
-        sink: quiet,
-        sample,
-      });
+      await resolve(key, { verifier: store, permissions, sink: quiet, sample });
     }
     expect(quiet.events()).toHaveLength(0);
     const subject = await resolve(key, {
@@ -616,7 +601,7 @@ describe("subjectFromApiKey: a key over many permissions", () => {
         causes.push(event);
       },
     });
-    expect(causes).toEqual([]);
+    expect(causes).toStrictEqual([]);
     expect(subject.principal?.credential.permissions).toHaveLength(200);
     expect(subject.delegation?.scopes).toHaveLength(200);
     const permdock = getPermDockSync(widePolicy, subject);
@@ -665,7 +650,7 @@ describe("a user key held to one tenant on a route of another", () => {
     expect({
       other: other.ok ? 200 : other.response.status,
       own: own.ok ? 200 : own.response.status,
-    }).toEqual({ other: 403, own: 200 });
+    }).toStrictEqual({ other: 403, own: 200 });
   });
 
   it("answers for no tenant and no membership outside the held tenant", async () => {
@@ -682,7 +667,7 @@ describe("a user key held to one tenant on a route of another", () => {
       inHeld: permdock.can(repo.read, r2),
       switched: permdock.tenant("o_2").can(repo.read, r2),
       where: permdock.where(repo.read),
-    }).toEqual({
+    }).toStrictEqual({
       tenant: undefined,
       memberships: [],
       tenants: [],
@@ -703,7 +688,7 @@ describe("a user key held to one tenant on a route of another", () => {
     app.get("/orgs/:org/repos", protect(repo.read), (c) => c.text("ok"));
     const other = await app.request("/orgs/o_1/repos");
     const own = await app.request("/orgs/o_2/repos");
-    expect({ other: other.status, own: own.status }).toEqual({
+    expect({ other: other.status, own: own.status }).toStrictEqual({
       other: 403,
       own: 200,
     });

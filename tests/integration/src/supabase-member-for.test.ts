@@ -55,7 +55,10 @@ create schema pd_db;
 grant usage on schema pd_db to authenticated;
 `;
 
-/** An extra claim another package owns: one entry per organization the user is a member of. */
+/**
+ * An extra claim another package owns: one entry per organization the user is a
+ * member of.
+ */
 const FEATURE_CLAIMS = `
 create schema billing;
 create function billing.feature_claims(uid uuid) returns jsonb language sql stable as $$
@@ -149,16 +152,21 @@ describe("member_<scope>_ids_for against Postgres", () => {
 
   it("reads the sources as supabase_auth_admin with no request.jwt.claims", async () => {
     const fn = "permdock.member_organization_ids_for";
-    expect(await idsFor("supabase_auth_admin", fn, OWNER)).toEqual(["B", "T"]);
-    expect(await idsFor("supabase_auth_admin", fn, CONTACT)).toEqual([]);
-    expect(await idsFor("supabase_auth_admin", fn, SUSPENDED)).toEqual([]);
+    expect(await idsFor("supabase_auth_admin", fn, OWNER)).toStrictEqual([
+      "B",
+      "T",
+    ]);
+    expect(await idsFor("supabase_auth_admin", fn, CONTACT)).toStrictEqual([]);
+    expect(await idsFor("supabase_auth_admin", fn, SUSPENDED)).toStrictEqual(
+      [],
+    );
     expect(
       await idsFor(
         "supabase_auth_admin",
         "permdock.member_customer_ids_for",
         CONTACT,
       ),
-    ).toEqual(["A"]);
+    ).toStrictEqual(["A"]);
   });
 
   it("agrees with member_<scope>_ids() in database mode", async () => {
@@ -168,10 +176,7 @@ describe("member_<scope>_ids_for against Postgres", () => {
     const tester = db.tester;
     for (const user of USERS) {
       const own = await db.as(
-        {
-          role: "authenticated",
-          settings: jwtClaims(user),
-        },
+        { role: "authenticated", settings: jwtClaims(user) },
         async () =>
           (
             await tester.query<{ id: string }>(
@@ -185,14 +190,14 @@ describe("member_<scope>_ids_for against Postgres", () => {
           "pd_db.member_organization_ids_for",
           user,
         ),
-      ).toEqual(own);
+      ).toStrictEqual(own);
       expect(
         await idsFor(
           "supabase_auth_admin",
           "permdock.member_organization_ids_for",
           user,
         ),
-      ).toEqual(own);
+      ).toStrictEqual(own);
     }
   });
 
@@ -213,7 +218,7 @@ describe("member_<scope>_ids_for against Postgres", () => {
         ]);
         return result.rows[0]?.event.claims ?? {};
       }) ?? Promise.resolve({});
-    expect((await mint(OWNER))["features"]).toEqual({
+    expect((await mint(OWNER))["features"]).toStrictEqual({
       B: ["export"],
       T: ["export"],
     });

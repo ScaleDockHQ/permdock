@@ -4,6 +4,7 @@ import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { Actor, Principal, Subject } from "../core/subject.ts";
 import type {
   CommandEntry,
   FilterCommandsOptions,
@@ -25,12 +26,7 @@ import { withApp } from "../core/app.ts";
 import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
 import { compact } from "../core/compact.ts";
 import { resourceRef } from "../core/resource-ref.ts";
-import {
-  type Actor,
-  type Principal,
-  type Subject,
-  isSubject,
-} from "../core/subject.ts";
+import { isSubject } from "../core/subject.ts";
 import { revokeCredential } from "./device.ts";
 import { defaultExit, EX_NOPERM, EX_USAGE } from "./exit.ts";
 import { filterCommandEntries } from "./filter.ts";
@@ -65,9 +61,9 @@ function envOf(
 }
 
 /**
- * The local y/N is the requester answering for themselves, so it stands in
- * for an approval only where the grant allows that (`distinct: false`) and no
- * agent is acting for the user.
+ * The local y/N is the requester answering for themselves, so it stands in for
+ * an approval only where the grant allows that (`distinct: false`) and no agent
+ * is acting for the user.
  */
 function answersLocally(
   decision: Extract<Decision, { readonly outcome: "approval-required" }>,
@@ -121,14 +117,8 @@ function actorFromResolved(value: unknown): TerminalActor {
       value.actor ??
       (principal === null
         ? undefined
-        : {
-            id: principal.id,
-            kind: principal.kind ?? "oauth-client",
-          });
-    return compact<TerminalActor>({
-      actor,
-      delegation: value.delegation,
-    });
+        : { id: principal.id, kind: principal.kind ?? "oauth-client" });
+    return compact<TerminalActor>({ actor, delegation: value.delegation });
   }
   if (
     typeof value === "object" &&
@@ -149,10 +139,7 @@ function defaultConfirm(input: {
   readonly resource: { readonly type: string; readonly id?: string };
   readonly reason: string;
 }): Promise<boolean> {
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stderr,
-  });
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
   return new Promise((resolve) => {
     rl.question(
       `${input.permission} on ${describeResource(input.resource)} (${input.reason}). Continue? [y/N] `,
@@ -174,10 +161,7 @@ function describeResource(resource: {
 }
 
 const defaultTyped: TypedConfirm = (input) => {
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stderr,
-  });
+  const rl = createInterface({ input: process.stdin, output: process.stderr });
   return new Promise((resolve) => {
     rl.question(
       `${input.permission} on ${describeResource(input.resource)} cannot be undone. Type ${input.expected} to continue: `,
@@ -357,12 +341,7 @@ export function createPermDock<
         granted = first;
       } else if (answersLocally(first, instance.subject)) {
         if (!isInteractive(options)) {
-          write(
-            format(first, {
-              permission,
-              subject: instance.subject,
-            }),
-          );
+          write(format(first, { permission, subject: instance.subject }));
           return exit(exitCode(first));
         }
         const confirm =
@@ -471,11 +450,7 @@ export function createPermDock<
 
       // SAFETY: TData is load's result type; data is undefined only when no load was passed.
       return action(
-        {
-          permdock: instance,
-          data: data as TData,
-          decision: granted,
-        },
+        { permdock: instance, data: data as TData, decision: granted },
         ...args,
       );
     };
@@ -493,12 +468,5 @@ export function createPermDock<
     last = undefined;
   };
 
-  return {
-    getPermDock,
-    protect,
-    filterCommands,
-    format,
-    exitCode,
-    logout,
-  };
+  return { getPermDock, protect, filterCommands, format, exitCode, logout };
 }

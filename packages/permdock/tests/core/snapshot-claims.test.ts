@@ -27,16 +27,11 @@ const policy = definePolicy(permissions, {
   grants: [
     allow(permissions.record.read, {
       to: authenticated(),
-      where: {
-        region: claim("attrs.region"),
-        ownerId: principal.id,
-      },
+      where: { region: claim("attrs.region"), ownerId: principal.id },
     }),
     allow(permissions.record.delete, {
       to: authenticated(),
-      where: {
-        region: { notIn: claim("attrs.blocked") },
-      },
+      where: { region: { notIn: claim("attrs.blocked") } },
     }),
   ],
   subject: (user: {
@@ -55,19 +50,19 @@ describe("claims in snapshots", () => {
     const permdock = getPermDockSync(policy, user);
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise || typeof snapshot !== "object") {
-      throw new Error("expected a json snapshot");
+      throw new TypeError("expected a json snapshot");
     }
     expect(snapshot.subject.principal).not.toHaveProperty("claims");
     const where = (key: string): unknown =>
       snapshot.grants.find((grant) => grant.permission === key)?.where;
-    expect(where("record.read")).toEqual({
+    expect(where("record.read")).toStrictEqual({
       op: "and",
       conditions: [
         { op: "eq", field: "region", value: "eu" },
         { op: "eq", field: "ownerId", value: { ref: "principal.id" } },
       ],
     });
-    expect(where("record.delete")).toEqual({
+    expect(where("record.delete")).toStrictEqual({
       op: "notIn",
       field: "region",
       value: ["us"],

@@ -11,8 +11,8 @@ import {
 import { z } from "zod";
 
 /**
- * A B2B scenario drawn from a real field-service SaaS: staff hold one role
- * per organization, portal contacts see their own customer's documents, and
+ * A B2B scenario drawn from a real field-service SaaS: staff hold one role per
+ * organization, portal contacts see their own customer's documents, and
  * platform operators manage organizations without reading tenant data.
  */
 const Document = z.object({
@@ -70,7 +70,10 @@ export const roles = defineRoles({
 
 const visible = { status: { in: ["sent", "accepted"] } } as const;
 
-/** Staff roles are held only through staff memberships, and every organization keeps an owner. */
+/**
+ * Staff roles are held only through staff memberships, and every organization
+ * keeps an owner.
+ */
 const staff = { for: ["staff"], meta: { audience: "staff" } } as const;
 
 export const policy = definePolicy(

@@ -15,10 +15,10 @@ import {
 
 /**
  * What the `where` of a membership subquery on `table` says, or `undefined`
- * when any part of it cannot be read as one. A subquery imports as
- * `memberOf` only when it binds the membership row to the signed-in user
- * and to the policy row, and filters roles with string literals at most:
- * a predicate left unread would widen the imported condition.
+ * when any part of it cannot be read as one. A subquery imports as `memberOf`
+ * only when it binds the membership row to the signed-in user and to the policy
+ * row, and filters roles with string literals at most: a predicate left unread
+ * would widen the imported condition.
  */
 export function membershipRoles(
   subquery: MembershipSubquery,

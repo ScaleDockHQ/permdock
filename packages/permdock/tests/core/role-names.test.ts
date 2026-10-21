@@ -36,7 +36,7 @@ const policy = definePolicy(permissions, {
   }),
 });
 
-describe("isRoleName", () => {
+describe(isRoleName, () => {
   it("accepts a declared role and rejects anything else", () => {
     expect(isRoleName(vocabularyPolicy, "editor")).toBe(true);
     expect(isRoleName(vocabularyPolicy, "owner")).toBe(false);
@@ -88,7 +88,7 @@ describe("allow on a resource or the whole tree", () => {
     const owner = policy.rolesByName.get("owner");
     expect(
       owner?.grants.map((grant) => grant.permission.key).toSorted(),
-    ).toEqual([
+    ).toStrictEqual([
       "billing.read",
       "billing.update",
       "member.invite",

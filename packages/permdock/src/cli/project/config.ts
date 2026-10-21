@@ -2,9 +2,10 @@ import { existsSync } from "node:fs";
 import { relative, resolve } from "node:path";
 
 import type { PermDockConfig } from "../types.ts";
+import type { ParsedConfig } from "./config-schema.ts";
 
 import { CliError } from "../core/errors.ts";
-import { type ParsedConfig, parseConfig } from "./config-schema.ts";
+import { parseConfig } from "./config-schema.ts";
 
 const CONFIG_FILES = [
   "permdock.config.ts",
@@ -31,11 +32,12 @@ export async function readConfig(
   fromFlag?: string,
   options?: { readonly fresh?: boolean },
 ): Promise<LoadedConfig> {
-  const path = fromFlag
-    ? resolve(cwd, fromFlag)
-    : CONFIG_FILES.map((name) => resolve(cwd, name)).find((file) =>
-        existsSync(file),
-      );
+  const path =
+    fromFlag !== undefined && fromFlag !== ""
+      ? resolve(cwd, fromFlag)
+      : CONFIG_FILES.map((name) => resolve(cwd, name)).find((file) =>
+          existsSync(file),
+        );
   if (path === undefined) {
     return { config: {}, warnings: [], file: undefined };
   }
@@ -43,9 +45,7 @@ export async function readConfig(
     throw new CliError(
       "usage",
       `PermDock CLI: config file not found: ${path}`,
-      {
-        code: "config_not_found",
-      },
+      { code: "config_not_found" },
     );
   }
   // Lazy: jiti and the core load only when there is a config file to read.

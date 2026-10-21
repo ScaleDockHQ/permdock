@@ -13,10 +13,7 @@ import {
 } from "../../src/index.ts";
 import { testRlsParity } from "../../src/testing/rls-parity.ts";
 
-const Post = z.object({
-  id: z.string(),
-  authorId: z.string(),
-});
+const Post = z.object({ id: z.string(), authorId: z.string() });
 
 const permissions = definePermissions({
   post: resource(Post, {
@@ -44,7 +41,7 @@ const policy = definePolicy(permissions, {
 const own = { id: "p1", authorId: "u1" };
 const other = { id: "p2", authorId: "u9" };
 
-describe("testRlsParity", () => {
+describe(testRlsParity, () => {
   it("agrees when the database filters a denied update", async () => {
     const report = await testRlsParity(policy, {
       dialect: "guc",
@@ -65,7 +62,7 @@ describe("testRlsParity", () => {
         },
       ],
       query: async (sql, values) => {
-        expect(sql).not.toMatch(/service_role/i);
+        expect(sql).not.toMatch(/service_role/iu);
         if (sql.startsWith("update") && values?.[0] === "p2") {
           return { rows: [], rowCount: 0 };
         }
@@ -76,7 +73,7 @@ describe("testRlsParity", () => {
       },
     });
     expect(report.ok).toBe(true);
-    expect(report.results).toEqual([
+    expect(report.results).toStrictEqual([
       { name: "read own", granted: true, database: "allowed", ok: true },
       { name: "update other", granted: false, database: "filtered", ok: true },
     ]);
@@ -94,7 +91,7 @@ describe("testRlsParity", () => {
         },
       ],
       query: async (sql) => {
-        expect(sql).not.toMatch(/service_role/i);
+        expect(sql).not.toMatch(/service_role/iu);
         if (sql.startsWith("update")) {
           return { rows: [], code: "42501" };
         }
@@ -124,7 +121,7 @@ describe("testRlsParity", () => {
         },
       ],
       query: async (sql, values) => {
-        seen.push(`${sql} ${String(values?.[0] ?? "")}`);
+        seen.push(`${sql} ${JSON.stringify(values?.[0] ?? "")}`);
         if (values?.[0] === "request.jwt.claims") {
           expect(String(values[1])).toContain('"sub":"u1"');
         }
@@ -149,7 +146,7 @@ describe("testRlsParity", () => {
         },
       ],
       query: async (sql, values) => {
-        guc.push(`${sql} ${String(values?.[0] ?? "")}`);
+        guc.push(`${sql} ${JSON.stringify(values?.[0] ?? "")}`);
         if (sql.startsWith("select *")) {
           return { rows: [own], rowCount: 1 };
         }
@@ -208,7 +205,7 @@ describe("testRlsParity", () => {
         ],
         query: async () => ({ rows: [] }),
       }),
-    ).rejects.toThrow(/unsafe SQL identifier/);
+    ).rejects.toThrow(/unsafe SQL identifier/u);
   });
 
   it("reports mismatch when the database filters a granted read", async () => {
@@ -274,7 +271,7 @@ describe("testRlsParity relation grantee", () => {
         },
       ],
       query: async (sql, values) => {
-        expect(sql).not.toMatch(/service_role/i);
+        expect(sql).not.toMatch(/service_role/iu);
         if (sql.startsWith("update") && values?.[0] === "p2") {
           return { rows: [], rowCount: 0 };
         }
@@ -285,7 +282,7 @@ describe("testRlsParity relation grantee", () => {
       },
     });
     expect(report.ok).toBe(true);
-    expect(report.results).toEqual([
+    expect(report.results).toStrictEqual([
       { name: "update own", granted: true, database: "allowed", ok: true },
       { name: "update other", granted: false, database: "filtered", ok: true },
     ]);
@@ -315,7 +312,7 @@ describe("testRlsParity relation grantee", () => {
           const claims = JSON.parse(String(values?.[1])) as {
             readonly memberships: readonly unknown[];
           };
-          expect(claims.memberships).toEqual([
+          expect(claims.memberships).toStrictEqual([
             { scope: "tenant", id: "o1", roles: ["member"] },
           ]);
         }
@@ -324,7 +321,7 @@ describe("testRlsParity relation grantee", () => {
           : { rows: [], rowCount: 0 };
       },
     });
-    expect(report.results).toEqual([
+    expect(report.results).toStrictEqual([
       {
         name: "read own",
         granted: true,
@@ -419,7 +416,7 @@ describe("testRlsParity fieldViews", () => {
       ],
       query: db.query,
     });
-    expect(report.results).toEqual([
+    expect(report.results).toStrictEqual([
       {
         name: "finance",
         granted: true,
@@ -459,7 +456,7 @@ describe("testRlsParity fieldViews", () => {
       fixtures: [admin],
       query: missing.query,
     });
-    expect(fallback.results[0]?.fields).toEqual({
+    expect(fallback.results[0]?.fields).toStrictEqual({
       app: ["amount", "id", "title"],
       database: ["amount", "id", "title"],
     });
@@ -499,7 +496,7 @@ describe("testRlsParity fieldViews", () => {
           ? { rows: [], rowCount: 0 }
           : db.query(sql),
     });
-    expect(report.results[0]?.fields).toEqual({ app: [], database: [] });
+    expect(report.results[0]?.fields).toStrictEqual({ app: [], database: [] });
     expect(report.results[1]?.fields).toBeUndefined();
     expect(report.ok).toBe(true);
     expect(db.sqls).toContain(
@@ -529,7 +526,7 @@ describe("testRlsParity fieldViews", () => {
         return { rows: [] };
       },
     });
-    expect(report.results).toEqual([
+    expect(report.results).toStrictEqual([
       {
         name: "anonymous read",
         granted: false,

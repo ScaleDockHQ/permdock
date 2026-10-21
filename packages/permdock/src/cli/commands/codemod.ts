@@ -1,4 +1,6 @@
-import { type Leaf, defineLeaf } from "../core/command.ts";
+import type { Leaf } from "../core/command.ts";
+
+import { defineLeaf } from "../core/command.ts";
 import { dryRunFlag } from "../core/flags.ts";
 
 export const codemod: Leaf = defineLeaf({
@@ -28,8 +30,7 @@ export const codemod: Leaf = defineLeaf({
   },
   async run(ctx, { flags, args, rest }) {
     // Lazy: oxc-parser and the rename maps load only when this command runs, not for --help.
-    const { runCodemod } = await import("../codemod/codemod.ts");
-    return runCodemod({
+    return (await import("../codemod/codemod.ts")).runCodemod({
       cwd: ctx.cwd,
       version: args["version"],
       paths: rest,

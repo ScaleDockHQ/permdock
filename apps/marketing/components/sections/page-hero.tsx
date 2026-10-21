@@ -6,7 +6,9 @@ import { ButtonLink } from "@/components/site/button-link";
 import { SiteLink } from "@/components/site/site-link";
 import { Badge } from "@permdock/ui/reui/badge";
 
-import { PageHeroFeatures, type PageHeroFeature } from "./page-hero-features";
+import type { PageHeroFeature } from "./page-hero-features";
+
+import { PageHeroFeatures } from "./page-hero-features";
 
 export function PageHero({
   badge,
@@ -32,7 +34,11 @@ export function PageHero({
           <Badge
             variant="outline"
             radius="full"
-            render={badgeHref ? <SiteLink href={badgeHref} /> : undefined}
+            render={
+              badgeHref === undefined ? undefined : (
+                <SiteLink href={badgeHref} />
+              )
+            }
             className="h-7 gap-1.5 px-2 text-sm font-medium"
           >
             <span

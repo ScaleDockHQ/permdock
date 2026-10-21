@@ -24,10 +24,16 @@ export type AgentPermDockOptions<
   TUser = unknown,
 > = AgentAdapterOptions<TContext, TUser>;
 
-/** What one operation call decides: granted with the loaded row, denied with the text a model reads, or parked for approval. */
+/**
+ * What one operation call decides: granted with the loaded row, denied with the
+ * text a model reads, or parked for approval.
+ */
 export type OperationVerdict = ToolVerdict;
 
-/** `providerOptions` for the Vercel AI Gateway: spend and usage attributed to the caller. */
+/**
+ * `providerOptions` for the Vercel AI Gateway: spend and usage attributed to
+ * the caller.
+ */
 export type GatewayOptions = {
   readonly gateway: {
     readonly user?: string;
@@ -45,12 +51,15 @@ export type AgentPermDock<
   TContext,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = {
-  /** One instance per context object while a call is in flight; later calls re-read the subject. */
+  /**
+   * One instance per context object while a call is in flight; later calls
+   * re-read the subject.
+   */
   readonly getPermDock: (context: TContext) => Promise<PermDock<V>>;
   /**
-   * Decides operation `name` on `input`: loads the row through the
-   * operation's `data`, validates it, decides and resumes an approval. Never
-   * throws; an operation `operations` does not name is denied.
+   * Decides operation `name` on `input`: loads the row through the operation's
+   * `data`, validates it, decides and resumes an approval. Never throws; an
+   * operation `operations` does not name is denied.
    */
   readonly decideOperation: (
     name: string,
@@ -58,7 +67,10 @@ export type AgentPermDock<
     context: TContext,
     options?: DecideToolOptions,
   ) => Promise<OperationVerdict>;
-  /** Operation names the subject could be granted for some row; a listing hint, never a decision. */
+  /**
+   * Operation names the subject could be granted for some row; a listing hint,
+   * never a decision.
+   */
   readonly allowedOperations: (
     context: TContext,
   ) => Promise<ReadonlySet<string>>;
@@ -68,7 +80,10 @@ export type AgentPermDock<
     input: unknown,
     context: TContext,
   ) => Promise<string | undefined>;
-  /** Decides whether the subject may call model `modelId`. A model `models` does not name is denied. */
+  /**
+   * Decides whether the subject may call model `modelId`. A model `models` does
+   * not name is denied.
+   */
   readonly decideModel: (
     modelId: string,
     context: TContext,
@@ -76,20 +91,26 @@ export type AgentPermDock<
   /** The ids in `models` the subject is granted, in declaration order. */
   readonly permittedModels: (context: TContext) => Promise<readonly string[]>;
   /**
-   * The rows of an operation's output the subject may see, by the
-   * operation's `results` permission. Without `results` the rows come back
-   * unchanged; an operation `operations` does not name returns none.
+   * The rows of an operation's output the subject may see, by the operation's
+   * `results` permission. Without `results` the rows come back unchanged; an
+   * operation `operations` does not name returns none.
    */
   readonly filterResults: <T>(
     name: string,
     rows: readonly T[],
     context: TContext,
   ) => Promise<T[]>;
-  /** `providerOptions.gateway` with the principal as `user` and the tenant and actor as tags. */
+  /**
+   * `providerOptions.gateway` with the principal as `user` and the tenant and
+   * actor as tags.
+   */
   readonly gatewayOptions: (context: TContext) => Promise<GatewayOptions>;
 };
 
-/** What an adapter builds its runtime hooks on: the public contract and the kernel under it. */
+/**
+ * What an adapter builds its runtime hooks on: the public contract and the
+ * kernel under it.
+ */
 export type AgentRuntime<TContext, V extends PolicyVocabulary> = {
   readonly agent: AgentPermDock<TContext, V>;
   readonly kernel: ReturnType<typeof createAgentKernel<TContext, unknown, V>>;
@@ -131,7 +152,10 @@ function decideModelOn(
   }
 }
 
-/** Builds the agent contract and its kernel for an adapter named `adapter`; `runtime.stepUp` sets `stepUp` on denied verdicts. */
+/**
+ * Builds the agent contract and its kernel for an adapter named `adapter`;
+ * `runtime.stepUp` sets `stepUp` on denied verdicts.
+ */
 export function agentRuntime<
   TContext,
   TUser,

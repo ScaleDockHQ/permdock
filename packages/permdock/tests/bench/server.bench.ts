@@ -1,4 +1,4 @@
-import { test } from "vitest";
+import { test, describe } from "vitest";
 
 import { allow } from "../../src/core/grant-builders.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
@@ -49,16 +49,18 @@ const trpc = createTrpcPermDock(policy, { subject: () => ({ id: "u1" }) });
 const post = (body: string): Request =>
   new Request("https://api.test/permdock", { method: "POST", body });
 
-test("evaluations, 100 items over 600 permissions", async ({ bench }) => {
-  await bench.compare(
-    bench("by resource type and action", async () => {
-      await POST(post(byType));
-    }),
-    bench("by permission key", async () => {
-      await POST(post(byKey));
-    }),
-    bench("tRPC permdockHandler, by permission key", async () => {
-      await trpc.permdockHandler()(post(byKey));
-    }),
-  );
+describe("server", () => {
+  test("evaluations, 100 items over 600 permissions", async ({ bench }) => {
+    await bench.compare(
+      bench("by resource type and action", async () => {
+        await POST(post(byType));
+      }),
+      bench("by permission key", async () => {
+        await POST(post(byKey));
+      }),
+      bench("tRPC permdockHandler, by permission key", async () => {
+        await trpc.permdockHandler()(post(byKey));
+      }),
+    );
+  });
 });

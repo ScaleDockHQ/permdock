@@ -29,7 +29,7 @@ function messages(findings: readonly DoctorFinding[]): readonly string[] {
   return findings.map((item) => item.message);
 }
 
-describe("isClientSource", () => {
+describe(isClientSource, () => {
   it.each([
     [src("a.ts", "'use client'\n"), true],
     [src("a.ts", '"use client"\n'), true],
@@ -51,7 +51,7 @@ describe("PD001 server imports in client entries", () => {
       src("server.ts", `import 'permdock/jwt'\n`),
       src("b.client.ts", `import 'permdock/react'\n`),
     ]);
-    expect(messages(findings)).toEqual([
+    expect(messages(findings)).toStrictEqual([
       "a.client.ts imports permdock/jwt",
       "a.client.ts imports permdock/mcp",
     ]);
@@ -63,8 +63,8 @@ describe("PD007 validate never next to an adapter", () => {
     const never = src("policy.ts", `export const o = { validate: "never" }\n`);
     const adapter = src("app.ts", `import 'permdock/express'\n`);
     expect(pd007([never, adapter])).toHaveLength(1);
-    expect(pd007([never])).toEqual([]);
-    expect(pd007([adapter])).toEqual([]);
+    expect(pd007([never])).toStrictEqual([]);
+    expect(pd007([adapter])).toStrictEqual([]);
   });
 });
 
@@ -81,7 +81,7 @@ describe("PD008 reserved export names", () => {
           src("c.ts", `import 'permdock'\nexport const docker = 1\n`),
         ]),
       ),
-    ).toEqual([
+    ).toStrictEqual([
       "a.ts exports a reserved name (dock or ability)",
       "a.ts exports a $ prefixed member",
     ]);
@@ -102,7 +102,7 @@ describe("PD010 untrusted claims", () => {
           src("d.ts", "export const name = claims.preferred_username;\n"),
         ]),
       ),
-    ).toEqual([
+    ).toStrictEqual([
       "a.ts reads roles or tenant from unsafeMetadata",
       "b.ts reads roles or tenant from clientMetadata",
     ]);
@@ -124,7 +124,7 @@ describe("PD011 optional issuer tenant", () => {
           src("e.ts", `export const o = { tenant: 'org_id' }\n`),
         ]),
       ),
-    ).toEqual([
+    ).toStrictEqual([
       "a.ts reads tenant from an optional issuer claim",
       "b.ts reads tenant from an optional issuer claim",
       "c.ts reads tenant from an optional issuer claim",
@@ -139,10 +139,12 @@ describe("PD013 algorithms", () => {
       src("b.ts", `algorithms: ["none"]`),
       src("c.ts", `algorithms: ['Ed25519']`),
     ]);
-    expect(findings.map((item) => [item.severity, item.message])).toEqual([
-      ["warning", "a.ts lists polymorphic EdDSA"],
-      ["error", "b.ts allows alg none"],
-    ]);
+    expect(findings.map((item) => [item.severity, item.message])).toStrictEqual(
+      [
+        ["warning", "a.ts lists polymorphic EdDSA"],
+        ["error", "b.ts allows alg none"],
+      ],
+    );
   });
 });
 
@@ -175,7 +177,7 @@ describe("PD014 discovery and jwks", () => {
       ["a.ts uses a plain-HTTP discovery URL"],
     ],
   ])("%s", (text, expected) => {
-    expect(messages(pd014([src("a.ts", text)]))).toEqual(expected);
+    expect(messages(pd014([src("a.ts", text)]))).toStrictEqual(expected);
   });
 
   it("reads nested options, a named const, a namespace import and a cast", () => {
@@ -192,7 +194,7 @@ describe("PD014 discovery and jwks", () => {
           ),
         ]),
       ),
-    ).toEqual([
+    ).toStrictEqual([
       "a.ts sets jwks without issuer",
       "b.ts sets jwks without issuer",
     ]);
@@ -208,7 +210,7 @@ describe("PD014 discovery and jwks", () => {
           ),
         ]),
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("reads quoted keys and skips spread, computed and non-string keys", () => {
@@ -229,7 +231,7 @@ describe("PD014 discovery and jwks", () => {
           ),
         ]),
       ),
-    ).toEqual(["a.ts sets jwks without issuer"]);
+    ).toStrictEqual(["a.ts sets jwks without issuer"]);
   });
 
   it("ignores objects that never reach a PermDock call", () => {
@@ -248,7 +250,7 @@ describe("PD014 discovery and jwks", () => {
           src("d.ts", `import { x } from "permdock"; x({ discovery: `),
         ]),
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 
@@ -261,7 +263,9 @@ describe("PD015 id tokens on an API resolver", () => {
           src("b.ts", `accept: 'access-token'`),
         ]),
       ),
-    ).toEqual(["a.ts accepts id-token on what looks like an API resolver"]);
+    ).toStrictEqual([
+      "a.ts accepts id-token on what looks like an API resolver",
+    ]);
   });
 });
 
@@ -270,7 +274,7 @@ describe("PD038 tenant claim", () => {
     messages(pd038([src("s.ts", text)], "org_id", "tenant_id"));
 
   it("reads quoted tenant options, the fallback and skips what it cannot read", () => {
-    expect(run(`subjectFromSupabase(claims)`)).toEqual([
+    expect(run(`subjectFromSupabase(claims)`)).toStrictEqual([
       "s.ts:1 reads the tenant from 'tenant_id', but rls.tenantClaim is 'org_id'",
     ]);
     expect(
@@ -286,19 +290,19 @@ claims: {
 tenant: 'org_id',
 },
 })`),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       run(`subjectFromSupabase(claims, {
 claims: {
 tenant: claim,
 },
 })`),
-    ).toEqual([]);
-    expect(run(`subjectFromSupabase(claims, options)`)).toEqual([]);
-    expect(run(`subjectFromSupabase(claims, { tenant: 'x'`)).toEqual([]);
+    ).toStrictEqual([]);
+    expect(run(`subjectFromSupabase(claims, options)`)).toStrictEqual([]);
+    expect(run(`subjectFromSupabase(claims, { tenant: 'x'`)).toStrictEqual([]);
     expect(
       run(`subjectFromSupabase(f('a\\'b', [1, 2]), { tenant: "team_id" })`),
-    ).toEqual([
+    ).toStrictEqual([
       "s.ts:1 reads the tenant from 'team_id', but rls.tenantClaim is 'org_id'",
     ]);
   });
@@ -309,7 +313,7 @@ describe("PD057 anonymous sign-ins", () => {
     messages(pd057([src("s.ts", text)]));
 
   it("warns on a subject call without anonymousSignIns: 'deny' and skips options it cannot read", () => {
-    expect(run(`subjectFromSupabase(claims)`)).toEqual([
+    expect(run(`subjectFromSupabase(claims)`)).toStrictEqual([
       "s.ts:1 maps anonymous sign-ins as users, but rls.anonymousSignIns is 'deny'",
     ]);
     expect(
@@ -321,14 +325,14 @@ tenant: 'org_id',
     ).toHaveLength(1);
     expect(
       run(`subjectFromSupabaseSession(session, { anonymousSignIns: "deny" })`),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       run(
         `subjectFromSupabase(claims, { roles: 'r', anonymousSignIns: 'deny' })`,
       ),
-    ).toEqual([]);
-    expect(run(`subjectFromSupabase(claims, options)`)).toEqual([]);
-    expect(run(`subjectFromSupabase(claims, { tenant: 'x'`)).toEqual([]);
+    ).toStrictEqual([]);
+    expect(run(`subjectFromSupabase(claims, options)`)).toStrictEqual([]);
+    expect(run(`subjectFromSupabase(claims, { tenant: 'x'`)).toStrictEqual([]);
   });
 });
 
@@ -343,7 +347,7 @@ describe("PD041 HS256 capability tokens", () => {
           ),
         ]),
       ),
-    ).toEqual([
+    ).toStrictEqual([
       "l.ts:1 signs capability tokens with HS256, the project's shared JWT secret: whoever holds it can mint any user's token",
     ]);
   });
@@ -353,7 +357,7 @@ describe("PD036 BOLA", () => {
   it("skips files without permdock, loaders and routes without an id", () => {
     expect(
       pd036([src("a.ts", `app.get('/posts/:id', protect(p.read), h);\n`)]),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       pd036([
         src(
@@ -361,7 +365,7 @@ describe("PD036 BOLA", () => {
           `import 'permdock/hono';\napp.get('/posts', protect(p.list), h);\napp.get('/posts/:id', protect(p.read, load), h);\napp.post('/chats/:id', protect(null), h);\n`,
         ),
       ]),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       messages(
         pd036([
@@ -371,7 +375,7 @@ describe("PD036 BOLA", () => {
           ),
         ]),
       ),
-    ).toEqual([
+    ).toStrictEqual([
       "c.ts:2 protects /orgs/{orgId}/posts with p.list and no row loader, so the check never sees the row the id names (BOLA, OWASP API1)",
     ]);
   });

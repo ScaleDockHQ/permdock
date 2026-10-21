@@ -11,7 +11,7 @@ import {
 
 describe("structured data", () => {
   test("breadcrumbs start at the home page and number from 1", () => {
-    expect(breadcrumbs([{ name: "Create", path: "/create" }])).toEqual({
+    expect(breadcrumbs([{ name: "Create", path: "/create" }])).toStrictEqual({
       "@type": "BreadcrumbList",
       itemListElement: [
         { "@type": "ListItem", position: 1, name: site.name, item: site.url },
@@ -36,7 +36,7 @@ describe("structured data", () => {
   });
 
   test("the graph declares the schema.org context", () => {
-    expect(graph([])).toEqual({
+    expect(graph([])).toStrictEqual({
       "@context": "https://schema.org",
       "@graph": [],
     });

@@ -95,7 +95,7 @@ describe("one typ per purpose", () => {
         },
       });
       expect(subject.principal).toBeNull();
-      expect(causes).toEqual(["wrong-token-type"]);
+      expect(causes).toStrictEqual(["wrong-token-type"]);
     },
   );
 
@@ -112,7 +112,7 @@ describe("one typ per purpose", () => {
         },
       });
       expect(subject.principal).toBeNull();
-      expect(causes).toEqual(["wrong-token-type"]);
+      expect(causes).toStrictEqual(["wrong-token-type"]);
     },
   );
 });

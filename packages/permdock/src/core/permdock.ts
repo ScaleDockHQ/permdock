@@ -26,6 +26,7 @@ import type { Operation } from "./operations.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type { PrincipalSource } from "./principal-source.ts";
+import type { Scope } from "./scopes.ts";
 import type { Snapshot } from "./snapshot-types.ts";
 import type {
   Actor,
@@ -50,12 +51,15 @@ import {
   customRolesFor,
   roleSourceFor,
 } from "./role-loading.ts";
-import { type Scope, scopeList } from "./scopes.ts";
+import { scopeList } from "./scopes.ts";
 import { parseSnapshot } from "./snapshot.ts";
 import { heldRoleNamesIn, tenantsOf } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
 
-/** Rows the server loaded for `decideIds`: by id, or a list carrying the resource id field. */
+/**
+ * Rows the server loaded for `decideIds`: by id, or a list carrying the
+ * resource id field.
+ */
 export type LoadedRows = ReadonlyMap<string, unknown> | readonly unknown[];
 
 export type DecideIdsOptions = Omit<DecideOptions, "trusted" | "boundary"> & {
@@ -64,61 +68,83 @@ export type DecideIdsOptions = Omit<DecideOptions, "trusted" | "boundary"> & {
 };
 
 export type DecideOptions = {
-  /** `true` skips schema validation for a row the server loaded itself. Otherwise `data` is validated against the resource schema first (`validate: 'boundary'`), and a failure denies with reason `validation`. */
+  /**
+   * `true` skips schema validation for a row the server loaded itself.
+   * Otherwise `data` is validated against the resource schema first (`validate:
+   * 'boundary'`), and a failure denies with reason `validation`.
+   */
   readonly trusted?: boolean;
-  /** Where untrusted data came from, reported on validation errors. Defaults to `'manual'`. */
+  /**
+   * Where untrusted data came from, reported on validation errors. Defaults to
+   * `'manual'`.
+   */
   readonly boundary?: Boundary;
-  /** Decision clock, for expiries and limits; a `Temporal.Instant` fits. Defaults to the current time. */
+  /**
+   * Decision clock, for expiries and limits; a `Temporal.Instant` fits.
+   * Defaults to the current time.
+   */
   readonly now?: Instant;
-  /** The call that produced the decision, reported on the decision event. Defaults to `'decide'`. */
+  /**
+   * The call that produced the decision, reported on the decision event.
+   * Defaults to `'decide'`.
+   */
   readonly call?: DecisionEvent["call"];
   /** The adapter that made the call, reported on the decision event. */
   readonly adapter?: AdapterId;
-  /** The model id the decision is about or that drove the call (`'openai/gpt-5'`), reported on the decision event. Never read when deciding. */
+  /**
+   * The model id the decision is about or that drove the call
+   * (`'openai/gpt-5'`), reported on the decision event. Never read when
+   * deciding.
+   */
   readonly model?: string;
-  /** Per-call unauthorized handler for `assert`; runs before instance and policy handlers. */
+  /**
+   * Per-call unauthorized handler for `assert`; runs before instance and policy
+   * handlers.
+   */
   readonly onDenied?: (decision: Decision) => never | void;
   /** The field being read or written; only grants whose `fields` cover it match. */
   readonly field?: string;
-  /** `true` attaches a `trace` to the decision: the grants evaluated, matched and skipped. Off by default and free when off. */
+  /**
+   * `true` attaches a `trace` to the decision: the grants evaluated, matched
+   * and skipped. Off by default and free when off.
+   */
   readonly explain?: boolean;
   /**
    * A declared scope name: only memberships of that scope answer the check.
-   * Naming the first scope keeps nested memberships out of a tenant-level
-   * guard on a collection action. Global roles still apply; resource roles
-   * and memberships of other scopes are skipped with reason `scope`.
+   * Naming the first scope keeps nested memberships out of a tenant-level guard
+   * on a collection action. Global roles still apply; resource roles and
+   * memberships of other scopes are skipped with reason `scope`.
    */
   readonly scope?: string;
   /**
    * The operation the call decides, for `ApprovalPolicySource` entries that
-   * match on `meta.risk` and `meta.effects`. Surfaces that decide an
-   * operation (agent tools, workflow steps, `protect(operation)`) pass it.
+   * match on `meta.risk` and `meta.effects`. Surfaces that decide an operation
+   * (agent tools, workflow steps, `protect(operation)`) pass it.
    */
   readonly operation?: Pick<Operation, "name" | "meta">;
   /**
    * The arguments of the call being decided, such as a tool call's input. An
    * `approval-required` token binds their digest, so an approval covers this
-   * call and no call with other arguments. Agent and MCP adapters pass the
-   * tool arguments. Never read when deciding.
+   * call and no call with other arguments. Agent and MCP adapters pass the tool
+   * arguments. Never read when deciding.
    */
   readonly args?: unknown;
   /**
-   * The application's own data for the decision event (a request id, a
-   * route). Plain JSON; a value that is not is dropped. Never read when
-   * deciding.
+   * The application's own data for the decision event (a request id, a route).
+   * Plain JSON; a value that is not is dropped. Never read when deciding.
    */
   readonly x?: AppData;
 };
 
 export type SimulateOptions = {
-  /** Decision clock for the whole batch: grant validity, membership expiry and limits are read as of this instant. Defaults to the current time. */
+  /**
+   * Decision clock for the whole batch: grant validity, membership expiry and
+   * limits are read as of this instant. Defaults to the current time.
+   */
   readonly now?: Instant;
 };
 
-export type RowPair<T> = {
-  readonly current: T;
-  readonly next: T;
-};
+export type RowPair<T> = { readonly current: T; readonly next: T };
 
 export type WhereResult = {
   readonly condition:
@@ -160,9 +186,9 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       options?: DecideOptions,
     ): boolean;
     /**
-     * A permission held as `Permission` at run time (from a list, a catalog
-     * or `findPermission`), whose kind the type does not say: pass `data`,
-     * or `undefined` for a check without a row.
+     * A permission held as `Permission` at run time (from a list, a catalog or
+     * `findPermission`), whose kind the type does not say: pass `data`, or
+     * `undefined` for a check without a row.
      */
     (permission: Permission, data: unknown, options?: DecideOptions): boolean;
   };
@@ -178,29 +204,32 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       options?: DecideOptions,
     ): Decision;
     /**
-     * A permission held as `Permission` at run time (from a list, a catalog
-     * or `findPermission`), whose kind the type does not say: pass `data`,
-     * or `undefined` for a check without a row.
+     * A permission held as `Permission` at run time (from a list, a catalog or
+     * `findPermission`), whose kind the type does not say: pass `data`, or
+     * `undefined` for a check without a row.
      */
     (permission: Permission, data: unknown, options?: DecideOptions): Decision;
   };
   /**
-   * `can` for every check, on one instance: `true` only when each is
-   * granted, and `false` for an empty list. A check is a permission, or a
-   * `[permission, row]` pair. It stops at the first check that is not granted.
+   * `can` for every check, on one instance: `true` only when each is granted,
+   * and `false` for an empty list. A check is a permission, or a `[permission,
+   * row]` pair. It stops at the first check that is not granted.
    */
   readonly canAll: (
     checks: readonly PermissionCheck[],
     options?: DecideOptions,
   ) => boolean;
-  /** `decide` for every check, in check order; a check is a permission or a `[permission, row]` pair. */
+  /**
+   * `decide` for every check, in check order; a check is a permission or a
+   * `[permission, row]` pair.
+   */
   readonly decideAll: (
     checks: readonly PermissionCheck[],
     options?: DecideOptions,
   ) => readonly Decision[];
   /**
-   * `decide` for each row, in row order. Each row is its own call: a limit
-   * is consumed once per granted row, so rows past the cap are denied with
+   * `decide` for each row, in row order. Each row is its own call: a limit is
+   * consumed once per granted row, so rows past the cap are denied with
    * `limit`, and each `approval-required` row carries its own token.
    */
   readonly decideEach: (
@@ -211,11 +240,11 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   /**
    * `decide` for each id, in id order, on rows the server loads itself:
    * `options.data(ids)` answers a map from id to row, or the rows with their
-   * resource id field. Each row is trusted (no schema check) and decided in
-   * the tenant its own root scope field names, as `permdock.tenant(<that
-   * value>)` would, so one call can span tenants. An id with no loaded row,
-   * a loader that throws and a row of another resource are denied with
-   * `validation`. A snapshot instance denies every id with `unsupported`.
+   * resource id field. Each row is trusted (no schema check) and decided in the
+   * tenant its own root scope field names, as `permdock.tenant(<that value>)`
+   * would, so one call can span tenants. An id with no loaded row, a loader
+   * that throws and a row of another resource are denied with `validation`. A
+   * snapshot instance denies every id with `unsupported`.
    */
   readonly decideIds: (
     permission: Permission,
@@ -223,11 +252,11 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     options: DecideIdsOptions,
   ) => Promise<readonly Decision[]>;
   /**
-   * What `permission` on `row` decides for the principal `principalId`,
-   * loaded from `principals` in this instance's active tenant with no actor
-   * and no delegation. It grants this instance nothing, shares none of its
-   * caches and never consumes a limit. Denied with `anonymous` when there is
-   * no `principals`, no such principal or the source throws, and with
+   * What `permission` on `row` decides for the principal `principalId`, loaded
+   * from `principals` in this instance's active tenant with no actor and no
+   * delegation. It grants this instance nothing, shares none of its caches and
+   * never consumes a limit. Denied with `anonymous` when there is no
+   * `principals`, no such principal or the source throws, and with
    * `tenant-mismatch` when the principal is outside the active tenant.
    */
   readonly decideFor: (
@@ -247,9 +276,9 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       options?: DecideOptions,
     ): Extract<Decision, { readonly outcome: "granted" }>;
     /**
-     * A permission held as `Permission` at run time (from a list, a catalog
-     * or `findPermission`), whose kind the type does not say: pass `data`,
-     * or `undefined` for a check without a row.
+     * A permission held as `Permission` at run time (from a list, a catalog or
+     * `findPermission`), whose kind the type does not say: pass `data`, or
+     * `undefined` for a check without a row.
      */
     (
       permission: Permission,
@@ -258,10 +287,10 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     ): Extract<Decision, { readonly outcome: "granted" }>;
   };
   /**
-   * `decide` with `explain: true`: the same decision, with a `trace` that
-   * names the grants evaluated, the allows and denies that matched (so a
-   * `denied` says which deny won) and the grants passed over. Local
-   * computation only; the trace never reaches a `DecisionSink`.
+   * `decide` with `explain: true`: the same decision, with a `trace` that names
+   * the grants evaluated, the allows and denies that matched (so a `denied`
+   * says which deny won) and the grants passed over. Local computation only;
+   * the trace never reaches a `DecisionSink`.
    */
   readonly explain: {
     (
@@ -332,12 +361,15 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     readonly scope?: string;
     readonly id?: string;
   }) => readonly Role[];
-  /** The distinct `meta.audience` values of the roles held in the active tenant, in rank order. */
+  /**
+   * The distinct `meta.audience` values of the roles held in the active tenant,
+   * in rank order.
+   */
   readonly audiences: () => readonly string[];
   /**
-   * The roles the subject may hand out in a tenant (the active one by
-   * default), or with `scope: 'global'` the global roles it may hand out. A
-   * snapshot answers only the tenant form.
+   * The roles the subject may hand out in a tenant (the active one by default),
+   * or with `scope: 'global'` the global roles it may hand out. A snapshot
+   * answers only the tenant form.
    */
   readonly assignableRoles: (options?: {
     readonly tenant?: string;
@@ -354,8 +386,8 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     readonly scope?: "global";
   }) => readonly Permission[];
   /**
-   * The levels of `permission` (`resource(…, { levels })`) the subject may
-   * hand out in a custom role: those it holds, or every level with
+   * The levels of `permission` (`resource(…, { levels })`) the subject may hand
+   * out in a custom role: those it holds, or every level with
    * `meta.manageRoles`. Empty when the permission is not assignable.
    */
   readonly assignableLevels: (
@@ -378,10 +410,10 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     options?: PermittedIdsOptions,
   ) => readonly string[];
   /**
-   * Loads the relation facts `permission` needs for `rows` into this
-   * instance's cache, so `can`, `decide` and `filter` answer synchronously
-   * over an async `RelationSource`. It never grants; a failed load leaves
-   * the checks denied with `relation-unavailable`.
+   * Loads the relation facts `permission` needs for `rows` into this instance's
+   * cache, so `can`, `decide` and `filter` answer synchronously over an async
+   * `RelationSource`. It never grants; a failed load leaves the checks denied
+   * with `relation-unavailable`.
    */
   readonly prefetchRelations: (
     permission: Permission,
@@ -396,14 +428,17 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   /**
    * The same subject, tenant, team, actor, delegation, sink and limits with
    * other sources: `customRoles`, `approvalPolicies` or `relations`. The
-   * sources it names are read again for the subject's tenants; the others
-   * keep what this instance loaded. Always a promise, since the sources it
-   * names may answer asynchronously.
+   * sources it names are read again for the subject's tenants; the others keep
+   * what this instance loaded. Always a promise, since the sources it names may
+   * answer asynchronously.
    */
   readonly derive: (options: DeriveOptions) => Promise<PermDock<V>>;
 };
 
-/** What `permdock.derive` may replace: the sources read after the subject is resolved. */
+/**
+ * What `permdock.derive` may replace: the sources read after the subject is
+ * resolved.
+ */
 export type DeriveOptions = Pick<
   PermDockOptions,
   "customRoles" | "approvalPolicies" | "relations" | "principals"
@@ -414,24 +449,42 @@ export type PermDockOptions = {
   /** One source, or several composed with `composeMemberships`. */
   readonly memberships?: MembershipSource | readonly MembershipSource[];
   readonly customRoles?: CustomRoleSource | CustomRoleSourceFactory;
-  /** Plans and seats from billing, merged into `principal.plans` for the active tenant. */
+  /**
+   * Plans and seats from billing, merged into `principal.plans` for the active
+   * tenant.
+   */
   readonly entitlements?: EntitlementSource;
   readonly actor?: Actor;
   readonly delegation?: Delegation;
   readonly sink?: DecisionSink;
-  /** Grant limits, `limits(store)`; without it a grant with a `limit` denies with `limit-unavailable`. */
+  /**
+   * Grant limits, `limits(store)`; without it a grant with a `limit` denies
+   * with `limit-unavailable`.
+   */
   readonly limits?: Limits;
   readonly session?: string;
   readonly expiresAt?: number;
-  /** Hosted grants, `hostedPolicies(source)`; `current()` is read once, when the instance is created. */
+  /**
+   * Hosted grants, `hostedPolicies(source)`; `current()` is read once, when the
+   * instance is created.
+   */
   readonly policies?: HostedPolicies;
-  /** The object graph for `through` and edge-table relations; without it they deny with `relation-unavailable`. */
+  /**
+   * The object graph for `through` and edge-table relations; without it they
+   * deny with `relation-unavailable`.
+   */
   readonly relations?: RelationSource;
-  /** Approval requirements kept as data; they add to the code's and never remove one. A throw denies. */
+  /**
+   * Approval requirements kept as data; they add to the code's and never remove
+   * one. A throw denies.
+   */
   readonly approvalPolicies?: ApprovalPolicies;
   /** Other principals by id, for `decideFor`; asked with the active tenant. */
   readonly principals?: PrincipalSource;
-  /** Tenant settings, read by `decideCredential` for the key's tenant; a call's own `settings` wins. */
+  /**
+   * Tenant settings, read by `decideCredential` for the key's tenant; a call's
+   * own `settings` wins.
+   */
   readonly settings?: SettingsSource;
   /**
    * Request values an adapter's `context` hook derived on the server, merged
@@ -550,8 +603,8 @@ function create<
 /**
  * The instance for `user`, built synchronously. Every input must answer
  * synchronously: the subject mapper, `memberships`, `customRoles`,
- * `entitlements`, `approvalPolicies` and the freshness check. One that
- * answers with a Promise throws here; use `getPermDock` for those.
+ * `entitlements`, `approvalPolicies` and the freshness check. One that answers
+ * with a Promise throws here; use `getPermDock` for those.
  */
 export function getPermDockSync<
   TUser,
@@ -573,7 +626,10 @@ export function getPermDockSync<
   return created;
 }
 
-/** The instance for `user`: waits for every source, then builds it. `getPermDockSync` is the synchronous twin. */
+/**
+ * The instance for `user`: waits for every source, then builds it.
+ * `getPermDockSync` is the synchronous twin.
+ */
 export function getPermDock<
   TUser,
   TPrincipal extends Principal = Principal,

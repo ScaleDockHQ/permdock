@@ -10,7 +10,7 @@ import {
   secondsOf,
 } from "../../src/core/time.ts";
 
-describe("durationOf", () => {
+describe(durationOf, () => {
   it.each([[1], [30], [14_400], [Number.MAX_SAFE_INTEGER]])(
     "takes %o as whole seconds",
     (input) => {
@@ -35,7 +35,7 @@ describe("durationOf", () => {
   });
 });
 
-describe("assertDuration", () => {
+describe(assertDuration, () => {
   it("passes whole seconds above zero", () => {
     expect(() =>
       assertDuration(60, "approval.ttl on 'post.delete'"),
@@ -74,7 +74,7 @@ describe("RFC 3339", () => {
   });
 });
 
-describe("instantOf", () => {
+describe(instantOf, () => {
   it("reads an RFC 3339 string or an instant", () => {
     expect(instantOf("2023-11-14T22:13:20Z")).toBe(1_700_000_000);
     expect(instantOf({ epochMilliseconds: 1_700_000_000_999 })).toBe(
@@ -92,7 +92,7 @@ describe("instantOf", () => {
   });
 });
 
-describe("nowSeconds", () => {
+describe(nowSeconds, () => {
   it("reads the instant when given, else the clock", () => {
     expect(nowSeconds({ epochMilliseconds: 1_700_000_000_500 })).toBe(
       1_700_000_000,

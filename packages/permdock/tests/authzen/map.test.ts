@@ -22,7 +22,7 @@ import {
 import { permissionLookup } from "../../src/server/evaluation-items.ts";
 import { permissions } from "../fixtures/quick-start.ts";
 
-describe("permissionOf", () => {
+describe(permissionOf, () => {
   it.each<[string, AuthzenItem, string | undefined]>([
     [
       "a full key as the action name",
@@ -83,7 +83,7 @@ describe("resource and subject mapping", () => {
     [{ resource: { id: true, properties: null } }, undefined, undefined],
     [{}, undefined, undefined],
   ])("resourceData / resourceIdOf of %j", (item, data, id) => {
-    expect({ data: resourceData(item), id: resourceIdOf(item) }).toEqual({
+    expect({ data: resourceData(item), id: resourceIdOf(item) }).toStrictEqual({
       data,
       id,
     });
@@ -103,7 +103,7 @@ describe("resource and subject mapping", () => {
     ],
     [{ properties: { actor: { id: "bot" } } }, null],
   ])("userFromEntity(%j)", (entity, user) => {
-    expect(userFromEntity(entity)).toEqual(user);
+    expect(userFromEntity(entity)).toStrictEqual(user);
   });
 
   it.each<[AuthzenItem, unknown]>([
@@ -131,7 +131,7 @@ describe("resource and subject mapping", () => {
       { id: "ctx", kind: "oauth-client" },
     ],
   ])("actorOf(%j)", (item, actor) => {
-    expect(actorOf(item)).toEqual(actor);
+    expect(actorOf(item)).toStrictEqual(actor);
   });
 
   it.each<[AuthzenItem, unknown]>([
@@ -172,7 +172,7 @@ describe("resource and subject mapping", () => {
       { scopes: [] },
     ],
   ])("delegationOf(%j)", (item, delegation) => {
-    expect(delegationOf(item)).toEqual(delegation);
+    expect(delegationOf(item)).toStrictEqual(delegation);
   });
 
   it.each<[AuthzenItem, string | undefined]>([
@@ -184,13 +184,13 @@ describe("resource and subject mapping", () => {
   });
 });
 
-describe("evaluationRow", () => {
+describe(evaluationRow, () => {
   it("maps every outcome to the PermDock context", () => {
     const granted = { outcome: "granted" } as const;
     expect(
       // SAFETY: evaluationRow reads only the outcome of a granted decision.
       evaluationRow(granted as unknown as Decision, "post.read"),
-    ).toEqual({
+    ).toStrictEqual({
       decision: true,
       context: { permdock: { outcome: "granted" } },
     });
@@ -205,7 +205,7 @@ describe("evaluationRow", () => {
         },
         "post.purge",
       ),
-    ).toEqual({
+    ).toStrictEqual({
       decision: false,
       context: {
         permdock: {
@@ -227,7 +227,7 @@ describe("evaluationRow", () => {
         } as unknown as Decision,
         "post.delete",
       ),
-    ).toEqual({
+    ).toStrictEqual({
       decision: false,
       context: {
         permdock: { outcome: "approval-required", token: "t" },
@@ -253,17 +253,14 @@ describe("mergeEvaluationItem and paging", () => {
         action: { name: "update" },
         subject: "bad",
       }),
-    ).toEqual({
-      ...shared,
-      action: { name: "update" },
-    });
+    ).toStrictEqual({ ...shared, action: { name: "update" } });
     expect(
       mergeEvaluationItem(shared, {
         subject: { id: "u" },
         resource: { type: "note" },
         context: { tenant: "o2" },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       subject: { id: "u" },
       action: { name: "read" },
       resource: { type: "note" },
@@ -279,23 +276,23 @@ describe("mergeEvaluationItem and paging", () => {
     [{ page: { token: "-2", limit: 0 } }, { offset: 0, size: 50 }],
     [{ page: { token: "abc", limit: "5" } }, { offset: 0, size: 50 }],
   ])("readAuthzenPage(%j)", (body, page) => {
-    expect(readAuthzenPage(body)).toEqual(page);
+    expect(readAuthzenPage(body)).toStrictEqual(page);
   });
 
   it("reads no page from a body that is not an object", () => {
-    expect(readAuthzenPage(null)).toEqual({ offset: 0, size: 50 });
+    expect(readAuthzenPage(null)).toStrictEqual({ offset: 0, size: 50 });
   });
 
   it("pages with a next token until the end", () => {
-    expect(authzenPage([1, 2, 3], { offset: 0, size: 2 })).toEqual({
+    expect(authzenPage([1, 2, 3], { offset: 0, size: 2 })).toStrictEqual({
       results: [1, 2],
       page: { next_token: "2", count: 2, total: 3 },
     });
-    expect(authzenPage([1, 2, 3], { offset: 2, size: 2 })).toEqual({
+    expect(authzenPage([1, 2, 3], { offset: 2, size: 2 })).toStrictEqual({
       results: [3],
       page: { next_token: "", count: 1, total: 3 },
     });
-    expect(emptyAuthzenPage()).toEqual({
+    expect(emptyAuthzenPage()).toStrictEqual({
       results: [],
       page: { next_token: "", count: 0, total: 0 },
     });

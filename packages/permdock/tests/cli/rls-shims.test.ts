@@ -23,11 +23,7 @@ const base: RlsSqlContext = {
 };
 
 const permissions = definePermissions(
-  {
-    customer: resource({
-      actions: ["read", "export"],
-    }),
-  },
+  { customer: resource({ actions: ["read", "export"] }) },
   { renamed: { "organization.customers.view": "customer.read" } },
 );
 const roles = defineRoles({
@@ -62,7 +58,7 @@ describe("alias rows", () => {
       compiled.rolePermissions.map(
         (row) => `${row.role} ${row.permission} ${row.grantKey}`,
       ),
-    ).toEqual(
+    ).toStrictEqual(
       expect.arrayContaining([
         "admin customer.read customer.read#1",
         "admin organization.customers.view organization.customers.view#1",
@@ -79,7 +75,7 @@ describe("alias rows", () => {
       },
     );
     const compiled = compileGrants(policy, base, undefined, [], false);
-    expect(compiled.rolePermissions).toEqual(
+    expect(compiled.rolePermissions).toStrictEqual(
       expect.arrayContaining([
         {
           role: "admin",
@@ -115,7 +111,7 @@ const grants = new Map([
   ["global", { "invoice.read": { allow: ["invoice.read"], deny: [] } }],
 ]);
 
-describe("shimGrants", () => {
+describe(shimGrants, () => {
   it("keeps unconditional allows and every deny, per scope, without former keys, and lists the conditioned keys apart", () => {
     expect(
       Object.fromEntries(
@@ -168,7 +164,7 @@ describe("shimGrants", () => {
           { "quotes.view": "quote.read" },
         ),
       ),
-    ).toEqual({
+    ).toStrictEqual({
       customer: {
         "quote.read": {
           allow: [],
@@ -188,7 +184,7 @@ describe("shimGrants", () => {
   });
 });
 
-describe("shimMap", () => {
+describe(shimMap, () => {
   it("keeps only what a shim reads: the allow and deny lists of permissions that have one", () => {
     const lists = shimGrants(
       [
@@ -210,14 +206,14 @@ describe("shimMap", () => {
       new Set(["quote.read#2"]),
       {},
     );
-    expect(JSON.parse(shimMap(lists, "tenant"))).toEqual({
+    expect(JSON.parse(shimMap(lists, "tenant"))).toStrictEqual({
       "asset.read": { allow: ["asset.read"], deny: [] },
     });
     expect(shimMap(lists, "customer")).toBe("{}");
   });
 });
 
-describe("shimsSql", () => {
+describe(shimsSql, () => {
   const sql = shimsSql(
     base,
     migrate,

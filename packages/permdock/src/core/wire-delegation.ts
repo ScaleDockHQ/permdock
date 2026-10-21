@@ -3,9 +3,9 @@ import type { AuthorizationDetail, Delegation, GnapAccess } from "./subject.ts";
 import { compact, isRecord } from "./compact.ts";
 
 /**
- * A delegation as every PermDock wire form carries it: OAuth `scope`
- * (RFC 6749, space-separated) and RFC 9396 `authorization_details`. An empty
- * `scope` is an empty scope list, which delegates nothing.
+ * A delegation as every PermDock wire form carries it: OAuth `scope` (RFC 6749,
+ * space-separated) and RFC 9396 `authorization_details`. An empty `scope` is an
+ * empty scope list, which delegates nothing.
  */
 export type WireDelegation = {
   readonly scope?: string;

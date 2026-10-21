@@ -30,8 +30,8 @@ export type ShadowMismatch = {
 export type ShadowOptions = {
   readonly legacy: LegacyCheck;
   /**
-   * Permissions PermDock decides; every other check returns the legacy
-   * answer. `"all"` once every mismatch is resolved; default none.
+   * Permissions PermDock decides; every other check returns the legacy answer.
+   * `"all"` once every mismatch is resolved; default none.
    */
   readonly enforce?: readonly Permission[] | "all";
   /** Called for each disagreement; a throw here is ignored. */
@@ -73,12 +73,12 @@ function legacyDecision(
 }
 
 /**
- * Runs PermDock beside the application's existing checks while adopting
- * it. Each `can`, `decide`, `decideEach`, `filter` and `assert` asks both;
- * the legacy answer is returned unless the permission is in `enforce`, and
- * every disagreement reaches `onMismatch`. Promote permissions one by one
- * as their mismatches are resolved, then remove the wrap. Pass it as an
- * adapter's `wrap` option, or call it on a core instance.
+ * Runs PermDock beside the application's existing checks while adopting it.
+ * Each `can`, `decide`, `decideEach`, `filter` and `assert` asks both; the
+ * legacy answer is returned unless the permission is in `enforce`, and every
+ * disagreement reaches `onMismatch`. Promote permissions one by one as their
+ * mismatches are resolved, then remove the wrap. Pass it as an adapter's `wrap`
+ * option, or call it on a core instance.
  */
 export function shadowMode(options: ShadowOptions): PermDockWrap {
   const enforced = (permission: Permission): boolean =>

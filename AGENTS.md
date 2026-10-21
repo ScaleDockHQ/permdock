@@ -28,7 +28,7 @@ A new rule gets `description`, `globs` and `alwaysApply` (Cursor) frontmatter, p
 
 ## Status
 
-`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver as the Versioning section of `roadmap.mdx` sets out: a breaking change to a name, default or wire format carries a changeset that says so, and a breaking wire-format change bumps that format's major. Every wire format is `v1` (snapshot `v: 1`, approval request `v: 1`, `catalog-v1.json` with `version: 1`). Node.js 24, pnpm 12.14.0 (`devEngines` fails on any other), TypeScript 7.
+`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver per the Versioning section of `roadmap.mdx`: a breaking change to a name, default or wire format carries a changeset that says so, and a breaking wire-format change bumps that format's major. Every wire format is `v1` (snapshot `v: 1`, approval request `v: 1`, `catalog-v1.json` with `version: 1`). Node.js 24, pnpm 12.14.0 (`devEngines` refuses others), TypeScript 7.
 
 ## Repo layout
 
@@ -120,7 +120,7 @@ A PR that breaks one is wrong, whatever else it does. Full text in `.agents/rule
 
 ## Agent workflow
 
-One branch and one PR per chat or plan, small conventional commits, and never merge unless asked and the required checks pass: `git-workflow.mdc`. Public API changes start as an RFC-lite issue and end on the owning page. Tests come before features for evaluation semantics (`testing.mdc`). Decide an open question rather than carry it forward.
+One branch and one PR per chat or plan, small conventional commits, and merge only when asked and the required checks pass: `git-workflow.mdc`. Public API changes start as an RFC-lite issue and end on the owning page. Tests come before features for evaluation semantics (`testing.mdc`). Decide an open question; never carry it forward.
 
 ## Deviations
 
@@ -135,7 +135,7 @@ Each is a record in `docs/decisions`:
 - 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
 - 0026 no commit header length limit; 0027 7-day Dependabot cooldown; 0028 `ox-config` over Ultracite
 - 0029 no Turbopack cache in CI; 0030 `Vary` only on Markdown
-- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock` yet; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038 to 0041 better-supabase release-age excludes, 0040 its 0.11 floor; 0042 `oxc-parser`, `jiti` as deps; 0043 its peer bound
+- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock` yet; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038 to 0041 better-supabase release-age excludes, 0040 its 0.11 floor; 0042 `oxc-parser`, `jiti` as deps; 0043 its peer bound; 0044 lint rules kept off
 
 ## Pre-release pins
 
@@ -146,7 +146,7 @@ Each is a record in `docs/decisions`:
 
 ## Turbo agent guidance
 
-`turbo` appends a managed agent-guidance block below this section when it detects an agent. Commit it as written and leave it last; keep everything above it within 12 KB. Set `"agentGuidance": false` in `turbo.json` only to opt out on purpose.
+`turbo` appends its agent-guidance block below this section when it detects an agent. Commit it as written and leave it last; keep everything above it within 12 KB. Set `"agentGuidance": false` in `turbo.json` only to opt out on purpose.
 
 <!-- BEGIN:turborepo-agent-rules -->
 

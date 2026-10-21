@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import type { BetterSupabaseIdentityLink } from "../../src/better-supabase/index.ts";
 import type { PrincipalIdentity } from "../../src/index.ts";
 
-import {
-  type BetterSupabaseIdentityLink,
-  principalSource,
-} from "../../src/better-supabase/index.ts";
+import { principalSource } from "../../src/better-supabase/index.ts";
 import { testPrincipalSource } from "../../src/testing/index.ts";
 
 const ORG = "11111111-1111-4111-8111-111111111111";
@@ -57,7 +55,7 @@ const source = principalSource({
   identities: links,
 });
 
-describe("principalSource", () => {
+describe(principalSource, () => {
   testPrincipalSource(source, {
     principals: [
       { id: USER, tenant: ORG },
@@ -109,7 +107,7 @@ describe("principalSource", () => {
       },
     });
     expect(await wrong.principal(USER, { tenant: ORG })).toBeNull();
-    expect(asked).toEqual([[USER, { tenant: ORG }]]);
+    expect(asked).toStrictEqual([[USER, { tenant: ORG }]]);
   });
 
   it("has no principalByIdentity without identities", () => {

@@ -26,7 +26,7 @@ const sample = `# permdock
 - abcdef0: Initial placeholder.
 `;
 
-describe("parseChangelog", () => {
+describe(parseChangelog, () => {
   test("groups versions, kinds and hashed bullets", () => {
     const releases = parseChangelog(sample, "permdock");
     expect(releases).toHaveLength(3);
@@ -35,11 +35,11 @@ describe("parseChangelog", () => {
       version: "0.1.0",
       kind: "Minor",
     });
-    expect(releases[0]?.changes[0]).toEqual({
+    expect(releases[0]?.changes[0]).toStrictEqual({
       hash: "258e0aa",
       text: "Add permdock/a2a Agent Cards.",
     });
-    expect(releases[0]?.changes[1]).toEqual({
+    expect(releases[0]?.changes[1]).toStrictEqual({
       text: "Thread Policy generics through core.",
     });
     expect(releases[1]?.kind).toBe("Patch");
@@ -56,7 +56,7 @@ describe("parseChangelog", () => {
 `,
       "permdock",
     );
-    expect(releases[0]?.changes[0]).toEqual({
+    expect(releases[0]?.changes[0]).toStrictEqual({
       hash: "4fb331c",
       text: "`permdock/better-supabase` adds authorizer.",
     });
@@ -67,7 +67,7 @@ describe("parseChangelog", () => {
     const path = join(root, "packages/permdock/CHANGELOG.md");
     const releases = loadChangelogs();
     if (!existsSync(path)) {
-      expect(releases).toEqual([]);
+      expect(releases).toStrictEqual([]);
       return;
     }
     // SAFETY: packages/permdock/package.json is the repository's own manifest with a string version

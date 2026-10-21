@@ -1,4 +1,7 @@
-/** The ownership fixture with each membership row holding a `tier` key and an `org_roles` reference. */
+/**
+ * The ownership fixture with each membership row holding a `tier` key and an
+ * `org_roles` reference.
+ */
 const sources = [
   "tier",
   { through: "org_roles", on: { role_id: "id" }, column: "key" },

@@ -4,10 +4,10 @@ import { quoteSqlLiteral } from "../../core/sql.ts";
 import { saasSeed } from "./seed.ts";
 
 /**
- * Postgres tables for the SaaS domain. Column names match the resource
- * fields (`"orgId"`, `"ownerId"`) so generated RLS and ORM filters compile
- * against them without a column map. RLS is enabled and forced on the row
- * tables; policies come from `permdock rls generate`.
+ * Postgres tables for the SaaS domain. Column names match the resource fields
+ * (`"orgId"`, `"ownerId"`) so generated RLS and ORM filters compile against
+ * them without a column map. RLS is enabled and forced on the row tables;
+ * policies come from `permdock rls generate`.
  */
 export const saasSchemaSql = `
 create table org (
@@ -68,7 +68,7 @@ function literal(value: string | number | boolean | null | undefined): string {
   }
   if (typeof value === "number") {
     if (!Number.isFinite(value)) {
-      throw new Error("PermDock: non-finite number in fixture seed");
+      throw new TypeError("PermDock: non-finite number in fixture seed");
     }
     return String(value);
   }

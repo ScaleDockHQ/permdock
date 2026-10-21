@@ -444,9 +444,7 @@ A role declared with `for: ['employee']` can only be held through a membership w
 Two resources that `rls.tables` maps to the same table give the same rows two sets of permission keys (`file.read` and `fileNode.read`), two row helpers and two catalog entries, and a check of the wrong key denies or grants a different set of rows. One resource can carry both the organisation-wide role grant (a `memberOf` relation) and the per-row relation grants, so the check names both resources and the table and points to [merging resources](/docs/guides/merge-resources). A `via` entry counts through its `table`. When the two resources cover disjoint rows of one table on purpose, list the table in `doctor.sharedTables`:
 
 ```ts title="permdock.config.ts"
-export default defineConfig({
-  doctor: { sharedTables: ["public.documents"] },
-});
+export default defineConfig({ doctor: { sharedTables: ["public.documents"] } });
 ```
 
 `--only rls` runs PD075.

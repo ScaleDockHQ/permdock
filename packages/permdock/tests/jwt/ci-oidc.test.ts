@@ -44,7 +44,7 @@ async function ciToken(
     .sign(key);
 }
 
-describe("subjectFromCiOidc", () => {
+describe(subjectFromCiOidc, () => {
   it("maps a GitHub Actions token to a workload", async () => {
     const token = await ciToken("https://token.actions.githubusercontent.com", {
       sub: "repo:acme/api:environment:production",
@@ -57,7 +57,7 @@ describe("subjectFromCiOidc", () => {
       audience: AUDIENCE,
       jwks: JWKS,
     });
-    expect(subject.principal).toEqual({
+    expect(subject.principal).toStrictEqual({
       id: "repo:acme/api:environment:production",
       kind: "workload",
       issuer: "https://token.actions.githubusercontent.com",
@@ -133,8 +133,8 @@ describe("subjectFromCiOidc", () => {
     );
     expect(
       [wrongIssuer, wrongAudience, outsideRepo].map((s) => s.principal),
-    ).toEqual([null, null, null]);
-    expect(events.map((event) => event.source)).toEqual([
+    ).toStrictEqual([null, null, null]);
+    expect(events.map((event) => event.source)).toStrictEqual([
       "ci-oidc",
       "ci-oidc",
       "ci-oidc",
@@ -143,14 +143,11 @@ describe("subjectFromCiOidc", () => {
   });
 
   it("is anonymous without a token or an audience, and never throws", async () => {
-    expect(
-      (
-        await subjectFromCiOidc(undefined, {
-          provider: "github",
-          audience: AUDIENCE,
-        })
-      ).principal,
-    ).toBeNull();
+    const { principal } = await subjectFromCiOidc(undefined, {
+      provider: "github",
+      audience: AUDIENCE,
+    });
+    expect(principal).toBeNull();
     const token = await ciToken("https://token.actions.githubusercontent.com", {
       sub: "repo:acme/api",
     });

@@ -1,11 +1,12 @@
 import type { Subject } from "../../core/subject.ts";
+import type { Instant } from "../../core/time.ts";
 import type {
   AccessReview,
   AccessReviewDecision,
   AccessReviewItem,
 } from "./types.ts";
 
-import { dateAt, type Instant } from "../../core/time.ts";
+import { dateAt } from "../../core/time.ts";
 import { matchesApprovers } from "../store.ts";
 import { AccessReviewError } from "./errors.ts";
 
@@ -20,7 +21,10 @@ export type AccessReviewVerdict = {
   readonly permissions?: readonly string[];
 };
 
-/** Whether `by` is named as a reviewer. A link, a feed or a contact is never a reviewer. */
+/**
+ * Whether `by` is named as a reviewer. A link, a feed or a contact is never a
+ * reviewer.
+ */
 export function accessReviewerEligible(
   review: AccessReview,
   by: Subject,
@@ -46,8 +50,8 @@ export function accessReviewerEligible(
 }
 
 /**
- * The decision to persist, or throws. A reviewer cannot decide a holding
- * of their own principal. `holder()` matches only through `permissions`.
+ * The decision to persist, or throws. A reviewer cannot decide a holding of
+ * their own principal. `holder()` matches only through `permissions`.
  */
 export function decideAccessReviewItem(
   review: AccessReview,

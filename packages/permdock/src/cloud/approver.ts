@@ -6,13 +6,22 @@ import { nowSeconds } from "../core/time.ts";
 
 const APPROVER_HEADER = "PermDock-Approver";
 
-/** The RFC 9396 `authorization_details` type that binds an approver token to one verdict. */
+/**
+ * The RFC 9396 `authorization_details` type that binds an approver token to one
+ * verdict.
+ */
 const APPROVAL_DETAIL_TYPE = "permdock_approval";
 
-/** Seconds an approver token lives: it proves one resolve call, and the Cloud refuses a replayed `jti`. */
+/**
+ * Seconds an approver token lives: it proves one resolve call, and the Cloud
+ * refuses a replayed `jti`.
+ */
 const APPROVER_TTL = 60;
 
-/** The request an approver token is bound to and, when the Cloud sent one, its ETag. */
+/**
+ * The request an approver token is bound to and, when the Cloud sent one, its
+ * ETag.
+ */
 type ApproverTarget = {
   readonly request: ApprovalRequest;
   readonly etag?: string;
@@ -39,7 +48,10 @@ function unauthenticated(detail: string): ApprovalError {
   return new ApprovalError("approver-unauthenticated", detail);
 }
 
-/** A rejection only denies, so the Cloud takes a `system` one without an approver token. */
+/**
+ * A rejection only denies, so the Cloud takes a `system` one without an
+ * approver token.
+ */
 function isSystemRejection(verdict: ApprovalVerdict): boolean {
   return verdict.status === "rejected" && verdict.by.actor?.kind === "system";
 }
@@ -51,10 +63,10 @@ function isSystemRejection(verdict: ApprovalVerdict): boolean {
  * the request id, the verdict status, `vouched`, and the approver's
  * `permissions` and `relations`. With the `roles`, `memberships` and `tenant`
  * claims they are the only facts the Cloud checks a request's `approvers`
- * against in bring-your-own mode. `target` runs only after the
- * approver checks pass. Throws an `ApprovalError` before any resolve when the
- * approver cannot be proven: no signer, no principal, an actor, a failed
- * lookup or a signer failure.
+ * against in bring-your-own mode. `target` runs only after the approver checks
+ * pass. Throws an `ApprovalError` before any resolve when the approver cannot
+ * be proven: no signer, no principal, an actor, a failed lookup or a signer
+ * failure.
  */
 export async function approverHeaders(
   verdict: ApprovalVerdict,

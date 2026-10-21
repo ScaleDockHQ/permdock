@@ -10,9 +10,7 @@ import { saasPermissions as p } from "permdock/testing/saas";
 
 import { listen } from "../support/listen.ts";
 
-type Env = {
-  Variables: { permdock: PermDock; permdockData: unknown };
-};
+type Env = { Variables: { permdock: PermDock; permdockData: unknown } };
 
 testHttpAdapter({
   name: "permdock/hono on @hono/node-server",

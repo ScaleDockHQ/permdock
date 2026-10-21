@@ -48,9 +48,9 @@ const APPROVED: ApprovalRequest = {
   resolvedBy: "u_2",
 };
 
-describe("approvalSignatureClaims", () => {
+describe(approvalSignatureClaims, () => {
   it("carries act, the approvals in snake_case and one authorization_details entry", () => {
-    expect(approvalSignatureClaims(APPROVED)).toEqual({
+    expect(approvalSignatureClaims(APPROVED)).toStrictEqual({
       sub: "u_1",
       act: { sub: "agent_1" },
       token: "sha-256:abc",
@@ -84,7 +84,7 @@ describe("approvalSignatureClaims", () => {
       expiresAt: "2026-10-13T10:00:00.000Z",
       status: "approved",
     });
-    expect(claims).toEqual({
+    expect(claims).toStrictEqual({
       token: "sha-256:abc",
       approvals: [],
       authorization_details: [{ type: "invoice", actions: ["refund"] }],
@@ -92,7 +92,7 @@ describe("approvalSignatureClaims", () => {
   });
 });
 
-describe("signApproval", () => {
+describe(signApproval, () => {
   it("signs an approved request with jti, iat and exp from the record", async () => {
     const signer = joseTokenSigner({
       key: PRIVATE_JWK,

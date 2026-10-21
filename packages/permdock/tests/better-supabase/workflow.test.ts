@@ -70,7 +70,7 @@ const member = () =>
 const anonymous = () =>
   getPermDockSync(policy, subjectFromBetterSupabase(null));
 
-describe("hookCan", () => {
+describe(hookCan, () => {
   it("grants a member who holds the permission in the hook's tenant", async () => {
     const can = hookCan(member());
     expect(await can(ORG, run.approve.key)).toBe(true);
@@ -95,7 +95,7 @@ describe("hookCan", () => {
   });
 });
 
-describe("handlerCan", () => {
+describe(handlerCan, () => {
   const request = new Request("https://app.test/.well-known/workflow/v1/ui");
 
   it("answers true or false for a signed-in caller", async () => {

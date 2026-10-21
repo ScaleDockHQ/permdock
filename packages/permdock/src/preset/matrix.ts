@@ -5,7 +5,10 @@ import { grantShape } from "./generate.ts";
 
 /** How one role reaches one action under a preset. */
 export type MatrixAccess = {
-  /** `allow`: always; `own`: on rows it owns; `pro`: on the pro plan; `none`: never. */
+  /**
+   * `allow`: always; `own`: on rows it owns; `pro`: on the pro plan; `none`:
+   * never.
+   */
   readonly access: "allow" | "own" | "pro" | "none";
   readonly approval: boolean;
   readonly limit: boolean;
@@ -23,8 +26,8 @@ export type PresetMatrix = {
 const NONE: MatrixAccess = { access: "none", approval: false, limit: false };
 
 /**
- * Who may do what under `preset`, from the same model the generated policy
- * is written from, for a page that shows the policy without running it.
+ * Who may do what under `preset`, from the same model the generated policy is
+ * written from, for a page that shows the policy without running it.
  */
 export function presetMatrix(preset: Preset): PresetMatrix {
   const domain = DOMAINS[preset.archetype];

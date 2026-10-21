@@ -246,21 +246,21 @@ A graph grant reads facts the row does not carry, so the instance asks a `Relati
 
 ```ts
 type RelationSource = {
-  ancestors(query: {
+  ancestors: (query: {
     resource: string;
     id: string;
     through: "parent";
     depth: number;
-  }): RelationChain | Promise<RelationChain>;
-  related(query: {
+  }) => RelationChain | Promise<RelationChain>;
+  related: (query: {
     resource: string;
     id: string;
     relation: string;
-  }): RelationHolder[] | Promise<RelationHolder[]>;
-  row?(query: {
+  }) => RelationHolder[] | Promise<RelationHolder[]>;
+  row?: (query: {
     resource: string;
     id: string;
-  }): Row | null | undefined | Promise<Row | null | undefined>;
+  }) => Row | null | undefined | Promise<Row | null | undefined>;
 };
 
 await getPermDock(policy, user, { relations: source });

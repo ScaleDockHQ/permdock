@@ -23,13 +23,19 @@ export type SubscriberPolicyOptions<
   readonly principals: PrincipalSource;
   /**
    * The permission a subscriber needs for each event type: an exact type,
-   * `prefix.*` or `*`, with the exact type first and then the longest
-   * pattern. A type with no entry reaches no one.
+   * `prefix.*` or `*`, with the exact type first and then the longest pattern.
+   * A type with no entry reaches no one.
    */
   readonly events: Readonly<Record<string, Permission>>;
-  /** The row the permission is decided on. Defaults to `event.payload`, validated against the resource schema. */
+  /**
+   * The row the permission is decided on. Defaults to `event.payload`,
+   * validated against the resource schema.
+   */
   readonly row?: (event: E) => unknown;
-  /** The principal the fan-out runs as in the event's tenant. Defaults to `event.actorId`. */
+  /**
+   * The principal the fan-out runs as in the event's tenant. Defaults to
+   * `event.actorId`.
+   */
   readonly sender?: (event: E) => string | null | undefined;
   /** Sources for the sender's and subscribers' instances. */
   readonly options?: Omit<
@@ -57,10 +63,10 @@ function permissionFor(
 
 /**
  * The per-subscriber check for better-supabase's webhooks-out, outbox and
- * realtime fan-out: the subscribers whose `principal` `decideFor` grants
- * the event type's permission on its row, in the event's tenant, as the
- * sender. An unmapped type, an event without a tenant or sender, a sender
- * outside the tenant and a throw reach no one.
+ * realtime fan-out: the subscribers whose `principal` `decideFor` grants the
+ * event type's permission on its row, in the event's tenant, as the sender. An
+ * unmapped type, an event without a tenant or sender, a sender outside the
+ * tenant and a throw reach no one.
  */
 export function subscriberPolicy<
   E extends SubscriberPolicyEvent = SubscriberPolicyEvent,

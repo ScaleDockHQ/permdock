@@ -29,6 +29,6 @@ describe("plain Node ESM", () => {
       ["--input-type=module", "-e", SCRIPT, JSON.stringify(specifiers)],
       { cwd: ROOT, encoding: "utf8" },
     );
-    expect(JSON.parse(output)).toEqual({});
+    expect(JSON.parse(output)).toStrictEqual({});
   });
 });

@@ -87,8 +87,8 @@ export function isComputedRelation(
 }
 
 /**
- * The relations whose holders hold `name` on `node`: `name` itself when it
- * has a source, then everything it includes, transitively, each once.
+ * The relations whose holders hold `name` on `node`: `name` itself when it has
+ * a source, then everything it includes, transitively, each once.
  * `definePermissions` rejects cycles and unknown names, so this terminates.
  */
 export function expandRelation(
@@ -117,14 +117,20 @@ export function expandRelation(
   return out;
 }
 
-/** Whether `node` names itself as its parent (nested folders, sub-teams, reporting lines). */
+/**
+ * Whether `node` names itself as its parent (nested folders, sub-teams,
+ * reporting lines).
+ */
 export function isSelfParented(node: ResourceNode | undefined): boolean {
   return node?.parent !== undefined && node.parent.resource === node.name;
 }
 
 export const RESOURCE_NAME: RegExp = /^[A-Za-z][A-Za-z0-9_-]*$/u;
 
-/** Level names ride claims and grant keys (`key@level`), so they stay SQL- and claim-safe. */
+/**
+ * Level names ride claims and grant keys (`key@level`), so they stay SQL- and
+ * claim-safe.
+ */
 export const LEVEL_NAME: RegExp = /^[a-z][a-z0-9_]*$/u;
 
 const EDGE_TABLE = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/u;
@@ -273,7 +279,7 @@ function normaliseMatch(label: string, match: EdgeMatch): EdgeMatch {
       typeof value !== "boolean" &&
       !(typeof value === "number" && Number.isFinite(value))
     ) {
-      throw new Error(
+      throw new TypeError(
         `PermDock: ${label} match '${column}' must be a string, a finite number or a boolean`,
       );
     }
@@ -351,7 +357,10 @@ function normaliseGroups(label: string, groups: EdgeGroups): EdgeGroups {
   };
 }
 
-/** An included relation must exist on the same resource, be tenancy-free and never include itself back. */
+/**
+ * An included relation must exist on the same resource, be tenancy-free and
+ * never include itself back.
+ */
 export function assertIncludes(node: ResourceNode): void {
   const state = new Map<string, "visiting" | "done">();
   const visit = (name: string, path: readonly string[]): void => {
@@ -418,8 +427,8 @@ function assertGroupTarget(
 /**
  * Links and group targets name declared resources and relations. Groups may
  * nest within one resource (teams in teams) through the same relation, which
- * then includes nothing, so SQL can walk it with one bounded recursive query;
- * a group cycle across resources is rejected.
+ * then includes nothing, so SQL can walk it with one bounded recursive query; a
+ * group cycle across resources is rejected.
  */
 export function assertGraphTargets(
   registry: ReadonlyMap<string, ResourceNode>,

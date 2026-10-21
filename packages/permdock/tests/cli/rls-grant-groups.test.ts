@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
+import type { RoleBinding } from "../../src/index.ts";
 
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
-  type RoleBinding,
   allow,
   definePermissions,
   definePolicy,
@@ -67,7 +67,7 @@ describe("grant groups", () => {
         ),
       ]),
     );
-    expect(keys).toEqual([
+    expect(keys).toStrictEqual([
       "offer.read#1",
       "offer.read#3",
       "offer.read#sent",
@@ -87,7 +87,7 @@ describe("grant groups", () => {
         ),
       ]),
     );
-    expect(keys).toEqual(["offer.read#sent", "quote.read#sent"]);
+    expect(keys).toStrictEqual(["offer.read#sent", "quote.read#sent"]);
   });
 
   it("refuses one group name on two conditions and two names on one condition", () => {

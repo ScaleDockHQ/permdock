@@ -11,8 +11,10 @@ import { createPermDock } from "permdock/mcp";
 import { withOtel } from "permdock/otel";
 import { z } from "zod";
 
+import type { User } from "./policy.ts";
+
 import { ownPost, permissions } from "./permissions.ts";
-import { policy, type User } from "./policy.ts";
+import { policy } from "./policy.ts";
 
 export const otelLog: {
   readonly message: string;
@@ -122,7 +124,10 @@ const tokens: Readonly<Record<string, Omit<AuthInfo, "token">>> = {
   },
 };
 
-/** Development token table standing in for an authorization server's introspection. */
+/**
+ * Development token table standing in for an authorization server's
+ * introspection.
+ */
 export const verifier = {
   async verifyAccessToken(token: string): Promise<AuthInfo> {
     const found = await Promise.resolve(
@@ -131,10 +136,6 @@ export const verifier = {
     if (found === null) {
       throw new OAuthError(OAuthErrorCode.InvalidToken, "unknown token");
     }
-    return {
-      ...found,
-      token,
-      expiresAt: Math.floor(Date.now() / 1000) + 3600,
-    };
+    return { ...found, token, expiresAt: Math.floor(Date.now() / 1000) + 3600 };
   },
 };

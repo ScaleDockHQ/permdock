@@ -1,12 +1,14 @@
+import type { Condition } from "../conditions/ast.ts";
+import type { CustomGrant } from "./custom-roles.ts";
+import type { GranteeMatch } from "./grantee.ts";
 import type { Permission, ResourceNode } from "./permission-types.ts";
 import type { Grant, Policy } from "./policy-types.ts";
 import type { CustomRole, Membership, Subject } from "./subject.ts";
 
-import { type Condition, hasConditionOp } from "../conditions/ast.ts";
+import { hasConditionOp } from "../conditions/ast.ts";
 import { compact } from "./compact.ts";
 import { contactMayUse } from "./contact.ts";
 import {
-  type CustomGrant,
   customGrantsFor,
   holdsCustomRole,
   holdsGlobalCustomRole,
@@ -14,7 +16,7 @@ import {
 import { coversRequirements } from "./delegation.ts";
 import { freezeDeep } from "./freeze.ts";
 import { combineWhere, matchGrantee } from "./grantee-match.ts";
-import { type GranteeMatch, flattenGrantee } from "./grantee.ts";
+import { flattenGrantee } from "./grantee.ts";
 import { getResource, listPermissions } from "./permission-registry.ts";
 import { declaredRoleNames, grantList } from "./policy.ts";
 import { requirementCondition } from "./requires-conditions.ts";
@@ -23,7 +25,10 @@ import { expandRoleNames } from "./role-loading.ts";
 import { keepsPermission, scopeList, tenantOf } from "./scopes.ts";
 import { nowSeconds } from "./tenancy.ts";
 
-/** A grant on a relation with a `period` is decided on the server, where the clock is. */
+/**
+ * A grant on a relation with a `period` is decided on the server, where the
+ * clock is.
+ */
 export function periodBound(policy: Policy, grant: Grant): boolean {
   const relations = policy.resources.get(grant.permission.resource)?.relations;
   return flattenGrantee(grant.to).some((item) => {
@@ -81,8 +86,8 @@ function graphAware(grant: Grant, where: Grant["where"]): Grant {
 }
 
 /**
- * `where()` keeps a grant that is server-only because it reads the graph:
- * its `related` nodes compile to subqueries given relation mappings.
+ * `where()` keeps a grant that is server-only because it reads the graph: its
+ * `related` nodes compile to subqueries given relation mappings.
  */
 export function whereGrant(grant: Grant): Grant {
   return grant.graph === true
@@ -91,8 +96,8 @@ export function whereGrant(grant: Grant): Grant {
 }
 
 /**
- * Every grant the subject may reach, once per membership that holds all of
- * its scoped roles, so a client can check that membership's tenant, team or
+ * Every grant the subject may reach, once per membership that holds all of its
+ * scoped roles, so a client can check that membership's tenant, team or
  * resource. A scoped role held only globally reaches nothing.
  */
 export function collectSnapshotGrants(

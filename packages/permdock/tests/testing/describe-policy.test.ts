@@ -345,7 +345,7 @@ describePolicy(orgPolicy, {
   },
 });
 
-describe("snapshotFixture", () => {
+describe(snapshotFixture, () => {
   it("returns snapshot JSON", async () => {
     const snapshot = await snapshotFixture(policy, {
       id: "u1",
@@ -408,9 +408,7 @@ describePolicy(quotaPolicy, {
   subjects: { member: { id: "u1", roles: ["member"] } },
   fixtures: { report: { id: "r1" } },
   matrix: {
-    [quotaPermissions.report.export.key]: {
-      report: { member: "granted" },
-    },
+    [quotaPermissions.report.export.key]: { report: { member: "granted" } },
   },
 });
 
@@ -438,9 +436,7 @@ const softQuotaPolicy = definePolicy(quotaPermissions, {
       }),
     ]),
     role("capped", [
-      allow(quotaPermissions.report.export, {
-        limit: { count: 5, per: 3600 },
-      }),
+      allow(quotaPermissions.report.export, { limit: { count: 5, per: 3600 } }),
     ]),
   ],
   subject: (user: { readonly id: string; readonly roles: readonly string[] }) =>
@@ -467,15 +463,11 @@ describePolicy(softQuotaPolicy, {
 
 describePolicy(policy, {
   exhaustive: false,
-  options: {
-    delegation: { access: [{ type: "post", actions: ["read"] }] },
-  },
+  options: { delegation: { access: [{ type: "post", actions: ["read"] }] } },
   subjects: { admin: { id: "u2", orgId: "o1", roles: ["admin"] } },
   fixtures: { ownPost },
   matrix: {
-    [permissions.post.read.key]: {
-      ownPost: { admin: "granted" },
-    },
+    [permissions.post.read.key]: { ownPost: { admin: "granted" } },
     [permissions.post.publish.key]: {
       ownPost: {
         admin: { outcome: "denied", denials: [{ reason: "not-delegated" }] },
@@ -532,9 +524,7 @@ describe("conformance runners", () => {
   );
 
   testMembershipSource(
-    {
-      membershipsFor: () => [{ tenant: "o1", roles: ["viewer"] }],
-    },
+    { membershipsFor: () => [{ tenant: "o1", roles: ["viewer"] }] },
     {
       principals: [{ id: "alice" }],
       expect: { alice: [{ tenant: "o1", roles: ["viewer"] }] },
@@ -582,10 +572,7 @@ describe("conformance runners", () => {
     { tenant: "o1", declared: ["member"] },
   );
 
-  testDecisionSink({
-    write: () => undefined,
-    flush: () => Promise.resolve(),
-  });
+  testDecisionSink({ write: () => undefined, flush: () => Promise.resolve() });
 
   testSnapshotSource({
     get: () => ({
@@ -646,7 +633,7 @@ describe("conformance runners", () => {
         "utf8",
       ),
     ) as Record<string, string>;
-    expect(Object.keys(fixtures).toSorted()).toEqual([
+    expect(Object.keys(fixtures).toSorted()).toStrictEqual([
       "vnd.permdock.approval+jwt",
       "vnd.permdock.capability+jwt",
       "vnd.permdock.evidence+jwt",
@@ -677,7 +664,7 @@ describe("conformance runners", () => {
       kind: "link",
       memberships: [{ on: { resource: "post", id: "42" }, roles: ["viewer"] }],
     });
-    expect(subject.delegation).toEqual({ scopes: ["post:read"] });
+    expect(subject.delegation).toStrictEqual({ scopes: ["post:read"] });
   });
 
   it("verifies the policy fixture and parses its document", async () => {
@@ -742,13 +729,9 @@ const selectorPermissions = definePermissions({
   }),
 });
 
-const selectorRoles = defineRoles({
-  owner: {},
-});
+const selectorRoles = defineRoles({ owner: {} });
 
-const selectorPlans = definePlans({
-  pro: {},
-});
+const selectorPlans = definePlans({ pro: {} });
 
 const selectorPolicy = definePolicy(
   {
@@ -812,11 +795,7 @@ describePolicy(selectorPolicy, {
   fixtures: { ownPost, otherPost },
   matrix: {
     [selectorPermissions.post.read.key]: {
-      ownPost: {
-        anonymous: "granted",
-        member: "granted",
-        ownerPro: "granted",
-      },
+      ownPost: { anonymous: "granted", member: "granted", ownerPro: "granted" },
     },
     [selectorPermissions.post.list.key]: {
       anonymous: "denied",
@@ -827,11 +806,7 @@ describePolicy(selectorPolicy, {
       otherPost: { anonymous: "denied", member: "denied" },
     },
     [selectorPermissions.post.delete.key]: {
-      ownPost: {
-        ownerPro: "granted",
-        ownerFree: "denied",
-        member: "denied",
-      },
+      ownPost: { ownerPro: "granted", ownerFree: "denied", member: "denied" },
     },
     [selectorPermissions.post.publish.key]: {
       ownPost: { agent: "granted", member: "denied" },
@@ -848,10 +823,7 @@ describePolicy(saasPolicy, {
     restrictedViewer: saasPrincipal("hank", "acme"),
     expired: saasPrincipal("frank", "acme"),
   },
-  fixtures: {
-    infra: saasFolder("infra"),
-    payroll: saasFolder("payroll"),
-  },
+  fixtures: { infra: saasFolder("infra"), payroll: saasFolder("payroll") },
   matrix: {
     [saasPermissions.folder.read.key]: {
       infra: {

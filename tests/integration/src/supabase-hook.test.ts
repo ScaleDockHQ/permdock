@@ -166,13 +166,13 @@ describe("Supabase token hook with named scopes (jwt mode)", () => {
   }
 
   it("writes the canonical memberships claim, without suspended or lapsed entries", async () => {
-    expect((await mint(OWNER))["memberships"]).toEqual([
+    expect((await mint(OWNER))["memberships"]).toStrictEqual([
       { scope: "organization", id: "T", roles: ["owner"], via: "staff" },
     ]);
-    expect((await mint(STAFF))["memberships"]).toEqual([
+    expect((await mint(STAFF))["memberships"]).toStrictEqual([
       { scope: "organization", id: "T", roles: ["member"], via: "staff" },
     ]);
-    expect((await mint(PRIVATE))["memberships"]).toEqual([
+    expect((await mint(PRIVATE))["memberships"]).toStrictEqual([
       {
         scope: "customer",
         id: "A",
@@ -181,32 +181,26 @@ describe("Supabase token hook with named scopes (jwt mode)", () => {
         via: "contact",
       },
     ]);
-    expect((await mint(BUSINESS))["memberships"]).toEqual([]);
-    expect((await mint(LAPSED))["memberships"]).toEqual([]);
+    expect((await mint(BUSINESS))["memberships"]).toStrictEqual([]);
+    expect((await mint(LAPSED))["memberships"]).toStrictEqual([]);
   });
 
   it("empties the role and memberships claims of a suspended user", async () => {
     const claims = await mint(SUSPENDED);
-    expect(claims["user_role"]).toEqual([]);
-    expect(claims["memberships"]).toEqual([]);
+    expect(claims["user_role"]).toStrictEqual([]);
+    expect(claims["memberships"]).toStrictEqual([]);
     const subject = subjectFromSupabase(
       { ...claims, app_metadata: { user_role: "platform-support" } },
-      {
-        claims: {
-          memberships: "memberships",
-        },
-      },
+      { claims: { memberships: "memberships" } },
     );
-    expect(subject.principal?.roles ?? []).toEqual([]);
+    expect(subject.principal?.roles ?? []).toStrictEqual([]);
   });
 
   it("agrees with subjectFromSupabase on the claims it minted", async () => {
     for (const user of USERS) {
       const claims = { ...(await mint(user)), tenant_id: "T" };
       const principal = subjectFromSupabase(claims, {
-        claims: {
-          memberships: "memberships",
-        },
+        claims: { memberships: "memberships" },
       }).principal;
       const permdock = await getPermDock(policy, principal);
       for (const [permission, table] of [
@@ -227,14 +221,14 @@ describe("Supabase token hook with named scopes (jwt mode)", () => {
           ).rows.map((row) => row.id),
         );
         if (user === OWNER && table === "quote") {
-          expect(actual).toEqual([
+          expect(actual).toStrictEqual([
             "d_a_accepted",
             "d_a_draft",
             "d_a_sent",
             "d_g_sent",
           ]);
         }
-        expect({ user, table, rows: actual.toSorted() }).toEqual({
+        expect({ user, table, rows: actual.toSorted() }).toStrictEqual({
           user,
           table,
           rows: expected,
