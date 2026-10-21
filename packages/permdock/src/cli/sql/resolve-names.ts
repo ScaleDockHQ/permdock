@@ -161,7 +161,7 @@ export function resolveNames(
       ...listPermissions(policy.vocabulary.permissions).map(
         (leaf) => leaf.resource,
       ),
-      ...Object.keys(policy.resources),
+      ...policy.resources.keys(),
     ]),
   ];
   const graph = graphPlan(policy);
