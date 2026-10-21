@@ -565,16 +565,16 @@ select permdock.permdock_replace_global_roles(
 
 `--custom-roles` (or `rls.customRoles: true`) adds, next to the helpers:
 
-| Object                                                                                                   | What it holds                                                                                                                                                                                      |
-| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)`                         | `database` mode: one row per `CustomRole.grants` entry; `scope` is the scope the role is held at (default the first), `scope_id` pins it to one instance or is null, `effect` is `allow` or `deny` |
-| `custom_role_includes (tenant_id, scope, scope_id, role, include_role)`                                  | `database` mode: one row per `CustomRole.includes` entry                                                                                                                                           |
-| `permdock_ceiling` (view)                                                                                | The `role_permissions` rows of declared roles marked `assignable`, in every scope including `global`, plus those roles' denies on the same permissions                                             |
-| `permdock_custom_keys(p_allow, p_deny, p_include, p_scope)`                                              | The grant keys one custom role holds in a scope, computed from the ceiling exactly as `resolveCustomRole` does                                                                                     |
-| `permdock_replace_custom_role_grants(p_tenant, p_scope, p_scope_id, p_role, p_allow, p_deny, p_include)` | `database` mode: saves one custom role, replacing its rows in both tables after the checks below; `execute` goes to `authenticated`                                                                |
-| `permdock_rename_custom_role_grants(p_tenant, p_scope, p_scope_id, p_from, p_to)`                        | `database` mode: moves a custom role's rows to a new name that has none                                                                                                                            |
-| `permdock_delete_custom_role_grants(p_tenant, p_scope, p_scope_id, p_role)`                              | `database` mode: removes a custom role's rows                                                                                                                                                      |
-| `permdock_custom_role_guard`, `permdock_custom_role_beyond`                                              | `database` mode: the shared checks of the three functions above; no `execute` for `anon` or `authenticated`                                                                                        |
+| Object                                                                                                   | What it holds                                                                                                                                                                                          |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect)`                         | `database` mode: one row per `CustomRole.grants` entry; `scope` is the scope the role is held at (default the first), `scope_id` pins it to one instance or is null, `effect` is `allow` or `deny`     |
+| `custom_role_includes (tenant_id, scope, scope_id, role, include_role)`                                  | `database` mode: one row per `CustomRole.includes` entry                                                                                                                                               |
+| `permdock_ceiling` (view)                                                                                | The `role_permissions` rows of declared roles marked `assignable`, in every scope including `global`, plus those roles' denies on the same permissions                                                 |
+| `permdock_custom_keys(p_allow, p_deny, p_include, p_scope)`                                              | The grant keys one custom role holds in a scope, computed from the ceiling exactly as `resolveCustomRole` does                                                                                         |
+| `permdock_replace_custom_role_grants(p_tenant, p_scope, p_scope_id, p_role, p_allow, p_deny, p_include)` | `database` mode: saves one custom role, replacing its rows in both tables after the checks below; `execute` goes to `authenticated`                                                                    |
+| `permdock_rename_custom_role_grants(p_tenant, p_scope, p_scope_id, p_from, p_to)`                        | `database` mode: moves a custom role's rows to a new name that has none                                                                                                                                |
+| `permdock_delete_custom_role_grants(p_tenant, p_scope, p_scope_id, p_role)`                              | `database` mode: removes a custom role's rows                                                                                                                                                          |
+| `permdock_custom_role_guard`, `permdock_custom_role_beyond`                                              | `database` mode: the shared checks of the three functions above, stable for an app's own `security definer` trigger ([guards](#guard-your-own-write-path)); no `execute` for `anon` or `authenticated` |
 
 The membership table, membership source (`tableMembershipSource`, `junctionMembershipSource`) or claim holds the custom role's name like any role; a declared role name never resolves as custom. With membership sources in `database` mode, a custom role matches on the source row's instance of the first scope (its `id` for that scope, `within` for a nested one) as `tenant_id`, and on its `id` as `scope_id`, so a nested source needs `within` set to match. Each `permitted_<scope>_ids` unions the declared branch with the custom one, so a policy needs no change. Both tables have RLS enabled and every privilege revoked from `anon`, `authenticated` and `public`; the application writes them from its own server connection, the same data its `CustomRoleSource` reads. A row naming a permission outside the ceiling reaches no key, so writing to the tables directly can never widen access.
 
@@ -716,6 +716,39 @@ A stored `level` on a permission with no levels is ignored, so a row such as `sc
 #### Keep the copy current
 
 `rls.customRoles.from.sync: 'trigger'` keeps the copy current instead of copying once. `generate` writes after-row triggers `permdock_sync_custom_role_permissions` (and `permdock_sync_custom_role_includes` when `from.includes` is mapped) on the application's own permission and include tables. Each write rebuilds the affected role through `permdock_trusted_replace_custom_role_grants`, with the same key mapping and reads as the backfill, so the PermDock grants follow the application's role editor. An entry outside the ceiling is dropped with a `warning` instead of aborting the legacy write, and a tenant role whose name a shared role holds is skipped with a warning (`name-taken`). The rebuild replaces all of a role's entries, so a legacy row that was never copied appears after the next write to that role. Use the backfill for the first copy and the triggers until the application writes through `permdock_replace_custom_role_grants`; the `triggers` note of `generate` and `permdock rls explain` list them.
+
+`generate` also writes before-row triggers `permdock_sync_custom_role_guard_permissions` (and `permdock_sync_custom_role_guard_includes`) on the same tables. A signed-in caller at trigger depth 1 passes the checks of `permdock_replace_custom_role_grants` for every role the row names: `permdock_custom_role_guard` (`not-member`, `manage-roles`, authority over the stored definition), then `permdock_custom_role_beyond` on the entry the row adds (`not-assignable-by`). A refusal raises `42501` and aborts the write. The checks run before the copy changes: after-row triggers wait for the end of the statement, so every check in a statement reads the copy as it stood before it, and a member cannot widen a role they hold and then pass through it. A migration, a job, a backfill or a cascade from the roles table runs without a caller and skips them. The application table's own RLS still decides who may write its rows; the guard decides what those rows may hand out.
+
+#### Guard your own write path
+
+`permdock_custom_role_guard(p_tenant, p_scope, p_scope_id, p_role)` and `permdock_custom_role_beyond(p_tenant, p_scope, p_scope_id, p_allow, p_deny, p_include)` are stable: their names, arguments and results keep their meaning within a major. A write path PermDock does not generate, such as a trigger on a table `customRoles.from` does not map, calls them from a `security definer` function, because no client role may execute them.
+
+- `permdock_custom_role_guard` raises unless the signed-in caller may change the stored role: `unknown-scope` or `declared-role` for the role's shape, `not-member`, `manage-roles` with `rls.customRoleWrites.requires`, and `not-assignable-by` when the stored definition allows a permission or level the caller may not hand out.
+- `permdock_custom_role_beyond` returns the permission keys among `p_allow` and `p_include` that the caller may not hand out in that tenant or instance, and no rows when the caller holds a `meta.manageRoles` permission. `p_allow` entries are `<permission>[@<level>]`.
+
+Call the guard first and pass only the new entries to `beyond`, before the PermDock copy changes; a check after the copy changes passes for a role the caller holds:
+
+```sql
+create function app.guard_role_grant() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if (select permdock.permdock_user_id()) is null or pg_trigger_depth() > 1 then
+    return new;
+  end if;
+  perform permdock.permdock_custom_role_guard(new.organization_id, 'organization', null, new.role);
+  if exists (
+    select 1 from permdock.permdock_custom_role_beyond(
+      new.organization_id, 'organization', null, array[new.permission], null, null)
+  ) then
+    raise exception using errcode = '42501', hint = 'not-assignable-by',
+      message = 'permdock: ' || new.permission || ' is not yours to hand out';
+  end if;
+  return new;
+end;
+$$;
+create trigger guard_role_grant before insert or update on app.role_grants
+  for each row execute function app.guard_role_grant();
+```
 
 ### Triggers and audit
 
