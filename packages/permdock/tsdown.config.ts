@@ -176,7 +176,8 @@ export default defineConfig({
   // its own file, so both stay dependencies (decision 0042); the other CLI
   // packages are optional peers.
   deps: {
-    neverBundle: [/^#next\//u],
+    // With `onlyBundle` set, builtins are no longer external by default.
+    neverBundle: [/^#next\//u, /^node:/u],
     onlyBundle: [
       "@clack/core",
       "@clack/prompts",
