@@ -14,7 +14,7 @@ A cluster of OAuth specifications and drafts describes how a human's authority i
 - **RFC 9396 Rich Authorization Requests (RAR).** Replaces flat scopes with an `authorization_details` array of typed JSON objects (`type`, `actions`, `locations`, `datatypes`, and type-specific fields). It is the carrier of constrained authority: not "may access posts" but "may update posts where the author is this user".
 - **RFC 8693 token exchange.** Lets a client trade one token for another, optionally with an `actor_token`, producing tokens that name both who the request is for and who is making it (`act` claim).
 - **DPoP (RFC 9449).** Binds a token to a key so a stolen token is useless without the private key; relevant when agents hold long-lived credentials.
-- **CIBA.** Client-Initiated Backchannel Authentication: the agent asks, the user approves on a separate device. A standards-based human-in-the-loop primitive.
+- **CIBA.** Client-Initiated Backchannel Authentication (CIBA Core 1.0, final): the agent asks, the user approves on a separate device. The [approvals recipe](/docs/adapters/approvals#recipe-approval-through-ciba) resolves an approval with the ID token it returns.
 - **[Agent Delegation Chain](https://datatracker.ietf.org/doc/html/draft-asor-wimse-agent-delegation-chain-00)** (WIMSE draft): carries authority as RAR `authorization_details` across multiple agent hops and enforces **offline-verifiable monotonic attenuation**: each hop can only narrow what it received, and a verifier can check the whole chain without calling back to the issuer.
 - **[Credential Delegation Protocol](https://datatracker.ietf.org/doc/draft-sweeney-wimse-credential-delegation/)** (WIMSE draft): composes RFC 8693, DPoP, RAR and CIBA into one delegation flow.
 - **[OAuth for AI agents on behalf of a user](https://datatracker.ietf.org/doc/html/draft-oauth-ai-agents-on-behalf-of-user-02)**: adds `requested_actor` to the authorization request and `actor_token` to the token request so the resulting token names the agent as well as the user.
@@ -83,19 +83,19 @@ The `permdock` package does not issue tokens, run token exchange, validate DPoP 
 
 ## Mapping table
 
-| OAuth concept                                              | PermDock concept                                                                                          |
-| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Resource owner / user in the token                         | `principal`                                                                                               |
-| `client_id`, `act` claim, `actor_token`, `requested_actor` | `actor`                                                                                                   |
-| OAuth `scope`                                              | `delegation.scopes`, matched against `permission.scope`                                                   |
-| RFC 9396 `authorization_details`                           | `delegation.authorizationDetails`; `type` matched against the resource name, `actions` against the action |
-| RAR constraint payload                                     | Enforced by the authorization server; the grant's own condition still applies                             |
-| Agent Delegation Chain hops, RFC 8693 `act`                | `delegation.chain`, verified by the token layer and recorded for audit                                    |
-| Monotonic attenuation                                      | Structural: decision = principal grants ∩ delegation                                                      |
-| RFC 8693 token exchange, ID-JAG                            | Transparent; resulting token's claims feed `principal`, `actor`, `delegation`                             |
-| DPoP, CIBA                                                 | Transport and consent layer; CIBA is one way `approval-required` can be fulfilled                         |
-| Transaction tokens                                         | Not used; services call each other's AuthZEN endpoint                                                     |
-| Service agent with no human                                | `principal` with `kind: 'service'`                                                                        |
+| OAuth concept                                              | PermDock concept                                                                                                                   |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Resource owner / user in the token                         | `principal`                                                                                                                        |
+| `client_id`, `act` claim, `actor_token`, `requested_actor` | `actor`                                                                                                                            |
+| OAuth `scope`                                              | `delegation.scopes`, matched against `permission.scope`                                                                            |
+| RFC 9396 `authorization_details`                           | `delegation.authorizationDetails`; `type` matched against the resource name, `actions` against the action                          |
+| RAR constraint payload                                     | Enforced by the authorization server; the grant's own condition still applies                                                      |
+| Agent Delegation Chain hops, RFC 8693 `act`                | `delegation.chain`, verified by the token layer and recorded for audit                                                             |
+| Monotonic attenuation                                      | Structural: decision = principal grants ∩ delegation                                                                               |
+| RFC 8693 token exchange, ID-JAG                            | Transparent; resulting token's claims feed `principal`, `actor`, `delegation`                                                      |
+| DPoP, CIBA                                                 | Transport and consent layer; CIBA can fulfil `approval-required` ([recipe](/docs/adapters/approvals#recipe-approval-through-ciba)) |
+| Transaction tokens                                         | Not used; services call each other's AuthZEN endpoint                                                                              |
+| Service agent with no human                                | `principal` with `kind: 'service'`                                                                                                 |
 
 ## Sources
 

@@ -76,6 +76,20 @@ jobs:
           commit-message: "chore: version packages"
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      # The tag is the one changesets/action gave the GitHub release it created.
+      - name: Attach SBOM
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PUBLISHED: ${{ steps.changesets.outputs.publishedPackages }}
+        run: |
+          version="$(node -p "JSON.parse(process.env.PUBLISHED).find((p) => p.name === 'permdock')?.version ?? ''")"
+          if [ -n "$version" ]; then
+            sbom="$RUNNER_TEMP/permdock-$version.cdx.json"
+            pnpm --filter permdock sbom --sbom-format cyclonedx --prod --sbom-supplier ScaleDock --out "$sbom"
+            gh release upload "permdock@$version" "$sbom" --clobber
+          fi
+
       - name: Merge main back into develop
         if: steps.changesets.outputs.published == 'true'
         env:

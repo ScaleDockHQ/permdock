@@ -31,6 +31,7 @@
     "react-dom": "catalog:",
     "shadcn": "catalog:",
     "sonner": "catalog:",
+    "temporal-polyfill": "catalog:",
     "tw-animate-css": "catalog:",
     "valibot": "catalog:",
     "zod": "catalog:"

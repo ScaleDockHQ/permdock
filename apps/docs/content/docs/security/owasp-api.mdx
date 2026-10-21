@@ -1,0 +1,35 @@
+---
+title: OWASP API Security Top 10
+description: How PermDock features map to the OWASP API Security Top 10 2023, entry by entry, and which entries other layers own.
+---
+
+The [OWASP API Security Top 10 2023](https://owasp.org/API-Security/editions/2023/en/0x11-t10/) lists the most common ways HTTP APIs fail. Three of its entries are authorization failures at the object, property and function level, which is the decision PermDock makes. This page maps PermDock features to each entry so a team, or an agent auditing a team's code, can check coverage item by item.
+
+## Scope of this mapping
+
+PermDock decides authorization in process. Authentication is upstream ([authentication](/docs/concepts/authentication)): PermDock reads a verified subject and never verifies a password or a session. Server-side request forgery, gateway configuration and the inventory of deployed hosts belong to the application, the network and the platform. For those entries this page names PermDock's part and says where the primary control lives.
+
+## Mapping table
+
+| ID    | Name                                            | PermDock mitigation                                                                                                                                                                                                                                                                                                                             |
+| ----- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API1  | Broken Object Level Authorization               | Every instance action is decided on the loaded row: `protect` with a `data` loader, `where` conditions such as `{ authorId: principal.id }`, and a loader that returns `null` or throws denies. `permdock.where` narrows list queries before they run, and generated RLS repeats the rule in Postgres ([policies](/docs/concepts/policies)).    |
+| API2  | Broken Authentication                           | Not PermDock's control. Subjects come only from verified tokens, sessions or API keys; core never reads a subject from a body, a query string or an unsigned header, and anything it cannot verify is the anonymous subject ([threat model](/docs/security/threat-model)).                                                                      |
+| API3  | Broken Object Property Level Authorization      | `fields` on a grant lists the properties a subject may read or write; `pick` redacts responses and `--fields views` redacts in Postgres. Boundary validation parses each body against the resource schema, so an unknown property never reaches a rule ([field-level grants](/docs/concepts/policies#field-level-grants)).                      |
+| API4  | Unrestricted Resource Consumption               | `limit` grants cap how often a subject exercises a permission, enforced by a server-owned `LimitStore`; HTTP adapters answer `429` with `Retry-After` and the `RateLimit` fields ([limits](/docs/concepts/policies#limits), [RateLimit headers](/docs/standards/ratelimit-headers)). Request size and timeouts stay with the server.            |
+| API5  | Broken Function Level Authorization             | One permission per action, decided on every route by `protect`; an admin action is a permission like any other, never a path prefix. Deny overrides allow, and `permdock scan` lists role checks written outside PermDock ([scan](/docs/cli/scan)).                                                                                             |
+| API6  | Unrestricted Access to Sensitive Business Flows | `approval: 'human'` puts a person in front of a sensitive action, with a token bound to principal, actor, permission and arguments; `limit` grants cap the rate of a flow such as purchases or invitations ([approvals](/docs/security/approvals)). Bot detection stays with the edge.                                                          |
+| API7  | Server Side Request Forgery                     | Not PermDock's control. Conditions are a JSON AST with no network access, and PermDock never fetches a URL from a decision input.                                                                                                                                                                                                               |
+| API8  | Security Misconfiguration                       | Fail-closed defaults: an unknown permission, a thrown loader or a down decision point denies. `permdock doctor` reports misconfigurations, and HTTP refusals are RFC 9457 Problem Details ([doctor](/docs/cli/doctor), [Problem Details](/docs/standards/problem-details)).                                                                     |
+| API9  | Improper Inventory Management                   | The catalog lists every permission, and `permdock openapi` writes `x-permdock-permissions` and the security requirements on each operation. The shipped `rulesets/permdock.yaml` makes a linter flag an operation with a permission and no `security` ([OpenAPI](/docs/standards/openapi)). Host and version inventory stays with the platform. |
+| API10 | Unsafe Consumption of APIs                      | Data PermDock reads from elsewhere is validated before use: client `refresh` responses, snapshots and hosted policy documents are parsed as data and never executed, and a remote decision point is consumed through `permdock/pdp`, which denies on any unknown or invalid response ([remote PDP](/docs/adapters/pdp)).                        |
+
+## Using this page in an audit
+
+Check API1, API3 and API5 per route: each route calls `protect`, each instance action has a `data` loader, and each response that carries restricted properties goes through `pick`. `permdock doctor` and `permdock scan` cover the parts a tool can find; the rest is a code review against the table.
+
+## Sources
+
+- [OWASP API Security Top 10 2023](https://owasp.org/API-Security/editions/2023/en/0x11-t10/), entry names API1:2023 to API10:2023.
+- [Threat model](/docs/security/threat-model) for the invariants referenced above.
+- [OWASP Top 10 for Agentic Applications](/docs/security/owasp-agentic) and [OWASP Top 10 for LLM Applications](/docs/security/owasp-llm) for the agent-facing lists.

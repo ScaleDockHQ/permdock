@@ -119,7 +119,7 @@ export function actionNames(list: ActionList | undefined): readonly string[] {
   return Object.keys(list);
 }
 
-function keyToScope(key: string): string {
+export function keyToScope(key: string): string {
   return key.replaceAll(".", ":");
 }
 

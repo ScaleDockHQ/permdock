@@ -23,6 +23,7 @@ import { customRoleSyncSql } from "./custom-role-sync.ts";
 import { closureDepths, graphPlan } from "./graph.ts";
 import { ownershipRules, unsatisfiedKinds } from "./ownership.ts";
 import { type RbacAuthorizeMode, resolveAuthorize } from "./rbac.ts";
+import { tokenScopesPlan } from "./token-scopes.ts";
 
 /** The scopes an `rls.migrate` `role` helper names, so `rls generate` writes their role-filtered member helper. */
 function roleMemberScopesOf(migrate: RlsMigrateConfig | undefined): {
@@ -196,6 +197,14 @@ export function buildContext(
     new Set(roleNames(policy)),
     Object.fromEntries(renamedKeys(policy.vocabulary.permissions)),
   );
+  const tokenScopesSetting: unknown = rls?.tokenScopes;
+  if (
+    tokenScopesSetting !== undefined &&
+    typeof tokenScopesSetting !== "boolean"
+  ) {
+    return { refusal: "rls.tokenScopes must be true or false" };
+  }
+  const tokenScopes = tokenScopesPlan(tokenScopesSetting, policy);
   let vias: ReturnType<typeof resolveVias>;
   try {
     vias = resolveVias(rls?.tables, scopes, input.dialect);
@@ -242,6 +251,7 @@ export function buildContext(
       ? { capabilities: true as const }
       : {}),
     ...(apiKeys === undefined ? {} : { apiKeys }),
+    ...(tokenScopes === undefined ? {} : { tokenScopes }),
     ...(rls?.anonymousSignIns === "deny"
       ? { anonymousSignIns: "deny" as const }
       : {}),

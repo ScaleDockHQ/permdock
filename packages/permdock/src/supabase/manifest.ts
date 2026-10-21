@@ -211,6 +211,8 @@ export type SupabaseManifestRls = {
    * there needs no role-ceiling check of its own.
    */
   readonly assignments?: { readonly tables: readonly string[] };
+  /** `rls.tokenScopes`: the helpers narrow a delegated token by its `scope` claim through `permdock_token_scope_allows`. */
+  readonly tokenScopes?: boolean;
   readonly apiKeys?: {
     readonly claim: string;
     readonly scopes: string;

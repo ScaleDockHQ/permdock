@@ -21,6 +21,7 @@
     "fapi-2",
     "---Agents---",
     "mcp-authorization",
+    "mcp-apps",
     "authzen",
     "oauth-agent-delegation",
     "shared-signals-caep",

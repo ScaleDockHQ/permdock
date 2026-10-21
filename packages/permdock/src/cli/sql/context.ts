@@ -101,6 +101,8 @@ export type RlsSqlContext = {
   /** Set when link capabilities compile: resource-scoped grants also get `anon` branches. */
   readonly capabilities?: true;
   readonly apiKeys?: ApiKeysPlan;
+  /** `rls.tokenScopes`: the scope-to-keys map a delegated token is narrowed by. */
+  readonly tokenScopes?: TokenScopesPlan;
   /** Role ownership rules (`for`, `assigns`, `min`, `max`, `transferOnly`), when any role declares one. */
   readonly ownership?: RlsOwnership;
   /** Scopes whose holder-count and transfer-only triggers `rls.ownershipTriggers` leaves out; `'all'` for every scope. */
@@ -145,6 +147,11 @@ export type ApiKeysPlan = {
   readonly roles: string;
   readonly serviceRoles: readonly string[];
   readonly renamed?: Readonly<Record<string, string>>;
+};
+
+export type TokenScopesPlan = {
+  /** Each OAuth scope to the permission keys it reaches, from `delegatedScopeMap`. */
+  readonly scopes: Readonly<Record<string, readonly string[]>>;
 };
 
 /** The policy's role ownership rules as the SQL generator needs them. */

@@ -314,6 +314,14 @@ export type RlsConfig = {
    */
   readonly readOnlyActors?: boolean | readonly string[];
   readonly apiKeys?: true | RlsApiKeys;
+  /**
+   * Narrow a delegated token (a `client_id`, or an `act` that is not a
+   * support or impersonation session) by its `scope` claim in every helper
+   * and policy: a grant passes only when one of the token's scopes reaches
+   * its permission (the permission's own scope, a former scope, or a policy
+   * `oauthScopes` entry). Denies always apply. Off by default.
+   */
+  readonly tokenScopes?: boolean;
   /** Supabase Realtime: policies on `realtime.messages` for private channels. Supabase dialect only. */
   readonly realtime?: RlsRealtime;
   /** Supabase Storage: policies on `storage.objects` for buckets keyed by a scope folder. Supabase dialect only. */

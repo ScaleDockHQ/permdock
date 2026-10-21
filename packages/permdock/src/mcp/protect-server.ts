@@ -58,6 +58,15 @@ function requirePermission(
   return permission as unknown as Permission;
 }
 
+const UI_SCHEME = "ui://";
+
+/** The MCP Apps view a tool links through `_meta.ui.resourceUri`. */
+function uiResourceUri(meta: unknown): string | undefined {
+  const ui = isRecord(meta) ? meta["ui"] : undefined;
+  const uri = isRecord(ui) ? ui["resourceUri"] : undefined;
+  return typeof uri === "string" && uri.startsWith(UI_SCHEME) ? uri : undefined;
+}
+
 function guardUpdates(
   registered: Registered,
   wrap: (callback: Handler) => Handler,
@@ -90,6 +99,11 @@ export function protectServer(
   const toolScopes = new Map<string, readonly [string, ...string[]]>();
   const prompts = new Map<string, Permission>();
   const resources = new Map<string, Permission>();
+  const views = new Set<string>();
+  const uiLinks = new Map<
+    string,
+    { readonly tool: string; readonly permission: Permission }
+  >();
   const templates: {
     readonly template: ResourceTemplate;
     readonly permission: Permission;
@@ -104,7 +118,7 @@ export function protectServer(
   const promptPermission = (name: string): Permission | undefined =>
     prompts.get(name);
   const resourcePermission = (uri: string): Permission | undefined => {
-    const direct = resources.get(uri);
+    const direct = resources.get(uri) ?? uiLinks.get(uri)?.permission;
     if (direct !== undefined) {
       return direct;
     }
@@ -123,6 +137,7 @@ export function protectServer(
       keyOf: (entry: TEntry) => string,
       permissionOf: (key: string) => Permission | undefined,
       remember: boolean,
+      hidden: (key: string) => boolean = (): boolean => false,
     ) =>
     async (result: unknown, rawContext: unknown): Promise<unknown> => {
       if (!isRecord(result) || !Array.isArray(result[field])) {
@@ -130,7 +145,9 @@ export function protectServer(
       }
       const context = contextOf(rawContext);
       // SAFETY: checked to be an array above; the SDK's list result schema gives each entry TEntry's key.
-      const entries = result[field] as TEntry[];
+      const entries = (result[field] as TEntry[]).filter(
+        (entry) => !hidden(keyOf(entry)),
+      );
       const shown = await visible(
         checks,
         context,
@@ -168,6 +185,7 @@ export function protectServer(
       (entry) => entry.uri,
       resourcePermission,
       false,
+      (uri) => views.has(uri) && resourcePermission(uri) === undefined,
     ),
     "resources/templates/list": listFilter<{ readonly uriTemplate: string }>(
       "resourceTemplates",
@@ -301,6 +319,17 @@ export function protectServer(
     handler: Handler,
   ): Registered => {
     const permission = toolPermissionOf(name, config);
+    const view = uiResourceUri(config["_meta"]);
+    const linked = view === undefined ? undefined : uiLinks.get(view);
+    if (
+      view !== undefined &&
+      linked !== undefined &&
+      linked.permission.key !== permission.key
+    ) {
+      throw new TypeError(
+        `permdock/mcp: tools ${linked.tool} and ${name} link ${view} under different permissions; give the resource its own permission.`,
+      );
+    }
     const {
       permission: _permission,
       data,
@@ -339,6 +368,9 @@ export function protectServer(
     tools.set(name, permission);
     if (declared !== undefined) {
       toolScopes.set(name, declared);
+    }
+    if (view !== undefined && linked === undefined) {
+      uiLinks.set(view, { tool: name, permission });
     }
     guardUpdates(
       registered,
@@ -422,7 +454,19 @@ export function protectServer(
     config: Readonly<Record<string, unknown>>,
     read: Handler,
   ): Registered => {
-    const permission = requirePermission("resource", name, config);
+    const inherits =
+      config["permission"] === undefined &&
+      typeof uriOrTemplate === "string" &&
+      uriOrTemplate.startsWith(UI_SCHEME);
+    const own = inherits
+      ? undefined
+      : requirePermission("resource", name, config);
+    /** A `ui://` view without its own permission takes the one of the tool linking it; unlinked, it denies. */
+    const permissionNow = (): Permission | undefined =>
+      own ??
+      (typeof uriOrTemplate === "string"
+        ? uiLinks.get(uriOrTemplate)?.permission
+        : undefined);
     const {
       permission: _permission,
       data,
@@ -431,34 +475,55 @@ export function protectServer(
     } = config;
     // SAFETY: GuardedMcpServer types a resource config's data as a loader over the read args.
     const load = data as ((...args: unknown[]) => unknown) | undefined;
-    const wrap = (callback: Handler): Handler =>
-      guard(
-        checks,
-        permission,
-        load,
-        callback,
-        (params) => params.slice(0, -1),
-        throwRefusal,
-        { capabilities },
-      );
     // SAFETY: GuardedMcpServer types a resource config's scopeChallenge as ScopeChallengeHandler.
+    const ownChallenge = scopeChallenge as ScopeChallengeHandler | undefined;
+    const wrap =
+      (callback: Handler): Handler =>
+      (...params: unknown[]): unknown => {
+        const permission = permissionNow();
+        if (permission === undefined) {
+          return Promise.reject(
+            new Error(`Denied: resource ${name} is linked to no guarded tool.`),
+          );
+        }
+        return guard(
+          checks,
+          permission,
+          load,
+          callback,
+          (args) => args.slice(0, -1),
+          throwRefusal,
+          { capabilities },
+        )(...params);
+      };
     const registered = originalResource(
       name,
       uriOrTemplate,
       {
         ...passthrough,
-        scopeChallenge: challengeFor(
-          scopeChallenge as ScopeChallengeHandler | undefined,
-          scopesReaching(checks.policy, permission),
-          challengeScope(checks.policy, permission),
-        ),
+        scopeChallenge: (
+          context: Parameters<ScopeChallengeHandler>[0],
+        ): ReturnType<ScopeChallengeHandler> => {
+          const permission = permissionNow();
+          return permission === undefined
+            ? ownChallenge?.(context)
+            : challengeFor(
+                ownChallenge,
+                scopesReaching(checks.policy, permission),
+                challengeScope(checks.policy, permission),
+              )(context);
+        },
       },
       wrap(read),
     );
     if (typeof uriOrTemplate === "string") {
-      resources.set(uriOrTemplate, permission);
-    } else {
-      templates.push({ template: uriOrTemplate, permission });
+      if (own === undefined) {
+        views.add(uriOrTemplate);
+      } else {
+        resources.set(uriOrTemplate, own);
+      }
+    } else if (own !== undefined) {
+      templates.push({ template: uriOrTemplate, permission: own });
     }
     guardUpdates(registered, wrap);
     return registered;

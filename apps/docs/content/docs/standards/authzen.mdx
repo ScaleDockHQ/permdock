@@ -50,6 +50,23 @@ PermDock Cloud runs the same `permdock/authzen` handler against a published poli
 
 The [`pdp` provider](/docs/adapters/pdp) turns a remote AuthZEN PDP into a grant source: a role's grants can be resolved by calling `/access/v1/evaluation` (or `/evaluations` for `simulate`), and the response is folded into the same `Decision` union as local grants. `deny` still overrides `allow`, and a network failure is a denial, never a grant.
 
+### Zero trust roles (NIST SP 800-207)
+
+Posture: name. NIST SP 800-207 (Zero Trust Architecture, August 2020) splits access control into logical components. AuthZEN gives the PDP-to-PEP leg a wire format, and PermDock fills each role in process or over that wire:
+
+| SP 800-207 component                  | PermDock                                                                                                                                                                                    |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Policy engine (PE)                    | `decide` over the policy: grants, conditions, deny-overrides, delegation intersection                                                                                                       |
+| Policy administrator (PA)             | The application, or PermDock Cloud for hosted grants and memberships; `approvalsHandler` for per-request approval                                                                           |
+| Policy decision point (PDP = PE + PA) | An in-process instance, or `permdock/authzen` serving `/access/v1/evaluation`                                                                                                               |
+| Policy enforcement point (PEP)        | `protect` in the HTTP adapters, `protectServer` in MCP, the agent adapters' tool hooks, generated RLS in Postgres; `permdock/pdp` when the decision is remote                               |
+| Policy information point (PIP)        | The `subject` resolver, `data` loaders, `MembershipSource`, `RelationSource` and `customRoles`; identity from the token, never from the request body                                        |
+| Continuous diagnostics and mitigation | `on('decision')` and `permdock/otel` as inputs; CAEP and `RevocationFeed` invalidate snapshots when a session or credential changes ([Shared Signals](/docs/standards/shared-signals-caep)) |
+
+- Every request is decided per resource and per call (800-207 tenets 3 and 6); a snapshot is a client-side listing hint, and the server decides again.
+- An unknown subject, a missing PIP answer or an unreachable PDP denies, matching the architecture's default-deny stance.
+- PermDock does not manage devices, networks or micro-segmentation; those inputs reach a decision only as `context` the application supplies.
+
 ### Request and response
 
 An evaluation request for `permdock.decide(permissions.post.update, post)`:
@@ -152,6 +169,7 @@ The package ships the interop Todo domain as `authzenTodoPermissions`, `authzenT
 ## Sources
 
 - [OpenID AuthZEN Authorization API 1.0](https://openid.net/specs/authorization-api-1_0.html).
+- [NIST SP 800-207, Zero Trust Architecture](https://csrc.nist.gov/pubs/sp/800/207/final), sections 2.1 (tenets) and 3 (logical components).
 - [AuthZEN certification programme](https://github.com/openid/authzen/issues/433).
 - [Landscape research](/docs/research/landscape) for the PDP vendor context and the Cerbos AuthZEN-with-MCP discussion.
 - [Wire formats](/docs/concepts/wire-formats) for the AuthZEN mapping.

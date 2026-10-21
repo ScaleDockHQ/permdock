@@ -88,6 +88,20 @@ const resolve = jwtSubjectResolver({
 
 A permission whose condition reads `subject.assurance` (for example `acr` in a required set, or `authTime` newer than a bound) is `denied` with reason `insufficient-user-authentication`. HTTP adapters render that exact reason as the RFC 9470 challenge, `WWW-Authenticate: Bearer error="insufficient_user_authentication", acr_values="<required>", max_age=<seconds>`, taking `acr_values` and `max_age` from the condition that failed; the status is 401 and the Problem Details body is `type: .../step-up-required` carrying the same values as `acrValues` and `maxAge` ([Problem Details](/docs/standards/problem-details)). MCP returns the same `acr_values` and `max_age` in the refusal, and an `input_required` URL request to `stepUp.at` when it is set. The mapping from every denial reason to RFC 6750 and RFC 9470 is on the [JWT adapter](/docs/adapters/jwt).
 
+### NIST SP 800-63-4 assurance levels
+
+Posture: name. NIST SP 800-63B-4 (final, August 2025) defines three authenticator assurance levels (AALs). It assigns them no `acr` values: each provider names its own (Login.gov uses `http://idmanagement.gov/ns/assurance/aal/2`, others a URN or a short string). An `assurance()` grantee states the level a grant needs in the provider's terms:
+
+| AAL  | 800-63B-4 requirement                                                                           | Grant                                                                  |
+| ---- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| AAL1 | Single-factor or multi-factor authentication                                                    | `authenticated()`                                                      |
+| AAL2 | Two factors, with a phishing-resistant option offered; reauthentication at least every 24 hours | `assurance({ acr: providerAal2, maxAge: 24 * 60 * 60 })`               |
+| AAL3 | A phishing-resistant authenticator with a non-exportable key; reauthentication every 12 hours   | `assurance({ acr: providerAal3, amr: ["hwk"], maxAge: 12 * 60 * 60 })` |
+
+- A grant that fails its `assurance()` is `insufficient-user-authentication`, which the step-up challenge above turns into `acr_values` and `max_age` for the provider.
+- Inactivity timeouts (one hour at AAL2, 15 minutes at AAL3) are session rules. The session layer enforces them; PermDock sees only `auth_time`.
+- Identity proofing levels (IAL, SP 800-63A-4) arrive as `verified_claims` when the provider sends them; PermDock reads the claim and never grades the evidence.
+
 ### Back-Channel Logout as a revocation input
 
 `permdock/ssf` accepts a `logout_token` next to Shared Signals SETs: same `TokenVerifier`, `typ: logout+jwt` required, `events` must contain the back-channel logout member, `nonce` must be absent (Back-Channel Logout section 2.6), `sub` or `sid` must be present. A matching snapshot (by `principal.id` plus `issuer`, or by `session`) is invalidated exactly as for CAEP `session-revoked` ([Shared Signals](/docs/standards/shared-signals-caep)). This is a receiver for a token the OP already sends; PermDock does not implement the RP's logout endpoint routing.
@@ -121,6 +135,7 @@ It does not run the authorization code flow, exchange codes, refresh tokens, ver
 - [OpenID Connect Discovery 1.0](https://openid.net/specs/openid-connect-discovery-1_0.html), sections 3 and 4.3; [RFC 8414](https://www.rfc-editor.org/rfc/rfc8414.html).
 - [OpenID Connect Back-Channel Logout 1.0](https://openid.net/specs/openid-connect-backchannel-1_0.html), sections 2.4 to 2.6.
 - [RFC 9068](https://www.rfc-editor.org/rfc/rfc9068.html) (JWT profile for access tokens), [RFC 9470](https://www.rfc-editor.org/rfc/rfc9470.html) (step-up authentication), [RFC 8176](https://www.rfc-editor.org/rfc/rfc8176.html) (`amr` values).
+- [NIST SP 800-63B-4](https://pages.nist.gov/800-63-4/sp800-63b.html), authenticator assurance levels and reauthentication.
 - [OpenID Foundation specifications index](https://openid.net/developers/specs/) for Federation, the Enterprise Extensions, IPSIE and Identity Assurance.
 
 ## Related

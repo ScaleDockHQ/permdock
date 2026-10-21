@@ -2,10 +2,65 @@ import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
 import type { Delegation } from "./subject.ts";
 
-import { formerScopes } from "./permission-leaf.ts";
+import { byCodePoint } from "./compare.ts";
+import { formerScopes, keyToScope } from "./permission-leaf.ts";
 
 type ScopedPolicy = Pick<Policy, "oauthScopes">;
 type ScopedPermission = Pick<Permission, "key" | "scope">;
+
+/** A catalog permission as the scope map reads it. */
+export type ScopeMapPermission = {
+  readonly key: string;
+  readonly scope: string;
+  readonly renamedFrom?: readonly string[];
+};
+
+/** A catalog `oauthScopes` entry as the scope map reads it. */
+export type ScopeMapEntry = {
+  readonly scope: string;
+  readonly permissions: readonly string[];
+};
+
+/**
+ * Every OAuth scope a token may carry to the permission keys it reaches: each
+ * permission's own scope, the scopes of the keys it was renamed from, and each
+ * coarse `oauthScopes` scope. Scopes and keys are sorted by code point. A key
+ * outside `permissions` is dropped, so a stale `oauthScopes` entry grants
+ * nothing. better-supabase's `delegation.scopes` and the SQL helpers'
+ * `rls.tokenScopes` ceiling both read this map.
+ */
+export function delegatedScopeMap(
+  permissions: readonly ScopeMapPermission[],
+  oauthScopes: readonly ScopeMapEntry[] = [],
+): Record<string, string[]> {
+  const delegated = new Map<string, Set<string>>();
+  const add = (scope: string, key: string): void => {
+    const keys = delegated.get(scope) ?? new Set();
+    keys.add(key);
+    delegated.set(scope, keys);
+  };
+  const known = new Set<string>();
+  for (const permission of permissions) {
+    known.add(permission.key);
+    add(permission.scope, permission.key);
+    for (const former of permission.renamedFrom ?? []) {
+      add(keyToScope(former), permission.key);
+    }
+  }
+  for (const entry of oauthScopes) {
+    for (const key of entry.permissions) {
+      if (known.has(key)) add(entry.scope, key);
+    }
+  }
+  return Object.fromEntries(
+    [...delegated.keys()]
+      .toSorted(byCodePoint)
+      .map((scope) => [
+        scope,
+        [...(delegated.get(scope) ?? [])].toSorted(byCodePoint),
+      ]),
+  );
+}
 
 /**
  * `delegation` with every coarse OAuth scope the policy declares in
