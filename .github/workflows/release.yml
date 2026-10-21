@@ -81,7 +81,7 @@ jobs:
         if: steps.changesets.outputs.published == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PUBLISHED: ${{ steps.changesets.outputs.publishedPackages }}
+          PUBLISHED: ${{ steps.changesets.outputs.published-packages }}
         run: |
           version="$(node -p "JSON.parse(process.env.PUBLISHED).find((p) => p.name === 'permdock')?.version ?? ''")"
           if [ -n "$version" ]; then
