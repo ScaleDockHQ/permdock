@@ -58,6 +58,7 @@
   "./preset": 14711,
   "./testing": 325613,
   "./testing/core": 151238,
+  "./testing/fixtures": 21548,
   "./testing/saas": 150622,
   "./testing/saas/permissions": 141259,
   "./cli": 690873,

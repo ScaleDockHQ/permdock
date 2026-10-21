@@ -67,6 +67,7 @@ export const ENTRIES = {
   "./preset": "preset/index.js",
   "./testing": "testing/index.js",
   "./testing/core": "testing/core.js",
+  "./testing/fixtures": "testing/fixtures/index.js",
   "./testing/saas": "testing/saas/index.js",
   "./testing/saas/permissions": "testing/saas/permissions.js",
   "./cli": "cli/index.js",
@@ -92,6 +93,7 @@ const TOOLING_ENTRIES = [
   "./next/plugin",
   "./testing",
   "./testing/core",
+  "./testing/fixtures",
   "./testing/saas",
   "./testing/saas/permissions",
 ] as const;

@@ -797,6 +797,7 @@
     "testWhereCompiler"
   ],
   "./testing/core": ["policyMatrix", "testOrmParity", "testRlsParity"],
+  "./testing/fixtures": ["betterSupabaseCatalog", "betterSupabaseManifest"],
   "./testing/saas": [
     "SAAS_API_KEY_LIMIT",
     "SAAS_EXPIRED_AT",

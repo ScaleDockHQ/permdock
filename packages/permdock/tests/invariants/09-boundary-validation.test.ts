@@ -28,7 +28,8 @@ const TRUSTED_SITES: Readonly<Record<string, string>> = {
   "agent/create.ts":
     "the model row is { id } built from a key of the application's models map",
   "authzen/create.ts:loaded": "a row the application `load` read by id",
-  "authzen/create.ts:decide": "forwards the loaded flag above",
+  "authzen/search.ts:decide":
+    "decideAuthzen forwards the loaded flag `authzen/create.ts` sets",
   "server/route-guard.ts": "the application opted in through protect options",
   "server/connection.ts": "the application opted in on the check",
 };
