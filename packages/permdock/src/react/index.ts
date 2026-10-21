@@ -35,6 +35,7 @@ export type {
   GateView,
   ProtectedActionHandle,
   ProtectedActionView,
+  RolesOptions,
   PermDockDefaults,
   PermDockProviderProps,
   PermissionSet,

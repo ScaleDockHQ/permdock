@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import type { OutputFile } from "../core/output-files.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { GenKind, PermDockConfig } from "../types.ts";
@@ -10,6 +13,8 @@ import { STDOUT, driftOf, writeOutputFiles } from "../core/output-files.ts";
 import { requirePolicy } from "../project/load.ts";
 import { constantsModule } from "./constants.ts";
 import { factoriesModule } from "./factories.ts";
+import { hooksModule, policySpecifier } from "./hooks.ts";
+import { messagesDocument } from "./messages.ts";
 import { genModel } from "./model.ts";
 import {
   jsonSchemaDocument,
@@ -25,6 +30,11 @@ const GEN_KINDS = [
   "json-schema",
   "standard-schema",
   "factories",
+  "react",
+  "vue",
+  "svelte",
+  "solid",
+  "messages",
 ] as const satisfies readonly GenKind[];
 
 const DEFAULT_GEN_OUT = "src/generated";
@@ -37,6 +47,11 @@ const FILE_NAMES: Readonly<Record<GenKind, string>> = {
   "json-schema": "permdock.schemas.json",
   "standard-schema": "permdock.schemas.ts",
   factories: "permdock.factories.ts",
+  react: "permdock.react.ts",
+  vue: "permdock.vue.ts",
+  svelte: "permdock.svelte-stores.ts",
+  solid: "permdock.solid.ts",
+  messages: "permdock.messages.json",
 };
 
 function isGenKind(value: unknown): value is GenKind {
@@ -64,10 +79,28 @@ function kindsOf(
   return [...new Set(configured)];
 }
 
+type RenderContext = {
+  readonly fieldMeta: boolean;
+  /** The output path as given; `-` for stdout. */
+  readonly rel: string;
+  /**
+   * The output file, absolute; the default file name under the directory for
+   * stdout.
+   */
+  readonly file: string;
+  /** The policy module, absolute. */
+  readonly policy: string;
+  readonly previous: string | undefined;
+};
+
+function readIfExists(file: string): string | undefined {
+  return existsSync(file) ? readFileSync(file, "utf8") : undefined;
+}
+
 function render(
   kind: GenKind,
   model: GenModel,
-  options: { readonly fieldMeta: boolean },
+  context: RenderContext,
 ): string {
   switch (kind) {
     case "constants":
@@ -75,13 +108,20 @@ function render(
     case "zod":
     case "valibot":
     case "arktype":
-      return validatorModule(kind, model, options);
+      return validatorModule(kind, model, context);
     case "json-schema":
       return jsonSchemaDocument(model);
     case "standard-schema":
-      return standardSchemaModule(model, options);
+      return standardSchemaModule(model, context);
     case "factories":
       return factoriesModule(model);
+    case "react":
+    case "vue":
+    case "svelte":
+    case "solid":
+      return hooksModule(kind, policySpecifier(context.file, context.policy));
+    case "messages":
+      return messagesDocument(model, context.rel, context.previous);
     default: {
       const exhaustive: never = kind;
       return exhaustive;
@@ -110,6 +150,7 @@ async function genFiles(input: GenInput): Promise<readonly OutputFile[]> {
       { code: "invalid_value", extensions: { flag: "--out" } },
     );
   }
+  const policyPath = input.from ?? input.config.policy ?? "";
   const policy = await requirePolicy(
     input.cwd,
     input.from ?? input.config.policy,
@@ -122,11 +163,24 @@ async function genFiles(input: GenInput): Promise<readonly OutputFile[]> {
   const model = genModel({ policy, config: input.config, operations });
   const dir = input.outDir ?? input.config.gen?.out ?? DEFAULT_GEN_OUT;
   const fieldMeta = input.config.gen?.fieldMeta === true;
-  return kinds.map((kind) => ({
-    part: kind,
-    rel: input.out ?? `${dir}/${FILE_NAMES[kind]}`,
-    text: render(kind, model, { fieldMeta }),
-  }));
+  return kinds.map((kind) => {
+    const rel = input.out ?? `${dir}/${FILE_NAMES[kind]}`;
+    const file = resolve(
+      input.cwd,
+      rel === STDOUT ? `${dir}/${FILE_NAMES[kind]}` : rel,
+    );
+    return {
+      part: kind,
+      rel,
+      text: render(kind, model, {
+        fieldMeta,
+        rel,
+        file,
+        policy: resolve(input.cwd, policyPath),
+        previous: rel === STDOUT ? undefined : readIfExists(file),
+      }),
+    };
+  });
 }
 
 export async function runGen(input: GenInput): Promise<CommandResult> {

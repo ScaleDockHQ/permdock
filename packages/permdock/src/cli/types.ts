@@ -939,7 +939,12 @@ export type GenKind =
   | "json-schema"
   | "standard-schema"
   | "constants"
-  | "factories";
+  | "factories"
+  | "react"
+  | "vue"
+  | "svelte"
+  | "solid"
+  | "messages";
 
 /** `permdock gen` input. */
 export type GenConfig = {

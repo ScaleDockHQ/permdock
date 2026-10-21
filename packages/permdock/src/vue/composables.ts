@@ -16,6 +16,7 @@ import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
 import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
 import type {
@@ -73,10 +74,13 @@ function useTick(store: ClientStore): ComputedRef<ClientPermDock> {
   });
 }
 
-export function usePermDock(): ClientPermDock {
+export function usePermDock<
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(): ClientPermDock<V> {
   const store = useStore();
   const permdock = useTick(store);
-  return livePermDock(() => permdock.value);
+  // SAFETY: V only types the vocabulary; the store holds the instance for the provider's policy.
+  return livePermDock(() => permdock.value) as ClientPermDock<V>;
 }
 
 type PermissionRefs = {

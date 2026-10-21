@@ -43,6 +43,7 @@ function model(
     roles: [],
     names,
     topics: [],
+    labels: { permissions: [], roles: [] },
     buckets: [],
     ...extra,
   };

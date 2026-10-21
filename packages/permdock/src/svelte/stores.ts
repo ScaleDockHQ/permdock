@@ -9,6 +9,7 @@ import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
 import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
 import type {
@@ -65,8 +66,11 @@ export function setPermDock(options: SveltePermDockOptions): ClientPermDock {
   return sveltePermDock(providePermDock(options));
 }
 
-export function getPermDock(): ClientPermDock {
-  return sveltePermDock(getStore());
+export function getPermDock<
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(): ClientPermDock<V> {
+  // SAFETY: V only types the vocabulary; the store holds the instance for the provider's policy.
+  return sveltePermDock(getStore()) as ClientPermDock<V>;
 }
 
 /**

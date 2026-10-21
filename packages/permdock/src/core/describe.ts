@@ -112,7 +112,9 @@ export type DescribeOptions = {
   };
 };
 
-const TITLES: Readonly<Record<DecisionDescription["kind"], string>> = {
+export const DESCRIBE_TITLES: Readonly<
+  Record<DecisionDescription["kind"], string>
+> = {
   granted: "Granted",
   denied: "Denied",
   approval: "Approval required",
@@ -165,7 +167,7 @@ export function describe(
       ? (options.permission.meta?.title ?? key)
       : key;
   const titleOf = (kind: DecisionDescription["kind"]): string =>
-    messages?.titles?.[kind] ?? TITLES[kind];
+    messages?.titles?.[kind] ?? DESCRIBE_TITLES[kind];
   if (decision.outcome === "granted") {
     const permission = labelOf(decision.matched.permission);
     return {

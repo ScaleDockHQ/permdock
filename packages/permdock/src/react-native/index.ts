@@ -30,6 +30,7 @@ export type {
   GateView,
   ProtectedActionHandle,
   ProtectedActionView,
+  RolesOptions,
   PermissionSet,
   PermissionState,
   SubjectView,

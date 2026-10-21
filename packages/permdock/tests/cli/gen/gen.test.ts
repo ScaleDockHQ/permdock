@@ -66,6 +66,11 @@ const KINDS = [
   "json-schema",
   "standard-schema",
   "factories",
+  "react",
+  "vue",
+  "svelte",
+  "solid",
+  "messages",
 ] as const;
 
 const FILES = {
@@ -76,6 +81,11 @@ const FILES = {
   "json-schema": "permdock.schemas.json",
   "standard-schema": "permdock.schemas.ts",
   factories: "permdock.factories.ts",
+  react: "permdock.react.ts",
+  vue: "permdock.vue.ts",
+  svelte: "permdock.svelte-stores.ts",
+  solid: "permdock.solid.ts",
+  messages: "permdock.messages.json",
 } as const;
 
 const ORG = "00000000-0000-4000-8000-0000000000aa";
@@ -218,6 +228,68 @@ describe("permdock gen", () => {
     const outcome = await generate(unknown, []);
     expect(outcome.code).not.toBe(0);
     expect(outcome.stderr).toContain("gen.kinds has 'yup'");
+  });
+
+  it("keeps translated messages and reports keys the file lacks", async () => {
+    const dir = fixture();
+    const args = ["--kind", "messages", "--out-dir", "gen"];
+    expect((await generate(dir, args)).code).toBe(0);
+    const file = path.join(dir, "gen", FILES.messages);
+    const written: unknown = JSON.parse(readFileSync(file, "utf8"));
+    const messages = row(written);
+    expect(row(messages["reasons"])["no-grant"]).toBe("No role grants this");
+    expect(row(messages["permissions"])["project.read"]).toBe("project.read");
+    expect(row(messages["roles"])["admin"]).toBe("admin");
+    const reasons = Object.fromEntries(
+      Object.entries({
+        ...row(messages["reasons"]),
+        "no-grant": "Geen rol",
+      }).filter(([reason]) => reason !== "deny"),
+    );
+    writeFileSync(
+      file,
+      JSON.stringify({ ...messages, reasons, extra: { stale: "x" } }),
+    );
+    const check = await generate(dir, [...args, "--check"]);
+    expect(check.code).toBe(1);
+    expect((await generate(dir, args)).code).toBe(0);
+    const merged: unknown = JSON.parse(readFileSync(file, "utf8"));
+    expect(row(row(merged)["reasons"])).toMatchObject({
+      "no-grant": "Geen rol",
+      deny: "A deny rule applies",
+    });
+    expect(row(merged)["extra"]).toBeUndefined();
+    expect((await generate(dir, [...args, "--check"])).code).toBe(0);
+    writeFileSync(file, "{ not json");
+    const broken = await generate(dir, args);
+    expect(broken.code).not.toBe(0);
+    expect(broken.stderr).toContain("is not valid JSON");
+  });
+
+  it("imports the policy by type, relative to the hook file", async () => {
+    const dir = fixture();
+    const outcome = await generate(dir, [
+      "--kind",
+      "react",
+      "--out",
+      "app/lib/permdock.ts",
+      "--dry-run",
+    ]);
+    expect(outcome.code).toBe(0);
+    const nested = await generate(dir, ["--kind", "vue", "--out", "-"]);
+    expect(nested.stdout).toContain(
+      'import type * as source from "../../policy.js";',
+    );
+    const written = await generate(dir, [
+      "--kind",
+      "solid",
+      "--out",
+      "lib/permdock.solid.ts",
+    ]);
+    expect(written.code).toBe(0);
+    expect(
+      readFileSync(path.join(dir, "lib", "permdock.solid.ts"), "utf8"),
+    ).toContain('import type * as source from "../policy.js";');
   });
 
   describe("generated modules", () => {

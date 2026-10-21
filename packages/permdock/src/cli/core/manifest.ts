@@ -213,7 +213,7 @@ export const SECTIONS: readonly Section[] = [
       ),
       leaf(
         "gen",
-        "Write typed constants, schemas and factories from the policy",
+        "Write typed constants, schemas, factories, hooks and messages from the policy",
         {
           examples: [
             "permdock gen",

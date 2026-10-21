@@ -43,6 +43,11 @@ export type GenModel = {
   /** `rls.realtime.topics` keys, such as `org:{organization}:quotes`. */
   readonly topics: readonly string[];
   readonly buckets: readonly (readonly [string, RlsStorageBucket])[];
+  /** Key and title of each permission and role; the key when it has no title. */
+  readonly labels: {
+    readonly permissions: readonly (readonly [string, string])[];
+    readonly roles: readonly (readonly [string, string])[];
+  };
 };
 
 /** `org.post` to `orgPost`, `quote-files` to `quoteFiles`. */
@@ -171,22 +176,27 @@ export function genModel(input: {
   const { policy, config } = input;
   const leaves = listPermissions(policy.vocabulary.permissions);
   const resourceOf = new Map(leaves.map((leaf) => [leaf.key, leaf.resource]));
+  const declaredRoles = listRoles(policy.vocabulary.roles);
+  const roleTitles = new Map(
+    declaredRoles.map((role) => [role.key, role.meta.title ?? role.key]),
+  );
   const resources = [...policy.resources.values()]
     .map(genResource)
     .toSorted((a, b) => byCodePoint(a.name, b.name));
   const operations = (input.operations ?? [])
     .map((operation) => genOperation(operation, resourceOf))
     .toSorted((a, b) => byCodePoint(a.name, b.name));
+  const roles = [
+    ...new Set([
+      ...policy.roles.map((binding) => binding.name),
+      ...declaredRoles.map((role) => role.key),
+    ]),
+  ].toSorted(byCodePoint);
   return {
     resources: unique("resource", resources),
     operations: unique("operation", operations),
     scopes: scopeList(policy.scopes),
-    roles: [
-      ...new Set([
-        ...policy.roles.map((binding) => binding.name),
-        ...listRoles(policy.vocabulary.roles).map((role) => role.key),
-      ]),
-    ].toSorted(byCodePoint),
+    roles,
     names: resolveNames(policy, config),
     topics: Object.keys(config.rls?.realtime?.topics ?? {}).toSorted(
       byCodePoint,
@@ -194,5 +204,17 @@ export function genModel(input: {
     buckets: Object.entries(config.rls?.storage?.buckets ?? {}).toSorted(
       ([a], [b]) => byCodePoint(a, b),
     ),
+    labels: {
+      permissions: leaves
+        .map((leaf): readonly [string, string] => [
+          leaf.key,
+          leaf.meta.title ?? leaf.key,
+        ])
+        .toSorted(([a], [b]) => byCodePoint(a, b)),
+      roles: roles.map((role): readonly [string, string] => [
+        role,
+        roleTitles.get(role) ?? role,
+      ]),
+    },
   };
 }
