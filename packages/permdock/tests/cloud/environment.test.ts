@@ -159,7 +159,7 @@ describe("cloud environment resolution", () => {
     );
     vi.stubEnv("PERMDOCK_CLOUD_KEY", "");
     await expect(resolveCloudEndpoints({ url: CLOUD_URL })).rejects.toThrow(
-      /requires url and key/u,
+      /requires a key/u,
     );
   });
 });
