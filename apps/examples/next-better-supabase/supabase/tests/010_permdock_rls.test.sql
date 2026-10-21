@@ -1,7 +1,7 @@
 -- RLS on the seeded tenants: Olivia owns Acme and is a member of Globex, Mason
 -- is a member of Acme, and Carla is a portal contact of Acme's customer Initech.
 begin;
-select extensions.plan(20);
+select extensions.plan(21);
 
 select tests.rls_enabled('public');
 select tests.rls_enabled('permdock');
@@ -50,7 +50,7 @@ select extensions.results_eq(
 );
 select extensions.is_empty('select 1 from public.staff', 'a contact reads no staff');
 
--- Anonymous callers read the public organization slugs; the other tables are not granted to anon at all.
+-- Anonymous callers read the public organization slugs and only the quote a share-link capability names.
 select tests.clear_authentication();
 select tests.authenticate_as_anon();
 select extensions.is(
@@ -58,8 +58,18 @@ select extensions.is(
   2,
   'anon reads the organizations by slug'
 );
-select extensions.throws_ok('select 1 from public.quotes', '42501', null, 'anon has no grant on quotes');
+select extensions.is_empty('select 1 from public.quotes', 'anon without a capability reads no quotes');
 select extensions.throws_ok('select 1 from public.staff', '42501', null, 'anon has no grant on staff');
+select set_config(
+  'request.jwt.claims',
+  '{"role": "anon", "capability": {"v": "1", "holder": "link", "on": {"resource": "quotes", "id": "00000000-0000-4000-8000-0000000000f1"}, "roles": ["guest"], "expires_at": 4102444800}}',
+  true
+);
+select extensions.results_eq(
+  'select title from public.quotes',
+  array['Initech rollout'],
+  'a guest capability reads only the quote it names'
+);
 
 -- Only the auth server runs the token hook.
 select tests.clear_authentication();

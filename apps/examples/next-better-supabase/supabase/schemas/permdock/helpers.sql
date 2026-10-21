@@ -6,7 +6,7 @@
 
 create schema if not exists "permdock";
 revoke all on schema "permdock" from public;
-grant usage on schema "permdock" to authenticated;
+grant usage on schema "permdock" to anon, authenticated;
 
 -- the caller's user id: the sub of request.jwt.claims, or null when it is empty or absent
 create or replace function "permdock".permdock_user_id()
