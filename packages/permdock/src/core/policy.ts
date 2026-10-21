@@ -14,6 +14,7 @@ import type {
   VocabularyFromInput,
 } from "./policy-types.ts";
 import type { Principal } from "./subject.ts";
+import type { RoleTree } from "./vocabulary.ts";
 
 import { type Condition, normalizeWhere } from "../conditions/index.ts";
 import {
@@ -319,6 +320,26 @@ export function grantList(policy: Policy): readonly Grant[] {
 
 export function declaredRoleNames(policy: Policy): ReadonlySet<string> {
   return policy.index.declaredRoles;
+}
+
+/** The role names a policy declares: the keys of its `defineRoles` vocabulary, else `string`. */
+export type RoleNameOf<P> = P extends { readonly vocabulary: infer V }
+  ? V extends { readonly roles: infer R extends RoleTree }
+    ? R[keyof R]["key"]
+    : string
+  : string;
+
+/**
+ * Whether `value` names a role the policy declares, for a role read as a
+ * string from a database or a token. A name it rejects is an unknown role,
+ * which grants nothing (`unknown-role`). A tenant's custom roles are not
+ * declared; `CustomRoleSource` resolves them.
+ */
+export function isRoleName<P extends Policy<never>>(
+  policy: P,
+  value: unknown,
+): value is RoleNameOf<P> {
+  return typeof value === "string" && policy.index.declaredRoles.has(value);
 }
 
 export function separationConflicts(

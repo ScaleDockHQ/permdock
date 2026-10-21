@@ -9,6 +9,7 @@ import type { Permission } from "./permission-types.ts";
 import type { Snapshot, SnapshotAssignable } from "./snapshot-types.ts";
 import type { Membership } from "./subject.ts";
 
+import { canAllWith, decideAllWith } from "./checks.ts";
 import { compact } from "./compact.ts";
 import { deniedFor } from "./decide-for.ts";
 import {
@@ -154,6 +155,9 @@ export function fromSnapshot(
   const instance: PermDock = {
     can,
     decide,
+    canAll: (checks, decideOptions) => canAllWith(can, checks, decideOptions),
+    decideAll: (checks, decideOptions) =>
+      decideAllWith(decide, checks, decideOptions),
     decideEach(permission, rows, decideOptions) {
       return Object.freeze(
         rows.map((row) => run(permission, row, decideOptions)),

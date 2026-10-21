@@ -1,3 +1,4 @@
+import type { PermissionCheck } from "../core/checks.ts";
 import type { Decision, ExplainedDecision } from "../core/decision.ts";
 import type {
   PermDockOptions,
@@ -110,6 +111,8 @@ export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
   PermDock<V>,
   | "can"
   | "decide"
+  | "canAll"
+  | "decideAll"
   | "decideEach"
   | "decideIds"
   | "assert"
@@ -139,6 +142,16 @@ export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
     data?: unknown,
     options?: DecideOptions,
   ) => Promise<Decision>;
+  /** `can` for every check, asking the PDP for each in parallel; `false` for an empty list. */
+  readonly canAll: (
+    checks: readonly PermissionCheck[],
+    options?: DecideOptions,
+  ) => Promise<boolean>;
+  /** `decide` for every check, in check order, asking the PDP for each in parallel. */
+  readonly decideAll: (
+    checks: readonly PermissionCheck[],
+    options?: DecideOptions,
+  ) => Promise<readonly Decision[]>;
   /** `decide` for each row, in row order, asking the PDP per row. */
   readonly decideEach: (
     permission: Permission,

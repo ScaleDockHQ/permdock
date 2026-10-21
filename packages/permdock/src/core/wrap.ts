@@ -1,6 +1,7 @@
 import type { PermDock } from "./permdock.ts";
 import type { PolicyVocabulary } from "./policy-types.ts";
 
+import { canAllWith, decideAllWith } from "./checks.ts";
 import { attachInternals, internalsOf } from "./internals.ts";
 
 /** A wrapper an adapter applies to each instance it builds, as `withOtel` does. */
@@ -23,9 +24,14 @@ export function wrapPermDock<V extends PolicyVocabulary = PolicyVocabulary>(
 ): PermDock<V> {
   const wrap = (next: PermDock<V>): PermDock<V> =>
     wrapPermDock(next, overrides);
+  const replaced = { ...permdock, ...overrides(permdock) };
+  // `canAll` and `decideAll` follow the replaced `can` and `decide`, so a
+  // wrapper that only overrides those still sees every batched check.
   const wrapped: PermDock<V> = {
-    ...permdock,
-    ...overrides(permdock),
+    ...replaced,
+    canAll: (checks, options) => canAllWith(replaced.can, checks, options),
+    decideAll: (checks, options) =>
+      decideAllWith(replaced.decide, checks, options),
     tenant: (id: string): PermDock<V> => wrap(permdock.tenant(id)),
     team: (id: string): PermDock<V> => wrap(permdock.team(id)),
     derive: async (

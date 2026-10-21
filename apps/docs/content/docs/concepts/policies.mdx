@@ -96,6 +96,16 @@ export const policy = definePolicy(permissions, {
 
 `...member.grants` copies a role's grants into another. It is plain array spread, so the result is visible, reviewable and needs no hierarchy resolver. The admin above has every member grant plus unconditional delete.
 
+A role that holds every action of some resources takes the resources themselves. `allow(permissions)` grants every action in the tree, and `allow([permissions.workspace, permissions.member])` every action of two resources; an action added to a resource later is granted too. Neither takes a condition:
+
+```ts
+const owner = role("owner", [allow(permissions)]);
+const admin = role("admin", [
+  allow([permissions.workspace, permissions.member]),
+  allow(permissions.billing.read),
+]);
+```
+
 ### Role fragments
 
 Roles may be declared in several files and passed together to `definePolicy`. Roles with the same name merge their grants in declaration order:
@@ -111,7 +121,7 @@ Merging is a concatenation of grant arrays; the evaluation rules below make orde
 
 ## Grants
 
-`allow(permission, condition?)` and `deny(permission, condition?)` are the only two grant constructors. The first argument is a reference or an array of references (`allow([permissions.post.read, permissions.post.list])`, `allow(listPermissions(permissions.post))`); an array is declaration sugar that becomes one grant per leaf in the normalised policy, the catalog and the snapshot.
+`allow(permission, condition?)` and `deny(permission, condition?)` are the only two grant constructors. The first argument is a reference or an array of references (`allow([permissions.post.read, permissions.post.list])`), or, without a condition, a resource, an array of resources or the whole tree (`allow(permissions.post)`, `allow(permissions)`). An array or a tree is declaration sugar that becomes one grant per leaf in the normalised policy, the catalog and the snapshot.
 
 | Second argument                                                       | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -196,7 +206,8 @@ There is no default-allow anywhere. A permission with no grant in any of the sub
 
 - `allow(permissions.post.archive)` fails to compile if `archive` was never defined.
 - `allow(permissions.post.update, { where: { autorId: principal.id } })` fails to compile: `autorId` is not a field of `Post`.
-- `roles: user.roles` where `roles` contains a name no `role()` declared is a runtime deny for that role plus a `permdock doctor` warning, not a throw. On a membership, such a name is first resolved as a tenant-defined custom role through the `CustomRoleSource` and dropped if that fails ([tenancy](/docs/concepts/tenancy)).
+- `roles: user.roles` where `roles` contains a name no `role()` declared is a runtime deny for that role plus a `permdock doctor` warning, not a throw: an unknown role grants nothing, and a subject that holds only unknown roles is denied with `unknown-role`. On a membership, such a name is first resolved as a tenant-defined custom role through the `CustomRoleSource` and dropped if that fails ([tenancy](/docs/concepts/tenancy)).
+- `isRoleName(policy, value)` checks a role read as a string from a database or a token against the roles the policy declares, and narrows it to `RoleNameOf<typeof policy>`: the keys of the `defineRoles` vocabulary, or `string` for roles declared by name. A tenant's custom roles are not declared, so it rejects them.
 - `role('viewer', [...], { on: 'customers' })` fails to compile when the policy declares `customer`, and `definePolicy` throws when a resource a scoped grant touches has no `memberOf` relation on the scope's key.
 - A permission held as plain `Permission` at run time (from `listPermissions`, a catalog or `findPermission`) does not say whether it is an instance or a collection action, so `can`, `decide`, `assert` and `explain` take it with an explicit `data` argument: `permdock.can(permission, row)`, or `permdock.can(permission, undefined)` for a check without a row. A literal reference keeps its narrower overload, so `permdock.can(permissions.post.update)` without a row still fails to compile.
 - `definePolicy` returns `Policy<TUser, TPrincipal>`, typed from the `subject` mapper. Core `getPermDock` and every adapter's `createPermDock` are generic over both, so a typed policy passes to any adapter without a cast, and the adapter's `subject` option is checked against `TUser`. `Policy.subject` and `Policy.context` are declared as methods so a typed policy stays assignable to helpers that only read roles and grants. `TUser` never defaults to `any`, which would hide real mismatches.
@@ -206,6 +217,16 @@ There is no default-allow anywhere. A permission with no grant in any of the sub
 `permdock.tenant(id)` and `permdock.team(id)` narrow the same subject to one tenant or team. `permdock.derive({ customRoles?, approvalPolicies?, relations?, principals? })` keeps the subject, its active tenant and team, the actor, the delegation, the sink and the limit store, and swaps the sources it names: a server action that edits roles derives an instance whose `customRoles` reads every role of the tenant, and one that runs a write derives an instance with the tenant's `approvalPolicies`. Only the sources it names are read again, for the subject's tenants; it always returns a promise, because those sources may answer asynchronously. The original instance is unchanged. A [`fromSnapshot`](/docs/concepts/snapshots) instance returns itself, because a snapshot carries its grants already resolved.
 
 ### Several rows or another principal
+
+`permdock.canAll(checks, options?)` answers whether every check is granted, and `permdock.decideAll(checks, options?)` returns one decision per check, in check order. A check is a permission, or a `[permission, row]` pair. `canAll` stops at the first check that is not granted and answers `false` for an empty list. Both evaluate on the one instance, so a request that checks several permissions builds the instance once:
+
+```ts
+const permdock = getPermDockSync(policy, member);
+const canManage = permdock.canAll([
+  permissions.member.invite,
+  [permissions.workspace.update, workspace],
+]);
+```
 
 `permdock.decideEach(permission, rows, options?)` returns one decision per row, in row order, for a bulk action. Each row is its own `decide` call: a [limit](#limits) is consumed once per granted row, so the rows past the cap are denied with `limit`, and each `approval-required` row carries its own token to resolve. A row the resource schema rejects is denied with `validation`, as with `decide`. `filter` is the quiet form that keeps the granted rows and consumes nothing.
 
@@ -245,9 +266,9 @@ const recipients = await Promise.all(
 
 ### Evaluation is synchronous
 
-`can`, `decide`, `decideEach`, `assert`, `filter`, `where` and `snapshot()` (without a `signer`) never await. `decideIds` and `decideFor` return a promise because it loads another principal; an unawaited one has no `outcome`, so a check against `'granted'` fails closed. A client, a `filter` over a list and a router guard need an answer on the first frame, and a Promise is truthy, so an async check that a caller forgot to await would fail open. Asynchronous work has one home: `context`, `MembershipSource`, `CustomRoleSource`, `EntitlementSource` and `approvalPolicies` run once when the instance is built, and their output is frozen into the instance. Each check is then a pure function of frozen data.
+`can`, `decide`, `canAll`, `decideAll`, `decideEach`, `assert`, `filter`, `where` and `snapshot()` (without a `signer`) never await. `decideIds` and `decideFor` return a promise because it loads another principal; an unawaited one has no `outcome`, so a check against `'granted'` fails closed. A client, a `filter` over a list and a router guard need an answer on the first frame, and a Promise is truthy, so an async check that a caller forgot to await would fail open. Asynchronous work has one home: `context`, `MembershipSource`, `CustomRoleSource`, `EntitlementSource` and `approvalPolicies` run once when the instance is built, and their output is frozen into the instance. Each check is then a pure function of frozen data.
 
-`await getPermDock(policy, user, options)` waits for every input (the subject mapper, `context` and each source) and returns a `PermDock`. `getPermDockSync(policy, user, options)` takes the same arguments and returns the instance without a Promise; when an input answers with a Promise (an async mapper or `context`, or a source that reads a database), it throws and names `getPermDock`. `permdock/pdp` exports the same pair. Server adapters build each request's instance with `getPermDock`, so their sources may be async.
+`await getPermDock(policy, user, options)` waits for every input (the subject mapper, `context` and each source) and returns a `PermDock`. `getPermDockSync(policy, user, options)` takes the same arguments and returns the instance without a Promise; when an input answers with a Promise (an async mapper or `context`, or a source that reads a database), it throws and names `getPermDock`. For a static policy and a subject the request already holds, it is the synchronous path: build one instance per request with it and run every check on that instance, instead of building one per check. `permdock/pdp` exports the same pair. Server adapters build each request's instance with `getPermDock`, so their sources may be async.
 
 Closure grants are typed `(data, ctx) => boolean`. A closure that returns a thenable is a `closure-error` denial reported to `on('error')`; the value is never awaited. There are no `decideAsync` or `canAsync` twins, because two evaluation paths can disagree and the synchronous one is easy to call by mistake, and PermDock does not infer asynchrony from the policy, because one async closure would make every `can` in the UI async. `explain` is `decide` with a `trace` attached, computed in process; `describe(decision)` turns a decision into prose ([decisions](/docs/concepts/decisions#explain)).
 
