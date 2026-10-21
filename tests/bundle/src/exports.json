@@ -690,6 +690,7 @@
     "hookCan",
     "principalFromMemberships",
     "principalSource",
+    "roleOrderFromCatalog",
     "subjectFromBetterSupabase",
     "subjectFromShareLink",
     "subscriberPolicy",

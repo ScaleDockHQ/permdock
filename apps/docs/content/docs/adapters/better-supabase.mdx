@@ -53,6 +53,7 @@ import {
   principalFromMemberships,
   accessReviewApplier,
   authorizationHooks,
+  roleOrderFromCatalog,
 } from "permdock/better-supabase";
 ```
 
@@ -82,6 +83,7 @@ import {
 - `principalFromMemberships(userId, rows, { scope?, tenant? })` builds a frozen `Principal` from rows of the organizations block's `memberships` table (`BetterSupabaseMembershipRow`: `user_id`, `organization_id`, `role`, `disabled_at?`), for server code that reads the table instead of the token ([Server code](#server-code)).
 - `accessReviewApplier({ client, reviews, policy, demoteTo?, email?, permdockFor?, schema?, scope?, now? })` applies the revoked items of an [access review](/docs/concepts/access-reviews) through the organizations and invitations blocks, then marks each one applied ([Access reviews](#access-reviews)).
 - `authorizationHooks({ policy, claims, ... })` returns better-supabase's `AuthorizationHooks` for `createServer(betterSupabase, { authorization })` ([Authorization hooks](#authorization-hooks)).
+- `roleOrderFromCatalog(catalog, { scope?, owner? })` returns the catalog's role keys highest first, for the SSO block's `roleOrder` ([SSO role order](#sso-role-order)).
 
 ## Setup
 
@@ -165,6 +167,32 @@ export default {
 ```
 
 With the provider set, the entitlements module reads membership through `member_<scope>_ids` and its `_for` form, so an expired membership or a suspended organization loses its features in the same token that loses the membership ([claims other packages own](/docs/adapters/supabase-hook#claims-other-packages-own)).
+
+### SSO role order
+
+The SSO block's `roleOrder` lists the roles an identity-provider group may map to, highest first, without the owner role. `roleOrderFromCatalog` derives it from the catalog's `assigns`: a role that assigns another comes before it, and roles `assigns` does not order keep catalog order. Roles that assign each other stay together at the first one's place. `scope` keeps the roles declared on that scope, and `owner` leaves that role out.
+
+```ts title="better-supabase.config.ts"
+import { parseCatalog } from "permdock/catalog";
+import { roleOrderFromCatalog } from "permdock/better-supabase";
+
+const catalog = parseCatalog(read("permissions.catalog.json"));
+
+export default defineConfig({
+  // authorization as above
+  blocks: {
+    sso: {
+      options: {
+        roleOrder: roleOrderFromCatalog(catalog, {
+          scope: "organization",
+          owner: "owner",
+        }),
+        defaultRole: "member",
+      },
+    },
+  },
+});
+```
 
 ## Server code
 
