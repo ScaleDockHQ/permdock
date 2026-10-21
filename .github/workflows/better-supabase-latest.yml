@@ -47,7 +47,8 @@ jobs:
       - name: Resolve the latest better-supabase
         working-directory: .
         run: |
-          sed -i -E 's/^  better-supabase: ([0-9.]+)$/  better-supabase: ">=\1"/' pnpm-workspace.yaml
+          # "*" rather than ">=": peer-floor.test.ts reads the first ">=" better-supabase line as the peer floor.
+          sed -i -E 's/^  better-supabase: [0-9.]+$/  better-supabase: "*"/' pnpm-workspace.yaml
           # strictPeerDependencies would fail the install on the peer's upper bound before any check runs.
           sed -i -E 's/^    better-supabase: ">=([0-9.]+) <[0-9.]+"$/    better-supabase: ">=\1"/' pnpm-workspace.yaml
           pnpm install --no-frozen-lockfile
