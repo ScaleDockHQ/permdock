@@ -70,6 +70,11 @@ export type PermDockProviderProps = (
   readonly onClear?: () => void;
   /** Milliseconds between approval status polls. Defaults to 2000. */
   readonly approvalInterval?: number;
+  /**
+   * Triggers that refresh the snapshot, such as `eventSourceRefresh(url)`; read
+   * when the store is built.
+   */
+  readonly refreshOn?: ClientStoreOptions["refreshOn"];
   readonly children: ReactNode;
 };
 

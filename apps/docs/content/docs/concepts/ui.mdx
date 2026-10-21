@@ -69,7 +69,7 @@ if (gate.hidden) return null;
 | `upgrade`       | The plans that would grant it, for an upgrade prompt              |
 | `reason`        | `describe(decision)`, localised by the provider's `messages`      |
 
-Vue and Solid export `useGate` with the same arguments, returning a computed ref and an accessor; Svelte's is the `gate` store. `gateView(state, describe, mode)` in `permdock/client` is the same computation for your own binding. The [`@permdock` recipes](/docs/concepts/recipes) build their controls on `useGate`.
+Vue and Solid export `useGate` with the same arguments, returning a computed ref and an accessor; Svelte's is the `gate` store. The [`@permdock` recipes](/docs/concepts/recipes) build their controls on `useGate`.
 
 ## Provider defaults
 
@@ -97,6 +97,7 @@ Set what every `<Protected>` renders for a slot it leaves out, and the localised
 | `onSnapshot`       | Called with each snapshot the store accepts, including the initial one                                          |
 | `onClear`          | Called when the store drops its snapshot                                                                        |
 | `approvalInterval` | Milliseconds between `useApproval` status polls; default 2000                                                   |
+| `refreshOn`        | `RefreshTrigger[]` that refetch the snapshot; see [refresh on events](#refresh-on-events)                       |
 
 `<Protected approval>` renders for an `approval-required` decision and receives it, so the slot can offer a request-access button with the token. Resolution runs from the component's own prop to the provider default: `approval` falls back to the component's `denied`, then the provider's `approval`, then the provider's `denied`. A component that sets `denied={null}` therefore stays hidden whatever the provider sets. In Svelte the props are snippets, and the `children` snippet receives a `GrantedDecision`. In Vue the defaults are render functions that get the slot props. The [Next.js](/docs/adapters/next) server provider takes nodes and message records only, because a function cannot cross from a Server Component to the client.
 
@@ -226,6 +227,46 @@ The snapshot is state, not server data: it lives in the provider's external stor
 - **Loader**: fetch the snapshot in the route loader (TanStack Router, React Router) and pass it to `PermDockProvider`; call `refresh()` after mutations that change roles.
 - **TanStack Query**: `queryClient.invalidateQueries` and `permdock.invalidate(permissions.post)` in the same `onSuccess`, so cached rows and cached endpoint answers expire together.
 - **Server Components**: no hook; `getPermission` and `permdock.filter` on the server, snapshot only for the client tree. Pass the snapshot unawaited as `snapshotPromise` so the layout never blocks: hooks answer `status: 'pending'` until it resolves and `<Protected pending>` renders its `pending` slot, so permission UI stays in the static shell; the `suspend` prop suspends readers through `use()` instead ([Next.js adapter](/docs/adapters/next)).
+
+## Refresh on events
+
+`refreshOn` takes a list of `(refresh) => unsubscribe` functions. The store starts them when its first subscriber arrives and stops them with the last one or on `dispose()`. Calls within 250 ms fold into one `refresh()`. None start during a server render, and none refetch after `clear()` until a snapshot hydrates again. A refresh re-fetches the signed snapshot, so a trigger can make the UI current but never grants anything.
+
+`eventSourceRefresh(url, { types })` listens to Server-Sent Events whose data is a structured [CloudEvent](/docs/concepts/wire-formats). It refreshes on `com.permdock.membership.*` and `com.permdock.catalog.*` unless `types` names others; a trailing `*` matches a prefix. Every UI adapter exports it, and every provider takes `refreshOn`.
+
+```tsx
+import { PermDockProvider, eventSourceRefresh } from "permdock/react";
+
+const refreshOn = [eventSourceRefresh("/api/permdock/events")];
+
+<PermDockProvider
+  snapshot={snapshot}
+  snapshotUrl="/api/permdock/snapshot"
+  refreshOn={refreshOn}
+>
+  {children}
+</PermDockProvider>;
+```
+
+Define the list outside the component: the provider reads it when it builds its store. A Supabase Realtime channel on the membership table is a trigger too, and needs nothing from PermDock:
+
+```ts
+import type { RefreshTrigger } from "permdock/react";
+
+const memberships: RefreshTrigger = (refresh) => {
+  const channel = supabase
+    .channel("permdock-memberships")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "memberships" },
+      refresh,
+    )
+    .subscribe();
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+};
+```
 
 ## Status handling
 

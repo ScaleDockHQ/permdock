@@ -20,6 +20,7 @@ export type AdapterStoreOptions = Pick<
   | "onSnapshot"
   | "onClear"
   | "approvalInterval"
+  | "refreshOn"
 > & {
   /**
    * The AuthZEN evaluations endpoint. `false` never calls one: a check the
@@ -91,6 +92,7 @@ export function adapterStore(
       onSnapshot: both(native?.onSnapshot, options.onSnapshot),
       onClear: both(native?.onClear, options.onClear),
       approvalInterval: options.approvalInterval,
+      refreshOn: options.refreshOn,
     }),
   );
 }

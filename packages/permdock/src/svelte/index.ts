@@ -5,7 +5,12 @@ import type { ProtectedProps } from "./protected.ts";
 
 import PermissionBoundaryComponent from "./PermissionBoundary.svelte";
 import ProtectedComponent from "./Protected.svelte";
-export { describe, requiredPlans, approvalHeaders } from "../client/kit.ts";
+export {
+  describe,
+  requiredPlans,
+  approvalHeaders,
+  eventSourceRefresh,
+} from "../client/kit.ts";
 
 export { setPermDock } from "./stores.ts";
 export {
@@ -48,3 +53,7 @@ export const Protected: Component<ProtectedProps> = ProtectedComponent;
 
 export const PermissionBoundary: Component<PermissionBoundaryProps> =
   PermissionBoundaryComponent;
+export type {
+  EventSourceRefreshOptions,
+  RefreshTrigger,
+} from "../client/refresh-on.ts";

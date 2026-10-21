@@ -56,6 +56,7 @@ type ProviderStoreOptions = Pick<
   | "onSnapshot"
   | "onClear"
   | "approvalInterval"
+  | "refreshOn"
 > & { readonly tenant?: string | undefined };
 
 /**
@@ -78,6 +79,7 @@ export function providerStore(
       onSnapshot: options.onSnapshot,
       onClear: options.onClear,
       approvalInterval: options.approvalInterval,
+      refreshOn: options.refreshOn,
       ...liveOptions(read),
     }),
     promised || snapshot === undefined ? emptySnapshot() : snapshot,

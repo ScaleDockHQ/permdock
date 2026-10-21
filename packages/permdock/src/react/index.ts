@@ -1,6 +1,11 @@
 "use client";
 
-export { describe, requiredPlans, approvalHeaders } from "../client/kit.ts";
+export {
+  describe,
+  requiredPlans,
+  approvalHeaders,
+  eventSourceRefresh,
+} from "../client/kit.ts";
 
 export {
   useApproval,
@@ -35,3 +40,7 @@ export type {
   SubjectView,
   TenantView,
 } from "./types.ts";
+export type {
+  EventSourceRefreshOptions,
+  RefreshTrigger,
+} from "../client/refresh-on.ts";

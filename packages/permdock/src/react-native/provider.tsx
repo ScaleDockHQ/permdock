@@ -35,6 +35,7 @@ export function PermDockProvider(
           onSnapshot: live.onSnapshot,
           onClear: live.onClear,
           approvalInterval: props.approvalInterval,
+          refreshOn: props.refreshOn,
           previous: shown.current ?? undefined,
         }),
       ),

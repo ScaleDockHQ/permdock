@@ -35,6 +35,7 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
           onSnapshot: live.onSnapshot,
           onClear: live.onClear,
           approvalInterval: props.approvalInterval,
+          refreshOn: props.refreshOn,
         }),
         props.snapshot ?? emptySnapshot(),
       ),

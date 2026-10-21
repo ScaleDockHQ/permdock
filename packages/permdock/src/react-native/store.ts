@@ -162,6 +162,7 @@ export function nativeStore(options: NativeStoreOptions): ClientStore {
       onSnapshot: options.onSnapshot,
       onClear: options.onClear,
       approvalInterval: options.approvalInterval,
+      refreshOn: options.refreshOn,
     }),
     snapshot,
     {

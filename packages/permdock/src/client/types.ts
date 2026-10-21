@@ -5,6 +5,7 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Actor, Delegation, Principal } from "../core/subject.ts";
+import type { RefreshTrigger } from "./refresh-on.ts";
 import type { ClientStoreOptions } from "./store.ts";
 
 export type ClientStatus = "ready" | "pending" | "stale" | "server-only";
@@ -95,6 +96,11 @@ export type ProviderOptionsBase = {
   readonly onClear?: () => void;
   /** Milliseconds between approval status polls. Defaults to 2000. */
   readonly approvalInterval?: number;
+  /**
+   * Triggers that refresh the snapshot, such as `eventSourceRefresh(url)`; read
+   * once.
+   */
+  readonly refreshOn?: readonly RefreshTrigger[];
 };
 
 /**

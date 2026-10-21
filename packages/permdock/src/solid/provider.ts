@@ -41,6 +41,7 @@ export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
       onSnapshot: props.onSnapshot,
       onClear: props.onClear,
       approvalInterval: props.approvalInterval,
+      refreshOn: props.refreshOn,
     }),
     () => ({
       headers: props.headers,
