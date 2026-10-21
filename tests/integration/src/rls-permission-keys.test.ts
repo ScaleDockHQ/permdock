@@ -151,11 +151,10 @@ describe("permission-key helpers", () => {
       throw new Error("PermDock: Postgres was not started");
     }
     const target = db;
-    const declared = (
-      await target.admin.query<{ key: string }>(
-        "select k as key from permdock.permdock_permission_keys() k",
-      )
-    ).rows.map((row) => row.key);
+    const { rows } = await target.admin.query<{ key: string }>(
+      "select k as key from permdock.permdock_permission_keys() k",
+    );
+    const declared = rows.map((row) => row.key);
     expect(declared.length).toBeGreaterThanOrEqual(3);
     const timed = async <T>(work: () => Promise<T>) => {
       const start = performance.now();

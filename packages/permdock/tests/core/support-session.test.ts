@@ -134,9 +134,10 @@ describe(decideSupportSession, () => {
   });
 
   it("grants without approval only when the server turns it off", async () => {
-    expect(
-      (await decideSupportSession(staff, request, { approval: false })).outcome,
-    ).toBe("granted");
+    const { outcome } = await decideSupportSession(staff, request, {
+      approval: false,
+    });
+    expect(outcome).toBe("granted");
   });
 
   it("requires a reason", async () => {
@@ -240,9 +241,8 @@ describe(decideSupportSession, () => {
     expect(await decideSupportSession(member, request)).toMatchObject({
       denials: [{ reason: "no-grant" }],
     });
-    expect((await decideSupportSession(nobody, request)).outcome).toBe(
-      "denied",
-    );
+    const { outcome } = await decideSupportSession(nobody, request);
+    expect(outcome).toBe("denied");
   });
 
   it("applies the tenant's supportSessions policy, which only tightens", async () => {

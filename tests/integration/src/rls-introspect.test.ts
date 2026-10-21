@@ -127,7 +127,8 @@ describe("rls verify --introspect", () => {
     const pg = started();
     const warning =
       "warning: public.doc: no index starts with orgId, which the policies or helpers filter on";
-    expect((await verify(pg.uri)).out).toContain(warning);
+    const { out } = await verify(pg.uri);
+    expect(out).toContain(warning);
     await pg.admin.query('create index doc_org_id_tags on doc ("orgId", tags)');
     const result = await verify(pg.uri);
     expect(result.out).not.toContain(warning);
@@ -191,8 +192,7 @@ describe("rls verify --introspect", () => {
       ]),
     );
     await pg.admin.query("alter table doc disable row level security");
-    expect((await verify(pg.uri)).out).toContain(
-      "public.doc: row level security is disabled",
-    );
+    const { out } = await verify(pg.uri);
+    expect(out).toContain("public.doc: row level security is disabled");
   });
 });

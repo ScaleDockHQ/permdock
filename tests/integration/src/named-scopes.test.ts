@@ -285,11 +285,10 @@ describe.each([
       "app.tenant_id": "T",
       "app.memberships": JSON.stringify(personas.owner.memberships),
     };
-    const keys = (
-      await db.admin.query<{ readonly grant_key: string }>(
-        `select distinct grant_key from permdock.role_permissions where permission = 'quote.read'`,
-      )
-    ).rows.map((row) => row.grant_key);
+    const { rows } = await db.admin.query<{ readonly grant_key: string }>(
+      `select distinct grant_key from permdock.role_permissions where permission = 'quote.read'`,
+    );
+    const keys = rows.map((row) => row.grant_key);
     const ids = async (helper: string): Promise<string[]> =>
       db!.as({ role: "authenticated", settings: claims }, async () => {
         const result = await db!.tester.query<{ readonly id: string }>(

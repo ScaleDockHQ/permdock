@@ -82,9 +82,12 @@ const rows = [
 describe("permdock/agent createPermDock", () => {
   it("decides operations by name and denies an unlisted one", async () => {
     const agent = agentFor();
-    expect(
-      (await agent.decideOperation("read_doc", { id: "d1" }, member)).outcome,
-    ).toBe("granted");
+    const { outcome } = await agent.decideOperation(
+      "read_doc",
+      { id: "d1" },
+      member,
+    );
+    expect(outcome).toBe("granted");
     expect(
       (await agent.decideOperation("read_doc", { id: "zz" }, member)).outcome,
     ).toBe("denied");
@@ -98,9 +101,8 @@ describe("permdock/agent createPermDock", () => {
 
   it("gates models: a listed model by its permission, an unlisted one denied", async () => {
     const agent = agentFor();
-    expect((await agent.decideModel("openai/gpt-5-mini", member)).outcome).toBe(
-      "granted",
-    );
+    const { outcome } = await agent.decideModel("openai/gpt-5-mini", member);
+    expect(outcome).toBe("granted");
     expect((await agent.decideModel("openai/gpt-5", member)).outcome).toBe(
       "denied",
     );
@@ -147,9 +149,8 @@ describe("permdock/agent createPermDock", () => {
 
   it("without models, every model is denied and none is listed", async () => {
     const agent = agentFor(false);
-    expect((await agent.decideModel("openai/gpt-5-mini", pro)).outcome).toBe(
-      "denied",
-    );
+    const { outcome } = await agent.decideModel("openai/gpt-5-mini", pro);
+    expect(outcome).toBe("denied");
     expect(await agent.permittedModels(pro)).toStrictEqual([]);
   });
 
@@ -178,9 +179,8 @@ describe("permdock/agent createPermDock", () => {
       operations,
       models,
     });
-    expect((await agent.decideModel("openai/gpt-5-mini", {})).outcome).toBe(
-      "denied",
-    );
+    const { outcome } = await agent.decideModel("openai/gpt-5-mini", {});
+    expect(outcome).toBe("denied");
     expect(await agent.permittedModels({})).toStrictEqual([]);
     expect(await agent.filterResults("search_docs", rows, {})).toStrictEqual(
       [],
@@ -210,9 +210,8 @@ describe("permdock/agent createPermDock", () => {
         { effects: ["read"], risk: ["low"], approval: "human" },
       ]),
     });
-    expect(
-      (await agent.decideOperation("search_docs", {}, member)).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await agent.decideOperation("search_docs", {}, member);
+    expect(outcome).toBe("approval-required");
     expect(
       (await agent.decideOperation("read_doc", { id: "d1" }, member)).outcome,
     ).toBe("granted");

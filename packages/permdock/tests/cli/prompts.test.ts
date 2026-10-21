@@ -60,7 +60,8 @@ describe("prompts", () => {
       ["--json is set", ["skills", "install", "--json"], true],
     ] as const)("does not prompt when %s", async (_, argv, interactive) => {
       const cwd = project({});
-      expect((await run(argv, { cwd, io: io(interactive) })).code).toBe(0);
+      const { code } = await run(argv, { cwd, io: io(interactive) });
+      expect(code).toBe(0);
       expect(prompts.multiselect).not.toHaveBeenCalled();
     });
   });

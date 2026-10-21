@@ -64,7 +64,8 @@ describe("rate limit responses", () => {
       limits: limits(memoryLimitStore()),
     });
     const guard = protect(permissions.report.export);
-    expect((await guard(request())).ok).toBe(true);
+    const { ok } = await guard(request());
+    expect(ok).toBe(true);
     expect((await guard(request())).ok).toBe(true);
     const refused = await guard(request());
     expect(refused.ok).toBe(false);

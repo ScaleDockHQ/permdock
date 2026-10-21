@@ -100,11 +100,10 @@ describe("a constant via on an rls.memberships table", () => {
         await client.query("begin");
         await client.query("set local role authenticated");
         await client.query("select set_config('app.user_id', 'u1', true)");
-        const visible = (
-          await client.query<{ readonly id: string }>(
-            "select id from doc order by id",
-          )
-        ).rows.map((row) => row.id);
+        const { rows } = await client.query<{ readonly id: string }>(
+          "select id from doc order by id",
+        );
+        const visible = rows.map((row) => row.id);
         await client.query("rollback");
         const permdock = await getPermDock(policy, {
           id: "u1",

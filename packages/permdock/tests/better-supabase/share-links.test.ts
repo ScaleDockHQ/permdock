@@ -133,9 +133,8 @@ describe(subjectFromShareLink, () => {
 
   it("is anonymous for a missing, unknown or expired token", async () => {
     const onAuth = vi.fn<(event: AuthEvent) => void>();
-    expect((await subjectFromShareLink(undefined, options())).principal).toBe(
-      null,
-    );
+    const { principal } = await subjectFromShareLink(undefined, options());
+    expect(principal).toBe(null);
     expect((await subjectFromShareLink("", options())).principal).toBe(null);
     const unknown = await subjectFromShareLink(
       "tok",
@@ -272,9 +271,11 @@ describe(subjectFromShareLink, () => {
       .mockResolvedValueOnce({ ok: true, data: row })
       .mockResolvedValueOnce({ ok: true, data: null });
     const shareLinks = { resolve };
-    expect(
-      (await subjectFromShareLink("tok", options({ shareLinks }))).principal,
-    ).not.toBe(null);
+    const { principal } = await subjectFromShareLink(
+      "tok",
+      options({ shareLinks }),
+    );
+    expect(principal).not.toBe(null);
     expect(
       (await subjectFromShareLink("tok", options({ shareLinks }))).principal,
     ).toBe(null);

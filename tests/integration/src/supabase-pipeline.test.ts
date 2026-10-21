@@ -99,7 +99,8 @@ describe("withPermDock composed with @supabase/server entries", () => {
       [withRequiredClaims({ jwks: saasJwks }), saas.withPermDock()],
       async (request, ctx) => decide(request, ctx),
     );
-    expect((await call(fetch)).status).toBe(401);
+    const { status } = await call(fetch);
+    expect(status).toBe(401);
     const bob = await call(fetch, {
       authorization: `Bearer ${await signSaasToken("bob")}`,
     });
@@ -130,7 +131,8 @@ describe("withPermDock composed with @supabase/server entries", () => {
       authorization: `Bearer ${await signSaasToken("bob")}`,
     });
     expect(await user.json()).toMatchObject({ principal: "bob" });
-    expect((await call(fetch, { apikey: "sb_secret_wrong" })).status).toBe(401);
+    const { status } = await call(fetch, { apikey: "sb_secret_wrong" });
+    expect(status).toBe(401);
   });
 
   it("keeps CORS headers on a PermDock denial", async () => {
@@ -183,11 +185,13 @@ describe("@supabase/middleware entries in Hono through the pipeline bridge", () 
   });
 
   it("denies another author's post", async () => {
-    expect((await patch("other", await token("u1"))).status).toBe(403);
+    const { status } = await patch("other", await token("u1"));
+    expect(status).toBe(403);
   });
 
   it("treats a request without a token as anonymous", async () => {
-    expect((await patch("own")).status).toBe(403);
+    const { status } = await patch("own");
+    expect(status).toBe(403);
   });
 
   it("answers an invalid token with withClaims' 401 before PermDock runs", async () => {

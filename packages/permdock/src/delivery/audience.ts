@@ -34,7 +34,8 @@ async function granted(
   const decisions = await Promise.all(
     unique.map(async (id) => {
       try {
-        return (await permdock.decideFor(id, permission, row)).outcome;
+        const { outcome } = await permdock.decideFor(id, permission, row);
+        return outcome;
       } catch {
         return "denied";
       }

@@ -97,9 +97,8 @@ describe("RFC 2369 and RFC 8058 one-click unsubscribe", () => {
   });
 
   it("refuses a notification without an https unsubscribe URI", async () => {
-    expect((await send({ category: "notification" })).reason).toContain(
-      "RFC 8058",
-    );
+    const { reason } = await send({ category: "notification" });
+    expect(reason).toContain("RFC 8058");
     expect(
       (
         await send({
@@ -123,19 +122,18 @@ describe("RFC 2369 and RFC 8058 one-click unsubscribe", () => {
 
 describe("RFC 5322 header fields and addresses", () => {
   it("refuses a header value or subject with a line break", async () => {
-    expect(
-      (await send({ headers: { "X-Note": "a\r\nBcc: evil@evil.test" } }))
-        .reason,
-    ).toContain("single-line");
+    const { reason } = await send({
+      headers: { "X-Note": "a\r\nBcc: evil@evil.test" },
+    });
+    expect(reason).toContain("single-line");
     expect((await send({ subject: "Hi\nBcc: evil@evil.test" })).reason).toBe(
       "subject is empty or has a line break",
     );
   });
 
   it("refuses a field name outside printable ASCII or with a colon", async () => {
-    expect((await send({ headers: { "X:Bad": "1" } })).reason).toContain(
-      "single-line",
-    );
+    const { reason } = await send({ headers: { "X:Bad": "1" } });
+    expect(reason).toContain("single-line");
     expect((await send({ headers: { "X Bad": "1" } })).reason).toContain(
       "single-line",
     );
@@ -143,7 +141,8 @@ describe("RFC 5322 header fields and addresses", () => {
 
   it("refuses envelope fields in headers", async () => {
     for (const name of ["Bcc", "cc", "To", "Reply-To", "Return-Path"]) {
-      expect((await send({ headers: { [name]: "x@acme.test" } })).reason).toBe(
+      const { reason } = await send({ headers: { [name]: "x@acme.test" } });
+      expect(reason).toBe(
         `header ${name} is set through the message, not headers`,
       );
     }
@@ -156,9 +155,8 @@ describe("RFC 5322 header fields and addresses", () => {
     expect((await send({ from: "Acme <billing@acme.test>" })).email?.from).toBe(
       "Acme <billing@acme.test>",
     );
-    expect((await send({ from: "Acme <not an address>" })).reason).toBe(
-      "from is not a mailbox",
-    );
+    const { reason } = await send({ from: "Acme <not an address>" });
+    expect(reason).toBe("from is not a mailbox");
   });
 
   it("accepts dot-atom addr-specs on a DNS domain only", () => {

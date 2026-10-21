@@ -336,7 +336,8 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
       authInfo: auth(["post:delete"]),
     });
     await client.callTool({ name: "delete_post", arguments: { id: "p1" } });
-    const [pending] = (await store.list({ status: "pending" })).items;
+    const { items } = await store.list({ status: "pending" });
+    const [pending] = items;
     if (pending === undefined) {
       throw new Error("expected a pending approval");
     }

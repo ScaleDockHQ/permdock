@@ -413,7 +413,8 @@ describe("subjectFromCapability with an injected verifier", () => {
 
   it("is anonymous with malformed when the verifier throws", async () => {
     const { events, options: opts } = options(throwingVerifier);
-    expect((await subjectFromCapability("a.b.c", opts)).principal).toBeNull();
+    const { principal } = await subjectFromCapability("a.b.c", opts);
+    expect(principal).toBeNull();
     expect(events.map((event) => event.cause)).toStrictEqual(["malformed"]);
   });
 

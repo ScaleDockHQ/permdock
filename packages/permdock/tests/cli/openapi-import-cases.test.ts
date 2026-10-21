@@ -171,7 +171,8 @@ describe("openapi import cases", () => {
         Promise.resolve(new Response(BODY)),
       );
       vi.stubGlobal("fetch", fetchStub);
-      expect((await importDoc(workdir(), { doc: URL })).code).toBe(0);
+      const { code } = await importDoc(workdir(), { doc: URL });
+      expect(code).toBe(0);
       expect(fetchStub).toHaveBeenCalledWith(
         URL,
         expect.objectContaining({ method: "GET" }),
@@ -265,7 +266,8 @@ describe("openapi import cases", () => {
           },
         }),
       });
-      expect((await importDoc(dir)).code).toBe(0);
+      const { code } = await importDoc(dir);
+      expect(code).toBe(0);
       const text = readFileSync(path.join(dir, "gen.ts"), "utf8");
       expect(text).toContain("blogPosts: resource({");
       expect(text).toContain('"listAll": {');
@@ -302,7 +304,8 @@ describe("openapi import cases", () => {
           },
         ),
       });
-      expect((await importDoc(dir)).code).toBe(0);
+      const { code } = await importDoc(dir);
+      expect(code).toBe(0);
       expect(await leaves(dir)).toStrictEqual([
         ["post.list", "collection"],
         ["post.read", "instance"],
@@ -413,7 +416,8 @@ describe("openapi import cases", () => {
           },
         ),
       });
-      expect((await importDoc(dir, { schema: "zod" })).code).toBe(0);
+      const { code } = await importDoc(dir, { schema: "zod" });
+      expect(code).toBe(0);
       const text = readFileSync(path.join(dir, "gen.ts"), "utf8");
       expect(text).toContain(
         "comments: resource(z.object({ id: z.string() }), {",
@@ -452,7 +456,8 @@ describe("openapi import cases", () => {
             { components },
           ),
         });
-        expect((await importDoc(dir, { schema: "valibot" })).code).toBe(0);
+        const { code } = await importDoc(dir, { schema: "valibot" });
+        expect(code).toBe(0);
         expect(readFileSync(path.join(dir, "gen.ts"), "utf8")).toContain(
           "posts: resource(v.unknown(), {",
         );
@@ -478,7 +483,8 @@ describe("openapi import cases", () => {
           },
         }),
       });
-      expect((await importDoc(dir, { schema: "zod" })).code).toBe(0);
+      const { code } = await importDoc(dir, { schema: "zod" });
+      expect(code).toBe(0);
       expect(readFileSync(path.join(dir, "gen.ts"), "utf8")).toContain(
         "posts: resource(z.unknown(), {",
       );
@@ -486,7 +492,8 @@ describe("openapi import cases", () => {
 
     it("gives a resource with no JSON body an empty object schema", async () => {
       const dir = workdir({ "openapi.json": doc({ "/posts": { get: {} } }) });
-      expect((await importDoc(dir, { schema: "zod" })).code).toBe(0);
+      const { code } = await importDoc(dir, { schema: "zod" });
+      expect(code).toBe(0);
       expect(readFileSync(path.join(dir, "gen.ts"), "utf8")).toContain(
         "posts: resource(z.object({}), {",
       );

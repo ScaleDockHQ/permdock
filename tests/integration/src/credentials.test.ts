@@ -127,11 +127,10 @@ async function store(
 }
 
 async function repos(): Promise<readonly { id: string; orgId: string }[]> {
-  return (
-    await db.admin.query<{ id: string; orgId: string }>(
-      'select id, "orgId" from repos order by id',
-    )
-  ).rows;
+  const { rows } = await db.admin.query<{ id: string; orgId: string }>(
+    'select id, "orgId" from repos order by id',
+  );
+  return rows;
 }
 
 async function permdockFor(key: string, tenant = "o_1") {

@@ -166,9 +166,8 @@ describe(createAgentKernel, () => {
         tools: tools(),
       });
     const listed = kernel(["list_posts"]);
-    expect((await listed.decideTool("list_posts", {}, {})).outcome).toBe(
-      "granted",
-    );
+    const { outcome } = await listed.decideTool("list_posts", {}, {});
+    expect(outcome).toBe("granted");
     const refused = await listed.decideTool("delete_post", { id: "p1" }, {});
     expect(refused.outcome).toBe("denied");
     expect(
@@ -240,9 +239,12 @@ describe(createAgentKernel, () => {
       tools: tools(),
     });
     const ctx = { session: "s1" };
-    expect(
-      (await kernel.decideTool("publish_post", { id: "p1" }, ctx)).outcome,
-    ).toBe("granted");
+    const { outcome } = await kernel.decideTool(
+      "publish_post",
+      { id: "p1" },
+      ctx,
+    );
+    expect(outcome).toBe("granted");
     user = memberUser;
     expect(
       (await kernel.decideTool("publish_post", { id: "p1" }, ctx)).outcome,
@@ -317,9 +319,12 @@ describe(createAgentKernel, () => {
     if (asked.outcome !== "approval-required") {
       throw new Error("expected approval-required");
     }
-    expect(
-      (await kernel.decideTool("delete_post", { id: "p1" }, {})).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await kernel.decideTool(
+      "delete_post",
+      { id: "p1" },
+      {},
+    );
+    expect(outcome).toBe("approval-required");
     await store.resolve(asked.token, {
       status: "approved",
       by: { principal: { id: "u2", roles: ["admin"] }, context: {} },
@@ -371,9 +376,12 @@ describe(createAgentKernel, () => {
       status: "approved",
       by: { principal: { id: "u2", roles: ["admin"] }, context: {} },
     });
-    expect(
-      (await kernel.decideTool(tool, { to: "attacker@evil" }, {})).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await kernel.decideTool(
+      tool,
+      { to: "attacker@evil" },
+      {},
+    );
+    expect(outcome).toBe("approval-required");
     expect(
       (await kernel.decideTool(tool, { to: "boss@corp" }, {})).outcome,
     ).toBe("granted");

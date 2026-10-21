@@ -139,8 +139,7 @@ export const importDocument: Leaf = defineLeaf({
       );
     }
     // Lazy: the implementation loads only when this command runs, not for --help.
-    const { runOpenapiImport } = await import("../openapi/import.ts");
-    return runOpenapiImport({
+    return (await import("../openapi/import.ts")).runOpenapiImport({
       cwd: ctx.cwd,
       doc,
       out: fileOut("openapi import", flags.out),

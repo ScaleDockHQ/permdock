@@ -226,17 +226,14 @@ this is not sql;`,
 
     it("writes an empty catalog for a dump without policies", async () => {
       const cwd = project({ "dump.sql": "create table t (id int);" });
-      expect(
-        (
-          await runRlsImport({
-            cwd,
-            config,
-            sql: "dump.sql",
-            schema: "zod",
-            io,
-          })
-        ).code,
-      ).toBe(0);
+      const { code } = await runRlsImport({
+        cwd,
+        config,
+        sql: "dump.sql",
+        schema: "zod",
+        io,
+      });
+      expect(code).toBe(0);
       expect(catalogOf(cwd)).toStrictEqual([]);
     });
 

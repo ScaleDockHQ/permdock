@@ -144,8 +144,7 @@ export function createPermDock<
   ): Promise<Connection> => {
     const { tenant } = scope ?? (await tenantScope(options.tenant, request));
     // Lazy: only apps that open connections bundle the revalidation loop.
-    const { openConnection } = await import("./connection.ts");
-    return openConnection<T>({
+    return (await import("./connection.ts")).openConnection<T>({
       open: async (): Promise<PermDock<V>> =>
         (await build(request, { tenant })).permdock,
       rebuild: async (): Promise<PermDock<V>> =>

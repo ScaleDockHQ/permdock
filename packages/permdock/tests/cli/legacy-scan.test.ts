@@ -68,9 +68,10 @@ describe("legacy scan", () => {
       ]);
       const none = await run(["scan", "--src", "app"], { cwd });
       expect(none.stdout).toContain("No legacy authorization checks found.");
-      expect(
-        (await run(["scan", "--src", "app", "--pattern", "("], { cwd })).code,
-      ).toBe(2);
+      const { code } = await run(["scan", "--src", "app", "--pattern", "("], {
+        cwd,
+      });
+      expect(code).toBe(2);
     });
   });
 });

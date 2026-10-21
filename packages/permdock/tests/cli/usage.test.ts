@@ -188,7 +188,8 @@ export const del = can(permissions.post.delete);
 
     it("scans in memory without writing a catalog", async () => {
       const cwd = project(files);
-      expect((await usage(cwd)).code).not.toBe(2);
+      const { code } = await usage(cwd);
+      expect(code).not.toBe(2);
       expect(existsSync(join(cwd, "permissions.catalog.json"))).toBe(false);
     });
 
@@ -251,7 +252,8 @@ export const del = can(permissions.post.delete);
         { kind: "unused", key: "note.read", detail: "defined" },
       ]);
       expect(loose.code).toBe(0);
-      expect((await usage(cwd, { ignore, strict: true })).code).toBe(1);
+      const { code } = await usage(cwd, { ignore, strict: true });
+      expect(code).toBe(1);
       const dynamic = await usage(cwd, {
         ignore,
         dynamicAsUsed: true,

@@ -551,7 +551,8 @@ describe("openid connect", () => {
       const seen: string[] = [];
       const handle = receiver(seen);
       const logout = await logoutToken({});
-      expect((await handle.logout(post(logout))).status).toBe(200);
+      const { status } = await handle.logout(post(logout));
+      expect(status).toBe(200);
       expect((await handle.logout(post(logout))).status).toBe(200);
       expect(seen).toHaveLength(1);
     });
@@ -564,7 +565,8 @@ describe("openid connect", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ logout_token: logout }),
       });
-      expect((await handle.logout(asJson)).status).toBe(400);
+      const { status } = await handle.logout(asJson);
+      expect(status).toBe(400);
       const asGet = new Request(
         `https://app.example.com/oidc/logout?logout_token=${logout}`,
       );

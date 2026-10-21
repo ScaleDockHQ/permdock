@@ -139,7 +139,8 @@ describe("Problem Details under --json", () => {
       "src/permissions.ts": PERMISSIONS,
       "src/use.ts": use(""),
     });
-    expect((await run(["collect", "--cwd", cwd])).code).toBe(0);
+    const { code } = await run(["collect", "--cwd", cwd]);
+    expect(code).toBe(0);
     writeFileSync(join(cwd, "src/use.ts"), use("\n"));
     const result = await run(["collect", "--check", "--json", "--cwd", cwd]);
     expect(result.code).toBe(0);

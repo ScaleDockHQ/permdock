@@ -243,11 +243,13 @@ export function testCloudApi(
       issuer,
       jwks_uri: `${issuer}/.well-known/jwks.json`,
     });
-    expect((await recording(`${url}/v1/environment`)).status).toBe(401);
+    const { status } = await recording(`${url}/v1/environment`);
+    expect(status).toBe(401);
   });
 
   it("answers 403 to a key of another kind", async () => {
-    expect((await call("/hosted-grants", keys.client)).status).toBe(403);
+    const { status } = await call("/hosted-grants", keys.client);
+    expect(status).toBe(403);
     if (keys.export !== undefined) {
       expect((await call("/approvals", keys.export)).status).toBe(403);
     }
@@ -357,7 +359,8 @@ export function testCloudApi(
     expect(first.ok && second.ok).toBe(true);
     const [a, b]: unknown[] = await Promise.all([first.json(), second.json()]);
     expect(isRecord(a) && isRecord(b) && a["id"] === b["id"]).toBe(true);
-    expect((await send({})).status).toBe(400);
+    const { status } = await send({});
+    expect(status).toBe(400);
   });
 
   it("answers unchanged for the catalog it already holds", async (context) => {
@@ -402,7 +405,8 @@ export function testCloudApi(
     const first = await get({ "permdock-subject": token });
     expect(first.status).toBe(200);
     expect(first.headers.get("content-type")).toMatch(/^application\/jwt/u);
-    expect((await get({ "permdock-subject": token })).status).toBe(401);
+    const { status } = await get({ "permdock-subject": token });
+    expect(status).toBe(401);
     expect((await get({})).status).toBe(401);
   });
 

@@ -137,7 +137,8 @@ describe("arazzo", () => {
     });
 
     it("checks without a permissions module", async () => {
-      expect((await check({ config: {} })).code).toBe(0);
+      const { code } = await check({ config: {} });
+      expect(code).toBe(0);
       expect(
         (await check({ config: {}, from: "./src/permissions.ts" })).code,
       ).toBe(0);

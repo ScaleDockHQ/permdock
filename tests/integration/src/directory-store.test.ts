@@ -298,9 +298,8 @@ describe("scim generate on Supabase", () => {
         await db.exec("rollback");
       }
     }
-    expect(
-      (await db.query("select * from permdock.scim_groups")).rows,
-    ).toHaveLength(1);
+    const { rows } = await db.query("select * from permdock.scim_groups");
+    expect(rows).toHaveLength(1);
   });
 
   it("feeds directoryMembershipSource from the tables", async () => {

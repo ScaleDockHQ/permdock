@@ -14,7 +14,8 @@ describe(subjectFromChat, () => {
 
   it("is anonymous for an unlinked, other-workspace or missing author", async () => {
     const options = { principals: chatPrincipals };
-    expect((await subjectFromChat(stranger, options)).principal).toBeNull();
+    const { principal } = await subjectFromChat(stranger, options);
+    expect(principal).toBeNull();
     expect(
       (await subjectFromChat({ ...member, workspace: "T2" }, options))
         .principal,

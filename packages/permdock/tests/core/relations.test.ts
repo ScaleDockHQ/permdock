@@ -509,9 +509,12 @@ describe("relationship graph", () => {
       { id: "olga" },
       { relations: source, memberships: { membershipsFor: () => [] } },
     );
-    expect(
-      (await whoCan(unlisted, permissions.folder.read, platform)).complete,
-    ).toBe(false);
+    const { complete } = await whoCan(
+      unlisted,
+      permissions.folder.read,
+      platform,
+    );
+    expect(complete).toBe(false);
     const owners = await whoCan(
       permdock("olga"),
       permissions.doc.read,

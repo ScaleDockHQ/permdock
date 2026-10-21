@@ -261,9 +261,8 @@ describe("rls generate options", () => {
         "permdock_trusted_role_permissions_by_id",
         "permdock_trusted_role_permissions",
       ]);
-      expect(
-        (await generate({ customRoleWrites: { roles } })).text,
-      ).not.toContain("_by_id");
+      const { text } = await generate({ customRoleWrites: { roles } });
+      expect(text).not.toContain("_by_id");
       const refused = await generate({
         customRoleWrites: { roles, audit: { function: "app.audit" } },
       });
@@ -279,7 +278,8 @@ describe("rls generate options", () => {
       await expect(
         generate({ ownershipTriggers: { region: false } }),
       ).rejects.toThrow("rls.ownershipTriggers.region names a scope");
-      expect((await generate({ ownershipTriggers: false })).text).toContain(
+      const { text } = await generate({ ownershipTriggers: false });
+      expect(text).toContain(
         "-- tenant: rls.ownershipTriggers leaves out the triggers",
       );
     });

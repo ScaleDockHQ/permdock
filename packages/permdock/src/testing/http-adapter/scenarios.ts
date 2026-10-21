@@ -128,10 +128,12 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
       "tenant",
       "resolves the tenant from the path on every protect",
       async () => {
-        expect(
-          (await send("alice", { op: "project.get", org: "acme", id: "p2" }))
-            .status,
-        ).toBe(200);
+        const { status } = await send("alice", {
+          op: "project.get",
+          org: "acme",
+          id: "p2",
+        });
+        expect(status).toBe(200);
         expect(
           (await send("alice", { op: "project.get", org: "globex", id: "g1" }))
             .status,
@@ -155,10 +157,12 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
       "roles",
       "applies the role held in the requested org",
       async () => {
-        expect(
-          (await send("alice", { op: "project.update", org: "acme", id: "p1" }))
-            .status,
-        ).toBe(200);
+        const { status } = await send("alice", {
+          op: "project.update",
+          org: "acme",
+          id: "p1",
+        });
+        expect(status).toBe(200);
         expect(
           (
             await send("alice", {
@@ -187,10 +191,12 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         name: "Contract",
         archived: false,
       };
-      expect(
-        (await send("dave", { op: "project.create", org: "acme", body }))
-          .status,
-      ).toBe(201);
+      const { status } = await send("dave", {
+        op: "project.create",
+        org: "acme",
+        body,
+      });
+      expect(status).toBe(201);
       expect(
         (await send("hank", { op: "project.create", org: "acme", body }))
           .status,
@@ -201,9 +207,11 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
       "plans",
       "gates a feature on the plan of the requested org",
       async () => {
-        expect(
-          (await send("erin", { op: "analytics.read", org: "globex" })).status,
-        ).toBe(200);
+        const { status } = await send("erin", {
+          op: "analytics.read",
+          org: "globex",
+        });
+        expect(status).toBe(200);
         const upgrade = await send("erin", {
           op: "analytics.read",
           org: "acme",
@@ -216,17 +224,21 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
     );
 
     scenario("expired", "ignores an expired membership", async () => {
-      expect(
-        (await send("frank", { op: "project.get", org: "acme", id: "p1" }))
-          .status,
-      ).toBe(403);
+      const { status } = await send("frank", {
+        op: "project.get",
+        org: "acme",
+        id: "p1",
+      });
+      expect(status).toBe(403);
     });
 
     scenario("limits", "counts a quota per subject and tenant", async () => {
       for (let index = 0; index < 5; index += 1) {
-        expect(
-          (await send("erin", { op: "apiKey.create", org: "acme" })).status,
-        ).toBe(201);
+        const { status } = await send("erin", {
+          op: "apiKey.create",
+          org: "acme",
+        });
+        expect(status).toBe(201);
       }
       const exhausted = await send("erin", {
         op: "apiKey.create",
@@ -250,15 +262,12 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           name: "New",
           archived: false,
         };
-        expect(
-          (
-            await send("bob", {
-              op: "project.create",
-              org: "acme",
-              body: valid,
-            })
-          ).status,
-        ).toBe(201);
+        const { status } = await send("bob", {
+          op: "project.create",
+          org: "acme",
+          body: valid,
+        });
+        expect(status).toBe(201);
         const invalid = await send("bob", {
           op: "project.create",
           org: "acme",
@@ -309,10 +318,12 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
             field(fromProtect.body, key),
           );
         }
-        expect(
-          (await send("bob", { op: "project.delete", org: "acme", id: "p3" }))
-            .status,
-        ).toBe(204);
+        const { status } = await send("bob", {
+          op: "project.delete",
+          org: "acme",
+          id: "p3",
+        });
+        expect(status).toBe(204);
         expect(
           (await send("bob", { op: "project.delete", org: "acme", id: "p4" }))
             .status,
@@ -366,15 +377,12 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
       "stale-approval",
       "ignores an approval header meant for another request",
       async () => {
-        expect(
-          (
-            await send(
-              "bob",
-              { op: "project.get", org: "acme", id: "p1" },
-              "pd1.not-a-real-token",
-            )
-          ).status,
-        ).toBe(200);
+        const { status } = await send(
+          "bob",
+          { op: "project.get", org: "acme", id: "p1" },
+          "pd1.not-a-real-token",
+        );
+        expect(status).toBe(200);
       },
     );
 
@@ -429,23 +437,22 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         });
         expect(uploaded.status).toBe(201);
         expect(uploaded.body).toStrictEqual({ name: "notes.txt", size: 5 });
-        expect(
-          (
-            await send("bob", {
-              op: "project.upload",
-              org: "acme",
-              id: "p2",
-              file,
-            })
-          ).status,
-        ).toBe(403);
+        const { status } = await send("bob", {
+          op: "project.upload",
+          org: "acme",
+          id: "p2",
+          file,
+        });
+        expect(status).toBe(403);
       },
     );
 
     scenario("sub-app", "protects a route inside a sub-app", async () => {
-      expect(
-        (await send("alice", { op: "admin.members", org: "acme" })).status,
-      ).toBe(200);
+      const { status } = await send("alice", {
+        op: "admin.members",
+        org: "acme",
+      });
+      expect(status).toBe(200);
       expect(
         (await send("bob", { op: "admin.members", org: "acme" })).status,
       ).toBe(403);

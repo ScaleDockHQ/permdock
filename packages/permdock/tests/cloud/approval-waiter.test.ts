@@ -163,7 +163,8 @@ describe(cloudApprovalWaiter, () => {
     expect(forgedResponse.headers.get("content-type")).toContain(
       "application/problem+json",
     );
-    expect((await cloud.webhook(unsigned)).status).toBe(400);
+    const { status } = await cloud.webhook(unsigned);
+    expect(status).toBe(400);
     expect((await cloud.webhook(notEvents)).status).toBe(400);
     expect(waiter.woken).toStrictEqual([]);
   });
@@ -179,7 +180,8 @@ describe(cloudApprovalWaiter, () => {
       id: "msg_once",
     });
     const again = first.clone();
-    expect((await cloud.webhook(first)).status).toBe(204);
+    const { status } = await cloud.webhook(first);
+    expect(status).toBe(204);
     expect((await cloud.webhook(again)).status).toBe(204);
     expect(waiter.woken).toStrictEqual(["pd1.once"]);
   });

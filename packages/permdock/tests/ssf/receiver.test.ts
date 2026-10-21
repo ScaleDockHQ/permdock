@@ -198,7 +198,8 @@ describe("receiver", () => {
         method: "POST",
         body: new Uint8Array([1]),
       });
-      expect((await receiver.push(request)).status).toBe(400);
+      const { status } = await receiver.push(request);
+      expect(status).toBe(400);
     });
 
     it.each<[string, string, string]>([
@@ -497,7 +498,8 @@ describe("receiver", () => {
         sub: "u1",
         events: { [BACKCHANNEL_LOGOUT_EVENT]: "x" },
       });
-      expect((await receiver.logout(logout(token))).status).toBe(200);
+      const { status } = await receiver.logout(logout(token));
+      expect(status).toBe(200);
       expect((await receiver.logout(logout(token))).status).toBe(200);
       expect(audit).toStrictEqual([
         {

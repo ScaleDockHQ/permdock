@@ -360,7 +360,8 @@ export default {
   });
 
   it("drops the table, its trigger and the uncalled helper, and the policies still answer", async () => {
-    expect((await cli(["migrate", "--sql", sql])).code).toBe(0);
+    const { code } = await cli(["migrate", "--sql", sql]);
+    expect(code).toBe(0);
     const retired = await cli([
       "migrate",
       "--sql",

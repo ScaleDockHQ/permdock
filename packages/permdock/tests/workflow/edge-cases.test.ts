@@ -233,16 +233,13 @@ describe("permdock/workflow: approvals without a row or a store", () => {
   it("returns the fresh decision from resumeApproval when no store is configured", async () => {
     const { workflow, ticketFor } = setup({ approvalPolicies });
     const ticket = await ticketFor();
-    expect(
-      (
-        await workflow.resumeApproval(
-          ticket,
-          permissions.invoice.send,
-          "pd1.unknown",
-          invoice,
-        )
-      ).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await workflow.resumeApproval(
+      ticket,
+      permissions.invoice.send,
+      "pd1.unknown",
+      invoice,
+    );
+    expect(outcome).toBe("approval-required");
     expect(
       (
         await workflow.resumeApproval(

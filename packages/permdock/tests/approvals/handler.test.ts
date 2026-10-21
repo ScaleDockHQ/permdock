@@ -100,10 +100,10 @@ describe("approvalsHandler GET by id", () => {
       context: {},
     };
     const handler = approvalsHandler(store, { subject: () => approver });
-    expect(
-      (await handler(new Request(`${BASE}/done/approve`, { method: "POST" })))
-        .status,
-    ).toBe(200);
+    const { status } = await handler(
+      new Request(`${BASE}/done/approve`, { method: "POST" }),
+    );
+    expect(status).toBe(200);
     expect((await handler(new Request(`${BASE}/done`))).status).toBe(200);
   });
 
@@ -118,9 +118,8 @@ describe("approvalsHandler GET by id", () => {
           body,
         }),
       );
-    expect(
-      (await post(JSON.stringify({ note: "x".repeat(2001) }))).status,
-    ).toBe(400);
+    const { status } = await post(JSON.stringify({ note: "x".repeat(2001) }));
+    expect(status).toBe(400);
     expect(
       (await post("{}", { "content-length": String(16 * 1024 + 1) })).status,
     ).toBe(413);
@@ -132,7 +131,8 @@ describe("approvalsHandler GET by id", () => {
 
   it("refuses an undefined subject, a wrong method and an unknown path", async () => {
     const handler = approvalsHandler(seeded(), { subject: () => undefined });
-    expect((await handler(new Request(`${BASE}/own`))).status).toBe(401);
+    const { status } = await handler(new Request(`${BASE}/own`));
+    expect(status).toBe(401);
     const wrong = await handler(
       new Request(`${BASE}/own`, { method: "DELETE" }),
     );
@@ -313,7 +313,8 @@ describe("approvalsHandler HTTP semantics", () => {
     expect(retry.headers.get("etag")).toBe(first.headers.get("etag"));
     const reused = await approve('"k-1"', "changed");
     expect(reused.status).toBe(422);
-    expect((await approve('"k-2"', "ok")).status).toBe(409);
+    const { status } = await approve('"k-2"', "ok");
+    expect(status).toBe(409);
     expect((await approve("k-3", "ok")).status).toBe(400);
     expect((await approve(`"${"k".repeat(257)}"`, "ok")).status).toBe(400);
   });
@@ -327,9 +328,8 @@ describe("approvalsHandler HTTP semantics", () => {
           Promise.resolve(`signed.${options.jti ?? ""}`),
       },
     });
-    expect(
-      (await handler(new Request(`${BASE}/closed/signature`))).status,
-    ).toBe(404);
+    const { status } = await handler(new Request(`${BASE}/closed/signature`));
+    expect(status).toBe(404);
     const approved = await handler(
       new Request(`${BASE}/closed/approve`, { method: "POST" }),
     );
@@ -403,7 +403,8 @@ describe("approvalsHandler HTTP semantics", () => {
       consume: (token, now) => inner.consume(token, now),
     };
     const handler = approvalsHandler(store, { subject: () => approver });
-    expect((await handler(new Request(`${BASE}/closed`))).status).toBe(200);
+    const { status } = await handler(new Request(`${BASE}/closed`));
+    expect(status).toBe(200);
     expect((await handler(new Request(`${BASE}/nope`))).status).toBe(404);
   });
 });

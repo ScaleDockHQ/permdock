@@ -219,7 +219,8 @@ describe("openapi emit", () => {
           },
         },
       });
-      expect((await emit(cwd, { arity: true })).code).toBe(0);
+      const { code } = await emit(cwd, { arity: true });
+      expect(code).toBe(0);
       const out = readJson(cwd, "out.json");
       expect({
         bare: operation(out, "/current-post", "get")?.["x-permdock-arity"],
@@ -245,7 +246,8 @@ describe("openapi emit", () => {
           "/posts": { post: { "x-permdock-permissions": ["post.create"] } },
         },
       });
-      expect((await emit(cwd)).code).toBe(0);
+      const { code } = await emit(cwd);
+      expect(code).toBe(0);
       // SAFETY: `emit` writes components.securitySchemes as an object of schemes.
       const schemes = (
         readJson(cwd, "out.json")["components"] as {
@@ -281,7 +283,8 @@ describe("openapi emit", () => {
           "/posts": { post: { "x-permdock-permissions": ["post.create"] } },
         },
       });
-      expect((await emit(cwd)).code).toBe(0);
+      const { code } = await emit(cwd);
+      expect(code).toBe(0);
       // SAFETY: `emit` writes the oauth2 scheme with flows.
       const scheme = (
         readJson(cwd, "out.json")["components"] as {
@@ -345,7 +348,8 @@ describe("openapi emit", () => {
 
     it("writes a 3.3 document without a profile", async () => {
       const cwd = app();
-      expect((await emit(cwd, { target: "3.3" })).code).toBe(0);
+      const { code } = await emit(cwd, { target: "3.3" });
+      expect(code).toBe(0);
       const out = readJson(cwd, "out.json");
       expect(out["openapi"]).toBe("3.3.0");
       expect(out["components"]).not.toHaveProperty(

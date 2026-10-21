@@ -244,7 +244,8 @@ describe("shared signals caep", () => {
       const seen: string[] = [];
       const handle = receiver(seen);
       const token = await set({});
-      expect((await handle.push(push(token))).status).toBe(202);
+      const { status } = await handle.push(push(token));
+      expect(status).toBe(202);
       expect((await handle.push(push(token))).status).toBe(202);
       expect(seen).toHaveLength(1);
     });

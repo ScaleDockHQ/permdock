@@ -110,12 +110,11 @@ describe("supabase hook", () => {
       const file = join(cwd, "hook.sql");
       const check = async (text: string): Promise<string> => {
         writeFileSync(file, text);
-        return (
-          await run(
-            ["supabase", "hook", "generate", "--out", "hook.sql", "--check"],
-            { cwd },
-          )
-        ).stdout;
+        const { stdout } = await run(
+          ["supabase", "hook", "generate", "--out", "hook.sql", "--check"],
+          { cwd },
+        );
+        return stdout;
       };
       expect(await check(`${sql}-- edited\n`)).toContain(
         "supabase hook drift\n",
@@ -131,10 +130,10 @@ describe("supabase hook", () => {
     });
 
     it("refuses configurations it cannot compile", async () => {
-      expect((await generate("undefined")).code).toBe(2);
-      expect((await generate("{ memberships: [] }")).output).toContain(
-        "at least one",
-      );
+      const { code } = await generate("undefined");
+      expect(code).toBe(2);
+      const { output } = await generate("{ memberships: [] }");
+      expect(output).toContain("at least one");
       const orphan = await generate(
         `{ memberships: [junctionMembershipSource({ table: 'customer_contacts', scope: 'customer', roles: ['contact'] })] }`,
       );

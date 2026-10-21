@@ -178,9 +178,12 @@ describe("contact principals", () => {
       },
       { principals: memoryPrincipalSource({ principals: [contact] }) },
     );
-    expect(
-      (await member.decideFor("c_1", permissions.invoice.read, i1)).outcome,
-    ).toBe("granted");
+    const { outcome } = await member.decideFor(
+      "c_1",
+      permissions.invoice.read,
+      i1,
+    );
+    expect(outcome).toBe("granted");
     expect(
       reasonOf(await member.decideFor("c_1", permissions.invoice.comment, i1)),
     ).toBe("not-delegated");

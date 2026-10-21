@@ -53,7 +53,8 @@ describe("ChatPermDock.protect", () => {
     expect(
       unlinked.outcome === "denied" && unlinked.decision.denials[0]?.reason,
     ).toBe("anonymous");
-    expect((await show(member, { id: "i2" })).outcome).toBe("denied");
+    const { outcome } = await show(member, { id: "i2" });
+    expect(outcome).toBe("denied");
     const missing = await show(member, { id: "nope" });
     expect(
       missing.outcome === "denied" && missing.decision.denials[0]?.reason,
@@ -74,7 +75,8 @@ describe("ChatPermDock.protect", () => {
       },
       handler,
     );
-    expect((await run(member, { id: "i1" })).outcome).toBe("denied");
+    const { outcome } = await run(member, { id: "i1" });
+    expect(outcome).toBe("denied");
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -99,7 +101,8 @@ describe("ChatPermDock.protect", () => {
     expect(again.outcome === "approval-required" && again.prompt?.id).toBe(
       first.prompt.id,
     );
-    expect((await store.list({})).items).toHaveLength(1);
+    const { items } = await store.list({});
+    expect(items).toHaveLength(1);
     expect(handler).not.toHaveBeenCalled();
   });
 

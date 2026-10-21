@@ -235,7 +235,8 @@ describe("rls.readOnlyActors with --helpers-only", () => {
   });
 
   it("verify --introspect names a write policy without the check", async () => {
-    expect((await verify()).code).toBe(0);
+    const { code } = await verify();
+    expect(code).toBe(0);
     await started().admin.query("drop policy job_update_actor on public.job");
     const drift = await verify();
     expect(drift.code).toBe(1);

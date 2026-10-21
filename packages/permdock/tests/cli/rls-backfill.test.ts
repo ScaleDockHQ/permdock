@@ -508,7 +508,8 @@ export const policy = definePolicy(permissions, {
       expect(missing.output).toContain(
         "backfill: missing db/migrations/20261001000002_permdock_backfill.sql",
       );
-      expect((await run()).code).toBe(0);
+      const { code } = await run();
+      expect(code).toBe(0);
       expect(readdirSync(dir).toSorted()).toStrictEqual([
         "20261001000000_init.sql",
         "20261001000001_permdock_seeds.sql",

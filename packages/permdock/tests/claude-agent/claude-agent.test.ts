@@ -108,7 +108,8 @@ describe("permdock/claude-agent", () => {
       sdkServer,
     );
     expect(parked.behavior).toBe("deny");
-    const [pending] = (await store.list({ status: "pending" })).items;
+    const { items } = await store.list({ status: "pending" });
+    const [pending] = items;
     if (pending === undefined || parked.behavior !== "deny") {
       throw new Error("expected a pending approval");
     }

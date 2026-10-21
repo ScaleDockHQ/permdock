@@ -37,8 +37,7 @@ describe("permdock/pdp derive", () => {
           ),
       }),
     });
-    expect(
-      (await gated.decide(permissions.post.read, { id: "p" })).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await gated.decide(permissions.post.read, { id: "p" });
+    expect(outcome).toBe("approval-required");
   });
 });

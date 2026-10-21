@@ -59,7 +59,8 @@ async function as<T extends Record<string, unknown>>(
     await tester.query("select set_config('request.jwt.claims', $1, true)", [
       JSON.stringify(claims),
     ]);
-    return (await tester.query<T>(sql)).rows;
+    const { rows } = await tester.query<T>(sql);
+    return rows;
   } finally {
     await tester.query("rollback");
   }

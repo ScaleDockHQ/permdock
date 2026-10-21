@@ -149,7 +149,8 @@ describe("ChatPermDock.protect edge cases", () => {
     expect(
       result.outcome === "approval-required" && result.prompt?.resource,
     ).toStrictEqual({ type: "invoice" });
-    const [request] = (await store.list({})).items;
+    const { items } = await store.list({});
+    const [request] = items;
     expect(request?.resource).toStrictEqual({ type: "invoice" });
     expect(handler).not.toHaveBeenCalled();
   });

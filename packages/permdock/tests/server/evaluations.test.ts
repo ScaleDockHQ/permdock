@@ -193,7 +193,8 @@ describe("evaluationsHandler POST", () => {
       (query?: { readonly tenant?: string }) => Promise<PermDock>
     >(async (): Promise<PermDock> => createCorePermDock(policy, memberUser));
     const viaGet = evaluationsHandler({ policy, getPermDock });
-    expect((await viaGet.POST(post({ evaluations: [] }))).status).toBe(200);
+    const { status } = await viaGet.POST(post({ evaluations: [] }));
+    expect(status).toBe(200);
     expect(getPermDock).toHaveBeenCalledWith(undefined);
     await expect(
       evaluationsHandler({ policy }).POST(post({ evaluations: [] })),

@@ -454,9 +454,10 @@ describe(decideCredential, () => {
     const delegated = permdockFor(
       userSubject("u_1", ["owner"], { delegation: { scopes: ["repo:read"] } }),
     );
-    expect(
-      (await decideCredential(delegated, readKey, { now: NOW })).outcome,
-    ).toBe("granted");
+    const { outcome } = await decideCredential(delegated, readKey, {
+      now: NOW,
+    });
+    expect(outcome).toBe("granted");
     expect(
       await decideCredential(
         delegated,
@@ -507,10 +508,11 @@ describe(decideCredential, () => {
     expect(await decideCredential(instance, long, { now: NOW })).toMatchObject({
       denials: [{ reason: "credential-policy", detail: { rule: "ttl" } }],
     });
-    expect(
-      (await decideCredential(instance, long, { now: NOW, settings: open }))
-        .outcome,
-    ).toBe("granted");
+    const { outcome } = await decideCredential(instance, long, {
+      now: NOW,
+      settings: open,
+    });
+    expect(outcome).toBe("granted");
     expect(
       (await decideCredential(instance.tenant("o_1"), long, { now: NOW }))
         .outcome,
@@ -536,14 +538,11 @@ describe(decideCredential, () => {
     const elsewhere = memorySettingsSource({
       o_2: { credentials: { maxTtl: 1 } },
     });
-    expect(
-      (
-        await decideCredential(developer, long, {
-          now: NOW,
-          settings: elsewhere,
-        })
-      ).outcome,
-    ).toBe("granted");
+    const { outcome } = await decideCredential(developer, long, {
+      now: NOW,
+      settings: elsewhere,
+    });
+    expect(outcome).toBe("granted");
     const forever = {
       kind: "user" as const,
       id: "k",

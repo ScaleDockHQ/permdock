@@ -167,7 +167,8 @@ describe("ai sdk", () => {
       expect(approvalId).toBeDefined();
 
       const reviewer = await db.openStore();
-      const [pending] = (await reviewer.list({ status: "pending" })).items;
+      const { items } = await reviewer.list({ status: "pending" });
+      const [pending] = items;
       expect(pending?.permission).toBe("apiKey.revokeAll");
       await expect(
         resolveApproval(reviewer, pending!.token, {

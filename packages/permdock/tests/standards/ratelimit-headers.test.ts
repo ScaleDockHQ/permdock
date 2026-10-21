@@ -92,7 +92,8 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
     });
     const guard = protect(permissions.report.export);
     const request = (): Request => new Request("https://api.example/reports");
-    expect((await guard(request())).ok).toBe(true);
+    const { ok } = await guard(request());
+    expect(ok).toBe(true);
     expect((await guard(request())).ok).toBe(true);
     const refused = await guard(request());
     expect(refused.ok).toBe(false);

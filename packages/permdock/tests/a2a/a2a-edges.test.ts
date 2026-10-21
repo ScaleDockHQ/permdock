@@ -87,7 +87,8 @@ describe("A2A skill protection edges", () => {
       },
       skills: { list: { permission: permissions.post.list } },
     }).protectSkill(() => "list");
-    expect((await run({}, { clientId: "agent", scopes })).ok).toBe(true);
+    const { ok } = await run({}, { clientId: "agent", scopes });
+    expect(ok).toBe(true);
     expect((await run({}, { clientId: "broken", scopes })).ok).toBe(true);
     expect(tenants).toStrictEqual(["o1"]);
   });
@@ -136,7 +137,8 @@ describe("A2A skill protection edges", () => {
         },
       },
     }).protectSkill(() => "list");
-    expect((await run({}, { clientId: "agent", scopes })).ok).toBe(true);
+    const { ok } = await run({}, { clientId: "agent", scopes });
+    expect(ok).toBe(true);
   });
 
   it("denies when the approval store fails during resume", async () => {

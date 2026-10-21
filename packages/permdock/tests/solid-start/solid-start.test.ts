@@ -108,7 +108,8 @@ describe("permdock/solid-start", () => {
       instance.assert(permissions.post.update, otherPost);
       return "ok";
     });
-    expect((await app.request("/")).status).toBe(403);
+    const { status } = await app.request("/");
+    expect(status).toBe(403);
   });
 
   it("serves the decision endpoint, snapshots, instances and connections", async () => {

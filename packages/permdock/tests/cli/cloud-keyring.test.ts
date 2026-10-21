@@ -63,7 +63,8 @@ describe("cloud keyring", () => {
       expect(existsSync(join(home, "permdock", "credentials.json"))).toBe(
         false,
       );
-      expect((await run(["logout"], { cwd: FIXTURE, io })).code).toBe(0);
+      const { code } = await run(["logout"], { cwd: FIXTURE, io });
+      expect(code).toBe(0);
       expect(secrets.size).toBe(0);
     });
   });

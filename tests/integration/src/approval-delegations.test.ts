@@ -160,12 +160,13 @@ describe("approval delegations", () => {
           `insert into permdock.approval_delegations (delegate, tenant, "until") values ($1, 'o1', now() + interval '1 day')`,
           [COVER],
         );
-        return (
-          await target.tester.query<{ readonly delegator: string }>(
-            "select delegator::text from permdock.approval_delegations where delegate = $1",
-            [COVER],
-          )
-        ).rows.map((row) => row.delegator);
+        const { rows } = await target.tester.query<{
+          readonly delegator: string;
+        }>(
+          "select delegator::text from permdock.approval_delegations where delegate = $1",
+          [COVER],
+        );
+        return rows.map((row) => row.delegator);
       });
       expect(inserted).toStrictEqual([REQUESTER]);
     });

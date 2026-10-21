@@ -108,7 +108,8 @@ describe("rls generate --split helpers --grants-out", () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
-    return (await db.admin.query<Access>(ACCESS)).rows[0];
+    const { rows } = await db.admin.query<Access>(ACCESS);
+    return rows[0];
   };
 
   it("restores the grants, revokes and view option a schema diff drops", async () => {

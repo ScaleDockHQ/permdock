@@ -294,9 +294,8 @@ describe("AuthZEN search", () => {
     "refuses a non-object search/%s body",
     async (kind) => {
       const handle = pdp({ subjects: { list: () => [] } });
-      expect(
-        (await handle(post(`/access/v1/search/${kind}`, '"x"'))).status,
-      ).toBe(400);
+      const { status } = await handle(post(`/access/v1/search/${kind}`, '"x"'));
+      expect(status).toBe(400);
       expect(
         (await handle(post(`/access/v1/search/${kind}`, "{bad"))).status,
       ).toBe(400);

@@ -221,7 +221,8 @@ describe("permdock/ai-sdk inside generateText", () => {
       tools,
       toolApproval,
     });
-    const [pending] = (await store.list({ status: "pending" })).items;
+    const { items } = await store.list({ status: "pending" });
+    const [pending] = items;
     expect(pending).toBeDefined();
     await store.resolve(pending!.token, {
       status: "approved",

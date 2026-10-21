@@ -172,7 +172,8 @@ describe(workflowSdkWaiter, () => {
     );
     const token = await (async () => {
       for (;;) {
-        const first = (await store.list({ status: "pending" })).items[0];
+        const { items } = await store.list({ status: "pending" });
+        const first = items[0];
         if (first !== undefined) {
           return first.token;
         }
@@ -187,7 +188,8 @@ describe(workflowSdkWaiter, () => {
       by: userSubject("u_9", ["owner"]),
     });
     await workflowSdkWaiter(hooks).wake(token);
-    expect((await pending).outcome).toBe("granted");
+    const { outcome } = await pending;
+    expect(outcome).toBe("granted");
   });
 });
 

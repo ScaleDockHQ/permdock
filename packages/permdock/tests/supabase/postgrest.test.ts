@@ -123,7 +123,8 @@ describe(postgrestSources, () => {
     const sources = postgrestSources(
       fakeClient({ u2: { id: "u2", active: false, roles: ["admin"] } }),
     );
-    expect((await sources.subject("u2")).principal).toBeNull();
+    const { principal } = await sources.subject("u2");
+    expect(principal).toBeNull();
     expect((await sources.subject("u3")).principal).toBeNull();
     expect(
       await sources.memberships.membershipsFor({ id: "u2" }, {}),

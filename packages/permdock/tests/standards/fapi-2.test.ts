@@ -197,10 +197,11 @@ describe("fapi 2", () => {
 
     it("item 3: iss, aud and exp are checked", async () => {
       const wrongAudience = await accessToken({ audience: "https://other" });
-      expect(
-        (await resolve(wrongAudience, request(await proof(wrongAudience))))
-          .causes,
-      ).toStrictEqual(["wrong-audience"]);
+      const { causes } = await resolve(
+        wrongAudience,
+        request(await proof(wrongAudience)),
+      );
+      expect(causes).toStrictEqual(["wrong-audience"]);
       const expired = await new SignJWT({ sub: "u_1", cnf: { jkt } })
         .setProtectedHeader({ alg: "ES256", kid: "as-1", typ: "at+jwt" })
         .setIssuer(ISSUER)

@@ -64,5 +64,6 @@ export async function runPluginCollect(
   options: PermDockPluginOptions | undefined,
   check: boolean,
 ): Promise<string | undefined> {
-  return (await collectOnce(cwd, options, check, false)).message;
+  const { message } = await collectOnce(cwd, options, check, false);
+  return message;
 }

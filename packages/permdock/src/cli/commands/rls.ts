@@ -242,7 +242,8 @@ export const generate: Leaf = defineLeaf({
       list: true,
       async complete() {
         // Lazy: the writer module loads only when completion asks for the parts.
-        return (await import("../core/output-files.ts")).SPLIT_PARTS;
+        const { SPLIT_PARTS } = await import("../core/output-files.ts");
+        return SPLIT_PARTS;
       },
     },
     "grants-out": {

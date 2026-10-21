@@ -100,9 +100,8 @@ describe(openfga, () => {
       ),
       { id: "anne" },
     );
-    expect((await permdock.decide(permissions.doc.read, rows[0])).outcome).toBe(
-      "granted",
-    );
+    const { outcome } = await permdock.decide(permissions.doc.read, rows[0]);
+    expect(outcome).toBe("granted");
     expect(fga.calls[0]).toStrictEqual({
       url: "http://fga.test/stores/s1/check",
       body: {
@@ -147,9 +146,8 @@ describe(openfga, () => {
       ),
       { id: "anne" },
     );
-    expect(
-      (await permdock.decide(permissions.doc.delete, rows[0])).outcome,
-    ).toBe("denied");
+    const { outcome } = await permdock.decide(permissions.doc.delete, rows[0]);
+    expect(outcome).toBe("denied");
     expect(await permdock.filter(permissions.doc.delete, rows)).toStrictEqual(
       [],
     );
@@ -274,9 +272,8 @@ describe(spicedb, () => {
       ),
       { id: "anne" },
     );
-    expect((await permdock.decide(permissions.doc.read, rows[0])).outcome).toBe(
-      "granted",
-    );
+    const { outcome } = await permdock.decide(permissions.doc.read, rows[0]);
+    expect(outcome).toBe("granted");
     expect(calls[0]).toStrictEqual({
       url: "http://spicedb.test/v1/permissions/check",
       body: {

@@ -207,7 +207,8 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
     expect(permdock.tenant("B").can(permissions.asset.update, asset)).toBe(
       false,
     );
-    expect((await sources.subject(SUSPENDED)).principal).toBeNull();
+    const { principal } = await sources.subject(SUSPENDED);
+    expect(principal).toBeNull();
   });
 
   it("lists the live members of an instance through members_of", async () => {
@@ -307,11 +308,10 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
       throw new Error("PermDock: Postgres was not started");
     }
     const target = db;
-    const declared = (
-      await target.admin.query<{ key: string }>(
-        "select k as key from permdock.permdock_permission_keys() k",
-      )
-    ).rows.map((row) => row.key);
+    const { rows } = await target.admin.query<{ key: string }>(
+      "select k as key from permdock.permdock_permission_keys() k",
+    );
+    const declared = rows.map((row) => row.key);
     const pairs: string[][] = [];
     for (const id of ["T", "B", "X"]) {
       pairs.push(

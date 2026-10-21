@@ -253,7 +253,8 @@ describe("permdock/a2a", () => {
       },
     });
     const scopes = { scopes: [permissions.post.publish.scope] };
-    expect((await protectSkill(() => "boom")({}, scopes)).ok).toBe(false);
+    const { ok } = await protectSkill(() => "boom")({}, scopes);
+    expect(ok).toBe(false);
     expect((await protectSkill(() => "gone")({}, scopes)).ok).toBe(false);
   });
 

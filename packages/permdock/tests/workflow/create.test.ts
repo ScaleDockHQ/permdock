@@ -256,7 +256,8 @@ describe("permdock/workflow: the trigger never grants", () => {
     expect(await workflow.start("auto_1", { caller: owner })).toMatchObject({
       denials: [{ reason: "no-grant" }],
     });
-    expect((await workflow.start("auto_1")).outcome).toBe("started");
+    const { outcome } = await workflow.start("auto_1");
+    expect(outcome).toBe("started");
   });
 });
 
@@ -309,7 +310,8 @@ describe("permdock/workflow: awaitApproval", () => {
       by: userSubject("u_9", ["owner"]),
     });
     void waiter.wake(token);
-    expect((await pending).outcome).toBe("granted");
+    const { outcome } = await pending;
+    expect(outcome).toBe("granted");
     expect(
       (await workflow.awaitApproval(ticket, permissions.invoice.read, invoice))
         .outcome,
@@ -336,7 +338,8 @@ describe("permdock/workflow: awaitApproval", () => {
       status: "approved",
       by: userSubject("u_9", ["owner"]),
     });
-    expect((await pending).outcome).toBe("denied");
+    const { outcome } = await pending;
+    expect(outcome).toBe("denied");
   });
 
   it("denies a rejected request and returns approval-required without a waiter", async () => {

@@ -225,6 +225,17 @@ export const core: OxlintConfig = defineConfig({
     "typescript/switch-exhaustiveness-check": "error",
     "typescript/unbound-method": "error",
     "unicorn/prefer-module": "error",
+    "eslint/func-style": [
+      "error",
+      "declaration",
+      { allowArrowFunctions: true },
+    ],
+    // Key order is the wire and docs order, such as the permission leaf
+    // `{ key, resource, action, scope, meta }` (19130 findings).
+    "eslint/sort-keys": "off",
+    // Lazy `import()` loaders, optional reads, called members and repeated
+    // names in one test read worse through a temporary (718 findings).
+    "unicorn/no-await-expression-member": "off",
     // Node 24 and ES2025 targets: native syntax, never down-levelled (2369 findings).
     "oxc/no-async-await": "off",
     // Node 24 and ES2025 targets: native syntax, never down-levelled (1802 findings).
@@ -457,6 +468,12 @@ export const test: OxlintConfig = defineConfig({
     "vitest/prefer-expect-type-of": "error",
     "vitest/consistent-test-filename": "error",
     "vitest/prefer-importing-vitest-globals": "error",
+    // Extension methods return `T | Promise<T>`; `.resolves` throws on a plain
+    // value, `expect(await x)` takes both (1883 findings).
+    "vitest/prefer-expect-resolves": "off",
+    // Matrix and conformance cases assert every field of one decision; at the
+    // p95 of 6 expects per test (858 findings).
+    "vitest/max-expects": "off",
   },
 });
 
@@ -559,6 +576,13 @@ export const react: OxlintConfig = defineConfig({
     "react/invariant": "error",
     // Its default allows JSX only in `.jsx`; the apps are TSX (66 findings).
     "react/jsx-filename-extension": "off",
+    "react/function-component-definition": [
+      "error",
+      {
+        namedComponents: "function-declaration",
+        unnamedComponents: "arrow-function",
+      },
+    ],
     "react/jsx-key": "error",
     "react/jsx-no-comment-textnodes": "error",
     "react/jsx-no-constructed-context-values": "error",

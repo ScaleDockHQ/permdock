@@ -46,7 +46,8 @@ describe("memoryDirectoryStore users", () => {
     const stored = await store.putUser(A, user({ id: "u_1", externalId: "x" }));
     await store.putGroup(A, group({ id: "g_1", members: [{ value: "u_1" }] }));
     expect(await store.getUser(B, stored.id)).toBeNull();
-    expect((await store.findUsers(B, undefined, {})).totalResults).toBe(0);
+    const { totalResults } = await store.findUsers(B, undefined, {});
+    expect(totalResults).toBe(0);
     expect(await store.groupsFor(B, "u_1")).toStrictEqual([]);
     expect(await store.getGroup(B, "g_1")).toBeNull();
     await expect(store.patchUser(B, "u_1", [])).rejects.toBeInstanceOf(
@@ -145,11 +146,10 @@ describe("memoryDirectoryStore users", () => {
     });
     expect(second).toMatchObject({ startIndex: 3, itemsPerPage: 1 });
     expect(second).not.toHaveProperty("nextCursor");
-    expect(
-      (await store.findUsers(A, undefined, { startIndex: 2 })).Resources.map(
-        (item) => item.userName,
-      ),
-    ).toStrictEqual(["b", "c"]);
+    const { Resources } = await store.findUsers(A, undefined, {
+      startIndex: 2,
+    });
+    expect(Resources.map((item) => item.userName)).toStrictEqual(["b", "c"]);
     expect(
       await store.findUsers(A, undefined, { cursor: "junk", count: 1 }),
     ).toMatchObject({ startIndex: 1, nextCursor: "1" });
@@ -213,15 +213,12 @@ describe("memoryDirectoryStore groups", () => {
     await expect(
       store.putGroup(A, group({ id: first.id, externalId: "x" })),
     ).resolves.toMatchObject({ id: first.id });
-    expect(
-      (
-        await store.findGroups(
-          A,
-          { op: "eq", attribute: "externalId", value: "x" },
-          {},
-        )
-      ).Resources.length,
-    ).toBe(1);
+    const { Resources } = await store.findGroups(
+      A,
+      { op: "eq", attribute: "externalId", value: "x" },
+      {},
+    );
+    expect(Resources.length).toBe(1);
   });
 
   it("applies group patch operations", async () => {

@@ -277,9 +277,8 @@ export function testAgentRuntime(options: AgentRuntimeOptions): void {
       "model-gate",
       "grants a model by its permission and denies one the map does not name",
       async () => {
-        expect((await agent().decideModel("frontier", erin)).outcome).toBe(
-          "granted",
-        );
+        const { outcome } = await agent().decideModel("frontier", erin);
+        expect(outcome).toBe("granted");
         expect((await agent().decideModel("frontier", alice)).outcome).toBe(
           "denied",
         );

@@ -141,7 +141,8 @@ describe(resendWebhook, () => {
         data: {},
       },
     ]) {
-      expect((await handler(await signed(body))).status).toBe(200);
+      const { status } = await handler(await signed(body));
+      expect(status).toBe(200);
     }
     expect(sink.events()).toStrictEqual([]);
   });
@@ -172,7 +173,8 @@ describe(resendWebhook, () => {
   it("writes a replayed message id once", async () => {
     const { sink, handler } = setup();
     const body = emailEvent("email.delivered");
-    expect((await handler(await signed(body, "msg_same"))).status).toBe(200);
+    const { status } = await handler(await signed(body, "msg_same"));
+    expect(status).toBe(200);
     expect((await handler(await signed(body, "msg_same"))).status).toBe(200);
     expect(sink.events()).toHaveLength(1);
   });
@@ -208,7 +210,8 @@ describe(resendWebhook, () => {
       replay: memoryReplayStore(),
     });
     const body = emailEvent("email.delivered");
-    expect((await handler(await signed(body, "msg_retry"))).status).toBe(503);
+    const { status } = await handler(await signed(body, "msg_retry"));
+    expect(status).toBe(503);
     expect((await handler(await signed(body, "msg_retry"))).status).toBe(200);
     expect(written).toHaveLength(1);
   });

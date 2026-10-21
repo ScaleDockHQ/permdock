@@ -382,7 +382,8 @@ export const planPolicy = definePolicy(permissions, {
     it("rejects unknown --rbac values, bad --authorize and non-supabase dialects", async () => {
       const cwd = miniAppCopy();
       const base = ["rls", "generate", "--target", "sql", "--out", "rls.sql"];
-      expect((await run([...base, "--rbac", "clerk"], { cwd })).code).toBe(2);
+      const { code } = await run([...base, "--rbac", "clerk"], { cwd });
+      expect(code).toBe(2);
       expect(
         (
           await run([...base, "--rbac", "supabase", "--authorize", "cookie"], {

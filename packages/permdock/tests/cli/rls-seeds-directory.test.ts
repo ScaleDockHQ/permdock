@@ -48,7 +48,8 @@ describe("rls seeds directory", () => {
 
   describe("rls generate --seeds-out <directory>", () => {
     it("writes a new seeds migration only when the rows change", async () => {
-      expect((await generate("2026-10-01T08:00:00Z")).code).toBe(0);
+      const { code } = await generate("2026-10-01T08:00:00Z");
+      expect(code).toBe(0);
       expect(migrations()).toStrictEqual(["20261001080000_permdock_seeds.sql"]);
       expect((await generate("2026-10-02T08:00:00Z")).code).toBe(0);
       expect(migrations()).toStrictEqual(["20261001080000_permdock_seeds.sql"]);

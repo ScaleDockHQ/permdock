@@ -389,7 +389,8 @@ export const permissions = definePermissions({
           return Promise.resolve(new Response(null, { status: 201 }));
         },
       };
-      expect((await push(FIXTURE, { io })).code).toBe(0);
+      const { code } = await push(FIXTURE, { io });
+      expect(code).toBe(0);
       expect(seen).toStrictEqual([
         expect.stringMatching(/^permdock-cli\/\S+ node\/\S+ \S+$/u),
       ]);

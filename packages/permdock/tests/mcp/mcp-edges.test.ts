@@ -275,9 +275,11 @@ describe("verified auth info", () => {
       }),
       { authInfo: auth(["post:list"]) },
     );
-    expect(
-      (await client.callTool({ name: "list_posts", arguments: {} })).isError,
-    ).toBe(true);
+    const { isError } = await client.callTool({
+      name: "list_posts",
+      arguments: {},
+    });
+    expect(isError).toBe(true);
   });
 });
 

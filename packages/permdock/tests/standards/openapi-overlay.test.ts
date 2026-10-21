@@ -391,7 +391,8 @@ describe("OpenAPI Overlay", () => {
 
     it("targets the source operationId and passes --check on a regeneration", async () => {
       const cwd = app();
-      expect((await emit(cwd)).stdout).toContain("wrote");
+      const { stdout } = await emit(cwd);
+      expect(stdout).toContain("wrote");
       const written = readFileSync(
         path.join(cwd, "permdock.overlay.json"),
         "utf8",

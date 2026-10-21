@@ -93,7 +93,8 @@ describe("permdock/sveltekit", () => {
       event.locals.permdock.assert(permissions.post.update, otherPost);
       return new Response("ok");
     });
-    expect((await GET(eventFor("/"))).status).toBe(403);
+    const { status } = await GET(eventFor("/"));
+    expect(status).toBe(403);
   });
 
   it("serves the decision endpoint and the snapshot", async () => {

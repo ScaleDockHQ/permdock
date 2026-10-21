@@ -249,8 +249,7 @@ export function testCloudPlatform(
     expect(await loopback.json()).toMatchObject({
       client_id: expect.any(String),
     });
-    expect((await register("http://mcp.example.invalid/callback")).status).toBe(
-      400,
-    );
+    const { status } = await register("http://mcp.example.invalid/callback");
+    expect(status).toBe(400);
   });
 }

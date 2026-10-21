@@ -24,7 +24,8 @@ describe("the adapter otel option", () => {
         expectTypeOf(c.get("permdock")).toEqualTypeOf<VocabularyPermDock>();
         return c.body(null, 204);
       });
-    expect((await app.request("/")).status).toBe(204);
+    const { status } = await app.request("/");
+    expect(status).toBe(204);
     expect((await app.request("/")).status).toBe(204);
     expect(wrapped).toHaveLength(2);
   });

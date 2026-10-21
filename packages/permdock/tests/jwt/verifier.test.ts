@@ -432,7 +432,8 @@ describe("verifier", () => {
       ]) {
         const fake = fakeFetch(() => jwksResponse(120));
         const cache = createKeyCache({ jwks, fetch: fake.fetch });
-        expect((await cache.resolveJwks(NOW)).ok).toBe(true);
+        const { ok } = await cache.resolveJwks(NOW);
+        expect(ok).toBe(true);
         expect((await cache.resolveJwks(NOW + 100)).ok).toBe(true);
         expect(fake.calls.length).toBe(1);
         await cache.resolveJwks(NOW + 200);
@@ -593,7 +594,8 @@ describe("verifier", () => {
         },
       });
       const cache = createKeyCache({ discovery: issuer, fetch: fake.fetch });
-      expect((await cache.resolveJwks(NOW)).ok).toBe(true);
+      const { ok } = await cache.resolveJwks(NOW);
+      expect(ok).toBe(true);
       expect((await cache.resolveJwks(NOW + 10)).ok).toBe(true);
       expect(fake.calls.map((call) => call.url)).toStrictEqual([
         "https://login.test/tenant/.well-known/openid-configuration",
@@ -615,7 +617,8 @@ describe("verifier", () => {
         return call.url === jwksUri ? json({ keys: [es.jwk] }) : undefined;
       });
       const cache = createKeyCache({ discovery: issuer, fetch: fake.fetch });
-      expect((await cache.resolveJwks(NOW)).ok).toBe(true);
+      const { ok } = await cache.resolveJwks(NOW);
+      expect(ok).toBe(true);
       jwksUri = "https://login.test/keys-2";
       expect((await cache.resolveJwks(NOW + 120)).ok).toBe(true);
       expect(fake.calls.map((call) => call.url)).toStrictEqual([
@@ -635,7 +638,8 @@ describe("verifier", () => {
         },
       });
       const cache = createKeyCache({ discovery: issuer, fetch: fake.fetch });
-      expect((await cache.resolveJwks(NOW)).ok).toBe(true);
+      const { ok } = await cache.resolveJwks(NOW);
+      expect(ok).toBe(true);
     });
 
     it("reports a mismatched issuer and an http jwks_uri", async () => {
@@ -685,7 +689,8 @@ describe("verifier", () => {
       });
       await cache.resolveJwks(NOW);
       up = false;
-      expect((await cache.resolveJwks(NOW + 120)).ok).toBe(true);
+      const { ok } = await cache.resolveJwks(NOW + 120);
+      expect(ok).toBe(true);
     });
 
     it("uses inline metadata and checks its issuer", async () => {

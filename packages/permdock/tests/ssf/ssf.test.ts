@@ -277,7 +277,8 @@ describe("receiver.push", () => {
         },
       },
     });
-    expect((await receiver.push(setRequest("set-a"))).status).toBe(202);
+    const { status } = await receiver.push(setRequest("set-a"));
+    expect(status).toBe(202);
     expect((await receiver.push(setRequest("set-a"))).status).toBe(202);
     expect(calls).toBe(1);
   });
@@ -301,7 +302,8 @@ describe("receiver.push", () => {
         },
       },
     });
-    expect((await receiver.push(setRequest("set-unk"))).status).toBe(202);
+    const { status } = await receiver.push(setRequest("set-unk"));
+    expect(status).toBe(202);
     expect(seen).toStrictEqual([]);
 
     const starred: string[] = [];
@@ -345,7 +347,8 @@ describe("receiver.push", () => {
         },
       },
     });
-    expect((await receiver.push(setRequest("set-proto"))).status).toBe(202);
+    const { status } = await receiver.push(setRequest("set-proto"));
+    expect(status).toBe(202);
     expect(starred).toStrictEqual(["toString", "constructor"]);
   });
 
@@ -368,7 +371,8 @@ describe("receiver.push", () => {
         },
       },
     });
-    expect((await receiver.push(setRequest("set-nosub"))).status).toBe(202);
+    const { status } = await receiver.push(setRequest("set-nosub"));
+    expect(status).toBe(202);
     expect(seen).toStrictEqual([]);
   });
 
@@ -658,7 +662,8 @@ describe("replay claim", () => {
     }
     const a = receiverFor("https://a.example.com");
     const b = receiverFor("https://b.example.com");
-    expect((await a.push(setRequest("set-a"))).status).toBe(202);
+    const { status } = await a.push(setRequest("set-a"));
+    expect(status).toBe(202);
     expect((await b.push(setRequest("set-b"))).status).toBe(202);
     expect(seen).toStrictEqual([
       "user@https://a.example.com",
@@ -693,7 +698,8 @@ describe("replay claim", () => {
         },
       },
     });
-    expect((await receiver.push(setRequest("set-multi"))).status).toBe(500);
+    const { status } = await receiver.push(setRequest("set-multi"));
+    expect(status).toBe(500);
     expect((await receiver.push(setRequest("set-multi"))).status).toBe(202);
     expect((await receiver.push(setRequest("set-multi"))).status).toBe(202);
     expect(calls).toStrictEqual([
@@ -729,7 +735,8 @@ describe("replay claim", () => {
         },
       },
     });
-    expect((await receiver.push(setRequest("set-legacy"))).status).toBe(202);
+    const { status } = await receiver.push(setRequest("set-legacy"));
+    expect(status).toBe(202);
     expect((await receiver.push(setRequest("set-legacy"))).status).toBe(202);
     expect(calls).toBe(1);
   });
@@ -873,7 +880,8 @@ describe("stream verification", () => {
     receiver.on("event", (event) => {
       audit.push({ type: event.type, state: event.state });
     });
-    expect((await receiver.push(setRequest("set-verify"))).status).toBe(202);
+    const { status } = await receiver.push(setRequest("set-verify"));
+    expect(status).toBe(202);
     expect(states).toStrictEqual([
       { state: "abc", jti: "verify-1", issuer: ISSUER },
     ]);
@@ -892,7 +900,8 @@ describe("stream verification", () => {
       })),
       subject: () => null,
     });
-    expect((await receiver.push(setRequest("set-verify-2"))).status).toBe(202);
+    const { status } = await receiver.push(setRequest("set-verify-2"));
+    expect(status).toBe(202);
   });
 
   it("answers 500 when the verification handler throws", async () => {
@@ -912,7 +921,8 @@ describe("stream verification", () => {
         },
       },
     });
-    expect((await receiver.push(setRequest("set-verify-3"))).status).toBe(500);
+    const { status } = await receiver.push(setRequest("set-verify-3"));
+    expect(status).toBe(500);
   });
 
   it("answers 500 to a logout whose handler throws", async () => {
@@ -934,8 +944,7 @@ describe("stream verification", () => {
         },
       },
     });
-    expect((await receiver.logout(logoutRequest("logout-fail"))).status).toBe(
-      500,
-    );
+    const { status } = await receiver.logout(logoutRequest("logout-fail"));
+    expect(status).toBe(500);
   });
 });

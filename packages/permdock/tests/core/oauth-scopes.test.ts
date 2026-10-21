@@ -357,7 +357,8 @@ describe("oauthScopes", () => {
       );
     }
     expect(loads).toBe(0);
-    expect((await get("POST", "/exports")).ok).toBe(true);
+    const { ok } = await get("POST", "/exports");
+    expect(ok).toBe(true);
     expect(
       (await get("GET", "/exports/e1", { oauthScopes: ["mcp:write"] })).ok,
     ).toBe(true);
@@ -421,7 +422,8 @@ describe("oauthScopes", () => {
       expect(allowed.permdock.subject.principal?.id).toBe("u1");
     }
     token = { principal: { id: "u1", roles: ["member"] }, context: {} };
-    expect((await send("/chat")).ok).toBe(true);
+    const { ok } = await send("/chat");
+    expect(ok).toBe(true);
     token = null;
     const anonymous = await send("/chat");
     expect(anonymous.ok).toBe(false);
@@ -485,7 +487,8 @@ describe("oauthScopes", () => {
           headers: { authorization: "Bearer t" },
         }),
       );
-    expect((await head("/status")).ok).toBe(true);
+    const { ok } = await head("/status");
+    expect(ok).toBe(true);
     const refused = await head("/chats/c1");
     expect(refused.ok).toBe(false);
     if (!refused.ok) {

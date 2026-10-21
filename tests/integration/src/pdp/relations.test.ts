@@ -84,9 +84,8 @@ function scenarios(
   describe(name, () => {
     it("decides one row with check", async () => {
       const anne = await getPermDock(policyFor(provider()), { id: "anne" });
-      expect((await anne.decide(permissions.doc.read, docs[0])).outcome).toBe(
-        "granted",
-      );
+      const { outcome } = await anne.decide(permissions.doc.read, docs[0]);
+      expect(outcome).toBe("granted");
       expect((await anne.decide(permissions.doc.read, docs[3])).outcome).toBe(
         "denied",
       );
@@ -121,9 +120,8 @@ function scenarios(
     it("denies after the relation is removed", async () => {
       await revoke();
       const anne = await getPermDock(policyFor(provider()), { id: "anne" });
-      expect((await anne.decide(permissions.doc.read, docs[0])).outcome).toBe(
-        "denied",
-      );
+      const { outcome } = await anne.decide(permissions.doc.read, docs[0]);
+      expect(outcome).toBe("denied");
       expect(
         (await anne.filter(permissions.doc.read, docs)).map((row) => row.id),
       ).toStrictEqual(["d2", "d3"]);

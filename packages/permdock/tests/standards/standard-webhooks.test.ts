@@ -82,7 +82,8 @@ describe("Standard Webhooks", () => {
       headers: headersOf(),
       body: vector.body,
     });
-    expect((await verifier.verify(request)).ok).toBe(true);
+    const { ok } = await verifier.verify(request);
+    expect(ok).toBe(true);
   });
 
   it("rejects a delivery outside the tolerance either way", async () => {
@@ -174,14 +175,11 @@ describe("Standard Webhooks", () => {
       now: at(0),
     });
     const other = `v1,${btoa("x".repeat(32))}`;
-    expect(
-      (
-        await verifier.verify({
-          headers: headersOf(`v2,abc ${other} ${vector.signature}`),
-          body: vector.body,
-        })
-      ).ok,
-    ).toBe(true);
+    const { ok } = await verifier.verify({
+      headers: headersOf(`v2,abc ${other} ${vector.signature}`),
+      body: vector.body,
+    });
+    expect(ok).toBe(true);
   });
 
   it.each([

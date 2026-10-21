@@ -107,9 +107,11 @@ describe("consent", () => {
 
     it("asks nothing for a dry run, or outside agent mode", async () => {
       const cwd = project();
-      expect(
-        (await run(["codemod", "0.5", "--dry-run"], { cwd, io: io() })).code,
-      ).toBe(0);
+      const { code } = await run(["codemod", "0.5", "--dry-run"], {
+        cwd,
+        io: io(),
+      });
+      expect(code).toBe(0);
       expect(
         (await run(["codemod", "0.5", "--agent", "no"], { cwd, io: io() }))
           .code,

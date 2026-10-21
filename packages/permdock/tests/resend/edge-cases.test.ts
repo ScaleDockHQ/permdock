@@ -238,7 +238,8 @@ describe("resendWebhook edge cases", () => {
       replay,
     });
     const body = JSON.stringify(delivered);
-    expect((await handler(await signed(body, "msg_once"))).status).toBe(200);
+    const { status } = await handler(await signed(body, "msg_once"));
+    expect(status).toBe(200);
     expect((await handler(await signed(body, "msg_once"))).status).toBe(200);
     expect(sink.events()).toHaveLength(1);
     expect([...remembered.keys()]).toStrictEqual(["resend:msg_once"]);

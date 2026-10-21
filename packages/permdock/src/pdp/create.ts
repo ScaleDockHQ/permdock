@@ -227,7 +227,8 @@ function wrap<V extends PolicyVocabulary>(
     options?: DecideOptions,
   ): Promise<boolean> => {
     try {
-      return (await decide(permission, data, options)).outcome === "granted";
+      const { outcome } = await decide(permission, data, options);
+      return outcome === "granted";
     } catch {
       return false;
     }

@@ -109,9 +109,14 @@ describe("config", () => {
       const plain = await run(["config", "--cwd", cwd]);
       expect(plain.code).toBe(0);
       expect(plain.stdout).toContain("permdock.config.ts: 1 warning");
-      expect(
-        (await run(["config", "--fail-on", "warning", "--cwd", cwd])).code,
-      ).toBe(1);
+      const { code } = await run([
+        "config",
+        "--fail-on",
+        "warning",
+        "--cwd",
+        cwd,
+      ]);
+      expect(code).toBe(1);
     });
 
     it("reads the file --config names", async () => {
@@ -133,14 +138,14 @@ describe("config", () => {
         "permdock.config.mjs":
           "export default { policy: './src/policy.ts' };\n",
       });
-      expect((await run(["config", "--cwd", clean])).stdout).toBe(
-        "permdock.config.mjs: ok\n",
-      );
+      const { stdout } = await run(["config", "--cwd", clean]);
+      expect(stdout).toBe("permdock.config.mjs: ok\n");
     });
 
     it("reports no config file", async () => {
       const empty = project({});
-      expect((await run(["config", "--cwd", empty])).stdout).toBe(
+      const { stdout } = await run(["config", "--cwd", empty]);
+      expect(stdout).toBe(
         "no permdock.config file; every option takes its default\n",
       );
     });

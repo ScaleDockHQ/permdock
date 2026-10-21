@@ -38,8 +38,7 @@ export const collect: Leaf = defineLeaf({
         );
       }
       // Lazy: the watcher loads only when this command runs, not for --help.
-      const { watchCollect } = await import("../watch.ts");
-      return watchCollect(ctx, overrides);
+      return (await import("../watch.ts")).watchCollect(ctx, overrides);
     }
     // Lazy: the implementation loads only when this command runs, not for --help.
     const result = await (

@@ -87,8 +87,7 @@ export const pull: Leaf = defineLeaf({
       "PERMDOCK_CLOUD_TOKEN",
     );
     // Lazy: the implementation loads only when this command runs, not for --help.
-    const { runCloudPull } = await import("../cloud/pull.ts");
-    return runCloudPull({
+    return (await import("../cloud/pull.ts")).runCloudPull({
       cwd: ctx.cwd,
       config: ctx.config,
       url: given(flags.url),

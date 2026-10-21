@@ -135,9 +135,8 @@ describe("supabase inspect", () => {
         join(cwd, "supabase/config.toml"),
         "[auth]\njwt_expiry = 900\n",
       );
-      expect((await run(["supabase", "inspect"], { cwd })).stdout).toContain(
-        "jwt_exp 900",
-      );
+      const { stdout } = await run(["supabase", "inspect"], { cwd });
+      expect(stdout).toContain("jwt_exp 900");
     });
 
     it("lists the membership sources, the rls helpers and the deciding columns", async () => {
@@ -581,7 +580,8 @@ describe("supabase inspect", () => {
       const inspect = await run(["supabase", "inspect", "--json"], { cwd });
       expect(written).toStrictEqual(jsonData(inspect.stdout));
       writeFileSync(path, JSON.stringify(written));
-      expect((await run([...out, "--check"], { cwd })).code).toBe(0);
+      const { code } = await run([...out, "--check"], { cwd });
+      expect(code).toBe(0);
       writeFileSync(
         path,
         JSON.stringify(

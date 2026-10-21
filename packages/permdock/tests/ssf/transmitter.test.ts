@@ -385,7 +385,8 @@ describe(setPollHandler, () => {
         throw new Error("down");
       },
     });
-    expect((await throwing(poll({}))).status).toBe(401);
+    const { status } = await throwing(poll({}));
+    expect(status).toBe(401);
     expect(
       (
         await handler(

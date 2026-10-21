@@ -92,7 +92,8 @@ describe("cloud push invalid", () => {
   readPost: { name: 'readPost', permission: ${leaf("post.read")}, results: ${leaf("ghost.list")}, meta: {} },
 };
 `;
-      expect((await failure(true, one)).message).toBe(
+      const { message } = await failure(true, one);
+      expect(message).toBe(
         [
           "permdock cloud push: the catalog has 1 issue",
           "  operations.0.results: operation 'readPost' results 'ghost.list' is not a declared permission key",
@@ -115,7 +116,8 @@ describe("cloud push invalid", () => {
     });
 
     it("refuses a real push before any request", async () => {
-      expect((await failure(false)).code).toBe("catalog_invalid");
+      const { code } = await failure(false);
+      expect(code).toBe("catalog_invalid");
       expect(fetchSpy).not.toHaveBeenCalled();
     });
   });

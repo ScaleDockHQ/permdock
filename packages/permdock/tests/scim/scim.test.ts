@@ -839,13 +839,10 @@ describe(scimHandler, () => {
         }),
       ),
     );
-    expect(
-      (
-        await handle(
-          request(`/Users/${String(first["id"])}`, { method: "DELETE" }),
-        )
-      ).status,
-    ).toBe(204);
+    const { status } = await handle(
+      request(`/Users/${String(first["id"])}`, { method: "DELETE" }),
+    );
+    expect(status).toBe(204);
     expect(
       (
         await handle(

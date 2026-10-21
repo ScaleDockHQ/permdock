@@ -280,7 +280,8 @@ describe("access reviews", () => {
           : inTenant("ann", ["owner"]),
     });
     const base = "https://api.example.com/access-reviews/round";
-    expect((await handler(new Request(base))).status).toBe(200);
+    const { status } = await handler(new Request(base));
+    expect(status).toBe(200);
     expect((await handler(new Request(`${base}/items`))).status).toBe(200);
     expect(
       (

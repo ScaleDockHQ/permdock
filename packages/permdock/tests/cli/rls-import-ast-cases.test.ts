@@ -138,17 +138,15 @@ describe("conditionFromAst comparisons", () => {
   });
 
   it("treats an empty expression as always true", async () => {
-    expect((await condition("  ")).mapped).toStrictEqual({
-      op: "eq",
-      field: "_",
-      value: true,
-    });
+    const { mapped } = await condition("  ");
+    expect(mapped).toStrictEqual({ op: "eq", field: "_", value: true });
   });
 });
 
 describe("conditionFromAst compounds", () => {
   it("maps not and keeps an unmappable branch opaque", async () => {
-    expect((await condition('not ("a" = 1)')).mapped).toStrictEqual({
+    const { mapped } = await condition('not ("a" = 1)');
+    expect(mapped).toStrictEqual({
       op: "not",
       condition: { op: "eq", field: "a", value: 1 },
     });
@@ -178,13 +176,10 @@ describe("conditionFromAst functions", () => {
   });
 
   it("matches a schema-qualified call by its full or its short name", async () => {
-    expect(
-      (
-        await condition("app.job_permitted()", {
-          functions: { "app.job_permitted": { twin } },
-        })
-      ).mapped,
-    ).toStrictEqual({
+    const { mapped } = await condition("app.job_permitted()", {
+      functions: { "app.job_permitted": { twin } },
+    });
+    expect(mapped).toStrictEqual({
       op: "sqlFunction",
       name: "app.job_permitted",
       args: [],
@@ -263,9 +258,8 @@ describe("conditionFromAst memberships and helpers", () => {
       { op: "memberOf", scope: "team", field: "team_id", roles: [] },
     ],
   ])("maps %s", async (sql, expected) => {
-    expect(
-      (await condition(sql, { memberships: scoped })).mapped,
-    ).toStrictEqual(expected);
+    const { mapped } = await condition(sql, { memberships: scoped });
+    expect(mapped).toStrictEqual(expected);
   });
 
   it.each([
@@ -291,9 +285,8 @@ describe("conditionFromAst memberships and helpers", () => {
       '"org_id" in (select user_id from org_members where user_id = auth.uid())',
     ],
   ])("keeps a membership subquery with %s opaque", async (_label, sql) => {
-    expect(
-      (await condition(sql, { memberships: scoped })).mapped,
-    ).toMatchObject({ op: "opaque" });
+    const { mapped } = await condition(sql, { memberships: scoped });
+    expect(mapped).toMatchObject({ op: "opaque" });
   });
 
   it("records the table of an unknown membership subquery as a join", async () => {
@@ -319,7 +312,8 @@ describe("conditionFromAst memberships and helpers", () => {
     "\"x\" in (select permitted_team_ids('a', 'b'))",
     "permdock_has(1)",
   ])("keeps %s opaque", async (sql) => {
-    expect((await condition(sql)).mapped).toMatchObject({ op: "opaque" });
+    const { mapped } = await condition(sql);
+    expect(mapped).toMatchObject({ op: "opaque" });
   });
 
   it("maps helper calls with the seeded roles", async () => {
@@ -339,14 +333,11 @@ describe("conditionFromAst memberships and helpers", () => {
         effect: "allow",
       },
     ];
-    expect(
-      (
-        await condition(
-          "\"team_id\" in (select permitted_team_ids('doc.read'))",
-          { seeds },
-        )
-      ).mapped,
-    ).toStrictEqual({
+    const { mapped } = await condition(
+      "\"team_id\" in (select permitted_team_ids('doc.read'))",
+      { seeds },
+    );
+    expect(mapped).toStrictEqual({
       op: "memberOf",
       scope: "team",
       field: "team_id",
@@ -540,7 +531,8 @@ describe("legacy parser shapes", () => {
         },
       }),
     );
-    expect((await condition("legacy")).mapped).toStrictEqual({
+    const { mapped } = await condition("legacy");
+    expect(mapped).toStrictEqual({
       op: "and",
       conditions: [
         { op: "eq", field: "a", value: "x" },
@@ -592,7 +584,8 @@ describe("legacy parser shapes", () => {
         }),
       ),
     );
-    expect((await condition("legacy", { memberships })).mapped).toStrictEqual({
+    const { mapped } = await condition("legacy", { memberships });
+    expect(mapped).toStrictEqual({
       op: "memberOf",
       scope: "tenant",
       field: "org_id",
@@ -666,7 +659,8 @@ describe("legacy parser shapes", () => {
         },
       }),
     );
-    expect((await condition("legacy", { memberships })).mapped).toStrictEqual({
+    const { mapped } = await condition("legacy", { memberships });
+    expect(mapped).toStrictEqual({
       op: "and",
       conditions: [
         { op: "memberOf", scope: "tenant", field: "org", roles: [] },
@@ -721,7 +715,8 @@ describe("legacy parser shapes", () => {
     ],
   ])("keeps %s opaque", async (_label, where) => {
     nextParse(legacyWhere(where));
-    expect((await condition("legacy")).mapped).toMatchObject({ op: "opaque" });
+    const { mapped } = await condition("legacy");
+    expect(mapped).toMatchObject({ op: "opaque" });
   });
 
   it("reads a function name with an unreadable part as unmapped", async () => {

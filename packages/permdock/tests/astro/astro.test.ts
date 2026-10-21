@@ -90,7 +90,8 @@ describe("permdock/astro", () => {
       context.locals.permdock.assert(permissions.post.update, otherPost);
       return new Response("ok");
     });
-    expect((await GET(contextFor("/"))).status).toBe(403);
+    const { status } = await GET(contextFor("/"));
+    expect(status).toBe(403);
   });
 
   it("serves the decision endpoint, snapshots, instances and connections", async () => {

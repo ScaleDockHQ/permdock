@@ -171,7 +171,8 @@ export const policy = definePolicy(permissions, {
         }),
       ).rejects.toThrow("powersync verify --db-url-stdin could not connect");
       writeFileSync(join(cwd, "sync-config.yaml"), "streams: {}\n");
-      expect((await runPowerSync({ ...base, rest: ["verify"] })).output).toBe(
+      const { output } = await runPowerSync({ ...base, rest: ["verify"] });
+      expect(output).toBe(
         "sync-config.yaml differs from the policy: run permdock powersync generate",
       );
     });
@@ -330,9 +331,8 @@ export const policy = definePolicy(permissions, {
         powersync: {},
       };
       const base = { cwd, config, check: false };
-      expect(
-        (await runPowerSync({ ...base, rest: ["generate"] })).output,
-      ).toContain(
+      const { output } = await runPowerSync({ ...base, rest: ["generate"] });
+      expect(output).toContain(
         "add the tables outside public to the powersync publication: alter publication powersync add table permdock.custom_role_includes, permdock.custom_role_permissions, permdock.user_roles;",
       );
       const publication =

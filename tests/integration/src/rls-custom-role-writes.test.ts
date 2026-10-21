@@ -566,7 +566,8 @@ $$;`,
           [[AUDITOR, SYSTEM], tenant],
         ),
       );
-    expect((await read("acme")).rows).toStrictEqual([
+    const { rows } = await read("acme");
+    expect(rows).toStrictEqual([
       { role_id: AUDITOR, permission: "job.read" },
       { role_id: AUDITOR, permission: "job.update@own" },
     ]);

@@ -188,7 +188,8 @@ describe(supabaseApprovalStore, () => {
     );
     expect(await odd.expire()).toBe(0);
     expect(await odd.cancel?.({}, { by: "x", note: "n" })).toBe(0);
-    expect((await odd.list({})).items).toStrictEqual([]);
+    const { items } = await odd.list({});
+    expect(items).toStrictEqual([]);
   });
 
   it("generates the store closed to client roles", () => {

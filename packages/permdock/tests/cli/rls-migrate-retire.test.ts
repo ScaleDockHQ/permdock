@@ -256,7 +256,8 @@ export default {
         "supabase/migrations/20261001000000_legacy.sql": LEGACY,
         "supabase/migrations/20261001000001_cleanup.sql": CLEANUP,
       });
-      expect((await run([...ARGS], { cwd })).code).toBe(0);
+      const { code } = await run([...ARGS], { cwd });
+      expect(code).toBe(0);
       const json = await run([...ARGS, "--dry-run", "--json"], { cwd });
       // SAFETY: --json prints runRlsMigrate's MigrateReport.
       const report = jsonData(json.stdout) as MigrateReport;

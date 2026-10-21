@@ -84,9 +84,10 @@ describe("collect", () => {
         "src/throws.ts": "throw new Error('boom');\n",
         "src/value.ts": "export const permissions = 5;\n",
       });
-      expect(
-        (await collect(cwd, { permissions: "./src/throws.ts" })).message,
-      ).toBe("boom");
+      const { message } = await collect(cwd, {
+        permissions: "./src/throws.ts",
+      });
+      expect(message).toBe("boom");
       expect(
         (await collect(cwd, { permissions: "./src/value.ts" })).message,
       ).toBe("PermDock CLI: permissions export is not a permission tree");

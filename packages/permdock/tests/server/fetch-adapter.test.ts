@@ -102,7 +102,8 @@ describe(guardedRoute, () => {
       undefined,
     )(() => new Response("ok"));
 
-    expect((await guarded(eventFor("/p1"))).status).toBe(200);
+    const { status } = await guarded(eventFor("/p1"));
+    expect(status).toBe(200);
     expect((await guarded(eventFor("/p2"))).status).toBe(403);
     expect((await unloaded(eventFor("/"))).status).toBe(403);
   });
@@ -161,7 +162,8 @@ describe(instanceRoute, () => {
     )(() => {
       throw new Error("boom");
     });
-    expect((await denied(eventFor())).status).toBe(403);
+    const { status } = await denied(eventFor());
+    expect(status).toBe(403);
     await expect(boom(eventFor())).rejects.toThrow("boom");
   });
 

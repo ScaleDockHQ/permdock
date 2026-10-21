@@ -225,15 +225,12 @@ describe("resumeDecision edges", () => {
   });
 
   it("returns the decision unchanged for a foreign token without a store", async () => {
-    expect(
-      (
-        await resume({
-          decision: required("t1"),
-          store: undefined,
-          token: "other",
-        })
-      ).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await resume({
+      decision: required("t1"),
+      store: undefined,
+      token: "other",
+    });
+    expect(outcome).toBe("approval-required");
   });
 
   it.each<[string, Partial<ApprovalRequest>]>([
@@ -266,16 +263,13 @@ describe("resumeDecision edges", () => {
 
   it("does not consume when consume is false", async () => {
     const store = approved("t1");
-    expect(
-      (
-        await resume({
-          decision: required("t1"),
-          store,
-          token: "t1",
-          consume: false,
-        })
-      ).outcome,
-    ).toBe("granted");
+    const { outcome } = await resume({
+      decision: required("t1"),
+      store,
+      token: "t1",
+      consume: false,
+    });
+    expect(outcome).toBe("granted");
     expect((await store.get("t1"))?.consumedAt).toBeUndefined();
   });
 
@@ -308,15 +302,12 @@ describe("resumeDecision edges", () => {
       ...approved("t-old"),
       get: () => Promise.reject(new Error("down")),
     };
-    expect(
-      (
-        await resume({
-          decision: required("t-new", STALE_ON_CHANGE),
-          store: failing,
-          token: "t-old",
-        })
-      ).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await resume({
+      decision: required("t-new", STALE_ON_CHANGE),
+      store: failing,
+      token: "t-old",
+    });
+    expect(outcome).toBe("approval-required");
     const store = approved("t-old");
     expect(
       (

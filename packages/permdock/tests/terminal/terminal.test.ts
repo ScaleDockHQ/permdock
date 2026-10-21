@@ -198,7 +198,8 @@ describe("permdock/terminal", () => {
         },
       }),
     );
-    expect((await store.list({ status: "pending" })).items).toHaveLength(1);
+    const { items } = await store.list({ status: "pending" });
+    expect(items).toHaveLength(1);
   });
 
   it("never asks the requester to approve their own human approval", async () => {
@@ -241,7 +242,8 @@ describe("permdock/terminal", () => {
       () => ownPost,
     )(async ({ decision }) => decision.outcome);
     await expect(run()).rejects.toMatchObject({ code: 75 });
-    const [pending] = (await store.list({ status: "pending" })).items;
+    const { items } = await store.list({ status: "pending" });
+    const [pending] = items;
     if (pending === undefined) {
       throw new Error("expected a pending approval");
     }

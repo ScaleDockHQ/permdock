@@ -79,7 +79,8 @@ describe("cloud pull", () => {
   }> {
     const { cwd } = await generate(`{ memberships: [${SOURCES}] }`);
     const offline = io(reference, {});
-    expect((await run(["collect"], { cwd, io: offline })).code).toBe(0);
+    const { code } = await run(["collect"], { cwd, io: offline });
+    expect(code).toBe(0);
     expect(
       (await run(["supabase", "inspect", "--out"], { cwd, io: offline })).code,
     ).toBe(0);

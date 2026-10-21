@@ -30,8 +30,7 @@ export const codemod: Leaf = defineLeaf({
   },
   async run(ctx, { flags, args, rest }) {
     // Lazy: oxc-parser and the rename maps load only when this command runs, not for --help.
-    const { runCodemod } = await import("../codemod/codemod.ts");
-    return runCodemod({
+    return (await import("../codemod/codemod.ts")).runCodemod({
       cwd: ctx.cwd,
       version: args["version"],
       paths: rest,

@@ -259,9 +259,8 @@ export default {
     it("checks every part and names the one that drifted", async () => {
       const cwd = project();
       expect((await generate(cwd)).code).toBe(0);
-      expect((await generate(cwd, ["--check"])).stdout).toContain(
-        "rls generate up to date",
-      );
+      const { stdout } = await generate(cwd, ["--check"]);
+      expect(stdout).toContain("rls generate up to date");
       writeFileSync(join(cwd, GRANTS), "-- edited\n");
       rmSync(join(cwd, part("policies")));
       const drift = await generate(cwd, ["--check"]);
@@ -836,9 +835,8 @@ begin
       expect(hook.stderr).toContain(
         "a hand-written migration keeps its grants",
       );
-      expect(
-        (await run(["supabase", "hook", "generate"], { cwd })).stdout,
-      ).toContain("wrote supabase/permdock-hook.sql");
+      const { stdout } = await run(["supabase", "hook", "generate"], { cwd });
+      expect(stdout).toContain("wrote supabase/permdock-hook.sql");
     });
 
     it("refuses an unknown --schemas value", async () => {

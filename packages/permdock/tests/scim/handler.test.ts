@@ -142,7 +142,8 @@ describe("scimHandler routing and tenancy", () => {
     ["a short hash", () => "ab"],
   ])("refuses the token when the tenant has %s", async (_label, lookup) => {
     const { handle } = setup({ token: { hash: "sha256", lookup } });
-    expect((await handle(call("/Users"))).status).toBe(401);
+    const { status } = await handle(call("/Users"));
+    expect(status).toBe(401);
   });
 
   it("keeps a user's and a group's app data and drops what is not plain JSON", async () => {
@@ -189,7 +190,8 @@ describe("scimHandler routing and tenancy", () => {
       await acme.handle(call("/Users", { method: "POST", body: userBody() })),
     );
     const id = String(created["id"]);
-    expect((await other.handle(call(`/Users/${id}`))).status).toBe(404);
+    const { status } = await other.handle(call(`/Users/${id}`));
+    expect(status).toBe(404);
     expect(await json(await other.handle(call("/Users")))).toMatchObject({
       totalResults: 0,
     });
@@ -260,7 +262,8 @@ describe("scimHandler with a verifier", () => {
         undefined,
         false,
       );
-      return (await handle(call("/Users", { token: "jwt" }))).status;
+      const { status } = await handle(call("/Users", { token: "jwt" }));
+      return status;
     };
     expect([
       await statusFor({ org: { id: TENANT } }),
@@ -330,7 +333,8 @@ describe("scimHandler list and get", () => {
 
   it("ignores an empty filter", async () => {
     const { handle } = setup();
-    expect((await handle(call("/Users?filter="))).status).toBe(200);
+    const { status } = await handle(call("/Users?filter="));
+    expect(status).toBe(200);
   });
 
   it("lists, filters and gets groups", async () => {
@@ -687,9 +691,8 @@ describe("scimHandler writes", () => {
       members: [{ value: "u_1" }],
       meta: { created: "", lastModified: "" },
     });
-    expect(
-      (await handle(call("/Groups/g_1", { method: "DELETE" }))).status,
-    ).toBe(204);
+    const { status } = await handle(call("/Groups/g_1", { method: "DELETE" }));
+    expect(status).toBe(204);
     expect(revoked.map((event) => [event.principal, event.kind])).toStrictEqual(
       [
         ["u_1", "changed"],
@@ -776,9 +779,8 @@ describe("scimHandler writes", () => {
     );
     expect(created.status).toBe(201);
     const id = String((await json(created))["id"]);
-    expect(
-      (await handle(call(`/Users/${id}`, { method: "DELETE" }))).status,
-    ).toBe(204);
+    const { status } = await handle(call(`/Users/${id}`, { method: "DELETE" }));
+    expect(status).toBe(204);
   });
 
   it("looks up principal ids from the store and tolerates a failing read", async () => {

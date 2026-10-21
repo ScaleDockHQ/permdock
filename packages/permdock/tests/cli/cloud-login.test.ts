@@ -227,9 +227,11 @@ describe("cloud login", () => {
     it("reports the stored login's scopes and expiry", async () => {
       const reference = await referenceCloud(policy, CATALOG);
       const env = { XDG_CONFIG_HOME: configHome() };
-      expect(
-        (await run(["login"], { cwd: FIXTURE, io: io(reference, env) })).code,
-      ).toBe(0);
+      const { code } = await run(["login"], {
+        cwd: FIXTURE,
+        io: io(reference, env),
+      });
+      expect(code).toBe(0);
       const json = await run(["whoami", "--json"], {
         cwd: FIXTURE,
         io: io(reference, env),
@@ -252,9 +254,11 @@ describe("cloud login", () => {
     it("says when a login without a refresh token has expired", async () => {
       const reference = await referenceCloud(policy, CATALOG);
       const env = { XDG_CONFIG_HOME: configHome() };
-      expect(
-        (await run(["login"], { cwd: FIXTURE, io: io(reference, env) })).code,
-      ).toBe(0);
+      const { code } = await run(["login"], {
+        cwd: FIXTURE,
+        io: io(reference, env),
+      });
+      expect(code).toBe(0);
       const file = join(env.XDG_CONFIG_HOME, "permdock", "credentials.json");
       writeFileSync(
         file,

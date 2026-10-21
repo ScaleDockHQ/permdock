@@ -94,9 +94,12 @@ describe("the ApprovalPolicySource type", () => {
     const elsewhere = memoryApprovalPolicySource([
       { ...overLimit, tenant: "o2" },
     ]);
-    expect(
-      (await decide(elsewhere, permissions.expense.read, large)).outcome,
-    ).toBe("granted");
+    const { outcome } = await decide(
+      elsewhere,
+      permissions.expense.read,
+      large,
+    );
+    expect(outcome).toBe("granted");
     const agents = memoryApprovalPolicySource([
       { permission: "expense.read", actors: ["agent"], approval: "human" },
     ]);
@@ -216,9 +219,8 @@ describe("the ApprovalPolicySource type", () => {
       ]),
     ];
     for (const source of sources) {
-      expect(
-        (await decide(source, permissions.expense.read, small)).outcome,
-      ).toBe("denied");
+      const { outcome } = await decide(source, permissions.expense.read, small);
+      expect(outcome).toBe("denied");
     }
   });
 
@@ -232,14 +234,11 @@ describe("the ApprovalPolicySource type", () => {
         },
       ],
     };
-    expect(
-      (
-        await decide(source, permissions.expense.read, {
-          current: small,
-          next: large,
-        })
-      ).outcome,
-    ).toBe("approval-required");
+    const { outcome } = await decide(source, permissions.expense.read, {
+      current: small,
+      next: large,
+    });
+    expect(outcome).toBe("approval-required");
     expect(
       (await decide(source, permissions.expense.read, small)).outcome,
     ).toBe("granted");
@@ -290,9 +289,8 @@ describe("the ApprovalPolicySource type", () => {
     const source = memoryApprovalPolicySource([
       { permission: "expense.archive", approval: "human" },
     ]);
-    expect(
-      (await decide(source, permissions.expense.read, small)).outcome,
-    ).toBe("granted");
+    const { outcome } = await decide(source, permissions.expense.read, small);
+    expect(outcome).toBe("granted");
   });
 
   it("leaves a denial denied", async () => {
@@ -374,7 +372,8 @@ describe("the ApprovalPolicySource type", () => {
       expect(validateApprovalPolicy(ledgerPolicy, entry)).toStrictEqual({
         ok: true,
       });
-      expect((await decideCreate(entry)).outcome).toBe("approval-required");
+      const { outcome } = await decideCreate(entry);
+      expect(outcome).toBe("approval-required");
     });
 
     it("keeps where on an instance permission of the same resource", () => {

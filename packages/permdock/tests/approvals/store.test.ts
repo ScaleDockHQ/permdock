@@ -63,7 +63,8 @@ describe(memoryApprovalStore, () => {
     const store = memoryApprovalStore();
     void store.create(pending());
     expect((await store.get("pd1.token-1"))?.status).toBe("pending");
-    expect((await store.list({ status: "pending" })).items).toHaveLength(1);
+    const { items } = await store.list({ status: "pending" });
+    expect(items).toHaveLength(1);
     expect((await store.list({ tenant: "o_1" })).items).toHaveLength(1);
     expect((await store.list({ tenant: "o_other" })).items).toHaveLength(0);
     expect((await store.list({ principalId: "u_1" })).items).toHaveLength(1);
@@ -97,7 +98,8 @@ describe(memoryApprovalStore, () => {
     });
     void store.create(pending({ detail: "asked again" }));
     expect((await store.get("pd1.token-1"))?.status).toBe("approved");
-    expect((await store.list({ status: "pending" })).items).toHaveLength(0);
+    const { items } = await store.list({ status: "pending" });
+    expect(items).toHaveLength(0);
   });
 
   it("replaces an expired request on a new ask", async () => {
@@ -217,7 +219,8 @@ describe("request and resume helpers", () => {
     expect(resumed.ok).toBe(true);
 
     expect(readApprovalHeader(new Headers())).toBeUndefined();
-    expect((await resumeFromHeader(store, new Headers())).ok).toBe(false);
+    const { ok } = await resumeFromHeader(store, new Headers());
+    expect(ok).toBe(false);
     expect((await inspectApproval(store, "missing")).ok).toBe(false);
   });
 
@@ -253,7 +256,8 @@ describe("request and resume helpers", () => {
         by: { principal: null, context: {} },
       }),
     ).toThrow("approver must be authenticated");
-    expect((await store.list({ status: "approved" })).items).toHaveLength(0);
+    const { items } = await store.list({ status: "approved" });
+    expect(items).toHaveLength(0);
 
     void store.create(pending({ token: "pd1.gone", status: "expired" }));
     expect(await inspectApproval(store, "pd1.gone")).toStrictEqual({
@@ -523,13 +527,10 @@ describe(approvalsHandler, () => {
 
   it("maps auth, tenancy and conflict failures to Problem Details", async () => {
     const anonymous = handler(memoryApprovalStore(), { anonymous: true });
-    expect(
-      (
-        await anonymous.fetch(
-          new Request("https://api.example.com/permdock/approvals/pending"),
-        )
-      ).status,
-    ).toBe(401);
+    const { status } = await anonymous.fetch(
+      new Request("https://api.example.com/permdock/approvals/pending"),
+    );
+    expect(status).toBe(401);
 
     const thrown = handler(memoryApprovalStore(), { throwSubject: true });
     expect(

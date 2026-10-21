@@ -143,14 +143,11 @@ describe(subjectFromCiOidc, () => {
   });
 
   it("is anonymous without a token or an audience, and never throws", async () => {
-    expect(
-      (
-        await subjectFromCiOidc(undefined, {
-          provider: "github",
-          audience: AUDIENCE,
-        })
-      ).principal,
-    ).toBeNull();
+    const { principal } = await subjectFromCiOidc(undefined, {
+      provider: "github",
+      audience: AUDIENCE,
+    });
+    expect(principal).toBeNull();
     const token = await ciToken("https://token.actions.githubusercontent.com", {
       sub: "repo:acme/api",
     });
