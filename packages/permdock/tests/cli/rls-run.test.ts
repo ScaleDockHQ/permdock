@@ -531,7 +531,7 @@ describe("runRls migrate", () => {
     [
       { migrate: { helpers: {} } },
       { sql: "migrations", fields: "columns" },
-      "rls generate --fields must be views (got columns)",
+      "rls generate --fields must be views or mask (got columns)",
     ],
   ])("refuses rls %j with %j", async (rls, flags, output) => {
     expect(
@@ -670,7 +670,7 @@ describe("runRls verify --introspect", () => {
     ],
     [
       { db: "postgres://fake", fields: "columns" },
-      "rls generate --fields must be views (got columns)",
+      "rls generate --fields must be views or mask (got columns)",
     ],
   ])("refuses %j", async (flags, output) => {
     expect(

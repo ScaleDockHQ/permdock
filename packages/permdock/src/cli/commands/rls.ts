@@ -96,7 +96,11 @@ const shapeFlags = {
     type: "boolean",
     description: "Emit the link capability helpers",
   },
-  fields: { type: "enum", options: ["views"], description: "Field security" },
+  fields: {
+    type: "enum",
+    options: ["views", "mask"],
+    description: "Field security",
+  },
   "revoke-columns": {
     type: "boolean",
     description: "Revoke restricted columns on the table",

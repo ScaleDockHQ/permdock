@@ -53,13 +53,20 @@ function read(over: Partial<CompiledBranch> = {}): CompiledBranch {
 function views(
   branches: readonly CompiledBranch[],
   revokeColumns = false,
+  options: { readonly helpersOnly?: boolean; readonly mask?: boolean } = {},
 ): {
   readonly views: ReturnType<typeof fieldViews>;
   readonly warnings: string[];
 } {
   const warnings: string[] = [];
   return {
-    views: fieldViews(policy, ctx, branches, { revokeColumns }, warnings),
+    views: fieldViews(
+      policy,
+      ctx,
+      branches,
+      { revokeColumns, ...options },
+      warnings,
+    ),
     warnings,
   };
 }
@@ -176,5 +183,29 @@ describe("fieldViews skips and warnings", () => {
     expect(() =>
       views([read({ table: "blob", resource: "blob", fields: ["id"] })]),
     ).toThrow("--fields views needs the blob schema's JSON Schema");
+    expect(() =>
+      views(
+        [read({ table: "blob", resource: "blob", fields: ["id"] })],
+        false,
+        {
+          mask: true,
+        },
+      ),
+    ).toThrow("--fields mask needs the blob schema's JSON Schema");
+  });
+
+  it("tells helpersOnly users to revoke the hidden columns in their own grants", () => {
+    const result = views(
+      [read({ fields: ["id", "title"], using: "a" })],
+      false,
+      {
+        helpersOnly: true,
+        mask: true,
+      },
+    );
+    expect(result.warnings).toEqual([
+      "field view doc_visible: doc still returns body, secret to direct reads; revoke select on those columns from client roles in your own grants, or read them through a function",
+    ]);
+    expect(result.views[0]?.maskFunction).toBe("permdock.doc_mask");
   });
 });

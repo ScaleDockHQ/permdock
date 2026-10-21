@@ -77,7 +77,7 @@ export function isRefusal(value: object): value is Refusal {
 }
 
 export type GenerateOptions = {
-  readonly fieldsMode: "views" | undefined;
+  readonly fieldsMode: "views" | "mask" | undefined;
   readonly revokeColumns: boolean;
 };
 
@@ -87,15 +87,21 @@ export function generateOptions(
 ): GenerateOptions | Refusal {
   const rls = input.config.rls;
   const fieldsMode = input.fields ?? rls?.fields;
-  if (fieldsMode !== undefined && fieldsMode !== "views") {
+  if (
+    fieldsMode !== undefined &&
+    fieldsMode !== "views" &&
+    fieldsMode !== "mask"
+  ) {
     return {
-      refusal: `rls generate --fields must be views (got ${fieldsMode})`,
+      refusal: `rls generate --fields must be views or mask (got ${fieldsMode})`,
     };
   }
   const revokeColumns =
     input.revokeColumns === true || rls?.revokeColumns === true;
   if (revokeColumns && fieldsMode === undefined) {
-    return { refusal: "rls generate --revoke-columns needs --fields views" };
+    return {
+      refusal: "rls generate --revoke-columns needs --fields views or mask",
+    };
   }
   return { fieldsMode, revokeColumns };
 }

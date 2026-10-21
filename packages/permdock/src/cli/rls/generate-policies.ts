@@ -136,7 +136,7 @@ export function generatePolicies(
           policy,
           ctx,
           compiled.branches,
-          { revokeColumns, helpersOnly },
+          { revokeColumns, helpersOnly, mask: fieldsMode === "mask" },
           warnings,
         );
   const force = input.force === true || rls?.force === true;
