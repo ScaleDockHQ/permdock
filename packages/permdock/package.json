@@ -1,6 +1,6 @@
 {
   "name": "permdock",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Typed permissions for TypeScript apps, APIs, databases, and AI agents, with the permdock CLI and test runners.",
   "keywords": [
     "ai-agents",
