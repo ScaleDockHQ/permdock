@@ -13,6 +13,7 @@ import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type { TenantScope } from "../server/create.ts";
 import type { OpenApiHooks } from "../server/server-types.ts";
 import type { StreamProtectOptions } from "../server/stream.ts";
+import type { OperationsRouterOf } from "./operations.ts";
 
 import {
   compact,
@@ -27,6 +28,7 @@ import {
   isAsyncIterable,
   reloadAfter,
 } from "../server/kit.ts";
+import { operationsRouterOf } from "./operations.ts";
 
 export type OrpcMiddlewareOpts<
   TCtx extends object = object,
@@ -78,7 +80,19 @@ export type OrpcOpenApiHooks<
     readonly security: readonly Record<string, readonly string[]>[];
     readonly "x-permdock-permissions": readonly string[];
   };
+  /**
+   * `security` as the merge function oRPC 2's `openapi({ spec })` takes, with
+   * mutable arrays so it type-checks against oRPC's `OperationObject`.
+   */
+  readonly spec: (
+    permission: Permission,
+  ) => <TSpec extends object>(current: TSpec) => TSpec & OrpcSecuritySpec;
   readonly securitySchemes: OpenApiHooks["securitySchemes"];
+};
+
+export type OrpcSecuritySpec = {
+  security: Record<string, string[]>[];
+  "x-permdock-permissions": string[];
 };
 
 export type OrpcPermDock<
@@ -105,6 +119,12 @@ export type OrpcPermDock<
   ) => Promise<Connection>;
   readonly permdockHandler: () => (request: Request) => Promise<Response>;
   readonly openapi: OrpcOpenApiHooks<TCtx, V>;
+  /**
+   * One procedure per `defineOperations` entry, guarded by the operation's
+   * permission and `data` loader; `meta` attaches oRPC meta such as
+   * `openapi()`.
+   */
+  readonly operationsRouter: OperationsRouterOf<TCtx, V>;
 };
 
 function toOpts<TCtx extends object>(
@@ -415,6 +435,21 @@ export function createPermDock<
   const openapi: OrpcOpenApiHooks<TCtx, V> = {
     protect,
     security: kernelOpenApi.security,
+    spec: (permission) => {
+      const fragment = kernelOpenApi.security(permission);
+      return (current) => ({
+        ...current,
+        security: fragment.security.map((requirement) =>
+          Object.fromEntries(
+            Object.entries(requirement).map(([scheme, scopes]) => [
+              scheme,
+              [...scopes],
+            ]),
+          ),
+        ),
+        "x-permdock-permissions": [...fragment["x-permdock-permissions"]],
+      });
+    },
     securitySchemes: kernelOpenApi.securitySchemes,
   };
 
@@ -425,5 +460,6 @@ export function createPermDock<
     connection,
     permdockHandler: () => handler,
     openapi,
+    operationsRouter: operationsRouterOf({ middleware, protect }),
   };
 }
