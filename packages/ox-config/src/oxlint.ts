@@ -239,11 +239,11 @@ export const core: OxlintConfig = defineConfig({
     // Lazy `import()` loaders, optional reads, called members and repeated
     // names in one test read worse through a temporary (718 findings).
     "unicorn/no-await-expression-member": "off",
-    // Node 24 and ES2025 targets: native syntax, never down-levelled (2369 findings).
+    // Node 24 and ES2025 targets: native syntax, never down-levelled (6619 findings).
     "oxc/no-async-await": "off",
-    // Node 24 and ES2025 targets: native syntax, never down-levelled (1802 findings).
+    // Node 24 and ES2025 targets: native syntax, never down-levelled (4082 findings).
     "oxc/no-optional-chaining": "off",
-    // Node 24 and ES2025 targets: native syntax, never down-levelled (826 findings).
+    // Node 24 and ES2025 targets: native syntax, never down-levelled (3119 findings).
     "oxc/no-rest-spread-properties": "off",
     "anti-slop/no-module-mocking": "error",
     "anti-slop/no-reflect-apply": "error",
@@ -262,7 +262,7 @@ export const core: OxlintConfig = defineConfig({
     "anti-slop/no-unknown-returns": "off",
     // `Record<string, unknown>` is the JSON boundary type; noUncheckedIndexedAccess guards reads (547 findings).
     "anti-slop/no-unsafe-dictionary-type": "off",
-    // exactOptionalPropertyTypes forbids `key: undefined`; the conditional spread omits the key (177 findings).
+    // exactOptionalPropertyTypes forbids `key: undefined`; the conditional spread omits the key (649 findings).
     "anti-slop/no-conditional-empty-object-spread": "off",
     // Explicit return and wire types (isolatedDeclarations on exports) are the contract by design (567 findings).
     "anti-slop/no-known-value-widening": "off",
@@ -332,7 +332,7 @@ export const library: OxlintConfig = defineConfig({
     "unicorn/no-useless-undefined": "off",
     // Modules read top-down from the export; helpers are hoisted below it (263 findings).
     "eslint/no-use-before-define": "off",
-    // Request, Response and framework contexts are never deeply readonly (1531 findings).
+    // Request, Response and framework contexts are never deeply readonly (3516 findings).
     "typescript/prefer-readonly-parameter-types": "off",
     // Fail-closed guards check untyped runtime input that the static types call impossible (116 findings).
     "typescript/no-unnecessary-condition": "off",
@@ -348,7 +348,7 @@ export const library: OxlintConfig = defineConfig({
     "typescript/no-unnecessary-type-parameters": "off",
     // `=== true` keeps fail-closed checks explicit on boolean-ish results (15 findings).
     "typescript/no-unnecessary-boolean-literal-compare": "off",
-    // Sources and sinks pass promises through without an extra microtask (249 findings).
+    // Sources and sinks pass promises through without an extra microtask (269 findings).
     "typescript/promise-function-async": "off",
     // One concept per file; past 1,000 code lines a module splits by concern.
     "eslint/max-lines": [
@@ -405,7 +405,7 @@ export const test: OxlintConfig = defineConfig({
   rules: {
     // Test helpers are local; inference is enough (430 findings).
     "typescript/explicit-function-return-type": "off",
-    // Test doubles mutate their inputs on purpose (1142 findings).
+    // Test doubles mutate their inputs on purpose (2611 findings).
     "typescript/prefer-readonly-parameter-types": "off",
     // Type tests probe the empty context on purpose (1 finding).
     "typescript/no-generated-empty-object-type": "off",
@@ -447,15 +447,15 @@ export const test: OxlintConfig = defineConfig({
     "typescript/require-await": "off",
     // Async callbacks match the interface under test (214 findings).
     "eslint/require-await": "off",
-    // Test doubles return promises without async (217 findings).
+    // Test doubles return promises without async (704 findings).
     "typescript/promise-function-async": "off",
     // Arrow shorthand returns void calls in callbacks (9 findings).
     "typescript/no-confusing-void-expression": "off",
     // `void` marks deliberately ignored promises (15 findings).
     "eslint/no-void": "off",
-    // Ordered steps model sequential requests and pages (158 findings).
+    // Ordered steps model sequential requests and pages (441 findings).
     "eslint/no-await-in-loop": "off",
-    // Case-local helpers stay next to the assertions that use them (38 findings).
+    // Case-local helpers stay next to the assertions that use them (286 findings).
     "unicorn/consistent-function-scoping": "off",
     // Test files never import each other, so a focused or skipped case is always a mistake.
     "vitest/no-focused-tests": "error",
@@ -673,7 +673,7 @@ export const react: OxlintConfig = defineConfig({
     "typescript/explicit-module-boundary-types": "off",
     // Pages, layouts and configs are default exports (91 findings).
     "import/no-default-export": "off",
-    // Framework props are not deeply readonly (215 findings).
+    // Framework props are not deeply readonly (366 findings).
     "typescript/prefer-readonly-parameter-types": "off",
     // CSS entries and `reflect-metadata` are side-effect imports (4 findings).
     "import/no-unassigned-import": "off",
