@@ -99,6 +99,7 @@ async function register(mutation?: ReferenceCloudMutation): Promise<void> {
         project: reference.platform.unpublished,
         token: reference.platform.login,
       },
+      projectsOnly: reference.platform.projectsOnly,
       registration: true,
     },
   });
@@ -124,6 +125,8 @@ const MUTATIONS: readonly (readonly [ReferenceCloudMutation, RegExp])[] = [
   ["catalog-always-new", /answers unchanged/u],
   ["no-ratelimit", /RateLimit fields/u],
   ["token-writes", /read-only token/u],
+  ["no-challenge", /invalid_token|insufficient_scope/u],
+  ["no-openapi", /OpenAPI document|shapes cloud-api-v1.json documents/u],
   [
     "policy-404-plain",
     /policy-not-published|shapes cloud-api-v1.json documents/u,

@@ -60,6 +60,14 @@ const TOO_MANY = problem("Rate limited; retry after Retry-After seconds", {
   },
 });
 
+/** The RFC 6750 section 3 challenge a refused read carries, so a client tells a dead token from a missing scope. */
+const challenge = (example: string): Node => ({
+  "WWW-Authenticate": {
+    description: `RFC 6750 Bearer challenge (\`${example}\`)`,
+    schema: { type: "string" },
+  },
+});
+
 const READ_SECURITY = (scope: string): readonly Node[] => [
   { platform: [scope] },
   { cloudToken: [] },
@@ -75,9 +83,15 @@ const read = (
     summary,
     responses: {
       ...responses,
-      "401": problem("Missing, expired or revoked token"),
+      "401": problem(
+        'Missing, expired or revoked token; a refused token carries `error="invalid_token"`',
+        challenge('Bearer realm="permdock", error="invalid_token"'),
+      ),
       "403": problem(
-        "The token may not read this project; a PERMDOCK_CLOUD_TOKEN reads only its own environment",
+        `The token lacks ${scope} (\`error="insufficient_scope"\` with \`scope\`), or may not read this project; a PERMDOCK_CLOUD_TOKEN reads only its own environment`,
+        challenge(
+          `Bearer realm="permdock", error="insufficient_scope", scope="${scope}"`,
+        ),
       ),
       "429": TOO_MANY,
     },
@@ -217,6 +231,19 @@ export const PLATFORM_PATHS: Readonly<Record<string, Node>> = {
         "RFC 8414 metadata of the platform issuer. For the issuer https://permdock.com/api it is served at https://permdock.com/.well-known/oauth-authorization-server/api (section 3.1) and here.",
       responses: {
         "200": oauthJson("The metadata", ref("AuthorizationServerMetadata")),
+      },
+    },
+  },
+  "/openapi.json": {
+    get: {
+      security: [],
+      summary:
+        "This document, the contract of https://permdock.com/api. permdock/schemas/cloud-api-v1.json ships the same document in the npm package.",
+      responses: {
+        "200": oauthJson("The OpenAPI 3.1 document", {
+          type: "object",
+          required: ["openapi", "paths"],
+        }),
       },
     },
   },
@@ -383,16 +410,26 @@ export const PLATFORM_PATHS: Readonly<Record<string, Node>> = {
       },
     },
   },
-  "/v1/projects": read("projects:read", "The projects the token reads", {
-    "200": limited("The projects", {
-      type: "object",
-      required: ["items"],
-      properties: {
-        items: { type: "array", items: ref("Project") },
-        next: { type: "string" },
+  "/v1/projects": {
+    parameters: [
+      {
+        name: "cursor",
+        in: "query",
+        description: "The `next` of the previous page",
+        schema: { type: "string" },
       },
+    ],
+    ...read("projects:read", "The projects the token reads", {
+      "200": limited("The projects", {
+        type: "object",
+        required: ["items"],
+        properties: {
+          items: { type: "array", items: ref("Project") },
+          next: { type: "string" },
+        },
+      }),
     }),
-  }),
+  },
   "/v1/projects/{id}": {
     parameters: [PROJECT_ID],
     ...read("projects:read", "One project", {

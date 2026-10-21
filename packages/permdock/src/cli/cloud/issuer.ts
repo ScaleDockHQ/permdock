@@ -1,12 +1,10 @@
 import type { TerminalRuntime } from "../../terminal/types.ts";
 
+import { CLOUD_BASE_URL as PLATFORM_ISSUER } from "../../cloud/base-url.ts";
 import {
   discoverAuthorizationServer,
   stringField,
 } from "../../terminal/device.ts";
-
-/** The PermDock Cloud platform issuer and API base. */
-const PLATFORM_ISSUER = "https://permdock.com/api";
 
 /** The public OAuth client the `permdock` binary registers as. */
 export const CLI_CLIENT_ID = "permdock-cli";

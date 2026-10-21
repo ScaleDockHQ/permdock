@@ -576,12 +576,16 @@
     "tenantFromPath"
   ],
   "./cloud": [
+    "CLOUD_BASE_URL",
+    "CloudAuthError",
     "approvalTokensOf",
     "cloud",
     "cloudApprovalWaiter",
     "cloudDeliveryTransport",
     "cloudEndpoints",
+    "cloudOAuth",
     "cloudSigner",
+    "isCloudAuthError",
     "parseCloudEvent",
     "resolveCloudEndpoints",
     "verifyWebhook"

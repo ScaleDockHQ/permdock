@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 
+import { bearerChallenge } from "../../cloud/challenge.ts";
 import { catalogFingerprint } from "../../core/catalog-fingerprint.ts";
 import { isRecord } from "../../core/compact.ts";
 import { discoverAuthorizationServer } from "../../terminal/device.ts";
@@ -15,6 +16,8 @@ export type TestCloudPlatformOptions = {
     readonly project: string;
     readonly token: string;
   };
+  /** A login token with `projects:read` and without `policy:read`; the `insufficient_scope` check is skipped without it. */
+  readonly projectsOnly?: string;
   /** Registers a test MCP client with RFC 7591; skipped unless true. */
   readonly registration?: boolean;
 };
@@ -43,6 +46,9 @@ function rateLimited(response: Response): boolean {
     rateLimitField(response.headers.get("ratelimit-policy"), ["q", "w"])
   );
 }
+
+const challengeOf = (response: Response) =>
+  bearerChallenge(response.headers.get("www-authenticate"));
 
 function problemType(response: Response, body: unknown): unknown {
   return (response.headers.get("content-type") ?? "").startsWith(
@@ -149,6 +155,44 @@ export function testCloudPlatform(
     expect(response.headers.get("content-type")).toMatch(
       /^application\/problem\+json/u,
     );
+  });
+
+  it('answers 401 with an error="invalid_token" challenge to an unknown token', async () => {
+    const response = await read(
+      "/v1/projects",
+      `unknown-${globalThis.crypto.randomUUID()}`,
+    );
+    expect(response.status).toBe(401);
+    expect(challengeOf(response)).toMatchObject({
+      scheme: "bearer",
+      params: { error: "invalid_token" },
+    });
+  });
+
+  it('answers 403 with an error="insufficient_scope" challenge naming the scope', async (context) => {
+    if (options.projectsOnly === undefined) {
+      context.skip();
+      return;
+    }
+    const response = await read(
+      `/v1/projects/${encodeURIComponent(project)}/policy`,
+      options.projectsOnly,
+    );
+    expect(response.status).toBe(403);
+    expect(challengeOf(response)).toMatchObject({
+      scheme: "bearer",
+      params: { error: "insufficient_scope", scope: "policy:read" },
+    });
+  });
+
+  it("serves its OpenAPI document at /openapi.json", async () => {
+    const response = await read("/openapi.json", null);
+    expect(response.status).toBe(200);
+    const body: unknown = await response.json();
+    expect(body).toMatchObject({
+      openapi: expect.stringMatching(/^3\.[1-9]\d*\./u),
+      paths: expect.objectContaining({ "/v1/projects": expect.any(Object) }),
+    });
   });
 
   it("refuses a catalog push with the read-only token", async () => {

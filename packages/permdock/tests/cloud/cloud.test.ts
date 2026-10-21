@@ -12,6 +12,7 @@ import type { Subject } from "../../src/core/subject.ts";
 
 import { isApprovalError } from "../../src/approvals/errors.ts";
 import { memoryApprovalStore } from "../../src/approvals/store.ts";
+import { CLOUD_BASE_URL } from "../../src/cloud/base-url.ts";
 import { cloud, cloudEndpoints } from "../../src/cloud/create.ts";
 import { parseCloudEventBatch } from "../../src/core/parse-sink-events.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
@@ -203,10 +204,18 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
 }
 
 describe("cloud", () => {
-  it("throws when url or key is missing", () => {
-    expect(() => cloud({})).toThrow(/requires url and key/);
-    expect(() => cloud({ url: CLOUD_URL })).toThrow(/requires url and key/);
-    expect(() => cloud({ key: KEY })).toThrow(/requires url and key/);
+  it("throws when the key is missing", () => {
+    expect(() => cloud({})).toThrow(/requires a key/);
+    expect(() => cloud({ url: CLOUD_URL })).toThrow(/requires a key/);
+  });
+
+  it("defaults the url to CLOUD_BASE_URL", () => {
+    expect(cloud({ key: KEY, environment: "production" }).issuer).toBe(
+      `${CLOUD_BASE_URL}/v1/environments/production`,
+    );
+    expect(cloudEndpoints({ environment: "preview" }).jwks).toBe(
+      `${CLOUD_BASE_URL}/v1/environments/preview/.well-known/jwks.json`,
+    );
   });
 
   it("returns a frozen client with approvals, sink and snapshotsFor", () => {
