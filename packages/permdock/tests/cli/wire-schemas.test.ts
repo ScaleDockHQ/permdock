@@ -18,8 +18,10 @@ import { signPolicyDocument } from "../../src/core/policy-sign.ts";
 import { signDecisionBatch } from "../../src/core/sink.ts";
 import {
   signSnapshot,
+  snapshotClaims,
   snapshotFromClaims,
 } from "../../src/core/snapshot-sign.ts";
+import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { CONNECTOR_SCHEMA } from "../../src/delivery/connector-schema.ts";
 import { parseConnector } from "../../src/delivery/connector.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
@@ -144,6 +146,27 @@ describe("snapshot-v1.json", () => {
     expect(
       check(snapshotFromClaims(claimsOf(jwtFixtureTokens.snapshot))),
     ).toEqual([]);
+  });
+
+  it("snapshotClaims are the claims signSnapshot signs and snapshotFromClaims reads back", async () => {
+    const snapshot = parseSnapshot(
+      json(new URL("../../fixtures/snapshot.json", import.meta.url)),
+    );
+    const claims = snapshotClaims(snapshot);
+    const signed = claimsOf(
+      await signSnapshot(snapshot, signer, { audience: ISSUER }),
+    );
+    expect(signed).toMatchObject(claims);
+    expect(Object.keys(signed).toSorted()).toEqual(
+      [
+        ...Object.keys(claims),
+        "iss",
+        "aud",
+        "jti",
+        ...(claims.exp === undefined ? ["exp"] : []),
+      ].toSorted(),
+    );
+    expect(snapshotFromClaims(claims)).toMatchObject(claims.snapshot);
   });
 
   it("rejects numeric times and a scopes list", () => {
