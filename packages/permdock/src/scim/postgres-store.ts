@@ -162,10 +162,7 @@ function uniqueMembers(group: DirectoryGroup): string[] {
   return [...new Set(group.members.map((member) => member.value))];
 }
 
-function constraintOf(error: unknown): string {
-  if (!isRecord(error)) {
-    return "";
-  }
+function constraintOf(error: Readonly<Record<string, unknown>>): string {
   for (const key of ["constraint", "constraint_name", "detail", "message"]) {
     const value = error[key];
     if (typeof value === "string" && value !== "") {
