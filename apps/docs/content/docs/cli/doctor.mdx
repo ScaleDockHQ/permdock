@@ -112,6 +112,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD074` | `supabase.hook` is set, but `supabase/config.toml` does not enable `[auth.hook.custom_access_token]` or names another function                                                                                                                                                                             | warning         |
 | `PD075` | Two resources that `rls.tables` maps to one table, so the same rows carry two sets of keys and helpers; `doctor.sharedTables` lists tables split on purpose                                                                                                                                                | warning         |
 | `PD076` | `rls.actions` entries set to `'none'` on a verb that compiles to `'none'` anyway, or entries for a verb no permission uses                                                                                                                                                                                 | info            |
+| `PD077` | A config key or value names a scope, resource or action the policy does not declare, such as a Realtime topic `{organisation}` placeholder                                                                                                                                                                 | error           |
 
 ### PD001: server-only imports in client entries
 
@@ -459,6 +460,17 @@ info PD076  rls.actions sets export, market to 'none', which is already what tho
 ```
 
 A `'none'` entry on a verb that reads as a write (`approve`, `markPaid`) stays, because it is how you tell [PD071](#pd071-write-verbs-without-an-rlsactions-entry) the verb is mapped on purpose. A `'none'` entry on a default verb (`read`, `update`) stays too, because it changes what that verb compiles to. PD076 is `info`, so `--fail-on warning` does not fail on it. `--only rls` runs PD076.
+
+### PD077: config names the policy does not declare
+
+The keys of `rls.tables`, `rls.scopeTypes`, `rls.actions`, `rls.memberships.scopes` and `rls.suspension.scopes`, the `{placeholder}` of each `rls.realtime.topics` key, each `rls.storage.buckets.<b>.scope`, and `powersync.resources` and `powersync.action` must name a resource, scope or action the policy declares. A misspelt name maps nothing, or fails later in `rls generate`, so PD077 reports each one with the declared names:
+
+```text
+error PD077  rls.realtime.topics['org:{organisation}:quotes'] names the scope 'organisation', which the policy does not declare
+             fix: use one of organization, team, tenant, or pass the policy value to defineConfig to catch this at compile time
+```
+
+[Typed config](/docs/cli/config#typed-config) reports the same names when the config compiles. `--only rls` and `--only scopes` run PD077.
 
 ## Side effects
 

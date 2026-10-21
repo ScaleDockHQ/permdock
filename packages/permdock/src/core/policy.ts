@@ -219,7 +219,7 @@ export function definePolicy<
 >(
   permissions: Input,
   options: PolicyOptions<TUser, TPrincipal, S>,
-): Policy<TUser, TPrincipal, VocabularyFromInput<Input>> {
+): Policy<TUser, TPrincipal, VocabularyFromInput<Input>, S> {
   // SAFETY: Input is a vocabulary or a tree; each branch builds the VocabularyFromInput shape.
   const vocabulary = (
     isVocabularyInput(permissions)
@@ -298,7 +298,7 @@ export function definePolicy<
       ),
     ),
   ].toSorted();
-  // SAFETY: TUser and TPrincipal only type options.subject, the mapper stored here as is.
+  // SAFETY: TUser and TPrincipal only type options.subject, the mapper stored here as is; S is a type-only phantom.
   return freezeDeep({
     permissions: tree,
     roles,
@@ -322,7 +322,7 @@ export function definePolicy<
     orderedLevels: orderedLevels.length === 0 ? undefined : orderedLevels,
     oauthScopes: oauthScopes.length === 0 ? undefined : oauthScopes,
     index: indexPolicy(roles, grants, vocabulary),
-  }) as Policy<TUser, TPrincipal, VocabularyFromInput<Input>>;
+  }) as Policy<TUser, TPrincipal, VocabularyFromInput<Input>, S>;
 }
 
 function exclusivePairs(

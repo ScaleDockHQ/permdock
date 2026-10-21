@@ -5,11 +5,37 @@ import type { PermDockConfig } from "../../src/cli/types.ts";
 import { run } from "../../src/cli/core/run.ts";
 import { parseConfig } from "../../src/cli/project/config-schema.ts";
 import { CONFIG_SHAPE } from "../../src/cli/project/config-shape.ts";
+import { readConfig } from "../../src/cli/project/config.ts";
 import { PERMISSIONS, project, removeProjects } from "./doctor-kit.ts";
 import { jsonData } from "./envelope.ts";
 
 describe("config", () => {
   afterAll(removeProjects);
+
+  describe(readConfig, () => {
+    it("reads an imported value as the path of the module it came from", async () => {
+      const cwd = project({
+        "src/permissions.ts": PERMISSIONS,
+        "permdock.config.ts": `import { permissions } from "./src/permissions";
+export default { permissions };
+`,
+      });
+      const { config } = await readConfig(cwd);
+      expect(config.permissions).toBe("./src/permissions.ts");
+    });
+
+    it("refuses a value no relative import exports", async () => {
+      const cwd = project({
+        "permdock.config.ts": "export default { policy: { roles: [] } };\n",
+      });
+      await expect(readConfig(cwd)).rejects.toMatchObject({
+        code: "config_invalid",
+        message: expect.stringContaining(
+          "policy is a value no relative import of the config exports",
+        ),
+      });
+    });
+  });
 
   describe(parseConfig, () => {
     it("accepts every section and warns on keys PermDock does not read", () => {
@@ -52,7 +78,7 @@ describe("config", () => {
 
     it.each([
       [[], "must export a config object as default"],
-      [{ policy: 1 }, "policy must be a module path string"],
+      [{ policy: 1 }, "policy must be a module path string or the value"],
       [{ rls: "supabase" }, "rls must be an object"],
       [{ collect: ["./src"] }, "collect must be an object"],
     ])("rejects %j", (value, message) => {
@@ -232,7 +258,7 @@ describe("config", () => {
       expect(jsonData(result.stdout)).toMatchObject({
         type: "https://permdock.com/docs/cli/errors#usage",
         detail:
-          "PermDock CLI: permdock.config.ts: policy must be a module path string",
+          "PermDock CLI: permdock.config.ts: policy must be a module path string or the value imported from it",
       });
     });
   });

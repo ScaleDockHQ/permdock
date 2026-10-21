@@ -48,7 +48,10 @@ export function parseConfig(value: unknown, file: string): ParsedConfig {
   for (const [key, entry] of Object.entries(value)) {
     if (isModuleKey(key)) {
       if (entry !== undefined && typeof entry !== "string") {
-        throw invalid(file, `${key} must be a module path string`);
+        throw invalid(
+          file,
+          `${key} must be a module path string or the value imported from it`,
+        );
       }
       continue;
     }

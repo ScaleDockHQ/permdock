@@ -3,6 +3,7 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { AppData, AppDataSchema, WithX } from "./app-data.ts";
 import type {
   RESOURCE_BRAND,
+  RESOURCE_NAME,
   RESOURCE_X,
   TREE_LEAVES,
   TREE_REGISTRY,
@@ -277,10 +278,12 @@ export type ResourceInit<
   T = unknown,
   A extends ActionList | undefined = ActionList | undefined,
   C extends ActionList | undefined = ActionList | undefined,
+  N extends string = string,
 > = {
   readonly [RESOURCE_BRAND]: true;
   readonly schema: StandardSchemaV1<unknown, T> | undefined;
   readonly options: ResourceOptions<A, C>;
+  readonly [RESOURCE_NAME]?: N;
 };
 
 export type ResourceNode<T = unknown> = {
@@ -323,17 +326,25 @@ type ActionNames<A extends ActionList | undefined> = A extends readonly string[]
     ? keyof A & string
     : never;
 
+type LastSegment<Path extends string> = Path extends `${string}.${infer Rest}`
+  ? LastSegment<Rest>
+  : Path;
+
 type LeavesFrom<
   Prefix extends string,
   Names extends string,
   T,
   Kind extends PermissionKind,
   X = never,
+  R extends string = string,
 > = [Names] extends [never]
   ? object
   : {
       readonly [K in Names]: WithX<
-        Permission<Prefix extends "" ? K : `${Prefix}.${K}`, T, Kind>,
+        Permission<Prefix extends "" ? K : `${Prefix}.${K}`, T, Kind> & {
+          readonly resource: R;
+          readonly action: K;
+        },
         X
       >;
     };
@@ -343,9 +354,23 @@ export type InferResourceLeaves<
   Prefix extends string,
   X = never,
 > =
-  R extends ResourceInit<infer T, infer A, infer C>
-    ? LeavesFrom<Prefix, ActionNames<A>, T, "instance", X> &
-        LeavesFrom<Prefix, ActionNames<C>, T, "collection", X>
+  R extends ResourceInit<infer T, infer A, infer C, infer N>
+    ? LeavesFrom<
+        Prefix,
+        ActionNames<A>,
+        T,
+        "instance",
+        X,
+        [N] extends [never] ? LastSegment<Prefix> : N
+      > &
+        LeavesFrom<
+          Prefix,
+          ActionNames<C>,
+          T,
+          "collection",
+          X,
+          [N] extends [never] ? LastSegment<Prefix> : N
+        >
     : object;
 
 export type InferPermissionTree<

@@ -1,6 +1,7 @@
 import type { WhereShorthand, Condition } from "../conditions/index.ts";
 import type { AppData, MetaValue, AppDataSchema } from "./app-data.ts";
 import type { Approver, ApproverInput } from "./approvers.ts";
+import type { POLICY_SCOPES } from "./brands.ts";
 import type { AppObligation } from "./decision.ts";
 import type { GranteeInput, Grantee, ActorGrantee } from "./grantee.ts";
 import type { DecisionProvider } from "./interfaces.ts";
@@ -533,6 +534,7 @@ export type Policy<
   TUser = unknown,
   TPrincipal extends Principal = Principal,
   V extends PolicyVocabulary = PolicyVocabulary,
+  S extends PolicyScopesInput = PolicyScopesInput,
 > = {
   readonly permissions: V["permissions"];
   readonly roles: readonly RoleBinding[];
@@ -560,6 +562,7 @@ export type Policy<
    * policy leaves the schemas alone.
    */
   readonly [POLICY_X]?: PolicyAppDataSchemas;
+  readonly [POLICY_SCOPES]?: S;
   readonly providers?: readonly DecisionProvider[];
   /**
    * Permission keys a hosted policy document may grant or deny; empty by

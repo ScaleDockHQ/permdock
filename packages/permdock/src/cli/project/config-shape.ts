@@ -27,7 +27,7 @@ const BOOLEAN_OR_OBJECT = ["boolean", "object"] as const satisfies KeyShape;
 const BOOLEAN_OR_ARRAY = ["boolean", "array"] as const satisfies KeyShape;
 const BOOLEAN_OR_STRING = ["boolean", "string"] as const satisfies KeyShape;
 
-const MODULE = STRING;
+const MODULE = ["string", "object"] as const satisfies KeyShape;
 
 const COLLECT = {
   srcPath: ARRAY,

@@ -63,9 +63,41 @@ With `--json`, `data` is the report `--print` prints.
 | `sensitiveActions` | `doctor.sensitiveActions`, then the seven verbs above                                          | `doctor` PD017                    |
 | `rlsSchema`        | `rls.schema`, then `rls.rbac.schema`, then `permdock`                                          | `rls`, `supabase`, `doctor` PD054 |
 
+## Typed config
+
+Pass the imported `policy` value to `defineConfig` instead of its path, and the names in the config are checked against the policy when the config compiles:
+
+```ts title="permdock.config.ts"
+import { defineConfig } from "permdock/cli";
+import { permissions } from "./src/permissions.ts";
+import { policy } from "./src/policy.ts";
+
+export default defineConfig({
+  policy,
+  rls: {
+    tables: { quote: "quotes" },
+    scopeTypes: { organization: "uuid" },
+    realtime: {
+      // error: the scope is organization, not organisation
+      topics: { "org:{organisation}:quotes": { read: permissions.quote.read } },
+    },
+  },
+});
+```
+
+| Checked                                                                                                      | Against                                           |
+| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| Keys of `rls.tables`, entries of `powersync.resources`                                                       | Resource names                                    |
+| Keys of `rls.scopeTypes`, `rls.memberships.scopes`, `rls.suspension.scopes`; `rls.storage.buckets.<b>.scope` | Scope names, plus the `tenant` and `team` aliases |
+| `{placeholder}` segments in `rls.realtime.topics` keys                                                       | Scope names                                       |
+| Keys of `rls.actions`, `powersync.action`                                                                    | Action names                                      |
+| String entries of the `keep` lists, `rls.customRoleWrites.requires`                                          | Permission keys                                   |
+
+`permissions` and `operations` take the imported value too. The CLI reads a value from the relative import of the config file that exports it as `policy`, `permissions` or `operations` (or default), so every command, `--watch` included, reads that module; a value no relative import exports exits `2` with `config_invalid`. A path keeps working and checks nothing at compile time. [PD077](/docs/cli/doctor#pd077-config-names-the-policy-does-not-declare) reports the same names at run time for either form.
+
 ## Validation
 
-Every command checks the config before it runs. A module path that is not a string, or a section (`collect`, `rls`, `doctor`, …) that is not an object, exits `2` with the key named, as Problem Details under `--json`. A key PermDock reads that holds a value of the wrong kind, such as `rls.tables: ["staff"]`, exits `2` with the code `config_invalid`: `permdock.config.ts: rls.tables must be an object, not an array`. A key PermDock does not read is a warning on stderr, `permdock: warning: permdock.config.ts: unknown key collect.srcPaths; PermDock reads srcPath, out, barrel`, and the command still runs.
+Every command checks the config before it runs. A module key that is neither a path nor an imported value, or a section (`collect`, `rls`, `doctor`, …) that is not an object, exits `2` with the key named, as Problem Details under `--json`. A key PermDock reads that holds a value of the wrong kind, such as `rls.tables: ["staff"]`, exits `2` with the code `config_invalid`: `permdock.config.ts: rls.tables must be an object, not an array`. A key PermDock does not read is a warning on stderr, `permdock: warning: permdock.config.ts: unknown key collect.srcPaths; PermDock reads srcPath, out, barrel`, and the command still runs.
 
 ## Keys
 
@@ -158,6 +190,7 @@ What each command may change; [side effects](/docs/cli#side-effects) explains ea
 
 - **Unknown keys warn instead of failing.** A config written for a newer PermDock still loads in an older CLI, and a monorepo can pin two versions. The cost of a typo is a key that does nothing, so the warning names it and the key list, and `config --fail-on warning` turns it into a CI failure for a project that wants one.
 - **The known keys come from the config types.** `src/cli/project/config-shape.ts` lists each key with the kinds it accepts and is checked against `keyof` its section type when PermDock builds, so a new option cannot ship without the validator knowing it. `pnpm docs:drift` fails when a key has no row in the table above.
+- **The policy value types the config, the module path loads it.** A path cannot carry types, and a value alone cannot tell `doctor` which file to read, so the CLI traces the value back to the import that brought it in. `resource(…, { name })` and `definePolicy({ scopes })` keep their literal names in the types for this.
 - **A wrong kind fails instead of warning.** A value of the wrong kind is never what a newer PermDock reads either, and ignoring it would run with the default, such as no table mapping at all.
 
 ## Related

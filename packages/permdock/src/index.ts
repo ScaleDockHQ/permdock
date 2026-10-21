@@ -323,7 +323,11 @@ export type {
   ResourceRelationInput,
   ResourceRestricted,
 } from "./core/permission-types.ts";
-export type { RESOURCE_X } from "./core/brands.ts";
+export type {
+  POLICY_SCOPES,
+  RESOURCE_NAME,
+  RESOURCE_X,
+} from "./core/brands.ts";
 export {
   allOf,
   anyOf,

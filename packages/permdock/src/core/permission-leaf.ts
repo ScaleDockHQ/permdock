@@ -183,15 +183,19 @@ export function resource<
   T,
   const A extends ActionList = readonly [],
   const C extends ActionList = readonly [],
+  const N extends string = never,
 >(
   schema: StandardSchemaV1<unknown, T>,
-  options?: ResourceOptions<A, C>,
-): ResourceInit<T, A, C>;
+  options?: ResourceOptions<A, C> & { readonly name?: N },
+): ResourceInit<T, A, C, N>;
 
 export function resource<
   const A extends ActionList = readonly [],
   const C extends ActionList = readonly [],
->(options: ResourceOptions<A, C>): ResourceInit<unknown, A, C>;
+  const N extends string = never,
+>(
+  options: ResourceOptions<A, C> & { readonly name?: N },
+): ResourceInit<unknown, A, C, N>;
 
 export function resource(
   schemaOrOptions?: StandardSchemaV1 | ResourceOptions,

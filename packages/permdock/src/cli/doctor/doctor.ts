@@ -24,6 +24,7 @@ import {
 import { pd039 } from "../supabase-setup.ts";
 import { pd064 } from "./assignments.ts";
 import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
+import { pd077 } from "./config-names.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
 import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
 import { pd044, pd065 } from "./next.ts";
@@ -229,6 +230,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   { code: "PD073", groups: ["rls", "ownership"], run: pd073 },
   { code: "PD075", groups: ["rls"], run: pd075 },
   { code: "PD076", groups: ["rls"], run: pd076 },
+  { code: "PD077", groups: ["rls", "scopes"], run: pd077 },
   {
     code: "PD028",
     groups: ["attrs", "supabase"],
