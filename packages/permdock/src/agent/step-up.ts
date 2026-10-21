@@ -172,10 +172,10 @@ export function eligiblePreview(permdock: PermDock): PermDock | undefined {
 }
 
 /** The URL the user signs in again at, with the RFC 9470 `acr_values` and `max_age` added. */
-function signInUrl(at: string, stepUp: StepUp): string | undefined {
-  if (stepUp.kind !== "authentication") {
-    return undefined;
-  }
+function signInUrl(
+  at: string,
+  stepUp: Extract<StepUp, { readonly kind: "authentication" }>,
+): string | undefined {
   let url: URL;
   try {
     url = new URL(at);
