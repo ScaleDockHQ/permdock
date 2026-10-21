@@ -129,7 +129,7 @@ export type RlsSqlContext = {
   /** `rls.roles`: the app's global-roles table, in place of the generated `user_roles`. */
   readonly roles?: GlobalRoles;
   /** Set when field views compile: grant keys also split by field set. */
-  readonly fields?: "views";
+  readonly fields?: "views" | "mask";
   /** `rls.tables` entries with `via`, by resource: policies filter on the parent's id through `via.helper`. */
   readonly vias?: Readonly<Record<string, ResolvedVia>>;
   /** Graph grants: the closure depth kept for each walked resource. */

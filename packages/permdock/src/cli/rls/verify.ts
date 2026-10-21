@@ -141,7 +141,7 @@ export async function runRlsVerify(input: {
   const mismatches: RlsFinding[] = [];
   const notes: string[] = [];
   const inProcess: InProcess[] = [];
-  const fieldsMode = input.config.rls?.fields === "views";
+  const fieldsMode = input.config.rls?.fields !== undefined;
   for (const fixture of fixtures) {
     const permission = findPermission(policy.permissions, fixture.action);
     if (permission === undefined) {
