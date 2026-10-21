@@ -2,11 +2,11 @@ import { RPCHandler } from "@orpc/server/fetch";
 import { createServer } from "node:http";
 import { sendResponse, toRequest } from "permdock/node";
 
-import { router } from "./app.ts";
+import { operationsRoutes, router } from "./app.ts";
 import { memberUser } from "./policy.ts";
 
 const port = Number(process.env["PORT"] ?? 3462);
-const handler = new RPCHandler(router);
+const handler = new RPCHandler({ ...router, ...operationsRoutes });
 
 function isHealth(req: {
   readonly method?: string | undefined;
