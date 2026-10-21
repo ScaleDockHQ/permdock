@@ -95,6 +95,9 @@ describe("rls generate --capabilities", () => {
     expect(helpers).toContain(
       `grant execute on function "permdock".permdock_capability_ids(text, text, text) to anon, authenticated;`,
     );
+    expect(helpers).toContain(
+      `grant usage on schema "permdock" to anon, authenticated;`,
+    );
     expect(helpers).not.toMatch(/service_role/u);
   });
 
@@ -145,6 +148,9 @@ describe("rls generate --capabilities", () => {
       },
     });
     expect(helpers).not.toContain("permdock_capability_ids");
+    expect(helpers).toContain(
+      `grant usage on schema "permdock" to authenticated;`,
+    );
     expect(policies.every((item) => !item.roles.includes("anon"))).toBe(true);
   });
 
