@@ -397,6 +397,20 @@ export const scim = scimHandler({
 
 The handler writes users and groups. It never decides. Unknown or non-assignable role names are stored and dropped when memberships are read. Pass the app's `revocations` feed so a deprovisioned member's open streams revalidate and close.
 
+In production, keep the directory in Postgres: `permdock scim generate` writes the tenant-keyed tables (`supabase/schemas/permdock/scim.sql` by default; `--dialect`, `--schema`), and `postgresDirectoryStore(query)` reads and writes them through the same `SqlQuery` function `tableMembershipSource` takes:
+
+```ts
+import { postgresDirectoryStore } from "permdock/scim";
+import pg from "pg";
+
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const directory = postgresDirectoryStore((text, values) =>
+  pool.query(text, [...values]),
+);
+```
+
+Read memberships through `directoryMembershipSource(directory)`, never through a `tableMembershipSource` over the SCIM tables: the source applies the `externalId` / `userName` match, drops inactive users and enforces `assignable`. The tables are revoked from `anon` and `authenticated`; the store's connection must own them or be granted on them, never `service_role` in generated SQL.
+
 ## Cloud — `permdock/cloud`
 
 No factory for a `PermDock`. `cloud({ url, key, environment })` returns `approvals`, `sink` and `policies` to pass into any adapter, `snapshotsFor(token)` (a `SnapshotSource` for the subject an `at+jwt` proves, sent as `PermDock-Subject`), `catalog.push`, plus the environment `issuer` (`<url>/v1/environments/<environment>`) and its `jwks` URL; `cloudEndpoints({ url, environment })` computes the same two without a key. It never implements `MembershipSource` or `CustomRoleSource` and never decides.
