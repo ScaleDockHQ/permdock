@@ -47,7 +47,7 @@ function valueOf(schema: JsonSchema, field: string, depth: number): string {
   if (Array.isArray(values) && values.length > 0) {
     return JSON.stringify(values[0]);
   }
-  switch (typeName(schema)) {
+  switch (typeName(schema) ?? "unknown") {
     case "string":
       return stringValue(schema, field);
     case "integer":

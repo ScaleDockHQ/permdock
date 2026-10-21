@@ -60,7 +60,8 @@ function topicBuilder(topic: string): readonly [string, string, string] {
     String(match[1]),
   );
   const fixed = topic.replaceAll(PLACEHOLDER, " ");
-  const ident = camelCase(fixed) || camelCase(topic);
+  const camel = camelCase(fixed);
+  const ident = camel === "" ? camelCase(topic) : camel;
   let body = "";
   let last = 0;
   for (const match of topic.matchAll(PLACEHOLDER)) {
