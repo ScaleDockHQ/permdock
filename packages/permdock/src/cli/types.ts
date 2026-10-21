@@ -928,6 +928,30 @@ export type PermDockConfig = {
   readonly supabase?: SupabaseConfig;
   readonly powersync?: PowerSyncConfig;
   readonly doctor?: DoctorConfig;
+  readonly gen?: GenConfig;
+};
+
+/** What `permdock gen --kind` writes. */
+export type GenKind =
+  | "zod"
+  | "valibot"
+  | "arktype"
+  | "json-schema"
+  | "standard-schema"
+  | "constants"
+  | "factories";
+
+/** `permdock gen` input. */
+export type GenConfig = {
+  /** The directory the generated files go to; default `src/generated`. */
+  readonly out?: string;
+  /** The kinds `permdock gen` writes without `--kind`; default `['constants']`. */
+  readonly kinds?: readonly GenKind[];
+  /**
+   * The schema kinds also export `<resource>Fields`: per field its `label`,
+   * `required`, enum `options` and bounds, for forms.
+   */
+  readonly fieldMeta?: boolean;
 };
 
 /**

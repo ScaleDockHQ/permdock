@@ -2,6 +2,7 @@ import type {
   CatalogConfig,
   CollectConfig,
   DoctorConfig,
+  GenConfig,
   PermDockConfig,
   PowerSyncConfig,
   RlsConfig,
@@ -122,6 +123,12 @@ const DOCTOR = {
   sharedTables: ARRAY,
 } as const satisfies Record<keyof DoctorConfig, KeyShape>;
 
+const GEN = {
+  out: STRING,
+  kinds: ARRAY,
+  fieldMeta: BOOLEAN,
+} as const satisfies Record<keyof GenConfig, KeyShape>;
+
 export type Section = Exclude<
   keyof PermDockConfig,
   "permissions" | "policy" | "operations"
@@ -144,6 +151,7 @@ export const CONFIG_SHAPE: Readonly<
   supabase: SUPABASE,
   powersync: POWERSYNC,
   doctor: DOCTOR,
+  gen: GEN,
 };
 
 export const MODULE_KEYS: Readonly<Record<ModuleKey, KeyShape>> = {

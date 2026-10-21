@@ -1,0 +1,117 @@
+---
+title: gen
+description: Write typed constants, row validators, JSON Schema and test factories from the policy, so app code imports names instead of retyping them.
+---
+
+`permdock gen` reads the policy and `permdock.config.ts` and writes TypeScript modules the app imports: scope and role names, Realtime topic and Storage path builders, the SQL helper names `rls generate` writes, a row validator per resource and a row factory per resource for tests. Each kind is one file; `--check` fails CI when a file is stale.
+
+## Usage
+
+```bash
+permdock gen                                  # gen.kinds, else constants, under gen.out, else src/generated
+permdock gen --kind zod --kind factories      # pick the kinds
+permdock gen --kind constants --out -         # one kind to stdout
+permdock gen --check                          # CI: exit 1 when a file differs; write nothing
+```
+
+| Flag                | Meaning                                                                                      |
+| ------------------- | -------------------------------------------------------------------------------------------- |
+| `--kind <kind>`     | What to write, repeatable; default `gen.kinds`, else `constants`. The kinds are listed below |
+| `--out <file>`      | The file for a single kind; `-` prints it on stdout                                          |
+| `--out-dir <dir>`   | The directory for the files; default `gen.out`, else `src/generated`                         |
+| `--check`           | Exit `1` when a file on disk differs from what `gen` would write; write nothing              |
+| `--dry-run`         | Print what would change; write nothing                                                       |
+| `--policy <module>` | The module exporting the policy; default `policy` in `permdock.config.ts`                    |
+
+## Kinds
+
+| Kind              | File                    | Exports                                                                                    |
+| ----------------- | ----------------------- | ------------------------------------------------------------------------------------------ |
+| `constants`       | `permdock.generated.ts` | `scopes`, `ScopeName`, `roles`, `RoleName`, `topics`, `paths`, `sqlNames`                  |
+| `zod`             | `permdock.zod.ts`       | `<resource>Row`, `<Resource>Row`, `<operation>Result`, with `fieldMeta` `<resource>Fields` |
+| `valibot`         | `permdock.valibot.ts`   | The same, as Valibot schemas                                                               |
+| `arktype`         | `permdock.arktype.ts`   | The same, as ArkType types                                                                 |
+| `standard-schema` | `permdock.schemas.ts`   | The same, through `resourceSchemaFromJson` from `permdock/catalog`; no validator library   |
+| `json-schema`     | `permdock.schemas.json` | The row JSON Schemas under `resources`, `<operation>.results` as `$ref` arrays             |
+| `factories`       | `permdock.factories.ts` | `factories.<resource>(overrides, refs)`, `factories.subject(input)`, `resetFactories()`    |
+
+Resource names become camel-case identifiers: `task-item` exports `taskItemRow`, `TaskItemRow` and `factories.taskItem`. Two names that map to the same identifier exit `2` and name both.
+
+### constants
+
+```ts
+import { paths, sqlNames, topics } from "./generated/permdock.generated.ts";
+
+supabase.channel(topics.orgProjects({ organization: org.id }), {
+  config: { private: true },
+});
+supabase.storage
+  .from("avatars")
+  .upload(
+    paths.avatars({ segment1: "users", organization: org.id, name: file.name }),
+    file,
+  );
+await sql`select ${sql.unsafe(sqlNames.scopes.organization.memberIds)}()`;
+```
+
+`topics` has a builder per `rls.realtime.topics` pattern: `org:{organization}:projects` becomes `orgProjects`. `paths` has a builder per `rls.storage.buckets` entry: `folder - 1` leading segments, the scope id, then `name`, the path `storage.foldername(name)` reads. `sqlNames` holds the same names as the `names` field of `permdock.manifest.json`, with each helper qualified by `rls.schema`.
+
+### Row validators
+
+The validator kinds translate the resource's JSON Schema, including `format` (`uuid`, `email`, `uri`, `date-time`, `date`), length and value bounds, enums and nullable fields. A schema construct outside that core becomes the library's `unknown`. `<operation>Result` validates the rows an operation with `results` returns; an operation's `data` is a loader function, so it has no generated schema.
+
+With `gen.fieldMeta: true`, each validator file also exports `<resource>Fields`: per field the `label` (the schema `title`, else the field name in sentence case), `required`, `nullable`, `options`, `format` and the bounds, for form builders.
+
+### factories
+
+```ts
+import { factories, resetFactories } from "./generated/permdock.factories.ts";
+
+beforeEach(resetFactories);
+
+const project = factories.project({ name: "Launch" });
+const task = factories.taskItem(
+  {},
+  { parent: project, organization: project.organizationId },
+);
+const member = factories.subject({
+  memberships: [
+    { scope: "organization", id: project.organizationId, roles: ["member"] },
+  ],
+});
+```
+
+A factory fills every required field with a valid value: the first enum value, the lower bound, a sequential UUID, `text("<field>", min, max)`. `refs.parent` fills the parent field and `refs.<scope>` fills the scope's key, each from an id or a row. Ids restart at `resetFactories()`, so a test reads the same rows on every run.
+
+## Config
+
+```ts
+export default defineConfig({
+  policy: "./src/policy.ts",
+  gen: {
+    out: "src/generated",
+    kinds: ["constants", "zod", "factories"],
+    fieldMeta: true,
+  },
+});
+```
+
+## Side effects
+
+What each command may change; [side effects](/docs/cli#side-effects) explains each one.
+
+| Command        | Side effects |
+| -------------- | ------------ |
+| `permdock gen` | `files`      |
+
+## Why
+
+- **One file per kind.** A project picks the validator it already uses, and an unused library is never imported.
+- **Generated names over string literals.** A renamed scope, topic or bucket changes the generated identifier, so the compiler finds every call site instead of a runtime denial.
+- **Factories fill only required fields.** An optional field a test does not set stays absent, the same as a row the app inserts.
+
+## Related
+
+- [rls](/docs/cli/rls)
+- [catalog](/docs/cli/catalog)
+- [config](/docs/cli/config)

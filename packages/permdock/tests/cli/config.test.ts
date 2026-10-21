@@ -219,6 +219,7 @@ export default { permissions };
         "catalog",
         "collect",
         "doctor",
+        "gen",
         "openapi",
         "powersync",
         "rls",

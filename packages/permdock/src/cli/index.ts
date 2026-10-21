@@ -30,6 +30,8 @@ export type {
   CatalogSupportAccess,
   CatalogUsage,
   CollectConfig,
+  GenConfig,
+  GenKind,
   PermDockConfig,
   RlsActiveRow,
   RlsApiKeys,
