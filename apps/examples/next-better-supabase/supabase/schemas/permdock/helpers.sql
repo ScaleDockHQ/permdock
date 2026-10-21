@@ -6,7 +6,7 @@
 
 create schema if not exists "permdock";
 revoke all on schema "permdock" from public;
-grant usage on schema "permdock" to authenticated;
+grant usage on schema "permdock" to anon, authenticated;
 
 -- the caller's user id: the sub of request.jwt.claims, or null when it is empty or absent
 create or replace function "permdock".permdock_user_id()
@@ -89,7 +89,7 @@ revoke all on table "permdock".custom_role_includes from anon, authenticated, pu
 create or replace view "permdock".permdock_ceiling with (security_invoker = true) as
 select rp.scope, rp.role, rp.permission, rp.grant_key, rp.effect
 from "permdock".role_permissions rp
-where rp.role = any(array['member', 'owner']::text[])
+where rp.role = any(array['guest', 'member', 'owner']::text[])
   and exists (
     select 1 from "permdock".role_permissions a
     where a.role = rp.role
@@ -188,7 +188,7 @@ as $$
     select 1
     from "permdock".user_roles ur
     where ur.user_id = (select "permdock".permdock_user_id())
-      and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
+      and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
       and p_grant in (select "permdock".permdock_custom_keys(
       array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
       array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
@@ -199,6 +199,28 @@ as $$
 $$;
 revoke execute on function "permdock".permdock_has(text) from public, anon;
 grant execute on function "permdock".permdock_has(text) to authenticated;
+
+-- link capabilities: the capability claim exchangeCapability mints (role anon, short-lived)
+create or replace function "permdock".permdock_capability_ids(p_resource text, p_role text, p_permission text)
+returns setof text
+language sql
+stable
+set search_path = ''
+as $$
+  select c -> 'on' ->> 'id'
+  from (select ((select auth.jwt()) -> 'capability') as c) capability
+  where jsonb_typeof(c) = 'object'
+    and c ->> 'v' = '1'
+    and c ->> 'holder' = 'link'
+    and c -> 'on' ->> 'resource' = p_resource
+    and jsonb_typeof(c -> 'roles') = 'array'
+    and c -> 'roles' @> jsonb_build_array(p_role)
+    and (c -> 'permissions' is null or c -> 'permissions' @> jsonb_build_array(p_permission))
+    and jsonb_typeof(c -> 'expires_at') = 'number'
+    and (c ->> 'expires_at')::numeric > extract(epoch from now())
+$$;
+revoke execute on function "permdock".permdock_capability_ids(text, text, text) from public;
+grant execute on function "permdock".permdock_capability_ids(text, text, text) to anon, authenticated;
 
 create or replace function "permdock".permitted_organization_ids(p_grant text)
 returns setof uuid
@@ -242,7 +264,7 @@ begin
   ) r(role)
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'organization'
-    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     and p_grant in (select "permdock".permdock_custom_keys(
       array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
@@ -365,7 +387,7 @@ begin
   ) r(role)
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'customer'
-    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     and p_grant in (select "permdock".permdock_custom_keys(
       array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
@@ -467,7 +489,7 @@ as $$
     select 1
     from "permdock".user_roles ur
     where ur.user_id = p_user
-      and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
+      and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
       and p_grant in (select "permdock".permdock_custom_keys(
       array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
       array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
@@ -519,7 +541,7 @@ begin
   ) r(role)
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'organization'
-    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
     and p_grant in (select "permdock".permdock_custom_keys(
       array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
       array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
@@ -584,7 +606,7 @@ begin
   ) r(role)
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'customer'
-    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
     and p_grant in (select "permdock".permdock_custom_keys(
       array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
       array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
@@ -656,7 +678,7 @@ begin
       message = 'permdock: a shared custom role has no instance',
       hint = 'unknown-scope';
   end if;
-  if coalesce(p_role, '') = '' or p_role = any(array['contact', 'member', 'owner']::text[]) then
+  if coalesce(p_role, '') = '' or p_role = any(array['contact', 'guest', 'member', 'owner']::text[]) then
     raise exception using
       errcode = '22023',
       message = 'permdock: ' || coalesce(p_role, 'null') || ' is not a custom role name',
@@ -855,7 +877,7 @@ begin
     end if;
   end loop;
   foreach v_entry in array coalesce(p_include, '{}'::text[]) loop
-    if not (v_entry = any(array['contact', 'member', 'owner']::text[])) then
+    if not (v_entry = any(array['contact', 'guest', 'member', 'owner']::text[])) then
       raise exception using
         errcode = '22023',
         message = 'permdock: ' || v_entry || ' is not a declared role',
@@ -939,7 +961,7 @@ begin
       message = 'permdock: ' || p_to || ' is the name of a shared custom role',
       hint = 'name-taken';
   end if;
-  if coalesce(p_to, '') = '' or p_to = any(array['contact', 'member', 'owner']::text[]) then
+  if coalesce(p_to, '') = '' or p_to = any(array['contact', 'guest', 'member', 'owner']::text[]) then
     raise exception using
       errcode = '22023',
       message = 'permdock: ' || coalesce(p_to, 'null') || ' is not a custom role name',
@@ -1024,7 +1046,7 @@ begin
       message = 'permdock: ' || p_to || ' is the name of a shared custom role',
       hint = 'name-taken';
   end if;
-  if coalesce(p_to, '') = '' or p_to = any(array['contact', 'member', 'owner']::text[]) then
+  if coalesce(p_to, '') = '' or p_to = any(array['contact', 'guest', 'member', 'owner']::text[]) then
     raise exception using
       errcode = '22023',
       message = 'permdock: ' || coalesce(p_to, 'null') || ' is not a custom role name',
@@ -1165,7 +1187,7 @@ begin
       message = 'permdock: no role row has id ' || coalesce(p_role_id::text, 'null'),
       hint = 'unknown-role';
   end if;
-  if v_skipped or v_key = any(array['contact', 'member', 'owner']::text[]) then
+  if v_skipped or v_key = any(array['contact', 'guest', 'member', 'owner']::text[]) then
     raise exception using
       errcode = '22023',
       message = 'permdock: ' || coalesce(v_key, 'null') || ' is a declared role, not a custom role',
@@ -1211,7 +1233,7 @@ begin
       message = 'permdock: no role row has id ' || coalesce(p_role_id::text, 'null'),
       hint = 'unknown-role';
   end if;
-  if v_skipped or v_key = any(array['contact', 'member', 'owner']::text[]) then
+  if v_skipped or v_key = any(array['contact', 'guest', 'member', 'owner']::text[]) then
     raise exception using
       errcode = '22023',
       message = 'permdock: ' || coalesce(v_key, 'null') || ' is a declared role, not a custom role',
@@ -1254,7 +1276,7 @@ begin
     from "public"."roles" r
     where r."id"::text = any(p_role_ids)
       and not (r."organization_id"::uuid is not null and coalesce(r."is_system", false))
-      and not (r."key"::text = any(array['contact', 'member', 'owner']::text[]))
+      and not (r."key"::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ) v
   join "permdock".custom_role_permissions c
     on c.tenant_id is not distinct from v.tenant_id
@@ -1282,7 +1304,7 @@ begin
   if new."organization_id"::uuid is null or coalesce(new."is_system", false) then
     return new;
   end if;
-  if new."key"::text = any(array['contact', 'member', 'owner']::text[]) then
+  if new."key"::text = any(array['contact', 'guest', 'member', 'owner']::text[]) then
     raise exception using
       errcode = '22023',
       message = 'permdock: ' || new."key"::text || ' is a declared role',
@@ -1341,7 +1363,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if p_role = any(array['contact', 'member', 'owner']::text[]) then
+  if p_role = any(array['contact', 'guest', 'member', 'owner']::text[]) then
     return query
   select distinct rp.permission, rp.effect
   from "permdock".role_permissions rp
@@ -1384,7 +1406,7 @@ security definer
 set search_path = ''
 as $$
 begin
-  if p_role = any(array['contact', 'member', 'owner']::text[]) then
+  if p_role = any(array['contact', 'guest', 'member', 'owner']::text[]) then
     return query
   select distinct rp.permission, rp.effect
   from "permdock".role_permissions rp
@@ -1500,7 +1522,7 @@ begin
     'global'
   ) ck(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
-    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
+    and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -1541,7 +1563,7 @@ begin
   ) ck(grant_key)
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'organization'
-    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
@@ -1604,7 +1626,7 @@ begin
     'global'
   ) ck(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
-    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
+    and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -1645,7 +1667,7 @@ begin
   ) ck(grant_key)
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'organization'
-    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
@@ -1752,7 +1774,7 @@ begin
     'global'
   ) ck(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
-    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
+    and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -1805,7 +1827,7 @@ begin
   ) ck(grant_key)
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'customer'
-    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
@@ -1864,7 +1886,7 @@ begin
     'global'
   ) ck(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
-    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
+    and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -1917,7 +1939,7 @@ begin
   ) ck(grant_key)
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'customer'
-    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
@@ -2066,7 +2088,7 @@ begin
     'global'
   ) ck(grant_key)
   where ur.user_id = p_user
-    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
+    and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -2106,7 +2128,7 @@ begin
   ) ck(grant_key)
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'organization'
-    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
@@ -2167,7 +2189,7 @@ begin
     'global'
   ) ck(grant_key)
   where ur.user_id = p_user
-    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
+    and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -2207,7 +2229,7 @@ begin
   ) ck(grant_key)
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'organization'
-    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
@@ -2308,7 +2330,7 @@ begin
     'global'
   ) ck(grant_key)
   where ur.user_id = p_user
-    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
+    and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -2360,7 +2382,7 @@ begin
   ) ck(grant_key)
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'customer'
-    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
@@ -2417,7 +2439,7 @@ begin
     'global'
   ) ck(grant_key)
   where ur.user_id = p_user
-    and not (ur.role::text = any(array['contact', 'member', 'owner']::text[]))
+    and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -2469,7 +2491,7 @@ begin
   ) ck(grant_key)
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'customer'
-    and not (r.role = any(array['contact', 'member', 'owner']::text[]))
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
@@ -2575,6 +2597,362 @@ as $$
 $$;
 revoke execute on function "permdock".permdock_actor_may_write() from public, anon;
 grant execute on function "permdock".permdock_actor_may_write() to authenticated;
+
+-- approval store: ApprovalRequest bodies, opened, resolved and consumed through the functions below; supabaseApprovalStore calls them
+create table if not exists "permdock".approval_requests (
+  token text primary key,
+  body jsonb not null,
+  status text not null check (status in ('pending', 'approved', 'rejected', 'expired')),
+  tenant text,
+  principal_id text,
+  actor_id text,
+  session text,
+  approvals integer not null default 0,
+  created_at text not null,
+  expires_at timestamptz not null,
+  consumed_at timestamptz
+);
+create index if not exists "approval_requests_page" on "permdock".approval_requests (created_at collate "C", token collate "C");
+create index if not exists "approval_requests_pending" on "permdock".approval_requests (status, expires_at);
+alter table "permdock".approval_requests enable row level security;
+revoke all on table "permdock".approval_requests from anon, authenticated, public;
+
+-- open a request; a repeated ask keeps the open record and replaces only an expired one
+create or replace function "permdock".permdock_approval_open(p_request jsonb)
+returns void
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  insert into "permdock".approval_requests as a (token, body, status, tenant, principal_id, actor_id, session, approvals, created_at, expires_at, consumed_at)
+  values (
+    p_request ->> 'token',
+    p_request,
+    p_request ->> 'status',
+    p_request #>> '{subject,principal,tenant}',
+    p_request #>> '{subject,principal,id}',
+    p_request #>> '{subject,actor,id}',
+    p_request #>> '{subject,session}',
+    coalesce(jsonb_array_length(p_request -> 'approvals'), 0),
+    p_request ->> 'createdAt',
+    (p_request ->> 'expiresAt')::timestamptz,
+    (p_request ->> 'consumedAt')::timestamptz
+  )
+  on conflict (token) do update
+    set body = excluded.body, status = excluded.status, tenant = excluded.tenant,
+      principal_id = excluded.principal_id, actor_id = excluded.actor_id, session = excluded.session,
+      approvals = excluded.approvals, created_at = excluded.created_at,
+      expires_at = excluded.expires_at, consumed_at = excluded.consumed_at
+    where a.status = 'expired' or a.expires_at <= now()
+$$;
+revoke execute on function "permdock".permdock_approval_open(jsonb) from public, anon, authenticated;
+
+create or replace function "permdock".permdock_approval_get(p_token text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.body from "permdock".approval_requests a where a.token = p_token
+$$;
+revoke execute on function "permdock".permdock_approval_get(text) from public, anon, authenticated;
+
+-- write a verdict over the record it was computed from: still pending, unexpired, with p_seen approvals
+create or replace function "permdock".permdock_approval_resolve(p_token text, p_next jsonb, p_seen integer)
+returns jsonb
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  update "permdock".approval_requests a
+  set body = p_next,
+    status = p_next ->> 'status',
+    approvals = coalesce(jsonb_array_length(p_next -> 'approvals'), 0)
+  where a.token = p_token
+    and a.status = 'pending'
+    and a.expires_at > now()
+    and a.approvals = p_seen
+  returning a.body
+$$;
+revoke execute on function "permdock".permdock_approval_resolve(text, jsonb, integer) from public, anon, authenticated;
+
+-- consume an approved, unexpired, unconsumed request once
+create or replace function "permdock".permdock_approval_consume(p_token text, p_now text)
+returns jsonb
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  update "permdock".approval_requests a
+  set consumed_at = p_now::timestamptz,
+    body = a.body || jsonb_build_object('consumedAt', p_now)
+  where a.token = p_token
+    and a.status = 'approved'
+    and a.consumed_at is null
+    and a.expires_at > p_now::timestamptz
+  returning a.body
+$$;
+revoke execute on function "permdock".permdock_approval_consume(text, text) from public, anon, authenticated;
+
+-- one page in (createdAt, token) order after the cursor position
+create or replace function "permdock".permdock_approval_list(p_filter jsonb, p_after_created text, p_after_token text, p_limit integer)
+returns setof jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select a.body
+  from "permdock".approval_requests a
+  where (p_filter ->> 'status' is null or a.status = p_filter ->> 'status')
+    and (p_filter ->> 'tenant' is null or a.tenant = p_filter ->> 'tenant')
+    and (p_filter ->> 'principalId' is null or a.principal_id = p_filter ->> 'principalId')
+    and (p_filter ->> 'actorId' is null or a.actor_id = p_filter ->> 'actorId')
+    and (p_filter ->> 'session' is null or a.session = p_filter ->> 'session')
+    and (p_after_created is null
+      or (a.created_at collate "C", a.token collate "C") > (p_after_created collate "C", p_after_token collate "C"))
+  order by a.created_at collate "C", a.token collate "C"
+  limit p_limit
+$$;
+revoke execute on function "permdock".permdock_approval_list(jsonb, text, text, integer) from public, anon, authenticated;
+
+create or replace function "permdock".permdock_approval_expire(p_now text)
+returns integer
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  with expired as (
+    update "permdock".approval_requests a
+    set status = 'expired', body = a.body || '{"status":"expired"}'::jsonb
+    where a.status = 'pending' and a.expires_at <= p_now::timestamptz
+    returning 1
+  )
+  select count(*)::integer from expired
+$$;
+revoke execute on function "permdock".permdock_approval_expire(text) from public, anon, authenticated;
+
+-- reject every pending request the filter matches, as system:<by>
+create or replace function "permdock".permdock_approval_cancel(p_filter jsonb, p_by text, p_note text, p_now text)
+returns integer
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  with cancelled as (
+    update "permdock".approval_requests a
+    set status = 'rejected',
+      body = (a.body - 'note') || jsonb_strip_nulls(jsonb_build_object(
+        'status', 'rejected', 'resolvedAt', p_now, 'resolvedBy', 'system:' || p_by, 'note', p_note
+      ))
+    where a.status = 'pending'
+      and (p_filter ->> 'status' is null or a.status = p_filter ->> 'status')
+      and (p_filter ->> 'tenant' is null or a.tenant = p_filter ->> 'tenant')
+      and (p_filter ->> 'principalId' is null or a.principal_id = p_filter ->> 'principalId')
+      and (p_filter ->> 'actorId' is null or a.actor_id = p_filter ->> 'actorId')
+      and (p_filter ->> 'session' is null or a.session = p_filter ->> 'session')
+    returning 1
+  )
+  select count(*)::integer from cancelled
+$$;
+revoke execute on function "permdock".permdock_approval_cancel(jsonb, text, text, text) from public, anon, authenticated;
+
+-- approvers: whether the signed-in user matches a request's approvers.by; policies on approval views call it
+create or replace function "permdock".permdock_is_approver(p_approvers jsonb, p_tenant text default null)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_item jsonb;
+  v_user text := (select "permdock".permdock_user_id())::text;
+begin
+  if coalesce(v_user, '') = '' or p_approvers is null then
+    return false;
+  end if;
+  if jsonb_typeof(p_approvers) = 'array' then
+    if jsonb_array_length(p_approvers) = 0 then
+      return false;
+    end if;
+    for v_item in select value from jsonb_array_elements(p_approvers) loop
+      if not "permdock".permdock_is_approver(v_item, p_tenant) then
+        return false;
+      end if;
+    end loop;
+    return true;
+  end if;
+  if jsonb_typeof(p_approvers) <> 'object' then
+    return false;
+  end if;
+  case p_approvers ->> 'kind'
+    when 'user' then
+      return coalesce(p_approvers ->> 'id' = v_user, false);
+    when 'permission' then
+      if p_tenant is null then
+        return coalesce("permdock".permdock_has_permission(p_approvers ->> 'permission'), false);
+      end if;
+      return exists (
+          select 1
+          from "permdock".permitted_organization_ids_by_permission(p_approvers ->> 'permission') i(id)
+          where i.id::text = p_tenant
+        );
+    when 'any-of' then
+      if jsonb_typeof(p_approvers -> 'of') <> 'array' then
+        return false;
+      end if;
+      for v_item in select value from jsonb_array_elements(p_approvers -> 'of') loop
+        if "permdock".permdock_is_approver(v_item, p_tenant) then
+          return true;
+        end if;
+      end loop;
+      return false;
+    else
+      return false;
+  end case;
+end;
+$$;
+revoke execute on function "permdock".permdock_is_approver(jsonb, text) from public, anon;
+grant execute on function "permdock".permdock_is_approver(jsonb, text) to authenticated;
+
+-- approval delegations: out-of-office covers a user writes for themselves; tableApprovalDelegationSource and permdock_is_approver read them
+create table if not exists "permdock".approval_delegations (
+  id text primary key default gen_random_uuid()::text,
+  delegator uuid not null default ("permdock".permdock_user_id())::uuid,
+  delegate uuid not null,
+  tenant text,
+  permissions text[],
+  resources text[],
+  "from" timestamptz not null default now(),
+  "until" timestamptz not null,
+  created_at timestamptz not null default now(),
+  constraint "approval_delegations_window" check ("from" < "until"),
+  constraint "approval_delegations_distinct" check (delegator <> delegate)
+);
+create index if not exists "approval_delegations_delegate" on "permdock".approval_delegations (delegate, "until");
+alter table "permdock".approval_delegations enable row level security;
+revoke all on table "permdock".approval_delegations from anon, public;
+grant select, insert, update, delete on table "permdock".approval_delegations to authenticated;
+create policy "approval_delegations_read" on "permdock".approval_delegations
+  for select to authenticated
+  using (delegator::text = (select "permdock".permdock_user_id())::text or delegate::text = (select "permdock".permdock_user_id())::text);
+create policy "approval_delegations_insert" on "permdock".approval_delegations
+  for insert to authenticated
+  with check (delegator::text = (select "permdock".permdock_user_id())::text and (tenant is null or tenant in (select m.id::text from "permdock".member_organization_ids() m(id))));
+create policy "approval_delegations_update" on "permdock".approval_delegations
+  for update to authenticated
+  using (delegator::text = (select "permdock".permdock_user_id())::text)
+  with check (delegator::text = (select "permdock".permdock_user_id())::text and (tenant is null or tenant in (select m.id::text from "permdock".member_organization_ids() m(id))));
+create policy "approval_delegations_delete" on "permdock".approval_delegations
+  for delete to authenticated
+  using (delegator::text = (select "permdock".permdock_user_id())::text);
+
+-- approval delegations: whether a delegator's own rights match approvers.by; only permdock_is_approver calls it
+create or replace function "permdock".permdock_cover_approves(p_delegator uuid, p_approvers jsonb, p_tenant text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_item jsonb;
+begin
+  if p_delegator is null or p_approvers is null then
+    return false;
+  end if;
+  if jsonb_typeof(p_approvers) = 'array' then
+    if jsonb_array_length(p_approvers) = 0 then
+      return false;
+    end if;
+    for v_item in select value from jsonb_array_elements(p_approvers) loop
+      if not "permdock".permdock_cover_approves(p_delegator, v_item, p_tenant) then
+        return false;
+      end if;
+    end loop;
+    return true;
+  end if;
+  if jsonb_typeof(p_approvers) <> 'object' then
+    return false;
+  end if;
+  case p_approvers ->> 'kind'
+    when 'user' then
+      return coalesce(p_approvers ->> 'id' = p_delegator::text, false);
+    when 'permission' then
+      if p_tenant is null then
+        return coalesce("permdock".permdock_has_permission_for(p_delegator, p_approvers ->> 'permission'), false);
+      end if;
+      return exists (
+          select 1
+          from "permdock".permitted_organization_ids_by_permission_for(p_delegator, p_approvers ->> 'permission') i(id)
+          where i.id::text = p_tenant
+        );
+    when 'any-of' then
+      if jsonb_typeof(p_approvers -> 'of') <> 'array' then
+        return false;
+      end if;
+      for v_item in select value from jsonb_array_elements(p_approvers -> 'of') loop
+        if "permdock".permdock_cover_approves(p_delegator, v_item, p_tenant) then
+          return true;
+        end if;
+      end loop;
+      return false;
+    else
+      return false;
+  end case;
+end;
+$$;
+revoke execute on function "permdock".permdock_cover_approves(uuid, jsonb, text) from public, anon, authenticated;
+
+-- approvers with covers: the signed-in user, or a delegate inside an active cover of a delegator who is not the requester
+create or replace function "permdock".permdock_is_approver(p_approvers jsonb, p_tenant text, p_requester text, p_resource text)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_delegator uuid;
+  v_user text := (select "permdock".permdock_user_id())::text;
+begin
+  if "permdock".permdock_is_approver(p_approvers, p_tenant) then
+    return true;
+  end if;
+  if coalesce(v_user, '') = '' or coalesce(p_requester, '') = '' then
+    return false;
+  end if;
+  if p_tenant is not null and not (p_tenant in (select m.id::text from "permdock".member_organization_ids() m(id))) then
+    return false;
+  end if;
+  for v_delegator in
+    select d.delegator
+    from "permdock".approval_delegations d
+    where d.delegate::text = v_user
+      and d.delegator::text <> v_user
+      and d.delegator::text <> p_requester
+      and d."from" <= now()
+      and now() < d."until"
+      and (d.tenant is null or d.tenant = p_tenant)
+      and d.permissions is null
+      and (d.resources is null or p_resource = any (d.resources))
+  loop
+    if "permdock".permdock_cover_approves(v_delegator, p_approvers, p_tenant) then
+      return true;
+    end if;
+  end loop;
+  return false;
+end;
+$$;
+revoke execute on function "permdock".permdock_is_approver(jsonb, text, text, text) from public, anon;
+grant execute on function "permdock".permdock_is_approver(jsonb, text, text, text) to authenticated;
 
 -- organization: holder counts (min / max) over the membership sources, checked at commit
 create or replace function "permdock".permdock_holders_organization()

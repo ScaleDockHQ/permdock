@@ -14,6 +14,7 @@ const internal = [
   "roles",
   "custom_role_permissions",
   "custom_role_includes",
+  "organization_memberships",
 ] as const;
 
 export default defineConfig({
@@ -44,6 +45,16 @@ export default defineConfig({
       },
     },
     pgtap: {},
+    // share-links requires tenant; adopting the view keeps PermDock the only owner of memberships.
+    tenant: {
+      mode: "adopt",
+      tables: { memberships: "public.organization_memberships" },
+      columns: { memberships: { updatedAt: null, lastUsedAt: null } },
+    },
+    // Guest links to a quote: whoever may update quotes creates them.
+    "share-links": {
+      permissions: { create: "quotes.update", read: "quotes.read" },
+    },
   },
   doctor: {
     // staff and quotes are read-only to clients: the API roles hold no write

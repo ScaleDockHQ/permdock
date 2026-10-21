@@ -20,6 +20,14 @@ export const blockConfig = {
     schema: "better_supabase",
     options: {},
   },
+  "share-links": {
+    schema: "better_supabase",
+    options: {},
+  },
+  tenant: {
+    schema: "better_supabase",
+    options: {},
+  },
   "updated-at": {
     schema: "better_supabase",
     options: {},

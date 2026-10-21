@@ -1,4 +1,4 @@
--- better-supabase module: access (0.8.0)
+-- better-supabase module: access (0.12.0)
 -- @bs-module access@1 managed
 -- can(), tenant_ids_with() and is_platform(): one permission contract for policies and SQL modules, over a roles list, a role and permission catalog, an authorization provider or the app's own functions (blocks.access.model).
 -- Managed by `better-supabase add`; re-running it overwrites this file.
@@ -117,6 +117,8 @@ as $$
     when 'audit.revert' then 'audit.revert'
     when 'audit.view' then 'audit.view'
     when 'audit.viewAll' then 'audit.view'
+    when 'share-links.create' then 'quotes.update'
+    when 'share-links.read' then 'quotes.read'
   end
 $$;
 

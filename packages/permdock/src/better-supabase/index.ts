@@ -34,6 +34,8 @@ export type {
   PrincipalFromMembershipsOptions,
 } from "./memberships.ts";
 export { principalSource } from "./principals.ts";
+export { roleOrderFromCatalog } from "./role-order.ts";
+export type { RoleOrderOptions } from "./role-order.ts";
 export type {
   BetterSupabaseIdentityLink,
   PrincipalSourceOptions,

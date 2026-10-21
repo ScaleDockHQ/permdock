@@ -160,6 +160,14 @@ async function main(mode: string | undefined): Promise<object> {
     );
     return { snapshot, flight: await flight({ snapshot }) };
   }
+  if (mode === "leaves") {
+    const leaves = [
+      permissions.post.read,
+      permissions.post.list,
+      tenantPermissions.doc.update,
+    ];
+    return { leaves, flight: await flight({ leaves }) };
+  }
   throw new Error(`unknown mode ${String(mode)}`);
 }
 

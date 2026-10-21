@@ -111,6 +111,38 @@ describe("rls generate options", () => {
     );
   });
 
+  it.each([
+    ["jwt", true],
+    ["database", false],
+  ] as const)(
+    "warns about holder() covers with approval delegations under --authorize %s: %s",
+    async (authorize, warns) => {
+      const outcome = await runRlsGenerate({
+        cwd,
+        config: {
+          policy: "./manage.ts",
+          rls: {
+            authorize,
+            memberships,
+            approvals: { delegations: true },
+          },
+        },
+        target: "sql",
+        dialect: "supabase",
+        rbac: false,
+        check: false,
+        skipClosures: false,
+        inlineFunctions: false,
+        io,
+        write: false,
+      });
+      expect(outcome.code).toBe(0);
+      expect(
+        outcome.output.includes("a cover never satisfies a holder()"),
+      ).toBe(warns);
+    },
+  );
+
   it("writes role_permissions as a security_invoker view and keeps the part names", async () => {
     const outcome = await runRlsGenerate({
       cwd,

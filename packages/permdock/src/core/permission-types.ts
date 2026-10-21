@@ -314,6 +314,17 @@ export type InferPermissionTree<
       }
     : never;
 
+/**
+ * The tree `definePermissions(input, options)` returns, nameable for an
+ * explicit annotation under `isolatedDeclarations`.
+ */
+export type PermissionsOf<Input, PX = never, RX = never> = InferPermissionTree<
+  Input,
+  "",
+  PX
+> &
+  ResourceXTree<RX>;
+
 export type ToolHints = {
   readonly readOnlyHint: boolean;
   readonly destructiveHint?: boolean;

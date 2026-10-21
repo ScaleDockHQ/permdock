@@ -311,8 +311,10 @@ export function helpersSql(
 -- policies call them uncorrelated, so Postgres evaluates each once per statement`,
   ];
   if (schema !== "public") {
+    // The anon capability policies call permdock_capability_ids, which needs usage on its schema.
+    const anonUsage = options.anonExecute === true || ctx.capabilities === true;
     chunks.push(
-      `create schema if not exists ${s};\nrevoke all on schema ${s} from public;\ngrant usage on schema ${s} to ${options.anonExecute === true ? "anon, authenticated" : "authenticated"};`,
+      `create schema if not exists ${s};\nrevoke all on schema ${s} from public;\ngrant usage on schema ${s} to ${anonUsage ? "anon, authenticated" : "authenticated"};`,
     );
   }
   if (ctx.dialect === "supabase") {

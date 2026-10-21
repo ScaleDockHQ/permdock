@@ -186,6 +186,22 @@ export type Models = {
     ForeignKeys: "organization_features_organization_id_fkey";
     Flags: Record<never, never>;
   };
+  organization_memberships: {
+    Row: {
+      organization_id: string;
+      user_id: string;
+      role: string;
+      created_at: string;
+    };
+    Insert: never;
+    Update: never;
+    Relations: Record<never, never>;
+    PrimaryKey: never;
+    UniqueKeys: Record<never, never>;
+    Checks: never;
+    ForeignKeys: never;
+    Flags: Record<never, never>;
+  };
   organizations: {
     Row: {
       id: string;

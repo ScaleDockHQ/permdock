@@ -13,6 +13,10 @@ export default {
     tenantType: "uuid",
     tables: ["staff", "quotes"],
     readOnlyActors: true,
+    // Out-of-office covers: a delegate approves for the delegator inside a window.
+    approvals: { delegations: true },
+    // The guest quote page reads through an exchanged share-link capability.
+    capabilities: true,
     customRoles: true,
     trustedReaders: ["service_role"],
     customRoleWrites: {

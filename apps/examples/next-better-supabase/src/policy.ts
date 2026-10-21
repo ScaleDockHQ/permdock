@@ -41,6 +41,10 @@ export const policy = definePolicy(
         [allow([permissions.quotes.read, permissions.quotes.list])],
         { on: "customer", min: 0 },
       ),
+      // Only share links hold it: a guest reads the one quote the link names.
+      role("guest", [allow(permissions.quotes.read)], {
+        on: permissions.quotes,
+      }),
     ],
     // A better-supabase support session or an agent token reaches only what the owner holds
     // and this names; a `read_only` session keeps the read and list keys.

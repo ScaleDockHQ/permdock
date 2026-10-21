@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
-import { parseSnapshot } from "permdock";
+import { isPermission, parseSnapshot } from "permdock";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -43,12 +43,13 @@ type RenderResult =
       readonly id?: string | null;
       readonly flight: string;
       readonly snapshot?: unknown;
+      readonly leaves?: unknown;
       readonly stderr: string;
     }
   | { readonly ok: false; readonly error: string };
 
 export function renderFlight(
-  mode: "provider" | "snapshot" | "tenant-snapshot",
+  mode: "provider" | "snapshot" | "tenant-snapshot" | "leaves",
   environment: "production" | "development" = "production",
 ): RenderResult {
   const { stdout, stderr } = spawnSync(
@@ -96,15 +97,19 @@ function clientReference(flight: string): unknown {
   return Array.isArray(parsed) ? parsed.map(resolve) : parsed;
 }
 
+async function decodeFlight(flight: string): Promise<unknown> {
+  return createFromNodeStream(Readable.from([flight]), {
+    moduleMap: {},
+    serverModuleMap: null,
+    moduleLoading: null,
+  });
+}
+
 async function decodeSnapshot(
   flight: string,
 ): Promise<{ readonly snapshot: unknown }> {
   // SAFETY: the snapshot fixture renders an object with a `snapshot` field
-  return (await createFromNodeStream(Readable.from([flight]), {
-    moduleMap: {},
-    serverModuleMap: null,
-    moduleLoading: null,
-  })) as { readonly snapshot: unknown };
+  return (await decodeFlight(flight)) as { readonly snapshot: unknown };
 }
 
 describe("react-server build", () => {
@@ -171,6 +176,53 @@ describe("react-server build", () => {
       vocabulary: { roles: { owner: { kind: "role" } } },
       assignable: [{ tenant: "acme" }, { tenant: "globex" }],
     });
+  });
+
+  it("passes bare permission leaves through Flight as their JSON form", async () => {
+    const result = renderFlight("leaves");
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+    expect(result.stderr).toBe("");
+    // SAFETY: the leaves fixture renders an object with a `leaves` field
+    const decoded = (await decodeFlight(result.flight)) as {
+      readonly leaves: readonly unknown[];
+    };
+    expect(decoded.leaves).toEqual([
+      {
+        key: "post.read",
+        scope: "post:read",
+        resource: "post",
+        action: "read",
+        meta: {},
+      },
+      {
+        key: "post.list",
+        scope: "post:list",
+        resource: "post",
+        action: "list",
+        meta: {},
+      },
+      {
+        key: "doc.update",
+        scope: "doc:update",
+        resource: "doc",
+        action: "update",
+        meta: {},
+      },
+    ]);
+    expect(decoded.leaves.every((leaf) => isPermission(leaf))).toBe(true);
+  });
+
+  // The non-enumerable `kind` keeps a leaf's JSON to five fields, and React's development check refuses any non-enumerable own property.
+  it("warns about the non-enumerable kind in development Flight", () => {
+    const result = renderFlight("leaves", "development");
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+    expect(result.stderr).toContain(
+      "Only plain objects can be passed to Client Components",
+    );
   });
 
   it('marks every React client entry with "use client"', () => {

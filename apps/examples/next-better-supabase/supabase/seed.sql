@@ -49,3 +49,11 @@ insert into public.organization_features (organization_id, feature) values
 insert into public.datetime_preferences (user_id, timezone, week_start, date_format, time_format) values
   ('00000000-0000-4000-8000-0000000000a1', 'Europe/Amsterdam', 'monday', 'dd-MM-yyyy', '24h'),
   ('00000000-0000-4000-8000-0000000000a3', 'America/New_York', 'sunday', 'MM/dd/yyyy', '12h');
+
+-- Olivia is out of office: Mason approves Acme's requests that wait on her, for a month.
+insert into permdock.approval_delegations (delegator, delegate, tenant, "from", "until") values
+  ('00000000-0000-4000-8000-0000000000a1', '00000000-0000-4000-8000-0000000000a2', '00000000-0000-4000-8000-0000000000b1', now() - interval '1 day', now() + interval '30 days');
+
+-- A guest link to the Initech quote: /en/share/acme-initech-rollout. Only the token's hash is stored.
+insert into better_supabase.share_links (tenant_id, subject_type, subject_id, token_hash, role, created_by) values
+  ('00000000-0000-4000-8000-0000000000b1', 'quote', '00000000-0000-4000-8000-0000000000f1', encode(sha256(convert_to('acme-initech-rollout', 'utf8')), 'hex'), 'view', '00000000-0000-4000-8000-0000000000a1');

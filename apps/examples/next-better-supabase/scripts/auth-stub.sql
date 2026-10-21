@@ -1,10 +1,13 @@
 -- What a Supabase project already has, so plain Postgres can run the migrations:
--- the API and owner roles, auth.users and the auth.uid() / auth.jwt() readers of request.jwt.claims.
+-- the API and owner roles, pgcrypto in the extensions schema, auth.users and the auth.uid() / auth.role() / auth.jwt() readers of request.jwt.claims.
 do $$ begin create role postgres nologin; exception when duplicate_object then null; end $$;
 create role anon nologin;
 create role service_role nologin bypassrls;
 create role authenticated nologin;
 create role supabase_auth_admin nologin;
+create schema extensions;
+create extension pgcrypto with schema extensions;
+grant usage on schema extensions to anon, authenticated, service_role;
 create schema auth;
 create table auth.users (
   id uuid primary key,
@@ -14,6 +17,9 @@ create table auth.users (
 );
 create function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'sub', '')::uuid
+$$;
+create function auth.role() returns text language sql stable as $$
+  select nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'role', '')
 $$;
 create function auth.jwt() returns jsonb language sql stable as $$
   select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb

@@ -299,6 +299,7 @@ export { crud, readable, writable } from "./core/presets.ts";
 export type { MetaValue } from "./core/permissions.ts";
 export type {
   ActionMeta,
+  PermissionsOf,
   PermissionsOptions,
   Permission,
   PermissionKind,
