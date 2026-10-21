@@ -6,6 +6,9 @@ export { tenantFromPath } from "./route.ts";
 export { normalizePatchOps } from "./patch.ts";
 export { directoryMembershipSource } from "./source.ts";
 export { memoryDirectoryStore } from "./store.ts";
+export { postgresDirectoryStore } from "./postgres-store.ts";
+export type { PostgresDirectoryStoreOptions } from "./postgres-store.ts";
+export type { SqlQuery } from "../core/sql.ts";
 export {
   DirectoryNotFoundError,
   DirectoryUniquenessError,
