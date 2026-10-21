@@ -20,6 +20,8 @@ import type {
   ApprovalHandle,
   ClientPermDock,
   FilterResult,
+  GateMode,
+  GateView,
   PermissionSet,
   PermissionState,
   SubjectView,
@@ -31,6 +33,7 @@ import {
   approvalHandle,
   describeWith,
   filterResult,
+  gateView,
   livePermDock,
   permissionSet,
   rolesView,
@@ -100,6 +103,39 @@ export function usePermission(
     status: computed(() => state.value.status),
     decision: computed(() => state.value.decision),
   };
+}
+
+/**
+ * What a permission-gated control renders, as `useGate` in React: `hidden`,
+ * `disabled`, `needsApproval`, `upgrade` and a localised `reason`.
+ */
+export function useGate<D>(
+  permission: MaybeRefOrGetter<Permission>,
+  data?: MaybeRefOrGetter<UncheckedData<D>>,
+  options?: { readonly mode?: GateMode },
+): ComputedRef<GateView>;
+export function useGate<P extends Permission>(
+  permission: MaybeRefOrGetter<P>,
+  data?: MaybeRefOrGetter<RowData<P>>,
+  options?: { readonly mode?: GateMode },
+): ComputedRef<GateView>;
+export function useGate(
+  permission: MaybeRefOrGetter<Permission>,
+  data?: MaybeRefOrGetter<unknown>,
+  options: { readonly mode?: GateMode } = {},
+): ComputedRef<GateView> {
+  const store = useStore();
+  const permdock = useTick(store);
+  const describeDecision = useDescribe();
+  return computed(() => {
+    void permdock.value;
+    const current = toValue(permission);
+    return gateView(
+      store.permissionState(current, toValue(data)),
+      (decision) => describeDecision(decision, { permission: current }),
+      options.mode,
+    );
+  });
 }
 
 export function usePermissions(

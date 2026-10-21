@@ -13,6 +13,7 @@ import {
   useApproval,
   useAssignablePermissions,
   useAssignableRoles,
+  useGate,
   usePermDock,
   usePermission,
   usePermissions,
@@ -77,6 +78,28 @@ const required: Decision = {
 } as unknown as Decision;
 
 describe("permdock/solid hooks", () => {
+  it("gate a granted, an approval-required and a denied action like React", async () => {
+    const view = mount({ snapshot: await memberSnapshot() }, () => {
+      const update = useGate(permissions.post.update, () => ownPost);
+      const remove = useGate(permissions.post.delete, () => ownPost, {
+        mode: "hide",
+      });
+      const publish = useGate(permissions.post.publish, () => ownPost, {
+        mode: "hide",
+      });
+      return () =>
+        [
+          update().disabled,
+          remove().needsApproval,
+          remove().hidden,
+          publish().hidden,
+          publish().reason.kind,
+        ].join(":");
+    });
+    expect(view.root.textContent).toBe("false:true:false:true:denied");
+    view.dispose();
+  });
+
   it("re-run for every reader of one store row edited in place", async () => {
     const [post, setPost] = createStore({ ...ownPost });
     const view = mount({ snapshot: await memberSnapshot() }, () => {

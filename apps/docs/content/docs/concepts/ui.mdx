@@ -69,7 +69,7 @@ if (gate.hidden) return null;
 | `upgrade`       | The plans that would grant it, for an upgrade prompt              |
 | `reason`        | `describe(decision)`, localised by the provider's `messages`      |
 
-`gateView(state, describe, mode)` in `permdock/client` is the same computation without React, for Vue, Svelte, Solid or your own binding. The [`@permdock` recipes](/docs/concepts/recipes) build their controls on `useGate`; React and React Native share it.
+Vue and Solid export `useGate` with the same arguments, returning a computed ref and an accessor; Svelte's is the `gate` store. `gateView(state, describe, mode)` in `permdock/client` is the same computation for your own binding. The [`@permdock` recipes](/docs/concepts/recipes) build their controls on `useGate`.
 
 ## Provider defaults
 

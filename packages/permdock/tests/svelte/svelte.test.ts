@@ -10,6 +10,7 @@ import {
   assignableFor,
   assignablePermissionsFor,
   filteredFor,
+  gateFor,
   membershipsFor,
   permissionFor,
   permissionsFor,
@@ -58,6 +59,17 @@ describe("permdock/svelte", () => {
     expect(
       get(permissionFor(store, defs.post.update, () => otherPost)).allowed,
     ).toBe(false);
+  });
+
+  it("gates a control on the snapshot like React's useGate", async () => {
+    const snapshot = await memberSnapshot();
+    const store = createSvelteStore({ snapshot });
+    const own = get(gateFor(store, defs.post.update, () => ownPost));
+    const other = get(
+      gateFor(store, defs.post.update, () => otherPost, { mode: "disable" }),
+    );
+    expect(`${own.hidden}:${own.disabled}`).toBe("false:false");
+    expect(`${other.hidden}:${other.disabled}`).toBe("false:true");
   });
 
   it("exposes snapshot introspection through stores", async () => {

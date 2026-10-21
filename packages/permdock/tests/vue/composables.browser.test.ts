@@ -19,6 +19,7 @@ import {
   useApproval,
   useAssignablePermissions,
   useAssignableRoles,
+  useGate,
   usePermission,
   usePermissions,
   useRoles,
@@ -115,6 +116,33 @@ describe("permdock/vue composables", () => {
     post.authorId = otherPost.authorId;
     await nextTick();
     expect(view.root.textContent).toBe("nn");
+    view.unmount();
+  });
+
+  it("gate a granted, an approval-required and a denied action like React", async () => {
+    const view = mount(
+      defineComponent({
+        setup() {
+          const update = useGate(permissions.post.update, ownPost);
+          const remove = useGate(permissions.post.delete, ownPost, {
+            mode: "hide",
+          });
+          const publish = useGate(permissions.post.publish, ownPost, {
+            mode: "hide",
+          });
+          return () =>
+            [
+              update.value.disabled,
+              remove.value.needsApproval,
+              remove.value.hidden,
+              publish.value.hidden,
+              publish.value.reason.kind,
+            ].join(":");
+        },
+      }),
+      { snapshot: await memberSnapshot() },
+    );
+    expect(view.root.textContent).toBe("false:true:false:true:denied");
     view.unmount();
   });
 

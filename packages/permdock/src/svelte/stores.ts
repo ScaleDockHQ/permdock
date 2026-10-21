@@ -13,6 +13,8 @@ import type {
   ApprovalHandle,
   ClientPermDock,
   FilterResult,
+  GateMode,
+  GateView,
   SveltePermDockOptions,
   PermissionSet,
   PermissionState,
@@ -25,6 +27,7 @@ import {
   approvalHandle,
   describeWith,
   filterResult,
+  gateView,
   livePermDock,
   permissionSet,
   rolesView,
@@ -92,6 +95,54 @@ export function permissionFor(
   data?: () => unknown,
 ): Readable<PermissionState> {
   return fromStore(store, () => store.permissionState(reference, data?.()));
+}
+
+/**
+ * What a permission-gated control renders, as `useGate` in React: `hidden`,
+ * `disabled`, `needsApproval`, `upgrade` and a `reason` in the provider's
+ * `messages`. Call it during component initialisation.
+ */
+export function gate<D>(
+  reference: Permission,
+  data?: () => UncheckedData<D>,
+  options?: { readonly mode?: GateMode },
+): Readable<GateView>;
+export function gate<P extends Permission>(
+  reference: P,
+  data?: () => RowData<P>,
+  options?: { readonly mode?: GateMode },
+): Readable<GateView>;
+export function gate(
+  reference: Permission,
+  data?: () => unknown,
+  options: { readonly mode?: GateMode } = {},
+): Readable<GateView> {
+  return gateFor(getStore(), reference, data, {
+    ...options,
+    describe: getDescribe(),
+  });
+}
+
+export function gateFor(
+  store: ClientStore,
+  reference: Permission,
+  data?: () => unknown,
+  options: {
+    readonly mode?: GateMode;
+    readonly describe?: (
+      decision: Decision,
+      options?: DescribeOptions,
+    ) => DecisionDescription;
+  } = {},
+): Readable<GateView> {
+  const describeDecision = options.describe ?? describeWith(undefined);
+  return fromStore(store, () =>
+    gateView(
+      store.permissionState(reference, data?.()),
+      (decision) => describeDecision(decision, { permission: reference }),
+      options.mode,
+    ),
+  );
 }
 
 export function permissions(
