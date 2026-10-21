@@ -66,6 +66,80 @@ export default defineConfig({
     ]);
   });
 
+  it("reports a target under a value that is not an object literal, and skips a file that does not parse", () => {
+    const result = move(`import { defineConfig } from "permdock/cli";
+const scopes = {};
+export default defineConfig({
+  rls: { memberships: { scopes, tenant: { table: "m" } } },
+});
+`);
+    expect(result.changes).toStrictEqual([]);
+    expect(result.followUps).toMatchObject([
+      {
+        line: 4,
+        name: "rls.memberships.tenant",
+        message:
+          "rls.memberships.tenant moved to rls.memberships.scopes.tenant, which is not an object literal; merge it by hand",
+      },
+    ]);
+    expect(move("export default {").changes).toStrictEqual([]);
+  });
+
+  it("removes a moved key from the middle, the end or an object of one, and unwraps satisfies", () => {
+    const result = move(`export default ({
+  rls: {
+    scopeTypes: { org: "uuid" },
+    tenantType: "text",
+    dialect: "supabase",
+    memberships: { scopes: { org: { table: "m" } }, team: { table: "t" } },
+  },
+} satisfies object);
+`);
+    expect(result.source).toBe(`export default ({
+  rls: {
+    scopeTypes: { org: "uuid", tenant: "text" },
+    dialect: "supabase",
+    memberships: { scopes: { org: { table: "m" }, team: { table: "t" } } },
+  },
+} satisfies object);
+`);
+    expect(
+      move(`export default { rls: { scopeTypes: {}, teamType: "int8" } };\n`)
+        .source,
+    ).toBe(`export default { rls: { scopeTypes: { team: "int8" } } };\n`);
+  });
+
+  it("skips spread and computed keys under a wildcard and appends after a trailing comma", () => {
+    const result = move(`const base = {};
+export default {
+  rls: {
+    scopeTypes: { org: "uuid", },
+    tenantType: "text",
+    memberships: { scopes: { ...base, ["x"]: {}, org: { table: "m", tenant: "org_id" } } },
+  },
+};
+`);
+    expect(result.source).toBe(`const base = {};
+export default {
+  rls: {
+    scopeTypes: { org: "uuid", tenant: "text", },
+    memberships: { scopes: { ...base, ["x"]: {}, org: { table: "m", columns: { tenant: "org_id" } } } },
+  },
+};
+`);
+  });
+
+  it("reports a move onto one of its own ancestors", () => {
+    const result = moveConfigKeys(
+      "permdock.config.ts",
+      "export default { rls: { a: { b: 1 } } };\n",
+      [{ from: ["rls", "a", "b"], to: ["rls"] }],
+    );
+    expect(result.followUps).toMatchObject([
+      { name: "rls.a.b", message: "rls.a.b moved to rls; move it by hand" },
+    ]);
+  });
+
   it("leaves objects that are not a config alone", () => {
     const source = `export const rls = { tenantType: "text" };\n`;
     expect(move(source).source).toBe(source);

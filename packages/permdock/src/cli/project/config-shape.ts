@@ -195,7 +195,6 @@ export function describeKinds(kinds: KeyShape): string {
         ? "an object"
         : `a ${kind}`,
   );
-  return names.length <= 1
-    ? (names[0] ?? "")
-    : `${names.slice(0, -1).join(", ")} or ${names.at(-1) ?? ""}`;
+  const last = names.splice(-1, 1).join("");
+  return names.length === 0 ? last : `${names.join(", ")} or ${last}`;
 }

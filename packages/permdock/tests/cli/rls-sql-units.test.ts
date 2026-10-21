@@ -11,6 +11,7 @@ import {
 import {
   arrayColumnsOf,
   columnTypesOf,
+  firstScopeType,
   scopeTypeOf,
   tenantTypeOf,
 } from "../../src/cli/sql/columns.ts";
@@ -304,6 +305,13 @@ describe("column types from JSON Schema", () => {
       any: "numeric",
       one: "boolean",
     });
+    expect(
+      columnTypesOf({
+        properties: JSON.parse('{"__proto__": { "type": "integer" }}'),
+      }),
+    ).toStrictEqual({});
+    expect(firstScopeType({ tenant: "text" }, [])).toBe("text");
+    expect(firstScopeType(undefined, [])).toBe("uuid");
     expect(columnTypesOf(null)).toStrictEqual({});
     expect(columnTypesOf({ properties: [] })).toStrictEqual({});
   });

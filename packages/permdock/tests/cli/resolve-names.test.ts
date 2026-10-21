@@ -119,6 +119,14 @@ describe(resolveNames, () => {
     );
   });
 
+  it("rejects a helper that is not a lowercase SQL identifier", () => {
+    expect(() =>
+      resolveNames(policyWith({ organization: { key: "orgId" } }), {
+        rls: { tables: { doc: "public.Docs" }, fields: "views" },
+      }),
+    ).toThrow("which is not a lowercase SQL identifier");
+  });
+
   it("rejects a helper longer than Postgres keeps", () => {
     const long = "a".repeat(47);
     expect(() =>

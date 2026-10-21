@@ -14,6 +14,7 @@ import type { SqlCall, SqlReply } from "../fakes/sql.ts";
 
 import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
 import { expectedRls } from "../../src/cli/rls/introspect.ts";
+import { parseRbacAuthorize } from "../../src/cli/rls/rbac.ts";
 import { RLS_HELP, runRls } from "../../src/cli/rls/rls.ts";
 import { fakeSql } from "../fakes/sql.ts";
 
@@ -508,6 +509,7 @@ describe("rls run", () => {
           input({ rest: ["generate"], out: "auth.sql", authorize: "nope" }),
         ),
       ).rejects.toThrow("--authorize must be database or jwt, got 'nope'");
+      expect(parseRbacAuthorize(undefined)).toBeUndefined();
     });
 
     it("reads the policy from --from", async () => {

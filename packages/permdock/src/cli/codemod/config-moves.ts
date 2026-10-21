@@ -33,7 +33,7 @@ export type ConfigMoveResult = {
 /** Passes over one file before the codemod stops; each pass moves one key. */
 const MAX_PASSES = 500;
 
-function unwrap(node: Estree | undefined): Estree | undefined {
+function unwrap(node: Estree | null | undefined): Estree | null | undefined {
   if (
     node?.type === "TSSatisfiesExpression" ||
     node?.type === "TSAsExpression" ||
@@ -58,7 +58,7 @@ function configRoots(program: Estree, file: string): readonly Estree[] {
       node.type === "CallExpression" && nameOf(node.callee) === "defineConfig"
         ? unwrap(node)
         : node.type === "ExportDefaultDeclaration" && isConfigFile
-          ? unwrap(node.declaration ?? undefined)
+          ? unwrap(node.declaration)
           : undefined;
     if (root?.type === "ObjectExpression" && !roots.includes(root)) {
       roots.push(root);
@@ -77,8 +77,8 @@ function propertyOf(object: Estree, key: string): Estree | undefined {
   return nodes(object.properties).find((property) => keyOf(property) === key);
 }
 
-function objectValue(property: Estree | undefined): Estree | undefined {
-  const value = property === undefined ? undefined : child(property, "value");
+function objectValue(property: Estree): Estree | undefined {
+  const value = child(property, "value");
   return value?.type === "ObjectExpression" ? value : undefined;
 }
 

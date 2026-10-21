@@ -67,7 +67,11 @@ function leafKeys(value: object): string {
  * (once natively, once through jiti, or fresh under `--watch`) yields a second
  * object, so a policy compares by fingerprint and a tree by its leaf keys.
  */
-function sameValue(key: ModuleKey, value: object, exported: unknown): boolean {
+export function sameValue(
+  key: ModuleKey,
+  value: object,
+  exported: unknown,
+): boolean {
   if (exported === value) {
     return true;
   }

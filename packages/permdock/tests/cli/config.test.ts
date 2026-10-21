@@ -4,9 +4,16 @@ import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import { run } from "../../src/cli/core/run.ts";
 import { parseConfig } from "../../src/cli/project/config-schema.ts";
-import { CONFIG_SHAPE } from "../../src/cli/project/config-shape.ts";
+import { CONFIG_SHAPE, kindOf } from "../../src/cli/project/config-shape.ts";
 import { readConfig } from "../../src/cli/project/config.ts";
-import { PERMISSIONS, project, removeProjects } from "./doctor-kit.ts";
+import { sameValue } from "../../src/cli/project/module-values.ts";
+import { definePermissions, resource } from "../../src/index.ts";
+import {
+  PERMISSIONS,
+  policyModule,
+  project,
+  removeProjects,
+} from "./doctor-kit.ts";
 import { jsonData } from "./envelope.ts";
 
 describe("config", () => {
@@ -24,6 +31,66 @@ export default { permissions };
       expect(config.permissions).toBe("./src/permissions.ts");
     });
 
+    it("traces a policy, a permissions tree and operations through .js, index and default imports", async () => {
+      const cwd = project({
+        "src/permissions.ts": PERMISSIONS,
+        "src/policy.ts": policyModule("roles: [],"),
+        "src/ops/index.ts":
+          "export default { publish: { permission: 'post.update' } };\n",
+        "src/broken.ts":
+          "export type Broken = never;\nthrow new Error('not this one');\n",
+        "src/other.ts":
+          "import { definePermissions, resource } from 'permdock';\nexport const permissions = definePermissions({ other: resource({ actions: ['read'] }) });\n",
+        "permdock.config.ts": `import type { Broken } from "./src/broken";
+import type { Missing } from "./src/missing";
+import { permissions as other } from "./src/other";
+import { permissions } from "./src/permissions.js";
+import { policy } from "./src/policy";
+import operations from "./src/ops";
+void other;
+export type Unused = [Broken, Missing];
+export default { policy, permissions, operations };
+`,
+      });
+      const { config } = await readConfig(cwd);
+      expect([
+        config.policy,
+        config.permissions,
+        config.operations,
+      ]).toStrictEqual([
+        "./src/policy.ts",
+        "./src/permissions.ts",
+        "./src/ops/index.ts",
+      ]);
+    });
+
+    it("keeps a module outside the config folder as a parent-relative path", async () => {
+      const root = project({
+        "shared/permissions.ts": PERMISSIONS,
+        "app/permdock.config.ts": `import { permissions } from "../shared/permissions";
+export default { permissions };
+`,
+      });
+      const { config } = await readConfig(`${root}/app`);
+      expect(config.permissions).toBe("../shared/permissions.ts");
+    });
+
+    it("matches a module evaluated twice by fingerprint, leaf keys or operation names", () => {
+      const tree = () =>
+        definePermissions({ post: resource({ actions: ["read"] }) });
+      const ops = { publish: {}, archive: {} };
+      expect([
+        sameValue("policy", { fingerprint: "f1" }, { fingerprint: "f1" }),
+        sameValue("policy", { fingerprint: "f1" }, { fingerprint: "f2" }),
+        sameValue("policy", {}, {}),
+        sameValue("policy", { fingerprint: "f1" }, "f1"),
+        sameValue("permissions", tree(), tree()),
+        sameValue("permissions", { broken: 1 }, { broken: 1 }),
+        sameValue("operations", ops, { archive: {}, publish: {} }),
+        sameValue("operations", {}, {}),
+      ]).toStrictEqual([true, false, false, false, true, false, true, false]);
+    });
+
     it("refuses a value no relative import exports", async () => {
       const cwd = project({
         "permdock.config.ts": "export default { policy: { roles: [] } };\n",
@@ -35,6 +102,25 @@ export default { permissions };
         ),
       });
     });
+  });
+
+  it("names the kind of every JSON value and none for the rest", () => {
+    expect(
+      [[], "x", true, 1, () => 1, {}, null, 1n, Symbol("x"), undefined].map(
+        kindOf,
+      ),
+    ).toStrictEqual([
+      "array",
+      "string",
+      "boolean",
+      "number",
+      "function",
+      "object",
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
   });
 
   describe(parseConfig, () => {

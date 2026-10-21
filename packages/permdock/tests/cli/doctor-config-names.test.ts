@@ -60,6 +60,12 @@ describe("doctor config names", () => {
     ]);
   });
 
+  it("finds nothing when the policy does not load", async () => {
+    expect(
+      await pd077({ cwd: cwd(), config: { policy: "src/missing.ts" } }),
+    ).toStrictEqual([]);
+  });
+
   it("finds nothing without a policy", async () => {
     expect(
       await pd077({ cwd: cwd(), config: { rls: { tables: { x: "x" } } } }),
