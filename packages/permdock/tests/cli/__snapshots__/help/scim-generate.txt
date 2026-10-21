@@ -1,0 +1,21 @@
+permdock scim generate: Write the tenant-keyed users, groups and members tables
+
+Usage  permdock scim generate [flags]
+
+Flags
+  --out <file>                   File to write, - for stdout (default supabase/schemas/<schema>/scim.sql, else permdock_scim.sql)
+  --dialect <supabase|neon|guc>  Which client roles lose access to the tables (default rls.dialect, else supabase)
+  --schema <name>                Schema for the directory tables (default rls.schema, else permdock)
+  --check                        Exit 1 when a file on disk is stale; write nothing
+  --dry-run                      Print what would change; write nothing
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock scim generate
+  permdock scim generate --dialect guc --out db/scim.sql
+  permdock scim generate --check
+
+Side effects  files
+Docs  https://permdock.com/docs/cli/scim

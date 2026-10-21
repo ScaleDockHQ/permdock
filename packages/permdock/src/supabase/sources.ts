@@ -1,4 +1,5 @@
 import type { MemberEntry, MembershipSource } from "../core/interfaces.ts";
+import type { SqlQuery } from "../core/sql.ts";
 import type { Membership } from "../core/subject.ts";
 import type { SupabaseManifestMembership } from "./manifest.ts";
 import type { RoleMap, RoleThrough, SupabaseSuspension } from "./types.ts";
@@ -10,6 +11,7 @@ import {
   quoteQualifiedTable,
   quoteSqlIdent,
   quoteSqlLiteral,
+  sqlRows,
 } from "../core/sql.ts";
 import { type Shape, col, filters, selectOf, sqlOf } from "./membership-sql.ts";
 import {
@@ -23,17 +25,7 @@ import {
   roleManifest,
 } from "./roles.ts";
 
-/**
- * Runs one parameterised statement: `pg`'s `client.query` (which resolves
- * `{ rows }`) and `postgres`'s `sql.unsafe` (which resolves the rows) both fit.
- */
-export type SqlQuery = (
-  text: string,
-  values: readonly unknown[],
-) => Promise<
-  | readonly Record<string, unknown>[]
-  | { readonly rows: readonly Record<string, unknown>[] }
->;
+export type { SqlQuery } from "../core/sql.ts";
 
 type Common = {
   readonly table: string;
@@ -289,14 +281,7 @@ function roleAgg(role: RoleColumn): string {
   return `jsonb_agg(distinct ${role.sql} order by ${role.sql}) filter (where ${role.sql} is not null)`;
 }
 
-function rowsOf(
-  result: Awaited<ReturnType<SqlQuery>>,
-): readonly Record<string, unknown>[] {
-  // SAFETY: SqlQuery's only other variant has rows; Array.isArray does not narrow readonly arrays.
-  return Array.isArray(result)
-    ? result
-    : (result as { readonly rows: readonly Record<string, unknown>[] }).rows;
-}
+const rowsOf = sqlRows;
 
 function strings(value: unknown): readonly string[] {
   return Array.isArray(value)

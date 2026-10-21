@@ -1,3 +1,25 @@
+/**
+ * Runs one parameterised statement: `pg`'s `client.query` (which resolves
+ * `{ rows }`) and `postgres`'s `sql.unsafe` (which resolves the rows) both fit.
+ */
+export type SqlQuery = (
+  text: string,
+  values: readonly unknown[],
+) => Promise<
+  | readonly Record<string, unknown>[]
+  | { readonly rows: readonly Record<string, unknown>[] }
+>;
+
+/** The rows of a `SqlQuery` result, whichever of its two shapes the driver resolved. */
+export function sqlRows(
+  result: Awaited<ReturnType<SqlQuery>>,
+): readonly Record<string, unknown>[] {
+  // SAFETY: SqlQuery's only other variant has rows; Array.isArray does not narrow readonly arrays.
+  return Array.isArray(result)
+    ? result
+    : (result as { readonly rows: readonly Record<string, unknown>[] }).rows;
+}
+
 /** A bare Postgres identifier PermDock emits unquoted-safe: letters, digits and `_`, not starting with a digit. */
 export const SQL_IDENT: RegExp = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 

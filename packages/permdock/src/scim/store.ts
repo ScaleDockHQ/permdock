@@ -66,7 +66,7 @@ function pageOf<T>(items: readonly T[], page: ScimPage): ScimPageResult<T> {
   });
 }
 
-function emailsOf(value: unknown): DirectoryUser["emails"] | undefined {
+export function emailsOf(value: unknown): DirectoryUser["emails"] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
   }
@@ -123,7 +123,10 @@ function memberValues(value: unknown): readonly string[] {
   return membersOf(value).map((member) => member.value);
 }
 
-function applyUserOp(user: DirectoryUser, op: ScimPatchOp): DirectoryUser {
+export function applyUserOp(
+  user: DirectoryUser,
+  op: ScimPatchOp,
+): DirectoryUser {
   const path = op.path ?? "";
   if (path === "active" && typeof op.value === "boolean") {
     return { ...user, active: op.value };
@@ -143,7 +146,10 @@ function applyUserOp(user: DirectoryUser, op: ScimPatchOp): DirectoryUser {
   return user;
 }
 
-function applyGroupOp(group: DirectoryGroup, op: ScimPatchOp): DirectoryGroup {
+export function applyGroupOp(
+  group: DirectoryGroup,
+  op: ScimPatchOp,
+): DirectoryGroup {
   const path = op.path ?? "";
   if (path === "displayName" && typeof op.value === "string") {
     return { ...group, displayName: op.value };

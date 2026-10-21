@@ -50,7 +50,7 @@ export const { middleware, protect } = createPermDock(policy, {
 ```
 
 - `scimHandler(options)` returns a Fetch handler serving `/Users`, `/Users/:id`, `/Groups`, `/Groups/:id`, `/ServiceProviderConfig`, `/ResourceTypes` and `/Schemas` under the mount point. Supported operations: `GET` (with `filter`, `startIndex` / `count`, and RFC 9865 `cursor` / `nextCursor`), `POST`, `PUT`, `PATCH` (`add`, `replace`, `remove` with the path forms Okta, Entra ID and Google Workspace emit) and `DELETE`. Responses use the SCIM media type `application/scim+json` and the RFC 7644 error body (`schemas`, `status`, `scimType`, `detail`).
-- `directory` is a `DirectoryStore` ([extension interfaces](/docs/concepts/extension-interfaces)). `memoryDirectoryStore()` is the in-process default and what `permdock/testing` asserts against; a store over Drizzle, Prisma or Kysely is the recipe at the end of this page.
+- `directory` is a `DirectoryStore` ([extension interfaces](/docs/concepts/extension-interfaces)). `memoryDirectoryStore()` is the in-process default and what `permdock/testing` asserts against; `postgresDirectoryStore(query)` keeps the directory in Postgres tables that [`permdock scim generate`](/docs/cli/scim) writes ([Postgres store](#postgres-store)).
 - `tenant` resolves the tenant for a request from the mount path or from the credential. SCIM has no tenant attribute, so one endpoint (or one credential) per tenant is the model every IdP expects.
 - `token` and `verifier` are the two credential kinds; at least one is required and both may be set. `token` is a per-tenant static bearer compared in constant time against a stored hash (never stored plain). `verifier` is a `TokenVerifier` for an RFC 7523 JWT bearer whose `aud` must equal the configured `audience` and whose tenant claim must equal the resolved tenant; `scimHandler` throws when `verifier` is set without `audience`; this is what the Cloud relay presents and what the IPSIE AL1 profile prescribes.
 - `groupRoles` maps a group `id` to the role names its members hold. When a `Group` arrives with the PermDock extension attribute (`urn:ietf:params:scim:schemas:extension:permdock:2.0:Group` with a `roles` array), the attribute is stored on the group and takes precedence; the Cloud's mapping UI writes it, and an IdP that supports custom group attributes may too. Role names are offered to the tenant's `CustomRoleSource` as custom roles first and then matched against declared `assignable` roles; anything else is dropped and reported in development.
@@ -210,14 +210,59 @@ Deprovisioning latency is bounded by how memberships are read: per request throu
 - **The policy caps what an identity provider grants.** Core drops every role a policy declares `assignable: false` from a `managedBy: 'idp'` membership, whether or not `assignable` was passed to the source, and whether it came from this handler or the Cloud relay. An identity-provider admin can then map a group to `editor` but never to `owner`, which the application keeps for its own flows. A name the policy does not declare stays, because only a tenant's custom role can give it meaning. `onUnknownRole` reports names outside `assignable` on create, replace and `PATCH`.
 - **The audience is configuration.** Deriving it from the request URL would let a bearer minted for one deployment (a staging host, another customer's endpoint behind the same proxy) pass wherever the `Host` header can be chosen. A fixed `audience` binds the relay's token to this endpoint.
 - **One signal to two places.** `onChange` carries the same `kind` so cached snapshots and the feed agree without the application re-deriving deactivation from the SCIM body. The PermDock Cloud relay replays the SCIM write to this handler and does not send its own `session-revoked` for it.
+- **`scim generate` writes tables and a store, not a membership mapping.** A multi-tenant deployment behind the relay needs storage that keeps tenants apart and enforces the per-tenant uniqueness `409 uniqueness` reports, so the SQL keys every row on `tenant`, makes `userName` and `externalId` unique per tenant, and ties members to their group with a tenant-qualified foreign key. The store ships with the SQL because the table and constraint names are a contract between them, as `rls.approvals` and `supabaseApprovalStore` share one. Memberships are read only through `directoryMembershipSource`: it matches the principal on `externalId` or `userName`, drops inactive users and applies `assignable` in process, and a `tableMembershipSource` mapping or an RLS helper over the same tables would have to repeat each rule in SQL. `permdock rls generate` therefore does not read the directory tables; a policy that needs a provisioned group reads the memberships the application derives from it. The tables are storage for what an authenticated identity provider or the relay sent, written only by `scimHandler`; they are no membership or invitation API, which stays a [non-goal](/docs/roadmap#non-goals). Each method is one statement over a plain `SqlQuery`, because pooled drivers (`pg`, `postgres`, `@supabase/server`) share that function shape and not a transaction API.
 
 ## Hosted relay
 
 PermDock Cloud runs a SCIM endpoint per connected tenant, with the IdP-specific setup instructions (Okta and Entra ID applications, Google Workspace auto-provisioning), a group-to-role mapping UI that writes the extension attribute, and a sync log. Each operation the Cloud accepts is replayed unchanged to your `scimHandler`, authenticated with an RFC 7523 JWT bearer signed by the Cloud's per-environment key and verified by your `verifier` against the same JWKS that signs snapshots ([Cloud adapter](/docs/adapters/cloud)). The Cloud keeps no authoritative copy of your directory (the relay is the bring-your-own directory mode; a Cloud-native environment has no `scimHandler` target and delivers memberships as token claims): if the relay is unreachable, the IdP retries, and your store keeps its last state. The Cloud never implements `MembershipSource` or `CustomRoleSource` (invariant 15).
 
-## Store recipe
+## Postgres store
 
-A Drizzle store is three tables (`scim_users`, `scim_groups`, `scim_group_members`) keyed on `(tenant, id)` with unique indexes on `(tenant, user_name)` and `(tenant, external_id)`, and about sixty lines implementing the interface above; `groupsFor` is a join. `permdock rls generate` reads the same tables through the `memberships` table mapping when the `memberOf` node is compiled ([RLS adapter](/docs/adapters/rls)). `testDirectoryStore` in `permdock/testing` runs the conformance cases (round trip, PATCH normalisation, uniqueness, tenant isolation).
+`permdock scim generate` writes the SQL for a directory that serves every tenant from one set of tables, which is what a deployment behind the Cloud relay needs: one `scimHandler`, one `audience`, and the tenant from the relay's bearer. `postgresDirectoryStore(query)` implements `DirectoryStore` over those tables.
+
+```bash
+permdock scim generate   # supabase/schemas/permdock/scim.sql
+```
+
+```ts
+import pg from "pg";
+import {
+  directoryMembershipSource,
+  postgresDirectoryStore,
+  scimHandler,
+  tenantFromPath,
+} from "permdock/scim";
+
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const directory = postgresDirectoryStore((text, values) =>
+  pool.query(text, [...values]),
+);
+
+export const scim = scimHandler({
+  directory,
+  tenant: (request) => tenantFromPath(request),
+  verifier, // the Cloud relay's RFC 7523 bearer; its tenant claim must equal the path's
+  audience: "https://app.example.com/scim/v2",
+});
+
+export const memberships = directoryMembershipSource(directory, {
+  assignable: ["viewer", "editor"],
+});
+```
+
+| Table                         | Key                           | Holds                                                                                                      |
+| ----------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `permdock.scim_users`         | `(tenant, id)`                | `user_name` and `external_id`, each unique per tenant; `active`, `emails`, `x`, times and a `revision`     |
+| `permdock.scim_groups`        | `(tenant, id)`                | `display_name`, `external_id` unique per tenant, `roles` (the extension attribute), `x`, times, `revision` |
+| `permdock.scim_group_members` | `(tenant, group_id, user_id)` | One row per member `value`, in order; cascades with its group and is indexed on `(tenant, user_id)`        |
+
+- `query` is a `SqlQuery`, the same function type `tableMembershipSource` takes: `pg`'s `pool.query`, `postgres`'s `sql.unsafe`, or `supabasePostgresQuery(ctx.postgresAdmin)` from `permdock/supabase`. It runs as the tables' owner or as a role granted `select`, `insert`, `update` and `delete` on them.
+- `schema` (default `permdock`) names the schema `--schema` wrote the tables into. The table and constraint names are fixed: the store maps a violation of `scim_users_user_name_key` to `DirectoryUniquenessError('userName')` and of the two `external_id` keys to `DirectoryUniquenessError('externalId')`, which `scimHandler` answers with `409 uniqueness`.
+- Each method is one statement, so a pool needs no transaction: `putGroup` writes the group and its members together, `deleteUser` removes the user from every group in the same statement, and a `PATCH` that loses a race to another write (`revision` changed between its read and its write) reads the row again and reapplies its operations, up to eight times before it fails.
+- Filters compile to SQL with every value bound as a parameter, and answer the same resources and pages as `memoryDirectoryStore`.
+- The SQL enables row level security on the three tables with no policy and revokes them from `public` and the `--dialect`'s client roles (`anon` and `authenticated` on Supabase, `anonymous` and `authenticated` on Neon), so a data API never exposes the directory. It never names `service_role`.
+
+`testDirectoryStore` in `permdock/testing` runs the conformance cases (round trip, PATCH normalisation, uniqueness, tenant isolation) against any store, including one over your own tables.
 
 ## Example app
 

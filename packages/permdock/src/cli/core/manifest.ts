@@ -394,6 +394,28 @@ export const SECTIONS: readonly Section[] = [
           ),
         ],
       ),
+      group(
+        "scim",
+        "Generate the Postgres tables postgresDirectoryStore keeps a SCIM directory in",
+        "scim",
+        [
+          leaf(
+            "generate",
+            "Write the tenant-keyed users, groups and members tables",
+            {
+              examples: [
+                "permdock scim generate",
+                "permdock scim generate --dialect guc --out db/scim.sql",
+                "permdock scim generate --check",
+              ],
+              docs: "scim",
+              effects: ["files"],
+              config: true,
+              load: async () => (await import("../commands/scim.ts")).generate,
+            },
+          ),
+        ],
+      ),
     ],
   },
   {
