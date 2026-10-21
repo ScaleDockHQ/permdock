@@ -60,7 +60,7 @@ A policy declares its scopes in order (an organization, the customers inside it)
 3. **Load memberships.** Return memberships as `{ scope, id, within, roles, via, expiresAt }` from the subject resolver, or pass a `MembershipSource` (one, or an array) as `memberships` on `createPermDock`. A person's access ending is the membership's `expiresAt`.
    ✓ `permdock doctor` reports no PD025 for the `doctor.memberships` fixture.
 
-   An organisation role that reaches only the principal's teams is an organisation role with `where: { team_id: { in: principal.claims.team_ids } }`, not a team role. On Supabase, write the claim with `supabase.hook.claims` ([team reach](https://permdock.com/docs/concepts/tenancy#organisation-roles-with-team-reach)).
+   An organisation role that reaches only the principal's teams is an organisation role with `where: { team_id: { in: claim("team_ids") } }` (`claim` from `permdock` is `principal.claims.team_ids`, typed under `noUncheckedIndexedAccess`), not a team role. On Supabase, write the claim with `supabase.hook.claims` ([team reach](https://permdock.com/docs/concepts/tenancy#organisation-roles-with-team-reach)).
 
 4. **Put ownership on the roles.** Set `min: 1` on the role that manages each scope, `assigns` for who hands out what, `for: ['staff']` on admin-like roles, and `meta.audience` for the surface. Every server action that changes a membership calls `decideRoleChange(permdock, ...)` with the target's current membership and the holder count before it writes. -> [references/ownership-and-custom-roles.md](references/ownership-and-custom-roles.md)
    ✓ PD026 is clean, and removing the last owner is denied with `last-holder`.

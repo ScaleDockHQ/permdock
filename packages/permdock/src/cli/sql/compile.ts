@@ -305,7 +305,7 @@ function prepare(
   tables: Readonly<Record<string, string>> | undefined,
   warnings: string[],
   skipClosures: boolean,
-  actions: RlsActions | undefined,
+  sql: Pick<RlsSqlContext, "actions" | "tableless">,
   rowActions = false,
 ): Prepared | undefined {
   const { grant, label } = item;
@@ -346,9 +346,18 @@ function prepare(
     warnings.push(`skipped approval grant ${label}/${grant.permission.key}`);
     return undefined;
   }
-  const command = commandFor(grant.permission.action, actions);
+  const tableless = sql.tableless?.has(grant.permission.resource) === true;
+  const command = tableless
+    ? undefined
+    : commandFor(grant.permission.action, sql.actions);
   const table = tableFor(grant.permission.resource, tables);
   if (command === undefined) {
+    if (tableless && item.access.kind !== "role") {
+      warnings.push(
+        `skipped ${label}/${grant.permission.key}: rls.tables.${grant.permission.resource} is false, so the resource has no table, and only role grants are seeded`,
+      );
+      return undefined;
+    }
     if (item.access.kind !== "role" && rowActions) {
       return {
         item,
@@ -519,13 +528,7 @@ function levelEntries(
         grant: leveled(grant, level, condition),
         ...(where === undefined ? {} : { where }),
       };
-      const prepared = prepare(
-        narrowed,
-        tables,
-        warnings,
-        skipClosures,
-        ctx.actions,
-      );
+      const prepared = prepare(narrowed, tables, warnings, skipClosures, ctx);
       if (prepared !== undefined) {
         keys.set(prepared, `${grantKey}@${level}`);
         out.push(prepared);
@@ -588,7 +591,7 @@ export function compileGrants(
       tables,
       warnings,
       skipClosures,
-      ctx.actions,
+      ctx,
       rowActions,
     );
     return entry === undefined ? [] : [entry];
@@ -663,7 +666,7 @@ export function compileGrants(
         };
         rows.set(`${row.role}\u0000${row.grantKey}\u0000${row.scope}`, row);
       }
-      if (!rowActions) {
+      if (!rowActions || ctx.tableless?.has(grant.permission.resource)) {
         continue;
       }
     }

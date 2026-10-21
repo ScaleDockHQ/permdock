@@ -4,29 +4,39 @@ import type { RlsTable } from "../types.ts";
 import { configError } from "../core/errors.ts";
 import { permittedIdsHelper } from "./names.ts";
 
-/** The `schema.table` an `rls.tables` entry names, or `resource` when it names none. */
+/** The `schema.table` an `rls.tables` entry names, or `resource` when it names none or is `false`. */
 export function tableNameOf(
   entry: RlsTable | undefined,
   resource: string,
 ): string {
-  if (entry === undefined) {
+  if (entry === undefined || entry === false) {
     return resource;
   }
   return typeof entry === "string" ? entry : (entry.table ?? resource);
 }
 
-/** `rls.tables` as resource to table name, the `via` objects reduced to their `table`. */
+/** `rls.tables` as resource to table name, the `via` objects reduced to their `table` and the `false` entries left out. */
 export function tableNames(
   tables: Readonly<Record<string, RlsTable>> | undefined,
 ): Readonly<Record<string, string>> | undefined {
   return tables === undefined
     ? undefined
     : Object.fromEntries(
-        Object.entries(tables).map(([resource, entry]) => [
-          resource,
-          tableNameOf(entry, resource),
-        ]),
+        Object.entries(tables)
+          .filter(([, entry]) => entry !== false)
+          .map(([resource, entry]) => [resource, tableNameOf(entry, resource)]),
       );
+}
+
+/** The resources `rls.tables` marks `false`: no table, so no policies. */
+export function tablelessResources(
+  tables: Readonly<Record<string, RlsTable>> | undefined,
+): ReadonlySet<string> {
+  return new Set(
+    Object.entries(tables ?? {})
+      .filter(([, entry]) => entry === false)
+      .map(([resource]) => resource),
+  );
 }
 
 /** An `rls.tables` `via` entry with its defaults filled in. */
@@ -62,7 +72,7 @@ export function resolveVias(
 ): Readonly<Record<string, ResolvedVia>> | undefined {
   const out: Record<string, ResolvedVia> = {};
   for (const [resource, entry] of Object.entries(tables ?? {})) {
-    if (typeof entry === "string") {
+    if (typeof entry === "string" || entry === false) {
       continue;
     }
     const { via } = entry;

@@ -314,6 +314,12 @@ export function emitPgtap(input: {
       );
       continue;
     }
+    if (input.config.rls?.tables?.[permission.resource] === false) {
+      lines.push(
+        `select skip(${quoteLiteral(`${label}: rls.tables.${permission.resource} is false, so there is no table`)}, 1);`,
+      );
+      continue;
+    }
     const outcome = status.granted ? "granted" : "denied";
     const table = tableNameOf(
       input.config.rls?.tables?.[permission.resource],
