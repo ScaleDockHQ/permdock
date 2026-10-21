@@ -102,6 +102,20 @@ describe("postgresDirectoryStore", () => {
       (error: unknown) =>
         isDirectoryUniquenessError(error) && error.message === "externalId",
     );
+    const unnamed = postgresDirectoryStore(
+      recorder(() => {
+        throw Object.assign(new Error(""), { code: "23505" });
+      }).query,
+    ).putUser("acme", {
+      id: "u1",
+      userName: "ada",
+      active: true,
+      meta: { created: "", lastModified: "" },
+    });
+    await expect(unnamed).rejects.toSatisfy(
+      (error: unknown) =>
+        isDirectoryUniquenessError(error) && error.message === "externalId",
+    );
   });
 
   it("rethrows any other database error", async () => {
