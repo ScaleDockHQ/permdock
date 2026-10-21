@@ -6,8 +6,8 @@ import { APPROVAL_REQUEST_SCHEMA } from "../../approvals/request-schema.ts";
 import { PUSHED_POLICY_SCHEMA } from "../../catalog/pushed-policy.ts";
 import { catalogSchema } from "../../catalog/schema.ts";
 import { isRecord } from "../../core/compact.ts";
+import { CONNECTOR_SCHEMA } from "../../delivery/connector-schema.ts";
 import { supabaseManifestSchema } from "../../supabase/manifest-schema.ts";
-import { CONNECTOR_SCHEMA } from "./connector-schema.ts";
 import { CLOUD_API_DOCUMENT } from "./document.ts";
 
 const DOCUMENT_ID = "https://permdock.com/schemas/cloud-api-v1.json";

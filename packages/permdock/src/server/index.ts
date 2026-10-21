@@ -36,6 +36,7 @@ export type {
 } from "./credentials.ts";
 export {
   parseRunTicket,
+  RUN_TICKET_CLAIMS,
   signRunTicket,
   subjectFromRunTicket,
 } from "./run-ticket.ts";

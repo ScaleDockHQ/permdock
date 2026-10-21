@@ -81,6 +81,24 @@ Because the attribute names are the same set `permdock/otel` emits from inside y
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | SIEM or security lake (Splunk HTTP Event Collector, Microsoft Sentinel data collector, AWS Security Lake, Google SecOps, Elastic ingest, Datadog Cloud SIEM) | The OCSF Authorize Session projection `toOcsf(event)` from [wire formats](/docs/concepts/wire-formats), posted over the destination's ingest HTTP API | Every decision and approval event, pinned to one OCSF version | Diverge from the projection a self-hosted `DecisionSink` recipe emits; the Cloud runs the documented projection, it does not own a private one |
 
+The collector credential goes in `config.headers`, never in `endpoint`:
+
+```json
+{
+  "kind": "siem",
+  "name": "Splunk",
+  "config": {
+    "destination": "splunk-hec",
+    "endpoint": "https://hec.example.com/services/collector/event",
+    "headers": {
+      "Authorization": "Splunk 00000000-0000-0000-0000-000000000000"
+    }
+  }
+}
+```
+
+The Cloud seals header values and lists only their names ([wire formats](/docs/concepts/wire-formats) "Connector").
+
 ## Outbound: webhooks
 
 Webhooks are the generic escape hatch: anything not listed on this page receives CloudEvents over HTTP.

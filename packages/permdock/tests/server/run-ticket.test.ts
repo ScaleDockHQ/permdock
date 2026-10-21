@@ -10,6 +10,7 @@ import type {
   RunTicketSubjectOptions,
 } from "../../src/server/index.ts";
 
+import { RUN_TICKET_SCHEMA } from "../../src/cli/token-schemas.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
@@ -21,6 +22,7 @@ import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 import {
   parseRunTicket,
+  RUN_TICKET_CLAIMS,
   signRunTicket,
   subjectFromRunTicket,
 } from "../../src/server/index.ts";
@@ -443,5 +445,40 @@ describe("RunTicket", () => {
       const input = { ...base, ...extra } as RunTicketInput;
       expect(() => signRunTicket(input, signer)).toThrow(/run ticket/u);
     }
+  });
+});
+
+describe("RUN_TICKET_CLAIMS", () => {
+  it("lists every claim parseRunTicket keeps and the run-v1 schema names", () => {
+    const now = Math.floor(Date.now() / 1000);
+    const full = {
+      v: 1,
+      iss: ISSUER,
+      sub: "u_ann",
+      aud: AUDIENCE,
+      jti: "r1",
+      iat: now,
+      exp: now + 60,
+      kind: "automation",
+      act: { sub: "bot", kind: "automation" },
+      scope: "doc:read",
+      authorization_details: [{ type: "permdock" }],
+      automation: { id: "auto_1", version: 3 },
+      tenant: "o1",
+      trigger: { event: "cron" },
+      binding: { connector: "c1", tools: ["t1"] },
+      extra: "dropped",
+    };
+    const parsed = parseRunTicket(full);
+    expect(Object.keys(parsed ?? {}).toSorted()).toEqual(
+      [...RUN_TICKET_CLAIMS].toSorted(),
+    );
+    expect(
+      Object.keys(
+        // SAFETY: the schema literal declares `properties` as an object.
+        RUN_TICKET_SCHEMA["properties"] as Record<string, unknown>,
+      ).toSorted(),
+    ).toEqual([...RUN_TICKET_CLAIMS].toSorted());
+    expect(Object.isFrozen(RUN_TICKET_CLAIMS)).toBe(true);
   });
 });

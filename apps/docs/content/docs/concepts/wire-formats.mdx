@@ -1020,7 +1020,11 @@ A PermDock Cloud connector is `{ id?, kind, name, config }`. The JSON Schema is 
 }
 ```
 
-The kinds are `webhook`, `otlp`, `siem`, `evidence`, `scim`, `caep-transmitter`, `federated-upstream`, `chat`, `email` and `vercel-oidc` ([Cloud integrations](/docs/adapters/cloud-integrations)). A secret is never part of `config`; the Cloud generates it and shows it once.
+The kinds are `webhook`, `otlp`, `siem`, `evidence`, `scim`, `caep-transmitter`, `federated-upstream`, `chat`, `email` and `vercel-oidc` ([Cloud integrations](/docs/adapters/cloud-integrations)). A secret the Cloud mints, such as a webhook signing key, is never part of `config`; the Cloud generates it and shows it once.
+
+`otlp.config.headers` and `siem.config.headers` are the only fields that carry a credential the collector issued, such as a Splunk HEC `Authorization: Splunk <token>` or a Datadog `DD-API-KEY`. A credential never goes in the URL, because URLs reach access logs. A store seals every header value at rest, and a read or a listing answers the header names only. `headers` on `siem` was added within v1: a validator built from the earlier `connector-v1.json` rejects it, and every body that was valid before stays valid.
+
+`parseConnector(input)` in `permdock/delivery` checks a body against this schema with no dependency. It answers `{ ok: true, connector }`, where `connector` is a frozen `ConnectorV1`, or `{ ok: false, issues }`, where each issue has an RFC 6901 JSON pointer `path` and a `message`. The branch is chosen by `kind`, so an issue names the field (`/config/url`) instead of the `oneOf`. `CONNECTOR_KINDS` lists the kinds in schema order, and the test suite checks that `parseConnector` and the JSON Schema agree on every fixture.
 
 ## Supabase claims
 

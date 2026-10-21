@@ -2,6 +2,15 @@ export { approvalPrompt, approvalUrlFor } from "./approval-prompt.ts";
 export type { ApprovalPrompt, ApprovalUrl } from "./approval-prompt.ts";
 export { audience, subscribersFor } from "./audience.ts";
 export type { Audience, AudienceOptions, SubscriberEvent } from "./audience.ts";
+export { CONNECTOR_KINDS, parseConnector } from "./connector.ts";
+export type {
+  ConnectorIssue,
+  ConnectorKind,
+  ConnectorV1,
+  ParseConnectorResult,
+  SiemDestination,
+} from "./connector.ts";
+export { CONNECTOR_SCHEMA } from "./connector-schema.ts";
 export { memoryDeliveryTransport } from "./memory-transport.ts";
 export type {
   MemoryDelivery,

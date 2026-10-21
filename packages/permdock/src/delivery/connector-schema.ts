@@ -1,10 +1,11 @@
-import type { JsonSchemaNode } from "../../core/json-schema.ts";
+import type { JsonSchemaNode } from "../core/json-schema.ts";
 
-import { freezeDeep } from "../../core/freeze.ts";
+import { freezeDeep } from "../core/freeze.ts";
 
 /**
  * `schemas/connector-v1.json`: the body of a PermDock Cloud connector, one
- * `oneOf` branch per kind with a closed `config`. No branch holds a secret.
+ * `oneOf` branch per kind with a closed `config`. Only the `otlp` and `siem`
+ * `headers` maps hold a secret; a store seals their values and lists names only.
  */
 export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -83,6 +84,8 @@ export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
             },
             headers: {
               type: "object",
+              description:
+                "Request headers sent to the collector, such as an Authorization header; write-only.",
               additionalProperties: {
                 type: "string",
               },
@@ -135,6 +138,14 @@ export const CONNECTOR_SCHEMA: JsonSchemaNode = freezeDeep({
             endpoint: {
               type: "string",
               pattern: "^https://",
+            },
+            headers: {
+              type: "object",
+              description:
+                "Request headers sent to the collector, such as the Splunk HEC Authorization or Datadog DD-API-KEY; write-only.",
+              additionalProperties: {
+                type: "string",
+              },
             },
           },
         },

@@ -181,6 +181,10 @@ export const smtpTransport: EmailTransport = {
 
 `approvalEmail` from `permdock/resend` and `approvalCard` from `permdock/chat-sdk` render a prompt. Send it to the approvers with `deliver`, gated on a permission every approver holds, and pass `{ approval: prompt.id }` so each event names the request.
 
+## Connector bodies
+
+`parseConnector(input)` checks a PermDock Cloud connector body against `connector-v1.json` and answers `{ ok: true, connector }` or `{ ok: false, issues }` with a JSON pointer per issue. `ConnectorV1` is the typed union of the ten kinds. A hosted store and a self-hosted relay parse connectors with the same function ([wire formats](/docs/concepts/wire-formats) "Connector").
+
 ## Delivery events
 
 Each recipient writes one `delivery` [event](/docs/concepts/audit-and-observability): `operation` (`sent`, `failed`, and from provider webhooks `delivered`, `bounced`, `complained`), `channel`, `delivery { id, key }`, the recipient's `principal` id, `permission`, `tenant`, `category`, `provider` and, for a failure, `cause`, `retryable` and `reason`. Events never carry an address. As a [CloudEvent](/docs/standards/cloudevents) the type is `com.permdock.delivery.<operation>`.

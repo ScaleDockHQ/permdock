@@ -20,10 +20,11 @@ import {
   signSnapshot,
   snapshotFromClaims,
 } from "../../src/core/snapshot-sign.ts";
+import { CONNECTOR_SCHEMA } from "../../src/delivery/connector-schema.ts";
+import { parseConnector } from "../../src/delivery/connector.ts";
 import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { signRunTicket } from "../../src/server/run-ticket.ts";
 import { signSupportSession } from "../../src/server/support-session.ts";
-import { CONNECTOR_SCHEMA } from "../../src/testing/cloud-api/connector-schema.ts";
 import { CLOUD_API_DOCUMENT } from "../../src/testing/cloud-api/document.ts";
 import { jwtFixtureTokens } from "../../src/testing/jwt-fixtures.ts";
 
@@ -485,6 +486,7 @@ describe("connector-v1.json", () => {
       config: {
         destination: "splunk-hec",
         endpoint: "https://hec.example.com",
+        headers: { Authorization: "Splunk 00000000" },
       },
     },
     {
@@ -532,29 +534,94 @@ describe("connector-v1.json", () => {
     },
   ];
 
+  const invalid: readonly unknown[] = [
+    { kind: "trusted-issuer", name: "x", config: {} },
+    { kind: "webhook", name: "x", config: {} },
+    {
+      kind: "chat",
+      name: "x",
+      config: { platform: "slack", workspace: "T", token: "xoxb" },
+    },
+    { kind: "webhook", name: "x", config: { url: "http://ops.example.com" } },
+    {
+      kind: "siem",
+      name: "x",
+      config: {
+        destination: "datadog",
+        endpoint: "https://http-intake.example.com",
+        headers: { "DD-API-KEY": 1 },
+      },
+    },
+    { kind: "otlp", name: "", config: { endpoint: "https://o.example.com" } },
+    {
+      kind: "otlp",
+      name: "x",
+      config: { endpoint: "https://o.example.com", signals: [] },
+    },
+    { kind: "email", name: "x", config: { from: "no-at-sign" } },
+    { kind: "email", name: "x" },
+    "webhook",
+    null,
+  ];
+
   it("accepts one connector of every kind", () => {
     expect(valid.map((item) => check(item))).toEqual(valid.map(() => []));
+    expect(new Set(valid.map((item) => item.kind)).size).toBe(10);
   });
 
   it("rejects an unknown kind, a missing field, an extra field and http", () => {
+    for (const item of invalid) {
+      expect(check(item)).not.toEqual([]);
+    }
+  });
+
+  it("parseConnector agrees with the schema on every fixture", () => {
+    for (const item of valid) {
+      const result = parseConnector(item);
+      expect(result).toEqual({ ok: true, connector: item });
+      expect(result.ok && Object.isFrozen(result.connector.config)).toBe(true);
+    }
+    for (const item of invalid) {
+      expect(parseConnector(item).ok).toBe(false);
+    }
+  });
+
+  it("parseConnector names each issue with a JSON pointer", () => {
     expect(
-      check({ kind: "trusted-issuer", name: "x", config: {} }),
-    ).not.toEqual([]);
-    expect(check({ kind: "webhook", name: "x", config: {} })).not.toEqual([]);
+      parseConnector({ kind: "trusted-issuer", name: "x", config: {} }),
+    ).toMatchObject({ ok: false, issues: [{ path: "/kind" }] });
     expect(
-      check({
-        kind: "chat",
+      parseConnector({
+        kind: "siem",
         name: "x",
-        config: { platform: "slack", workspace: "T", token: "xoxb" },
+        config: {
+          destination: "datadog",
+          endpoint: "https://intake.example.com",
+          headers: { "a/b~c": 1 },
+        },
       }),
-    ).not.toEqual([]);
+    ).toEqual({
+      ok: false,
+      issues: [{ path: "/config/headers/a~1b~0c", message: "Expected string" }],
+    });
+    expect(parseConnector({ kind: "webhook", name: "x", config: {} })).toEqual({
+      ok: false,
+      issues: [{ path: "/config/url", message: "Required" }],
+    });
     expect(
-      check({
-        kind: "webhook",
-        name: "x",
-        config: { url: "http://ops.example.com" },
-      }),
-    ).not.toEqual([]);
+      parseConnector(
+        JSON.parse(
+          '{"kind":"email","name":"x","config":{"from":"a@b"},"__proto__":{}}',
+        ),
+      ),
+    ).toEqual({
+      ok: false,
+      issues: [{ path: "/__proto__", message: "Forbidden key" }],
+    });
+    expect(parseConnector({ kind: "email", name: "x", at: () => 1 })).toEqual({
+      ok: false,
+      issues: [{ path: "/at", message: "Expected JSON, got function" }],
+    });
   });
 });
 
