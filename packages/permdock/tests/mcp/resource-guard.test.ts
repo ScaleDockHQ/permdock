@@ -1,7 +1,11 @@
-import type { TokenVerifier, VerifiedToken } from "permdock";
-
-import { mcpResourceGuard, protectedResourceMetadata } from "permdock/mcp";
 import { describe, expect, it } from "vitest";
+
+import type { TokenVerifier, VerifiedToken } from "../../src/index.ts";
+
+import {
+  mcpResourceGuard,
+  protectedResourceMetadata,
+} from "../../src/mcp/index.ts";
 
 const RESOURCE = "https://api.example.com/mcp";
 const METADATA =

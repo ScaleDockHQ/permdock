@@ -419,6 +419,92 @@ describe("ssfTransmitter", () => {
     expect(after.map((row) => row.stream)).toEqual([push.stream_id]);
   });
 
+  it("answers 400 to a malformed body, 413 to an oversized one and 404 to another receiver's stream", async () => {
+    const { call, create } = transmitter();
+    expect(
+      await (await call("POST", "/stream", { delivery: "push" })).json(),
+    ).toMatchObject({ status: 400, detail: "delivery must be an object" });
+    const stream = await create({ delivery: { method: SSF_POLL_DELIVERY } });
+    const id = stream.stream_id;
+    expect(
+      (await call("POST", "/stream", `"${"x".repeat(70_000)}"`)).status,
+    ).toBe(413);
+    expect(
+      await (
+        await call("PUT", "/stream", {
+          stream_id: id,
+          delivery: { method: "urn:example:mail" },
+        })
+      ).json(),
+    ).toMatchObject({ status: 400 });
+    for (const path of ["/stream", "/status", "/verify"]) {
+      const method = path === "/stream" ? "PATCH" : "POST";
+      expect((await call(method, path, "[]")).status).toBe(400);
+    }
+    for (const path of ["/status", "/verify"]) {
+      expect(
+        (await call("POST", path, { stream_id: id, status: "paused" }, "r_2"))
+          .status,
+      ).toBe(404);
+    }
+    expect(
+      await (
+        await call("POST", "/status", {
+          stream_id: id,
+          status: "paused",
+          reason: 1,
+        })
+      ).json(),
+    ).toMatchObject({ status: 400, detail: "reason must be a string" });
+    expect(
+      await (await call("POST", "/verify", { stream_id: id, state: 1 })).json(),
+    ).toMatchObject({ status: 400, detail: "state must be a string" });
+  });
+
+  it("stops a flush on a retryable push and records a permanent failure", async () => {
+    const statuses = [503, 400, 202];
+    const fetchFn = vi.fn<typeof fetch>(
+      async () => new Response(null, { status: statuses.shift() ?? 202 }),
+    );
+    const { call, create, streams, queue } = transmitter({ fetch: fetchFn });
+    const push = await create({
+      events_requested: [`${CAEP}session-revoked`],
+      delivery: { method: SSF_PUSH_DELIVERY, endpoint_url: AUDIENCE },
+    });
+    const status = (next: string): Promise<Response> =>
+      call("POST", "/status", { stream_id: push.stream_id, status: next });
+    await status("paused");
+    await fanOutSet(caepEvents.sessionRevoked({ subject }), {
+      streams,
+      queue,
+      signer,
+      fetch: fetchFn,
+    });
+    expect((await status("enabled")).status).toBe(200);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    expect(await queue.pending(push.stream_id, 10)).toHaveLength(1);
+    await status("paused");
+    expect((await status("enabled")).status).toBe(200);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(await queue.pending(push.stream_id, 10)).toEqual([]);
+  });
+
+  it("defaults a stream's aud to the receiver the authorize hook names", async () => {
+    const handler = ssfTransmitter({
+      issuer: ISSUER,
+      streams: memorySsfStreamStore(),
+      queue: memorySetQueue(),
+      signer,
+      authorize: () => "https://receiver.example.com",
+    });
+    const response = await handler(
+      new Request(`${ISSUER}/stream`, { method: "POST", body: "{}" }),
+    );
+    expect(await response.json()).toMatchObject({
+      aud: "https://receiver.example.com",
+    });
+  });
+
   it("answers 400 to an unknown status", async () => {
     const { call, create } = transmitter();
     const stream = await create({});
