@@ -86,7 +86,7 @@ describe("memoryDirectoryStore", () => {
       meta: { created: "", lastModified: "" },
     });
     expect(user.id.startsWith("u_")).toBe(true);
-    expect(await store.getUser(TENANT, user.id)).toEqual(user);
+    expect(await store.getUser(TENANT, user.id)).toStrictEqual(user);
     expect(await store.getUser("o_other", user.id)).toBeNull();
     const group = await store.putGroup(TENANT, {
       id: "g_editors",
@@ -95,8 +95,8 @@ describe("memoryDirectoryStore", () => {
       roles: ["editor"],
       meta: { created: "", lastModified: "" },
     });
-    expect(await store.groupsFor(TENANT, user.id)).toEqual([group]);
-    expect(await store.groupsFor("o_other", user.id)).toEqual([]);
+    expect(await store.groupsFor(TENANT, user.id)).toStrictEqual([group]);
+    expect(await store.groupsFor("o_other", user.id)).toStrictEqual([]);
   });
 
   it("rejects duplicate userName and externalId in a tenant", async () => {
@@ -160,13 +160,13 @@ describe("memoryDirectoryStore", () => {
       { op: "pr", attribute: "members.value" },
       {},
     );
-    expect(groups.Resources.map((group) => group.id)).toEqual(["g_full"]);
+    expect(groups.Resources.map((group) => group.id)).toStrictEqual(["g_full"]);
     const users = await store.findUsers(
       TENANT,
       { op: "pr", attribute: "externalId" },
       {},
     );
-    expect(users.Resources).toEqual([]);
+    expect(users.Resources).toStrictEqual([]);
   });
 });
 
@@ -196,7 +196,7 @@ describe("directoryMembershipSource", () => {
     });
     expect(
       await source.membershipsFor({ id: "00u1" }, { tenant: TENANT }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         tenant: TENANT,
         roles: ["editor"],
@@ -204,13 +204,13 @@ describe("directoryMembershipSource", () => {
         managedBy: "idp",
       },
     ]);
-    expect(dropped).toEqual(["superadmin"]);
+    expect(dropped).toStrictEqual(["superadmin"]);
     await store.patchUser(TENANT, user.id, [
       { op: "replace", path: "active", value: false },
     ]);
     expect(
       await source.membershipsFor({ id: "00u1" }, { tenant: TENANT }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 
@@ -252,9 +252,9 @@ describe("directoryMembershipSource lookups", () => {
       '" or userName pr) and (userName pr',
       'x" or userName sw "',
     ]) {
-      expect(await source.membershipsFor({ id }, { tenant: TENANT })).toEqual(
-        [],
-      );
+      expect(
+        await source.membershipsFor({ id }, { tenant: TENANT }),
+      ).toStrictEqual([]);
     }
   });
 
@@ -275,7 +275,7 @@ describe("directoryMembershipSource lookups", () => {
       { id: 'x" or userName pr "' },
       { tenant: TENANT },
     );
-    expect(seen).toEqual([
+    expect(seen).toStrictEqual([
       { op: "eq", attribute: "externalId", value: 'x" or userName pr "' },
     ]);
   });
@@ -326,7 +326,9 @@ describe("identity-provider memberships hold only assignable roles", () => {
     const row = { id: "p1", orgId: TENANT };
     expect(permdock.can(permissions.post.read, row)).toBe(true);
     expect(permdock.can(permissions.post.delete, row)).toBe(false);
-    expect(permdock.heldRoles().map((held) => held.key)).toEqual(["editor"]);
+    expect(permdock.heldRoles().map((held) => held.key)).toStrictEqual([
+      "editor",
+    ]);
   });
 
   it("keeps a non-assignable role on a membership the application wrote", async () => {
@@ -352,7 +354,7 @@ describe("scimHandler", () => {
     const missing = await handle(request("/Users", {}, ""));
     expect(missing.status).toBe(401);
     expect(missing.headers.get("www-authenticate")).toBe("Bearer");
-    expect(await missing.json()).toEqual({
+    expect(await missing.json()).toStrictEqual({
       schemas: ["urn:ietf:params:scim:api:messages:2.0:Error"],
       status: "401",
       detail: "authentication required",
@@ -406,7 +408,7 @@ describe("scimHandler", () => {
     const listed = await json(
       await handle(request('/Users?filter=userName eq "ada"')),
     );
-    expect(listed["schemas"]).toEqual([LIST_SCHEMA]);
+    expect(listed["schemas"]).toStrictEqual([LIST_SCHEMA]);
     expect(listed["totalResults"]).toBe(1);
     const patched = await handle(
       request(`/Users/${String(user["id"])}`, {
@@ -454,11 +456,11 @@ describe("scimHandler", () => {
         }),
       ),
     );
-    expect(group[ROLES_EXTENSION]).toEqual({ roles: ["editor"] });
+    expect(group[ROLES_EXTENSION]).toStrictEqual({ roles: ["editor"] });
     const source = directoryMembershipSource(store, { assignable: ["editor"] });
     expect(
       await source.membershipsFor({ id: "00u1" }, { tenant: TENANT }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         tenant: TENANT,
         roles: ["editor"],
@@ -488,7 +490,7 @@ describe("scimHandler", () => {
         }),
       ),
     );
-    expect(unknown).toEqual([]);
+    expect(unknown).toStrictEqual([]);
     const patched = await handle(
       request(`/Groups/${String(group["id"])}`, {
         method: "PATCH",
@@ -501,7 +503,7 @@ describe("scimHandler", () => {
       }),
     );
     expect(patched.status).toBe(200);
-    expect(unknown).toEqual(["superadmin"]);
+    expect(unknown).toStrictEqual(["superadmin"]);
   });
 
   it("reads groupRoles by own key only", async () => {
@@ -554,7 +556,7 @@ describe("scimHandler", () => {
       ),
     );
     const added = sink.events().filter((event) => event.type === "membership");
-    expect(added).toEqual([
+    expect(added).toStrictEqual([
       expect.objectContaining({
         type: "membership",
         source: "scim",
@@ -623,7 +625,9 @@ describe("scimHandler", () => {
       }),
     );
     expect(entra.status).toBe(200);
-    expect((await json(entra))["members"]).toEqual([{ value: user["id"] }]);
+    expect((await json(entra))["members"]).toStrictEqual([
+      { value: user["id"] },
+    ]);
     const okta = await handle(
       request(`/Groups/${String(group["id"])}`, {
         method: "PATCH",
@@ -635,7 +639,7 @@ describe("scimHandler", () => {
         }),
       }),
     );
-    expect((await json(okta))["members"]).toEqual([]);
+    expect((await json(okta))["members"]).toStrictEqual([]);
     const google = await handle(
       request(`/Users/${String(user["id"])}`, {
         method: "PUT",
@@ -673,9 +677,9 @@ describe("scimHandler", () => {
     );
     expect(second["Resources"]).toHaveLength(1);
     const config = await json(await handle(request("/ServiceProviderConfig")));
-    expect(config["pagination"]).toEqual({ cursor: true, index: true });
+    expect(config["pagination"]).toStrictEqual({ cursor: true, index: true });
     const types = await json(await handle(request("/ResourceTypes")));
-    expect(types["schemas"]).toEqual([LIST_SCHEMA]);
+    expect(types["schemas"]).toStrictEqual([LIST_SCHEMA]);
     expect(types["totalResults"]).toBe(2);
     const schema = await json(
       await handle(request(`/Schemas/${ROLES_EXTENSION}`)),
@@ -768,7 +772,7 @@ describe("scimHandler", () => {
         headers: { authorization: "Bearer jwt" },
       }),
     );
-    expect(audiences).toEqual(["https://app.example.com/scim/v2"]);
+    expect(audiences).toStrictEqual(["https://app.example.com/scim/v2"]);
   });
 
   it("returns 409 on a duplicate userName and 404 on a missing user", async () => {
@@ -947,7 +951,7 @@ describe("scimHandler revocations", () => {
         .toSorted((a, b) => a.principal.localeCompare(b.principal));
     const sorted = (): RevocationEvent[] =>
       seen.toSorted((a, b) => a.principal.localeCompare(b.principal));
-    expect(sorted()).toEqual(expected("changed"));
+    expect(sorted()).toStrictEqual(expected("changed"));
 
     seen.length = 0;
     await handle(
@@ -959,7 +963,7 @@ describe("scimHandler revocations", () => {
         }),
       }),
     );
-    expect(sorted()).toEqual(expected("session-revoked"));
+    expect(sorted()).toStrictEqual(expected("session-revoked"));
 
     seen.length = 0;
     await handle(
@@ -971,19 +975,19 @@ describe("scimHandler revocations", () => {
         }),
       }),
     );
-    expect(sorted()).toEqual(expected("changed"));
+    expect(sorted()).toStrictEqual(expected("changed"));
 
     seen.length = 0;
     const deleted = await handle(request(`/Users/${id}`, { method: "DELETE" }));
     expect(deleted.status).toBe(204);
-    expect(sorted()).toEqual(expected("session-revoked"));
-    expect(changes.map((change) => change.kind)).toEqual([
+    expect(sorted()).toStrictEqual(expected("session-revoked"));
+    expect(changes.map((change) => change.kind)).toStrictEqual([
       "changed",
       "session-revoked",
       "changed",
       "session-revoked",
     ]);
-    expect(changes.at(-1)).toEqual({
+    expect(changes.at(-1)).toStrictEqual({
       tenant: TENANT,
       userIds: [id],
       kind: "session-revoked",

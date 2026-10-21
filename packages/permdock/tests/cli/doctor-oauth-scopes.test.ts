@@ -39,7 +39,7 @@ describe("PD070", () => {
       { "permissions.catalog.json": catalog() },
     );
     const findings = await pd070({ cwd, config });
-    expect(findings).toEqual([
+    expect(findings).toStrictEqual([
       expect.objectContaining({ code: "PD070", severity: "warning" }),
     ]);
     expect(findings[0]?.message).toContain("mcp:read");
@@ -70,13 +70,13 @@ describe("PD070", () => {
         }),
       },
     );
-    expect(await pd070({ cwd: current, config })).toEqual([]);
+    expect(await pd070({ cwd: current, config })).toStrictEqual([]);
     const plain = policyProject(
       { policy: "roles: []," },
       { "permissions.catalog.json": catalog() },
     );
-    expect(await pd070({ cwd: plain, config })).toEqual([]);
+    expect(await pd070({ cwd: plain, config })).toStrictEqual([]);
     const missing = policyProject({ policy: POLICY });
-    expect(await pd070({ cwd: missing, config })).toEqual([]);
+    expect(await pd070({ cwd: missing, config })).toStrictEqual([]);
   });
 });

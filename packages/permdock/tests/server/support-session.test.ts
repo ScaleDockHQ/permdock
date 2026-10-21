@@ -86,12 +86,12 @@ describe("support session tokens", () => {
     const token = await signSupportSession(sessionFrom(), signer);
     const subject = await subjectFromSupportSession(token, options);
     expect(subject.principal?.id).toBe("u_customer");
-    expect(subject.actor).toEqual({
+    expect(subject.actor).toStrictEqual({
       id: "u_staff",
       kind: "support",
       readOnly: true,
     });
-    expect(subject.context["supportSession"]).toEqual({
+    expect(subject.context["supportSession"]).toStrictEqual({
       id: "ss_1",
       reason: "Ticket 4411",
       approvedBy: "u_lead",
@@ -117,9 +117,9 @@ describe("support session tokens", () => {
     const events = sink.events();
     expect(events).toHaveLength(2);
     for (const event of events) {
-      expect(event.type === "decision" && event.subject.supportSession).toEqual(
-        { id: "ss_1" },
-      );
+      expect(
+        event.type === "decision" && event.subject.supportSession,
+      ).toStrictEqual({ id: "ss_1" });
       expect(parseSinkEvent(event)).not.toBeNull();
     }
   });
@@ -177,7 +177,7 @@ describe("support session tokens", () => {
       (await subjectFromSupportSession(token, { ...options, onAuth }))
         .principal,
     ).toBeNull();
-    expect(causes).toEqual([
+    expect(causes).toStrictEqual([
       "session-ended",
       "session-ended",
       "actor-unavailable",

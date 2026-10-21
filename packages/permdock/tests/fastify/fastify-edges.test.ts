@@ -49,7 +49,7 @@ describe("fastify toRequest", () => {
       arrayHost: arrayHost.url,
       accept: arrayHost.headers.get("accept"),
       noHost: noHost.url,
-    }).toEqual({
+    }).toStrictEqual({
       arrayHost: "http://api.test/x",
       accept: "a/b, c/d",
       noHost: "http://localhost/x",
@@ -77,7 +77,7 @@ describe("fastify toRequest", () => {
       json.headers.get("content-type"),
       await json.text(),
       typed.headers.get("content-type"),
-    ]).toEqual([
+    ]).toStrictEqual([
       "",
       "raw",
       "application/json",
@@ -116,7 +116,7 @@ describe("permdock/fastify edge cases", () => {
       problem: denied.headers["content-type"],
       boom: boom.statusCode,
       body: boom.json(),
-    }).toEqual({
+    }).toStrictEqual({
       denied: 403,
       problem: expect.stringContaining("application/problem+json"),
       boom: 599,
@@ -139,7 +139,7 @@ describe("permdock/fastify edge cases", () => {
         (request as FastifyPermDockRequest).permdock.subject.actor,
     );
     const posts = await app.inject({ method: "GET", url: "/posts" });
-    expect(posts.json()).toEqual({ id: "/posts", kind: "agent" });
+    expect(posts.json()).toStrictEqual({ id: "/posts", kind: "agent" });
   });
 
   it("protects a collection without a loader and serves the snapshot on GET", async () => {
@@ -159,10 +159,10 @@ describe("permdock/fastify edge cases", () => {
     await app.register(permdockHandler(), { prefix: "/api/permdock" });
     const posts = await app.inject({ method: "GET", url: "/posts" });
     const snapshot = await app.inject({ method: "GET", url: "/api/permdock" });
-    expect({ posts: posts.json(), snapshot: snapshot.statusCode }).toEqual({
-      posts: { via: "u1" },
-      snapshot: 200,
-    });
+    expect({
+      posts: posts.json(),
+      snapshot: snapshot.statusCode,
+    }).toStrictEqual({ posts: { via: "u1" }, snapshot: 200 });
   });
 
   it("withPermDock passes the decorated request to the route", async () => {
@@ -179,7 +179,7 @@ describe("permdock/fastify edge cases", () => {
       })),
     );
     const response = await app.inject({ method: "GET", url: "/can" });
-    expect(response.json()).toEqual({ update: false });
+    expect(response.json()).toStrictEqual({ update: false });
   });
 });
 
@@ -201,7 +201,7 @@ describe("permdock/fastify subject reuse", () => {
       url: "/api/permdock",
       payload: { evaluations: [{ action: { name: "post.list" } }] },
     });
-    expect(response.json()).toEqual({
+    expect(response.json()).toStrictEqual({
       evaluations: [expect.objectContaining({ decision: true })],
     });
     expect(resolved).toBe(1);

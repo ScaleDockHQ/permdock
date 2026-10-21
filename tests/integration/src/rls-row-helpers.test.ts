@@ -122,11 +122,11 @@ describe("permitted_<resource>_rows with helpersOnly: the graph without hand-wri
         }
       }
     }
-    expect(mismatches).toEqual([]);
+    expect(mismatches).toStrictEqual([]);
     const lena = await target.admin.query<{ id: string }>(
       "select id from permdock.permitted_doc_rows_for('lena', 'doc.review') id",
     );
-    expect(lena.rows.map((row) => row.id)).toEqual(["deep-doc"]);
+    expect(lena.rows.map((row) => row.id)).toStrictEqual(["deep-doc"]);
     const setting = await target.admin.query<{ value: string | null }>(
       "select current_setting('app.user_id', true) as value",
     );
@@ -147,6 +147,6 @@ describe("permitted_<resource>_rows with helpersOnly: the graph without hand-wri
           )
         ).rows,
     );
-    expect(got).toEqual([]);
+    expect(got).toStrictEqual([]);
   });
 });

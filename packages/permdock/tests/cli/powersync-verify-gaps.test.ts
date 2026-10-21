@@ -76,7 +76,7 @@ describe("powersync unsynced grants", () => {
   const plan = powersyncPlan(policy, config);
 
   it("records the grant behind each warning", () => {
-    expect(plan.unsynced).toEqual(
+    expect(plan.unsynced).toStrictEqual(
       expect.arrayContaining([
         { permission: "job.read", role: "owner" },
         { permission: "job.read", role: "support" },
@@ -105,7 +105,7 @@ describe("powersync unsynced grants", () => {
         ],
       },
     });
-    expect(synced.unsynced).toEqual([
+    expect(synced.unsynced).toStrictEqual([
       { permission: "job.read", role: "support" },
       { permission: "job.read", role: CUSTOM_ROLE, composed: true },
     ]);

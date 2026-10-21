@@ -210,7 +210,7 @@ export function testClientStore(
         fetch: net.fetch,
       });
       await store.get().refresh({ tenant: "globex" });
-      expect(net.calls.map((call) => call.url)).toEqual([
+      expect(net.calls.map((call) => call.url)).toStrictEqual([
         "/api/snapshot?v=1&tenant=globex",
       ]);
       expect(store.get().subject.principal?.tenant).toBe("acme");

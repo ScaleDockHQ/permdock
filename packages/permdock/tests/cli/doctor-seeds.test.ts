@@ -62,7 +62,7 @@ async function seeded(): Promise<string> {
 describe("PD054 stale role_permissions seeds", () => {
   it("is quiet when the last seed matches the policy, and names missing and stale rows", async () => {
     const cwd = await seeded();
-    expect(await pd054({ cwd, config })).toEqual([]);
+    expect(await pd054({ cwd, config })).toStrictEqual([]);
     const file = path.join(cwd, SEEDS);
     const sql = readFileSync(file, "utf8");
     const edited = sql
@@ -101,13 +101,13 @@ describe("PD054 stale role_permissions seeds", () => {
         cwd,
         config: { ...config, rls: { ...config.rls, revokeColumns: true } },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await pd054({
         cwd,
         config: { ...config, rls: { ...config.rls, trustedReaders: [""] } },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("compiles a supabase-only config with Supabase defaults and names stale rows alone", async () => {
@@ -135,16 +135,16 @@ describe("PD054 stale role_permissions seeds", () => {
   });
 
   it("needs a policy, an rls or supabase config, and a seed in the migrations", async () => {
-    expect(await pd054({ cwd: project({}), config })).toEqual([]);
+    expect(await pd054({ cwd: project({}), config })).toStrictEqual([]);
     expect(
       await pd054({ cwd: await seeded(), config: { policy: POLICY } }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await pd054({
         cwd: await seeded(),
         config: { ...config, policy: "src/missing-policy.ts" },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it.each([
@@ -194,7 +194,7 @@ describe("PD054 stale role_permissions seeds", () => {
         { cwd },
       );
       expect(result.code).toBe(0);
-      expect(await pd054({ cwd, config: levelConfig })).toEqual([]);
+      expect(await pd054({ cwd, config: levelConfig })).toStrictEqual([]);
 
       const target = path.join(cwd, file);
       const sql = readFileSync(target, "utf8");
@@ -239,7 +239,7 @@ describe("PD054 stale role_permissions seeds", () => {
     expect(sql).toContain(
       'revoke execute on function "permdock".seed() from public, anon, authenticated;',
     );
-    expect(await pd054({ cwd, config: fnConfig })).toEqual([]);
+    expect(await pd054({ cwd, config: fnConfig })).toStrictEqual([]);
 
     writeFileSync(
       file,

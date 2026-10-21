@@ -158,7 +158,7 @@ describe("permdock/ai-sdk in a multi-step streamText loop on Postgres", () => {
     });
     await first.consumeStream();
     const { messages } = (await first.finalStep).response;
-    expect(deleted.mock.calls.map(([input]) => input.id)).toEqual(["p1"]);
+    expect(deleted.mock.calls.map(([input]) => input.id)).toStrictEqual(["p1"]);
     expect(revoked).not.toHaveBeenCalled();
     const approvalId = approvalIdOf(messages);
     expect(approvalId).toBeDefined();

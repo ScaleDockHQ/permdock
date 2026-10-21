@@ -147,7 +147,7 @@ describe("resolveCustomRole", () => {
     expect(keys).toContain("allow:post.read");
     expect(keys).not.toContain("allow:invoice.refund");
     expect(keys).toContain("deny:invoice.refund");
-    expect(resolved.dropped).toEqual([]);
+    expect(resolved.dropped).toStrictEqual([]);
     for (const grant of resolved.grants) {
       expect(grant.role).toBe("accounts");
       expect(grant.scope).toBe("tenant");
@@ -172,14 +172,14 @@ describe("resolveCustomRole", () => {
         },
       ],
     });
-    expect(resolved.dropped).toEqual([
+    expect(resolved.dropped).toStrictEqual([
       { permission: "invoice.void", reason: "outside-ceiling" },
       { permission: "member.assignRole", reason: "outside-ceiling" },
       { role: "ghost", reason: "unknown-role" },
       { permission: "nope.read", reason: "unknown-permission" },
       { permission: "post.update", reason: "condition-not-allowed" },
     ]);
-    expect(resolved.grants).toEqual([]);
+    expect(resolved.grants).toStrictEqual([]);
   });
 
   it("validateCustomRole lists the effective permissions", () => {
@@ -189,7 +189,7 @@ describe("resolveCustomRole", () => {
         name: "reader",
         grants: [{ permission: "post.read" }, { permission: "invoice.read" }],
       }),
-    ).toEqual({
+    ).toStrictEqual({
       ok: true,
       permissions: ["invoice.read", "post.read"],
       dropped: [],
@@ -205,25 +205,25 @@ describe("resolveCustomRole", () => {
   });
 
   it("parseCustomRoleEntry says why an entry cannot be stored", () => {
-    expect(parseCustomRoleEntry(policy, "post.read")).toEqual({
+    expect(parseCustomRoleEntry(policy, "post.read")).toStrictEqual({
       ok: true,
       permission: "post.read",
     });
-    expect(parseCustomRoleEntry(policy, "post.nope")).toEqual({
+    expect(parseCustomRoleEntry(policy, "post.nope")).toStrictEqual({
       ok: false,
       cause: "unknown-permission",
     });
-    expect(parseCustomRoleEntry(policy, "invoice.void")).toEqual({
+    expect(parseCustomRoleEntry(policy, "invoice.void")).toStrictEqual({
       ok: false,
       cause: "outside-ceiling",
     });
-    expect(parseCustomRoleEntry(policy, "post.read@own")).toEqual({
+    expect(parseCustomRoleEntry(policy, "post.read@own")).toStrictEqual({
       ok: false,
       cause: "unknown-level",
     });
     expect(
       parseCustomRoleEntry(policy, "post.read", { scope: "tenant" }),
-    ).toEqual({ ok: true, permission: "post.read" });
+    ).toStrictEqual({ ok: true, permission: "post.read" });
   });
 
   it("keeps only the included denies of its own scope", () => {
@@ -233,7 +233,7 @@ describe("resolveCustomRole", () => {
       name: "team-billing",
       includes: ["billing", "lead"],
     });
-    expect(resolved.grants.map((grant) => grant.permission.key)).toEqual([
+    expect(resolved.grants.map((grant) => grant.permission.key)).toStrictEqual([
       "board.read",
       "board.edit",
     ]);
@@ -253,7 +253,7 @@ describe("resolveCustomRole", () => {
         },
         { tenant: "acme", name: "__proto__", grants: [] },
       ]),
-    ).toEqual({ clerk: ["@billing", "post.read", "-invoice.refund"] });
+    ).toStrictEqual({ clerk: ["@billing", "post.read", "-invoice.refund"] });
   });
 
   it("bounds a team custom role by the team ceiling", () => {
@@ -263,11 +263,11 @@ describe("resolveCustomRole", () => {
       name: "reviewer",
       grants: [{ permission: "board.read" }, { permission: "post.read" }],
     });
-    expect(resolved.grants.map((grant) => grant.permission.key)).toEqual([
+    expect(resolved.grants.map((grant) => grant.permission.key)).toStrictEqual([
       "board.read",
     ]);
     expect(resolved.grants[0]?.scope).toBe("team");
-    expect(resolved.dropped).toEqual([
+    expect(resolved.dropped).toStrictEqual([
       { permission: "post.read", reason: "outside-ceiling" },
     ]);
   });
@@ -462,12 +462,10 @@ describe("assignable roles and permissions", () => {
       [{ tenant: "acme", roles: ["editor"] }],
       [],
     );
-    expect(permdock.assignablePermissions().map((leaf) => leaf.key)).toEqual([
-      "post.read",
-      "post.update",
-      "post.create",
-    ]);
-    expect(permdock.assignableRoles().map((leaf) => leaf.key)).toEqual([
+    expect(
+      permdock.assignablePermissions().map((leaf) => leaf.key),
+    ).toStrictEqual(["post.read", "post.update", "post.create"]);
+    expect(permdock.assignableRoles().map((leaf) => leaf.key)).toStrictEqual([
       "editor",
     ]);
   });
@@ -483,7 +481,7 @@ describe("assignable roles and permissions", () => {
         },
       ],
     );
-    expect(permdock.assignableRoles().map((leaf) => leaf.key)).toEqual([
+    expect(permdock.assignableRoles().map((leaf) => leaf.key)).toStrictEqual([
       "viewer",
       "reader",
     ]);
@@ -494,7 +492,7 @@ describe("assignable roles and permissions", () => {
       [{ tenant: "acme", roles: ["steward"] }],
       [],
     );
-    expect(permdock.assignableRoles().map((leaf) => leaf.key)).toEqual([
+    expect(permdock.assignableRoles().map((leaf) => leaf.key)).toStrictEqual([
       "admin",
       "billing",
       "editor",
@@ -502,7 +500,9 @@ describe("assignable roles and permissions", () => {
       "steward",
       "lead",
     ]);
-    expect(permdock.assignablePermissions().map((leaf) => leaf.key)).toEqual([
+    expect(
+      permdock.assignablePermissions().map((leaf) => leaf.key),
+    ).toStrictEqual([
       "invoice.read",
       "invoice.pay",
       "invoice.refund",
@@ -538,18 +538,22 @@ describe("assignable roles and permissions", () => {
       ]),
       { tenant: "acme", customRoles: source },
     );
-    expect(permdock.assignableRoles().map((leaf) => leaf.key)).toEqual([
+    expect(permdock.assignableRoles().map((leaf) => leaf.key)).toStrictEqual([
       "editor",
       "viewer",
     ]);
-    expect(permdock.assignablePermissions().map((leaf) => leaf.key)).toEqual([
+    expect(
+      permdock.assignablePermissions().map((leaf) => leaf.key),
+    ).toStrictEqual([
       "invoice.read",
       "post.read",
       "post.update",
       "post.create",
     ]);
-    expect(permdock.assignablePermissions({ tenant: "globex" })).toEqual([]);
-    expect(permdock.assignableRoles({ tenant: "globex" })).toEqual([]);
+    expect(permdock.assignablePermissions({ tenant: "globex" })).toStrictEqual(
+      [],
+    );
+    expect(permdock.assignableRoles({ tenant: "globex" })).toStrictEqual([]);
   });
 
   it("a throwing CustomRoleSource.assignable assigns nothing", async () => {
@@ -570,9 +574,11 @@ describe("assignable roles and permissions", () => {
     permdock.on("auth", (event) => {
       auth.push(event);
     });
-    expect(permdock.assignableRoles()).toEqual([]);
-    expect(permdock.assignablePermissions()).toEqual([]);
-    expect(auth).toEqual([{ reason: "source-threw", source: "customRoles" }]);
+    expect(permdock.assignableRoles()).toStrictEqual([]);
+    expect(permdock.assignablePermissions()).toStrictEqual([]);
+    expect(auth).toStrictEqual([
+      { reason: "source-threw", source: "customRoles" },
+    ]);
   });
 
   it("names the source that threw when it has a name", () => {
@@ -594,16 +600,16 @@ describe("assignable roles and permissions", () => {
     permdock.on("auth", (event) => {
       auth.push(event);
     });
-    expect(permdock.assignableRoles()).toEqual([]);
-    expect(auth).toEqual([
+    expect(permdock.assignableRoles()).toStrictEqual([]);
+    expect(auth).toStrictEqual([
       { reason: "source-threw", source: "customRoles", name: "roles-table" },
     ]);
   });
 
   it("is empty for anonymous subjects and without a tenant", async () => {
     const anonymous = getPermDockSync(policy, null);
-    expect(anonymous.assignableRoles()).toEqual([]);
-    expect(anonymous.assignablePermissions()).toEqual([]);
+    expect(anonymous.assignableRoles()).toStrictEqual([]);
+    expect(anonymous.assignablePermissions()).toStrictEqual([]);
   });
 });
 
@@ -643,7 +649,7 @@ describe("assigning custom roles", () => {
       [{ tenant: "acme", roles: ["editor"] }],
       all,
     );
-    expect(editor.assignableRoles().map((leaf) => leaf.key)).toEqual([
+    expect(editor.assignableRoles().map((leaf) => leaf.key)).toStrictEqual([
       "editor",
       "post-reader",
     ]);
@@ -672,7 +678,7 @@ describe("assigning custom roles", () => {
         .assignableRoles()
         .map((leaf) => leaf.key)
         .filter((key) => !Object.hasOwn(roles, key)),
-    ).toEqual(["auditor", "board-editor", "post-reader"]);
+    ).toStrictEqual(["auditor", "board-editor", "post-reader"]);
     for (const kind of ["assign", "revoke"] as const) {
       expect(
         decideRoleChange(steward, {
@@ -736,7 +742,7 @@ describe("assigning custom roles", () => {
         },
       },
     );
-    expect(steward.assignableRoles().map((leaf) => leaf.key)).toEqual([
+    expect(steward.assignableRoles().map((leaf) => leaf.key)).toStrictEqual([
       "editor",
       "post-reader",
     ]);
@@ -800,7 +806,7 @@ describe("assigning custom roles", () => {
       throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(snapshot);
-    expect(client.assignableRoles().map((leaf) => leaf.key)).toEqual(
+    expect(client.assignableRoles().map((leaf) => leaf.key)).toStrictEqual(
       editor.assignableRoles().map((leaf) => leaf.key),
     );
   });
@@ -882,7 +888,7 @@ describe("snapshot parity", () => {
         customRoles: [fixture.custom],
         now: Temporal.Instant.from(snapshot.issuedAt),
       });
-      expect(cached).toEqual(snapshot);
+      expect(cached).toStrictEqual(snapshot);
       const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)));
       for (const leaf of listPermissions(permissions)) {
         for (const row of leaf.kind === "collection" ? [undefined] : rows) {
@@ -892,10 +898,10 @@ describe("snapshot parity", () => {
           ).toBe(decideLeaf(server, leaf, row).outcome);
         }
       }
-      expect(client.assignablePermissions().map((leaf) => leaf.key)).toEqual(
-        server.assignablePermissions().map((leaf) => leaf.key),
-      );
-      expect(client.assignableRoles().map((leaf) => leaf.key)).toEqual(
+      expect(
+        client.assignablePermissions().map((leaf) => leaf.key),
+      ).toStrictEqual(server.assignablePermissions().map((leaf) => leaf.key));
+      expect(client.assignableRoles().map((leaf) => leaf.key)).toStrictEqual(
         server.assignableRoles().map((leaf) => leaf.key),
       );
     });
@@ -915,7 +921,7 @@ describe("snapshot parity", () => {
     ).toBe(true);
     expect(
       snapshot.assignable?.[0]?.permissions.map((leaf) => leaf.key),
-    ).toEqual(["post.read", "post.update", "post.create"]);
+    ).toStrictEqual(["post.read", "post.update", "post.create"]);
     const full = server.snapshot();
     if (full instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
@@ -959,7 +965,7 @@ describe("a custom role grant with an undeclared level", () => {
       why: "unknown-level",
       level: "all",
     });
-    expect(auth).toEqual([
+    expect(auth).toStrictEqual([
       expect.objectContaining({
         reason: "schema",
         source: "customRoles",

@@ -69,7 +69,7 @@ describe("detectAgent", () => {
         stdoutIsTty: false,
         exists: existsSync,
       });
-      expect(actual).toEqual(
+      expect(actual).toStrictEqual(
         expected.isAgent
           ? { isAgent: true, name: expected.agent.name }
           : { isAgent: false },
@@ -83,7 +83,7 @@ describe("detectAgent", () => {
         { CURSOR_TRACE_ID: "t" },
         { stdoutIsTty: true, exists: () => false },
       ),
-    ).toEqual({ isAgent: false });
+    ).toStrictEqual({ isAgent: false });
   });
 
   it("detects Devin from its marker file", () => {
@@ -92,6 +92,6 @@ describe("detectAgent", () => {
         {},
         { stdoutIsTty: false, exists: (path) => path === "/opt/.devin" },
       ),
-    ).toEqual({ isAgent: true, name: "devin" });
+    ).toStrictEqual({ isAgent: true, name: "devin" });
   });
 });

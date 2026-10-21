@@ -65,7 +65,7 @@ describe("rls generate --capabilities", () => {
     });
     expect(
       policies.map((item) => [item.name, item.roles.join(","), item.using]),
-    ).toEqual([
+    ).toStrictEqual([
       [
         "quote_select",
         "authenticated",
@@ -82,7 +82,7 @@ describe("rls generate --capabilities", () => {
         `"folderId"::text in (select "permdock".permdock_capability_ids('folder', 'commenter', 'file.read'))`,
       ],
     ]);
-    expect(warnings).toEqual([
+    expect(warnings).toStrictEqual([
       "no quote memberships table: only link capabilities reach guest/quote.read",
       "no folder memberships table: only link capabilities reach commenter/file.read",
     ]);
@@ -119,7 +119,7 @@ describe("rls generate --capabilities", () => {
     expect(policies.some((item) => item.name === "quote_select_anon")).toBe(
       true,
     );
-    expect(warnings).toEqual([
+    expect(warnings).toStrictEqual([
       "no folder memberships table: only link capabilities reach commenter/file.read",
     ]);
   });

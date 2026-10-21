@@ -264,7 +264,7 @@ export function testCloudApi(
     const token = tag();
     await client.approvals.create(sample(token));
     const { request, etag } = await current(token);
-    expect(etag).toEqual(expect.any(String));
+    expect(etag).toStrictEqual(expect.any(String));
     const verdict: ApprovalVerdict = { status: "approved", by: admin };
     const stale = await resolveRaw(token, verdict, async () => ({
       request,
@@ -337,7 +337,7 @@ export function testCloudApi(
         headers: { accept: "application/jwt" },
         body: JSON.stringify({ typ, claims: { sub: "u_1" }, aud: issuer }),
       });
-      expect([typ, response.status]).toEqual([typ, 422]);
+      expect([typ, response.status]).toStrictEqual([typ, 422]);
     }
   });
 
@@ -415,6 +415,6 @@ export function testCloudApi(
 
   it("answers every request in the shapes cloud-api-v1.json documents", async () => {
     await Promise.all(checks);
-    expect(problems).toEqual([]);
+    expect(problems).toStrictEqual([]);
   });
 }

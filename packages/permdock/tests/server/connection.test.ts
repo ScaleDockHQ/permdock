@@ -87,9 +87,9 @@ describe("kernel connection", () => {
     expect(conn.check(permissions.post.update, otherPost).outcome).toBe(
       "denied",
     );
-    expect(conn.filter(permissions.post.update, [ownPost, otherPost])).toEqual([
-      ownPost,
-    ]);
+    expect(
+      conn.filter(permissions.post.update, [ownPost, otherPost]),
+    ).toStrictEqual([ownPost]);
     expect(conn.signal.aborted).toBe(false);
     conn.close();
   });
@@ -128,7 +128,7 @@ describe("kernel connection", () => {
     });
     expect(reasonOf(conn.signal).code).toBe("session-revoked");
     expect(reasonOf(conn.signal).toProblemDetails().status).toBe(401);
-    expect(conn.filter(permissions.post.update, [ownPost])).toEqual([]);
+    expect(conn.filter(permissions.post.update, [ownPost])).toStrictEqual([]);
   });
 
   it("revalidates on changed: keeps a still-granted connection and swaps the instance", async () => {
@@ -263,6 +263,6 @@ describe("memoryRevocationFeed", () => {
     feed.revoke({ principal: "u1", kind: "changed" });
     stop();
     feed.revoke({ principal: "u2", kind: "changed" });
-    expect(seen).toEqual(["u1"]);
+    expect(seen).toStrictEqual(["u1"]);
   });
 });

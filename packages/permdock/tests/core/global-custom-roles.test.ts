@@ -74,7 +74,7 @@ function subject(roleNames: readonly string[]): Subject {
 
 describe("global custom roles", () => {
   it("are capped by the allows of assignable global roles", () => {
-    expect(validateCustomRole(policy, platformRole)).toEqual({
+    expect(validateCustomRole(policy, platformRole)).toStrictEqual({
       ok: false,
       permissions: ["tenant.read", "tenant.suspend"],
       dropped: [
@@ -176,22 +176,22 @@ describe("global custom roles", () => {
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.tenant.suspend)).toBe(true);
     expect(client.can(permissions.tenant.delete)).toBe(false);
-    expect(client.assignablePermissions({ scope: "global" })).toEqual([]);
+    expect(client.assignablePermissions({ scope: "global" })).toStrictEqual([]);
   });
 
   it("lists the global ceiling the subject may hand out", async () => {
     const ops = getPermDockSync(policy, subject(["billingOps"]));
     expect(
       ops.assignablePermissions({ scope: "global" }).map((leaf) => leaf.key),
-    ).toEqual(["tenant.read", "tenant.suspend"]);
+    ).toStrictEqual(["tenant.read", "tenant.suspend"]);
     const support = getPermDockSync(policy, subject(["support"]));
     expect(
       support
         .assignablePermissions({ scope: "global" })
         .map((leaf) => leaf.key),
-    ).toEqual(["tenant.read"]);
+    ).toStrictEqual(["tenant.read"]);
     const nobody = getPermDockSync(policy, subject(["superadmin"]));
-    expect(nobody.assignablePermissions({ scope: "global" })).toEqual([]);
+    expect(nobody.assignablePermissions({ scope: "global" })).toStrictEqual([]);
   });
 
   it("keeps a deny of the role's own scope", () => {
@@ -220,13 +220,13 @@ describe("global custom roles", () => {
     });
     expect(
       resolved.grants.map((grant) => `${grant.effect} ${grant.permission.key}`),
-    ).toEqual(
+    ).toStrictEqual(
       expect.arrayContaining(["allow tenant.read", "deny tenant.suspend"]),
     );
   });
 
   it("write the claim under the role name", () => {
-    expect(customRoleClaim([platformRole])).toEqual({
+    expect(customRoleClaim([platformRole])).toStrictEqual({
       tier2: ["@support", "tenant.suspend", "tenant.delete", "invoice.read"],
     });
   });

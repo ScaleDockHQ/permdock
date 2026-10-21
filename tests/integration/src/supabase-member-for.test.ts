@@ -152,16 +152,21 @@ describe("member_<scope>_ids_for against Postgres", () => {
 
   it("reads the sources as supabase_auth_admin with no request.jwt.claims", async () => {
     const fn = "permdock.member_organization_ids_for";
-    expect(await idsFor("supabase_auth_admin", fn, OWNER)).toEqual(["B", "T"]);
-    expect(await idsFor("supabase_auth_admin", fn, CONTACT)).toEqual([]);
-    expect(await idsFor("supabase_auth_admin", fn, SUSPENDED)).toEqual([]);
+    expect(await idsFor("supabase_auth_admin", fn, OWNER)).toStrictEqual([
+      "B",
+      "T",
+    ]);
+    expect(await idsFor("supabase_auth_admin", fn, CONTACT)).toStrictEqual([]);
+    expect(await idsFor("supabase_auth_admin", fn, SUSPENDED)).toStrictEqual(
+      [],
+    );
     expect(
       await idsFor(
         "supabase_auth_admin",
         "permdock.member_customer_ids_for",
         CONTACT,
       ),
-    ).toEqual(["A"]);
+    ).toStrictEqual(["A"]);
   });
 
   it("agrees with member_<scope>_ids() in database mode", async () => {
@@ -185,14 +190,14 @@ describe("member_<scope>_ids_for against Postgres", () => {
           "pd_db.member_organization_ids_for",
           user,
         ),
-      ).toEqual(own);
+      ).toStrictEqual(own);
       expect(
         await idsFor(
           "supabase_auth_admin",
           "permdock.member_organization_ids_for",
           user,
         ),
-      ).toEqual(own);
+      ).toStrictEqual(own);
     }
   });
 
@@ -213,7 +218,7 @@ describe("member_<scope>_ids_for against Postgres", () => {
         ]);
         return result.rows[0]?.event.claims ?? {};
       }) ?? Promise.resolve({});
-    expect((await mint(OWNER))["features"]).toEqual({
+    expect((await mint(OWNER))["features"]).toStrictEqual({
       B: ["export"],
       T: ["export"],
     });

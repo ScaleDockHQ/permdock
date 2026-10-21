@@ -169,14 +169,14 @@ function suite(runtime: Runtime): void {
 
   for (const prefix of runtime.prefixes) {
     it(`serves the saas scenarios through ${prefix}`, async () => {
-      expect(await adapterOutcomes(state.server?.base ?? "", prefix)).toEqual(
-        ADAPTER_EXPECTED,
-      );
+      expect(
+        await adapterOutcomes(state.server?.base ?? "", prefix),
+      ).toStrictEqual(ADAPTER_EXPECTED);
     });
   }
 
   it("answers AuthZEN evaluations", async () => {
-    expect(await authzenOutcomes(state.server?.base ?? "")).toEqual(
+    expect(await authzenOutcomes(state.server?.base ?? "")).toStrictEqual(
       AUTHZEN_EXPECTED,
     );
   });

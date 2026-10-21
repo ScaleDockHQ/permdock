@@ -115,7 +115,7 @@ describe("Claude Code plugin marketplace", () => {
       const listed = Array.isArray(skills) ? skills.map(String) : [];
       expect(
         listed.map((entryPath) => path.basename(entryPath)).toSorted(),
-      ).toEqual(skillNames.toSorted());
+      ).toStrictEqual(skillNames.toSorted());
       for (const entryPath of listed) {
         expect(existsSync(path.join(ROOT, source, entryPath, "SKILL.md"))).toBe(
           true,
@@ -153,7 +153,7 @@ describe("AGENTS.md and CLAUDE.md", () => {
         row: agents.includes(`\`${file}\``),
         symlink: existsSync(link) && lstatSync(link).isSymbolicLink(),
         target: existsSync(link) ? readlinkSync(link) : undefined,
-      }).toEqual({
+      }).toStrictEqual({
         rule: name,
         description: "string",
         alwaysApply: "boolean",
@@ -162,10 +162,10 @@ describe("AGENTS.md and CLAUDE.md", () => {
         target: `../../.agents/rules/${file}`,
       });
       if (meta["alwaysApply"] !== true) {
-        expect({ rule: name, paths: Array.isArray(meta["paths"]) }).toEqual({
+        expect({
           rule: name,
-          paths: true,
-        });
+          paths: Array.isArray(meta["paths"]),
+        }).toStrictEqual({ rule: name, paths: true });
       }
     }
   });
@@ -180,7 +180,7 @@ describe("MCP Registry server.json", () => {
     expect(server["name"]).toMatch(/^io\.github\.[a-z0-9-]+\/[a-z0-9-]+$/u);
     expect(String(server["description"]).length).toBeLessThanOrEqual(100);
     expect(server["version"]).toMatch(/^\d+\.\d+\.\d+/u);
-    expect(server["remotes"]).toEqual([
+    expect(server["remotes"]).toStrictEqual([
       { type: "streamable-http", url: "https://permdock.com/docs/mcp" },
     ]);
   });
@@ -194,7 +194,7 @@ describe("docs pages are agent-readable", () => {
         file: file.slice(DOCS.length),
         title: typeof meta["title"],
         description: typeof meta["description"],
-      }).toEqual({
+      }).toStrictEqual({
         file: file.slice(DOCS.length),
         title: "string",
         description: "string",

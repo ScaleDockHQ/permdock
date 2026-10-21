@@ -76,11 +76,11 @@ describe("permdock/trpc request discovery and failures", () => {
         .query(({ ctx }) => ctx["permdock"].subject.actor),
     });
     const request = new Request("http://localhost/trpc/read");
-    expect(await router.createCaller({ request }).read()).toEqual({
+    expect(await router.createCaller({ request }).read()).toStrictEqual({
       id: "query",
       kind: "agent",
     });
-    expect(wrapped).toEqual(["u1"]);
+    expect(wrapped).toStrictEqual(["u1"]);
   });
 
   it("treats a null or throwing request option as no request", async () => {
@@ -113,7 +113,7 @@ describe("permdock/trpc request discovery and failures", () => {
       });
       results.push(await router.createCaller({}).read());
     }
-    expect(results).toEqual(["u1", "u1"]);
+    expect(results).toStrictEqual(["u1", "u1"]);
   });
 
   it("rethrows a build failure from middleware()", async () => {
@@ -189,7 +189,7 @@ describe("permdock/trpc request discovery and failures", () => {
     for await (const item of stream as AsyncIterable<unknown>) {
       items.push(item);
     }
-    expect({ items, loaded: loads >= 1 }).toEqual({
+    expect({ items, loaded: loads >= 1 }).toStrictEqual({
       items: ["p1"],
       loaded: true,
     });
@@ -239,7 +239,7 @@ describe("permdock/trpc limit codes", () => {
       const second = await codeOf(() => router.createCaller({}).run());
       codes.push(first, second);
     }
-    expect(codes).toEqual([
+    expect(codes).toStrictEqual([
       "resolved",
       "TOO_MANY_REQUESTS",
       "SERVICE_UNAVAILABLE",

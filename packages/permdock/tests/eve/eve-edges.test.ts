@@ -69,7 +69,7 @@ describe("eve session helpers", () => {
       rolesOf(principal("u", ["a"])),
       rolesOf({ principalId: "u", attributes: { roles: 7 } }),
       rolesOf(null),
-    ]).toEqual([["a"], [], []]);
+    ]).toStrictEqual([["a"], [], []]);
   });
 
   it("names the current principal as actor when it differs from the initiator", () => {
@@ -83,7 +83,7 @@ describe("eve session helpers", () => {
           },
         },
       }),
-    ).toEqual({ id: "agent-7", kind: "eve" });
+    ).toStrictEqual({ id: "agent-7", kind: "eve" });
   });
 });
 
@@ -104,12 +104,12 @@ describe("permdock/eve responses", () => {
       await approval.response(respond("u3")),
       await approval.response(respond("u2")),
       await approval.response(respond("u2")),
-    ]).toEqual([
+    ]).toStrictEqual([
       { status: "rejected", reason: "approver is not eligible" },
       { status: "allowed" },
       expect.objectContaining({ status: "rejected" }),
     ]);
-    expect(seen).toEqual(["u3", "u2", "u2"]);
+    expect(seen).toStrictEqual(["u3", "u2", "u2"]);
   });
 
   it("rejects when the responder maps to no principal", async () => {
@@ -123,7 +123,7 @@ describe("permdock/eve responses", () => {
       },
     });
     await approval.request(ask());
-    expect(await approval.response(respond("u2"))).toEqual({
+    expect(await approval.response(respond("u2"))).toStrictEqual({
       status: "rejected",
       reason: "approver is not eligible",
     });
@@ -143,7 +143,7 @@ describe("permdock/eve responses", () => {
     expect([
       await approval.response(respond("u2", "unknown_tool", "c7")),
       await approval.response(respond("u2", "delete_post", "c8")),
-    ]).toEqual([
+    ]).toStrictEqual([
       { status: "rejected", reason: "approval-not-found" },
       { status: "rejected", reason: "approval-not-found" },
     ]);
@@ -177,7 +177,7 @@ describe("permdock/eve responses", () => {
         ),
       );
     }
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       { status: "rejected", reason: "approval-not-found" },
       { status: "rejected", reason: "approval-not-found" },
     ]);

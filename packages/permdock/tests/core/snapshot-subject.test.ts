@@ -40,8 +40,8 @@ describe("heldRoleNames", () => {
   it("lists global roles and the roles held in the tenant, ranked", () => {
     expect(
       heldRoleNames(subject, "o1", scopes, { rank: ["owner", "viewer"] }, 10),
-    ).toEqual(["owner", "viewer", "global-admin", "editor", "lead"]);
-    expect(heldRoleNames(subject, "o2", scopes, undefined, 10)).toEqual([
+    ).toStrictEqual(["owner", "viewer", "global-admin", "editor", "lead"]);
+    expect(heldRoleNames(subject, "o2", scopes, undefined, 10)).toStrictEqual([
       "global-admin",
       "member",
     ]);
@@ -50,30 +50,30 @@ describe("heldRoleNames", () => {
   it("keeps only memberships of one scope, and of one instance when an id is given", () => {
     expect(
       heldRoleNames(subject, "o1", scopes, { scope: "project" }, 10),
-    ).toEqual(["editor", "lead"]);
+    ).toStrictEqual(["editor", "lead"]);
     expect(
       heldRoleNames(subject, "o1", scopes, { scope: "project", id: "p2" }, 10),
-    ).toEqual(["lead"]);
+    ).toStrictEqual(["lead"]);
     expect(
       heldRoleNames(subject, "o1", scopes, { scope: "tenant", id: "o2" }, 10),
-    ).toEqual(["member"]);
+    ).toStrictEqual(["member"]);
   });
 
   it("skips expired memberships and returns nothing for an undeclared scope", () => {
     expect(
       heldRoleNames(subject, "o1", scopes, { scope: "project" }, 1),
-    ).toEqual(["editor", "lead", "stale"]);
+    ).toStrictEqual(["editor", "lead", "stale"]);
     expect(
       heldRoleNames(subject, "o1", scopes, { scope: "workspace" }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("holds nothing for an anonymous subject", () => {
     const anonymous: Subject = { principal: null, context: {} };
-    expect(heldRoleNames(anonymous, "o1", scopes)).toEqual([]);
-    expect(heldRoleNames(anonymous, "o1", scopes, { scope: "org" })).toEqual(
-      [],
-    );
+    expect(heldRoleNames(anonymous, "o1", scopes)).toStrictEqual([]);
+    expect(
+      heldRoleNames(anonymous, "o1", scopes, { scope: "org" }),
+    ).toStrictEqual([]);
   });
 });
 
@@ -113,6 +113,6 @@ describe("subjectFromSnapshot", () => {
       "t1",
     );
     expect(anonymous.principal).toBeNull();
-    expect(anonymous.context).toEqual({ ip: "x" });
+    expect(anonymous.context).toStrictEqual({ ip: "x" });
   });
 });

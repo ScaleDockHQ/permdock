@@ -106,7 +106,7 @@ describe("OpenAPI and Overlay output conformance", () => {
         { cwd },
       );
       expect(result.stdout).toContain("wrote");
-      expect(validateOpenapi(readJson(cwd, "out.json"))).toEqual({
+      expect(validateOpenapi(readJson(cwd, "out.json"))).toStrictEqual({
         ok: true,
         version: target,
       });
@@ -151,11 +151,10 @@ describe("OpenAPI and Overlay output conformance", () => {
     const out = readJson(cwd, "arity.json") as {
       paths: Record<string, Record<string, Record<string, unknown>>>;
     };
-    expect(out.paths["/posts/{id}"]?.["delete"]?.["x-permdock-arity"]).toEqual({
-      kind: "instance",
-      parameter: "id",
-    });
-    expect(out.paths["/posts"]?.["get"]?.["x-permdock-arity"]).toEqual({
+    expect(
+      out.paths["/posts/{id}"]?.["delete"]?.["x-permdock-arity"],
+    ).toStrictEqual({ kind: "instance", parameter: "id" });
+    expect(out.paths["/posts"]?.["get"]?.["x-permdock-arity"]).toStrictEqual({
       kind: "collection",
     });
     expect(validateOpenapi(out).ok).toBe(true);
@@ -177,9 +176,9 @@ describe("OpenAPI and Overlay output conformance", () => {
       { cwd },
     );
     expect(result.code).toBe(0);
-    expect(validateOverlay(readJson(cwd, "permdock.overlay.json"))).toEqual({
-      ok: true,
-    });
+    expect(
+      validateOverlay(readJson(cwd, "permdock.overlay.json")),
+    ).toStrictEqual({ ok: true });
   });
 
   it("refuses to turn a valid document into an invalid one", async () => {
@@ -240,11 +239,11 @@ describe("OpenAPI and Overlay output conformance", () => {
     // SAFETY: an emitted oauth2 flow always carries a scopes object.
     expect(
       Object.keys(scheme.flows.authorizationCode["scopes"] as object),
-    ).not.toEqual([]);
+    ).not.toStrictEqual([]);
   });
 
   it("reports why a document is not valid", () => {
-    expect(validateOpenapi({ openapi: "3.0.3" })).toEqual({
+    expect(validateOpenapi({ openapi: "3.0.3" })).toStrictEqual({
       ok: false,
       error: "expected an OpenAPI 3.1, 3.2 or 3.3 document",
     });
@@ -259,7 +258,7 @@ describe("OpenAPI and Overlay output conformance", () => {
   it.each([null, "openapi: 3.2.0", [], { openapi: 3.2 }, { openapi: "3.4.0" }])(
     "rejects %j as not an OpenAPI 3.1, 3.2 or 3.3 document",
     (document) => {
-      expect(validateOpenapi(document)).toEqual({
+      expect(validateOpenapi(document)).toStrictEqual({
         ok: false,
         error: "expected an OpenAPI 3.1, 3.2 or 3.3 document",
       });
@@ -292,7 +291,10 @@ describe("the pinned OpenAPI 3.3 schema", () => {
   };
 
   it("accepts a profile scheme and securityProfileRequirements", () => {
-    expect(validateOpenapi(PROFILE_DOC)).toEqual({ ok: true, version: "3.3" });
+    expect(validateOpenapi(PROFILE_DOC)).toStrictEqual({
+      ok: true,
+      version: "3.3",
+    });
   });
 
   it("requires profileMetadata on a profile scheme and scopes on a requirement", () => {
@@ -371,7 +373,7 @@ describe("parseSchema", () => {
   it("rewrites the #meta dynamic reference", () => {
     expect(
       parseSchema('{ "items": { "$dynamicRef": "#meta" } }', "x.json"),
-    ).toEqual({ items: { $ref: "#/$defs/schema" } });
+    ).toStrictEqual({ items: { $ref: "#/$defs/schema" } });
   });
 
   it.each(["[]", '"text"', "null"])("rejects %s", (text) => {

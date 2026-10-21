@@ -40,15 +40,20 @@ import * as everything from './all.ts';
 export const x = p.post.read;
 `,
     });
-    expect(result.roots).toEqual(["p", "permissions", "perms"]);
-    expect(result.definitionFiles).toEqual({
+    expect(result.roots).toStrictEqual(["p", "permissions", "perms"]);
+    expect(result.definitionFiles).toStrictEqual({
       perms: "defs.ts",
       roles: "defs.ts",
       plans: "defs.ts",
     });
-    expect(result.roleNames).toEqual(["clerk", "head-clerk", "lead", "owner"]);
-    expect(result.planNames).toEqual([]);
-    expect(result.usages["post.read"]).toEqual([
+    expect(result.roleNames).toStrictEqual([
+      "clerk",
+      "head-clerk",
+      "lead",
+      "owner",
+    ]);
+    expect(result.planNames).toStrictEqual([]);
+    expect(result.usages["post.read"]).toStrictEqual([
       { file: "alias.ts", line: 4, call: "reference" },
     ]);
   });
@@ -65,20 +70,18 @@ other(permissions.post.delete);
 (factory())(permissions.post.delete);
 `,
     });
-    expect(result.usages["post.read"]?.map((item) => item.call)).toEqual([
+    expect(result.usages["post.read"]?.map((item) => item.call)).toStrictEqual([
       "can",
       "decide",
       "requirePermission",
     ]);
-    expect(result.usages["post.update"]?.map((item) => item.call)).toEqual([
-      "allow",
-      "tools",
-    ]);
-    expect(result.usages["post.delete"]?.map((item) => item.call)).toEqual([
-      "reference",
-      "reference",
-    ]);
-    expect(result.allowKeys).toEqual(["post.update"]);
+    expect(
+      result.usages["post.update"]?.map((item) => item.call),
+    ).toStrictEqual(["allow", "tools"]);
+    expect(
+      result.usages["post.delete"]?.map((item) => item.call),
+    ).toStrictEqual(["reference", "reference"]);
+    expect(result.allowKeys).toStrictEqual(["post.update"]);
   });
 
   it("separates unknown keys, leaf fields, subtrees and dynamic access", () => {
@@ -96,15 +99,15 @@ findPermission(permissions, 'post.gone');
 findPermission(permissions, name);
 `,
     });
-    expect(result.unknown).toEqual([
+    expect(result.unknown).toStrictEqual([
       { file: "refs.ts", line: 2, call: "can:post.nope" },
       { file: "refs.ts", line: 10, call: "findPermission:post.gone" },
     ]);
-    expect(result.usages["post.update"]).toEqual([
+    expect(result.usages["post.update"]).toStrictEqual([
       { file: "refs.ts", line: 9, call: "findPermission" },
     ]);
     expect(result.usages["post.read"]).toBeUndefined();
-    expect(result.dynamic).toEqual([
+    expect(result.dynamic).toStrictEqual([
       { file: "refs.ts", line: 6, call: "can" },
       { file: "refs.ts", line: 11, call: "findPermission" },
     ]);
@@ -117,8 +120,8 @@ findPermission(permissions, name);
       },
       new Set(),
     );
-    expect(Object.keys(result.usages)).toEqual(["anything.goes"]);
-    expect(result.unknown).toEqual([]);
+    expect(Object.keys(result.usages)).toStrictEqual(["anything.goes"]);
+    expect(result.unknown).toStrictEqual([]);
   });
 
   it("reads snapshot includes, and marks what it cannot read", () => {
@@ -136,7 +139,9 @@ permdock.snapshot({ include: [permissions] });
 permdock.snapshot({ include: ['post.read'] });
 `,
     });
-    expect(result.snapshots.map((site) => [site.line, site.include])).toEqual([
+    expect(
+      result.snapshots.map((site) => [site.line, site.include]),
+    ).toStrictEqual([
       [2, ["post.read", "post"]],
       [3, ["post.update"]],
       [4, undefined],
@@ -152,7 +157,7 @@ permdock.snapshot({ include: ['post.read'] });
 
   it("skips a file the parser cannot read", () => {
     const result = scan({ "styles.css": "a { color: red }\n" });
-    expect(result.usages).toEqual({});
+    expect(result.usages).toStrictEqual({});
   });
 });
 
@@ -222,8 +227,8 @@ switch (mode) {
 can(permissions.post.update);
 `,
     });
-    expect(result.unknown).toEqual([]);
-    expect(Object.keys(result.usages).toSorted()).toEqual([
+    expect(result.unknown).toStrictEqual([]);
+    expect(Object.keys(result.usages).toSorted()).toStrictEqual([
       "post.read",
       "post.update",
     ]);
@@ -244,7 +249,7 @@ import permissions2 from './other.ts';
 export function permissionsList(permissions) { return permissions.length; }
 `,
     });
-    expect(result.unknown).toEqual([]);
+    expect(result.unknown).toStrictEqual([]);
   });
 
   it("checks a tree defined inside a function or bound by another name", () => {
@@ -261,13 +266,12 @@ export function fixture() {
 }
 `,
     });
-    expect(result.usages["post.read"]).toEqual([
+    expect(result.usages["post.read"]).toStrictEqual([
       { file: "use.ts", line: 2, call: "can" },
     ]);
-    expect(result.unknown.map((item) => `${item.file}:${item.call}`)).toEqual([
-      "use.ts:can:post.archive",
-      "defs.ts:reference:post.nope",
-    ]);
+    expect(
+      result.unknown.map((item) => `${item.file}:${item.call}`),
+    ).toStrictEqual(["use.ts:can:post.archive", "defs.ts:reference:post.nope"]);
   });
 
   it("follows an import whose specifier is a string literal", () => {
@@ -279,7 +283,7 @@ can(tree.post.read);
 export const appPermissions = definePermissions({});
 `,
     });
-    expect(result.usages["post.read"]).toEqual([
+    expect(result.usages["post.read"]).toStrictEqual([
       { file: "use.ts", line: 2, call: "can" },
     ]);
   });
@@ -291,7 +295,7 @@ can(permissions.post.archive);
 `,
     });
     expect(result.usages["post.read"]).toHaveLength(1);
-    expect(result.unknown.map((item) => item.call)).toEqual([
+    expect(result.unknown.map((item) => item.call)).toStrictEqual([
       "can:post.archive",
     ]);
   });
@@ -327,8 +331,8 @@ for (using handle of handles) {}
 can(permissions.post.update);
 `,
     });
-    expect(result.unknown).toEqual([]);
-    expect(Object.keys(result.usages).toSorted()).toEqual([
+    expect(result.unknown).toStrictEqual([]);
+    expect(Object.keys(result.usages).toSorted()).toStrictEqual([
       "post.read",
       "post.update",
     ]);
@@ -341,6 +345,6 @@ permdock.snapshot({ include: [, permissions.post.read] });
 const [, second] = pair;
 `,
     });
-    expect(result.snapshots.map((site) => site.include)).toEqual([null]);
+    expect(result.snapshots.map((site) => site.include)).toStrictEqual([null]);
   });
 });

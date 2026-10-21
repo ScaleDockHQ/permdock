@@ -50,7 +50,7 @@ describe("describe", () => {
       "admin and pro",
     ],
   ])("names the approver %j", (by, label) => {
-    expect(describeDecision(approval(by))).toEqual({
+    expect(describeDecision(approval(by))).toStrictEqual({
       kind: "approval",
       title: "Approval required",
       detail: `post.delete requires approval from ${label}.`,
@@ -65,7 +65,7 @@ describe("describe", () => {
     [["server-only"], "server-only", "Server only"],
     [["no-grant", "condition"], "denied", "Denied"],
   ] as const)("classifies %j as %s", (reasons, kind, title) => {
-    expect(describeDecision(denied(...reasons))).toEqual({
+    expect(describeDecision(denied(...reasons))).toStrictEqual({
       kind,
       title,
       detail: reasons.join(", "),
@@ -87,7 +87,7 @@ describe("describe", () => {
       },
     });
     expect(result.detail).toBe("geen toegang (3), condition, tenant-mismatch");
-    expect(seen).toEqual([decision, decision, decision]);
+    expect(seen).toStrictEqual([decision, decision, decision]);
   });
 
   it("uses a message table and falls back to English per entry", () => {
@@ -102,7 +102,7 @@ describe("describe", () => {
     };
     expect(
       describeDecision(denied("no-grant", "condition"), { messages }),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "denied",
       title: "Geweigerd",
       detail: "geen toegang; condition",

@@ -47,7 +47,7 @@ describe("PD075", () => {
         folder: "folders",
       }),
     });
-    expect(findings).toEqual([
+    expect(findings).toStrictEqual([
       {
         code: "PD075",
         severity: "warning",
@@ -76,7 +76,7 @@ describe("PD075", () => {
         },
       }),
     });
-    expect(findings.map((finding) => finding.message)).toEqual([
+    expect(findings.map((finding) => finding.message)).toStrictEqual([
       "rls.tables maps file and fileNode to public.file_nodes, so the same rows carry two sets of keys and helpers",
     ]);
   });
@@ -89,11 +89,11 @@ describe("PD075", () => {
           "public.file_nodes",
         ]),
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("never pairs resources without an rls.tables entry", async () => {
-    expect(await pd075({ cwd: files(), config: config({}) })).toEqual([]);
+    expect(await pd075({ cwd: files(), config: config({}) })).toStrictEqual([]);
   });
 
   it("does nothing without rls", async () => {
@@ -102,7 +102,7 @@ describe("PD075", () => {
         cwd: files(),
         config: { permissions: "src/permissions.ts", policy: "src/policy.ts" },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("does nothing when the policy does not load", async () => {
@@ -114,6 +114,6 @@ describe("PD075", () => {
           policy: "src/missing.ts",
         },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

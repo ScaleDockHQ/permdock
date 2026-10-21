@@ -81,10 +81,10 @@ describe("role sources", () => {
     expect(sql).toContain(
       'jsonb_agg(distinct "mr".permdock_role order by "mr".permdock_role)',
     );
-    expect(organizationUsers.sql.throughs).toEqual([
+    expect(organizationUsers.sql.throughs).toStrictEqual([
       { table: "public.roles", id: "id", key: "key", ref: "role_id" },
     ]);
-    expect(organizationUsers.sql.manifest.role).toEqual([
+    expect(organizationUsers.sql.manifest.role).toStrictEqual([
       { column: "tier" },
       {
         column: "role_id",
@@ -95,7 +95,7 @@ describe("role sources", () => {
       table: "memberships",
       columns: { role: sources },
     });
-    expect(shared.sql.columns).toEqual([
+    expect(shared.sql.columns).toStrictEqual([
       "user_id",
       "scope",
       "scope_id",
@@ -116,7 +116,7 @@ describe("role sources", () => {
     expect(sql).toContain(
       'grant select on table "public"."roles" to supabase_auth_admin;',
     );
-    expect(decidingColumns(config)).toEqual([
+    expect(decidingColumns(config)).toStrictEqual([
       "public.organization_users.organization_id",
       "public.organization_users.role_id",
       "public.organization_users.tier",
@@ -135,14 +135,16 @@ describe("role sources", () => {
     const entry = manifest.rls.memberships.find(
       (item) => item.table === "public.organization_users",
     );
-    expect(entry?.role).toEqual([
+    expect(entry?.role).toStrictEqual([
       { column: "tier" },
       {
         column: "role_id",
         through: { table: "public.roles", id: "id", column: "key" },
       },
     ]);
-    expect(entry?.columns).toEqual(expect.arrayContaining(["tier", "role_id"]));
+    expect(entry?.columns).toStrictEqual(
+      expect.arrayContaining(["tier", "role_id"]),
+    );
   });
 
   it("expands the row in the database-mode helpers and the memberOf condition", () => {

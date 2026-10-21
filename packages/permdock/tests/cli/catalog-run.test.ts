@@ -57,7 +57,7 @@ describe("runCatalog", () => {
       config: {},
     });
     expect(result.code).toBe(0);
-    expect(JSON.parse(result.output)).toEqual(catalogSchema);
+    expect(JSON.parse(result.output)).toStrictEqual(catalogSchema);
   });
 
   it("builds from the configured permissions module with the policy", async () => {
@@ -65,7 +65,9 @@ describe("runCatalog", () => {
     expect(result.code).toBe(0);
     const document = parsed(result.output);
     expect(document.generatedAt).toBe(NOW.toISOString());
-    expect(document.permissions.map((permission) => permission.key)).toEqual([
+    expect(
+      document.permissions.map((permission) => permission.key),
+    ).toStrictEqual([
       "post.archive",
       "post.create",
       "post.delete",
@@ -90,7 +92,7 @@ describe("runCatalog", () => {
   });
 
   it("exits 2 when --from does not exist", async () => {
-    expect(await catalog({ from: "./src/missing.ts" })).toEqual({
+    expect(await catalog({ from: "./src/missing.ts" })).toStrictEqual({
       code: 2,
       output: "PermDock CLI: module not found: ./src/missing.ts",
     });
@@ -109,7 +111,7 @@ describe("runCatalog", () => {
   });
 
   it("passes on the collect failure", async () => {
-    expect(await catalog({ cwd: emptyDir(), config: {} })).toEqual({
+    expect(await catalog({ cwd: emptyDir(), config: {} })).toStrictEqual({
       code: 2,
       output:
         "usage: set permissions in permdock.config.ts or pass a definePermissions module",
@@ -129,7 +131,9 @@ describe("runCatalog", () => {
     const keys = parsed((await catalog({ include })).output).permissions.map(
       (permission) => permission.key,
     );
-    expect(typeof expected === "number" ? keys.length : keys).toEqual(expected);
+    expect(typeof expected === "number" ? keys.length : keys).toStrictEqual(
+      expected,
+    );
   });
 
   it("renders Markdown for the filtered catalog", async () => {
@@ -137,7 +141,7 @@ describe("runCatalog", () => {
       format: "markdown",
       include: ["post.read", "post.list"],
     });
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       code: 0,
       output: `# Permissions
 

@@ -28,12 +28,12 @@ const tokens = (page: ApprovalPage): string[] =>
 describe("pageApprovals", () => {
   it("orders by createdAt then token and follows the cursor", () => {
     const first = pageApprovals(rows, { limit: 2 });
-    expect({ tokens: tokens(first), next: first.next }).toEqual({
+    expect({ tokens: tokens(first), next: first.next }).toStrictEqual({
       tokens: ["z", "a"],
       next: '["2026-01-02","a"]',
     });
     const second = pageApprovals(rows, { limit: 2, cursor: first.next ?? "" });
-    expect({ tokens: tokens(second), next: second.next }).toEqual({
+    expect({ tokens: tokens(second), next: second.next }).toStrictEqual({
       tokens: ["b", "c"],
       next: undefined,
     });
@@ -42,14 +42,14 @@ describe("pageApprovals", () => {
   it("keeps an equal position out of the next page", () => {
     expect(
       tokens(pageApprovals(rows, { cursor: '["2026-01-02","b"]' })),
-    ).toEqual(["c"]);
+    ).toStrictEqual(["c"]);
     expect(
       tokens(
         pageApprovals([...rows, request("2026-01-02", "b")], {
           cursor: '["2026-01-02","a"]',
         }),
       ),
-    ).toEqual(["b", "b", "c"]);
+    ).toStrictEqual(["b", "b", "c"]);
   });
 
   it.each<[string, ApprovalListQuery, number]>([
@@ -68,7 +68,7 @@ describe("pageApprovals", () => {
     ["[1,2]"],
     ['["x",2]'],
   ])("answers an empty page for the cursor %s", (cursor) => {
-    expect(pageApprovals(rows, { cursor })).toEqual({ items: [] });
+    expect(pageApprovals(rows, { cursor })).toStrictEqual({ items: [] });
   });
 
   it("caps a page at 200", () => {
@@ -91,8 +91,8 @@ describe("listAllApprovals", () => {
     );
     const store: ApprovalStore = { ...memoryApprovalStore(), list };
     const all = await listAllApprovals(store, { status: "pending" });
-    expect(all.map((item) => item.token)).toEqual(["a", "b", "c"]);
-    expect(list.mock.calls.map(([query]) => query)).toEqual([
+    expect(all.map((item) => item.token)).toStrictEqual(["a", "b", "c"]);
+    expect(list.mock.calls.map(([query]) => query)).toStrictEqual([
       { status: "pending", limit: 200 },
       { status: "pending", limit: 200, cursor: "c1" },
       { status: "pending", limit: 200, cursor: "c2" },
@@ -105,7 +105,7 @@ describe("listAllApprovals", () => {
       next: "again",
     }));
     const store: ApprovalStore = { ...memoryApprovalStore(), list };
-    expect(await listAllApprovals(store, {})).toEqual([]);
+    expect(await listAllApprovals(store, {})).toStrictEqual([]);
     expect(list).toHaveBeenCalledTimes(1_000);
   });
 });

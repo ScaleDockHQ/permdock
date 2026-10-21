@@ -46,14 +46,14 @@ describe("permdock/a2a", () => {
     });
     const published = agentCard();
     expect(published.supportedInterfaces[0]?.protocolVersion).toBe("1.0");
-    expect(published.skills.map((skill) => skill.id)).toEqual([
+    expect(published.skills.map((skill) => skill.id)).toStrictEqual([
       "summarise",
       "publish",
     ]);
-    expect(published.skills[0]?.securityRequirements).toEqual([
+    expect(published.skills[0]?.securityRequirements).toStrictEqual([
       { schemes: { oauth: { list: [permissions.post.read.scope] } } },
     ]);
-    expect(published.skills[1]?.securityRequirements).toEqual([
+    expect(published.skills[1]?.securityRequirements).toStrictEqual([
       { schemes: { oauth: { list: [permissions.post.publish.scope] } } },
     ]);
   });
@@ -69,12 +69,14 @@ describe("permdock/a2a", () => {
       clientId: "member",
       scopes: [permissions.post.read.scope, permissions.post.publish.scope],
     });
-    expect(memberCard.skills.map((skill) => skill.id)).toEqual(["summarise"]);
+    expect(memberCard.skills.map((skill) => skill.id)).toStrictEqual([
+      "summarise",
+    ]);
     const adminCard = await extendedAgentCard({
       clientId: "admin",
       scopes: [permissions.post.read.scope, permissions.post.publish.scope],
     });
-    expect(adminCard.skills.map((skill) => skill.id)).toEqual([
+    expect(adminCard.skills.map((skill) => skill.id)).toStrictEqual([
       "summarise",
       "publish",
     ]);
@@ -171,7 +173,7 @@ describe("permdock/a2a", () => {
     }
     expect(approval.state).toBe("input-required");
     expect(approval.problem.type).toContain("/approval-required");
-    expect(approval.problem.token).toEqual(expect.any(String));
+    expect(approval.problem.token).toStrictEqual(expect.any(String));
   });
 
   it("runs a granted skill and signs a card payload", async () => {
@@ -186,13 +188,13 @@ describe("permdock/a2a", () => {
       { skillId: "summarise" },
       { scopes: [permissions.post.read.scope] },
     );
-    expect(granted).toEqual({ ok: true });
+    expect(granted).toStrictEqual({ ok: true });
     const signed = await sign(
       agentCard(),
       async (payload) =>
         `eyJhbGciOiJ0ZXN0In0.${Buffer.from(payload).toString("base64url")}.c2ln`,
     );
-    expect(signed.signatures).toEqual([
+    expect(signed.signatures).toStrictEqual([
       { protected: "eyJhbGciOiJ0ZXN0In0", signature: "c2ln" },
     ]);
     expect(signed.name).toBe("Posts agent");
@@ -232,7 +234,7 @@ describe("permdock/a2a", () => {
       scopes,
     );
     expect(forged.ok).toBe(false);
-    expect(await run({ post: ownPost }, scopes)).toEqual({ ok: true });
+    expect(await run({ post: ownPost }, scopes)).toStrictEqual({ ok: true });
   });
 
   it("denies when the data loader throws or finds nothing", async () => {
@@ -298,7 +300,7 @@ describe("permdock/a2a", () => {
       throw new Error("expected approval-required");
     }
     const token = parked.problem.token;
-    expect(token).toEqual(expect.any(String));
+    expect(token).toStrictEqual(expect.any(String));
     expect(await store.get(String(token))).toMatchObject({ status: "pending" });
 
     const again = await createPermDock(policy, options).protectSkill(
@@ -311,7 +313,7 @@ describe("permdock/a2a", () => {
       by: { principal: { id: "u2", roles: ["admin"] }, context: {} },
     });
     const run = createPermDock(policy, options).protectSkill(() => "remove");
-    expect(await run({}, auth)).toEqual({ ok: true });
+    expect(await run({}, auth)).toStrictEqual({ ok: true });
     expect(await run({}, auth)).toMatchObject({ ok: false, state: "failed" });
   });
 

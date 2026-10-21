@@ -115,7 +115,7 @@ export const policy = definePolicy(permissions, {
           ),
         ),
       ].toSorted();
-      expect(summary).toEqual([
+      expect(summary).toStrictEqual([
         "SELECT post.read global staff",
         "SELECT post.read tenant admin+member",
         "UPDATE post.update tenant admin",
@@ -125,7 +125,7 @@ export const policy = definePolicy(permissions, {
         (grant) => grant.cmd === "UPDATE" && grant.roles.includes("member"),
       );
       expect(member?.key).toBe("post.update#2");
-      expect(member?.where).toEqual({
+      expect(member?.where).toStrictEqual({
         op: "eq",
         field: "authorId",
         value: { ref: "principal.id" },

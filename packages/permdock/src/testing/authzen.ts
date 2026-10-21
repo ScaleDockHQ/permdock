@@ -144,7 +144,7 @@ export function testAuthzen(
       };
       expect(
         body.evaluations.map((row) => ({ decision: row.decision })),
-      ).toEqual(vector.expected);
+      ).toStrictEqual(vector.expected);
     });
   }
 
@@ -159,7 +159,7 @@ export function testAuthzen(
         )) as {
           readonly results: readonly Readonly<Record<string, unknown>>[];
         };
-        expect(body.results.map(sortKey).toSorted()).toEqual(
+        expect(body.results.map(sortKey).toSorted()).toStrictEqual(
           vector.expected.results.map(sortKey).toSorted(),
         );
       });

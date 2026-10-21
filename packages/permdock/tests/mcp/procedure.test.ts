@@ -142,7 +142,7 @@ describe("protectServer with enforce: 'procedure'", () => {
     const { server } = setup();
     const client = await connect(server);
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name)).toEqual(["update"]);
+    expect(tools.map((tool) => tool.name)).toStrictEqual(["update"]);
     expect(tools[0]?.annotations).toMatchObject({ readOnlyHint: false });
   });
 
@@ -164,7 +164,7 @@ describe("protectServer with enforce: 'procedure'", () => {
       arguments: { id: otherPost.id },
     });
     expect(denied.isError).toBe(true);
-    expect(denied.content).toEqual([{ type: "text", text: "FORBIDDEN" }]);
+    expect(denied.content).toStrictEqual([{ type: "text", text: "FORBIDDEN" }]);
     expect(decisions(events)).toHaveLength(1);
   });
 

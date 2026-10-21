@@ -226,7 +226,7 @@ describe("cloud", () => {
       fetch: fakeCloud().fetch,
     });
     expect(Object.isFrozen(client)).toBe(true);
-    expect(client).toEqual(
+    expect(client).toStrictEqual(
       expect.objectContaining({
         approvals: expect.any(Object),
         sink: expect.any(Object),
@@ -276,7 +276,7 @@ describe("cloud", () => {
       },
     });
     expect(await client.approvals.get("missing")).toBeNull();
-    expect(await client.approvals.list({})).toEqual({ items: [] });
+    expect(await client.approvals.list({})).toStrictEqual({ items: [] });
     expect(await client.approvals.expire()).toBe(0);
   });
 
@@ -351,7 +351,7 @@ describe("cloud", () => {
       delivered
         .flat()
         .map((item) => (item.type === "directory" ? item.resource.id : "")),
-    ).toEqual(["u_3", "u_4", "u_5"]);
+    ).toStrictEqual(["u_3", "u_4", "u_5"]);
   });
 
   it("flushes decision batches and refuses an unsigned snapshot", async () => {
@@ -373,7 +373,7 @@ describe("cloud", () => {
       credential: { kind: "token" },
     };
     await client.sink.write([event]);
-    expect(backend.decisions).toEqual([[event]]);
+    expect(backend.decisions).toStrictEqual([[event]]);
     await expect(
       client.snapshotsFor("subject.jwt.token").get(),
     ).rejects.toThrow(/unsigned/u);
@@ -414,7 +414,7 @@ describe("cloud", () => {
         credential: { kind: "jwt", iss: "https://idp.example" },
       },
     ]);
-    expect(backend.decisions).toEqual([]);
+    expect(backend.decisions).toStrictEqual([]);
     expect(scheduled).toHaveLength(1);
     await scheduled[0];
     expect(backend.decisions).toHaveLength(1);
@@ -445,8 +445,8 @@ describe("cloud", () => {
       status: "pending",
     };
     await client.approvals.create(request);
-    expect(await client.approvals.get("opaque-token")).toEqual(request);
-    expect(await client.approvals.getById?.("a_1")).toEqual(request);
+    expect(await client.approvals.get("opaque-token")).toStrictEqual(request);
+    expect(await client.approvals.getById?.("a_1")).toStrictEqual(request);
     expect(await client.approvals.getById?.("a_missing")).toBeNull();
     const listed = await client.approvals.list({ status: "pending" });
     expect(listed.items.some((item) => item.token === "opaque-token")).toBe(
@@ -518,7 +518,7 @@ describe("cloud", () => {
     await client.approvals.create(pending("t_a", "sid-a"));
     await client.approvals.create(pending("t_b", "sid-b"));
     const bySession = await client.approvals.list({ session: "sid-a" });
-    expect(bySession.items.map((item) => item.token)).toEqual(["t_a"]);
+    expect(bySession.items.map((item) => item.token)).toStrictEqual(["t_a"]);
     expect(
       await client.approvals.cancel?.(
         { session: "sid-a" },
@@ -563,14 +563,14 @@ describe("cloud", () => {
       status: "pending",
     };
     await client.approvals.create(request);
-    expect(await client.approvals.get("pd1.v2")).toEqual(request);
+    expect(await client.approvals.get("pd1.v2")).toStrictEqual(request);
     await client.approvals.resolve("pd1.v2", {
       status: "approved",
       by: { principal: { id: "u_9", roles: ["admin"] }, context: {} },
     });
-    expect((await client.approvals.consume("pd1.v2"))?.consumedAt).toEqual(
-      expect.any(String),
-    );
+    expect(
+      (await client.approvals.consume("pd1.v2"))?.consumedAt,
+    ).toStrictEqual(expect.any(String));
     expect(await client.approvals.consume("pd1.v2")).toBeNull();
   });
 
@@ -653,7 +653,7 @@ describe("cloud", () => {
       await client.policies.refresh();
       expect(client.policies.current()?.id).toBe("doc_1");
     }
-    expect(paths).toEqual(
+    expect(paths).toStrictEqual(
       Array.from({ length: 5 }, () => "/v1/environments/production/policy"),
     );
   });
@@ -661,7 +661,7 @@ describe("cloud", () => {
   it("resolves the environment endpoints like cloud()", () => {
     expect(
       cloudEndpoints({ url: `${CLOUD_URL}/`, environment: "pre view" }),
-    ).toEqual({
+    ).toStrictEqual({
       issuer: `${CLOUD_URL}/v1/environments/pre%20view`,
       jwks: `${CLOUD_URL}/v1/environments/pre%20view/.well-known/jwks.json`,
     });

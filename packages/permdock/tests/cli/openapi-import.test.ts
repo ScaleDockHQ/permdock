@@ -131,7 +131,7 @@ describe("openapi import", () => {
     const leaves = await generated(dir, "permissions.generated.ts");
     expect(
       leaves.map((leaf) => [leaf.key, leaf.kind, leaf.meta.inferredFrom]),
-    ).toEqual([
+    ).toStrictEqual([
       ["post.delete", "instance", "DELETE /posts/{id}"],
       ["post.read", "instance", "GET /posts/{id}"],
       ["post.list", "collection", "GET /posts"],
@@ -184,7 +184,7 @@ paths:
       leaves
         .map((leaf) => [leaf.key, leaf.kind])
         .toSorted(([a], [b]) => String(a).localeCompare(String(b))),
-    ).toEqual([
+    ).toStrictEqual([
       ["billing.order.refund", "instance"],
       ["orders.list", "collection"],
       ["orders.placeOrder", "collection"],
@@ -267,7 +267,7 @@ paths:
     const out = JSON.parse(readFileSync(join(dir, "out.json"), "utf8")) as {
       paths: Record<string, Record<string, { security?: unknown }>>;
     };
-    expect(out.paths["/posts"]?.["get"]?.security).toEqual([
+    expect(out.paths["/posts"]?.["get"]?.security).toStrictEqual([
       { permdockOAuth: ["post:list"] },
     ]);
     const again = await run(

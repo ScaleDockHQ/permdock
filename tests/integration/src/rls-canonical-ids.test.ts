@@ -108,10 +108,12 @@ describe("RLS parity for uuid tenant ids", () => {
         return { rows: result.rows, rowCount: result.rowCount ?? 0 };
       },
     });
-    expect(report.results.map((item) => [item.name, item.granted])).toEqual([
+    expect(
+      report.results.map((item) => [item.name, item.granted]),
+    ).toStrictEqual([
       ["member reads its tenant", true],
       ["member reads nothing in another tenant", false],
     ]);
-    expect(report.results.filter((item) => !item.ok)).toEqual([]);
+    expect(report.results.filter((item) => !item.ok)).toStrictEqual([]);
   });
 });

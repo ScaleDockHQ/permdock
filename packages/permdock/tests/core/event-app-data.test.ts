@@ -43,7 +43,7 @@ describe("x on sink events", () => {
           ? Reflect.get(event, "x")
           : undefined,
       ),
-    ).toEqual([{ route: "/docs" }, undefined]);
+    ).toStrictEqual([{ route: "/docs" }, undefined]);
   });
 
   it("checks x where an event builder takes it", () => {
@@ -53,9 +53,9 @@ describe("x on sink events", () => {
       principal: { id: "u1" },
       roles: { added: ["viewer"], removed: [] },
     };
-    expect(membershipEvent({ ...base, x: { requestId: "r-1" } }).x).toEqual({
-      requestId: "r-1",
-    });
+    expect(
+      membershipEvent({ ...base, x: { requestId: "r-1" } }).x,
+    ).toStrictEqual({ requestId: "r-1" });
     expect(() =>
       // SAFETY: the value tests what a caller without types can pass.
       membershipEvent({ ...base, x: { at: new Date() } as never }),

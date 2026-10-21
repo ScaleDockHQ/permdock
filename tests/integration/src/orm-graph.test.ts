@@ -126,7 +126,7 @@ describe("ORM parity over the relation graph: match, includes, groups, links, re
           return found.map((row) => row.id);
         },
       });
-      expect(failures(report.results)).toEqual([]);
+      expect(failures(report.results)).toStrictEqual([]);
       expect(report.results.some((result) => result.expected.length > 0)).toBe(
         true,
       );
@@ -159,7 +159,7 @@ describe("ORM parity over the relation graph: match, includes, groups, links, re
           return ids(compiled.sql, compiled.parameters);
         },
       });
-      expect(failures(report.results)).toEqual([]);
+      expect(failures(report.results)).toStrictEqual([]);
     });
 
     it(`resolveRelated (the Prisma path), ${label}`, async () => {
@@ -188,7 +188,7 @@ describe("ORM parity over the relation graph: match, includes, groups, links, re
           return found.map((row) => row.id);
         },
       });
-      expect(failures(report.results)).toEqual([]);
+      expect(failures(report.results)).toStrictEqual([]);
     });
   }
 

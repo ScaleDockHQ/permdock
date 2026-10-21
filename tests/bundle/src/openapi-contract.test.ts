@@ -40,7 +40,7 @@ describe("permdock/openapi contract helpers", () => {
           .filter(([, input]) => input.bytesInOutput > 0)
           .map(([path]) => path.replace(/^.*packages\/permdock\/src\//u, "")),
     );
-    expect(contributing.toSorted()).toEqual([
+    expect(contributing.toSorted()).toStrictEqual([
       "openapi/problem-details.ts",
       "openapi/security.ts",
     ]);

@@ -126,7 +126,10 @@ describe("RFC 9421 HTTP Message Signatures (February 2024)", () => {
       keys: () => publicKey,
       now: at,
     });
-    expect(actor).toEqual({ id: "test-key-ed25519", kind: "web-bot-auth" });
+    expect(actor).toStrictEqual({
+      id: "test-key-ed25519",
+      kind: "web-bot-auth",
+    });
   });
 
   it("section 3.2: a changed covered component fails verification", async () => {
@@ -221,7 +224,7 @@ describe("RFC 9421 HTTP Message Signatures (February 2024)", () => {
     };
     await expect(
       verifyMessageSignature(request, { keys: () => key, now: at }),
-    ).resolves.toEqual({ id: "p256", kind: "web-bot-auth" });
+    ).resolves.toStrictEqual({ id: "p256", kind: "web-bot-auth" });
   });
 
   it("section 7.2.2: created is required and bounded by maxAge and future skew", async () => {
@@ -306,7 +309,7 @@ describe("draft-meunier-webbotauth-httpsig-protocol-02", () => {
       webBotAuthVerifier({ keys: () => agentKey, now: at }).verify(
         await agentRequest(),
       ),
-    ).resolves.toEqual({ id: "agent-key", kind: "web-bot-auth" });
+    ).resolves.toStrictEqual({ id: "agent-key", kind: "web-bot-auth" });
   });
 
   it("the tag is web-bot-auth, @authority is covered, and so is a sent Signature-Agent", async () => {
@@ -367,7 +370,7 @@ describe("draft-meunier-webbotauth-httpsig-protocol-02", () => {
       }),
     });
     const permdock = await permdockFor(await agentRequest());
-    expect(permdock.subject.actor).toEqual({
+    expect(permdock.subject.actor).toStrictEqual({
       id: "agent-key",
       kind: "web-bot-auth",
     });
@@ -389,7 +392,7 @@ describe("draft-meunier-http-message-signatures-directory-05", () => {
       await agentRequest({ "Signature-Agent": '"https://agents.example.com"' }),
     );
     expect(actor?.id).toBe("agent-key");
-    expect(remote.calls.map((call) => call.url)).toEqual([
+    expect(remote.calls.map((call) => call.url)).toStrictEqual([
       "https://agents.example.com/.well-known/http-message-signatures-directory",
     ]);
     expect(remote.calls[0]?.headers.get("accept")).toContain(

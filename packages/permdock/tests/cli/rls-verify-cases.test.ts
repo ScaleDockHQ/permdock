@@ -103,7 +103,7 @@ describe("rls verify --format pgtap", () => {
       "utf8",
     );
     const lines = script.split("\n");
-    expect(lines.slice(0, 3)).toEqual([
+    expect(lines.slice(0, 3)).toStrictEqual([
       "begin;",
       "select plan(4);",
       "create function pg_temp.permdock_decision(statement text) returns text",
@@ -126,7 +126,7 @@ describe("rls verify --format pgtap", () => {
     expect(
       lines.filter((line) => line === "savepoint permdock_fixture;"),
     ).toHaveLength(3);
-    expect(lines.slice(-3)).toEqual([
+    expect(lines.slice(-3)).toStrictEqual([
       "select * from finish();",
       "rollback;",
       "",
@@ -223,7 +223,7 @@ describe("rls verify --format pgtap", () => {
     const inserts = lines
       .slice(savepoint, role)
       .filter((line) => line.startsWith("insert"));
-    expect(inserts).toEqual([
+    expect(inserts).toStrictEqual([
       `insert into "organization_members" ("user_id", "organization_id", "role") values ('u1', 'o1', 'member') on conflict do nothing;`,
       `insert into "organization_members" ("user_id", "organization_id", "role") values ('u1', 'o1', 'editor') on conflict do nothing;`,
       `insert into "app"."staff" ("person", "org", "kind") values ('u1', 'o1', 'member') on conflict do nothing;`,
@@ -363,7 +363,7 @@ describe("rls verify --db-url-stdin grant kinds and statements", () => {
         throw refused;
       },
     });
-    expect(thrown).toEqual({ code: 2, output: "refused" });
+    expect(thrown).toStrictEqual({ code: 2, output: "refused" });
   });
 });
 
@@ -445,7 +445,7 @@ describe("rls verify --db-url-stdin custom role seeds", () => {
     const seeds = sql.calls.filter((call) =>
       call.sql.startsWith('insert into "authz"'),
     );
-    expect(seeds.map((call) => call.values)).toEqual([
+    expect(seeds.map((call) => call.values)).toStrictEqual([
       ["o1", "tenant", "o1", "pinned", "post.read", "deny"],
       ["o1", "team", "t1", "teamed", "member"],
       ["o1", "tenant", null, "plain", "post.publish", "allow"],
@@ -501,7 +501,10 @@ describe("rls verify --tree failures", () => {
       code: 2,
       output: "no route",
     });
-    expect(await failed("refused")).toEqual({ code: 2, output: "refused" });
+    expect(await failed("refused")).toStrictEqual({
+      code: 2,
+      output: "refused",
+    });
   });
 
   it("exits 1 with the rows the database shows but decide denies", async () => {

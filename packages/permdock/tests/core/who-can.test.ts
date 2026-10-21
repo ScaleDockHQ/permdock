@@ -47,12 +47,12 @@ describe("whoCan over the relationship graph", () => {
       { relations: asynchronous(relations) },
     );
     const result = await whoCan(permdock, graph.doc.read, deepDoc);
-    expect(ids(result)).toEqual(["carl", "eddie", "tina", "vera"]);
+    expect(ids(result)).toStrictEqual(["carl", "eddie", "tina", "vera"]);
     expect(result.complete).toBe(false);
     const carl = result.holders.find(
       (holder) => holder.principal.id === "carl",
     );
-    expect(carl?.via).toEqual([
+    expect(carl?.via).toStrictEqual([
       {
         kind: "share",
         resource: "folder",
@@ -78,7 +78,7 @@ describe("whoCan over the relationship graph", () => {
       { relations: failing },
     );
     const result = await whoCan(permdock, graph.doc.read, rootDoc);
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       permission: "doc.read",
       holders: [],
       complete: false,
@@ -101,7 +101,7 @@ describe("whoCan over the relationship graph", () => {
       { relations: source },
     );
     const result = await whoCan(permdock, graph.doc.read, deepDoc);
-    expect(ids(result)).toEqual(["eddie", "vera"]);
+    expect(ids(result)).toStrictEqual(["eddie", "vera"]);
     expect(result.complete).toBe(false);
   });
 
@@ -134,7 +134,7 @@ describe("whoCan over the relationship graph", () => {
       { relations: source },
     );
     const result = await whoCan(permdock, graph.doc.read, rootDoc);
-    expect(ids(result)).toEqual(["bea", "near"]);
+    expect(ids(result)).toStrictEqual(["bea", "near"]);
   });
 
   it("names a principal relation reached through links, and nested groups of the same resource", async () => {
@@ -153,7 +153,7 @@ describe("whoCan over the relationship graph", () => {
       graph.doc.review,
       rows.doc.find((row) => row.id === "eng-doc"),
     );
-    expect(review.holders).toEqual([
+    expect(review.holders).toStrictEqual([
       {
         principal: { id: "lee" },
         via: [
@@ -167,13 +167,13 @@ describe("whoCan over the relationship graph", () => {
       },
     ]);
     const members = await whoCan(permdock, graph.team.read, rows.team[0]);
-    expect(ids(members)).toEqual(["carl", "tina"]);
+    expect(ids(members)).toStrictEqual(["carl", "tina"]);
     expect(members.complete).toBe(true);
     const orphan = await whoCan(permdock, graph.doc.review, {
       id: "loose",
       folderId: null,
     });
-    expect(orphan.holders).toEqual([]);
+    expect(orphan.holders).toStrictEqual([]);
   });
 
   it("lists no holder a graph deny removes", async () => {
@@ -190,7 +190,7 @@ describe("whoCan over the relationship graph", () => {
     });
     const permdock = getPermDockSync(denied, { id: "nobody" }, { relations });
     const result = await whoCan(permdock, graph.doc.read, deepDoc);
-    expect(ids(result)).toEqual(["carl", "tina", "vera"]);
+    expect(ids(result)).toStrictEqual(["carl", "tina", "vera"]);
   });
 
   it("lists nothing for a collection permission or a missing row", async () => {
@@ -200,12 +200,12 @@ describe("whoCan over the relationship graph", () => {
     });
     // SAFETY: a collection permission, which whoCan's types refuse, from an untyped caller.
     const create = collection.doc.create as never;
-    expect(await whoCan(permdock, create, {})).toEqual({
+    expect(await whoCan(permdock, create, {})).toStrictEqual({
       permission: "doc.create",
       holders: [],
       complete: false,
     });
-    expect(await whoCan(permdock, graph.doc.read, null)).toEqual({
+    expect(await whoCan(permdock, graph.doc.read, null)).toStrictEqual({
       permission: "doc.read",
       holders: [],
       complete: false,
@@ -278,9 +278,9 @@ describe("whoCan over field, principal and scope relations", () => {
       { memberships: members },
     );
     const read = await whoCan(permdock, tree.task.read, task);
-    expect(ids(read)).toEqual(["ann", "olive", "oscar", "rex"]);
+    expect(ids(read)).toStrictEqual(["ann", "olive", "oscar", "rex"]);
     expect(read.complete).toBe(true);
-    expect(read.holders[0]?.via).toEqual([
+    expect(read.holders[0]?.via).toStrictEqual([
       { kind: "relation", resource: "task", relation: "assignee", id: "t1" },
     ]);
   });
@@ -295,9 +295,9 @@ describe("whoCan over field, principal and scope relations", () => {
       ...task,
       reporterId: "ann",
     });
-    expect(update.holders).toEqual([]);
+    expect(update.holders).toStrictEqual([]);
     const close = await whoCan(permdock, tree.task.close, task);
-    expect(ids(close)).toEqual(["olive"]);
+    expect(ids(close)).toStrictEqual(["olive"]);
     expect(close.holders[0]?.via[0]).toMatchObject({
       kind: "role",
       role: "lead",
@@ -311,7 +311,7 @@ describe("whoCan over field, principal and scope relations", () => {
       { memberships: { membershipsFor: () => [] } },
     );
     const read = await whoCan(unlisted, tree.task.read, task);
-    expect(ids(read)).toEqual(["ann", "rex"]);
+    expect(ids(read)).toStrictEqual(["ann", "rex"]);
     expect(read.complete).toBe(false);
     const throwing = getPermDockSync(
       scoped,
@@ -334,13 +334,13 @@ describe("whoCan over field, principal and scope relations", () => {
       { memberships: members },
     );
     const orphan = await whoCan(permdock, tree.task.close, { id: "t2" });
-    expect(orphan).toEqual({
+    expect(orphan).toStrictEqual({
       permission: "task.close",
       holders: [],
       complete: true,
     });
     const noField = await whoCan(permdock, tree.task.read, { id: "t3" });
-    expect(noField.holders).toEqual([]);
+    expect(noField.holders).toStrictEqual([]);
   });
 
   it("is incomplete for grantees it cannot enumerate", async () => {
@@ -360,7 +360,7 @@ describe("whoCan over field, principal and scope relations", () => {
       });
       const permdock = getPermDockSync(open, { id: "viewer" });
       const result = await whoCan(permdock, tree.task.read, task);
-      expect({ to, result }).toEqual({
+      expect({ to, result }).toStrictEqual({
         to,
         result: { permission: "task.read", holders: [], complete: false },
       });

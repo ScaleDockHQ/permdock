@@ -141,7 +141,7 @@ describe("rls.tokenScopes", () => {
     for (const [name, claims] of Object.entries(tokens)) {
       answers[name] = await answer(claims);
     }
-    expect(answers).toEqual({
+    expect(answers).toStrictEqual({
       user: {
         moduleRead: true,
         moduleUpdate: true,

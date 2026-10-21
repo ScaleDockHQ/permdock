@@ -107,16 +107,16 @@ describe("doctor checks that read the policy", () => {
   it.each(Object.entries(POLICY_CHECKS))(
     "%s reports nothing without a policy or with one that does not load",
     async (_code, check) => {
-      expect(await check({ cwd, config: {} })).toEqual([]);
+      expect(await check({ cwd, config: {} })).toStrictEqual([]);
       expect(
         await check({ cwd, config: { ...reach, policy: "./src/missing.ts" } }),
-      ).toEqual([]);
+      ).toStrictEqual([]);
       expect(
         await check({
           cwd,
           config: { ...reach, policy: "./src/not-policy.ts" },
         }),
-      ).toEqual([]);
+      ).toStrictEqual([]);
     },
   );
 });
@@ -131,7 +131,7 @@ describe("PD002, PD003 and PD004 read the collected catalog", () => {
     );
     expect(
       messages(await pd002({ cwd, config: {}, now: NOW, io: quietIo })),
-    ).toEqual(["unknown permission can:post.nope at src/check.ts:2"]);
+    ).toStrictEqual(["unknown permission can:post.nope at src/check.ts:2"]);
     expect(
       await pd002({
         cwd,
@@ -139,7 +139,7 @@ describe("PD002, PD003 and PD004 read the collected catalog", () => {
         now: NOW,
         io: quietIo,
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("PD002 reads the sources without writing a catalog", async () => {
@@ -151,7 +151,9 @@ describe("PD002, PD003 and PD004 read the collected catalog", () => {
     );
     const catalog = join(cwd, "permissions.catalog.json");
     rmSync(catalog, { force: true });
-    expect(await pd002({ cwd, config: {}, now: NOW, io: quietIo })).toEqual([]);
+    expect(
+      await pd002({ cwd, config: {}, now: NOW, io: quietIo }),
+    ).toStrictEqual([]);
     expect(existsSync(catalog)).toBe(false);
   });
 
@@ -168,7 +170,7 @@ describe("PD002, PD003 and PD004 read the collected catalog", () => {
       now: NOW,
       io: quietIo,
     });
-    expect(findings).toEqual([
+    expect(findings).toStrictEqual([
       {
         code: "PD003",
         severity: "warning",
@@ -190,7 +192,7 @@ describe("PD002, PD003 and PD004 read the collected catalog", () => {
         now: NOW,
         io: quietIo,
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     await runCollect({
       cwd,
       config: {},
@@ -199,7 +201,9 @@ describe("PD002, PD003 and PD004 read the collected catalog", () => {
       now: NOW,
       io: quietIo,
     });
-    expect(await pd004({ cwd, config: {}, now: NOW, io: quietIo })).toEqual([]);
+    expect(
+      await pd004({ cwd, config: {}, now: NOW, io: quietIo }),
+    ).toStrictEqual([]);
   });
 });
 
@@ -218,12 +222,12 @@ describe("PD016 and PD027 under an rls config", () => {
       policy: "./src/policy.ts",
       rls: { fixtures: "./fixtures/rls.json" },
     };
-    expect(messages(await pd016({ cwd, config }))).toEqual([
+    expect(messages(await pd016({ cwd, config }))).toStrictEqual([
       "policy has opaque RLS conditions that deny in memory",
     ]);
     expect(
       messages(await pd016({ cwd, config: { ...config, rls: {} } })),
-    ).toEqual([
+    ).toStrictEqual([
       "policy has opaque RLS conditions that deny in memory",
       "sqlFunction grants have no rls fixtures for verify --db-url-stdin",
     ]);
@@ -237,7 +241,9 @@ describe("PD016 and PD027 under an rls config", () => {
       messages(
         await pd027({ cwd, config: { policy: "./src/policy.ts", rls: {} } }),
       ),
-    ).toEqual([expect.stringMatching(/^post\.read reads context\.org: /u)]);
+    ).toStrictEqual([
+      expect.stringMatching(/^post\.read reads context\.org: /u),
+    ]);
   });
 });
 
@@ -256,7 +262,7 @@ describe("PD017 sensitive verbs", () => {
   ],`,
     });
     const config = { policy: "./src/policy.ts" };
-    expect(messages(await pd017({ cwd, config }))).toEqual([
+    expect(messages(await pd017({ cwd, config }))).toStrictEqual([
       "post.approve is a sensitive verb without approval",
     ]);
     expect(
@@ -266,7 +272,7 @@ describe("PD017 sensitive verbs", () => {
           config: { ...config, doctor: { sensitiveActions: ["read"] } },
         }),
       ),
-    ).toEqual(["post.read is a sensitive verb without approval"]);
+    ).toStrictEqual(["post.read is a sensitive verb without approval"]);
   });
 });
 
@@ -277,7 +283,7 @@ describe("PD024 self-approval", () => {
     });
     expect(
       messages(await pd024({ cwd, config: { policy: "./src/policy.ts" } })),
-    ).toEqual([
+    ).toStrictEqual([
       "post.pay sets approval.distinct: false, so the requester can approve their own request",
     ]);
   });
@@ -298,13 +304,13 @@ describe("PD018 separation of duties", () => {
           config: { policy: "./src/policy.ts", doctor: { memberships } },
         }),
       );
-    expect(await run("./absent.json")).toEqual([
+    expect(await run("./absent.json")).toStrictEqual([
       "doctor.memberships fixture ./absent.json is missing",
     ]);
-    expect(await run("./bad.json")).toEqual([
+    expect(await run("./bad.json")).toStrictEqual([
       "doctor.memberships fixture ./bad.json is not valid JSON",
     ]);
-    expect(await run("./num.json")).toEqual([]);
+    expect(await run("./num.json")).toStrictEqual([]);
   });
 
   it("names a membership without a principal as unknown and reads a custom role without includes", async () => {
@@ -327,7 +333,7 @@ describe("PD018 separation of duties", () => {
           },
         }),
       ),
-    ).toEqual([
+    ).toStrictEqual([
       "membership unknown holds exclusive roles approver and preparer",
     ]);
   });
@@ -344,18 +350,20 @@ describe("PD020 and PD021 hostable permissions", () => {
       policy: "./src/policy.ts",
       rls: { tables },
     });
-    expect(await pd020({ cwd, config: config({ note: "notes" }) })).toEqual([]);
+    expect(
+      await pd020({ cwd, config: config({ note: "notes" }) }),
+    ).toStrictEqual([]);
     expect(
       messages(await pd020({ cwd, config: config({ post: "posts" }) })),
-    ).toEqual([
+    ).toStrictEqual([
       "hostable permissions are also compiled into RLS, which never sees hosted grants: post.read",
     ]);
     expect(
       await pd020({ cwd, config: { policy: "./src/plain.ts", rls: {} } }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await pd021({ cwd, config: { policy: "./src/plain.ts" }, env: {} }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 
@@ -377,7 +385,7 @@ describe("PD019 JWT roles outliving a revocation", () => {
           '[api]\njwt_expiry = 9000\n\n[auth]\nsite_url = "x"\njwt_expiry = 7200\n',
       },
     );
-    expect(messages(await pd019({ cwd: long, config }))).toEqual([
+    expect(messages(await pd019({ cwd: long, config }))).toStrictEqual([
       "the RLS helpers and authorize() read roles from the JWT and jwt_expiry is 7200s: a revoked role keeps post.approve until the token expires",
     ]);
     expect(
@@ -385,18 +393,18 @@ describe("PD019 JWT roles outliving a revocation", () => {
         cwd: long,
         config: { ...config, policy: "./src/quiet.ts" },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await pd019({ cwd: long, config: { policy: "./src/policy.ts" } }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
 
     const noFile = policyProject({ policy });
-    expect(await pd019({ cwd: noFile, config })).toEqual([]);
+    expect(await pd019({ cwd: noFile, config })).toStrictEqual([]);
     const otherSection = policyProject(
       { policy },
       { "supabase/config.toml": "[api]\njwt_expiry = 9000\n" },
     );
-    expect(await pd019({ cwd: otherSection, config })).toEqual([]);
+    expect(await pd019({ cwd: otherSection, config })).toStrictEqual([]);
   });
 });
 
@@ -426,7 +434,7 @@ describe("PD023 custom roles", () => {
         cwd,
         config: { policy: "./src/policy.ts", doctor: { memberships } },
       });
-    expect(await run("./memberships.json")).toEqual([
+    expect(await run("./memberships.json")).toStrictEqual([
       {
         code: "PD023",
         severity: "warning",
@@ -435,9 +443,9 @@ describe("PD023 custom roles", () => {
         fix: "remove the condition; custom-role grants inherit the declared grant condition",
       },
     ]);
-    expect(await run("./empty.json")).toEqual([]);
-    expect(await run("./bad.json")).toEqual([]);
-    expect(await run("./absent.json")).toEqual([]);
+    expect(await run("./empty.json")).toStrictEqual([]);
+    expect(await run("./bad.json")).toStrictEqual([]);
+    expect(await run("./absent.json")).toStrictEqual([]);
   });
 
   it("caps a global custom role by the assignable global roles", async () => {
@@ -468,7 +476,7 @@ describe("PD023 custom roles", () => {
           doctor: { memberships: "./memberships.json" },
         },
       }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         code: "PD023",
         severity: "warning",
@@ -501,7 +509,7 @@ describe("PD029 credential fixtures", () => {
       expect({
         credentials,
         findings: pd029({ cwd, config: { doctor: { credentials } } }),
-      }).toEqual({ credentials, findings: [] });
+      }).toStrictEqual({ credentials, findings: [] });
     }
   });
 
@@ -526,7 +534,7 @@ describe("PD029 credential fixtures", () => {
           files,
         }),
       ),
-    ).toEqual([
+    ).toStrictEqual([
       "credentials[0] is not a valid v1 credential, so it verifies to no subject",
       "tenant acme allows API keys that never expire",
     ]);
@@ -558,14 +566,14 @@ describe("PD025 scoped memberships", () => {
           config: { policy: "./src/policy.ts", doctor: { memberships } },
         }),
       );
-    expect(await run("./memberships.json")).toEqual([
+    expect(await run("./memberships.json")).toStrictEqual([
       expect.stringMatching(
         /^membership 1 grants nothing: its scope is not one of tenant, team/u,
       ),
     ]);
-    expect(await run("./empty.json")).toEqual([]);
-    expect(await run("./bad.json")).toEqual([]);
-    expect(await run("./absent.json")).toEqual([]);
+    expect(await run("./empty.json")).toStrictEqual([]);
+    expect(await run("./bad.json")).toStrictEqual([]);
+    expect(await run("./absent.json")).toStrictEqual([]);
   });
 });
 
@@ -587,18 +595,22 @@ describe("PD030 field-limited reads", () => {
       messages(
         await pd030({ cwd, config: { policy: "./src/policy.ts", rls } }),
       );
-    expect(await run({})).toEqual([
+    expect(await run({})).toStrictEqual([
       "read grants on note limit secret, but RLS on note is row-level: any client that reads note directly gets those columns",
       "read grants on post limit authorId, orgId, secret, but RLS on post is row-level: any client that reads post directly gets those columns",
     ]);
-    expect(await run({ fields: "views", tables: { post: "posts" } })).toEqual([
+    expect(
+      await run({ fields: "views", tables: { post: "posts" } }),
+    ).toStrictEqual([
       "note_visible masks secret, but note still returns them to a direct read",
       "posts_visible masks authorId, orgId, secret, but posts still returns them to a direct read",
     ]);
-    expect(await run({ fields: "views", revokeColumns: true })).toEqual([]);
+    expect(await run({ fields: "views", revokeColumns: true })).toStrictEqual(
+      [],
+    );
     expect(
       await pd030({ cwd, config: { policy: "./src/covered.ts", rls: {} } }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 
@@ -638,16 +650,16 @@ export const policy = definePolicy(permissions, {
 describe("PD031 and PD032 graph declarations", () => {
   it("accepts a walked self-parent and a restricted child its parent graph reaches", async () => {
     const cwd = project({ "src/graph.ts": GRAPH });
-    expect(await pd031({ cwd, config: { policy: "./src/graph.ts" } })).toEqual(
-      [],
-    );
+    expect(
+      await pd031({ cwd, config: { policy: "./src/graph.ts" } }),
+    ).toStrictEqual([]);
   });
 
   it("PD032 names a camelCase graph resource in snake_case and errors on a clash or a name SQL cannot hold", async () => {
     const cwd = project({ "src/graph.ts": GRAPH });
     expect(
       await pd032({ cwd, config: { policy: "./src/graph.ts", rls: {} } }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     const clash = project({
       "src/graph.ts": `import { allow, definePermissions, definePolicy, relation, resource } from 'permdock';
 
@@ -672,7 +684,7 @@ export const policy = definePolicy(permissions, {
         cwd: clash,
         config: { policy: "./src/graph.ts", rls: {} },
       }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         code: "PD032",
         severity: "error",
@@ -731,13 +743,13 @@ describe("PD033 role activation", () => {
           },
         }),
       );
-    expect(await run("./standing.json")).toEqual([
+    expect(await run("./standing.json")).toStrictEqual([
       "activation role 'admin' is held standing by a fixture membership: an eligible-only role must never be held directly",
     ]);
-    expect(await run("./eligible.json")).toEqual([]);
-    expect(await run("./bad.json")).toEqual([]);
-    expect(await run("./absent.json")).toEqual([]);
-    expect(await run()).toEqual([]);
+    expect(await run("./eligible.json")).toStrictEqual([]);
+    expect(await run("./bad.json")).toStrictEqual([]);
+    expect(await run("./absent.json")).toStrictEqual([]);
+    expect(await run()).toStrictEqual([]);
   });
 });
 
@@ -751,8 +763,8 @@ describe("PD034, PD035 and PD037 stay quiet on a clean policy", () => {
   ],`,
     });
     const config = { policy: "./src/policy.ts", rls: {} };
-    expect(await pd034({ cwd, config })).toEqual([]);
-    expect(await pd035({ cwd, config })).toEqual([]);
-    expect(await pd037({ cwd, config })).toEqual([]);
+    expect(await pd034({ cwd, config })).toStrictEqual([]);
+    expect(await pd035({ cwd, config })).toStrictEqual([]);
+    expect(await pd037({ cwd, config })).toStrictEqual([]);
   });
 });

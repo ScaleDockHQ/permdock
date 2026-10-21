@@ -70,7 +70,7 @@ describe("permdock/terminal", () => {
     const decision = permdock.decide(permissions.post.publish, ownPost);
     const body = format(decision, { permission: permissions.post.publish });
     const parsed: unknown = JSON.parse(body);
-    expect(parsed).toEqual(
+    expect(parsed).toStrictEqual(
       expect.objectContaining({
         type: "https://permdock.com/problems/denied",
         title: "Permission denied",
@@ -120,7 +120,7 @@ describe("permdock/terminal", () => {
     ];
     expect(
       filterCommands(entries, { mode: "hide" }).map((e) => e.name),
-    ).toEqual(["list"]);
+    ).toStrictEqual(["list"]);
     const annotated = filterCommands(entries, { mode: "annotate" });
     expect(annotated[1]?.description).toContain("requires post:publish");
   });
@@ -189,7 +189,7 @@ describe("permdock/terminal", () => {
     });
     await expect(run()).rejects.toMatchObject({ code: 75 });
     const parsed: unknown = JSON.parse(lines.join(""));
-    expect(parsed).toEqual(
+    expect(parsed).toStrictEqual(
       expect.objectContaining({
         type: "https://permdock.com/problems/approval-required",
         approval: {
@@ -398,7 +398,7 @@ describe("permdock/terminal", () => {
       ],
       { mode: "hide" },
     );
-    expect(visible.map((entry) => entry.name)).toEqual(["list"]);
+    expect(visible.map((entry) => entry.name)).toStrictEqual(["list"]);
   });
 
   it("runs device flow, stores the token, and logout revokes it", async () => {
@@ -570,10 +570,10 @@ describe("permdock/terminal", () => {
       },
     });
     await permdockFor();
-    expect(requested).toEqual([
+    expect(requested).toStrictEqual([
       "https://gha.example/oidc?api-version=2.0&audience=https%3A%2F%2Fdeploy.acme.dev",
     ]);
-    expect(seen).toEqual(["gha-oidc", "gitlab-oidc"]);
+    expect(seen).toStrictEqual(["gha-oidc", "gitlab-oidc"]);
   });
 });
 
@@ -626,7 +626,7 @@ describe("permdock/terminal destructive and dry-run", () => {
     });
     expect(EX_USAGE).toBe(64);
     await expect(run()).rejects.toMatchObject({ code: 64 });
-    expect(ran).toEqual([]);
+    expect(ran).toStrictEqual([]);
     expect(lines.join("")).toContain("pass --yes");
   });
 
@@ -640,7 +640,7 @@ describe("permdock/terminal destructive and dry-run", () => {
     )(async () => {
       ran.push("delete");
     })();
-    expect(ran).toEqual(["delete"]);
+    expect(ran).toStrictEqual(["delete"]);
   });
 
   it("asks for the id to be typed in a terminal", async () => {
@@ -659,8 +659,8 @@ describe("permdock/terminal destructive and dry-run", () => {
     )(async () => {
       typedOk.ran.push("delete");
     })();
-    expect(asked).toEqual(["staging"]);
-    expect(typedOk.ran).toEqual(["delete"]);
+    expect(asked).toStrictEqual(["staging"]);
+    expect(typedOk.ran).toStrictEqual(["delete"]);
 
     const typedWrong = terminal({
       interactive: { typed: async () => "production" },
@@ -673,7 +673,7 @@ describe("permdock/terminal destructive and dry-run", () => {
         typedWrong.ran.push("delete");
       })(),
     ).rejects.toMatchObject({ code: 77 });
-    expect(typedWrong.ran).toEqual([]);
+    expect(typedWrong.ran).toStrictEqual([]);
   });
 
   it("does not ask for a non-destructive action", async () => {
@@ -681,7 +681,7 @@ describe("permdock/terminal destructive and dry-run", () => {
     await protect(deploys.environment.deploy)(async () => {
       ran.push("deploy");
     })();
-    expect(ran).toEqual(["deploy"]);
+    expect(ran).toStrictEqual(["deploy"]);
   });
 
   it("prints the decision on --dry-run without running or consuming", async () => {
@@ -696,8 +696,8 @@ describe("permdock/terminal destructive and dry-run", () => {
     });
     await expect(run()).rejects.toMatchObject({ code: 0 });
     await expect(run()).rejects.toMatchObject({ code: 0 });
-    expect(dry.ran).toEqual([]);
-    expect(JSON.parse(dry.lines[0] ?? "")).toEqual({
+    expect(dry.ran).toStrictEqual([]);
+    expect(JSON.parse(dry.lines[0] ?? "")).toStrictEqual({
       outcome: "granted",
       permission: "environment.deploy",
       dryRun: true,
@@ -707,14 +707,14 @@ describe("permdock/terminal destructive and dry-run", () => {
     await real.protect(deploys.environment.deploy)(async () => {
       real.ran.push("deploy");
     })();
-    expect(real.ran).toEqual(["deploy"]);
+    expect(real.ran).toStrictEqual(["deploy"]);
     const exhausted = terminal({ limits: limits(counter), dryRun: true });
     await expect(
       exhausted.protect(deploys.environment.deploy)(async () => {
         exhausted.ran.push("deploy");
       })(),
     ).rejects.toMatchObject({ code: 77 });
-    expect(exhausted.ran).toEqual([]);
+    expect(exhausted.ran).toStrictEqual([]);
   });
 
   it("skips the destructive prompt on --dry-run", async () => {
@@ -727,7 +727,7 @@ describe("permdock/terminal destructive and dry-run", () => {
         ran.push("delete");
       })(),
     ).rejects.toMatchObject({ code: 0 });
-    expect(ran).toEqual([]);
+    expect(ran).toStrictEqual([]);
     expect(lines.join("")).toBe(
       "dry run: environment.delete on environment staging is granted; nothing ran\n",
     );

@@ -156,7 +156,7 @@ describe("levelKeys", () => {
       subject: () => null,
       roles: [role("owner", [allow(levelled.job.read)])],
     });
-    expect(levelKeys(jobs)).toEqual([
+    expect(levelKeys(jobs)).toStrictEqual([
       {
         key: "job.read@own",
         permission: "job.read",

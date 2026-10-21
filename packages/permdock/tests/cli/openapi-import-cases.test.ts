@@ -132,7 +132,7 @@ describe("openapi import usage errors", () => {
       "PermDock CLI: --doc must be a JSON or YAML OpenAPI document",
     ],
   ] as const)("exits 2 for %j", async (overrides, files, output) => {
-    expect(await importDoc(workdir(files), overrides)).toEqual({
+    expect(await importDoc(workdir(files), overrides)).toStrictEqual({
       code: 2,
       output,
     });
@@ -153,12 +153,12 @@ describe("openapi import from a URL", () => {
         return Promise.resolve(new Response(BODY));
       },
     };
-    expect(await importDoc(dir, { doc: URL, io })).toEqual({
+    expect(await importDoc(dir, { doc: URL, io })).toStrictEqual({
       code: 0,
       output: "wrote gen.ts (1 resources, 1 permissions)",
     });
-    expect(requested).toEqual([URL]);
-    expect(await leaves(dir)).toEqual([["posts.list", "collection"]]);
+    expect(requested).toStrictEqual([URL]);
+    expect(await leaves(dir)).toStrictEqual([["posts.list", "collection"]]);
   });
 
   it("falls back to the global fetch", async () => {
@@ -178,18 +178,16 @@ describe("openapi import from a URL", () => {
       ...IO,
       fetch: () => Promise.resolve(new Response("gone", { status: 404 })),
     };
-    expect(await importDoc(workdir(), { doc: URL, io: failing })).toEqual({
-      code: 2,
-      output: `PermDock CLI: could not fetch ${URL}: HTTP 404`,
-    });
+    expect(await importDoc(workdir(), { doc: URL, io: failing })).toStrictEqual(
+      { code: 2, output: `PermDock CLI: could not fetch ${URL}: HTTP 404` },
+    );
     const offline: CliIo = {
       ...IO,
       fetch: () => Promise.reject(new TypeError("offline")),
     };
-    expect(await importDoc(workdir(), { doc: URL, io: offline })).toEqual({
-      code: 2,
-      output: `PermDock CLI: could not fetch ${URL}`,
-    });
+    expect(await importDoc(workdir(), { doc: URL, io: offline })).toStrictEqual(
+      { code: 2, output: `PermDock CLI: could not fetch ${URL}` },
+    );
   });
 
   it("refuses --annotate on a remote document", async () => {
@@ -199,7 +197,7 @@ describe("openapi import from a URL", () => {
     };
     expect(
       await importDoc(workdir(), { doc: URL, io, annotate: true }),
-    ).toEqual({
+    ).toStrictEqual({
       code: 2,
       output: "PermDock CLI: --annotate needs a local --doc file",
     });
@@ -227,11 +225,11 @@ describe("openapi import naming", () => {
         },
       }),
     });
-    expect(await importDoc(dir)).toEqual({
+    expect(await importDoc(dir)).toStrictEqual({
       code: 0,
       output: "wrote gen.ts (1 resources, 7 permissions)",
     });
-    expect(await leaves(dir)).toEqual([
+    expect(await leaves(dir)).toStrictEqual([
       ["posts.create", "collection"],
       ["posts.delete", "instance"],
       ["posts.list", "collection"],
@@ -294,7 +292,7 @@ describe("openapi import naming", () => {
       ),
     });
     expect((await importDoc(dir)).code).toBe(0);
-    expect(await leaves(dir)).toEqual([
+    expect(await leaves(dir)).toStrictEqual([
       ["post.list", "collection"],
       ["post.read", "instance"],
     ]);
@@ -311,11 +309,11 @@ describe("openapi import naming", () => {
         },
       }),
     });
-    expect(await importDoc(dir)).toEqual({
+    expect(await importDoc(dir)).toStrictEqual({
       code: 0,
       output: "wrote gen.ts (1 resources, 1 permissions)",
     });
-    expect(await leaves(dir)).toEqual([["post.read", "instance"]]);
+    expect(await leaves(dir)).toStrictEqual([["post.read", "instance"]]);
     expect(readFileSync(path.join(dir, "gen.ts"), "utf8")).toContain(
       '"inferredFrom": "GET /posts, GET /posts/{id}"',
     );
@@ -331,7 +329,7 @@ describe("openapi import naming", () => {
       const dir = workdir({
         "openapi.json": doc({ [route]: { get: { ...extra, responses: OK } } }),
       });
-      expect(await importDoc(dir)).toEqual({
+      expect(await importDoc(dir)).toStrictEqual({
         code: 1,
         output: `GET ${route}: cannot name a resource; add it to --map`,
       });
@@ -346,7 +344,7 @@ describe("openapi import naming", () => {
         components: {},
       }),
     });
-    expect(await importDoc(dir)).toEqual({
+    expect(await importDoc(dir)).toStrictEqual({
       code: 0,
       output: "wrote gen.ts (0 resources, 0 permissions)",
     });

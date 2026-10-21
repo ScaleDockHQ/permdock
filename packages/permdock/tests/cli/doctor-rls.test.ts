@@ -80,7 +80,7 @@ export const policy = definePolicy(permissions, {
         readonly message: string;
       }[];
     };
-    expect(report.findings).toEqual([
+    expect(report.findings).toStrictEqual([
       expect.objectContaining({
         code: "PD027",
         message: expect.stringMatching(
@@ -204,7 +204,7 @@ export const policy = definePolicy(permissions, {
     };
     expect(
       report.findings.map((item) => [item.code, item.message.split(" ")[0]]),
-    ).toEqual([
+    ).toStrictEqual([
       ["PD031", "folder"],
       ["PD031", "folder"],
       ["PD032", "graph"],

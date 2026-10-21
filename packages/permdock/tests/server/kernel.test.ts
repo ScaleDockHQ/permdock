@@ -17,14 +17,16 @@ const request = (): Request => new Request("https://api.example/posts/p1");
 
 describe("tenantScope", () => {
   it("passes a string through and treats a throwing resolver as no tenant", async () => {
-    expect(await tenantScope("o1", null)).toEqual({ tenant: "o1" });
-    expect(await tenantScope(undefined, null)).toEqual({ tenant: undefined });
-    expect(await tenantScope(() => "o2", null)).toEqual({ tenant: "o2" });
+    expect(await tenantScope("o1", null)).toStrictEqual({ tenant: "o1" });
+    expect(await tenantScope(undefined, null)).toStrictEqual({
+      tenant: undefined,
+    });
+    expect(await tenantScope(() => "o2", null)).toStrictEqual({ tenant: "o2" });
     expect(
       await tenantScope(() => {
         throw new Error("no tenant");
       }, null),
-    ).toEqual({ tenant: undefined });
+    ).toStrictEqual({ tenant: undefined });
   });
 });
 
@@ -50,7 +52,7 @@ describe("actor resolution", () => {
       actor,
     });
     const permdock = await permdockFor(request());
-    expect(permdock.subject.actor).toEqual(expected);
+    expect(permdock.subject.actor).toStrictEqual(expected);
   });
 });
 
@@ -72,7 +74,7 @@ describe("createPermDock", () => {
     expect({
       calls: subject.mock.calls.length,
       wrapped: wrapped.length,
-    }).toEqual({ calls: 1, wrapped: 2 });
+    }).toStrictEqual({ calls: 1, wrapped: 2 });
   });
 
   it("serves the evaluations handler through a tenant scope", async () => {

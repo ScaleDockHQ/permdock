@@ -13,15 +13,15 @@ describe("resourceRef", () => {
   });
 
   it("prefers the row id and falls back to the id the request named", () => {
-    expect(resourceRef(permissions.post.update, ownPost, "p9")).toEqual({
+    expect(resourceRef(permissions.post.update, ownPost, "p9")).toStrictEqual({
       type: "post",
       id: "p1",
     });
-    expect(resourceRef(permissions.post.update, undefined, 9)).toEqual({
+    expect(resourceRef(permissions.post.update, undefined, 9)).toStrictEqual({
       type: "post",
       id: "9",
     });
-    expect(resourceRef(permissions.post.list, undefined)).toEqual({
+    expect(resourceRef(permissions.post.list, undefined)).toStrictEqual({
       type: "post",
     });
   });

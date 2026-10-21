@@ -282,7 +282,7 @@ describe("localSnapshot", () => {
           epochMilliseconds: 1_700_000_000_000,
         });
         const device = fromSnapshot(parseSnapshot(JSON.stringify(snapshot)));
-        expect(snapshot.roles, `${user.id} in ${String(tenant)}`).toEqual(
+        expect(snapshot.roles, `${user.id} in ${String(tenant)}`).toStrictEqual(
           serverRaw.roles,
         );
         expect(device.can(report.export), `${user.id} report.export`).toBe(

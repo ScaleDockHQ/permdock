@@ -78,7 +78,13 @@ const templated = await import(\`./\${name}\`);
 `,
         ),
       ),
-    ).toEqual(["./mixed", "./side-effect", "./reexport", "./star", "./lazy"]);
+    ).toStrictEqual([
+      "./mixed",
+      "./side-effect",
+      "./reexport",
+      "./star",
+      "./lazy",
+    ]);
   });
 });
 
@@ -119,7 +125,7 @@ describe("PD001 policy module in a client entry", () => {
       new Set(),
       { cwd, path: "packages/access/src/policy.ts" },
     );
-    expect(findings.map((item) => item.message)).toEqual([
+    expect(findings.map((item) => item.message)).toStrictEqual([
       "apps/web/src/package.tsx imports the policy module through @example/access/permdock/policy",
       "apps/web/src/alias.tsx imports the policy module through @access/policy",
       "apps/web/src/relative.tsx imports the policy module through ../../../packages/access/src/policy.js",
@@ -141,7 +147,7 @@ describe("PD001 policy module in a client entry", () => {
         new Set(),
         { cwd, path: "src/missing-policy.ts" },
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("answers nothing for a specifier it cannot resolve", () => {

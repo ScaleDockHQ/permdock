@@ -59,7 +59,7 @@ describe("runRlsImport inputs", () => {
   it("needs --sql or --db-url-stdin", async () => {
     expect(
       await runRlsImport({ cwd: project(), config, schema: "zod", io }),
-    ).toEqual({
+    ).toStrictEqual({
       code: 2,
       output:
         "PermDock CLI: rls import needs --sql <file> or a database: --db-url-stdin, DATABASE_URL or SUPABASE_DB_URL",
@@ -75,7 +75,7 @@ describe("runRlsImport inputs", () => {
         schema: "zod",
         io,
       }),
-    ).toEqual({
+    ).toStrictEqual({
       code: 2,
       output: "PermDock CLI: SQL dump not found: missing.sql",
     });
@@ -123,7 +123,7 @@ insert into public.role_permissions (role, permission, grant_key, scope, effect)
       io,
     });
     expect(result.code).toBe(0);
-    expect(catalogOf(cwd)[0]?.condition).toEqual({
+    expect(catalogOf(cwd)[0]?.condition).toStrictEqual({
       op: "memberOf",
       scope: "tenant",
       field: "org_id",
@@ -148,7 +148,7 @@ create policy notes_delete on notes for delete using (true);
       schema: "not-a-schema",
       io,
     });
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       code: 0,
       output: "wrote src/permissions.generated.ts",
     });
@@ -160,7 +160,7 @@ create policy notes_delete on notes for delete using (true);
         entry.permissive,
         entry.roles,
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       ["posts", "SELECT", false, ["anon", "authenticated"]],
       ["posts", "INSERT", false, ["anon", "authenticated"]],
       ["posts", "UPDATE", false, ["anon", "authenticated"]],
@@ -168,7 +168,7 @@ create policy notes_delete on notes for delete using (true);
       ["posts", "INSERT", true, ["PUBLIC"]],
       ["notes", "DELETE", true, ["PUBLIC"]],
     ]);
-    expect(catalog[4]?.condition).toEqual({
+    expect(catalog[4]?.condition).toStrictEqual({
       op: "eq",
       field: "authorId",
       value: { ref: "principal.id" },
@@ -200,7 +200,7 @@ this is not sql;`,
       catalogOf(cwd, "gen.ts")
         .slice(0, 2)
         .map((entry) => [entry.table, entry.cmd, entry.roles]),
-    ).toEqual([
+    ).toStrictEqual([
       ["jobs", "INSERT", ["authenticated"]],
       ["jobs", "SELECT", ["authenticated"]],
     ]);
@@ -229,7 +229,7 @@ this is not sql;`,
       (await runRlsImport({ cwd, config, sql: "dump.sql", schema: "zod", io }))
         .code,
     ).toBe(0);
-    expect(catalogOf(cwd)).toEqual([]);
+    expect(catalogOf(cwd)).toStrictEqual([]);
   });
 
   it("hints at unmapped functions, unknown membership tables and field views", async () => {
@@ -245,7 +245,7 @@ create view jobs_visible with (security_invoker) as select id, case when (select
       io,
     });
     expect(result.code).toBe(0);
-    expect(result.output.split("\n")).toEqual([
+    expect(result.output.split("\n")).toStrictEqual([
       "wrote src/permissions.generated.ts",
       "add rls.functions.job_permitted to make this grant portable",
       "exists over grants stayed opaque; if it holds memberships, map it in permdock.config.ts:",
@@ -269,7 +269,7 @@ create view jobs_visible with (security_invoker) as select id, case when (select
       schema: "zod",
       io,
     });
-    expect(catalogOf(cwd)[0]?.condition).toEqual({
+    expect(catalogOf(cwd)[0]?.condition).toStrictEqual({
       op: "memberOf",
       scope: "tenant",
       field: "orgId",
@@ -368,7 +368,7 @@ describe("runRlsImport --db-url-stdin through an injected client", () => {
       io,
       connect: sql.connect,
     });
-    expect(result.output.split("\n")).toEqual([
+    expect(result.output.split("\n")).toStrictEqual([
       "wrote src/permissions.generated.ts",
       "add rls.functions.fence to make this grant portable",
       "-- app.fence: select true",
@@ -380,7 +380,7 @@ describe("runRlsImport --db-url-stdin through an injected client", () => {
     const catalog = catalogOf(cwd);
     expect(
       catalog.map((entry) => [entry.cmd, entry.permissive, entry.roles]),
-    ).toEqual([
+    ).toStrictEqual([
       ["SELECT", true, ["authenticated"]],
       ["SELECT", false, ["anon", "authenticated"]],
       ["INSERT", false, ["anon", "authenticated"]],
@@ -391,7 +391,7 @@ describe("runRlsImport --db-url-stdin through an injected client", () => {
       ["UPDATE", true, []],
       ["DELETE", true, []],
     ]);
-    expect(catalog[0]?.grants).toEqual([
+    expect(catalog[0]?.grants).toStrictEqual([
       {
         key: "post.read",
         permission: "post.read",
@@ -400,7 +400,7 @@ describe("runRlsImport --db-url-stdin through an injected client", () => {
       },
     ]);
     expect(catalog[1]?.sourceSql).toBe("app.fence(id)");
-    expect(catalog[5]?.condition).toEqual({
+    expect(catalog[5]?.condition).toStrictEqual({
       op: "eq",
       field: "_",
       value: true,
@@ -426,7 +426,7 @@ describe("runRlsImport --db-url-stdin through an injected client", () => {
       connect: sql.connect,
     });
     expect(result.code).toBe(0);
-    expect(catalogOf(cwd)[0]?.grants).toEqual([
+    expect(catalogOf(cwd)[0]?.grants).toStrictEqual([
       { key: "post.read", permission: "post.read", scope: "team", roles: [] },
     ]);
   });
@@ -442,7 +442,7 @@ describe("runRlsImport --db-url-stdin through an injected client", () => {
         throw new Error("connect ECONNREFUSED");
       },
     });
-    expect(result).toEqual({ code: 2, output: "connect ECONNREFUSED" });
+    expect(result).toStrictEqual({ code: 2, output: "connect ECONNREFUSED" });
     const failing = await runRlsImport({
       cwd: project(),
       config,
@@ -454,6 +454,6 @@ describe("runRlsImport --db-url-stdin through an injected client", () => {
         throw down;
       },
     });
-    expect(failing).toEqual({ code: 2, output: "down" });
+    expect(failing).toStrictEqual({ code: 2, output: "down" });
   });
 });

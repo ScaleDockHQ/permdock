@@ -89,7 +89,7 @@ describe("createPermDockUnplugin", () => {
     const stderr = stderrLines();
     await hooks().buildStart();
     expect(existsSync(path.join(dir, "permissions.catalog.json"))).toBe(true);
-    expect(stderr.lines).toEqual([]);
+    expect(stderr.lines).toStrictEqual([]);
   });
 
   it("fails the build on a missing catalog under check", async () => {
@@ -104,7 +104,7 @@ describe("createPermDockUnplugin", () => {
     project(true);
     const stderr = stderrLines();
     await hooks({ check: true, onDrift: "warn" }).buildStart();
-    expect(stderr.lines).toEqual([
+    expect(stderr.lines).toStrictEqual([
       expect.stringMatching(/^permdock: catalog missing/u),
     ]);
   });

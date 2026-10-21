@@ -41,10 +41,12 @@ const service: Automation = {
 
 describe("parseAutomation", () => {
   it("keeps the v1 fields and freezes the copy", () => {
-    expect(parseAutomation({ ...record, extra: true })).toEqual(record);
-    expect(parseAutomation(service)).toEqual(service);
+    expect(parseAutomation({ ...record, extra: true })).toStrictEqual(record);
+    expect(parseAutomation(service)).toStrictEqual(service);
     expect(Object.isFrozen(parseAutomation(record))).toBe(true);
-    expect(parseAutomation({ ...record, revoked: false })).toEqual(record);
+    expect(parseAutomation({ ...record, revoked: false })).toStrictEqual(
+      record,
+    );
   });
 
   it("rejects a wrong shape in any field", () => {
@@ -78,8 +80,10 @@ describe("parseAutomation", () => {
 describe("memoryAutomationSource", () => {
   it("returns a record by id, scoped to a tenant, and replaces on put", () => {
     const source = memoryAutomationSource([record]);
-    expect(source.automation("auto_1")).toEqual(record);
-    expect(source.automation("auto_1", { tenant: "o_1" })).toEqual(record);
+    expect(source.automation("auto_1")).toStrictEqual(record);
+    expect(source.automation("auto_1", { tenant: "o_1" })).toStrictEqual(
+      record,
+    );
     expect(source.automation("auto_1", { tenant: "o_2" })).toBeNull();
     expect(source.automation("missing")).toBeNull();
     source.put({ ...record, version: 2 });
@@ -107,7 +111,7 @@ describe("decideAutomation", () => {
       { ...request, run: permissions.report.run, name: "Monthly invoices" },
       { now: NOW },
     );
-    expect(decision).toEqual({
+    expect(decision).toStrictEqual({
       outcome: "granted",
       automation: { ...record, run: "report.run", name: "Monthly invoices" },
     });
@@ -122,12 +126,12 @@ describe("decideAutomation", () => {
     );
     expect(decision.outcome).toBe("granted");
     if (decision.outcome === "granted") {
-      expect(decision.automation.operations).toEqual([
+      expect(decision.automation.operations).toStrictEqual([
         "read_invoice",
         "send_invoice",
         "delete_invoice",
       ]);
-      expect(decision.automation.permissions).toEqual([
+      expect(decision.automation.permissions).toStrictEqual([
         "invoice.read",
         "invoice.send",
         "invoice.delete",
@@ -231,7 +235,7 @@ describe("decideAutomation", () => {
       { ...request, id: "auto_2", mode: "service", roles: ["billing"] },
       { now: NOW },
     );
-    expect(granted).toEqual({ outcome: "granted", automation: service });
+    expect(granted).toStrictEqual({ outcome: "granted", automation: service });
     expect(
       await decideAutomation(billing, {
         ...request,

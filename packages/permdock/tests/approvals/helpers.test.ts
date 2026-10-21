@@ -123,10 +123,10 @@ const detailOf = (decision: Decision): unknown =>
 
 describe("summarizeSubject", () => {
   it("keeps an anonymous principal and defaults missing roles", () => {
-    expect(summarizeSubject(anonymous)).toEqual({ principal: null });
-    expect(summarizeSubject({ principal: { id: "u" }, context: {} })).toEqual({
-      principal: { id: "u", roles: [] },
-    });
+    expect(summarizeSubject(anonymous)).toStrictEqual({ principal: null });
+    expect(
+      summarizeSubject({ principal: { id: "u" }, context: {} }),
+    ).toStrictEqual({ principal: { id: "u", roles: [] } });
   });
 });
 
@@ -156,7 +156,9 @@ describe("requestApproval", () => {
       subject: requester,
       x: { ticket: "OPS-12" },
     });
-    expect((await store.get(request.token))?.x).toEqual({ ticket: "OPS-12" });
+    expect((await store.get(request.token))?.x).toStrictEqual({
+      ticket: "OPS-12",
+    });
     await expect(
       requestApproval(store, pendingOf("t-bad-x"), {
         permission: deletePost,
@@ -185,7 +187,7 @@ describe("requestApproval", () => {
       now: { epochMilliseconds: now.getTime() },
     });
     const { ttl: _ttl, ...approvers } = grant;
-    expect(request.approvers).toEqual(approvers);
+    expect(request.approvers).toStrictEqual(approvers);
     expect(request.approvals).toBeUndefined();
     expect(request.expiresAt).toBe("2026-03-01T10:30:00.000Z");
     const longer = await requestApproval(
@@ -399,7 +401,7 @@ describe("resumeDecision ttl", () => {
 describe("consumeApproval", () => {
   it("reports a store that lost the race to consume", async () => {
     const store: ApprovalStore = { ...approved("t1"), consume: () => null };
-    expect(await consumeApproval(store, "t1")).toEqual({
+    expect(await consumeApproval(store, "t1")).toStrictEqual({
       ok: false,
       cause: "approval-consumed",
     });
@@ -482,7 +484,7 @@ describe("storedApprovalToken", () => {
       await storedApprovalToken(undefined, required("t1")),
       await storedApprovalToken(memoryApprovalStore(), denied),
       await storedApprovalToken(failing, required("t1")),
-    ]).toEqual([undefined, undefined, undefined]);
+    ]).toStrictEqual([undefined, undefined, undefined]);
   });
 
   it("reads expiry against the now option", async () => {
@@ -494,7 +496,7 @@ describe("storedApprovalToken", () => {
       await storedApprovalToken(store, required("t1"), {
         now: { epochMilliseconds: later.getTime() },
       }),
-    ]).toEqual(["t1", undefined]);
+    ]).toStrictEqual(["t1", undefined]);
   });
 
   it("resumes a call in an application gate without the caller carrying the token", async () => {

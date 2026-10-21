@@ -52,8 +52,8 @@ describe("policyMatrix", () => {
         },
       },
     });
-    expect(report.missing).toEqual([]);
-    expect(report.cells.map((cell) => [cell.name, cell.actual])).toEqual([
+    expect(report.missing).toStrictEqual([]);
+    expect(report.cells.map((cell) => [cell.name, cell.actual])).toStrictEqual([
       ["doc.read / vera", "granted"],
       ["doc.read / ed", "granted"],
       ["doc.update / open / vera", "denied"],
@@ -62,7 +62,7 @@ describe("policyMatrix", () => {
       ["doc.list / vera", "granted"],
       ["doc.list / ed", "denied"],
     ]);
-    expect(report.cells.flatMap((cell) => cell.failures)).toEqual([]);
+    expect(report.cells.flatMap((cell) => cell.failures)).toStrictEqual([]);
     expect(report.cells[4]).toMatchObject({
       permission: "doc.update",
       fixture: "frozen",
@@ -90,7 +90,7 @@ describe("policyMatrix", () => {
       Object.fromEntries(
         report.cells.map((cell) => [cell.name, cell.failures]),
       ),
-    ).toEqual({
+    ).toStrictEqual({
       "doc.read / vera": ["expected denied, got granted"],
       "doc.read / ed": ["obligations: expected [audit], got []"],
       "doc.update / vera": ["no denial condition-failed; got [no-grant]"],
@@ -98,7 +98,7 @@ describe("policyMatrix", () => {
         "deniedBy: expected lock, explain answered denied by freeze",
       ],
     });
-    expect(report.missing).toEqual([permissions.doc.list.key]);
+    expect(report.missing).toStrictEqual([permissions.doc.list.key]);
   });
 
   it("names a denial role, the alternatives and a denial with no named deny", async () => {
@@ -115,7 +115,7 @@ describe("policyMatrix", () => {
         },
       },
     });
-    expect(report.cells[0]?.failures).toEqual([
+    expect(report.cells[0]?.failures).toStrictEqual([
       "no denial no-grant for role editor; got [no-grant]",
       "alternatives: expected [doc.list], got [doc.read, doc.list]",
       "deniedBy: expected freeze, explain answered denied",
@@ -128,7 +128,7 @@ describe("policyMatrix", () => {
       exhaustive: false,
       matrix: { [permissions.doc.read.key]: { vera: "granted" } },
     });
-    expect(report.missing).toEqual([]);
+    expect(report.missing).toStrictEqual([]);
   });
 
   it("checks the snapshot client with snapshot: true", async () => {
@@ -138,7 +138,7 @@ describe("policyMatrix", () => {
       exhaustive: false,
       matrix: { [permissions.doc.list.key]: { vera: "granted" } },
     });
-    expect(report.cells[0]?.failures).toEqual([]);
+    expect(report.cells[0]?.failures).toStrictEqual([]);
   });
 
   it("lays out the cells without deciding them", () => {
@@ -148,7 +148,7 @@ describe("policyMatrix", () => {
         fixtures: { open: { id: "d1" } },
         matrix: { [permissions.doc.update.key]: { open: { ed: "granted" } } },
       }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         name: "doc.update / open / ed",
         permission: "doc.update",

@@ -87,7 +87,7 @@ afterAll(async () => {
 
 describe("{ subject: { session: { live: true } } } on supabase/postgres", () => {
   it("updates on a session auth.sessions holds for the caller", async () => {
-    expect(await as(admin(LIVE), update)).toEqual([{ id: "p1" }]);
+    expect(await as(admin(LIVE), update)).toStrictEqual([{ id: "p1" }]);
   });
 
   it.each([
@@ -98,13 +98,13 @@ describe("{ subject: { session: { live: true } } } on supabase/postgres", () => 
     ["a non-string session_id", 42],
     ["no session_id", undefined],
   ])("updates nothing on %s", async (_, sessionId) => {
-    expect(await as(admin(sessionId), update)).toEqual([]);
+    expect(await as(admin(sessionId), update)).toStrictEqual([]);
   });
 
   it("leaves reads that do not ask for a live session alone", async () => {
-    expect(await as(admin(REVOKED), "select id from public.project")).toEqual([
-      { id: "p1" },
-    ]);
+    expect(
+      await as(admin(REVOKED), "select id from public.project"),
+    ).toStrictEqual([{ id: "p1" }]);
   });
 
   it("keeps permdock_session_live() from anon", async () => {
@@ -122,6 +122,6 @@ describe("{ subject: { session: { live: true } } } on supabase/postgres", () => 
 
   it("raises no WARN or ERROR lint on the generated SQL", async () => {
     const findings = await runSplinter(started().owner);
-    expect(generatedFindings(findings, generated)).toEqual([]);
+    expect(generatedFindings(findings, generated)).toStrictEqual([]);
   }, 120_000);
 });

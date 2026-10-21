@@ -38,7 +38,7 @@ describe("presets", () => {
         collection: { create: {}, list: { readOnly: true } },
       }),
     });
-    expect(shapes(listPermissions(fromPreset))).toEqual(
+    expect(shapes(listPermissions(fromPreset))).toStrictEqual(
       shapes(listPermissions(handwritten)),
     );
   });
@@ -62,11 +62,13 @@ describe("presets", () => {
         collection: { create: {}, list: { readOnly: true } },
       }),
     });
-    expect(shapes(listPermissions(fromPreset))).toEqual(
+    expect(shapes(listPermissions(fromPreset))).toStrictEqual(
       shapes(listPermissions(handwritten)),
     );
     expect(fromPreset.post.publish.kind).toBe("instance");
-    expect(fromPreset.post.publish.meta).toEqual({ title: "Publish post" });
+    expect(fromPreset.post.publish.meta).toStrictEqual({
+      title: "Publish post",
+    });
   });
 
   it("overlays extra meta onto defaults without dropping unread fields", () => {
@@ -81,11 +83,11 @@ describe("presets", () => {
         }),
       ),
     });
-    expect(permissions.post.read.meta).toEqual({
+    expect(permissions.post.read.meta).toStrictEqual({
       title: "Read post",
       readOnly: true,
     });
-    expect(permissions.post.delete.meta).toEqual({
+    expect(permissions.post.delete.meta).toStrictEqual({
       title: "Delete post",
       destructive: true,
     });
@@ -103,8 +105,8 @@ describe("presets", () => {
         }),
       ),
     });
-    expect(permissions.post.read.meta).toEqual({ readOnly: false });
-    expect(permissions.post.delete.meta).toEqual({ destructive: false });
+    expect(permissions.post.read.meta).toStrictEqual({ readOnly: false });
+    expect(permissions.post.delete.meta).toStrictEqual({ destructive: false });
   });
 
   it("passes id and parent through to the resource node", () => {
@@ -116,7 +118,7 @@ describe("presets", () => {
       ),
     });
     expect(getResource(permissions, "post")?.id).toBe("id");
-    expect(getResource(permissions, "comment")?.parent).toEqual({
+    expect(getResource(permissions, "comment")?.parent).toStrictEqual({
       field: "postId",
       resource: "post",
     });
@@ -126,7 +128,7 @@ describe("presets", () => {
     const permissions = definePermissions({
       report: resource(Report, readable({ id: "id" })),
     });
-    expect(shapes(listPermissions(permissions))).toEqual([
+    expect(shapes(listPermissions(permissions))).toStrictEqual([
       { key: "report.list", kind: "collection", meta: { readOnly: true } },
       { key: "report.read", kind: "instance", meta: { readOnly: true } },
     ]);
@@ -136,7 +138,7 @@ describe("presets", () => {
     const permissions = definePermissions({
       setting: resource(Setting, writable({ id: "id" })),
     });
-    expect(shapes(listPermissions(permissions))).toEqual([
+    expect(shapes(listPermissions(permissions))).toStrictEqual([
       { key: "setting.read", kind: "instance", meta: { readOnly: true } },
       { key: "setting.update", kind: "instance", meta: {} },
     ]);
@@ -153,8 +155,8 @@ describe("presets", () => {
     const permissions = definePermissions({
       post: resource(Post, crud({ actions: ["publish"] })),
     });
-    expect(permissions.post.publish.meta).toEqual({});
-    expect(permissions.post.read.meta).toEqual({ readOnly: true });
+    expect(permissions.post.publish.meta).toStrictEqual({});
+    expect(permissions.post.read.meta).toStrictEqual({ readOnly: true });
   });
 
   it("leaves instance/collection collisions for resource() to reject", () => {

@@ -69,7 +69,7 @@ describe("mayUse", () => {
       expect({
         conditional,
         may: permdock([read, conditional]).mayUse(permissions.doc.read),
-      }).toEqual({ conditional, may: true });
+      }).toStrictEqual({ conditional, may: true });
     }
   });
 
@@ -135,14 +135,16 @@ describe("an instance built from a snapshot", () => {
         memberships: [{ scope: "team", id: "a", roles: ["member"] }],
       },
     });
-    expect(instance.permittedIds(permissions.doc.read, "team")).toEqual(["a"]);
+    expect(instance.permittedIds(permissions.doc.read, "team")).toStrictEqual([
+      "a",
+    ]);
     expect(
       await decideCredential(instance, {
         kind: "user",
         id: "k1",
         permissions: [permissions.doc.read],
       }),
-    ).toEqual({
+    ).toStrictEqual({
       outcome: "denied",
       denials: [{ role: null, reason: "unsupported" }],
     });
@@ -198,10 +200,10 @@ describe("snapshotFor assignable", () => {
     });
     expect(
       snapshot.assignable?.map((entry) => entry.tenant).toSorted(),
-    ).toEqual(["acme", "globex"]);
+    ).toStrictEqual(["acme", "globex"]);
     const roles = (tenant: string) =>
       snapshot.assignable?.find((entry) => entry.tenant === tenant)?.roles;
-    expect(roles("acme")).toEqual(["member"]);
-    expect(roles("globex")).toEqual([]);
+    expect(roles("acme")).toStrictEqual(["member"]);
+    expect(roles("globex")).toStrictEqual([]);
   });
 });

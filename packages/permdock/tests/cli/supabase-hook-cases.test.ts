@@ -28,10 +28,12 @@ const hookWith = (memberships: readonly SqlMembershipSource[]) => () =>
 
 describe("activeFromSql", () => {
   it("reads app_metadata, a table column or a mapped id column", () => {
-    expect(activeFromSql(undefined, "organization")).toEqual({
+    expect(activeFromSql(undefined, "organization")).toStrictEqual({
       sql: `claims -> 'app_metadata' ->> 'active_organization'`,
     });
-    expect(activeFromSql("app.profiles.active_org", "organization")).toEqual({
+    expect(
+      activeFromSql("app.profiles.active_org", "organization"),
+    ).toStrictEqual({
       sql: `(select a."active_org"::text from "app"."profiles" a where a."id" = v_active_user)`,
       userType: `"app"."profiles"."id"%type`,
     });
@@ -40,7 +42,7 @@ describe("activeFromSql", () => {
         { table: "profiles", column: "org", id: "user_id" },
         "organization",
       ),
-    ).toEqual({
+    ).toStrictEqual({
       sql: `(select a."org"::text from "public"."profiles" a where a."user_id" = v_active_user)`,
       userType: `"public"."profiles"."user_id"%type`,
     });
@@ -118,7 +120,7 @@ describe("runSupabase dispatch", () => {
         io,
         schemas: "flyway",
       }),
-    ).toEqual({
+    ).toStrictEqual({
       code: 2,
       output:
         "supabase --schemas must be pg-delta, migra, migrations (got flyway)",

@@ -143,7 +143,7 @@ describe("resendWebhook", () => {
     ]) {
       expect((await handler(await signed(body))).status).toBe(200);
     }
-    expect(sink.events()).toEqual([]);
+    expect(sink.events()).toStrictEqual([]);
   });
 
   it("refuses a bad signature with 403 Problem Details and writes nothing", async () => {
@@ -166,7 +166,7 @@ describe("resendWebhook", () => {
       }),
     );
     expect(unsigned.status).toBe(400);
-    expect(sink.events()).toEqual([]);
+    expect(sink.events()).toStrictEqual([]);
   });
 
   it("writes a replayed message id once", async () => {

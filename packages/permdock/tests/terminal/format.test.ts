@@ -29,7 +29,7 @@ const denied: Decision = {
 
 describe("formatDecision without a permission", () => {
   it("takes the key from the matched grant", () => {
-    expect(JSON.parse(formatDecision(granted, { json: true }))).toEqual({
+    expect(JSON.parse(formatDecision(granted, { json: true }))).toStrictEqual({
       outcome: "granted",
       permission: "post.read",
     });
@@ -55,9 +55,11 @@ describe("formatDecision without a permission", () => {
   });
 
   it("maps exit codes", () => {
-    expect([exitCode(granted), exitCode(approval), exitCode(denied)]).toEqual([
-      0, 75, 77,
-    ]);
+    expect([
+      exitCode(granted),
+      exitCode(approval),
+      exitCode(denied),
+    ]).toStrictEqual([0, 75, 77]);
   });
 });
 
@@ -70,9 +72,9 @@ describe("filterCommandEntries", () => {
     for (const snapshot of ["signed.jws", Promise.resolve({ grants: [] })]) {
       // SAFETY: filterCommandEntries only calls snapshot() for an instance permission.
       const permdock = { snapshot: () => snapshot } as unknown as PermDock;
-      expect(filterCommandEntries(permdock, entries, { mode: "hide" })).toEqual(
-        [],
-      );
+      expect(
+        filterCommandEntries(permdock, entries, { mode: "hide" }),
+      ).toStrictEqual([]);
     }
   });
 });

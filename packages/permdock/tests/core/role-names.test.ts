@@ -88,7 +88,7 @@ describe("allow on a resource or the whole tree", () => {
     const owner = policy.rolesByName.get("owner");
     expect(
       owner?.grants.map((grant) => grant.permission.key).toSorted(),
-    ).toEqual([
+    ).toStrictEqual([
       "billing.read",
       "billing.update",
       "member.invite",

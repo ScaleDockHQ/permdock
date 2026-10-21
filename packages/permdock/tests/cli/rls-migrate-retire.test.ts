@@ -93,8 +93,8 @@ function statements(files: Readonly<Record<string, string>>) {
 describe("retirePlan", () => {
   it("finds the refresh triggers, their functions and every reader", () => {
     const plan = retirePlan(statements({ "001.sql": LEGACY }), MIGRATE);
-    expect(plan.helpers).toEqual([]);
-    expect(plan.tables).toEqual([
+    expect(plan.helpers).toStrictEqual([]);
+    expect(plan.tables).toStrictEqual([
       {
         table: "public.user_permissions",
         present: true,
@@ -144,8 +144,8 @@ describe("retirePlan", () => {
       statements({ "001.sql": rewritten, "002.sql": CLEANUP }),
       MIGRATE,
     );
-    expect(plan.helpers).toEqual(["public.has_org_permission"]);
-    expect(plan.tables[0]?.readers).toEqual([]);
+    expect(plan.helpers).toStrictEqual(["public.has_org_permission"]);
+    expect(plan.tables[0]?.readers).toStrictEqual([]);
     expect(retireSql(plan))
       .toBe(`-- permdock:retire v1 table=public.user_permissions
 -- rls.migrate.tables: the refresh triggers and functions, uncalled legacy helpers, then the table; no cascade, so a dependant left behind fails the migration
@@ -168,7 +168,7 @@ create trigger rebuild after insert on public.memberships for each statement exe
       { helpers: {}, tables: { user_permissions: { refresh: ["rebuild"] } } },
     );
     expect(plan.tables[0]?.kind).toBe("materialized view");
-    expect(plan.tables[0]?.refreshTriggers.map((t) => t.name)).toEqual([
+    expect(plan.tables[0]?.refreshTriggers.map((t) => t.name)).toStrictEqual([
       "rebuild",
     ]);
     expect(retireSql(plan)).toContain(
@@ -188,8 +188,8 @@ drop table public.user_permissions;
       MIGRATE,
     );
     expect(plan.tables[0]?.present).toBe(false);
-    expect(plan.tables[0]?.refreshTriggers).toEqual([]);
-    expect(plan.tables[0]?.refreshFunctions).toEqual([]);
+    expect(plan.tables[0]?.refreshTriggers).toStrictEqual([]);
+    expect(plan.tables[0]?.refreshFunctions).toStrictEqual([]);
     expect(retireSql(plan)).toBeUndefined();
   });
 
@@ -198,7 +198,7 @@ drop table public.user_permissions;
       statements({ "001.sql": LEGACY }),
       "has_org_permission",
     );
-    expect(found).toEqual({ count: 1, files: ["001.sql"] });
+    expect(found).toStrictEqual({ count: 1, files: ["001.sql"] });
   });
 });
 
@@ -257,7 +257,7 @@ describe("rls migrate --retire-out", () => {
     const json = await run([...ARGS, "--dry-run", "--json"], { cwd });
     // SAFETY: --json prints runRlsMigrate's MigrateReport.
     const report = jsonData(json.stdout) as MigrateReport;
-    expect(report.retire?.tables[0]?.readers).toEqual([]);
+    expect(report.retire?.tables[0]?.readers).toStrictEqual([]);
 
     const out = [...ARGS, "--retire-out", "supabase/migrations/"];
     const dry = await run([...out, "--dry-run"], { cwd });
@@ -363,6 +363,6 @@ drop function if exists app.other, app.unknown(int) cascade;
     ).toMatchObject({ tables: [{ table: "public.user_permissions" }] });
     expect(
       retirePlan(statements({ "001.sql": LEGACY }), { helpers: {} }).tables,
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

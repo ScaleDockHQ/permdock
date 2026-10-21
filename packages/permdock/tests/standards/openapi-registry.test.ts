@@ -151,7 +151,7 @@ function extensions(
 
 describe("OpenAPI registries", () => {
   it("reads the documented extension table", () => {
-    expect([...PERMDOCK_EXTENSIONS].toSorted()).toEqual([
+    expect([...PERMDOCK_EXTENSIONS].toSorted()).toStrictEqual([
       "x-permdock-approval",
       "x-permdock-arity",
       "x-permdock-catalog",
@@ -171,7 +171,7 @@ describe("OpenAPI registries", () => {
             key,
             at,
             documented: PERMDOCK_EXTENSIONS.has(key) || REGISTERED.has(key),
-          }).toEqual({ key, at, documented: true });
+          }).toStrictEqual({ key, at, documented: true });
         }
       }
     },
@@ -182,7 +182,7 @@ describe("OpenAPI registries", () => {
       const names = outputs(config(target)).flatMap((output) =>
         extensions(output).map(([key]) => key),
       );
-      expect(names.filter((key) => key.startsWith("x-oai-"))).toEqual([]);
+      expect(names.filter((key) => key.startsWith("x-oai-"))).toStrictEqual([]);
     }
     const found = extensions(
       createPermDock(policy, config("3.1")).securitySchemes(),
@@ -190,7 +190,7 @@ describe("OpenAPI registries", () => {
       .filter(([key]) => key.startsWith("x-oai-"))
       .map(([key, at]) => `${at} ${key}`)
       .toSorted();
-    expect(found).toEqual([
+    expect(found).toStrictEqual([
       "$.permdockOAuth x-oai-deprecated",
       "$.permdockOAuth.flows x-oai-deviceAuthorization",
       "$.permdockOAuth.flows.x-oai-deviceAuthorization x-oai-deviceAuthorizationUrl",
@@ -206,17 +206,17 @@ describe("OpenAPI registries", () => {
       policy,
       config("3.2", { docsHints: { badges: true } }),
     ).describe(permissions.post.delete);
-    expect(hinted["x-badges"]).toEqual([{ name: "Approval required" }]);
+    expect(hinted["x-badges"]).toStrictEqual([{ name: "Approval required" }]);
   });
 
   it("gives each extension the documented JSON shape", () => {
     const factory = createPermDock(policy, config("3.1"));
     const described = factory.describe(permissions.post.delete);
-    expect(described["x-permdock-permissions"]).toEqual(["post.delete"]);
-    expect(Object.keys(described["x-permdock-conditions"] ?? {})).toEqual([
-      "post.delete",
-    ]);
-    expect(described["x-permdock-approval"]).toEqual({
+    expect(described["x-permdock-permissions"]).toStrictEqual(["post.delete"]);
+    expect(Object.keys(described["x-permdock-conditions"] ?? {})).toStrictEqual(
+      ["post.delete"],
+    );
+    expect(described["x-permdock-approval"]).toStrictEqual({
       "post.delete": { reason: "human" },
     });
     expect(described["x-permdock-securityProfile"]).toBe("fapi2");
@@ -225,8 +225,11 @@ describe("OpenAPI registries", () => {
         "https://auth.example/.well-known/oauth-authorization-server",
       "x-permdock-securityProfile": "fapi2",
     });
-    expect(factory.catalog()).toEqual({ v: 1, generator: "permdock/openapi" });
-    expect(JSON.parse(JSON.stringify(described))).toEqual(described);
+    expect(factory.catalog()).toStrictEqual({
+      v: 1,
+      generator: "permdock/openapi",
+    });
+    expect(JSON.parse(JSON.stringify(described))).toStrictEqual(described);
   });
 
   it("keeps the JWS typ values the source emits equal to the documented closed list", () => {
@@ -247,7 +250,7 @@ describe("OpenAPI registries", () => {
       }
     };
     walk(path.join(import.meta.dirname, "../../src"));
-    expect([...literals].toSorted()).toEqual([...documented].toSorted());
+    expect([...literals].toSorted()).toStrictEqual([...documented].toSorted());
   });
 
   describe("permdock openapi emit and import", () => {

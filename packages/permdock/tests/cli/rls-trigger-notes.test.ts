@@ -16,7 +16,7 @@ create trigger "permdock_sync_custom_role_permissions" after insert on public.ro
 
 describe("generatedTriggers", () => {
   it("names each trigger, its table and the option behind it", () => {
-    expect(generatedTriggers(SQL)).toEqual([
+    expect(generatedTriggers(SQL)).toStrictEqual([
       {
         name: "permdock_custom_role_name_guard",
         table: "public.app_roles",

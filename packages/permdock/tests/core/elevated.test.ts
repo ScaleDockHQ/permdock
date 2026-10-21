@@ -226,7 +226,7 @@ describe("E2 break-glass", () => {
     expect(decision.outcome).toBe("granted");
     if (decision.outcome !== "granted") return;
     expect(decision.matched.breakGlass).toBe(true);
-    expect(decision.obligations).toEqual([
+    expect(decision.obligations).toStrictEqual([
       { kind: "notify" },
       { kind: "review" },
       { kind: "justify", reason: "cardiac arrest" },
@@ -467,7 +467,7 @@ describe("activate binds a nested elevation to the eligible membership", () => {
     });
     expect(decision.outcome).toBe("granted");
     if (decision.outcome === "granted") {
-      expect(decision.elevation?.within).toEqual({ org: "A" });
+      expect(decision.elevation?.within).toStrictEqual({ org: "A" });
     }
   });
 

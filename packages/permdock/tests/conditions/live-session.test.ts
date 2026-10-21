@@ -73,12 +73,12 @@ async function generate(
 
 describe("{ subject: { session: { live: true } } }", () => {
   it("normalises to the liveSession node", () => {
-    expect(normalizeWhere({ subject: { session: { live: true } } })).toEqual({
-      op: "liveSession",
-    });
+    expect(
+      normalizeWhere({ subject: { session: { live: true } } }),
+    ).toStrictEqual({ op: "liveSession" });
     expect(
       normalizeWhere({ status: "sent", subject: { session: { live: true } } }),
-    ).toEqual({
+    ).toStrictEqual({
       op: "and",
       conditions: [
         { op: "eq", field: "status", value: "sent" },
@@ -88,7 +88,7 @@ describe("{ subject: { session: { live: true } } }", () => {
   });
 
   it("keeps a plain subject field a comparison", () => {
-    expect(normalizeWhere({ subject: "billing" })).toEqual({
+    expect(normalizeWhere({ subject: "billing" })).toStrictEqual({
       op: "eq",
       field: "subject",
       value: "billing",
@@ -138,7 +138,7 @@ describe("{ subject: { session: { live: true } } }", () => {
     expect(
       JSON.stringify(live.where(permissions.invoice.update)),
     ).not.toContain("liveSession");
-    expect(stale.where(permissions.invoice.update).condition).toEqual({
+    expect(stale.where(permissions.invoice.update).condition).toStrictEqual({
       op: "and",
       conditions: [
         { op: "eq", field: "organization_id", value: "acme" },
@@ -188,14 +188,14 @@ describe("rls import of permdock_session_live()", () => {
         undefined,
         unmapped,
       ),
-    ).toEqual({
+    ).toStrictEqual({
       op: "and",
       conditions: [
         { op: "eq", field: "status", value: "sent" },
         { op: "liveSession" },
       ],
     });
-    expect(unmapped).toEqual([]);
+    expect(unmapped).toStrictEqual([]);
   });
 });
 

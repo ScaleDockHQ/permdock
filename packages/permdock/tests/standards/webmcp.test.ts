@@ -93,7 +93,7 @@ describe("WebMCP draft: ModelContext.registerTool", () => {
     });
     for (const tool of active.values()) {
       for (const [key, value] of Object.entries(tool.annotations ?? {})) {
-        expect({ key, kind: typeof value }).toEqual({
+        expect({ key, kind: typeof value }).toStrictEqual({
           key: expect.stringMatching(/^(readOnlyHint|untrustedContentHint)$/u),
           kind: "boolean",
         });
@@ -138,7 +138,7 @@ describe("WebMCP draft: ModelContext.registerTool", () => {
     for (const listener of listeners) {
       listener();
     }
-    expect([...active.keys()].toSorted()).toEqual(before);
+    expect([...active.keys()].toSorted()).toStrictEqual(before);
   });
 
   it("execute resolves to a tool result of text content parts", async () => {
@@ -148,7 +148,7 @@ describe("WebMCP draft: ModelContext.registerTool", () => {
       handlers: { list: async () => [] },
     });
     const result = await active.get("post_list")?.execute({});
-    expect(result?.content).toEqual([{ type: "text", text: "[]" }]);
+    expect(result?.content).toStrictEqual([{ type: "text", text: "[]" }]);
   });
 
   it("does nothing when the document exposes no modelContext", async () => {
@@ -182,7 +182,7 @@ describe("WebMCP: agent-supplied arguments are untrusted", () => {
     expect(result?.structuredContent).toMatchObject({
       denials: [{ reason: "validation" }],
     });
-    expect(ran).toEqual([]);
+    expect(ran).toStrictEqual([]);
   });
 
   it("a simulated snapshot exposes no tools at all", async () => {

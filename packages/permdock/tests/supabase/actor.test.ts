@@ -23,9 +23,9 @@ describe("actorOf and delegationOf", () => {
         return;
       }
       const actor = result.actor;
-      expect(subject.actor).toEqual(fixture.expect.actor);
+      expect(subject.actor).toStrictEqual(fixture.expect.actor);
       expect(subject.actor?.kind).toBe(actor?.kind);
-      expect(subject.delegation).toEqual(fixture.expect.delegation);
+      expect(subject.delegation).toStrictEqual(fixture.expect.delegation);
       const scopes = delegationOf(fixture.claims)?.scopes;
       const expected =
         actor?.kind !== "oauth-client" ||
@@ -35,7 +35,7 @@ describe("actorOf and delegationOf", () => {
               ...(scopes === undefined ? {} : { scopes }),
               ...(actor.chain === undefined ? {} : { chain: actor.chain }),
             };
-      expect(subject.delegation).toEqual(expected);
+      expect(subject.delegation).toStrictEqual(expected);
     });
   }
 
@@ -45,7 +45,7 @@ describe("actorOf and delegationOf", () => {
       client_id: "app-1",
       act: { sub: "runner", act: { sub: "client-9", iss: "x" } },
     });
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       ok: true,
       actor: {
         id: "runner",
@@ -63,7 +63,7 @@ describe("actorOf and delegationOf", () => {
       read_only: true,
       reason: "ticket 42",
     };
-    expect(actorOf({ sub, act })).toEqual({
+    expect(actorOf({ sub, act })).toStrictEqual({
       ok: true,
       actor: {
         id: "admin-1",
@@ -87,7 +87,7 @@ describe("actorOf and delegationOf", () => {
 
   it("reads an impersonation from act.kind and gives it no delegation", () => {
     const act = { kind: "impersonation", sub: "admin-1", reason: "ticket 42" };
-    expect(actorOf({ sub, act })).toEqual({
+    expect(actorOf({ sub, act })).toStrictEqual({
       ok: true,
       actor: {
         id: "admin-1",
@@ -97,7 +97,10 @@ describe("actorOf and delegationOf", () => {
       },
     });
     const subject = subjectFromSupabase({ sub, act, scope: "posts:read" });
-    expect(subject.actor).toEqual({ id: "admin-1", kind: "impersonation" });
+    expect(subject.actor).toStrictEqual({
+      id: "admin-1",
+      kind: "impersonation",
+    });
     expect(subject.delegation).toBeUndefined();
   });
 
@@ -108,7 +111,7 @@ describe("actorOf and delegationOf", () => {
       tools: ["search_knowledge"],
       act: { sub: "agent-runner" },
     };
-    expect(actorOf({ sub, act })).toEqual({
+    expect(actorOf({ sub, act })).toStrictEqual({
       ok: true,
       actor: {
         id: "agent-7",
@@ -119,13 +122,16 @@ describe("actorOf and delegationOf", () => {
       },
     });
     const subject = subjectFromSupabase({ sub, act, scope: "posts:read" });
-    expect(subject.actor).toEqual({
+    expect(subject.actor).toStrictEqual({
       id: "agent-7",
       kind: "agent",
       tools: ["search_knowledge"],
       readOnly: false,
     });
-    expect(subject.delegation).toEqual({ scopes: ["posts:read"], chain: act });
+    expect(subject.delegation).toStrictEqual({
+      scopes: ["posts:read"],
+      chain: act,
+    });
   });
 
   it.each([
@@ -136,7 +142,7 @@ describe("actorOf and delegationOf", () => {
     ["a read_only that is not a boolean", { read_only: "true" }],
   ])("refuses an agent run with %s", (_, extra) => {
     const act = { kind: "agent", sub: "agent-7", ...extra };
-    expect(actorOf({ sub, act })).toEqual({
+    expect(actorOf({ sub, act })).toStrictEqual({
       ok: false,
       reason: "invalid-chain",
     });
@@ -145,7 +151,7 @@ describe("actorOf and delegationOf", () => {
 
   it("reads act.read_only on an agent run as readOnly", () => {
     const act = { kind: "agent", sub: "agent-7", read_only: true };
-    expect(subjectFromSupabase({ sub, act }).actor).toEqual({
+    expect(subjectFromSupabase({ sub, act }).actor).toStrictEqual({
       id: "agent-7",
       kind: "agent",
       readOnly: true,
@@ -157,7 +163,7 @@ describe("actorOf and delegationOf", () => {
       sub,
       act: { sub: "admin-1", session_id: "s-1", read_only: true },
     });
-    expect(subject.actor).toEqual({
+    expect(subject.actor).toStrictEqual({
       id: "admin-1",
       kind: "support",
       sessionId: "s-1",
@@ -179,7 +185,7 @@ describe("actorOf and delegationOf", () => {
       { kind: "support", sub: "admin-1", session_id: "s-1", read_only: "yes" },
     ],
   ])("rejects %s as invalid-chain", (_, act) => {
-    expect(actorOf({ sub, act })).toEqual({
+    expect(actorOf({ sub, act })).toStrictEqual({
       ok: false,
       reason: "invalid-chain",
     });
@@ -201,17 +207,17 @@ describe("actorOf and delegationOf", () => {
   });
 
   it("reads client_id when there is no act", () => {
-    expect(actorOf({ sub, client_id: "app-1" })).toEqual({
+    expect(actorOf({ sub, client_id: "app-1" })).toStrictEqual({
       ok: true,
       actor: { id: "app-1", kind: "oauth-client" },
     });
   });
 
   it("has no actor without act or client_id, or for a non-object", () => {
-    expect(actorOf({ sub })).toEqual({ ok: true });
-    expect(actorOf({ sub, client_id: "" })).toEqual({ ok: true });
-    expect(actorOf(null)).toEqual({ ok: true });
-    expect(actorOf("token")).toEqual({ ok: true });
+    expect(actorOf({ sub })).toStrictEqual({ ok: true });
+    expect(actorOf({ sub, client_id: "" })).toStrictEqual({ ok: true });
+    expect(actorOf(null)).toStrictEqual({ ok: true });
+    expect(actorOf("token")).toStrictEqual({ ok: true });
   });
 
   it.each([
@@ -223,7 +229,7 @@ describe("actorOf and delegationOf", () => {
     ["a nested act without sub", { sub: "runner", act: { iss: "x" } }],
     ["a nested act that is not an object", { sub: "runner", act: "client" }],
   ])("rejects %s as invalid-chain", (_, act) => {
-    expect(actorOf({ sub, act })).toEqual({
+    expect(actorOf({ sub, act })).toStrictEqual({
       ok: false,
       reason: "invalid-chain",
     });
@@ -237,7 +243,10 @@ describe("actorOf and delegationOf", () => {
         throw new Error("boom");
       },
     };
-    expect(actorOf(claims)).toEqual({ ok: false, reason: "invalid-chain" });
+    expect(actorOf(claims)).toStrictEqual({
+      ok: false,
+      reason: "invalid-chain",
+    });
     expect(delegationOf(claims)).toBeUndefined();
   });
 
@@ -265,10 +274,10 @@ describe("actorOf and delegationOf", () => {
   });
 
   it("splits a scope string and keeps the strings of a scope list", () => {
-    expect(delegationOf({ scope: " openid  posts:read " })).toEqual({
+    expect(delegationOf({ scope: " openid  posts:read " })).toStrictEqual({
       scopes: ["posts:read"],
     });
-    expect(delegationOf({ scope: ["posts:read", 3] })).toEqual({
+    expect(delegationOf({ scope: ["posts:read", 3] })).toStrictEqual({
       scopes: ["posts:read"],
     });
     expect(Object.isFrozen(delegationOf({ scope: "posts:read" }))).toBe(true);
@@ -280,7 +289,7 @@ describe("actorOf and delegationOf", () => {
         scope: "openid profile email address phone offline_access",
       }),
     ).toBeUndefined();
-    expect(delegationOf({ scope: ["email", "posts:read"] })).toEqual({
+    expect(delegationOf({ scope: ["email", "posts:read"] })).toStrictEqual({
       scopes: ["posts:read"],
     });
   });

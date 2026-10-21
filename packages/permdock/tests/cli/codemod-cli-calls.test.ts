@@ -91,7 +91,7 @@ describe("rewriteCliCalls", () => {
     "the permdock CLI writes permdock.config.ts",
     "permdock usage --db x",
   ])("leaves %s alone", (text) => {
-    expect(rewriteCliCalls(text, { json: false })).toEqual({
+    expect(rewriteCliCalls(text, { json: false })).toStrictEqual({
       text,
       changes: [],
       followUps: [],
@@ -114,8 +114,8 @@ describe("rewriteCliCalls", () => {
       "permdock cloud push --environment staging\npermdock catalog --format yaml\n",
       { json: false },
     );
-    expect(result.changes).toEqual([]);
-    expect(result.followUps).toEqual([
+    expect(result.changes).toStrictEqual([]);
+    expect(result.followUps).toStrictEqual([
       {
         line: 1,
         column: 21,
@@ -143,7 +143,7 @@ describe("rewriteCliCalls", () => {
     const text = "permdock rls verify --db-url $DATABASE_URL";
     const result = rewriteCliCalls(text, { json: false });
     expect(result.text).toBe(text);
-    expect(result.followUps).toEqual([
+    expect(result.followUps).toStrictEqual([
       {
         line: 1,
         column: 21,
@@ -158,7 +158,7 @@ describe("rewriteCliCalls", () => {
     expect(
       rewriteCliCalls("run: |\n  permdock doctor --strict\n", { json: false })
         .changes,
-    ).toEqual([
+    ).toStrictEqual([
       { line: 2, column: 19, from: "--strict", to: "--fail-on warning" },
     ]);
   });
@@ -197,12 +197,12 @@ describe("permdock codemod 0.5 on scripts and workflows", () => {
     expect(readFileSync(join(cwd, "README.md"), "utf8")).toBe(
       "Run `permdock rls generate --db $URL`.\n",
     );
-    expect(report.files.map((file) => file.file)).toEqual([
+    expect(report.files.map((file) => file.file)).toStrictEqual([
       ".github/workflows/ci.yml",
       "package.json",
       "scripts/catalog.sh",
     ]);
-    expect(report.followUps).toEqual([
+    expect(report.followUps).toStrictEqual([
       {
         file: "README.md",
         line: 1,

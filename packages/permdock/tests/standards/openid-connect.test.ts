@@ -114,7 +114,7 @@ describe("OpenID Connect Discovery 1.0 and RFC 8414", () => {
     });
     expect((await resolve(await token({}))).principal?.id).toBe("u_1");
     expect((await resolve(await token({}))).principal?.id).toBe("u_1");
-    expect(seen).toEqual([
+    expect(seen).toStrictEqual([
       `${ISSUER}/.well-known/openid-configuration`,
       `${ISSUER}/keys`,
     ]);
@@ -151,7 +151,7 @@ describe("OpenID Connect Discovery 1.0 and RFC 8414", () => {
       { discovery: tenantIssuer, audience: API, fetch },
     );
     expect(subject.principal?.id).toBe("u_1");
-    expect(seen.slice(0, 2)).toEqual([
+    expect(seen.slice(0, 2)).toStrictEqual([
       `${tenantIssuer}/.well-known/openid-configuration`,
       `${ISSUER}/.well-known/oauth-authorization-server/tenant-a`,
     ]);
@@ -175,7 +175,7 @@ describe("OpenID Connect Discovery 1.0 and RFC 8414", () => {
       },
     });
     expect(subject.principal).toBeNull();
-    expect(causes).toEqual(["discovery-mismatch"]);
+    expect(causes).toStrictEqual(["discovery-mismatch"]);
   });
 
   it("section 3: a jwks_uri that is not https is never fetched", async () => {
@@ -196,7 +196,7 @@ describe("OpenID Connect Discovery 1.0 and RFC 8414", () => {
       },
     });
     expect(subject.principal).toBeNull();
-    expect(causes).toEqual(["discovery-unavailable"]);
+    expect(causes).toStrictEqual(["discovery-unavailable"]);
     expect(seen).not.toContain("http://login.example.com/keys");
     expect(() =>
       jwtSubjectResolver({
@@ -233,7 +233,7 @@ describe("OpenID Connect Core 1.0: access tokens and ID tokens", () => {
       local(causes),
     );
     expect(subject.principal).toBeNull();
-    expect(causes).toEqual(["wrong-token-type"]);
+    expect(causes).toStrictEqual(["wrong-token-type"]);
   });
 
   it("section 3.1.3.7: accept 'id-token' verifies aud, iss and exp and drops delegation", async () => {
@@ -271,7 +271,7 @@ describe("OpenID Connect Core 1.0: access tokens and ID tokens", () => {
       local(causes, { audience: CLIENT, accept: "id-token" }),
     );
     expect(subject.principal).toBeNull();
-    expect(causes).toEqual(["wrong-token-type"]);
+    expect(causes).toStrictEqual(["wrong-token-type"]);
   });
 
   it("section 2: an ID token without iat is refused", async () => {
@@ -281,7 +281,7 @@ describe("OpenID Connect Core 1.0: access tokens and ID tokens", () => {
       local(causes, { audience: CLIENT, accept: "id-token" }),
     );
     expect(subject.principal).toBeNull();
-    expect(causes).toEqual(["wrong-token-type"]);
+    expect(causes).toStrictEqual(["wrong-token-type"]);
   });
 
   it("section 3.1.3.7 points 4 and 5: azp is required with several audiences and must be the client", async () => {
@@ -298,11 +298,11 @@ describe("OpenID Connect Core 1.0: access tokens and ID tokens", () => {
         await token(claims, { typ: "JWT", audience }),
         local([], options),
       );
-      expect({ claims, audience, ok: subject.principal !== null }).toEqual({
+      expect({
         claims,
         audience,
-        ok,
-      });
+        ok: subject.principal !== null,
+      }).toStrictEqual({ claims, audience, ok });
     }
   });
 });
@@ -355,7 +355,7 @@ describe("OpenID Connect Core 1.0: claims that reach the principal", () => {
       }),
       local(),
     );
-    expect(subject.principal?.claims).toEqual({ department: "r-and-d" });
+    expect(subject.principal?.claims).toStrictEqual({ department: "r-and-d" });
     expect(subject.principal?.roles).toBeUndefined();
   });
 
@@ -384,7 +384,7 @@ describe("OpenID Connect Core 1.0: claims that reach the principal", () => {
       }),
       local(),
     );
-    expect(subject.principal?.assurance?.verified).toEqual([entry]);
+    expect(subject.principal?.assurance?.verified).toStrictEqual([entry]);
     expect(Object.isFrozen(subject.principal?.assurance?.verified)).toBe(true);
   });
 });
@@ -510,7 +510,7 @@ describe("OpenID Connect Back-Channel Logout 1.0", () => {
     const seen: string[] = [];
     const response = await receiver(seen).logout(post(await logoutToken({})));
     expect(response.status).toBe(200);
-    expect(seen).toEqual([`${ISSUER} u_1 sess-1`]);
+    expect(seen).toStrictEqual([`${ISSUER} u_1 sess-1`]);
   });
 
   it("section 2.6: a logout_token is refused without the event, with nonce, without sub and sid, or with another typ", async () => {
@@ -526,9 +526,9 @@ describe("OpenID Connect Back-Channel Logout 1.0", () => {
     for (const logout of refused) {
       const response = await handle.logout(post(logout));
       expect(response.status).toBe(400);
-      expect(await response.json()).toEqual({ error: "invalid_request" });
+      expect(await response.json()).toStrictEqual({ error: "invalid_request" });
     }
-    expect(seen).toEqual([]);
+    expect(seen).toStrictEqual([]);
   });
 
   it("section 2.6: a replayed jti revokes once", async () => {

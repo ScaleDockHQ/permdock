@@ -38,7 +38,7 @@ describe("memoryDecisionSink", () => {
         .events()
         .filter(isDecisionEvent)
         .map((item) => item.resource.id),
-    ).toEqual(["2", "3"]);
+    ).toStrictEqual(["2", "3"]);
   });
 
   it("signs each write as a vnd.permdock.evidence+jwt batch", async () => {
@@ -58,7 +58,7 @@ describe("memoryDecisionSink", () => {
       source: "https://app.example.com",
     });
     await sink.write([event("42")]);
-    expect(sink.batches()).toEqual(["jws.batch"]);
+    expect(sink.batches()).toStrictEqual(["jws.batch"]);
     expect(signed[0]?.typ).toBe("vnd.permdock.evidence+jwt");
     // SAFETY: the signed batch payload's events field is the list of CloudEvents objects.
     const events = signed[0]?.payload["events"] as readonly Record<
@@ -86,7 +86,7 @@ describe("memoryDecisionSink", () => {
       source: "https://app.example.com",
     });
     await expect(sink.write([event("1")])).resolves.toBeUndefined();
-    expect(sink.batches()).toEqual([]);
+    expect(sink.batches()).toStrictEqual([]);
     expect(sink.events()).toHaveLength(1);
   });
 });
@@ -136,7 +136,7 @@ describe("signDecisionBatch", () => {
         roles: { added: ["technician"], removed: [] },
         at: "2026-09-29T10:00:00.000Z",
       }),
-    ).toEqual({
+    ).toStrictEqual({
       type: "membership",
       at: "2026-09-29T10:00:00.000Z",
       source: "cloud",
@@ -224,7 +224,7 @@ describe("toCloudEvent for access events", () => {
         "type" in cloud.data && cloud.data.type === "access"
           ? cloud.data.via
           : undefined,
-    }).toEqual({
+    }).toStrictEqual({
       type,
       subject: "vendor-1",
       source: "https://app.example.com",
@@ -261,7 +261,7 @@ describe("toCloudEvent", () => {
       credential: { kind: "jwt", iss: "https://idp.example.com" },
     };
     const cloud = toCloudEvent(directory, { source });
-    expect([cloud.type, cloud.subject, cloud.dataschema]).toEqual([
+    expect([cloud.type, cloud.subject, cloud.dataschema]).toStrictEqual([
       type,
       "g1",
       "https://permdock.com/schemas/directory-event-v1.json",
@@ -362,7 +362,7 @@ describe("cloudEventType", () => {
       { ...base, type: "membership", operation: "moved" },
       { ...base, type: "credential", operation: "lent" },
     ] as unknown as readonly Parameters<typeof cloudEventType>[0][];
-    expect(unknownEvents.map((item) => cloudEventType(item))).toEqual([
+    expect(unknownEvents.map((item) => cloudEventType(item))).toStrictEqual([
       "paused",
       "merge",
       "moved",

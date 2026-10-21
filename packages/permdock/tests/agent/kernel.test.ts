@@ -127,7 +127,10 @@ describe("createAgentKernel", () => {
       tools: tools(),
     });
     const permdock = await kernel.instance({});
-    expect(permdock.subject.actor).toEqual({ id: "agent-1", kind: "test" });
+    expect(permdock.subject.actor).toStrictEqual({
+      id: "agent-1",
+      kind: "test",
+    });
   });
 
   it("keeps the read-only flag and client name of the actor", async () => {
@@ -143,7 +146,7 @@ describe("createAgentKernel", () => {
       tools: tools(),
     });
     const permdock = await kernel.instance({});
-    expect(permdock.subject.actor).toEqual({
+    expect(permdock.subject.actor).toStrictEqual({
       id: "support-1",
       kind: "support",
       readOnly: true,
@@ -170,8 +173,10 @@ describe("createAgentKernel", () => {
     expect(refused.outcome).toBe("denied");
     expect(
       refused.decision?.outcome === "denied" && refused.decision.denials,
-    ).toEqual([{ role: null, reason: "agent-tool-not-delegated" }]);
-    expect([...(await listed.allowedToolNames({}))]).toEqual(["list_posts"]);
+    ).toStrictEqual([{ role: null, reason: "agent-tool-not-delegated" }]);
+    expect([...(await listed.allowedToolNames({}))]).toStrictEqual([
+      "list_posts",
+    ]);
 
     const none = kernel([]);
     expect((await none.decideTool("list_posts", {}, {})).outcome).toBe(
@@ -259,11 +264,14 @@ describe("createAgentKernel", () => {
       },
     });
     const acme = await kernel.allowedToolNames({ tenant: "acme" });
-    expect([...acme].toSorted()).toEqual(["delete_project", "read_project"]);
+    expect([...acme].toSorted()).toStrictEqual([
+      "delete_project",
+      "read_project",
+    ]);
     const globex = await kernel.allowedToolNames({ tenant: "globex" });
-    expect([...globex]).toEqual(["read_project"]);
+    expect([...globex]).toStrictEqual(["read_project"]);
     const none = await kernel.allowedToolNames({ tenant: "initech" });
-    expect([...none]).toEqual([]);
+    expect([...none]).toStrictEqual([]);
   });
 
   it("lists tools granted to anyone and hides unconditionally denied ones", async () => {
@@ -284,7 +292,9 @@ describe("createAgentKernel", () => {
         list_posts: { permission: permissions.post.list },
       },
     });
-    expect([...(await kernel.allowedToolNames({}))]).toEqual(["read_post"]);
+    expect([...(await kernel.allowedToolNames({}))]).toStrictEqual([
+      "read_post",
+    ]);
   });
 
   it("hides tools outside the delegated scopes", async () => {

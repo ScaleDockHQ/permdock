@@ -16,7 +16,7 @@ describe("delegatedScopeMap", () => {
           { scope: "mcp:read", permissions: ["task.read", "task.gone"] },
         ],
       ),
-    ).toEqual({
+    ).toStrictEqual({
       "doc:read": ["doc.read"],
       "doc:view": ["doc.read"],
       "mcp:read": ["task.read"],
@@ -32,6 +32,6 @@ describe("delegatedScopeMap", () => {
         [{ key: "task.read", scope: "task:read" }],
         [{ scope: "stale", permissions: ["task.gone"] }],
       ),
-    ).toEqual({ "task:read": ["task.read"] });
+    ).toStrictEqual({ "task:read": ["task.read"] });
   });
 });

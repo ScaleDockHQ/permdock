@@ -213,7 +213,7 @@ describe("RFC 9457 Problem Details", () => {
   });
 
   it("defines PermDock types only where about:blank says too little", () => {
-    expect(PROBLEM_TYPES).toEqual([
+    expect(PROBLEM_TYPES).toStrictEqual([
       "denied",
       "approval-required",
       "validation",
@@ -225,7 +225,7 @@ describe("RFC 9457 Problem Details", () => {
       "approver-not-eligible",
     ]);
     expect(problemType("denied")).toBe(`${PROBLEM_BASE}/denied`);
-    expect(statusProblem(409, "approval is not pending")).toEqual({
+    expect(statusProblem(409, "approval is not pending")).toStrictEqual({
       type: "about:blank",
       title: "Conflict",
       status: 409,
@@ -237,7 +237,7 @@ describe("RFC 9457 Problem Details", () => {
   it("answers 405 with Allow and an about:blank body", async () => {
     const response = methodNotAllowed("GET, POST");
     expect(response.headers.get("allow")).toBe("GET, POST");
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toStrictEqual({
       type: "about:blank",
       title: "Method Not Allowed",
       status: 405,
@@ -314,7 +314,7 @@ describe("RFC 9457 Problem Details", () => {
         subject,
       ),
     );
-    expect(problem["plans"]).toEqual(["pro", "enterprise"]);
+    expect(problem["plans"]).toStrictEqual(["pro", "enterprise"]);
   });
 
   it("sends Retry-After, RateLimit and RateLimit-Policy with a 429", () => {
@@ -375,7 +375,7 @@ describe("RFC 9457 Problem Details", () => {
     expect(response.status).toBe(400);
     const problem = await body(response);
     expect(problem["type"]).toBe(`${PROBLEM_BASE}/validation`);
-    expect(problem["issues"]).toEqual([
+    expect(problem["issues"]).toStrictEqual([
       { message: "title is required", path: ["title"] },
     ]);
     expect(problem).not.toHaveProperty("denials");
@@ -536,7 +536,7 @@ describe("PROBLEM_EXAMPLES", () => {
         "application/problem+json",
       );
       expect(response.status).toBe(PROBLEM_EXAMPLES[type].status);
-      expect(await response.json()).toEqual(PROBLEM_EXAMPLES[type]);
+      expect(await response.json()).toStrictEqual(PROBLEM_EXAMPLES[type]);
     },
   );
 
@@ -551,12 +551,15 @@ describe("PROBLEM_EXAMPLES", () => {
     const section = page.slice(page.indexOf("\n## Problem types\n"));
     for (const type of PROBLEM_TYPES) {
       const start = section.indexOf(`\n### ${type}\n`);
-      expect({ type, start: start >= 0 }).toEqual({ type, start: true });
+      expect({ type, start: start >= 0 }).toStrictEqual({ type, start: true });
       const fence = /```json\n([\s\S]*?)\n```/u.exec(
         section.slice(start).split(/\n### /u)[1] ?? "",
       );
       const shown: unknown = JSON.parse(fence?.[1] ?? "null");
-      expect({ type, shown }).toEqual({ type, shown: PROBLEM_EXAMPLES[type] });
+      expect({ type, shown }).toStrictEqual({
+        type,
+        shown: PROBLEM_EXAMPLES[type],
+      });
     }
   });
 });

@@ -52,9 +52,9 @@ describe("permission leaves", () => {
   it("are plain frozen JSON with Object.prototype at every level", () => {
     const leaves = listPermissions(permissions);
     expect(leaves.length).toBeGreaterThan(0);
-    expect(nested(permissions, "permissions")).toEqual([]);
+    expect(nested(permissions, "permissions")).toStrictEqual([]);
     for (const leaf of leaves) {
-      expect(nested(leaf, leaf.key)).toEqual([]);
+      expect(nested(leaf, leaf.key)).toStrictEqual([]);
       expect(Object.isFrozen(leaf)).toBe(true);
       expect(Object.isFrozen(leaf.meta)).toBe(true);
     }

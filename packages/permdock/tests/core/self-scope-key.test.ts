@@ -78,7 +78,7 @@ describe("relations.self with a scope key and no other relation", () => {
   });
 
   it("filters the same rows through where()", () => {
-    expect(permdock.where(permissions.team.read).condition).toEqual({
+    expect(permdock.where(permissions.team.read).condition).toStrictEqual({
       op: "eq",
       field: "id",
       value: "t1",

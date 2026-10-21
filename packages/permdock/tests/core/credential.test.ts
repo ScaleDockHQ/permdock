@@ -122,8 +122,8 @@ const serviceKey: Credential = {
 
 describe("parseCredential", () => {
   it("keeps the v1 fields of a user and a service credential", () => {
-    expect(parseCredential({ ...userKey, extra: true })).toEqual(userKey);
-    expect(parseCredential(serviceKey)).toEqual(serviceKey);
+    expect(parseCredential({ ...userKey, extra: true })).toStrictEqual(userKey);
+    expect(parseCredential(serviceKey)).toStrictEqual(serviceKey);
     expect(Object.isFrozen(parseCredential(userKey))).toBe(true);
   });
 
@@ -162,7 +162,7 @@ describe("parseCredential", () => {
     const polluted: unknown = JSON.parse(
       `{"v":1,"id":"k","kind":"user","principal":"u","createdBy":"u","createdAt":"2026-01-01T00:00:00Z","permissions":[{"permission":"repo.read","__proto__":{"ids":["r_1"]}}]}`,
     );
-    expect(parseCredential(polluted)?.permissions).toEqual([
+    expect(parseCredential(polluted)?.permissions).toStrictEqual([
       { permission: "repo.read" },
     ]);
   });
@@ -235,7 +235,7 @@ describe("credentialSubject", () => {
         { permission: "repo.write", ids: ["r_1"] },
       ],
     };
-    expect(credentialDelegation(scoped, permissions)).toEqual({
+    expect(credentialDelegation(scoped, permissions)).toStrictEqual({
       scopes: ["repo:read"],
       authorizationDetails: [
         { type: "repo", actions: ["write"], identifier: "r_1" },
@@ -257,7 +257,9 @@ describe("credentialSubject", () => {
       ...userKey,
       permissions: [{ permission: "repo.archive" }],
     };
-    expect(credentialDelegation(stale, permissions)).toEqual({ scopes: [] });
+    expect(credentialDelegation(stale, permissions)).toStrictEqual({
+      scopes: [],
+    });
     const permdock = permdockFor(
       credentialSubject(stale, {
         permissions,
@@ -312,7 +314,7 @@ describe("credentialSubject", () => {
       events.push(event as DecisionEvent);
     });
     permdock.can(repo.read, r1);
-    expect(events[0]?.subject.credential).toEqual({
+    expect(events[0]?.subject.credential).toStrictEqual({
       id: "svc_1",
       kind: "service",
     });
@@ -348,7 +350,7 @@ describe("decideCredential", () => {
       },
       { now: NOW },
     );
-    expect(decision).toEqual({
+    expect(decision).toStrictEqual({
       outcome: "granted",
       credential: {
         v: 1,
@@ -412,7 +414,9 @@ describe("decideCredential", () => {
       [{ ...base, tenant: "o_2" }, { tenant: "o_2" }],
     ] as const;
     for (const [request, detail] of rows) {
-      expect(await decideCredential(developer, request, { now: NOW })).toEqual({
+      expect(
+        await decideCredential(developer, request, { now: NOW }),
+      ).toStrictEqual({
         outcome: "denied",
         denials: [{ role: null, reason: "exceeds-creator", detail }],
       });
@@ -651,7 +655,7 @@ describe("credential events", () => {
       sample: 0.25,
       at: "2026-09-29T00:00:00.000Z",
     });
-    expect(event).toEqual({
+    expect(event).toStrictEqual({
       type: "credential",
       at: "2026-09-29T00:00:00.000Z",
       source: "permdock",
@@ -747,7 +751,7 @@ describe("a user key held to one tenant", () => {
   const heldKey: Credential = { ...userKey, tenant: "o_2" };
 
   it("keeps a tenant on a user credential", () => {
-    expect(parseCredential(heldKey)).toEqual(heldKey);
+    expect(parseCredential(heldKey)).toStrictEqual(heldKey);
   });
 
   it("is allowed in its tenant and denied in the owner's other tenant", () => {
@@ -755,7 +759,7 @@ describe("a user key held to one tenant", () => {
       credentialSubject(heldKey, { permissions, owner: twoTenants }),
     );
     expect(permdock.subject.principal?.tenant).toBe("o_2");
-    expect(permdock.tenants()).toEqual(["o_2"]);
+    expect(permdock.tenants()).toStrictEqual(["o_2"]);
     expect(permdock.can(repo.read, other)).toBe(true);
     expect(permdock.can(repo.read, r1)).toBe(false);
     expect(permdock.tenant("o_1").can(repo.read, r1)).toBe(false);
@@ -774,7 +778,7 @@ describe("a user key held to one tenant", () => {
       },
     });
     expect(permdock.subject.principal?.tenant).toBe("o_2");
-    expect(permdock.subject.principal?.memberships).toEqual([
+    expect(permdock.subject.principal?.memberships).toStrictEqual([
       { scope: "organization", id: "o_2", roles: ["developer"] },
     ]);
     expect(permdock.can(repo.read, other)).toBe(true);
@@ -785,7 +789,7 @@ describe("a user key held to one tenant", () => {
         owner: { ...twoTenants, roles: ["developer"] },
       }),
     );
-    expect(withGlobal.subject.principal?.roles).toEqual([]);
+    expect(withGlobal.subject.principal?.roles).toStrictEqual([]);
   });
 
   it("holds no membership and answers for no tenant when asked for another", async () => {
@@ -805,7 +809,7 @@ describe("a user key held to one tenant", () => {
       inOther: permdock.can(repo.read, r1),
       inHeld: permdock.can(repo.read, other),
       where: permdock.where(repo.read),
-    }).toEqual({
+    }).toStrictEqual({
       tenant: undefined,
       memberships: [],
       plans: undefined,
@@ -843,7 +847,7 @@ describe("a user key held to one tenant", () => {
         { ...request, tenant: "o_3" },
         { now: NOW },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       outcome: "denied",
       denials: [
         { role: null, reason: "exceeds-creator", detail: { tenant: "o_3" } },

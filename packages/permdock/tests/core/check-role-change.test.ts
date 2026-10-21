@@ -129,7 +129,7 @@ describe("checkRoleChange", () => {
       });
       expect(
         checked.ok ? [] : checked.denials.map((denial) => denial.reason),
-      ).toEqual(
+      ).toStrictEqual(
         decided.outcome === "granted"
           ? []
           : decided.denials.map((denial) => denial.reason),
@@ -146,7 +146,7 @@ describe("checkRoleChange", () => {
         change: { kind: "revoke", target: { roles: ["owner"] } },
         holders: 1,
       }),
-    ).toEqual({
+    ).toStrictEqual({
       ok: false,
       denials: [
         {
@@ -174,7 +174,7 @@ describe("checkRoleChange", () => {
         // SAFETY: the input comes from an untyped caller in this case.
         change: { kind: "promote" as "assign", target: {} },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       ok: false,
       denials: [{ role: "member", reason: "validation" }],
     });

@@ -25,7 +25,7 @@ afterEach(() => {
 describe("unknown flags", () => {
   it("exits 2 and suggests the nearest flag", async () => {
     const result = await run(["config", "--jsn"], { cwd: dir() });
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       code: 2,
       stdout: "",
       stderr:

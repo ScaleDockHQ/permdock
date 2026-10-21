@@ -82,7 +82,7 @@ const staff = junctionMembershipSource({
 
 describe("unsatisfiedKinds", () => {
   it("names a role whose kinds every source of its scope contradicts", () => {
-    expect(unsatisfiedKinds(context([staff]), policy)).toEqual([
+    expect(unsatisfiedKinds(context([staff]), policy)).toStrictEqual([
       { role: "contact", for: ["contact"], sources: ["org_staff (via staff)"] },
     ]);
   });
@@ -98,9 +98,11 @@ describe("unsatisfiedKinds", () => {
       table: "memberships",
       columns: { via: "kind" },
     });
-    expect(unsatisfiedKinds(context([staff, contact]), policy)).toEqual([]);
-    expect(unsatisfiedKinds(context([column]), policy)).toEqual([]);
-    expect(unsatisfiedKinds(context(undefined), policy)).toEqual([]);
+    expect(unsatisfiedKinds(context([staff, contact]), policy)).toStrictEqual(
+      [],
+    );
+    expect(unsatisfiedKinds(context([column]), policy)).toStrictEqual([]);
+    expect(unsatisfiedKinds(context(undefined), policy)).toStrictEqual([]);
   });
 
   it("reads the kind of a mapped membership table and skips a source of another scope", () => {
@@ -118,21 +120,21 @@ describe("unsatisfiedKinds", () => {
         },
       },
     });
-    expect(unsatisfiedKinds(table({ value: "staff" }), policy)).toEqual([
+    expect(unsatisfiedKinds(table({ value: "staff" }), policy)).toStrictEqual([
       {
         role: "contact",
         for: ["contact"],
         sources: ["org_members (via staff)"],
       },
     ]);
-    expect(unsatisfiedKinds(table("kind"), policy)).toEqual([]);
+    expect(unsatisfiedKinds(table("kind"), policy)).toStrictEqual([]);
     const elsewhere = junctionMembershipSource({
       table: "team_staff",
       scope: "team",
       roles: ["contact"],
       via: "staff",
     });
-    expect(unsatisfiedKinds(context([elsewhere]), policy)).toEqual([]);
+    expect(unsatisfiedKinds(context([elsewhere]), policy)).toStrictEqual([]);
   });
 
   it("skips a role that is not held on a scope", () => {
@@ -146,7 +148,7 @@ describe("unsatisfiedKinds", () => {
         counted: [],
       },
     } as RlsSqlContext;
-    expect(unsatisfiedKinds(ghost, policy)).toEqual([]);
+    expect(unsatisfiedKinds(ghost, policy)).toStrictEqual([]);
   });
 
   it("does not compare a source with no via", () => {
@@ -155,16 +157,16 @@ describe("unsatisfiedKinds", () => {
       scope: "org",
       roles: ["contact"],
     });
-    expect(unsatisfiedKinds(context([plain]), policy)).toEqual([]);
+    expect(unsatisfiedKinds(context([plain]), policy)).toStrictEqual([]);
   });
 });
 
 describe("PD073 inputs", () => {
   it("is quiet without a policy and reads the hook's sources", async () => {
-    expect(await pd073({ cwd: ".", config: { rls: {} } })).toEqual([]);
+    expect(await pd073({ cwd: ".", config: { rls: {} } })).toStrictEqual([]);
     expect(
       await pd073({ cwd: ".", config: { policy: "missing.ts", rls: {} } }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 

@@ -174,8 +174,8 @@ describe("ownership triggers in generated RLS", () => {
       const expected = ["l1", "l2"].filter((id) =>
         permdock.can(permissions.ledger.read, { id }),
       );
-      expect(visible).toEqual(expected);
-      expect(visible).toEqual(via === "staff" ? ["l1"] : []);
+      expect(visible).toStrictEqual(expected);
+      expect(visible).toStrictEqual(via === "staff" ? ["l1"] : []);
     },
   );
 });

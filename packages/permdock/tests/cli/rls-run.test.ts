@@ -84,11 +84,11 @@ describe("runRls explain", () => {
     expect(result.code).toBe(0);
     const report = JSON.parse(result.output);
     expect(report.bindings.length).toBeGreaterThan(0);
-    expect(report.bindings[0]).toEqual(
+    expect(report.bindings[0]).toStrictEqual(
       expect.objectContaining({ inferred: true }),
     );
     expect(report.scopes.length).toBeGreaterThan(0);
-    expect(report.triggers).toEqual(expect.any(Array));
+    expect(report.triggers).toStrictEqual(expect.any(Array));
   });
 
   it("prints the bindings as text", async () => {
@@ -280,7 +280,7 @@ describe("runRls dispatch", () => {
     expect(server.code).toBe(0);
     expect(
       server.text.split("\n").filter((line) => line.includes("service_role")),
-    ).toEqual([
+    ).toStrictEqual([
       'grant usage on schema "permdock" to "service_role", "support";',
       'grant execute on function "permdock".permdock_trusted_role_permissions(text, text, uuid, text) to "service_role", "support";',
     ]);
@@ -317,7 +317,7 @@ describe("runRls dispatch", () => {
         connect: sql.connect,
       }),
     );
-    expect(result).toEqual({ code: 0, output: "wrote imported.ts" });
+    expect(result).toStrictEqual({ code: 0, output: "wrote imported.ts" });
     expect(sql.statements()[0]).toContain("from pg_policies");
   });
 
@@ -435,15 +435,12 @@ describe("runRls dispatch", () => {
       write: false,
     });
     expect(outcome.code).toBe(0);
-    expect(outcome.policies).toEqual([]);
+    expect(outcome.policies).toStrictEqual([]);
     expect(outcome.text).not.toMatch(/"public"\."post"/u);
     expect(outcome.output).not.toContain("table bindings");
-    expect(outcome.seeds?.map((row) => row.permission).toSorted()).toEqual([
-      "post.create",
-      "post.list",
-      "post.read",
-      "post.update",
-    ]);
+    expect(
+      outcome.seeds?.map((row) => row.permission).toSorted(),
+    ).toStrictEqual(["post.create", "post.list", "post.read", "post.update"]);
   });
 
   it("leaves out index suggestions the database already serves with --db-url-stdin", async () => {
@@ -531,7 +528,7 @@ describe("runRls migrate", () => {
       await runRls(
         input({ rest: ["migrate"], config: { policy: POLICY, rls }, ...flags }),
       ),
-    ).toEqual({ code: 2, output });
+    ).toStrictEqual({ code: 2, output });
   });
 });
 
@@ -740,7 +737,7 @@ describe("runRls verify --introspect", () => {
         },
       }),
     );
-    expect(thrown).toEqual({ code: 2, output: "down" });
+    expect(thrown).toStrictEqual({ code: 2, output: "down" });
   });
 
   it("checks helpers and seeds only with --helpers-only", async () => {

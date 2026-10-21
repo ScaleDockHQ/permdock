@@ -30,7 +30,7 @@ describe("permission tree and builder edges", () => {
     expect(() => resource(undefined as never)).toThrow(
       /requires a schema or options/u,
     );
-    expect(tree.post.read.meta).toEqual({ title: "Read" });
+    expect(tree.post.read.meta).toStrictEqual({ title: "Read" });
   });
 
   it("refuses duplicate resources and actions and finds no prototype keys", () => {
@@ -84,7 +84,7 @@ describe("permission tree and builder edges", () => {
     });
     expect(neverPolicy.validate).toBe("never");
     const source = memoryCustomRoleSource([]);
-    expect(source.rolesFor("missing")).toEqual([]);
+    expect(source.rolesFor("missing")).toStrictEqual([]);
     expect(
       role("nested", [deny([tree.post.read, tree.post.create])]).grants,
     ).toHaveLength(2);

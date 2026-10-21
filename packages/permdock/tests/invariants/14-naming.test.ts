@@ -131,7 +131,7 @@ describe("invariant 14: the naming convention", () => {
     const withFactory = entries
       .filter((item) => item.values.includes("createPermDock"))
       .map((item) => item.entry);
-    expect(withFactory.toSorted()).toEqual(FACTORY_ENTRIES.toSorted());
+    expect(withFactory.toSorted()).toStrictEqual(FACTORY_ENTRIES.toSorted());
   });
 
   it("builds a core or PDP instance with getPermDock and getPermDockSync", () => {
@@ -142,7 +142,7 @@ describe("invariant 14: the naming convention", () => {
           item.values.includes("getPermDockSync"),
       )
       .map((item) => item.entry);
-    expect(withGetters.toSorted()).toEqual([".", "./pdp"]);
+    expect(withGetters.toSorted()).toStrictEqual([".", "./pdp"]);
   });
 
   it("never exports a $-prefixed name, a bare Dock, an ability or a Can", () => {
@@ -152,7 +152,7 @@ describe("invariant 14: the naming convention", () => {
         /^(?:permdock|ability|Ability|Can|can)$/u.test(name) ||
         /(?<!Perm)Dock(?:[A-Z]|$)/u.test(name),
     );
-    expect(banned).toEqual([]);
+    expect(banned).toStrictEqual([]);
   });
 
   it("keeps with* to withSubject and withOtel", () => {
@@ -162,7 +162,7 @@ describe("invariant 14: the naming convention", () => {
         (found[entry] ??= []).push(name);
       }
     }
-    expect(found).toEqual(WITH_EXPORTS);
+    expect(found).toStrictEqual(WITH_EXPORTS);
   });
 
   it("names every provider subjectFrom<Source> and exports its principal type", () => {
@@ -178,7 +178,10 @@ describe("invariant 14: the naming convention", () => {
       expect({
         entry: provider.entry,
         principal: provider.types.some((name) => name.endsWith("Principal")),
-      }).toEqual({ entry: provider.entry, principal: provider.entry !== "." });
+      }).toStrictEqual({
+        entry: provider.entry,
+        principal: provider.entry !== ".",
+      });
     }
   });
 
@@ -200,7 +203,7 @@ describe("invariant 14: the naming convention", () => {
     const missing = interfaces.filter(
       (name) => testing?.values.includes(`test${name}`) !== true,
     );
-    expect(missing).toEqual([]);
+    expect(missing).toStrictEqual([]);
   });
 
   it("ships a test<Interface> runner for every interface the extension interfaces page lists", () => {
@@ -218,13 +221,13 @@ describe("invariant 14: the naming convention", () => {
     expect(listed).toContain("DecisionProvider");
     expect(
       listed.filter((name) => testing?.values.includes(`test${name}`) !== true),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("never ships a versioned type name, allowSelf or invalid-resource", () => {
     expect(
       allNames.filter(({ name }) => /V\d+$|^allowSelf$/u.test(name)),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     const offenders: string[] = [];
     const src = path.join(root, "src");
     for (const file of readdirSync(src, { recursive: true }).map(String)) {
@@ -236,6 +239,6 @@ describe("invariant 14: the naming convention", () => {
         offenders.push(file);
       }
     }
-    expect(offenders).toEqual([]);
+    expect(offenders).toStrictEqual([]);
   });
 });

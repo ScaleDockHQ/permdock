@@ -27,7 +27,7 @@ describe("migrateTarget", () => {
       ],
     } as unknown as GenerateOutcome;
     const target = migrateTarget(generated);
-    expect([...(target.granted.get("organization") ?? [])]).toEqual([
+    expect([...(target.granted.get("organization") ?? [])]).toStrictEqual([
       "quote.read",
     ]);
   });

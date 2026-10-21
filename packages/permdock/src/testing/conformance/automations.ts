@@ -44,11 +44,11 @@ export function testAutomationSource(
       const found = await automationOf(source, entry.id, entry.tenant);
       if (found !== null) {
         const parsed = parseAutomation(found);
-        expect(parsed).toEqual(found);
+        expect(parsed).toStrictEqual(found);
         expect(parsed?.id).toBe(entry.id);
       }
       if (entry.expect !== undefined) {
-        expect(found).toEqual(entry.expect);
+        expect(found).toStrictEqual(entry.expect);
       }
     }
   });

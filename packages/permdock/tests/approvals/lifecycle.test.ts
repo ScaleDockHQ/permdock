@@ -90,8 +90,8 @@ describe("single-use approvals", () => {
     const first = await consumeApproval(store, "pd1.a");
     expect(first.ok).toBe(true);
     const second = await consumeApproval(store, "pd1.a");
-    expect(second).toEqual({ ok: false, cause: "approval-consumed" });
-    expect(await inspectApproval(store, "pd1.a")).toEqual({
+    expect(second).toStrictEqual({ ok: false, cause: "approval-consumed" });
+    expect(await inspectApproval(store, "pd1.a")).toStrictEqual({
       ok: false,
       cause: "approval-consumed",
     });
@@ -271,11 +271,11 @@ describe("approval tenancy", () => {
       };
       return body.items.map((request) => request.id).toSorted();
     };
-    expect(await inbox(approver("u_9", ["o_1"]))).toEqual([
+    expect(await inbox(approver("u_9", ["o_1"]))).toStrictEqual([
       "pd1.none",
       "pd1.o1",
     ]);
-    expect(await inbox(approver("u_9", []))).toEqual(["pd1.none"]);
+    expect(await inbox(approver("u_9", []))).toStrictEqual(["pd1.none"]);
   });
 
   it("lists only the requests the caller may resolve", async () => {
@@ -314,8 +314,8 @@ describe("approval tenancy", () => {
       };
       return body.items.map((request) => request.id).toSorted();
     };
-    expect(await inbox(true)).toEqual([]);
-    expect(await inbox(false)).toEqual(["pd1.optout"]);
+    expect(await inbox(true)).toStrictEqual([]);
+    expect(await inbox(false)).toStrictEqual(["pd1.optout"]);
   });
 });
 

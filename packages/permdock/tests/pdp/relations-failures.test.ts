@@ -107,7 +107,7 @@ describe("relation providers", () => {
     expect({
       read: provider.handles(permissions.doc.read),
       share: provider.handles(permissions.doc.share),
-    }).toEqual({ read: true, share: false });
+    }).toStrictEqual({ read: true, share: false });
   });
 
   it("denies an anonymous subject and lists nothing for it", async () => {
@@ -116,7 +116,7 @@ describe("relation providers", () => {
     expect(reasonOf(await decide(provider, { id: "d1" }, anonymous))).toBe(
       "anonymous",
     );
-    expect(await permitted(provider, anonymous)).toEqual([]);
+    expect(await permitted(provider, anonymous)).toStrictEqual([]);
     expect(fake.calls.length).toBe(0);
   });
 
@@ -135,7 +135,7 @@ describe("relation providers", () => {
         permission: permissions.doc.share,
         subject,
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(fake.calls.length).toBe(0);
   });
 
@@ -169,9 +169,9 @@ describe("relation providers", () => {
     const provider = fga(fake.fetch, { cache: { ttl: 5 } });
     expect(reasonOf(await decide(provider))).toBe("pdp-denied");
     expect(reasonOf(await decide(provider))).toBe("pdp-denied");
-    expect(await permitted(provider)).toEqual(["d1"]);
-    expect(await permitted(provider)).toEqual(["d1"]);
-    expect(fake.calls.map((call) => call.url)).toEqual([
+    expect(await permitted(provider)).toStrictEqual(["d1"]);
+    expect(await permitted(provider)).toStrictEqual(["d1"]);
+    expect(fake.calls.map((call) => call.url)).toStrictEqual([
       "http://fga.test/stores/store%2F1/check",
       "http://fga.test/stores/store%2F1/list-objects",
     ]);
@@ -207,7 +207,7 @@ describe("openfga failures", () => {
       expect({
         body,
         ids: await permitted(fga(async () => json(body))),
-      }).toEqual({ body, ids: null });
+      }).toStrictEqual({ body, ids: null });
     }
     expect(await permitted(fga(async () => json({}, 500)))).toBeNull();
   });
@@ -222,7 +222,7 @@ describe("spicedb failures", () => {
       spice(fake.fetch, { consistency: "fully-consistent" }),
     );
     expect(reasonOf(decision)).toBe("pdp-denied");
-    expect(JSON.parse(fake.calls[0]?.body ?? "{}")).toEqual({
+    expect(JSON.parse(fake.calls[0]?.body ?? "{}")).toStrictEqual({
       consistency: { fullyConsistent: true },
       resource: { objectType: "document", objectId: "d1" },
       permission: "view",
@@ -265,7 +265,7 @@ describe("spicedb failures", () => {
     });
     expect(
       await permitted(spice(async () => new Response(`\n${line}\n\n`))),
-    ).toEqual(["d1"]);
+    ).toStrictEqual(["d1"]);
   });
 
   it("fails the listing for every malformed stream", async () => {
@@ -278,7 +278,7 @@ describe("spicedb failures", () => {
       expect({
         stream,
         ids: await permitted(spice(async () => new Response(stream))),
-      }).toEqual({ stream, ids: null });
+      }).toStrictEqual({ stream, ids: null });
     }
     expect(await permitted(spice(async () => json({}, 503)))).toBeNull();
   });

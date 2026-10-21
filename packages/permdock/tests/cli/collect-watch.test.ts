@@ -93,12 +93,12 @@ describe("permdock collect --watch", () => {
       }
       scheduler.changed(undefined);
       await vi.waitFor(() => {
-        expect(reports).toEqual([undefined]);
+        expect(reports).toStrictEqual([undefined]);
       });
       await new Promise((done) => {
         setTimeout(done, 200);
       });
-      expect(reports).toEqual([undefined]);
+      expect(reports).toStrictEqual([undefined]);
     } finally {
       scheduler.close();
     }

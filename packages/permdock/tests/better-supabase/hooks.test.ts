@@ -148,7 +148,7 @@ describe("authorizationHooks", () => {
 
     it("runs as the publisher's current claims capped to the automation's keys", async () => {
       const { claims: _claims, ...run } = ref;
-      expect(await automation.runAs!(run)).toEqual({
+      expect(await automation.runAs!(run)).toStrictEqual({
         ...users[EDITOR],
         bs_permission_cap: [doc.read.key, doc.update.key],
       });
@@ -190,7 +190,7 @@ describe("authorizationHooks", () => {
         clientId: "c",
         scopes: [doc.read.scope, "unmapped:scope"],
       }),
-    ).toEqual([doc.read.key]);
+    ).toStrictEqual([doc.read.key]);
   });
 
   it("maps a coarse oauthScopes scope to the keys it covers", async () => {
@@ -216,10 +216,10 @@ describe("authorizationHooks", () => {
         ...ref,
         scopes: ["openid", "mcp:read"],
       }),
-    ).toEqual([doc.read.key]);
+    ).toStrictEqual([doc.read.key]);
     expect(
       await scoped.delegation!.permissions({ ...ref, scopes: ["mcp:write"] }),
-    ).toEqual([doc.read.key, doc.update.key]);
+    ).toStrictEqual([doc.read.key, doc.update.key]);
   });
 
   describe("approverOf", () => {
@@ -265,17 +265,17 @@ describe("authorizationHooks", () => {
         kind: "email",
         value: "viewer@example.com",
       }),
-    ).toEqual({ kind: "user", userId: VIEWER });
+    ).toStrictEqual({ kind: "user", userId: VIEWER });
     expect(
       await identities!.principalByIdentity({
         kind: "email",
         value: "client@example.com",
       }),
-    ).toEqual({ kind: "contact", contactId: "c1" });
+    ).toStrictEqual({ kind: "contact", contactId: "c1" });
   });
 
   it("resolves a ticket to the user's current claims, or null", async () => {
-    expect(await hooks.tickets!.subject("t-editor")).toEqual({
+    expect(await hooks.tickets!.subject("t-editor")).toStrictEqual({
       claims: users[EDITOR],
       tenant: ORG,
     });

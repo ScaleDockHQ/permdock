@@ -41,7 +41,7 @@ describe("presetItem", () => {
     });
     // SAFETY: presetItem builds files as an array of { path, type, target, content }.
     const files = (item?.["files"] ?? []) as readonly { target: string }[];
-    expect(files.map((file) => file.target)).toEqual(
+    expect(files.map((file) => file.target)).toStrictEqual(
       expect.arrayContaining([
         "~/src/policy.ts",
         "~/prisma/schema.prisma",

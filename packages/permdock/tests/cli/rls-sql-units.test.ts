@@ -103,10 +103,10 @@ describe("suspension rows", () => {
         { scopes: { tenant: { table: "orgs", id: "id", disabledAt: "d" } } },
         scopes,
       ),
-    ).toEqual({
+    ).toStrictEqual({
       scopes: { org: { table: "orgs", id: "id", disabledAt: "d" } },
     });
-    expect(checkSuspension({ scopes: {} }, scopes)).toEqual({});
+    expect(checkSuspension({ scopes: {} }, scopes)).toStrictEqual({});
     expect(checkSuspension(undefined, scopes)).toBeUndefined();
   });
 
@@ -120,7 +120,7 @@ describe("suspension rows", () => {
       activeInstancesSql(suspended, "team", (name) =>
         name === "org" ? "m.org_id" : "m.team_id",
       ),
-    ).toEqual([
+    ).toStrictEqual([
       'coalesce((m.org_id)::uuid in (select s."id" from "public"."orgs" s where s."d" is null), false)',
     ]);
     expect(() =>
@@ -152,7 +152,7 @@ describe("suspension keep", () => {
   it("normalises references to sorted keys", () => {
     expect(
       checkSuspension(keeping.suspension, scopes)?.scopes?.["org"],
-    ).toEqual({
+    ).toStrictEqual({
       table: "orgs",
       id: "id",
       disabledAt: "d",
@@ -173,23 +173,23 @@ describe("suspension keep", () => {
   it("drops the check of a scope that keeps a key known now", () => {
     expect(
       activeInstancesSql(keeping, "team", idOf, { key: "org.restore" }),
-    ).toEqual([team]);
+    ).toStrictEqual([team]);
     expect(
       activeInstancesSql(keeping, "team", idOf, { key: "team.read" }),
-    ).toEqual([team, org]);
+    ).toStrictEqual([team, org]);
     expect(
       activeInstancesSql({ ...keeping, permission: "org.export" }, "org", idOf),
-    ).toEqual([]);
-    expect(activeInstancesSql(keeping, "org", idOf)).toEqual([org]);
+    ).toStrictEqual([]);
+    expect(activeInstancesSql(keeping, "org", idOf)).toStrictEqual([org]);
   });
 
   it("compares a permission read at run time with the kept keys", () => {
-    expect(activeInstancesSql(keeping, "team", idOf, { sql: "p.key" })).toEqual(
-      [
-        team,
-        `(${org} or p.key = any(array['org.export', 'org.restore']::text[]))`,
-      ],
-    );
+    expect(
+      activeInstancesSql(keeping, "team", idOf, { sql: "p.key" }),
+    ).toStrictEqual([
+      team,
+      `(${org} or p.key = any(array['org.export', 'org.restore']::text[]))`,
+    ]);
   });
 });
 
@@ -204,7 +204,7 @@ describe("types and names", () => {
       scopeTypeOf(typed, "org"),
       scopeTypeOf(typed, "team"),
       scopeTypeOf(typed, "project"),
-    ]).toEqual(["text", "bigint", "int"]);
+    ]).toStrictEqual(["text", "bigint", "int"]);
     expect(scopeTypeOf(ctx({ tenantType: "text" }), "team")).toBe("text");
     expect(() =>
       tenantTypeOf(ctx({ tenantType: "uuid; drop table x" })),
@@ -263,7 +263,7 @@ describe("types and names", () => {
   });
 
   it("bounds claim paths", () => {
-    expect(claimPath("principal.claims.a.b")).toEqual(["a", "b"]);
+    expect(claimPath("principal.claims.a.b")).toStrictEqual(["a", "b"]);
     expect(claimPath("principal.id")).toBeUndefined();
     expect(() =>
       claimPath(
@@ -297,7 +297,7 @@ describe("column types from JSON Schema", () => {
           __proto__: { type: "integer" },
         },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       n: "numeric",
       f: "numeric",
       b: "boolean",
@@ -307,8 +307,8 @@ describe("column types from JSON Schema", () => {
       any: "numeric",
       one: "boolean",
     });
-    expect(columnTypesOf(null)).toEqual({});
-    expect(columnTypesOf({ properties: [] })).toEqual({});
+    expect(columnTypesOf(null)).toStrictEqual({});
+    expect(columnTypesOf({ properties: [] })).toStrictEqual({});
   });
 
   it("maps array columns to their item type", () => {
@@ -324,8 +324,8 @@ describe("column types from JSON Schema", () => {
           junk: "x",
         },
       }),
-    ).toEqual({ tags: "text", ids: "uuid" });
-    expect(arrayColumnsOf(undefined)).toEqual({});
+    ).toStrictEqual({ tags: "text", ids: "uuid" });
+    expect(arrayColumnsOf(undefined)).toStrictEqual({});
   });
 });
 
@@ -733,19 +733,19 @@ describe("condition walkers and flags", () => {
         { op: "memberOf", scope: "org", field: "org_id", roles: [] },
       ],
     };
-    expect(contextRefs(condition)).toEqual([
+    expect(contextRefs(condition)).toStrictEqual([
       "context.ip",
       "context",
       "context.org",
       "context.d",
     ]);
-    expect(contextRefs(undefined)).toEqual([]);
-    expect(sqlFunctionNames(condition)).toEqual(["f"]);
+    expect(contextRefs(undefined)).toStrictEqual([]);
+    expect(sqlFunctionNames(condition)).toStrictEqual(["f"]);
   });
 
   it("parses --memberships with defaults and an expiry column", () => {
     expect(parseMembershipsFlag("")).toBeUndefined();
-    expect(parseMembershipsFlag("members")).toEqual({
+    expect(parseMembershipsFlag("members")).toStrictEqual({
       tenant: {
         table: "members",
         tenant: "tenant_id",
@@ -753,7 +753,7 @@ describe("condition walkers and flags", () => {
         role: "role",
       },
     });
-    expect(parseMembershipsFlag("members:org, uid, r, until")).toEqual({
+    expect(parseMembershipsFlag("members:org, uid, r, until")).toStrictEqual({
       tenant: {
         table: "members",
         tenant: "org",
@@ -768,7 +768,10 @@ describe("condition walkers and flags", () => {
     const a: Condition = { op: "eq", field: "a", value: 1 };
     expect(andConditions(undefined, a)).toBe(a);
     expect(andConditions(a, undefined)).toBe(a);
-    expect(andConditions(a, a)).toEqual({ op: "and", conditions: [a, a] });
+    expect(andConditions(a, a)).toStrictEqual({
+      op: "and",
+      conditions: [a, a],
+    });
   });
 
   it("maps a scope table only with the scope column", () => {

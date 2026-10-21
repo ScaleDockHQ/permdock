@@ -59,7 +59,7 @@ describe("permdock/trpc subscriptions", () => {
     const first = await iterator.next();
     expect(first.done).toBe(false);
     // SAFETY: tracked() yields an [id, data, ...] tuple, and done is false above.
-    expect((first.value as readonly unknown[])[1]).toEqual(ownPost);
+    expect((first.value as readonly unknown[])[1]).toStrictEqual(ownPost);
 
     const pending = iterator.next();
     await revocations.revoke({ principal: "u1", kind: "session-revoked" });
@@ -157,7 +157,7 @@ describe("permdock/trpc", () => {
     });
     const caller = appRouter.createCaller({ user: memberUser });
 
-    await expect(caller.update({ id: "p1" })).resolves.toEqual({
+    await expect(caller.update({ id: "p1" })).resolves.toStrictEqual({
       ok: true,
       via: "u1",
     });
@@ -170,7 +170,9 @@ describe("permdock/trpc", () => {
       // SAFETY: toBeInstanceOf above checked the error is a TRPCError.
       const denied = error as TRPCError;
       expect(denied.code).toBe("FORBIDDEN");
-      expect(denied.cause).toEqual(expect.objectContaining({ status: 403 }));
+      expect(denied.cause).toStrictEqual(
+        expect.objectContaining({ status: 403 }),
+      );
     }
   });
 
@@ -188,7 +190,7 @@ describe("permdock/trpc", () => {
     const shape = await shapeOf(() =>
       appRouter.createCaller({ user: memberUser }).update(),
     );
-    expect(shape.data).toEqual(
+    expect(shape.data).toStrictEqual(
       expect.objectContaining({
         status: 403,
         type: "https://permdock.com/problems/denied",
@@ -263,7 +265,7 @@ describe("permdock/trpc", () => {
 
     const security = openapi.security(permissions.post.delete);
     expect(security.openapi.protect).toBe(true);
-    expect(security.openapi["x-permdock-permissions"]).toEqual([
+    expect(security.openapi["x-permdock-permissions"]).toStrictEqual([
       permissions.post.delete.key,
     ]);
   });
@@ -288,7 +290,7 @@ describe("permdock/trpc", () => {
     const denied = await shapeOf(() => caller.publish());
     expect(denied.data).toMatchObject({ code: "X", status: 403 });
     const crashed = await shapeOf(() => caller.crash());
-    expect(crashed.data).toEqual({ code: "X" });
+    expect(crashed.data).toStrictEqual({ code: "X" });
   });
 });
 
@@ -307,6 +309,6 @@ describe("permdock/trpc getPermDock", () => {
       id: permdock.subject.principal?.id,
       own: permdock.can(permissions.post.update, ownPost),
       other: permdock.can(permissions.post.update, otherPost),
-    }).toEqual({ id: "u1", own: true, other: false });
+    }).toStrictEqual({ id: "u1", own: true, other: false });
   });
 });

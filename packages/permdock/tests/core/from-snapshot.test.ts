@@ -45,7 +45,7 @@ describe("fromSnapshot", () => {
     );
     expect(
       client.filter(permissions.post.update, [ownPost, otherPost]),
-    ).toEqual([ownPost]);
+    ).toStrictEqual([ownPost]);
     expect(client.where(permissions.post.update).partial).toBe(false);
   });
 
@@ -129,12 +129,12 @@ describe("fromSnapshot", () => {
       throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(snapshot);
-    expect(client.tenants()).toEqual(snapshot.tenants);
-    expect(client.memberships()).toEqual(
+    expect(client.tenants()).toStrictEqual(snapshot.tenants);
+    expect(client.memberships()).toStrictEqual(
       snapshot.subject.principal?.memberships ?? [],
     );
     expect(client.heldRoles().some((item) => item.key === "member")).toBe(true);
-    expect(client.assignableRoles()).toEqual([]);
+    expect(client.assignableRoles()).toStrictEqual([]);
     const other = client.tenant("missing");
     expect(other.subject.principal?.tenant).toBeUndefined();
   });
@@ -237,8 +237,8 @@ describe("fromSnapshot instance surface", () => {
       }
       return undefined;
     };
-    expect(ref(row)).toEqual({ type: "doc", id: "d1" });
-    expect(ref({ title: "no id" })).toEqual({ type: "doc" });
+    expect(ref(row)).toStrictEqual({ type: "doc", id: "d1" });
+    expect(ref({ title: "no id" })).toStrictEqual({ type: "doc" });
     const empty = fromSnapshot(emptySnapshot());
     let collectionRef: unknown;
     try {
@@ -248,25 +248,27 @@ describe("fromSnapshot instance surface", () => {
         collectionRef = error.resource;
       }
     }
-    expect(collectionRef).toEqual({ type: "doc" });
+    expect(collectionRef).toStrictEqual({ type: "doc" });
   });
 
   it("picks only the fields a field-scoped grant allows", () => {
     const client = fromSnapshot(docSnapshot());
-    expect(client.pick(docs.doc.update, row)).toEqual({ title: "T" });
-    expect(client.pick(docs.doc.read, row)).toEqual(row);
+    expect(client.pick(docs.doc.update, row)).toStrictEqual({ title: "T" });
+    expect(client.pick(docs.doc.read, row)).toStrictEqual(row);
     // SAFETY: pick guards non-object rows at run time; the cast feeds it one.
-    expect(client.pick(docs.doc.read, null as unknown as object)).toEqual({});
-    expect(fromSnapshot(emptySnapshot()).pick(docs.doc.read, row)).toEqual({});
+    expect(client.pick(docs.doc.read, null as unknown as object)).toStrictEqual(
+      {},
+    );
+    expect(
+      fromSnapshot(emptySnapshot()).pick(docs.doc.read, row),
+    ).toStrictEqual({});
   });
 
   it("lists the granted actions of a resource node", () => {
     const client = fromSnapshot(docSnapshot());
-    expect(client.actions(docs.doc, row).map((leaf) => leaf.key)).toEqual([
-      "doc.read",
-      "doc.update",
-      "doc.create",
-    ]);
+    expect(client.actions(docs.doc, row).map((leaf) => leaf.key)).toStrictEqual(
+      ["doc.read", "doc.update", "doc.create"],
+    );
   });
 
   it("simulates pairs, Arazzo input and role previews over the snapshot grants", () => {
@@ -275,7 +277,7 @@ describe("fromSnapshot instance surface", () => {
       [docs.doc.read, row],
       [docs.doc.delete, row],
     ]);
-    expect(pairs.map((decision) => decision.outcome)).toEqual([
+    expect(pairs.map((decision) => decision.outcome)).toStrictEqual([
       "granted",
       "approval-required",
     ]);
@@ -290,7 +292,7 @@ describe("fromSnapshot instance surface", () => {
     expect({
       simulated: ownerView.simulated,
       roles: ownerView.subject.principal?.roles,
-    }).toEqual({ simulated: true, roles: ["owner", "contact"] });
+    }).toStrictEqual({ simulated: true, roles: ["owner", "contact"] });
     expect(asOwner.can(docs.doc.read, row)).toBe(true);
     expect(asOwner.can(docs.doc.update, row, { field: "secret" })).toBe(false);
 
@@ -299,7 +301,7 @@ describe("fromSnapshot instance surface", () => {
       tenant: "t9",
     });
     expect(moved.subject.principal?.tenant).toBe("t9");
-    expect(moved.memberships()).toEqual([
+    expect(moved.memberships()).toStrictEqual([
       { scope: "tenant", id: "t9", roles: ["member"] },
     ]);
 
@@ -307,27 +309,26 @@ describe("fromSnapshot instance surface", () => {
       roles: ["member"],
     });
     expect(anonymous.subject.principal).toBeNull();
-    expect(anonymous.memberships()).toEqual([]);
+    expect(anonymous.memberships()).toStrictEqual([]);
   });
 
   it("derives tenant and team instances and their held roles", () => {
     const client = fromSnapshot(docSnapshot());
-    expect(client.heldRoles().map((leaf) => leaf.key)).toEqual([
+    expect(client.heldRoles().map((leaf) => leaf.key)).toStrictEqual([
       "owner",
       "member",
     ]);
     const t2 = client.tenant("t2");
     expect(t2.subject.principal?.tenant).toBe("t2");
-    expect(t2.heldRoles({ tenant: "t2" }).map((leaf) => leaf.key)).toEqual([
-      "member",
-      "contact",
-    ]);
-    expect(client.heldRoles({ scope: "nowhere" })).toEqual([]);
+    expect(
+      t2.heldRoles({ tenant: "t2" }).map((leaf) => leaf.key),
+    ).toStrictEqual(["member", "contact"]);
+    expect(client.heldRoles({ scope: "nowhere" })).toStrictEqual([]);
     const teamed = t2.team("blue");
     expect(teamed.subject.principal?.tenant).toBe("t2");
     expect(teamed.can(docs.doc.read, row)).toBe(true);
     const unknown = fromSnapshot(docSnapshot({ vocabulary: {} }));
-    expect(unknown.heldRoles().map((leaf) => leaf.assignable)).toEqual([
+    expect(unknown.heldRoles().map((leaf) => leaf.assignable)).toStrictEqual([
       false,
       false,
     ]);
@@ -335,13 +336,13 @@ describe("fromSnapshot instance surface", () => {
 
   it("reads audiences from the snapshot or from the held roles of another tenant", () => {
     const client = fromSnapshot(docSnapshot());
-    expect(client.audiences()).toEqual(["staff"]);
-    expect(client.tenant("t2").audiences()).toEqual(["staff", "portal"]);
+    expect(client.audiences()).toStrictEqual(["staff"]);
+    expect(client.tenant("t2").audiences()).toStrictEqual(["staff", "portal"]);
     const expired = client.tenant("t3");
     expect(expired.subject.principal?.tenant).toBeUndefined();
-    expect(expired.audiences()).toEqual(["staff"]);
+    expect(expired.audiences()).toStrictEqual(["staff"]);
     const { audiences: _audiences, ...withoutAudiences } = docSnapshot();
-    expect(fromSnapshot(withoutAudiences).audiences()).toEqual([]);
+    expect(fromSnapshot(withoutAudiences).audiences()).toStrictEqual([]);
   });
 
   it("answers server-only questions with closed, non-granting results", async () => {
@@ -349,7 +350,7 @@ describe("fromSnapshot instance surface", () => {
     await expect(client.prefetchRelations(docs.doc.read, [row])).resolves.toBe(
       undefined,
     );
-    await expect(whoCan(client, docs.doc.read, row)).resolves.toEqual({
+    await expect(whoCan(client, docs.doc.read, row)).resolves.toStrictEqual({
       permission: "doc.read",
       holders: [],
       complete: false,
@@ -361,7 +362,7 @@ describe("fromSnapshot instance surface", () => {
       id: "t1",
       target: { id: "u2" },
     });
-    expect(change).toEqual({
+    expect(change).toStrictEqual({
       outcome: "denied",
       change: {
         kind: "assign",
@@ -397,25 +398,27 @@ describe("fromSnapshot instance surface", () => {
     );
     expect(
       withEntries.assignableRoles().map((leaf) => [leaf.key, leaf.assignable]),
-    ).toEqual([
+    ).toStrictEqual([
       ["member", true],
       ["custom", true],
     ]);
-    expect(withEntries.assignableRoles({ tenant: "t2" })).toEqual([]);
-    expect(withEntries.assignablePermissions()).toEqual([permission]);
-    expect(withEntries.assignablePermissions({ tenant: "t2" })).toEqual([]);
+    expect(withEntries.assignableRoles({ tenant: "t2" })).toStrictEqual([]);
+    expect(withEntries.assignablePermissions()).toStrictEqual([permission]);
+    expect(withEntries.assignablePermissions({ tenant: "t2" })).toStrictEqual(
+      [],
+    );
 
     const derived = fromSnapshot(docSnapshot());
-    expect(derived.assignableRoles().map((leaf) => leaf.key)).toEqual([
+    expect(derived.assignableRoles().map((leaf) => leaf.key)).toStrictEqual([
       "owner",
       "member",
     ]);
     expect(
       derived.assignableRoles({ tenant: "t2" }).map((leaf) => leaf.key),
-    ).toEqual(["member"]);
+    ).toStrictEqual(["member"]);
     const anonymous = fromSnapshot(emptySnapshot());
-    expect(anonymous.assignablePermissions()).toEqual([]);
-    expect(anonymous.assignableRoles()).toEqual([]);
+    expect(anonymous.assignablePermissions()).toStrictEqual([]);
+    expect(anonymous.assignableRoles()).toStrictEqual([]);
   });
 
   it("denies every check on the empty snapshot", () => {
@@ -423,9 +426,9 @@ describe("fromSnapshot instance surface", () => {
     expect(reasonOf(client.decide(docs.doc.read, { id: "d1" }))).toBe(
       "anonymous",
     );
-    expect(client.tenants()).toEqual([]);
-    expect(client.roles).toEqual({});
-    expect(client.plans).toEqual({});
+    expect(client.tenants()).toStrictEqual([]);
+    expect(client.roles).toStrictEqual({});
+    expect(client.plans).toStrictEqual({});
   });
 
   // A Cache Components prerender rejects Date.now() in a Client Component, and

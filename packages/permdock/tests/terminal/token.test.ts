@@ -42,7 +42,7 @@ describe("token helpers", () => {
       looksLikeJwt("a.b.c"),
       looksLikeJwt("a.b"),
       looksLikeJwt("a.b.c d"),
-    ]).toEqual([true, false, false]);
+    ]).toStrictEqual([true, false, false]);
   });
 
   it("warns once for any number of JWT-shaped arguments", () => {
@@ -62,7 +62,7 @@ describe("token helpers", () => {
       profileFromArgv(["--json"]),
       profileFromArgv(["--as"]),
       profileFromArgv(["--as", "-y"]),
-    ]).toEqual(["work", undefined, undefined, undefined]);
+    ]).toStrictEqual(["work", undefined, undefined, undefined]);
   });
 });
 
@@ -79,7 +79,7 @@ describe("resolveToken env", () => {
       await resolve([{ source: "env", env: "CUSTOM" }]),
       await resolve([{ env: "EMPTY" }]),
       await resolve([{ env: "MISSING" }]),
-    ]).toEqual(["default", "named", "named", null, null]);
+    ]).toStrictEqual(["default", "named", "named", null, null]);
   });
 
   it("falls back to process.env", async () => {
@@ -120,7 +120,7 @@ describe("resolveToken keychain", () => {
         runtime: { configDir: dir },
         write: silent,
       }),
-    ]).toEqual([null, null]);
+    ]).toStrictEqual([null, null]);
   });
 
   it("returns an unexpired credential and skips an expired one without a device", async () => {
@@ -155,7 +155,7 @@ describe("resolveToken keychain", () => {
         runtime: { ...runtime, env: { NEXT: "fallback" } },
         write: silent,
       }),
-    ]).toEqual(["live", "fallback"]);
+    ]).toStrictEqual(["live", "fallback"]);
   });
 
   it("refreshes an expired credential and stores the new one", async () => {
@@ -271,7 +271,7 @@ describe("resolveToken ci-oidc", () => {
         write: silent,
       }),
     ];
-    expect(results).toEqual([null, null, null, null, null]);
+    expect(results).toStrictEqual([null, null, null, null, null]);
   });
 });
 

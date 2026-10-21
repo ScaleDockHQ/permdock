@@ -364,11 +364,11 @@ describe("CentraKit: hook claim, composeMemberships and the RLS helpers agree", 
   }
 
   it("mints the claim CentraKit expects for every principal", async () => {
-    expect(membershipsOf(await mint(OWNER))).toEqual([
+    expect(membershipsOf(await mint(OWNER))).toStrictEqual([
       { scope: "organization", id: ORG_A, roles: ["owner"], via: "staff" },
     ]);
     expect((await mint(OWNER))["tenant_id"]).toBe(ORG_A);
-    expect(membershipsOf(await mint(CONTACT))).toEqual([
+    expect(membershipsOf(await mint(CONTACT))).toStrictEqual([
       {
         scope: "customer",
         id: CUST_A1,
@@ -379,25 +379,25 @@ describe("CentraKit: hook claim, composeMemberships and the RLS helpers agree", 
     ]);
     expect(
       byScope(membershipsOf(await mint(MIXED))).map((m) => [m.scope, m.id]),
-    ).toEqual([
+    ).toStrictEqual([
       ["customer", CUST_A2],
       ["organization", ORG_B],
     ]);
-    expect(membershipsOf(await mint(VIEWER))).toEqual([
+    expect(membershipsOf(await mint(VIEWER))).toStrictEqual([
       { scope: "organization", id: ORG_A, roles: ["viewer"], via: "staff" },
     ]);
     const platform = await mint(PLATFORM);
-    expect(platform["roles"]).toEqual(["platform-admin"]);
-    expect(platform["memberships"]).toEqual([]);
+    expect(platform["roles"]).toStrictEqual(["platform-admin"]);
+    expect(platform["memberships"]).toStrictEqual([]);
     expect(await mint(SUSPENDED)).toMatchObject({ roles: [], memberships: [] });
-    expect(membershipsOf(await mint(LATE))).toEqual([]);
+    expect(membershipsOf(await mint(LATE))).toStrictEqual([]);
   });
 
   it("resolves the same memberships through composeMemberships", async () => {
     const composed = composeMemberships(sources(query));
     for (const user of USERS) {
       const live = await composed.membershipsFor({ id: user }, {});
-      expect({ user, memberships: byScope(live) }).toEqual({
+      expect({ user, memberships: byScope(live) }).toStrictEqual({
         user,
         memberships: byScope(
           subjectFromSupabase(await mint(user)).principal?.memberships ?? [],
@@ -411,7 +411,7 @@ describe("CentraKit: hook claim, composeMemberships and the RLS helpers agree", 
       sub: MIXED,
       role: "authenticated",
     });
-    expect(mixed.member).toEqual({
+    expect(mixed.member).toStrictEqual({
       organization: [ORG_B],
       customer: [CUST_A2],
     });
@@ -419,17 +419,19 @@ describe("CentraKit: hook claim, composeMemberships and the RLS helpers agree", 
       ([r, g]) => r === "contact" && g.startsWith("quotes.read"),
     );
     expect(views).toBeDefined();
-    expect(mixed.permitted[`customer:${views?.[1] ?? ""}`]).toEqual([CUST_A2]);
+    expect(mixed.permitted[`customer:${views?.[1] ?? ""}`]).toStrictEqual([
+      CUST_A2,
+    ]);
     const platform = await helpers("pd_jwt", await mint(PLATFORM));
     expect(Object.values(platform.has)).toContain(true);
     for (const user of USERS) {
       const claims = await mint(user);
       for (const schema of ["permdock", "pd_jwt"] as const) {
-        expect({ schema, user, ...(await helpers(schema, claims)) }).toEqual({
+        expect({
           schema,
           user,
-          ...want(claims),
-        });
+          ...(await helpers(schema, claims)),
+        }).toStrictEqual({ schema, user, ...want(claims) });
       }
     }
   });
@@ -455,7 +457,7 @@ describe("CentraKit: hook claim, composeMemberships and the RLS helpers agree", 
     ]);
     const linked = await version();
     expect(linked).toBeGreaterThan(before);
-    expect(membershipsOf(await mint(LATE))).toEqual([
+    expect(membershipsOf(await mint(LATE))).toStrictEqual([
       {
         scope: "customer",
         id: CUST_B1,
@@ -468,6 +470,6 @@ describe("CentraKit: hook claim, composeMemberships and the RLS helpers agree", 
       OPEN_CONTACT,
     ]);
     expect(await version()).toBeGreaterThan(linked);
-    expect(membershipsOf(await mint(LATE))).toEqual([]);
+    expect(membershipsOf(await mint(LATE))).toStrictEqual([]);
   });
 });

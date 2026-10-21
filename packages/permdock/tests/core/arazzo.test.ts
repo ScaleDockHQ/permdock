@@ -73,7 +73,7 @@ describe("simulate Arazzo", () => {
     });
     expect(plan.workflowId).toBe("publishPost");
     expect(plan.outcome).toBe("granted");
-    expect(plan.steps.map((step) => step.stepId)).toEqual([
+    expect(plan.steps.map((step) => step.stepId)).toStrictEqual([
       "loadDraft",
       "editDraft",
       "publish",

@@ -115,7 +115,7 @@ describe("rls generate --split helpers --grants-out", () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
-    expect(await access()).toEqual({
+    expect(await access()).toStrictEqual({
       anonHas: true,
       authenticatedHas: true,
       authenticatedKeys: true,
@@ -128,7 +128,7 @@ describe("rls generate --split helpers --grants-out", () => {
       "-- permdock:grants v1 schema=permdock",
     );
     await db.admin.query(grants);
-    expect(await access()).toEqual({
+    expect(await access()).toStrictEqual({
       anonHas: false,
       authenticatedHas: true,
       authenticatedKeys: false,

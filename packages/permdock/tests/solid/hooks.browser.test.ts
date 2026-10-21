@@ -183,7 +183,7 @@ describe("permdock/solid hooks", () => {
     );
     expect(view.root.textContent).toBe("required:pd1.token");
     await handle?.request("please");
-    expect(posts).toEqual(["/api/approvals"]);
+    expect(posts).toStrictEqual(["/api/approvals"]);
     expect(view.root.textContent).toBe("pending:pd1.token");
     setDecision({ outcome: "denied", denials: [], alternatives: [] });
     expect(view.root.textContent).toBe("not-needed:none");

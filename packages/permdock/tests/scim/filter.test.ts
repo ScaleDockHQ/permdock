@@ -67,7 +67,7 @@ describe("parseScimFilter", () => {
     ],
     ["( id pr )", { op: "pr", attribute: "id" }],
   ])("parses %s", (input, expected) => {
-    expect(parseScimFilter(input)).toEqual(expected);
+    expect(parseScimFilter(input)).toStrictEqual(expected);
   });
 
   it.each([
@@ -143,7 +143,7 @@ describe("matchFilter", () => {
     ['id eq "x" or userName eq "bob"', user, false],
   ])("%s", (input, target, expected) => {
     const filter = parseScimFilter(input);
-    expect({ input, matched: matchFilter(target, filter) }).toEqual({
+    expect({ input, matched: matchFilter(target, filter) }).toStrictEqual({
       input,
       matched: expected,
     });

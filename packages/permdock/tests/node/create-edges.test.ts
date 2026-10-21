@@ -40,9 +40,10 @@ describe("permdock/node edge cases", () => {
     const req = get("/posts");
     const permdock = await permdockFor(req);
     const guard = await protect(permissions.post.list)(req);
-    expect({ principal: permdock.subject.principal?.id, ok: guard.ok }).toEqual(
-      { principal: "u1", ok: true },
-    );
+    expect({
+      principal: permdock.subject.principal?.id,
+      ok: guard.ok,
+    }).toStrictEqual({ principal: "u1", ok: true });
   });
 
   it("resolves the actor from the incoming message", async () => {
@@ -51,7 +52,10 @@ describe("permdock/node edge cases", () => {
       actor: (req) => ({ id: String(req.headers.host), kind: "agent" }),
     });
     const permdock = await permdockFor(get("/posts"));
-    expect(permdock.subject.actor).toEqual({ id: "api.test", kind: "agent" });
+    expect(permdock.subject.actor).toStrictEqual({
+      id: "api.test",
+      kind: "agent",
+    });
   });
 
   it("serves the snapshot on GET and HEAD from the evaluations handler", async () => {
@@ -65,6 +69,6 @@ describe("permdock/node edge cases", () => {
       await handle(get("/api/permdock", method), res);
       statuses.push(status());
     }
-    expect(statuses).toEqual([200, 200]);
+    expect(statuses).toStrictEqual([200, 200]);
   });
 });

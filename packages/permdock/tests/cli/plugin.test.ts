@@ -92,9 +92,9 @@ describe("createPermDockPlugin", () => {
       const config = createPermDockPlugin({ collect: { srcPath: ["./src"] } })(
         async () => ({ reactStrictMode: true }),
       );
-      await expect(config("phase-production-server", {})).resolves.toEqual({
-        reactStrictMode: true,
-      });
+      await expect(
+        config("phase-production-server", {}),
+      ).resolves.toStrictEqual({ reactStrictMode: true });
       expect(existsSync(join(cwd, "permissions.catalog.json"))).toBe(false);
       await expect(config("phase-production-build", {})).rejects.toThrow(
         "catalog missing",
@@ -116,9 +116,9 @@ describe("createPermDockPlugin", () => {
         collect: { srcPath: ["./src"] },
         onDrift: "warn",
       })({ reactStrictMode: true });
-      await expect(config("phase-production-build", {})).resolves.toEqual({
-        reactStrictMode: true,
-      });
+      await expect(config("phase-production-build", {})).resolves.toStrictEqual(
+        { reactStrictMode: true },
+      );
     } finally {
       process.chdir(previous);
     }
@@ -219,13 +219,16 @@ describe("createPermDockPlugin", () => {
       await plugin({})("phase-development-server", {});
       process.chdir(raw);
       await plugin({})("phase-development-server", {});
-      expect(lines).toEqual(["permdock: bad config\n", "permdock: raw\n"]);
+      expect(lines).toStrictEqual([
+        "permdock: bad config\n",
+        "permdock: raw\n",
+      ]);
 
       process.chdir(cwd);
       const config = plugin({ reactStrictMode: true });
-      await expect(config("phase-development-server", {})).resolves.toEqual({
-        reactStrictMode: true,
-      });
+      await expect(
+        config("phase-development-server", {}),
+      ).resolves.toStrictEqual({ reactStrictMode: true });
       const catalog = join(cwd, "permissions.catalog.json");
       expect(existsSync(catalog)).toBe(true);
       await config("phase-development-server", {});

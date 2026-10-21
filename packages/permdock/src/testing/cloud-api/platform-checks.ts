@@ -105,7 +105,7 @@ export function testCloudPlatform(
       code_challenge_methods_supported: ["S256"],
     });
     const scopes = metadata?.["scopes_supported"];
-    expect(scopes).toEqual(
+    expect(scopes).toStrictEqual(
       expect.arrayContaining(Object.keys(PLATFORM_SCOPES)),
     );
   });

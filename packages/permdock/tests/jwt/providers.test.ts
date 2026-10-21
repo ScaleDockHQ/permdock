@@ -57,7 +57,7 @@ describe("subjectFromJwt with an injected verifier", () => {
     expect({
       principal: subject.principal,
       causes: events.map((event) => event.cause),
-    }).toEqual({ principal: null, causes: ["malformed"] });
+    }).toStrictEqual({ principal: null, causes: ["malformed"] });
   });
 
   it("is anonymous with invalid-claims for a token without sub", async () => {
@@ -69,7 +69,7 @@ describe("subjectFromJwt with an injected verifier", () => {
     expect({
       principal: subject.principal,
       causes: events.map((event) => event.cause),
-    }).toEqual({ principal: null, causes: ["invalid-claims"] });
+    }).toStrictEqual({ principal: null, causes: ["invalid-claims"] });
   });
 
   it("requires a request for sender dpop", async () => {
@@ -82,7 +82,7 @@ describe("subjectFromJwt with an injected verifier", () => {
     expect({
       principal: subject.principal,
       causes: events.map((event) => event.cause),
-    }).toEqual({ principal: null, causes: ["dpop-proof-invalid"] });
+    }).toStrictEqual({ principal: null, causes: ["dpop-proof-invalid"] });
   });
 
   it("defaults fapi2 to dpop and fails without a proof", async () => {
@@ -96,7 +96,9 @@ describe("subjectFromJwt with an injected verifier", () => {
       },
       new Request("https://api.test/x"),
     );
-    expect(events.map((event) => event.cause)).toEqual(["dpop-proof-invalid"]);
+    expect(events.map((event) => event.cause)).toStrictEqual([
+      "dpop-proof-invalid",
+    ]);
   });
 
   it("rejects mTLS without a string thumbprint in cnf", async () => {
@@ -108,10 +110,9 @@ describe("subjectFromJwt with an injected verifier", () => {
         certificateThumbprint: "abc",
         onAuth,
       });
-      expect({ cnf, causes: events.map((event) => event.cause) }).toEqual({
-        cnf,
-        causes: ["mtls-binding-mismatch"],
-      });
+      expect({ cnf, causes: events.map((event) => event.cause) }).toStrictEqual(
+        { cnf, causes: ["mtls-binding-mismatch"] },
+      );
     }
   });
 
@@ -133,7 +134,7 @@ describe("subjectFromJwt with an injected verifier", () => {
       });
       results.push(subject.principal?.memberships);
     }
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       undefined,
       undefined,
       [{ tenant: "acme", roles: ["admin"] }],
@@ -154,7 +155,7 @@ describe("subjectFromJwt with an injected verifier", () => {
     };
     await subjectFromJwt("a.b.c", { verifier, discovery: { issuer: ISSUER } });
     await subjectFromJwt("a.b.c", { verifier });
-    expect(seen).toEqual([ISSUER, undefined]);
+    expect(seen).toStrictEqual([ISSUER, undefined]);
   });
 
   it("emits no event without onAuth", async () => {
@@ -183,7 +184,7 @@ describe("subjectFromIntrospection", () => {
       acr: subject.principal?.assurance?.acr,
       binding: subject.principal?.binding,
       expiresAt: subject.expiresAt,
-    }).toEqual({
+    }).toStrictEqual({
       session: "s1",
       acr: "aal2",
       binding: { jwk: { kty: "EC" } },
@@ -201,7 +202,7 @@ describe("subjectFromIntrospection", () => {
     expect({
       actor: subject.actor,
       binding: subject.principal?.binding,
-    }).toEqual({
+    }).toStrictEqual({
       actor: {
         id: "inst-1",
         kind: "oauth-client",
@@ -236,7 +237,11 @@ describe("subjectFromIntrospection", () => {
       principal: subject.principal,
       quiet: quiet.principal,
       causes: events.map((event) => event.cause),
-    }).toEqual({ principal: null, quiet: null, causes: ["invalid-chain"] });
+    }).toStrictEqual({
+      principal: null,
+      quiet: null,
+      causes: ["invalid-chain"],
+    });
   });
 
   it("is anonymous without sub, for an inactive token or a non-object", () => {
@@ -247,7 +252,7 @@ describe("subjectFromIntrospection", () => {
         ["active"],
         null,
       ].map((response) => subjectFromIntrospection(response).principal),
-    ).toEqual([null, null, null, null]);
+    ).toStrictEqual([null, null, null, null]);
   });
 
   it("matches an audience list against a string or an array aud", () => {
@@ -261,7 +266,7 @@ describe("subjectFromIntrospection", () => {
         (response) =>
           subjectFromIntrospection(response, options).principal?.id ?? null,
       ),
-    ).toEqual(["u1", "u1", null]);
+    ).toStrictEqual(["u1", "u1", null]);
   });
 
   it("never throws when a getter on the response throws", () => {
@@ -326,7 +331,7 @@ describe("subjectFromCiOidc with an injected verifier", () => {
           ? null
           : { repository: principal["repository"], ref: principal["ref"] },
       ),
-    ).toEqual([
+    ).toStrictEqual([
       { repository: "acme/api", ref: "refs/tags/v1" },
       { repository: undefined, ref: "refs/heads/main" },
       { repository: undefined, ref: "refs/heads/main" },
@@ -364,7 +369,10 @@ describe("subjectFromCiOidc with an injected verifier", () => {
         })
       ).principal,
     ];
-    expect({ results, causes: events.map((event) => event.cause) }).toEqual({
+    expect({
+      results,
+      causes: events.map((event) => event.cause),
+    }).toStrictEqual({
       results: [null, null, null, null],
       causes: ["malformed", "wrong-issuer", "wrong-audience"],
     });
@@ -381,7 +389,7 @@ describe("subjectFromCiOidc with an injected verifier", () => {
     expect({
       principal: subject.principal,
       causes: events.map((event) => event.cause),
-    }).toEqual({ principal: null, causes: ["malformed"] });
+    }).toStrictEqual({ principal: null, causes: ["malformed"] });
   });
 });
 
@@ -406,7 +414,7 @@ describe("subjectFromCapability with an injected verifier", () => {
   it("is anonymous with malformed when the verifier throws", async () => {
     const { events, options: opts } = options(throwingVerifier);
     expect((await subjectFromCapability("a.b.c", opts)).principal).toBeNull();
-    expect(events.map((event) => event.cause)).toEqual(["malformed"]);
+    expect(events.map((event) => event.cause)).toStrictEqual(["malformed"]);
   });
 
   it("checks typ and expiry after verification", async () => {
@@ -427,7 +435,7 @@ describe("subjectFromCapability with an injected verifier", () => {
     expect([
       wrongTyp.events.map((event) => event.cause),
       expired.events.map((event) => event.cause),
-    ]).toEqual([["wrong-token-type"], ["expired"]]);
+    ]).toStrictEqual([["wrong-token-type"], ["expired"]]);
   });
 
   it("claims a one-time capability through seen and remember", async () => {
@@ -450,10 +458,10 @@ describe("subjectFromCapability with an injected verifier", () => {
     const opts = { issuer: ISSUER, audience: AUDIENCE, verifier, replay };
     const first = await subjectFromCapability("a.b.c", opts);
     const second = await subjectFromCapability("a.b.c", opts);
-    expect({ first: first.principal?.id, second: second.principal }).toEqual({
-      first: "lnk_1",
-      second: null,
-    });
+    expect({
+      first: first.principal?.id,
+      second: second.principal,
+    }).toStrictEqual({ first: "lnk_1", second: null });
   });
 });
 
@@ -506,7 +514,7 @@ describe("verifyDpopProof rejections", () => {
         cnf: { jkt: "x" },
       }),
     ];
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       { ok: false, cause: "dpop-proof-invalid" },
       { ok: false, cause: "dpop-proof-invalid" },
       { ok: false, cause: "dpop-proof-invalid" },

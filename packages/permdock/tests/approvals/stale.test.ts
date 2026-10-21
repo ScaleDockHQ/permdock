@@ -117,7 +117,7 @@ describe("approvals that go stale on a resource change", () => {
     await approve(store, old);
 
     const stale = await run(v2, old, store);
-    expect(stale.resumed).toEqual({
+    expect(stale.resumed).toStrictEqual({
       outcome: "denied",
       denials: [{ role: null, reason: "stale-approval" }],
       alternatives: [],
@@ -231,7 +231,7 @@ describe("staleOn definition checks", () => {
         approval: { staleOn: "resource-change" },
       }),
     ].flat();
-    expect(grant?.approval).toEqual({
+    expect(grant?.approval).toStrictEqual({
       by: { kind: "authenticated" },
       staleOn: "resource-change",
     });

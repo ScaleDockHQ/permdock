@@ -18,7 +18,7 @@ describe("timeoutSignal", () => {
     expect(signal.aborted).toBe(false);
     caller.abort(new Error("stopped"));
     expect(signal.aborted).toBe(true);
-    expect(signal.reason).toEqual(new Error("stopped"));
+    expect(signal.reason).toStrictEqual(new Error("stopped"));
   });
 
   it("treats a null caller signal as none", () => {

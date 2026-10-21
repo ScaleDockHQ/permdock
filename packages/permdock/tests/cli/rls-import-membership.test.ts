@@ -73,7 +73,7 @@ describe("rls import membership subqueries", () => {
       ["owner"],
     ],
   ])("imports %s as memberOf", async (_label, sql, roles) => {
-    expect(await imported(sql)).toEqual({
+    expect(await imported(sql)).toStrictEqual({
       op: "memberOf",
       scope: "tenant",
       field: "org_id",
@@ -86,7 +86,12 @@ describe("rls import membership subqueries", () => {
       await imported(
         '"org_id" = any (select tenant_id from org_members where user_id = auth.uid())',
       ),
-    ).toEqual({ op: "memberOf", scope: "tenant", field: "org_id", roles: [] });
+    ).toStrictEqual({
+      op: "memberOf",
+      scope: "tenant",
+      field: "org_id",
+      roles: [],
+    });
   });
 
   it.each([
@@ -174,7 +179,7 @@ describe("mapRoleValues", () => {
         },
         { org_admin: "owner" },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       op: "or",
       conditions: [
         {

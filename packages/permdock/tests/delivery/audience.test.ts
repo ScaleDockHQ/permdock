@@ -14,7 +14,7 @@ describe("audience", () => {
   it("lists the holders whoCan finds that decideFor grants", async () => {
     const permdock = await sender();
     const found = await audience(permdock, p.invoice.read, invoice);
-    expect(found.principals.toSorted()).toEqual(["u_1", "u_2"]);
+    expect(found.principals.toSorted()).toStrictEqual(["u_1", "u_2"]);
     expect(typeof found.complete).toBe("boolean");
   });
 
@@ -23,13 +23,13 @@ describe("audience", () => {
     const found = await audience(permdock, p.invoice.read, invoice, {
       candidates: ["c_1", "u_3", "u_2", "u_4", "nobody", "u_2"],
     });
-    expect(found).toEqual({ principals: ["c_1", "u_2"], complete: true });
+    expect(found).toStrictEqual({ principals: ["c_1", "u_2"], complete: true });
   });
 
   it("narrows to the holders of a stronger permission", async () => {
     const permdock = await sender();
     const found = await audience(permdock, p.invoice.pay, invoice);
-    expect(found.principals).toEqual(["u_1"]);
+    expect(found.principals).toStrictEqual(["u_1"]);
   });
 
   it("is empty for an anonymous sender", async () => {
@@ -40,7 +40,7 @@ describe("audience", () => {
       await audience(anonymous, p.invoice.read, invoice, {
         candidates: ["u_2"],
       }),
-    ).toEqual({ principals: [], complete: true });
+    ).toStrictEqual({ principals: [], complete: true });
   });
 });
 
@@ -57,7 +57,7 @@ describe("subscribersFor", () => {
       { permission: p.invoice.read, row: invoice },
       subscribers,
     );
-    expect(kept.map((entry) => entry.id)).toEqual(["s1", "s3"]);
+    expect(kept.map((entry) => entry.id)).toStrictEqual(["s1", "s3"]);
     expect(kept[0]).toBe(subscribers[0]);
   });
 
@@ -69,6 +69,6 @@ describe("subscribersFor", () => {
       // SAFETY: a malformed subscriber row, as a database could return it.
       [{ principal: 42 } as unknown as { principal: string }],
     );
-    expect(kept).toEqual([]);
+    expect(kept).toStrictEqual([]);
   });
 });

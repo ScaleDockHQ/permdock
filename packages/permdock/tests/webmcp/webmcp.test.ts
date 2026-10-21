@@ -57,7 +57,7 @@ describe("registerTools", () => {
     const permdock = await clientOf(memberUser);
     const { context, tools } = fakeContext();
     registerTools(context, permissions.post, { permdock });
-    expect([...tools.keys()].toSorted()).toEqual([
+    expect([...tools.keys()].toSorted()).toStrictEqual([
       "post_create",
       "post_delete",
       "post_list",
@@ -276,7 +276,7 @@ describe("registerTools", () => {
       readonly input: unknown;
       readonly token: unknown;
     };
-    expect(call.input).toEqual(ownPost);
+    expect(call.input).toStrictEqual(ownPost);
     expect(typeof call.token).toBe("string");
   });
 
@@ -298,7 +298,7 @@ describe("registerTools", () => {
         },
       } as never,
     });
-    expect(tools.get("post_update")?.inputSchema).toEqual({
+    expect(tools.get("post_update")?.inputSchema).toStrictEqual({
       type: "object",
       required: ["id"],
     });

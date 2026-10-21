@@ -503,7 +503,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
       const read = await client.query(
         `select id from public.project order by id`,
       );
-      expect(read.rows.map((row: { id: string }) => row.id)).toEqual([
+      expect(read.rows.map((row: { id: string }) => row.id)).toStrictEqual([
         "p-acme",
         "p-other",
       ]);
@@ -556,7 +556,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
           return { rows: result.rows, rowCount: result.rowCount ?? 0 };
         },
       });
-      expect(report.results).toEqual([
+      expect(report.results).toStrictEqual([
         {
           name: "plus updates another task",
           granted: true,
@@ -679,7 +679,9 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
         shape.name === "custom_jwt" ? testerUri(db.uri, shape.name) : admin;
       const results = await runPgtap(uri, emitted.stdout);
       expect(results).toHaveLength(fixtures().length);
-      expect(results.filter((line) => !line.startsWith("ok - "))).toEqual([]);
+      expect(results.filter((line) => !line.startsWith("ok - "))).toStrictEqual(
+        [],
+      );
       const open = new Client({ connectionString: admin });
       await open.connect();
       try {
@@ -814,7 +816,7 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
             include: ["viewer"],
           }),
         ).toBe("ok");
-        expect(await stored("triage")).toEqual([
+        expect(await stored("triage")).toStrictEqual([
           "allow:task.update",
           "deny:project.read",
           "include:viewer",
@@ -891,13 +893,13 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
           "42501 not-assignable-by",
         );
         expect(await rename(ADMIN, "triage", "triage-2")).toBe("ok");
-        expect(await stored("triage")).toEqual([]);
+        expect(await stored("triage")).toStrictEqual([]);
         expect(await stored("triage-2")).toHaveLength(3);
         expect(await remove(SHADOW, "triage-2")).toBe(
           "42501 not-assignable-by",
         );
         expect(await remove(ADMIN, "triage-2")).toBe("ok");
-        expect(await stored("triage-2")).toEqual([]);
+        expect(await stored("triage-2")).toStrictEqual([]);
       } finally {
         await client.query("rollback");
         await client.end();

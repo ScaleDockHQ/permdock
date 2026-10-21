@@ -150,7 +150,7 @@ describe("permdock/solid parity", () => {
     await permdock?.refresh();
     setToken("b");
     await permdock?.refresh();
-    expect(seen).toEqual(["a", "b"]);
+    expect(seen).toStrictEqual(["a", "b"]);
     expect(view?.().tenant).toBe("acme");
     setTenant("globex");
     await vi.waitFor(() => {

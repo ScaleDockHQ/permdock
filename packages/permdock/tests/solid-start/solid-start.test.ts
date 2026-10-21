@@ -64,7 +64,7 @@ describe("permdock/solid-start", () => {
     );
     const own = await app.request("/posts/p1", { method: "DELETE" });
     const other = await app.request("/posts/p2", { method: "DELETE" });
-    expect(await own.json()).toEqual({ id: "p1" });
+    expect(await own.json()).toStrictEqual({ id: "p1" });
     expect(other.status).toBe(403);
   });
 
@@ -92,7 +92,7 @@ describe("permdock/solid-start", () => {
       assertion.status,
       signedWrapper.status,
       signedMiddleware.status,
-    ]).toEqual([403, 403, 403]);
+    ]).toStrictEqual([403, 403, 403]);
   });
 
   it("maps a denial thrown below the h3 middleware", async () => {
@@ -130,7 +130,11 @@ describe("permdock/solid-start", () => {
         aborted: conn.signal.aborted,
       });
     }).request("/");
-    expect([get.status, post.status]).toEqual([200, 200]);
-    expect(await details.json()).toEqual({ v: 1, id: "u1", aborted: false });
+    expect([get.status, post.status]).toStrictEqual([200, 200]);
+    expect(await details.json()).toStrictEqual({
+      v: 1,
+      id: "u1",
+      aborted: false,
+    });
   });
 });

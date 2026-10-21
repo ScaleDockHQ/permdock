@@ -39,7 +39,7 @@ describe("snapshot parity", () => {
       memberships: [{ on: { resource: "doc", id: "d1" }, roles: ["watcher"] }],
     };
     const [server, client] = await both(policy, user);
-    expect(parseSnapshot(JSON.stringify(server.snapshot())).ids).toEqual({
+    expect(parseSnapshot(JSON.stringify(server.snapshot())).ids).toStrictEqual({
       doc: "uuid",
     });
     for (const permdock of [server, client]) {

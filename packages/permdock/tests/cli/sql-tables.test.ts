@@ -33,7 +33,7 @@ describe("tableNameOf", () => {
 describe("tableNames", () => {
   it("reduces every entry to a table name and keeps undefined", () => {
     expect(tableNames(undefined)).toBeUndefined();
-    expect(tableNames({ post: "posts", task: via("projects") })).toEqual({
+    expect(tableNames({ post: "posts", task: via("projects") })).toStrictEqual({
       post: "posts",
       task: "task",
     });

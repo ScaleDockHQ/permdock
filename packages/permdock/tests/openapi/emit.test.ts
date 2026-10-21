@@ -64,7 +64,7 @@ describe("permdock/openapi security requirements", () => {
       probe: security(tree.status.probe),
       audit: security(tree.status.audit),
       none: security([]),
-    }).toEqual({
+    }).toStrictEqual({
       view: [],
       probe: [{ oauth: ["status:probe"] }],
       audit: [{ oauth: ["status:audit"] }],
@@ -78,7 +78,7 @@ describe("permdock/openapi security requirements", () => {
       closed: security([tree.status.edit, tree.status.probe], { anyOf: true }),
       open: security([tree.status.edit, tree.status.view], { anyOf: true }),
       all: security([tree.status.edit, tree.status.probe]),
-    }).toEqual({
+    }).toStrictEqual({
       closed: [{ oauth: ["status:edit"] }, { oauth: ["status:probe"] }],
       open: [],
       all: [{ oauth: ["status:edit", "status:probe"] }],
@@ -89,18 +89,20 @@ describe("permdock/openapi security requirements", () => {
     const { describe: describeOp, spec } = createPermDock(policy, {
       scheme: oauth,
     });
-    expect(describeOp(tree.status.edit)["x-permdock-conditions"]).toEqual({
-      "status.edit": {
-        op: "or",
-        conditions: [
-          { op: "eq", field: "ownerId", value: { ref: "principal.id" } },
-          { op: "eq", field: "editorId", value: { ref: "principal.id" } },
-        ],
+    expect(describeOp(tree.status.edit)["x-permdock-conditions"]).toStrictEqual(
+      {
+        "status.edit": {
+          op: "or",
+          conditions: [
+            { op: "eq", field: "ownerId", value: { ref: "principal.id" } },
+            { op: "eq", field: "editorId", value: { ref: "principal.id" } },
+          ],
+        },
       },
-    });
+    );
     expect(
       spec([tree.status.view])({ operationId: "getStatus", security: "x" }),
-    ).toEqual({
+    ).toStrictEqual({
       operationId: "getStatus",
       security: [],
       "x-permdock-permissions": ["status.view"],
@@ -116,7 +118,7 @@ describe("permdock/openapi security schemes", () => {
         readonly scopes: Readonly<Record<string, string>>;
       };
     };
-    expect(flows.authorizationCode.scopes).toEqual({
+    expect(flows.authorizationCode.scopes).toStrictEqual({
       "status:view": "See the status page",
       "status:probe": "Probe",
       "status:edit": "status.edit",
@@ -126,7 +128,7 @@ describe("permdock/openapi security schemes", () => {
 
   it("references an external scheme except on 3.1", () => {
     const scheme = { ...oauth, ref: "#/components/securitySchemes/shared" };
-    expect(schemeOf({ scheme })).toEqual({
+    expect(schemeOf({ scheme })).toStrictEqual({
       $ref: "#/components/securitySchemes/shared",
     });
     expect(schemeOf({ scheme, target: "3.1" })["type"]).toBe("oauth2");
@@ -142,7 +144,7 @@ describe("permdock/openapi security schemes", () => {
         // SAFETY: an oauth2 scheme carries its flows as an object.
         schemeOf({ scheme: { ...oauth, flows } })["flows"] as object,
       ),
-    ).toEqual(["clientCredentials", "deviceAuthorization"]);
+    ).toStrictEqual(["clientCredentials", "deviceAuthorization"]);
     expect(schemeOf({ scheme: { ...oauth, flows } })["flows"]).toMatchObject({
       deviceAuthorization: { deviceAuthorizationUrl: "https://auth/device" },
     });
@@ -153,7 +155,7 @@ describe("permdock/openapi security schemes", () => {
           "flows"
         ] as object,
       ),
-    ).toEqual(["authorizationCode"]);
+    ).toStrictEqual(["authorizationCode"]);
   });
 
   it("emits openIdConnect without flows and retires a deprecated scheme per target", () => {
@@ -163,12 +165,12 @@ describe("permdock/openapi security schemes", () => {
       openIdConnectUrl: "https://auth/.well-known/openid-configuration",
       deprecated: true,
     };
-    expect(schemeOf({ scheme: oidc })).toEqual({
+    expect(schemeOf({ scheme: oidc })).toStrictEqual({
       type: "openIdConnect",
       openIdConnectUrl: "https://auth/.well-known/openid-configuration",
       deprecated: true,
     });
-    expect(schemeOf({ scheme: oidc, target: "3.1" })).toEqual({
+    expect(schemeOf({ scheme: oidc, target: "3.1" })).toStrictEqual({
       type: "openIdConnect",
       openIdConnectUrl: "https://auth/.well-known/openid-configuration",
       "x-oai-deprecated": true,
@@ -182,7 +184,7 @@ describe("permdock/openapi security schemes", () => {
       profileScheme: "fapi",
       scheme: oauth,
     }).securitySchemes();
-    expect(Object.keys(schemes)).toEqual(["oauth", "fapi"]);
+    expect(Object.keys(schemes)).toStrictEqual(["oauth", "fapi"]);
     expect(schemes["fapi"]).not.toHaveProperty("profileMetadata.servers");
   });
 });
@@ -201,7 +203,7 @@ describe("permdock/openapi security profile requirements", () => {
       ["status:view", "status:edit", "status:view"],
       [],
     ]);
-    expect(requirements).toEqual({
+    expect(requirements).toStrictEqual({
       permdockFapi2StatusEditStatusView: {
         securityScheme: { $ref: "#/components/securitySchemes/permdockFapi2" },
         token_endpoint_auth_methods: ["private_key_jwt", "tls_client_auth"],
@@ -236,7 +238,7 @@ describe("permdock/openapi security profile requirements", () => {
         target: "3.3",
         scheme: oauth,
       }).securityProfileRequirements(),
-    }).toEqual({ v32: undefined, noProfile: undefined });
+    }).toStrictEqual({ v32: undefined, noProfile: undefined });
   });
 });
 
@@ -259,7 +261,7 @@ describe("permdock/openapi overlay", () => {
     const components = overlay["components"] as {
       readonly actions: Readonly<Record<string, unknown>>;
     };
-    expect(Object.keys(components.actions)).toEqual([
+    expect(Object.keys(components.actions)).toStrictEqual([
       "status.edit",
       "status.view",
     ]);
@@ -268,7 +270,7 @@ describe("permdock/openapi overlay", () => {
       readonly target: string;
       readonly description: string;
     }[];
-    expect(actions.map((action) => action.description)).toEqual([
+    expect(actions.map((action) => action.description)).toStrictEqual([
       "PermDock security schemes",
       "PermDock security profile requirements",
       "getStatus",
@@ -290,7 +292,7 @@ describe("permdock/openapi defaults", () => {
     expect({
       overlay: permdock.overlay()["overlay"],
       security: permdock.security(tree.status.view),
-    }).toEqual({ overlay: "1.1.0", security: [] });
+    }).toStrictEqual({ overlay: "1.1.0", security: [] });
   });
 });
 
@@ -300,6 +302,6 @@ describe("openapiVersion", () => {
       openapiVersion("3.1"),
       openapiVersion("3.2"),
       openapiVersion("3.3"),
-    ]).toEqual(["3.1.0", "3.2.0", "3.3.0"]);
+    ]).toStrictEqual(["3.1.0", "3.2.0", "3.3.0"]);
   });
 });

@@ -15,9 +15,9 @@ describe("input guards", () => {
     expect(isSubject(null)).toBe(false);
     freezeDeep(() => undefined);
     expect(readPath({ a: null }, "a.b")).toBeUndefined();
-    expect(compact<{ readonly a: number }>({ a: 1, b: undefined })).toEqual({
-      a: 1,
-    });
+    expect(
+      compact<{ readonly a: number }>({ a: 1, b: undefined }),
+    ).toStrictEqual({ a: 1 });
     expect(() => parseSnapshot([])).toThrow(/must be an object/u);
     expect(() =>
       parseSnapshot({

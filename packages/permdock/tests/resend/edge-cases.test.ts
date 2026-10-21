@@ -80,11 +80,11 @@ describe("resendTransport batch edge cases", () => {
     const results = await resendTransport(client).deliverBatch?.(
       await items("", ""),
     );
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       { status: "failed", cause: "invalid-recipient", retryable: false },
       { status: "failed", cause: "invalid-recipient", retryable: false },
     ]);
-    expect(sent).toEqual([]);
+    expect(sent).toStrictEqual([]);
   });
 
   it("sends only the valid items and refuses the rest in place", async () => {
@@ -94,11 +94,11 @@ describe("resendTransport batch edge cases", () => {
     const results = await resendTransport(client).deliverBatch?.(
       await items("", "ann@acme.test"),
     );
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       { status: "failed", cause: "invalid-recipient", retryable: false },
       { status: "sent", providerId: "re_9" },
     ]);
-    expect(sent.map((batch) => batch.map((entry) => entry.to))).toEqual([
+    expect(sent.map((batch) => batch.map((entry) => entry.to))).toStrictEqual([
       [["ann@acme.test"]],
     ]);
   });
@@ -110,7 +110,7 @@ describe("resendTransport batch edge cases", () => {
     const results = await resendTransport(client).deliverBatch?.(
       await items("ann@acme.test", "bob@acme.test"),
     );
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       {
         status: "failed",
         cause: "unavailable",
@@ -140,7 +140,7 @@ describe("resendTransport batch edge cases", () => {
     const results = await resendTransport(client).deliverBatch?.(
       await items("ann@acme.test", "", "bob@acme.test"),
     );
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       {
         status: "failed",
         cause: "unauthorized",
@@ -164,7 +164,7 @@ describe("resendTransport batch edge cases", () => {
     const results = await resendTransport(client).deliverBatch?.(
       await items("ann@acme.test", "bob@acme.test"),
     );
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       { status: "sent", providerId: "re_1" },
       {
         status: "failed",
@@ -219,7 +219,7 @@ describe("resendWebhook edge cases", () => {
       const response = await handler(await signed(body, `msg_${index}`));
       expect(response.status).toBe(200);
     }
-    expect(sink.events()).toEqual([]);
+    expect(sink.events()).toStrictEqual([]);
   });
 
   it("claims through seen and remember when the replay store has no claim", async () => {
@@ -241,7 +241,7 @@ describe("resendWebhook edge cases", () => {
     expect((await handler(await signed(body, "msg_once"))).status).toBe(200);
     expect((await handler(await signed(body, "msg_once"))).status).toBe(200);
     expect(sink.events()).toHaveLength(1);
-    expect([...remembered.keys()]).toEqual(["resend:msg_once"]);
+    expect([...remembered.keys()]).toStrictEqual(["resend:msg_once"]);
     expect(remembered.get("resend:msg_once")).toBeGreaterThan(
       Date.now() / 1000,
     );
@@ -279,6 +279,6 @@ describe("resendWebhook edge cases", () => {
       "application/problem+json",
     );
     expect(verified).toBe(0);
-    expect(sink.events()).toEqual([]);
+    expect(sink.events()).toStrictEqual([]);
   });
 });

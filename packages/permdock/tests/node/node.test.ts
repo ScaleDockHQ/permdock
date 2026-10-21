@@ -35,7 +35,7 @@ describe("permdock/node", () => {
 
     const allowed = await request("/posts/p1", { method: "DELETE" });
     expect(allowed.status).toBe(200);
-    expect(await allowed.json()).toEqual({ ok: true, via: "u1" });
+    expect(await allowed.json()).toStrictEqual({ ok: true, via: "u1" });
 
     const denied = await request("/posts/p2", { method: "DELETE" });
     expect(denied.status).toBe(403);

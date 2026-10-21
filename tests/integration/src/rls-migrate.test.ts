@@ -191,15 +191,15 @@ describe("rls migrate on CentraKit, then verify --introspect with --helpers-only
           )
         ).rows.map((row) => row.id),
       );
-    expect(await held(["member"])).toEqual([ORG_A]);
-    expect(await held(["owner"])).toEqual([]);
+    expect(await held(["member"])).toStrictEqual([ORG_A]);
+    expect(await held(["owner"])).toStrictEqual([]);
   });
 
   it("enforces the migrated policies", async () => {
-    expect(await ids(MEMBER, "customers")).toEqual([CUST_A]);
-    expect(await ids(MEMBER, "organizations")).toEqual([ORG_A]);
-    expect(await ids(PLATFORM, "organizations")).toEqual([ORG_A, ORG_B]);
-    expect(await ids(PLATFORM, "customers")).toEqual([]);
+    expect(await ids(MEMBER, "customers")).toStrictEqual([CUST_A]);
+    expect(await ids(MEMBER, "organizations")).toStrictEqual([ORG_A]);
+    expect(await ids(PLATFORM, "organizations")).toStrictEqual([ORG_A, ORG_B]);
+    expect(await ids(PLATFORM, "customers")).toStrictEqual([]);
   });
 
   it("finds no drift and names the table that calls no helper", async () => {
@@ -402,7 +402,7 @@ drop table if exists "public"."user_permissions";
       { role: "authenticated", settings: jwtClaims(MEMBER) },
       "select id from customers order by id",
     );
-    expect(customers).toEqual([CUST_A]);
+    expect(customers).toStrictEqual([CUST_A]);
     expect(
       (
         await cli([

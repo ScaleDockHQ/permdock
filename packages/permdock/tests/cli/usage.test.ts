@@ -57,20 +57,20 @@ describe("runUsage setup errors", () => {
     });
     expect(
       await usage(cwd, { config: { permissions: "./src/absent.ts" } }),
-    ).toEqual({
+    ).toStrictEqual({
       code: 2,
       output: "PermDock CLI: permissions module not found: src/absent.ts",
     });
-    expect(await usage(cwd, { config: {} })).toEqual({
+    expect(await usage(cwd, { config: {} })).toStrictEqual({
       code: 2,
       output: "usage: set policy in permdock.config.ts",
     });
-    expect(await usage(cwd, { config: { policy: "./src/absent.ts" } })).toEqual(
-      {
-        code: 2,
-        output: "PermDock CLI: policy module not found: ./src/absent.ts",
-      },
-    );
+    expect(
+      await usage(cwd, { config: { policy: "./src/absent.ts" } }),
+    ).toStrictEqual({
+      code: 2,
+      output: "PermDock CLI: policy module not found: ./src/absent.ts",
+    });
     await expect(
       usage(cwd, { config: { policy: "./src/not-policy.ts" } }),
     ).rejects.toMatchObject({
@@ -128,7 +128,7 @@ describe("conditions on undeclared fields", () => {
     const result = report((await usage(cwd)).output);
     expect(
       result.undeclared.map((item) => [item.key, item.detail.split(" reads ")]),
-    ).toEqual(
+    ).toStrictEqual(
       [
         ["policy grant", "w1"],
         ["policy grant", "w2"],
@@ -146,7 +146,7 @@ describe("conditions on undeclared fields", () => {
     );
     expect(
       report((await usage(cwd, { ignore: ["post.read"] })).output).undeclared,
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 
@@ -242,7 +242,7 @@ describe("the usage report", () => {
       "post.list",
     ];
     const loose = await usage(cwd, { ignore });
-    expect(report(loose.output).unused).toEqual([
+    expect(report(loose.output).unused).toStrictEqual([
       { kind: "unused", key: "note.read", detail: "defined" },
     ]);
     expect(loose.code).toBe(0);
@@ -252,7 +252,7 @@ describe("the usage report", () => {
       dynamicAsUsed: true,
       strict: true,
     });
-    expect(report(dynamic.output).unused).toEqual([]);
+    expect(report(dynamic.output).unused).toStrictEqual([]);
     expect(dynamic.code).toBe(0);
     const human = await usage(cwd, { ignore, json: false });
     expect(human.output).toContain("  1 warning, 0 errors\n");
@@ -264,7 +264,7 @@ describe("the usage report", () => {
       ...files,
       "src/all.ts": `export const all = (permdock: never, options: never) => permdock.snapshot(options);\n`,
     });
-    expect(report((await usage(cwd)).output).outsideInclude).toEqual([]);
+    expect(report((await usage(cwd)).output).outsideInclude).toStrictEqual([]);
   });
 
   it("treats doctor.clientEntries as client files", async () => {
@@ -279,8 +279,8 @@ describe("the usage report", () => {
         (await usage(cwd, { config: { ...CONFIG, doctor: { clientEntries } } }))
           .output,
       ).outsideInclude.map((item) => item.detail);
-    expect(await run([])).toEqual([]);
-    expect(await run(["src/entry.ts"])).toEqual([
+    expect(await run([])).toStrictEqual([]);
+    expect(await run(["src/entry.ts"])).toStrictEqual([
       "src/entry.ts:2 (can) is outside every snapshot include",
     ]);
   });

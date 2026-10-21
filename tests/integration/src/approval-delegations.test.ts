@@ -166,7 +166,7 @@ describe("approval_delegations policies", () => {
         )
       ).rows.map((row) => row.delegator);
     });
-    expect(inserted).toEqual([REQUESTER]);
+    expect(inserted).toStrictEqual([REQUESTER]);
   });
 
   it("refuses a cover for someone else, in another tenant, and hides others' covers", async () => {
@@ -216,7 +216,9 @@ describe("tableApprovalDelegationSource over the generated table", () => {
       (await source.delegationsFor({ delegate: SECOND, at })).map(
         (entry) => entry.id,
       ),
-    ).toEqual(["second-hop"]);
-    expect(await source.delegationsFor({ delegate: COVER, at })).toEqual([]);
+    ).toStrictEqual(["second-hop"]);
+    expect(await source.delegationsFor({ delegate: COVER, at })).toStrictEqual(
+      [],
+    );
   });
 });

@@ -576,7 +576,7 @@ describe("membership source helpers with levels", () => {
       const body = sql.slice(start, sql.indexOf("$$;", start));
       expect(body).toContain("c.permission || coalesce('@' || c.level, '')");
     }
-    expect(missing).toEqual([]);
+    expect(missing).toStrictEqual([]);
     expect(sql).toContain(
       "array(select c.permission || coalesce('@' || c.level, '') from",
     );

@@ -29,14 +29,14 @@ describe("PD005 Agent Skills", () => {
   const ROOT = { "pnpm-workspace.yaml": "packages:\n  - packages/*\n" };
 
   it("warns when skills are missing, then when only the lock is missing", () => {
-    expect(messages(pd005(project(ROOT)))).toEqual([
+    expect(messages(pd005(project(ROOT)))).toStrictEqual([
       "Agent Skills are not installed",
     ]);
     expect(
       messages(
         pd005(project({ ...ROOT, ".cursor/skills/permdock/SKILL.md": SKILL })),
       ),
-    ).toEqual(["skills lock is missing"]);
+    ).toStrictEqual(["skills lock is missing"]);
     expect(
       pd005(
         project({
@@ -45,7 +45,7 @@ describe("PD005 Agent Skills", () => {
           ".permdock/skills-lock.json": "{}",
         }),
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("finds skills and the skills CLI lock at the workspace root of a package", () => {
@@ -58,16 +58,16 @@ describe("PD005 Agent Skills", () => {
       }),
       "packages/identity/package.json": '{"name":"identity"}',
     });
-    expect(pd005(path.join(root, "packages/identity"))).toEqual([]);
+    expect(pd005(path.join(root, "packages/identity"))).toStrictEqual([]);
     const otherLock = project({
       ...ROOT,
       ".agents/skills/permdock/SKILL.md": SKILL,
       "skills-lock.json": JSON.stringify({ version: 1, skills: {} }),
       "packages/identity/package.json": '{"name":"identity"}',
     });
-    expect(messages(pd005(path.join(otherLock, "packages/identity")))).toEqual([
-      "skills lock is missing",
-    ]);
+    expect(
+      messages(pd005(path.join(otherLock, "packages/identity"))),
+    ).toStrictEqual(["skills lock is missing"]);
   });
 });
 
@@ -84,17 +84,19 @@ describe("PD006 TypeScript version", () => {
     ["8.0.0", "TypeScript 8.0.0 is not in the supported matrix (5.9, 6, 7)"],
   ])("errors on TypeScript %s", (version, message) => {
     const findings = pd006(withTypescript(JSON.stringify({ version })));
-    expect(findings).toEqual([
+    expect(findings).toStrictEqual([
       expect.objectContaining({ code: "PD006", severity: "error", message }),
     ]);
   });
 
   it.each(["5.9.2", "6.0.1", "7.0.0"])("accepts TypeScript %s", (version) => {
-    expect(pd006(withTypescript(JSON.stringify({ version })))).toEqual([]);
+    expect(pd006(withTypescript(JSON.stringify({ version })))).toStrictEqual(
+      [],
+    );
   });
 
   it("errors when typescript cannot be loaded", () => {
-    expect(messages(pd006(withTypescript("{")))).toEqual([
+    expect(messages(pd006(withTypescript("{")))).toStrictEqual([
       "typescript is not installed",
     ]);
   });
@@ -114,7 +116,7 @@ describe("PD009 duplicate copies", () => {
       path.join(cwd, "missing"),
       path.join(cwd, "node_modules/broken"),
     );
-    expect(pd009(cwd)).toEqual([
+    expect(pd009(cwd)).toStrictEqual([
       {
         code: "PD009",
         severity: "error",
@@ -128,7 +130,7 @@ describe("PD009 duplicate copies", () => {
   it("accepts one copy and stops past six levels", () => {
     expect(
       pd009(project({ "node_modules/permdock/package.json": manifest })),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     const deep = Array.from(
       { length: 7 },
       (_, index) => `node_modules/d${String(index)}`,
@@ -140,8 +142,8 @@ describe("PD009 duplicate copies", () => {
           [`${deep}/node_modules/permdock/package.json`]: manifest,
         }),
       ),
-    ).toEqual([]);
-    expect(pd009(path.join(project({}), "absent"))).toEqual([]);
+    ).toStrictEqual([]);
+    expect(pd009(path.join(project({}), "absent"))).toStrictEqual([]);
   });
 });
 
@@ -162,10 +164,10 @@ describe("PD012 draft pins", () => {
         ],
       },
     };
-    expect(messages(pd012(cwd, config))).toEqual([
+    expect(messages(pd012(cwd, config))).toStrictEqual([
       "./stale.json carries a draft pin the CLI no longer emits",
     ]);
-    expect(pd012(cwd, {})).toEqual([]);
+    expect(pd012(cwd, {})).toStrictEqual([]);
   });
 });
 
@@ -181,7 +183,7 @@ describe("sqlFiles", () => {
       sqlFiles(cwd, ["db", "other/*.sql", "other/*"]).map((file) =>
         path.relative(cwd, file),
       ),
-    ).toEqual(["db/b.sql", "db/nested/a.sql", "other/c.sql"]);
+    ).toStrictEqual(["db/b.sql", "db/nested/a.sql", "other/c.sql"]);
   });
 
   it("keeps a file entry as written and entry order on request", () => {
@@ -194,7 +196,7 @@ describe("sqlFiles", () => {
       sqlFiles(cwd, ["z/one.sql", "a/*.sql"], { order: "entry" }).map((file) =>
         path.relative(cwd, file),
       ),
-    ).toEqual(["z/one.sql", "a/three.sql", "a/two.sql"]);
+    ).toStrictEqual(["z/one.sql", "a/three.sql", "a/two.sql"]);
   });
 });
 
@@ -203,7 +205,7 @@ describe("PD022 security_invoker views", () => {
     const cwd = project({
       "supabase/migrations/001.sql": "create view v as select 1;\n",
     });
-    expect(pd022(cwd, {})).toEqual([]);
+    expect(pd022(cwd, {})).toStrictEqual([]);
   });
 
   it("reads doctor.migrations, a redefinition, alter view and field companions", () => {
@@ -219,7 +221,9 @@ alter view if exists fixed set (security_invoker);
 alter view kept set (check_option = local);
 `,
     });
-    expect(messages(pd022(cwd, { doctor: { migrations: ["sql"] } }))).toEqual([
+    expect(
+      messages(pd022(cwd, { doctor: { migrations: ["sql"] } })),
+    ).toStrictEqual([
       "view public.redefined in sql/002.sql is not security_invoker, so it reads past row level security",
     ]);
   });
@@ -244,10 +248,10 @@ revoke all on profiles from public cascade;
 `,
     });
     const plan = () => ({ table: "profiles", columns: ["region"], errors: [] });
-    expect(messages(pd028(cwd, config(["a"]), plan))).toEqual([
+    expect(messages(pd028(cwd, config(["a"]), plan))).toStrictEqual([
       "attrs reads region from public.profiles, which the migrations let anon or authenticated insert or update: a user could set their own attribute",
     ]);
-    expect(pd028(cwd, config(["b"]), plan)).toEqual([]);
+    expect(pd028(cwd, config(["b"]), plan)).toStrictEqual([]);
   });
 
   it("counts the Supabase default privileges on a public table until a migration revokes them", () => {
@@ -259,11 +263,11 @@ revoke all on profiles from public cascade;
       "b/001.sql": `${create}revoke insert, update on public.profiles from anon, authenticated;\n`,
       "c/001.sql": `alter default privileges in schema public revoke all on tables from anon, authenticated;\n${create}`,
     });
-    expect(messages(pd028(cwd, config(["a"]), plan))).toEqual([
+    expect(messages(pd028(cwd, config(["a"]), plan))).toStrictEqual([
       "attrs reads region from public.profiles, which the migrations let anon or authenticated insert or update: a user could set their own attribute",
     ]);
-    expect(pd028(cwd, config(["b"]), plan)).toEqual([]);
-    expect(pd028(cwd, config(["c"]), plan)).toEqual([]);
+    expect(pd028(cwd, config(["b"]), plan)).toStrictEqual([]);
+    expect(pd028(cwd, config(["c"]), plan)).toStrictEqual([]);
   });
 
   it("reports the plan errors and skips the column check without a table", () => {
@@ -272,7 +276,7 @@ revoke all on profiles from public cascade;
       columns: ["region"],
       errors: ["attrs lists user_metadata.plan, which is user-editable"],
     }));
-    expect(findings).toEqual([
+    expect(findings).toStrictEqual([
       {
         code: "PD028",
         severity: "error",
@@ -318,8 +322,8 @@ grant update (user_id, name) on public.contact_profiles to authenticated;
   });
 
   it("returns only membership findings without attrs", () => {
-    expect(pd028(project({}), {}, () => ({ columns: [], errors: [] }))).toEqual(
-      [],
-    );
+    expect(
+      pd028(project({}), {}, () => ({ columns: [], errors: [] })),
+    ).toStrictEqual([]);
   });
 });

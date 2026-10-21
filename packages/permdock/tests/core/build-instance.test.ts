@@ -42,7 +42,7 @@ describe("buildInstance and buildReportingInstance", () => {
       sources: { sink: sourceSink },
       scope: { sink: scopeSink, tenant: undefined },
     });
-    expect(options).toEqual({ sink: scopeSink });
+    expect(options).toStrictEqual({ sink: scopeSink });
     expect("tenant" in options).toBe(false);
   });
 
@@ -60,7 +60,7 @@ describe("buildInstance and buildReportingInstance", () => {
       seen.push(error);
     });
     built.report(later);
-    expect(seen).toEqual([queued, later]);
+    expect(seen).toStrictEqual([queued, later]);
   });
 
   it("applies wrap last and leaves out report without errors", async () => {

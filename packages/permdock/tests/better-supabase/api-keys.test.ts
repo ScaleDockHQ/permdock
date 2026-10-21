@@ -95,7 +95,7 @@ describe("apiKeyVerifier", () => {
         user_id: USER,
         expires_at: "2027-01-01T00:00:00Z",
       }).verify(await token()),
-    ).toEqual({
+    ).toStrictEqual({
       v: 1,
       id: "0123456789abcdef",
       kind: "user",
@@ -253,7 +253,7 @@ describe("apiKeyVerifier conformance", () => {
 
 describe("apiKeyClaimOptions", () => {
   it("reads rls.apiKeys and the tenant claim", () => {
-    expect(apiKeyClaimOptions(withApiKeys)).toEqual({
+    expect(apiKeyClaimOptions(withApiKeys)).toStrictEqual({
       claim: {
         name: "api_key",
         scopes: "scopes",

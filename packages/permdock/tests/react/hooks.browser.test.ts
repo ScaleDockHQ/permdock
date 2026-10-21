@@ -245,7 +245,7 @@ describe("permdock/react hooks on the client", () => {
     await act(async () => {
       await request?.("please");
     });
-    expect(posts).toEqual(["/api/approvals"]);
+    expect(posts).toStrictEqual(["/api/approvals"]);
     expect(view.textContent).toBe("pending:pd1.tokennot-needed:none");
   });
 });

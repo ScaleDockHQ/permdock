@@ -61,7 +61,7 @@ describe("authorizationProvider", () => {
     });
     expect(provider.functions.idsWithFor).toBeUndefined();
     expect(provider.functions.canAssign).toBeUndefined();
-    expect(provider.permissions).toEqual([]);
+    expect(provider.permissions).toStrictEqual([]);
     expect(provider.problems).toBeUndefined();
     expect(Object.isFrozen(provider.functions)).toBe(true);
   });
@@ -70,7 +70,7 @@ describe("authorizationProvider", () => {
     const provider = authorizationProvider({
       manifest: supabaseHookManifestFixture,
     });
-    expect(provider.problems).toEqual([
+    expect(provider.problems).toStrictEqual([
       expect.stringContaining("Pass `catalog`"),
     ]);
   });
@@ -79,7 +79,7 @@ describe("authorizationProvider", () => {
     const provider = authorizationProvider({
       manifest: supabaseHookManifestFixture,
     });
-    expect(provider.requires).toEqual([
+    expect(provider.requires).toStrictEqual([
       {
         function: "permdock.permitted_tenant_ids_by_permission",
         args: "text",
@@ -110,7 +110,7 @@ describe("authorizationProvider", () => {
     } = supabaseHookManifestFixture;
     const provider = authorizationProvider({ manifest: hookless });
     expect(provider.tokenHook).toBeUndefined();
-    expect(provider.scopes).toEqual(
+    expect(provider.scopes).toStrictEqual(
       authorizationProvider({ manifest: supabaseHookManifestFixture }).scopes,
     );
   });
@@ -119,7 +119,7 @@ describe("authorizationProvider", () => {
     const { tokenHook } = authorizationProvider({
       manifest: supabaseHookManifestFixture,
     });
-    expect(tokenHook).toEqual({
+    expect(tokenHook).toStrictEqual({
       function: "permdock.custom_access_token_hook",
       tenantClaim: "tenant_id",
       ownedClaims: [
@@ -170,7 +170,7 @@ describe("authorizationProvider", () => {
     });
     await expect(testAuthorizationProvider(provider)).resolves.toBeDefined();
     expect(provider.tenantScope).toBe("organization");
-    expect(provider.scopes).toEqual([
+    expect(provider.scopes).toStrictEqual([
       { name: "organization", idType: "uuid" },
       { name: "customer", idType: "uuid", parent: "organization" },
     ]);
@@ -323,7 +323,7 @@ describe("authorizationProvider", () => {
     );
     expect(provider.functions.memberIds).toBeUndefined();
     expect(provider.memberships).toBeUndefined();
-    expect(provider.problems).toEqual([
+    expect(provider.problems).toStrictEqual([
       expect.stringContaining("has no AuthZ.permitted_tenant_ids"),
       expect.stringContaining("has no AuthZ.permdock_has"),
       expect.stringContaining("reads its user id through public.people"),
@@ -391,7 +391,7 @@ describe("authorizationProvider", () => {
       args: "uuid, text, text",
       role: "postgres",
     });
-    expect(provider.roleSources).toEqual([
+    expect(provider.roleSources).toStrictEqual([
       {
         table: "public.memberships",
         role: {
@@ -400,7 +400,7 @@ describe("authorizationProvider", () => {
         },
       },
     ]);
-    expect(provider.suspension).toEqual({
+    expect(provider.suspension).toStrictEqual({
       user: { table: "public.profiles", id: "id", disabledAt: "disabled_at" },
       tenant: {
         table: "public.tenants",
@@ -448,7 +448,7 @@ describe("authorizationProvider", () => {
       canAssignFor:
         "permdock.permdock_can_assign_any_for({user}, {role}, {tenant}, '{scope}', {tenant}::text)",
     });
-    expect(provider.requires).toEqual(
+    expect(provider.requires).toStrictEqual(
       expect.arrayContaining([
         {
           function: "permdock.permdock_can_assign_any",
@@ -504,7 +504,7 @@ describe("authorizationProvider", () => {
     expect(provider.functions.canAssign).toBe(
       "permdock.permdock_can_assign({role}, {tenant}::text)",
     );
-    expect(provider.problems).toEqual([
+    expect(provider.problems).toStrictEqual([
       expect.stringContaining(
         'The tenant scope "project" is not a root scope, so canAssign checks declared roles only',
       ),
@@ -617,7 +617,7 @@ describe("authorizationProvider", () => {
         args: "jsonb, text",
         role: "postgres",
       });
-      expect(provider.problems).toEqual([
+      expect(provider.problems).toStrictEqual([
         expect.stringContaining("tools.approve is not in the catalog"),
       ]);
     });
@@ -687,14 +687,14 @@ describe("authorizationProvider", () => {
           "invoice.send": { kind: "role", role: "admin", scope: "tenant" },
         },
       });
-      expect(provider.problems).toEqual([
+      expect(provider.problems).toStrictEqual([
         expect.stringContaining("empty kind"),
         expect.stringContaining("a role approver"),
       ]);
       expect(provider.functions.isApprover).toContain("'invoice.send'");
       const none = authorizationProvider({ manifest, catalog, approvers: {} });
       expect(none.functions).not.toHaveProperty("isApprover");
-      expect(none.problems).toEqual([expect.stringContaining("no kind")]);
+      expect(none.problems).toStrictEqual([expect.stringContaining("no kind")]);
     });
 
     it("sets no approver template without permdock_is_approver", () => {
@@ -749,7 +749,7 @@ describe("authorizationProvider", () => {
       "int",
       "INT4",
     ]) {
-      expect(scoped(type).scopes).toEqual([
+      expect(scoped(type).scopes).toStrictEqual([
         { name: "tenant", idType: moduleIdType(type) },
       ]);
     }
@@ -837,7 +837,7 @@ describe("authorizationProvider", () => {
       permission: "invoice.send",
       meta: { risk: "high", effects: ["external", "write"] },
     };
-    expect(provider.operations).toEqual({
+    expect(provider.operations).toStrictEqual({
       "ai.tool.send_invoice": sent,
       "mcp.tool.send_invoice": sent,
       "workflow.node.http": {
@@ -850,7 +850,7 @@ describe("authorizationProvider", () => {
     expect(
       authorizationProvider({ manifest: supabaseHookManifestFixture }),
     ).not.toHaveProperty("operations");
-    expect(provider.delegation).toEqual({
+    expect(provider.delegation).toStrictEqual({
       scopes: {
         "invoice:send": ["invoice.send"],
         "http:call": ["http.call"],
@@ -886,7 +886,7 @@ describe("authorizationProvider", () => {
       },
     });
     await expect(testAuthorizationProvider(provider)).resolves.toBeDefined();
-    expect(provider.delegation).toEqual({
+    expect(provider.delegation).toStrictEqual({
       scopes: {
         "mcp:read": ["task.read"],
         "mcp:write": ["task.read", "task.update"],
@@ -927,7 +927,7 @@ describe("authorizationProvider", () => {
         ],
       },
     });
-    expect(provider.delegation).toEqual({
+    expect(provider.delegation).toStrictEqual({
       scopes: { "doc:read": ["doc.read"], "doc:view": ["doc.read"] },
     });
   });

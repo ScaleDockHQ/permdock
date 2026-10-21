@@ -14,11 +14,11 @@ const user: Author = {
 
 describe("chatSdkAuthor", () => {
   it("maps a Chat SDK author to a ChatAuthor named by the adapter", () => {
-    expect(chatSdkAuthor(user, { name: "slack" })).toEqual({
+    expect(chatSdkAuthor(user, { name: "slack" })).toStrictEqual({
       provider: "slack",
       userId: "U2",
     });
-    expect(chatSdkAuthor(user, "slack", { workspace: "T1" })).toEqual({
+    expect(chatSdkAuthor(user, "slack", { workspace: "T1" })).toStrictEqual({
       provider: "slack",
       userId: "U2",
       workspace: "T1",

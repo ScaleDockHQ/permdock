@@ -56,7 +56,7 @@ describe("CLI flag docs", () => {
     const docs = page("index");
     expect(
       documented(GLOBAL_FLAGS).filter((flag) => !mentions(docs, flag)),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it.each(
@@ -66,7 +66,7 @@ describe("CLI flag docs", () => {
     const docs = page(entry.docs);
     expect(
       documented(leaf.flags).filter((flag) => !mentions(docs, flag)),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it.each(PAGES)(
@@ -84,7 +84,7 @@ describe("CLI flag docs", () => {
         )
         .filter((match) => match !== null)
         .map((match) => [match[1], match[2]?.replaceAll("`", "")]);
-      expect(rows).toEqual(
+      expect(rows).toStrictEqual(
         LEAVES.filter(({ entry }) => entry.docs === name).map(
           ({ path: words, entry }) => [
             words.join(" "),
@@ -106,9 +106,9 @@ describe("CLI flag docs", () => {
           known.add(flag);
         }
       }
-      expect(tableFlags(page(name)).filter((flag) => !known.has(flag))).toEqual(
-        [],
-      );
+      expect(
+        tableFlags(page(name)).filter((flag) => !known.has(flag)),
+      ).toStrictEqual([]);
     },
   );
 });

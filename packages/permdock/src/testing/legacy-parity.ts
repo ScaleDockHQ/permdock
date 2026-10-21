@@ -37,10 +37,9 @@ export function testLegacyParity(
         data: entry.row,
         subject: permdock.subject,
       });
-      expect({ permission: entry.permission.key, granted: ours }).toEqual({
-        permission: entry.permission.key,
-        granted: entry.expect ?? theirs,
-      });
+      expect({ permission: entry.permission.key, granted: ours }).toStrictEqual(
+        { permission: entry.permission.key, granted: entry.expect ?? theirs },
+      );
     });
   }
 }

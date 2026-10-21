@@ -57,7 +57,7 @@ describe("subjectFromCiOidc", () => {
       audience: AUDIENCE,
       jwks: JWKS,
     });
-    expect(subject.principal).toEqual({
+    expect(subject.principal).toStrictEqual({
       id: "repo:acme/api:environment:production",
       kind: "workload",
       issuer: "https://token.actions.githubusercontent.com",
@@ -133,8 +133,8 @@ describe("subjectFromCiOidc", () => {
     );
     expect(
       [wrongIssuer, wrongAudience, outsideRepo].map((s) => s.principal),
-    ).toEqual([null, null, null]);
-    expect(events.map((event) => event.source)).toEqual([
+    ).toStrictEqual([null, null, null]);
+    expect(events.map((event) => event.source)).toStrictEqual([
       "ci-oidc",
       "ci-oidc",
       "ci-oidc",

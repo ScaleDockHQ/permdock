@@ -56,10 +56,9 @@ describe("runDoctor", () => {
       only: ["skills", "catalog"],
       json: true,
     });
-    expect(report(before.output).findings.map((item) => item.code)).toEqual([
-      "PD004",
-      "PD005",
-    ]);
+    expect(
+      report(before.output).findings.map((item) => item.code),
+    ).toStrictEqual(["PD004", "PD005"]);
     const after = await doctor(cwd, config, {
       only: ["skills", "catalog"],
       json: true,
@@ -89,7 +88,7 @@ describe("runDoctor", () => {
     );
     expect(
       report(result.output).findings.map((item) => [item.code, item.severity]),
-    ).toEqual([
+    ).toStrictEqual([
       ["PD011", "warning"],
       ["PD013", "warning"],
       ["PD013", "error"],
@@ -147,13 +146,13 @@ tenant: 'org_id',
     });
     const hook: PermDockConfig = { supabase: { hook: { memberships: [] } } };
     const result = await doctor(cwd, hook, { only: ["PD038"], json: true });
-    expect(report(result.output).findings.map((item) => item.code)).toEqual([
-      "PD038",
-    ]);
+    expect(
+      report(result.output).findings.map((item) => item.code),
+    ).toStrictEqual(["PD038"]);
     expect(
       report((await doctor(cwd, {}, { only: ["PD038"], json: true })).output)
         .findings,
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("PD057 runs only under rls.anonymousSignIns: 'deny'", async () => {
@@ -162,13 +161,13 @@ tenant: 'org_id',
     });
     const deny: PermDockConfig = { rls: { anonymousSignIns: "deny" } };
     const result = await doctor(cwd, deny, { only: ["PD057"], json: true });
-    expect(report(result.output).findings.map((item) => item.code)).toEqual([
-      "PD057",
-    ]);
+    expect(
+      report(result.output).findings.map((item) => item.code),
+    ).toStrictEqual(["PD057"]);
     expect(
       report((await doctor(cwd, {}, { only: ["PD057"], json: true })).output)
         .findings,
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("skips the helper checks when the hook manifest cannot be built", async () => {
@@ -184,7 +183,7 @@ tenant: 'org_id',
       },
       { only: ["helpers"], json: true },
     );
-    expect(report(result.output).findings).toEqual([]);
+    expect(report(result.output).findings).toStrictEqual([]);
   });
 
   it("reads PD021 variables from process.env without io.env", async () => {
@@ -205,9 +204,9 @@ tenant: 'org_id',
     vi.stubEnv("PERMDOCK_CLOUD_URL", "https://cloud.test");
     vi.stubEnv("PERMDOCK_CLOUD_KEY", "");
     try {
-      expect(await codes()).toEqual(["PD021"]);
+      expect(await codes()).toStrictEqual(["PD021"]);
       vi.stubEnv("PERMDOCK_CLOUD_KEY", "key");
-      expect(await codes()).toEqual([]);
+      expect(await codes()).toStrictEqual([]);
     } finally {
       vi.unstubAllEnvs();
     }

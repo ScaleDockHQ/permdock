@@ -23,7 +23,7 @@ describe("idempotencyRecord", () => {
       }),
       now: 1000,
     });
-    expect(record).toEqual({
+    expect(record).toStrictEqual({
       key: "u_1\nk1",
       response: {
         fingerprint: `approve apr_1 ${sha256Digest("")}`,

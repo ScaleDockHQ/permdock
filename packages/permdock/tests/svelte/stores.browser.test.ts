@@ -105,36 +105,38 @@ describe("permdock/svelte context stores", () => {
     expect(stores.permdock.subject.principal?.id).toBe("u1");
     expect(get(stores.permission).allowed).toBe(true);
     const set = get(stores.permissions);
-    expect(set.granted.map((leaf) => leaf.key)).toEqual(["post.update"]);
+    expect(set.granted.map((leaf) => leaf.key)).toStrictEqual(["post.update"]);
     const byKey: unknown = Reflect.get(set, "post.update");
     expect(byKey).toMatchObject({ allowed: true });
     expect(set.get(defs.post.publish)?.allowed).toBe(false);
-    expect([...get(stores.filtered)]).toEqual([ownPost]);
+    expect([...get(stores.filtered)]).toStrictEqual([ownPost]);
     expect(get(stores.filtered).partial).toBe(false);
     expect(get(stores.tenant)).toMatchObject({ tenant: null, tenants: [] });
     await get(stores.tenant).switchTo("o1");
     expect(stores.permdock.status()).toBe("ready");
-    expect(get(stores.memberships)).toEqual([]);
-    expect(get(stores.roles).roles.map((role) => role.key)).toEqual(["member"]);
-    expect(get(stores.tenantRoles).roles.map((role) => role.key)).toEqual([
+    expect(get(stores.memberships)).toStrictEqual([]);
+    expect(get(stores.roles).roles.map((role) => role.key)).toStrictEqual([
       "member",
     ]);
-    expect(get(stores.teamRoles).roles.map((role) => role.key)).toEqual([
+    expect(get(stores.tenantRoles).roles.map((role) => role.key)).toStrictEqual(
+      ["member"],
+    );
+    expect(get(stores.teamRoles).roles.map((role) => role.key)).toStrictEqual([
       "member",
     ]);
-    expect(get(stores.assignable)).toEqual([]);
-    expect(get(stores.assignablePermissions)).toEqual([]);
+    expect(get(stores.assignable)).toStrictEqual([]);
+    expect(get(stores.assignablePermissions)).toStrictEqual([]);
     expect(get(stores.subject)).toMatchObject({
       principal: { id: "u1" },
       simulated: false,
     });
     const handle = get(stores.approval);
-    expect({ state: handle.state, token: handle.token }).toEqual({
+    expect({ state: handle.state, token: handle.token }).toStrictEqual({
       state: "required",
       token: "pd1.token",
     });
     await handle.request("please");
-    expect(posts).toEqual(["/api/approvals"]);
+    expect(posts).toStrictEqual(["/api/approvals"]);
     expect(get(stores.approval).state).toBe("pending");
     await stop();
   });
@@ -146,7 +148,7 @@ describe("permdock/svelte context stores", () => {
     });
     // SAFETY: the harness hands over the stores it built under setPermDock.
     const handle = get((value as Stores).approval);
-    expect({ state: handle.state, token: handle.token }).toEqual({
+    expect({ state: handle.state, token: handle.token }).toStrictEqual({
       state: "not-needed",
       token: undefined,
     });

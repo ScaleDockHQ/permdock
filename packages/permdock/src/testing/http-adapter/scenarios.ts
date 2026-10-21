@@ -209,7 +209,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           org: "acme",
         });
         expect(upgrade.status).toBe(403);
-        expect(new Set(reasonsOf(upgrade.body))).toEqual(
+        expect(new Set(reasonsOf(upgrade.body))).toStrictEqual(
           new Set(["not-entitled"]),
         );
       },
@@ -305,7 +305,9 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
         );
         expect(denied.status).toBe(fromProtect.status);
         for (const key of ["type", "title", "permission", "denials"]) {
-          expect(field(denied.body, key)).toEqual(field(fromProtect.body, key));
+          expect(field(denied.body, key)).toStrictEqual(
+            field(fromProtect.body, key),
+          );
         }
         expect(
           (await send("bob", { op: "project.delete", org: "acme", id: "p3" }))
@@ -410,7 +412,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           Array.isArray(rows)
             ? rows.map((row: unknown) => field(row, "decision"))
             : rows,
-        ).toEqual([true, false]);
+        ).toStrictEqual([true, false]);
       },
     );
 
@@ -426,7 +428,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           file,
         });
         expect(uploaded.status).toBe(201);
-        expect(uploaded.body).toEqual({ name: "notes.txt", size: 5 });
+        expect(uploaded.body).toStrictEqual({ name: "notes.txt", size: 5 });
         expect(
           (
             await send("bob", {
@@ -472,7 +474,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
               ).status,
           ),
         );
-        expect(statuses).toEqual(calls.map((entry) => entry.status));
+        expect(statuses).toStrictEqual(calls.map((entry) => entry.status));
       },
     );
 
@@ -554,7 +556,7 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
             expect(frame?.event).toBe("message");
             ids.push(String(field(JSON.parse(frame?.data ?? "{}"), "id")));
           }
-          expect(new Set(ids)).toEqual(new Set(["p1", "p3", "p4"]));
+          expect(new Set(ids)).toStrictEqual(new Set(["p1", "p3", "p4"]));
         } finally {
           await stream.cancel();
         }

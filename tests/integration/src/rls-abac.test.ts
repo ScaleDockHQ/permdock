@@ -358,8 +358,8 @@ describe.each(["supabase", "neon", "guc"] as const)(
         Object.fromEntries(
           report.results.map((item) => [item.name, item.granted]),
         ),
-      ).toEqual(expected);
-      expect(report.results.filter((item) => !item.ok)).toEqual([]);
+      ).toStrictEqual(expected);
+      expect(report.results.filter((item) => !item.ok)).toStrictEqual([]);
     });
   },
 );

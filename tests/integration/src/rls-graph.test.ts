@@ -203,15 +203,15 @@ describe("relationship graph in RLS (closure table)", () => {
     }
     for (const sub of [VERA, HANA, EDITH]) {
       for (const table of ["doc", "folder"] as const) {
-        expect(await visible(db, sub, table)).toEqual(
+        expect(await visible(db, sub, table)).toStrictEqual(
           await inProcess(sub, table, FOLDERS),
         );
       }
     }
-    expect(await visible(db, VERA, "folder")).toEqual(
+    expect(await visible(db, VERA, "folder")).toStrictEqual(
       [f(1), f(2), f(3), f(4), f(5)].toSorted(),
     );
-    expect(await visible(db, HANA, "doc")).toEqual([d(7), d(8)]);
+    expect(await visible(db, HANA, "doc")).toStrictEqual([d(7), d(8)]);
   });
 
   it("keeps the closure current when a branch moves or a folder turns restricted", async () => {
@@ -231,7 +231,7 @@ describe("relationship graph in RLS (closure table)", () => {
       }),
     );
     for (const sub of [VERA, HANA, EDITH]) {
-      expect(await visible(db, sub, "folder")).toEqual(
+      expect(await visible(db, sub, "folder")).toStrictEqual(
         await inProcess(sub, "folder", folders),
       );
     }
@@ -269,7 +269,7 @@ describe("relationship graph in RLS (closure table)", () => {
           )
         ).rows.map((row) => row.ancestor),
     );
-    expect(rows).toEqual([f(7)]);
+    expect(rows).toStrictEqual([f(7)]);
     const plan = await db.as(
       { role: "authenticated", settings: claims(VERA) },
       async () =>

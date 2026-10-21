@@ -59,7 +59,7 @@ describe("custom-role functions keyed by role id", () => {
     );
     expect(
       sql.match(/^grant execute .*$/gmu)?.map((line) => line.split(" to ")[1]),
-    ).toEqual(["authenticated;", '"service_role";']);
+    ).toStrictEqual(["authenticated;", '"service_role";']);
     expect(sql).toContain(
       'grant usage on schema "permdock" to "service_role";',
     );

@@ -146,7 +146,7 @@ describe("long-running tools", () => {
       name: "delete_post",
       arguments: { id: "p1" },
     });
-    expect({ error: revoked.isError, text: text(revoked) }).toEqual({
+    expect({ error: revoked.isError, text: text(revoked) }).toStrictEqual({
       error: true,
       text: "Denied: post.delete was revoked before the call completed.",
     });
@@ -172,14 +172,14 @@ describe("tool updates", () => {
     });
     registered.update({ name: "release_post" });
     const client = await connect(server, { authInfo: undefined });
-    expect(await names(client)).toEqual([]);
+    expect(await names(client)).toStrictEqual([]);
     const refused = await client.callTool({
       name: "release_post",
       arguments: { id: "p1" },
     });
     expect(refused.isError).toBe(true);
     registered.update({ name: null });
-    expect(await names(client)).toEqual([]);
+    expect(await names(client)).toStrictEqual([]);
   });
 });
 
@@ -263,7 +263,7 @@ describe("verified auth info", () => {
     expect(
       text(await client.callTool({ name: "list_posts", arguments: {} })),
     ).toBe("[]");
-    expect(seen).toEqual([{ authorization_details: [{ type: "post" }] }]);
+    expect(seen).toStrictEqual([{ authorization_details: [{ type: "post" }] }]);
   });
 
   it("denies an anonymous caller when the subject throws", async () => {
@@ -369,7 +369,7 @@ describe("approval resume sources", () => {
         await client.callTool({ name: "delete_post", arguments: { id: "p1" } }),
       ),
     ).toBe("deleted p1");
-    expect({ minted: mint.mock.calls.length, messages }).toEqual({
+    expect({ minted: mint.mock.calls.length, messages }).toStrictEqual({
       minted: 1,
       messages: ["Ask your admin"],
     });
@@ -419,7 +419,7 @@ describe("resources and prompts with arguments", () => {
     const listed = await client.listResources(undefined, {
       cacheMode: "bypass",
     });
-    expect(listed.resources.map((resource) => resource.uri)).toEqual([
+    expect(listed.resources.map((resource) => resource.uri)).toStrictEqual([
       "posts://p1",
     ]);
     expect(
@@ -428,6 +428,6 @@ describe("resources and prompts with arguments", () => {
     await expect(
       client.getPrompt({ name: "review", arguments: { id: "p2" } }),
     ).rejects.toThrow(/Denied/u);
-    expect(loads).toEqual([{ id: "p1" }, { id: "p2" }]);
+    expect(loads).toStrictEqual([{ id: "p1" }, { id: "p2" }]);
   });
 });

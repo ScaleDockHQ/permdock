@@ -93,13 +93,13 @@ describe("rls.seeds: 'view'", () => {
         "seeds_view",
         `select c.relkind, c.reloptions from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'permdock' and c.relname = 'role_permissions'`,
       ),
-    ).toEqual([{ relkind: "v", reloptions: ["security_invoker=true"] }]);
+    ).toStrictEqual([{ relkind: "v", reloptions: ["security_invoker=true"] }]);
   });
 
   it("answers the same rows as the seeded table", async () => {
     const table = await rows("seeds_table", ROWS);
     expect(table.length).toBeGreaterThan(0);
-    expect(await rows("seeds_view", ROWS)).toEqual(table);
+    expect(await rows("seeds_view", ROWS)).toStrictEqual(table);
   });
 
   it("stays unreadable to the client roles", async () => {

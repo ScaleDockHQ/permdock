@@ -77,14 +77,14 @@ describe("requires in RLS: a share counts only where the role permission is held
         );
       }
     }
-    expect(mismatches).toEqual([]);
+    expect(mismatches).toStrictEqual([]);
     const [member, guest, blocked, reader, globex, none] = users;
-    expect(await visible(db, member?.id ?? "")).toEqual(["d-acme"]);
-    expect(await visible(db, guest?.id ?? "")).toEqual([]);
-    expect(await visible(db, blocked?.id ?? "")).toEqual(["d-globex"]);
-    expect(await visible(db, reader?.id ?? "")).toEqual(["d-acme"]);
-    expect(await visible(db, globex?.id ?? "")).toEqual(["d-globex"]);
-    expect(await visible(db, none?.id ?? "")).toEqual([]);
+    expect(await visible(db, member?.id ?? "")).toStrictEqual(["d-acme"]);
+    expect(await visible(db, guest?.id ?? "")).toStrictEqual([]);
+    expect(await visible(db, blocked?.id ?? "")).toStrictEqual(["d-globex"]);
+    expect(await visible(db, reader?.id ?? "")).toStrictEqual(["d-acme"]);
+    expect(await visible(db, globex?.id ?? "")).toStrictEqual(["d-globex"]);
+    expect(await visible(db, none?.id ?? "")).toStrictEqual([]);
   });
 
   it("answers permitted_drive_rows with the same drives, as the caller and for a named user", async () => {
@@ -117,7 +117,7 @@ describe("requires in RLS: a share counts only where the role permission is held
         }
       }
     }
-    expect(mismatches).toEqual([]);
+    expect(mismatches).toStrictEqual([]);
   });
 
   it("lets a key scoped to the required permission read the drives the share reaches", async () => {
@@ -141,11 +141,13 @@ describe("requires in RLS: a share counts only where the role permission is held
         },
         "select id from public.drive order by id",
       );
-    expect(await withKey(["file.read"])).toEqual(["d-acme"]);
-    expect(await withKey(["drive.read", "file.read"])).toEqual(["d-acme"]);
-    expect(await withKey(["drive.read"])).toEqual([]);
-    expect(await withKey(["file.write"])).toEqual([]);
-    expect(await withKey([])).toEqual([]);
+    expect(await withKey(["file.read"])).toStrictEqual(["d-acme"]);
+    expect(await withKey(["drive.read", "file.read"])).toStrictEqual([
+      "d-acme",
+    ]);
+    expect(await withKey(["drive.read"])).toStrictEqual([]);
+    expect(await withKey(["file.write"])).toStrictEqual([]);
+    expect(await withKey([])).toStrictEqual([]);
   });
 
   it("agrees with can() for every user under each key's scopes", async () => {
@@ -200,6 +202,6 @@ describe("requires in RLS: a share counts only where the role permission is held
         }
       }
     }
-    expect(mismatches).toEqual([]);
+    expect(mismatches).toStrictEqual([]);
   });
 });

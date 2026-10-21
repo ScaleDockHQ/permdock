@@ -39,7 +39,9 @@ describe("PermDock-Approval field", () => {
 
   it("serialises only an sf-token", () => {
     expect(approvalHeaderValue(TOKEN)).toBe(TOKEN);
-    expect(approvalHeaders(TOKEN)).toEqual({ "PermDock-Approval": TOKEN });
+    expect(approvalHeaders(TOKEN)).toStrictEqual({
+      "PermDock-Approval": TOKEN,
+    });
     expect(() => approvalHeaders(`"${TOKEN}"`)).toThrow(TypeError);
     expect(() => approvalHeaderValue(" a")).toThrow(TypeError);
     expect(() => approvalHeaderValue("")).toThrow(TypeError);

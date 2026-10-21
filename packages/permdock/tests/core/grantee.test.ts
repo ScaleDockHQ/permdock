@@ -121,7 +121,7 @@ describe("matchGrantee", () => {
       reason: "no-grant",
     },
   ])("denies $name", ({ to, subject, reason }) => {
-    expect(matchGrantee(to, subject, NOW, undefined)).toEqual({
+    expect(matchGrantee(to, subject, NOW, undefined)).toStrictEqual({
       matched: false,
       reason,
     });
@@ -133,7 +133,7 @@ describe("matchGrantee", () => {
     expect({
       anonymous: matchGrantee(forged, anonymous, NOW, undefined),
       listed: matchGrantee([forged], user(), NOW, undefined),
-    }).toEqual({
+    }).toStrictEqual({
       anonymous: { matched: false, reason: "no-grant", unknown: true },
       listed: { matched: false, reason: "no-grant", unknown: true },
     });
@@ -162,7 +162,7 @@ describe("matchGrantee", () => {
         undefined,
         true,
       ),
-    }).toEqual({
+    }).toStrictEqual({
       alone: { matched: true },
       withKnown: { matched: false, reason: "no-grant" },
     });
@@ -192,7 +192,7 @@ describe("relation graph starts", () => {
         node("doc"),
         node("folder"),
       ),
-    }).toEqual({
+    }).toStrictEqual({
       own: { field: "id", parent: false, depth: 16 },
       parent: { field: "folderId", parent: true, depth: 16 },
       fractional: { field: "id", parent: false, depth: 0 },
@@ -217,7 +217,7 @@ describe("relation graph starts", () => {
         resources,
       ),
       flat: resourceRoleCondition(node("doc"), "team", ["t1"], resources),
-    }).toEqual({
+    }).toStrictEqual({
       own: {
         op: "related",
         resource: "folder",
@@ -260,7 +260,7 @@ describe("relation graph starts", () => {
         resources,
       ),
       deep: relationHops({ ...teamMember, depth: 1 }, node("doc"), resources),
-    }).toEqual({
+    }).toStrictEqual({
       hops: {
         field: "teamId",
         hops: [{ link: "team", resource: "team" }],

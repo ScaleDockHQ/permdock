@@ -266,7 +266,9 @@ export function testAgentRuntime(options: AgentRuntimeOptions): void {
         const listed = await agent().allowedOperations(alice);
         expect(listed.has("project_read")).toBe(true);
         expect(listed.has("drop_database")).toBe(false);
-        expect([...(await agent().allowedOperations(mallory))]).toEqual([]);
+        expect([...(await agent().allowedOperations(mallory))]).toStrictEqual(
+          [],
+        );
       },
     );
 
@@ -298,12 +300,14 @@ export function testAgentRuntime(options: AgentRuntimeOptions): void {
       "permitted-models",
       "returns the granted models in declaration order",
       async () => {
-        expect(await agent().permittedModels(erin)).toEqual([
+        expect(await agent().permittedModels(erin)).toStrictEqual([
           "standard",
           "frontier",
         ]);
-        expect(await agent().permittedModels(alice)).toEqual(["standard"]);
-        expect(await agent().permittedModels(mallory)).toEqual([]);
+        expect(await agent().permittedModels(alice)).toStrictEqual([
+          "standard",
+        ]);
+        expect(await agent().permittedModels(mallory)).toStrictEqual([]);
       },
     );
 
@@ -316,13 +320,13 @@ export function testAgentRuntime(options: AgentRuntimeOptions): void {
           (await agent().filterResults("project_search", rows, alice)).map(
             (row) => row.id,
           ),
-        ).toEqual(["p1", "p2"]);
+        ).toStrictEqual(["p1", "p2"]);
         expect(
           await agent().filterResults("project_search", rows, mallory),
-        ).toEqual([]);
+        ).toStrictEqual([]);
         expect(
           await agent().filterResults("drop_database", rows, alice),
-        ).toEqual([]);
+        ).toStrictEqual([]);
       },
     );
 

@@ -37,7 +37,7 @@ describe("snapshot edges", () => {
       scopedSnap.filter(tree.post.read, [
         { id: "p1", orgId: "o9", authorId: "u1" },
       ]),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     const teamPolicy = definePolicy(tree, {
       roles: [role("lead", [allow(tree.post.read)], { on: "team" })],
       scopes: {

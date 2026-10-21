@@ -37,23 +37,27 @@ describe("permdock completion", () => {
 describe("completion candidates", () => {
   it("offers the visible top-level names and groups", async () => {
     const names = await candidates([""]);
-    expect(names).toEqual(expect.arrayContaining(["init", "rls", "cloud"]));
+    expect(names).toStrictEqual(
+      expect.arrayContaining(["init", "rls", "cloud"]),
+    );
     expect(names).not.toContain("__complete");
   });
 
   it("offers a group's subcommands", async () => {
-    expect(await candidates(["cloud", ""])).toEqual(
+    expect(await candidates(["cloud", ""])).toStrictEqual(
       expect.arrayContaining(["push", "pull"]),
     );
   });
 
   it("offers nothing under an unknown command, so the shell lists files", async () => {
-    expect(await candidates(["nope", ""])).toEqual([]);
+    expect(await candidates(["nope", ""])).toStrictEqual([]);
   });
 
   it("offers global flags on a group and leaf flags on a leaf", async () => {
-    expect(await candidates(["rls", "--j"])).toEqual(["--json"]);
-    expect(await candidates(["rls", "generate", "--sp"])).toEqual(["--split"]);
+    expect(await candidates(["rls", "--j"])).toStrictEqual(["--json"]);
+    expect(await candidates(["rls", "generate", "--sp"])).toStrictEqual([
+      "--split",
+    ]);
   });
 
   it("leaves hidden flags out", async () => {
@@ -65,23 +69,27 @@ describe("completion candidates", () => {
           .map(([name]) => `--${name}`),
       );
       const offered = await candidates([...leaf.path, "--"]);
-      expect(offered.filter((name) => hidden.has(name))).toEqual([]);
+      expect(offered.filter((name) => hidden.has(name))).toStrictEqual([]);
     }
   });
 
   it("offers an enum flag's options", async () => {
-    expect(await candidates(["catalog", "--format", "j"])).toEqual(["json"]);
+    expect(await candidates(["catalog", "--format", "j"])).toStrictEqual([
+      "json",
+    ]);
   });
 
   it("offers nothing after a plain string flag, so the shell lists files", async () => {
-    expect(await candidates(["rls", "generate", "--out", ""])).toEqual([]);
+    expect(await candidates(["rls", "generate", "--out", ""])).toStrictEqual(
+      [],
+    );
   });
 
   it("offers init archetypes and features from the preset catalogue", async () => {
-    expect(await candidates(["init", "--archetype", ""])).toEqual(
+    expect(await candidates(["init", "--archetype", ""])).toStrictEqual(
       ARCHETYPES.map((choice) => choice.id),
     );
-    expect(await candidates(["init", "--feature", ""])).toEqual(
+    expect(await candidates(["init", "--feature", ""])).toStrictEqual(
       FEATURES.map((choice) => choice.id),
     );
   });
@@ -89,34 +97,38 @@ describe("completion candidates", () => {
   it("completes after the last comma and skips values already given", async () => {
     expect(
       await candidates(["rls", "generate", "--split", "helpers,"]),
-    ).toEqual([
+    ).toStrictEqual([
       "helpers,seeds",
       "helpers,indexes",
       "helpers,policies",
       "helpers,hook",
     ]);
-    expect(await candidates(["init", "--integration", "ai-sdk,m"])).toEqual([
-      "ai-sdk,mcp",
-    ]);
+    expect(
+      await candidates(["init", "--integration", "ai-sdk,m"]),
+    ).toStrictEqual(["ai-sdk,mcp"]);
   });
 
   it("offers doctor codes and groups for --only", async () => {
     const offered = await candidates(["doctor", "--only", ""]);
-    expect(offered).toEqual(expect.arrayContaining(["PD001", "imports"]));
+    expect(offered).toStrictEqual(expect.arrayContaining(["PD001", "imports"]));
     expect(new Set(offered).size).toBe(offered.length);
   });
 
   it("offers skill clients", async () => {
-    expect(await candidates(["skills", "install", "--for", "cur"])).toEqual([
-      "cursor",
-    ]);
+    expect(
+      await candidates(["skills", "install", "--for", "cur"]),
+    ).toStrictEqual(["cursor"]);
   });
 
   it("offers codemod versions for the first positional only", async () => {
-    expect(await candidates(["codemod", ""])).toEqual(["0.5"]);
-    expect(await candidates(["codemod", "--dry-run", ""])).toEqual(["0.5"]);
-    expect(await candidates(["codemod", "0.5", ""])).toEqual([]);
-    expect(await candidates(["codemod", "--cwd", "app", ""])).toEqual(["0.5"]);
-    expect(await candidates(["codemod", "--", ""])).toEqual([]);
+    expect(await candidates(["codemod", ""])).toStrictEqual(["0.5"]);
+    expect(await candidates(["codemod", "--dry-run", ""])).toStrictEqual([
+      "0.5",
+    ]);
+    expect(await candidates(["codemod", "0.5", ""])).toStrictEqual([]);
+    expect(await candidates(["codemod", "--cwd", "app", ""])).toStrictEqual([
+      "0.5",
+    ]);
+    expect(await candidates(["codemod", "--", ""])).toStrictEqual([]);
   });
 });

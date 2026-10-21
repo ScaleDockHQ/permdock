@@ -94,7 +94,7 @@ describe("renderLlmsIndex", () => {
 
   it("turns separators into H2 sections and folders into H3", () => {
     const headings = index.split("\n").filter((line) => line.startsWith("#"));
-    expect(headings).toEqual([
+    expect(headings).toStrictEqual([
       "# PermDock",
       "## Start",
       "### Getting started",

@@ -56,7 +56,9 @@ describe("app obligations", () => {
     const permdock = getPermDockSync(policy, user);
     const decision = permdock.decide(permissions.doc.export, { id: "d_1" });
     expect(decision.outcome).toBe("granted");
-    expect(decision.outcome === "granted" && decision.obligations).toEqual([
+    expect(
+      decision.outcome === "granted" && decision.obligations,
+    ).toStrictEqual([
       { kind: "app", name: "watermark" },
       { kind: "app", name: "mfa-reprompt", detail: { maxAge: 300 } },
     ]);
@@ -71,7 +73,7 @@ describe("app obligations", () => {
     );
     const server = permdock.decide(permissions.doc.export, { id: "d_1" });
     const local = client.decide(permissions.doc.export, { id: "d_1" });
-    expect(local.outcome === "granted" && local.obligations).toEqual(
+    expect(local.outcome === "granted" && local.obligations).toStrictEqual(
       server.outcome === "granted" && server.obligations,
     );
     expect(local.outcome === "granted" && local.matched).toMatchObject({
@@ -142,7 +144,7 @@ describe("denied decisions", () => {
           )
         : undefined;
     const detail: DenialDetails["deny"] | undefined = named?.detail;
-    expect(detail).toEqual({ name: "no-deletes" });
+    expect(detail).toStrictEqual({ name: "no-deletes" });
   });
 });
 
@@ -176,7 +178,7 @@ describe("events and telemetry", () => {
       name: "watermarked-export",
       meta: { description: "Exports carry a watermark", x: { undo: 30 } },
     });
-    expect(event?.obligations).toEqual([
+    expect(event?.obligations).toStrictEqual([
       { kind: "app", name: "watermark" },
       { kind: "app", name: "mfa-reprompt", detail: { maxAge: 300 } },
     ]);

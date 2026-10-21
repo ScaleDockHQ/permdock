@@ -247,10 +247,10 @@ describe("compileGrants approval grants", () => {
       warnings,
       false,
     );
-    expect(branches.map((branch) => branch.permissionKey)).toEqual([
+    expect(branches.map((branch) => branch.permissionKey)).toStrictEqual([
       "invoice.read",
     ]);
-    expect(warnings).toEqual([
+    expect(warnings).toStrictEqual([
       "skipped approval grant clerk/invoice.pay",
       "skipped approval grant clerk/invoice.void",
       "skipped approval grant clerk/invoice.close",

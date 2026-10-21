@@ -104,7 +104,7 @@ describe("permdock login in an interactive terminal", () => {
     Object.defineProperty(process, "platform", { value: name });
     const result = await login();
     expect(result.code).toBe(0);
-    expect(spawned.calls).toEqual([[command, args]]);
+    expect(spawned.calls).toStrictEqual([[command, args]]);
   });
 
   it("still logs in when no browser launcher exists", async () => {

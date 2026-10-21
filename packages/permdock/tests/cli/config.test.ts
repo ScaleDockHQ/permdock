@@ -19,7 +19,7 @@ describe("parseConfig", () => {
       "permdock.config.ts",
     );
     expect(parsed.config.permissions).toBe("./src/permissions.ts");
-    expect(parsed.warnings).toEqual([
+    expect(parsed.warnings).toStrictEqual([
       "permdock.config.ts: unknown key collect.srcPaths; PermDock reads srcPath, out, barrel",
       expect.stringMatching(
         /^permdock\.config\.ts: unknown key polcy; PermDock reads permissions, policy, operations, collect/u,
@@ -30,11 +30,14 @@ describe("parseConfig", () => {
   it("skips a key set to undefined", () => {
     expect(
       parseConfig({ policy: undefined, rls: undefined }, "permdock.config.ts"),
-    ).toEqual({ config: { policy: undefined, rls: undefined }, warnings: [] });
+    ).toStrictEqual({
+      config: { policy: undefined, rls: undefined },
+      warnings: [],
+    });
   });
 
   it("treats a module with no default export as an empty config", () => {
-    expect(parseConfig(undefined, "permdock.config.ts")).toEqual({
+    expect(parseConfig(undefined, "permdock.config.ts")).toStrictEqual({
       config: {},
       warnings: [],
     });
@@ -61,7 +64,7 @@ describe("permdock config", () => {
     const result = await run(["config", "--print", "--cwd", cwd]);
     expect(result.code).toBe(0);
     expect(result.stderr).toBe("");
-    expect(JSON.parse(result.stdout)).toEqual({
+    expect(JSON.parse(result.stdout)).toStrictEqual({
       $schema: "https://permdock.com/schemas/config-report-v1.json",
       file: "permdock.config.ts",
       config: {

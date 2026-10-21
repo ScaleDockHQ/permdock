@@ -154,7 +154,7 @@ describe("approver delegation", () => {
         delegate: "dana",
         at: "2026-10-20T12:00:00.000Z",
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("records the delegate acting for the delegator", async () => {
@@ -534,7 +534,7 @@ describe("approver delegation", () => {
     ]);
     expect(
       source.delegationsFor({ delegate: "dana", at: "not-a-date" }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       source.delegationsFor({
         delegate: "dana",
@@ -629,7 +629,7 @@ describe("approver delegation", () => {
       expect({
         uncovered,
         match: await match(inTenant("dana"), [uncovered]),
-      }).toEqual({ uncovered, match: undefined });
+      }).toStrictEqual({ uncovered, match: undefined });
     }
     const contactDelegator = (id: string): Subject => ({
       principal: { id, kind: "contact", roles: [], tenant: "o1" },

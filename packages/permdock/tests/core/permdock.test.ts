@@ -63,7 +63,7 @@ describe("getPermDockSync", () => {
     expect(permdock.can(permissions.post.publish, ownPost)).toBe(true);
     expect(permdock.can(permissions.post.publish, otherPost)).toBe(false);
     const portable = permdock.where(permissions.post.publish);
-    expect(portable.condition).toEqual({
+    expect(portable.condition).toStrictEqual({
       op: "not",
       condition: { op: "eq", field: "published", value: true },
     });
@@ -103,7 +103,7 @@ describe("getPermDockSync", () => {
     const decision = permdock.decide(filing.filing.pay, undefined);
     expect(decision.outcome).toBe("approval-required");
     if (decision.outcome === "approval-required") {
-      expect(decision.grant.approval).toEqual({
+      expect(decision.grant.approval).toStrictEqual({
         by: { kind: "role", role: "admin", scope: "global" },
         distinct: true,
       });
@@ -133,10 +133,10 @@ describe("getPermDockSync", () => {
     const sink = memoryDecisionSink();
     const permdock = await permdockFor(memberUser, { sink });
     const rows = permdock.filter(permissions.post.update, [ownPost, otherPost]);
-    expect(rows).toEqual([ownPost]);
+    expect(rows).toStrictEqual([ownPost]);
     expect(sink.events()).toHaveLength(1);
     const event = sink.events().find(isDecisionEvent);
-    expect(event?.counts).toEqual({
+    expect(event?.counts).toStrictEqual({
       granted: 1,
       denied: 1,
       approvalRequired: 0,
@@ -151,7 +151,10 @@ describe("getPermDockSync", () => {
     ]);
     expect(Array.isArray(batch)).toBe(true);
     if (Array.isArray(batch)) {
-      expect(batch.map((item) => item.outcome)).toEqual(["granted", "denied"]);
+      expect(batch.map((item) => item.outcome)).toStrictEqual([
+        "granted",
+        "denied",
+      ]);
     }
     const preview = permdock.simulate({ roles: ["admin"] });
     if (Array.isArray(preview)) {
@@ -477,7 +480,7 @@ describe("getPermDockSync", () => {
       { id: "u1" },
       { tenant: "o1" },
     );
-    expect(permdock.tenants()).toEqual(["o1"]);
+    expect(permdock.tenants()).toStrictEqual(["o1"]);
     expect(
       permdock.tenant("o1").can(scoped.post.read, { id: "p1", orgId: "o1" }),
     ).toBe(true);
@@ -528,7 +531,7 @@ describe("decide alternatives", () => {
     });
     expect(decision.outcome).toBe("denied");
     if (decision.outcome !== "denied") return;
-    expect(decision.alternatives.map((leaf) => leaf.key)).toEqual([
+    expect(decision.alternatives.map((leaf) => leaf.key)).toStrictEqual([
       "doc.read",
       "doc.list",
     ]);

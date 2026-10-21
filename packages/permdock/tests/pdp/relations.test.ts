@@ -103,7 +103,7 @@ describe("openfga", () => {
     expect((await permdock.decide(permissions.doc.read, rows[0])).outcome).toBe(
       "granted",
     );
-    expect(fga.calls[0]).toEqual({
+    expect(fga.calls[0]).toStrictEqual({
       url: "http://fga.test/stores/s1/check",
       body: {
         authorization_model_id: "m1",
@@ -116,8 +116,8 @@ describe("openfga", () => {
     });
     expect(
       (await permdock.filter(permissions.doc.read, rows)).map((row) => row.id),
-    ).toEqual(["d1", "d3"]);
-    expect(fga.calls[1]).toEqual({
+    ).toStrictEqual(["d1", "d3"]);
+    expect(fga.calls[1]).toStrictEqual({
       url: "http://fga.test/stores/s1/list-objects",
       body: {
         authorization_model_id: "m1",
@@ -126,7 +126,7 @@ describe("openfga", () => {
         user: "user:anne",
       },
     });
-    expect(await permdock.where(permissions.doc.read)).toEqual({
+    expect(await permdock.where(permissions.doc.read)).toStrictEqual({
       condition: { op: "in", field: "id", value: ["d1", "d3"] },
       partial: true,
     });
@@ -150,7 +150,9 @@ describe("openfga", () => {
     expect(
       (await permdock.decide(permissions.doc.delete, rows[0])).outcome,
     ).toBe("denied");
-    expect(await permdock.filter(permissions.doc.delete, rows)).toEqual([]);
+    expect(await permdock.filter(permissions.doc.delete, rows)).toStrictEqual(
+      [],
+    );
     expect(fga.calls.every((call) => !call.url.endsWith("/check"))).toBe(true);
   });
 
@@ -187,7 +189,7 @@ describe("openfga", () => {
       ),
       { id: "anne" },
     );
-    expect(await permdock.filter(permissions.doc.read, rows)).toEqual([]);
+    expect(await permdock.filter(permissions.doc.read, rows)).toStrictEqual([]);
   });
 
   it("denies with pdp-invalid-response when the tuple callback throws", async () => {
@@ -275,7 +277,7 @@ describe("spicedb", () => {
     expect((await permdock.decide(permissions.doc.read, rows[0])).outcome).toBe(
       "granted",
     );
-    expect(calls[0]).toEqual({
+    expect(calls[0]).toStrictEqual({
       url: "http://spicedb.test/v1/permissions/check",
       body: {
         consistency: { minimizeLatency: true },
@@ -286,14 +288,14 @@ describe("spicedb", () => {
     });
     expect(
       (await permdock.filter(permissions.doc.read, rows)).map((row) => row.id),
-    ).toEqual(["d2"]);
-    expect(calls[1]?.body).toEqual({
+    ).toStrictEqual(["d2"]);
+    expect(calls[1]?.body).toStrictEqual({
       consistency: { minimizeLatency: true },
       resourceObjectType: "document",
       permission: "view",
       subject: { object: { objectType: "user", objectId: "anne" } },
     });
-    expect(authorizations).toEqual(["Bearer key", "Bearer key"]);
+    expect(authorizations).toStrictEqual(["Bearer key", "Bearer key"]);
   });
 
   it("treats a conditional check as a denial and an unknown one as invalid", async () => {
@@ -332,6 +334,6 @@ describe("spicedb", () => {
       ),
       { id: "anne" },
     );
-    expect(await permdock.filter(permissions.doc.read, rows)).toEqual([]);
+    expect(await permdock.filter(permissions.doc.read, rows)).toStrictEqual([]);
   });
 });

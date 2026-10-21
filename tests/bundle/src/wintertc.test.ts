@@ -20,7 +20,7 @@ describe("WinterTC Minimum Common API", () => {
         ),
       );
     }
-    expect(violations).toEqual([]);
+    expect(violations).toStrictEqual([]);
   });
 
   it("evaluates the WinterTC entries", async () => {
@@ -37,7 +37,7 @@ describe("WinterTC Minimum Common API", () => {
         ),
       );
     }
-    expect(leaked).toEqual([]);
+    expect(leaked).toStrictEqual([]);
   });
 
   it("keeps client entries off server adapters", () => {
@@ -45,6 +45,6 @@ describe("WinterTC Minimum Common API", () => {
     for (const entry of CLIENT_ENTRIES) {
       leaked.push(...serverOnlyFiles(walk(ENTRIES[entry])));
     }
-    expect(leaked).toEqual([]);
+    expect(leaked).toStrictEqual([]);
   });
 });

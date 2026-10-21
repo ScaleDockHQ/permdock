@@ -75,15 +75,17 @@ describe("instance edges", () => {
       throw new TypeError("expected json");
     }
     expect(json.expiresAt).toBe("2286-11-20T17:46:39.000Z");
-    expect(permdock.memberships()).toEqual([]);
-    expect(permdock.heldRoles().map((item) => item.key)).toEqual(["member"]);
+    expect(permdock.memberships()).toStrictEqual([]);
+    expect(permdock.heldRoles().map((item) => item.key)).toStrictEqual([
+      "member",
+    ]);
     // Every scoped role grants only post.read, which the global member holds.
-    expect(permdock.assignableRoles().map((item) => item.key)).toEqual([
+    expect(permdock.assignableRoles().map((item) => item.key)).toStrictEqual([
       "viewer",
       "lead",
       "owner",
     ]);
-    expect(permdock.assignablePermissions()).toEqual([]);
+    expect(permdock.assignablePermissions()).toStrictEqual([]);
     expect(
       permdock
         .team("t1")
@@ -117,7 +119,7 @@ describe("instance edges", () => {
     if (Array.isArray(preview)) {
       throw new TypeError("expected instance");
     }
-    expect(preview.tenants()).toEqual(["o1"]);
+    expect(preview.tenants()).toStrictEqual(["o1"]);
   });
 
   it("filters out rows whose grant needs approval", async () => {
@@ -136,6 +138,6 @@ describe("instance edges", () => {
         }),
         { id: "u1" },
       ).filter(tree.post.delete, [{ id: "p1", authorId: "u1", orgId: "o1" }]),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

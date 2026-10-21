@@ -55,14 +55,14 @@ describe("claims in snapshots", () => {
     expect(snapshot.subject.principal).not.toHaveProperty("claims");
     const where = (key: string): unknown =>
       snapshot.grants.find((grant) => grant.permission === key)?.where;
-    expect(where("record.read")).toEqual({
+    expect(where("record.read")).toStrictEqual({
       op: "and",
       conditions: [
         { op: "eq", field: "region", value: "eu" },
         { op: "eq", field: "ownerId", value: { ref: "principal.id" } },
       ],
     });
-    expect(where("record.delete")).toEqual({
+    expect(where("record.delete")).toStrictEqual({
       op: "notIn",
       field: "region",
       value: ["us"],

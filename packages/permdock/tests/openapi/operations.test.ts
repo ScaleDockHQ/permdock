@@ -59,7 +59,7 @@ describe("operationPermissions", () => {
     });
     expect(withHead.forRequest("HEAD", "/posts/p1")?.key).toBe("post.list");
     expect(withHead.forRequest("HEAD", "/drafts")).toBeUndefined();
-    expect(withHead.oauthScopesForRequest("HEAD", "/drafts")).toEqual([
+    expect(withHead.oauthScopesForRequest("HEAD", "/drafts")).toStrictEqual([
       "api:read",
     ]);
     expect(operations.forRequest("POST", "/api/v1/posts/p1")).toBeUndefined();
@@ -88,15 +88,15 @@ describe("operationPermissions", () => {
       },
       { base: "/api" },
     );
-    expect(scoped.oauthScopesForRequest("GET", "/api/exports/e1")).toEqual([
-      "api:read",
-    ]);
-    expect(scoped.oauthScopesForRequest("POST", "/api/exports")).toEqual([
+    expect(
+      scoped.oauthScopesForRequest("GET", "/api/exports/e1"),
+    ).toStrictEqual(["api:read"]);
+    expect(scoped.oauthScopesForRequest("POST", "/api/exports")).toStrictEqual([
       "api:write",
     ]);
     expect(scoped.oauthScopesForRequest("GET", "/api/posts")).toBeUndefined();
     expect(scoped.oauthScopesForRequest("GET", "/nope")).toBeUndefined();
-    expect(scoped.oauthScopesForOperation("create_export")).toEqual([
+    expect(scoped.oauthScopesForOperation("create_export")).toStrictEqual([
       "api:write",
     ]);
     expect(scoped.oauthScopesForOperation("nope")).toBeUndefined();
@@ -113,8 +113,10 @@ describe("operationPermissions", () => {
     });
     expect(scoped.forRequest("POST", "/chat")).toBeUndefined();
     expect(scoped.forOperation("chat")).toBeUndefined();
-    expect(scoped.oauthScopesForRequest("POST", "/chat")).toEqual(["api:chat"]);
-    expect(scoped.oauthScopesForOperation("chat")).toEqual(["api:chat"]);
+    expect(scoped.oauthScopesForRequest("POST", "/chat")).toStrictEqual([
+      "api:chat",
+    ]);
+    expect(scoped.oauthScopesForOperation("chat")).toStrictEqual(["api:chat"]);
     expect(() =>
       // SAFETY: an untyped caller declaring an operation with neither a permission nor scopes.
       operationPermissions({ "POST /chat": { operationId: "chat" } as never }),

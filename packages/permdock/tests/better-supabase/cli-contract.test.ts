@@ -85,13 +85,13 @@ describe("the CLI contract shared with better-supabase", () => {
         !EXTENSIONS.has(code) &&
         !PENDING_UPSTREAM.has(code),
     );
-    expect(unexplained).toEqual([]);
+    expect(unexplained).toStrictEqual([]);
   });
 
   it("keeps the pending list to codes the pinned better-supabase lacks", () => {
     expect(
       [...PENDING_UPSTREAM].filter((code) => upstreamCodes.has(code)),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it.each(shared)("gives %s better-supabase's title and exit code", (code) => {
@@ -117,7 +117,7 @@ describe("the CLI contract shared with better-supabase", () => {
       const { code, stdout } = await run(argv);
       expect(code).toBe(exit);
       validate(upstreamShape(stdout));
-      expect(validate.errors ?? []).toEqual([]);
+      expect(validate.errors ?? []).toStrictEqual([]);
     },
   );
 });

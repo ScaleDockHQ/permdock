@@ -381,7 +381,7 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
             engine.exists ? itemMemberships : undefined,
           ),
       });
-      expect(failures(report.results)).toEqual([]);
+      expect(failures(report.results)).toStrictEqual([]);
       expect(report.results.length).toBeGreaterThan(100);
     });
 
@@ -396,7 +396,7 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
             engine.exists ? saasMemberships : undefined,
           ),
       });
-      expect(failures(report.results)).toEqual([]);
+      expect(failures(report.results)).toStrictEqual([]);
     });
   }
 
@@ -434,7 +434,7 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
       }
     }
     expect(checkers).toHaveLength(3);
-    expect(mismatches).toEqual([]);
+    expect(mismatches).toStrictEqual([]);
   });
 
   it("permdockExtension rewrites an empty OR in findFirstOrThrow and groupBy", async () => {
@@ -446,6 +446,6 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
     ).rejects.toMatchObject({ code: "P2025" });
     expect(
       await prismaItem.groupBy({ by: ["orgId"], where: { OR: [] } }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

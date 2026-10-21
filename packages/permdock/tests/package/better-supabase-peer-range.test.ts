@@ -57,7 +57,7 @@ describe("better-supabase peer range", () => {
       const sorted = matrix.toSorted(compare);
 
       it("lists versions from lowest to latest", () => {
-        expect(matrix).toEqual(sorted);
+        expect(matrix).toStrictEqual(sorted);
       });
 
       it("tests the floor of the peer range", () => {

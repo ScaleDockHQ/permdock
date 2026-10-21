@@ -45,7 +45,7 @@ describe("approvalEmail", () => {
     const links = [...(email.html ?? "").matchAll(/href="([^"]+)"/gu)].map(
       (match) => match[1],
     );
-    expect(links).toEqual(["https://acme.test/review?id=apr_1"]);
+    expect(links).toStrictEqual(["https://acme.test/review?id=apr_1"]);
     expect(email.text).not.toMatch(/approve=|decision=|token/iu);
   });
 

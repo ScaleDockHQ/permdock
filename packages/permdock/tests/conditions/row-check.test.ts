@@ -4,21 +4,21 @@ import { rowCheckFrom, rowCheckOf } from "../../src/conditions/row-check.ts";
 
 describe("row checks", () => {
   it("tells a missing row from a denied one", () => {
-    expect(rowCheckFrom([])).toEqual({ found: false });
-    expect(rowCheckFrom([{ granted: true }])).toEqual({
+    expect(rowCheckFrom([])).toStrictEqual({ found: false });
+    expect(rowCheckFrom([{ granted: true }])).toStrictEqual({
       found: true,
       granted: true,
     });
-    expect(rowCheckFrom([{ granted: 1 }])).toEqual({
+    expect(rowCheckFrom([{ granted: 1 }])).toStrictEqual({
       found: true,
       granted: true,
     });
-    expect(rowCheckOf(false, true)).toEqual({ found: false });
+    expect(rowCheckOf(false, true)).toStrictEqual({ found: false });
   });
 
   it("grants only on true or 1", () => {
     for (const granted of [false, 0, "t", "true", null, undefined]) {
-      expect(rowCheckFrom([{ granted }])).toEqual({
+      expect(rowCheckFrom([{ granted }])).toStrictEqual({
         found: true,
         granted: false,
       });

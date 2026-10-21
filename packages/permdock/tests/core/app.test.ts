@@ -61,7 +61,7 @@ describe("defineApp", () => {
       { sink: callSink },
     );
     permdock.can(permissions.post.read, { id: "p1" });
-    expect(appSink.events()).toEqual([]);
+    expect(appSink.events()).toStrictEqual([]);
     expect(callSink.events().length).toBeGreaterThan(0);
   });
 

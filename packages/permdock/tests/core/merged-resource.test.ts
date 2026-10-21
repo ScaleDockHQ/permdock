@@ -183,7 +183,7 @@ describe("one resource for org-level and per-row access", () => {
         relations: mergedRelations,
       });
       for (const pair of pairs) {
-        expect(await readable(after, [pair.merged])).toEqual(
+        expect(await readable(after, [pair.merged])).toStrictEqual(
           await readable(before, pair.split),
         );
       }
@@ -199,7 +199,7 @@ describe("one resource for org-level and per-row access", () => {
         ),
       ),
     );
-    expect(reads).toEqual([
+    expect(reads).toStrictEqual([
       ["r1", "r2", "r3", "r4"],
       ["r1", "r2", "r3", "r4"],
       ["o1", "r1"],

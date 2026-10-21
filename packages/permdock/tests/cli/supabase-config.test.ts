@@ -17,7 +17,7 @@ afterAll(removeProjects);
 describe("readSupabaseConfig", () => {
   it("is undefined without supabase/config.toml", () => {
     expect(readSupabaseConfig(project({}))).toBeUndefined();
-    expect(supabaseConfig(project({}))).toEqual({});
+    expect(supabaseConfig(project({}))).toStrictEqual({});
   });
 
   it("reads jwt_expiry and schema_paths past comments, multi-line arrays and quoted keys", () => {
@@ -38,7 +38,7 @@ schema_paths = [
 ]
 `,
     });
-    expect(readSupabaseConfig(cwd)).toEqual({
+    expect(readSupabaseConfig(cwd)).toStrictEqual({
       ok: true,
       config: {
         jwtExpiry: 1800,
@@ -54,7 +54,9 @@ schema_paths = [
           "supabase/config.toml": "[experimental.pgdelta]\nenabled = true\n",
         }),
       ),
-    ).toEqual({ pgDelta: { enabled: true, schemaDir: "supabase/schemas" } });
+    ).toStrictEqual({
+      pgDelta: { enabled: true, schemaDir: "supabase/schemas" },
+    });
     expect(
       supabaseConfig(
         project({
@@ -62,7 +64,7 @@ schema_paths = [
             '[experimental.pgdelta]\nenabled = true\ndeclarative_schema_path = "./db/declarative/"\n',
         }),
       ),
-    ).toEqual({
+    ).toStrictEqual({
       pgDelta: { enabled: true, schemaDir: "supabase/db/declarative" },
     });
     expect(
@@ -71,19 +73,21 @@ schema_paths = [
           "supabase/config.toml": "[experimental.pgdelta]\nenabled = false\n",
         }),
       ),
-    ).toEqual({ pgDelta: { enabled: false, schemaDir: "supabase/schemas" } });
+    ).toStrictEqual({
+      pgDelta: { enabled: false, schemaDir: "supabase/schemas" },
+    });
     expect(
       supabaseConfig(
         project({
           "supabase/config.toml": '[experimental.pgdelta]\nenabled = "yes"\n',
         }),
       ),
-    ).toEqual({ pgDelta: { schemaDir: "supabase/schemas" } });
+    ).toStrictEqual({ pgDelta: { schemaDir: "supabase/schemas" } });
   });
 
   it("resolves the schema workflow: --schemas, then supabase.schemas, then enabled = false, else pg-delta", () => {
     const none = project({});
-    expect(resolveSchemas(none, {})).toEqual({
+    expect(resolveSchemas(none, {})).toStrictEqual({
       mode: "pg-delta",
       schemaDir: "supabase/schemas",
     });
@@ -91,17 +95,17 @@ schema_paths = [
       "supabase/config.toml":
         '[experimental.pgdelta]\nenabled = false\ndeclarative_schema_path = "./db"\n',
     });
-    expect(resolveSchemas(off, {})).toEqual({ mode: "migra" });
-    expect(resolveSchemas(off, {}, "pg-delta")).toEqual({
+    expect(resolveSchemas(off, {})).toStrictEqual({ mode: "migra" });
+    expect(resolveSchemas(off, {}, "pg-delta")).toStrictEqual({
       mode: "pg-delta",
       schemaDir: "supabase/db",
     });
     expect(
       resolveSchemas(off, { supabase: { schemas: "migrations" } }),
-    ).toEqual({ mode: "migrations" });
+    ).toStrictEqual({ mode: "migrations" });
     expect(
       resolveSchemas(none, { supabase: { schemas: "migra" } }, "migrations"),
-    ).toEqual({ mode: "migrations" });
+    ).toStrictEqual({ mode: "migrations" });
     expect(schemasRefusal("rls generate", "pg-delta")).toBeUndefined();
     expect(schemasRefusal("rls generate", undefined)).toBeUndefined();
     expect(schemasRefusal("rls generate", "flyway")).toBe(
@@ -114,7 +118,7 @@ schema_paths = [
       "supabase/config.toml":
         '[auth]\njwt_expiry = "1h"\n[db.migrations]\nschema_paths = "./schemas"\n',
     });
-    expect(supabaseConfig(cwd)).toEqual({});
+    expect(supabaseConfig(cwd)).toStrictEqual({});
   });
 });
 
@@ -127,14 +131,14 @@ describe("PD045 unparseable config.toml", () => {
     expect(findings[0]?.message).toMatch(
       /^supabase\/config\.toml does not parse: /u,
     );
-    expect(supabaseConfig(cwd)).toEqual({});
+    expect(supabaseConfig(cwd)).toStrictEqual({});
   });
 
   it("is silent for a valid file or none", () => {
-    expect(pd045(project({}))).toEqual([]);
+    expect(pd045(project({}))).toStrictEqual([]);
     expect(
       pd045(project({ "supabase/config.toml": "[auth]\njwt_expiry = 1\n" })),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 
@@ -154,7 +158,7 @@ describe("PD074 custom access token hook in config.toml", () => {
         project({ "supabase/config.toml": toml }),
         configured,
       );
-      expect(findings.map((finding) => finding.code)).toEqual(["PD074"]);
+      expect(findings.map((finding) => finding.code)).toStrictEqual(["PD074"]);
       expect(findings[0]?.fix).toContain(URI);
     }
   });
@@ -171,11 +175,11 @@ describe("PD074 custom access token hook in config.toml", () => {
     const ok = project({
       "supabase/config.toml": `[auth.hook.custom_access_token]\nenabled = true\nuri = "${URI}"\n`,
     });
-    expect(pd074(ok, configured)).toEqual([]);
-    expect(pd074(ok, bare)).toEqual([]);
-    expect(pd074(project({}), configured)).toEqual([]);
+    expect(pd074(ok, configured)).toStrictEqual([]);
+    expect(pd074(ok, bare)).toStrictEqual([]);
+    expect(pd074(project({}), configured)).toStrictEqual([]);
     expect(
       pd074(project({ "supabase/config.toml": "[auth\n" }), configured),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

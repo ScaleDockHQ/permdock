@@ -207,7 +207,7 @@ describe("permdock supabase hook generate against Postgres", () => {
 
   it("writes roles, memberships with via, expiry, owner and seats, attrs and the active tenant", async () => {
     const owner = await mint(OWNER);
-    expect(owner["memberships"]).toEqual([
+    expect(owner["memberships"]).toStrictEqual([
       {
         scope: "organization",
         id: "B",
@@ -218,14 +218,14 @@ describe("permdock supabase hook generate against Postgres", () => {
       { scope: "organization", id: "T", roles: ["owner"], via: "staff" },
     ]);
     expect(owner["tenant_id"]).toBe("B");
-    expect(owner["attrs"]).toEqual({
+    expect(owner["attrs"]).toStrictEqual({
       locale: "nl-NL",
       timezone: "Europe/Amsterdam",
     });
-    expect(owner["roles"]).toEqual([]);
+    expect(owner["roles"]).toStrictEqual([]);
     expect(owner["authz_ver"]).toBeTypeOf("number");
     expect(owner).not.toHaveProperty("memberships_truncated");
-    expect((await mint(CONTACT))["memberships"]).toEqual([
+    expect((await mint(CONTACT))["memberships"]).toStrictEqual([
       {
         scope: "customer",
         id: "A",
@@ -235,7 +235,7 @@ describe("permdock supabase hook generate against Postgres", () => {
       },
     ]);
     const seated = await mint(SEATED);
-    expect(seated["memberships"]).toEqual([
+    expect(seated["memberships"]).toStrictEqual([
       {
         scope: "organization",
         id: "T",
@@ -248,7 +248,7 @@ describe("permdock supabase hook generate against Postgres", () => {
     expect(seated).not.toHaveProperty("tenant_id");
     const admin = await mint(ADMIN);
     expect(admin["user_role"]).toBe("platform-admin");
-    expect(admin["roles"]).toEqual(["platform-admin"]);
+    expect(admin["roles"]).toStrictEqual(["platform-admin"]);
   });
 
   it("empties the claims of a suspended user", async () => {
@@ -258,10 +258,10 @@ describe("permdock supabase hook generate against Postgres", () => {
   });
 
   it("writes extra claims with or without memberships and omits a null one", async () => {
-    expect((await mint(OWNER))["features"]).toEqual({ T: ["export"] });
+    expect((await mint(OWNER))["features"]).toStrictEqual({ T: ["export"] });
     const admin = await mint(ADMIN);
-    expect(admin["memberships"]).toEqual([]);
-    expect(admin["features"]).toEqual({ T: ["export"] });
+    expect(admin["memberships"]).toStrictEqual([]);
+    expect(admin["features"]).toStrictEqual({ T: ["export"] });
     expect(await mint(CONTACT)).not.toHaveProperty("features");
   });
 
@@ -271,7 +271,7 @@ describe("permdock supabase hook generate against Postgres", () => {
       const claims = await mint(user);
       const live = await composed.membershipsFor({ id: user }, {});
       const minted = subjectFromSupabase(claims).principal?.memberships ?? [];
-      expect(byJson(live)).toEqual(byJson(minted));
+      expect(byJson(live)).toStrictEqual(byJson(minted));
     }
   });
 
@@ -407,7 +407,7 @@ describe("permdock supabase hook generate against Postgres", () => {
       "select permdock.permdock_bump_authz_version_for($1::uuid[])",
       [[OWNER, SEATED, OWNER, null]],
     );
-    expect([await version(OWNER), await version(SEATED)]).toEqual([
+    expect([await version(OWNER), await version(SEATED)]).toStrictEqual([
       (before[0] ?? 0) + 1,
       (before[1] ?? 0) + 1,
     ]);
@@ -429,11 +429,11 @@ describe("permdock supabase hook generate against Postgres", () => {
   it("lists the members of a scope instance", async () => {
     const composed = composeMemberships(sources(query));
     const members = await composed.list?.({ scope: "organization", id: "T" });
-    expect(members?.map((entry) => entry.principal.id).toSorted()).toEqual(
-      [OWNER, SEATED].toSorted(),
-    );
+    expect(
+      members?.map((entry) => entry.principal.id).toSorted(),
+    ).toStrictEqual([OWNER, SEATED].toSorted());
     const contacts = await composed.list?.({ scope: "customer", id: "A" });
-    expect(contacts).toEqual([
+    expect(contacts).toStrictEqual([
       {
         principal: { id: CONTACT },
         membership: {

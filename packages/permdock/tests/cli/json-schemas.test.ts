@@ -31,7 +31,7 @@ function checked<T>(value: T): T {
   for (const item of Array.isArray(value) ? value : [value]) {
     if (item !== null && item !== undefined) {
       seen.push(item);
-      expect(isRequest(item) ? [] : isRequest.errors).toEqual([]);
+      expect(isRequest(item) ? [] : isRequest.errors).toStrictEqual([]);
     }
   }
   return value;
@@ -69,7 +69,7 @@ const REQUEST: ApprovalRequest = {
 
 describe("schemas/approval-request-v1.json", () => {
   it("is the schema rls.jsonSchema inlines", () => {
-    expect(schemaFile("approval-request-v1.json")).toEqual(
+    expect(schemaFile("approval-request-v1.json")).toStrictEqual(
       APPROVAL_REQUEST_SCHEMA,
     );
   });
@@ -113,7 +113,7 @@ describe("the claims supabase.hook.validate inlines", () => {
     if (typeof defs !== "object" || defs === null) {
       throw new Error("supabase-claims-v1.json has no $defs");
     }
-    expect(PERMDOCK_CLAIMS_SCHEMA["$defs"]).toEqual({
+    expect(PERMDOCK_CLAIMS_SCHEMA["$defs"]).toStrictEqual({
       permdockClaims: Reflect.get(defs, "permdockClaims"),
       membership: Reflect.get(defs, "membership"),
     });

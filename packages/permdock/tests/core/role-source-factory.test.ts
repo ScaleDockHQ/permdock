@@ -44,7 +44,7 @@ describe("customRoles as a factory of the subject", () => {
         return perUser(subject);
       },
     });
-    expect(seen).toEqual(["u1"]);
+    expect(seen).toStrictEqual(["u1"]);
     expect(permdock.can(permissions.asset.read, asset)).toBe(true);
     const other = getPermDockSync(policy, staff("u2"), {
       customRoles: perUser,

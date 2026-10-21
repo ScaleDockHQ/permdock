@@ -153,7 +153,7 @@ describe("subjectFromShareLink", () => {
       }),
     );
     expect(expired.principal).toBe(null);
-    expect(onAuth.mock.calls.map(([event]) => event.cause)).toEqual([
+    expect(onAuth.mock.calls.map(([event]) => event.cause)).toStrictEqual([
       "share-link-unknown",
       "expired",
     ]);
@@ -180,7 +180,7 @@ describe("subjectFromShareLink", () => {
     );
     expect(type.principal).toBe(null);
     expect(unknownRole.principal).toBe(null);
-    expect(onAuth.mock.calls.map(([event]) => event.reason)).toEqual([
+    expect(onAuth.mock.calls.map(([event]) => event.reason)).toStrictEqual([
       "invalid-token",
       "unknown-role",
     ]);
@@ -228,12 +228,12 @@ describe("subjectFromShareLink", () => {
         onAuth,
       }),
     );
-    expect([failed, threw, malformed].map((s) => s.principal)).toEqual([
+    expect([failed, threw, malformed].map((s) => s.principal)).toStrictEqual([
       null,
       null,
       null,
     ]);
-    expect(onAuth.mock.calls.map(([event]) => event.reason)).toEqual([
+    expect(onAuth.mock.calls.map(([event]) => event.reason)).toStrictEqual([
       "source-threw",
       "source-threw",
       "schema",

@@ -119,6 +119,6 @@ describe("invariant 12: runtime entries never load a CLI package", () => {
   });
 
   it.each(runtimeEntries())("%s reaches no CLI source or package", (entry) => {
-    expect(leaksFrom(entry)).toEqual([]);
+    expect(leaksFrom(entry)).toStrictEqual([]);
   });
 });

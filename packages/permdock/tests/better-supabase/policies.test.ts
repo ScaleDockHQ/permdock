@@ -39,7 +39,7 @@ describe("bucketPolicy", () => {
       },
       { ...options, segment: 2 },
     );
-    expect(policy).toEqual({
+    expect(policy).toStrictEqual({
       access: {
         read: "quotes.read",
         list: "quotes.list",
@@ -102,7 +102,7 @@ describe("topicPolicy", () => {
         { receive: permission("quotes.read"), send: permission("quotes.list") },
         { ...options, scope: "customer" },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       receive: "quotes.read",
       send: "quotes.list",
       scope: "customer",
@@ -126,7 +126,7 @@ describe("policies from the policy definition", () => {
         { read: fixture.asset.update, write: fixture.asset.update },
         { ...from, segment: 2 },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       access: { read: "asset.update", write: "asset.update" },
       scope: "organization",
       segment: 2,
@@ -183,7 +183,7 @@ describe("policies from the policy definition", () => {
         },
         from,
       ).access,
-    ).toEqual({
+    ).toStrictEqual({
       read: "asset.update",
       list: "asset.update",
       write: "asset.update",

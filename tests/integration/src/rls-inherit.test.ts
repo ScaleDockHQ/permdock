@@ -82,7 +82,7 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
         );
       }
     }
-    expect(mismatches).toEqual([]);
+    expect(mismatches).toStrictEqual([]);
     const [member, sharer, globex, none] = users;
     expect(
       await asUser(
@@ -90,28 +90,28 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
         member?.id ?? "",
         "select id from public.node order by id",
       ),
-    ).toEqual(["n-acme", "n-locked", "n-shared"]);
+    ).toStrictEqual(["n-acme", "n-locked", "n-shared"]);
     expect(
       await asUser(
         db,
         sharer?.id ?? "",
         "select id from public.node order by id",
       ),
-    ).toEqual(["n-locked", "n-shared"]);
+    ).toStrictEqual(["n-locked", "n-shared"]);
     expect(
       await asUser(
         db,
         globex?.id ?? "",
         "select id from public.node order by id",
       ),
-    ).toEqual(["n-globex"]);
+    ).toStrictEqual(["n-globex"]);
     expect(
       await asUser(
         db,
         none?.id ?? "",
         "select id from public.node order by id",
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("answers permitted_node_rows for a two-link inherit with the grant's own where", async () => {
@@ -132,14 +132,14 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
         );
       }
     }
-    expect(mismatches).toEqual([]);
+    expect(mismatches).toStrictEqual([]);
     expect(
       await asUser(
         db,
         users[1]?.id ?? "",
         "select id from permdock.permitted_node_rows('node.share') id order by id",
       ),
-    ).toEqual(["n-acme"]);
+    ).toStrictEqual(["n-acme"]);
   });
 
   it("answers permitted_node_row for a row value, including one not yet inserted", async () => {
@@ -171,7 +171,7 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
         }
       }
     }
-    expect(mismatches).toEqual([]);
+    expect(mismatches).toStrictEqual([]);
     const member = users[0]?.id ?? "";
     const unsaved =
       "row('n-new', 'acme', 'd-acme', 'f-acme', false, false)::public.node";
@@ -181,14 +181,14 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
         member,
         `select 'n-new' as id where permdock.permitted_node_row(${unsaved}, 'node.read')`,
       ),
-    ).toEqual(["n-new"]);
+    ).toStrictEqual(["n-new"]);
     expect(
       await asUser(
         db,
         member,
         "select 'n-new' as id where 'n-new' in (select permdock.permitted_node_rows('node.read'))",
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     await db.admin.query(
       "grant insert on public.node to authenticated; create policy node_insert on public.node for insert to authenticated with check (permdock.permitted_node_row(node, 'node.read'))",
     );
@@ -198,7 +198,7 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
         member,
         "insert into public.node values ('n-new', 'acme', 'd-acme', 'f-acme', false, false) returning id",
       ),
-    ).toEqual(["n-new"]);
+    ).toStrictEqual(["n-new"]);
     await expect(
       asUser(
         db,

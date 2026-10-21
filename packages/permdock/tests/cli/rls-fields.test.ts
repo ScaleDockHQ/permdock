@@ -437,16 +437,16 @@ describe("permdock rls import of field views", () => {
       expect(view?.companion).toBe(
         revoke ? "invoice_visible_fields" : undefined,
       );
-      expect(view?.passthrough).toEqual(["id", "title"]);
+      expect(view?.passthrough).toStrictEqual(["id", "title"]);
       const amount = view?.restricted.find((item) => item.column === "amount");
-      expect(amount?.grants.map((grant) => grant.key)).toEqual([
+      expect(amount?.grants.map((grant) => grant.key)).toStrictEqual([
         "invoice.read#1",
         "invoice.read#2",
         "invoice.read#4",
         "invoice.read#1",
       ]);
       const note = view?.restricted.find((item) => item.column === "note");
-      expect(note?.denies.map((grant) => grant.key)).toEqual([
+      expect(note?.denies.map((grant) => grant.key)).toStrictEqual([
         "invoice.read#5",
       ]);
     },
@@ -475,19 +475,21 @@ describe("permdock doctor field views", () => {
       };
       return report.findings.map((item) => item.message);
     };
-    expect(await findings("")).toEqual([
+    expect(await findings("")).toStrictEqual([
       "read grants on invoice limit orgId, authorId, amount, note, but RLS on invoice is row-level: any client that reads invoice directly gets those columns",
     ]);
-    expect(await findings(`, fields: 'views'`)).toEqual([
+    expect(await findings(`, fields: 'views'`)).toStrictEqual([
       "invoice_visible masks orgId, authorId, amount, note, but invoice still returns them to a direct read",
     ]);
-    expect(await findings(`, fields: 'views', revokeColumns: true`)).toEqual(
-      [],
-    );
-    expect(await findings(`, fields: 'mask'`)).toEqual([
+    expect(
+      await findings(`, fields: 'views', revokeColumns: true`),
+    ).toStrictEqual([]);
+    expect(await findings(`, fields: 'mask'`)).toStrictEqual([
       "invoice_visible masks orgId, authorId, amount, note, but invoice still returns them to a direct read",
     ]);
-    expect(await findings(`, fields: 'mask', revokeColumns: true`)).toEqual([]);
+    expect(
+      await findings(`, fields: 'mask', revokeColumns: true`),
+    ).toStrictEqual([]);
   });
 
   it("PD022 leaves the generated companion alone", async () => {
@@ -504,6 +506,6 @@ describe("permdock doctor field views", () => {
     const report = jsonData(result.stdout) as {
       readonly findings: readonly unknown[];
     };
-    expect(report.findings).toEqual([]);
+    expect(report.findings).toStrictEqual([]);
   });
 });

@@ -159,10 +159,12 @@ describe("invariant 6: every operator is portable or refuses explicitly", () => 
       });
 
       it("is plain JSON that round-trips", () => {
-        expect(JSON.parse(JSON.stringify(sample.condition))).toEqual(
+        expect(JSON.parse(JSON.stringify(sample.condition))).toStrictEqual(
           sample.condition,
         );
-        expect(structuredClone(sample.condition)).toEqual(sample.condition);
+        expect(structuredClone(sample.condition)).toStrictEqual(
+          sample.condition,
+        );
       });
 
       it(`ORM where: ${sample.orm}`, () => {

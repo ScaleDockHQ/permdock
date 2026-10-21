@@ -17,7 +17,7 @@ describe("supabaseRls", () => {
       single: supabaseRls({ memberships: members }).memberships,
       scoped: supabaseRls({ memberships: scoped }).memberships,
       none: supabaseRls().memberships,
-    }).toEqual({ single: { tenant: members }, scoped, none: undefined });
+    }).toStrictEqual({ single: { tenant: members }, scoped, none: undefined });
   });
 });
 
@@ -34,7 +34,7 @@ describe("authorizeSql", () => {
       schemaTable: authorizeSql({
         tenant: { ...members, table: "auth_schema.members" },
       }).includes('from "auth_schema"."members" m'),
-    }).toEqual({ table: true, expiry: 3, schemaTable: true });
+    }).toStrictEqual({ table: true, expiry: 3, schemaTable: true });
   });
 
   it("reads a custom role's stored level into the grant key", () => {
@@ -76,7 +76,7 @@ describe("authorizeSql", () => {
       scope: sql.includes(
         `s."id"::text = requested_tenant and s."state"::text = any(array['active', 'o''k']::text[])`,
       ),
-    }).toEqual({ user: true, scope: true });
+    }).toStrictEqual({ user: true, scope: true });
   });
 
   it("rejects incomplete suspension rows and unsafe identifiers", () => {
@@ -103,7 +103,7 @@ describe("authorizeSql", () => {
         return error instanceof TypeError ? "TypeError" : "other";
       }
     });
-    expect(messages).toEqual([
+    expect(messages).toStrictEqual([
       "TypeError",
       "TypeError",
       "TypeError",
@@ -125,7 +125,7 @@ describe("authorizeSql", () => {
       scope: sql.includes(`m ->> 'scope' = 'workspace'`),
       custom: sql.includes(`not (r.role = any('{}'::text[]))`),
       guard: sql.includes('s."id" = (select auth.uid())'),
-    }).toEqual({ scope: true, custom: true, guard: true });
+    }).toStrictEqual({ scope: true, custom: true, guard: true });
   });
 
   it("lives in the permdock schema and only authenticated may execute it", () => {
@@ -143,7 +143,7 @@ describe("authorizeSql", () => {
         `grant execute on function ${signature} to authenticated;`,
       ),
       schema: authorizeSql({ schema: "app" }).includes('"app"."authorize"('),
-    }).toEqual({ create: true, revoke: true, grant: true, schema: true });
+    }).toStrictEqual({ create: true, revoke: true, grant: true, schema: true });
   });
 
   for (const authorize of ["database", "jwt"] as const) {
@@ -159,7 +159,7 @@ describe("authorizeSql", () => {
         globalDeny: sql.match(
           /rp\.scope = 'global'\n {8}and rp\.effect = 'deny'/gu,
         )?.length,
-      }).toEqual({
+      }).toStrictEqual({
         allows: 2,
         unconditional: 2,
         tenantDeny: true,

@@ -56,9 +56,9 @@ describe("permdock/openai with a real Runner, Postgres approvals and a resume in
     const runner = new Runner({ tracingDisabled: true });
     const first = await runner.run(agent, "clean up acme", { context });
 
-    expect(executed).toEqual(["delete_project:p1"]);
+    expect(executed).toStrictEqual(["delete_project:p1"]);
     const names = first.interruptions.map((item) => item.name ?? "");
-    expect(names.toSorted((a, b) => a.localeCompare(b))).toEqual([
+    expect(names.toSorted((a, b) => a.localeCompare(b))).toStrictEqual([
       "delete_project",
       "revoke_api_keys",
     ]);
@@ -67,7 +67,7 @@ describe("permdock/openai with a real Runner, Postgres approvals and a resume in
       first.interruptions,
       { context },
     );
-    expect(pending.map((record) => record.permission)).toEqual([
+    expect(pending.map((record) => record.permission)).toStrictEqual([
       "apiKey.revokeAll",
     ]);
     const serialized = first.state.toString();
@@ -84,14 +84,14 @@ describe("permdock/openai with a real Runner, Postgres approvals and a resume in
     });
 
     const resumed = resumeInChild(serialized, "alice");
-    expect(resumed.executed).toEqual(["revoke_api_keys"]);
+    expect(resumed.executed).toStrictEqual(["revoke_api_keys"]);
     expect(resumed.finalOutput).toContain("c3=revoked");
     expect(resumed.finalOutput).not.toContain("c2=deleted");
 
     const replay = resumeInChild(serialized, "alice");
-    expect(replay.executed).toEqual([]);
+    expect(replay.executed).toStrictEqual([]);
 
     const otherUser = resumeInChild(serialized, "bob");
-    expect(otherUser.executed).toEqual([]);
+    expect(otherUser.executed).toStrictEqual([]);
   });
 });

@@ -77,14 +77,16 @@ describe("checkHostedGrant", () => {
     const dropped = new Map(
       merged.dropped.map((drop) => [drop.grant, drop.reason]),
     );
-    expect(cases.map((grant) => checkHostedGrant(policy, grant))).toEqual([
-      { ok: true },
-      { ok: false, reason: "unknown-permission" },
-      { ok: false, reason: "weaker-approval" },
-      { ok: false, reason: "unknown-grantee" },
-      { ok: false, reason: "non-portable" },
-      { ok: false, reason: "invalid" },
-    ]);
+    expect(cases.map((grant) => checkHostedGrant(policy, grant))).toStrictEqual(
+      [
+        { ok: true },
+        { ok: false, reason: "unknown-permission" },
+        { ok: false, reason: "weaker-approval" },
+        { ok: false, reason: "unknown-grantee" },
+        { ok: false, reason: "non-portable" },
+        { ok: false, reason: "invalid" },
+      ],
+    );
     for (const [index, grant] of cases.entries()) {
       const check = checkHostedGrant(policy, grant);
       expect(check.ok ? undefined : check.reason).toBe(
@@ -98,7 +100,7 @@ describe("hostedGrantOptions", () => {
   const options = hostedGrantOptions(policy);
 
   it("lists each hostable permission with its grantees, approvals and fields", () => {
-    expect(options.map((option) => option.permission)).toEqual([
+    expect(options.map((option) => option.permission)).toStrictEqual([
       "invoice.delete",
       "invoice.read",
       "report.read",
@@ -117,7 +119,7 @@ describe("hostedGrantOptions", () => {
       conditions: { portable: true },
     });
     expect(remove?.approval.fields).not.toContain("staleOn");
-    expect(remove?.conditions.fields).toEqual(["id", "ownerId", "total"]);
+    expect(remove?.conditions.fields).toStrictEqual(["id", "ownerId", "total"]);
   });
 
   it("builds only grants checkHostedGrant accepts", () => {
@@ -142,7 +144,7 @@ describe("hostedGrantOptions", () => {
             to,
             ...(approval === undefined ? {} : { approval }),
           }),
-        ).toEqual({ ok: true });
+        ).toStrictEqual({ ok: true });
       }
     }
   });

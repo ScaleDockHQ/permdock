@@ -142,7 +142,7 @@ describe("supabaseClaims()", () => {
 
   for (const [name, fixture] of Object.entries(supabaseClaimFixtures)) {
     it(`accepts the ${name} fixture, as the JSON Schema does`, () => {
-      expect(validate(schema, fixture.claims)).toEqual({
+      expect(validate(schema, fixture.claims)).toStrictEqual({
         value: fixture.claims,
       });
       expect(ajv(fixture.claims)).toBe(true);
@@ -162,19 +162,19 @@ describe("supabaseClaims()", () => {
       sub,
       memberships: [{ tenant: "t", roles: ["a"], keep: ["org.restore"] }],
     };
-    expect(validate(schema, kept)).toEqual({ value: kept });
+    expect(validate(schema, kept)).toStrictEqual({ value: kept });
     expect(ajv(kept)).toBe(true);
     const claims = {
       sub,
       memberships: [{ tenant: "t", roles: ["a"], member: { group: "night" } }],
     };
-    expect(validate(schema, claims)).toEqual({ value: claims });
+    expect(validate(schema, claims)).toStrictEqual({ value: claims });
     expect(ajv(claims)).toBe(true);
   });
 
   it("passes unknown claims through unchanged", () => {
     const claims = { sub, datetime_preferences: { timezone: "UTC" }, x: [1] };
-    expect(validate(schema, claims)).toEqual({ value: claims });
+    expect(validate(schema, claims)).toStrictEqual({ value: claims });
   });
 
   it("names the path of a bad membership field", () => {
@@ -185,7 +185,7 @@ describe("supabaseClaims()", () => {
         { tenant: "t", roles: [1] },
       ],
     });
-    expect(result.issues?.[0]?.path).toEqual(["memberships", 1, "roles"]);
+    expect(result.issues?.[0]?.path).toStrictEqual(["memberships", 1, "roles"]);
   });
 
   it("reads the tenant claim the app configures", () => {
@@ -195,7 +195,7 @@ describe("supabaseClaims()", () => {
     expect(validate(custom, { sub, tenant_id: 1 }).issues).toBeUndefined();
     expect(
       validate(custom, { sub, app_metadata: { org_id: 2 } }).issues?.[0]?.path,
-    ).toEqual(["app_metadata", "org_id"]);
+    ).toStrictEqual(["app_metadata", "org_id"]);
     expect(() => supabaseClaims({ tenantClaim: "memberships" })).toThrow(
       /tenantClaim/u,
     );
@@ -206,7 +206,7 @@ describe("supabaseClaims()", () => {
     for (const fixture of Object.values(supabaseClaimFixtures)) {
       const result = validate(schema, fixture.claims);
       const value = "value" in result ? result.value : undefined;
-      expect(subjectFromSupabase(value, fixture.options)).toEqual(
+      expect(subjectFromSupabase(value, fixture.options)).toStrictEqual(
         subjectFromSupabase(fixture.claims, fixture.options),
       );
     }
@@ -250,7 +250,7 @@ describe("supabaseClaims().extend", () => {
       z.object({ datetime_preferences: z.object({ timezone: z.string() }) }),
     );
     const result = validate(schema, { sub, roles: "admin" });
-    expect(result.issues?.map((item) => item.path?.[0])).toEqual([
+    expect(result.issues?.map((item) => item.path?.[0])).toStrictEqual([
       "roles",
       "datetime_preferences",
     ]);
@@ -260,7 +260,7 @@ describe("supabaseClaims().extend", () => {
     const schema = supabaseClaims().extend(
       z.object({ sub: z.string().refine(async (value) => value === sub) }),
     );
-    await expect(schema["~standard"].validate({ sub })).resolves.toEqual({
+    await expect(schema["~standard"].validate({ sub })).resolves.toStrictEqual({
       value: { sub },
     });
     await expect(

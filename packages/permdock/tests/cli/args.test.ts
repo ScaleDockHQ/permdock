@@ -40,7 +40,7 @@ describe("parseLeaf", () => {
       ],
       FLAGS,
     );
-    expect(input.flags).toEqual({
+    expect(input.flags).toStrictEqual({
       json: false,
       yes: true,
       open: false,

@@ -128,13 +128,13 @@ describe("permdock/nest gateway connections", () => {
     );
 
     await revocations.revoke({ principal: "u1", kind: "session-revoked" });
-    expect(events).toEqual([
+    expect(events).toStrictEqual([
       [
         "permdock:error",
         expect.objectContaining({ status: 401, detail: "session-revoked" }),
       ],
     ]);
-    expect(disconnects).toEqual([true]);
+    expect(disconnects).toStrictEqual([true]);
     await expect(guard.canActivate(message("p1"))).rejects.toBeInstanceOf(
       PermDockRevokedError,
     );

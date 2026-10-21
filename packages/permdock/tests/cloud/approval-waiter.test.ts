@@ -113,7 +113,7 @@ describe("cloudApprovalWaiter", () => {
       ]),
     );
     expect(response.status).toBe(204);
-    expect(waiter.woken).toEqual([
+    expect(waiter.woken).toStrictEqual([
       "pd1.resolved",
       "pd1.expired",
       "pd1.cancelled",
@@ -164,7 +164,7 @@ describe("cloudApprovalWaiter", () => {
     );
     expect((await cloud.webhook(unsigned)).status).toBe(400);
     expect((await cloud.webhook(notEvents)).status).toBe(400);
-    expect(waiter.woken).toEqual([]);
+    expect(waiter.woken).toStrictEqual([]);
   });
 
   it("acknowledges a replayed delivery without waking twice", async () => {
@@ -180,7 +180,7 @@ describe("cloudApprovalWaiter", () => {
     const again = first.clone();
     expect((await cloud.webhook(first)).status).toBe(204);
     expect((await cloud.webhook(again)).status).toBe(204);
-    expect(waiter.woken).toEqual(["pd1.once"]);
+    expect(waiter.woken).toStrictEqual(["pd1.once"]);
   });
 
   it("answers 503 when it cannot verify", async () => {
@@ -221,6 +221,6 @@ describe("approvalTokensOf", () => {
       approvalTokensOf(
         events.flatMap((event) => (event === null ? [] : [event])),
       ),
-    ).toEqual(["pd1.b"]);
+    ).toStrictEqual(["pd1.b"]);
   });
 });

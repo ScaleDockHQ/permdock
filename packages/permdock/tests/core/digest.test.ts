@@ -30,13 +30,13 @@ function thrown(run: () => unknown): unknown {
 
 describe("PermDock error digests", () => {
   it("round-trips denied and approval-required digests", () => {
-    expect(parsePermDockDigest(deniedDigest("post.update"))).toEqual({
+    expect(parsePermDockDigest(deniedDigest("post.update"))).toStrictEqual({
       outcome: "denied",
       permission: "post.update",
     });
     expect(
       parsePermDockDigest(approvalDigest("post.delete", "pd1.abc")),
-    ).toEqual({
+    ).toStrictEqual({
       outcome: "approval-required",
       permission: "post.delete",
       token: "pd1.abc",
@@ -78,7 +78,7 @@ describe("PermDock error digests", () => {
     expect(approval).toBeInstanceOf(PermDockApprovalRequiredError);
     // SAFETY: checked by toBeInstanceOf above.
     const error = approval as PermDockApprovalRequiredError;
-    expect(parsePermDockDigest(error.digest)).toEqual({
+    expect(parsePermDockDigest(error.digest)).toStrictEqual({
       outcome: "approval-required",
       permission: "post.delete",
       token: error.token,

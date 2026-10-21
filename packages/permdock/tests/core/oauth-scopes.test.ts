@@ -64,7 +64,7 @@ describe("oauthScopes", () => {
     expect(permdock.can(permissions.task.update, {})).toBe(false);
     expect(permdock.can(permissions.billing.read, {})).toBe(false);
     expect(permdock.mayUse(permissions.task.update)).toBe(false);
-    expect(permdock.subject.delegation?.scopes?.slice(0, 2)).toEqual([
+    expect(permdock.subject.delegation?.scopes?.slice(0, 2)).toStrictEqual([
       "openid",
       "mcp:read",
     ]);
@@ -133,7 +133,7 @@ describe("oauthScopes", () => {
     const client = new Client({ name: "agent", version: "1.0.0" });
     await client.connect(clientSide);
     const listed = await client.listTools(undefined, { cacheMode: "bypass" });
-    expect(listed.tools.map((tool) => tool.name)).toEqual(["list_tasks"]);
+    expect(listed.tools.map((tool) => tool.name)).toStrictEqual(["list_tasks"]);
     expect((await client.callTool({ name: "list_tasks" })).isError).not.toBe(
       true,
     );
@@ -225,7 +225,7 @@ describe("oauthScopes", () => {
     renamed.update({ name: "preview_export" });
     const reader = await connectAs(server, ["mcp:read"]);
     const listed = await reader.listTools(undefined, { cacheMode: "bypass" });
-    expect(listed.tools.map((tool) => tool.name).toSorted()).toEqual([
+    expect(listed.tools.map((tool) => tool.name).toSorted()).toStrictEqual([
       "preview_export",
       "read_export",
     ]);
@@ -239,7 +239,9 @@ describe("oauthScopes", () => {
     await reader.close();
     const writer = await connectAs(server, ["mcp:write"]);
     const written = await writer.listTools(undefined, { cacheMode: "bypass" });
-    expect(written.tools.map((tool) => tool.name)).toEqual(["create_export"]);
+    expect(written.tools.map((tool) => tool.name)).toStrictEqual([
+      "create_export",
+    ]);
     expect(await writer.callTool({ name: "read_export" })).toMatchObject({
       isError: true,
       structuredContent: { error: "insufficient_scope", scope: "mcp:read" },
@@ -263,7 +265,7 @@ describe("oauthScopes", () => {
     );
     const client = await connectAs(server, ["mcp:read"]);
     const listed = await client.listTools(undefined, { cacheMode: "bypass" });
-    expect(listed.tools).toEqual([]);
+    expect(listed.tools).toStrictEqual([]);
     expect(await client.callTool({ name: "sneaky_update" })).toMatchObject({
       isError: true,
       structuredContent: { outcome: "denied" },
@@ -286,7 +288,9 @@ describe("oauthScopes", () => {
     }
     const client = await connectAs(server, ["mcp:read"]);
     const listed = await client.listTools(undefined, { cacheMode: "bypass" });
-    expect(listed.tools.map((tool) => tool.name)).toEqual(["read_export"]);
+    expect(listed.tools.map((tool) => tool.name)).toStrictEqual([
+      "read_export",
+    ]);
   });
 
   it("the server kernel names the coarse scope in its challenge", async () => {
@@ -458,7 +462,7 @@ describe("oauthScopes", () => {
       );
       results.push(guarded.ok ? 200 : guarded.response.status);
     }
-    expect(results).toEqual([403, 403, 403]);
+    expect(results).toStrictEqual([403, 403, 403]);
   });
 
   it("the server kernel reads a HEAD request's scopes from the GET entry", async () => {

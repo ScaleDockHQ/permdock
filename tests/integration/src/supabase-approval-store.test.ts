@@ -136,7 +136,7 @@ describe("supabaseApprovalStore over the generated store", () => {
       ...request,
       createdAt: new Date(Date.now() + 1000).toISOString(),
     });
-    expect(opened.filter((token) => token === "repeat-token")).toEqual([
+    expect(opened.filter((token) => token === "repeat-token")).toStrictEqual([
       "repeat-token",
     ]);
   });

@@ -211,7 +211,7 @@ create materialized view mat as select 1;
     const report = jsonData(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
-    expect(report.findings.map((item) => item.message)).toEqual([
+    expect(report.findings.map((item) => item.message)).toStrictEqual([
       "view public.post_stats in supabase/migrations/001_views.sql is not security_invoker, so it reads past row level security",
     ]);
   });
@@ -251,7 +251,7 @@ revoke update (bio) on profiles from authenticated;
         }
       ).findings;
     };
-    expect(await findings(`['region', 'locale']`)).toEqual([
+    expect(await findings(`['region', 'locale']`)).toStrictEqual([
       expect.objectContaining({
         severity: "warning",
         message: expect.stringContaining(
@@ -259,13 +259,13 @@ revoke update (bio) on profiles from authenticated;
         ),
       }),
     ]);
-    expect(await findings(`['locale', 'user_metadata.plan']`)).toEqual([
+    expect(await findings(`['locale', 'user_metadata.plan']`)).toStrictEqual([
       expect.objectContaining({
         severity: "error",
         message: expect.stringContaining("user-editable"),
       }),
     ]);
-    expect(await findings(`['locale', 'bio']`)).toEqual([]);
+    expect(await findings(`['locale', 'bio']`)).toStrictEqual([]);
   });
 
   it("PD028 flags membership columns a user could set", async () => {
@@ -304,7 +304,7 @@ export default {
       await findings(
         "grant select, update on public.contacts to authenticated;",
       ),
-    ).toEqual([
+    ).toStrictEqual([
       "public.contacts.user_id, customer_id, organization_id decide memberships, and the migrations let anon or authenticated insert or update them: a user could give themselves a membership",
     ]);
     expect(
@@ -314,7 +314,7 @@ revoke update (user_id) on public.contacts from authenticated;`),
     expect(
       await findings(`revoke all on public.contacts from anon, authenticated;
 grant update (name, user_id) on public.contacts to authenticated;`),
-    ).toEqual([
+    ).toStrictEqual([
       "public.contacts.user_id decides memberships, and the migrations let anon or authenticated insert or update it: a user could give themselves a membership",
     ]);
     expect(
@@ -325,7 +325,7 @@ grant update (name) on public.contacts to authenticated;`),
     expect(
       await findings(`revoke all on public.contacts from anon, authenticated;
 grant select, update (name) on public.contacts to authenticated;`),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("PD044 warns when usePermission reads a closure grant with no endpoint", async () => {
@@ -381,7 +381,7 @@ export function PublishButton(props: { post: never }) {
       };
     };
     const missing = await doctor();
-    expect(missing.findings).toEqual([
+    expect(missing.findings).toStrictEqual([
       expect.objectContaining({
         code: "PD044",
         message: expect.stringContaining(
@@ -398,7 +398,7 @@ export const POST = permdockHandler();
 `,
     );
     const routed = await doctor();
-    expect(routed.findings).toEqual([]);
+    expect(routed.findings).toStrictEqual([]);
   });
 
   it("PD002 does not read role and plan vocabulary as permission references", async () => {
@@ -418,7 +418,7 @@ export const subtree = [permissions.post];
 `,
     );
     const result = await run(["doctor", "--json", "--only", "PD002"], { cwd });
-    expect(findingCodes(result.stdout)).toEqual([]);
+    expect(findingCodes(result.stdout)).toStrictEqual([]);
   });
 
   it("PD038 warns when subjectFromSupabase reads a different tenant claim than the hook writes", async () => {
@@ -452,7 +452,7 @@ export const d = (claims: unknown, options: never) => subjectFromSupabase(claims
         readonly message: string;
       }[];
     };
-    expect(report.findings.map((item) => item.message)).toEqual([
+    expect(report.findings.map((item) => item.message)).toStrictEqual([
       "src/subject.ts:3 reads the tenant from 'tenant_id', but rls.tenantClaim is 'org_id'",
       "src/subject.ts:6 reads the tenant from 'tenant_id', but rls.tenantClaim is 'org_id'",
     ]);
@@ -475,7 +475,7 @@ create policy "write" on posts for insert to authenticated with check (true);
     const report = jsonData(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
-    expect(report.findings.map((item) => item.message)).toEqual([
+    expect(report.findings.map((item) => item.message)).toStrictEqual([
       "supabase/migrations/0001_posts.sql:3 calls auth.role(), which Supabase deprecated",
     ]);
   });
@@ -511,7 +511,7 @@ export const PATCH = protect(permissions.post.update)(handler);
     const report = jsonData(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
-    expect(report.findings.map((item) => item.message)).toEqual([
+    expect(report.findings.map((item) => item.message)).toStrictEqual([
       "src/app.ts:6 protects /posts/:id with permissions.post.update and no row loader, so the check never sees the row the id names (BOLA, OWASP API1)",
       "src/app/posts/[id]/route.ts:3 protects [id] with permissions.post.update and no row loader, so the check never sees the row the id names (BOLA, OWASP API1)",
     ]);
@@ -534,7 +534,7 @@ export const modern = (subject: never, key: never) =>
     const report = jsonData(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
-    expect(report.findings.map((item) => item.message)).toEqual([
+    expect(report.findings.map((item) => item.message)).toStrictEqual([
       "src/links.ts:4 signs capability tokens with HS256, the project's shared JWT secret: whoever holds it can mint any user's token",
     ]);
   });

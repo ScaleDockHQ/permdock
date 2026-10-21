@@ -60,7 +60,7 @@ describe("ownership in the catalog", () => {
   it("carries each role rule and audience", () => {
     const doc = buildCatalog(permissions, scan, "2026-09-29T00:00:00Z", policy);
     const byKey = new Map(doc.roles?.map((item) => [item.key, item]));
-    expect(byKey.get("owner")).toEqual({
+    expect(byKey.get("owner")).toStrictEqual({
       key: "owner",
       on: "organization",
       assignable: false,
@@ -73,7 +73,7 @@ describe("ownership in the catalog", () => {
       for: ["contact"],
       audience: "portal",
     });
-    expect(byKey.get("platform-admin")).toEqual({
+    expect(byKey.get("platform-admin")).toStrictEqual({
       key: "platform-admin",
       assignable: false,
       audience: "platform",
@@ -93,7 +93,7 @@ describe("ownership in generated RLS", () => {
       role: "contact",
       at: "customer",
     });
-    expect(ownership?.counted).toEqual([
+    expect(ownership?.counted).toStrictEqual([
       { role: "owner", scope: "organization", min: 1, transferOnly: false },
     ]);
   });

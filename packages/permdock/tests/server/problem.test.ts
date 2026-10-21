@@ -128,7 +128,7 @@ describe("rate limit responses", () => {
       },
       { epochMilliseconds: 1_000_000 },
     );
-    expect(headers).toEqual({
+    expect(headers).toStrictEqual({
       "Retry-After": "30",
       RateLimit: '"a";r=0;t=30, "b";r=0;t=500',
       "RateLimit-Policy": '"a";q=5;w=60, "b";q=100;w=3600',
@@ -189,8 +189,8 @@ describe("disclosure", () => {
         body: await response.text(),
       })),
     );
-    expect(bodies[0]).toEqual(bodies[1]);
-    expect(bodies[2]).toEqual(bodies[1]);
+    expect(bodies[0]).toStrictEqual(bodies[1]);
+    expect(bodies[2]).toStrictEqual(bodies[1]);
     expect(bodies[1]?.status).toBe(404);
     expect(JSON.parse(bodies[1]?.body ?? "{}")).toMatchObject({
       type: "about:blank",
@@ -309,7 +309,7 @@ describe("step-up challenges", () => {
       ownerId: "u1",
     });
     expect(glass.outcome).toBe("denied");
-    expect(stepUpOf(glass)).toEqual({ maxAge: 120 });
+    expect(stepUpOf(glass)).toStrictEqual({ maxAge: 120 });
     expect(wwwAuthenticate(glass, permissions.report.read)).toBe(
       'Bearer error="insufficient_user_authentication", max_age="120"',
     );
@@ -318,7 +318,10 @@ describe("step-up challenges", () => {
       scope: "tenant",
       id: "t1",
     });
-    expect(stepUpOf(elevated)).toEqual({ acrValues: ["mfa"], maxAge: 60 });
+    expect(stepUpOf(elevated)).toStrictEqual({
+      acrValues: ["mfa"],
+      maxAge: 60,
+    });
   });
 });
 
@@ -422,7 +425,7 @@ describe("assert and protect parity", () => {
       );
       const expected = await shape(fromProtect);
       expect(expected.status).toBe(status);
-      expect(await shape(fromAssert)).toEqual(expected);
+      expect(await shape(fromAssert)).toStrictEqual(expected);
     },
   );
 

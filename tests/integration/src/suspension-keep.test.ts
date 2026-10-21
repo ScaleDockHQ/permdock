@@ -134,7 +134,7 @@ describe.each([
   }
 
   it("writes a membership of the suspended organization with the keys it keeps", async () => {
-    expect((await mint(OWNER))["memberships"]).toEqual([
+    expect((await mint(OWNER))["memberships"]).toStrictEqual([
       {
         scope: "organization",
         id: "B",
@@ -226,12 +226,12 @@ describe.each([
               )
             ).rows.map((row) => row.id),
           );
-          expect({ user, tenant, table, rows: actual.toSorted() }).toEqual({
+          expect({
             user,
             tenant,
             table,
-            rows: expected,
-          });
+            rows: actual.toSorted(),
+          }).toStrictEqual({ user, tenant, table, rows: expected });
           if (user === OWNER && tenant === "B") {
             expect(actual.length > 0).toBe(table !== "quote");
           }

@@ -133,7 +133,7 @@ describe("RFC 7643 SCIM Core Schema (September 2015)", () => {
       expect({
         id: served["id"],
         violations: violations(served, schema.attributes),
-      }).toEqual({ id: served["id"], violations: [] });
+      }).toStrictEqual({ id: served["id"], violations: [] });
     }
   });
 
@@ -152,7 +152,7 @@ describe("RFC 7643 SCIM Core Schema (September 2015)", () => {
       expect({
         id: type["id"],
         violations: violations(type, attributes),
-      }).toEqual({ id: type["id"], violations: [] });
+      }).toStrictEqual({ id: type["id"], violations: [] });
     }
   });
 
@@ -160,7 +160,9 @@ describe("RFC 7643 SCIM Core Schema (September 2015)", () => {
     const schema = metaSchema(
       "urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig",
     );
-    expect(violations(serviceProviderConfig(), schema.attributes)).toEqual([]);
+    expect(
+      violations(serviceProviderConfig(), schema.attributes),
+    ).toStrictEqual([]);
     expect(serviceProviderConfig()).toHaveProperty("etag.supported");
   });
 
@@ -185,7 +187,7 @@ describe("RFC 7643 SCIM Core Schema (September 2015)", () => {
           name: attribute.name,
           type: attribute.type,
           multiValued: attribute.multiValued,
-        }).toEqual({
+        }).toStrictEqual({
           name: rfc.name,
           type: rfc.type,
           multiValued: rfc.multiValued,
@@ -194,7 +196,7 @@ describe("RFC 7643 SCIM Core Schema (September 2015)", () => {
           expect({
             name: attribute.name,
             required: attribute.required,
-          }).toEqual({ name: attribute.name, required: true });
+          }).toStrictEqual({ name: attribute.name, required: true });
         }
       }
     }
@@ -221,7 +223,7 @@ describe("RFC 7643 SCIM Core Schema (September 2015)", () => {
     );
     expect(schemas().map((schema) => schema["id"])).toContain(ROLES_EXTENSION);
     const group = resourceTypes().find((type) => type["id"] === "Group");
-    expect(group?.["schemaExtensions"]).toEqual([
+    expect(group?.["schemaExtensions"]).toStrictEqual([
       { schema: ROLES_EXTENSION, required: false },
       { schema: APP_DATA_EXTENSION, required: false },
     ]);
@@ -232,7 +234,7 @@ describe("RFC 7643 SCIM Core Schema (September 2015)", () => {
       APP_DATA_EXTENSION,
     );
     const user = resourceTypes().find((type) => type["id"] === "User");
-    expect(user?.["schemaExtensions"]).toEqual([
+    expect(user?.["schemaExtensions"]).toStrictEqual([
       { schema: APP_DATA_EXTENSION, required: false },
     ]);
   });
@@ -243,10 +245,10 @@ describe("RFC 7644 SCIM Protocol (September 2015)", () => {
     const response = await handler()(request("/ServiceProviderConfig"));
     expect(response.headers.get("content-type")).toBe("application/scim+json");
     const config = await body(response);
-    expect(config["schemas"]).toEqual([
+    expect(config["schemas"]).toStrictEqual([
       "urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig",
     ]);
-    expect(config["meta"]).toEqual({
+    expect(config["meta"]).toStrictEqual({
       resourceType: "ServiceProviderConfig",
       location: `${BASE}/ServiceProviderConfig`,
     });
@@ -266,7 +268,7 @@ describe("RFC 7644 SCIM Protocol (September 2015)", () => {
         itemsPerPage: count,
       });
       for (const resource of resources(list)) {
-        expect(resource["meta"]).toEqual({
+        expect(resource["meta"]).toStrictEqual({
           resourceType,
           location: `${BASE}${path}/${String(resource["id"])}`,
         });
@@ -293,7 +295,10 @@ describe("RFC 7644 SCIM Protocol (September 2015)", () => {
       const response = await handle(
         request(`${path}?filter=${encodeURIComponent('id eq "x"')}`),
       );
-      expect({ path, status: response.status }).toEqual({ path, status: 403 });
+      expect({ path, status: response.status }).toStrictEqual({
+        path,
+        status: 403,
+      });
     }
   });
 
@@ -307,9 +312,10 @@ describe("RFC 7644 SCIM Protocol (September 2015)", () => {
       'userName eq "ada" and active eq true',
       'userName eq "ada" or userName eq "bob"',
     ]) {
-      expect({ filter, parsed: parseScimFilter(filter) !== undefined }).toEqual(
-        { filter, parsed: true },
-      );
+      expect({
+        filter,
+        parsed: parseScimFilter(filter) !== undefined,
+      }).toStrictEqual({ filter, parsed: true });
     }
     const handle = handler();
     for (const filter of [
@@ -320,7 +326,7 @@ describe("RFC 7644 SCIM Protocol (September 2015)", () => {
       const response = await handle(
         request(`/Users?filter=${encodeURIComponent(filter)}`),
       );
-      expect({ filter, status: response.status }).toEqual({
+      expect({ filter, status: response.status }).toStrictEqual({
         filter,
         status: 400,
       });
@@ -361,7 +367,7 @@ describe("RFC 7644 SCIM Protocol (September 2015)", () => {
     const anonymous = await handler()(
       new Request(`${BASE}/Users`, { headers: { authorization: "Bearer no" } }),
     );
-    expect([anonymous.status, await body(anonymous)]).toEqual([
+    expect([anonymous.status, await body(anonymous)]).toStrictEqual([
       401,
       {
         schemas: [ERROR_SCHEMA],
@@ -496,7 +502,7 @@ describe("RFC 9865 SCIM cursor pagination (October 2025)", () => {
   });
 
   it("ServiceProviderConfig advertises cursor and index pagination", () => {
-    expect(serviceProviderConfig()["pagination"]).toEqual({
+    expect(serviceProviderConfig()["pagination"]).toStrictEqual({
       cursor: true,
       index: true,
     });

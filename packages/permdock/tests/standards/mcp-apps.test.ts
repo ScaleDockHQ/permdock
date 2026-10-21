@@ -85,7 +85,7 @@ describe("permdock/mcp and MCP Apps", () => {
     });
     const tools = await client.listTools(undefined, { cacheMode: "bypass" });
     const shown = tools.tools.map((tool) => tool.name);
-    expect(listed.resources.map((resource) => resource.uri)).toEqual([
+    expect(listed.resources.map((resource) => resource.uri)).toStrictEqual([
       "ui://posts/board",
       ...(shown.includes("publish_board") ? ["ui://posts/publish"] : []),
     ]);
@@ -116,8 +116,8 @@ describe("permdock/mcp and MCP Apps", () => {
     const listed = await client.listResources(undefined, {
       cacheMode: "bypass",
     });
-    expect(tools.tools).toEqual([]);
-    expect(listed.resources).toEqual([]);
+    expect(tools.tools).toStrictEqual([]);
+    expect(listed.resources).toStrictEqual([]);
     await expect(
       client.readResource({ uri: "ui://posts/board" }),
     ).rejects.toThrow(/Denied/u);

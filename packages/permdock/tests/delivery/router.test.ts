@@ -114,10 +114,9 @@ describe("createPermDock (delivery)", () => {
       { email, chat: { text: "Invoice i1 is ready." } },
     );
     expect(report.sent).toBe(3);
-    expect(mail.deliveries.map((entry) => entry.target.principal)).toEqual([
-      "u_2",
-      "c_1",
-    ]);
+    expect(
+      mail.deliveries.map((entry) => entry.target.principal),
+    ).toStrictEqual(["u_2", "c_1"]);
     expect(mail.deliveries[0]?.target.address).toBe("ann@acme.test");
     expect(chat.deliveries[0]?.target).toMatchObject({
       address: "U2",
@@ -182,7 +181,7 @@ describe("createPermDock (delivery)", () => {
       deliveryEvents(sink.events()).map((event) =>
         event.type === "delivery" ? event.cause : undefined,
       ),
-    ).toEqual(["no-transport", "no-message"]);
+    ).toStrictEqual(["no-transport", "no-message"]);
   });
 
   it("refuses an address that is not an addr-spec", async () => {
@@ -201,7 +200,7 @@ describe("createPermDock (delivery)", () => {
       ],
       { email },
     );
-    expect(mail.deliveries).toEqual([]);
+    expect(mail.deliveries).toStrictEqual([]);
     expect(
       deliveryEvents(sink.events()).every(
         (event) =>
@@ -320,10 +319,10 @@ describe("createPermDock (delivery)", () => {
       ],
       { email },
     );
-    expect(batches).toEqual([2, 1]);
+    expect(batches).toStrictEqual([2, 1]);
     expect(
       report.events.map((event) => event.provider?.id ?? event.cause),
-    ).toEqual(["b_u_2", "denied", "b_u_1", "suppressed"]);
+    ).toStrictEqual(["b_u_2", "denied", "b_u_1", "suppressed"]);
   });
 
   it("fails every item of a batch that throws or returns the wrong count", async () => {
@@ -396,7 +395,7 @@ describe("createPermDock (delivery)", () => {
       { email },
       { approval: "apr_1" },
     );
-    expect(report.events.map((event) => event.operation)).toEqual([
+    expect(report.events.map((event) => event.operation)).toStrictEqual([
       "failed",
       "sent",
     ]);
@@ -420,7 +419,7 @@ describe("email standards", () => {
 
   it("marks every message Auto-Submitted and keeps the sender's from", async () => {
     const { sent } = await sendWith(email);
-    expect(sent?.headers).toEqual({ "Auto-Submitted": "auto-generated" });
+    expect(sent?.headers).toStrictEqual({ "Auto-Submitted": "auto-generated" });
     expect(sent?.from).toBe("billing@acme.test");
   });
 
@@ -433,7 +432,7 @@ describe("email standards", () => {
         mailto: "unsubscribe@acme.test",
       },
     });
-    expect(sent?.headers).toEqual({
+    expect(sent?.headers).toStrictEqual({
       "Auto-Submitted": "auto-generated",
       "List-Unsubscribe":
         "<https://acme.test/unsubscribe?t=abc>, <mailto:unsubscribe@acme.test>",
@@ -482,7 +481,7 @@ describe("email standards", () => {
           "X-Entity-Ref-ID": "i1",
         },
       });
-      expect(sent?.headers).toEqual({
+      expect(sent?.headers).toStrictEqual({
         "Auto-Submitted": "auto-generated",
         "X-Entity-Ref-ID": "i1",
       });
@@ -538,11 +537,11 @@ describe("memoryDeliveryTransport", () => {
       },
       { idempotencyKey: "pdd_x", delivery: "dlv_x" },
     );
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       status: "failed",
       cause: "invalid-recipient",
       retryable: false,
     });
-    expect(mail.deliveries).toEqual([]);
+    expect(mail.deliveries).toStrictEqual([]);
   });
 });

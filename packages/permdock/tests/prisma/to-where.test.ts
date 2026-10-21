@@ -43,10 +43,10 @@ describe("permdock/prisma toWhere", () => {
       op: "not",
       condition: { op: "eq", field: "orgId", value: "acme" },
     } as const;
-    expect(toWhere(negated)).toEqual({
+    expect(toWhere(negated)).toStrictEqual({
       OR: [{ NOT: { orgId: { equals: "acme" } } }, { orgId: { equals: null } }],
     });
-    expect(toWhere(negated, { requiredFields: ["orgId"] })).toEqual({
+    expect(toWhere(negated, { requiredFields: ["orgId"] })).toStrictEqual({
       NOT: { orgId: { equals: "acme" } },
     });
     expect(
@@ -54,35 +54,35 @@ describe("permdock/prisma toWhere", () => {
         { op: "notIn", field: "orgId", value: [] },
         { requiredFields: ["orgId"] },
       ),
-    ).toEqual({});
-    expect(toWhere({ op: "notIn", field: "orgId", value: [] })).toEqual({
+    ).toStrictEqual({});
+    expect(toWhere({ op: "notIn", field: "orgId", value: [] })).toStrictEqual({
       orgId: { not: null },
     });
   });
 
   it("maps operators and memberOf from frozen memberships", () => {
-    expect(toWhere({ op: "eq", field: "authorId", value: "u1" })).toEqual({
-      authorId: { equals: "u1" },
-    });
-    expect(toWhere({ op: "contains", field: "title", value: "hi" })).toEqual({
-      title: { contains: "hi" },
-    });
+    expect(toWhere({ op: "eq", field: "authorId", value: "u1" })).toStrictEqual(
+      { authorId: { equals: "u1" } },
+    );
+    expect(
+      toWhere({ op: "contains", field: "title", value: "hi" }),
+    ).toStrictEqual({ title: { contains: "hi" } });
     expect(
       toWhere({ op: "contains", field: "title", value: "100%_a\\b" }),
-    ).toEqual({ title: { contains: "100\\%\\_a\\\\b" } });
+    ).toStrictEqual({ title: { contains: "100\\%\\_a\\\\b" } });
     expect(
       toWhere(
         { op: "contains", field: "tags", value: "a" },
         { listFields: ["tags"] },
       ),
-    ).toEqual({ tags: { has: "a" } });
+    ).toStrictEqual({ tags: { has: "a" } });
     expect(
       toWhere(
         { op: "memberOf", scope: "tenant", field: "orgId", roles: ["viewer"] },
         { subject },
       ),
-    ).toEqual({ orgId: { equals: "o1" } });
-    expect(toWhere({ op: "eq", field: "_", value: true })).toEqual({});
+    ).toStrictEqual({ orgId: { equals: "o1" } });
+    expect(toWhere({ op: "eq", field: "_", value: true })).toStrictEqual({});
   });
 
   it("rewrites empty OR through permdockExtension", async () => {
@@ -95,7 +95,10 @@ describe("permdock/prisma toWhere", () => {
         return [];
       },
     });
-    expect(seen?.["where"]).toEqual({ AND: [{ OR: [] }, { OR: [] }], OR: [] });
+    expect(seen?.["where"]).toStrictEqual({
+      AND: [{ OR: [] }, { OR: [] }],
+      OR: [],
+    });
   });
 });
 
@@ -245,7 +248,7 @@ describe("permdock/prisma toWhere operators", () => {
 
   for (const { name, condition, where } of cases) {
     it(name, () => {
-      expect(toWhere(condition)).toEqual(where);
+      expect(toWhere(condition)).toStrictEqual(where);
     });
   }
 
@@ -255,8 +258,10 @@ describe("permdock/prisma toWhere operators", () => {
       field: "authorId",
       value: { ref: "principal.id" },
     };
-    expect(toWhere(own, { subject })).toEqual({ authorId: { equals: "u1" } });
-    expect(toWhere(own)).toEqual(EMPTY);
+    expect(toWhere(own, { subject })).toStrictEqual({
+      authorId: { equals: "u1" },
+    });
+    expect(toWhere(own)).toStrictEqual(EMPTY);
     expect(
       toWhere(
         { op: "in", field: "roleId", value: { ref: "context.ids" } },
@@ -267,7 +272,7 @@ describe("permdock/prisma toWhere operators", () => {
           },
         },
       ),
-    ).toEqual({ roleId: { in: ["r1", "r2"] } });
+    ).toStrictEqual({ roleId: { in: ["r1", "r2"] } });
   });
 
   it("renames fields and reads required and list fields from the model", () => {
@@ -276,20 +281,20 @@ describe("permdock/prisma toWhere operators", () => {
         { op: "eq", field: "orgId", value: "o1" },
         { fields: { orgId: "org_id" } },
       ),
-    ).toEqual({ org_id: { equals: "o1" } });
+    ).toStrictEqual({ org_id: { equals: "o1" } });
     const model = { required: ["org_id"], lists: ["tag_list"] };
     expect(
       toWhere(
         { op: "isNull", field: "orgId", value: false },
         { fields: { orgId: "org_id" }, model },
       ),
-    ).toEqual({});
+    ).toStrictEqual({});
     expect(
       toWhere(
         { op: "contains", field: "tags", value: "a" },
         { fields: { tags: "tag_list" }, model },
       ),
-    ).toEqual({ tag_list: { has: "a" } });
+    ).toStrictEqual({ tag_list: { has: "a" } });
   });
 
   it("folds null tests on required fields inside and / or", () => {
@@ -302,36 +307,36 @@ describe("permdock/prisma toWhere operators", () => {
     const eq: Condition = { op: "eq", field: "c", value: 1 };
     const fold = (condition: Condition): unknown =>
       toWhere(condition, { requiredFields });
-    expect(fold({ op: "and", conditions: [isNull("a", true), eq] })).toEqual(
-      EMPTY,
-    );
-    expect(fold({ op: "and", conditions: [isNull("a", false), eq] })).toEqual({
-      c: { equals: 1 },
-    });
+    expect(
+      fold({ op: "and", conditions: [isNull("a", true), eq] }),
+    ).toStrictEqual(EMPTY);
+    expect(
+      fold({ op: "and", conditions: [isNull("a", false), eq] }),
+    ).toStrictEqual({ c: { equals: 1 } });
     expect(
       fold({ op: "and", conditions: [isNull("a", false), isNull("b", false)] }),
-    ).toEqual({});
+    ).toStrictEqual({});
     expect(
       fold({
         op: "and",
         conditions: [isNull("a", false), eq, isNull("d", true)],
       }),
-    ).toEqual({ AND: [{ c: { equals: 1 } }, { d: { equals: null } }] });
-    expect(fold({ op: "or", conditions: [isNull("a", false), eq] })).toEqual(
-      {},
-    );
+    ).toStrictEqual({ AND: [{ c: { equals: 1 } }, { d: { equals: null } }] });
+    expect(
+      fold({ op: "or", conditions: [isNull("a", false), eq] }),
+    ).toStrictEqual({});
     expect(
       fold({ op: "or", conditions: [isNull("a", true), isNull("b", true)] }),
-    ).toEqual(EMPTY);
-    expect(fold({ op: "or", conditions: [isNull("a", true), eq] })).toEqual({
-      c: { equals: 1 },
-    });
+    ).toStrictEqual(EMPTY);
+    expect(
+      fold({ op: "or", conditions: [isNull("a", true), eq] }),
+    ).toStrictEqual({ c: { equals: 1 } });
     expect(
       fold({
         op: "or",
         conditions: [isNull("a", true), eq, isNull("d", true)],
       }),
-    ).toEqual({ OR: [{ c: { equals: 1 } }, { d: { equals: null } }] });
+    ).toStrictEqual({ OR: [{ c: { equals: 1 } }, { d: { equals: null } }] });
   });
 
   it("compiles resource memberships and their parents from the subject", () => {
@@ -347,7 +352,7 @@ describe("permdock/prisma toWhere operators", () => {
         },
         { subject },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       OR: [{ id: { equals: "d1" } }, { parentId: { equals: "d1" } }],
     });
     expect(
@@ -357,7 +362,7 @@ describe("permdock/prisma toWhere operators", () => {
         field: "orgId",
         roles: ["viewer"],
       }),
-    ).toEqual(EMPTY);
+    ).toStrictEqual(EMPTY);
   });
 
   it("reads the subject a WhereResult carries", () => {
@@ -370,7 +375,7 @@ describe("permdock/prisma toWhere operators", () => {
       partial: false,
       subject,
     } as const;
-    expect(toWhere(result)).toEqual({ authorId: { equals: "u1" } });
+    expect(toWhere(result)).toStrictEqual({ authorId: { equals: "u1" } });
   });
 
   it("refuses opaque SQL, closure grants and unresolved relations", () => {
@@ -398,7 +403,7 @@ describe("permdock/prisma permdockExtension", () => {
   it("wraps every filtered operation", () => {
     expect(
       Object.keys(permdockExtension().query.$allModels).toSorted(),
-    ).toEqual([
+    ).toStrictEqual([
       "aggregate",
       "count",
       "deleteMany",
@@ -425,7 +430,7 @@ describe("permdock/prisma permdockExtension", () => {
     await run?.({ args: nested, query });
     expect(seen[0]).toBe(plain);
     expect(seen[1]).toBe(none);
-    expect(seen[2]).toEqual({
+    expect(seen[2]).toStrictEqual({
       where: { AND: [nested.where, { OR: [] }], OR: [] },
     });
   });
@@ -484,31 +489,31 @@ describe("permdock/prisma checkRow", () => {
 
   it("grants in one query when the filter keeps the row", async () => {
     const fake = delegate([{ id: 1 }]);
-    expect(await checkRow(fake, condition, { id: 1 })).toEqual({
+    expect(await checkRow(fake, condition, { id: 1 })).toStrictEqual({
       found: true,
       granted: true,
     });
-    expect(fake.seen).toEqual([
+    expect(fake.seen).toStrictEqual([
       { AND: [{ id: 1 }, { orgId: { equals: "o1" } }] },
     ]);
   });
 
   it("tells a denied row from a missing one", async () => {
     const denied = delegate([null, { id: 1 }]);
-    expect(await checkRow(denied, condition, { id: 1 })).toEqual({
+    expect(await checkRow(denied, condition, { id: 1 })).toStrictEqual({
       found: true,
       granted: false,
     });
-    expect(denied.seen[1]).toEqual({ id: 1 });
+    expect(denied.seen[1]).toStrictEqual({ id: 1 });
     expect(
       await checkRow(delegate([null, null]), condition, { id: 2 }),
-    ).toEqual({ found: false });
+    ).toStrictEqual({ found: false });
   });
 
   it("rewrites an empty allow set so Prisma matches nothing", async () => {
     const fake = delegate([null, null]);
     await checkRow(fake, { op: "or", conditions: [] }, { id: 1 });
-    expect(fake.seen[0]).toEqual({
+    expect(fake.seen[0]).toStrictEqual({
       AND: [{ AND: [{ id: 1 }, { OR: [] }] }, { OR: [] }],
       OR: [],
     });

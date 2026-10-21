@@ -39,7 +39,9 @@ const request = {
 
 describe("parseSupportSession", () => {
   it("keeps the v1 fields and freezes the copy", () => {
-    expect(parseSupportSession({ ...session, extra: 1 })).toEqual(session);
+    expect(parseSupportSession({ ...session, extra: 1 })).toStrictEqual(
+      session,
+    );
     expect(Object.isFrozen(parseSupportSession(session))).toBe(true);
   });
 
@@ -87,7 +89,7 @@ describe("decideSupportSession", () => {
         approved: pending.token,
         approvedBy: "u_lead",
       }),
-    ).toEqual({
+    ).toStrictEqual({
       outcome: "granted",
       session: {
         ...session,

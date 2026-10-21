@@ -14,7 +14,7 @@ describe("membershipSourcesOf", () => {
         supabase: { hook: { memberships: [hook] } },
         rls: { membershipSources: [rls] },
       }),
-    ).toEqual([rls]);
+    ).toStrictEqual([rls]);
   });
 
   it("falls back to the hook sources, then to none", () => {
@@ -23,7 +23,7 @@ describe("membershipSourcesOf", () => {
         policy: "p.ts",
         supabase: { hook: { memberships: [hook] } },
       }),
-    ).toEqual([hook]);
-    expect(membershipSourcesOf({ policy: "p.ts" })).toEqual([]);
+    ).toStrictEqual([hook]);
+    expect(membershipSourcesOf({ policy: "p.ts" })).toStrictEqual([]);
   });
 });

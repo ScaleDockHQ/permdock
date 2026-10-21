@@ -139,7 +139,7 @@ describe("ORM parity for restricted stops: links closed below a restricted row",
           return found.map((row) => row.id);
         },
       });
-      expect(failures(report.results)).toEqual([]);
+      expect(failures(report.results)).toStrictEqual([]);
       expect(
         report.results.some(
           (result) => !result.partial && result.expected.length > 0,
@@ -180,7 +180,7 @@ describe("ORM parity for restricted stops: links closed below a restricted row",
           ).rows.map((row) => row.id);
         },
       });
-      expect(failures(report.results)).toEqual([]);
+      expect(failures(report.results)).toStrictEqual([]);
     });
 
     it(`resolveRelated (the Prisma path), ${label}`, async () => {
@@ -208,7 +208,7 @@ describe("ORM parity for restricted stops: links closed below a restricted row",
           return found.map((row) => row.id);
         },
       });
-      expect(failures(report.results)).toEqual([]);
+      expect(failures(report.results)).toStrictEqual([]);
     });
   }
 });

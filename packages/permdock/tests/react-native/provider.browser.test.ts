@@ -189,7 +189,7 @@ describe("permdock/react-native PermDockProvider revalidation", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5_000);
     });
-    expect([first.calls(), second.calls()]).toEqual([1, 1]);
+    expect([first.calls(), second.calls()]).toStrictEqual([1, 1]);
     act(() => {
       root?.render(tree(second, "b"));
     });
@@ -197,7 +197,7 @@ describe("permdock/react-native PermDockProvider revalidation", () => {
       await vi.advanceTimersByTimeAsync(5_000);
     });
     expect(second.calls()).toBe(2);
-    expect(tokens).toEqual(["a", "a", "b"]);
+    expect(tokens).toStrictEqual(["a", "a", "b"]);
   });
 
   it("pauses the interval in the background and refreshes on return", async () => {

@@ -41,7 +41,7 @@ describe("PD055 custom roles stored under a former key", () => {
       policy: "./src/policy.ts",
       doctor: { memberships: "./memberships.json" },
     };
-    expect(await pd055({ cwd, config })).toEqual([
+    expect(await pd055({ cwd, config })).toStrictEqual([
       {
         code: "PD055",
         severity: "warning",
@@ -50,15 +50,15 @@ describe("PD055 custom roles stored under a former key", () => {
         fix: "rewrite the stored key before removing the alias: update permdock.custom_role_permissions set permission = 'customer.read' where permission = 'customer.view';",
       },
     ]);
-    expect(await pd055({ cwd, config: { policy: "./src/policy.ts" } })).toEqual(
-      [],
-    );
+    expect(
+      await pd055({ cwd, config: { policy: "./src/policy.ts" } }),
+    ).toStrictEqual([]);
     expect(
       await pd055({
         cwd,
         config: { ...config, doctor: { memberships: "./missing.json" } },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     const [inApp] = await pd055({
       cwd,
       config: { ...config, rls: { schema: "app" } },
@@ -68,7 +68,7 @@ describe("PD055 custom roles stored under a former key", () => {
       "src/policy.ts": POLICY,
       "memberships.json": JSON.stringify({}),
     });
-    expect(await pd055({ cwd: bare, config })).toEqual([]);
+    expect(await pd055({ cwd: bare, config })).toStrictEqual([]);
   });
 });
 
@@ -94,7 +94,7 @@ create function public.visible(p uuid) returns boolean language sql as $$ select
 `,
       "supabase/migrations/002_more.sql": `create policy q on public.docs using (org_id in (select org_ids('doc.read')));\n`,
     });
-    expect(pd056(cwd, config)).toEqual([
+    expect(pd056(cwd, config)).toStrictEqual([
       {
         code: "PD056",
         severity: "warning",
@@ -116,8 +116,8 @@ create function public.visible(p uuid) returns boolean language sql as $$ select
     const cwd = project({
       "supabase/migrations/001.sql": `create or replace function public.is_member(p_id uuid) returns boolean language sql as $$ select true $$;\n`,
     });
-    expect(pd056(cwd, {})).toEqual([]);
-    expect(pd056(cwd, config)).toEqual([]);
+    expect(pd056(cwd, {})).toStrictEqual([]);
+    expect(pd056(cwd, config)).toStrictEqual([]);
   });
 });
 
@@ -139,7 +139,7 @@ create trigger sync after insert on public.memberships for each statement execut
     const cwd = project({
       "supabase/migrations/001_legacy.sql": `${LEGACY}create view public.mine as select * from user_permissions;\n`,
     });
-    expect(pd066(cwd, config)).toEqual([
+    expect(pd066(cwd, config)).toStrictEqual([
       {
         code: "PD066",
         severity: "warning",
@@ -152,7 +152,7 @@ create trigger sync after insert on public.memberships for each statement execut
 
   it("says --retire-out is ready with no reader, and is quiet once dropped", () => {
     const cwd = project({ "supabase/migrations/001_legacy.sql": LEGACY });
-    expect(pd066(cwd, config)).toEqual([
+    expect(pd066(cwd, config)).toStrictEqual([
       {
         code: "PD066",
         severity: "warning",
@@ -166,7 +166,7 @@ create trigger sync after insert on public.memberships for each statement execut
       "supabase/migrations/002_retire.sql":
         "drop table public.user_permissions;\n",
     });
-    expect(pd066(dropped, config)).toEqual([]);
-    expect(pd066(cwd, {})).toEqual([]);
+    expect(pd066(dropped, config)).toStrictEqual([]);
+    expect(pd066(cwd, {})).toStrictEqual([]);
   });
 });

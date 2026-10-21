@@ -99,7 +99,7 @@ describe("transformSource", () => {
         "export const sinks = [memoryDecisionSink];",
       ].join("\n"),
     );
-    expect(result.changes).toEqual([
+    expect(result.changes).toStrictEqual([
       { line: 1, column: 10, from: "memorySink", to: "memoryDecisionSink" },
       { line: 2, column: 14, from: "memorySink", to: "memoryDecisionSink" },
       { line: 3, column: 23, from: "memorySink", to: "memoryDecisionSink" },
@@ -194,13 +194,13 @@ describe("transformSource", () => {
     ].join("\n");
     const result = apply(source);
     expect(result.source).toBe(source);
-    expect(result.changes).toEqual([]);
+    expect(result.changes).toStrictEqual([]);
   });
 
   it("leaves a file that imports no permdock entry untouched", () => {
     const source =
       "const memorySink = () => 1;\nconst store = { store: memorySink };";
-    expect(apply(source)).toEqual({ source, changes: [], followUps: [] });
+    expect(apply(source)).toStrictEqual({ source, changes: [], followUps: [] });
   });
 
   it("renames members of a namespace import and re-exports", () => {
@@ -233,7 +233,7 @@ describe("transformSource", () => {
     expect(result.source).toContain(
       "scimHandler({ directory: other, token });",
     );
-    expect(result.followUps).toEqual([]);
+    expect(result.followUps).toStrictEqual([]);
   });
 
   it("renames a shorthand option key and the renamed import it holds", () => {
@@ -279,7 +279,7 @@ describe("transformSource", () => {
       'import { createPermDock } from "permdock/claude-agent";',
       "createPermDock(policy, { store: memoryApprovalStore() });",
     ].join("\n");
-    expect(apply(source)).toEqual({ source, changes: [], followUps: [] });
+    expect(apply(source)).toStrictEqual({ source, changes: [], followUps: [] });
   });
 
   it("reports option keys and methods it cannot match safely", () => {
@@ -293,7 +293,9 @@ describe("transformSource", () => {
       ].join("\n"),
     );
     expect(result.source).not.toContain("call");
-    expect(result.followUps.map((item) => [item.line, item.name])).toEqual([
+    expect(
+      result.followUps.map((item) => [item.line, item.name]),
+    ).toStrictEqual([
       [3, "source"],
       [4, "permdock"],
       [5, "permdock"],
@@ -312,10 +314,10 @@ describe("transformSource", () => {
     );
     expect(result.source).toContain("app.use(kit.middleware());");
     expect(result.source).toContain("function inner(kit) { kit.permdock(); }");
-    expect(result.changes).toEqual([
+    expect(result.changes).toStrictEqual([
       { line: 3, column: 13, from: "permdock", to: "middleware" },
     ]);
-    expect(result.followUps.map((item) => item.line)).toEqual([5]);
+    expect(result.followUps.map((item) => item.line)).toStrictEqual([5]);
   });
 
   it("tracks only plain const bindings of a direct call to an imported factory", () => {
@@ -336,8 +338,8 @@ describe("transformSource", () => {
         "make().permdock();",
       ].join("\n"),
     );
-    expect(result.changes.map((item) => item.line)).toEqual([8]);
-    expect(result.followUps.map((item) => item.line)).toEqual([
+    expect(result.changes.map((item) => item.line)).toStrictEqual([8]);
+    expect(result.followUps.map((item) => item.line)).toStrictEqual([
       9, 10, 11, 12, 13,
     ]);
   });
@@ -348,7 +350,7 @@ describe("transformSource", () => {
       "const instance = createPermDock(policy, user);",
       "instance.permdock;",
     ].join("\n");
-    expect(apply(source)).toEqual({ source, changes: [], followUps: [] });
+    expect(apply(source)).toStrictEqual({ source, changes: [], followUps: [] });
   });
 
   it("reports call-shape changes at each call site", () => {
@@ -359,7 +361,7 @@ describe("transformSource", () => {
         "const subject = await resolve(key);",
       ].join("\n"),
     );
-    expect(result.followUps).toEqual([
+    expect(result.followUps).toStrictEqual([
       {
         line: 2,
         column: 17,
@@ -378,7 +380,7 @@ describe("transformSource", () => {
       "  verifier: apiKeyVerifier({ keys: connectServiceApiKeys(getAdmin()) }),",
       "});",
     ].join("\n");
-    expect(apply(source)).toEqual({ source, changes: [], followUps: [] });
+    expect(apply(source)).toStrictEqual({ source, changes: [], followUps: [] });
   });
 
   it("reports a curried call whose options are not an object literal", () => {
@@ -389,9 +391,9 @@ describe("transformSource", () => {
         "const later = subjectFromApiKey(options);",
       ].join("\n"),
     );
-    expect(result.followUps.map((item) => [item.line, item.column])).toEqual([
-      [2, 23],
-    ]);
+    expect(
+      result.followUps.map((item) => [item.line, item.column]),
+    ).toStrictEqual([[2, 23]]);
   });
 
   it("reports an option key only on an object that reaches a permdock call", () => {
@@ -408,7 +410,9 @@ describe("transformSource", () => {
       ].join("\n"),
     );
     expect(result.source).not.toContain("call");
-    expect(result.followUps.map((item) => [item.line, item.name])).toEqual([
+    expect(
+      result.followUps.map((item) => [item.line, item.name]),
+    ).toStrictEqual([
       [6, "source"],
       [7, "source"],
     ]);
@@ -471,7 +475,7 @@ describe("transformSource", () => {
     expect(lines[0]).toBe(
       'import { memoryDecisionSink, MemoryDecisionSink } from "permdock";',
     );
-    expect(lines.slice(1, -2)).toEqual([
+    expect(lines.slice(1, -2)).toStrictEqual([
       ...source.split("\n").slice(1, 15),
       "export default memoryDecisionSink;",
       "{ function memorySink() {} memorySink(); }",
@@ -525,7 +529,7 @@ describe("transformSource", () => {
       'import * as server from "permdock/server";\nserver.subjectFromApiKey({})(key);\nexport * from "permdock";',
       "keys.mts",
     );
-    expect(result.followUps.map((item) => item.name)).toEqual([
+    expect(result.followUps.map((item) => item.name)).toStrictEqual([
       "subjectFromApiKey",
     ]);
   });
@@ -538,7 +542,7 @@ describe("transformSource", () => {
         "type B = MemorySink.Options | Other.MemorySink;",
       ].join("\n"),
     );
-    expect(result.source.split("\n").slice(1)).toEqual([
+    expect(result.source.split("\n").slice(1)).toStrictEqual([
       "type A = typeof memoryDecisionSink;",
       "type B = MemoryDecisionSink.Options | Other.MemorySink;",
     ]);
@@ -631,7 +635,9 @@ describe("permdock codemod", () => {
     const report = jsonData(result.stdout) as CodemodReport;
     expect(report.dryRun).toBe(true);
     expect(report.scanned).toBe(3);
-    expect(report.files.map((file) => file.file)).toEqual(["src/sinks.ts"]);
+    expect(report.files.map((file) => file.file)).toStrictEqual([
+      "src/sinks.ts",
+    ]);
     expect(readFileSync(join(dir, "src/sinks.ts"), "utf8")).toBe(
       files["src/sinks.ts"],
     );

@@ -170,7 +170,7 @@ describe("webBotAuthVerifier", () => {
       const request = await signed(signer, { components, headers });
       expect(
         await webBotAuthVerifier(options(() => signer.jwk)).verify(request),
-      ).toEqual({ id: signer.jwk.kid, kind: "web-bot-auth" });
+      ).toStrictEqual({ id: signer.jwk.kid, kind: "web-bot-auth" });
     }
   });
 
@@ -440,7 +440,7 @@ describe("webBotAuthVerifier", () => {
       });
       await webBotAuthVerifier(options(lookup)).verify(request);
     }
-    expect(agents).toEqual([
+    expect(agents).toStrictEqual([
       "https://bots.example",
       "https://bots.example/dir",
       "https://first.example",
@@ -491,7 +491,7 @@ describe("the Web Bot Auth profile", () => {
         request,
         options(() => ed.jwk),
       ),
-    ).toEqual({ id: "ed-key", kind: "web-bot-auth" });
+    ).toStrictEqual({ id: "ed-key", kind: "web-bot-auth" });
   });
 });
 
@@ -513,7 +513,7 @@ describe("discoverViaSignatureAgent", () => {
     expect(
       await lookup({ request, keyid: "k2", agent: "https://bots.example/" }),
     ).toBeUndefined();
-    expect(transport.calls.map((call) => call.url)).toEqual([
+    expect(transport.calls.map((call) => call.url)).toStrictEqual([
       "https://bots.example/.well-known/http-message-signatures-directory",
     ]);
     await lookup({
@@ -538,7 +538,7 @@ describe("discoverViaSignatureAgent", () => {
     expect(
       await lookup({ request: new Request(SIGNED_URL), keyid: "k1", agent }),
     ).toBeUndefined();
-    expect(transport.calls).toEqual([]);
+    expect(transport.calls).toStrictEqual([]);
   });
 
   it.each<[string, () => Response]>([

@@ -190,7 +190,7 @@ describe("permdock/eve through the eve harness toolApproval on Postgres", () => 
     });
     await first.consumeStream();
     const { messages } = (await first.finalStep).response;
-    expect(deleted.mock.calls.map(([input]) => input.id)).toEqual(["p1"]);
+    expect(deleted.mock.calls.map(([input]) => input.id)).toStrictEqual(["p1"]);
     const approvalId = approvalIdOf(messages);
     expect(approvalId).toBeDefined();
 
@@ -213,7 +213,7 @@ describe("permdock/eve through the eve harness toolApproval on Postgres", () => 
         response: { decision: "approve", principal: carol },
         session: { id: session.id, initiator: alice },
       }),
-    ).toEqual({ status: "allowed" });
+    ).toStrictEqual({ status: "allowed" });
 
     const resumed: ModelMessage[] = [
       { role: "user", content: "clean up acme" },

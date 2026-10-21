@@ -47,7 +47,7 @@ export function testReplayStore(store: ReplayStore): void {
       store.claim("claim-key", expiresAt),
       store.claim("claim-key", expiresAt),
     ]);
-    expect(results.toSorted()).toEqual([false, true]);
+    expect(results.toSorted()).toStrictEqual([false, true]);
     expect(await store.seen("claim-key")).toBe(true);
     await store.release("claim-key");
     expect(await store.claim("claim-key", expiresAt)).toBe(true);
@@ -59,14 +59,14 @@ export function testSetQueue(queue: SetQueue): void {
     await queue.enqueue("stream-a", "a1", "set-a1");
     await queue.enqueue("stream-a", "a2", "set-a2");
     await queue.enqueue("stream-b", "b1", "set-b1");
-    expect(await queue.pending("stream-a", 10)).toEqual([
+    expect(await queue.pending("stream-a", 10)).toStrictEqual([
       { jti: "a1", set: "set-a1" },
       { jti: "a2", set: "set-a2" },
     ]);
-    expect(await queue.pending("stream-a", 1)).toEqual([
+    expect(await queue.pending("stream-a", 1)).toStrictEqual([
       { jti: "a1", set: "set-a1" },
     ]);
-    expect(await queue.pending("stream-b", 10)).toEqual([
+    expect(await queue.pending("stream-b", 10)).toStrictEqual([
       { jti: "b1", set: "set-b1" },
     ]);
   });
@@ -81,7 +81,7 @@ export function testSetQueue(queue: SetQueue): void {
       description: "unknown kid",
     });
     await queue.ack("stream-other", "c3");
-    expect(await queue.pending("stream-c", 10)).toEqual([
+    expect(await queue.pending("stream-c", 10)).toStrictEqual([
       { jti: "c3", set: "set-c3" },
     ]);
   });
@@ -112,21 +112,20 @@ export function testSsfStreamStore(store: SsfStreamStore): void {
     await store.create(owner, streamConfiguration(first));
     await store.create(owner, streamConfiguration(second));
     await store.create("someone-else", streamConfiguration(id("c")));
-    expect(await store.get(first)).toEqual({
+    expect(await store.get(first)).toStrictEqual({
       owner,
       configuration: streamConfiguration(first),
     });
-    expect(await store.status(first)).toEqual({
+    expect(await store.status(first)).toStrictEqual({
       stream_id: first,
       status: "enabled",
     });
     const listed = await store.list(owner);
-    expect(listed.map((stream) => stream.configuration.stream_id)).toEqual([
-      first,
-      second,
-    ]);
+    expect(
+      listed.map((stream) => stream.configuration.stream_id),
+    ).toStrictEqual([first, second]);
     const all = await store.list();
-    expect(all.map((stream) => stream.configuration.stream_id)).toEqual(
+    expect(all.map((stream) => stream.configuration.stream_id)).toStrictEqual(
       expect.arrayContaining([first, second]),
     );
   });
@@ -145,11 +144,11 @@ export function testSsfStreamStore(store: SsfStreamStore): void {
       reason: "maintenance",
     });
     await store.update(streamConfiguration(stream, "renamed"));
-    expect(await store.get(stream)).toEqual({
+    expect(await store.get(stream)).toStrictEqual({
       owner: "owner-update",
       configuration: streamConfiguration(stream, "renamed"),
     });
-    expect(await store.status(stream)).toEqual({
+    expect(await store.status(stream)).toStrictEqual({
       stream_id: stream,
       status: "paused",
       reason: "maintenance",
@@ -187,8 +186,8 @@ export function testRevocationFeed(feed: RevocationFeed): void {
     };
     await feed.revoke(revoked);
     await vi.waitFor(() => {
-      expect(first).toEqual([revoked]);
-      expect(second).toEqual([revoked]);
+      expect(first).toStrictEqual([revoked]);
+      expect(second).toStrictEqual([revoked]);
     });
     stopFirst();
     const changed: RevocationEvent = {
@@ -198,9 +197,9 @@ export function testRevocationFeed(feed: RevocationFeed): void {
     };
     await feed.revoke(changed);
     await vi.waitFor(() => {
-      expect(second).toEqual([revoked, changed]);
+      expect(second).toStrictEqual([revoked, changed]);
     });
-    expect(first).toEqual([revoked]);
+    expect(first).toStrictEqual([revoked]);
     stopSecond();
   });
 
@@ -215,7 +214,7 @@ export function testRevocationFeed(feed: RevocationFeed): void {
     const event: RevocationEvent = { principal: "u-throw", kind: "changed" };
     await feed.revoke(event);
     await vi.waitFor(() => {
-      expect(seen).toEqual([event]);
+      expect(seen).toStrictEqual([event]);
     });
     stopThrowing();
     stop();
@@ -238,7 +237,7 @@ export function testRevocationFeed(feed: RevocationFeed): void {
         })(),
       ).rejects.toThrow(TypeError);
     }
-    expect(seen).toEqual([]);
+    expect(seen).toStrictEqual([]);
     stop();
   });
 }
@@ -327,7 +326,9 @@ export function testCredentialVerifier(
     const credential = parseCredential(await verifier.verify(key));
     expect(credential).toBeDefined();
     expect(credential?.id).toBe(parts?.id);
-    expect(parseCredential(await verifier.verify(key))).toEqual(credential);
+    expect(parseCredential(await verifier.verify(key))).toStrictEqual(
+      credential,
+    );
   });
 
   it("never throws and answers null for every other key", async () => {
@@ -360,7 +361,7 @@ export function testCredentialVerifier(
       const id = parseApiKey(key)?.id ?? "";
       await verifier.touch?.(id, { epochMilliseconds: nowMillis() });
       await verifier.touch?.("unknown-id", { epochMilliseconds: nowMillis() });
-      expect(parseCredential(await verifier.verify(key))).toEqual(before);
+      expect(parseCredential(await verifier.verify(key))).toStrictEqual(before);
     });
   }
 
@@ -384,7 +385,7 @@ export function testTokenSigner(
       { typ: "vnd.permdock.snapshot+jwt", audience: "https://app.example.com" },
     );
     const header = decodeHeader(token);
-    expect(Object.keys(header).toSorted()).toEqual(["alg", "kid", "typ"]);
+    expect(Object.keys(header).toSorted()).toStrictEqual(["alg", "kid", "typ"]);
     expect(header["typ"]).toBe("vnd.permdock.snapshot+jwt");
     expect(header["alg"]).not.toBe("none");
     const verified = await options.verifier.verify(token, {

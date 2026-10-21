@@ -37,7 +37,7 @@ describe("tableApprovalDelegationSource", () => {
       tenant: "o1",
       at: "2026-10-16T00:00:00.000Z",
     });
-    expect(entries).toEqual([
+    expect(entries).toStrictEqual([
       {
         id: "d1",
         delegator: "u_lead",
@@ -50,7 +50,7 @@ describe("tableApprovalDelegationSource", () => {
     const [text, values] = query.mock.calls[0] ?? [];
     expect(text).toContain('from "permdock"."approval_delegations" d');
     expect(text).toContain("(d.tenant is null or d.tenant = $3)");
-    expect(values).toEqual(["u_cover", "2026-10-16T00:00:00.000Z", "o1"]);
+    expect(values).toStrictEqual(["u_cover", "2026-10-16T00:00:00.000Z", "o1"]);
   });
 
   it("skips malformed rows and takes another table", async () => {
@@ -65,7 +65,7 @@ describe("tableApprovalDelegationSource", () => {
       query: other,
       table: "app.covers",
     }).delegationsFor({ delegate: "u_cover", at: "2026-10-16T00:00:00Z" });
-    expect(entries.map((entry) => entry.id)).toEqual(["d5"]);
+    expect(entries.map((entry) => entry.id)).toStrictEqual(["d5"]);
     expect(entries[0]).toMatchObject({
       tenant: "o1",
       permissions: ["invoice.send"],

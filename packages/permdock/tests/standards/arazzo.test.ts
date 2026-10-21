@@ -120,13 +120,13 @@ describe("Arazzo 1.1 document validation", () => {
 
   for (const [label, document] of Object.entries(valid)) {
     it(`accepts ${label}, as the 1.1 schema does`, () => {
-      expect({ label, schema: validate(document) }).toEqual({
+      expect({ label, schema: validate(document) }).toStrictEqual({
         label,
         schema: true,
       });
       expect(
         arazzoFindings({ arazzo: document, openapi: posts }, permissions),
-      ).toEqual([]);
+      ).toStrictEqual([]);
     });
   }
 
@@ -167,7 +167,7 @@ describe("Arazzo 1.1 document validation", () => {
 
   for (const [label, document] of Object.entries(invalid)) {
     it(`rejects ${label}, as the 1.1 schema does`, async () => {
-      expect({ label, schema: validate(document) }).toEqual({
+      expect({ label, schema: validate(document) }).toStrictEqual({
         label,
         schema: false,
       });
@@ -175,7 +175,7 @@ describe("Arazzo 1.1 document validation", () => {
         arazzoFindings({ arazzo: document, openapi: posts }, permissions).map(
           (finding) => [finding.stepId, finding.reason],
         ),
-      ).toEqual([["document", "validation"]]);
+      ).toStrictEqual([["document", "validation"]]);
       const permdock = getPermDockSync(policy, memberUser);
       const plan = simulateArazzo(permdock, {
         arazzo: document,
@@ -195,7 +195,7 @@ describe("Arazzo 1.1 document validation", () => {
         },
         permissions,
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("rejects stepIds that are not unique within a workflow", () => {
@@ -242,7 +242,7 @@ describe("simulate over an Arazzo workflow", () => {
       step("load", "getPost"),
       step("remove", "deletePost"),
     ]);
-    expect(approval.steps.map((item) => item.decision.outcome)).toEqual([
+    expect(approval.steps.map((item) => item.decision.outcome)).toStrictEqual([
       "granted",
       "approval-required",
     ]);
@@ -253,18 +253,20 @@ describe("simulate over an Arazzo workflow", () => {
       step("publish", "publishPost"),
       step("remove", "deletePost"),
     ]);
-    expect(denied.steps.map((item) => item.stepId)).toEqual([
+    expect(denied.steps.map((item) => item.stepId)).toStrictEqual([
       "load",
       "publish",
       "remove",
     ]);
-    expect(denied.steps.map((item) => item.decision.outcome)).toEqual([
+    expect(denied.steps.map((item) => item.decision.outcome)).toStrictEqual([
       "granted",
       "denied",
       "approval-required",
     ]);
     expect(denied.outcome).toBe("denied");
-    expect(denied.steps[1]?.permissions).toEqual([permissions.post.publish]);
+    expect(denied.steps[1]?.permissions).toStrictEqual([
+      permissions.post.publish,
+    ]);
   });
 
   it("fails closed on holes in the description", async () => {
@@ -287,7 +289,7 @@ describe("simulate over an Arazzo workflow", () => {
           ? item.decision.denials[0]?.reason
           : item.decision.outcome,
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       ["load", 1, "granted"],
       ["touch", 0, "undocumented"],
       ["haunt", 0, "undocumented"],
@@ -305,7 +307,7 @@ describe("simulate over an Arazzo workflow", () => {
         },
         permissions,
       ).map((finding) => [finding.stepId, finding.reason, finding.detail]),
-    ).toEqual([
+    ).toStrictEqual([
       ["touch", "undocumented", "operation has no x-permdock-permissions"],
       ["haunt", "unknown-key", "post.haunt"],
       ["missing", "undocumented", "operation not found"],
@@ -347,7 +349,7 @@ describe("simulate over an Arazzo workflow", () => {
           ? item.decision.denials[0]?.reason
           : item.decision.outcome,
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       ["qualified", "deletePost", "approval-required"],
       ["path", "getPost", "granted"],
       ["unique", "updatePost", "granted"],
@@ -385,7 +387,7 @@ describe("simulate over an Arazzo workflow", () => {
           ? item.decision.denials[0]?.reason
           : item.decision.outcome,
       ),
-    ).toEqual(["granted", "unsupported", "unsupported"]);
+    ).toStrictEqual(["granted", "unsupported", "unsupported"]);
   });
 
   it("binds $inputs and marks unknown runtime values provisional", async () => {
@@ -408,7 +410,7 @@ describe("simulate over an Arazzo workflow", () => {
     });
     expect(
       plan.steps.map((item) => [item.stepId, item.provisional ?? false]),
-    ).toEqual([
+    ).toStrictEqual([
       ["edit", false],
       ["later", true],
       ["absent", true],
@@ -454,7 +456,7 @@ describe("simulate over an Arazzo workflow", () => {
         item.stepId,
         item.decision.outcome,
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       ["plan", "edit", "granted"],
       ["editAuthor", "edit", "denied"],
     ]);
@@ -506,7 +508,7 @@ describe("simulate over an Arazzo workflow", () => {
         },
         permissions,
       ).map((finding) => finding.reason),
-    ).toEqual(["unsupported"]);
+    ).toStrictEqual(["unsupported"]);
   });
 
   it("emits one simulate event for the plan and no per-step events", async () => {
@@ -523,7 +525,7 @@ describe("simulate over an Arazzo workflow", () => {
       ]),
       openapi: posts,
     });
-    expect(events).toEqual([
+    expect(events).toStrictEqual([
       expect.objectContaining({
         call: "simulate",
         outcome: "denied",

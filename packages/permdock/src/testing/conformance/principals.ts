@@ -59,12 +59,12 @@ export function testPrincipalSource(
       }
       expect(found === null || typeof found === "object").toBe(true);
       if (found !== null) {
-        expect(await loadPrincipal(source, entry.id, entry.tenant)).toEqual(
-          found,
-        );
+        expect(
+          await loadPrincipal(source, entry.id, entry.tenant),
+        ).toStrictEqual(found);
       }
       if (entry.expect !== undefined) {
-        expect(found).toEqual(entry.expect);
+        expect(found).toStrictEqual(entry.expect);
       }
     }
   });

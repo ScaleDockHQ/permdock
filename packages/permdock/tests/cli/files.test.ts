@@ -43,7 +43,7 @@ describe("listSourceFiles", () => {
       "packages/b/src/b.ts",
       "packages/b/README.ts",
     ]);
-    expect(listed(root, ["packages/*/src"])).toEqual([
+    expect(listed(root, ["packages/*/src"])).toStrictEqual([
       "packages/a/src/a.ts",
       "packages/b/src/b.ts",
     ]);
@@ -55,7 +55,7 @@ describe("listSourceFiles", () => {
       "apps/web/node_modules/dep/src/index.ts",
       "apps/web/dist/page.js",
     ]);
-    expect(listed(root, ["apps/**/*.ts", "apps/**/*.js"])).toEqual([
+    expect(listed(root, ["apps/**/*.ts", "apps/**/*.js"])).toStrictEqual([
       "apps/web/src/page.ts",
     ]);
   });
@@ -67,7 +67,7 @@ describe("listSourceFiles", () => {
       "node_modules/@acme/ui/node_modules/dep/index.ts",
       "node_modules/other/index.ts",
     ]);
-    expect(listed(root, ["./node_modules/@acme/*"])).toEqual([
+    expect(listed(root, ["./node_modules/@acme/*"])).toStrictEqual([
       "node_modules/@acme/ui/dist/index.js",
       "node_modules/@acme/ui/src/permissions.ts",
     ]);
@@ -81,7 +81,7 @@ describe("listSourceFiles", () => {
       join(root, "linked/permissions"),
       "dir",
     );
-    expect(listed(root, ["packages/*/src", "linked/*/src"])).toEqual([
+    expect(listed(root, ["packages/*/src", "linked/*/src"])).toStrictEqual([
       "packages/permissions/src/index.ts",
     ]);
   });
@@ -94,7 +94,7 @@ describe("listSourceFiles", () => {
       "src/notes.md",
       "src/page.tsx",
     ]);
-    expect(listed(root, ["./src"])).toEqual([
+    expect(listed(root, ["./src"])).toStrictEqual([
       "src/.agents/tool.ts",
       "src/page.tsx",
     ]);
@@ -103,8 +103,8 @@ describe("listSourceFiles", () => {
   it("skips a dangling symlink and lists a single source file root", () => {
     const root = tree(["src/a.ts", "entry.mts", "readme.md"]);
     symlinkSync(join(root, "src/gone.ts"), join(root, "src/link.ts"));
-    expect(listed(root, ["./src", "entry.mts", "readme.md", "absent"])).toEqual(
-      ["entry.mts", "src/a.ts"],
-    );
+    expect(
+      listed(root, ["./src", "entry.mts", "readme.md", "absent"]),
+    ).toStrictEqual(["entry.mts", "src/a.ts"]);
   });
 });

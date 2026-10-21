@@ -66,7 +66,7 @@ describe("organisation role with team reach", () => {
       permdock.decide(permissions.job.read, row).outcome,
       permdock.decide(permissions.job.update, row).outcome,
     ]);
-    expect(outcomes).toEqual([
+    expect(outcomes).toStrictEqual([
       ["granted", "granted"],
       ["denied", "denied"],
       ["denied", "denied"],

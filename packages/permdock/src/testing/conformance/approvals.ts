@@ -107,9 +107,9 @@ export function testApprovalStore(
       store.consume("once-token"),
     ]);
     expect([first, second].filter((item) => item !== null)).toHaveLength(1);
-    expect((first ?? second)?.consumedAt).toEqual(expect.any(String));
+    expect((first ?? second)?.consumedAt).toStrictEqual(expect.any(String));
     expect(await store.consume("once-token")).toBeNull();
-    expect((await store.get("once-token"))?.consumedAt).toEqual(
+    expect((await store.get("once-token"))?.consumedAt).toStrictEqual(
       expect.any(String),
     );
   });
@@ -159,8 +159,8 @@ export function testApprovalStore(
     const request = sampleApproval("opaque-token");
     await store.create(request);
     const loaded = await store.get("opaque-token");
-    expect(loaded).toEqual(request);
-    expect(JSON.parse(JSON.stringify(loaded))).toEqual(request);
+    expect(loaded).toStrictEqual(request);
+    expect(JSON.parse(JSON.stringify(loaded))).toStrictEqual(request);
     const listed = await store.list({ status: "pending" });
     expect(listed.items.some((item) => item.token === "opaque-token")).toBe(
       true,
@@ -195,19 +195,22 @@ export function testApprovalStore(
       ),
     );
     const first = await store.list({ principalId: "u_pager", limit: 2 });
-    expect(first.items.map((item) => item.token)).toEqual(["page-a", "page-b"]);
+    expect(first.items.map((item) => item.token)).toStrictEqual([
+      "page-a",
+      "page-b",
+    ]);
     expect(typeof first.next).toBe("string");
     const second = await store.list({
       principalId: "u_pager",
       limit: 2,
       cursor: first.next!,
     });
-    expect(second.items.map((item) => item.token)).toEqual(["page-c"]);
+    expect(second.items.map((item) => item.token)).toStrictEqual(["page-c"]);
     expect(second.next).toBeUndefined();
     expect(
       (await store.list({ principalId: "u_pager", cursor: "not a cursor" }))
         .items,
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("refuses an approver who does not match request.approvers", async () => {
@@ -273,7 +276,9 @@ export function testApprovalStore(
       by: approver,
     });
     expect(first.status).toBe("pending");
-    expect(first.approvals).toEqual([{ by: "u_9", at: expect.any(String) }]);
+    expect(first.approvals).toStrictEqual([
+      { by: "u_9", at: expect.any(String) },
+    ]);
     expect(await store.consume("quorum-token")).toBeNull();
     await expect(
       Promise.resolve().then(() =>
@@ -285,7 +290,10 @@ export function testApprovalStore(
       by: secondApprover,
     });
     expect(second.status).toBe("approved");
-    expect(second.approvals?.map((item) => item.by)).toEqual(["u_9", "u_10"]);
+    expect(second.approvals?.map((item) => item.by)).toStrictEqual([
+      "u_9",
+      "u_10",
+    ]);
     expect(second.resolvedBy).toBe("u_10");
     expect(await store.consume("quorum-token")).not.toBeNull();
   });
@@ -311,7 +319,7 @@ export function testApprovalStore(
     });
     expect(resolved.status).toBe("approved");
     expect(resolved.vouched).toBe("app-rule");
-    expect(resolved.approvals).toEqual([
+    expect(resolved.approvals).toStrictEqual([
       { by: "u_outsider", at: expect.any(String), vouched: "app-rule" },
     ]);
   });
@@ -378,7 +386,7 @@ export function testApprovalStore(
       by: secondApprover,
     });
     expect(first.status).toBe("pending");
-    expect(first.approvals).toEqual([
+    expect(first.approvals).toStrictEqual([
       { by: "u_10", at: expect.any(String), stage: 0 },
     ]);
     const second = await store.resolve("stages-token", {
@@ -386,7 +394,7 @@ export function testApprovalStore(
       by: approver,
     });
     expect(second.status).toBe("approved");
-    expect(second.approvals?.map((item) => item.stage)).toEqual([0, 1]);
+    expect(second.approvals?.map((item) => item.stage)).toStrictEqual([0, 1]);
   });
 
   it("matches a relation approver only through the verdict's relations", async () => {
@@ -432,7 +440,7 @@ export function testApprovalPolicySource(
     });
     expect(Array.isArray(entries)).toBe(true);
     for (const entry of entries) {
-      expect(JSON.parse(JSON.stringify(entry))).toEqual(entry);
+      expect(JSON.parse(JSON.stringify(entry))).toStrictEqual(entry);
       expect([undefined, options.tenant]).toContain(entry.tenant);
     }
     const loaded = await approvalPoliciesFor(
@@ -445,7 +453,9 @@ export function testApprovalPolicySource(
     const other = await source.approvalPoliciesFor({
       tenants: [options.unknown ?? "__permdock_unknown__"],
     });
-    expect(other.filter((entry) => entry.tenant !== undefined)).toEqual([]);
+    expect(other.filter((entry) => entry.tenant !== undefined)).toStrictEqual(
+      [],
+    );
   });
 }
 
@@ -485,7 +495,7 @@ export function testAccessReviewStore(store: AccessReviewStore): void {
     expect((await store.get("rev"))?.status).toBe("open");
     const page = await store.items({ review: "rev", limit: 1 });
     expect(page.items).toHaveLength(1);
-    expect(page.next).toEqual(expect.any(String));
+    expect(page.next).toStrictEqual(expect.any(String));
     const kept = await store.decide("rev", reviewItem.id, {
       status: "kept",
       decidedBy: "u_9",
@@ -555,7 +565,7 @@ export function testApprovalDelegationSource(
     ).toBe(true);
     const instant = Date.parse(at);
     for (const entry of entries) {
-      expect(JSON.parse(JSON.stringify(entry))).toEqual(entry);
+      expect(JSON.parse(JSON.stringify(entry))).toStrictEqual(entry);
       expect(entry.delegate).toBe(options.delegate);
       expect(Date.parse(entry.from)).toBeLessThanOrEqual(instant);
       expect(Date.parse(entry.until)).toBeGreaterThan(instant);
@@ -566,7 +576,7 @@ export function testApprovalDelegationSource(
         ...(options.tenant === undefined ? {} : { tenant: options.tenant }),
         at,
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 }
 
@@ -588,10 +598,10 @@ export function testIdempotencyStore(store: IdempotencyStore): void {
     const later = nowMillis() + 60 * 60 * 1000;
     expect(await store.get(key)).toBeUndefined();
     await store.set(key, response, later);
-    expect(await store.get(key)).toEqual(response);
+    expect(await store.get(key)).toStrictEqual(response);
     expect(await store.get(other)).toBeUndefined();
     const replaced = { ...response, status: 201 };
     await store.set(key, replaced, later);
-    expect(await store.get(key)).toEqual(replaced);
+    expect(await store.get(key)).toStrictEqual(replaced);
   });
 }

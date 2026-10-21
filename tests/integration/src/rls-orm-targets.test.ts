@@ -90,7 +90,7 @@ function drizzlePolicies(module: Record<string, unknown>): Created[] {
       return undefined;
     }
     const query = dialect.sqlToQuery(value);
-    expect(query.params).toEqual([]);
+    expect(query.params).toStrictEqual([]);
     return query.sql;
   };
   return Object.values(module)
@@ -260,7 +260,7 @@ describe("rls generate --target drizzle and prisma against Postgres", () => {
       unknown
     >;
     const policies = drizzlePolicies(module);
-    expect(new Set(policies.map((policy) => policy.table))).toEqual(
+    expect(new Set(policies.map((policy) => policy.table))).toStrictEqual(
       new Set(TABLES),
     );
     expect(drizzleText).toContain("from 'drizzle-orm/pg-core'");
@@ -268,8 +268,8 @@ describe("rls generate --target drizzle and prisma against Postgres", () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
-    expect(await mismatches(db)).toEqual([]);
-    expect(await visible(db, "lena", "doc")).toEqual(["deep-doc"]);
+    expect(await mismatches(db)).toStrictEqual([]);
+    expect(await visible(db, "lena", "doc")).toStrictEqual(["deep-doc"]);
   });
 
   it("emits Prisma 8 policy blocks whose predicates match can()", async () => {
@@ -282,8 +282,8 @@ describe("rls generate --target drizzle and prisma against Postgres", () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
-    expect(await mismatches(db)).toEqual([]);
-    expect(await visible(db, "otto", "team")).toEqual([
+    expect(await mismatches(db)).toStrictEqual([]);
+    expect(await visible(db, "otto", "team")).toStrictEqual([
       "eng-team",
       "oncall",
       "sre",

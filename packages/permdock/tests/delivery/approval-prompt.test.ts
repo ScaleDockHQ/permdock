@@ -28,7 +28,7 @@ describe("approvalPrompt", () => {
     const prompt = approvalPrompt(request, {
       operation: deliveryOperations["invoice.send"],
     });
-    expect(prompt).toEqual({
+    expect(prompt).toStrictEqual({
       v: 1,
       id: "apr_1",
       permission: "invoice.pay",

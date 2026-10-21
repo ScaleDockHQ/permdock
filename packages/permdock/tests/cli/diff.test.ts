@@ -68,19 +68,22 @@ describe("permdock diff", () => {
     );
     expect(result.code).toBe(1);
     const report = parsed(result.stdout);
-    expect(report.permissions).toEqual({ added: [], removed: [], renamed: [] });
-    expect(report.roles).toEqual({
+    expect(report.permissions).toStrictEqual({
+      added: [],
+      removed: [],
+      renamed: [],
+    });
+    expect(report.roles).toStrictEqual({
       added: [],
       removed: ["auditor"],
       changed: ["admin"],
     });
-    expect(report.grants?.added.map((grant) => grant.permission)).toEqual([
-      "post.archive",
-      "post.read",
-    ]);
+    expect(report.grants?.added.map((grant) => grant.permission)).toStrictEqual(
+      ["post.archive", "post.read"],
+    );
     expect(
       report.grants?.removed.map((grant) => [grant.role, grant.permission]),
-    ).toEqual([
+    ).toStrictEqual([
       ["admin", "post.archive"],
       ["member", "post.publish"],
       ["auditor", "post.read"],
@@ -90,11 +93,11 @@ describe("permdock diff", () => {
         change.after.permission,
         change.changes,
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       ["post.delete", ["approval added"]],
       ["post.update", ["where removed"]],
     ]);
-    expect(report.breaking.map((change) => change.kind)).toEqual([
+    expect(report.breaking.map((change) => change.kind)).toStrictEqual([
       "role-removed",
       "allow-removed",
       "deny-added",
@@ -124,12 +127,11 @@ describe("permdock diff", () => {
     );
     expect(result.code).toBe(0);
     const report = parsed(result.stdout);
-    expect(report.roles.added).toEqual(["viewer"]);
-    expect(report.grants?.added.map((grant) => grant.permission)).toEqual([
-      "post.create",
-      "post.read",
-    ]);
-    expect(report.breaking).toEqual([]);
+    expect(report.roles.added).toStrictEqual(["viewer"]);
+    expect(report.grants?.added.map((grant) => grant.permission)).toStrictEqual(
+      ["post.create", "post.read"],
+    );
+    expect(report.breaking).toStrictEqual([]);
   });
 
   it("treats an added delegation as safe and a removed or narrowed one as breaking", async () => {
@@ -139,7 +141,7 @@ describe("permdock diff", () => {
       "--json",
     );
     expect(added.code).toBe(0);
-    expect(parsed(added.stdout).delegations).toEqual({
+    expect(parsed(added.stdout).delegations).toStrictEqual({
       added: [
         {
           from: { kind: "role", role: "member", scope: "global" },
@@ -157,7 +159,7 @@ describe("permdock diff", () => {
       "--json",
     );
     expect(removed.code).toBe(1);
-    expect(parsed(removed.stdout).breaking).toEqual([
+    expect(parsed(removed.stdout).breaking).toStrictEqual([
       {
         kind: "delegation-removed",
         detail: expect.stringContaining(
@@ -181,10 +183,9 @@ describe("permdock diff", () => {
       "--json",
     );
     expect(widened.code).toBe(0);
-    expect(parsed(widened.stdout).delegations?.changed[0]?.changes).toEqual([
-      "permissions added: post.update",
-      "validity widened",
-    ]);
+    expect(
+      parsed(widened.stdout).delegations?.changed[0]?.changes,
+    ).toStrictEqual(["permissions added: post.update", "validity widened"]);
   });
 
   it("flags the reverse of a narrowing as a widening and the reverse of a widening as breaking", async () => {
@@ -200,11 +201,11 @@ describe("permdock diff", () => {
         change.after.permission,
         change.changes,
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       ["post.delete", ["approval removed"]],
       ["post.update", ["where added"]],
     ]);
-    expect(report.breaking.map((change) => change.kind)).toEqual([
+    expect(report.breaking.map((change) => change.kind)).toStrictEqual([
       "allow-removed",
       "deny-added",
       "allow-narrowed",
@@ -314,7 +315,7 @@ describe("permdock diff", () => {
     );
     expect(result.code).toBe(1);
     const report = parsed(result.stdout);
-    expect(report.impact).toEqual([
+    expect(report.impact).toStrictEqual([
       {
         action: "post.publish",
         subject: "u1",
@@ -336,7 +337,7 @@ describe("permdock diff", () => {
     ]);
     expect(
       report.breaking.filter((change) => change.kind === "access-lost"),
-    ).toEqual([
+    ).toStrictEqual([
       {
         kind: "access-lost",
         permission: "post.publish",
@@ -403,7 +404,7 @@ describe("permdock diff", () => {
       "--json",
     );
     expect(result.code).toBe(1);
-    expect(parsed(result.stdout).impact).toEqual([
+    expect(parsed(result.stdout).impact).toStrictEqual([
       {
         action: "post.publish",
         subject: "u1",

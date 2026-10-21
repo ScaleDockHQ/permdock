@@ -120,7 +120,7 @@ describe("invariant 9: boundary data is validated before a check", () => {
         ),
     });
     await store.get().refresh();
-    expect(store.snapshot()).toEqual(initial);
+    expect(store.snapshot()).toStrictEqual(initial);
   });
 
   it("never marks request-derived data trusted in an adapter", () => {
@@ -144,6 +144,6 @@ describe("invariant 9: boundary data is validated before a check", () => {
     const allowed = Object.keys(TRUSTED_SITES).map((key) =>
       key.replace(/:\w+$/u, ""),
     );
-    expect(files.toSorted()).toEqual(allowed.toSorted());
+    expect(files.toSorted()).toStrictEqual(allowed.toSorted());
   });
 });

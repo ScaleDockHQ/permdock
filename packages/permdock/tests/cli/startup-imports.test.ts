@@ -48,7 +48,7 @@ function staticGraph(entry: string): {
 
 describe("CLI startup", () => {
   it("loads only Node built-ins before the first dynamic import in the bin", () => {
-    expect(staticGraph("cli/bin.ts")).toEqual({
+    expect(staticGraph("cli/bin.ts")).toStrictEqual({
       files: ["cli/bin.ts"],
       packages: [],
     });
@@ -59,15 +59,15 @@ describe("CLI startup", () => {
       const graph = staticGraph(entry);
       expect(
         graph.packages.filter((name) => !STARTUP_PACKAGES.has(name)),
-      ).toEqual([]);
+      ).toStrictEqual([]);
       expect(
         graph.files.filter((file) => file.startsWith("cli/commands/")),
-      ).toEqual([]);
+      ).toStrictEqual([]);
     }
   });
 
   it("answers --version without the CLI core", () => {
-    expect(staticGraph("cli/core/version.ts")).toEqual({
+    expect(staticGraph("cli/core/version.ts")).toStrictEqual({
       files: [
         "cli/core/version.ts",
         "cli/files.ts",

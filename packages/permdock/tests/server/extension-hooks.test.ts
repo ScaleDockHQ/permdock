@@ -126,9 +126,9 @@ describe("server deniedResponse", () => {
     )(request());
     expect(second.ok).toBe(false);
     const refusal = second.ok ? undefined : second.decision;
-    expect(refusal?.outcome === "denied" ? refusal.denials : undefined).toEqual(
-      [{ role: null, reason: "validation" }],
-    );
+    expect(
+      refusal?.outcome === "denied" ? refusal.denials : undefined,
+    ).toStrictEqual([{ role: null, reason: "validation" }]);
     expect(seen).toHaveLength(2);
   });
 
@@ -167,7 +167,7 @@ describe("server protect", () => {
     });
     expect(guard.decision?.outcome).toBe("denied");
     const errors = errorsOf(await server.getPermDock(shared));
-    expect(errors).toEqual([new Error("database down")]);
+    expect(errors).toStrictEqual([new Error("database down")]);
   });
 
   it("adds the trace with explain", async () => {
@@ -200,7 +200,7 @@ describe("server context", () => {
         headers: { "x-forwarded-for": "203.0.113.7" },
       }),
     );
-    expect(permdock.subject.context).toEqual({
+    expect(permdock.subject.context).toStrictEqual({
       region: "eu",
       ip: "203.0.113.7",
     });
@@ -222,7 +222,7 @@ describe("server context", () => {
       context: hook as never,
     });
     const permdock = await server.getPermDock(request());
-    expect(permdock.subject.context).toEqual({ region: "eu" });
+    expect(permdock.subject.context).toStrictEqual({ region: "eu" });
     expect(errorsOf(permdock)).toHaveLength(1);
   });
 
@@ -238,7 +238,10 @@ describe("server context", () => {
       context: () => ({ region: "us", tier: "gold" }),
     });
     const permdock = await server.getPermDock(request());
-    expect(permdock.subject.context).toEqual({ region: "eu", tier: "gold" });
+    expect(permdock.subject.context).toStrictEqual({
+      region: "eu",
+      tier: "gold",
+    });
   });
 
   it("stops delivering errors to a handler once it unsubscribes", async () => {
@@ -271,7 +274,7 @@ describe("server wrap", () => {
       },
     });
     const permdock = await server.getPermDock(request());
-    expect(wrapped).toEqual(["wrap"]);
+    expect(wrapped).toStrictEqual(["wrap"]);
     expect(typeof permdock.on).toBe("function");
   });
 });

@@ -117,13 +117,13 @@ describe("casl import", () => {
     const imported = importCasl(rules);
     expect(
       imported.skipped.map((item) => [item.role, item.rule, item.reason]),
-    ).toEqual([
+    ).toStrictEqual([
       ["guest", 3, "not-a-rule"],
       ["guest", 0, "unsupported-condition"],
       ["guest", 1, "deny-widened"],
       ["guest", 2, "not-an-identifier"],
     ]);
-    expect([...(imported.actions.get("post") ?? [])].toSorted()).toEqual([
+    expect([...(imported.actions.get("post") ?? [])].toSorted()).toStrictEqual([
       "delete",
       "read",
       "update",
@@ -160,7 +160,7 @@ describe("casl import", () => {
       editor.can(leaf(post, "delete"), own),
       editor.can(leaf(post, "delete"), locked),
       editor.can(leaf(post, "delete"), draft),
-    ]).toEqual([true, true, true, false, true, false, false]);
+    ]).toStrictEqual([true, true, true, false, true, false, false]);
     const guest = getPermDockSync(policy, { id: "u3", roles: ["guest"] });
     expect(guest.can(leaf(post, "read"), own)).toBe(false);
     const admin = getPermDockSync(policy, { id: "u4", roles: ["admin"] });
@@ -210,7 +210,7 @@ g, bob, viewer
 `;
 
   it("reads RBAC and refuses a matcher it cannot translate", () => {
-    expect(readCasbinModel(RBAC)).toEqual({
+    expect(readCasbinModel(RBAC)).toStrictEqual({
       domains: false,
       roles: true,
       denies: true,
@@ -228,11 +228,13 @@ g, bob, viewer
       throw new Error(model.refused);
     }
     const imported = importCasbin(model, policyCsv);
-    expect(imported.assignments).toEqual([
+    expect(imported.assignments).toStrictEqual([
       { user: "alice", role: "editor" },
       { user: "bob", role: "viewer" },
     ]);
-    expect(imported.skipped.map((item) => [item.line, item.reason])).toEqual([
+    expect(
+      imported.skipped.map((item) => [item.line, item.reason]),
+    ).toStrictEqual([
       [4, "user-grant"],
       [5, "not-an-identifier"],
     ]);
@@ -262,7 +264,7 @@ g, bob, viewer
       editor.can(leaf(report, "write"), row),
       editor.can(leaf(report, "delete"), row),
       viewer.can(leaf(report, "write"), row),
-    ]).toEqual([true, true, false, false]);
+    ]).toStrictEqual([true, true, false, false]);
     expect(assignments).toHaveLength(2);
   });
 
@@ -343,7 +345,9 @@ describe("casl conditions and rule shapes", () => {
         { action: "read", subject: 2 },
       ],
     });
-    expect(imported.skipped.map((item) => [item.rule, item.reason])).toEqual([
+    expect(
+      imported.skipped.map((item) => [item.rule, item.reason]),
+    ).toStrictEqual([
       [12, "not-a-rule"],
       [13, "not-a-rule"],
       [5, "unsupported-condition"],
@@ -359,7 +363,7 @@ describe("casl conditions and rule shapes", () => {
       grants.map(
         (grant) => `${grant.effect} ${grant.resource}.${grant.action}`,
       ),
-    ).toEqual([
+    ).toStrictEqual([
       "allow invoice.read",
       "allow invoice.update",
       "deny invoice.read",
@@ -375,12 +379,9 @@ describe("casl conditions and rule shapes", () => {
     const imported = importCasl({
       admin: [{ action: "manage", subject: "Report" }],
     });
-    expect([...(imported.actions.get("report") ?? [])].toSorted()).toEqual([
-      "create",
-      "delete",
-      "read",
-      "update",
-    ]);
+    expect(
+      [...(imported.actions.get("report") ?? [])].toSorted(),
+    ).toStrictEqual(["create", "delete", "read", "update"]);
   });
 
   it("renders every operator into a module the policy accepts", async () => {
@@ -417,7 +418,7 @@ describe("casl conditions and rule shapes", () => {
       out: "policy.ts",
       json: true,
     });
-    expect(JSON.parse(result.output)).toEqual({
+    expect(JSON.parse(result.output)).toStrictEqual({
       out: "policy.ts",
       skipped: [],
     });
@@ -479,7 +480,7 @@ describe("casbin models and lines", () => {
 
   it("imports wildcard-domain grants and reports domain, malformed and effect-less deny lines", () => {
     const model = readCasbinModel(DOMAINS);
-    expect(model).toEqual({ domains: true, roles: true, denies: false });
+    expect(model).toStrictEqual({ domains: true, roles: true, denies: false });
     if ("refused" in model) {
       throw new Error(model.refused);
     }
@@ -496,10 +497,12 @@ g, owner, admin
 g, admin, owner
 `,
     );
-    expect(imported.assignments).toEqual([
+    expect(imported.assignments).toStrictEqual([
       { user: "alice", role: "admin", domain: "t1" },
     ]);
-    expect(imported.skipped.map((item) => [item.line, item.reason])).toEqual([
+    expect(
+      imported.skipped.map((item) => [item.line, item.reason]),
+    ).toStrictEqual([
       [7, "malformed"],
       [3, "domain-grant"],
       [4, "malformed"],
@@ -507,7 +510,7 @@ g, admin, owner
     ]);
     expect(
       imported.roles.map((role) => [role.name, role.grants.length]),
-    ).toEqual([
+    ).toStrictEqual([
       ["admin", 1],
       ["owner", 1],
     ]);
@@ -604,9 +607,12 @@ describe("casl and casbin commands", () => {
     );
     const other = await run(["casl", "export"], { cwd });
     const otherCasbin = await run(["casbin", "export"], { cwd });
-    expect([casl.code, casbin.code, other.code, otherCasbin.code]).toEqual([
-      0, 0, 2, 2,
-    ]);
+    expect([
+      casl.code,
+      casbin.code,
+      other.code,
+      otherCasbin.code,
+    ]).toStrictEqual([0, 0, 2, 2]);
     expect(casl.stdout).toContain(
       "casl import: wrote 1 role(s) with 1 grant(s) to a.ts, skipped 0",
     );

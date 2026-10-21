@@ -13,6 +13,6 @@ describe("memoryEntitlementSource", () => {
   ])("lists the entitlements of $name", ({ tenant, entitlements }) => {
     expect(
       source.entitlementsFor(principal, tenant === undefined ? {} : { tenant }),
-    ).toEqual(entitlements);
+    ).toStrictEqual(entitlements);
   });
 });

@@ -46,7 +46,7 @@ describe("CustomRoleSource.rolesFor receives the held role names", () => {
       ],
     };
     getPermDockSync(policy, principal, { customRoles: source });
-    expect(calls).toEqual([
+    expect(calls).toStrictEqual([
       ["T", ["member"]],
       ["B", ["contact"]],
     ]);
@@ -71,7 +71,7 @@ describe("CustomRoleSource.rolesFor receives the held role names", () => {
     const mechanic = getPermDockSync(policy, personas.mechanic, {
       customRoles: source,
     });
-    expect(reads).toEqual(["T"]);
+    expect(reads).toStrictEqual(["T"]);
     expect(mechanic.can(permissions.asset.update, assets[0]!)).toBe(true);
     expect(mechanic.can(permissions.asset.delete, assets[0]!)).toBe(false);
   });

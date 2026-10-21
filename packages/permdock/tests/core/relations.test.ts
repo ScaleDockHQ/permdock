@@ -444,7 +444,7 @@ describe("relationship graph", () => {
     ).toThrow(/0 to 32/u);
     expect(
       relation(permissions.folder, "viewer", { through: "parent" }),
-    ).toEqual({
+    ).toStrictEqual({
       kind: "relation",
       resource: "folder",
       relation: "viewer",
@@ -479,11 +479,11 @@ describe("relationship graph", () => {
     const platform = { ...folders[2], orgId: "acme" };
     const result = await whoCan(owner, permissions.folder.read, platform);
     expect(result.complete).toBe(true);
-    expect(result.holders.map((item) => item.principal.id)).toEqual([
+    expect(result.holders.map((item) => item.principal.id)).toStrictEqual([
       "rita",
       "vera",
     ]);
-    expect(result.holders[1]?.via).toEqual([
+    expect(result.holders[1]?.via).toStrictEqual([
       { kind: "share", resource: "folder", relation: "viewer", id: "root" },
     ]);
     expect(result.holders[0]?.via[0]).toMatchObject({
@@ -494,7 +494,7 @@ describe("relationship graph", () => {
       ...folders[5],
       orgId: "acme",
     });
-    expect(hr.holders.map((item) => item.principal.id)).toEqual([
+    expect(hr.holders.map((item) => item.principal.id)).toStrictEqual([
       "hana",
       "rita",
     ]);
@@ -517,11 +517,11 @@ describe("relationship graph", () => {
       permissions.doc.read,
       doc("d1", "eng", "owen"),
     );
-    expect(owners.holders.map((item) => item.principal.id)).toEqual([
+    expect(owners.holders.map((item) => item.principal.id)).toStrictEqual([
       "owen",
       "vera",
     ]);
-    expect(owners.holders[0]?.via).toEqual([
+    expect(owners.holders[0]?.via).toStrictEqual([
       { kind: "relation", resource: "doc", relation: "owner", id: "d1" },
     ]);
   });
@@ -558,7 +558,9 @@ describe("hosted graph grants", () => {
         ],
       }),
     );
-    expect(merged.dropped.map((item) => [item.grant, item.reason])).toEqual([
+    expect(
+      merged.dropped.map((item) => [item.grant, item.reason]),
+    ).toStrictEqual([
       ["deep", "unknown-grantee"],
       ["sideways", "unknown-grantee"],
     ]);

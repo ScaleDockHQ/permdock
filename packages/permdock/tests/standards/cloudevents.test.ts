@@ -94,7 +94,7 @@ describe("CloudEvents 1.0.2 JSON format", () => {
       expect({
         valid: validate(cloudEvent),
         errors: validate.errors ?? null,
-      }).toEqual({ valid: true, errors: null });
+      }).toStrictEqual({ valid: true, errors: null });
     },
   );
 
@@ -156,8 +156,8 @@ describe("CloudEvents JSON batch format", () => {
       toCloudEvent(event, { source, id: `e${index}` }),
     );
     const wire: unknown = JSON.parse(JSON.stringify(batch));
-    expect(parseCloudEventBatch(wire)).toEqual(batch);
-    expect(parseCloudEventBatch([])).toEqual([]);
+    expect(parseCloudEventBatch(wire)).toStrictEqual(batch);
+    expect(parseCloudEventBatch([])).toStrictEqual([]);
   });
 
   it("one invalid event rejects the whole batch", () => {
@@ -197,11 +197,15 @@ describe("the CloudEvents page", () => {
       .filter((line) => line.startsWith("| `com.permdock."));
     const listed = rows.map((line) => /^\| `([^`]+)`/u.exec(line)?.[1]);
     expect(listed).toHaveLength(Object.values(CLOUD_EVENT_TYPES).length);
-    expect(new Set(listed)).toEqual(new Set(Object.values(CLOUD_EVENT_TYPES)));
+    expect(new Set(listed)).toStrictEqual(
+      new Set(Object.values(CLOUD_EVENT_TYPES)),
+    );
     const reserved = rows
       .filter((line) => line.includes("Reserved"))
       .map((line) => /^\| `([^`]+)`/u.exec(line)?.[1]);
-    expect(new Set(reserved)).toEqual(new Set(RESERVED_CLOUD_EVENT_TYPES));
+    expect(new Set(reserved)).toStrictEqual(
+      new Set(RESERVED_CLOUD_EVENT_TYPES),
+    );
     expect(reserved).toHaveLength(RESERVED_CLOUD_EVENT_TYPES.length);
   });
 });

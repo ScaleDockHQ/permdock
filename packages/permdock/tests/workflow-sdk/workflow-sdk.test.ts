@@ -135,7 +135,7 @@ describe("workflowSdkWaiter", () => {
     await hooks.settled(approvalHookToken("tok_1"));
     await waiter.wake("tok_1");
     await expect(waiting).resolves.toBeUndefined();
-    expect(hooks.disposed).toEqual(["permdock:approval:tok_1"]);
+    expect(hooks.disposed).toStrictEqual(["permdock:approval:tok_1"]);
   });
 
   it("ends a wait at expiresAt when given sleep", async () => {
@@ -149,7 +149,7 @@ describe("workflowSdkWaiter", () => {
       },
     });
     await waiter.wait("tok_2", { expiresAt: { epochMilliseconds: 1000 } });
-    expect(slept).toEqual([1000]);
+    expect(slept).toStrictEqual([1000]);
     expect(hooks.parked.size).toBe(0);
   });
 
@@ -250,7 +250,7 @@ describe("startAutomation", () => {
       outcome: "started",
       workflowRun: { runId: "wrun_1" },
     });
-    expect(calls).toEqual([[expect.any(String), "inv_1"]]);
+    expect(calls).toStrictEqual([[expect.any(String), "inv_1"]]);
     const denied = await startAutomation(workflow, start, run, "missing", [
       "inv_1",
     ]);
@@ -290,7 +290,7 @@ describe("authorizeHook", () => {
       { note: "ship it" },
     );
     expect(granted.outcome).toBe("granted");
-    await expect(waiting).resolves.toEqual({ note: "ship it" });
+    await expect(waiting).resolves.toStrictEqual({ note: "ship it" });
   });
 
   it("denies when the hook is gone", async () => {

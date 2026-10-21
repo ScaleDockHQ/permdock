@@ -132,7 +132,7 @@ describe("MCP 2026-07-28 Authorization: scope challenges", () => {
         request,
         authInfo: auth(["post:read", "post:list"]),
       }),
-    ).toEqual({ scopes: ["post:update"] });
+    ).toStrictEqual({ scopes: ["post:update"] });
     expect(
       await update.scopeChallenge?.({
         request,
@@ -167,7 +167,7 @@ describe("MCP 2026-07-28 Authorization: RFC 8707 audience", () => {
       mcp,
       auth(["post:list"], {}, "https://other.example.com/mcp"),
     );
-    expect(await names(client)).toEqual([]);
+    expect(await names(client)).toStrictEqual([]);
     const refused = await client.callTool({ name: "list_posts" });
     expect(refused.structuredContent).toMatchObject({ error: "invalid_token" });
   });
@@ -175,7 +175,7 @@ describe("MCP 2026-07-28 Authorization: RFC 8707 audience", () => {
   it("a token without a resource is refused when the server names one", async () => {
     const { mcp } = server();
     const { client } = await connect(mcp, auth(["post:list"], {}, null));
-    expect(await names(client)).toEqual([]);
+    expect(await names(client)).toStrictEqual([]);
   });
 
   it("RFC 3986 section 6.2.2: the scheme and host compare case-insensitively", async () => {
@@ -184,7 +184,7 @@ describe("MCP 2026-07-28 Authorization: RFC 8707 audience", () => {
       mcp,
       auth(["post:list"], {}, "HTTPS://MCP.Example.com/mcp"),
     );
-    expect(await names(client)).toEqual(["list_posts"]);
+    expect(await names(client)).toStrictEqual(["list_posts"]);
   });
 });
 
@@ -287,7 +287,7 @@ describe("MCP 2026-07-28 Multi Round-Trip Requests", () => {
     expect(parked.structuredContent).toMatchObject({
       outcome: "approval-required",
     });
-    expect(inputRequiredResults(bodies)).toEqual([]);
+    expect(inputRequiredResults(bodies)).toStrictEqual([]);
   });
 
   it("never sends a bare requestState, which a client may retry at once", async () => {
@@ -365,7 +365,7 @@ describe("MCP list result cache fields", () => {
       return mcp;
     };
     const { client, bodies } = await overHttp(build, auth(["post:list"]), {});
-    expect(await names(client)).toEqual(["list_posts"]);
+    expect(await names(client)).toStrictEqual(["list_posts"]);
     const [listed] = listResults(bodies);
     expect(listed).toMatchObject({ cacheScope: "private" });
   });
@@ -387,7 +387,7 @@ describe("MCP list result cache fields", () => {
     const client = new Client({ name: "agent", version: "1.0.0" });
     await client.connect(clientSide);
     expect(client.getNegotiatedProtocolVersion()).toBe("2025-11-25");
-    expect(await names(client)).toEqual(["list_posts"]);
+    expect(await names(client)).toStrictEqual(["list_posts"]);
     const listed = sent.flatMap((message) => {
       const result: unknown =
         message !== null && typeof message === "object"
@@ -409,11 +409,11 @@ describe("MCP 2026-07-28 Authorization: the two-principal subject", () => {
     const subject = subjectFromMcp(
       auth(["post:read"], { sub: "u1", roles: ["member"] }),
     );
-    expect(subject.actor).toEqual({
+    expect(subject.actor).toStrictEqual({
       id: "https://client.example.com/oauth/metadata.json",
       kind: "mcp-client",
     });
-    expect(subject.delegation?.scopes).toEqual(["post:read"]);
+    expect(subject.delegation?.scopes).toStrictEqual(["post:read"]);
   });
 
   it("RFC 9396 authorization_details reach delegation only from authInfo.extra", () => {
@@ -421,7 +421,7 @@ describe("MCP 2026-07-28 Authorization: the two-principal subject", () => {
     const subject = subjectFromMcp(
       auth(["post:read"], { sub: "u1", authorizationDetails: [detail] }),
     );
-    expect(subject.delegation?.authorizationDetails).toEqual([detail]);
+    expect(subject.delegation?.authorizationDetails).toStrictEqual([detail]);
   });
 
   it("the subject never comes from tool arguments", async () => {

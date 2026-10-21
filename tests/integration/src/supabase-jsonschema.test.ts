@@ -100,7 +100,7 @@ describe("rls.jsonSchema on supabase/postgres", () => {
     const found = await owner.query<{ convalidated: boolean }>(
       "select convalidated from pg_constraint where conname = 'approval_requests_body_schema'",
     );
-    expect(found.rows).toEqual([{ convalidated: true }]);
+    expect(found.rows).toStrictEqual([{ convalidated: true }]);
     const bad = {
       v: 1,
       token: "no-permission",
@@ -150,6 +150,6 @@ describe("supabase.hook.validate on supabase/postgres", () => {
 
   it("drops every PermDock claim, without an error, when one does not match", async () => {
     const claims = await mint({ tenant_id: 42 });
-    expect(claims).toEqual({ sub: MEMBER, role: "authenticated" });
+    expect(claims).toStrictEqual({ sub: MEMBER, role: "authenticated" });
   });
 });

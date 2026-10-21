@@ -152,7 +152,7 @@ describe("rls.assignments on the global-roles table", () => {
     const rows = await db.admin.query<{ role: string }>(
       `select role from public.user_roles where user_id = '${PLATFORM}' order by role`,
     );
-    expect(rows.rows.map((row) => row.role)).toEqual([
+    expect(rows.rows.map((row) => row.role)).toStrictEqual([
       "platform-admin",
       "platform-support",
     ]);
@@ -196,19 +196,19 @@ describe("rls.assignments on the global-roles table", () => {
   it("replaces a user's global roles in one call, through the assignment trigger", async () => {
     await expect(
       rolesAfter(PLATFORM, [replace(NEWCOMER, ["platform-support"])]),
-    ).resolves.toEqual(["platform-support"]);
+    ).resolves.toStrictEqual(["platform-support"]);
     await expect(
       rolesAfter(PLATFORM, [
         replace(NEWCOMER, ["platform-support"]),
         replace(NEWCOMER, ["platform-support"]),
       ]),
-    ).resolves.toEqual(["platform-support"]);
+    ).resolves.toStrictEqual(["platform-support"]);
     await expect(
       rolesAfter(PLATFORM, [
         replace(NEWCOMER, ["platform-support"]),
         replace(NEWCOMER, []),
       ]),
-    ).resolves.toEqual([]);
+    ).resolves.toStrictEqual([]);
   });
 
   it("keeps the ceiling and the own-row rule on a replacement", async () => {
@@ -221,7 +221,7 @@ describe("rls.assignments on the global-roles table", () => {
     await expect(
       as(PLATFORM, replace(PLATFORM, ["platform-admin"])),
     ).rejects.toThrow(/may not change their own roles/u);
-    expect(await rolesOf(NEWCOMER)).toEqual([]);
+    expect(await rolesOf(NEWCOMER)).toStrictEqual([]);
   });
 
   it("runs with the caller's rights and is not executable by anon or public", async () => {
@@ -234,6 +234,6 @@ describe("rls.assignments on the global-roles table", () => {
        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
        where n.nspname = 'permdock' and p.proname = 'permdock_replace_global_roles'`,
     );
-    expect(grants.rows).toEqual([{ secdef: false, anon: false }]);
+    expect(grants.rows).toStrictEqual([{ secdef: false, anon: false }]);
   });
 });

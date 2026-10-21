@@ -81,7 +81,7 @@ describe("rls verify --tree over the shared SaaS folder tree", () => {
       /verified (\d+) tree check\(s\) against the database \((\d+) granted\)/u.exec(
         result.stdout,
       );
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       code: 0,
       stderr: "",
       stdout: expect.stringMatching(/verified/u),

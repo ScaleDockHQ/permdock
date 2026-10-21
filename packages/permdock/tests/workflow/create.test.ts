@@ -120,7 +120,7 @@ describe("permdock/workflow: runs of a publisher automation", () => {
     const sink = memoryDecisionSink();
     const { ticketFor } = setup(undefined, { sink });
     await ticketFor("auto_1", { id: "run_1" });
-    expect(sink.events()).toEqual([
+    expect(sink.events()).toStrictEqual([
       expect.objectContaining({
         type: "automation",
         operation: "run",
@@ -136,7 +136,7 @@ describe("permdock/workflow: runs of a publisher automation", () => {
         },
       },
     });
-    await expect(broken.ticketFor()).resolves.toEqual(expect.any(String));
+    await expect(broken.ticketFor()).resolves.toStrictEqual(expect.any(String));
   });
 
   it("acts as the publisher, capped at the automation's permissions", async () => {
@@ -194,7 +194,10 @@ describe("permdock/workflow: runs of a publisher automation", () => {
     ).toBe(true);
     automations.put({ ...published, version: 2, revoked: true });
     expect((await workflow.getPermDock(fresh)).subject.principal).toBeNull();
-    expect(causes).toEqual(["automation-changed", "automation-unavailable"]);
+    expect(causes).toStrictEqual([
+      "automation-changed",
+      "automation-unavailable",
+    ]);
     expect(await workflow.start("auto_1")).toMatchObject({
       outcome: "denied",
       denials: [{ reason: "validation" }],
@@ -228,7 +231,7 @@ describe("permdock/workflow: the trigger never grants", () => {
       await ticketFor("auto_1", { caller, trigger }),
     );
     expect(run.subject.principal?.id).toBe("u_1");
-    expect(run.subject.context["trigger"]).toEqual(trigger);
+    expect(run.subject.context["trigger"]).toStrictEqual(trigger);
     expect(run.can(permissions.invoice.delete, invoice)).toBe(false);
   });
 

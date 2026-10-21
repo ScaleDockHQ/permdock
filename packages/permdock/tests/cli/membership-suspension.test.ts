@@ -20,23 +20,27 @@ const ctx = (keep?: readonly string[], permission?: string): RlsSqlContext => ({
 
 describe("activeMembershipSql", () => {
   it("adds nothing without a disabledAt column", () => {
-    expect(activeMembershipSql(ctx(["a.read"]), undefined)).toEqual([]);
+    expect(activeMembershipSql(ctx(["a.read"]), undefined)).toStrictEqual([]);
   });
 
   it("drops the check for a kept permission known now", () => {
-    expect(activeMembershipSql(ctx(["a.read"], "a.read"), "m.d")).toEqual([]);
-    expect(activeMembershipSql(ctx(["a.read"], "a.write"), "m.d")).toEqual([
-      "m.d is null",
-    ]);
+    expect(activeMembershipSql(ctx(["a.read"], "a.read"), "m.d")).toStrictEqual(
+      [],
+    );
+    expect(
+      activeMembershipSql(ctx(["a.read"], "a.write"), "m.d"),
+    ).toStrictEqual(["m.d is null"]);
   });
 
   it("compares a permission read at run time with the kept keys", () => {
     expect(
       activeMembershipSql(ctx(["a.read"]), "m.d", { sql: "p_grant" }),
-    ).toEqual(["(m.d is null or p_grant = any(array['a.read']::text[]))"]);
-    expect(activeMembershipSql(ctx(), "m.d", { sql: "p_grant" })).toEqual([
-      "m.d is null",
+    ).toStrictEqual([
+      "(m.d is null or p_grant = any(array['a.read']::text[]))",
     ]);
+    expect(activeMembershipSql(ctx(), "m.d", { sql: "p_grant" })).toStrictEqual(
+      ["m.d is null"],
+    );
   });
 });
 
@@ -55,8 +59,8 @@ describe("checkSuspension memberships", () => {
   it("keeps the sorted keys and drops an empty keep", () => {
     expect(
       checkSuspension({ memberships: { keep: ["b", { key: "a" }] } }, []),
-    ).toEqual({ memberships: { keep: ["a", "b"] } });
-    expect(checkSuspension({ memberships: {} }, [])).toEqual({});
+    ).toStrictEqual({ memberships: { keep: ["a", "b"] } });
+    expect(checkSuspension({ memberships: {} }, [])).toStrictEqual({});
   });
 });
 
@@ -70,7 +74,7 @@ describe("PD061 for a malformed membership keep", () => {
       },
       policy: () => Promise.resolve(undefined),
     });
-    expect(findings.map((item) => item.message)).toEqual([
+    expect(findings.map((item) => item.message)).toStrictEqual([
       "rls.suspension.memberships.keep has an entry that is neither a permission nor a permission key, so generate refuses it",
     ]);
   });

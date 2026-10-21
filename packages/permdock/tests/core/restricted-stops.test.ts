@@ -70,7 +70,9 @@ describe("restricted with stops", () => {
         },
       }),
     });
-    expect(policy.resources.get("node")?.restrictedStops).toEqual(["parent"]);
+    expect(policy.resources.get("node")?.restrictedStops).toStrictEqual([
+      "parent",
+    ]);
     expect(policy.resources.get("item")?.restrictedStops).toBeUndefined();
     expect(policy.resources.get("item")?.restricted).toBe("restricted");
     expect(tree.folder.read.resource).toBe("folder");
@@ -111,16 +113,20 @@ describe("restricted with stops", () => {
       rows.filter((row) => row.driveId === "d1").map((row) => row.id),
     );
     for (const reader of [owner, sharer, member]) {
-      expect(await visible(user(reader), "node", "read")).toEqual(everything);
+      expect(await visible(user(reader), "node", "read")).toStrictEqual(
+        everything,
+      );
     }
-    expect(await visible(user(owner), "node", "update")).toEqual(everything);
-    expect(await visible(user(secretViewer), "node", "read")).toEqual(
+    expect(await visible(user(owner), "node", "update")).toStrictEqual(
+      everything,
+    );
+    expect(await visible(user(secretViewer), "node", "read")).toStrictEqual(
       sorted(["secret", "inner", "deep"]),
     );
-    expect(await visible(user(rootViewer), "node", "read")).toEqual(
+    expect(await visible(user(rootViewer), "node", "read")).toStrictEqual(
       sorted(["root", "open", ...chainTo(16)]),
     );
-    expect(await visible(user(deepViewer), "node", "read")).toEqual(
+    expect(await visible(user(deepViewer), "node", "read")).toStrictEqual(
       sorted(["deep", "other"]),
     );
   });
@@ -128,28 +134,38 @@ describe("restricted with stops", () => {
   it("closes every link for the string form, below the restricted row too", async () => {
     const reachable = sorted(["root", "open", "loose", ...chainTo(32)]);
     for (const reader of [owner, sharer, member]) {
-      expect(await visible(user(reader), "item", "read")).toEqual(reachable);
+      expect(await visible(user(reader), "item", "read")).toStrictEqual(
+        reachable,
+      );
     }
-    expect(await visible(user(owner), "item", "update")).toEqual(reachable);
-    expect(await visible(user(secretViewer), "item", "read")).toEqual(
+    expect(await visible(user(owner), "item", "update")).toStrictEqual(
+      reachable,
+    );
+    expect(await visible(user(secretViewer), "item", "read")).toStrictEqual(
       sorted(["secret", "inner", "deep"]),
     );
-    expect(await visible(user(rootViewer), "item", "read")).toEqual(
+    expect(await visible(user(rootViewer), "item", "read")).toStrictEqual(
       sorted(["root", "open", ...chainTo(16)]),
     );
-    expect(await visible(user(deepViewer), "item", "read")).toEqual(["deep"]);
+    expect(await visible(user(deepViewer), "item", "read")).toStrictEqual([
+      "deep",
+    ]);
   });
 
   it("closes only the drive link when stops names it, and the parent walk passes restricted rows", async () => {
     const reachable = sorted(["root", "open", "loose", ...chainTo(32)]);
     for (const reader of [owner, sharer, member]) {
-      expect(await visible(user(reader), "entry", "read")).toEqual(reachable);
+      expect(await visible(user(reader), "entry", "read")).toStrictEqual(
+        reachable,
+      );
     }
-    expect(await visible(user(owner), "entry", "update")).toEqual(reachable);
-    expect(await visible(user(secretViewer), "entry", "read")).toEqual(
+    expect(await visible(user(owner), "entry", "update")).toStrictEqual(
+      reachable,
+    );
+    expect(await visible(user(secretViewer), "entry", "read")).toStrictEqual(
       sorted(["secret", "inner", "deep", "vault", "under"]),
     );
-    expect(await visible(user(rootViewer), "entry", "read")).toEqual(
+    expect(await visible(user(rootViewer), "entry", "read")).toStrictEqual(
       sorted([
         "root",
         "open",
@@ -161,7 +177,7 @@ describe("restricted with stops", () => {
         ...chainTo(16),
       ]),
     );
-    expect(await visible(user(deepViewer), "entry", "read")).toEqual(
+    expect(await visible(user(deepViewer), "entry", "read")).toStrictEqual(
       sorted(["deep", "vault", "under"]),
     );
   });
@@ -205,8 +221,12 @@ const text = (condition: RelatedCondition, closure?: string): string =>
 describe("restricted with stops in SQL", () => {
   it("plans a 32-level closure and a restricted helper only where a link is closed", () => {
     const plan = graphPlan(policy);
-    expect(closureDepths(plan)).toEqual({ entry: 32, item: 32, node: 16 });
-    expect(plan.get("item")?.restrictedAncestors).toEqual({
+    expect(closureDepths(plan)).toStrictEqual({
+      entry: 32,
+      item: 32,
+      node: 16,
+    });
+    expect(plan.get("item")?.restrictedAncestors).toStrictEqual({
       resource: "item",
       id: "id",
       parent: "parentId",
@@ -273,7 +293,7 @@ describe("restricted with stops in SQL", () => {
     const resolved = await resolveRelated(where, {
       run: () => Promise.resolve(answers.shift() ?? []),
     });
-    expect(resolved.condition).toEqual({
+    expect(resolved.condition).toStrictEqual({
       op: "and",
       conditions: [
         { op: "in", field: "driveId", value: ["d1"] },
@@ -305,6 +325,6 @@ describe("restricted with stops in SQL", () => {
     const none = await resolveRelated(where, {
       run: () => Promise.resolve([]),
     });
-    expect(none.condition).toEqual({ op: "or", conditions: [] });
+    expect(none.condition).toStrictEqual({ op: "or", conditions: [] });
   });
 });

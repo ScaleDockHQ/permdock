@@ -130,7 +130,7 @@ describe("schemas/*.json", () => {
     for (const name of files) {
       walk(json(new URL(name, SCHEMAS)), name);
     }
-    expect(missing).toEqual([]);
+    expect(missing).toStrictEqual([]);
   });
 });
 
@@ -140,12 +140,14 @@ describe("snapshot-v1.json", () => {
   it("accepts the snapshot fixture and a snapshot read back from its token", () => {
     expect(
       check(json(new URL("../../fixtures/snapshot.json", import.meta.url))),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     const claims = signedOutput("vnd.permdock.snapshot+jwt");
-    expect(check(snapshotFromClaims({ iss: ISSUER, ...claims }))).toEqual([]);
+    expect(check(snapshotFromClaims({ iss: ISSUER, ...claims }))).toStrictEqual(
+      [],
+    );
     expect(
       check(snapshotFromClaims(claimsOf(jwtFixtureTokens.snapshot))),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("snapshotClaims are the claims signSnapshot signs and snapshotFromClaims reads back", async () => {
@@ -157,7 +159,7 @@ describe("snapshot-v1.json", () => {
       await signSnapshot(snapshot, signer, { audience: ISSUER }),
     );
     expect(signed).toMatchObject(claims);
-    expect(Object.keys(signed).toSorted()).toEqual(
+    expect(Object.keys(signed).toSorted()).toStrictEqual(
       [
         ...Object.keys(claims),
         "iss",
@@ -173,13 +175,15 @@ describe("snapshot-v1.json", () => {
     const fixture = json(
       new URL("../../fixtures/snapshot.json", import.meta.url),
     );
-    expect(check({ ...fixture, issuedAt: 1_700_000_000 })).not.toEqual([]);
+    expect(check({ ...fixture, issuedAt: 1_700_000_000 })).not.toStrictEqual(
+      [],
+    );
     expect(
       check({
         ...fixture,
         subject: { principal: null, context: {}, delegation: { scope: ["a"] } },
       }),
-    ).not.toEqual([]);
+    ).not.toStrictEqual([]);
   });
 });
 
@@ -207,9 +211,9 @@ describe("approval-signature-v1.json", () => {
 
   it("accepts what signApproval signs and the checked-in fixtures", async () => {
     const token = await signApproval(request, signer);
-    expect(check(claimsOf(token ?? ""))).toEqual([]);
-    expect(check(signedOutput("vnd.permdock.approval+jwt"))).toEqual([]);
-    expect(check(claimsOf(jwtFixtureTokens.approval))).toEqual([]);
+    expect(check(claimsOf(token ?? ""))).toStrictEqual([]);
+    expect(check(signedOutput("vnd.permdock.approval+jwt"))).toStrictEqual([]);
+    expect(check(claimsOf(jwtFixtureTokens.approval))).toStrictEqual([]);
   });
 
   it("rejects two authorization_details and a numeric approval time", async () => {
@@ -217,10 +221,10 @@ describe("approval-signature-v1.json", () => {
     const detail = { type: "invoice", actions: ["void"] };
     expect(
       check({ ...claims, authorization_details: [detail, detail] }),
-    ).not.toEqual([]);
-    expect(check({ ...claims, approvals: [{ by: "u2", at: 1 }] })).not.toEqual(
-      [],
-    );
+    ).not.toStrictEqual([]);
+    expect(
+      check({ ...claims, approvals: [{ by: "u2", at: 1 }] }),
+    ).not.toStrictEqual([]);
   });
 });
 
@@ -229,20 +233,20 @@ describe("capability-v1.json", () => {
   const claims = signedOutput("vnd.permdock.capability+jwt");
 
   it("accepts the capability fixture, with or without cnf", () => {
-    expect(check(claims)).toEqual([]);
+    expect(check(claims)).toStrictEqual([]);
     expect(
       check({
         ...claims,
         cnf: { jkt: "0ZcOCORZNYy-DWpqq30jZyJGHTN0d2HglBV3uiguA4I" },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("rejects a capability without sub, with an id, or with a short jkt", () => {
     const { sub: _sub, ...unnamed } = claims;
-    expect(check(unnamed)).not.toEqual([]);
-    expect(check({ ...claims, capability: { v: 2 } })).not.toEqual([]);
-    expect(check({ ...claims, cnf: { jkt: "short" } })).not.toEqual([]);
+    expect(check(unnamed)).not.toStrictEqual([]);
+    expect(check({ ...claims, capability: { v: 2 } })).not.toStrictEqual([]);
+    expect(check({ ...claims, cnf: { jkt: "short" } })).not.toStrictEqual([]);
   });
 });
 
@@ -260,12 +264,12 @@ describe("credential-v1.json", () => {
   };
 
   it("rejects Unix-second times", () => {
-    expect(check({ ...user, createdAt: 1_700_000_000 })).not.toEqual([]);
-    expect(check({ ...user, expiresAt: "2023-11-15" })).not.toEqual([]);
+    expect(check({ ...user, createdAt: 1_700_000_000 })).not.toStrictEqual([]);
+    expect(check({ ...user, expiresAt: "2023-11-15" })).not.toStrictEqual([]);
   });
 
   it("accepts user, service and feed credentials", () => {
-    expect(check(user)).toEqual([]);
+    expect(check(user)).toStrictEqual([]);
     expect(
       check({
         ...user,
@@ -274,7 +278,7 @@ describe("credential-v1.json", () => {
         tenant: "org_1",
         roles: ["bot"],
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       check({
         ...user,
@@ -285,12 +289,14 @@ describe("credential-v1.json", () => {
         on: { resource: "calendar", id: "cal_1" },
         permissions: [{ permission: "calendar.read", ids: ["cal_1"] }],
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("rejects a service credential without a tenant and an unknown kind", () => {
-    expect(check({ ...user, kind: "service", roles: ["bot"] })).not.toEqual([]);
-    expect(check({ ...user, kind: "robot" })).not.toEqual([]);
+    expect(
+      check({ ...user, kind: "service", roles: ["bot"] }),
+    ).not.toStrictEqual([]);
+    expect(check({ ...user, kind: "robot" })).not.toStrictEqual([]);
   });
 });
 
@@ -299,12 +305,12 @@ describe("policy-v1.json", () => {
   const claims = signedOutput("vnd.permdock.policy+jwt");
 
   it("accepts the policy fixture", () => {
-    expect(check(claims)).toEqual([]);
+    expect(check(claims)).toStrictEqual([]);
   });
 
   it("rejects a document without jti or with grants that lack an id", () => {
     const { jti: _jti, ...anonymous } = claims;
-    expect(check(anonymous)).not.toEqual([]);
+    expect(check(anonymous)).not.toStrictEqual([]);
     expect(
       check({
         ...claims,
@@ -315,7 +321,7 @@ describe("policy-v1.json", () => {
           grants: [{ permission: "p", to: {} }],
         },
       }),
-    ).not.toEqual([]);
+    ).not.toStrictEqual([]);
   });
 });
 
@@ -328,8 +334,8 @@ describe("evidence-export-v1.json", () => {
       new URL("../../fixtures/decision-event.json", import.meta.url),
     ) as SinkEvent;
     const token = await signDecisionBatch([event], signer, { source: ISSUER });
-    expect(check(claimsOf(token))).toEqual([]);
-    expect(check(signedOutput("vnd.permdock.evidence+jwt"))).toEqual([]);
+    expect(check(claimsOf(token))).toStrictEqual([]);
+    expect(check(signedOutput("vnd.permdock.evidence+jwt"))).toStrictEqual([]);
   });
 
   it("rejects an event without specversion", () => {
@@ -339,14 +345,16 @@ describe("evidence-export-v1.json", () => {
         ...claims,
         events: [{ id: "1", source: ISSUER, type: "t", data: {} }],
       }),
-    ).not.toEqual([]);
+    ).not.toStrictEqual([]);
   });
 });
 
 describe("run-v1.json and support-session-v1.json", () => {
   it("match the constants the CLI exports", () => {
-    expect(json(new URL("run-v1.json", SCHEMAS))).toEqual(RUN_TICKET_SCHEMA);
-    expect(json(new URL("support-session-v1.json", SCHEMAS))).toEqual(
+    expect(json(new URL("run-v1.json", SCHEMAS))).toStrictEqual(
+      RUN_TICKET_SCHEMA,
+    );
+    expect(json(new URL("support-session-v1.json", SCHEMAS))).toStrictEqual(
       SUPPORT_SESSION_SCHEMA,
     );
   });
@@ -369,10 +377,10 @@ describe("run-v1.json and support-session-v1.json", () => {
         signer,
       ),
     );
-    expect(check(claims)).toEqual([]);
+    expect(check(claims)).toStrictEqual([]);
     const { scope: _scope, ...undelegated } = claims;
-    expect(check(undelegated)).not.toEqual([]);
-    expect(check({ ...claims, kind: "cron" })).not.toEqual([]);
+    expect(check(undelegated)).not.toStrictEqual([]);
+    expect(check({ ...claims, kind: "cron" })).not.toStrictEqual([]);
   });
 
   it("accept what signSupportSession signs and reject a nested act", async () => {
@@ -396,11 +404,11 @@ describe("run-v1.json and support-session-v1.json", () => {
         signer,
       ),
     );
-    expect(check(claims)).toEqual([]);
+    expect(check(claims)).toStrictEqual([]);
     expect(
       check({ ...claims, act: { sub: "u_staff", kind: "support", act: {} } }),
-    ).not.toEqual([]);
-    expect(check({ ...claims, permissions: [] })).not.toEqual([]);
+    ).not.toStrictEqual([]);
+    expect(check({ ...claims, permissions: [] })).not.toStrictEqual([]);
   });
 });
 
@@ -421,7 +429,7 @@ describe("signSnapshot and signPolicyDocument", () => {
     });
     const claims = claimsOf(token);
     expect(claims["aud"]).toBe("https://cloud.example.com");
-    expect(snapshotFromClaims(claims)).toEqual(source);
+    expect(snapshotFromClaims(claims)).toStrictEqual(source);
     expect(snapshotFromClaims({ snapshot: { v: 2 } })).toBeNull();
   });
 
@@ -446,13 +454,13 @@ describe("signSnapshot and signPolicyDocument", () => {
       expiresAt: 1_791_277_200,
     });
     const claims = claimsOf(token);
-    expect(check(claims)).toEqual([]);
+    expect(check(claims)).toStrictEqual([]);
     expect(claims).toMatchObject({
       aud: "https://app.example.com/env/prod",
       exp: 1_791_277_200,
       jti: "pol_1",
     });
-    expect(policyDocumentFromClaims(claims)).toEqual(document);
+    expect(policyDocumentFromClaims(claims)).toStrictEqual(document);
   });
 });
 
@@ -473,7 +481,7 @@ describe("parseApprovalRequest", () => {
 
   it("returns a frozen copy of a valid request", () => {
     const parsed = parseApprovalRequest(request);
-    expect(parsed).toEqual(request);
+    expect(parsed).toStrictEqual(request);
     expect(Object.isFrozen(parsed)).toBe(true);
   });
 
@@ -588,20 +596,20 @@ describe("connector-v1.json", () => {
   ];
 
   it("accepts one connector of every kind", () => {
-    expect(valid.map((item) => check(item))).toEqual(valid.map(() => []));
+    expect(valid.map((item) => check(item))).toStrictEqual(valid.map(() => []));
     expect(new Set(valid.map((item) => item.kind)).size).toBe(10);
   });
 
   it("rejects an unknown kind, a missing field, an extra field and http", () => {
     for (const item of invalid) {
-      expect(check(item)).not.toEqual([]);
+      expect(check(item)).not.toStrictEqual([]);
     }
   });
 
   it("parseConnector agrees with the schema on every fixture", () => {
     for (const item of valid) {
       const result = parseConnector(item);
-      expect(result).toEqual({ ok: true, connector: item });
+      expect(result).toStrictEqual({ ok: true, connector: item });
       expect(result.ok && Object.isFrozen(result.connector.config)).toBe(true);
     }
     for (const item of invalid) {
@@ -623,11 +631,13 @@ describe("connector-v1.json", () => {
           headers: { "a/b~c": 1 },
         },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       ok: false,
       issues: [{ path: "/config/headers/a~1b~0c", message: "Expected string" }],
     });
-    expect(parseConnector({ kind: "webhook", name: "x", config: {} })).toEqual({
+    expect(
+      parseConnector({ kind: "webhook", name: "x", config: {} }),
+    ).toStrictEqual({
       ok: false,
       issues: [{ path: "/config/url", message: "Required" }],
     });
@@ -637,11 +647,13 @@ describe("connector-v1.json", () => {
           '{"kind":"email","name":"x","config":{"from":"a@b"},"__proto__":{}}',
         ),
       ),
-    ).toEqual({
+    ).toStrictEqual({
       ok: false,
       issues: [{ path: "/__proto__", message: "Forbidden key" }],
     });
-    expect(parseConnector({ kind: "email", name: "x", at: () => 1 })).toEqual({
+    expect(
+      parseConnector({ kind: "email", name: "x", at: () => 1 }),
+    ).toStrictEqual({
       ok: false,
       issues: [{ path: "/at", message: "Expected JSON, got function" }],
     });
@@ -650,16 +662,16 @@ describe("connector-v1.json", () => {
 
 describe("cloud-api-v1.json", () => {
   it("is CLOUD_API_DOCUMENT and connector-v1.json is CONNECTOR_SCHEMA", () => {
-    expect(json(new URL("cloud-api-v1.json", SCHEMAS))).toEqual(
+    expect(json(new URL("cloud-api-v1.json", SCHEMAS))).toStrictEqual(
       CLOUD_API_DOCUMENT,
     );
-    expect(json(new URL("connector-v1.json", SCHEMAS))).toEqual(
+    expect(json(new URL("connector-v1.json", SCHEMAS))).toStrictEqual(
       CONNECTOR_SCHEMA,
     );
   });
 
   it("is a valid OpenAPI 3.1 document", () => {
-    expect(validateOpenapi(CLOUD_API_DOCUMENT)).toEqual({
+    expect(validateOpenapi(CLOUD_API_DOCUMENT)).toStrictEqual({
       ok: true,
       version: "3.1",
     });

@@ -50,7 +50,7 @@ describe("progressReporter", () => {
     });
     report("Loading").done("Loaded");
     report("Checking").done();
-    expect(lines).toEqual(["Loading\n", "Loaded\n", "Checking\n"]);
+    expect(lines).toStrictEqual(["Loading\n", "Loaded\n", "Checking\n"]);
   });
 
   it("spins on a terminal and clears the line when done", () => {
@@ -133,7 +133,7 @@ describe("exit codes", () => {
     expect(exitCodeOf("action")).toBe(3);
     expect(
       ([0, 1, 2, 3, 130, 143] as const).map((code) => kindOfCode(code)),
-    ).toEqual([
+    ).toStrictEqual([
       "failed",
       "failed",
       "usage",
@@ -200,7 +200,7 @@ describe("output", () => {
   ] as const;
 
   it("maps severities and locations to GitHub annotations", () => {
-    expect(githubAnnotations(findings).split("\n")).toEqual([
+    expect(githubAnnotations(findings).split("\n")).toStrictEqual([
       "::error file=src/a%2Cb.ts,line=3,title=PD001::a, b: c%0AFix: Do x",
       "::warning file=src/w.ts,title=PD002::w",
       "::notice title=PD003::i",
@@ -262,7 +262,7 @@ describe("candidates", () => {
   });
 
   it("offers nothing for a bare word after a leaf without positionals", async () => {
-    expect(await candidates(["doctor", ""])).toEqual([]);
+    expect(await candidates(["doctor", ""])).toStrictEqual([]);
   });
 });
 
@@ -313,7 +313,7 @@ describe("renameMessage", () => {
 
 describe("byCodeUnit", () => {
   it("orders by code unit, uppercase before lowercase", () => {
-    expect(["b", "a", "B", "a"].toSorted(byCodeUnit)).toEqual([
+    expect(["b", "a", "B", "a"].toSorted(byCodeUnit)).toStrictEqual([
       "B",
       "a",
       "a",
@@ -333,13 +333,13 @@ describe("redact", () => {
 
 describe("dirtyFiles", () => {
   it("has nothing to check without paths", () => {
-    expect(dirtyFiles(FIXTURE, [])).toEqual([]);
+    expect(dirtyFiles(FIXTURE, [])).toStrictEqual([]);
   });
 
   it("counts nothing as dirty outside a git work tree", () => {
     const dir = mkdtempSync(join("/tmp", "permdock-nogit-"));
     temps.push(dir);
-    expect(dirtyFiles(dir, ["a.ts"])).toEqual([]);
+    expect(dirtyFiles(dir, ["a.ts"])).toStrictEqual([]);
   });
 });
 

@@ -61,7 +61,7 @@ describe("assemblePolicies", () => {
     const policies = assemblePolicies(compiled().branches, { perRole: false });
     expect(
       policies.map((item) => [item.name, item.effect, item.roles.join(",")]),
-    ).toEqual([
+    ).toStrictEqual([
       ["post_select", "allow", "authenticated"],
       ["post_select_anon", "allow", "anon"],
       ["post_update", "allow", "authenticated"],
@@ -85,7 +85,7 @@ describe("assemblePolicies", () => {
     const rows = compiled().rolePermissions.filter(
       (row) => row.permission === "post.update",
     );
-    expect(rows).toEqual([
+    expect(rows).toStrictEqual([
       {
         role: "admin",
         permission: "post.update",

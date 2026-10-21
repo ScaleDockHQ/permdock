@@ -12,7 +12,7 @@ import { OPERATION_RISKS, isOperationRisk } from "../../src/index.ts";
 
 describe("permdock/authzen batch helpers", () => {
   it("lists the AuthZEN evaluations semantics and reads one from a body", () => {
-    expect(EVALUATIONS_SEMANTICS).toEqual([
+    expect(EVALUATIONS_SEMANTICS).toStrictEqual([
       "execute_all",
       "deny_on_first_deny",
       "permit_on_first_permit",
@@ -38,8 +38,8 @@ describe("permdock/authzen batch helpers", () => {
         return Promise.resolve({ decision: item === true });
       },
     );
-    expect(rows).toEqual([{ decision: true }, { decision: false }]);
-    expect(seen).toEqual([true, false]);
+    expect(rows).toStrictEqual([{ decision: true }, { decision: false }]);
+    expect(seen).toStrictEqual([true, false]);
   });
 
   it("fills an evaluation item from the request's shared fields", () => {
@@ -53,7 +53,7 @@ describe("permdock/authzen batch helpers", () => {
         action: { name: "update" },
         resource: { type: "post", id: "p_1" },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       subject: { type: "user", id: "u_1" },
       action: { name: "update" },
       resource: { type: "post", id: "p_1" },
@@ -64,7 +64,12 @@ describe("permdock/authzen batch helpers", () => {
 
 describe("permdock operation risks", () => {
   it("orders the risk levels lowest first and guards them", () => {
-    expect(OPERATION_RISKS).toEqual(["low", "medium", "high", "critical"]);
+    expect(OPERATION_RISKS).toStrictEqual([
+      "low",
+      "medium",
+      "high",
+      "critical",
+    ]);
     expect(Object.isFrozen(OPERATION_RISKS)).toBe(true);
     expect(isOperationRisk("high")).toBe(true);
     expect(isOperationRisk("extreme")).toBe(false);

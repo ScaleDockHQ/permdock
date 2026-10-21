@@ -63,7 +63,7 @@ describe("invariant 15: the Cloud is optional and never on the decision path", (
       Promise.reject(new Error("offline")),
     );
     vi.stubGlobal("fetch", fetch);
-    expect(await outcomes()).toEqual([
+    expect(await outcomes()).toStrictEqual([
       "granted",
       "denied",
       "approval-required",
@@ -91,7 +91,7 @@ describe("invariant 15: the Cloud is optional and never on the decision path", (
       },
     ];
     for (const sink of sinks) {
-      expect(await outcomes(sink)).toEqual(expected);
+      expect(await outcomes(sink)).toStrictEqual(expected);
     }
   });
 
@@ -205,6 +205,6 @@ describe("invariant 15: the Cloud is optional and never on the decision path", (
       names.filter((name) =>
         /^(subjectFrom|membership|decide|can$|getPermDockSync)/iu.test(name),
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

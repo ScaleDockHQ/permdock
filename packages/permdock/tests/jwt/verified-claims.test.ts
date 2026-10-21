@@ -81,7 +81,7 @@ async function assuranceOf(claims: Record<string, unknown>) {
 describe("verified_claims", () => {
   it("maps one object or an array into frozen evidence", async () => {
     const single = await assuranceOf({ verified_claims: EIDAS, acr: "high" });
-    expect(single).toEqual({ acr: "high", verified: [EIDAS] });
+    expect(single).toStrictEqual({ acr: "high", verified: [EIDAS] });
     expect(Object.isFrozen(single?.verified?.[0]?.verification)).toBe(true);
     const many = await assuranceOf({
       verified_claims: [
@@ -91,7 +91,7 @@ describe("verified_claims", () => {
     });
     expect(
       many?.verified?.map((entry) => entry.verification.trust_framework),
-    ).toEqual(["eidas", "uk_tfida"]);
+    ).toStrictEqual(["eidas", "uk_tfida"]);
   });
 
   it("drops entries without a trust framework, claims or with unsafe keys", async () => {

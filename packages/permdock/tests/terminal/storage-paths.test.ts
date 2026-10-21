@@ -133,7 +133,7 @@ describe("credential files", () => {
       readCredentials(storage, "odd", runtime),
       readCredentials(storage, "broken", runtime),
       readCredentials(storage, "missing", runtime),
-    ]).toEqual([
+    ]).toStrictEqual([
       {
         access_token: "at",
         refresh_token: "rt",
@@ -162,9 +162,9 @@ describe("credential files", () => {
       JSON.stringify({ profiles: { default: { access_token: "at" } } }),
       { mode: 0o644 },
     );
-    expect(readCredentials({ service: "acme" }, "default", runtime)).toEqual({
-      access_token: "at",
-    });
+    expect(
+      readCredentials({ service: "acme" }, "default", runtime),
+    ).toStrictEqual({ access_token: "at" });
   });
 
   it("overwrites a corrupt file and keeps other profiles on delete", () => {
@@ -175,7 +175,7 @@ describe("credential files", () => {
     writeCredentials(storage, "a", { access_token: "a" }, runtime);
     writeCredentials(storage, "b", { access_token: "b" }, runtime);
     deleteCredentials(storage, "a", runtime);
-    expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({
+    expect(JSON.parse(readFileSync(file, "utf8"))).toStrictEqual({
       profiles: { b: { access_token: "b" } },
     });
     deleteCredentials(storage, "b", runtime);
@@ -187,7 +187,7 @@ describe("credential files", () => {
     const file = credentialsPath("acme", runtime);
     writeFileSync(file, '{"version":1}', { mode: 0o600 });
     writeCredentials({ service: "acme" }, "a", { access_token: "a" }, runtime);
-    expect(JSON.parse(readFileSync(file, "utf8"))).toEqual({
+    expect(JSON.parse(readFileSync(file, "utf8"))).toStrictEqual({
       profiles: { a: { access_token: "a" } },
     });
   });
@@ -212,7 +212,7 @@ describe("keyring failures", () => {
     const runtime = { configDir: configDir() };
     const storage = { service: "acme", keyring: ThrowingConstructor };
     writeCredentials(storage, "default", { access_token: "at" }, runtime);
-    expect(readCredentials(storage, "default", runtime)).toEqual({
+    expect(readCredentials(storage, "default", runtime)).toStrictEqual({
       access_token: "at",
     });
     deleteCredentials(storage, "default", runtime);
@@ -224,7 +224,7 @@ describe("keyring failures", () => {
       const runtime = { configDir: configDir() };
       const storage = { service: "acme", keyring };
       writeCredentials(storage, "default", { access_token: "file" }, runtime);
-      expect(readCredentials(storage, "default", runtime)).toEqual({
+      expect(readCredentials(storage, "default", runtime)).toStrictEqual({
         access_token: "file",
       });
     }

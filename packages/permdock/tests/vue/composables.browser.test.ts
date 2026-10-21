@@ -210,7 +210,7 @@ describe("permdock/vue composables", () => {
     expect(view.root.textContent).toBe("required:pd1.token");
     await request?.("please");
     await nextTick();
-    expect(posts).toEqual(["/api/approvals"]);
+    expect(posts).toStrictEqual(["/api/approvals"]);
     expect(view.root.textContent).toBe("pending:pd1.token");
     decision.value = { outcome: "denied", denials: [], alternatives: [] };
     await nextTick();

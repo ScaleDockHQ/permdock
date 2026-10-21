@@ -89,8 +89,8 @@ describe("junctionMembershipSource with several role sources", () => {
       [NONE]: [],
     };
     for (const [user, memberships] of Object.entries(expected)) {
-      expect(await mint(user)).toEqual(memberships);
-      expect(byId(await source.membershipsFor({ id: user }, {}))).toEqual(
+      expect(await mint(user)).toStrictEqual(memberships);
+      expect(byId(await source.membershipsFor({ id: user }, {}))).toStrictEqual(
         memberships,
       );
     }

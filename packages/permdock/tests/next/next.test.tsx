@@ -75,7 +75,7 @@ describe("permdock/next", () => {
     const first = createPermDock(policy, { subject: () => memberUser });
     const second = createPermDock(policy, { subject: () => adminUser });
 
-    expect(Object.keys(first).toSorted()).toEqual(
+    expect(Object.keys(first).toSorted()).toStrictEqual(
       [
         "PermDockProvider",
         "getPermDock",
@@ -131,7 +131,7 @@ describe("permdock/next", () => {
     });
 
     const allowed = await getPermission(permissions.post.update, ownPost);
-    expect(allowed).toEqual({
+    expect(allowed).toStrictEqual({
       allowed: true,
       status: "ready",
       decision: allowed.decision,
@@ -153,7 +153,7 @@ describe("permdock/next", () => {
     expect(() => permdock.assert(permissions.post.publish, ownPost)).toThrow(
       /post.publish/u,
     );
-    expect(seen).toEqual(["denied"]);
+    expect(seen).toStrictEqual(["denied"]);
   });
 
   it("resolves requirePermission to the granted decision", async () => {
@@ -175,7 +175,7 @@ describe("permdock/next", () => {
     await expect(
       anonymous.requirePermission(permissions.post.read),
     ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;401" });
-    expect(seen).toEqual(["factory"]);
+    expect(seen).toStrictEqual(["factory"]);
   });
 
   it("runs the call's onDenied before the factory's, and lets it replace the interrupt", async () => {
@@ -190,7 +190,7 @@ describe("permdock/next", () => {
         },
       }),
     ).rejects.toBe(replaced);
-    expect(seen).toEqual(["call"]);
+    expect(seen).toStrictEqual(["call"]);
   });
 
   it("throws the approval error from requirePermission instead of forbidden", async () => {
@@ -510,7 +510,7 @@ describe("permdock/next", () => {
       tenant: "acme",
     });
     expect(state.allowed).toBe(true);
-    expect(tenants).toEqual([]);
+    expect(tenants).toStrictEqual([]);
   });
 
   it("keeps the factory onDenied on a frozen instance and its tenant views", async () => {
@@ -527,7 +527,7 @@ describe("permdock/next", () => {
     expect(() =>
       permdock.team("t1").assert(permissions.post.publish, ownPost),
     ).toThrow(/post.publish/u);
-    expect(seen).toEqual(["denied", "denied"]);
+    expect(seen).toStrictEqual(["denied", "denied"]);
   });
 
   it("denies from getPermission when the instance cannot be built", async () => {
@@ -537,7 +537,7 @@ describe("permdock/next", () => {
         throw new Error("exporter down");
       },
     });
-    expect(await getPermission(permissions.post.read, ownPost)).toEqual({
+    expect(await getPermission(permissions.post.read, ownPost)).toStrictEqual({
       allowed: false,
       status: "ready",
       decision: {
@@ -562,7 +562,7 @@ describe("permdock/next", () => {
       },
     });
     await getPermDock();
-    expect(order).toEqual(["otel", "wrap"]);
+    expect(order).toStrictEqual(["otel", "wrap"]);
   });
 
   it("checks requirePermission in the requested tenant", async () => {
@@ -578,7 +578,7 @@ describe("permdock/next", () => {
       tenant: "acme",
     });
     expect(decision.outcome).toBe("granted");
-    expect(tenants).toEqual([]);
+    expect(tenants).toStrictEqual([]);
   });
 
   it("passes a Next.js interrupt from the server provider to the error path", async () => {
@@ -651,31 +651,31 @@ describe("cacheLifeFor", () => {
     vi.useFakeTimers();
     try {
       vi.setSystemTime(1_000_000);
-      expect(cacheLifeFor({ expiresAt: 1060 })).toEqual({ stale: 60 });
+      expect(cacheLifeFor({ expiresAt: 1060 })).toStrictEqual({ stale: 60 });
     } finally {
       vi.useRealTimers();
     }
   });
 
   it("uses max for values that never expire", () => {
-    expect(cacheLifeFor(null)).toEqual({ stale: 300 });
-    expect(cacheLifeFor({ issuedAt: 100 })).toEqual({ stale: 300 });
-    expect(cacheLifeFor({ expiresAt: null }, { max: 600 })).toEqual({
+    expect(cacheLifeFor(null)).toStrictEqual({ stale: 300 });
+    expect(cacheLifeFor({ issuedAt: 100 })).toStrictEqual({ stale: 300 });
+    expect(cacheLifeFor({ expiresAt: null }, { max: 600 })).toStrictEqual({
       stale: 600,
     });
   });
 
   it("never serves past expiresAt and reads the clock from issuedAt", () => {
-    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 1120 })).toEqual({
+    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 1120 })).toStrictEqual({
       stale: 120,
     });
-    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 5000 })).toEqual({
+    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 5000 })).toStrictEqual({
       stale: 300,
     });
-    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 1010 })).toEqual({
+    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 1010 })).toStrictEqual({
       stale: 10,
     });
-    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 900 })).toEqual({
+    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 900 })).toStrictEqual({
       stale: 0,
     });
     expect(
@@ -683,6 +683,6 @@ describe("cacheLifeFor", () => {
         { expiresAt: 1100 },
         { now: Temporal.Instant.fromEpochMilliseconds(1_000_000), min: 60 },
       ),
-    ).toEqual({ stale: 100 });
+    ).toStrictEqual({ stale: 100 });
   });
 });

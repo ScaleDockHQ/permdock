@@ -121,7 +121,7 @@ describe.each(fixture.transmitters)(
 
       expect(response.status).toBe(202);
       const caep = seen.filter((event) => !event.type.startsWith("https://"));
-      expect(caep).toEqual(transmitter.expect);
+      expect(caep).toStrictEqual(transmitter.expect);
       for (const uri of transmitter.unknown ?? []) {
         expect(seen.some((event) => event.type === uri)).toBe(true);
       }

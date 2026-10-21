@@ -111,7 +111,7 @@ describe("memoryPrincipalSource", () => {
   it("returns a frozen copy each time", async () => {
     const first = await source.principal("u_alice");
     const second = await source.principal("u_alice");
-    expect(first).toEqual(alice);
+    expect(first).toStrictEqual(alice);
     expect(first).not.toBe(alice);
     expect(first).not.toBe(second);
     expect(Object.isFrozen(first)).toBe(true);
@@ -169,13 +169,13 @@ describe("normalizeIdentity", () => {
         provider: "x",
         workspace: "y",
       }),
-    ).toEqual({ kind: "email", value: "bob@example.com" });
+    ).toStrictEqual({ kind: "email", value: "bob@example.com" });
   });
 
   it("keeps a chat identity as given and needs a provider", () => {
     expect(
       normalizeIdentity({ kind: "chat", provider: "slack", value: "U1" }),
-    ).toEqual({ kind: "chat", provider: "slack", value: "U1" });
+    ).toStrictEqual({ kind: "chat", provider: "slack", value: "U1" });
     expect(normalizeIdentity({ kind: "chat", value: "U1" })).toBeUndefined();
   });
 
@@ -224,11 +224,11 @@ describe("loadPrincipal", () => {
         return { id };
       },
     };
-    expect(await loadPrincipal(recording, "u_1", "acme")).toEqual({
+    expect(await loadPrincipal(recording, "u_1", "acme")).toStrictEqual({
       id: "u_1",
     });
-    expect(await loadPrincipal(recording, "u_1")).toEqual({ id: "u_1" });
-    expect(seen).toEqual([{ tenant: "acme" }, {}]);
+    expect(await loadPrincipal(recording, "u_1")).toStrictEqual({ id: "u_1" });
+    expect(seen).toStrictEqual([{ tenant: "acme" }, {}]);
   });
 
   it("is null for a missing source, a throw, a rejection or a wrong id", async () => {
@@ -286,7 +286,7 @@ describe("loadPrincipal", () => {
         kind: "email",
         value: " A@B.C ",
       }),
-    ).toEqual({ id: "u_1" });
-    expect(seen).toEqual([{ kind: "email", value: "a@b.c" }]);
+    ).toStrictEqual({ id: "u_1" });
+    expect(seen).toStrictEqual([{ kind: "email", value: "a@b.c" }]);
   });
 });

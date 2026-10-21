@@ -132,7 +132,7 @@ describe("authorizer", () => {
       await pd.evaluate(
         request(quote.read, { claims: claims(), tenant: ORG, properties: row }),
       ),
-    ).toEqual({ outcome: "granted" });
+    ).toStrictEqual({ outcome: "granted" });
   });
 
   it("denies a permission a deny overrides", async () => {
@@ -237,7 +237,7 @@ describe("authorizer", () => {
       request(quote.delete, { claims: claims(), tenant: ORG, properties: row }),
       request(quote.read, { tenant: ORG, properties: row }),
     ]);
-    expect(outcomes.map((o) => o.outcome)).toEqual([
+    expect(outcomes.map((o) => o.outcome)).toStrictEqual([
       "granted",
       "denied",
       "denied",

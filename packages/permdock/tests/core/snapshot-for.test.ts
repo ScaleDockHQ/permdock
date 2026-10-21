@@ -51,7 +51,7 @@ describe("snapshotFor", () => {
       tenant: "acme",
       now: Temporal.Instant.from(expected.issuedAt),
     });
-    expect(actual).toEqual(expected);
+    expect(actual).toStrictEqual(expected);
   });
 
   it("is plain JSON that survives structuredClone and JSON", () => {
@@ -60,7 +60,7 @@ describe("snapshotFor", () => {
       now: Temporal.Instant.fromEpochMilliseconds(100_000),
     });
     assertJson(snapshot);
-    expect(structuredClone(snapshot)).toEqual(snapshot);
+    expect(structuredClone(snapshot)).toStrictEqual(snapshot);
     const parsed = parseSnapshot(JSON.stringify(snapshot));
     const client = fromSnapshot(parsed);
     expect(client.can(permissions.project.update, otherProject)).toBe(true);
@@ -75,7 +75,7 @@ describe("snapshotFor", () => {
     expect(acme.can(permissions.member.invite)).toBe(true);
     expect(globex.can(permissions.member.invite)).toBe(false);
     expect(globex.can(permissions.project.list)).toBe(true);
-    expect(stranger.tenants).toEqual([]);
+    expect(stranger.tenants).toStrictEqual([]);
     expect(stranger.subject.principal?.tenant).toBeUndefined();
     expect(fromSnapshot(stranger).can(permissions.project.list)).toBe(false);
   });
@@ -150,9 +150,9 @@ describe("snapshotFor", () => {
   it("builds an anonymous snapshot for a null user", () => {
     const snapshot = snapshotFor(policy, null);
     expect(snapshot.subject.principal).toBeNull();
-    expect(snapshot.grants.filter((grant) => grant.effect === "allow")).toEqual(
-      [],
-    );
+    expect(
+      snapshot.grants.filter((grant) => grant.effect === "allow"),
+    ).toStrictEqual([]);
   });
 
   it("rejects async mappers instead of returning a promise", () => {

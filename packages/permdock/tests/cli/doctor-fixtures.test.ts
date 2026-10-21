@@ -94,7 +94,7 @@ export const policy = definePolicy(permissions, {
     const report = jsonData(result.stdout) as {
       readonly findings: readonly { readonly message: string }[];
     };
-    expect(report.findings.map((item) => item.message)).toEqual([
+    expect(report.findings.map((item) => item.message)).toStrictEqual([
       "custom role grabby in o1 drops include ghost (unknown-role)",
       "custom role grabby in o1 drops permission post.update (outside-ceiling)",
       "custom role grabby in o1 drops permission nope.read (unknown-permission)",
@@ -145,14 +145,13 @@ export const policy = definePolicy(permissions, {
         readonly message: string;
       }[];
     };
-    expect(report.findings.map((item) => item.code)).toEqual([
+    expect(report.findings.map((item) => item.code)).toStrictEqual([
       "PD025",
       "PD025",
     ]);
-    expect(report.findings.map((item) => item.message.split(" ")[1])).toEqual([
-      "orphan",
-      "unknown",
-    ]);
+    expect(
+      report.findings.map((item) => item.message.split(" ")[1]),
+    ).toStrictEqual(["orphan", "unknown"]);
   });
 
   it("PD029 warns on API keys that never expire and policies that allow them", async () => {
@@ -198,7 +197,7 @@ export const policy = definePolicy(permissions, {
         readonly message: string;
       }[];
     };
-    expect(report.findings.map((item) => item.code)).toEqual([
+    expect(report.findings.map((item) => item.code)).toStrictEqual([
       "PD029",
       "PD029",
       "PD029",
@@ -206,7 +205,7 @@ export const policy = definePolicy(permissions, {
     expect(report.findings.every((item) => item.severity === "warning")).toBe(
       true,
     );
-    expect(report.findings.map((item) => item.message)).toEqual([
+    expect(report.findings.map((item) => item.message)).toStrictEqual([
       "API key forever never expires",
       "credentials[2] is not a valid v1 credential, so it verifies to no subject",
       "tenant globex allows API keys that never expire",

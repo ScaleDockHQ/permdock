@@ -115,8 +115,10 @@ describe("chatSdkTransport", () => {
       { text: "Invoice i1 is ready" },
       options(),
     );
-    expect(result).toEqual({ status: "sent", providerId: "m_1" });
-    expect(posted).toEqual([{ user: "U2", message: "Invoice i1 is ready" }]);
+    expect(result).toStrictEqual({ status: "sent", providerId: "m_1" });
+    expect(posted).toStrictEqual([
+      { user: "U2", message: "Invoice i1 is ready" },
+    ]);
   });
 
   it("posts an approval card that links to the approval page", async () => {
@@ -149,7 +151,7 @@ describe("chatSdkTransport", () => {
       { text: "x" },
       options("pdd_same"),
     );
-    expect(again).toEqual(first);
+    expect(again).toStrictEqual(first);
     expect(posted).toHaveLength(1);
   });
 
@@ -173,7 +175,7 @@ describe("chatSdkTransport", () => {
         options(),
       ),
     ).toMatchObject({ status: "failed", cause: "rejected", retryable: false });
-    expect(posted).toEqual([]);
+    expect(posted).toStrictEqual([]);
   });
 
   it("maps Chat SDK error codes", async () => {

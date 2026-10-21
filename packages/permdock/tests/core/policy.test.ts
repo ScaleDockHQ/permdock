@@ -62,7 +62,7 @@ describe("policy", () => {
   it("keeps a relation approver for the verdict to check", () => {
     expect(
       normalizeApproval({ by: relation(permissions.post, "owner") }),
-    ).toEqual({
+    ).toStrictEqual({
       by: { kind: "relation", resource: "post", relation: "owner" },
     });
   });
@@ -85,8 +85,8 @@ describe("policy", () => {
       [allow(permissions.post.update, { to: roles.editor })],
       { on: permissions.post },
     );
-    expect(binding.grants[0]?.scope).toEqual({ resource: "post" });
-    expect(binding.grants[0]?.to).toEqual({
+    expect(binding.grants[0]?.scope).toStrictEqual({ resource: "post" });
+    expect(binding.grants[0]?.to).toStrictEqual({
       kind: "role",
       role: "editor",
       scope: { resource: "post" },
@@ -106,7 +106,7 @@ describe("policy", () => {
         roles: ["admin"],
       }),
     });
-    expect(policy.roles[0]?.grants.map((grant) => grant.effect)).toEqual([
+    expect(policy.roles[0]?.grants.map((grant) => grant.effect)).toStrictEqual([
       "allow",
       "deny",
     ]);
@@ -114,16 +114,16 @@ describe("policy", () => {
 
   it("normalises approval.by and treats any defined approval as required", () => {
     expect(normalizeApproval("human")).toBe("human");
-    expect(normalizeApproval({ distinct: true })).toEqual({
+    expect(normalizeApproval({ distinct: true })).toStrictEqual({
       by: { kind: "authenticated" },
       distinct: true,
     });
     expect(normalizeApproval({})).toBe("human");
-    expect(normalizeApproval({ distinct: false })).toEqual({
+    expect(normalizeApproval({ distinct: false })).toStrictEqual({
       by: { kind: "authenticated" },
       distinct: false,
     });
-    expect(normalizeApproval({ by: "admin", distinct: false })).toEqual({
+    expect(normalizeApproval({ by: "admin", distinct: false })).toStrictEqual({
       by: { kind: "role", role: "admin", scope: "global" },
       distinct: false,
     });
@@ -132,7 +132,7 @@ describe("policy", () => {
     });
     const single = Array.isArray(grant) ? grant[0] : grant;
     expect(requiresApproval(single?.approval)).toBe(true);
-    expect(single?.approval).toEqual({
+    expect(single?.approval).toStrictEqual({
       by: [
         { kind: "role", role: "admin", scope: "global" },
         { kind: "assurance", amr: ["mfa"] },
@@ -149,7 +149,7 @@ describe("policy", () => {
         ttl: 1800,
         escalation: { after: 14_400, to: "auditor" },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       by: { kind: "role", role: "admin", scope: "global" },
       quorum: 2,
       ttl: 1800,
@@ -158,7 +158,7 @@ describe("policy", () => {
         to: { kind: "role", role: "auditor", scope: "global" },
       },
     });
-    expect(normalizeApproval({ quorum: 2 }, "org.delete")).toEqual({
+    expect(normalizeApproval({ quorum: 2 }, "org.delete")).toStrictEqual({
       by: { kind: "authenticated" },
       quorum: 2,
     });
@@ -204,14 +204,14 @@ describe("policy", () => {
       ],
       subject: () => ({ id: "u1" }),
     });
-    expect(policy.rolesByName.get("preparer")?.exclusiveWith).toEqual([
+    expect(policy.rolesByName.get("preparer")?.exclusiveWith).toStrictEqual([
       "approver",
     ]);
     expect(
       separationConflicts(policy, [
         { principal: "u1", roles: ["preparer", "approver"] },
       ]),
-    ).toEqual([{ principal: "u1", roles: ["approver", "preparer"] }]);
+    ).toStrictEqual([{ principal: "u1", roles: ["approver", "preparer"] }]);
   });
 
   it("exposes inferOutput as a typing helper", () => {

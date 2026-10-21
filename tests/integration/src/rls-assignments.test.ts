@@ -159,7 +159,7 @@ describe("rls.assignments", () => {
     const rows = await db.admin.query<{ role: string }>(
       `select role from public.organization_members where user_id = '${NEWCOMER}'`,
     );
-    expect(rows.rows.map((row) => row.role)).toEqual(["owner"]);
+    expect(rows.rows.map((row) => row.role)).toStrictEqual(["owner"]);
   });
 
   const invite = (organization: string | null, role: string): string =>
@@ -225,7 +225,7 @@ describe("rls.assignments", () => {
        union all
        select has_function_privilege('authenticated', 'permdock.permdock_can_assign_custom_role_for(uuid, text, text, text, text)', 'execute')`,
     );
-    expect(grants.rows.map((row) => row.allowed)).toEqual([false, false]);
+    expect(grants.rows.map((row) => row.allowed)).toStrictEqual([false, false]);
   });
 
   it("answers declared and custom roles through permdock_can_assign_any", async () => {
@@ -282,7 +282,7 @@ describe("rls.assignments", () => {
        union all
        select has_function_privilege('authenticated', 'permdock.permdock_can_assign_any_for(uuid, text, text, text, text)', 'execute')`,
     );
-    expect(grants.rows.map((row) => row.allowed)).toEqual([true, false]);
+    expect(grants.rows.map((row) => row.allowed)).toStrictEqual([true, false]);
   });
 
   it("assigns a platform custom role at no instance only by the custom-role checks", async () => {

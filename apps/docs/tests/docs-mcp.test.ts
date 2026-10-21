@@ -81,7 +81,7 @@ describe("docs MCP", () => {
   it("lists only the read-only fumadocs tools", async () => {
     const client = await connect();
     const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name).toSorted()).toEqual([
+    expect(tools.map((tool) => tool.name).toSorted()).toStrictEqual([
       "get_page",
       "list_pages",
       "search",

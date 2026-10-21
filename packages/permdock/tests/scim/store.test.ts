@@ -47,7 +47,7 @@ describe("memoryDirectoryStore users", () => {
     await store.putGroup(A, group({ id: "g_1", members: [{ value: "u_1" }] }));
     expect(await store.getUser(B, stored.id)).toBeNull();
     expect((await store.findUsers(B, undefined, {})).totalResults).toBe(0);
-    expect(await store.groupsFor(B, "u_1")).toEqual([]);
+    expect(await store.groupsFor(B, "u_1")).toStrictEqual([]);
     expect(await store.getGroup(B, "g_1")).toBeNull();
     await expect(store.patchUser(B, "u_1", [])).rejects.toBeInstanceOf(
       DirectoryNotFoundError,
@@ -114,7 +114,7 @@ describe("memoryDirectoryStore users", () => {
       userName: next.userName,
       externalId: next.externalId,
       emails: next.emails,
-    }).toEqual({
+    }).toStrictEqual({
       active: false,
       userName: "ada",
       externalId: "e2",
@@ -149,7 +149,7 @@ describe("memoryDirectoryStore users", () => {
       (await store.findUsers(A, undefined, { startIndex: 2 })).Resources.map(
         (item) => item.userName,
       ),
-    ).toEqual(["b", "c"]);
+    ).toStrictEqual(["b", "c"]);
     expect(
       await store.findUsers(A, undefined, { cursor: "junk", count: 1 }),
     ).toMatchObject({ startIndex: 1, nextCursor: "1" });
@@ -167,7 +167,7 @@ describe("memoryDirectoryStore users", () => {
           {},
         )
       ).Resources.map((item) => item.id),
-    ).toEqual(["u_b"]);
+    ).toStrictEqual(["u_b"]);
   });
 
   it("removes a deleted user from every group in the tenant", async () => {
@@ -183,16 +183,15 @@ describe("memoryDirectoryStore users", () => {
     );
     await store.deleteUser(A, "u_1");
     expect(await store.getUser(A, "u_1")).toBeNull();
-    expect((await store.getGroup(A, "g_1"))?.members).toEqual([
+    expect((await store.getGroup(A, "g_1"))?.members).toStrictEqual([
       { value: "u_2" },
     ]);
-    expect((await store.getGroup(A, "g_2"))?.members).toEqual([
+    expect((await store.getGroup(A, "g_2"))?.members).toStrictEqual([
       { value: "u_2" },
     ]);
-    expect((await store.groupsFor(A, "u_2")).map((item) => item.id)).toEqual([
-      "g_1",
-      "g_2",
-    ]);
+    expect(
+      (await store.groupsFor(A, "u_2")).map((item) => item.id),
+    ).toStrictEqual(["g_1", "g_2"]);
   });
 });
 
@@ -248,7 +247,7 @@ describe("memoryDirectoryStore groups", () => {
       externalId: added.externalId,
       roles: added.roles,
       members: added.members,
-    }).toEqual({
+    }).toStrictEqual({
       displayName: "Platform",
       externalId: undefined,
       roles: ["admin"],
@@ -258,7 +257,7 @@ describe("memoryDirectoryStore groups", () => {
       { op: "remove", path: "members", value: [{ value: "u_1" }] },
       { op: "replace", path: "roles", value: "not-a-list" },
     ]);
-    expect(removed.members).toEqual([{ value: "u_2" }]);
+    expect(removed.members).toStrictEqual([{ value: "u_2" }]);
     expect(removed).not.toHaveProperty("roles");
     const replaced = await store.patchGroup(A, "g_1", [
       { op: "replace", path: "members", value: [{ value: "u_9" }] },
@@ -271,7 +270,7 @@ describe("memoryDirectoryStore groups", () => {
     const emptied = await store.patchGroup(A, "g_1", [
       { op: "replace", path: "members", value: "nope" },
     ]);
-    expect(emptied.members).toEqual([]);
+    expect(emptied.members).toStrictEqual([]);
   });
 
   it("deletes a group once", async () => {

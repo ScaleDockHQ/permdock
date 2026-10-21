@@ -213,7 +213,7 @@ describe("RLS parity", () => {
       },
     });
     expect(report.ok).toBe(true);
-    expect(report.results).toEqual([
+    expect(report.results).toStrictEqual([
       { name: "read own", granted: true, database: "allowed", ok: true },
       { name: "read other", granted: true, database: "allowed", ok: true },
       { name: "update own", granted: true, database: "allowed", ok: true },

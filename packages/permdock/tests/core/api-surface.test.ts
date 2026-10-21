@@ -73,10 +73,10 @@ describe("typed vocabulary", () => {
     expect(roles.owner.assignable).toBe(true);
     expect(roles.support.assignable).toBe(false);
     expect(isPlan(plans.pro)).toBe(true);
-    expect(listRoles(roles).map((item) => item.key)).toEqual(
+    expect(listRoles(roles).map((item) => item.key)).toStrictEqual(
       expect.arrayContaining(["member", "owner", "support"]),
     );
-    expect(listPlans(plans).map((item) => item.key)).toEqual(["pro"]);
+    expect(listPlans(plans).map((item) => item.key)).toStrictEqual(["pro"]);
     expect(() => JSON.stringify(roles.owner)).not.toThrow();
   });
 
@@ -172,7 +172,7 @@ describe("grantee selectors", () => {
     expect(permdock.can(permissions.post.create)).toBe(true);
     expect(permdock.can(permissions.post.read, row)).toBe(true);
     const actions = permdock.actions(permissions.post, row);
-    expect(actions.map((item) => item.action)).toEqual(
+    expect(actions.map((item) => item.action)).toStrictEqual(
       expect.arrayContaining(["update", "read", "delete"]),
     );
   });
@@ -337,8 +337,8 @@ describe("grantee and vocabulary helpers", () => {
     expect(isActor(null)).toBe(false);
     expect(isRole({})).toBe(false);
     expect(isPlan(null)).toBe(false);
-    expect(listRoles(undefined)).toEqual([]);
-    expect(listPlans(undefined)).toEqual([]);
+    expect(listRoles(undefined)).toStrictEqual([]);
+    expect(listPlans(undefined)).toStrictEqual([]);
     expect(() => defineRoles({ constructor: {} })).toThrow(/forbidden/u);
     expect(() => definePlans({ prototype: {} })).toThrow(/forbidden/u);
   });

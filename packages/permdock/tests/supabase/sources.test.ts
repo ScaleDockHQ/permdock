@@ -59,8 +59,8 @@ describe("tableMembershipSource", () => {
     const { sql } = tableMembershipSource({ table: "memberships" });
     expect(sql.table).toBe("memberships");
     expect(sql.user).toBe("user_id");
-    expect(sql.columns).toEqual(["user_id", "scope", "scope_id", "role"]);
-    expect(sql.reads).toEqual([]);
+    expect(sql.columns).toStrictEqual(["user_id", "scope", "scope_id", "role"]);
+    expect(sql.reads).toStrictEqual([]);
     expect(sql.select("$1"))
       .toBe(`select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
 from "public"."memberships" m
@@ -71,7 +71,7 @@ having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where 
       'where m."scope"::text = $1::text and m."scope_id"::text = $2::text',
     );
     expect(sql.list()).toMatch(/^select m."user_id"::text as user_id, /u);
-    expect(sql.manifest).toEqual({
+    expect(sql.manifest).toStrictEqual({
       table: "public.memberships",
       user: { column: "user_id" },
       scope: { column: "scope" },
@@ -127,9 +127,9 @@ having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where 
     expect(select).toContain(
       `coalesce(case when m."kind"::text = 'tenant' then m."ref"::text end, m."parents" ->> 'tenant')`,
     );
-    expect(sql.reads).toEqual(["profiles", "orgs"]);
+    expect(sql.reads).toStrictEqual(["profiles", "orgs"]);
     expect(sql.managed).toBe("owner");
-    expect(sql.columns).toEqual([
+    expect(sql.columns).toStrictEqual([
       "uid",
       "kind",
       "ref",
@@ -168,7 +168,7 @@ having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where 
       query,
     });
     expect(source.sql.select("$1")).toContain('m."data" as x');
-    expect(await source.membershipsFor(principal, {})).toEqual([
+    expect(await source.membershipsFor(principal, {})).toStrictEqual([
       { scope: "tenant", id: "o1", roles: ["admin"], x: { department: "ops" } },
       { scope: "tenant", id: "o2", roles: ["admin"] },
       { scope: "tenant", id: "o3", roles: ["admin"] },
@@ -196,7 +196,7 @@ having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where 
       { scope: "team", id: "t3", roles: "lead", expires_at: "" },
     ]);
     const source = tableMembershipSource({ table: "memberships", query });
-    expect(await source.membershipsFor(principal, {})).toEqual([
+    expect(await source.membershipsFor(principal, {})).toStrictEqual([
       {
         scope: "tenant",
         id: "o1",
@@ -212,7 +212,7 @@ having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where 
       },
       { scope: "team", id: "t1", roles: ["lead"], expiresAt: 12 },
     ]);
-    expect(calls[0]?.values).toEqual(["u1"]);
+    expect(calls[0]?.values).toStrictEqual(["u1"]);
   });
 
   it("lists the members of one instance from a plain row array", async () => {
@@ -224,13 +224,13 @@ having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where 
       "array",
     );
     const source = tableMembershipSource({ table: "memberships", query });
-    expect(await source.list?.({ scope: "tenant", id: "o1" })).toEqual([
+    expect(await source.list?.({ scope: "tenant", id: "o1" })).toStrictEqual([
       {
         principal: { id: "u1" },
         membership: { scope: "tenant", id: "o1", roles: ["member"] },
       },
     ]);
-    expect(calls[0]?.values).toEqual(["tenant", "o1"]);
+    expect(calls[0]?.values).toStrictEqual(["tenant", "o1"]);
   });
 
   it("describes SQL without a query and refuses to resolve", async () => {
@@ -298,8 +298,8 @@ describe("junctionMembershipSource", () => {
       query,
     });
     expect(source.sql.scope).toBe("project");
-    expect(source.sql.holds).toEqual(["project", "tenant"]);
-    expect(source.sql.columns).toEqual([
+    expect(source.sql.holds).toStrictEqual(["project", "tenant"]);
+    expect(source.sql.columns).toStrictEqual([
       "user_id",
       "project_id",
       "org_id",
@@ -325,7 +325,7 @@ describe("junctionMembershipSource", () => {
       within: { columns: { tenant: "org_id" } },
       expiresAt: { column: "until" },
     });
-    expect(await source.membershipsFor(principal, {})).toEqual([
+    expect(await source.membershipsFor(principal, {})).toStrictEqual([
       {
         scope: "project",
         id: "p1",
@@ -390,7 +390,7 @@ describe("supabasePostgresQuery", () => {
     const memberships = await source.membershipsFor(principal, {});
     expect(memberships.length).toBeGreaterThan(0);
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.params).toEqual(["u1"]);
+    expect(calls[0]?.params).toStrictEqual(["u1"]);
   });
 });
 
@@ -404,7 +404,7 @@ describe("authzVersion", () => {
     const { query, calls } = recording(rows);
     const version = authzVersion({ query, schema: "authz" });
     expect(await version(principal)).toBe(expected);
-    expect(calls[0]).toEqual({
+    expect(calls[0]).toStrictEqual({
       text: 'select version from "authz"."permdock_authz_version" where user_id = $1',
       values: ["u1"],
     });
@@ -433,23 +433,23 @@ where m."user_id" = $1`);
     expect(source.sql.list()).toContain(
       'join "identity"."roles" mk on mk."id" = m."role_id"',
     );
-    expect(source.sql.through).toEqual({
+    expect(source.sql.through).toStrictEqual({
       table: "identity.roles",
       id: "id",
       key: "key",
       ref: "role_id",
     });
-    expect(source.sql.columns).toEqual([
+    expect(source.sql.columns).toStrictEqual([
       "user_id",
       "scope",
       "scope_id",
       "role_id",
     ]);
-    expect(source.sql.manifest.role).toEqual({
+    expect(source.sql.manifest.role).toStrictEqual({
       column: "role_id",
       through: { table: "identity.roles", id: "id", column: "key" },
     });
-    expect(await source.membershipsFor(principal, {})).toEqual([
+    expect(await source.membershipsFor(principal, {})).toStrictEqual([
       { scope: "organization", id: "o1", roles: ["admin", "auditor"] },
     ]);
     expect(calls[0]?.text).toContain('join "identity"."roles" mk');
@@ -468,7 +468,7 @@ where m."user_id" = $1`);
     expect(select).toContain(`from "public"."organization_users" m
 join "identity"."roles" mk on mk."id" = m."role_id"`);
     expect(select).toContain('s."disabled_at" is null');
-    expect(source.sql.columns).toEqual([
+    expect(source.sql.columns).toStrictEqual([
       "user_id",
       "organization_id",
       "role_id",
@@ -554,7 +554,7 @@ where mu."user_id" = $1`);
       `group by mu."user_id", m."customer_id"`,
     );
     expect(source.sql.user).toBe("contact_profile_id");
-    expect(source.sql.userThrough).toEqual({
+    expect(source.sql.userThrough).toStrictEqual({
       table: "public.contact_profiles",
       id: "id",
       key: "user_id",
@@ -563,7 +563,7 @@ where mu."user_id" = $1`);
     expect(source.sql.userType).toBe(
       '"public"."contact_profiles"."user_id"%type',
     );
-    expect(source.sql.columns).toEqual([
+    expect(source.sql.columns).toStrictEqual([
       "contact_profile_id",
       "customer_id",
       "organization_id",
@@ -579,7 +579,7 @@ where mu."user_id" = $1`);
       },
       role: { value: ["customer"] },
     });
-    expect(await source.membershipsFor(principal, {})).toEqual([
+    expect(await source.membershipsFor(principal, {})).toStrictEqual([
       {
         scope: "customer",
         id: "c1",
@@ -604,7 +604,7 @@ where mu."user_id" = $1`);
       roles: ["customer"],
       query,
     });
-    expect(await source.list?.({ scope: "customer", id: "c1" })).toEqual([
+    expect(await source.list?.({ scope: "customer", id: "c1" })).toStrictEqual([
       {
         principal: { id: "u1" },
         membership: { scope: "customer", id: "c1", roles: ["customer"] },
@@ -625,7 +625,7 @@ where mu."user_id" = $1`);
 join "identity"."contact_profiles" mu on mu."id" = m."contact_profile_id"
 join "crm"."roles" mk on mk."id" = m."role_id"
 where mu."user_id" = $1`);
-    expect(source.sql.columns).toEqual([
+    expect(source.sql.columns).toStrictEqual([
       "contact_profile_id",
       "scope",
       "scope_id",
@@ -654,13 +654,13 @@ where mu."user_id" = $1`);
     );
     expect(select).toContain("cross join lateral");
     expect(select).toContain('where mu."user_id" = $1');
-    expect(source.sql.columns).toEqual([
+    expect(source.sql.columns).toStrictEqual([
       "contact_profile_id",
       "customer_id",
       "tier",
       "role_id",
     ]);
-    expect(source.sql.throughs.map((through) => through.table)).toEqual([
+    expect(source.sql.throughs.map((through) => through.table)).toStrictEqual([
       "public.roles",
     ]);
     expect(source.sql.userThrough?.table).toBe("public.contact_profiles");
@@ -750,7 +750,7 @@ describe("suspension keep", () => {
       suspension,
       query,
     });
-    expect(await source.membershipsFor(principal, {})).toEqual([
+    expect(await source.membershipsFor(principal, {})).toStrictEqual([
       { scope: "tenant", id: "o1", roles: ["owner"], keep: ["tenant.restore"] },
       { scope: "tenant", id: "o2", roles: ["owner"] },
     ]);
@@ -788,7 +788,9 @@ describe("membership suspension", () => {
     expect(source.sql.select("$1")).toContain('m."disabled_at" is null');
     expect(source.sql.list()).toContain('m."disabled_at" is null');
     expect(source.sql.columns).toContain("disabled_at");
-    expect(source.sql.manifest.disabledAt).toEqual({ column: "disabled_at" });
+    expect(source.sql.manifest.disabledAt).toStrictEqual({
+      column: "disabled_at",
+    });
   });
 
   it("keeps a disabled row with the keys it still grants", () => {

@@ -50,7 +50,7 @@ describe("collectGrants", () => {
       access: item.access,
       where: item.where,
     }));
-    expect(collected).toEqual([
+    expect(collected).toStrictEqual([
       {
         key: "post.update",
         label: "editor",
@@ -82,7 +82,7 @@ describe("collectGrants", () => {
         where: undefined,
       },
     ]);
-    expect(roleNames(policy).toSorted()).toEqual([
+    expect(roleNames(policy).toSorted()).toStrictEqual([
       "auditor",
       "editor",
       "owner",
@@ -102,9 +102,9 @@ describe("collectGrants", () => {
       subject: () => null,
       grants: [deny(permissions.post.update, { to: actor("oauth-client") })],
     });
-    expect(collectGrants(denyClients).map((item) => item.access)).toEqual([
-      { kind: "actor", actor: "oauth-client" },
-    ]);
+    expect(collectGrants(denyClients).map((item) => item.access)).toStrictEqual(
+      [{ kind: "actor", actor: "oauth-client" }],
+    );
     expect(collectGrants(denyClients)[0]?.label).toBe("actor");
     const cases = [
       allow(permissions.post.update, { to: actor("oauth-client") }),
@@ -156,7 +156,7 @@ describe("collectGrants", () => {
     );
     expect(
       collectGrants(policy).map((item) => [item.label, item.access]),
-    ).toEqual([
+    ).toStrictEqual([
       ["owner", { kind: "resource", role: "owner", resource: "post" }],
     ]);
     expect(roleNames(policy)).toContain("owner");

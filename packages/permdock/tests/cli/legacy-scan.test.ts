@@ -57,7 +57,7 @@ describe("permdock scan --legacy", () => {
       ["scan", "--src", "app", "--pattern", "featureFlag\\(", "--json"],
       { cwd },
     );
-    expect(jsonData(custom.stdout)).toEqual([
+    expect(jsonData(custom.stdout)).toStrictEqual([
       {
         file: "app/x.ts",
         line: 1,

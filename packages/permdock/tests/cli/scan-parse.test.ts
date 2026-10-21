@@ -53,11 +53,11 @@ describe("scanSources parse failures", () => {
       Object.keys(files).map((file) => path.join(cwd, file)),
       new Set(["post.read"]),
     );
-    expect(result.unparsed).toEqual([
+    expect(result.unparsed).toStrictEqual([
       { file: "throws.ts", line: 1, message: "parser crashed" },
       { file: "throws-value.ts", line: 1, message: "native failure" },
       { file: "unlabelled.ts", line: 1, message: "unexpected token" },
     ]);
-    expect(Object.keys(result.usages)).toEqual(["post.read"]);
+    expect(Object.keys(result.usages)).toStrictEqual(["post.read"]);
   });
 });

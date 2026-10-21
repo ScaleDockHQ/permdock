@@ -57,7 +57,7 @@ describe("PD061", () => {
   it("lists the keys a suspended scope keeps", async () => {
     expect(
       await pd061(input([permissions.workspace.restore, "workspace.export"])),
-    ).toEqual([
+    ).toStrictEqual([
       expect.objectContaining({
         code: "PD061",
         severity: "warning",
@@ -71,7 +71,7 @@ describe("PD061", () => {
     const findings = await pd061(
       input(["workspace.restore", "workspace.recover", "workspace.purge"]),
     );
-    expect(findings.map((item) => item.message)).toEqual([
+    expect(findings.map((item) => item.message)).toStrictEqual([
       "members of a suspended workspace still hold workspace.purge, workspace.recover, workspace.restore",
       "rls.suspension.scopes.workspace.keep names workspace.purge, workspace.recover (renamed to workspace.restore), which the definitions do not declare, so a suspended workspace keeps nothing for them",
     ]);
@@ -81,7 +81,7 @@ describe("PD061", () => {
     expect(await pd061(input([7]))).toMatchObject([
       { code: "PD061", message: expect.stringContaining("neither") },
     ]);
-    expect(await pd061(input(undefined))).toEqual([]);
+    expect(await pd061(input(undefined))).toStrictEqual([]);
     expect(
       await pd061({
         ...input(["workspace.purge"]),
@@ -108,7 +108,7 @@ describe("PD061 for suspended memberships", () => {
       config,
       policy: () => Promise.resolve(policy),
     });
-    expect(findings.map((item) => item.message)).toEqual([
+    expect(findings.map((item) => item.message)).toStrictEqual([
       "suspended memberships still hold workspace.export, workspace.purge",
       "rls.suspension.memberships.keep names workspace.purge, which the definitions do not declare, so a suspended membership keeps nothing for them",
     ]);

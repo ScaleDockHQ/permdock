@@ -411,14 +411,14 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
         query: s.query,
       });
       const failed = report.results.filter((item) => !item.ok);
-      expect(failed).toEqual([]);
+      expect(failed).toStrictEqual([]);
       for (const item of report.results) {
         const expected = EXPECTED[item.name];
         if (expected !== undefined) {
-          expect({ name: item.name, columns: item.fields?.database }).toEqual({
+          expect({
             name: item.name,
-            columns: expected,
-          });
+            columns: item.fields?.database,
+          }).toStrictEqual({ name: item.name, columns: expected });
         }
       }
     },
@@ -438,8 +438,8 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
         async () => s.query("select * from invoice_visible order by id"),
       );
       expect(rows.code).toBeUndefined();
-      expect(rows.rows.map((row) => row["id"])).toEqual(["i-public"]);
-      expect(valued(rows.rows[0])).toEqual(["id", "title"]);
+      expect(rows.rows.map((row) => row["id"])).toStrictEqual(["i-public"]);
+      expect(valued(rows.rows[0])).toStrictEqual(["id", "title"]);
     },
   );
 
@@ -460,10 +460,10 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
       const all = await asRole(s, "authenticated", settings, async () =>
         s.query(`select * from invoice_visible order by id`),
       );
-      expect(open.rows).toEqual([{ id: "i-other", title: "Other" }]);
+      expect(open.rows).toStrictEqual([{ id: "i-other", title: "Other" }]);
       expect(
         all.rows.map((row) => [row["id"], row["amount"], row["note"]]),
-      ).toEqual([
+      ).toStrictEqual([
         ["i-other", 200, null],
         ["i-own", 100, null],
         ["i-public", null, null],
@@ -471,7 +471,7 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
       if (shape.revoke) {
         expect(direct.code).toBe("42501");
       } else {
-        expect(direct.rows).toEqual([{ note: "other note" }]);
+        expect(direct.rows).toStrictEqual([{ note: "other note" }]);
       }
     },
   );
@@ -499,14 +499,14 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
           row["note"],
           row["title"],
         ]),
-      ).toEqual([
+      ).toStrictEqual([
         ["i-globex", null, null, null, "Globex"],
         ["i-other", "acme", 200, null, "Other"],
         ["i-own", "acme", 100, null, "Own"],
         ["i-public", null, null, null, "Public"],
       ]);
       const ids = new Set(visible.rows.map((row) => row["id"]));
-      expect(masked.rows.filter((row) => ids.has(row["id"]))).toEqual(
+      expect(masked.rows.filter((row) => ids.has(row["id"]))).toStrictEqual(
         visible.rows,
       );
     },
@@ -539,9 +539,9 @@ describe("rls generate --fields views (supabase, neon, guc)", () => {
           readonly grants: readonly { readonly permission: string }[];
         }[];
       }[];
-      expect(views.map((view) => view.view)).toEqual(["invoice_visible"]);
-      expect(views[0]?.passthrough).toEqual(["id", "title"]);
-      expect(views[0]?.restricted.map((item) => item.column)).toEqual([
+      expect(views.map((view) => view.view)).toStrictEqual(["invoice_visible"]);
+      expect(views[0]?.passthrough).toStrictEqual(["id", "title"]);
+      expect(views[0]?.restricted.map((item) => item.column)).toStrictEqual([
         "orgId",
         "authorId",
         "amount",

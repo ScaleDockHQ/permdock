@@ -31,7 +31,10 @@ describe("invariant 5: identity is by key", () => {
       for (const row of [undefined, ownPost, otherPost]) {
         const cloned = decide(copy, row);
         const original = decide(leaf, row);
-        expect({ outcome: cloned.outcome, reason: reasonOf(cloned) }).toEqual({
+        expect({
+          outcome: cloned.outcome,
+          reason: reasonOf(cloned),
+        }).toStrictEqual({
           outcome: original.outcome,
           reason: reasonOf(original),
         });

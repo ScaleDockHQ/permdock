@@ -84,12 +84,12 @@ describe("powersync over membership source shapes", () => {
   });
 
   it("warns for each role a disabledAt source leaves unsynced", () => {
-    expect(plan.warnings).toEqual([
+    expect(plan.warnings).toStrictEqual([
       "owner/job.read under-syncs: the public.paused membership source has no stream: it has disabledAt",
       "viewer/job.read under-syncs: the public.paused membership source has no stream: it has disabledAt",
       "custom role/job.read does not sync: the public.paused membership source has no stream: it has disabledAt",
     ]);
-    expect(plan.unsynced).toEqual([
+    expect(plan.unsynced).toStrictEqual([
       { permission: "job.read", role: "owner" },
       { permission: "job.read", role: "viewer" },
       { permission: "job.read", role: CUSTOM_ROLE },
@@ -97,7 +97,7 @@ describe("powersync over membership source shapes", () => {
   });
 
   it("describes each source's rows for the device", () => {
-    expect(localRows(policy, config, plan.devices).memberships).toEqual([
+    expect(localRows(policy, config, plan.devices).memberships).toStrictEqual([
       {
         table: "contacts",
         user: {
@@ -144,7 +144,7 @@ describe("powersync over membership source shapes", () => {
     });
     expect(
       scoped.streams.find((stream) => stream.name === "job")?.queries,
-    ).toEqual([
+    ).toStrictEqual([
       "SELECT * FROM jobs WHERE jobs.tenant_id IN (SELECT memberships.scope_id FROM memberships WHERE memberships.user_id = auth.user_id() AND memberships.scope = 'tenant' AND memberships.role = 'owner')",
       "SELECT * FROM jobs WHERE jobs.tenant_id IN (SELECT memberships.scope_id FROM memberships WHERE memberships.user_id = auth.user_id() AND memberships.scope = 'tenant' AND (memberships.tier = 'gold' OR memberships.tier = 'platinum'))",
       "SELECT * FROM jobs WHERE jobs.tenant_id IN (SELECT memberships.scope_id FROM memberships WHERE memberships.user_id = auth.user_id() AND memberships.scope = 'tenant' AND memberships.kind = 'contact' AND memberships.role = 'viewer')",
@@ -175,7 +175,7 @@ describe("powersync over membership source shapes", () => {
       },
     };
     const rows = localRows(teams, shared, powersyncPlan(teams, shared).devices);
-    expect(rows.memberships.map((source) => source.table)).toEqual([
+    expect(rows.memberships.map((source) => source.table)).toStrictEqual([
       "memberships",
     ]);
   });
@@ -199,16 +199,18 @@ describe("powersync over membership source shapes", () => {
       },
     };
     const members = powersyncPlan(policy, table);
-    expect(localRows(policy, table, members.devices).memberships).toEqual([
-      {
-        table: "members",
-        user: { column: "user_id" },
-        scope: { value: "tenant" },
-        id: "tenant_id",
-        roles: [{ column: "tier", map: { gold: "owner" } }],
-        via: { column: "kind" },
-      },
-    ]);
+    expect(localRows(policy, table, members.devices).memberships).toStrictEqual(
+      [
+        {
+          table: "members",
+          user: { column: "user_id" },
+          scope: { value: "tenant" },
+          id: "tenant_id",
+          roles: [{ column: "tier", map: { gold: "owner" } }],
+          via: { column: "kind" },
+        },
+      ],
+    );
     const viaOf = (via?: { readonly value: string }) => {
       const target: PermDockConfig = {
         policy: "p.ts",
@@ -229,7 +231,7 @@ describe("powersync over membership source shapes", () => {
       };
       return localRows(policy, target, new Map()).memberships[0]?.via;
     };
-    expect(viaOf({ value: "staff" })).toEqual({ value: "staff" });
+    expect(viaOf({ value: "staff" })).toStrictEqual({ value: "staff" });
     expect(viaOf()).toBeUndefined();
     const unkeyed: PermDockConfig = {
       policy: "p.ts",
@@ -242,7 +244,7 @@ describe("powersync over membership source shapes", () => {
         },
       },
     };
-    expect(localRows(policy, unkeyed, new Map()).memberships).toEqual([]);
+    expect(localRows(policy, unkeyed, new Map()).memberships).toStrictEqual([]);
   });
 });
 

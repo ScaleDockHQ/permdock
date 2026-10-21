@@ -199,14 +199,14 @@ describe.each(DIALECTS)("rls generate --dialect %s", (dialect) => {
       switch (policy.cmd) {
         case "select":
         case "delete":
-          expect(clauses).toEqual({
+          expect(clauses).toStrictEqual({
             name: policy.name,
             using: true,
             check: false,
           });
           break;
         case "insert":
-          expect(clauses).toEqual({
+          expect(clauses).toStrictEqual({
             name: policy.name,
             using: false,
             check: true,
@@ -225,7 +225,7 @@ describe.each(DIALECTS)("rls generate --dialect %s", (dialect) => {
     const roles = new Set(
       (await policies(dialect)).flatMap((policy) => policy.roles),
     );
-    expect([...roles].toSorted()).toEqual(
+    expect([...roles].toSorted()).toStrictEqual(
       [ANON[dialect], "authenticated"].toSorted(),
     );
     expect(generated[dialect]).not.toMatch(/\bservice_role\b/u);
@@ -236,7 +236,10 @@ describe.each(DIALECTS)("rls generate --dialect %s", (dialect) => {
     for (const policy of await policies(dialect)) {
       for (const role of policy.roles) {
         const id = `${policy.table} ${policy.cmd} ${role} ${policy.permissive ? "permissive" : "restrictive"}`;
-        expect({ id, other: seen.get(id) }).toEqual({ id, other: undefined });
+        expect({ id, other: seen.get(id) }).toStrictEqual({
+          id,
+          other: undefined,
+        });
         seen.set(id, policy.name);
       }
     }
@@ -246,7 +249,7 @@ describe.each(DIALECTS)("rls generate --dialect %s", (dialect) => {
     const restrictive = (await policies(dialect)).filter(
       (policy) => !policy.permissive,
     );
-    expect(restrictive.map((policy) => policy.name)).toEqual([
+    expect(restrictive.map((policy) => policy.name)).toStrictEqual([
       "deny_post_delete",
     ]);
     for (const policy of restrictive) {
@@ -273,7 +276,7 @@ describe.each(DIALECTS)("rls generate --dialect %s", (dialect) => {
               item.cmd === "select" &&
               item.roles.includes(role),
           ),
-        }).toEqual({ policy: policy.name, role, select: true });
+        }).toStrictEqual({ policy: policy.name, role, select: true });
       }
     }
   });
@@ -290,7 +293,7 @@ describe.each(DIALECTS)("rls generate --dialect %s", (dialect) => {
             `${policy.table}.${policy.name}`
         );
       });
-      expect({ policy: policy.name, dropped }).toEqual({
+      expect({ policy: policy.name, dropped }).toStrictEqual({
         policy: policy.name,
         dropped: true,
       });
@@ -317,7 +320,7 @@ describe.each(DIALECTS)("rls generate --dialect %s", (dialect) => {
           : [];
       });
       expect(grants[0]?.["is_grant"]).toBeUndefined();
-      expect(roleNames(list(grants[0], "grantees")).toSorted()).toEqual(
+      expect(roleNames(list(grants[0], "grantees")).toSorted()).toStrictEqual(
         [ANON[dialect], "authenticated"].toSorted(),
       );
       for (const role of [ANON[dialect], "authenticated"]) {
@@ -335,10 +338,10 @@ describe.each(DIALECTS)("rls generate --dialect %s", (dialect) => {
         const allowed = all
           .filter((policy) => policy.permissive && policy.roles.includes(role))
           .map((policy) => policy.cmd);
-        expect({ role, granted: [...new Set(granted)].toSorted() }).toEqual({
+        expect({
           role,
-          granted: [...new Set(allowed)].toSorted(),
-        });
+          granted: [...new Set(granted)].toSorted(),
+        }).toStrictEqual({ role, granted: [...new Set(allowed)].toSorted() });
       }
     }
   });
@@ -351,13 +354,17 @@ describe.each(DIALECTS)("rls generate --dialect %s", (dialect) => {
             policy: policy.name,
             call: call.name,
             inSubLink: call.inSubLink,
-          }).toEqual({ policy: policy.name, call: call.name, inSubLink: true });
+          }).toStrictEqual({
+            policy: policy.name,
+            call: call.name,
+            inSubLink: true,
+          });
         }
         if (HELPER.test(call.name)) {
-          expect({ call: call.name, readsColumn: call.readsColumn }).toEqual({
+          expect({
             call: call.name,
-            readsColumn: false,
-          });
+            readsColumn: call.readsColumn,
+          }).toStrictEqual({ call: call.name, readsColumn: false });
         }
       }
     }
@@ -396,7 +403,7 @@ describe.each(DIALECTS)("rls generate --dialect %s", (dialect) => {
     });
     expect(definers.length).toBeGreaterThan(0);
     for (const definer of definers) {
-      expect(definer).toEqual({ name: definer.name, searchPath: "" });
+      expect(definer).toStrictEqual({ name: definer.name, searchPath: "" });
       expect(definer.name.split(".")).toHaveLength(2);
       const revoked = stmts.some((stmt) => {
         const grant = child(stmt, "GrantStmt");
@@ -409,7 +416,7 @@ describe.each(DIALECTS)("rls generate --dialect %s", (dialect) => {
           roleNames(list(grant, "grantees")).includes("PUBLIC")
         );
       });
-      expect({ name: definer.name, revoked }).toEqual({
+      expect({ name: definer.name, revoked }).toStrictEqual({
         name: definer.name,
         revoked: true,
       });
@@ -431,7 +438,7 @@ describe("rls import reads the generated forms back", () => {
           undefined,
           [],
         ),
-      ).toEqual({
+      ).toStrictEqual({
         op: "eq",
         field: "authorId",
         value: { ref: "principal.id" },

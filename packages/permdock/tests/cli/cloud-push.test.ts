@@ -67,7 +67,7 @@ describe("pushedPolicy", () => {
     expect(pushed.fingerprint).toBe(policy.fingerprint);
     expect(pushed).not.toHaveProperty("scopes");
     const member = { kind: "role", role: "member", scope: "global" };
-    expect(JSON.parse(JSON.stringify(pushed.grants))).toEqual([
+    expect(JSON.parse(JSON.stringify(pushed.grants))).toStrictEqual([
       {
         permission: "doc.read",
         effect: "allow",
@@ -104,7 +104,7 @@ describe("pushedPolicy", () => {
 
   it("carries the declared scopes and a named-scope grant scope", () => {
     const pushed = pushedPolicy(namedScopes);
-    expect(pushed.scopes).toEqual([
+    expect(pushed.scopes).toStrictEqual([
       {
         name: "organization",
         key: "organization_id",
@@ -162,7 +162,7 @@ function push(cwd: string, overrides: Partial<Input> = {}) {
 
 describe("runCloud", () => {
   it("passes on a catalog that cannot be built", async () => {
-    expect(await push(tempDir(), { config: {} })).toEqual({
+    expect(await push(tempDir(), { config: {} })).toStrictEqual({
       code: 2,
       output:
         "usage: set permissions in permdock.config.ts or pass a definePermissions module",
@@ -271,7 +271,7 @@ export const permissions = definePermissions({
       code: 0,
       output: expect.stringMatching(/ to preview$/u),
     });
-    expect(urls).toEqual([
+    expect(urls).toStrictEqual([
       "https://permdock.com/api/v1/environment",
       "https://permdock.com/api/v1/environments/preview/catalog",
     ]);
@@ -327,7 +327,7 @@ export const permissions = definePermissions({
     expect(fetchStub.mock.calls[0]?.[0]).toBe(
       "https://cloud.permdock.test/v1/environments/a%20b/catalog",
     );
-    expect(bodies).toEqual([
+    expect(bodies).toStrictEqual([
       {
         fingerprint: expect.any(String),
         catalog: expect.any(Object),
@@ -370,7 +370,7 @@ export const permissions = definePermissions({
       ...IO,
       fetch: () => Promise.resolve(new Response(null, { status: 422 })),
     };
-    expect(await push(FIXTURE, { io })).toEqual({
+    expect(await push(FIXTURE, { io })).toStrictEqual({
       code: 1,
       output: "PermDock Cloud rejected the catalog: HTTP 422",
     });
@@ -386,7 +386,7 @@ export const permissions = definePermissions({
       },
     };
     expect((await push(FIXTURE, { io })).code).toBe(0);
-    expect(seen).toEqual([
+    expect(seen).toStrictEqual([
       expect.stringMatching(/^permdock-cli\/\S+ node\/\S+ \S+$/u),
     ]);
   });

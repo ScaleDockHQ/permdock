@@ -26,11 +26,11 @@ describe("subjectStatements", () => {
         dialect,
         claims: { user_role: "admin", sub: "forged", role: "service_role" },
       });
-      expect(statements.map(statementText)).toEqual([
+      expect(statements.map(statementText)).toStrictEqual([
         "select set_config('role', $1, true), set_config('request.jwt.claims', $2, true)",
       ]);
       expect(statements[0]?.values[0]).toBe("authenticated");
-      expect(JSON.parse(statements[0]?.values[1] ?? "")).toEqual({
+      expect(JSON.parse(statements[0]?.values[1] ?? "")).toStrictEqual({
         user_role: "admin",
         sub: "u1",
         tenant_id: "o1",
@@ -46,12 +46,12 @@ describe("subjectStatements", () => {
       tenantClaim: "org_id",
       claims: { memberships: [{ tenant: "o1" }] },
     });
-    expect(statements.map(statementText)).toEqual([
+    expect(statements.map(statementText)).toStrictEqual([
       "select set_config('role', $1, true), set_config('acme.user_id', $2, true), " +
         "set_config('acme.memberships', $3, true), set_config('acme.org_id', $4, true), " +
         "set_config('acme.role', $5, true)",
     ]);
-    expect(statements[0]?.values).toEqual([
+    expect(statements[0]?.values).toStrictEqual([
       "authenticated",
       "u1",
       '[{"tenant":"o1"}]',
@@ -89,7 +89,7 @@ describe("subjectStatements", () => {
       },
     };
     const statements = subjectStatements(service);
-    expect(JSON.parse(statements[0]?.values[1] ?? "")).toEqual({
+    expect(JSON.parse(statements[0]?.values[1] ?? "")).toStrictEqual({
       sub: "",
       tenant_id: "o1",
       role: "authenticated",
@@ -122,7 +122,7 @@ describe("subjectStatements", () => {
     const statements = subjectStatements(key, {
       apiKeys: { claim: "key", scopes: "allowed" },
     });
-    expect(JSON.parse(statements[0]?.values[1] ?? "")).toEqual({
+    expect(JSON.parse(statements[0]?.values[1] ?? "")).toStrictEqual({
       sub: "u1",
       role: "authenticated",
       key: { id: "key_1", allowed: ["task.read"] },

@@ -20,10 +20,10 @@ describe("permdock/express edge cases", () => {
     );
     const request = await listen(app);
     const response = await request("/posts");
-    expect({ status: response.status, body: await response.json() }).toEqual({
-      status: 200,
-      body: { data: null },
-    });
+    expect({
+      status: response.status,
+      body: await response.json(),
+    }).toStrictEqual({ status: 200, body: { data: null } });
   });
 
   it("serves the snapshot on GET from the evaluations handler", async () => {
@@ -59,7 +59,7 @@ describe("permdock/express subject reuse", () => {
         evaluations: [{ action: { name: "post.list" } }],
       }),
     });
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toStrictEqual({
       evaluations: [expect.objectContaining({ decision: true })],
     });
     expect(resolved).toBe(1);

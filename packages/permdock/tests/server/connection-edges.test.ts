@@ -150,7 +150,7 @@ describe("connection lifecycle", () => {
     void revocations.revoke({ principal: "u1", kind: "changed" });
     conn.close();
     await settle();
-    expect({ reads: reads(), aborted: conn.signal.aborted }).toEqual({
+    expect({ reads: reads(), aborted: conn.signal.aborted }).toStrictEqual({
       reads: 1,
       aborted: false,
     });

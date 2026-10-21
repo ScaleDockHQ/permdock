@@ -67,7 +67,7 @@ describe("supautilsRejections", () => {
       "grants membership in the reserved role authenticator",
     ],
   ])("rejects %s", (sql, reason) => {
-    expect(supautilsRejections(sql)).toEqual([{ line: 1, reason }]);
+    expect(supautilsRejections(sql)).toStrictEqual([{ line: 1, reason }]);
   });
 
   it.each([
@@ -86,7 +86,7 @@ describe("supautilsRejections", () => {
     "comment on role anon is 'x'",
     "create event trigger et on ddl_command_end execute function f()",
   ])("allows %s", (sql) => {
-    expect(supautilsRejections(sql)).toEqual([]);
+    expect(supautilsRejections(sql)).toStrictEqual([]);
   });
 
   it("ignores comments and string literals and reports the statement's line", () => {
@@ -94,7 +94,7 @@ describe("supautilsRejections", () => {
       supautilsRejections(
         "-- drop role anon;\nselect 'grant authenticator to x';\n\ndrop role anon;",
       ),
-    ).toEqual([{ line: 4, reason: "drops the reserved role anon" }]);
+    ).toStrictEqual([{ line: 4, reason: "drops the reserved role anon" }]);
   });
 
   it.each(readdirSync(GOLDEN).filter((file) => file.endsWith(".sql")))(
@@ -102,7 +102,7 @@ describe("supautilsRejections", () => {
     (file) => {
       expect(
         supautilsRejections(readFileSync(path.join(GOLDEN, file), "utf8")),
-      ).toEqual([]);
+      ).toStrictEqual([]);
     },
   );
 });

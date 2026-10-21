@@ -144,7 +144,7 @@ describe("merging an org-level and a per-row resource over one table", () => {
         }
       }
     }
-    expect(mismatches).toEqual([]);
+    expect(mismatches).toStrictEqual([]);
   });
 
   it("keeps the org-wide role branch and the per-row relation branches apart", async () => {
@@ -155,17 +155,17 @@ describe("merging an org-level and a per-row resource over one table", () => {
         users[index]?.id ?? "",
         "select id from permdock.permitted_file_rows('file.read') id",
       );
-    expect(await read(1)).toEqual(["r1", "r2", "r3", "r4", "r5"]);
-    expect(await read(2)).toEqual(["o2", "r1"]);
-    expect(await read(3)).toEqual(["r3", "r4", "r5"]);
-    expect(await read(4)).toEqual(["o1", "o2", "r1", "r2"]);
+    expect(await read(1)).toStrictEqual(["r1", "r2", "r3", "r4", "r5"]);
+    expect(await read(2)).toStrictEqual(["o2", "r1"]);
+    expect(await read(3)).toStrictEqual(["r3", "r4", "r5"]);
+    expect(await read(4)).toStrictEqual(["o1", "o2", "r1", "r2"]);
   });
 
   it("selects the same rows from the table under both policy sets", async () => {
     const db = databases();
     for (const user of users) {
       const query = "select id from public.file_nodes";
-      expect(await idsAs(db.merged, user.id, query)).toEqual(
+      expect(await idsAs(db.merged, user.id, query)).toStrictEqual(
         await idsAs(db.split, user.id, query),
       );
     }
@@ -175,7 +175,7 @@ describe("merging an org-level and a per-row resource over one table", () => {
     const seeded = await databases().merged.admin.query<{ permission: string }>(
       "select distinct permission from permdock.role_permissions where permission like 'file%' order by 1",
     );
-    expect(seeded.rows.map((row) => row.permission)).toEqual([
+    expect(seeded.rows.map((row) => row.permission)).toStrictEqual([
       "file.read",
       "file.update",
       "fileNode.read",

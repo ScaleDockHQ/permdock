@@ -21,7 +21,7 @@ describe("validateBoundary", () => {
         "boundary",
         true,
       ),
-    ).toEqual({ id: 1 });
+    ).toStrictEqual({ id: 1 });
   });
 
   it("validates with Standard Schema and throws on invalid data", () => {

@@ -82,7 +82,7 @@ describe("secureStoreStorage", () => {
     await storage.setItem("k", "x".repeat(5000));
     await storage.setItem("k", "short");
     expect(storage.getItem("k")).toBe("short");
-    expect([...fake.items.keys()].toSorted()).toEqual(["k", "k.0"]);
+    expect([...fake.items.keys()].toSorted()).toStrictEqual(["k", "k.0"]);
     await storage.removeItem("k");
     expect(fake.items.size).toBe(0);
   });
@@ -151,7 +151,7 @@ describe("appStateForeground and netInfoOnline", () => {
     emit("background");
     emit("active");
     off();
-    expect(seen).toEqual([false, true]);
+    expect(seen).toStrictEqual([false, true]);
     expect(removed).toBe(true);
   });
 
@@ -173,7 +173,7 @@ describe("appStateForeground and netInfoOnline", () => {
     emit({ isConnected: null });
     emit({ isConnected: true, isInternetReachable: false });
     emit({ isConnected: false });
-    expect(seen).toEqual([true, true, false, false]);
+    expect(seen).toStrictEqual([true, true, false, false]);
   });
 });
 

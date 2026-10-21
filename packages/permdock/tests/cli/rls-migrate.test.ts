@@ -163,8 +163,8 @@ describe("rls migrate role helpers", () => {
       },
     );
     const migrated = await report(cwd);
-    expect(migrated.skipped).toEqual([]);
-    expect(migrated.rewrites.map((item) => item.to)).toEqual([
+    expect(migrated.skipped).toStrictEqual([]);
+    expect(migrated.rewrites.map((item) => item.to)).toStrictEqual([
       "(quote.organization_id in (select permdock.member_organization_ids(array['admin'])))",
     ]);
   });
@@ -212,16 +212,16 @@ create policy "orgs_disable" on public.organization for update to authenticated
   using ((select permdock.permdock_has('organization.read'))
     or (select permdock.permdock_has('organization.read')));
 `);
-    expect((await report(cwd)).rewrites).toEqual([]);
+    expect((await report(cwd)).rewrites).toStrictEqual([]);
   });
 
   it("reports what it cannot rewrite safely and leaves it untouched", async () => {
     const cwd = project({ "supabase/migrations/001_unsafe.sql": UNSAFE });
     const result = await report(cwd);
-    expect(result.rewrites).toEqual([]);
+    expect(result.rewrites).toStrictEqual([]);
     expect(
       result.skipped.map((item) => [item.line, item.reason, item.call]),
-    ).toEqual([
+    ).toStrictEqual([
       [
         2,
         "dynamic-key",

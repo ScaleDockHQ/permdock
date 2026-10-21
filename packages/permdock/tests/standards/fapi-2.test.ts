@@ -137,24 +137,24 @@ describe("FAPI 2.0 Security Profile (Final) resource server, section 5.3.4", () 
   it("item 5: a DPoP-bound token with a valid proof resolves the principal", async () => {
     const token = await accessToken();
     const result = await resolve(token, request(await proof(token)));
-    expect(result).toEqual({ id: "u_1", causes: [] });
+    expect(result).toStrictEqual({ id: "u_1", causes: [] });
   });
 
   it("item 5: a token without cnf is rejected as sender-constraint-required", async () => {
     const token = await accessToken({ claims: { cnf: undefined } });
     const result = await resolve(token, request(await proof(token)));
     expect(result.id).toBeUndefined();
-    expect(result.causes).toEqual(["sender-constraint-required"]);
+    expect(result.causes).toStrictEqual(["sender-constraint-required"]);
   });
 
   it("item 5: a DPoP-bound token without its proof is rejected, with or without a request", async () => {
     const token = await accessToken();
     const missingHeader = await resolve(token, request());
     expect(missingHeader.id).toBeUndefined();
-    expect(missingHeader.causes).toEqual(["dpop-proof-invalid"]);
+    expect(missingHeader.causes).toStrictEqual(["dpop-proof-invalid"]);
     const noRequest = await resolve(token, undefined);
     expect(noRequest.id).toBeUndefined();
-    expect(noRequest.causes).toEqual(["dpop-proof-invalid"]);
+    expect(noRequest.causes).toStrictEqual(["dpop-proof-invalid"]);
   });
 
   it("item 5: sender mtls compares cnf.x5t#S256 with the certificate thumbprint", async () => {
@@ -167,12 +167,12 @@ describe("FAPI 2.0 Security Profile (Final) resource server, section 5.3.4", () 
         sender: "mtls",
         certificateThumbprint: thumbprint,
       }),
-    ).toEqual({ id: "u_1", causes: [] });
+    ).toStrictEqual({ id: "u_1", causes: [] });
     const other = await resolve(token, request(), {
       sender: "mtls",
       certificateThumbprint: "other",
     });
-    expect(other.causes).toEqual(["mtls-binding-mismatch"]);
+    expect(other.causes).toStrictEqual(["mtls-binding-mismatch"]);
   });
 
   it("item 5: the profile refuses sender none at configuration time", () => {
@@ -188,7 +188,7 @@ describe("FAPI 2.0 Security Profile (Final) resource server, section 5.3.4", () 
       request(await proof(token), `${RESOURCE_URL}?access_token=${token}`),
     );
     expect(result.id).toBeUndefined();
-    expect(result.causes).toEqual(["token-in-query"]);
+    expect(result.causes).toStrictEqual(["token-in-query"]);
   });
 
   it("item 3: iss, aud and exp are checked", async () => {
@@ -196,7 +196,7 @@ describe("FAPI 2.0 Security Profile (Final) resource server, section 5.3.4", () 
     expect(
       (await resolve(wrongAudience, request(await proof(wrongAudience))))
         .causes,
-    ).toEqual(["wrong-audience"]);
+    ).toStrictEqual(["wrong-audience"]);
     const expired = await new SignJWT({ sub: "u_1", cnf: { jkt } })
       .setProtectedHeader({ alg: "ES256", kid: "as-1", typ: "at+jwt" })
       .setIssuer(ISSUER)
@@ -206,13 +206,13 @@ describe("FAPI 2.0 Security Profile (Final) resource server, section 5.3.4", () 
       .sign(await importJWK(as.privateJwk, "ES256"));
     expect(
       (await resolve(expired, request(await proof(expired)))).causes,
-    ).toEqual(["expired"]);
+    ).toStrictEqual(["expired"]);
   });
 
   it("the profile accepts only typ at+jwt", async () => {
     const token = await accessToken({ typ: "JWT" });
     const result = await resolve(token, request(await proof(token)));
-    expect(result.causes).toEqual(["wrong-token-type"]);
+    expect(result.causes).toStrictEqual(["wrong-token-type"]);
   });
 });
 
@@ -224,7 +224,7 @@ describe("FAPI 2.0 Security Profile (Final), section 5.4.1 algorithms", () => {
       const result = await resolve(token, request(await proof(token)), {
         jwks: { keys: [signer.publicJwk] },
       });
-      expect({ alg, ...result }).toEqual({ alg, id: "u_1", causes: [] });
+      expect({ alg, ...result }).toStrictEqual({ alg, id: "u_1", causes: [] });
     }
   });
 
@@ -235,12 +235,12 @@ describe("FAPI 2.0 Security Profile (Final), section 5.4.1 algorithms", () => {
     const strict = await resolve(token, request(dpop), {
       jwks: { keys: [signer.publicJwk] },
     });
-    expect(strict.causes).toEqual(["alg-not-allowed"]);
+    expect(strict.causes).toStrictEqual(["alg-not-allowed"]);
     const relaxed = await resolve(token, request(dpop), {
       jwks: { keys: [signer.publicJwk] },
       profile: "none",
     });
-    expect(relaxed).toEqual({ id: "u_1", causes: [] });
+    expect(relaxed).toStrictEqual({ id: "u_1", causes: [] });
   });
 });
 
@@ -259,7 +259,7 @@ describe("RFC 9449 DPoP (September 2023), section 4.3 proof checks", () => {
       .sign(await importJWK(client.privateJwk, "ES256"));
     expect(
       await verifyDpopProof(request(wrongTyp), { cnf: { jkt } }, token),
-    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 
   it("check 5: a symmetric alg is refused even when its key matches cnf.jkt", async () => {
@@ -274,7 +274,7 @@ describe("RFC 9449 DPoP (September 2023), section 4.3 proof checks", () => {
         { cnf: { jkt: symmetricJkt } },
         token,
       ),
-    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 
   it("check 7: a jwk header carrying the private key is refused", async () => {
@@ -282,7 +282,7 @@ describe("RFC 9449 DPoP (September 2023), section 4.3 proof checks", () => {
     const leaked = await proof(token, { jwk: client.privateJwk });
     expect(
       await verifyDpopProof(request(leaked), { cnf: { jkt } }, token),
-    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 
   it("checks 8 and 9: htm and htu must match the request", async () => {
@@ -293,7 +293,7 @@ describe("RFC 9449 DPoP (September 2023), section 4.3 proof checks", () => {
     ]) {
       expect(
         await verifyDpopProof(request(dpop), { cnf: { jkt } }, token),
-      ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+      ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
     }
   });
 
@@ -302,7 +302,7 @@ describe("RFC 9449 DPoP (September 2023), section 4.3 proof checks", () => {
     const stale = await proof(token, { iat: NOW - 3600 });
     expect(
       await verifyDpopProof(request(stale), { cnf: { jkt } }, token),
-    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 
   it("check 12: ath must hash the presented access token", async () => {
@@ -311,7 +311,7 @@ describe("RFC 9449 DPoP (September 2023), section 4.3 proof checks", () => {
     const dpop = await proof(token);
     expect(
       await verifyDpopProof(request(dpop), { cnf: { jkt } }, other),
-    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 
   it("section 6.1: the proof key must match cnf.jkt", async () => {
@@ -320,6 +320,6 @@ describe("RFC 9449 DPoP (September 2023), section 4.3 proof checks", () => {
     const dpop = await proof(token, { key: stranger });
     expect(
       await verifyDpopProof(request(dpop), { cnf: { jkt } }, token),
-    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 });

@@ -91,7 +91,9 @@ describe("evaluationsHandler POST", () => {
       }),
     );
     const result = await rows(response);
-    expect(result.map((row) => [row.decision, row.context.outcome])).toEqual([
+    expect(
+      result.map((row) => [row.decision, row.context.outcome]),
+    ).toStrictEqual([
       [true, "granted"],
       [false, "denied"],
       [false, "denied"],
@@ -134,7 +136,7 @@ describe("evaluationsHandler POST", () => {
         ],
       }),
     );
-    expect((await rows(response)).map((row) => row.decision)).toEqual(
+    expect((await rows(response)).map((row) => row.decision)).toStrictEqual(
       decisions,
     );
   });
@@ -149,10 +151,10 @@ describe("evaluationsHandler POST", () => {
       }),
     });
     const response = await handler().POST(request);
-    expect([response.status, response.headers.get("x-request-id")]).toEqual([
-      400,
-      "req-9",
-    ]);
+    expect([
+      response.status,
+      response.headers.get("x-request-id"),
+    ]).toStrictEqual([400, "req-9"]);
   });
 
   it("gives a denial reason_admin and reason_user", async () => {
@@ -204,7 +206,7 @@ describe("evaluationsHandler GET", () => {
     const response = await handler().GET(
       new Request("https://api.example/.well-known/authzen-configuration"),
     );
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toStrictEqual({
       policy_decision_point: "https://api.example",
       access_evaluation_endpoint: "https://api.example/access/v1/evaluation",
       access_evaluations_endpoint: "https://api.example/access/v1/evaluations",
@@ -227,7 +229,7 @@ describe("evaluationsHandler GET", () => {
       new Request("https://api.example/permdock/snapshot?tenant=o1"),
     );
     expect(await response.json()).toMatchObject({ v: 1 });
-    expect(tenants).toEqual(["o1"]);
+    expect(tenants).toStrictEqual(["o1"]);
     const getPermDock = vi.fn<
       (query?: { readonly tenant?: string }) => Promise<PermDock>
     >(async (): Promise<PermDock> => createCorePermDock(policy, memberUser));

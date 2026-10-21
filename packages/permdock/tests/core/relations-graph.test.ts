@@ -71,7 +71,7 @@ describe("relationship graph: match, includes, groups, links", () => {
   });
 
   it("reaches a deep document through ancestors, included relations and nested groups", async () => {
-    expect(await readers("deep-doc")).toEqual([
+    expect(await readers("deep-doc")).toStrictEqual([
       "vera",
       "eddie",
       "carl",
@@ -81,12 +81,12 @@ describe("relationship graph: match, includes, groups, links", () => {
   });
 
   it("never reads above a folder role or a relation holder", async () => {
-    expect(await readers("root-doc")).toEqual(["vera"]);
-    expect(await readers("eng-doc")).toEqual(["vera", "eddie", "ada"]);
+    expect(await readers("root-doc")).toStrictEqual(["vera"]);
+    expect(await readers("eng-doc")).toStrictEqual(["vera", "eddie", "ada"]);
   });
 
   it("reads a restricted branch only through its own holders", async () => {
-    expect(await readers("pay-doc")).toEqual(["hana"]);
+    expect(await readers("pay-doc")).toStrictEqual(["hana"]);
   });
 
   it("denies an expired share", async () => {
@@ -192,14 +192,14 @@ describe("relationship graph: match, includes, groups, links", () => {
     // Folder-role holders need a MembershipSource that lists folder memberships.
     expect(result.complete).toBe(false);
     const ids = result.holders.map((holder) => holder.principal.id);
-    expect(ids).toEqual(
+    expect(ids).toStrictEqual(
       expect.arrayContaining(["vera", "eddie", "carl", "tina"]),
     );
     expect(ids).not.toContain("ex");
     const tina = result.holders.find(
       (holder) => holder.principal.id === "tina",
     );
-    expect(tina?.via).toEqual(
+    expect(tina?.via).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({
           kind: "share",
@@ -212,7 +212,7 @@ describe("relationship graph: match, includes, groups, links", () => {
     const eddie = result.holders.find(
       (holder) => holder.principal.id === "eddie",
     );
-    expect(eddie?.via).toEqual(
+    expect(eddie?.via).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({ relation: "editor", id: "eng" }),
       ]),

@@ -27,7 +27,7 @@ describe("wrapPermDock", () => {
     wrapped.tenant("acme").can(permissions.post.update, ownPost);
     wrapped.team("red").can(permissions.post.update, ownPost);
     (await wrapped.derive({})).can(permissions.post.update, ownPost);
-    expect(calls).toEqual(["can", "can", "can", "can"]);
+    expect(calls).toStrictEqual(["can", "can", "can", "can"]);
   });
 
   it("leaves the members it does not replace untouched", async () => {
@@ -53,7 +53,7 @@ describe("composeWraps", () => {
       },
     );
     expect(composed?.(base)).toBe(base);
-    expect(order).toEqual(["otel", "wrap"]);
+    expect(order).toStrictEqual(["otel", "wrap"]);
   });
 
   it("returns whichever one is given", () => {

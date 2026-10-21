@@ -93,7 +93,7 @@ describe("generatedTables", () => {
         `create table if not exists "permdock".role_permissions (\ncreate table if not exists "public".posts (\ncreate table if not exists "permdock"."user_roles" (`,
         "permdock",
       ),
-    ).toEqual(["role_permissions", "user_roles"]);
+    ).toStrictEqual(["role_permissions", "user_roles"]);
   });
 });
 

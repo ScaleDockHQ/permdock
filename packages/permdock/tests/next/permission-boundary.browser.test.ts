@@ -94,7 +94,7 @@ describe("permdock/next PermissionBoundary", () => {
         createElement(Reader, { label: "" }),
       ),
     );
-    expect({ text: view.textContent, state: seen.current }).toEqual({
+    expect({ text: view.textContent, state: seen.current }).toStrictEqual({
       text: "content",
       state: null,
     });
@@ -113,7 +113,7 @@ describe("permdock/next PermissionBoundary", () => {
       text: view.textContent,
       outcome: seen.current?.outcome,
       permission: seen.current?.permission,
-    }).toEqual({
+    }).toStrictEqual({
       text: "denied",
       outcome: "denied",
       permission: "post.update",

@@ -83,13 +83,13 @@ describe("decideEach", () => {
       inO2,
       alsoO1,
     ]);
-    expect(decisions.map((decision) => decision.outcome)).toEqual([
+    expect(decisions.map((decision) => decision.outcome)).toStrictEqual([
       "granted",
       "denied",
       "granted",
     ]);
     expect(Object.isFrozen(decisions)).toBe(true);
-    expect(permdock.decideEach(permissions.invoice.read, [])).toEqual([]);
+    expect(permdock.decideEach(permissions.invoice.read, [])).toStrictEqual([]);
   });
 
   it("consumes a limit once per granted row, in row order", async () => {
@@ -172,7 +172,7 @@ describe("decideFor", () => {
     expect(
       (await inTwo.decideFor("bob", permissions.invoice.refund, inO2)).outcome,
     ).toBe("granted");
-    expect(asked).toEqual([
+    expect(asked).toStrictEqual([
       ["bob", { tenant: "o1" }],
       ["bob", { tenant: "o2" }],
     ]);
@@ -261,7 +261,7 @@ describe("decideFor", () => {
       sink,
     });
     await permdock.decideFor("bob", permissions.invoice.refund, inO1);
-    expect(written).toEqual([]);
+    expect(written).toStrictEqual([]);
   });
 
   it("denies as anonymous without principals, for an unknown id, a throw or a rejection", async () => {
@@ -349,6 +349,6 @@ describe("decideFor", () => {
       offline
         .decideEach(permissions.invoice.read, [inO1, inO2])
         .map((each) => each.outcome),
-    ).toEqual(["granted", "denied"]);
+    ).toStrictEqual(["granted", "denied"]);
   });
 });

@@ -78,7 +78,7 @@ describe("remotePdp discovery", () => {
         permission: permissions.post.read,
         subject,
       }),
-    ).toEqual(["p9"]);
+    ).toStrictEqual(["p9"]);
     expect(
       fake.calls.filter((call) => call.url.includes(".well-known")).length,
     ).toBe(1);
@@ -157,10 +157,10 @@ describe("remotePdp decide", () => {
       subject: anonymous,
       local: { outcome: "denied", denials: [], alternatives: [] },
     });
-    expect({ reason: reasonOf(decision), calls: fake.calls.length }).toEqual({
-      reason: "anonymous",
-      calls: 0,
-    });
+    expect({
+      reason: reasonOf(decision),
+      calls: fake.calls.length,
+    }).toStrictEqual({ reason: "anonymous", calls: 0 });
   });
 
   it("sends the default AuthZEN mapping with actor and delegation", async () => {
@@ -191,7 +191,7 @@ describe("remotePdp decide", () => {
       },
       local: { outcome: "denied", denials: [], alternatives: [] },
     });
-    expect(bodyOf(fake.calls[0]?.body ?? "{}")).toEqual({
+    expect(bodyOf(fake.calls[0]?.body ?? "{}")).toStrictEqual({
       subject: {
         type: "user",
         id: "u1",
@@ -234,7 +234,7 @@ describe("remotePdp decide", () => {
       subject: body["subject"],
       action: body["action"],
       resource: body["resource"],
-    }).toEqual({
+    }).toStrictEqual({
       subject: { type: "account", id: "u1" },
       action: { name: "can_read" },
       resource: { type: "post", id: "*", properties: "not-an-object" },
@@ -253,10 +253,10 @@ describe("remotePdp decide", () => {
         },
       },
     });
-    expect({ reason: reasonOf(decision), calls: fake.calls.length }).toEqual({
-      reason: "pdp-invalid-response",
-      calls: 0,
-    });
+    expect({
+      reason: reasonOf(decision),
+      calls: fake.calls.length,
+    }).toStrictEqual({ reason: "pdp-invalid-response", calls: 0 });
   });
 
   it("sends the bearer token from a string or a function", async () => {
@@ -292,7 +292,7 @@ describe("remotePdp decide", () => {
       expect({
         outcome: decision.outcome,
         authorization: fake.calls[0]?.headers.get("authorization"),
-      }).toEqual({ outcome: "granted", authorization: null });
+      }).toStrictEqual({ outcome: "granted", authorization: null });
     }
   });
 
@@ -386,7 +386,7 @@ describe("remotePdp decide", () => {
           : decision.outcome === "approval-required"
             ? { outcome: decision.outcome, token: decision.token }
             : { outcome: decision.outcome };
-      expect({ label: item.label, actual }).toEqual({
+      expect({ label: item.label, actual }).toStrictEqual({
         label: item.label,
         actual: item.expected,
       });
@@ -431,7 +431,7 @@ describe("remotePdp decide", () => {
       const decision = await provider.decide(request);
       outcomes.push(reasonOf(decision) ?? decision.outcome);
     }
-    expect({ outcomes, calls: fake.calls.length }).toEqual({
+    expect({ outcomes, calls: fake.calls.length }).toStrictEqual({
       outcomes: [
         "pdp-unavailable",
         "limit",
@@ -450,7 +450,7 @@ describe("remotePdp decide", () => {
     expect({
       tag: provider.handles(permissions.tag.read),
       post: provider.handles(permissions.post.read),
-    }).toEqual({ tag: true, post: false });
+    }).toStrictEqual({ tag: true, post: false });
   });
 });
 
@@ -468,7 +468,7 @@ describe("remotePdp permitted", () => {
         permission: permissions.post.read,
         subject: anonymous,
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("returns undefined without a search endpoint", async () => {
@@ -518,12 +518,12 @@ describe("remotePdp permitted", () => {
       mapping: { resource: () => ({ type: "article" }) },
     });
     const request = { permission: permissions.post.read, subject };
-    expect(await provider.permitted?.(request)).toEqual(["a1"]);
-    expect(await provider.permitted?.(request)).toEqual(["a1"]);
+    expect(await provider.permitted?.(request)).toStrictEqual(["a1"]);
+    expect(await provider.permitted?.(request)).toStrictEqual(["a1"]);
     expect({
       calls: fake.calls.length,
       resource: bodyOf(fake.calls[0]?.body ?? "{}")["resource"],
-    }).toEqual({ calls: 1, resource: { type: "article" } });
+    }).toStrictEqual({ calls: 1, resource: { type: "article" } });
   });
 
   it("falls back to the permission resource when the mapped resource has no type", async () => {
@@ -541,7 +541,7 @@ describe("remotePdp permitted", () => {
         permission: permissions.post.read,
         subject,
       }),
-    ).toEqual(["p1"]);
+    ).toStrictEqual(["p1"]);
   });
 
   it("fails the listing for every malformed page", async () => {
@@ -564,7 +564,7 @@ describe("remotePdp permitted", () => {
           permission: permissions.post.read,
           subject,
         }),
-      }).toEqual({ page, ids: null });
+      }).toStrictEqual({ page, ids: null });
     }
   });
 

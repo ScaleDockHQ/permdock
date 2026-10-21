@@ -338,7 +338,7 @@ describe("permdock/pdp", () => {
       id: "user-1",
       roles: ["member"],
     });
-    expect(await permdock.where(permissions.post.read)).toEqual({
+    expect(await permdock.where(permissions.post.read)).toStrictEqual({
       condition: { op: "or", conditions: [] },
       partial: true,
     });
@@ -379,11 +379,11 @@ describe("permdock/pdp", () => {
     ];
     expect(
       (await permdock.filter(permissions.post.read, rows)).map((row) => row.id),
-    ).toEqual(["p1", "p3"]);
+    ).toStrictEqual(["p1", "p3"]);
     expect(bodies).toHaveLength(2);
     const where = await permdock.where(permissions.post.read);
     expect(where.partial).toBe(false);
-    expect(where.condition).toEqual({
+    expect(where.condition).toStrictEqual({
       op: "and",
       conditions: [
         expect.anything(),
@@ -408,8 +408,10 @@ describe("permdock/pdp", () => {
       id: "user-1",
       roles: ["member"],
     });
-    expect(await permdock.filter(permissions.post.read, [post])).toEqual([]);
-    expect(await permdock.where(permissions.post.read)).toEqual({
+    expect(await permdock.filter(permissions.post.read, [post])).toStrictEqual(
+      [],
+    );
+    expect(await permdock.where(permissions.post.read)).toStrictEqual({
       condition: { op: "or", conditions: [] },
       partial: false,
     });

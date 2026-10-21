@@ -35,7 +35,7 @@ describe("permdock/express", () => {
 
     const allowed = await request("/posts/p1", { method: "DELETE" });
     expect(allowed.status).toBe(200);
-    expect(await allowed.json()).toEqual({ ok: true, via: "u1" });
+    expect(await allowed.json()).toStrictEqual({ ok: true, via: "u1" });
 
     const denied = await request("/posts/p2", { method: "DELETE" });
     expect(denied.status).toBe(403);
@@ -58,7 +58,7 @@ describe("permdock/express", () => {
       }),
     );
     const request = await listen(app);
-    expect(await (await request("/posts")).json()).toEqual({
+    expect(await (await request("/posts")).json()).toStrictEqual({
       id: "/posts",
       kind: "agent",
     });
@@ -182,7 +182,7 @@ describe("permdock/express getPermDock", () => {
     });
     const request = await listen(app);
     const response = await request("/");
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toStrictEqual({
       id: "u1",
       own: true,
       other: false,

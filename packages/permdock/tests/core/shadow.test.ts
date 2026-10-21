@@ -49,7 +49,7 @@ describe("shadowMode", () => {
     expect(permdock.can(permissions.post.update, { id: "p1" })).toBe(true);
     expect(permdock.can(permissions.post.list)).toBe(false);
     expect(permdock.can(permissions.post.read, { id: "p1" })).toBe(true);
-    expect(mismatches).toEqual([
+    expect(mismatches).toStrictEqual([
       {
         permission: "post.update",
         principal: "u1",
@@ -103,7 +103,7 @@ describe("shadowMode", () => {
       permdock
         .decideEach(permissions.post.update, [{ id: "a" }])
         .map((item) => item.outcome),
-    ).toEqual(["granted"]);
+    ).toStrictEqual(["granted"]);
   });
 });
 

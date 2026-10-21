@@ -60,7 +60,7 @@ describe("catalog operations", () => {
         results: permissions.post.read,
       },
     });
-    expect(catalogOperations(operations)).toEqual([
+    expect(catalogOperations(operations)).toStrictEqual([
       {
         name: "sendPost",
         permission: "post.send",
@@ -114,7 +114,7 @@ describe("catalog operations", () => {
       io: quietIo,
     });
     expect(outcome.code).toBe(0);
-    expect(outcome.document?.operations).toEqual([
+    expect(outcome.document?.operations).toStrictEqual([
       {
         name: "readPost",
         permission: "post.read",
@@ -130,11 +130,13 @@ describe("catalog operations", () => {
     const document = outcome.document;
     expect(document).toBeDefined();
     if (document !== undefined) {
-      expect(parseCatalog(formatCatalogJson(document)).operations).toEqual(
-        document.operations,
-      );
+      expect(
+        parseCatalog(formatCatalogJson(document)).operations,
+      ).toStrictEqual(document.operations);
     }
-    expect(await pd067({ cwd, config, now: NOW, io: quietIo })).toEqual([]);
+    expect(await pd067({ cwd, config, now: NOW, io: quietIo })).toStrictEqual(
+      [],
+    );
   });
 
   it("collect fails with usage for a missing or broken operations module", async () => {
@@ -169,7 +171,9 @@ describe("catalog operations", () => {
       operations: "src/operations.ts",
     };
     const findings = await pd067({ cwd, config, now: NOW, io: quietIo });
-    expect(findings.map(({ code, severity }) => [code, severity])).toEqual([
+    expect(
+      findings.map(({ code, severity }) => [code, severity]),
+    ).toStrictEqual([
       ["PD067", "error"],
       ["PD067", "error"],
     ]);
@@ -184,7 +188,7 @@ describe("catalog operations", () => {
         now: NOW,
         io: quietIo,
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await pd067({
         cwd,
@@ -192,14 +196,14 @@ describe("catalog operations", () => {
         now: NOW,
         io: quietIo,
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("the config accepts operations as a module path only", () => {
     expect(
       parseConfig({ operations: "src/operations.ts" }, "permdock.config.ts")
         .warnings,
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(() =>
       parseConfig({ operations: { path: "x" } }, "permdock.config.ts"),
     ).toThrow(/operations must be a module path string/u);

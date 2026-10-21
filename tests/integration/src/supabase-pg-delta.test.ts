@@ -114,14 +114,16 @@ describe("supabase db schema declarative sync over rls generate (pg-delta)", () 
 
       await query(migrated, `${sql};\n${seeds}`);
       expect(await migration(migrated, declared)).toBe("");
-      expect(await query(migrated, ACL)).toEqual(await query(declared, ACL));
+      expect(await query(migrated, ACL)).toStrictEqual(
+        await query(declared, ACL),
+      );
       if (split.includes("hook")) {
         expect(
           await query<{ readonly authAdmin: boolean }>(
             migrated,
             `select has_function_privilege('supabase_auth_admin', 'permdock.custom_access_token_hook(jsonb)', 'execute') as "authAdmin"`,
           ),
-        ).toEqual([{ authAdmin: true }]);
+        ).toStrictEqual([{ authAdmin: true }]);
       }
     });
   }
@@ -146,7 +148,7 @@ describe("supabase db schema declarative sync over rls generate (pg-delta)", () 
     await query(migrated, `${await migration(migrated, declared)};`);
     expect(await migration(migrated, declared)).toBe("");
     const rows = `select count(*)::int as n from permdock.role_permissions`;
-    expect(await query(migrated, rows)).toEqual([{ n: 0 }]);
+    expect(await query(migrated, rows)).toStrictEqual([{ n: 0 }]);
     await query(migrated, "select permdock.seed()");
     const [seeded] = await query<{ readonly n: number }>(migrated, rows);
     expect(seeded?.n).toBeGreaterThan(0);
@@ -156,6 +158,6 @@ describe("supabase db schema declarative sync over rls generate (pg-delta)", () 
         migrated,
         `select has_function_privilege('authenticated', 'permdock.seed()', 'execute') as granted`,
       ),
-    ).toEqual([{ granted: false }]);
+    ).toStrictEqual([{ granted: false }]);
   });
 });

@@ -18,7 +18,7 @@ describe("peer dependencies", () => {
     const required = Object.keys(manifest.peerDependencies ?? {}).filter(
       (name) => manifest.peerDependenciesMeta?.[name]?.optional !== true,
     );
-    expect(required).toEqual([]);
+    expect(required).toStrictEqual([]);
   });
 
   it("declares metadata only for declared peers", () => {
@@ -26,6 +26,6 @@ describe("peer dependencies", () => {
     const extra = Object.keys(manifest.peerDependenciesMeta ?? {}).filter(
       (name) => !peers.has(name),
     );
-    expect(extra).toEqual([]);
+    expect(extra).toStrictEqual([]);
   });
 });

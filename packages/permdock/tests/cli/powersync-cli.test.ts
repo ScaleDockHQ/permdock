@@ -86,7 +86,7 @@ describe("permdock powersync", () => {
     const base = { cwd, config: projectConfig, check: false };
     expect(
       await runPowerSync({ ...base, rest: ["generate"], check: true }),
-    ).toEqual({
+    ).toStrictEqual({
       code: 1,
       output: "sync-config.yaml is stale: run permdock powersync generate",
     });
@@ -104,12 +104,12 @@ describe("permdock powersync", () => {
     );
     expect(
       await runPowerSync({ ...base, rest: ["generate"], check: true }),
-    ).toEqual({ code: 0, output: "sync-config.yaml is current" });
-    expect(await runPowerSync({ ...base, rest: ["verify"] })).toEqual({
+    ).toStrictEqual({ code: 0, output: "sync-config.yaml is current" });
+    expect(await runPowerSync({ ...base, rest: ["verify"] })).toStrictEqual({
       code: 0,
       output: "sync-config.yaml matches the policy",
     });
-    expect(await pd058({ cwd, config: projectConfig })).toEqual([]);
+    expect(await pd058({ cwd, config: projectConfig })).toStrictEqual([]);
     writeFileSync(join(cwd, "sync-config.yaml"), "streams: {}\n");
     expect(await pd058({ cwd, config: projectConfig })).toMatchObject([
       { message: expect.stringContaining("older policy") },
@@ -191,7 +191,7 @@ describe("permdock powersync", () => {
     });
     expect(
       await runPowerSync({ ...base, rest: ["generate"], check: true }),
-    ).toEqual({
+    ).toStrictEqual({
       code: 0,
       output:
         "sync-config.yaml is current\nsrc/permdock-manifest.json is current",
@@ -204,7 +204,7 @@ describe("permdock powersync", () => {
       (await runPowerSync({ ...base, rest: ["generate"], check: true })).code,
     ).toBe(0);
     writeFileSync(join(cwd, "src/permdock-manifest.json"), "{}\n");
-    expect(await runPowerSync({ ...base, rest: ["verify"] })).toEqual({
+    expect(await runPowerSync({ ...base, rest: ["verify"] })).toStrictEqual({
       code: 1,
       output:
         "src/permdock-manifest.json differs from the policy: run permdock powersync generate",
@@ -411,12 +411,12 @@ export const policy = definePolicy(permissions, {
       code: "config_invalid",
       message: "PermDock CLI: powersync needs policy in the config or --policy",
     });
-    expect(await pd058({ cwd, config: { powersync: {} } })).toEqual([]);
+    expect(await pd058({ cwd, config: { powersync: {} } })).toStrictEqual([]);
     const broken: PermDockConfig = {
       ...projectConfig,
       rls: { tables: { note: "bad name" } },
     };
-    expect(await pd058({ cwd, config: broken })).toEqual([
+    expect(await pd058({ cwd, config: broken })).toStrictEqual([
       {
         code: "PD058",
         severity: "warning",
@@ -432,14 +432,14 @@ export const policy = definePolicy(permissions, {
         check: false,
         rest: ["generate"],
       }),
-    ).toEqual({
+    ).toStrictEqual({
       code: 2,
       output:
         "PermDock CLI: 'bad name' is not a plain identifier, which Sync Streams need",
     });
     expect(
       await pd058({ cwd, config: { policy: "missing.ts", powersync: {} } }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("runs from the CLI", async () => {

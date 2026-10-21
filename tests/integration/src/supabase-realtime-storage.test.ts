@@ -124,27 +124,27 @@ describe("rls.realtime on supabase/postgres", () => {
         "select extension from realtime.messages",
         "org:acme:chat",
       ),
-    ).toEqual([{ extension: "broadcast" }]);
+    ).toStrictEqual([{ extension: "broadcast" }]);
     expect(
       await as(viewer, "select 1 from realtime.messages", "org:globex:chat"),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await as(viewer, "select 1 from realtime.messages", "team:acme:chat"),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("admits only the allows without a row condition for a conditioned permission", async () => {
     const joinEdits = (claims: Readonly<Record<string, unknown>>) =>
       as(claims, "select extension from realtime.messages", "org:acme:edits");
-    expect(await joinEdits(admin)).toEqual([{ extension: "broadcast" }]);
-    expect(await joinEdits(member)).toEqual([]);
-    expect(await joinEdits(viewer)).toEqual([]);
+    expect(await joinEdits(admin)).toStrictEqual([{ extension: "broadcast" }]);
+    expect(await joinEdits(member)).toStrictEqual([]);
+    expect(await joinEdits(viewer)).toStrictEqual([]);
   });
 
   it("lets only a holder of the write permission send", async () => {
     await expect(
       as(admin, send("org:acme:chat"), "org:acme:chat"),
-    ).resolves.toEqual([]);
+    ).resolves.toStrictEqual([]);
     await expect(
       as(viewer, send("org:acme:chat"), "org:acme:chat"),
     ).rejects.toMatchObject({ code: "42501" });
@@ -164,11 +164,11 @@ describe("rls.storage on supabase/postgres", () => {
   it("lists only the bucket's objects under the member's organization folder", async () => {
     expect(
       await as(viewer, "select bucket_id, name from storage.objects"),
-    ).toEqual([{ bucket_id: "files", name: "acme/a.txt" }]);
+    ).toStrictEqual([{ bucket_id: "files", name: "acme/a.txt" }]);
   });
 
   it("lets a writer upload into the organization folder only", async () => {
-    await expect(as(admin, upload("acme/new.txt"))).resolves.toEqual([]);
+    await expect(as(admin, upload("acme/new.txt"))).resolves.toStrictEqual([]);
     for (const [claims, name, bucket] of [
       [viewer, "acme/new.txt", "files"],
       [admin, "globex/new.txt", "files"],
@@ -193,9 +193,9 @@ describe("rls.storage on supabase/postgres", () => {
   it("deletes for the delete permission, and not for a support session", async () => {
     const remove =
       "delete from storage.objects where name = 'acme/a.txt' returning name";
-    expect(await as(admin, remove)).toEqual([{ name: "acme/a.txt" }]);
-    expect(await as(support, remove)).toEqual([]);
-    expect(await as(viewer, remove)).toEqual([]);
+    expect(await as(admin, remove)).toStrictEqual([{ name: "acme/a.txt" }]);
+    expect(await as(support, remove)).toStrictEqual([]);
+    expect(await as(viewer, remove)).toStrictEqual([]);
   });
 });
 
@@ -206,8 +206,8 @@ describe("Splinter on the realtime and storage policies", () => {
       findings.filter(
         (finding) => finding.name === "public_bucket_allows_listing",
       ),
-    ).toEqual([]);
-    expect(generatedFindings(findings, generated)).toEqual([]);
+    ).toStrictEqual([]);
+    expect(generatedFindings(findings, generated)).toStrictEqual([]);
     const broad = await runSplinter(started().owner, {
       sql: `create policy "anyone lists files" on storage.objects for select to anon using (bucket_id = 'files');`,
     });

@@ -130,7 +130,7 @@ describe("postgresDirectoryStore parity with memoryDirectoryStore", () => {
         (await store.findUsers("acme", filter, {})).Resources.map(
           (user) => user.id,
         );
-      expect(await ids(pg)).toEqual(await ids(memory));
+      expect(await ids(pg)).toStrictEqual(await ids(memory));
     },
   );
 
@@ -141,7 +141,7 @@ describe("postgresDirectoryStore parity with memoryDirectoryStore", () => {
         (await store.findGroups("acme", filter, {})).Resources.map(
           (group) => group.id,
         );
-      expect(await ids(pg)).toEqual(await ids(memory));
+      expect(await ids(pg)).toStrictEqual(await ids(memory));
     },
   );
 
@@ -159,7 +159,7 @@ describe("postgresDirectoryStore parity with memoryDirectoryStore", () => {
       expect({
         ...left,
         Resources: left.Resources.map((user) => user.id),
-      }).toEqual({
+      }).toStrictEqual({
         ...right,
         Resources: right.Resources.map((user) => user.id),
       });
@@ -204,10 +204,12 @@ describe("postgresDirectoryStore parity with memoryDirectoryStore", () => {
       pg.patchGroup("acme", "g1", ops),
       memory.patchGroup("acme", "g1", ops),
     ]);
-    expect(left.members).toEqual(right.members);
-    expect(left.roles).toEqual(right.roles);
+    expect(left.members).toStrictEqual(right.members);
+    expect(left.roles).toStrictEqual(right.roles);
     expect(left.meta.created <= left.meta.lastModified).toBe(true);
-    expect((await pg.getGroup("acme", "g1"))?.members).toEqual(right.members);
+    expect((await pg.getGroup("acme", "g1"))?.members).toStrictEqual(
+      right.members,
+    );
   });
 
   it("drops a deleted user from every group and keeps created times", async () => {
@@ -224,8 +226,8 @@ describe("postgresDirectoryStore parity with memoryDirectoryStore", () => {
     );
     await pg.deleteUser("acme", "u3");
     await memory.deleteUser("acme", "u3");
-    expect(await pg.groupsFor("acme", "u3")).toEqual([]);
-    expect((await pg.getGroup("acme", "g1"))?.members).toEqual(
+    expect(await pg.groupsFor("acme", "u3")).toStrictEqual([]);
+    expect((await pg.getGroup("acme", "g1"))?.members).toStrictEqual(
       (await memory.getGroup("acme", "g1"))?.members,
     );
     await expect(pg.deleteUser("acme", "u3")).rejects.toMatchObject({
@@ -263,7 +265,7 @@ describe("postgresDirectoryStore under concurrent writes", () => {
       { op: "add", path: "members", value: [{ value: "u_mine" }] },
     ]);
     expect(raced).toBe(true);
-    expect(patched.members.map((member) => member.value)).toEqual([
+    expect(patched.members.map((member) => member.value)).toStrictEqual([
       "u_first",
       "u_other",
       "u_mine",
@@ -320,7 +322,7 @@ describe("scim generate on Supabase", () => {
     const source = directoryMembershipSource(store);
     expect(
       await source.membershipsFor({ id: "00u1" }, { tenant: "acme" }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         tenant: "acme",
         roles: ["editor"],
@@ -330,6 +332,6 @@ describe("scim generate on Supabase", () => {
     ]);
     expect(
       await source.membershipsFor({ id: "00u1" }, { tenant: "globex" }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

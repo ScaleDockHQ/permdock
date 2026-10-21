@@ -51,7 +51,7 @@ select i.id,
   case when (select permdock_has('invoice.read#1')) and "a" = 1 and not (select permdock_has('invoice.read#2')) then i.secret end as secret,
   case when (select permdock_has('invoice.read#1')) and "a" = 1 then i.code end as code
 from invoice i;`),
-    ).toEqual([
+    ).toStrictEqual([
       {
         view: "invoice_visible",
         table: "invoice",
@@ -116,7 +116,7 @@ create view invoice_visible with (security_invoker) as select t.id from invoice 
     ],
     ["SQL that does not parse", `create view (`],
   ])("skips %s", async (_label, sql) => {
-    expect(await views(sql)).toEqual([]);
+    expect(await views(sql)).toStrictEqual([]);
   });
 });
 
@@ -130,7 +130,7 @@ from invoice;
 create view invoice_visible with (security_invoker = true) as
 select title, t.id, invoice_visible_fields.amount, invoice_visible_fields.note
 from invoice t left join invoice_visible_fields on invoice_visible_fields.permdock_key = t.id;`),
-    ).toEqual([
+    ).toStrictEqual([
       {
         view: "invoice_visible",
         table: "invoice",
@@ -150,7 +150,7 @@ create view invoice_visible with (security_invoker) as select invoice.id from in
         undefined,
         [],
       )) ?? [];
-    expect(view).toEqual({
+    expect(view).toStrictEqual({
       view: "invoice_visible",
       table: "invoice",
       companion: "invoice_visible_fields",

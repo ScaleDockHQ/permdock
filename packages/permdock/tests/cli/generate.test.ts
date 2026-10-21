@@ -188,7 +188,7 @@ describe("schemaExpression", () => {
       zod: schemaExpression("zod", schema),
       valibot: schemaExpression("valibot", schema),
       arktype: schemaExpression("arktype", schema),
-    }).toEqual(expected);
+    }).toStrictEqual(expected);
   });
 
   it("resolves references through the resolver at every level", () => {
@@ -207,7 +207,7 @@ describe("schemaExpression", () => {
       zod: schemaExpression("zod", { $ref: "Root" }, resolve),
       valibot: schemaExpression("valibot", { $ref: "Root" }, resolve),
       arktype: schemaExpression("arktype", { $ref: "Root" }, resolve),
-    }).toEqual({
+    }).toStrictEqual({
       zod: "z.object({ tags: z.array(z.string()) })",
       valibot: "v.object({ tags: v.array(v.string()) })",
       arktype: `type({ "tags": 'string[]' })`,
@@ -219,7 +219,7 @@ describe("schemaExpression", () => {
       zod: emptySchema("zod"),
       valibot: emptySchema("valibot"),
       arktype: emptySchema("arktype"),
-    }).toEqual({
+    }).toStrictEqual({
       zod: "z.object({})",
       valibot: "v.object({})",
       arktype: "type({})",
@@ -321,7 +321,7 @@ export const permissions = definePermissions({
         },
       ],
     });
-    expect(text.split("\n").slice(1, 3)).toEqual([
+    expect(text.split("\n").slice(1, 3)).toStrictEqual([
       "import { definePermissions, resource } from 'permdock'",
       line,
     ]);
@@ -367,7 +367,7 @@ export const permissions = definePermissions({
           leaf.key,
           leaf.kind,
         ]),
-      ).toEqual([
+      ).toStrictEqual([
         ["post.read", "instance"],
         ["post.list", "collection"],
       ]);
@@ -381,7 +381,7 @@ export const permissions = definePermissions({
         fraction: await validate({ id: "1", views: 1.5 }),
         missingId: await validate({ status: "live" }),
         badEnum: await validate({ id: "1", status: "gone" }),
-      }).toEqual({
+      }).toStrictEqual({
         valid: true,
         fraction: false,
         missingId: false,

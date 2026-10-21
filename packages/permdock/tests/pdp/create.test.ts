@@ -95,7 +95,7 @@ describe("permdock/pdp getPermDockSync", () => {
     expect({
       outcome: decision.outcome,
       calls: decide.mock.calls.length,
-    }).toEqual({ outcome: "granted", calls: 0 });
+    }).toStrictEqual({ outcome: "granted", calls: 0 });
   });
 
   it("answers canAll and decideAll asynchronously, through the providers", async () => {
@@ -124,7 +124,7 @@ describe("permdock/pdp getPermDockSync", () => {
       [permissions.post.delete, post],
       [permissions.note.read, { key: "n1" }],
     ]);
-    expect(decisions.map((decision) => decision.outcome)).toEqual([
+    expect(decisions.map((decision) => decision.outcome)).toStrictEqual([
       "granted",
       "denied",
       "denied",
@@ -151,7 +151,7 @@ describe("permdock/pdp getPermDockSync", () => {
     expect({
       reason: reasonOf(decision),
       calls: decide.mock.calls.length,
-    }).toEqual({ reason: "anonymous", calls: 0 });
+    }).toStrictEqual({ reason: "anonymous", calls: 0 });
   });
 
   it("short-circuits a local validation failure without asking the provider", async () => {
@@ -166,7 +166,7 @@ describe("permdock/pdp getPermDockSync", () => {
     expect({
       reason: reasonOf(decision),
       calls: decide.mock.calls.length,
-    }).toEqual({ reason: "validation", calls: 0 });
+    }).toStrictEqual({ reason: "validation", calls: 0 });
   });
 
   it("passes the local decision, row and subject to the provider", async () => {
@@ -184,7 +184,7 @@ describe("permdock/pdp getPermDockSync", () => {
       data: request?.data,
       principal: request?.subject.principal?.id,
       local: request?.local.outcome,
-    }).toEqual({
+    }).toStrictEqual({
       permission: "post.read",
       data: post,
       principal: "u1",
@@ -248,7 +248,7 @@ describe("permdock/pdp getPermDockSync", () => {
         error instanceof PermDockDeniedError
           ? { permission: error.permission, resource: error.resource }
           : null,
-      ).toEqual({
+      ).toStrictEqual({
         permission: "post.read",
         resource: { type: "post", id: "p1" },
       });
@@ -271,7 +271,7 @@ describe("permdock/pdp getPermDockSync", () => {
       expect({
         policy: fromPolicy.mock.calls.length,
         call: fromCall.mock.calls.length,
-      }).toEqual({ policy: 0, call: 1 });
+      }).toStrictEqual({ policy: 0, call: 1 });
     });
 
     it("omits the resource id when the data is not an object", async () => {
@@ -284,7 +284,7 @@ describe("permdock/pdp getPermDockSync", () => {
         .catch((caught: unknown) => caught);
       expect(
         error instanceof PermDockDeniedError ? error.resource : null,
-      ).toEqual({ type: "post" });
+      ).toStrictEqual({ type: "post" });
     });
 
     it("reads the resource id from the declared id field", async () => {
@@ -297,7 +297,7 @@ describe("permdock/pdp getPermDockSync", () => {
         .catch((caught: unknown) => caught);
       expect(
         error instanceof PermDockDeniedError ? error.resource : null,
-      ).toEqual({ type: "note", id: "n1" });
+      ).toStrictEqual({ type: "note", id: "n1" });
     });
 
     it("throws PermDockApprovalRequiredError for approval-required", async () => {
@@ -371,7 +371,7 @@ describe("permdock/pdp getPermDockSync", () => {
         [permissions.post.update, post],
         [permissions.post.delete, post],
       ]);
-      expect(decisions.map((decision) => reasonOf(decision))).toEqual([
+      expect(decisions.map((decision) => reasonOf(decision))).toStrictEqual([
         undefined,
         "pdp-denied",
         "deny",
@@ -394,7 +394,7 @@ describe("permdock/pdp getPermDockSync", () => {
           request.permission.key,
           request.local.outcome,
         ]),
-      ).toEqual([["post.read", "granted"]]);
+      ).toStrictEqual([["post.read", "granted"]]);
     });
   });
 
@@ -422,7 +422,7 @@ describe("permdock/pdp getPermDockSync", () => {
         (await permdock.filter(permissions.post.read, rows)).map(
           (row) => row.id,
         ),
-      ).toEqual(["p1", "p3"]);
+      ).toStrictEqual(["p1", "p3"]);
     });
 
     it("decides row by row for an anonymous subject without listing", async () => {
@@ -435,7 +435,9 @@ describe("permdock/pdp getPermDockSync", () => {
         ]),
         null,
       );
-      expect(await permdock.filter(permissions.post.read, rows)).toEqual([]);
+      expect(await permdock.filter(permissions.post.read, rows)).toStrictEqual(
+        [],
+      );
       expect(permitted.mock.calls.length).toBe(0);
     });
 
@@ -452,7 +454,9 @@ describe("permdock/pdp getPermDockSync", () => {
           ]),
           member,
         );
-        expect(await permdock.filter(permissions.post.read, rows)).toEqual([]);
+        expect(
+          await permdock.filter(permissions.post.read, rows),
+        ).toStrictEqual([]);
       }
     });
 
@@ -470,8 +474,10 @@ describe("permdock/pdp getPermDockSync", () => {
         (await permdock.filter(permissions.post.read, rows)).map(
           (row) => row.id,
         ),
-      ).toEqual(["p1", "p3"]);
-      expect(await permdock.filter(permissions.post.delete, rows)).toEqual([]);
+      ).toStrictEqual(["p1", "p3"]);
+      expect(
+        await permdock.filter(permissions.post.delete, rows),
+      ).toStrictEqual([]);
     });
   });
 
@@ -503,7 +509,7 @@ describe("permdock/pdp getPermDockSync", () => {
           ]),
           member,
         );
-        expect(await permdock.where(permissions.post.read)).toEqual({
+        expect(await permdock.where(permissions.post.read)).toStrictEqual({
           condition: { op: "or", conditions: [] },
           partial: false,
         });
@@ -520,7 +526,7 @@ describe("permdock/pdp getPermDockSync", () => {
         ]),
         null,
       );
-      expect(await permdock.where(permissions.post.read)).toEqual({
+      expect(await permdock.where(permissions.post.read)).toStrictEqual({
         condition: { op: "or", conditions: [] },
         partial: true,
       });
@@ -536,7 +542,7 @@ describe("permdock/pdp getPermDockSync", () => {
         ]),
         { id: "u1", roles: [] },
       );
-      expect(await permdock.where(permissions.note.read)).toEqual({
+      expect(await permdock.where(permissions.note.read)).toStrictEqual({
         condition: { op: "in", field: "key", value: ["n1"] },
         partial: true,
       });

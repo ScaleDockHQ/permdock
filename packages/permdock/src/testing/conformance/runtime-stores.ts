@@ -95,7 +95,7 @@ export function testPolicySource(
   it("returns null or a v1 policy document synchronously", () => {
     const document = readCurrent();
     if (document !== null) {
-      expect(parsePolicyDocument(document)).toEqual(document);
+      expect(parsePolicyDocument(document)).toStrictEqual(document);
     }
   });
 

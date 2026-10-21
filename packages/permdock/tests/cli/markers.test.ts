@@ -6,7 +6,7 @@ describe("parseHookMarker", () => {
   it("reads the fields of the hook marker line", () => {
     const sql =
       "-- permdock:hook v1 schema=public tenant=tenant_id budget=2048 claims=user_role,roles,memberships\n-- rest";
-    expect(parseHookMarker(sql)).toEqual({
+    expect(parseHookMarker(sql)).toStrictEqual({
       version: 1,
       schema: "public",
       tenantClaim: "tenant_id",
@@ -16,7 +16,7 @@ describe("parseHookMarker", () => {
   });
 
   it("accepts CRLF and a bare marker, and refuses other first lines", () => {
-    expect(parseHookMarker("-- permdock:hook v1\r\nselect 1;")).toEqual({
+    expect(parseHookMarker("-- permdock:hook v1\r\nselect 1;")).toStrictEqual({
       version: 1,
       claims: [],
     });
@@ -46,8 +46,10 @@ describe("parseGrantsMarker", () => {
   it("reads the schema of a grants migration", () => {
     expect(
       parseGrantsMarker("-- permdock:grants v1 schema=public\ngrant usage;"),
-    ).toEqual({ version: 1, schema: "public" });
-    expect(parseGrantsMarker("-- permdock:grants v1")).toEqual({ version: 1 });
+    ).toStrictEqual({ version: 1, schema: "public" });
+    expect(parseGrantsMarker("-- permdock:grants v1")).toStrictEqual({
+      version: 1,
+    });
     expect(
       parseGrantsMarker("-- permdock:hook v1 schema=public"),
     ).toBeUndefined();

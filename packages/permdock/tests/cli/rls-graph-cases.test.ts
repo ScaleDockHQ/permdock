@@ -70,8 +70,8 @@ function withEntry(
 describe("graphPlan", () => {
   it("skips a relation grantee that compiles to a membership", () => {
     const plan = graphPlan(policy);
-    expect([...(plan.get("node")?.relations ?? [])]).toEqual(["owner"]);
-    expect(closureDepths(plan)).toEqual({ node: 3 });
+    expect([...(plan.get("node")?.relations ?? [])]).toStrictEqual(["owner"]);
+    expect(closureDepths(plan)).toStrictEqual({ node: 3 });
   });
 });
 

@@ -63,7 +63,7 @@ describe("loadConfiguredPolicy", () => {
 
   it("loads the policy export, and is undefined when unset or unloadable", async () => {
     const policy = await loadConfiguredPolicy(cwd, "./src/policy.ts");
-    expect(policy?.roles.map((item) => item.name)).toEqual(["member"]);
+    expect(policy?.roles.map((item) => item.name)).toStrictEqual(["member"]);
     expect(await loadConfiguredPolicy(cwd, undefined)).toBeUndefined();
     expect(await loadConfiguredPolicy(cwd, "./src/absent.ts")).toBeUndefined();
     expect(await loadConfiguredPolicy(cwd, "./src/broken.ts")).toBeUndefined();
@@ -129,7 +129,7 @@ describe("loadModule", () => {
       { encoding: "utf8" },
     );
     expect(result.stderr).toBe("");
-    expect(JSON.parse(result.stdout)).toEqual({
+    expect(JSON.parse(result.stdout)).toStrictEqual({
       level: 2,
       hasView: true,
       plain: 1,
@@ -159,7 +159,7 @@ describe("loadModule", () => {
     });
     const mod = await loadModule(path.join(cwd, "src/policy.ts"));
     expect("permissions" in mod).toBe(false);
-    expect(pickNamed(mod, ["permissions"])).toEqual({
+    expect(pickNamed(mod, ["permissions"])).toStrictEqual({
       roles: [],
       permissions: { post: 1 },
     });

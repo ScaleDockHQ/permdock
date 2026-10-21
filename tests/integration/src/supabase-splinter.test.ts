@@ -166,7 +166,7 @@ describe("Splinter on the generated RLS", () => {
       const findings = await runSplinter(db.owner, {
         sql: `${scenario.tables}\n${generated}`,
       });
-      expect(generatedFindings(findings, generated)).toEqual([]);
+      expect(generatedFindings(findings, generated)).toStrictEqual([]);
     },
     120_000,
   );

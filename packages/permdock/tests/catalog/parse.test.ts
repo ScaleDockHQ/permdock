@@ -159,8 +159,8 @@ const invalid: readonly [string, Mutation][] = [
 
 describe("catalog-v1 schema", () => {
   it("matches schemas/catalog-v1.json and the catalog --format schema output", () => {
-    expect(fileSchema).toEqual(catalogSchema);
-    expect(catalogSchemaDocument()).toEqual(fileSchema);
+    expect(fileSchema).toStrictEqual(catalogSchema);
+    expect(catalogSchemaDocument()).toStrictEqual(fileSchema);
   });
 });
 
@@ -181,16 +181,16 @@ describe("parseCatalog", () => {
         return;
       }
       ajv(json);
-      expect(ajv.errors ?? []).toEqual([]);
+      expect(ajv.errors ?? []).toStrictEqual([]);
       const parsed = parseCatalog(json);
-      expect(parsed).toEqual(json);
-      expect(parseCatalog(text)).toEqual(json);
+      expect(parsed).toStrictEqual(json);
+      expect(parseCatalog(text)).toStrictEqual(json);
     });
   }
 
   it("accepts a minimal catalog and every optional field", () => {
     expect(ajv(base)).toBe(true);
-    expect(parseCatalog(base)).toEqual(base);
+    expect(parseCatalog(base)).toStrictEqual(base);
   });
 
   it.each(invalid)("rejects %s, as Ajv does", (_, mutate) => {
@@ -222,7 +222,7 @@ describe("parseCatalog", () => {
       if (!(error instanceof PermDockValidationError)) {
         throw error;
       }
-      expect(error.issues.map((item) => item.path)).toEqual([
+      expect(error.issues.map((item) => item.path)).toStrictEqual([
         ["version"],
         ["permissions", 0, "meta"],
       ]);
@@ -332,7 +332,7 @@ describe("parseCatalog reference checks", () => {
   }
 
   it("accepts the base catalog", () => {
-    expect(issuesOf(() => undefined)).toEqual([]);
+    expect(issuesOf(() => undefined)).toStrictEqual([]);
   });
 
   it("reports a role on an undeclared scope, and accepts resource", () => {
@@ -343,7 +343,7 @@ describe("parseCatalog reference checks", () => {
           { key: "editor", on: "resource" },
         ];
       }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         message:
           "role 'admin' is on 'team', which is neither a declared scope nor resource",
@@ -361,7 +361,7 @@ describe("parseCatalog reference checks", () => {
           { key: "lead", on: "team" },
         ];
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("reports every undeclared permission key with its path", () => {
@@ -395,7 +395,7 @@ describe("parseCatalog reference checks", () => {
           { scope: "posts:read", permissions: ["post.update", "post.read"] },
         ];
       }).map((issue) => issue.path),
-    ).toEqual([
+    ).toStrictEqual([
       "operations.0.permission",
       "operations.0.results",
       "grants.0.permission",
@@ -419,7 +419,7 @@ describe("parseCatalog reference checks", () => {
         const [first] = base.permissions;
         doc["permissions"] = [...base.permissions, first];
       }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         message: "duplicate key 'post.update' in permissions",
         path: "permissions.2.key",
@@ -431,17 +431,19 @@ describe("parseCatalog reference checks", () => {
   });
 
   it("requires meta fields only when asked", () => {
-    expect(issuesOf(() => undefined, { requireMeta: ["title"] })).toEqual([
-      {
-        message: "permission 'post.update' needs meta.title",
-        path: "permissions.0.meta.title",
-      },
-    ]);
+    expect(issuesOf(() => undefined, { requireMeta: ["title"] })).toStrictEqual(
+      [
+        {
+          message: "permission 'post.update' needs meta.title",
+          path: "permissions.0.meta.title",
+        },
+      ],
+    );
     expect(
       issuesOf(() => undefined, { requireMeta: ["risk", "effects"] }).map(
         (issue) => issue.path,
       ),
-    ).toEqual([
+    ).toStrictEqual([
       "permissions.0.meta.risk",
       "permissions.0.meta.effects",
       "permissions.1.meta.risk",
@@ -453,7 +455,7 @@ describe("parseCatalog reference checks", () => {
 describe("rowConditionKeys", () => {
   it("lists the permissions marked rowConditions: true", () => {
     const catalog: CatalogDocument = parseCatalog(base);
-    expect([...rowConditionKeys(catalog)]).toEqual(["post.update"]);
+    expect([...rowConditionKeys(catalog)]).toStrictEqual(["post.update"]);
   });
 });
 

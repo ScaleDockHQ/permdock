@@ -58,7 +58,8 @@ describe("invariant 10: prototype-safe, no eval", () => {
   });
 
   it("does not let a principal ref climb the prototype chain", () => {
-    expect(principal.id).toEqual({ ref: "principal.id" });
+    // The ref proxy refuses `constructor`, which a strict type check reads.
+    expect({ ...principal.id }).toStrictEqual({ ref: "principal.id" });
     for (const key of FORBIDDEN) {
       expect(
         evaluateCondition(
@@ -99,6 +100,6 @@ describe("invariant 10: prototype-safe, no eval", () => {
         offenders.push(file);
       }
     }
-    expect(offenders).toEqual([]);
+    expect(offenders).toStrictEqual([]);
   });
 });

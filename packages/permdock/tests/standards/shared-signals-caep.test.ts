@@ -103,7 +103,7 @@ describe("RFC 8417 Security Event Token", () => {
     const seen: string[] = [];
     const response = await receiver(seen).push(push(await set({})));
     expect(response.status).toBe(202);
-    expect(seen).toEqual(["session-revoked u_1"]);
+    expect(seen).toStrictEqual(["session-revoked u_1"]);
   });
 
   it("section 2.3: typ must be secevent+jwt, so an access token is never a SET", async () => {
@@ -112,7 +112,7 @@ describe("RFC 8417 Security Event Token", () => {
       push(await set({}, { typ: "at+jwt" })),
     );
     expect(response.status).toBe(400);
-    expect(seen).toEqual([]);
+    expect(seen).toStrictEqual([]);
   });
 
   it("section 2.2: a SET without events or jti is refused", async () => {
@@ -129,7 +129,7 @@ describe("RFC 8417 Security Event Token", () => {
     await handle.push(
       push(await set({ sub_id: { format: "opaque", id: "u_opaque" } })),
     );
-    expect(seen).toEqual(["session-revoked u_opaque"]);
+    expect(seen).toStrictEqual(["session-revoked u_opaque"]);
   });
 });
 
@@ -155,7 +155,7 @@ describe("CAEP 1.0 event types", () => {
       const response = await handle.push(
         push(await set({ events: { [`${CAEP}${name}`]: {} } })),
       );
-      expect({ name, status: response.status, handled }).toEqual({
+      expect({ name, status: response.status, handled }).toStrictEqual({
         name,
         status: 202,
         handled: [name],
@@ -185,7 +185,7 @@ describe("CAEP 1.0 event types", () => {
       ),
     );
     expect(response.status).toBe(202);
-    expect(handled).toEqual([]);
+    expect(handled).toStrictEqual([]);
   });
 });
 
@@ -266,9 +266,9 @@ describe("RFC 8936 poll delivery", () => {
         );
       },
     });
-    expect(result).toEqual({ acked: ["good"] });
+    expect(result).toStrictEqual({ acked: ["good"] });
     expect(bodies[0]).toMatchObject({ returnImmediately: true });
-    expect(bodies[1]).toEqual({
+    expect(bodies[1]).toStrictEqual({
       acks: ["good"],
       setErrs: {
         bad: { err: "invalid_audience", description: "wrong-audience" },
@@ -299,7 +299,7 @@ describe("RFC 8936 poll delivery", () => {
         return Response.json({ sets: { retry: token } });
       },
     });
-    expect(result).toEqual({ acked: [] });
+    expect(result).toStrictEqual({ acked: [] });
     expect(bodies).toHaveLength(1);
   });
 
@@ -364,7 +364,7 @@ describe("Audit path: CloudEvents 1.0.2 and OCSF 1.9.0", () => {
         source: "https://app.example.com",
       });
       const valid = validate(cloudEvent);
-      expect({ valid, errors: validate.errors ?? null }).toEqual({
+      expect({ valid, errors: validate.errors ?? null }).toStrictEqual({
         valid: true,
         errors: null,
       });
@@ -377,7 +377,7 @@ describe("Audit path: CloudEvents 1.0.2 and OCSF 1.9.0", () => {
       const ocsf: Record<string, unknown> = toOcsf(event) ?? {};
       expect(
         required(fixture).filter((name) => ocsf[name] === undefined),
-      ).toEqual([]);
+      ).toStrictEqual([]);
       expect(
         (fixture.constraints?.at_least_one ?? []).some(
           (name) => ocsf[name] !== undefined,
@@ -416,11 +416,11 @@ describe("Audit path: CloudEvents 1.0.2 and OCSF 1.9.0", () => {
         ) ?? {};
       expect(
         required(fixture).filter((name) => ocsf[name] === undefined),
-      ).toEqual([]);
+      ).toStrictEqual([]);
       expect({
         operation,
         caption: captionOf(fixture, "activity_id", ocsf["activity_id"]),
-      }).toEqual({ operation, caption: expected });
+      }).toStrictEqual({ operation, caption: expected });
       expect(ocsf["type_uid"]).toBe(
         fixture.uid * 100 + Number(ocsf["activity_id"]),
       );
@@ -467,8 +467,8 @@ describe("SSF 1.0 transmitter", () => {
         endpoint: AUDIENCE,
         fetch: (input, init) => handle.push(new Request(input, init)),
       });
-      expect(delivery).toEqual({ ok: true });
+      expect(delivery).toStrictEqual({ ok: true });
     }
-    expect(seen).toEqual(CAEP_EVENTS.map((name) => `${name} u_1`));
+    expect(seen).toStrictEqual(CAEP_EVENTS.map((name) => `${name} u_1`));
   });
 });

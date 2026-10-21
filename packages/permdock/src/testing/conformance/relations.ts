@@ -50,7 +50,9 @@ export function testRelationSource(
       const expected =
         options.expect?.ancestors?.[`${object.resource}:${object.id}`];
       if (expected !== undefined) {
-        expect(full.ancestors.map((ancestor) => ancestor.id)).toEqual(expected);
+        expect(full.ancestors.map((ancestor) => ancestor.id)).toStrictEqual(
+          expected,
+        );
       }
       if (full.ancestors.length > 1) {
         const short = await source.ancestors({
@@ -59,7 +61,7 @@ export function testRelationSource(
           through: "parent",
           depth: 1,
         });
-        expect(short.ancestors.map((ancestor) => ancestor.id)).toEqual([
+        expect(short.ancestors.map((ancestor) => ancestor.id)).toStrictEqual([
           full.ancestors[0]?.id,
         ]);
         expect(short.truncated).toBe(true);
@@ -70,7 +72,7 @@ export function testRelationSource(
         through: "parent",
         depth: 0,
       });
-      expect(none.ancestors).toEqual([]);
+      expect(none.ancestors).toStrictEqual([]);
     }
   });
 
@@ -110,7 +112,7 @@ export function testRelationSource(
           `${object.resource}:${object.id}#${object.relation}`
         ];
       if (expected !== undefined) {
-        expect(holders.map(holderKey).toSorted()).toEqual(
+        expect(holders.map(holderKey).toSorted()).toStrictEqual(
           [...expected].toSorted(),
         );
       }
@@ -134,7 +136,9 @@ export function testRelationSource(
         through,
         depth: 1,
       });
-      expect(linked.ancestors.map((ancestor) => ancestor.id)).toEqual([id]);
+      expect(linked.ancestors.map((ancestor) => ancestor.id)).toStrictEqual([
+        id,
+      ]);
     }
   });
 
@@ -168,11 +172,11 @@ export function testRelationSource(
     expect(
       (await source.ancestors({ ...missing, through: "parent", depth: 16 }))
         .ancestors,
-    ).toEqual([]);
+    ).toStrictEqual([]);
     if (first.relation !== undefined) {
       expect(
         await source.related({ ...missing, relation: first.relation }),
-      ).toEqual([]);
+      ).toStrictEqual([]);
     }
   });
 }

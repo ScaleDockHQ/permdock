@@ -60,15 +60,15 @@ describe("RFC 9068 section 2.2.3.1 with the RFC 7643 section 4.1.2 encoding", ()
         { value: "billing", type: "direct" },
       ],
     });
-    expect(plain.principal?.roles).toEqual(["admin", "billing"]);
-    expect(scim.principal?.roles).toEqual(["admin", "billing"]);
+    expect(plain.principal?.roles).toStrictEqual(["admin", "billing"]);
+    expect(scim.principal?.roles).toStrictEqual(["admin", "billing"]);
   });
 
   it("section 8.2: display is never the identifier, and values without value are dropped", async () => {
     const subject = await mapped({
       roles: [{ display: "admin" }, { value: 7 }, null, "viewer"],
     });
-    expect(subject.principal?.roles).toEqual(["viewer"]);
+    expect(subject.principal?.roles).toStrictEqual(["viewer"]);
   });
 
   it("groups: each group is a membership of the active tenant with roles from groupRoles", async () => {
@@ -80,7 +80,7 @@ describe("RFC 9068 section 2.2.3.1 with the RFC 7643 section 4.1.2 encoding", ()
       { claims: { tenant: "org_id" }, groupRoles: { "9f2c": ["lead"] } },
     );
     expect(subject.principal?.tenant).toBe("o_acme");
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_acme", roles: ["lead"], via: "group:9f2c" },
       { tenant: "o_acme", roles: [], via: "group:1b7e" },
     ]);
@@ -99,14 +99,14 @@ describe("RFC 9068 section 2.2.3.1 with the RFC 7643 section 4.1.2 encoding", ()
       { org_id: "o_acme", groups: [{ value: "9f2c", display: "Design" }] },
       { claims: { tenant: "org_id" }, groupRoles: { Design: ["lead"] } },
     );
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_acme", roles: [], via: "group:9f2c" },
     ]);
   });
 
   it("entitlements: string or SCIM values become principal.plans, not roles", async () => {
     const subject = await mapped({ entitlements: ["pro", { value: "sso" }] });
-    expect(subject.principal?.plans).toEqual(["pro", "sso"]);
+    expect(subject.principal?.plans).toStrictEqual(["pro", "sso"]);
     expect(subject.principal?.roles).toBeUndefined();
   });
 
@@ -143,7 +143,7 @@ describe("Tenant claims: no standard exists, the path is configuration", () => {
       },
       { claims: { memberships: "tenants" } },
     );
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "T1", roles: ["admin"] },
       { tenant: "T2", roles: ["viewer"] },
     ]);
@@ -162,7 +162,7 @@ describe("Tenant claims: no standard exists, the path is configuration", () => {
       },
       { claims: { memberships: "urn:zitadel:iam:org:project:roles" } },
     );
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "2486", roles: ["admin", "viewer"] },
       { tenant: "9001", roles: ["viewer"] },
     ]);
@@ -186,7 +186,7 @@ describe("Tenant claims: no standard exists, the path is configuration", () => {
         { [path]: "o_1" },
         { claims: { tenant: path } },
       );
-      expect({ path, tenant: subject.principal?.tenant }).toEqual({
+      expect({ path, tenant: subject.principal?.tenant }).toStrictEqual({
         path,
         tenant: "o_1",
       });

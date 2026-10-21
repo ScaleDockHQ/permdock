@@ -253,7 +253,10 @@ describe("leveled grant keys across roles", () => {
         .map((match) => match[1] ?? "")
         .filter((key) => key.includes("@"))
         .toSorted();
-    expect(keys("owner")).toEqual(["job.update#1@all", "job.update#1@own"]);
-    expect(keys("admin")).toEqual(keys("owner"));
+    expect(keys("owner")).toStrictEqual([
+      "job.update#1@all",
+      "job.update#1@own",
+    ]);
+    expect(keys("admin")).toStrictEqual(keys("owner"));
   });
 });

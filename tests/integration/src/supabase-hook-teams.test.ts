@@ -103,7 +103,7 @@ describe("supabase.hook.teams", () => {
     const claims = await mint(MEMBER, {
       app_metadata: { active_tenant: "acme" },
     });
-    expect(claims["team_ids"]).toEqual([TEAM(1), TEAM(2)]);
+    expect(claims["team_ids"]).toStrictEqual([TEAM(1), TEAM(2)]);
     expect(claims["memberships_truncated"]).toBeUndefined();
   });
 

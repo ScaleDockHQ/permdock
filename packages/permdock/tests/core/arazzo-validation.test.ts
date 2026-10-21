@@ -110,7 +110,7 @@ describe("Arazzo document validation", () => {
       findings: arazzoFindings({ arazzo, openapi }, permissions),
       outcome: plan.outcome,
       seen,
-    }).toEqual({ findings: [], outcome: "denied", seen: [{ id: "p2" }] });
+    }).toStrictEqual({ findings: [], outcome: "denied", seen: [{ id: "p2" }] });
   });
 });
 
@@ -127,7 +127,7 @@ describe("simulateArazzo without a permission tree", () => {
     expect({
       outcome: plan.outcome,
       permissions: plan.steps[0]?.permissions,
-    }).toEqual({ outcome: "denied", permissions: [] });
+    }).toStrictEqual({ outcome: "denied", permissions: [] });
   });
 
   it("names the requested workflow of an invalid document", () => {
@@ -136,9 +136,9 @@ describe("simulateArazzo without a permission tree", () => {
       permissions,
       decide,
     );
-    expect({ workflowId: plan.workflowId, outcome: plan.outcome }).toEqual({
-      workflowId: "read",
-      outcome: "denied",
-    });
+    expect({
+      workflowId: plan.workflowId,
+      outcome: plan.outcome,
+    }).toStrictEqual({ workflowId: "read", outcome: "denied" });
   });
 });

@@ -65,8 +65,8 @@ describe("grant validity", () => {
     const [read, update] = policy.grants.filter(
       (grant) => grant.effect === "allow" && grant.role === "contractor",
     );
-    expect(read?.validity).toEqual({ from: FROM, until: UNTIL });
-    expect(update?.validity).toEqual({ until: UNTIL });
+    expect(read?.validity).toStrictEqual({ from: FROM, until: UNTIL });
+    expect(update?.validity).toStrictEqual({ until: UNTIL });
     expect(Object.isFrozen(read?.validity)).toBe(true);
   });
 
@@ -143,7 +143,7 @@ describe("grant validity", () => {
       });
       expect(decision.outcome).toBe("denied");
       if (decision.outcome === "denied") {
-        expect(decision.denials).toEqual([
+        expect(decision.denials).toStrictEqual([
           { role: "contractor", reason: "inactive-grant", detail: WINDOW },
         ]);
       }
@@ -159,7 +159,7 @@ describe("grant validity", () => {
       now: at(after),
     });
     expect(explained.outcome).toBe("granted");
-    expect(explained.trace.skipped).toEqual([
+    expect(explained.trace.skipped).toStrictEqual([
       {
         role: "contractor",
         permission: "doc.delete",
@@ -208,10 +208,10 @@ describe("grant validity", () => {
     ] as const;
     expect(
       permdock.simulate(checks, { now: at(during) }).map((d) => d.outcome),
-    ).toEqual(["granted", "granted"]);
+    ).toStrictEqual(["granted", "granted"]);
     expect(
       permdock.simulate(checks, { now: at(after) }).map((d) => d.outcome),
-    ).toEqual(["denied", "denied"]);
+    ).toStrictEqual(["denied", "denied"]);
   });
 
   it("carries validity into the snapshot and evaluates it there", async () => {
@@ -223,7 +223,7 @@ describe("grant validity", () => {
     const read = snapshot.grants.find(
       (grant) => grant.permission === "doc.read",
     );
-    expect(read?.validity).toEqual(WINDOW);
+    expect(read?.validity).toStrictEqual(WINDOW);
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.doc.read, doc, { now: at(during) })).toBe(
       true,
@@ -284,7 +284,7 @@ describe("grant validity", () => {
       id: "u1",
       roles: ["contractor"],
     });
-    expect(permdock.where(permissions.doc.read).condition).toEqual({
+    expect(permdock.where(permissions.doc.read).condition).toStrictEqual({
       op: "or",
       conditions: [],
     });

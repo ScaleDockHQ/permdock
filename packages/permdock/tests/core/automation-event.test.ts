@@ -67,7 +67,9 @@ describe("automation sink events", () => {
         subject: "auto_1",
         dataschema: EVENT_SCHEMA_IDS.automation,
       });
-      expect(parseCloudEvent(JSON.parse(JSON.stringify(cloud)))).toEqual(cloud);
+      expect(parseCloudEvent(JSON.parse(JSON.stringify(cloud)))).toStrictEqual(
+        cloud,
+      );
     }
   });
 
@@ -78,7 +80,7 @@ describe("automation sink events", () => {
       run: "run_1",
       at,
     });
-    expect(event).toEqual({
+    expect(event).toStrictEqual({
       type: "automation",
       at,
       source: "permdock",
@@ -130,7 +132,7 @@ describe("support session sink events", () => {
       source: "app",
       at,
     });
-    expect(started).toEqual({
+    expect(started).toStrictEqual({
       type: "access",
       at,
       source: "app",
@@ -147,7 +149,9 @@ describe("support session sink events", () => {
     });
     const cloud = toCloudEvent(started, { source });
     expect(cloud.type).toBe(CLOUD_EVENT_TYPES.supportSessionStarted);
-    expect(parseCloudEvent(JSON.parse(JSON.stringify(cloud)))).toEqual(cloud);
+    expect(parseCloudEvent(JSON.parse(JSON.stringify(cloud)))).toStrictEqual(
+      cloud,
+    );
     const ended = supportSessionEvent({ operation: "revoked", session });
     expect(toCloudEvent(ended, { source }).type).toBe(
       CLOUD_EVENT_TYPES.supportSessionEnded,

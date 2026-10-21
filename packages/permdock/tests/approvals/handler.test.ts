@@ -134,9 +134,15 @@ describe("approvalsHandler GET by id", () => {
     const wrong = await handler(
       new Request(`${BASE}/own`, { method: "DELETE" }),
     );
-    expect([wrong.status, wrong.headers.get("allow")]).toEqual([405, "GET"]);
+    expect([wrong.status, wrong.headers.get("allow")]).toStrictEqual([
+      405,
+      "GET",
+    ]);
     const post = await handler(new Request(`${BASE}/own/approve`));
-    expect([post.status, post.headers.get("allow")]).toEqual([405, "POST"]);
+    expect([post.status, post.headers.get("allow")]).toStrictEqual([
+      405,
+      "POST",
+    ]);
     const unknown = await handler(new Request("https://api.example.com/"));
     expect(unknown.status).toBe(404);
     expect(await unknown.json()).toMatchObject({ type: "about:blank" });
@@ -211,7 +217,7 @@ describe("approvalsHandler inbox", () => {
       status: response.status,
       paged: body.items.length <= 1,
       next: typeof body.next,
-    }).toEqual({ status: 200, paged: true, next: "string" });
+    }).toStrictEqual({ status: 200, paged: true, next: "string" });
     const next = new URL(`${BASE}/pending?limit=1`);
     next.searchParams.set("cursor", body.next ?? "");
     expect(response.headers.get("link")).toBe(`<${next.href}>; rel="next"`);
@@ -245,7 +251,10 @@ describe("approvalsHandler HTTP semantics", () => {
         headers: { "if-none-match": `W/${etag ?? ""}` },
       }),
     );
-    expect([cached.status, cached.headers.get("etag")]).toEqual([304, etag]);
+    expect([cached.status, cached.headers.get("etag")]).toStrictEqual([
+      304,
+      etag,
+    ]);
   });
 
   it("answers 412 when If-Match names another version", async () => {
@@ -297,8 +306,8 @@ describe("approvalsHandler HTTP semantics", () => {
       );
     const first = await approve('"k-1"', "ok");
     const retry = await approve('"k-1"', "ok");
-    expect([first.status, retry.status]).toEqual([200, 200]);
-    expect(await retry.json()).toEqual(await first.json());
+    expect([first.status, retry.status]).toStrictEqual([200, 200]);
+    expect(await retry.json()).toStrictEqual(await first.json());
     expect(retry.headers.get("etag")).toBe(first.headers.get("etag"));
     const reused = await approve('"k-1"', "changed");
     expect(reused.status).toBe(422);
@@ -331,7 +340,7 @@ describe("approvalsHandler HTTP semantics", () => {
       signature.status,
       signature.headers.get("content-type"),
       await signature.text(),
-    ]).toEqual([200, "application/jwt", "signed.closed"]);
+    ]).toStrictEqual([200, "application/jwt", "signed.closed"]);
     expect(
       (await handler(new Request(`${BASE}/missing/signature`))).status,
     ).toBe(404);

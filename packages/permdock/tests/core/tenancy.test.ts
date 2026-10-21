@@ -30,7 +30,7 @@ describe("tenancy", () => {
     };
     expect(resolveActiveTenant(principal, "o2", scopes)).toBeUndefined();
     expect(resolveActiveTenant(principal, "o1", scopes)).toBe("o1");
-    expect(tenantsOf(principal, scopes)).toEqual(["o1"]);
+    expect(tenantsOf(principal, scopes)).toStrictEqual(["o1"]);
   });
 
   it("matches tenant, team and expired memberships", () => {
@@ -89,7 +89,7 @@ describe("tenancy", () => {
         new Map(),
         now,
       ),
-    ).toEqual({ ok: false, reason: "tenant-mismatch" });
+    ).toStrictEqual({ ok: false, reason: "tenant-mismatch" });
     expect(
       matchScopedMembership(
         subject,
@@ -159,7 +159,7 @@ describe("tenancy", () => {
     const where = permdock.where(permissions.file.read);
     expect(where.subject?.principal?.id).toBe("u1");
     expect(Object.keys(where)).not.toContain("subject");
-    expect(where.condition).toEqual({
+    expect(where.condition).toStrictEqual({
       op: "eq",
       field: "folderId",
       value: "f1",
@@ -226,7 +226,7 @@ describe("tenancy", () => {
     expect(
       docFor({ resource: "project", id: "p1" }).where(permissions.doc.read)
         .condition,
-    ).toEqual({ op: "eq", field: "projectId", value: "p1" });
+    ).toStrictEqual({ op: "eq", field: "projectId", value: "p1" });
     expect(
       docFor({ resource: "doc", id: "d1" }).can(permissions.doc.read, row),
     ).toBe(false);

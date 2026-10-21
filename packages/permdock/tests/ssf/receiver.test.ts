@@ -187,10 +187,10 @@ describe("receiver.push transport", () => {
   ])("refuses %s", async (_label, request, body) => {
     const { receiver } = receiverOf();
     const response = await receiver.push(request);
-    expect({ status: response.status, body: await json(response) }).toEqual({
-      status: 400,
-      body,
-    });
+    expect({
+      status: response.status,
+      body: await json(response),
+    }).toStrictEqual({ status: 400, body });
   });
 
   it("refuses a request without a content type", async () => {
@@ -208,7 +208,7 @@ describe("receiver.push transport", () => {
     ["missing events", set({ events: "x" }), "missing events"],
   ])("refuses a SET with %s", async (_label, token, description) => {
     const { receiver } = receiverOf();
-    expect(await json(await receiver.push(push(token)))).toEqual({
+    expect(await json(await receiver.push(push(token)))).toStrictEqual({
       err: "invalid_request",
       description,
     });
@@ -220,11 +220,10 @@ describe("receiver.push transport", () => {
     ["expired", "invalid_request"],
   ])("maps a %s failure to %s", async (cause, err) => {
     const { receiver, audit } = receiverOf();
-    expect(await json(await receiver.push(push(`fail:${cause}`)))).toEqual({
-      err,
-      description: cause,
-    });
-    expect(audit).toEqual([{ type: "verification-failed", err, cause }]);
+    expect(
+      await json(await receiver.push(push(`fail:${cause}`))),
+    ).toStrictEqual({ err, description: cause });
+    expect(audit).toStrictEqual([{ type: "verification-failed", err, cause }]);
   });
 });
 
@@ -302,12 +301,12 @@ describe("receiver.push events", () => {
         }),
       ),
     );
-    expect(subjects).toEqual([
+    expect(subjects).toStrictEqual([
       { format: "opaque", id: "j-a" },
       { format: "complex", session: { format: "opaque", id: "sess-1" } },
       { format: "opaque", id: "j-c" },
     ]);
-    expect(sessions).toEqual([undefined, "explicit", undefined]);
+    expect(sessions).toStrictEqual([undefined, "explicit", undefined]);
   });
 
   it.each<[string, unknown]>([
@@ -328,7 +327,7 @@ describe("receiver.push events", () => {
       );
       expect(response.status).toBe(202);
       expect(handler).not.toHaveBeenCalled();
-      expect(audit).toEqual([
+      expect(audit).toStrictEqual([
         {
           type: "session-revoked",
           transmitter: ISSUER,
@@ -355,10 +354,10 @@ describe("receiver.push events", () => {
         }),
       ),
     );
-    expect(revoked).toEqual([
+    expect(revoked).toStrictEqual([
       { principal: "u1", session: "s1", kind: "session-revoked" },
     ]);
-    expect(audit.map((event) => [event.type, event.unknown])).toEqual([
+    expect(audit.map((event) => [event.type, event.unknown])).toStrictEqual([
       ["session-revoked", "event"],
       ["device-compliance-change", "event"],
     ]);
@@ -397,7 +396,7 @@ describe("receiver.push events", () => {
       ),
     );
     expect(stale.status).toBe(400);
-    expect(dispatched).toEqual([]);
+    expect(dispatched).toStrictEqual([]);
   });
 
   it("keeps a SET replay-protected until it would no longer verify", async () => {
@@ -436,7 +435,7 @@ describe("receiver.push events", () => {
         }),
       ),
     );
-    expect(remembered).toEqual([
+    expect(remembered).toStrictEqual([
       NOW + DEFAULT_SET_MAX_AGE + 60,
       NOW - 120 + DEFAULT_SET_MAX_AGE + 60,
       NOW + 5 + 60,
@@ -463,10 +462,10 @@ describe("receiver.logout", () => {
   ])("refuses %s", async (_label, request) => {
     const { receiver } = receiverOf();
     const response = await receiver.logout(request);
-    expect({ status: response.status, body: await json(response) }).toEqual({
-      status: 400,
-      body: { error: "invalid_request" },
-    });
+    expect({
+      status: response.status,
+      body: await json(response),
+    }).toStrictEqual({ status: 400, body: { error: "invalid_request" } });
   });
 
   it("joins on sid alone as an opaque subject", async () => {
@@ -483,8 +482,8 @@ describe("receiver.logout", () => {
       logout(logoutClaims({ sub: "", sid: "s-1" })),
     );
     expect(response.status).toBe(200);
-    expect(subjects).toEqual([{ format: "opaque", id: "s-1" }]);
-    expect(seen).toEqual([{ id: "u1", session: "s-1", issuer: ISSUER }]);
+    expect(subjects).toStrictEqual([{ format: "opaque", id: "s-1" }]);
+    expect(seen).toStrictEqual([{ id: "u1", session: "s-1", issuer: ISSUER }]);
   });
 
   it("acknowledges an unknown subject and a replayed logout", async () => {
@@ -495,7 +494,7 @@ describe("receiver.logout", () => {
     });
     expect((await receiver.logout(logout(token))).status).toBe(200);
     expect((await receiver.logout(logout(token))).status).toBe(200);
-    expect(audit).toEqual([
+    expect(audit).toStrictEqual([
       {
         type: "session-revoked",
         transmitter: ISSUER,
@@ -537,12 +536,12 @@ describe("receiver.poll", () => {
       token: "poll-token",
       fetch: transport.fetch,
     });
-    expect(result).toEqual({ acked: ["j1"] });
-    expect(transport.headers).toEqual([
+    expect(result).toStrictEqual({ acked: ["j1"] });
+    expect(transport.headers).toStrictEqual([
       "Bearer poll-token",
       "Bearer poll-token",
     ]);
-    expect(transport.bodies[1]).toEqual({
+    expect(transport.bodies[1]).toStrictEqual({
       acks: ["j1"],
       setErrs: { j2: { err: "invalid_key", description: "invalid-signature" } },
       maxEvents: 0,
@@ -565,7 +564,7 @@ describe("receiver.poll", () => {
         endpoint: "https://idp.example/poll",
         fetch: fetchFn,
       }),
-    ).toEqual({ acked: [] });
+    ).toStrictEqual({ acked: [] });
     expect(fetchFn).toHaveBeenCalledOnce();
     expect(audit.length).toBeLessThanOrEqual(1);
   });
@@ -679,15 +678,14 @@ describe("SSF wire helpers", () => {
 
 describe("SSF claim helpers", () => {
   it("merges a mapped subject with the event session and issuer", () => {
-    expect(asSubject({ id: "u", session: "own" }, "s", "iss")).toEqual({
+    expect(asSubject({ id: "u", session: "own" }, "s", "iss")).toStrictEqual({
       id: "u",
       session: "own",
       issuer: "iss",
     });
-    expect(asSubject({ id: "u", issuer: "mine" }, undefined, "iss")).toEqual({
-      id: "u",
-      issuer: "mine",
-    });
+    expect(
+      asSubject({ id: "u", issuer: "mine" }, undefined, "iss"),
+    ).toStrictEqual({ id: "u", issuer: "mine" });
   });
 
   it.each<[Record<string, unknown>, SetSubject | undefined]>([
@@ -706,17 +704,16 @@ describe("SSF claim helpers", () => {
     [{ sub: "" }, undefined],
     [{}, undefined],
   ])("setSubjectFromClaims(%j)", (claims, subject) => {
-    expect(setSubjectFromClaims(claims)).toEqual(subject);
+    expect(setSubjectFromClaims(claims)).toStrictEqual(subject);
   });
 
   it("reads event sessions and subjects", () => {
     expect(eventSession({ session: "s", sid: "x" })).toBe("s");
     expect(eventSession({ session: "", sid: "x" })).toBe("x");
     expect(eventSession({ sid: "" })).toBeUndefined();
-    expect(eventSubject({ subject: { format: "opaque", id: "a" } })).toEqual({
-      format: "opaque",
-      id: "a",
-    });
+    expect(
+      eventSubject({ subject: { format: "opaque", id: "a" } }),
+    ).toStrictEqual({ format: "opaque", id: "a" });
     expect(eventSubject({ subject: { id: "a" } })).toBeUndefined();
     expect(eventSubject({ subject: "a" })).toBeUndefined();
     expect(subjectSession({ format: "opaque", id: "x" })).toBeUndefined();
@@ -737,6 +734,6 @@ describe("SSF claim helpers", () => {
     store.remember("b");
     expect(store.seen("a")).toBe(true);
     vi.setSystemTime((NOW + 11) * 1000);
-    expect([store.seen("a"), store.seen("b")]).toEqual([false, true]);
+    expect([store.seen("a"), store.seen("b")]).toStrictEqual([false, true]);
   });
 });

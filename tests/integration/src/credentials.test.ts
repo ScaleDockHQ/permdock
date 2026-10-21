@@ -210,11 +210,10 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
     expect(row.rows[0]?.hash).toHaveLength(43);
     expect(JSON.stringify(row.rows[0])).not.toContain(key.slice(-43));
     const permdock = await permdockFor(key);
-    expect(permdock.filter(repo.read, await repos()).map((r) => r.id)).toEqual([
-      "r_1",
-      "r_2",
-    ]);
-    expect(permdock.filter(repo.write, await repos())).toEqual([]);
+    expect(
+      permdock.filter(repo.read, await repos()).map((r) => r.id),
+    ).toStrictEqual(["r_1", "r_2"]);
+    expect(permdock.filter(repo.write, await repos())).toStrictEqual([]);
   });
 
   it("follows the owner live rights: a demotion reaches the key on the next request", async () => {
@@ -291,9 +290,9 @@ describe("API keys stored as SHA-256 hashes in Postgres", () => {
     const key = await store(decision.credential);
     const permdock = await permdockFor(key);
     expect(permdock.subject.principal?.kind).toBe("service");
-    expect(permdock.filter(repo.write, await repos()).map((r) => r.id)).toEqual(
-      ["r_1"],
-    );
+    expect(
+      permdock.filter(repo.write, await repos()).map((r) => r.id),
+    ).toStrictEqual(["r_1"]);
     await db.admin.query(
       "update api_keys set revoked_at = now() where id = 'svc_ci'",
     );

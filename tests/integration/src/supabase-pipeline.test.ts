@@ -103,7 +103,7 @@ describe("withPermDock composed with @supabase/server entries", () => {
     const bob = await call(fetch, {
       authorization: `Bearer ${await signSaasToken("bob")}`,
     });
-    expect(await bob.json()).toEqual({
+    expect(await bob.json()).toStrictEqual({
       principal: "bob",
       update: true,
       delete: true,
@@ -121,7 +121,7 @@ describe("withPermDock composed with @supabase/server entries", () => {
     );
     const key = await call(fetch, { apikey: secret });
     expect(key.status).toBe(200);
-    expect(await key.json()).toEqual({
+    expect(await key.json()).toStrictEqual({
       principal: "svc_billing",
       update: true,
       delete: false,
@@ -179,7 +179,7 @@ describe("@supabase/middleware entries in Hono through the pipeline bridge", () 
   it("publishes jwtClaims and permdock on c.var", async () => {
     const response = await patch("own", await token("u1"));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, by: "u1" });
+    expect(await response.json()).toStrictEqual({ ok: true, by: "u1" });
   });
 
   it("denies another author's post", async () => {

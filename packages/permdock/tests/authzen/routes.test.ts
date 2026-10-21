@@ -72,7 +72,7 @@ describe("AuthZEN routing", () => {
     expect([
       [discovery.status, discovery.headers.get("allow")],
       [evaluation.status, evaluation.headers.get("allow")],
-    ]).toEqual([
+    ]).toStrictEqual([
       [405, "GET"],
       [405, "POST"],
     ]);
@@ -87,7 +87,7 @@ describe("AuthZEN routing", () => {
     expect({
       status: response.status,
       id: response.headers.get("x-request-id"),
-    }).toEqual({ status: 404, id: "r-1" });
+    }).toStrictEqual({ status: 404, id: "r-1" });
     const blank = await pdp()(
       new Request(`${ORIGIN}/nope`, { headers: { "x-request-id": "" } }),
     );
@@ -269,7 +269,7 @@ describe("AuthZEN evaluations", () => {
     const rows = body["evaluations"] as readonly {
       readonly decision: boolean;
     }[];
-    expect(rows.map((row) => row.decision)).toEqual(decisions);
+    expect(rows.map((row) => row.decision)).toStrictEqual(decisions);
   });
 
   it("defaults to execute_all when options carry no semantic", async () => {
@@ -321,7 +321,10 @@ describe("AuthZEN search", () => {
     ]) {
       expect(
         await json(await handle(post("/access/v1/search/resource", body))),
-      ).toEqual({ results: [], page: { next_token: "", count: 0, total: 0 } });
+      ).toStrictEqual({
+        results: [],
+        page: { next_token: "", count: 0, total: 0 },
+      });
     }
   });
 
@@ -352,7 +355,7 @@ describe("AuthZEN search", () => {
         resource: { type: "post" },
       }),
     );
-    expect((await json(denied))["results"]).toEqual([]);
+    expect((await json(denied))["results"]).toStrictEqual([]);
   });
 
   it("answers no rows without a list adapter or when it throws", async () => {
@@ -373,7 +376,7 @@ describe("AuthZEN search", () => {
           resource: { type: "post" },
         }),
       );
-      expect((await json(response))["results"]).toEqual([]);
+      expect((await json(response))["results"]).toStrictEqual([]);
     }
   });
 
@@ -390,13 +393,13 @@ describe("AuthZEN search", () => {
     const agents = await pdp({ subjects: { list: () => subjects } })(
       post("/access/v1/search/subject", body),
     );
-    expect((await json(agents))["results"]).toEqual([]);
+    expect((await json(agents))["results"]).toStrictEqual([]);
     const failing = await pdp({
       subjects: { list: () => Promise.reject(new Error("down")) },
     })(
       post("/access/v1/search/subject", { ...body, subject: { type: "user" } }),
     );
-    expect((await json(failing))["results"]).toEqual([]);
+    expect((await json(failing))["results"]).toStrictEqual([]);
     const notConfigured = await pdp()(post("/access/v1/search/subject", body));
     expect(notConfigured.status).toBe(404);
   });

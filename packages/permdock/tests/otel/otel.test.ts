@@ -184,7 +184,7 @@ describe("permdock/otel", () => {
       "permdock.resource.id": ownPost.id,
       "permdock.subject.id": memberUser.id,
     });
-    expect(counters).toEqual([
+    expect(counters).toStrictEqual([
       {
         name: "permdock.decisions",
         value: 1,
@@ -303,7 +303,7 @@ describe("permdock/otel", () => {
     const permdock = getPermDockSync(policy, memberUser);
     instrument(permdock, { api, errorOnDeny: true });
     permdock.decide(permissions.post.publish, ownPost);
-    expect(spans[0]?.status).toEqual({ code: 2 });
+    expect(spans[0]?.status).toStrictEqual({ code: 2 });
   });
 
   it("redacts extra attributes and warns on unmatched paths", async () => {

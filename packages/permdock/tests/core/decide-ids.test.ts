@@ -54,8 +54,8 @@ describe("decideIds", () => {
         },
       },
     );
-    expect(seen).toEqual([["d2", "d1"]]);
-    expect(outcomes(decisions)).toEqual(["denied", "granted"]);
+    expect(seen).toStrictEqual([["d2", "d1"]]);
+    expect(outcomes(decisions)).toStrictEqual(["denied", "granted"]);
   });
 
   it("accepts a map and denies an id with no row as validation", async () => {
@@ -64,7 +64,7 @@ describe("decideIds", () => {
       ["d1", "d9"],
       { data: () => new Map(rows.map((row) => [row.id, row])) },
     );
-    expect(outcomes(decisions)).toEqual(["granted", "denied"]);
+    expect(outcomes(decisions)).toStrictEqual(["granted", "denied"]);
     expect(decisions[1]).toMatchObject({ denials: [{ reason: "validation" }] });
   });
 

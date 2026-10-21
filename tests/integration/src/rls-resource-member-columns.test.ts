@@ -67,7 +67,7 @@ describe("a resource memberships table with the row's column names", () => {
     ["carol", "project", []],
     ["carol", "task", []],
   ])("%s reads only their own %s rows", async (user, table, expected) => {
-    expect(await visible(user, table)).toEqual(expected);
+    expect(await visible(user, table)).toStrictEqual(expected);
   });
 
   it("matches the in-process decision", async () => {
@@ -85,6 +85,6 @@ describe("a resource memberships table with the row's column names", () => {
       rows
         .filter((row) => alice.can(permissions.task.read, row))
         .map((row) => row.id),
-    ).toEqual(await visible("alice", "task"));
+    ).toStrictEqual(await visible("alice", "task"));
   });
 });

@@ -291,7 +291,7 @@ describe("createClientStore snapshot sources", () => {
   it("exposes the latest snapshot and the current client", async () => {
     const snapshot = await memberSnapshot();
     const store = createClientStore({ snapshot, server: false });
-    expect(store.snapshot()).toEqual(snapshot);
+    expect(store.snapshot()).toStrictEqual(snapshot);
     const first = store.get();
     store.replace(signedIn("u2"));
     // SAFETY: the store defines this symbol as a function returning the latest client.
@@ -540,7 +540,7 @@ describe("createClientStore endpoint evaluations", () => {
     await store.get().refresh();
     token = "two";
     await store.get().refresh();
-    expect(seen).toEqual(["Bearer one", "Bearer two"]);
+    expect(seen).toStrictEqual(["Bearer one", "Bearer two"]);
   });
 
   it("stops persisting and refreshing after dispose", async () => {
@@ -677,7 +677,7 @@ describe("createClientStore invalidate and refresh", () => {
       },
     });
     await store.get().refresh({ tenant: "globex" });
-    expect(urls).toEqual(["/api/snapshot?v=1&tenant=globex#top"]);
+    expect(urls).toStrictEqual(["/api/snapshot?v=1&tenant=globex#top"]);
     expect(store.get().status()).toBe("ready");
   });
 
@@ -706,7 +706,7 @@ describe("createClientStore invalidate and refresh", () => {
     });
     for (let attempt = 0; attempt < 3; attempt += 1) {
       await store.get().refresh();
-      expect({ attempt, status: store.get().status() }).toEqual({
+      expect({ attempt, status: store.get().status() }).toStrictEqual({
         attempt,
         status: "stale",
       });
@@ -964,7 +964,7 @@ describe("createClientStore approval edge cases", () => {
       fetch,
     });
     await viaEndpoint.requestApproval(required, "note");
-    expect(posts).toEqual([
+    expect(posts).toStrictEqual([
       [
         "/api/permdock",
         { permission: "post.publish", token: "pd1.token/one", note: "note" },

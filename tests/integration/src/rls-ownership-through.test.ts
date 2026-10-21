@@ -115,9 +115,9 @@ describe("ownership triggers over a role column through a roles table", () => {
         "select array(select permdock.permitted_org_ids($1)) as ok",
         [key],
       );
-    expect(await permitted("u1", "payment.approve")).toEqual(["o1"]);
-    expect(await permitted("u2", "payment.approve")).toEqual([]);
-    expect(await permitted("u2", "payment.read")).toEqual(["o1"]);
+    expect(await permitted("u1", "payment.approve")).toStrictEqual(["o1"]);
+    expect(await permitted("u2", "payment.approve")).toStrictEqual([]);
+    expect(await permitted("u2", "payment.read")).toStrictEqual(["o1"]);
   });
 
   it("compiles a resource membership condition through the roles table", async () => {
@@ -127,7 +127,7 @@ describe("ownership triggers over a role column through a roles table", () => {
         { role: "authenticated", settings: { "app.user_id": user } },
         "select id from ledger order by id",
       );
-    expect(await visible("u1")).toEqual(["l1"]);
-    expect(await visible("u2")).toEqual([]);
+    expect(await visible("u1")).toStrictEqual(["l1"]);
+    expect(await visible("u2")).toStrictEqual([]);
   });
 });

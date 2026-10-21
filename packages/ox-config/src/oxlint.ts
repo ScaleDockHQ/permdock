@@ -447,6 +447,7 @@ export const test: OxlintConfig = defineConfig({
     // Test files never import each other, so a focused or skipped case is always a mistake.
     "vitest/no-focused-tests": "error",
     "vitest/no-disabled-tests": "error",
+    "vitest/prefer-strict-equal": "error",
   },
 });
 

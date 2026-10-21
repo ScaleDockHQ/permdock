@@ -109,7 +109,7 @@ describe("principalSource", () => {
       },
     });
     expect(await wrong.principal(USER, { tenant: ORG })).toBeNull();
-    expect(asked).toEqual([[USER, { tenant: ORG }]]);
+    expect(asked).toStrictEqual([[USER, { tenant: ORG }]]);
   });
 
   it("has no principalByIdentity without identities", () => {

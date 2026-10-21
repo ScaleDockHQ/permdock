@@ -82,7 +82,7 @@ describe("cloudSigner", () => {
       { sub: "run_1", iss: "https://forged.example", run: { id: "run_1" } },
       { typ: "vnd.permdock.run+jwt", jti: "run_1" },
     );
-    expect(fake.signed).toEqual([
+    expect(fake.signed).toStrictEqual([
       {
         typ: "vnd.permdock.run+jwt",
         claims: { sub: "run_1", run: { id: "run_1" } },
@@ -125,7 +125,7 @@ describe("cloudSigner", () => {
     await expect(
       signer.sign({}, { typ: "vnd.permdock.run+jwt" }),
     ).rejects.toThrow(/requires an audience/u);
-    expect(fake.signed).toEqual([]);
+    expect(fake.signed).toStrictEqual([]);
   });
 
   it("throws when the Cloud refuses or returns a token of another type", async () => {
@@ -165,6 +165,6 @@ describe("cloudSigner", () => {
       key: KEY,
       fetch: () => Promise.reject(new TypeError("fetch failed")),
     });
-    expect(await signer.jwks?.()).toEqual({ keys: [] });
+    expect(await signer.jwks?.()).toStrictEqual({ keys: [] });
   });
 });

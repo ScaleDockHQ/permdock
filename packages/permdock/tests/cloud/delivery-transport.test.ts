@@ -121,8 +121,8 @@ describe("cloudDeliveryTransport", () => {
       idempotencyKey: "pdd_abc",
       delivery: "dlv_1",
     });
-    expect(result).toEqual({ status: "sent", providerId: "cdl_1" });
-    expect(fake.posted).toEqual([
+    expect(result).toStrictEqual({ status: "sent", providerId: "cdl_1" });
+    expect(fake.posted).toStrictEqual([
       {
         idempotencyKey: "pdd_abc",
         body: {
@@ -161,7 +161,7 @@ describe("cloudDeliveryTransport", () => {
           outgoing,
           { idempotencyKey: "pdd_abc", delivery: "dlv_1" },
         ),
-      ).toEqual({
+      ).toStrictEqual({
         status: "failed",
         cause,
         retryable,
@@ -183,7 +183,7 @@ describe("cloudDeliveryTransport", () => {
       status: "failed",
       cause: "invalid-recipient",
     });
-    expect(fake.posted).toEqual([]);
+    expect(fake.posted).toStrictEqual([]);
   });
 
   it("requires a key", () => {

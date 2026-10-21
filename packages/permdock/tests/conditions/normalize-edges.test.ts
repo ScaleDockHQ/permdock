@@ -25,7 +25,7 @@ describe("normalizeWhere edges", () => {
     const nested = normalizeWhere({ or: [{ a: 1 }, { or: [{ b: 2 }] }] });
     expect(nested.op).toBe("or");
     expect(JSON.stringify(principal.id)).toContain("principal.id");
-    expect(Object.keys(principal.id)).toEqual(["ref"]);
+    expect(Object.keys(principal.id)).toStrictEqual(["ref"]);
     // SAFETY: deliberately a symbol key, to check the reference proxy ignores symbols.
     expect(
       principal.id[Symbol.toStringTag as unknown as string],

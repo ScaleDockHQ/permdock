@@ -113,8 +113,8 @@ describe("hosted grants", () => {
     expect(decision.outcome).toBe("granted");
     expect(
       decision.outcome === "granted" ? decision.matched.hosted : undefined,
-    ).toEqual({ document: "fp_doc_1", grant: "g_pro_audit" });
-    expect(errors).toEqual([]);
+    ).toStrictEqual({ document: "fp_doc_1", grant: "g_pro_audit" });
+    expect(errors).toStrictEqual([]);
     const free = await withDocument(member, [
       {
         id: "g_pro_audit",
@@ -204,7 +204,7 @@ describe("hosted grants", () => {
     // SAFETY: every 'error' event for a rejected hosted grant carries a reason string.
     expect(
       errors.map((error) => (error as { readonly reason: string }).reason),
-    ).toEqual([
+    ).toStrictEqual([
       "unknown-permission",
       "unknown-grantee",
       "unknown-grantee",
@@ -234,7 +234,7 @@ describe("hosted grants", () => {
     // SAFETY: every 'error' event for a rejected hosted grant carries a reason string.
     expect(
       errors.map((error) => (error as { readonly reason: string }).reason),
-    ).toEqual(["weaker-approval"]);
+    ).toStrictEqual(["weaker-approval"]);
   });
 
   it("drops a hosted approval with a malformed quorum, ttl or escalation, and one with fewer approvers than the code requires", async () => {
@@ -318,7 +318,9 @@ describe("hosted grants", () => {
         },
       ]),
     );
-    expect(merged.dropped.map((item) => [item.grant, item.reason])).toEqual([
+    expect(
+      merged.dropped.map((item) => [item.grant, item.reason]),
+    ).toStrictEqual([
       ["g_zero", "invalid"],
       ["g_ttl", "invalid"],
       ["g_escalation", "invalid"],
@@ -364,7 +366,9 @@ describe("hosted grants", () => {
         },
       ]),
     );
-    expect(merged.dropped.map((item) => [item.grant, item.reason])).toEqual([
+    expect(
+      merged.dropped.map((item) => [item.grant, item.reason]),
+    ).toStrictEqual([
       ["g_stages", "invalid"],
       ["g_single", "weaker-approval"],
     ]);
@@ -480,7 +484,7 @@ describe("hosted grants", () => {
     const event = sink.events().find((item) => item.type === "decision");
     expect(
       event?.type === "decision" ? event.matched?.hosted : undefined,
-    ).toEqual({ document: "fp_doc_1", grant: "g" });
+    ).toStrictEqual({ document: "fp_doc_1", grant: "g" });
   });
 
   it("rejects unknown document versions and unsafe keys", () => {
@@ -573,7 +577,7 @@ describe("hosted approvals that go stale on a resource change", () => {
           approval: { staleOn: "resource-change" },
         },
       ]),
-    ).toEqual(["weaker-approval"]);
+    ).toStrictEqual(["weaker-approval"]);
   });
 
   it("drops staleOn on a resource without version or with an unknown value", async () => {
@@ -592,7 +596,7 @@ describe("hosted approvals that go stale on a resource change", () => {
           approval: { staleOn: "always" },
         },
       ]),
-    ).toEqual(["invalid", "invalid"]);
+    ).toStrictEqual(["invalid", "invalid"]);
   });
 });
 
@@ -602,11 +606,11 @@ describe("policy index", () => {
       grantList(policy).map((grant) => grant.permission.key),
     );
     for (const key of keys) {
-      expect(policy.index.grantsByKey.get(key)).toEqual(
+      expect(policy.index.grantsByKey.get(key)).toStrictEqual(
         grantList(policy).filter((grant) => grant.permission.key === key),
       );
     }
-    expect([...policy.index.declaredRoles].toSorted()).toEqual([
+    expect([...policy.index.declaredRoles].toSorted()).toStrictEqual([
       "auditor",
       "member",
     ]);
@@ -628,7 +632,7 @@ describe("policy index", () => {
       merged.policy.index.grantsByKey
         .get("invoice.export")
         ?.map((grant) => grant.hosted?.grant),
-    ).toEqual(["g_export"]);
+    ).toStrictEqual(["g_export"]);
   });
 });
 
@@ -668,14 +672,21 @@ describe("hosted grant validation", () => {
         grants: [],
       }),
     ).toThrow(/malformed policy document/u);
-    expect(mergeHostedGrants(policy, null)).toEqual({ policy, dropped: [] });
+    expect(mergeHostedGrants(policy, null)).toStrictEqual({
+      policy,
+      dropped: [],
+    });
   });
 
   it("rebuilds a document from verified claims, taking id from jti and issuedAt from iat", () => {
     const claim = { v: 1, fingerprint: "f", catalog: "c", grants: [] };
     expect(
       policyDocumentFromClaims({ policy: claim, jti: "d", iat: 1 }),
-    ).toEqual({ ...claim, id: "d", issuedAt: "1970-01-01T00:00:01.000Z" });
+    ).toStrictEqual({
+      ...claim,
+      id: "d",
+      issuedAt: "1970-01-01T00:00:01.000Z",
+    });
     for (const claims of [
       { policy: claim, iat: 1 },
       { policy: claim, jti: "d" },
@@ -701,7 +712,7 @@ describe("hosted grant validation", () => {
         { id: "no-to", permission: "invoice.read" },
         { id: "empty-to", permission: "invoice.read", to: [] },
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       ["", "invalid"],
       ["", "invalid"],
       ["effect", "invalid"],
@@ -727,7 +738,7 @@ describe("hosted grant validation", () => {
           approval: { by: forged },
         },
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       ["forged-to", "unknown-grantee"],
       ["forged-list", "unknown-grantee"],
       ["forged-by", "invalid"],
@@ -760,7 +771,7 @@ describe("hosted grant validation", () => {
         grant("fields", { fields: ["ownerId"] }),
         grant("check", { check: { op: "eq", field: "locked", value: false } }),
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       ["approval-number", "invalid"],
       ["distinct-string", "invalid"],
       ["empty-by", "invalid"],
@@ -807,7 +818,7 @@ describe("hosted grant validation", () => {
         grant("authenticated", { kind: "authenticated" }),
         grant("mixed", [toMember, { kind: "plan", plan: "pro" }]),
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       ["plan", "unknown-grantee"],
       ["other-resource", "unknown-grantee"],
       ["unknown-relation", "unknown-grantee"],
@@ -861,10 +872,10 @@ describe("hosted grant validation", () => {
       ).dropped.map((item) => item.reason);
     expect(
       drop({ by: { kind: "role", role: "member", scope: "global" } }),
-    ).toEqual(["weaker-approval"]);
+    ).toStrictEqual(["weaker-approval"]);
     expect(
       drop({ by: { kind: "role", role: "auditor", scope: "global" } }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 

@@ -68,9 +68,9 @@ describe("missingHelpersInFiles", () => {
       "supabase/migrations/0002_hook.sql":
         "create function member_org_ids_for(p uuid) returns setof uuid as $$ $$;",
     });
-    expect(missingHelpersInFiles(cwd, config, manifestOf("public"))).toEqual([
-      "member_org_ids_for",
-    ]);
+    expect(
+      missingHelpersInFiles(cwd, config, manifestOf("public")),
+    ).toStrictEqual(["member_org_ids_for"]);
   });
 
   it("needs the schema qualifier outside public and reads rls.out", () => {
@@ -84,7 +84,7 @@ describe("missingHelpersInFiles", () => {
         { rls: { out: "db/rls.sql" }, doctor: { migrations: [] } },
         manifestOf("authz"),
       ),
-    ).toEqual(["member_org_ids_for"]);
+    ).toStrictEqual(["member_org_ids_for"]);
   });
 
   it("skips an rls.out folder", () => {
@@ -111,8 +111,8 @@ describe("missingHelpersInDb", () => {
       manifestOf("authz"),
       sql.connect,
     );
-    expect(missing).toEqual(["member_org_ids_for"]);
-    expect(sql.calls[0]?.values).toEqual([
+    expect(missing).toStrictEqual(["member_org_ids_for"]);
+    expect(sql.calls[0]?.values).toStrictEqual([
       "authz",
       ["permdock_has", "permitted_org_ids", "member_org_ids_for"],
     ]);
@@ -146,7 +146,7 @@ describe("pd039", () => {
       /^PD039 schema public has no permdock_has:/u,
     );
     const findings = pd039({ cwd: project({}), config, manifest });
-    expect(findings.map((finding) => finding.message)).toEqual([
+    expect(findings.map((finding) => finding.message)).toStrictEqual([
       "schema public has no permdock_has, permitted_org_ids, member_org_ids_for: the hook's claims are read by these helpers; run permdock rls generate and apply its migration",
     ]);
   });
@@ -175,7 +175,7 @@ describe("pd039", () => {
         { name: "small", source: "public.small_claim", budget: true },
       ]),
     });
-    expect(findings.map((finding) => finding.message)).toEqual([
+    expect(findings.map((finding) => finding.message)).toStrictEqual([
       "claim plan is 29 bytes of JSON in claims.json, more than the 20-byte memberships budget",
       "sample 0 in claims.json has memberships [0] that subjectFromSupabase drops (membership-dropped)",
     ]);
@@ -193,6 +193,6 @@ describe("pd039", () => {
         config: { doctor: { claims: "claims.json" } },
         manifest: manifestOf("public"),
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

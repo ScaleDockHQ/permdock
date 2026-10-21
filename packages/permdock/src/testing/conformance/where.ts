@@ -126,7 +126,7 @@ export function testWhereCompiler<TTarget>(
           selected.push(row["id"]);
         }
       }
-      expect(selected).toEqual(
+      expect(selected).toStrictEqual(
         WHERE_ROWS.filter((row) =>
           evaluateCondition(condition, row, WHERE_SUBJECT),
         ).map((row) => row["id"]),

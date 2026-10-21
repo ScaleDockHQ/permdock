@@ -319,8 +319,8 @@ describe("guardedTables", () => {
   };
 
   it("lists nothing without rls.assignments", () => {
-    expect(guardedTables({ rls: { memberships } }, scopes)).toEqual([]);
-    expect(guardedTables({}, scopes)).toEqual([]);
+    expect(guardedTables({ rls: { memberships } }, scopes)).toStrictEqual([]);
+    expect(guardedTables({}, scopes)).toStrictEqual([]);
   });
 
   it("lists the membership tables, the global-roles table and the listed tables", () => {
@@ -344,7 +344,7 @@ describe("guardedTables", () => {
         },
         scopes,
       ),
-    ).toEqual([
+    ).toStrictEqual([
       "public.organization_users",
       "app.user_roles",
       "public.invitations",
@@ -364,12 +364,12 @@ describe("guardedTables", () => {
         },
         scopes,
       ),
-    ).toEqual(["public.user_roles"]);
+    ).toStrictEqual(["public.user_roles"]);
     expect(
       guardedTables(
         { rls: { assignments: true }, supabase: { hook: hook(false) } },
         scopes,
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

@@ -104,7 +104,7 @@ function define(delegations: Delegations) {
 
 describe("policy delegations", () => {
   it("normalises from, to and permissions and refuses malformed ones", () => {
-    expect(policy.delegations).toEqual([
+    expect(policy.delegations).toStrictEqual([
       {
         from: { kind: "role", role: "member", scope: "global" },
         to: { kind: "eve" },
@@ -183,7 +183,9 @@ describe("policy delegations", () => {
     });
     expect(without.fingerprint).not.toBe(policy.fingerprint);
     expect(reordered.fingerprint).not.toBe(policy.fingerprint);
-    expect(catalogDelegations(reordered)).toEqual(catalogDelegations(policy));
+    expect(catalogDelegations(reordered)).toStrictEqual(
+      catalogDelegations(policy),
+    );
   });
 
   it("lets a matching actor use the delegated permissions without a token delegation", async () => {
@@ -287,7 +289,7 @@ describe("policy delegations", () => {
   it("carries the ceiling on the snapshot and the client evaluator agrees", async () => {
     const permdock = getPermDockSync(policy, member, { actor: eve });
     const snapshot = unsigned(permdock);
-    expect(snapshot.delegated).toEqual(["post.read", "post.update"]);
+    expect(snapshot.delegated).toStrictEqual(["post.read", "post.update"]);
     expect(snapshot.subject.delegation).toBeUndefined();
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.post.read, post)).toBe(true);
@@ -302,7 +304,7 @@ describe("policy delegations", () => {
       getPermDockSync(policy, member, { actor: { id: "bot", kind: "openai" } }),
     );
     expect(other.delegated).toBeUndefined();
-    expect(other.subject.delegation).toEqual({ scope: "" });
+    expect(other.subject.delegation).toStrictEqual({ scope: "" });
   });
 });
 
@@ -366,7 +368,7 @@ describe("read-only actors", () => {
       "not-delegated",
     );
     const snapshot = unsigned(permdock);
-    expect(snapshot.delegated).toEqual(["post.read"]);
+    expect(snapshot.delegated).toStrictEqual(["post.read"]);
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.post.read, post)).toBe(true);
     const decision = client.decide(permissions.post.update, post);
@@ -395,7 +397,9 @@ describe("read-only actors", () => {
       ],
       subject,
     });
-    expect(markedPolicy.delegations?.[0]?.readOnly).toEqual(["report.export"]);
+    expect(markedPolicy.delegations?.[0]?.readOnly).toStrictEqual([
+      "report.export",
+    ]);
   });
 });
 

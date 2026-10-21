@@ -156,7 +156,7 @@ describe("registerTools input schemas", () => {
     ["no JSON Schema at all", {}, { type: "object" }],
   ])("reads %s", async (_label, standard, expected) => {
     const tools = await register({ schema: schemaWith(standard) });
-    expect(toolOf(tools, "post_update").inputSchema).toEqual(expected);
+    expect(toolOf(tools, "post_update").inputSchema).toStrictEqual(expected);
   });
 });
 
@@ -198,7 +198,7 @@ describe("registerTools registration", () => {
       annotations: { readOnlyHint: true, untrustedContentHint: true },
     });
     const plain = await register();
-    expect(toolOf(plain, "post_read").annotations).toEqual({
+    expect(toolOf(plain, "post_read").annotations).toStrictEqual({
       readOnlyHint: true,
       untrustedContentHint: false,
     });
@@ -275,12 +275,12 @@ describe("registerTools execution", () => {
       handlers: { update: handler },
     });
     await toolOf(tools, "post_update").execute(ownPost);
-    expect(handler.mock.calls[0]?.[0].input).toEqual(ownPost);
+    expect(handler.mock.calls[0]?.[0].input).toStrictEqual(ownPost);
   });
 
   it("answers a tool error when no handler is registered", async () => {
     const tools = await register();
-    expect(await toolOf(tools, "post_read").execute(ownPost)).toEqual({
+    expect(await toolOf(tools, "post_read").execute(ownPost)).toStrictEqual({
       isError: true,
       content: [{ type: "text", text: "post.read: no handler registered." }],
     });
@@ -312,7 +312,9 @@ describe("registerTools execution", () => {
     const tools = await register({
       handlers: { read: () => Promise.resolve(value) },
     });
-    expect(await toolOf(tools, "post_read").execute(ownPost)).toEqual(expected);
+    expect(await toolOf(tools, "post_read").execute(ownPost)).toStrictEqual(
+      expected,
+    );
   });
 
   it.each<[string, unknown, string]>([
@@ -343,10 +345,10 @@ describe("registerTools execution", () => {
       },
     });
     const result = await toolOf(tools, "post_read").execute(ownPost);
-    expect({ isError: result.isError, text: result.content[0]?.text }).toEqual({
-      isError: true,
-      text,
-    });
+    expect({
+      isError: result.isError,
+      text: result.content[0]?.text,
+    }).toStrictEqual({ isError: true, text });
   });
 
   it("binds the tenant into the arguments", async () => {
@@ -360,7 +362,7 @@ describe("registerTools execution", () => {
     });
     await toolOf(tools, "post_list").execute("not-an-object");
     await toolOf(tools, "post_read").execute(ownPost);
-    expect(handler.mock.calls.map((call) => call[0].input)).toEqual([
+    expect(handler.mock.calls.map((call) => call[0].input)).toStrictEqual([
       { orgId: "o1" },
       ownPost,
     ]);
@@ -385,7 +387,9 @@ describe("registerTools execution", () => {
       alternatives: ["post.read"],
     });
     const list = await toolOf(tools, "post_list").execute({ id: "x" });
-    expect(list.structuredContent?.["resource"]).toEqual({ type: "post" });
+    expect(list.structuredContent?.["resource"]).toStrictEqual({
+      type: "post",
+    });
   });
 
   it.each<[unknown, unknown]>([
@@ -404,7 +408,7 @@ describe("registerTools execution", () => {
       onApprovalRequired: () => Promise.resolve(undefined),
     });
     const result = await toolOf(tools, "post_read").execute(input);
-    expect(result.structuredContent).toEqual({
+    expect(result.structuredContent).toStrictEqual({
       outcome: "approval-required",
       permission: "post.read",
       resource: ref,

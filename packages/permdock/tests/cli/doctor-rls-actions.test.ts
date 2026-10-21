@@ -43,7 +43,7 @@ const config = (actions?: RlsActions) => ({
 describe("PD071", () => {
   it("names each unmapped verb that reads as a write, with its permissions", async () => {
     const findings = await pd071({ cwd: invoices(), config: config() });
-    expect(findings.map((finding) => finding.message)).toEqual([
+    expect(findings.map((finding) => finding.message)).toStrictEqual([
       "action 'approve' (invoice.approve, order.approve) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy",
       "action 'cancel' (order.cancel) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy",
       "action 'markPaid' (invoice.markPaid) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy",
@@ -65,9 +65,9 @@ describe("PD071", () => {
       send_reminder: "none",
       writeOff: "update",
     };
-    expect(await pd071({ cwd: invoices(), config: config(actions) })).toEqual(
-      [],
-    );
+    expect(
+      await pd071({ cwd: invoices(), config: config(actions) }),
+    ).toStrictEqual([]);
   });
 
   it("does nothing without rls", async () => {
@@ -76,7 +76,7 @@ describe("PD071", () => {
         cwd: invoices(),
         config: { permissions: "src/permissions.ts", policy: "src/policy.ts" },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 
@@ -93,7 +93,7 @@ describe("PD076", () => {
         markPaid: "update",
       }),
     });
-    expect(findings).toEqual([
+    expect(findings).toStrictEqual([
       {
         code: "PD076",
         severity: "info",
@@ -116,7 +116,7 @@ describe("PD076", () => {
         cwd: invoices(),
         config: config({ approve: "none", update: "none", read: "none" }),
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("is a hint that --fail-on warning does not fail on", async () => {
@@ -134,7 +134,7 @@ describe("PD076", () => {
     expect(result.code).toBe(0);
     expect(result.output).toContain("info PD076");
     expect(result.output).toContain("0 errors, 0 warnings, 1 note");
-    expect(result.findings?.map((finding) => finding.severity)).toEqual([
+    expect(result.findings?.map((finding) => finding.severity)).toStrictEqual([
       "info",
     ]);
     const two = await runDoctor({
@@ -157,6 +157,6 @@ describe("PD076", () => {
         cwd: invoices(),
         config: { ...config({ export: "none" }), policy: "src/missing.ts" },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

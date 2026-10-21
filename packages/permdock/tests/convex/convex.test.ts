@@ -51,7 +51,7 @@ describe("permdock/convex", () => {
       auth: { getUserIdentity: async () => ({ subject: "user-1" }) },
     };
     await expect(remove(ctx, { id: "p1" })).resolves.toBe("p1");
-    expect(seen).toEqual([ctx]);
+    expect(seen).toStrictEqual([ctx]);
   });
 
   it("maps assert denials to a ConvexError with Problem Details", async () => {
@@ -88,7 +88,10 @@ describe("permdock/convex", () => {
         filtered: ctx.permdock.filter(permissions.post.read, rows),
       };
     });
-    await expect(list({}, {})).resolves.toEqual({ can: false, filtered: [] });
+    await expect(list({}, {})).resolves.toStrictEqual({
+      can: false,
+      filtered: [],
+    });
   });
 
   it("returns a snapshot from snapshotQuery without failing on denial", async () => {
@@ -144,7 +147,7 @@ describe("permdock/convex", () => {
     });
     const read = withPermDock((ctx) => ctx.permdock.subject.actor?.id);
     await expect(read({ org: "t1" }, {})).resolves.toBe("agent-1");
-    expect(tenants).toEqual(["t1"]);
+    expect(tenants).toStrictEqual(["t1"]);
     const throwing = createPermDock(policy, {
       subject: () => ({ id: "user-1", roles: ["member"] }),
       tenant: () => {

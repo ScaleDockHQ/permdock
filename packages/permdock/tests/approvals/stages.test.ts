@@ -57,7 +57,7 @@ group("approval modes and approver kinds", () => {
         stages: [{ by: user("cfo") }, { by: "admin", quorum: 2 }],
         ttl: 86_400,
       }),
-    ).toEqual({
+    ).toStrictEqual({
       mode: "all",
       stages: [
         { by: { kind: "user", id: "cfo" } },
@@ -65,7 +65,7 @@ group("approval modes and approver kinds", () => {
       ],
       ttl: 86_400,
     });
-    expect(normalizeApproval({ by: [user("cfo"), "admin"] })).toEqual({
+    expect(normalizeApproval({ by: [user("cfo"), "admin"] })).toStrictEqual({
       by: [
         { kind: "user", id: "cfo" },
         { kind: "role", role: "admin", scope: "global" },
@@ -158,18 +158,22 @@ group("approval modes and approver kinds", () => {
   it("reads relation approvers by the request's resource id", async () => {
     const { request } = await pendingPayment();
     const options = { relations, permissions };
-    expect(await approverRelations(request, member("mia"), options)).toEqual([
-      JSON.stringify(["expense", "manager", null, null]),
-    ]);
-    expect(await approverRelations(request, member("rob"), options)).toEqual([
-      JSON.stringify(["report", "approver", ["report"], null]),
-    ]);
-    expect(await approverRelations(request, member("eve"), options)).toEqual(
+    expect(
+      await approverRelations(request, member("mia"), options),
+    ).toStrictEqual([JSON.stringify(["expense", "manager", null, null])]);
+    expect(
+      await approverRelations(request, member("rob"), options),
+    ).toStrictEqual([JSON.stringify(["report", "approver", ["report"], null])]);
+    expect(
+      await approverRelations(request, member("eve"), options),
+    ).toStrictEqual([]);
+    expect(await approverRelations(request, member("mia"), {})).toStrictEqual(
       [],
     );
-    expect(await approverRelations(request, member("mia"), {})).toEqual([]);
     const noId: ApprovalRequest = { ...request, resource: { type: "expense" } };
-    expect(await approverRelations(noId, member("mia"), options)).toEqual([]);
+    expect(await approverRelations(noId, member("mia"), options)).toStrictEqual(
+      [],
+    );
   });
 
   it("runs the manager stage before the report approver through the handler", async () => {
@@ -194,13 +198,13 @@ group("approval modes and approver kinds", () => {
       };
       return body.items.map((item) => item.id);
     };
-    expect(await inbox()).toEqual([]);
+    expect(await inbox()).toStrictEqual([]);
     expect((await approve()).status).toBe(403);
     who = "mia";
-    expect(await inbox()).toEqual([request.id]);
+    expect(await inbox()).toStrictEqual([request.id]);
     expect((await approve()).status).toBe(200);
     who = "rob";
-    expect(await inbox()).toEqual([request.id]);
+    expect(await inbox()).toStrictEqual([request.id]);
     const done = await approve();
     expect(done.status).toBe(200);
     const body: unknown = await done.json();
@@ -232,7 +236,7 @@ group("approval modes and approver kinds", () => {
       { status: "approved", by: member("mia") },
       { relations, permissions },
     );
-    expect(first.approvals).toEqual([
+    expect(first.approvals).toStrictEqual([
       { by: "mia", at: expect.any(String), stage: 0 },
     ]);
     await expect(

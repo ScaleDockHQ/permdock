@@ -81,32 +81,32 @@ describe("permission-key helpers", () => {
   it("answers with the unconditional allows of a permission key", async () => {
     const sql =
       "select id from permdock.permitted_tenant_ids_by_permission('job.update') id";
-    expect(await ids(ADMIN, sql)).toEqual(["acme"]);
-    expect(await ids(MANAGER, sql)).toEqual([]);
+    expect(await ids(ADMIN, sql)).toStrictEqual(["acme"]);
+    expect(await ids(MANAGER, sql)).toStrictEqual([]);
     const read =
       "select id from permdock.permitted_tenant_ids_by_permission('job.read') id";
-    expect(await ids(ADMIN, read)).toEqual(["acme", "globex"]);
-    expect(await ids(MANAGER, read)).toEqual(["acme"]);
+    expect(await ids(ADMIN, read)).toStrictEqual(["acme", "globex"]);
+    expect(await ids(MANAGER, read)).toStrictEqual(["acme"]);
   });
 
   it("also lists the instances a conditioned allow reaches when asked", async () => {
     const sql =
       "select id from permdock.permitted_tenant_ids_by_permission('job.update', true) id";
-    expect(await ids(ADMIN, sql)).toEqual(["acme", "globex"]);
-    expect(await ids(MANAGER, sql)).toEqual(["acme"]);
+    expect(await ids(ADMIN, sql)).toStrictEqual(["acme", "globex"]);
+    expect(await ids(MANAGER, sql)).toStrictEqual(["acme"]);
     expect(
       await ids(
         MANAGER,
         "select id from permdock.permitted_tenant_ids_by_permission('job.update', false) id",
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
     const keys = await db.admin.query<{ key: string }>(
       "select permdock.grant_keys('job.update', 'tenant', 'conditioned-allow') as key",
     );
-    expect(keys.rows.map((row) => row.key)).toEqual([
+    expect(keys.rows.map((row) => row.key)).toStrictEqual([
       "job.update#1@own",
       "job.update#2",
       "job.update#2@all",
@@ -116,7 +116,7 @@ describe("permission-key helpers", () => {
       "select id from permdock.permitted_tenant_ids_by_permission_for($1, 'job.update', true) id",
       [MANAGER],
     );
-    expect(forUser.rows.map((row) => row.id)).toEqual(["acme"]);
+    expect(forUser.rows.map((row) => row.id)).toStrictEqual(["acme"]);
   });
 
   it("maps a former key to the current one", async () => {
@@ -125,7 +125,7 @@ describe("permission-key helpers", () => {
         MANAGER,
         "select id from permdock.permitted_tenant_ids_by_permission('task.read') id",
       ),
-    ).toEqual(["acme"]);
+    ).toStrictEqual(["acme"]);
   });
 
   it("lists the grant keys and answers for a named user", async () => {
@@ -135,7 +135,7 @@ describe("permission-key helpers", () => {
     const keys = await db.admin.query<{ key: string }>(
       "select permdock.grant_keys('job.update', 'tenant') as key",
     );
-    expect(keys.rows.map((row) => row.key)).toEqual([
+    expect(keys.rows.map((row) => row.key)).toStrictEqual([
       "job.update#1",
       "job.update#1@all",
     ]);
@@ -143,7 +143,7 @@ describe("permission-key helpers", () => {
       "select id from permdock.permitted_tenant_ids_by_permission_for($1, 'job.update') id",
       [ADMIN],
     );
-    expect(forUser.rows.map((row) => row.id)).toEqual(["acme"]);
+    expect(forUser.rows.map((row) => row.id)).toStrictEqual(["acme"]);
   });
 
   it("lists every key held on one instance in one call, as the per-key helpers answer, and faster than a call per key", async () => {
@@ -215,19 +215,19 @@ describe("permission-key helpers", () => {
           return { one, many, oneKeys, manyKeys };
         },
       );
-      expect(runs.oneKeys).toEqual(runs.manyKeys);
+      expect(runs.oneKeys).toStrictEqual(runs.manyKeys);
       expect(median(runs.one)).toBeLessThan(median(runs.many));
       const named = await target.admin.query<{ key: string }>(
         "select k as key from permdock.permitted_tenant_permission_keys_for($1, $2) k order by 1",
         [user, tenant],
       );
-      expect(named.rows.map((row) => row.key)).toEqual(runs.oneKeys);
+      expect(named.rows.map((row) => row.key)).toStrictEqual(runs.oneKeys);
     }
     const adminAcme = await target.admin.query<{ key: string }>(
       "select k as key from permdock.permitted_tenant_permission_keys_for($1, 'acme') k order by 1",
       [ADMIN],
     );
-    expect(adminAcme.rows.map((row) => row.key)).toEqual(
+    expect(adminAcme.rows.map((row) => row.key)).toStrictEqual(
       expect.arrayContaining(["job.read", "job.update"]),
     );
   });

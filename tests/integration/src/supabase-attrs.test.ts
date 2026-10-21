@@ -146,12 +146,12 @@ describe("the attrs claim against Postgres", () => {
   }
 
   it("writes allow-listed columns and app_metadata keys, nothing else", async () => {
-    expect((await mint(EU))["attrs"]).toEqual({
+    expect((await mint(EU))["attrs"]).toStrictEqual({
       region: "eu",
       clearance: 2,
       regions: ["eu", "uk"],
     });
-    expect((await mint(US))["attrs"]).toEqual({
+    expect((await mint(US))["attrs"]).toStrictEqual({
       region: "us",
       clearance: 1,
       regions: ["us"],
@@ -189,7 +189,7 @@ describe("the attrs claim against Postgres", () => {
             )
           ).rows.map((row) => row.id),
         );
-        expect({ user, table, rows: actual.toSorted() }).toEqual({
+        expect({ user, table, rows: actual.toSorted() }).toStrictEqual({
           user,
           table,
           rows: expected,
@@ -204,7 +204,7 @@ describe("the attrs claim against Postgres", () => {
         (await client.query<{ id: string }>("select id from public.report"))
           .rows,
     );
-    expect(reports).toEqual([{ id: "r_eu_1" }]);
+    expect(reports).toStrictEqual([{ id: "r_eu_1" }]);
   });
 
   it("refuses to install while clients can write an attrs column", async () => {

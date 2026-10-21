@@ -121,8 +121,8 @@ describe("resendTransport", () => {
       idempotencyKey: "pdd_abc",
       delivery: "dlv_1",
     });
-    expect(result).toEqual({ status: "sent", providerId: "re_1" });
-    expect(fake.calls).toEqual([
+    expect(result).toStrictEqual({ status: "sent", providerId: "re_1" });
+    expect(fake.calls).toStrictEqual([
       {
         idempotencyKey: "pdd_abc",
         payload: {
@@ -153,7 +153,7 @@ describe("resendTransport", () => {
     const payload = fake.calls[0]?.payload;
     const tags =
       payload !== undefined && "to" in payload ? payload.tags : undefined;
-    expect(tags?.map((tag) => tag.name)).toEqual([
+    expect(tags?.map((tag) => tag.name)).toStrictEqual([
       "permdock_key",
       "permdock_category",
     ]);
@@ -246,7 +246,7 @@ describe("resendTransport", () => {
       message,
       { id: "dlv_batch" },
     );
-    expect(report.events.map((event) => event.provider)).toEqual([
+    expect(report.events.map((event) => event.provider)).toStrictEqual([
       { name: "resend", id: "re_1" },
       { name: "resend", id: "re_2" },
     ]);
@@ -257,7 +257,7 @@ describe("resendTransport", () => {
     expect(second?.idempotencyKey).toBe(first?.idempotencyKey);
     // SAFETY: the batch call records its payload array, checked with Array.isArray above.
     const payloads = first?.payload as readonly ResendEmailPayload[];
-    expect(payloads.map((entry) => entry.from)).toEqual([
+    expect(payloads.map((entry) => entry.from)).toStrictEqual([
       "billing@acme.test",
       "billing@acme.test",
     ]);

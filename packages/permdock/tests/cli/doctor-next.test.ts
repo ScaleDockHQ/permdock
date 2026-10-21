@@ -62,7 +62,7 @@ async function check(
 
 describe("PD044 server-only grants read by usePermission", () => {
   it("names a relation with a period, never a portable grant", async () => {
-    expect(await check({ "src/ui.tsx": UI })).toEqual([
+    expect(await check({ "src/ui.tsx": UI })).toStrictEqual([
       "usePermission reads lease.read at src/ui.tsx:6",
     ]);
   });
@@ -82,7 +82,7 @@ describe("PD044 server-only grants read by usePermission", () => {
         "src/ui.tsx": UI,
         "src/permdock.ts": `export const options = { endpoint: '/api/permdock' };\n`,
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("ignores a permdock route outside an app folder", async () => {
@@ -95,7 +95,7 @@ describe("PD044 server-only grants read by usePermission", () => {
         },
         { collect: { srcPath: ["./src", "./lib"] } },
       ),
-    ).toEqual(["usePermission reads lease.read at src/ui.tsx:6"]);
+    ).toStrictEqual(["usePermission reads lease.read at src/ui.tsx:6"]);
   });
 
   it("stays quiet when no grant needs the server", async () => {
@@ -107,7 +107,7 @@ describe("PD044 server-only grants read by usePermission", () => {
         },
         { policy: "./src/portable.ts" },
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("stays quiet when no usePermission reads a server-only key, or the catalog cannot be collected", async () => {
@@ -115,10 +115,10 @@ describe("PD044 server-only grants read by usePermission", () => {
       await check({
         "src/ui.tsx": `import { permissions } from './definitions.ts';\nexport const c = can(permissions.lease.read);\n`,
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       await check({ "src/ui.tsx": UI }, { permissions: "./src/missing.ts" }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 
@@ -144,11 +144,11 @@ describe("PD065 server-only grants read from React Native code", () => {
         "src/screen.tsx": NATIVE,
         "src/permdock.ts": `export const options = { endpoint: '/api/permdock' };\n`,
       }),
-    ).toEqual(["React Native code reads lease.read at src/screen.tsx:5"]);
+    ).toStrictEqual(["React Native code reads lease.read at src/screen.tsx:5"]);
   });
 
   it("ignores web code and portable grants", async () => {
-    expect(await native({ "src/ui.tsx": UI })).toEqual([]);
+    expect(await native({ "src/ui.tsx": UI })).toStrictEqual([]);
     const cwd = project({
       "src/definitions.ts": DEFINITIONS,
       "src/screen.tsx": NATIVE,
@@ -161,6 +161,6 @@ describe("PD065 server-only grants read from React Native code", () => {
         now: NOW,
         io: quietIo,
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

@@ -166,7 +166,7 @@ describe("rls verify --db-url-stdin through an injected client", () => {
     expect(update?.sql).toBe(
       'update "post" set "authorId" = $2, "orgId" = $3, "published" = $4 where "id" = $1 returning "id"',
     );
-    expect(update?.values).toEqual(["p2", "u9", "o1", true]);
+    expect(update?.values).toStrictEqual(["p2", "u9", "o1", true]);
     expect(
       sql.statements().some((text) => text.startsWith('delete from "post"')),
     ).toBe(true);
@@ -211,7 +211,7 @@ describe("rls verify --db-url-stdin through an injected client", () => {
     const settings = sql.calls
       .filter((call) => call.sql === "select set_config($1, $2, true)")
       .map((call) => call.values[0]);
-    expect(settings).toEqual([
+    expect(settings).toStrictEqual([
       "acme.user_id",
       "acme.roles",
       "acme.memberships",
@@ -450,7 +450,7 @@ describe("rls verify --db-url-stdin through an injected client", () => {
       output:
         "post.nope: unknown permission [unknown-permission:post.nope:u1/p1]",
     });
-    expect(sql.statements()).toEqual([HELPER_TABLE_POLICIES_SQL]);
+    expect(sql.statements()).toStrictEqual([HELPER_TABLE_POLICIES_SQL]);
   });
 });
 
@@ -562,7 +562,7 @@ describe("rls verify --tree through an injected client", () => {
       output:
         "verified 0 tree check(s) against the database (0 granted)\nno graph grant walks a self-parented resource",
     });
-    expect(sql.statements()).toEqual(["begin", "rollback"]);
+    expect(sql.statements()).toStrictEqual(["begin", "rollback"]);
     expect(sql.ended()).toBe(true);
   });
 
@@ -611,16 +611,17 @@ describe("rls verify --tree through an injected client", () => {
 
 describe("expectedFields", () => {
   it("adds the key column only when the row has a value for it", () => {
-    expect(expectedFields(true, { title: "t" }, "id", { id: "p1" })).toEqual([
-      "id",
+    expect(
+      expectedFields(true, { title: "t" }, "id", { id: "p1" }),
+    ).toStrictEqual(["id", "title"]);
+    expect(
+      expectedFields(true, { title: "t" }, "id", { id: null }),
+    ).toStrictEqual(["title"]);
+    expect(expectedFields(true, { title: "t" }, "id", "p1")).toStrictEqual([
       "title",
     ]);
-    expect(expectedFields(true, { title: "t" }, "id", { id: null })).toEqual([
-      "title",
-    ]);
-    expect(expectedFields(true, { title: "t" }, "id", "p1")).toEqual(["title"]);
-    expect(expectedFields(false, { title: "t" }, "id", { id: "p1" })).toEqual(
-      [],
-    );
+    expect(
+      expectedFields(false, { title: "t" }, "id", { id: "p1" }),
+    ).toStrictEqual([]);
   });
 });

@@ -96,12 +96,16 @@ function bare(manifest = true): string {
 describe("runSkills", () => {
   it("installs on no action and on update, and rejects an unknown agent", () => {
     const cwd = workspace();
-    expect(runSkills({ cwd, action: undefined, agents: ["agent"] })).toEqual({
+    expect(
+      runSkills({ cwd, action: undefined, agents: ["agent"] }),
+    ).toStrictEqual({
       code: 0,
       output:
         "installed .agents/skills/permdock-wire, .agents/skills/permdock-audit (permdock@0.0.0)",
     });
-    expect(runSkills({ cwd, action: "update", agents: ["cursr"] })).toEqual({
+    expect(
+      runSkills({ cwd, action: "update", agents: ["cursr"] }),
+    ).toStrictEqual({
       code: 2,
       output:
         "skills: unknown --for 'cursr'. Did you mean cursor? Use agents, claude, cursor.",
@@ -128,7 +132,9 @@ describe("runSkills", () => {
     const bundled = join(bare(false), "skills");
     mkdirSync(join(bundled, "permdock-wire"), { recursive: true });
     writeFileSync(join(bundled, "permdock-wire/SKILL.md"), "# wire\n");
-    expect(runSkillsInstall({ cwd, agents: ["cursor"], bundled })).toEqual({
+    expect(
+      runSkillsInstall({ cwd, agents: ["cursor"], bundled }),
+    ).toStrictEqual({
       code: 0,
       output: "installed .cursor/skills/permdock-wire (permdock@0.0.0)",
     });
@@ -146,7 +152,7 @@ describe("runSkills", () => {
         agents: [],
         bundled: join(bare(), "absent"),
       }),
-    ).toEqual({
+    ).toStrictEqual({
       code: 2,
       output:
         "PermDock CLI: permdock package with skills/ not found. Add permdock as a dependency.",
@@ -154,7 +160,9 @@ describe("runSkills", () => {
   });
 
   it("lists nothing installed and no lock in a fresh project", () => {
-    expect(runSkills({ cwd: bare(), action: "list", agents: [] })).toEqual({
+    expect(
+      runSkills({ cwd: bare(), action: "list", agents: [] }),
+    ).toStrictEqual({
       code: 0,
       output: [
         "permdock skills",
@@ -182,7 +190,9 @@ describe("symlinked skill folders", () => {
       "../../.agents/skills/permdock-wire",
       join(cwd, ".claude/skills/permdock-wire"),
     );
-    expect(runSkillsInstall({ cwd, agents: ["agents", "claude"] })).toEqual({
+    expect(
+      runSkillsInstall({ cwd, agents: ["agents", "claude"] }),
+    ).toStrictEqual({
       code: 0,
       output:
         "installed .agents/skills/permdock-wire, .agents/skills/permdock-audit, .claude/skills/permdock-audit; linked .claude/skills/permdock-wire to .agents/skills/permdock-wire (permdock@0.0.0)",
@@ -217,7 +227,7 @@ describe("skills --check", () => {
     expect(existsSync(join(cwd, ".cursor/skills"))).toBe(false);
     expect(existsSync(join(cwd, ".permdock"))).toBe(false);
     await run(["skills", "install", "--for", "cursor"], { cwd });
-    expect(runSkillsCheck({ cwd, agents: [] })).toEqual({
+    expect(runSkillsCheck({ cwd, agents: [] })).toStrictEqual({
       code: 0,
       output: "skills match permdock@0.0.0",
     });
@@ -230,7 +240,7 @@ describe("skills --check", () => {
     symlinkSync("../.agents/skills", join(cwd, ".claude/skills"));
     expect(runSkillsCheck({ cwd, agents: ["agents", "claude"] }).code).toBe(0);
     writeFileSync(join(cwd, ".agents/skills/permdock-audit/SKILL.md"), "old\n");
-    expect(runSkillsCheck({ cwd, agents: ["claude"] })).toEqual({
+    expect(runSkillsCheck({ cwd, agents: ["claude"] })).toStrictEqual({
       code: 1,
       output:
         "skills differ from permdock@0.0.0: .claude/skills/permdock-audit/SKILL.md. Run permdock skills install.",

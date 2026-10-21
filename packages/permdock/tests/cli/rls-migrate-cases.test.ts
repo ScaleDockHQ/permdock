@@ -100,7 +100,7 @@ function reasons(
 
 describe("migrateTarget", () => {
   it("defaults the schema and keys of an outcome without them", () => {
-    expect(migrateTarget({ code: 0, output: "", text: "sql" })).toEqual({
+    expect(migrateTarget({ code: 0, output: "", text: "sql" })).toStrictEqual({
       schema: "permdock",
       sql: "sql",
       permissions: new Set(),
@@ -131,7 +131,7 @@ describe("an id that is an expression", () => {
     ],
   ])("is copied into the rewrite: %s", async (_label, sql, expected) => {
     const { report, text } = await migrate(sql);
-    expect(report.skipped).toEqual([]);
+    expect(report.skipped).toStrictEqual([]);
     expect(text).toBe(expected);
   });
 });
@@ -141,7 +141,7 @@ describe("a call inside a function body", () => {
     const { report } = await migrate(
       `create function f() returns boolean language sql as $$ select is_member(org_id) $$;`,
     );
-    expect(report.skipped).toEqual([
+    expect(report.skipped).toStrictEqual([
       expect.objectContaining({
         reason: "function-body",
         suggestion: "(org_id in (select public.member_org_ids()))",
@@ -257,8 +257,8 @@ describe("runRlsMigrate skips", () => {
     ],
   ])("skips %s", async (_label, sql, expected) => {
     const { report, text } = await migrate(sql);
-    expect(report.rewrites).toEqual([]);
-    expect(reasons(report)).toEqual([expected]);
+    expect(report.rewrites).toStrictEqual([]);
+    expect(reasons(report)).toStrictEqual([expected]);
     expect(text).toBe(sql);
   });
 
@@ -267,7 +267,7 @@ describe("runRlsMigrate skips", () => {
       `create policy p on t using (is_admin('doc.read'));`,
       { target: target({ sql: "" }) },
     );
-    expect(reasons(report)).toEqual([
+    expect(reasons(report)).toStrictEqual([
       ["missing-helper", "rls generate writes no permdock_has"],
     ]);
   });
@@ -283,7 +283,7 @@ describe("runRlsMigrate skips", () => {
       /^the file does not parse: /u,
     );
     const unrelated = await migrate("not sql at all (");
-    expect(unrelated.report).toEqual({ rewrites: [], skipped: [] });
+    expect(unrelated.report).toStrictEqual({ rewrites: [], skipped: [] });
   });
 
   it("reports calls in function bodies whose text is escaped", async () => {
@@ -292,7 +292,7 @@ do $$ begin perform org_ids('doc.read'); end $$;`;
     const { report } = await migrate(sql);
     expect(
       report.skipped.map((item) => [item.line, item.reason, item.call]),
-    ).toEqual([
+    ).toStrictEqual([
       [1, "function-body", "is_admin"],
       [2, "function-body", "org_ids"],
     ]);
@@ -318,11 +318,11 @@ describe("runRlsMigrate role helpers", () => {
       `create policy p on t using (has_org_role(org_id, 'org_admin', 'member'));`,
       { config: roleConfig, target: withRoles() },
     );
-    expect({ code, text }).toEqual({
+    expect({ code, text }).toStrictEqual({
       code: 0,
       text: `create policy p on t using ((org_id in (select public.member_org_ids(array['owner', 'member']))));`,
     });
-    expect(report.skipped).toEqual([]);
+    expect(report.skipped).toStrictEqual([]);
   });
 
   it.each([
@@ -355,7 +355,7 @@ describe("runRlsMigrate role helpers", () => {
       config: roleConfig,
       target: roleTarget,
     });
-    expect(reasons(report)).toEqual([expected]);
+    expect(reasons(report)).toStrictEqual([expected]);
   });
 });
 
@@ -377,7 +377,7 @@ create policy p on t using (
 );`;
     const { code, report, text } = await migrate(sql, { target: quoted });
     expect(code).toBe(0);
-    expect(report.rewrites.map((item) => [item.line, item.to])).toEqual([
+    expect(report.rewrites.map((item) => [item.line, item.to])).toStrictEqual([
       [3, `(org_id in (select "App".permitted_org_ids('doc.read')))`],
       [5, `(org_id in (select "App".permitted_org_ids('doc.update')))`],
       [6, `(select "App".permdock_has('doc.read'))`],
@@ -393,7 +393,7 @@ create policy p on t using (
   it("leaves files alone on a dry run and reads a single file path", async () => {
     const sql = `create policy p on t using (is_member(org_id));`;
     const { report, text } = await migrate(sql, { write: false });
-    expect(report.rewrites).toEqual([
+    expect(report.rewrites).toStrictEqual([
       {
         file: "policies.sql",
         line: 1,
@@ -420,7 +420,7 @@ create policy p on t using (
       json: false,
     });
     expect(result.code).toBe(1);
-    expect(result.output.split("\n")).toEqual([
+    expect(result.output.split("\n")).toStrictEqual([
       "a.sql:1  is_admin('doc.read')  ->  (select public.permdock_has('doc.read'))",
       "skipped a.sql:1  is_admin('doc.nope'): doc.nope maps to doc.nope, which the policy does not declare; add it to rls.migrate.keys or the vocabulary",
       "rls migrate: rewrote 1 call(s) in 1 file(s), skipped 1, 1 with an unknown key",
@@ -437,6 +437,9 @@ create policy p on t using (
         write: false,
         json: false,
       }),
-    ).toEqual({ code: 2, output: "rls migrate --sql: nowhere does not exist" });
+    ).toStrictEqual({
+      code: 2,
+      output: "rls migrate --sql: nowhere does not exist",
+    });
   });
 });

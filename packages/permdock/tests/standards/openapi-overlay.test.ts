@@ -169,10 +169,10 @@ function apply(document: Json, overlay: Json): Json {
       throw new Error(`no update for ${raw["target"]}`);
     }
     const selected = select(result, raw["target"]);
-    expect({ target: raw["target"], selected: selected.length > 0 }).toEqual({
+    expect({
       target: raw["target"],
-      selected: true,
-    });
+      selected: selected.length > 0,
+    }).toStrictEqual({ target: raw["target"], selected: true });
     for (const node of selected) {
       merge(node, update);
     }
@@ -199,27 +199,30 @@ describe("OpenAPI Overlay", () => {
   });
 
   it("validates against the official Overlay 1.1 schema", () => {
-    expect(validateOverlay(v11)).toEqual({ ok: true });
-    expect(validateOverlay(factory.overlay())).toEqual({ ok: true });
+    expect(validateOverlay(v11)).toStrictEqual({ ok: true });
+    expect(validateOverlay(factory.overlay())).toStrictEqual({ ok: true });
     expect(
       validateOverlay(
         createPermDock(policy, { ...config, target: "3.1" }).overlay({
           operations,
         }),
       ),
-    ).toEqual({ ok: true });
+    ).toStrictEqual({ ok: true });
   });
 
   it("targets operations by operationId and leaves the rest alone", () => {
     for (const overlay of [v11, v12]) {
       const applied = apply(source(), overlay);
-      expect(validateOpenapi(applied)).toEqual({ ok: true, version: "3.2" });
+      expect(validateOpenapi(applied)).toStrictEqual({
+        ok: true,
+        version: "3.2",
+      });
       expect(operationNamed(applied, "it's-deletePost")).toMatchObject({
         security: [{ permdockOAuth: [permissions.post.delete.scope] }],
         "x-permdock-permissions": [permissions.post.delete.key],
         "x-permdock-approval": { "post.delete": { reason: "human" } },
       });
-      expect(operationNamed(applied, "readAndEdit")["security"]).toEqual([
+      expect(operationNamed(applied, "readAndEdit")["security"]).toStrictEqual([
         {
           permdockOAuth: [
             permissions.post.update.scope,
@@ -235,7 +238,7 @@ describe("OpenAPI Overlay", () => {
 
   it("sets security: [] only for a public permission and never removes anything", () => {
     const applied = apply(source(), v11);
-    expect(operationNamed(applied, "health")["security"]).toEqual([]);
+    expect(operationNamed(applied, "health")["security"]).toStrictEqual([]);
     for (const overlay of [v11, v12]) {
       expect(JSON.stringify(overlay)).not.toContain('"remove"');
     }
@@ -248,14 +251,14 @@ describe("OpenAPI Overlay", () => {
           action["update"]["security"].length === 0,
       )
       .map((action) => action["description"]);
-    expect(empties).toEqual([permissions.status.view.key]);
+    expect(empties).toStrictEqual([permissions.status.view.key]);
   });
 
   it("orders actions: schemes, operations by operationId, then the root catalog", () => {
     const actions = (
       Array.isArray(v11["actions"]) ? v11["actions"] : []
     ).filter(isJson);
-    expect(actions.map((action) => action["target"])).toEqual([
+    expect(actions.map((action) => action["target"])).toStrictEqual([
       "$.components.securitySchemes",
       ...operations
         .map((operation) => operation.operationId)
@@ -293,7 +296,7 @@ describe("OpenAPI Overlay", () => {
     ).filter(isJson);
 
     it("shares one reusable action per distinct permission set, keyed by the sorted keys", () => {
-      expect(Object.keys(reusable)).toEqual([
+      expect(Object.keys(reusable)).toStrictEqual([
         "post.delete",
         "post.read,post.update",
         "post.update",
@@ -307,7 +310,7 @@ describe("OpenAPI Overlay", () => {
       );
       expect(refs).toHaveLength(operations.length);
       for (const ref of refs) {
-        expect(Object.keys(ref).toSorted()).toEqual([
+        expect(Object.keys(ref).toSorted()).toStrictEqual([
           "$ref",
           "description",
           "target",
@@ -332,7 +335,7 @@ describe("OpenAPI Overlay", () => {
         return catalog["drafts"];
       };
       expect(v12["overlay"]).toBe("1.2.0");
-      expect(pin(v12)).toEqual({ overlay: DRAFT_PINS.overlay });
+      expect(pin(v12)).toStrictEqual({ overlay: DRAFT_PINS.overlay });
       expect(pin(v11)).toBeUndefined();
     });
   });

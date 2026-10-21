@@ -254,7 +254,7 @@ describe("request and resume helpers", () => {
     expect((await store.list({ status: "approved" })).items).toHaveLength(0);
 
     store.create(pending({ token: "pd1.gone", status: "expired" }));
-    expect(await inspectApproval(store, "pd1.gone")).toEqual({
+    expect(await inspectApproval(store, "pd1.gone")).toStrictEqual({
       ok: false,
       cause: "approval-expired",
     });
@@ -279,7 +279,7 @@ describe("request and resume helpers", () => {
         resolvedAt: created,
       }),
     );
-    expect(await inspectApproval(store, "pd1.old-ok")).toEqual({
+    expect(await inspectApproval(store, "pd1.old-ok")).toStrictEqual({
       ok: false,
       cause: "approval-expired",
     });
@@ -295,11 +295,11 @@ describe("request and resume helpers", () => {
       { requireDistinctApprover: true },
     );
     const rejected = await inspectApproval(store, "pd1.rej");
-    expect(rejected).toEqual({ ok: false, cause: "approval-rejected" });
+    expect(rejected).toStrictEqual({ ok: false, cause: "approval-rejected" });
 
     store.create(pending({ token: "pd1.old", expiresAt: past }));
     const expired = await inspectApproval(store, "pd1.old");
-    expect(expired).toEqual({ ok: false, cause: "approval-expired" });
+    expect(expired).toStrictEqual({ ok: false, cause: "approval-expired" });
   });
 
   it("records grant approvers and the subject session on requests", async () => {
@@ -333,7 +333,7 @@ describe("request and resume helpers", () => {
       },
     );
     expect(recorded.v).toBe(1);
-    expect(recorded.approvers).toEqual({
+    expect(recorded.approvers).toStrictEqual({
       by: { kind: "role", role: "admin", scope: "tenant" },
       distinct: true,
     });
@@ -463,7 +463,7 @@ describe("approvalsHandler", () => {
       new Request("https://api.example.com/permdock/approvals/pending"),
     );
     expect(pendingRes.status).toBe(200);
-    expect(await pendingRes.json()).toEqual({
+    expect(await pendingRes.json()).toStrictEqual({
       items: [expect.objectContaining({ id: "apr_1", status: "pending" })],
     });
 
@@ -471,7 +471,7 @@ describe("approvalsHandler", () => {
       new Request("https://api.example.com/permdock/approvals/mine"),
     );
     expect(mine.status).toBe(200);
-    expect(await mine.json()).toEqual({ items: [] });
+    expect(await mine.json()).toStrictEqual({ items: [] });
 
     const one = await fetch(
       new Request("https://api.example.com/permdock/approvals/apr_1"),
@@ -484,7 +484,7 @@ describe("approvalsHandler", () => {
       async sign(payload, options) {
         expect(options.typ).toBe("vnd.permdock.approval+jwt");
         expect(options.jti).toBe("apr_1");
-        expect(payload).toEqual(
+        expect(payload).toStrictEqual(
           expect.objectContaining({ token: "pd1.token-1", resolved_by: "u_9" }),
         );
         return "a.b.c";
@@ -497,7 +497,7 @@ describe("approvalsHandler", () => {
       }),
     );
     expect(approved.status).toBe(200);
-    expect(await approved.json()).toEqual(
+    expect(await approved.json()).toStrictEqual(
       expect.objectContaining({ status: "approved" }),
     );
     const signature = await fetch(
@@ -514,7 +514,7 @@ describe("approvalsHandler", () => {
       }),
     );
     expect(rejected.status).toBe(200);
-    expect(await rejected.json()).toEqual(
+    expect(await rejected.json()).toStrictEqual(
       expect.objectContaining({ status: "rejected", note: "no" }),
     );
   });
@@ -636,7 +636,7 @@ describe("approvalsHandler", () => {
     const mine = await owner.fetch(
       new Request("https://api.example.com/permdock/approvals/mine"),
     );
-    expect(await mine.json()).toEqual({
+    expect(await mine.json()).toStrictEqual({
       items: [expect.objectContaining({ id: "apr_1" })],
     });
 

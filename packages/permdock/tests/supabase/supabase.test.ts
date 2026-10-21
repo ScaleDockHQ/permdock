@@ -41,12 +41,12 @@ describe("subjectFromSupabase", () => {
       user_metadata: { role: "superadmin", tenant_id: "evil" },
     });
     expect(subject.principal?.id).toBe("user-1");
-    expect(subject.principal?.roles).toEqual(["member"]);
+    expect(subject.principal?.roles).toStrictEqual(["member"]);
     expect(subject.principal?.tenant).toBe("org-1");
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "org-1", roles: ["admin"] },
     ]);
-    expect(subject.principal?.assurance).toEqual({ acr: "aal2" });
+    expect(subject.principal?.assurance).toStrictEqual({ acr: "aal2" });
     expect(subject.session).toBe("sess-1");
     expect(subject.principal?.claims).toMatchObject({ plan: "pro" });
     expect(subject.principal?.claims).not.toHaveProperty("role");
@@ -61,7 +61,7 @@ describe("subjectFromSupabase", () => {
         { tenant: "org-2", roles: ["nurse"], member: { group: "" } },
       ],
     });
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "org-1", roles: ["nurse"], member: { group: "night" } },
       { tenant: "org-2", roles: ["nurse"] },
     ]);
@@ -77,7 +77,9 @@ describe("subjectFromSupabase", () => {
           { tenant: "org-2", roles: ["owner"], keep: [7] },
         ],
       }).principal?.memberships,
-    ).toEqual([{ tenant: "org-1", roles: ["owner"], keep: ["org.restore"] }]);
+    ).toStrictEqual([
+      { tenant: "org-1", roles: ["owner"], keep: ["org.restore"] },
+    ]);
   });
 
   it("maps resource-scoped memberships from the hook claim", () => {
@@ -88,7 +90,7 @@ describe("subjectFromSupabase", () => {
         { on: { resource: "document", id: "d_1" }, roles: ["editor"] },
       ],
     });
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { on: { resource: "document", id: "d_1" }, roles: ["editor"] },
     ]);
   });
@@ -102,7 +104,7 @@ describe("subjectFromSupabase", () => {
       },
       { declared: ["editor"] },
     );
-    expect(subject.principal?.roles).toEqual(["editor"]);
+    expect(subject.principal?.roles).toStrictEqual(["editor"]);
     expect(subject.principal?.tenant).toBe("org-2");
   });
 
@@ -114,7 +116,7 @@ describe("subjectFromSupabase", () => {
       tenant_id: null,
       app_metadata: { user_role: "editor", tenant_id: "org-3" },
     });
-    expect(subject.principal?.roles).toEqual(["editor"]);
+    expect(subject.principal?.roles).toStrictEqual(["editor"]);
     expect(subject.principal?.tenant).toBe("org-3");
     expect(
       subjectFromSupabase({
@@ -122,7 +124,7 @@ describe("subjectFromSupabase", () => {
         role: "authenticated",
         app_metadata: { user_role: null },
       }).principal?.roles,
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("maps only user sessions from a structural session object", () => {
@@ -133,7 +135,7 @@ describe("subjectFromSupabase", () => {
     };
     expect(
       subjectFromSupabaseSession({ kind: "user", claims }).principal?.roles,
-    ).toEqual(["editor"]);
+    ).toStrictEqual(["editor"]);
     expect(
       subjectFromSupabaseSession({ kind: "anon", claims }).principal,
     ).toBeNull();
@@ -196,10 +198,10 @@ describe("subjectFromSupabase", () => {
         },
       },
     );
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { scope: "tenant", id: "org-1", roles: ["admin"] },
     ]);
-    expect(events).toEqual([
+    expect(events).toStrictEqual([
       { reason: "schema", cause: "membership-dropped", source: "supabase" },
     ]);
   });
@@ -214,7 +216,7 @@ describe("subjectFromSupabase", () => {
     expect(
       subjectFromSupabase(claims, { claims: { plans: "features" } }).principal
         ?.plans,
-    ).toEqual(["pro", "sso"]);
+    ).toStrictEqual(["pro", "sso"]);
     expect(subjectFromSupabase(claims).principal?.plans).toBeUndefined();
     const { tenant_id: _, ...noTenant } = claims;
     expect(
@@ -231,14 +233,17 @@ describe("subjectFromSupabase", () => {
       scope: "openid invoice:read",
     });
     expect(client.principal?.id).toBe("user-7");
-    expect(client.actor).toEqual({ id: "app-1", kind: "oauth-client" });
-    expect(client.delegation).toEqual({ scopes: ["invoice:read"] });
+    expect(client.actor).toStrictEqual({ id: "app-1", kind: "oauth-client" });
+    expect(client.delegation).toStrictEqual({ scopes: ["invoice:read"] });
     expect(client.principal?.claims).toBeUndefined();
 
     const act = { sub: "agent-1", act: { sub: "agent-2" } };
     const chained = subjectFromSupabase({ ...base, act, client_id: "app-1" });
-    expect(chained.actor).toEqual({ id: "agent-1", kind: "oauth-client" });
-    expect(chained.delegation).toEqual({ chain: act });
+    expect(chained.actor).toStrictEqual({
+      id: "agent-1",
+      kind: "oauth-client",
+    });
+    expect(chained.delegation).toStrictEqual({ chain: act });
 
     const events: AuthEvent[] = [];
     const broken = subjectFromSupabase(
@@ -382,7 +387,7 @@ describe("subjectFromSupabase with Supabase OAuth server tokens", () => {
 
   it("reads the OpenID Connect identity scopes as no delegation", async () => {
     const subject = subjectFromSupabase(claims);
-    expect(subject.actor).toEqual({
+    expect(subject.actor).toStrictEqual({
       id: "first-party-cli",
       kind: "oauth-client",
     });
@@ -453,7 +458,7 @@ describe("subjectFromSupabase with Supabase OAuth server tokens", () => {
       const subject = subjectFromSupabase(claims, {
         clients: { cli: "first-party-cli" },
       });
-      expect(subject.actor).toEqual({
+      expect(subject.actor).toStrictEqual({
         id: "first-party-cli",
         kind: "oauth-client",
         client: "cli",

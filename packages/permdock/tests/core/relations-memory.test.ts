@@ -85,7 +85,7 @@ describe("memoryRelationSource", () => {
     { name: "an empty holder column", id: "none", holders: [] },
     { name: "a row without an id", id: "ghost", holders: [] },
   ])("reads $name, dropping a timestamp it cannot parse", ({ id, holders }) => {
-    expect(related(id, "guest")).toEqual(holders);
+    expect(related(id, "guest")).toStrictEqual(holders);
   });
 
   it.each([
@@ -96,20 +96,22 @@ describe("memoryRelationSource", () => {
     { name: "an empty principal column", id: "none", relation: "owner" },
     { name: "a missing row", id: "nowhere", relation: "host" },
   ])("holds nobody for $name", ({ id, relation }) => {
-    expect(related(id, relation)).toEqual([]);
+    expect(related(id, relation)).toStrictEqual([]);
   });
 
   it("skips an edge row with no subject", () => {
-    expect(related("number", "member")).toEqual([{ principal: { id: "mia" } }]);
+    expect(related("number", "member")).toStrictEqual([
+      { principal: { id: "mia" } },
+    ]);
   });
 
   it.each([
     { name: "an unknown resource", query: { resource: "hall", id: "date" } },
     { name: "a missing row", query: { resource: "room", id: "nowhere" } },
   ])("has no ancestors for $name", ({ query }) => {
-    expect(source.ancestors({ ...query, depth: 4, through: "parent" })).toEqual(
-      { ancestors: [] },
-    );
+    expect(
+      source.ancestors({ ...query, depth: 4, through: "parent" }),
+    ).toStrictEqual({ ancestors: [] });
   });
 
   it("reads nothing without data", () => {
@@ -119,7 +121,7 @@ describe("memoryRelationSource", () => {
         id: "date",
         relation: "guest",
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 
@@ -152,7 +154,7 @@ describe("relationReader validation", () => {
         restricted: true,
         truncated: true,
       }).chain({ resource: "room", id: "a", depth: 2, through: "parent" }),
-    ).toEqual({
+    ).toStrictEqual({
       ancestors: [{ id: "b", restricted: true }, { id: "c" }],
       restricted: true,
       truncated: true,
@@ -198,7 +200,7 @@ describe("relationReader validation", () => {
           expiresAt: 2,
         },
       ]).holders({ resource: "room", id: "a", relation: "host" }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         group: { resource: "team", id: "t", relation: "member" },
         startsAt: 1,

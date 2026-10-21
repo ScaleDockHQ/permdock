@@ -150,7 +150,7 @@ export const policy = definePolicy(permissions, {
         readonly message: string;
       }[];
     };
-    expect(report.findings).toEqual([
+    expect(report.findings).toStrictEqual([
       expect.objectContaining({
         code: "PD024",
         message:
@@ -206,7 +206,7 @@ export const policy = definePolicy(permissions, {
         readonly message: string;
       }[];
     };
-    expect(report.findings.map((item) => item.code)).toEqual(["PD026"]);
+    expect(report.findings.map((item) => item.code)).toStrictEqual(["PD026"]);
     expect(report.findings[0]?.message).toContain("scope 'team'");
   });
 

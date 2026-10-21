@@ -33,7 +33,7 @@ describe("shared SaaS domain in Postgres", () => {
       Object.fromEntries(
         counts.rows.map((row) => [row.name, Number(row.count)]),
       ),
-    ).toEqual({
+    ).toStrictEqual({
       org: saasSeed.orgs.length,
       project: saasSeed.projects.length,
       doc: saasSeed.docs.length,

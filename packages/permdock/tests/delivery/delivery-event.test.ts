@@ -35,7 +35,7 @@ const sent = deliveryEvent({
 
 describe("deliveryEvent", () => {
   it("builds a frozen-shape delivery event with an RFC 3339 time", () => {
-    expect(sent).toEqual({
+    expect(sent).toStrictEqual({
       type: "delivery",
       at: "2026-10-14T09:00:00Z",
       source: "permdock",
@@ -107,7 +107,7 @@ describe("the delivery event family", () => {
           "utf8",
         ),
       ),
-    ).toEqual(DELIVERY_EVENT_SCHEMA);
+    ).toStrictEqual(DELIVERY_EVENT_SCHEMA);
   });
 
   it("agrees with Ajv and parseSinkEvent", () => {
@@ -115,8 +115,8 @@ describe("the delivery event family", () => {
     ajv.addFormat("date-time", true);
     const validate = ajv.compile(DELIVERY_EVENT_SCHEMA);
     const json: unknown = JSON.parse(JSON.stringify(sent));
-    expect(validate(json) ? [] : validate.errors).toEqual([]);
-    expect(parseSinkEvent(json)).toEqual(sent);
+    expect(validate(json) ? [] : validate.errors).toStrictEqual([]);
+    expect(parseSinkEvent(json)).toStrictEqual(sent);
   });
 
   it("drops events that break the schema or the failed-only rule", () => {
@@ -149,7 +149,9 @@ describe("the delivery event family", () => {
         subject: "dlv_1",
         dataschema: EVENT_SCHEMA_IDS.delivery,
       });
-      expect(parseCloudEvent(JSON.parse(JSON.stringify(cloud)))).toEqual(cloud);
+      expect(parseCloudEvent(JSON.parse(JSON.stringify(cloud)))).toStrictEqual(
+        cloud,
+      );
     }
   });
 

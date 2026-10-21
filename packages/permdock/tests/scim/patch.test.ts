@@ -115,7 +115,7 @@ describe("normalizePatchOps", () => {
       [{ op: "add", value: "x" }],
     ],
   ])("normalizes %s", (_label, raw, expected) => {
-    expect(normalizePatchOps([raw])).toEqual(expected);
+    expect(normalizePatchOps([raw])).toStrictEqual(expected);
   });
 
   it.each<[string, unknown]>([
@@ -139,6 +139,6 @@ describe("readPatchOperations", () => {
     [null, undefined],
     ["text", undefined],
   ])("%j", (body, expected) => {
-    expect(readPatchOperations(body)).toEqual(expected);
+    expect(readPatchOperations(body)).toStrictEqual(expected);
   });
 });

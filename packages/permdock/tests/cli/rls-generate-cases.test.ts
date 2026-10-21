@@ -253,7 +253,7 @@ describe("rls generate flag combinations", () => {
   it("needs --target sql for --helpers-only", async () => {
     expect(
       await generate({ from: MINI, target: "drizzle", helpersOnly: true }),
-    ).toEqual({
+    ).toStrictEqual({
       code: 2,
       output:
         "rls generate --helpers-only needs --target sql and no --revoke-columns: the table grants are hand-written, so revoke the restricted columns there",

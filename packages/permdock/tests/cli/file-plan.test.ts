@@ -65,7 +65,7 @@ describe("applyFiles", () => {
       { path: "same.txt", text: "same" },
     ];
     const planned = applyFiles(cwd, files, { dryRun: true });
-    expect(planned).toEqual([
+    expect(planned).toStrictEqual([
       { path: "nested/new.txt", outcome: "created" },
       { path: "old.txt", outcome: "updated" },
       { path: "same.txt", outcome: "unchanged" },
@@ -75,17 +75,17 @@ describe("applyFiles", () => {
       "Would create nested/new.txt\nWould update old.txt\nUnchanged same.txt",
     );
 
-    expect(applyFiles(cwd, files)).toEqual(planned);
+    expect(applyFiles(cwd, files)).toStrictEqual(planned);
     expect(readFileSync(join(cwd, "nested/new.txt"), "utf8")).toBe("new");
     expect(readFileSync(join(cwd, "old.txt"), "utf8")).toBe("changed");
-    expect(planFiles(cwd, files).map((file) => file.outcome)).toEqual([
+    expect(planFiles(cwd, files).map((file) => file.outcome)).toStrictEqual([
       "unchanged",
       "unchanged",
       "unchanged",
     ]);
-    expect(readdirSync(cwd).filter((name) => name.endsWith(".tmp"))).toEqual(
-      [],
-    );
+    expect(
+      readdirSync(cwd).filter((name) => name.endsWith(".tmp")),
+    ).toStrictEqual([]);
   });
 
   it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
@@ -101,7 +101,7 @@ describe("applyFiles", () => {
         ]),
       ).toThrow(expect.objectContaining({ code: "write_failed" }));
       chmodSync(join(cwd, "locked"), 0o755);
-      expect(readdirSync(cwd)).toEqual(["locked"]);
+      expect(readdirSync(cwd)).toStrictEqual(["locked"]);
     },
   );
 });
@@ -109,9 +109,9 @@ describe("applyFiles", () => {
 describe("refuseDirty", () => {
   it("names the files with uncommitted changes and points at --dry-run and --force", () => {
     const cwd = repo();
-    expect(dirtyFiles(cwd, ["a.ts"])).toEqual([]);
+    expect(dirtyFiles(cwd, ["a.ts"])).toStrictEqual([]);
     writeFileSync(join(cwd, "a.ts"), "two\n");
-    expect(dirtyFiles(cwd, ["a.ts"])).toEqual(["a.ts"]);
+    expect(dirtyFiles(cwd, ["a.ts"])).toStrictEqual(["a.ts"]);
     expect(() =>
       refuseDirty({
         command: "codemod",
@@ -150,7 +150,7 @@ describe("refuseDirty", () => {
   it("treats a directory outside git as clean", () => {
     const cwd = dir();
     writeFileSync(join(cwd, "a.ts"), "x");
-    expect(dirtyFiles(cwd, ["a.ts"])).toEqual([]);
+    expect(dirtyFiles(cwd, ["a.ts"])).toStrictEqual([]);
   });
 });
 
@@ -209,6 +209,6 @@ describe("codemod on a dirty work tree", () => {
     const applied = applyFiles(cwd, [
       { path: "/dev/null", text: "select 1;\n" },
     ]);
-    expect(applied).toEqual([{ path: "/dev/null", outcome: "updated" }]);
+    expect(applied).toStrictEqual([{ path: "/dev/null", outcome: "updated" }]);
   });
 });

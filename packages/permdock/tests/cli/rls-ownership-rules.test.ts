@@ -106,7 +106,7 @@ const orgTable = {
 
 describe("ownershipRules", () => {
   it("keeps assign pairs inside the scope chain and counts min, max and transferOnly", () => {
-    expect(ownership).toEqual({
+    expect(ownership).toStrictEqual({
       kinds: { operator: ["staff"] },
       assigns: [
         { assigner: "operator", scope: "global", role: "owner", at: "org" },
@@ -301,7 +301,7 @@ describe("permdock_can_assign for global roles without kinds", () => {
   const own = ownershipRules(plain, plainScopes);
 
   it("assigns a vocabulary-only global role at no instance in both modes", () => {
-    expect(own?.assigns).toEqual([
+    expect(own?.assigns).toStrictEqual([
       { assigner: "root", scope: "global", role: "helpdesk", at: "global" },
       { assigner: "root", scope: "global", role: "member", at: "org" },
     ]);

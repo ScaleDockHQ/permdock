@@ -633,7 +633,7 @@ describe("conformance runners", () => {
         "utf8",
       ),
     ) as Record<string, string>;
-    expect(Object.keys(fixtures).toSorted()).toEqual([
+    expect(Object.keys(fixtures).toSorted()).toStrictEqual([
       "vnd.permdock.approval+jwt",
       "vnd.permdock.capability+jwt",
       "vnd.permdock.evidence+jwt",
@@ -664,7 +664,7 @@ describe("conformance runners", () => {
       kind: "link",
       memberships: [{ on: { resource: "post", id: "42" }, roles: ["viewer"] }],
     });
-    expect(subject.delegation).toEqual({ scopes: ["post:read"] });
+    expect(subject.delegation).toStrictEqual({ scopes: ["post:read"] });
   });
 
   it("verifies the policy fixture and parses its document", async () => {

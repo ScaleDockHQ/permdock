@@ -100,7 +100,7 @@ describe("subscriberPolicy", () => {
   });
 
   it("keeps the subscribers whose principal may read the event's row", async () => {
-    expect(await filter(event(), subscribers)).toEqual([subscribers[0]]);
+    expect(await filter(event(), subscribers)).toStrictEqual([subscribers[0]]);
     expect(
       await filter(
         event({
@@ -109,40 +109,46 @@ describe("subscriberPolicy", () => {
         }),
         subscribers,
       ),
-    ).toEqual([subscribers[1]]);
+    ).toStrictEqual([subscribers[1]]);
   });
 
   it("delivers an unmapped type, a row from another tenant or a bad payload to no one", async () => {
-    expect(await filter(event({ type: "invoice" }), subscribers)).toEqual([]);
-    expect(await filter(event({ type: "team.created" }), subscribers)).toEqual(
+    expect(await filter(event({ type: "invoice" }), subscribers)).toStrictEqual(
       [],
     );
+    expect(
+      await filter(event({ type: "team.created" }), subscribers),
+    ).toStrictEqual([]);
     expect(
       await filter(
         event({ payload: { id: "inv_2", organization_id: OTHER } }),
         subscribers,
       ),
-    ).toEqual([]);
-    expect(await filter(event({ payload: { id: 1 } }), subscribers)).toEqual(
-      [],
-    );
+    ).toStrictEqual([]);
+    expect(
+      await filter(event({ payload: { id: 1 } }), subscribers),
+    ).toStrictEqual([]);
   });
 
   it("needs a tenant and a sender principal in it", async () => {
-    expect(await filter(event({ tenant: null }), subscribers)).toEqual([]);
-    expect(await filter(event({ actorId: null }), subscribers)).toEqual([]);
-    expect(await filter(event({ actorId: "outsider" }), subscribers)).toEqual(
+    expect(await filter(event({ tenant: null }), subscribers)).toStrictEqual(
       [],
     );
+    expect(await filter(event({ actorId: null }), subscribers)).toStrictEqual(
+      [],
+    );
+    expect(
+      await filter(event({ actorId: "outsider" }), subscribers),
+    ).toStrictEqual([]);
     const viaService = subscriberPolicy({
       policy,
       principals,
       events: { "invoice.paid": permissions.invoice.read },
       sender: () => "integration",
     });
-    expect(await viaService(event({ actorId: null }), subscribers)).toEqual([
-      subscribers[0],
-    ]);
+    expect(
+      await viaService(event({ actorId: null }), subscribers),
+    ).toStrictEqual([subscribers[0]]);
   });
 
   it("prefers an exact type over a pattern and reads the row option", async () => {
@@ -155,8 +161,8 @@ describe("subscriberPolicy", () => {
       },
       row: (input) => input.payload,
     });
-    expect(await exact(event(), subscribers)).toEqual([subscribers[1]]);
-    expect(await exact(event({ type: "other" }), subscribers)).toEqual([
+    expect(await exact(event(), subscribers)).toStrictEqual([subscribers[1]]);
+    expect(await exact(event({ type: "other" }), subscribers)).toStrictEqual([
       subscribers[0],
     ]);
   });
@@ -171,6 +177,6 @@ describe("subscriberPolicy", () => {
       },
       events: { "*": permissions.invoice.read },
     });
-    expect(await failing(event(), subscribers)).toEqual([]);
+    expect(await failing(event(), subscribers)).toStrictEqual([]);
   });
 });

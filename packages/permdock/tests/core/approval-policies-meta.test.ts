@@ -116,24 +116,23 @@ describe("ApprovalPolicySource meta matching", () => {
   it("validates meta entries", () => {
     expect(
       validateApprovalPolicy(policy, { risk: ["high"], approval: "human" }),
-    ).toEqual({ ok: true });
-    expect(validateApprovalPolicy(policy, { approval: "human" })).toEqual({
-      ok: false,
-      problem: "invalid",
-    });
+    ).toStrictEqual({ ok: true });
+    expect(validateApprovalPolicy(policy, { approval: "human" })).toStrictEqual(
+      { ok: false, problem: "invalid" },
+    );
     expect(
       validateApprovalPolicy(policy, { risk: ["extreme"], approval: "human" }),
-    ).toEqual({ ok: false, problem: "invalid" });
+    ).toStrictEqual({ ok: false, problem: "invalid" });
     expect(
       validateApprovalPolicy(policy, { effects: [], approval: "human" }),
-    ).toEqual({ ok: false, problem: "invalid" });
+    ).toStrictEqual({ ok: false, problem: "invalid" });
     expect(
       validateApprovalPolicy(policy, {
         effects: ["send"],
         where: { op: "eq", field: "amount", value: 1 },
         approval: "human",
       }),
-    ).toEqual({ ok: false, problem: "invalid" });
+    ).toStrictEqual({ ok: false, problem: "invalid" });
   });
 
   it("fails closed on an invalid meta entry", async () => {

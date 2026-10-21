@@ -165,7 +165,9 @@ describe("ApprovalPolicySource", () => {
       },
     ]);
     for (const source of [throwing, rejecting, escalating, junk, opaque]) {
-      expect(await decide(source, permissions.expense.read, small)).toEqual({
+      expect(
+        await decide(source, permissions.expense.read, small),
+      ).toStrictEqual({
         outcome: "denied",
         permission: "expense.read",
         denials: [
@@ -349,7 +351,7 @@ describe("ApprovalPolicySource", () => {
         where: { op: "gt", field: "amount", value: 1000 },
         approval: "human",
       };
-      expect(validateApprovalPolicy(ledgerPolicy, entry)).toEqual({
+      expect(validateApprovalPolicy(ledgerPolicy, entry)).toStrictEqual({
         ok: false,
         problem: "where-on-collection",
       });
@@ -367,7 +369,9 @@ describe("ApprovalPolicySource", () => {
         check: { op: "gt", field: "amount", value: 1000 },
         approval: "human",
       };
-      expect(validateApprovalPolicy(ledgerPolicy, entry)).toEqual({ ok: true });
+      expect(validateApprovalPolicy(ledgerPolicy, entry)).toStrictEqual({
+        ok: true,
+      });
       expect((await decideCreate(entry)).outcome).toBe("approval-required");
     });
 
@@ -378,7 +382,7 @@ describe("ApprovalPolicySource", () => {
           where: { op: "gt", field: "amount", value: 1000 },
           approval: "human",
         }),
-      ).toEqual({ ok: true });
+      ).toStrictEqual({ ok: true });
     });
   });
 
@@ -410,7 +414,7 @@ describe("ApprovalPolicySource", () => {
       ],
     ];
     for (const [entry, expected] of cases) {
-      expect(validateApprovalPolicy(policy, entry)).toEqual(expected);
+      expect(validateApprovalPolicy(policy, entry)).toStrictEqual(expected);
     }
   });
 });

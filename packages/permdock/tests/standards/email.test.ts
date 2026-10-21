@@ -72,7 +72,7 @@ describe("RFC 3834 Auto-Submitted", () => {
     const { email } = await send({
       headers: { "auto-submitted": "no", "X-Entity-Ref-ID": "i1" },
     });
-    expect(email?.headers).toEqual({
+    expect(email?.headers).toStrictEqual({
       "Auto-Submitted": "auto-generated",
       "X-Entity-Ref-ID": "i1",
     });

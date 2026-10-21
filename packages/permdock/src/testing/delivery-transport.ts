@@ -115,7 +115,7 @@ export function testDeliveryTransport<C extends DeliveryChannel>(
         "a",
       );
       expect(result.status).toBe("sent");
-      expect(await harness.received()).toEqual([
+      expect(await harness.received()).toStrictEqual([
         { idempotencyKey: "pdd_runner_a" },
       ]);
     });
@@ -147,7 +147,7 @@ export function testDeliveryTransport<C extends DeliveryChannel>(
           retryable: false,
         });
       }
-      expect(await harness.received()).toEqual([]);
+      expect(await harness.received()).toStrictEqual([]);
     });
 
     it("maps a retryable provider error to a retryable failure", async () => {
@@ -182,7 +182,7 @@ export function testDeliveryTransport<C extends DeliveryChannel>(
       if (result !== undefined) {
         expect(result).toMatchObject({ status: "failed", retryable: true });
       }
-      expect(await harness.received()).toEqual([]);
+      expect(await harness.received()).toStrictEqual([]);
     });
   });
 }

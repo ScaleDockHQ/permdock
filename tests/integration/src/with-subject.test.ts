@@ -181,8 +181,8 @@ describe("withSubject runs Drizzle, Kysely and Prisma under the generated RLS", 
           }
         }
       }
-      expect(mismatches).toEqual([]);
-      expect(await read(await permdockFor("lena"), "doc")).toEqual([
+      expect(mismatches).toStrictEqual([]);
+      expect(await read(await permdockFor("lena"), "doc")).toStrictEqual([
         "deep-doc",
       ]);
     });

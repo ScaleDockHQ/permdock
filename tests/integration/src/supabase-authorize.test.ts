@@ -146,10 +146,14 @@ describe("Supabase RBAC scaffold, database mode", () => {
   });
 
   it("scopes reads to the tenants a user belongs to", async () => {
-    expect(await as("authenticated", ADMIN, ids)).toEqual(["a1", "a2"]);
-    expect(await as("authenticated", MEMBER, ids)).toEqual(["a1", "a2"]);
-    expect(await as("authenticated", OUTSIDER, ids)).toEqual(["g1"]);
-    expect(await as("authenticated", STAFF, ids)).toEqual(["a1", "a2", "g1"]);
+    expect(await as("authenticated", ADMIN, ids)).toStrictEqual(["a1", "a2"]);
+    expect(await as("authenticated", MEMBER, ids)).toStrictEqual(["a1", "a2"]);
+    expect(await as("authenticated", OUTSIDER, ids)).toStrictEqual(["g1"]);
+    expect(await as("authenticated", STAFF, ids)).toStrictEqual([
+      "a1",
+      "a2",
+      "g1",
+    ]);
     await expect(as("anon", null, ids)).rejects.toMatchObject({
       code: "42501",
     });
@@ -207,7 +211,7 @@ describe("Supabase RBAC scaffold, database mode", () => {
        from pg_proc p join pg_namespace n on n.oid = p.pronamespace
        where p.proname in ('authorize', 'permdock_has', 'permitted_tenant_ids')`,
     );
-    expect(result.rows.map((row) => row.schema)).toEqual(["permdock"]);
+    expect(result.rows.map((row) => row.schema)).toStrictEqual(["permdock"]);
   });
 
   it("limits member updates to their own rows and rejects cross-tenant inserts", async () => {
@@ -220,7 +224,7 @@ describe("Supabase RBAC scaffold, database mode", () => {
       );
       return [own.rowCount, other.rowCount];
     });
-    expect(updated).toEqual([1, 0]);
+    expect(updated).toStrictEqual([1, 0]);
 
     const inserted = await as("authenticated", MEMBER, async (client) => {
       await client.query(

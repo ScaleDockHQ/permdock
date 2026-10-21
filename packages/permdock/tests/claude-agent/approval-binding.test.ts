@@ -64,6 +64,9 @@ describe("an approval covers the arguments it was given", () => {
 
     expect(
       await canUseTool("Refund", { amount: 5, to: "c_1" }, { signal }),
-    ).toEqual({ behavior: "allow", updatedInput: { amount: 5, to: "c_1" } });
+    ).toStrictEqual({
+      behavior: "allow",
+      updatedInput: { amount: 5, to: "c_1" },
+    });
   });
 });

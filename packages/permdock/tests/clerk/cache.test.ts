@@ -40,7 +40,7 @@ describe("clerkSubjectResolver", () => {
     });
     const first = await subject({ sub: "u1", sid: "s1" });
     await subject({ sub: "u1", sid: "s2" });
-    expect(first.principal?.memberships).toEqual([
+    expect(first.principal?.memberships).toStrictEqual([
       { tenant: "org_a", roles: ["org:member"] },
     ]);
     expect(calls()).toBe(1);
@@ -68,7 +68,7 @@ describe("clerkSubjectResolver", () => {
     });
     const denied = await subject({ sub: "u1", sid: "s1" });
     await subject({ sub: "u1", sid: "s1" });
-    expect(denied.principal?.memberships).toEqual([]);
+    expect(denied.principal?.memberships).toStrictEqual([]);
     expect(failing.calls()).toBe(2);
   });
 });

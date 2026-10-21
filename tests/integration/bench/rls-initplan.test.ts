@@ -232,7 +232,7 @@ describe("rls helpers run once per statement (InitPlan)", () => {
 
   it("returns the same rows as the per-row shape", () => {
     expect(helper?.ids).toHaveLength(ROWS / TENANTS);
-    expect(helper?.ids).toEqual(perRow?.ids);
+    expect(helper?.ids).toStrictEqual(perRow?.ids);
   });
 
   it(`is at least ${String(SPEEDUP)}x faster than the per-row shape`, async ({
@@ -263,7 +263,7 @@ describe("rls helpers run once per statement (InitPlan)", () => {
         using ("orgId" in (select "permdock".member_tenant_ids()));
     `);
     const membership = await measure();
-    expect(membership.ids).toEqual(helper?.ids);
+    expect(membership.ids).toStrictEqual(helper?.ids);
     const calls = nodes(membership.plans[0]!.Plan).filter((node) =>
       callsHelper(node, "member_tenant_ids"),
     );

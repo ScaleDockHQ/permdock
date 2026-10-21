@@ -95,10 +95,10 @@ describe("invariant 2: deny overrides allow", () => {
     });
     const explained = permdock.explain(permissions.doc.update, open);
     expect(explained.outcome).toBe("denied");
-    expect(explained.trace.denies.map((grant) => grant.name)).toEqual([
+    expect(explained.trace.denies.map((grant) => grant.name)).toStrictEqual([
       "suspension",
     ]);
-    expect(explained.trace.allows.map((grant) => grant.role)).toEqual([
+    expect(explained.trace.allows.map((grant) => grant.role)).toStrictEqual([
       "owner",
       "editor",
     ]);
@@ -135,7 +135,7 @@ describe("invariant 2: deny overrides allow", () => {
     });
     const permdock = getPermDockSync(policy, { id: "u1", roles: ["editor"] });
     const where = permdock.where(permissions.doc.read);
-    expect(where.condition).toEqual({
+    expect(where.condition).toStrictEqual({
       op: "not",
       condition: { op: "eq", field: "locked", value: true },
     });

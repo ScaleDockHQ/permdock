@@ -36,7 +36,7 @@ describe("parseChatRequest", () => {
     });
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
-    expect(parsed.history.map((message) => message.parts)).toEqual([
+    expect(parsed.history.map((message) => message.parts)).toStrictEqual([
       [{ type: "text", text: "What is decide?" }],
       [{ type: "text", text: "It returns a Decision." }],
       [{ type: "text", text: "And can?" }],
@@ -50,9 +50,9 @@ describe("parseChatRequest", () => {
         user("1", "Hi"),
       ],
     });
-    expect(parsed.ok && parsed.history.map((message) => message.role)).toEqual([
-      "user",
-    ]);
+    expect(
+      parsed.ok && parsed.history.map((message) => message.role),
+    ).toStrictEqual(["user"]);
   });
 
   it("rejects a body without messages", async () => {

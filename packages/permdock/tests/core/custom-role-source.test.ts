@@ -24,11 +24,11 @@ function reader(reads: string[] = []) {
 describe("customRoleSource", () => {
   it("returns every custom role of the requested tenant, held or not", async () => {
     const source = customRoleSource(reader());
-    expect(await source.rolesFor("T", { held: ["admin"] })).toEqual(
+    expect(await source.rolesFor("T", { held: ["admin"] })).toStrictEqual(
       customRoles,
     );
-    expect(await source.rolesFor("B")).toEqual([stored[1]]);
-    expect(Object.keys(source)).toEqual(["rolesFor"]);
+    expect(await source.rolesFor("B")).toStrictEqual([stored[1]]);
+    expect(Object.keys(source)).toStrictEqual(["rolesFor"]);
   });
 
   it("filters an async read and junk to the tenant", async () => {
@@ -41,7 +41,9 @@ describe("customRoleSource", () => {
           { tenant: "other", name: "dropped" },
         ]),
     });
-    expect(await source.rolesFor("T")).toEqual([{ tenant: "T", name: "kept" }]);
+    expect(await source.rolesFor("T")).toStrictEqual([
+      { tenant: "T", name: "kept" },
+    ]);
   });
 
   it("passes assignable and globalRoles through", async () => {
@@ -51,8 +53,8 @@ describe("customRoleSource", () => {
       assignable: (tenant) => [`admin-${tenant}`],
       globalRoles: () => [platform],
     });
-    expect(await source.assignable?.("T")).toEqual(["admin-T"]);
-    expect(await source.globalRoles?.()).toEqual([platform]);
+    expect(await source.assignable?.("T")).toStrictEqual(["admin-T"]);
+    expect(await source.globalRoles?.()).toStrictEqual([platform]);
   });
 
   it("lets assignableRoles see a custom role nobody holds", async () => {
@@ -70,12 +72,12 @@ describe("customRoleSource", () => {
     const admin = getPermDockSync(policy, personas.admin, {
       customRoles: source,
     });
-    expect(reads).toEqual([]);
+    expect(reads).toStrictEqual([]);
     expect(admin.assignableRoles().map((leaf) => leaf.key)).not.toContain(
       "mechanic",
     );
     getPermDockSync(policy, personas.mechanic, { customRoles: source });
-    expect(reads).toEqual(["T"]);
+    expect(reads).toStrictEqual(["T"]);
   });
 
   it("skips the platform read with read 'held' while every held global role is declared", async () => {
@@ -96,16 +98,16 @@ describe("customRoleSource", () => {
       { principal: { id: "p1", roles: ["platform-admin"] }, context: {} },
       { customRoles: source },
     );
-    expect(reads).toEqual([]);
+    expect(reads).toStrictEqual([]);
     getPermDockSync(
       policy,
       { principal: { id: "p2", roles: ["auditor"] }, context: {} },
       { customRoles: source },
     );
-    expect(reads).toEqual(["global"]);
+    expect(reads).toStrictEqual(["global"]);
     getPermDockSync(policy, null, { customRoles: source });
-    expect(reads).toEqual(["global"]);
-    expect(await source.globalRoles?.()).toEqual([platform]);
+    expect(reads).toStrictEqual(["global"]);
+    expect(await source.globalRoles?.()).toStrictEqual([platform]);
   });
 });
 

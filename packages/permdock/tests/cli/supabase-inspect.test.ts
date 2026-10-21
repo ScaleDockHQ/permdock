@@ -312,7 +312,7 @@ describe("permdock supabase inspect", () => {
       execute: ["authenticated"],
     });
     const names = manifest.rls.helpers.map((helper) => helper.name);
-    expect(names).toEqual(
+    expect(names).toStrictEqual(
       expect.arrayContaining([
         "permdock_has_for",
         "permitted_organization_ids_for",
@@ -380,7 +380,7 @@ describe("permdock supabase inspect", () => {
       ),
     );
     validate(manifest);
-    expect(validate.errors ?? []).toEqual([]);
+    expect(validate.errors ?? []).toStrictEqual([]);
 
     const jwt = await generate(`{ memberships: [${SOURCES}] }`);
     const plain: SupabaseHookManifest = jsonData(
@@ -421,7 +421,7 @@ describe("permdock supabase inspect", () => {
     const manifest: SupabaseHookManifest = jsonData(
       (await run(["supabase", "inspect", "--json"], { cwd: keyed.cwd })).stdout,
     );
-    expect(manifest.rls.apiKeys).toEqual({
+    expect(manifest.rls.apiKeys).toStrictEqual({
       claim: "api_key",
       scopes: "scopes",
       tenant: "organization_id",
@@ -443,7 +443,7 @@ describe("permdock supabase inspect", () => {
       ),
     );
     validate(manifest);
-    expect(validate.errors ?? []).toEqual([]);
+    expect(validate.errors ?? []).toStrictEqual([]);
   });
 
   it("advertises rls.tokenScopes and its helper", async () => {
@@ -472,7 +472,7 @@ describe("permdock supabase inspect", () => {
       ),
     );
     validate(manifest);
-    expect(validate.errors ?? []).toEqual([]);
+    expect(validate.errors ?? []).toStrictEqual([]);
   });
 
   it("lists the membership sources behind member_<scope>_ids_for in rls.memberships", async () => {
@@ -481,7 +481,7 @@ describe("permdock supabase inspect", () => {
       (await run(["supabase", "inspect", "--json"], { cwd: hookOnly.cwd }))
         .stdout,
     );
-    expect(fromHook.rls.memberships).toEqual(fromHook.memberships);
+    expect(fromHook.rls.memberships).toStrictEqual(fromHook.memberships);
 
     const mapped = await generate(
       `{ memberships: [${SOURCES}] }`,
@@ -502,7 +502,7 @@ describe("permdock supabase inspect", () => {
     });
     expect(inspect.code).toBe(0);
     const manifest: SupabaseHookManifest = jsonData(inspect.stdout);
-    expect(manifest.rls.memberships).toEqual([
+    expect(manifest.rls.memberships).toStrictEqual([
       {
         table: "org.members",
         user: { column: "member_id" },
@@ -542,7 +542,7 @@ describe("permdock supabase inspect", () => {
     });
     expect(inspect.code).toBe(0);
     const manifest: SupabaseHookManifest = jsonData(inspect.stdout);
-    expect(manifest.rls.memberships).toEqual([
+    expect(manifest.rls.memberships).toStrictEqual([
       {
         table: "public.members",
         user: { column: "user_id" },
@@ -576,7 +576,7 @@ describe("permdock supabase inspect", () => {
     const path = join(cwd, "permdock.manifest.json");
     const written: unknown = JSON.parse(readFileSync(path, "utf8"));
     const inspect = await run(["supabase", "inspect", "--json"], { cwd });
-    expect(written).toEqual(jsonData(inspect.stdout));
+    expect(written).toStrictEqual(jsonData(inspect.stdout));
     writeFileSync(path, JSON.stringify(written));
     expect((await run([...out, "--check"], { cwd })).code).toBe(0);
     writeFileSync(
@@ -626,7 +626,7 @@ describe("permdock supabase inspect", () => {
     const inspect = await run(["supabase", "inspect", "--json"], { cwd });
     expect(
       JSON.parse(readFileSync(join(cwd, "permdock.manifest.json"), "utf8")),
-    ).toEqual(jsonData(inspect.stdout));
+    ).toStrictEqual(jsonData(inspect.stdout));
     const check = await run(["supabase", "inspect", "--out", "--check"], {
       cwd,
     });
@@ -752,7 +752,7 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
         readonly message: string;
       }[];
     };
-    expect(report.findings.map((item) => item.message)).toEqual([
+    expect(report.findings.map((item) => item.message)).toStrictEqual([
       "schema permdock has no permdock_has, permitted_organization_ids, member_organization_ids, member_organization_ids_for, permitted_customer_ids, member_customer_ids, member_customer_ids_for: the hook's claims are read by these helpers; run permdock rls generate and apply its migration",
       "claim features is 2012 bytes of JSON in ./claims.json, more than the 1024-byte memberships budget",
       "sample 2 in ./claims.json has memberships [1] that subjectFromSupabase drops (membership-dropped)",
@@ -771,14 +771,14 @@ describe("membership suspension in the manifest", () => {
     const inspect = await run(["supabase", "inspect", "--json"], { cwd });
     expect(inspect.code).toBe(0);
     const manifest: SupabaseHookManifest = jsonData(inspect.stdout);
-    expect(manifest.memberships[0]?.disabledAt).toEqual({
+    expect(manifest.memberships[0]?.disabledAt).toStrictEqual({
       column: "disabled_at",
     });
-    expect(manifest.rls.memberships[0]?.disabledAt).toEqual({
+    expect(manifest.rls.memberships[0]?.disabledAt).toStrictEqual({
       column: "disabled_at",
     });
     expect(manifest.rls.memberships[0]?.columns).toContain("disabled_at");
-    expect(manifest.rls.suspension).toEqual({
+    expect(manifest.rls.suspension).toStrictEqual({
       memberships: { keep: ["invoice.read"] },
     });
     const schema = JSON.parse(

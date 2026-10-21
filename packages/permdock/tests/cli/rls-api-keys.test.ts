@@ -54,7 +54,7 @@ function generate(
 describe("apiKeysPlan", () => {
   it("defaults the claim and field names and keeps the renames", () => {
     expect(apiKeysPlan(undefined, new Set(), {})).toBeUndefined();
-    expect(apiKeysPlan(true, new Set(), {})).toEqual({
+    expect(apiKeysPlan(true, new Set(), {})).toStrictEqual({
       claim: "api_key",
       scopes: "scopes",
       tenant: "tenant",
@@ -71,7 +71,7 @@ describe("apiKeysPlan", () => {
         new Set(["viewer"]),
         { "doc.view": "doc.read" },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       claim: "credential",
       scopes: "scopes",
       tenant: "organization_id",

@@ -50,7 +50,7 @@ function barrelTarget(barrel: string): string {
 describe("runCollect", () => {
   it("exits 2 when no permissions module is configured or guessable", async () => {
     const result = await collect(project({ "src/a.ts": "" }), {});
-    expect([result.code, result.message]).toEqual([
+    expect([result.code, result.message]).toStrictEqual([
       2,
       "usage: set permissions in permdock.config.ts or pass a definePermissions module",
     ]);
@@ -62,7 +62,7 @@ describe("runCollect", () => {
     const lib = project({ "lib/permissions.ts": PERMISSIONS });
     const result = await collect(lib, {}, { collect: { srcPath: ["./lib/"] } });
     expect(result.code).toBe(0);
-    expect(result.scan?.usages).toEqual({});
+    expect(result.scan?.usages).toStrictEqual({});
   });
 
   it("exits 2 with the reason when the module throws or exports no tree", async () => {
@@ -116,9 +116,9 @@ describe("runCollect", () => {
     });
     const config = { permissions: "./src/permissions.ts" };
     const written = await collect(cwd, config);
-    expect(written.document?.permissions.flatMap((p) => p.usages)).toEqual([
-      expect.objectContaining({ file: "src/use.ts", line: 2 }),
-    ]);
+    expect(
+      written.document?.permissions.flatMap((p) => p.usages),
+    ).toStrictEqual([expect.objectContaining({ file: "src/use.ts", line: 2 })]);
     writeFileSync(path.join(cwd, "src/use.ts"), use("\n\n"));
     expect(await collect(cwd, config, { check: true })).toMatchObject({
       code: 0,
@@ -152,7 +152,7 @@ describe("runCollect", () => {
       code: 0,
       data: { stale: false },
     });
-    expect(catalogFile(cwd, "catalog.json", doc(5), true)).toEqual({
+    expect(catalogFile(cwd, "catalog.json", doc(5), true)).toStrictEqual({
       code: 0,
       output:
         "catalog usages moved (lines only): catalog.json; run permdock collect to refresh",
@@ -193,7 +193,7 @@ describe("runCollect", () => {
           ],
         }),
       ),
-    ).toEqual({
+    ).toStrictEqual({
       permissions: [1, { usages: 2 }, { usages: [3, { file: "a" }] }],
     });
   });

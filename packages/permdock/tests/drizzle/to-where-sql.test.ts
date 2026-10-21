@@ -174,7 +174,7 @@ describe("permdock/drizzle toWhere with drizzle-orm", () => {
 
   for (const { condition, sql, params } of cases) {
     it(`compiles ${JSON.stringify(condition)}`, () => {
-      expect(compile(condition)).toEqual({ sql, params });
+      expect(compile(condition)).toStrictEqual({ sql, params });
     });
   }
 
@@ -184,7 +184,7 @@ describe("permdock/drizzle toWhere with drizzle-orm", () => {
         { op: "eq", field: "org", value: "o1" },
         { columns: { org: posts.orgId } },
       ),
-    ).toEqual({ sql: '"posts"."org_id" = $1', params: ["o1"] });
+    ).toStrictEqual({ sql: '"posts"."org_id" = $1', params: ["o1"] });
     expect(() => compile({ op: "eq", field: "missing", value: 1 })).toThrow(
       /unknown column 'missing'/u,
     );
@@ -246,7 +246,7 @@ describe("permdock/drizzle memberships tables", () => {
         },
         { subject, memberships, now: at(10.5) },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       sql: 'exists (select 1 from org_members m where m.org_id = "posts"."org_id" and m.user_id = $1 and m.role in ($2, $3) and (m.expires_at is null or m.expires_at > $4) and (m.org_id is null or m.org_id = $5))',
       params: ["u1", "viewer", "admin", 11, "o1"],
     });
@@ -258,7 +258,7 @@ describe("permdock/drizzle memberships tables", () => {
         { op: "memberOf", scope: "team", field: "teamId", roles: [] },
         { subject, memberships },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       sql: 'exists (select 1 from team_members m where m.team_id = "posts"."team_id" and m.user_id = $1 and (m.org_id is null or m.org_id = $2))',
       params: ["u1", "o1"],
     });
@@ -283,7 +283,7 @@ describe("permdock/drizzle memberships tables", () => {
     expect(sql).toBe(
       '((exists (select 1 from grants m where m.object_id = "posts"."id" and m.user_id = $1 and m.role in ($2) and m.object_type = $3)) or (exists (select 1 from folder_grants m where m.folder_id = "posts"."folder_id" and m.user_id = $4 and m.role in ($5))) or (exists (select 1 from grants m where m.object_id = "posts"."team_id" and m.user_id = $6 and m.role in ($7))))',
     );
-    expect(params).toEqual([
+    expect(params).toStrictEqual([
       "u1",
       "editor",
       "document",
@@ -302,7 +302,7 @@ describe("permdock/drizzle memberships tables", () => {
       field: "orgId",
       roles: [],
     };
-    expect(compile(tenant, { subject: anonymous, memberships })).toEqual({
+    expect(compile(tenant, { subject: anonymous, memberships })).toStrictEqual({
       sql: "false",
       params: [],
     });
@@ -311,13 +311,13 @@ describe("permdock/drizzle memberships tables", () => {
         subject,
         memberships: { tenant: { table: "m", user: "u", role: "r" } },
       }),
-    ).toEqual({ sql: "false", params: [] });
+    ).toStrictEqual({ sql: "false", params: [] });
     expect(
       compile(
         { op: "memberOf", scope: "nope", field: "orgId", roles: [] },
         { subject, memberships },
       ),
-    ).toEqual({ sql: "false", params: [] });
+    ).toStrictEqual({ sql: "false", params: [] });
   });
 
   it("refuses an unsafe membership identifier", () => {
@@ -345,7 +345,7 @@ describe("permdock/drizzle memberships tables", () => {
         { op: "memberOf", scope: "team", field: "teamId", roles: ["lead"] },
         { subject },
       ),
-    ).toEqual({ sql: '"posts"."team_id" = $1', params: ["t1"] });
+    ).toStrictEqual({ sql: '"posts"."team_id" = $1', params: ["t1"] });
   });
 });
 
@@ -443,21 +443,21 @@ describe("permdock/drizzle checkRow", () => {
 
   it("reads granted, denied and missing rows", async () => {
     const granted = database([{ granted: true }]);
-    expect(await checkRow(granted.db, posts, condition, key)).toEqual({
+    expect(await checkRow(granted.db, posts, condition, key)).toStrictEqual({
       found: true,
       granted: true,
     });
     expect(granted.seen.limit).toBe(2);
-    expect(granted.seen.granted && render(granted.seen.granted)).toEqual({
+    expect(granted.seen.granted && render(granted.seen.granted)).toStrictEqual({
       sql: 'coalesce(("posts"."org_id" = $1), false)',
       params: ["o1"],
     });
     expect(
       await checkRow(database([{ granted: false }]).db, posts, condition, key),
-    ).toEqual({ found: true, granted: false });
-    expect(await checkRow(database([]).db, posts, condition, key)).toEqual({
-      found: false,
-    });
+    ).toStrictEqual({ found: true, granted: false });
+    expect(
+      await checkRow(database([]).db, posts, condition, key),
+    ).toStrictEqual({ found: false });
   });
 
   it("throws when the key matches more than one row", async () => {
@@ -491,6 +491,6 @@ describe("permdock/drizzle operator loading", () => {
           >,
         }),
       ),
-    ).toEqual({ sql: '"posts"."org_id" = $1', params: ["o1"] });
+    ).toStrictEqual({ sql: '"posts"."org_id" = $1', params: ["o1"] });
   });
 });

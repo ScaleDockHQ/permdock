@@ -69,16 +69,14 @@ describe("a resource whose own id is the scope instance", () => {
     expect(
       permdock.can(permissions.project.read, { id: "p", organization_id: "T" }),
     ).toBe(true);
-    expect(permdock.where(permissions.organization.read).condition).toEqual({
-      op: "eq",
-      field: "id",
-      value: "T",
-    });
+    expect(
+      permdock.where(permissions.organization.read).condition,
+    ).toStrictEqual({ op: "eq", field: "id", value: "T" });
     const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");
     }
-    expect(snapshot.scopes).toEqual([
+    expect(snapshot.scopes).toStrictEqual([
       {
         name: "organization",
         key: "organization_id",

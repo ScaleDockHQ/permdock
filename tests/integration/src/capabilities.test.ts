@@ -210,10 +210,10 @@ describe("link capabilities through the Supabase exchange", () => {
     expect(jwt).toBeDefined();
     const claims = claimsOf(jwt);
     expect(claims["role"]).toBe("anon");
-    expect(await visible("quote", claims)).toEqual(
+    expect(await visible("quote", claims)).toStrictEqual(
       allowed(subject, permissions.quote.read, quotes),
     );
-    expect(await visible("file", claims)).toEqual(
+    expect(await visible("file", claims)).toStrictEqual(
       allowed(subject, permissions.file.read, files),
     );
   });
@@ -222,9 +222,13 @@ describe("link capabilities through the Supabase exchange", () => {
     const { subject, jwt } = await portal(
       `${APP}/portal/quotes?token=${await link()}`,
     );
-    expect(await visible("quote", claimsOf(jwt))).toEqual(["q_1"]);
-    expect(allowed(subject, permissions.quote.accept, quotes)).toEqual(["q_1"]);
-    expect(allowed(subject, permissions.quote.update, quotes)).toEqual([]);
+    expect(await visible("quote", claimsOf(jwt))).toStrictEqual(["q_1"]);
+    expect(allowed(subject, permissions.quote.accept, quotes)).toStrictEqual([
+      "q_1",
+    ]);
+    expect(allowed(subject, permissions.quote.update, quotes)).toStrictEqual(
+      [],
+    );
     await expect(
       db!.as(
         {
@@ -242,7 +246,7 @@ describe("link capabilities through the Supabase exchange", () => {
     );
     expect(expired.subject.principal).toBeNull();
     expect(expired.jwt).toBeUndefined();
-    expect(await visible("quote", claimsOf(expired.jwt))).toEqual([]);
+    expect(await visible("quote", claimsOf(expired.jwt))).toStrictEqual([]);
 
     const revoked = await portal(`${APP}/portal/quotes?token=${await link()}`, {
       revoked: (id) => id === "lnk_1",
@@ -252,7 +256,7 @@ describe("link capabilities through the Supabase exchange", () => {
     const replay = memoryReplayStore();
     const url = `${APP}/portal/quotes?token=${await link({ once: true })}`;
     const first = await portal(url, { replay });
-    expect(await visible("quote", claimsOf(first.jwt))).toEqual(["q_1"]);
+    expect(await visible("quote", claimsOf(first.jwt))).toStrictEqual(["q_1"]);
     const second = await portal(url, { replay });
     expect(second.jwt).toBeUndefined();
   });
@@ -267,7 +271,7 @@ describe("link capabilities through the Supabase exchange", () => {
         ...claims,
         capability: { ...capability, expires_at: 1 },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("leaves staff access to the organization unchanged", async () => {
@@ -278,6 +282,6 @@ describe("link capabilities through the Supabase exchange", () => {
         tenant_id: "T",
         memberships: [{ scope: "organization", id: "T", roles: ["staff"] }],
       }),
-    ).toEqual(["q_1", "q_2", "q_3"]);
+    ).toStrictEqual(["q_1", "q_2", "q_3"]);
   });
 });

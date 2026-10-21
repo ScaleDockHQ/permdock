@@ -77,7 +77,7 @@ describe("useAssignablePermissions", () => {
     expect(acme.split(",")).toContain("project.update");
     expect(acme.split(",")).not.toContain("billing.read");
     expect(Number(globex)).toBeGreaterThan(0);
-    expect(acme.split(",")).toEqual(
+    expect(acme.split(",")).toStrictEqual(
       server.assignablePermissions().map((leaf) => leaf.key),
     );
   });
@@ -164,7 +164,7 @@ describe("permdock/react", () => {
     expect(state.status).toBe("server-only");
     expect(
       state.decision.outcome === "denied" && state.decision.denials,
-    ).toEqual([{ role: null, reason: "server-only" }]);
+    ).toStrictEqual([{ role: null, reason: "server-only" }]);
   });
 
   it("never fetches with endpoint false and hints once", async () => {
@@ -435,7 +435,7 @@ describe("permdock/react", () => {
   });
 
   it("builds the approval resume header", () => {
-    expect(approvalHeaders("pd1.abc")).toEqual({
+    expect(approvalHeaders("pd1.abc")).toStrictEqual({
       "PermDock-Approval": "pd1.abc",
     });
   });

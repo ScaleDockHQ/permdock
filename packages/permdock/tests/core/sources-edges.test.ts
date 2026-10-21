@@ -39,7 +39,7 @@ describe("membership and role source edges", () => {
     expect(
       permdock.can(tree.post.read, { id: "p1", orgId: "o1", teamId: "t1" }),
     ).toBe(true);
-    expect(permdock.heldRoles({ tenant: "missing" })).toEqual([]);
+    expect(permdock.heldRoles({ tenant: "missing" })).toStrictEqual([]);
     expect(
       permdock
         .team("t9")
@@ -157,8 +157,8 @@ describe("membership and role source edges", () => {
     expect(anonymous.tenant("o1").can(tree.post.read, { id: "p1" })).toBe(
       false,
     );
-    expect(anonymous.heldRoles()).toEqual([]);
-    expect(anonymous.memberships()).toEqual([]);
+    expect(anonymous.heldRoles()).toStrictEqual([]);
+    expect(anonymous.memberships()).toStrictEqual([]);
     expect(
       anonymous
         .simulate({ roles: ["member"] })

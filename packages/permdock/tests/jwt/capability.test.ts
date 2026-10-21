@@ -106,7 +106,7 @@ function can(subject: Subject, id: string): boolean {
 describe("subjectFromCapability", () => {
   it("resolves a signed link into a link principal on its resource", async () => {
     const { subject, events } = await resolve(await link());
-    expect(events).toEqual([]);
+    expect(events).toStrictEqual([]);
     expect(subject.principal).toMatchObject({
       id: "lnk_1",
       kind: "link",
@@ -122,7 +122,7 @@ describe("subjectFromCapability", () => {
   it("is anonymous for a missing token", async () => {
     const { subject, events } = await resolve("");
     expect(subject.principal).toBeNull();
-    expect(events).toEqual([]);
+    expect(events).toStrictEqual([]);
   });
 
   it("refuses a token signed for another audience", async () => {
@@ -234,7 +234,7 @@ describe("subjectFromCapability", () => {
       const other = await holderKey();
       const token = await link({ cnf: { jkt: key.jkt } });
       const bound = await resolve(token, { request: await proof(token, key) });
-      expect(bound.events).toEqual([]);
+      expect(bound.events).toStrictEqual([]);
       expect(bound.subject.principal?.id).toBe("lnk_1");
       for (const request of [
         undefined,
@@ -359,7 +359,7 @@ describe("subjectFromCapability", () => {
         return [{ maxLifetime: 30 * 86_400 }, { once: true }];
       },
     });
-    expect(seen).toEqual(["q_1"]);
+    expect(seen).toStrictEqual(["q_1"]);
     expect(strict.subject.principal).toBeNull();
     expect(strict.events[0]?.cause).toBe("link-policy");
     const short = await resolve(token, {

@@ -119,8 +119,8 @@ describe("a constant via on an rls.memberships table", () => {
             org_id: id === "d1" ? "o1" : "o2",
           }),
         );
-        expect(visible).toEqual(expected);
-        expect(visible).toEqual(["d1"]);
+        expect(visible).toStrictEqual(expected);
+        expect(visible).toStrictEqual(["d1"]);
       } finally {
         await client.end();
       }

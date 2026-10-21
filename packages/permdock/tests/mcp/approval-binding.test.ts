@@ -97,13 +97,13 @@ describe("an MCP approval covers the arguments it was given", () => {
       arguments: { amount: 5000, to: "c_attacker" },
     });
     expect(swapped.isError).toBe(true);
-    expect(ran).toEqual([]);
+    expect(ran).toStrictEqual([]);
 
     const approved = await client.callTool({
       name: "create_refund",
       arguments: { amount: 5, to: "c_1" },
     });
     expect(approved.isError).not.toBe(true);
-    expect(ran).toEqual([{ amount: 5, to: "c_1" }]);
+    expect(ran).toStrictEqual([{ amount: 5, to: "c_1" }]);
   });
 });

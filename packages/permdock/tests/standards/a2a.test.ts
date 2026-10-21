@@ -85,7 +85,7 @@ const callerScopes = [
 
 describe("A2A 1.0 Agent Card", () => {
   it("section 4.4.1: the public card validates against the published a2a.json", () => {
-    expect(conforms(permdock.agentCard())).toEqual({
+    expect(conforms(permdock.agentCard())).toStrictEqual({
       valid: true,
       errors: null,
     });
@@ -109,7 +109,7 @@ describe("A2A 1.0 Agent Card", () => {
         clientId,
         scopes: callerScopes,
       });
-      expect(conforms(card)).toEqual({ valid: true, errors: null });
+      expect(conforms(card)).toStrictEqual({ valid: true, errors: null });
     }
   });
 
@@ -125,7 +125,7 @@ describe("A2A 1.0 Agent Card", () => {
       "defaultOutputModes",
       "skills",
     ] as const) {
-      expect({ field, present: card[field] !== undefined }).toEqual({
+      expect({ field, present: card[field] !== undefined }).toStrictEqual({
         field,
         present: true,
       });
@@ -134,7 +134,7 @@ describe("A2A 1.0 Agent Card", () => {
       expect(skill.tags.length).toBeGreaterThan(0);
       expect(skill.description.length).toBeGreaterThan(0);
     }
-    expect(card.supportedInterfaces).toEqual([
+    expect(card.supportedInterfaces).toStrictEqual([
       {
         url: "https://agent.example.com/a2a",
         protocolBinding: "JSONRPC",
@@ -144,7 +144,7 @@ describe("A2A 1.0 Agent Card", () => {
   });
 
   it("section 4.5: security schemes use the one-of member form", () => {
-    expect(permdock.agentCard().securitySchemes).toEqual({
+    expect(permdock.agentCard().securitySchemes).toStrictEqual({
       oauth: {
         oauth2SecurityScheme: {
           oauth2MetadataUrl:
@@ -161,7 +161,7 @@ describe("A2A 1.0 Agent Card", () => {
     const skills = permdock.agentCard().skills;
     expect(
       skills.map((skill) => [skill.id, skill.securityRequirements]),
-    ).toEqual([
+    ).toStrictEqual([
       [
         "summarise",
         [{ schemes: { oauth: { list: [permissions.post.read.scope] } } }],
@@ -183,8 +183,8 @@ describe("A2A 1.0 Agent Card", () => {
       clientId: "admin",
       scopes: callerScopes,
     });
-    expect(member.skills.map((skill) => skill.id)).toEqual(["summarise"]);
-    expect(admin.skills.map((skill) => skill.id)).toEqual([
+    expect(member.skills.map((skill) => skill.id)).toStrictEqual(["summarise"]);
+    expect(admin.skills.map((skill) => skill.id)).toStrictEqual([
       "summarise",
       "publish",
     ]);
@@ -211,9 +211,9 @@ describe("A2A 1.0 section 8.4 Agent Card signatures", () => {
 
   it("a signed card still validates and carries a detached JWS", async () => {
     const signed = await signWith(permdock.agentCard(), "card-1");
-    expect(conforms(signed)).toEqual({ valid: true, errors: null });
+    expect(conforms(signed)).toStrictEqual({ valid: true, errors: null });
     expect(signed.signatures).toHaveLength(1);
-    expect(Object.keys(signed.signatures?.[0] ?? {})).toEqual([
+    expect(Object.keys(signed.signatures?.[0] ?? {})).toStrictEqual([
       "protected",
       "signature",
     ]);

@@ -141,7 +141,7 @@ describe("better-supabase SQL against a deny of the same permission", () => {
       suspended: await askAs(database(), SUSPENDED, fill(functions.isPlatform)),
       "staff for": await ask(database(), fill(isPlatformFor, STAFF)),
       "suspended for": await ask(database(), fill(isPlatformFor, SUSPENDED)),
-    }).toEqual({
+    }).toStrictEqual({
       reader: true,
       blocked: false,
       "reader for": true,
@@ -197,7 +197,7 @@ describe("better-supabase SQL against a deny of the same permission", () => {
         SUSPENDED,
         fill(inlineSql(platform.sql).isPlatform),
       ),
-    }).toEqual({
+    }).toStrictEqual({
       bucketReader: true,
       bucketBlocked: false,
       topicReader: true,

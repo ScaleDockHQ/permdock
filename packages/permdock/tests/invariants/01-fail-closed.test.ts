@@ -177,7 +177,7 @@ describe("invariant 1: fail-closed", () => {
       for (const leaf of leaves) {
         for (const row of rows) {
           const decision = permdock.decide(leaf, row);
-          expect({ leaf: leaf.key, outcome: decision.outcome }).toEqual({
+          expect({ leaf: leaf.key, outcome: decision.outcome }).toStrictEqual({
             leaf: leaf.key,
             outcome: expect.toSatisfy((value: string) => OUTCOMES.has(value)),
           });

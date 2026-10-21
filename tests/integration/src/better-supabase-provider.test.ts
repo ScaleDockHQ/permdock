@@ -58,7 +58,7 @@ describe("authorizationProvider against the example's migrations", () => {
              then has_function_privilege($2, $1, 'execute') end as executable`,
         [signature, role],
       );
-      expect({ signature, ...rows[0] }).toEqual({
+      expect({ signature, ...rows[0] }).toStrictEqual({
         signature,
         found: true,
         executable: true,
@@ -97,7 +97,7 @@ describe("authorizationProvider against the example's migrations", () => {
       const { rows } = await db!.owner.query<{ permitted: boolean }>(
         `select ${sql} as permitted`,
       );
-      expect({ resource, permitted: rows[0]?.permitted }).toEqual({
+      expect({ resource, permitted: rows[0]?.permitted }).toStrictEqual({
         resource,
         permitted: false,
       });

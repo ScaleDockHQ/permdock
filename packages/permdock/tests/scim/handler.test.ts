@@ -115,7 +115,10 @@ describe("scimHandler routing and tenancy", () => {
     expect({
       status: response.status,
       challenge: response.headers.get("www-authenticate"),
-    }).toEqual({ status: 403, challenge: 'Bearer error="insufficient_scope"' });
+    }).toStrictEqual({
+      status: 403,
+      challenge: 'Bearer error="insufficient_scope"',
+    });
   });
 
   it("refuses a missing or wrong bearer token", async () => {
@@ -127,7 +130,7 @@ describe("scimHandler routing and tenancy", () => {
         headers: { authorization: `Basic ${TOKEN}` },
       }),
     );
-    expect([missing.status, wrong.status, scheme.status]).toEqual([
+    expect([missing.status, wrong.status, scheme.status]).toStrictEqual([
       401, 401, 401,
     ]);
   });
@@ -170,7 +173,7 @@ describe("scimHandler routing and tenancy", () => {
       schemas: user["schemas"],
       stored: (await store.getUser(TENANT, String(user["id"])))?.x,
       group: group[APP_DATA_EXTENSION],
-    }).toEqual({
+    }).toStrictEqual({
       rendered: { x: { costCenter: "cc-7" } },
       schemas: [USER_SCHEMA, APP_DATA_EXTENSION],
       stored: { costCenter: "cc-7" },
@@ -262,7 +265,7 @@ describe("scimHandler with a verifier", () => {
     expect([
       await statusFor({ org: { id: TENANT } }),
       await statusFor({ tenant: TENANT }),
-    ]).toEqual([200, 403]);
+    ]).toStrictEqual([200, 403]);
   });
 
   it("falls back to the verifier when the static token does not match", async () => {
@@ -558,7 +561,7 @@ describe("scimHandler writes", () => {
       400,
       "invalidValue",
     );
-    expect(await store.getUser(TENANT, "u_1")).toEqual(created);
+    expect(await store.getUser(TENANT, "u_1")).toStrictEqual(created);
   });
 
   it("replaces a group, emits membership changes and reports unknown roles", async () => {
@@ -598,7 +601,7 @@ describe("scimHandler writes", () => {
       members: [{ value: "u_2" }, { value: "u_3" }],
       [ROLES_EXTENSION]: { roles: ["member", "root"] },
     });
-    expect(unknown).toEqual(["root"]);
+    expect(unknown).toStrictEqual(["root"]);
     const events = sink.write.mock.calls[0]?.[0];
     expect(events).toMatchObject([
       {
@@ -687,11 +690,13 @@ describe("scimHandler writes", () => {
     expect(
       (await handle(call("/Groups/g_1", { method: "DELETE" }))).status,
     ).toBe(204);
-    expect(revoked.map((event) => [event.principal, event.kind])).toEqual([
-      ["u_1", "changed"],
-      ["ada", "changed"],
-      ["ext-ada", "changed"],
-    ]);
+    expect(revoked.map((event) => [event.principal, event.kind])).toStrictEqual(
+      [
+        ["u_1", "changed"],
+        ["ada", "changed"],
+        ["ext-ada", "changed"],
+      ],
+    );
     expect(
       (await handle(call("/Groups/g_1", { method: "DELETE" }))).status,
     ).toBe(404);
@@ -803,6 +808,6 @@ describe("scimHandler writes", () => {
         body: groupBody({ members: [{ value: "u_1" }, { value: "u_broken" }] }),
       }),
     );
-    expect(revoked).toEqual(["u_1", "ada", "u_broken"]);
+    expect(revoked).toStrictEqual(["u_1", "ada", "u_broken"]);
   });
 });

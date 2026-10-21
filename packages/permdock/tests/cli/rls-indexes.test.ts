@@ -71,8 +71,8 @@ describe("indexedFields", () => {
           },
         ],
       }),
-    ).toEqual(["owner_id", "region", "project_id"]);
-    expect(indexedFields(undefined)).toEqual([]);
+    ).toStrictEqual(["owner_id", "region", "project_id"]);
+    expect(indexedFields(undefined)).toStrictEqual([]);
   });
 });
 
@@ -98,7 +98,7 @@ describe("pruneIndexTargets", () => {
           "public.members": [["user_id"]],
         },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       targets: [
         { table: "public.members", columns: ["user_id", "workspace_id"] },
         { table: "public.grants", columns: ["user_id"] },
@@ -134,7 +134,7 @@ describe("pruneIndexTargets", () => {
         ["public.ticket"],
         sql.connect,
       ),
-    ).toEqual({
+    ).toStrictEqual({
       columns: { "public.ticket": ["id", "workspace_id"] },
       indexes: { "public.ticket": [["workspace_id", "id"], ["id"]] },
     });
@@ -202,6 +202,6 @@ describe("index targets from compiled grants", () => {
       compiled.rowColumns
         .map((item) => `${item.table}.${item.column}`)
         .toSorted(),
-    ).toEqual(["ticket.owner_id", "ticket.workspace_id"]);
+    ).toStrictEqual(["ticket.owner_id", "ticket.workspace_id"]);
   });
 });

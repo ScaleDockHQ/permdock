@@ -242,7 +242,7 @@ describe("run", () => {
         readonly detail: string;
       }[];
     };
-    expect(report.undeclared).toEqual([
+    expect(report.undeclared).toStrictEqual([
       {
         kind: "undeclared-field",
         key: "post.read",
@@ -279,7 +279,7 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
     const report = jsonData(result.stdout) as {
       readonly outsideInclude: readonly { readonly key: string }[];
     };
-    expect(report.outsideInclude.map((item) => item.key)).toEqual([
+    expect(report.outsideInclude.map((item) => item.key)).toStrictEqual([
       "post.delete",
     ]);
   });
@@ -347,7 +347,7 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
     const report = jsonData(result.stdout) as {
       readonly findings: readonly unknown[];
     };
-    expect(report.findings).toEqual([]);
+    expect(report.findings).toStrictEqual([]);
   });
 });
 
@@ -382,7 +382,7 @@ describe("run flag validation", () => {
       "rls generate: --rbac 'auth0' is not one of supabase.",
     ],
   ])("exits 2 on %o", async (argv, message) => {
-    expect(await run(argv, { cwd: appCopy() })).toEqual({
+    expect(await run(argv, { cwd: appCopy() })).toStrictEqual({
       code: 2,
       stdout: "",
       stderr: `${message}\n`,
@@ -390,7 +390,7 @@ describe("run flag validation", () => {
   });
 
   it("asks for a missing required input with exit 3", async () => {
-    expect(await run(["openapi", "import"], { cwd: appCopy() })).toEqual({
+    expect(await run(["openapi", "import"], { cwd: appCopy() })).toStrictEqual({
       code: 3,
       stdout: "",
       stderr: "openapi import needs --doc: the OpenAPI document to import\n",
@@ -399,13 +399,15 @@ describe("run flag validation", () => {
 
   it("exits 2 when the config fails to load", async () => {
     const cwd = appCopy();
-    expect(await run(["doctor", "--config", "absent.ts"], { cwd })).toEqual({
+    expect(
+      await run(["doctor", "--config", "absent.ts"], { cwd }),
+    ).toStrictEqual({
       code: 2,
       stdout: "",
       stderr: `PermDock CLI: config file not found: ${join(cwd, "absent.ts")}\n`,
     });
     writeFileSync(join(cwd, "permdock.config.ts"), "throw 'raw';\n");
-    expect(await run(["doctor"], { cwd })).toEqual({
+    expect(await run(["doctor"], { cwd })).toStrictEqual({
       code: 2,
       stdout: "",
       stderr: "raw\n",
@@ -438,12 +440,12 @@ describe("run flag validation", () => {
     };
     const help = await run(["help"], { io });
     expect(help.code).toBe(0);
-    expect(out).toEqual([help.stdout]);
+    expect(out).toStrictEqual([help.stdout]);
     const bad = await run(["catalog", "--format", "xml"], {
       io,
       cwd: appCopy(),
     });
-    expect(err).toEqual([bad.stderr]);
+    expect(err).toStrictEqual([bad.stderr]);
   });
 
   it("collect honours --src and --out", async () => {

@@ -178,12 +178,12 @@ describe.each([
       query,
       snapshot: true,
     });
-    expect(report.results.filter((item) => !item.ok)).toEqual([]);
+    expect(report.results.filter((item) => !item.ok)).toStrictEqual([]);
     const allowed = (name: string): string[] =>
       report.results
         .filter((item) => item.name.startsWith(`${name} `) && item.granted)
         .map((item) => item.name.slice(name.length + 1));
-    expect(allowed("privateContact")).toEqual([
+    expect(allowed("privateContact")).toStrictEqual([
       "quote.read d_a_sent",
       "quote.read d_a_accepted",
       "invoice.read d_a_sent",
@@ -192,13 +192,13 @@ describe.each([
       "asset.read a_a_draft",
       "asset.read a_a_accepted",
     ]);
-    expect(allowed("staffContactInB")).toEqual([
+    expect(allowed("staffContactInB")).toStrictEqual([
       "quote.read d_c_sent",
       "invoice.read d_c_sent",
       "asset.read a_c_sent",
     ]);
-    expect(allowed("platformAdmin")).toEqual([]);
-    expect(allowed("sneaky")).toEqual([]);
+    expect(allowed("platformAdmin")).toStrictEqual([]);
+    expect(allowed("sneaky")).toStrictEqual([]);
   });
 
   const claimsOf = (principal: Principal): Record<string, string> => ({
@@ -298,7 +298,7 @@ describe.each([
         );
         return result.rows.map((row) => row.id);
       });
-    expect(await ids("permitted_organization_ids")).toEqual(["T"]);
-    expect(await ids("permitted_customer_ids")).toEqual([]);
+    expect(await ids("permitted_organization_ids")).toStrictEqual(["T"]);
+    expect(await ids("permitted_customer_ids")).toStrictEqual([]);
   });
 });

@@ -172,7 +172,7 @@ describe("quota grants", () => {
     const permdock = await permdockFor([once], "member", {
       limits: limits(counter),
     });
-    expect(permdock.filter(permissions.report.export, [report])).toEqual([
+    expect(permdock.filter(permissions.report.export, [report])).toStrictEqual([
       report,
     ]);
     const batch = permdock.simulate([[permissions.report.export, report]]);
@@ -269,13 +269,13 @@ describe("soft and hard quotas", () => {
     });
     expect(first.outcome).toBe("granted");
     if (first.outcome === "granted") {
-      expect(first.quota).toEqual({ remaining: 1, resetsAt });
+      expect(first.quota).toStrictEqual({ remaining: 1, resetsAt });
       expect(first).not.toHaveProperty("obligations");
     }
     const second = permdock.decide(permissions.report.export, report, {
       now: at(now),
     });
-    expect(second.outcome === "granted" && second.quota).toEqual({
+    expect(second.outcome === "granted" && second.quota).toStrictEqual({
       remaining: 0,
       resetsAt,
     });
@@ -291,7 +291,7 @@ describe("soft and hard quotas", () => {
     });
     const batch = permdock.simulate([[permissions.report.export, report]]);
     const [peeked] = Array.isArray(batch) ? batch : [];
-    expect(peeked?.outcome === "granted" && peeked.quota).toEqual({
+    expect(peeked?.outcome === "granted" && peeked.quota).toStrictEqual({
       remaining: 1,
       resetsAt: expect.stringMatching(/Z$/u),
     });
@@ -334,8 +334,8 @@ describe("soft and hard quotas", () => {
     });
     expect(over.outcome).toBe("granted");
     if (over.outcome === "granted") {
-      expect(over.obligations).toEqual([{ kind: "over-limit" }]);
-      expect(over.quota).toEqual({ remaining: 0, resetsAt });
+      expect(over.obligations).toStrictEqual([{ kind: "over-limit" }]);
+      expect(over.quota).toStrictEqual({ remaining: 0, resetsAt });
     }
     expect(
       permdock.can(permissions.report.export, report, { now: at(now) }),
@@ -362,7 +362,7 @@ describe("soft and hard quotas", () => {
           : decision.outcome,
       );
     }
-    expect(kinds).toEqual([
+    expect(kinds).toStrictEqual([
       "none",
       "none",
       "none",
@@ -416,7 +416,7 @@ describe("soft and hard quotas", () => {
         } as never,
       }),
     ].flat();
-    expect(grant?.limit).toEqual({
+    expect(grant?.limit).toStrictEqual({
       count: 5,
       per: 86_400,
       mode: "soft",
@@ -472,13 +472,13 @@ describe("quota windows and keys", () => {
       per: 3600,
       now: { epochMilliseconds: 0 },
     };
-    expect(counter.consume({ ...base, tenant: "acme" })).toEqual({
+    expect(counter.consume({ ...base, tenant: "acme" })).toStrictEqual({
       remaining: 0,
     });
-    expect(counter.consume({ ...base, tenant: "globex" })).toEqual({
+    expect(counter.consume({ ...base, tenant: "globex" })).toStrictEqual({
       remaining: 0,
     });
-    expect(counter.consume({ ...base, tenant: "acme" })).toEqual({
+    expect(counter.consume({ ...base, tenant: "acme" })).toStrictEqual({
       remaining: -1,
     });
   });
@@ -486,12 +486,12 @@ describe("quota windows and keys", () => {
   it("forgets windows that have ended", () => {
     const counter = memoryLimitStore();
     const base = { key: "report.export", subjectId: "u1", count: 1, per: 1 };
-    expect(counter.consume({ ...base, now: { epochMilliseconds: 0 } })).toEqual(
-      { remaining: 0 },
-    );
+    expect(
+      counter.consume({ ...base, now: { epochMilliseconds: 0 } }),
+    ).toStrictEqual({ remaining: 0 });
     expect(
       counter.consume({ ...base, now: { epochMilliseconds: 5000 } }),
-    ).toEqual({ remaining: 0 });
+    ).toStrictEqual({ remaining: 0 });
     expect(counter.size()).toBe(1);
   });
 });

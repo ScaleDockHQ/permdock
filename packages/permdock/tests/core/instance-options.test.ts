@@ -39,7 +39,7 @@ describe("instanceOptions", () => {
     };
     // SAFETY: an adapter's options object: two sources, one unset source and two adapter keys.
     const options = adapterOptions as unknown as InstanceOptions;
-    expect(instanceOptions(options)).toEqual({ sink, approvalPolicies });
+    expect(instanceOptions(options)).toStrictEqual({ sink, approvalPolicies });
   });
 });
 
@@ -93,7 +93,7 @@ describe("adapters forward InstanceOptions to core", () => {
       .use(hono.middleware())
       .get("/", (c) => c.json(c.get("permdock").subject.actor ?? null));
     const acting = await app.request("/", { headers: { "x-agent": "bot" } });
-    expect(await acting.json()).toEqual({ id: "bot", kind: "agent" });
+    expect(await acting.json()).toStrictEqual({ id: "bot", kind: "agent" });
     expect(await (await app.request("/")).json()).toBeNull();
   });
 });

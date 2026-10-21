@@ -39,10 +39,10 @@ describe("conditionFromAst", () => {
         undefined,
         unmapped,
       ),
-    ).toEqual({ op: "isNull", field: "published", value: true });
+    ).toStrictEqual({ op: "isNull", field: "published", value: true });
     expect(
       await conditionFromAst('"n" is not null', undefined, undefined, unmapped),
-    ).toEqual({ op: "isNull", field: "n", value: false });
+    ).toStrictEqual({ op: "isNull", field: "n", value: false });
     expect(
       await conditionFromAst(
         "\"orgId\" = ((select auth.jwt()) ->> 'tenant_id')",
@@ -77,8 +77,8 @@ describe("conditionFromAst", () => {
     ).toMatchObject({ op: "or" });
     expect(
       await conditionFromAst("true", undefined, undefined, unmapped),
-    ).toEqual({ op: "eq", field: "_", value: true });
-    expect(unmapped).toEqual([]);
+    ).toStrictEqual({ op: "eq", field: "_", value: true });
+    expect(unmapped).toStrictEqual([]);
   });
 
   it("maps EXISTS and IN memberships and mapped functions", async () => {
@@ -145,7 +145,7 @@ describe("conditionFromAst", () => {
 
 describe("sqlFunctionNames", () => {
   it("walks compounds and ignores leaves without a function", () => {
-    expect(sqlFunctionNames(undefined)).toEqual([]);
+    expect(sqlFunctionNames(undefined)).toStrictEqual([]);
     expect(
       sqlFunctionNames({
         op: "and",
@@ -159,9 +159,9 @@ describe("sqlFunctionNames", () => {
           { op: "not", condition: { op: "eq", field: "hidden", value: true } },
         ],
       }),
-    ).toEqual(["job_permitted"]);
+    ).toStrictEqual(["job_permitted"]);
     expect(
       sqlFunctionNames({ op: "opaque", sql: "1=1", fingerprint: "x" }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

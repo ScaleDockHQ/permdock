@@ -80,7 +80,7 @@ describe("cloudOAuth", () => {
     });
 
     const page = await client.listProjects(credential.access_token);
-    expect(page.items.map((project) => project.id)).toEqual([
+    expect(page.items.map((project) => project.id)).toStrictEqual([
       "prj_ref",
       "empty",
     ]);
@@ -300,7 +300,7 @@ describe("cloudOAuth", () => {
       await refused(Response.json({ items: [{ ...project, catalog: {} }] })),
     ).toMatchObject({ code: "unexpected-response" });
     answers.push(Response.json({ items: [project], next: "c2" }));
-    expect(await client.listProjects("at", { cursor: "c1" })).toEqual({
+    expect(await client.listProjects("at", { cursor: "c1" })).toStrictEqual({
       items: [project],
       next: "c2",
     });
@@ -356,7 +356,7 @@ describe("bearerChallenge", () => {
       bearerChallenge(
         'Bearer realm="permdock", ERROR="insufficient_scope", scope="projects:read policy:read"',
       ),
-    ).toEqual({
+    ).toStrictEqual({
       scheme: "bearer",
       params: {
         realm: "permdock",
@@ -364,7 +364,7 @@ describe("bearerChallenge", () => {
         scope: "projects:read policy:read",
       },
     });
-    expect(bearerChallenge("bearer error=invalid_token")).toEqual({
+    expect(bearerChallenge("bearer error=invalid_token")).toStrictEqual({
       scheme: "bearer",
       params: { error: "invalid_token" },
     });
@@ -375,7 +375,10 @@ describe("bearerChallenge", () => {
       bearerChallenge(
         'Basic realm="x", Negotiate abc==, Bearer error_description="a \\"b\\""',
       ),
-    ).toEqual({ scheme: "bearer", params: { error_description: 'a "b"' } });
+    ).toStrictEqual({
+      scheme: "bearer",
+      params: { error_description: 'a "b"' },
+    });
   });
 
   it("answers null without a Bearer challenge", () => {

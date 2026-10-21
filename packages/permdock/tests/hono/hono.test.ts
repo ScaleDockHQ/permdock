@@ -122,9 +122,9 @@ describe("permdock/hono streams and sockets", () => {
       return c.text(conn.check(permissions.post.update, ownPost).outcome);
     });
     expect(await (await app.request("/ws")).text()).toBe("granted");
-    expect(opened).toEqual(["open"]);
+    expect(opened).toStrictEqual(["open"]);
     await revocations.revoke({ principal: "u1", kind: "session-revoked" });
-    expect(closes).toEqual([[1008, "session-revoked"]]);
+    expect(closes).toStrictEqual([[1008, "session-revoked"]]);
   });
 });
 
@@ -151,7 +151,7 @@ describe("permdock/hono", () => {
       method: "DELETE",
     });
     expect(allowed.status).toBe(200);
-    expect(await allowed.json()).toEqual({ ok: true, via: "u1" });
+    expect(await allowed.json()).toStrictEqual({ ok: true, via: "u1" });
 
     const denied = await app.request("http://localhost/posts/p2", {
       method: "DELETE",
@@ -255,7 +255,7 @@ describe("permdock/hono getPermDock", () => {
       });
     });
     const response = await app.request("/");
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toStrictEqual({
       id: "u1",
       own: true,
       other: false,

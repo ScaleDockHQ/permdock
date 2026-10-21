@@ -33,7 +33,7 @@ describe("snapshotFixture", () => {
     expect({
       tenants: snapshot.tenants,
       grants: snapshot.grants.map((grant) => grant.permission),
-    }).toEqual({ tenants: ["o1"], grants: ["doc.read"] });
+    }).toStrictEqual({ tenants: ["o1"], grants: ["doc.read"] });
   });
 
   it("passes include and tenants through", async () => {
@@ -42,7 +42,7 @@ describe("snapshotFixture", () => {
       include: [permissions.doc.read],
     });
     const all = await snapshotFixture(policy, vera, { tenants: "all" });
-    expect({ include: included.include, tenants: all.tenants }).toEqual({
+    expect({ include: included.include, tenants: all.tenants }).toStrictEqual({
       include: ["doc.read"],
       tenants: ["o1"],
     });
@@ -58,6 +58,6 @@ describe("snapshotFixture", () => {
 
   it("snapshots an anonymous subject with no grants", async () => {
     const snapshot = await snapshotFixture(policy, null);
-    expect(snapshot.grants).toEqual([]);
+    expect(snapshot.grants).toStrictEqual([]);
   });
 });

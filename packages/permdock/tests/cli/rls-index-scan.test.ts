@@ -35,13 +35,13 @@ create table d (note text default 'x(y', id uuid primary key, unique ((lower(not
 create table e (id uuid unique, unique ("co""de");
 create table f (name text default 'a;
 `),
-    ).toEqual({ "public.c": [['it"s']], "public.d": [["id"]] });
+    ).toStrictEqual({ "public.c": [['it"s']], "public.d": [["id"]] });
   });
 });
 
 describe("indexKeysFromSql", () => {
   it("reads indexes, constraints and keys, cut at the first expression", () => {
-    expect(indexKeysFromSql(SQL)).toEqual({
+    expect(indexKeysFromSql(SQL)).toStrictEqual({
       "public.organization_members": [
         ["id"],
         ["user_id", "role_id", "organization_id"],
@@ -67,7 +67,7 @@ describe("indexKeysFromSql", () => {
         ],
         keys,
       ),
-    ).toEqual([
+    ).toStrictEqual([
       {
         table: "public.organization_members",
         columns: ["user_id", "organization_id"],
@@ -87,7 +87,7 @@ CREATE UNLOGGED TABLE IF NOT EXISTS app."Jobs" (id uuid);
 create table audit_events partition of events for values in ('audit');
 create temp table scratch (id int);
 `),
-    ]).toEqual([
+    ]).toStrictEqual([
       "public.organization_members",
       "app.Jobs",
       "public.audit_events",
@@ -113,7 +113,7 @@ create index jobs_owner on public.jobs (owner_id);
 CREATE INDEX permdock_notes_user_id_idx ON public.notes USING btree (user_id);
 `,
     );
-    expect(indexKeysFromProject(cwd)).toEqual({
+    expect(indexKeysFromProject(cwd)).toStrictEqual({
       "public.jobs": [["owner_id"]],
     });
   });

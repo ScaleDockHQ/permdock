@@ -29,7 +29,7 @@ describe("driftOf and writeOutputFiles", () => {
         { part: "policies", rel: "stale.sql", text: "select 1;\nselect 3;\n" },
         { part: "hook", rel: "nested/missing.sql", text: "x" },
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       [
         "policies: stale.sql",
         "--- stale.sql (on disk)",
@@ -61,7 +61,7 @@ describe("driftOf and writeOutputFiles", () => {
       { part: "helpers", rel: "deep/dir/helpers.sql", text: "h" },
       { part: "out", rel: STDOUT, text: "two" },
     ]);
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       wrote: ["deep/dir/helpers.sql"],
       printed: "one\ntwo",
     });
@@ -69,7 +69,7 @@ describe("driftOf and writeOutputFiles", () => {
       driftOf(cwd, [
         { part: "helpers", rel: "deep/dir/helpers.sql", text: "h" },
       ]),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });
 
@@ -87,7 +87,7 @@ describe("parseSplit and partPath", () => {
       "rls generate --split takes helpers, seeds, indexes, policies and hook, got ' , '",
     ],
   ])("parses %j", (raw, expected) => {
-    expect(parseSplit(raw)).toEqual(expected);
+    expect(parseSplit(raw)).toStrictEqual(expected);
   });
 
   it("substitutes every {part}", () => {

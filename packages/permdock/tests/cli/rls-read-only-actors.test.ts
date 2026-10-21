@@ -44,7 +44,7 @@ describe("rls.readOnlyActors", () => {
       ["support", "impersonation"],
     );
     const passes = `(not coalesce((${ACT} ->> 'kind') = any(array['support', 'impersonation']::text[]) or ((${ACT} ->> 'kind') is null and ${ACT} ? 'session_id'), false) or coalesce((${ACT} ->> 'read_only') = 'false', false))${READ_ONLY_AGENT}`;
-    expect(policies).toEqual([
+    expect(policies).toStrictEqual([
       {
         name: "quotes_insert_read_only_actors",
         table: "quotes",
@@ -98,8 +98,13 @@ describe("rls.readOnlyActors", () => {
   it("reads true as support and impersonation and refuses an empty or unsafe list", () => {
     expect(readOnlyActorKinds(undefined)).toBeUndefined();
     expect(readOnlyActorKinds(false)).toBeUndefined();
-    expect(readOnlyActorKinds(true)).toEqual(["support", "impersonation"]);
-    expect(readOnlyActorKinds(["support", "support"])).toEqual(["support"]);
+    expect(readOnlyActorKinds(true)).toStrictEqual([
+      "support",
+      "impersonation",
+    ]);
+    expect(readOnlyActorKinds(["support", "support"])).toStrictEqual([
+      "support",
+    ]);
     expect(() => readOnlyActorKinds([])).toThrow(/non-empty list/u);
     expect(() => readOnlyActorKinds(["x'; drop"])).toThrow(/actor kinds/u);
   });

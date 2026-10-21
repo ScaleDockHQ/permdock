@@ -36,7 +36,7 @@ describe("A2A card security schemes", () => {
       skills: { list: { permission: permissions.post.list } },
     });
     const published = agentCard();
-    expect(published.securitySchemes).toEqual({
+    expect(published.securitySchemes).toStrictEqual({
       bearer: {
         httpAuthSecurityScheme: { scheme: "bearer", bearerFormat: "JWT" },
       },
@@ -49,7 +49,7 @@ describe("A2A card security schemes", () => {
       mtls: { mtlsSecurityScheme: { description: "client certificate" } },
       key: { apiKeySecurityScheme: { location: "header", name: "x-api-key" } },
     });
-    expect(published.skills[0]?.securityRequirements).toEqual([
+    expect(published.skills[0]?.securityRequirements).toStrictEqual([
       { schemes: { bearer: { list: [permissions.post.list.scope] } } },
     ]);
   });
@@ -61,7 +61,7 @@ describe("A2A card security schemes", () => {
       securitySchemes: {},
       skills: { list: { permission: permissions.post.list } },
     });
-    expect(agentCard().skills[0]?.securityRequirements).toEqual([]);
+    expect(agentCard().skills[0]?.securityRequirements).toStrictEqual([]);
   });
 });
 
@@ -89,7 +89,7 @@ describe("A2A skill protection edges", () => {
     }).protectSkill(() => "list");
     expect((await run({}, { clientId: "agent", scopes })).ok).toBe(true);
     expect((await run({}, { clientId: "broken", scopes })).ok).toBe(true);
-    expect(tenants).toEqual(["o1"]);
+    expect(tenants).toStrictEqual(["o1"]);
   });
 
   it("denies an anonymous caller when the subject resolver throws", async () => {

@@ -70,7 +70,7 @@ describe("permdock/server", () => {
     expect(granted.ok).toBe(true);
     if (granted.ok) {
       expect(granted.decision.outcome).toBe("granted");
-      expect(granted.data).toEqual(ownPost);
+      expect(granted.data).toStrictEqual(ownPost);
     }
 
     const missing = await protect(
@@ -146,7 +146,7 @@ describe("permdock/server", () => {
     const body = (await problem(decision, {
       permission: permissions.post.delete,
     }).json()) as { readonly approval?: unknown };
-    expect(body.approval).toEqual({
+    expect(body.approval).toStrictEqual({
       at: "https://app.example/approvals",
       hint: "Ask an admin.",
     });
@@ -310,8 +310,8 @@ describe("permdock/server", () => {
     expect(body.evaluations[0]?.decision).toBe(true);
 
     const security = openapi.security(permissions.post.delete);
-    expect(security.security[0]?.["oauth2"]).toEqual(["post:delete"]);
-    expect(security["x-permdock-permissions"]).toEqual(["post.delete"]);
+    expect(security.security[0]?.["oauth2"]).toStrictEqual(["post:delete"]);
+    expect(security["x-permdock-permissions"]).toStrictEqual(["post.delete"]);
     expect(openapi.securitySchemes()["oauth2"]).toBeDefined();
   });
 });
@@ -415,7 +415,7 @@ describe("permdock/server webBotAuth", () => {
     const permdock = await permdockFor(
       await signedRequest(privateKey, "bot-1"),
     );
-    expect(permdock.subject.actor).toEqual({
+    expect(permdock.subject.actor).toStrictEqual({
       id: "bot-1",
       kind: "web-bot-auth",
     });

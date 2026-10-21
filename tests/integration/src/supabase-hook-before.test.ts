@@ -118,13 +118,13 @@ describe("supabase.hook.before", () => {
   });
 
   it("returns a before function's error without writing claims", async () => {
-    expect(await mint(BLOCKED)).toEqual({
+    expect(await mint(BLOCKED)).toStrictEqual({
       error: { http_code: 403, message: "blocked" },
     });
   });
 
   it("refuses the token when a before function returns no event", async () => {
-    expect(await mint(BROKEN)).toEqual({
+    expect(await mint(BROKEN)).toStrictEqual({
       error: {
         http_code: 500,
         message: "auth_checks.require_verified returned no event",

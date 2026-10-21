@@ -125,7 +125,7 @@ describe("feed credentials", () => {
         },
       ],
     });
-    expect(subject.delegation?.authorizationDetails).toEqual([
+    expect(subject.delegation?.authorizationDetails).toStrictEqual([
       { type: "calendar", actions: ["read"], identifier: "cal_1" },
     ]);
     const asFeed = getPermDockSync(policy, subject);

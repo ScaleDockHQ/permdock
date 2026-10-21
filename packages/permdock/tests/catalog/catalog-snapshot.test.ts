@@ -86,7 +86,7 @@ describe("snapshot on an instance built from a catalog", () => {
       grant.permission,
       grant.portable ?? true,
     ]);
-    expect(listed).toEqual(
+    expect(listed).toStrictEqual(
       expect.arrayContaining([
         ["doc.read", true],
         ["doc.export", true],

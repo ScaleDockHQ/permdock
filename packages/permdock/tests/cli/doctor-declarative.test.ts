@@ -33,13 +33,15 @@ describe("PD042 hook grants after db diff", () => {
 
   it("needs a supabase.hook config and a hook declared under supabase/schemas", () => {
     const migrations = { "supabase/migrations/001.sql": CREATE };
-    expect(pd042(project({ ...declared, ...migrations }), {})).toEqual([]);
+    expect(pd042(project({ ...declared, ...migrations }), {})).toStrictEqual(
+      [],
+    );
     expect(
       pd042(
         project({ "supabase/schemas/hook.sql": CREATE, ...migrations }),
         HOOK_CONFIG,
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("is silent when no migration creates the hook, or a later one grants it", () => {
@@ -48,7 +50,7 @@ describe("PD042 hook grants after db diff", () => {
         project({ ...declared, "supabase/migrations/001.sql": "select 1;\n" }),
         HOOK_CONFIG,
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       pd042(
         project({
@@ -58,7 +60,7 @@ describe("PD042 hook grants after db diff", () => {
         }),
         HOOK_CONFIG,
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("errors when the only grant sits in a comment", () => {
@@ -69,7 +71,7 @@ describe("PD042 hook grants after db diff", () => {
       }),
       HOOK_CONFIG,
     );
-    expect(findings.map((item) => [item.code, item.severity])).toEqual([
+    expect(findings.map((item) => [item.code, item.severity])).toStrictEqual([
       ["PD042", "error"],
     ]);
     expect(findings[0]?.message).toMatch(
@@ -88,13 +90,13 @@ describe("PD042 hook grants after db diff", () => {
         }),
         pgDelta,
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       pd042(
         project({ ...declared, "supabase/migrations/001.sql": CREATE }),
         pgDelta,
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       pd042(
         project({
@@ -115,7 +117,7 @@ describe("PD068 and PD069 outside their case", () => {
     const off = "[experimental.pgdelta]\nenabled = false\n";
     expect(
       pd068(project({ "supabase/schemas/hook.sql": generated }), {}),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       pd068(
         project({
@@ -124,7 +126,7 @@ describe("PD068 and PD069 outside their case", () => {
         }),
         {},
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       pd068(
         project({
@@ -133,7 +135,7 @@ describe("PD068 and PD069 outside their case", () => {
         }),
         {},
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       pd068(
         project({
@@ -142,7 +144,7 @@ describe("PD068 and PD069 outside their case", () => {
         }),
         {},
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       pd068(
         project({
@@ -151,7 +153,7 @@ describe("PD068 and PD069 outside their case", () => {
         }),
         {},
       ).map((item) => item.code),
-    ).toEqual(["PD068"]);
+    ).toStrictEqual(["PD068"]);
   });
 
   it("PD069 is silent under migra and warns on each leftover under pg-delta", () => {
@@ -160,8 +162,8 @@ describe("PD068 and PD069 outside their case", () => {
       "supabase/config.toml":
         "[db.migrations]\nschema_paths = ['./schemas/*.sql']\n",
     };
-    expect(pd069(project(files), MIGRA)).toEqual([]);
-    expect(pd069(project(files), {}).map((item) => item.code)).toEqual([
+    expect(pd069(project(files), MIGRA)).toStrictEqual([]);
+    expect(pd069(project(files), {}).map((item) => item.code)).toStrictEqual([
       "PD069",
       "PD069",
     ]);
@@ -170,10 +172,10 @@ describe("PD068 and PD069 outside their case", () => {
 
 describe("PD043 schema_paths order", () => {
   it("is silent without supabase/schemas, or without a helpers file", () => {
-    expect(pd043(project({}), MIGRA)).toEqual([]);
-    expect(pd043(project({ "supabase/schemas/a.sql": POLICY }), MIGRA)).toEqual(
-      [],
-    );
+    expect(pd043(project({}), MIGRA)).toStrictEqual([]);
+    expect(
+      pd043(project({ "supabase/schemas/a.sql": POLICY }), MIGRA),
+    ).toStrictEqual([]);
   });
 
   it("uses the default glob without a config, a [db.migrations] section or a list", () => {
@@ -181,7 +183,7 @@ describe("PD043 schema_paths order", () => {
       "supabase/schemas/010_helpers.sql": HELPERS,
       "supabase/schemas/020_policies.sql": POLICY,
     };
-    expect(pd043(project(files), MIGRA)).toEqual([]);
+    expect(pd043(project(files), MIGRA)).toStrictEqual([]);
     expect(
       pd043(
         project({
@@ -190,7 +192,7 @@ describe("PD043 schema_paths order", () => {
         }),
         MIGRA,
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       pd043(
         project({
@@ -199,7 +201,7 @@ describe("PD043 schema_paths order", () => {
         }),
         MIGRA,
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     expect(
       pd043(
         project({
@@ -208,7 +210,7 @@ describe("PD043 schema_paths order", () => {
         }),
         MIGRA,
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("is silent under pg-delta, which orders statements by their dependencies", () => {
@@ -217,7 +219,7 @@ describe("PD043 schema_paths order", () => {
       "supabase/schemas/permdock/helpers.sql": HELPERS,
       "supabase/config.toml": `[experimental.pgdelta]\nenabled = true\n[db.migrations]\nschema_paths = ['./schemas/public/*.sql', './schemas/permdock/*.sql']\n`,
     });
-    expect(pd043(cwd, {})).toEqual([]);
+    expect(pd043(cwd, {})).toStrictEqual([]);
     expect(
       pd043(
         project({
@@ -226,7 +228,7 @@ describe("PD043 schema_paths order", () => {
         }),
         {},
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("reads single-quoted paths and warns on a policy listed before the helpers", () => {
@@ -236,7 +238,7 @@ describe("PD043 schema_paths order", () => {
       "supabase/schemas/notes.txt": POLICY,
       "supabase/config.toml": `[db.migrations]\nschema_paths = ['./schemas/020_*.sql', './schemas/*']\n`,
     });
-    expect(pd043(cwd, MIGRA)).toEqual([
+    expect(pd043(cwd, MIGRA)).toStrictEqual([
       {
         code: "PD043",
         severity: "warning",

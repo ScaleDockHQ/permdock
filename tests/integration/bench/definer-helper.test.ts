@@ -225,8 +225,8 @@ describe("a per-row security definer helper against permitted_<scope>_ids", () =
 
   it("returns the same rows in every shape", () => {
     expect(database?.ids).toHaveLength(ROWS / TENANTS);
-    expect(definer?.ids).toEqual(database?.ids);
-    expect(jwt?.ids).toEqual(database?.ids);
+    expect(definer?.ids).toStrictEqual(database?.ids);
+    expect(jwt?.ids).toStrictEqual(database?.ids);
   });
 
   it("reports the median execution time of each shape", async ({

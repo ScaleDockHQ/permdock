@@ -279,7 +279,7 @@ describe("invariant 11: no bypass role, bound tokens, distinct approvers", () =>
       by: asBob.subject,
     });
     expect(first.status).toBe("pending");
-    expect(first.approvals?.map((item) => item.by)).toEqual(["bob"]);
+    expect(first.approvals?.map((item) => item.by)).toStrictEqual(["bob"]);
     await expect(
       resolveApproval(store, decision.token, {
         status: "approved",
@@ -293,7 +293,10 @@ describe("invariant 11: no bypass role, bound tokens, distinct approvers", () =>
       by: asCarol.subject,
     });
     expect(second.status).toBe("approved");
-    expect(second.approvals?.map((item) => item.by)).toEqual(["bob", "carol"]);
+    expect(second.approvals?.map((item) => item.by)).toStrictEqual([
+      "bob",
+      "carol",
+    ]);
     expect(second.resolvedBy).toBe("carol");
   });
 });

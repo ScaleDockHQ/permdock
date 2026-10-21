@@ -87,7 +87,7 @@ describe("break-glass RLS session function (guc)", () => {
         )
       ).rows.map((row) => row.id),
     );
-    expect(ids).toEqual(["p-open"]);
+    expect(ids).toStrictEqual(["p-open"]);
   });
 
   it("the function refuses without a valid session", async () => {
@@ -138,7 +138,7 @@ describe("break-glass RLS session function (guc)", () => {
     await db.tester.query(`select set_config('app.break_glass', '', false)`);
     await db.tester.query(`reset role`);
 
-    expect(rows).toEqual(["p-open", "p-secret"]);
+    expect(rows).toStrictEqual(["p-open", "p-secret"]);
 
     const audit = (
       await db.admin.query<{
@@ -150,7 +150,7 @@ describe("break-glass RLS session function (guc)", () => {
         `select subject, permission, purpose, reason from permdock.permdock_break_glass_audit`,
       )
     ).rows;
-    expect(audit).toEqual([
+    expect(audit).toStrictEqual([
       {
         subject: NURSE,
         permission: "patient.read",

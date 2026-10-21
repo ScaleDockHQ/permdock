@@ -131,7 +131,7 @@ describe("permdock/ai-sdk stepUp: authentication", () => {
   it("asks the user to sign in again, with acr_values and max_age on the URL", async () => {
     const { toolApproval } = adapter({ at: "https://app.example.com/reauth" });
     const status = await toolApproval(call("delete_post", member));
-    expect(status).toEqual({
+    expect(status).toStrictEqual({
       type: "user-approval",
       reason:
         "Sign in again to use post.delete: https://app.example.com/reauth?acr_values=mfa&max_age=300",
@@ -185,7 +185,7 @@ describe("permdock/ai-sdk stepUp: authentication", () => {
 
   it("never steps up an unmapped tool", async () => {
     const { toolApproval } = adapter({});
-    expect(await toolApproval(call("explode", member))).toEqual({
+    expect(await toolApproval(call("explode", member))).toStrictEqual({
       type: "denied",
       reason: "Denied: unmapped tool explode.",
     });
@@ -195,7 +195,7 @@ describe("permdock/ai-sdk stepUp: authentication", () => {
 describe("permdock/ai-sdk stepUp: activation", () => {
   it("names the eligible role whose activation grants the call", async () => {
     const { toolApproval } = adapter({});
-    expect(await toolApproval(call("archive_post", member))).toEqual({
+    expect(await toolApproval(call("archive_post", member))).toStrictEqual({
       type: "user-approval",
       reason: "Activate the admin role on organization T to use post.archive.",
       stepUp: {
@@ -292,11 +292,11 @@ describe("permdock/ai-sdk stepUp: needsApproval and the middleware", () => {
     const without = await adapter()
       .capabilityMiddleware(context)
       .transformParams({ params });
-    expect(without.tools?.map((next) => next.name)).toEqual([]);
+    expect(without.tools?.map((next) => next.name)).toStrictEqual([]);
     const withStepUp = await adapter({})
       .capabilityMiddleware(context)
       .transformParams({ params });
-    expect(withStepUp.tools?.map((next) => next.name)).toEqual([
+    expect(withStepUp.tools?.map((next) => next.name)).toStrictEqual([
       "archive_post",
     ]);
   });

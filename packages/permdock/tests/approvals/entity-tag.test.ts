@@ -29,7 +29,7 @@ const request: ApprovalRequest = {
 describe("approvalEntityTag", () => {
   it("is the quoted digest of the view, which leaves out only the token", () => {
     const { token: _token, ...rest } = request;
-    expect(approvalView(request)).toEqual(rest);
+    expect(approvalView(request)).toStrictEqual(rest);
     expect(approvalEntityTag(request)).toBe(
       `"${sha256Digest(canonicalJson(rest))}"`,
     );

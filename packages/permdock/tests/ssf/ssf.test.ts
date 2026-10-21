@@ -155,7 +155,7 @@ describe("receiver.push", () => {
       .sign(keys.privateKey);
     const response = await receiver.push(setRequest(set));
     expect(response.status).toBe(202);
-    expect(seen).toEqual(["user-1"]);
+    expect(seen).toStrictEqual(["user-1"]);
   });
 
   it("verifies a SET and dispatches session-revoked", async () => {
@@ -183,7 +183,7 @@ describe("receiver.push", () => {
     });
     const response = await receiver.push(setRequest("set-ok"));
     expect(response.status).toBe(202);
-    expect(seen).toEqual(["user-1:sess-1"]);
+    expect(seen).toStrictEqual(["user-1:sess-1"]);
   });
 
   it("binds a discovery-only receiver to the discovery issuer", async () => {
@@ -208,7 +208,7 @@ describe("receiver.push", () => {
     });
     const response = await receiver.push(setRequest("set-foreign"));
     expect(response.status).toBe(400);
-    expect(seen).toEqual([]);
+    expect(seen).toStrictEqual([]);
   });
 
   it("cancels pending approvals for the revoked session", async () => {
@@ -255,7 +255,7 @@ describe("receiver.push", () => {
     expect((await receiver.push(setRequest("set-cancel"))).status).toBe(202);
     expect((await store.get("pd1.ssf"))?.status).toBe("rejected");
     expect((await store.get("pd1.ssf"))?.resolvedBy).toBe("system:ssf");
-    expect(cancelled).toEqual([1]);
+    expect(cancelled).toStrictEqual([1]);
   });
 
   it("acknowledges a replayed jti without dispatching", async () => {
@@ -302,7 +302,7 @@ describe("receiver.push", () => {
       },
     });
     expect((await receiver.push(setRequest("set-unk"))).status).toBe(202);
-    expect(seen).toEqual([]);
+    expect(seen).toStrictEqual([]);
 
     const starred: string[] = [];
     const { receiver: other } = createPermDock(policy, {
@@ -323,7 +323,7 @@ describe("receiver.push", () => {
       },
     });
     expect((await other.push(setRequest("set-star"))).status).toBe(202);
-    expect(starred).toEqual([UNKNOWN_EVENT]);
+    expect(starred).toStrictEqual([UNKNOWN_EVENT]);
   });
 
   it("routes an event named after an Object.prototype key to onEvent *", async () => {
@@ -346,7 +346,7 @@ describe("receiver.push", () => {
       },
     });
     expect((await receiver.push(setRequest("set-proto"))).status).toBe(202);
-    expect(starred).toEqual(["toString", "constructor"]);
+    expect(starred).toStrictEqual(["toString", "constructor"]);
   });
 
   it("acknowledges an unknown subject without error", async () => {
@@ -369,7 +369,7 @@ describe("receiver.push", () => {
       },
     });
     expect((await receiver.push(setRequest("set-nosub"))).status).toBe(202);
-    expect(seen).toEqual([]);
+    expect(seen).toStrictEqual([]);
   });
 
   it("returns RFC 8935 invalid_key when verification fails", async () => {
@@ -381,7 +381,7 @@ describe("receiver.push", () => {
     });
     const response = await receiver.push(setRequest("bad-sig"));
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toStrictEqual({
       err: "invalid_key",
       description: "invalid-signature",
     });
@@ -442,7 +442,7 @@ describe("receiver.logout", () => {
     });
     const response = await receiver.logout(logoutRequest("logout-ok"));
     expect(response.status).toBe(200);
-    expect(seen).toEqual([{ id: "user-9", session: "sess-9" }]);
+    expect(seen).toStrictEqual([{ id: "user-9", session: "sess-9" }]);
   });
 
   it("returns 400 invalid_request when nonce is present", async () => {
@@ -461,7 +461,7 @@ describe("receiver.logout", () => {
     });
     const response = await receiver.logout(logoutRequest("logout-nonce"));
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "invalid_request" });
+    expect(await response.json()).toStrictEqual({ error: "invalid_request" });
   });
 
   it("returns 400 when typ is not logout+jwt", async () => {
@@ -478,7 +478,7 @@ describe("receiver.logout", () => {
     });
     const response = await receiver.logout(logoutRequest("set-not-logout"));
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "invalid_request" });
+    expect(await response.json()).toStrictEqual({ error: "invalid_request" });
   });
 
   it("returns 400 when verification fails", async () => {
@@ -490,7 +490,7 @@ describe("receiver.logout", () => {
     });
     const response = await receiver.logout(logoutRequest("bad-logout"));
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "invalid_request" });
+    expect(await response.json()).toStrictEqual({ error: "invalid_request" });
   });
 });
 
@@ -528,8 +528,8 @@ describe("receiver.poll", () => {
         return new Response(JSON.stringify({ sets: {} }), { status: 200 });
       },
     });
-    expect(result).toEqual({ acked: ["poll-1"] });
-    expect(seen).toEqual(["user-2"]);
+    expect(result).toStrictEqual({ acked: ["poll-1"] });
+    expect(seen).toStrictEqual(["user-2"]);
     expect(fetches[1]).toMatchObject({ acks: ["poll-1"] });
   });
 
@@ -562,7 +562,7 @@ describe("receiver.poll", () => {
         );
       },
     });
-    expect(result).toEqual({ acked: [] });
+    expect(result).toStrictEqual({ acked: [] });
     expect(fetches).toHaveLength(1);
   });
 });
@@ -587,7 +587,7 @@ describe("receiver.on", () => {
       events.push(event.type);
     });
     await receiver.push(setRequest("set-audit"));
-    expect(events).toEqual(["session-revoked"]);
+    expect(events).toStrictEqual(["session-revoked"]);
   });
 });
 
@@ -627,7 +627,9 @@ describe("replay claim", () => {
       receiver.push(setRequest("set-race")),
       receiver.push(setRequest("set-race")),
     ]);
-    expect(responses.map((response) => response.status)).toEqual([202, 202]);
+    expect(responses.map((response) => response.status)).toStrictEqual([
+      202, 202,
+    ]);
     expect(calls).toBe(1);
   });
 
@@ -658,7 +660,7 @@ describe("replay claim", () => {
     const b = receiverFor("https://b.example.com");
     expect((await a.push(setRequest("set-a"))).status).toBe(202);
     expect((await b.push(setRequest("set-b"))).status).toBe(202);
-    expect(seen).toEqual([
+    expect(seen).toStrictEqual([
       "user@https://a.example.com",
       "user@https://b.example.com",
     ]);
@@ -694,7 +696,7 @@ describe("replay claim", () => {
     expect((await receiver.push(setRequest("set-multi"))).status).toBe(500);
     expect((await receiver.push(setRequest("set-multi"))).status).toBe(202);
     expect((await receiver.push(setRequest("set-multi"))).status).toBe(202);
-    expect(calls).toEqual([
+    expect(calls).toStrictEqual([
       "session-revoked",
       "credential-change",
       "credential-change",
@@ -763,7 +765,7 @@ describe("revocations", () => {
     await receiverFor(SESSION_REVOKED, "r-1").push(setRequest("set-a"));
     await receiverFor(CREDENTIAL_CHANGE, "r-2").push(setRequest("set-b"));
     await receiverFor(UNKNOWN_EVENT, "r-3").push(setRequest("set-c"));
-    expect(seen).toEqual([
+    expect(seen).toStrictEqual([
       { principal: "user-1", session: "sess-1", kind: "session-revoked" },
       { principal: "user-1", kind: "changed" },
     ]);
@@ -789,7 +791,7 @@ describe("revocations", () => {
     });
     const response = await receiver.push(setRequest("set-d"));
     expect(response.status).toBe(500);
-    expect(seen).toEqual([]);
+    expect(seen).toStrictEqual([]);
   });
 
   it.each(["account-disabled", "account-purged", "credential-compromise"])(
@@ -834,8 +836,10 @@ describe("revocations", () => {
         },
       });
       expect((await receiver.push(setRequest(`set-${name}`))).status).toBe(202);
-      expect(handled).toEqual([name]);
-      expect(seen).toEqual([{ principal: "user-1", kind: "session-revoked" }]);
+      expect(handled).toStrictEqual([name]);
+      expect(seen).toStrictEqual([
+        { principal: "user-1", kind: "session-revoked" },
+      ]);
       expect((await store.get(`pd1.${name}`))?.status).toBe("rejected");
     },
   );
@@ -870,8 +874,10 @@ describe("stream verification", () => {
       audit.push({ type: event.type, state: event.state });
     });
     expect((await receiver.push(setRequest("set-verify"))).status).toBe(202);
-    expect(states).toEqual([{ state: "abc", jti: "verify-1", issuer: ISSUER }]);
-    expect(audit).toEqual([{ type: "verification", state: "abc" }]);
+    expect(states).toStrictEqual([
+      { state: "abc", jti: "verify-1", issuer: ISSUER },
+    ]);
+    expect(audit).toStrictEqual([{ type: "verification", state: "abc" }]);
   });
 
   it("acknowledges a verification event with no handler", async () => {

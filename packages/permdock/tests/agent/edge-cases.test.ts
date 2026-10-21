@@ -78,7 +78,7 @@ describe("permdock/agent: a failing instance fails closed", () => {
   });
 
   it("denies every model and lists none", async () => {
-    expect(await agent.decideModel("openai/gpt-5-mini", member)).toEqual({
+    expect(await agent.decideModel("openai/gpt-5-mini", member)).toStrictEqual({
       outcome: "denied",
       denials: [
         {
@@ -89,12 +89,14 @@ describe("permdock/agent: a failing instance fails closed", () => {
       ],
       alternatives: [],
     });
-    expect(await agent.permittedModels(member)).toEqual([]);
+    expect(await agent.permittedModels(member)).toStrictEqual([]);
   });
 
   it("returns no results and empty gateway options", async () => {
-    expect(await agent.filterResults("list_docs", rows, member)).toEqual([]);
-    expect(await agent.gatewayOptions(member)).toEqual({ gateway: {} });
+    expect(await agent.filterResults("list_docs", rows, member)).toStrictEqual(
+      [],
+    );
+    expect(await agent.gatewayOptions(member)).toStrictEqual({ gateway: {} });
   });
 });
 
@@ -115,7 +117,7 @@ describe("permdock/agent: model gate", () => {
       outcome: "denied",
       denials: [{ reason: "closure-error" }],
     });
-    expect(await agent.permittedModels(member)).toEqual([]);
+    expect(await agent.permittedModels(member)).toStrictEqual([]);
   });
 });
 
@@ -125,8 +127,12 @@ describe("permdock/agent: results by a collection permission", () => {
       subject: (context: Context) => context.user,
       operations,
     });
-    expect(await agent.filterResults("list_docs", rows, member)).toEqual(rows);
-    expect(await agent.filterResults("list_docs", rows, guest)).toEqual([]);
+    expect(await agent.filterResults("list_docs", rows, member)).toStrictEqual(
+      rows,
+    );
+    expect(await agent.filterResults("list_docs", rows, guest)).toStrictEqual(
+      [],
+    );
   });
 });
 
@@ -171,8 +177,8 @@ describe("permdock/agent: deniedText", () => {
       { id: "d1" },
       { user: null },
     );
-    expect(verdict).toEqual(expected);
-    expect(errorsOf()).toEqual([]);
+    expect(verdict).toStrictEqual(expected);
+    expect(errorsOf()).toStrictEqual([]);
   });
 
   it("keeps PermDock's text and reports an error when the hook returns a non-string", async () => {
@@ -191,8 +197,8 @@ describe("permdock/agent: deniedText", () => {
       { id: "d1" },
       { user: null },
     );
-    expect(verdict).toEqual(expected);
-    expect(errorsOf()).toEqual([
+    expect(verdict).toStrictEqual(expected);
+    expect(errorsOf()).toStrictEqual([
       expect.objectContaining({
         name: "TypeError",
         message:
@@ -212,6 +218,6 @@ describe("permdock/agent: deniedText", () => {
         },
       ),
     ).toBe("Not allowed.");
-    expect(report).toEqual([]);
+    expect(report).toStrictEqual([]);
   });
 });

@@ -106,7 +106,7 @@ describe("restricted stops in RLS: the parent walk, the drive link and rows belo
         }
       }
     }
-    expect(mismatches).toEqual([]);
+    expect(mismatches).toStrictEqual([]);
   });
 
   it("keeps a restricted row and its subtree off the drive only where the drive link stops", async () => {
@@ -117,15 +117,15 @@ describe("restricted stops in RLS: the parent walk, the drive link and rows belo
         member,
         `select id from public.${tree} where id in ('secret', 'inner', 'open', 'c32', 'c33')`,
       );
-    expect(await read("node")).toEqual([
+    expect(await read("node")).toStrictEqual([
       "c32",
       "c33",
       "inner",
       "open",
       "secret",
     ]);
-    expect(await read("item")).toEqual(["c32", "open"]);
-    expect(await read("entry")).toEqual(["c32", "open"]);
+    expect(await read("item")).toStrictEqual(["c32", "open"]);
+    expect(await read("entry")).toStrictEqual(["c32", "open"]);
   });
 
   it("follows a move under a restricted row through the closure triggers", async () => {
@@ -140,7 +140,7 @@ describe("restricted stops in RLS: the parent walk, the drive link and rows belo
           member,
           "select id from public.item where id = 'open'",
         ),
-      ).toEqual([]);
+      ).toStrictEqual([]);
     } finally {
       await database().admin.query(
         `update public.item set "parentId" = 'root' where id = 'open'`,
@@ -152,6 +152,6 @@ describe("restricted stops in RLS: the parent walk, the drive link and rows belo
         member,
         "select id from public.item where id = 'open'",
       ),
-    ).toEqual(["open"]);
+    ).toStrictEqual(["open"]);
   });
 });

@@ -256,8 +256,8 @@ describe("permdock/ai-sdk inside generateText", () => {
         publish_post: tool({ inputSchema: input, execute: () => "published" }),
       },
     });
-    expect(model.doGenerateCalls[0]?.tools?.map((next) => next.name)).toEqual([
-      "delete_post",
-    ]);
+    expect(
+      model.doGenerateCalls[0]?.tools?.map((next) => next.name),
+    ).toStrictEqual(["delete_post"]);
   });
 });

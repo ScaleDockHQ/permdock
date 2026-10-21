@@ -116,8 +116,8 @@ describe("ownership: membership kinds", () => {
       ],
     });
     expect(permdock.can(permissions.quote.read, documents[0])).toBe(false);
-    expect(permdock.memberships()[0]?.roles).toEqual([]);
-    expect(permdock.heldRoles()).toEqual([]);
+    expect(permdock.memberships()[0]?.roles).toStrictEqual([]);
+    expect(permdock.heldRoles()).toStrictEqual([]);
   });
 
   it("drops a role with for when the membership names no kind", async () => {
@@ -204,7 +204,7 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
       outcome: "granted",
       role: "owner",
     });
-    expect(reasons(decideRoleChange(admin, change))).toEqual([
+    expect(reasons(decideRoleChange(admin, change))).toStrictEqual([
       "not-assignable-by",
     ]);
     expect(decideRoleChange(admin, inT({ role: "viewer" }))).toMatchObject({
@@ -216,7 +216,7 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
   it("offers an admin only the roles its assigns lists, in rank order", async () => {
     const owner = await permdockFor(personas.owner);
     const admin = await permdockFor(personas.admin);
-    expect(owner.assignableRoles().map((leaf) => leaf.key)).toEqual([
+    expect(owner.assignableRoles().map((leaf) => leaf.key)).toStrictEqual([
       "owner",
       "admin",
       "member",
@@ -224,7 +224,7 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
       "contact",
       "mechanic",
     ]);
-    expect(admin.assignableRoles().map((leaf) => leaf.key)).toEqual([
+    expect(admin.assignableRoles().map((leaf) => leaf.key)).toStrictEqual([
       "member",
       "viewer",
       "contact",
@@ -242,7 +242,7 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
           inT({ kind: "revoke", role: "owner", target: other, holders: 1 }),
         ),
       ),
-    ).toEqual(["last-holder"]);
+    ).toStrictEqual(["last-holder"]);
     expect(
       decideRoleChange(
         owner,
@@ -277,7 +277,7 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
           inT({ kind: "revoke", role: "owner", target: self, holders: 2 }),
         ),
       ),
-    ).toEqual(["self-demotion"]);
+    ).toStrictEqual(["self-demotion"]);
     const transfer = inT({
       kind: "transfer",
       role: "owner",
@@ -289,7 +289,7 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
     });
     expect(
       reasons(decideRoleChange(admin, { ...transfer, target: staffTarget })),
-    ).toEqual(["not-assignable-by"]);
+    ).toStrictEqual(["not-assignable-by"]);
   });
 
   it("refuses to change a membership the identity provider owns", async () => {
@@ -316,7 +316,7 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
           inT({ kind: "revoke", role: "member", target: managed, holders: 3 }),
         ),
       ),
-    ).toEqual(["externally-managed"]);
+    ).toStrictEqual(["externally-managed"]);
   });
 
   it("keeps the contact role off staff memberships and admin off contacts", async () => {
@@ -333,12 +333,12 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
       },
       { trusted: true },
     );
-    expect(reasons(contact)).toEqual(["not-allowed-for-membership"]);
+    expect(reasons(contact)).toStrictEqual(["not-allowed-for-membership"]);
     const admin = decideRoleChange(
       owner,
       inT({ role: "admin", target: { id: "u_c", via: "contact", roles: [] } }),
     );
-    expect(reasons(admin)).toEqual(["not-allowed-for-membership"]);
+    expect(reasons(admin)).toStrictEqual(["not-allowed-for-membership"]);
   });
 
   it("keeps a custom role off the membership kinds its included roles exclude", async () => {
@@ -378,9 +378,9 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
       role: "admin",
     });
     const { within: _, ...bare } = change;
-    expect(reasons(decideRoleChange(admin, bare, { trusted: true }))).toEqual([
-      "no-membership",
-    ]);
+    expect(
+      reasons(decideRoleChange(admin, bare, { trusted: true })),
+    ).toStrictEqual(["no-membership"]);
   });
 
   it("does not take a nested instance tenant from an untrusted within", async () => {
@@ -393,7 +393,9 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
       within: { organization: "T" },
       target: { id: "u_c", via: "contact", roles: [] },
     };
-    expect(reasons(decideRoleChange(admin, assign))).toEqual(["no-membership"]);
+    expect(reasons(decideRoleChange(admin, assign))).toStrictEqual([
+      "no-membership",
+    ]);
     expect(
       reasons(
         decideRoleChange(admin, {
@@ -402,24 +404,24 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
           target: { id: "u_staff_contact", via: "contact", roles: ["contact"] },
         }),
       ),
-    ).toEqual(["no-membership"]);
+    ).toStrictEqual(["no-membership"]);
   });
 
   it("denies anonymous callers, unknown roles and the wrong scope", async () => {
     const anonymous = getPermDockSync(policy, null);
     const owner = await permdockFor(personas.owner);
-    expect(reasons(decideRoleChange(anonymous, inT({})))).toEqual([
+    expect(reasons(decideRoleChange(anonymous, inT({})))).toStrictEqual([
       "anonymous",
     ]);
-    expect(reasons(decideRoleChange(owner, inT({ role: "ghost" })))).toEqual([
-      "unknown-role",
-    ]);
-    expect(reasons(decideRoleChange(owner, inT({ role: "contact" })))).toEqual([
-      "scope",
-    ]);
+    expect(
+      reasons(decideRoleChange(owner, inT({ role: "ghost" }))),
+    ).toStrictEqual(["unknown-role"]);
+    expect(
+      reasons(decideRoleChange(owner, inT({ role: "contact" }))),
+    ).toStrictEqual(["scope"]);
     expect(
       reasons(decideRoleChange(owner, { ...inT({}), target: { id: "" } })),
-    ).toEqual(["validation"]);
+    ).toStrictEqual(["validation"]);
   });
 
   it("is a server decision: the snapshot client denies it", async () => {
@@ -428,9 +430,9 @@ describe("ownership: decideRoleChange (CentraKit assertion 8)", () => {
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");
     }
-    expect(reasons(decideRoleChange(fromSnapshot(snapshot), inT({})))).toEqual([
-      "unsupported",
-    ]);
+    expect(
+      reasons(decideRoleChange(fromSnapshot(snapshot), inT({}))),
+    ).toStrictEqual(["unsupported"]);
   });
 });
 
@@ -480,7 +482,7 @@ describe("ownership: max, transferOnly and exclusiveWith", () => {
 
   it("caps holders and only moves a transfer-only role by transfer", async () => {
     const permdock = getPermDockSync(strict, primary);
-    expect(reasons(decideRoleChange(permdock, change({})))).toEqual([
+    expect(reasons(decideRoleChange(permdock, change({})))).toStrictEqual([
       "max-holders",
       "transfer-only",
     ]);
@@ -511,7 +513,7 @@ describe("ownership: max, transferOnly and exclusiveWith", () => {
         permdock,
         change({ ...extra, holders: Number.NaN }),
       );
-      expect(reasons(decision)).toEqual([reason]);
+      expect(reasons(decision)).toStrictEqual([reason]);
     },
   );
 
@@ -532,7 +534,7 @@ describe("ownership: max, transferOnly and exclusiveWith", () => {
           holders: 1,
         }),
       ).outcome,
-    }).toEqual({ transfer: ["self-demotion"], revoke: "granted" });
+    }).toStrictEqual({ transfer: ["self-demotion"], revoke: "granted" });
   });
 
   it("refuses a role the target cannot hold alongside one it has", async () => {
@@ -562,7 +564,7 @@ describe("ownership: rank and audiences", () => {
         },
       ],
     });
-    expect(permdock.heldRoles().map((leaf) => leaf.key)).toEqual([
+    expect(permdock.heldRoles().map((leaf) => leaf.key)).toStrictEqual([
       "owner",
       "viewer",
     ]);
@@ -572,29 +574,29 @@ describe("ownership: rank and audiences", () => {
     const permdock = await permdockFor(personas.staffContact);
     expect(
       permdock.heldRoles({ scope: "customer" }).map((leaf) => leaf.key),
-    ).toEqual(["contact"]);
+    ).toStrictEqual(["contact"]);
     expect(
       permdock
         .heldRoles({ scope: "organization", id: "B" })
         .map((leaf) => leaf.key),
-    ).toEqual([]);
-    expect(permdock.heldRoles({ scope: "nowhere" })).toEqual([]);
+    ).toStrictEqual([]);
+    expect(permdock.heldRoles({ scope: "nowhere" })).toStrictEqual([]);
   });
 
   it("lists the audiences of the active tenant, in the snapshot too", async () => {
     const inT = await permdockFor(personas.staffContact);
     const inB = inT.tenant("B");
-    expect(inT.audiences()).toEqual(["staff"]);
-    expect(inB.audiences()).toEqual(["portal"]);
-    expect((await permdockFor(personas.platformAdmin)).audiences()).toEqual([
-      "platform",
-    ]);
+    expect(inT.audiences()).toStrictEqual(["staff"]);
+    expect(inB.audiences()).toStrictEqual(["portal"]);
+    expect(
+      (await permdockFor(personas.platformAdmin)).audiences(),
+    ).toStrictEqual(["platform"]);
     const snapshot = inB.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");
     }
-    expect(snapshot.audiences).toEqual(["portal"]);
-    expect(fromSnapshot(snapshot).audiences()).toEqual(["portal"]);
+    expect(snapshot.audiences).toStrictEqual(["portal"]);
+    expect(fromSnapshot(snapshot).audiences()).toStrictEqual(["portal"]);
     const bare = (await permdockFor(personas.mechanic)).snapshot();
     expect(bare).not.toHaveProperty("audiences");
   });
@@ -658,7 +660,7 @@ describe("ownership: authority comes from live, held memberships", () => {
       id: "u_alice",
       memberships: [{ scope: "org", id: "T", roles: ["admin"], expiresAt: 1 }],
     });
-    expect(permdock.tenants()).toEqual([]);
+    expect(permdock.tenants()).toStrictEqual([]);
     const pinned = getPermDockSync(
       scoped,
       {
@@ -688,7 +690,7 @@ describe("ownership: authority comes from live, held memberships", () => {
           target: { id: "u_x", roles: [] },
         }),
       ),
-    ).toEqual(["no-membership"]);
+    ).toStrictEqual(["no-membership"]);
   });
 
   it("takes the tenant from the membership the actor holds on the instance", async () => {
@@ -715,6 +717,6 @@ describe("ownership: authority comes from live, held memberships", () => {
     ).toBe("granted");
     expect(
       reasons(decideRoleChange(permdock, { ...change, within: { org: "B" } })),
-    ).toEqual(["no-membership"]);
+    ).toStrictEqual(["no-membership"]);
   });
 });

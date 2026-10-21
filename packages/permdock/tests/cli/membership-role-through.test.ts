@@ -86,7 +86,7 @@ describe("membership sources through a roles table", () => {
     expect(sql.match(/permdock_auth_admin_read_role_keys" on/gu)).toHaveLength(
       2,
     );
-    expect(manifest.memberships[0]?.role).toEqual({
+    expect(manifest.memberships[0]?.role).toStrictEqual({
       column: "role_id",
       through: { table: "public.roles", id: "id", column: "key" },
     });
@@ -145,7 +145,7 @@ describe("membership sources through a roles table", () => {
   });
 
   it("counts the roles table's id and key as deciding columns", () => {
-    expect(decidingColumns(config)).toEqual([
+    expect(decidingColumns(config)).toStrictEqual([
       "public.organization_users.organization_id",
       "public.organization_users.role_id",
       "public.organization_users.user_id",

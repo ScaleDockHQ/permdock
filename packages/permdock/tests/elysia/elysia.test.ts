@@ -41,9 +41,9 @@ describe("permdock/elysia sockets", () => {
     expect(opened.check(permissions.post.update, otherPost).outcome).toBe(
       "denied",
     );
-    expect(closes).toEqual([]);
+    expect(closes).toStrictEqual([]);
     await revocations.revoke({ principal: "u1", kind: "session-revoked" });
-    expect(closes).toEqual([[1008, "session-revoked"]]);
+    expect(closes).toStrictEqual([[1008, "session-revoked"]]);
   });
 });
 
@@ -73,7 +73,7 @@ describe("permdock/elysia", () => {
       new Request("http://localhost/posts/p1", { method: "DELETE" }),
     );
     expect(allowed.status).toBe(200);
-    expect(await allowed.json()).toEqual({ ok: true, via: "u1" });
+    expect(await allowed.json()).toStrictEqual({ ok: true, via: "u1" });
 
     const denied = await app.handle(
       new Request("http://localhost/posts/p2", { method: "DELETE" }),
@@ -157,7 +157,7 @@ describe("permdock/elysia getPermDock", () => {
       };
     });
     const response = await app.handle(new Request("http://localhost/"));
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toStrictEqual({
       id: "u1",
       own: true,
       other: false,

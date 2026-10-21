@@ -37,7 +37,7 @@ describe("findingOf", () => {
         severity: "warning",
         message: "src/a.ts:12 does not parse",
       }),
-    ).toEqual({
+    ).toStrictEqual({
       code: "PD060",
       severity: "warning",
       message: "src/a.ts:12 does not parse",
@@ -64,7 +64,7 @@ describe("--format github and sarif", () => {
     const result = await run(["scan", "--format", "github"], {
       cwd: legacyApp(),
     });
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       code: 0,
       stdout:
         "::notice file=src/route.ts,line=2,title=legacy-check::role comparison: user.role === 'admin';\n",

@@ -86,7 +86,7 @@ export function testMembershipSource(
       }
       const expected = options.expect?.[principal.id];
       if (expected !== undefined) {
-        expect(memberships).toEqual(expected);
+        expect(memberships).toStrictEqual(expected);
       }
     }
   });
@@ -150,9 +150,13 @@ export function testEntitlementSource(
       expect(typeof name).toBe("string");
     }
     if (options.expect !== undefined) {
-      expect([...found].toSorted()).toEqual([...options.expect].toSorted());
+      expect([...found].toSorted()).toStrictEqual(
+        [...options.expect].toSorted(),
+      );
     }
-    expect(await source.entitlementsFor(options.principal, {})).toEqual([]);
+    expect(await source.entitlementsFor(options.principal, {})).toStrictEqual(
+      [],
+    );
   });
 }
 
@@ -181,7 +185,9 @@ export function testCustomRoleSource(
         expect(declared).toContain(included);
       }
       if (options.policy !== undefined) {
-        expect(validateCustomRole(options.policy, role).dropped).toEqual([]);
+        expect(validateCustomRole(options.policy, role).dropped).toStrictEqual(
+          [],
+        );
       }
     }
     if (source.assignable !== undefined) {
@@ -195,9 +201,9 @@ export function testCustomRoleSource(
   if (every !== undefined) {
     it("returns every custom role of the tenant, held or not", async () => {
       const roles = await source.rolesFor(options.tenant, { held: [] });
-      expect([...new Set(roles.map((role) => role.name))].toSorted()).toEqual(
-        [...new Set(every)].toSorted(),
-      );
+      expect(
+        [...new Set(roles.map((role) => role.name))].toSorted(),
+      ).toStrictEqual([...new Set(every)].toSorted());
     });
   }
 }
@@ -236,10 +242,10 @@ export function testDirectoryStore(
       roles: ["editor"],
       meta: { created: "", lastModified: "" },
     });
-    expect(await store.groupsFor(home, created.id)).toEqual([
+    expect(await store.groupsFor(home, created.id)).toStrictEqual([
       expect.objectContaining({ id: group.id, displayName: "Editors" }),
     ]);
-    expect(await store.groupsFor(other, created.id)).toEqual([]);
+    expect(await store.groupsFor(other, created.id)).toStrictEqual([]);
     const patched = await store.patchUser(home, created.id, [
       { op: "replace", path: "active", value: false },
     ]);
@@ -247,13 +253,13 @@ export function testDirectoryStore(
     const source = directoryMembershipSource(store, { assignable: ["editor"] });
     expect(
       await source.membershipsFor({ id: "00u1" }, { tenant: home }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     await store.patchUser(home, created.id, [
       { op: "replace", path: "active", value: true },
     ]);
     expect(
       await source.membershipsFor({ id: "00u1" }, { tenant: home }),
-    ).toEqual([
+    ).toStrictEqual([
       {
         tenant: home,
         roles: ["editor"],
@@ -264,7 +270,7 @@ export function testDirectoryStore(
     await store.patchGroup(home, group.id, [
       { op: "remove", path: "members", value: [{ value: created.id }] },
     ]);
-    expect(await store.groupsFor(home, created.id)).toEqual([]);
+    expect(await store.groupsFor(home, created.id)).toStrictEqual([]);
   });
 
   it("ends sessions when scimHandler deactivates a user in this store", async () => {
@@ -315,7 +321,7 @@ export function testDirectoryStore(
       kind: "session-revoked",
     });
     expect(seen.every((event) => event.kind === "session-revoked")).toBe(true);
-    expect(kinds).toEqual(["changed", "session-revoked"]);
+    expect(kinds).toStrictEqual(["changed", "session-revoked"]);
   });
 }
 
@@ -342,7 +348,7 @@ export function testSettingsSource(
             ),
         ).toBe(true);
       }
-      expect(JSON.parse(JSON.stringify(settings))).toEqual(settings);
+      expect(JSON.parse(JSON.stringify(settings))).toStrictEqual(settings);
     }
     expect(
       await source.settingsFor(options.unknown ?? "__permdock_unknown__"),

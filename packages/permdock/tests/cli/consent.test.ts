@@ -147,7 +147,7 @@ describe("consentReasons", () => {
     [["files"], { force: true }, ["overwrite"]],
     [["files"], { force: true, check: true }, []],
   ] as const)("%j with %j needs %j", (effects, flags, reasons) => {
-    expect(consentReasons(effects, flags)).toEqual(reasons);
+    expect(consentReasons(effects, flags)).toStrictEqual(reasons);
   });
 });
 
@@ -161,7 +161,9 @@ describe("replayArgv", () => {
         "--confirm=abc",
         "--tree",
       ]),
-    ).toEqual(["rls", "verify", "--db-url-stdin", "--tree"]);
-    expect(replayArgv(["--tree", "--confirm", "abc"])).toEqual(["--tree"]);
+    ).toStrictEqual(["rls", "verify", "--db-url-stdin", "--tree"]);
+    expect(replayArgv(["--tree", "--confirm", "abc"])).toStrictEqual([
+      "--tree",
+    ]);
   });
 });

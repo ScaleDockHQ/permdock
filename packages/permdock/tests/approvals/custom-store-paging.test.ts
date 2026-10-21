@@ -36,7 +36,7 @@ describe("a custom ApprovalStore paging with the exported helpers", () => {
       createdAt: "2026-10-07T10:00:00.000Z",
       token: "t1",
     } as never);
-    expect(decodeApprovalCursor(cursor)).toEqual([
+    expect(decodeApprovalCursor(cursor)).toStrictEqual([
       "2026-10-07T10:00:00.000Z",
       "t1",
     ]);

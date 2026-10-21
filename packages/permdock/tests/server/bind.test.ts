@@ -40,7 +40,7 @@ describe("bindKernel", () => {
       toRequest,
     );
     const stray = new Request("http://localhost/");
-    expect(await handlerScope(stray)).toEqual({ tenant: undefined });
+    expect(await handlerScope(stray)).toStrictEqual({ tenant: undefined });
     expect((await kernel.getPermDock(stray)).can(permissions.post.list)).toBe(
       false,
     );

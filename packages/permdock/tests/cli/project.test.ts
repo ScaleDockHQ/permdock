@@ -105,7 +105,7 @@ describe("loadProject", () => {
       { "src/policy.ts": "throw 'plain';\n" },
     );
     const project = loadProject({ cwd, config: CONFIG, now: NOW, io: quietIo });
-    expect(await project.policyLoad()).toEqual({
+    expect(await project.policyLoad()).toStrictEqual({
       status: "failed",
       path: "./src/policy.ts",
       message: "plain",
@@ -119,7 +119,7 @@ describe("loadProject", () => {
       { "src/broken.ts": "export const a = 1;\nexport const b = (;\n" },
     );
     const result = await doctor(cwd, ["PD060"]);
-    expect(codes(result.output)).toEqual(["PD060"]);
+    expect(codes(result.output)).toStrictEqual(["PD060"]);
     expect(result.output).toContain("src/broken.ts:2 does not parse");
   });
 });

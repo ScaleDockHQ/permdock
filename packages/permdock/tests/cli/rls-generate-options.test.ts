@@ -252,7 +252,7 @@ describe("rls generate options", () => {
             line.startsWith("grant execute") && line.includes("service_role"),
         )
         .map((line) => /permdock_trusted_\w+/u.exec(line)?.[0]),
-    ).toEqual([
+    ).toStrictEqual([
       "permdock_trusted_role_permissions_by_id",
       "permdock_trusted_role_permissions",
     ]);

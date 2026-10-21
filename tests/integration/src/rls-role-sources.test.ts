@@ -129,10 +129,10 @@ describe("membership rows with several role sources", () => {
         "select array(select permdock.permitted_org_ids($1)) as ok",
         [key],
       );
-    expect(await permitted("u1", "payment.approve")).toEqual(["o1"]);
-    expect(await permitted("u2", "payment.read")).toEqual(["o1"]);
-    expect(await permitted("u3", "payment.read")).toEqual(["o1"]);
-    expect(await permitted("u2", "payment.approve")).toEqual([]);
+    expect(await permitted("u1", "payment.approve")).toStrictEqual(["o1"]);
+    expect(await permitted("u2", "payment.read")).toStrictEqual(["o1"]);
+    expect(await permitted("u3", "payment.read")).toStrictEqual(["o1"]);
+    expect(await permitted("u2", "payment.approve")).toStrictEqual([]);
   });
 
   it("compiles a resource membership condition over every source", async () => {
@@ -142,7 +142,7 @@ describe("membership rows with several role sources", () => {
         { role: "authenticated", settings: { "app.user_id": user } },
         "select id from ledger order by id",
       );
-    expect(await visible("u1")).toEqual(["l1", "l2"]);
-    expect(await visible("u2")).toEqual([]);
+    expect(await visible("u1")).toStrictEqual(["l1", "l2"]);
+    expect(await visible("u2")).toStrictEqual([]);
   });
 });

@@ -43,9 +43,12 @@ describe("seeds directory", () => {
     expect(isSeedsDirectory(cwd, "migrations")).toBe(true);
     expect(isSeedsDirectory(cwd, "absent")).toBe(false);
     expect(isSeedsDirectory(cwd, "absent/")).toBe(true);
-    expect(seedsMigration(cwd, "fresh", "-- m", "-- m\n", new Date(0))).toEqual(
-      { rel: "fresh/19700101000000_permdock_seeds.sql", current: false },
-    );
+    expect(
+      seedsMigration(cwd, "fresh", "-- m", "-- m\n", new Date(0)),
+    ).toStrictEqual({
+      rel: "fresh/19700101000000_permdock_seeds.sql",
+      current: false,
+    });
   });
 });
 
@@ -137,7 +140,7 @@ describe("PD005 without a workspace root", () => {
     const outside = mkdtempSync(path.join(tmpdir(), "permdock-pd005-"));
     try {
       writeFileSync(path.join(outside, "package.json"), "not json");
-      expect(pd005(outside).map((item) => item.message)).toEqual([
+      expect(pd005(outside).map((item) => item.message)).toStrictEqual([
         "Agent Skills are not installed",
       ]);
       mkdirSync(path.join(outside, ".agents/skills/permdock"), {
@@ -148,7 +151,7 @@ describe("PD005 without a workspace root", () => {
         "---\nname: permdock\n---\n",
       );
       writeFileSync(path.join(outside, "skills-lock.json"), "{");
-      expect(pd005(outside).map((item) => item.message)).toEqual([
+      expect(pd005(outside).map((item) => item.message)).toStrictEqual([
         "skills lock is missing",
       ]);
       writeFileSync(
@@ -156,7 +159,7 @@ describe("PD005 without a workspace root", () => {
         JSON.stringify({ workspaces: ["packages/*"] }),
       );
       writeFileSync(path.join(outside, "skills-lock.json"), "null");
-      expect(pd005(outside).map((item) => item.message)).toEqual([
+      expect(pd005(outside).map((item) => item.message)).toStrictEqual([
         "skills lock is missing",
       ]);
     } finally {

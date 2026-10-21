@@ -23,7 +23,7 @@ describe("membershipColumns", () => {
       supabase: { hook: { memberships: [hook] } },
       rls: { membershipSources: [rls] },
     };
-    expect([...membershipColumns(config).keys()]).toEqual([
+    expect([...membershipColumns(config).keys()]).toStrictEqual([
       "public.other_members",
       "public.memberships",
     ]);
@@ -38,7 +38,7 @@ describe("membershipColumns", () => {
     };
     expect([
       ...(membershipColumns(config).get("public.memberships") ?? []),
-    ]).toEqual(shared.sql.columns);
+    ]).toStrictEqual(shared.sql.columns);
   });
 
   it("falls back to rls.membershipSources, then to nothing", () => {
@@ -48,7 +48,7 @@ describe("membershipColumns", () => {
         policy: "p.ts",
         rls: { membershipSources: [rls] },
       }).keys(),
-    ]).toEqual(["app.members"]);
+    ]).toStrictEqual(["app.members"]);
     expect(membershipColumns({ policy: "p.ts" }).size).toBe(0);
   });
 
@@ -60,7 +60,7 @@ describe("membershipColumns", () => {
       rls: { membershipSources: [a, b] },
     });
     expect(columns.size).toBe(1);
-    expect([...(columns.get("public.memberships") ?? [])]).toEqual([
+    expect([...(columns.get("public.memberships") ?? [])]).toStrictEqual([
       ...new Set([...a.sql.columns, ...b.sql.columns]),
     ]);
   });
@@ -75,15 +75,15 @@ describe("decidingColumns", () => {
     );
     expect(columns).toContain("public.profiles.banned");
     expect(columns).toContain("public.profiles.plan");
-    expect(columns).toEqual(columns.toSorted());
+    expect(columns).toStrictEqual(columns.toSorted());
     expect(
       columns.filter((item) => item.startsWith("public.memberships.")).length,
     ).toBe(source.sql.columns.length);
   });
 
   it("ignores attrs without a table", () => {
-    expect(decidingColumns({ policy: "p.ts" }, { columns: ["plan"] })).toEqual(
-      [],
-    );
+    expect(
+      decidingColumns({ policy: "p.ts" }, { columns: ["plan"] }),
+    ).toStrictEqual([]);
   });
 });

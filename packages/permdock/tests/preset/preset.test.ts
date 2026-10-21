@@ -199,8 +199,8 @@ describe("preset codes", () => {
       const preset = resolvePreset(input);
       const code = encodePreset(preset);
       expect(code.startsWith("p1")).toBe(true);
-      expect(decodePreset(code)).toEqual(preset);
-      expect(resolvePreset(preset)).toEqual(preset);
+      expect(decodePreset(code)).toStrictEqual(preset);
+      expect(resolvePreset(preset)).toStrictEqual(preset);
     }
   });
 
@@ -211,7 +211,7 @@ describe("preset codes", () => {
   });
 
   it("decodes codes written before the integrations rename to the same choices", () => {
-    expect(decodePreset("p1AQAAAxwAAwAD")).toEqual(
+    expect(decodePreset("p1AQAAAxwAAwAD")).toStrictEqual(
       resolvePreset({
         archetype: "agent",
         framework: "none",
@@ -227,7 +227,7 @@ describe("preset codes", () => {
       integrations: ["mcp"],
       features: ["custom-roles"],
     });
-    expect(preset.features).toEqual([
+    expect(preset.features).toStrictEqual([
       "tenancy",
       "custom-roles",
       "operations",
@@ -279,7 +279,7 @@ describe("generated presets", () => {
         expect({
           preset: preset.archetype,
           can: permdock.can(list, undefined),
-        }).toEqual({ preset: preset.archetype, can: true });
+        }).toStrictEqual({ preset: preset.archetype, can: true });
       }
       const appModule: { readonly app: unknown } = await import(
         path.join(dir, "permdock.ts")
@@ -338,7 +338,11 @@ describe("presetMatrix", () => {
               ? "approval-required"
               : "granted"
             : "denied";
-        expect({ preset: preset.archetype, key: leaf.key, outcome }).toEqual({
+        expect({
+          preset: preset.archetype,
+          key: leaf.key,
+          outcome,
+        }).toStrictEqual({
           preset: preset.archetype,
           key: leaf.key,
           outcome: expected,

@@ -37,6 +37,6 @@ describe("clock reads", () => {
             : [];
         }),
     );
-    expect(offenders).toEqual([]);
+    expect(offenders).toStrictEqual([]);
   });
 });

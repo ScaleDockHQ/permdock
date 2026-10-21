@@ -18,7 +18,7 @@ describe("requirePeer", () => {
   it("returns the loaded peer", async () => {
     await expect(
       requirePeer(() => Promise.resolve({ ok: true }), "pg", "permdock rls"),
-    ).resolves.toEqual({ ok: true });
+    ).resolves.toStrictEqual({ ok: true });
   });
 
   it("accepts a peer whose version cannot be read", async () => {
@@ -30,7 +30,7 @@ describe("requirePeer", () => {
         process.cwd(),
         1,
       ),
-    ).resolves.toEqual({ ok: true });
+    ).resolves.toStrictEqual({ ok: true });
   });
 
   it("refuses an installed peer older than the minimum major", async () => {
@@ -53,7 +53,7 @@ describe("requirePeer", () => {
         process.cwd(),
         1,
       ),
-    ).resolves.toEqual({ ok: true });
+    ).resolves.toStrictEqual({ ok: true });
   });
 
   it("turns a missing peer into the install line", async () => {

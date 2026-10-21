@@ -94,7 +94,7 @@ const document: PolicyDocument = {
 describe("hostedGrantFindings", () => {
   it("maps each drop reason the catalog caused onto a finding", () => {
     const { rebuilt } = build(false, ["finance"]);
-    expect(hostedGrantFindings(rebuilt, document)).toEqual([
+    expect(hostedGrantFindings(rebuilt, document)).toStrictEqual([
       {
         code: "permission-removed",
         permission: "invoice.void",
@@ -112,7 +112,7 @@ describe("hostedGrantFindings", () => {
 
   it("has nothing to report without a document", () => {
     const { rebuilt } = build(false, ["finance"]);
-    expect(hostedGrantFindings(rebuilt, null)).toEqual([]);
+    expect(hostedGrantFindings(rebuilt, null)).toStrictEqual([]);
   });
 });
 
@@ -129,14 +129,14 @@ describe("catalogDrift", () => {
     expect(data.kind).toBe("drift");
     expect(data.fingerprint).toBe(after.catalog.fingerprint);
     expect(data.previous).toBe(before.catalog.fingerprint);
-    expect(data.findings?.map((finding) => finding.code)).toEqual([
+    expect(data.findings?.map((finding) => finding.code)).toStrictEqual([
       "permission-removed",
       "grantee-removed",
       "not-hostable",
       "approval-tightened",
     ]);
-    expect(parseCatalogEventData(JSON.parse(JSON.stringify(data)))).toEqual(
-      data,
-    );
+    expect(
+      parseCatalogEventData(JSON.parse(JSON.stringify(data))),
+    ).toStrictEqual(data);
   });
 });

@@ -42,7 +42,7 @@ export function describePolicy<TSubject>(
               (item) => item.name === cell.name,
             );
             expect(decided, `cell ${cell.name} was not decided`).toBeDefined();
-            expect(decided?.failures).toEqual([]);
+            expect(decided?.failures).toStrictEqual([]);
           });
         }
       });

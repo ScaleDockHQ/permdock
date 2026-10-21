@@ -98,7 +98,7 @@ describe("permdock/solid", () => {
   });
 
   it("builds the approval resume header", () => {
-    expect(approvalHeaders("pd1.abc")).toEqual({
+    expect(approvalHeaders("pd1.abc")).toStrictEqual({
       "PermDock-Approval": "pd1.abc",
     });
   });

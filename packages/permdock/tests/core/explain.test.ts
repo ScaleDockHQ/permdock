@@ -44,13 +44,15 @@ describe("explain", () => {
     const permdock = getPermDockSync(policy, { id: "u1", roles: ["editor"] });
     const explained = permdock.explain(permissions.doc.update, locked);
     expect(explained.outcome).toBe("denied");
-    expect(explained.trace.denies.map((grant) => grant.name)).toEqual(["lock"]);
-    expect(explained.trace.allows.map((grant) => grant.role)).toEqual([
+    expect(explained.trace.denies.map((grant) => grant.name)).toStrictEqual([
+      "lock",
+    ]);
+    expect(explained.trace.allows.map((grant) => grant.role)).toStrictEqual([
       "editor",
     ]);
     expect(explained.trace.evaluated).toBe(2);
     if (explained.outcome === "denied") {
-      expect(explained.denials[0]).toEqual({
+      expect(explained.denials[0]).toStrictEqual({
         role: "editor",
         reason: "deny",
         detail: { name: "lock" },
@@ -65,13 +67,13 @@ describe("explain", () => {
     });
     const explained = permdock.explain(permissions.doc.read, open);
     expect(explained.outcome).toBe("granted");
-    expect(explained.trace.allows.map((grant) => grant.role)).toEqual([
+    expect(explained.trace.allows.map((grant) => grant.role)).toStrictEqual([
       "editor",
       "viewer",
     ]);
-    expect(explained.trace.denies).toEqual([]);
+    expect(explained.trace.denies).toStrictEqual([]);
     expect(explained.trace.evaluated).toBe(3);
-    expect(explained.trace.skipped.map((skip) => skip.why)).toEqual([
+    expect(explained.trace.skipped.map((skip) => skip.why)).toStrictEqual([
       "purpose",
     ]);
   });
@@ -80,7 +82,7 @@ describe("explain", () => {
     const permdock = getPermDockSync(policy, { id: "u1", roles: ["viewer"] });
     const explained = permdock.explain(permissions.doc.update, open);
     expect(explained.outcome).toBe("denied");
-    expect(explained.trace.skipped).toEqual([
+    expect(explained.trace.skipped).toStrictEqual([
       {
         role: "editor",
         permission: "doc.update",
@@ -151,7 +153,9 @@ describe("explain", () => {
     } as Subject);
     const explained = permdock.explain(permissions.doc.update, locked);
     expect(explained.outcome).toBe("granted");
-    expect(explained.trace.denies.map((grant) => grant.name)).toEqual(["lock"]);
+    expect(explained.trace.denies.map((grant) => grant.name)).toStrictEqual([
+      "lock",
+    ]);
     expect(explained.trace.allows.at(-1)?.breakGlass).toBe(true);
   });
 

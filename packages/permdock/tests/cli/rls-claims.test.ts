@@ -83,7 +83,7 @@ describe("nested claim paths", () => {
   });
 
   it("checks every segment against the prototype-key blocklist and the name rule", () => {
-    expect(claimPath("principal.claims.attrs.region")).toEqual([
+    expect(claimPath("principal.claims.attrs.region")).toStrictEqual([
       "attrs",
       "region",
     ]);
@@ -178,7 +178,7 @@ describe("claims cast to the column type", () => {
           }
         ).jsonSchema.output(),
       ),
-    ).toEqual({
+    ).toStrictEqual({
       id: "uuid",
       clearance: "numeric",
       score: "numeric",
@@ -186,12 +186,12 @@ describe("claims cast to the column type", () => {
       openedAt: "timestamptz",
       day: "date",
     });
-    expect(columnTypesOf(null)).toEqual({});
+    expect(columnTypesOf(null)).toStrictEqual({});
     expect(
       columnTypesOf({
         properties: { a: { anyOf: [{ type: "integer" }, { type: "null" }] } },
       }),
-    ).toEqual({ a: "numeric" });
+    ).toStrictEqual({ a: "numeric" });
   });
 });
 
@@ -273,7 +273,7 @@ describe("request context in RLS", () => {
           { op: "eq", field: "c", value: { ref: "principal.id" } },
         ],
       }),
-    ).toEqual(["context.a", "context.b"]);
+    ).toStrictEqual(["context.a", "context.b"]);
   });
 
   it("refuses a context grant and names the doctor check, or skips it on request", () => {
@@ -282,7 +282,7 @@ describe("request context in RLS", () => {
     );
     const warnings: string[] = [];
     const { branches } = compileGrants(policy, base, undefined, warnings, true);
-    expect(branches.map((branch) => branch.permissionKey)).toEqual([
+    expect(branches.map((branch) => branch.permissionKey)).toStrictEqual([
       "doc.read",
     ]);
     expect(warnings).toContain(
@@ -345,7 +345,7 @@ describe("contains on an array column", () => {
           title: { type: "string" },
         },
       }),
-    ).toEqual({ tags: "text", reviewers: "uuid" });
-    expect(arrayColumnsOf(undefined)).toEqual({});
+    ).toStrictEqual({ tags: "text", reviewers: "uuid" });
+    expect(arrayColumnsOf(undefined)).toStrictEqual({});
   });
 });

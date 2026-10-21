@@ -244,7 +244,7 @@ describe("permdock supabase hook generate", () => {
     const manifest: SupabaseHookManifest = jsonData(
       (await run(["supabase", "inspect", "--json"], { cwd })).stdout,
     );
-    expect(manifest.rls.suspension?.scopes?.["organization"]).toEqual({
+    expect(manifest.rls.suspension?.scopes?.["organization"]).toStrictEqual({
       table: "public.organizations",
       id: "id",
       disabledAt: "disabled_at",
@@ -287,7 +287,7 @@ describe("permdock supabase hook generate", () => {
     const manifest: SupabaseHookManifest = jsonData(
       (await run(["supabase", "inspect", "--json"], { cwd })).stdout,
     );
-    expect(manifest.hook.before).toEqual([
+    expect(manifest.hook.before).toStrictEqual([
       "auth_checks.require_sso",
       "auth_checks.require_mfa",
     ]);

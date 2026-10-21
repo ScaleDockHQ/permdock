@@ -36,7 +36,7 @@ describe("not-entitled", () => {
         decision.outcome === "denied" &&
           decision.denials.every((denial) => denial.reason === "not-entitled"),
       ).toBe(true);
-      expect(requiredPlans(decision)).toEqual(["pro"]);
+      expect(requiredPlans(decision)).toStrictEqual(["pro"]);
       expect(describeDecision(decision)).toMatchObject({
         kind: "upgrade",
         plans: ["pro"],
@@ -64,14 +64,14 @@ describe("not-entitled", () => {
       readonly plans: readonly string[];
     };
     expect(body.type).toBe("https://permdock.com/problems/not-entitled");
-    expect(body.plans).toEqual(["pro"]);
+    expect(body.plans).toStrictEqual(["pro"]);
     expect(response.headers.get("WWW-Authenticate")).toBeNull();
   });
 
   it("stays a plain denial when another reason is present", async () => {
     const { server } = await both("carol", "acme");
     const decision = server.decide(p.billing.manage);
-    expect(requiredPlans(decision)).toEqual([]);
+    expect(requiredPlans(decision)).toStrictEqual([]);
     expect(describeDecision(decision).kind).not.toBe("upgrade");
   });
 });

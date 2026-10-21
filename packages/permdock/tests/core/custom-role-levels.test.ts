@@ -149,7 +149,7 @@ describe("resource levels", () => {
 
   it("freezes the levels on the resource node", () => {
     expect(Object.isFrozen(policy.levels)).toBe(true);
-    expect(Object.keys(policy.levels?.["job"] ?? {})).toEqual([
+    expect(Object.keys(policy.levels?.["job"] ?? {})).toStrictEqual([
       "own",
       "team",
       "all",
@@ -192,7 +192,7 @@ describe("resolveCustomRole with levels", () => {
       name: "mixed",
       grants: [{ permission: "job.update", level: "all" }],
     });
-    expect(resolved.dropped).toEqual([]);
+    expect(resolved.dropped).toStrictEqual([]);
     const update = resolved.grants.filter(
       (grant) => grant.permission.key === "job.update",
     );
@@ -229,8 +229,8 @@ describe("resolveCustomRole with levels", () => {
     const own = { op: "eq", field: "ownerId", value: "u1" } as const;
     const narrowed = leveled({ ...grant, check: own }, "own", own);
     expect(narrowed.level).toBe("own");
-    expect(narrowed.where).toEqual(own);
-    expect(narrowed.check).toEqual({ op: "and", conditions: [own, own] });
+    expect(narrowed.where).toStrictEqual(own);
+    expect(narrowed.check).toStrictEqual({ op: "and", conditions: [own, own] });
     expect(
       leveled(grant, "all", { op: "and", conditions: [] }).where,
     ).toBeUndefined();
@@ -247,7 +247,7 @@ describe("resolveCustomRole with levels", () => {
       ],
     };
     const resolved = resolveCustomRole(policy, typo);
-    expect(resolved.dropped).toEqual([
+    expect(resolved.dropped).toStrictEqual([
       { permission: "job.read", reason: "unknown-level", level: "everything" },
       { permission: "job.create", reason: "unknown-level", level: "own" },
     ]);
@@ -272,7 +272,7 @@ describe("resolveCustomRole with levels", () => {
         { permission: "member.assignRole", level: "all" },
       ],
     });
-    expect(resolved.dropped).toEqual([
+    expect(resolved.dropped).toStrictEqual([
       { permission: "job.read", reason: "condition-not-allowed" },
       {
         permission: "member.assignRole",
@@ -290,7 +290,7 @@ describe("resolveCustomRole with levels", () => {
   });
 
   it("validateCustomRole accepts known levels", () => {
-    expect(validateCustomRole(policy, dispatcher)).toEqual({
+    expect(validateCustomRole(policy, dispatcher)).toStrictEqual({
       ok: true,
       permissions: ["job.close", "job.read", "job.update"],
       dropped: [],
@@ -299,7 +299,7 @@ describe("resolveCustomRole with levels", () => {
   });
 
   it("customRoleClaim writes key@level entries", () => {
-    expect(customRoleClaim([dispatcher])).toEqual({
+    expect(customRoleClaim([dispatcher])).toStrictEqual({
       dispatcher: [
         "job.read@team",
         "job.update@own",
@@ -325,11 +325,11 @@ describe("resolveCustomRole with levels", () => {
       permissions.job.close,
     ]) {
       for (const row of [ownJob, teamJob, otherJob]) {
-        expect([leaf.key, row.id, client.decide(leaf, row).outcome]).toEqual([
+        expect([
           leaf.key,
           row.id,
-          server.decide(leaf, row).outcome,
-        ]);
+          client.decide(leaf, row).outcome,
+        ]).toStrictEqual([leaf.key, row.id, server.decide(leaf, row).outcome]);
       }
     }
     const cached = snapshotFor(policy, subjectIn(memberships), {
@@ -337,7 +337,7 @@ describe("resolveCustomRole with levels", () => {
       customRoles: [dispatcher],
       now: Temporal.Instant.from(snapshot.issuedAt),
     });
-    expect(cached).toEqual(snapshot);
+    expect(cached).toStrictEqual(snapshot);
   });
 });
 
@@ -357,7 +357,7 @@ describe("assigning a leveled custom role", () => {
       [{ scope: "tenant", id: "acme", roles: ["manager"] }],
       [teamUpdater, ownUpdater],
     );
-    expect(manager.assignableRoles().map((leaf) => leaf.key)).toEqual([
+    expect(manager.assignableRoles().map((leaf) => leaf.key)).toStrictEqual([
       "manager",
       "member",
       "team-updater",
@@ -371,7 +371,7 @@ describe("assignableLevels", () => {
       [{ scope: "tenant", id: "acme", roles: ["steward"] }],
       [],
     );
-    expect(permdock.assignableLevels(permissions.job.update)).toEqual([
+    expect(permdock.assignableLevels(permissions.job.update)).toStrictEqual([
       "own",
       "team",
       "all",
@@ -383,23 +383,27 @@ describe("assignableLevels", () => {
       [{ scope: "tenant", id: "acme", roles: ["member"] }],
       [],
     );
-    expect(member.assignableLevels(permissions.job.read)).toEqual(["own"]);
-    expect(member.assignableLevels(permissions.job.update)).toEqual([]);
+    expect(member.assignableLevels(permissions.job.read)).toStrictEqual([
+      "own",
+    ]);
+    expect(member.assignableLevels(permissions.job.update)).toStrictEqual([]);
     const manager = await permdockFor(
       [{ scope: "tenant", id: "acme", roles: ["manager"] }],
       [],
     );
-    expect(manager.assignableLevels(permissions.job.read)).toEqual([
+    expect(manager.assignableLevels(permissions.job.read)).toStrictEqual([
       "own",
       "team",
       "all",
     ]);
-    expect(manager.assignableLevels(permissions.job.update)).toEqual(["team"]);
+    expect(manager.assignableLevels(permissions.job.update)).toStrictEqual([
+      "team",
+    ]);
     const custom = await permdockFor(
       [{ scope: "tenant", id: "acme", roles: ["dispatcher"] }],
       [dispatcher],
     );
-    expect(custom.assignableLevels(permissions.job.close)).toEqual([
+    expect(custom.assignableLevels(permissions.job.close)).toStrictEqual([
       "own",
       "team",
     ]);
@@ -412,13 +416,13 @@ describe("assignableLevels", () => {
     );
     expect(
       steward.assignableLevels(permissions.job.read, { scope: "global" }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     const outside = getPermDockSync(
       policy,
       { principal: { id: "u1" }, context: {} },
       {},
     );
-    expect(outside.assignableLevels(permissions.job.read)).toEqual([]);
+    expect(outside.assignableLevels(permissions.job.read)).toStrictEqual([]);
   });
 
   it("reads levels from the snapshot, ignoring malformed entries", async () => {
@@ -433,8 +437,8 @@ describe("assignableLevels", () => {
     const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)));
     expect(
       client.assignableLevels(permissions.job.read, { scope: "global" }),
-    ).toEqual([]);
-    expect(client.assignableLevels(permissions.job.read)).toEqual([
+    ).toStrictEqual([]);
+    expect(client.assignableLevels(permissions.job.read)).toStrictEqual([
       "own",
       "team",
       "all",
@@ -450,9 +454,11 @@ describe("assignableLevels", () => {
         },
       ],
     });
-    expect(malformed.assignableLevels(permissions.job.read)).toEqual([]);
-    expect(malformed.assignableLevels(permissions.job.update)).toEqual(["own"]);
-    expect(malformed.assignableLevels(permissions.job.close)).toEqual([]);
+    expect(malformed.assignableLevels(permissions.job.read)).toStrictEqual([]);
+    expect(malformed.assignableLevels(permissions.job.update)).toStrictEqual([
+      "own",
+    ]);
+    expect(malformed.assignableLevels(permissions.job.close)).toStrictEqual([]);
     const trimmed = steward.snapshot({ include: [permissions.member] });
     if (trimmed instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
@@ -470,8 +476,10 @@ describe("assignableLevels", () => {
       throw new TypeError("expected JSON snapshot");
     }
     const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)));
-    expect(client.assignableLevels(permissions.job.update)).toEqual(["team"]);
-    expect(permdock.assignableLevels(permissions.job.create)).toEqual([]);
+    expect(client.assignableLevels(permissions.job.update)).toStrictEqual([
+      "team",
+    ]);
+    expect(permdock.assignableLevels(permissions.job.create)).toStrictEqual([]);
   });
 });
 
@@ -509,7 +517,7 @@ describe("deny with levels", () => {
         ]),
       },
     );
-    expect(resolved.dropped).toEqual([]);
+    expect(resolved.dropped).toStrictEqual([]);
     expect(permdock.decide(permissions.job.read, teamJob).outcome).toBe(
       "denied",
     );
@@ -549,7 +557,7 @@ describe("catalog and diff with levels", () => {
 
   it("lists the levels of each instance permission", () => {
     const read = before.permissions.find((item) => item.key === "job.read");
-    expect(read?.levels).toEqual(["own", "team", "all"]);
+    expect(read?.levels).toStrictEqual(["own", "team", "all"]);
     const create = before.permissions.find((item) => item.key === "job.create");
     expect(create?.levels).toBeUndefined();
   });

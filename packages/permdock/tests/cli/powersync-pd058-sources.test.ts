@@ -73,13 +73,13 @@ describe("PD058 membership sources", () => {
       roles: "role",
       expiresAt: "expires_at",
     });
-    expect(await messages([tier, expiring])).toEqual([
+    expect(await messages([tier, expiring])).toStrictEqual([
       "the public.user_roles membership source has no stream: it has an expiry",
     ]);
   });
 
   it("reports nothing for sources that all have a stream form", async () => {
-    expect(await messages([tier])).toEqual([]);
+    expect(await messages([tier])).toStrictEqual([]);
   });
 
   it("skips a scope an rls.memberships table maps", async () => {
@@ -94,6 +94,6 @@ describe("PD058 membership sources", () => {
       await messages([expiring], {
         tenant: { table: "members", user: "user_id", role: "role" },
       }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 });

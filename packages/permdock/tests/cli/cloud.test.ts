@@ -97,7 +97,7 @@ describe("permdock cloud push", () => {
       readonly environment: string;
       readonly fingerprint: string;
     };
-    expect(summary.hostable).toEqual(["post.publish"]);
+    expect(summary.hostable).toStrictEqual(["post.publish"]);
     expect(summary.environment).toBe("preview");
     const request = requests[0];
     expect(request?.url).toBe(
@@ -124,7 +124,7 @@ describe("permdock cloud push", () => {
     expect(
       body.catalog.permissions.find((item) => item.key === "post.publish")
         ?.approvals,
-    ).toEqual(["human"]);
+    ).toStrictEqual(["human"]);
     expect(
       body.catalog.permissions.find((item) => item.key === "post.read")
         ?.approvals,
@@ -138,7 +138,7 @@ describe("permdock cloud push", () => {
       assignable: false,
     });
     expect(body.policy).not.toHaveProperty("scopes");
-    expect(body.policy?.grants).toEqual([
+    expect(body.policy?.grants).toStrictEqual([
       {
         permission: "post.read",
         effect: "allow",

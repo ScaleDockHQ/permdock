@@ -113,7 +113,7 @@ describe("permdock login", () => {
       io: io(reference, env),
     });
     expect(jsonData(logout.stdout)).toMatchObject({ status: "revoked" });
-    expect([...reference.platform.revoked]).toEqual([
+    expect([...reference.platform.revoked]).toStrictEqual([
       expect.stringMatching(/^rt_/u),
     ]);
     const again = await run(["logout"], {
@@ -287,7 +287,7 @@ describe("permdock whoami", () => {
       cwd: FIXTURE,
       io: io(reference, { PERMDOCK_CLOUD_TOKEN: "pdt_x" }),
     });
-    expect(jsonData(whoami.stdout)).toEqual({
+    expect(jsonData(whoami.stdout)).toStrictEqual({
       issuer: reference.url,
       source: "PERMDOCK_CLOUD_TOKEN",
     });
@@ -295,7 +295,7 @@ describe("permdock whoami", () => {
       cwd: FIXTURE,
       io: io(reference, { XDG_CONFIG_HOME: configHome() }),
     });
-    expect(jsonData(logout.stdout)).toEqual({
+    expect(jsonData(logout.stdout)).toStrictEqual({
       issuer: reference.url,
       status: "not logged in",
     });

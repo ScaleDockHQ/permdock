@@ -91,7 +91,7 @@ describe("permdock/agent createPermDock", () => {
     expect((await agent.decideOperation("nope", {}, member)).outcome).toBe(
       "denied",
     );
-    expect(await agent.allowedOperations(member)).toEqual(
+    expect(await agent.allowedOperations(member)).toStrictEqual(
       new Set(["search_docs", "read_doc"]),
     );
   });
@@ -113,8 +113,10 @@ describe("permdock/agent createPermDock", () => {
     expect(
       (await agent.decideModel("openai/gpt-5-mini", { user: null })).outcome,
     ).toBe("denied");
-    expect(await agent.permittedModels(member)).toEqual(["openai/gpt-5-mini"]);
-    expect(await agent.permittedModels(pro)).toEqual([
+    expect(await agent.permittedModels(member)).toStrictEqual([
+      "openai/gpt-5-mini",
+    ]);
+    expect(await agent.permittedModels(pro)).toStrictEqual([
       "openai/gpt-5",
       "openai/gpt-5-mini",
     ]);
@@ -137,7 +139,9 @@ describe("permdock/agent createPermDock", () => {
       permission: "model.use",
       model: "openai/gpt-5",
     });
-    expect(parseSinkEvent(JSON.parse(JSON.stringify(gate)))).toEqual(gate);
+    expect(parseSinkEvent(JSON.parse(JSON.stringify(gate)))).toStrictEqual(
+      gate,
+    );
     expect(operation).not.toHaveProperty("model");
   });
 
@@ -146,20 +150,24 @@ describe("permdock/agent createPermDock", () => {
     expect((await agent.decideModel("openai/gpt-5-mini", pro)).outcome).toBe(
       "denied",
     );
-    expect(await agent.permittedModels(pro)).toEqual([]);
+    expect(await agent.permittedModels(pro)).toStrictEqual([]);
   });
 
   it("filters results by the operation's results permission", async () => {
     const agent = agentFor();
-    expect(await agent.filterResults("search_docs", rows, member)).toEqual([
-      rows[0],
-    ]);
-    expect(await agent.filterResults("search_docs", rows, pro)).toEqual(rows);
-    expect(await agent.filterResults("read_doc", rows, member)).toEqual(rows);
-    expect(await agent.filterResults("unknown", rows, pro)).toEqual([]);
+    expect(
+      await agent.filterResults("search_docs", rows, member),
+    ).toStrictEqual([rows[0]]);
+    expect(await agent.filterResults("search_docs", rows, pro)).toStrictEqual(
+      rows,
+    );
+    expect(await agent.filterResults("read_doc", rows, member)).toStrictEqual(
+      rows,
+    );
+    expect(await agent.filterResults("unknown", rows, pro)).toStrictEqual([]);
     expect(
       await agent.filterResults("search_docs", rows, { user: null }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("fails closed when the subject resolver throws", async () => {
@@ -173,8 +181,10 @@ describe("permdock/agent createPermDock", () => {
     expect((await agent.decideModel("openai/gpt-5-mini", {})).outcome).toBe(
       "denied",
     );
-    expect(await agent.permittedModels({})).toEqual([]);
-    expect(await agent.filterResults("search_docs", rows, {})).toEqual([]);
+    expect(await agent.permittedModels({})).toStrictEqual([]);
+    expect(await agent.filterResults("search_docs", rows, {})).toStrictEqual(
+      [],
+    );
   });
 
   it("returns gateway options with the principal and tags", async () => {
@@ -184,10 +194,10 @@ describe("permdock/agent createPermDock", () => {
       actor: () => ({ id: "agent-1", kind: "agent" }),
       delegation: () => ({ scopes: ["doc:search"] }),
     });
-    expect(await agent.gatewayOptions(member)).toEqual({
+    expect(await agent.gatewayOptions(member)).toStrictEqual({
       gateway: { user: "u1", tags: ["actor:agent"] },
     });
-    expect(await agentFor().gatewayOptions({ user: null })).toEqual({
+    expect(await agentFor().gatewayOptions({ user: null })).toStrictEqual({
       gateway: {},
     });
   });
@@ -233,7 +243,7 @@ describe("permdock/ai-sdk model gate", () => {
         params,
         model: { modelId: "openai/gpt-5" },
       }),
-    ).resolves.toEqual(params);
+    ).resolves.toStrictEqual(params);
     const denied = permdock.capabilityMiddleware({ user: member.user });
     await expect(
       denied.transformParams({ params, model: { modelId: "openai/gpt-5" } }),
@@ -252,8 +262,8 @@ describe("permdock/ai-sdk model gate", () => {
       permdock
         .capabilityMiddleware({ user: member.user })
         .transformParams({ params, model: { modelId: "any/model" } }),
-    ).resolves.toEqual(params);
-    expect(await permdock.gatewayOptions({ user: member.user })).toEqual({
+    ).resolves.toStrictEqual(params);
+    expect(await permdock.gatewayOptions({ user: member.user })).toStrictEqual({
       gateway: { user: "u1" },
     });
   });

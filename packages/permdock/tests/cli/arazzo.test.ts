@@ -66,7 +66,7 @@ describe("runArazzo usage errors", () => {
     temps.push(dir);
     writeFileSync(path.join(dir, "arazzo.json"), "{ nope");
     writeFileSync(path.join(dir, "openapi.json"), "{}");
-    expect(await check({ cwd: dir, config: {} })).toEqual({
+    expect(await check({ cwd: dir, config: {} })).toStrictEqual({
       code: 2,
       output: "arazzo check: unreadable JSON",
     });
@@ -75,7 +75,7 @@ describe("runArazzo usage errors", () => {
 
 describe("runArazzo findings", () => {
   it("passes a workflow whose steps are documented", async () => {
-    expect(await check()).toEqual({
+    expect(await check()).toStrictEqual({
       code: 0,
       output: "arazzo check: all steps documented",
       findings: [],
@@ -117,7 +117,7 @@ describe("runArazzo findings", () => {
     });
     expect(
       await check({ doc: "arazzo-hole.json", workflow: "deletePost" }),
-    ).toEqual({
+    ).toStrictEqual({
       code: 1,
       output: "deletePost document: validation (unknown workflowId deletePost)",
       findings: [

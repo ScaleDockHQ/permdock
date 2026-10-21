@@ -78,7 +78,7 @@ describe("guardedRoute", () => {
 
     const granted = await handler(eventFor("/p1"));
     const denied = await handler(eventFor("/p2"));
-    expect(await granted.json()).toEqual(ownPost);
+    expect(await granted.json()).toStrictEqual(ownPost);
     expect(denied.status).toBe(403);
     expect(denied.headers.get("content-type")).toContain(
       "application/problem+json",
@@ -176,7 +176,7 @@ describe("instanceRoute", () => {
       return new Response("ok");
     });
     const response = await handler(eventFor("/", { headers: signedHeaders }));
-    expect({ reached, status: response.status }).toEqual({
+    expect({ reached, status: response.status }).toStrictEqual({
       reached: false,
       status: 403,
     });
@@ -207,7 +207,9 @@ describe("fetchAdapter", () => {
     const body = (await post.json()) as {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };
-    expect([get.status, head.status, put.status]).toEqual([200, 200, 405]);
+    expect([get.status, head.status, put.status]).toStrictEqual([
+      200, 200, 405,
+    ]);
     expect(put.headers.get("allow")).toBe("GET, HEAD, POST");
     expect(body.evaluations[0]?.decision).toBe(true);
   });
@@ -242,11 +244,11 @@ describe("fetchAdapter", () => {
 describe("protectTarget", () => {
   it("passes a permission and null through with their loader", () => {
     const load = () => ownPost;
-    expect(protectTarget(permissions.post.update, load)).toEqual({
+    expect(protectTarget(permissions.post.update, load)).toStrictEqual({
       permission: permissions.post.update,
       data: load,
     });
-    expect(protectTarget(null, undefined)).toEqual({
+    expect(protectTarget(null, undefined)).toStrictEqual({
       permission: null,
       data: undefined,
     });

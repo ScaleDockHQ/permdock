@@ -35,7 +35,7 @@ describe("getSnapshot(request)", () => {
       tenants: "all",
     });
     expect(snapshot.subject.principal?.tenant).toBe("globex");
-    expect(snapshot.tenants).toEqual(
+    expect(snapshot.tenants).toStrictEqual(
       expect.arrayContaining(["acme", "globex"]),
     );
   });

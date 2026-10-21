@@ -13,6 +13,6 @@ describe("readClaim", () => {
         throw new Error("bad mapping");
       }),
       readClaim(claims, "__proto__.x"),
-    ]).toEqual([["a"], "u1", undefined, undefined]);
+    ]).toStrictEqual([["a"], "u1", undefined, undefined]);
   });
 });

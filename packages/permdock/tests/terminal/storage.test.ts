@@ -67,7 +67,7 @@ describe("terminal credential storage", () => {
     writeCredentials(storage, "default", credential, rt);
     expect(vault.has("acme-cli/default")).toBe(true);
     expect(existsSync(credentialsPath("acme-cli", rt))).toBe(false);
-    expect(readCredentials(storage, "default", rt)).toEqual(credential);
+    expect(readCredentials(storage, "default", rt)).toStrictEqual(credential);
     deleteCredentials(storage, "default", rt);
     expect(vault.size).toBe(0);
     expect(readCredentials(storage, "default", rt)).toBeNull();
@@ -78,7 +78,7 @@ describe("terminal credential storage", () => {
     const storage = { service: "acme-cli", keyring: BrokenEntry };
     writeCredentials(storage, "default", credential, rt);
     expect(existsSync(credentialsPath("acme-cli", rt))).toBe(true);
-    expect(readCredentials(storage, "default", rt)).toEqual(credential);
+    expect(readCredentials(storage, "default", rt)).toStrictEqual(credential);
     deleteCredentials(storage, "default", rt);
     expect(existsSync(credentialsPath("acme-cli", rt))).toBe(false);
   });
@@ -92,6 +92,6 @@ describe("terminal credential storage", () => {
         "default",
         rt,
       ),
-    ).toEqual(credential);
+    ).toStrictEqual(credential);
   });
 });

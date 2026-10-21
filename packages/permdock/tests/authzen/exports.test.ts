@@ -85,13 +85,15 @@ describe("parseAuthzenRequest", () => {
     );
     const parsed = parseAuthzenRequest("evaluation", body);
     expect(parsed.ok).toBe(false);
-    expect(await response.json()).toEqual(parsed.ok ? null : parsed.problem);
+    expect(await response.json()).toStrictEqual(
+      parsed.ok ? null : parsed.problem,
+    );
   });
 
   it("parses an empty evaluations batch as one evaluation and merges items", () => {
     expect(
       parseAuthzenRequest("evaluations", { subject, action, resource }),
-    ).toEqual({
+    ).toStrictEqual({
       ok: true,
       request: { kind: "evaluation", item: { subject, action, resource } },
     });
@@ -101,7 +103,7 @@ describe("parseAuthzenRequest", () => {
         resource,
         evaluations: [{ action }, { action: { name: "update" } }],
       }),
-    ).toEqual({
+    ).toStrictEqual({
       ok: true,
       request: {
         kind: "evaluations",
@@ -130,7 +132,7 @@ describe("parseAuthzenRequest", () => {
         resource,
         page: { next_token: "4", size: 900 },
       }),
-    ).toEqual({
+    ).toStrictEqual({
       ok: true,
       request: {
         kind: "search/action",
@@ -166,7 +168,7 @@ describe("readAuthzenRequest", () => {
           ? result.request.kind
           : [result.problem.status, result.problem.detail],
       ),
-    ).toEqual([
+    ).toStrictEqual([
       [400, "AuthZEN requests must use Content-Type: application/json"],
       [400, "AuthZEN body was not valid JSON"],
       [413, "request body exceeds 1048576 bytes"],
@@ -183,7 +185,7 @@ describe("searchActions", () => {
       { type: "post", id: "p1" },
       { data: ownPost },
     );
-    expect(member.map((entry) => entry.name)).toEqual([
+    expect(member.map((entry) => entry.name)).toStrictEqual([
       "read",
       "update",
       "create",
@@ -193,7 +195,7 @@ describe("searchActions", () => {
       type: "post",
       properties: otherPost,
     });
-    expect(admin.map((entry) => entry.name)).toEqual([
+    expect(admin.map((entry) => entry.name)).toStrictEqual([
       "read",
       "update",
       "delete",
@@ -202,7 +204,7 @@ describe("searchActions", () => {
     ]);
     expect(
       await searchActions(policy, memberUser, { type: "comment" }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("agrees with the handler's search/action", async () => {
@@ -221,7 +223,7 @@ describe("searchActions", () => {
     );
     // SAFETY: a search/action response is an AuthZEN page object.
     const body = (await response.json()) as { readonly results: unknown };
-    expect(body.results).toEqual(
+    expect(body.results).toStrictEqual(
       await searchActions(policy, memberUser, {
         type: "post",
         properties: ownPost,
@@ -253,8 +255,8 @@ describe("searchSubjects", () => {
         resource: { type: "post", id: "p1", properties: ownPost },
       },
     );
-    expect(found).toEqual([{ type: "user", id: adminUser.id }]);
-    expect(queries).toEqual([
+    expect(found).toStrictEqual([{ type: "user", id: adminUser.id }]);
+    expect(queries).toStrictEqual([
       {
         type: "user",
         action: { name: "publish" },
@@ -283,6 +285,6 @@ describe("searchSubjects", () => {
           request,
         ),
       ]),
-    ).toEqual([[], [], []]);
+    ).toStrictEqual([[], [], []]);
   });
 });

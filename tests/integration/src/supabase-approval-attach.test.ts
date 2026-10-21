@@ -131,7 +131,9 @@ describe("supabaseApprovalStore attaching requests to the app's own rows", () =>
     const opened = await db.admin.query<{ title: string; state: string }>(
       "select title, state from public.approvals where permdock_token = 'attach-token'",
     );
-    expect(opened.rows).toEqual([{ title: "Update job j1", state: "pending" }]);
+    expect(opened.rows).toStrictEqual([
+      { title: "Update job j1", state: "pending" },
+    ]);
     await store.create({ ...request("attach-token"), detail: "again" });
     expect((await store.get("attach-token"))?.detail).toBe("approval");
     const resolved = await store.resolve("attach-token", {
@@ -153,7 +155,9 @@ describe("supabaseApprovalStore attaching requests to the app's own rows", () =>
     }>(
       "select state, approval_count from public.approvals where permdock_token = 'attach-token'",
     );
-    expect(after.rows).toEqual([{ state: "approved", approval_count: 1 }]);
+    expect(after.rows).toStrictEqual([
+      { state: "approved", approval_count: 1 },
+    ]);
   });
 
   it("refuses to open a request no application row holds", async () => {

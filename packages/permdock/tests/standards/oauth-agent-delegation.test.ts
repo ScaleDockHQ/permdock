@@ -130,7 +130,7 @@ describe("RFC 8693 token exchange claims", () => {
     const chain = { sub: "agent-b", act: { sub: "agent-a" } };
     const { subject } = mapClaimsToSubject({ ...base, act: chain }, {});
     expect(subject.actor).toMatchObject({ id: "agent-b" });
-    expect(subject.delegation?.chain).toEqual(chain);
+    expect(subject.delegation?.chain).toStrictEqual(chain);
   });
 
   it("a malformed chain is the anonymous subject", () => {
@@ -141,7 +141,7 @@ describe("RFC 8693 token exchange claims", () => {
       { sub: "agent-b", act: { sub: "" } },
     ]) {
       const mapped = mapClaimsToSubject({ ...base, act }, {});
-      expect({ act, invalid: mapped.invalidChain }).toEqual({
+      expect({ act, invalid: mapped.invalidChain }).toStrictEqual({
         act,
         invalid: true,
       });
@@ -153,7 +153,10 @@ describe("RFC 8693 token exchange claims", () => {
       { ...base, act: { sub: "agent-b" }, scope: "post:read post:update" },
       {},
     );
-    expect(subject.delegation?.scopes).toEqual(["post:read", "post:update"]);
+    expect(subject.delegation?.scopes).toStrictEqual([
+      "post:read",
+      "post:update",
+    ]);
   });
 
   it("section 4.4: may_act names who may become the actor and never makes one", () => {
@@ -171,6 +174,6 @@ describe("RFC 8693 token exchange claims", () => {
       { ...base, act: { sub: "agent-b" }, authorization_details: details },
       {},
     );
-    expect(subject.delegation?.authorizationDetails).toEqual(details);
+    expect(subject.delegation?.authorizationDetails).toStrictEqual(details);
   });
 });

@@ -102,14 +102,14 @@ describe("runOpenapi usage errors", () => {
     [{ doc: undefined }, "openapi --doc is required"],
     [{ doc: "missing.json" }, "PermDock CLI: document not found: missing.json"],
   ] as const)("exits 2 for %j", async (overrides, output) => {
-    expect(await emit(app(), overrides)).toEqual({ code: 2, output });
+    expect(await emit(app(), overrides)).toStrictEqual({ code: 2, output });
   });
 
   it.each([
     ["{ not json", "PermDock CLI: --doc must be a JSON OpenAPI document"],
     ["[1, 2]", "PermDock CLI: OpenAPI document must be an object"],
   ])("exits 2 for the document %s", async (text, output) => {
-    expect(await emit(app(text))).toEqual({ code: 2, output });
+    expect(await emit(app(text))).toStrictEqual({ code: 2, output });
   });
 
   it("needs a policy or a permissions module", async () => {
@@ -143,7 +143,7 @@ describe("runOpenapi usage errors", () => {
     const result = await run(["openapi", "emit", "--doc", "openapi.json"], {
       cwd,
     });
-    expect({ code: result.code, stderr: result.stderr }).toEqual({
+    expect({ code: result.code, stderr: result.stderr }).toStrictEqual({
       code: 2,
       stderr: expect.stringContaining("unknown permission 'post.fly'"),
     });
@@ -173,15 +173,18 @@ describe("runOpenapi document output", () => {
       config: { permissions: "./src/permissions.ts" },
       out: "nested/dir/out.json",
     });
-    expect(result).toEqual({ code: 0, output: "wrote nested/dir/out.json" });
+    expect(result).toStrictEqual({
+      code: 0,
+      output: "wrote nested/dir/out.json",
+    });
     const out = readJson(cwd, "nested/dir/out.json");
-    expect(operation(out, "/posts", "get")).toEqual({
+    expect(operation(out, "/posts", "get")).toStrictEqual({
       operationId: "listPosts",
       responses: { "200": { description: "ok" } },
     });
-    expect(operation(out, "/posts", "parameters")).toEqual([]);
+    expect(operation(out, "/posts", "parameters")).toStrictEqual([]);
     expect(operation(out, "/posts", "summary")).toBe("Posts");
-    expect(operation(out, "/posts", "post")?.["security"]).toEqual([
+    expect(operation(out, "/posts", "post")?.["security"]).toStrictEqual([
       { permdockOAuth: ["post:create"] },
     ]);
     expect(out["x-permdock-catalog"]).toBeDefined();
@@ -191,7 +194,7 @@ describe("runOpenapi document output", () => {
   it("reads the policy from --from and writes in place without --out", async () => {
     const cwd = app();
     const result = await emit(cwd, { from: "./src/policy.ts", out: undefined });
-    expect(result).toEqual({ code: 0, output: "wrote openapi.json" });
+    expect(result).toStrictEqual({ code: 0, output: "wrote openapi.json" });
     const out = readJson(cwd, "openapi.json");
     expect(operation(out, "/posts/{id}", "delete")).toMatchObject({
       security: [{ permdockOAuth: ["post:delete"] }],
@@ -216,7 +219,7 @@ describe("runOpenapi document output", () => {
       nested: operation(out, "/posts/{orgId}/drafts/{postId}", "get")?.[
         "x-permdock-arity"
       ],
-    }).toEqual({
+    }).toStrictEqual({
       bare: { kind: "instance" },
       nested: { kind: "instance", parameter: "postId" },
     });
@@ -242,7 +245,7 @@ describe("runOpenapi document output", () => {
         securitySchemes: Record<string, Record<string, unknown>>;
       }
     ).securitySchemes;
-    expect(schemes["apiKey"]).toEqual({
+    expect(schemes["apiKey"]).toStrictEqual({
       type: "apiKey",
       name: "x-key",
       in: "header",
@@ -282,7 +285,7 @@ describe("runOpenapi document output", () => {
       }
     ).securitySchemes.permdockOAuth;
     expect(scheme.description).toBe("Ours");
-    expect(scheme.flows["implicit"]).toEqual({ scopes: {} });
+    expect(scheme.flows["implicit"]).toStrictEqual({ scopes: {} });
     expect(scheme.flows["authorizationCode"]).toMatchObject({
       authorizationUrl: AUTH,
       tokenUrl: TOKEN,
@@ -301,7 +304,7 @@ describe("runOpenapi document output", () => {
       authorizationUrl: undefined,
       tokenUrl: undefined,
     });
-    expect(result).toEqual({ code: 0, output: "wrote out.json" });
+    expect(result).toStrictEqual({ code: 0, output: "wrote out.json" });
     expect(readJson(cwd, "out.json")["paths"]).toMatchObject({
       "/broken": "nope",
     });
@@ -316,7 +319,7 @@ describe("runOpenapi document output", () => {
       metadataUrl:
         "https://auth.example.com/.well-known/oauth-authorization-server",
     });
-    expect(result).toEqual({ code: 0, output: "wrote out.json" });
+    expect(result).toStrictEqual({ code: 0, output: "wrote out.json" });
     const out = readJson(cwd, "out.json");
     expect(out["openapi"]).toBe("3.3.0");
     // SAFETY: the 3.3 output carries components with the profile scheme and requirements.
@@ -325,10 +328,10 @@ describe("runOpenapi document output", () => {
       securityProfileRequirements: Record<string, Record<string, unknown>>;
     };
     expect(components.securitySchemes["fapi"]?.["type"]).toBe("profile");
-    expect(Object.values(components.securityProfileRequirements)).toEqual([
-      expect.objectContaining({ scopes: ["post:delete"] }),
-    ]);
-    expect(validateOpenapi(out)).toEqual({ ok: true, version: "3.3" });
+    expect(Object.values(components.securityProfileRequirements)).toStrictEqual(
+      [expect.objectContaining({ scopes: ["post:delete"] })],
+    );
+    expect(validateOpenapi(out)).toStrictEqual({ ok: true, version: "3.3" });
   });
 
   it("writes a 3.3 document without a profile", async () => {
@@ -356,18 +359,18 @@ describe("runOpenapi document output", () => {
 describe("runOpenapi --check", () => {
   it("reports a missing output, drift, and an up-to-date document", async () => {
     const cwd = app();
-    expect(await emit(cwd, { check: true })).toEqual({
+    expect(await emit(cwd, { check: true })).toStrictEqual({
       code: 1,
       output: "openapi drift: missing out.json",
     });
     expect(existsSync(path.join(cwd, "out.json"))).toBe(false);
     await emit(cwd);
-    expect(await emit(cwd, { check: true })).toEqual({
+    expect(await emit(cwd, { check: true })).toStrictEqual({
       code: 0,
       output: "openapi up to date",
     });
     writeFileSync(path.join(cwd, "out.json"), "{}\n");
-    expect(await emit(cwd, { check: true })).toEqual({
+    expect(await emit(cwd, { check: true })).toStrictEqual({
       code: 1,
       output: expect.stringContaining(
         [
@@ -381,7 +384,7 @@ describe("runOpenapi --check", () => {
   });
 
   it("defaults the action to emit", async () => {
-    expect(await emit(app(), { rest: [] })).toEqual({
+    expect(await emit(app(), { rest: [] })).toStrictEqual({
       code: 0,
       output: "wrote out.json",
     });
@@ -391,7 +394,7 @@ describe("runOpenapi --check", () => {
     const cwd = app();
     rmSync(path.join(cwd, "openapi.json"));
     writeFileSync(path.join(cwd, "openapi.json"), JSON.stringify(BASE));
-    expect(await emit(cwd, { check: true, out: undefined })).toEqual({
+    expect(await emit(cwd, { check: true, out: undefined })).toStrictEqual({
       code: 1,
       output: expect.stringContaining(
         "openapi drift\n--- openapi.json (on disk)\n",
@@ -419,7 +422,7 @@ describe("runOpenapi overlay output", () => {
     const cwd = app(OVERLAY_DOC);
     const before = readFileSync(path.join(cwd, "openapi.json"), "utf8");
     const result = await emit(cwd, { format: "overlay", out: "overlay.json" });
-    expect(result).toEqual({ code: 0, output: "wrote overlay.json" });
+    expect(result).toStrictEqual({ code: 0, output: "wrote overlay.json" });
     expect(readFileSync(path.join(cwd, "openapi.json"), "utf8")).toBe(before);
     expect(readJson(cwd, "overlay.json")).toMatchObject({
       overlay: "1.1.0",
@@ -431,7 +434,7 @@ describe("runOpenapi overlay output", () => {
     const cwd = app(OVERLAY_DOC);
     expect(
       await emit(cwd, { format: "overlay", out: "overlay.json", check: true }),
-    ).toEqual({
+    ).toStrictEqual({
       code: 1,
       output:
         "openapi drift: the source already sets security the Overlay replaces on deletePost",
@@ -449,7 +452,7 @@ describe("runOpenapi overlay output", () => {
         "/broken": "nope",
       },
     });
-    expect(await emit(cwd, { format: "overlay" })).toEqual({
+    expect(await emit(cwd, { format: "overlay" })).toStrictEqual({
       code: 1,
       output:
         "openapi emit: an Overlay targets operations by operationId; none on POST /posts, GET /posts",
@@ -458,9 +461,9 @@ describe("runOpenapi overlay output", () => {
 
   it("writes an Overlay with no actions for a document without paths", async () => {
     const cwd = app({ ...BASE, components: {} });
-    expect(await emit(cwd, { format: "overlay", out: "overlay.json" })).toEqual(
-      { code: 0, output: "wrote overlay.json" },
-    );
+    expect(
+      await emit(cwd, { format: "overlay", out: "overlay.json" }),
+    ).toStrictEqual({ code: 0, output: "wrote overlay.json" });
   });
 
   it("writes the 1.2 draft without validating it", async () => {

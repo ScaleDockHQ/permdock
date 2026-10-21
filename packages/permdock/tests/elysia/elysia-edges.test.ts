@@ -39,7 +39,7 @@ describe("permdock/elysia edge cases", () => {
       body: { title: "y" },
     };
     expect(await protect(permissions.post.list)(json)).toBeUndefined();
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       { response: undefined, principal: "u1", data: undefined },
       { response: undefined, principal: "u1", data: undefined },
     ]);
@@ -54,7 +54,10 @@ describe("permdock/elysia edge cases", () => {
       .use(middleware())
       .get("/posts", (ctx) => ctx.permdock.subject.actor);
     const response = await app.handle(new Request("http://bots.test/posts"));
-    expect(await response.json()).toEqual({ id: "bots.test", kind: "agent" });
+    expect(await response.json()).toStrictEqual({
+      id: "bots.test",
+      kind: "agent",
+    });
   });
 
   it("turns a thrown assert in a route into a problem response", async () => {
@@ -73,7 +76,7 @@ describe("permdock/elysia edge cases", () => {
     expect({
       status: response.status,
       type: response.headers.get("content-type"),
-    }).toEqual({
+    }).toStrictEqual({
       status: 403,
       type: expect.stringContaining("application/problem+json"),
     });

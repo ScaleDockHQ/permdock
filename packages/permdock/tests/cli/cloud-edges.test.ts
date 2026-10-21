@@ -528,7 +528,7 @@ describe("issuer metadata", () => {
         }),
       }),
     });
-    expect(found).toEqual({
+    expect(found).toStrictEqual({
       issuer: ISSUER,
       tokenEndpoint: `${ISSUER}/oauth/token`,
       revocationEndpoint: `${ISSUER}/oauth/revoke`,
@@ -582,7 +582,7 @@ describe("the RFC 8252 loopback flow", () => {
           .status,
       );
     });
-    expect(statuses).toEqual([404, 400]);
+    expect(statuses).toStrictEqual([404, 400]);
     expect(credential).toBeNull();
   });
 

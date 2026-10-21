@@ -175,13 +175,17 @@ describe("RLS adopter cutover: database mode with an application roles table", (
   });
 
   it("copies a global and a shared role marked is_system, and drops the level of a permission without levels", async () => {
-    expect(await grants("staffrole")).toEqual(["global:job.read@own:allow"]);
-    expect(await grants("sharedsys")).toEqual(["tenant:job.read@own:allow"]);
-    expect(await grants("reader")).toEqual([
+    expect(await grants("staffrole")).toStrictEqual([
+      "global:job.read@own:allow",
+    ]);
+    expect(await grants("sharedsys")).toStrictEqual([
+      "tenant:job.read@own:allow",
+    ]);
+    expect(await grants("reader")).toStrictEqual([
       "tenant:invite.create:allow",
       "tenant:job.read@own:allow",
     ]);
-    expect(await grants("member")).toEqual([]);
+    expect(await grants("member")).toStrictEqual([]);
   });
 
   it("lists the entries the backfill drops once per legacy role", () => {
@@ -192,8 +196,8 @@ describe("RLS adopter cutover: database mode with an application roles table", (
   });
 
   it("reads the own level for a tenant role and a shared role through the id helpers and the row helper", async () => {
-    expect(await ids(TENANT, "job.read")).toEqual(["j-tenant"]);
-    expect(await ids(SHARED, "job.read")).toEqual(["j-shared"]);
+    expect(await ids(TENANT, "job.read")).toStrictEqual(["j-tenant"]);
+    expect(await ids(SHARED, "job.read")).toStrictEqual(["j-shared"]);
     const target = started();
     const one = async (sub: string, row: string): Promise<boolean> =>
       target.as(
@@ -213,12 +217,12 @@ describe("RLS adopter cutover: database mode with an application roles table", (
   });
 
   it("maps a column value to a role and gives a value that maps to null no role", async () => {
-    expect(await ids(OTHER, "job.delete")).toEqual([
+    expect(await ids(OTHER, "job.delete")).toStrictEqual([
       "j-other",
       "j-shared",
       "j-tenant",
     ]);
-    expect(await ids(STRANGER, "job.read")).toEqual([]);
+    expect(await ids(STRANGER, "job.read")).toStrictEqual([]);
   });
 
   it("checks the create action of a row value like the insert policy", async () => {
@@ -244,8 +248,8 @@ describe("RLS adopter cutover: database mode with an application roles table", (
     await admin.query(
       "delete from public.app_roles where name in ('staffrole', 'sharedsys')",
     );
-    expect(await grants("staffrole")).toEqual([]);
-    expect(await grants("sharedsys")).toEqual([]);
+    expect(await grants("staffrole")).toStrictEqual([]);
+    expect(await grants("sharedsys")).toStrictEqual([]);
   });
 
   it("rebuilds a tenant, a shared and a global role on every legacy write", async () => {
@@ -258,21 +262,23 @@ describe("RLS adopter cutover: database mode with an application roles table", (
     );
     await admin.query(`insert into public.app_role_permissions (role_id, permission, level)
       select id, 'job.read', 'all' from public.app_roles where name in ('reader', 'sharedreader', 'staffer')`);
-    expect(await grants("reader")).toEqual([
+    expect(await grants("reader")).toStrictEqual([
       "tenant:invite.create:allow",
       "tenant:job.read@all:allow",
       "tenant:job.read@own:allow",
     ]);
-    expect(await grants("sharedreader")).toEqual([
+    expect(await grants("sharedreader")).toStrictEqual([
       "tenant:job.read@all:allow",
       "tenant:job.read@own:allow",
     ]);
-    expect(await grants("staffer")).toEqual(["global:job.read@all:allow"]);
+    expect(await grants("staffer")).toStrictEqual([
+      "global:job.read@all:allow",
+    ]);
     await admin.query(
       "delete from public.app_role_permissions where role_id = (select id from public.app_roles where name = 'reader')",
     );
-    expect(await grants("reader")).toEqual([]);
-    expect(await ids(TENANT, "job.read")).toEqual([]);
+    expect(await grants("reader")).toStrictEqual([]);
+    expect(await ids(TENANT, "job.read")).toStrictEqual([]);
     await admin.query(`insert into public.app_role_permissions (role_id, permission, level)
       select id, 'job.read', 'own' from public.app_roles where name = 'reader'`);
   });
@@ -282,7 +288,7 @@ describe("RLS adopter cutover: database mode with an application roles table", (
     notices = [];
     await admin.query(`insert into public.app_role_permissions (role_id, permission, level)
       select id, 'job.delete', null from public.app_roles where name = 'reader'`);
-    expect(await grants("reader")).toEqual(["tenant:job.read@own:allow"]);
+    expect(await grants("reader")).toStrictEqual(["tenant:job.read@own:allow"]);
     expect(notices.some((line) => line.includes("dropped 1 entr"))).toBe(true);
   });
 
@@ -325,7 +331,7 @@ describe("RLS adopter cutover: database mode with an application roles table", (
     );
     await admin.query(`insert into public.organization_members (organization_id, user_id, role_id)
       select 'acme', '${CLAIMER}'::uuid, id from public.app_roles where name = 'owner' and organization_id = 'acme' and not is_system`);
-    expect(await ids(CLAIMER, "job.delete")).toEqual([]);
-    expect(await ids(CLAIMER, "job.read")).toEqual([]);
+    expect(await ids(CLAIMER, "job.delete")).toStrictEqual([]);
+    expect(await ids(CLAIMER, "job.read")).toStrictEqual([]);
   });
 });

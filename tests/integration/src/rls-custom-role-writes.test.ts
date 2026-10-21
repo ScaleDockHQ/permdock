@@ -180,7 +180,7 @@ describe("permdock_replace_custom_role_grants with levels, renamed keys and mana
       const rows = await db.admin.query<{ entry: string }>(
         "select effect || ':' || permission as entry from permdock.custom_role_permissions where role = 'legacy' order by 1",
       );
-      expect(rows.rows.map((row) => row.entry)).toEqual([
+      expect(rows.rows.map((row) => row.entry)).toStrictEqual([
         "allow:job.read",
         "deny:job.read",
       ]);
@@ -495,10 +495,10 @@ $$;`,
       await pg.admin.query("rollback");
     }
     const { stored, audit } = result;
-    expect(stored.rows.map((row) => row.entry)).toEqual([
+    expect(stored.rows.map((row) => row.entry)).toStrictEqual([
       "acme/tenant/auditor/job.read",
     ]);
-    expect(audit.rows).toEqual([
+    expect(audit.rows).toStrictEqual([
       {
         event_type: "permdock.custom_role.replaced",
         target_type: "role",
@@ -566,7 +566,7 @@ $$;`,
           [[AUDITOR, SYSTEM], tenant],
         ),
       );
-    expect((await read("acme")).rows).toEqual([
+    expect((await read("acme")).rows).toStrictEqual([
       { role_id: AUDITOR, permission: "job.read" },
       { role_id: AUDITOR, permission: "job.update@own" },
     ]);

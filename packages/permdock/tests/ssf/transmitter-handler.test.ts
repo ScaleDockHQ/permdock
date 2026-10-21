@@ -134,7 +134,7 @@ describe("ssfTransmitter", () => {
     const response = await handler(
       new Request("https://cloud.example.com/.well-known/ssf-configuration"),
     );
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toStrictEqual({
       spec_version: "1_0",
       issuer: ISSUER,
       jwks_uri: `${ISSUER}/jwks.json`,
@@ -182,16 +182,18 @@ describe("ssfTransmitter", () => {
       description: "app",
     });
     const id = created.stream_id;
-    expect(await (await call("GET", `/stream?stream_id=${id}`)).json()).toEqual(
+    expect(
+      await (await call("GET", `/stream?stream_id=${id}`)).json(),
+    ).toStrictEqual(created);
+    expect(await (await call("GET", "/stream")).json()).toStrictEqual([
       created,
-    );
-    expect(await (await call("GET", "/stream")).json()).toEqual([created]);
+    ]);
     expect(
       (await call("GET", `/stream?stream_id=${id}`, undefined, "r_2")).status,
     ).toBe(404);
     expect(
       await (await call("GET", "/stream", undefined, "r_2")).json(),
-    ).toEqual([]);
+    ).toStrictEqual([]);
 
     const patched = await call("PATCH", "/stream", {
       stream_id: id,
@@ -286,7 +288,7 @@ describe("ssfTransmitter", () => {
       queue,
       signer,
     });
-    expect(rows).toEqual([
+    expect(rows).toStrictEqual([
       {
         stream: stream.stream_id,
         jti: expect.any(String),
@@ -300,9 +302,9 @@ describe("ssfTransmitter", () => {
       token: "r_1",
       fetch: fetchTo(handler),
     });
-    expect(result).toEqual({ acked: [rows[0]?.jti] });
-    expect(handled).toEqual(["session-revoked"]);
-    expect(await queue.pending(stream.stream_id, 10)).toEqual([]);
+    expect(result).toStrictEqual({ acked: [rows[0]?.jti] });
+    expect(handled).toStrictEqual(["session-revoked"]);
+    expect(await queue.pending(stream.stream_id, 10)).toStrictEqual([]);
   });
 
   it("refuses a poll for another receiver's stream or a push stream", async () => {
@@ -350,12 +352,12 @@ describe("ssfTransmitter", () => {
       signer,
       fetch: fetchFn,
     });
-    expect(rows.map((row) => row.delivery)).toEqual([
+    expect(rows.map((row) => row.delivery)).toStrictEqual([
       { ok: true },
       { ok: true },
     ]);
     expect(new Set(rows.map((row) => row.jti)).size).toBe(1);
-    expect(pushed).toEqual([
+    expect(pushed).toStrictEqual([
       { url: `${AUDIENCE}/r_1`, authorization: "Bearer push-r_1" },
       { url: `${AUDIENCE}/r_2`, authorization: "Bearer push-r_2" },
     ]);
@@ -379,7 +381,7 @@ describe("ssfTransmitter", () => {
         status: "paused",
         reason: "maintenance",
       });
-      expect(await paused.json()).toEqual({
+      expect(await paused.json()).toStrictEqual({
         stream_id: id,
         status: "paused",
         reason: "maintenance",
@@ -392,32 +394,32 @@ describe("ssfTransmitter", () => {
       fetch: fetchFn,
     });
     expect(rows.every((row) => row.queued)).toBe(true);
-    expect(pushed).toEqual([]);
+    expect(pushed).toStrictEqual([]);
     const held = await call("POST", `/poll?stream_id=${poll.stream_id}`, {});
-    expect(await held.json()).toEqual({ sets: {} });
+    expect(await held.json()).toStrictEqual({ sets: {} });
 
     await call("POST", "/status", {
       stream_id: push.stream_id,
       status: "enabled",
     });
     expect(pushed).toHaveLength(1);
-    expect(await queue.pending(push.stream_id, 10)).toEqual([]);
+    expect(await queue.pending(push.stream_id, 10)).toStrictEqual([]);
 
     await call("POST", "/status", {
       stream_id: poll.stream_id,
       status: "disabled",
     });
-    expect(await queue.pending(poll.stream_id, 10)).toEqual([]);
+    expect(await queue.pending(poll.stream_id, 10)).toStrictEqual([]);
     expect(
       await (await call("GET", `/status?stream_id=${poll.stream_id}`)).json(),
-    ).toEqual({ stream_id: poll.stream_id, status: "disabled" });
+    ).toStrictEqual({ stream_id: poll.stream_id, status: "disabled" });
     const after = await fanOutSet(caepEvents.sessionRevoked({ subject }), {
       streams,
       queue,
       signer,
       fetch: fetchFn,
     });
-    expect(after.map((row) => row.stream)).toEqual([push.stream_id]);
+    expect(after.map((row) => row.stream)).toStrictEqual([push.stream_id]);
   });
 
   it("answers 400 to a malformed body, 413 to an oversized one and 404 to another receiver's stream", async () => {
@@ -487,7 +489,7 @@ describe("ssfTransmitter", () => {
     await status("paused");
     expect((await status("enabled")).status).toBe(200);
     expect(fetchFn).toHaveBeenCalledTimes(2);
-    expect(await queue.pending(push.stream_id, 10)).toEqual([]);
+    expect(await queue.pending(push.stream_id, 10)).toStrictEqual([]);
   });
 
   it("defaults a stream's aud to the receiver the authorize hook names", async () => {
@@ -533,7 +535,7 @@ describe("ssfTransmitter", () => {
       token: "r_1",
       fetch: fetchTo(handler),
     });
-    expect(states).toEqual(["abc"]);
+    expect(states).toStrictEqual(["abc"]);
 
     await call("POST", "/status", {
       stream_id: stream.stream_id,
@@ -561,7 +563,7 @@ describe("pollSets", () => {
         );
       },
     });
-    expect(bodies).toEqual([
+    expect(bodies).toStrictEqual([
       {
         acks: ["a"],
         setErrs: { b: { err: "invalid_key", description: "unknown kid" } },
@@ -569,7 +571,7 @@ describe("pollSets", () => {
         returnImmediately: true,
       },
     ]);
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       ok: true,
       sets: [{ jti: "j1", set: "set-1" }],
       moreAvailable: true,
@@ -615,7 +617,7 @@ describe("pollSets", () => {
   ])("maps %s to a failure", async (_label, respond, expected) => {
     expect(
       await pollSets({ endpoint: `${ISSUER}/poll`, fetch: respond }),
-    ).toEqual(expected);
+    ).toStrictEqual(expected);
   });
 });
 

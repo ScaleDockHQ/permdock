@@ -90,7 +90,7 @@ describe("verifySubjectToken", () => {
         claims: { iss: issuer, sub: "u_1" },
         header: { typ: "at+jwt" },
       });
-      expect(await verifySubjectToken(token, options)).toEqual({
+      expect(await verifySubjectToken(token, options)).toStrictEqual({
         ok: false,
         cause: "replayed",
       });
@@ -136,7 +136,7 @@ describe("verifySubjectToken", () => {
         audience: ENV,
         replay: memoryReplayStore(),
       }),
-    ).toEqual({ ok: false, cause });
+    ).toStrictEqual({ ok: false, cause });
   });
 
   it("honours maxLifetime and refuses when the replay store throws", async () => {
@@ -161,7 +161,7 @@ describe("verifySubjectToken", () => {
         audience: ENV,
         replay: throwing,
       }),
-    ).toEqual({ ok: false, cause: "replayed" });
+    ).toStrictEqual({ ok: false, cause: "replayed" });
   });
 
   it("treats a throwing verifier as a refusal and tries the next", async () => {
@@ -182,7 +182,7 @@ describe("verifySubjectToken", () => {
         audience: ENV,
         replay: memoryReplayStore(),
       }),
-    ).toEqual({ ok: false, cause: "invalid-signature" });
+    ).toStrictEqual({ ok: false, cause: "invalid-signature" });
   });
 });
 
@@ -264,7 +264,7 @@ describe("verifyIdToken", () => {
     ],
     ["another issuer", () => idToken({}, { issuer: BYO }), "wrong-issuer"],
   ])("refuses %s", async (_label, make, cause) => {
-    expect(await verify(await make())).toEqual({ ok: false, cause });
+    expect(await verify(await make())).toStrictEqual({ ok: false, cause });
   });
 
   it("checks iss itself when a custom verifier skips it", async () => {
@@ -280,6 +280,6 @@ describe("verifyIdToken", () => {
         clientId: CLIENT,
         verifier: lax,
       }),
-    ).toEqual({ ok: false, cause: "wrong-issuer" });
+    ).toStrictEqual({ ok: false, cause: "wrong-issuer" });
   });
 });

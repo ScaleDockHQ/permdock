@@ -61,7 +61,7 @@ describe("decideAll", () => {
       [permissions.post.update, otherPost],
       [permissions.post.delete, ownPost],
     ]);
-    expect(decisions.map((decision) => decision.outcome)).toEqual([
+    expect(decisions.map((decision) => decision.outcome)).toStrictEqual([
       "granted",
       "denied",
       "approval-required",
@@ -77,7 +77,7 @@ describe("decideAll", () => {
       permissions.post.list,
       permissions.post.publish,
     ]);
-    expect(decisions.map((decision) => decision.outcome)).toEqual([
+    expect(decisions.map((decision) => decision.outcome)).toStrictEqual([
       "granted",
       "denied",
     ]);
@@ -114,6 +114,6 @@ describe("a wrapped instance", () => {
     );
     wrapped.canAll([permissions.post.list]);
     wrapped.decideAll([permissions.post.create]);
-    expect(seen).toEqual(["can post.list", "decide post.create"]);
+    expect(seen).toStrictEqual(["can post.list", "decide post.create"]);
   });
 });

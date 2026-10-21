@@ -46,10 +46,10 @@ describe("adapters forward approvalPolicies", () => {
       files
         .filter(({ text }) => text.includes("customRoles: options.customRoles"))
         .map(({ file }) => file),
-    ).toEqual([]);
-    expect(instanceOptions({ approvalPolicies: listsNeedApproval })).toEqual({
-      approvalPolicies: listsNeedApproval,
-    });
+    ).toStrictEqual([]);
+    expect(
+      instanceOptions({ approvalPolicies: listsNeedApproval }),
+    ).toStrictEqual({ approvalPolicies: listsNeedApproval });
   });
 
   it("the server kernel asks for approval an entry requires", async () => {

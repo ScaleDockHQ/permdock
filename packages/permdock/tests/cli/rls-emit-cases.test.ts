@@ -181,6 +181,10 @@ describe("output paths", () => {
       defaultOut("sql"),
       defaultOut("drizzle"),
       defaultOut("prisma"),
-    ]).toEqual(["rls.sql", "src/db/policies.ts", "prisma/policies.prisma"]);
+    ]).toStrictEqual([
+      "rls.sql",
+      "src/db/policies.ts",
+      "prisma/policies.prisma",
+    ]);
   });
 });

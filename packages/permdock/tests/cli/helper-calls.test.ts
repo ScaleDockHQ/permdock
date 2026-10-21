@@ -14,13 +14,13 @@ describe("helperCallKeys", () => {
       helperCallKeys(
         "permdock_has('doc.read') or org_id in (select permitted_org_ids('doc.read#2')) or permitted_team_ids( 'it''s.read' )",
       ),
-    ).toEqual(["doc.read", "it's.read"]);
+    ).toStrictEqual(["doc.read", "it's.read"]);
   });
 
   it("with blind, skips the permission-key forms unless they are asked for conditioned allows", () => {
     const sql =
       "permdock_has_permission('a.read') or org_id in (select permitted_org_ids_by_permission('b.read')) or org_id in (select permitted_org_ids_by_permission('c.read', false)) or org_id in (select permitted_org_ids_by_permission('d.read', true)) or org_id in (select permitted_org_ids_by_permission('e.read', p_flag)) or permdock_has('f.read')";
-    expect(helperCallKeys(sql)).toEqual([
+    expect(helperCallKeys(sql)).toStrictEqual([
       "a.read",
       "b.read",
       "c.read",
@@ -28,11 +28,15 @@ describe("helperCallKeys", () => {
       "e.read",
       "f.read",
     ]);
-    expect(helperCallKeys(sql, true)).toEqual(["d.read", "e.read", "f.read"]);
+    expect(helperCallKeys(sql, true)).toStrictEqual([
+      "d.read",
+      "e.read",
+      "f.read",
+    ]);
   });
 
   it("drops a key that is only a #n suffix", () => {
-    expect(helperCallKeys("permdock_has('#1')")).toEqual([]);
+    expect(helperCallKeys("permdock_has('#1')")).toStrictEqual([]);
   });
 });
 
@@ -52,7 +56,7 @@ create policy "Read ""files""" on "storage"."objects" for select using (permdock
 create policy topic_read on realtime.messages for select using (true);
 create policy other on public.posts using (permdock_has('post.read'));
 `;
-    expect(helperTablePolicies(sql)).toEqual([
+    expect(helperTablePolicies(sql)).toStrictEqual([
       { table: "storage.objects", name: "Read files", keys: ["file.read"] },
     ]);
   });
@@ -71,7 +75,7 @@ describe("helperTablePoliciesFromRows", () => {
         { policyname: "nothing" },
         { target: "public.posts", policyname: "p", body: "permdock_has('a')" },
       ]),
-    ).toEqual([
+    ).toStrictEqual([
       { table: "realtime.messages", name: "topic", keys: ["topic.read"] },
       { table: "storage.objects", name: "", keys: ["file.read"] },
     ]);

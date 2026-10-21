@@ -135,7 +135,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
       arguments: { id: "p1" },
     });
     expect(granted.isError).not.toBe(true);
-    expect(granted.structuredContent).toEqual({ id: "p1" });
+    expect(granted.structuredContent).toStrictEqual({ id: "p1" });
 
     const denied = await client.callTool({
       name: "update_post",
@@ -185,7 +185,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
     const { server } = postServer({ subject: () => user });
     const { client } = await connect(server, session);
 
-    expect(await names(client)).toEqual(["list_posts", "update_post"]);
+    expect(await names(client)).toStrictEqual(["list_posts", "update_post"]);
     const listed = await client.listTools(undefined, { cacheMode: "bypass" });
     const update = listed.tools.find((tool) => tool.name === "update_post");
     expect(update).toMatchObject({
@@ -196,17 +196,17 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
     });
 
     user = adminUser;
-    expect(await names(client)).toEqual([
+    expect(await names(client)).toStrictEqual([
       "list_posts",
       "publish_post",
       "update_post",
     ]);
 
     session.authInfo = auth(["post:list"]);
-    expect(await names(client)).toEqual(["list_posts"]);
+    expect(await names(client)).toStrictEqual(["list_posts"]);
 
     user = null;
-    expect(await names(client)).toEqual([]);
+    expect(await names(client)).toStrictEqual([]);
   });
 
   it("refuses a call outside the granted scopes and names every scope the operation needs", async () => {
@@ -248,7 +248,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
         request,
         authInfo: auth(["post:list"]),
       }),
-    ).toEqual({ scopes: ["post:read"] });
+    ).toStrictEqual({ scopes: ["post:read"] });
     expect(
       await registered.scopeChallenge?.({
         request,
@@ -277,7 +277,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
       arguments: { id: "p1" },
     });
     expect(refused.isError).toBe(true);
-    expect(await names(strictClient.client)).toEqual([]);
+    expect(await names(strictClient.client)).toStrictEqual([]);
   });
 
   it("parks an approval, resumes from _meta or the store, and consumes it once", async () => {
@@ -378,7 +378,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
       arguments: { id: "p1" },
     });
     expect(text(resumed)).toBe("deleted p1");
-    expect(asked).toEqual(["https://app.example.com/approvals"]);
+    expect(asked).toStrictEqual(["https://app.example.com/approvals"]);
   });
 
   it("keeps the plain approval refusal for a client without URL elicitation", async () => {
@@ -470,7 +470,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
       },
     };
     const { client } = await connect(server, session);
-    expect(await names(client)).toEqual([]);
+    expect(await names(client)).toStrictEqual([]);
     const refused = await client.callTool({ name: "list_posts" });
     expect(refused.structuredContent).toMatchObject({ error: "invalid_token" });
 
@@ -478,9 +478,9 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
       ...auth(["post:list"]),
       resource: new URL("https://MCP.example.com/mcp"),
     };
-    expect(await names(client)).toEqual(["list_posts"]);
+    expect(await names(client)).toStrictEqual(["list_posts"]);
     session.authInfo = auth(["post:list"]);
-    expect(await names(client)).toEqual([]);
+    expect(await names(client)).toStrictEqual([]);
   });
 
   it("fills tool annotations the author left out from the permission", async () => {
@@ -490,10 +490,10 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
     });
     const listed = await client.listTools(undefined, { cacheMode: "bypass" });
     const byName = new Map(listed.tools.map((tool) => [tool.name, tool]));
-    expect(byName.get("list_posts")?.annotations).toEqual({
+    expect(byName.get("list_posts")?.annotations).toStrictEqual({
       readOnlyHint: true,
     });
-    expect(byName.get("update_post")?.annotations).toEqual({
+    expect(byName.get("update_post")?.annotations).toStrictEqual({
       readOnlyHint: false,
       idempotentHint: true,
     });
@@ -578,11 +578,11 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
       () => ({ content: [{ type: "text", text: "published" }] }),
     );
     const { client, changes } = await connect(server, { authInfo: undefined });
-    expect(await names(client)).toEqual(["promote_me"]);
+    expect(await names(client)).toStrictEqual(["promote_me"]);
     const before = changes();
     await client.callTool({ name: "promote_me", arguments: {} });
     await expect.poll(changes).toBeGreaterThan(before);
-    expect(await names(client)).toEqual(["promote_me", "publish_post"]);
+    expect(await names(client)).toStrictEqual(["promote_me", "publish_post"]);
   });
 
   it("guards resources and prompts, and their lists", async () => {
@@ -629,18 +629,22 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
     const resources = await client.listResources(undefined, {
       cacheMode: "bypass",
     });
-    expect(resources.resources.map((resource) => resource.uri)).toEqual([]);
+    expect(resources.resources.map((resource) => resource.uri)).toStrictEqual(
+      [],
+    );
     const templates = await client.listResourceTemplates(undefined, {
       cacheMode: "bypass",
     });
     expect(
       templates.resourceTemplates.map((template) => template.uriTemplate),
-    ).toEqual(["posts://{id}"]);
+    ).toStrictEqual(["posts://{id}"]);
 
     const prompts = await client.listPrompts(undefined, {
       cacheMode: "bypass",
     });
-    expect(prompts.prompts.map((prompt) => prompt.name)).toEqual(["summarise"]);
+    expect(prompts.prompts.map((prompt) => prompt.name)).toStrictEqual([
+      "summarise",
+    ]);
     await expect(client.getPrompt({ name: "announce" })).rejects.toThrow(
       /Denied/u,
     );
@@ -672,7 +676,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
       () => ({ content: [{ type: "text", text: "[]" }] }),
     );
     const { client } = await connect(server, { authInfo: undefined });
-    expect(await names(client)).toEqual(["list_posts"]);
+    expect(await names(client)).toStrictEqual(["list_posts"]);
   });
 
   it("refuses to register a tool without a permission", () => {
@@ -732,8 +736,14 @@ describe("subjectFromMcp", () => {
       }),
     );
     expect(subject.principal).toMatchObject({ id: "u1", roles: ["member"] });
-    expect(subject.actor).toEqual({ id: "mcp-tester", kind: "mcp-client" });
-    expect(subject.delegation?.scopes).toEqual(["post:read", "post:update"]);
+    expect(subject.actor).toStrictEqual({
+      id: "mcp-tester",
+      kind: "mcp-client",
+    });
+    expect(subject.delegation?.scopes).toStrictEqual([
+      "post:read",
+      "post:update",
+    ]);
   });
 
   it("returns the anonymous subject for missing or malformed material", () => {
@@ -826,7 +836,7 @@ describe("actorKind", () => {
       isError: true,
       structuredContent: { outcome: "denied" },
     });
-    expect(seen).toEqual(["mcp-tester"]);
+    expect(seen).toStrictEqual(["mcp-tester"]);
     const readOnly = await connect(
       updateServer(undefined, {
         delegation: () => ({ scopes: ["post:read"] }),
@@ -859,7 +869,7 @@ describe("actorKind", () => {
         denials: [{ reason: "agent-tool-not-delegated" }],
       },
     });
-    expect((await other.client.listTools()).tools).toEqual([]);
+    expect((await other.client.listTools()).tools).toStrictEqual([]);
   });
 
   it("gives an MCP token the same actor as subjectFromSupabase when set to oauth-client", () => {
@@ -873,8 +883,10 @@ describe("actorKind", () => {
       client_id: "mcp-tester",
       scope: "post:update",
     });
-    expect(viaMcp.actor).toEqual(viaSupabase.actor);
-    expect(viaMcp.delegation?.scopes).toEqual(viaSupabase.delegation?.scopes);
+    expect(viaMcp.actor).toStrictEqual(viaSupabase.actor);
+    expect(viaMcp.delegation?.scopes).toStrictEqual(
+      viaSupabase.delegation?.scopes,
+    );
   });
 
   it("names the client from clients, for delegations that name it", () => {
@@ -882,7 +894,7 @@ describe("actorKind", () => {
       actorKind: "oauth-client",
       clients: { tester: "mcp-tester" },
     });
-    expect(subject.actor).toEqual({
+    expect(subject.actor).toStrictEqual({
       id: "mcp-tester",
       kind: "oauth-client",
       client: "tester",

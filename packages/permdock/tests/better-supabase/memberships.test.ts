@@ -47,7 +47,7 @@ const rows: readonly BetterSupabaseMembershipRow[] = [
 
 describe("principalFromMemberships", () => {
   it("builds one membership per organization from the user's live rows", () => {
-    expect(principalFromMemberships("u1", rows)).toEqual({
+    expect(principalFromMemberships("u1", rows)).toStrictEqual({
       id: "u1",
       memberships: [
         { scope: "tenant", id: "o1", roles: ["admin"] },
@@ -60,7 +60,7 @@ describe("principalFromMemberships", () => {
     const principal = principalFromMemberships("u1", rows, {
       scope: "organization",
     });
-    expect(principal.memberships?.map((entry) => entry.scope)).toEqual([
+    expect(principal.memberships?.map((entry) => entry.scope)).toStrictEqual([
       "organization",
       "organization",
     ]);
@@ -81,7 +81,7 @@ describe("principalFromMemberships", () => {
       "u1",
       malformed as unknown as readonly BetterSupabaseMembershipRow[],
     );
-    expect(principal.memberships).toEqual([]);
+    expect(principal.memberships).toStrictEqual([]);
   });
 
   it("grants the role of the active organization, and nothing in another", () => {

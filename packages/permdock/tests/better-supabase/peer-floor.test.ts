@@ -169,7 +169,7 @@ describe("better-supabase peer floor", () => {
   it("imports only names the lowest peer version exports", () => {
     const imports = sources.flatMap(({ file, text }) => importsOf(file, text));
     expect(imports.length).toBeGreaterThan(0);
-    expect(missingImports(imports, floorRoot())).toEqual([]);
+    expect(missingImports(imports, floorRoot())).toStrictEqual([]);
   });
 
   it("reports a name the peer does not export", () => {
@@ -178,7 +178,7 @@ describe("better-supabase peer floor", () => {
       `import type { AuthorizationProvider, NotInBetterSupabase } from "better-supabase/config";
 import { gone } from "better-supabase/no-such-entry";`,
     );
-    expect(missingImports(imports, floorRoot())).toEqual([
+    expect(missingImports(imports, floorRoot())).toStrictEqual([
       "fixture.ts: NotInBetterSupabase from better-supabase/config",
       "fixture.ts: gone from better-supabase/no-such-entry",
     ]);

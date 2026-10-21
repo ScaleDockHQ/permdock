@@ -137,7 +137,7 @@ describe("capabilities", () => {
     expect(
       permdock.can(permissions.file.update, { id: "x_1", folderId: "f_1" }),
     ).toBe(false);
-    expect(permdock.where(permissions.file.read).condition).toEqual({
+    expect(permdock.where(permissions.file.read).condition).toStrictEqual({
       op: "eq",
       field: "folderId",
       value: "f_1",
@@ -218,7 +218,7 @@ describe("parseCapability", () => {
 
   it("keeps only v1 fields and freezes the result", () => {
     const parsed = parseCapability({ ...valid, extra: true, once: true });
-    expect(parsed).toEqual({ ...valid, once: true });
+    expect(parsed).toStrictEqual({ ...valid, once: true });
     expect(Object.isFrozen(parsed)).toBe(true);
     expect(Object.isFrozen(parsed?.on)).toBe(true);
   });
@@ -325,7 +325,7 @@ describe("signCapability", () => {
         ),
       },
     );
-    expect(calls).toEqual([
+    expect(calls).toStrictEqual([
       {
         payload: {
           sub: "lnk_1",
@@ -364,10 +364,10 @@ describe("signCapability", () => {
         exp: expiresAt,
         cnf: { jkt: JKT },
       }),
-    ).toEqual({ ...claim, id: "lnk_1", expiresAt, cnf: { jkt: JKT } });
+    ).toStrictEqual({ ...claim, id: "lnk_1", expiresAt, cnf: { jkt: JKT } });
     expect(
       capabilityFromClaims({ capability: claim, sub: "lnk_1", exp: expiresAt }),
-    ).toEqual({ ...claim, id: "lnk_1", expiresAt });
+    ).toStrictEqual({ ...claim, id: "lnk_1", expiresAt });
     expect(
       capabilityFromClaims({
         capability: claim,

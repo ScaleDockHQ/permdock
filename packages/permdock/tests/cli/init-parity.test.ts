@@ -32,17 +32,17 @@ describe("permdock init and the preset catalogue", () => {
     for (const key of KEYS) {
       const { flag, choices, repeatable } = PRESET_FLAGS[key];
       const spec = init.flags[flag];
-      expect({ key, type: spec?.type }).toEqual({ key, type: "enum" });
+      expect({ key, type: spec?.type }).toStrictEqual({ key, type: "enum" });
       if (spec?.type !== "enum") {
         continue;
       }
-      expect({ key, options: spec.options }).toEqual({
+      expect({ key, options: spec.options }).toStrictEqual({
         key,
         options: choices
           .filter((choice) => choice.retired !== true)
           .map((choice) => choice.id),
       });
-      expect({ key, repeatable: spec.repeatable === true }).toEqual({
+      expect({ key, repeatable: spec.repeatable === true }).toStrictEqual({
         key,
         repeatable,
       });
@@ -55,7 +55,7 @@ describe("permdock init and the preset catalogue", () => {
       expect({
         key,
         default: spec?.type === "enum" ? spec.default : undefined,
-      }).toEqual({ key, default: PRESET_DEFAULTS[key] });
+      }).toStrictEqual({ key, default: PRESET_DEFAULTS[key] });
     }
   });
 

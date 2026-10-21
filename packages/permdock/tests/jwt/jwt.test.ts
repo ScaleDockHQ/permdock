@@ -101,8 +101,8 @@ describe("joseTokenSigner", () => {
     const header = JSON.parse(
       atob(encoded!.replaceAll("-", "+").replaceAll("_", "/")),
     ) as Record<string, unknown>;
-    expect(Object.keys(header).toSorted()).toEqual(["alg", "kid", "typ"]);
-    expect(header).toEqual({
+    expect(Object.keys(header).toSorted()).toStrictEqual(["alg", "kid", "typ"]);
+    expect(header).toStrictEqual({
       alg: "Ed25519",
       kid: "2026-09",
       typ: "vnd.permdock.snapshot+jwt",
@@ -117,7 +117,7 @@ describe("joseTokenSigner", () => {
     });
     expect(checked.ok).toBe(true);
     if (checked.ok) {
-      expect(checked.claims["snapshot"]).toEqual({ v: 1 });
+      expect(checked.claims["snapshot"]).toStrictEqual({ v: 1 });
     }
     const published = await signer.jwks?.();
     expect(published?.keys[0]).toMatchObject({ kid: "2026-09", kty: "OKP" });
@@ -312,7 +312,7 @@ describe("subjectFromJwt", () => {
       },
     });
     expect(subject.principal).toBeNull();
-    expect(events).toEqual([]);
+    expect(events).toStrictEqual([]);
   });
 
   it("maps RFC 9068 claims and never throws on invalid tokens", async () => {
@@ -340,13 +340,13 @@ describe("subjectFromJwt", () => {
     });
     expect(subject.principal?.id).toBe("u_1");
     expect(subject.principal?.issuer).toBe(ISSUER);
-    expect(subject.principal?.roles).toEqual(["member"]);
-    expect(subject.principal?.plans).toEqual(["billing"]);
+    expect(subject.principal?.roles).toStrictEqual(["member"]);
+    expect(subject.principal?.plans).toStrictEqual(["billing"]);
     expect(subject.principal?.tenant).toBe("o_1");
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_1", roles: ["lead"], via: "group:9f2c" },
     ]);
-    expect(subject.principal?.assurance).toEqual({
+    expect(subject.principal?.assurance).toStrictEqual({
       acr: "urn:example:acr:2",
       amr: ["pwd"],
       authTime: 1_700_000_100,
@@ -356,8 +356,11 @@ describe("subjectFromJwt", () => {
       id: "agent-1",
       kind: "oauth-client",
     });
-    expect(subject.actor?.binding).toEqual({ jkt: "thumb" });
-    expect(subject.delegation?.scopes).toEqual(["post:read", "post:update"]);
+    expect(subject.actor?.binding).toStrictEqual({ jkt: "thumb" });
+    expect(subject.delegation?.scopes).toStrictEqual([
+      "post:read",
+      "post:update",
+    ]);
 
     const denied = await subjectFromJwt("nope", {
       jwks: PUBLIC_JWKS,
@@ -456,29 +459,27 @@ describe("verifyDpopProof", () => {
       .sign(privateKey);
     request.headers.set("DPoP", proof);
     const ok = await verifyDpopProof(request, { cnf: { jkt } });
-    expect(ok).toEqual({ ok: true });
+    expect(ok).toStrictEqual({ ok: true });
     const missing = await verifyDpopProof(
       new Request("https://api.example.com/posts", { method: "PATCH" }),
       { cnf: { jkt } },
     );
-    expect(missing).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+    expect(missing).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
     const wrongMethod = new Request("https://api.example.com/posts", {
       method: "GET",
     });
     wrongMethod.headers.set("DPoP", proof);
-    expect(await verifyDpopProof(wrongMethod, { cnf: { jkt } })).toEqual({
+    expect(await verifyDpopProof(wrongMethod, { cnf: { jkt } })).toStrictEqual({
       ok: false,
       cause: "dpop-proof-invalid",
     });
-    expect(await verifyDpopProof(request, { cnf: { jkt: "nope" } })).toEqual({
-      ok: false,
-      cause: "dpop-proof-invalid",
-    });
+    expect(
+      await verifyDpopProof(request, { cnf: { jkt: "nope" } }),
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
     const access = "access.token.value";
-    expect(await verifyDpopProof(request, { cnf: { jkt } }, access)).toEqual({
-      ok: false,
-      cause: "dpop-proof-invalid",
-    });
+    expect(
+      await verifyDpopProof(request, { cnf: { jkt } }, access),
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 });
 
@@ -509,13 +510,13 @@ describe("verifyDpopProof htu and replay", () => {
         requestWith("https://api.example.com/posts?page=2#top", proof),
         { cnf: { jkt } },
       ),
-    ).toEqual({ ok: true });
+    ).toStrictEqual({ ok: true });
     expect(
       await verifyDpopProof(
         requestWith("https://api.example.com/posts/1", proof),
         { cnf: { jkt } },
       ),
-    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 
   it("rejects a reused jti when a replay store is set", async () => {
@@ -529,7 +530,7 @@ describe("verifyDpopProof htu and replay", () => {
         undefined,
         { replay },
       ),
-    ).toEqual({ ok: true });
+    ).toStrictEqual({ ok: true });
     expect(
       await verifyDpopProof(
         requestWith(url, proof),
@@ -537,7 +538,7 @@ describe("verifyDpopProof htu and replay", () => {
         undefined,
         { replay },
       ),
-    ).toEqual({ ok: false, cause: "dpop-proof-invalid" });
+    ).toStrictEqual({ ok: false, cause: "dpop-proof-invalid" });
   });
 });
 
@@ -636,7 +637,7 @@ describe("configuration and remaining causes", () => {
       { snapshot: {}, iss: "forged", jti: "forged" },
       { typ: "vnd.permdock.snapshot+jwt", issuedAt: 1000, jti: "snap_1" },
     );
-    expect(decodeJwt(token)).toEqual({
+    expect(decodeJwt(token)).toStrictEqual({
       snapshot: {},
       iss: ISSUER,
       aud: AUDIENCE,
@@ -833,7 +834,7 @@ describe("configuration and remaining causes", () => {
       },
     });
     expect(subject.principal?.kind).toBe("workload");
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_1", roles: ["owner"] },
       { tenant: "o_2", roles: ["guest"] },
     ]);
@@ -857,10 +858,10 @@ describe("configuration and remaining causes", () => {
         events.push(event);
       },
     });
-    expect(subject.principal?.memberships).toEqual([
+    expect(subject.principal?.memberships).toStrictEqual([
       { tenant: "o_1", roles: ["owner"] },
     ]);
-    expect(events).toEqual([
+    expect(events).toStrictEqual([
       expect.objectContaining({
         reason: "source-threw",
         source: "memberships",
@@ -895,7 +896,7 @@ describe("configuration and remaining causes", () => {
       sender: "none",
     });
     expect(subject.actor).toMatchObject({ id: "edge", kind: "oauth-client" });
-    expect(subject.delegation?.chain).toEqual({
+    expect(subject.delegation?.chain).toStrictEqual({
       sub: "edge",
       act: { sub: "inner-agent" },
     });
@@ -911,7 +912,7 @@ describe("configuration and remaining causes", () => {
       audience: AUDIENCE,
       sender: "none",
     });
-    expect(subject.delegation?.access).toEqual([
+    expect(subject.delegation?.access).toStrictEqual([
       { type: "post", actions: ["read"] },
     ]);
   });
@@ -930,10 +931,10 @@ describe("subjectFromIntrospection", () => {
     expect(subject.principal?.id).toBe("u_1");
     expect(subject.principal?.issuer).toBe(ISSUER);
     expect(subject.actor).toMatchObject({ id: "inst_9", kind: "oauth-client" });
-    expect(subject.actor?.binding).toEqual({
+    expect(subject.actor?.binding).toStrictEqual({
       jwk: { kty: "OKP", crv: "Ed25519" },
     });
-    expect(subject.delegation?.access).toEqual([
+    expect(subject.delegation?.access).toStrictEqual([
       { type: "post", actions: ["read"] },
     ]);
     expect(
@@ -950,8 +951,11 @@ describe("subjectFromIntrospection", () => {
       scope: "post:read post:update",
       client_id: "app",
     });
-    expect(subject.delegation?.scopes).toEqual(["post:read", "post:update"]);
-    expect(subject.actor).toEqual({ id: "app", kind: "oauth-client" });
+    expect(subject.delegation?.scopes).toStrictEqual([
+      "post:read",
+      "post:update",
+    ]);
+    expect(subject.actor).toStrictEqual({ id: "app", kind: "oauth-client" });
   });
 });
 

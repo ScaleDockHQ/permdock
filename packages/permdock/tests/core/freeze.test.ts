@@ -54,7 +54,7 @@ describe("freeze and paths", () => {
     expect(() => set.add("b")).toThrow("PermDock: this collection is frozen");
     expect(() => set.delete("a")).toThrow(TypeError);
     expect(() => set.clear()).toThrow(TypeError);
-    expect([...set]).toEqual(["a"]);
+    expect([...set]).toStrictEqual(["a"]);
   });
 
   it("shares no writable map between requests through a policy", () => {

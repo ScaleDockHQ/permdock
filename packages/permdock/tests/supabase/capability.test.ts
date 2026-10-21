@@ -55,7 +55,7 @@ describe("exchangeCapability", () => {
     const { payload } = await jwtVerify(token ?? "", publicKey, {
       currentDate: new Date(NOW * 1000),
     });
-    expect(payload).toEqual({
+    expect(payload).toStrictEqual({
       role: "anon",
       iss: "https://ref.supabase.co/auth/v1",
       iat: NOW,
@@ -94,7 +94,7 @@ describe("exchangeCapability", () => {
       ...signing,
       now: AT,
     });
-    expect(decodeProtectedHeader(token ?? "")).toEqual({
+    expect(decodeProtectedHeader(token ?? "")).toStrictEqual({
       alg: "ES256",
       kid: "permdock-links",
       typ: "JWT",
@@ -107,7 +107,7 @@ describe("exchangeCapability", () => {
       alg: "HS256",
       now: AT,
     });
-    expect(decodeProtectedHeader(token ?? "")).toEqual({
+    expect(decodeProtectedHeader(token ?? "")).toStrictEqual({
       alg: "HS256",
       typ: "JWT",
     });

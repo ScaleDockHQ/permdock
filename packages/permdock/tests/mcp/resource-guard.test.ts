@@ -52,7 +52,7 @@ describe("mcpResourceGuard", () => {
       issuer: "https://auth.example.com",
     });
     const result = await guard(request("Bearer full"));
-    expect(seen).toEqual([
+    expect(seen).toStrictEqual([
       { audience: RESOURCE, issuer: "https://auth.example.com" },
     ]);
     expect(result.ok).toBe(true);
@@ -164,7 +164,7 @@ describe("protectedResourceMetadata", () => {
     const response = handler(new Request(METADATA));
     expect(response.status).toBe(200);
     expect(response.headers.get("access-control-allow-origin")).toBe("*");
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toStrictEqual({
       resource: RESOURCE,
       authorization_servers: ["https://auth.example.com"],
       scopes_supported: ["post:read", "post:write"],

@@ -58,7 +58,7 @@ describe("webhookTransport", () => {
       { event },
       { idempotencyKey: "pdd_key", delivery: "dlv_1" },
     );
-    expect(result).toEqual({ status: "sent" });
+    expect(result).toStrictEqual({ status: "sent" });
     const request = requests[0];
     expect(request?.method).toBe("POST");
     expect(request?.headers.get("content-type")).toBe(
@@ -72,7 +72,7 @@ describe("webhookTransport", () => {
     const verified = await verifier.verify(request ?? new Request("https://x"));
     expect(verified.ok).toBe(true);
     if (verified.ok) {
-      expect(JSON.parse(verified.body)).toEqual(event);
+      expect(JSON.parse(verified.body)).toStrictEqual(event);
     }
   });
 
@@ -127,12 +127,12 @@ describe("webhookTransport", () => {
           { event },
           { idempotencyKey: "pdd_key", delivery: "dlv_1" },
         ),
-      ).toEqual({
+      ).toStrictEqual({
         status: "failed",
         cause: "invalid-recipient",
         retryable: false,
       });
     }
-    expect(requests).toEqual([]);
+    expect(requests).toStrictEqual([]);
   });
 });

@@ -79,7 +79,7 @@ describe("field-service fixture", () => {
     const own = await db!.admin.query(query("permdock_organization_users"), [
       "u-tech",
     ]);
-    expect(own.rows).toEqual([
+    expect(own.rows).toStrictEqual([
       { organization_id: "acme", user_id: "u-tech", tier: "pro", role_id: 2 },
     ]);
     const roles = await db!.admin.query(query("permdock_roles"), [

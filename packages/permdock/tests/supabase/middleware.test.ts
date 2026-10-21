@@ -82,7 +82,7 @@ describe("permdock/supabase/middleware", () => {
     );
     const response = await fetch(request("/posts/p1", { method: "PATCH" }));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({
+    expect(await response.json()).toStrictEqual({
       id: "u1",
       own: true,
       other: false,
@@ -102,7 +102,10 @@ describe("permdock/supabase/middleware", () => {
         }),
     );
     const response = await fetch(request("/posts"));
-    expect(await response.json()).toEqual({ anonymous: true, can: false });
+    expect(await response.json()).toStrictEqual({
+      anonymous: true,
+      can: false,
+    });
   });
 
   it("falls back to anonymous when the subject resolver throws", async () => {
@@ -117,7 +120,7 @@ describe("permdock/supabase/middleware", () => {
         Response.json({ anonymous: ctx.permdock.subject.principal === null }),
     );
     const response = await fetch(request("/posts"));
-    expect(await response.json()).toEqual({ anonymous: true });
+    expect(await response.json()).toStrictEqual({ anonymous: true });
   });
 
   it("short-circuits with Problem Details when protect denies", async () => {
@@ -165,7 +168,7 @@ describe("permdock/supabase/middleware", () => {
       request("/posts/p1/publish", { method: "POST" }),
     );
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ id: "u2" });
+    expect(await response.json()).toStrictEqual({ id: "u2" });
   });
 
   it("returns 404 when protect data loads nothing", async () => {
@@ -215,13 +218,13 @@ describe("permdock/supabase/middleware", () => {
         Response.json({ tenant: ctx.permdock.subject.principal?.tenant }),
     );
     const o2 = await (await fetch(request("/posts?tenant=o2"))).json();
-    expect(o2).toEqual({ tenant: "o2" });
+    expect(o2).toStrictEqual({ tenant: "o2" });
     const o1 = await (await fetch(request("/posts?tenant=o1"))).json();
-    expect(o1).toEqual({ tenant: "o1" });
+    expect(o1).toStrictEqual({ tenant: "o1" });
     // A requested tenant with no matching membership is no tenant.
     const o3 = await (await fetch(request("/posts?tenant=o3"))).json();
-    expect(o3).toEqual({});
-    expect(seen).toEqual(["u1", "u1", "u1"]);
+    expect(o3).toStrictEqual({});
+    expect(seen).toStrictEqual(["u1", "u1", "u1"]);
   });
 
   it("forwards decisions to the sink", async () => {
@@ -312,7 +315,7 @@ describe("permdock/supabase/middleware", () => {
       readonly evaluations: readonly { readonly decision: boolean }[];
     };
     expect(body.evaluations[0]?.decision).toBe(true);
-    expect(openapi.security(permissions.post.update)).toEqual({
+    expect(openapi.security(permissions.post.update)).toStrictEqual({
       security: [{ oauth2: ["post:update"] }],
       "x-permdock-permissions": ["post.update"],
     });
@@ -437,7 +440,7 @@ describe("permdock/supabase/middleware", () => {
         { authMode: "secret" },
         { authMode: "publishable", authKeyName: "billing" },
       ]) {
-        expect(await (await run(auth)).json()).toEqual({
+        expect(await (await run(auth)).json()).toStrictEqual({
           principal: null,
           update: false,
           delete: false,

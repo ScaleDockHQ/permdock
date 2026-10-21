@@ -61,11 +61,11 @@ describe("cloud environment resolution", () => {
     ]);
     await client.sink.flush?.();
     await client.sink.flush?.();
-    expect(await client.endpoints()).toEqual({
+    expect(await client.endpoints()).toStrictEqual({
       issuer: PREVIEW,
       jwks: `${PREVIEW}/.well-known/jwks.json`,
     });
-    expect(backend.calls).toEqual([
+    expect(backend.calls).toStrictEqual([
       `GET ${CLOUD_URL}/v1/environment`,
       `POST ${PREVIEW}/decisions`,
     ]);
@@ -84,10 +84,10 @@ describe("cloud environment resolution", () => {
         fetch: backend.fetch,
       }).issuer,
     ).toBe(`${CLOUD_URL}/v1/environments/dev`);
-    expect(await client.endpoints()).toEqual(
+    expect(await client.endpoints()).toStrictEqual(
       cloudEndpoints({ url: CLOUD_URL }),
     );
-    expect(backend.calls).toEqual([]);
+    expect(backend.calls).toStrictEqual([]);
   });
 
   it("asks again after a failed lookup and refuses another issuer", async () => {
@@ -145,7 +145,7 @@ describe("cloud environment resolution", () => {
     });
     await client.policies.refresh();
     await client.policies.refresh();
-    expect(seen).toEqual([
+    expect(seen).toStrictEqual([
       { issuer: PREVIEW, jwks: `${PREVIEW}/.well-known/jwks.json` },
     ]);
     expect(client.policies.current()).toBeNull();

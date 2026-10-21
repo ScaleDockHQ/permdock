@@ -115,7 +115,7 @@ describe("ttlCache", () => {
     for (let index = 0; index <= 1000; index += 1) {
       cache.set(`k${index}`, index);
     }
-    expect({ first: cache.get("k0"), last: cache.get("k1000") }).toEqual({
+    expect({ first: cache.get("k0"), last: cache.get("k1000") }).toStrictEqual({
       first: undefined,
       last: 1000,
     });

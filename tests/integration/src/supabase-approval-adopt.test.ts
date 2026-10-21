@@ -173,13 +173,13 @@ describe("supabaseApprovalStore over an adopted approvals table", () => {
     const legacy = await db.admin.query<{ state: string }>(
       "select state from public.approvals where requested_by = 'legacy-user'",
     );
-    expect(legacy.rows).toEqual([{ state: "pending" }]);
+    expect(legacy.rows).toStrictEqual([{ state: "pending" }]);
     expect(
       await current.expire({ epochMilliseconds: Date.now() + 3_600_000 }),
     ).toBeGreaterThanOrEqual(0);
     const after = await db.admin.query<{ state: string }>(
       "select state from public.approvals where requested_by = 'legacy-user'",
     );
-    expect(after.rows).toEqual([{ state: "pending" }]);
+    expect(after.rows).toStrictEqual([{ state: "pending" }]);
   });
 });

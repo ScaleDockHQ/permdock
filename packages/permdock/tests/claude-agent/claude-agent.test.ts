@@ -70,7 +70,7 @@ describe("permdock/claude-agent", () => {
       { file_path: "/posts/p1" },
       { signal },
     );
-    expect(allowed).toEqual({
+    expect(allowed).toStrictEqual({
       behavior: "allow",
       updatedInput: { file_path: "/posts/p1" },
     });
@@ -86,7 +86,7 @@ describe("permdock/claude-agent", () => {
       { command: "rm -rf /" },
       { signal },
     );
-    expect(unmapped).toEqual({
+    expect(unmapped).toStrictEqual({
       behavior: "deny",
       message: "Denied: unmapped tool Bash.",
     });
@@ -120,7 +120,7 @@ describe("permdock/claude-agent", () => {
     });
     expect(
       await canUseTool("mcp__posts__delete_post", { id: "p1" }, sdkServer),
-    ).toEqual({ behavior: "allow", updatedInput: { id: "p1" } });
+    ).toStrictEqual({ behavior: "allow", updatedInput: { id: "p1" } });
     expect(
       (await canUseTool("mcp__posts__delete_post", { id: "p1" }, sdkServer))
         .behavior,
@@ -182,7 +182,7 @@ describe("permdock/claude-agent", () => {
         "t1",
         { signal },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       hookSpecificOutput: {
         hookEventName: "PermissionRequest",
         decision: { behavior: "allow", updatedInput: { file_path: "/p1" } },
@@ -218,7 +218,7 @@ describe("permdock/claude-agent", () => {
         undefined,
         { signal },
       ),
-    ).toEqual({});
+    ).toStrictEqual({});
   });
 
   it("ignores a subject smuggled in tool input", async () => {

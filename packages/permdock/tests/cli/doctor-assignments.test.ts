@@ -93,7 +93,7 @@ describe("PD064", () => {
     const findings = await pd064(
       project(trigger(`"public"."workspace_members"`), RLS),
     );
-    expect(findings.map((item) => item.message)).toEqual([
+    expect(findings.map((item) => item.message)).toStrictEqual([
       "rls.assignments guards app.user_roles, but no migration creates its permdock_assignment trigger, so a client may write any role there",
       "rls.assignments guards public.invites, but no migration creates its permdock_assignment trigger, so a client may write any role there",
     ]);
@@ -112,7 +112,7 @@ describe("PD064", () => {
           RLS,
         ),
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("reads the rls generate output and skips a config without rls.assignments", async () => {
@@ -126,19 +126,19 @@ describe("PD064", () => {
         trigger(`"public"."invites"`),
       ].join(""),
     );
-    expect(await pd064(input)).toEqual([]);
+    expect(await pd064(input)).toStrictEqual([]);
     expect(
       await pd064(
         project(undefined, { roles: RLS.roles, memberships: RLS.memberships }),
       ),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("skips a project without a policy or an assigns graph", async () => {
     const input = project(undefined, RLS);
     expect(
       await pd064({ ...input, policy: () => Promise.resolve(undefined) }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
     const flat = definePolicy(
       { permissions },
       {
@@ -153,7 +153,7 @@ describe("PD064", () => {
     );
     expect(
       await pd064({ ...input, policy: () => Promise.resolve(flat) }),
-    ).toEqual([]);
+    ).toStrictEqual([]);
   });
 
   it("ignores an rls.out that is not a SQL file", async () => {

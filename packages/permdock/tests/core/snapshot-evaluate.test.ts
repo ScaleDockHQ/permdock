@@ -227,7 +227,7 @@ describe("a forged snapshot grantee", () => {
     expect({
       can: client.can(permissions.doc.read, { id: "d1" }),
       reason: reasonOf(client.decide(permissions.doc.read, { id: "d1" })),
-    }).toEqual({ can: false, reason: "no-grant" });
+    }).toStrictEqual({ can: false, reason: "no-grant" });
   });
 
   it("applies a deny whose grantee kind the client does not know", () => {

@@ -111,7 +111,7 @@ describe("permdock/openai", () => {
       [item("deny-1", "publish_post", { id: "p1" })],
       { context },
     );
-    expect(pending).toEqual([]);
+    expect(pending).toStrictEqual([]);
     expect(run.rejected[0]?.id).toBe("deny-1");
     expect(run.rejected[0]?.message).toContain("post.publish");
   });
@@ -155,7 +155,7 @@ describe("permdock/openai", () => {
       [item("c1", "delete_post", { id: "p1" })],
       { context },
     );
-    expect(resumed.approved).toEqual(["c1"]);
+    expect(resumed.approved).toStrictEqual(["c1"]);
 
     const tampered = state();
     await resolveInterruptions(
@@ -197,7 +197,7 @@ describe("permdock/openai", () => {
       [item("c1", "delete_post", { id: "p1" })],
       { context },
     );
-    expect(resumed.approved).toEqual(["c1"]);
+    expect(resumed.approved).toStrictEqual(["c1"]);
 
     const replayed = state();
     await second.resolveInterruptions(
@@ -205,7 +205,7 @@ describe("permdock/openai", () => {
       [item("c1", "delete_post", { id: "p1" })],
       { context },
     );
-    expect(replayed.approved).toEqual([]);
+    expect(replayed.approved).toStrictEqual([]);
     expect(replayed.rejected[0]?.message).toMatch(/consumed|denied/u);
   });
 
@@ -272,7 +272,7 @@ describe("permdock/openai", () => {
       ],
       context,
     );
-    expect(guarded.map((tool) => tool.name)).toEqual([
+    expect(guarded.map((tool) => tool.name)).toStrictEqual([
       "delete_post",
       "list_posts",
     ]);

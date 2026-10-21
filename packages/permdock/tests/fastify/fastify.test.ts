@@ -44,7 +44,7 @@ describe("permdock/fastify", () => {
 
     const allowed = await app.inject({ method: "DELETE", url: "/posts/p1" });
     expect(allowed.statusCode).toBe(200);
-    expect(allowed.json()).toEqual({ ok: true, via: "u1" });
+    expect(allowed.json()).toStrictEqual({ ok: true, via: "u1" });
 
     const denied = await app.inject({ method: "DELETE", url: "/posts/p2" });
     expect(denied.statusCode).toBe(403);
@@ -129,6 +129,10 @@ describe("permdock/fastify getPermDock", () => {
       })),
     );
     const response = await app.inject("/");
-    expect(response.json()).toEqual({ id: "u1", own: true, other: false });
+    expect(response.json()).toStrictEqual({
+      id: "u1",
+      own: true,
+      other: false,
+    });
   });
 });

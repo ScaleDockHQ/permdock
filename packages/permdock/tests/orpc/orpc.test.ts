@@ -77,7 +77,7 @@ describe("permdock/orpc", () => {
 
     await expect(
       call(update, { id: "p1" }, { context: { user: memberUser } }),
-    ).resolves.toEqual({ ok: true, via: "u1" });
+    ).resolves.toStrictEqual({ ok: true, via: "u1" });
 
     try {
       await call(update, { id: "p2" }, { context: { user: memberUser } });
@@ -87,7 +87,9 @@ describe("permdock/orpc", () => {
       // SAFETY: toBeInstanceOf above checked the error is an ORPCError.
       const denied = error as ORPCError<string, unknown>;
       expect(denied.code).toBe("FORBIDDEN");
-      expect(denied.data).toEqual(expect.objectContaining({ status: 403 }));
+      expect(denied.data).toStrictEqual(
+        expect.objectContaining({ status: 403 }),
+      );
     }
   });
 
@@ -109,7 +111,7 @@ describe("permdock/orpc", () => {
     // SAFETY: toBeInstanceOf above checked the error is an ORPCError.
     const denied = error as ORPCError<string, unknown>;
     expect(denied.code).toBe("FORBIDDEN");
-    expect(denied.data).toEqual(
+    expect(denied.data).toStrictEqual(
       expect.objectContaining({
         status: 403,
         type: "https://permdock.com/problems/denied",
@@ -156,7 +158,7 @@ describe("permdock/orpc", () => {
 
     await expect(
       call(ping, undefined, { context: { user: memberUser } }),
-    ).resolves.toEqual({ ok: true, via: "u1" });
+    ).resolves.toStrictEqual({ ok: true, via: "u1" });
     expect(resolved).toBe(1);
   });
 
@@ -229,7 +231,7 @@ describe("permdock/orpc", () => {
     expect(body.evaluations[0]?.decision).toBe(true);
     expect(
       openapi.security(permissions.post.delete)["x-permdock-permissions"],
-    ).toEqual([permissions.post.delete.key]);
+    ).toStrictEqual([permissions.post.delete.key]);
   });
 });
 
@@ -247,6 +249,6 @@ describe("permdock/orpc getPermDock", () => {
       id: permdock.subject.principal?.id,
       own: permdock.can(permissions.post.update, ownPost),
       other: permdock.can(permissions.post.update, otherPost),
-    }).toEqual({ id: "u1", own: true, other: false });
+    }).toStrictEqual({ id: "u1", own: true, other: false });
   });
 });

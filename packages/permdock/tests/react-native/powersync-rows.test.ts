@@ -163,11 +163,11 @@ describe("powerSyncSource from the manifest rows", () => {
   const manifest = { ...localSnapshotManifest(policy), rows };
 
   it("names the synced tables the device reads", () => {
-    expect(rows.memberships.map((source) => source.table)).toEqual([
+    expect(rows.memberships.map((source) => source.table)).toStrictEqual([
       "tenant_users",
       "user_roles",
     ]);
-    expect(rows.customRoles).toEqual({
+    expect(rows.customRoles).toStrictEqual({
       permissions: "custom_role_permissions",
       includes: "custom_role_includes",
     });
@@ -225,7 +225,7 @@ describe("powerSyncSource from the manifest rows", () => {
         return jobs.map((row) => store.get().can(permissions.job.update, row));
       }),
     );
-    expect(answers).toEqual([
+    expect(answers).toStrictEqual([
       [true, true, false],
       [true, false, false],
       [true, false, false],
@@ -303,12 +303,12 @@ describe("powerSyncSource from the manifest rows", () => {
       },
     };
     const plan = powersyncPlan(policy, shared);
-    expect([...plan.devices]).toEqual([
+    expect([...plan.devices]).toStrictEqual([
       ["permdock.user_roles", "permdock_user_roles"],
     ]);
     const local = localRows(policy, shared, plan.devices);
     expect(local.roles?.table).toBe("permdock_user_roles");
-    expect(local.memberships.map((source) => source.table)).toEqual([
+    expect(local.memberships.map((source) => source.table)).toStrictEqual([
       "tenant_users",
       "user_roles",
     ]);

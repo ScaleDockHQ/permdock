@@ -26,12 +26,12 @@ describe("normalizeWhere", () => {
       field: "authorId",
       value: { ref: "principal.id" },
     });
-    expect(tagged).toEqual({
+    expect(tagged).toStrictEqual({
       op: "eq",
       field: "authorId",
       value: { ref: "principal.id" },
     });
-    expect(normalizeWhere({ published: { isNull: true } })).toEqual({
+    expect(normalizeWhere({ published: { isNull: true } })).toStrictEqual({
       op: "isNull",
       field: "published",
       value: true,

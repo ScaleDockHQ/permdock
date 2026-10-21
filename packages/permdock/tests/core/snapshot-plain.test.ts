@@ -157,7 +157,7 @@ describe("snapshots are plain data", () => {
       shapes.all.grants.some((grant) => grant.approval !== undefined),
     ).toBe(true);
     for (const [name, snapshot] of Object.entries(shapes)) {
-      expect(nonPlain(snapshot, name, [])).toEqual([]);
+      expect(nonPlain(snapshot, name, [])).toStrictEqual([]);
       expect(JSON.parse(JSON.stringify(snapshot))).toStrictEqual(snapshot);
       expect(structuredClone(snapshot)).toStrictEqual(snapshot);
     }

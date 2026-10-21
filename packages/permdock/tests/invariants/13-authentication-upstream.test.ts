@@ -104,7 +104,7 @@ describe("invariant 13: authentication is upstream", () => {
         }
       }
     }
-    expect(offenders).toEqual([]);
+    expect(offenders).toStrictEqual([]);
   });
 
   it("turns an unverifiable token into the anonymous subject, never a throw", async () => {
@@ -210,6 +210,6 @@ describe("invariant 13: authentication is upstream", () => {
       throw new TypeError("unsigned snapshot expected");
     }
     expect(plain.delegated).toBeUndefined();
-    expect(delegated.delegated).toEqual(["project.read"]);
+    expect(delegated.delegated).toStrictEqual(["project.read"]);
   });
 });

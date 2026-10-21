@@ -61,7 +61,7 @@ describe("default terminal prompts", () => {
         async () => "ran",
       )(),
     ).resolves.toBe("ran");
-    expect(questions).toEqual([
+    expect(questions).toStrictEqual([
       "environment.delete on environment staging (human). Continue? [y/N] ",
       "environment.delete on environment staging cannot be undone. Type staging to continue: ",
     ]);
@@ -92,7 +92,7 @@ describe("default terminal prompts", () => {
     await expect(
       protect(deploys.environment.delete)(async () => "ran")(),
     ).rejects.toMatchObject({ code: 77 });
-    expect(questions).toEqual([
+    expect(questions).toStrictEqual([
       "environment.delete on environment cannot be undone. Type environment.delete to continue: ",
     ]);
   });
@@ -116,6 +116,6 @@ describe("defaultExit", () => {
       .spyOn(process, "exit")
       .mockImplementation((() => undefined) as typeof process.exit);
     expect(() => defaultExit(3)).toThrow(TerminalExit);
-    expect(exit.mock.calls[0]).toEqual([3]);
+    expect(exit.mock.calls[0]).toStrictEqual([3]);
   });
 });

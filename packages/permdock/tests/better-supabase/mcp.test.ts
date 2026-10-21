@@ -41,14 +41,16 @@ const ctx = {};
 
 describe("toolPolicy", () => {
   it("grants a granted permission and shows the tool", async () => {
-    expect(await tools.authorize(ctx, { meta: customer.read }, {})).toEqual({
-      allowed: true,
-    });
+    expect(
+      await tools.authorize(ctx, { meta: customer.read }, {}),
+    ).toStrictEqual({ allowed: true });
     expect(await tools.visible(ctx, { meta: customer.read })).toBe(true);
   });
 
   it("refuses and hides a denied permission", async () => {
-    expect(await tools.authorize(ctx, { meta: customer.delete }, {})).toEqual({
+    expect(
+      await tools.authorize(ctx, { meta: customer.delete }, {}),
+    ).toStrictEqual({
       allowed: false,
       reason: "PermDock denied customer.delete.",
     });
@@ -75,10 +77,9 @@ describe("toolPolicy", () => {
     const failing = toolPolicy({
       permdock: () => Promise.reject(new Error("down")),
     });
-    expect(await failing.authorize(ctx, { meta: customer.read }, {})).toEqual({
-      allowed: false,
-      reason: "The permission check failed.",
-    });
+    expect(
+      await failing.authorize(ctx, { meta: customer.read }, {}),
+    ).toStrictEqual({ allowed: false, reason: "The permission check failed." });
     expect(await failing.visible(ctx, { meta: customer.read })).toBe(false);
     const loader = toolPolicy({
       permdock: dock,

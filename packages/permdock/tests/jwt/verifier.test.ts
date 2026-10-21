@@ -113,7 +113,7 @@ describe("joseTokenVerifier header checks", () => {
     for (const [label, token, options] of cases) {
       results.push([label, await causeOf(token, options)]);
     }
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       ["typ JWT", "ok"],
       ["typ application/at+jwt", "ok"],
       ["no typ", "ok"],
@@ -133,7 +133,7 @@ describe("joseTokenVerifier header checks", () => {
       await causeOf(token, { typ: "custom+jwt" }),
       await causeOf(token, { typ: ["other+jwt"] }),
       await causeOf(token, {}, { typ: ["application/custom+jwt"] }),
-    ]).toEqual(["ok", "wrong-token-type", "ok"]);
+    ]).toStrictEqual(["ok", "wrong-token-type", "ok"]);
   });
 
   it("skips undersized RSA and P-192 keys under fapi2", async () => {
@@ -147,7 +147,7 @@ describe("joseTokenVerifier header checks", () => {
         profile: "fapi2",
         jwks: { keys: [p192, es.jwk] },
       }),
-    ]).toEqual(["unknown-kid", "unknown-kid", "ok"]);
+    ]).toStrictEqual(["unknown-kid", "unknown-kid", "ok"]);
   });
 
   it("maps jose failures to causes", async () => {
@@ -173,7 +173,7 @@ describe("joseTokenVerifier header checks", () => {
       await causeOf(noExp),
       await causeOf(notJson),
       await causeOf(badSignature),
-    ]).toEqual([
+    ]).toStrictEqual([
       "not-yet-valid",
       "malformed",
       "malformed",
@@ -200,7 +200,7 @@ describe("joseTokenVerifier header checks", () => {
         return result.ok ? "ok" : result.cause;
       }),
     );
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       "malformed",
       "malformed",
       "malformed",
@@ -223,7 +223,7 @@ describe("joseTokenVerifier HMAC secrets", () => {
       await causeOf(hs, { jwks: { secret }, algorithms: ["HS256"] }),
       await causeOf(hs, { jwks: { secret } }),
       await causeOf(es256, { jwks: { secret }, algorithms: ["HS256"] }),
-    ]).toEqual(["ok", "alg-not-allowed", "alg-not-allowed"]);
+    ]).toStrictEqual(["ok", "alg-not-allowed", "alg-not-allowed"]);
   });
 });
 
@@ -279,7 +279,7 @@ describe("joseTokenVerifier nested JWE", () => {
     for (const [label, token, options] of cases) {
       results.push([label, await causeOf(token, options)]);
     }
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       ["single key object", "ok"],
       ["no cty", "encrypted-token"],
       ["zip", "encrypted-token"],
@@ -371,7 +371,7 @@ describe("joseTokenVerifier nested JWE", () => {
     for (const [label, token, options] of cases) {
       results.push([label, await causeOf(token, options)]);
     }
-    expect(results).toEqual([
+    expect(results).toStrictEqual([
       ["rsa", "ok"],
       ["ec", "ok"],
       ["rsa second in set", "ok"],
@@ -468,7 +468,7 @@ describe("remote JWKS cache", () => {
       fetch: hanging as typeof fetch,
       jwksCache: { timeout: 20 },
     });
-    expect(await cache.resolveJwks(NOW)).toEqual({
+    expect(await cache.resolveJwks(NOW)).toStrictEqual({
       ok: false,
       cause: "jwks-unavailable",
     });
@@ -484,7 +484,7 @@ describe("remote JWKS cache", () => {
     await cache.resolveJwks(NOW);
     healthy = false;
     expect((await cache.refetchJwks(NOW + 10)).ok).toBe(true);
-    expect(await cache.resolveJwks(NOW + 500)).toEqual({
+    expect(await cache.resolveJwks(NOW + 500)).toStrictEqual({
       ok: false,
       cause: "jwks-unavailable",
     });
@@ -495,7 +495,7 @@ describe("remote JWKS cache", () => {
       jwks: "https://login.test/jwks",
       fetch: fakeFetch(() => json({ keys: [] })).fetch,
     });
-    expect(await cache.resolveJwks(NOW)).toEqual({
+    expect(await cache.resolveJwks(NOW)).toStrictEqual({
       ok: false,
       cause: "jwks-unavailable",
     });
@@ -517,7 +517,7 @@ describe("remote JWKS cache", () => {
   });
 
   it("is unavailable without jwks or discovery", async () => {
-    expect(await createKeyCache({}).resolveJwks(NOW)).toEqual({
+    expect(await createKeyCache({}).resolveJwks(NOW)).toStrictEqual({
       ok: false,
       cause: "jwks-unavailable",
     });
@@ -573,7 +573,7 @@ describe("discovery", () => {
     const cache = createKeyCache({ discovery: issuer, fetch: fake.fetch });
     expect((await cache.resolveJwks(NOW)).ok).toBe(true);
     expect((await cache.resolveJwks(NOW + 10)).ok).toBe(true);
-    expect(fake.calls.map((call) => call.url)).toEqual([
+    expect(fake.calls.map((call) => call.url)).toStrictEqual([
       "https://login.test/tenant/.well-known/openid-configuration",
       "https://login.test/jwks",
     ]);
@@ -594,7 +594,7 @@ describe("discovery", () => {
     expect((await cache.resolveJwks(NOW)).ok).toBe(true);
     jwksUri = "https://login.test/keys-2";
     expect((await cache.resolveJwks(NOW + 120)).ok).toBe(true);
-    expect(fake.calls.map((call) => call.url)).toEqual([
+    expect(fake.calls.map((call) => call.url)).toStrictEqual([
       "https://login.test/.well-known/openid-configuration",
       "https://login.test/jwks",
       "https://login.test/.well-known/openid-configuration",
@@ -624,7 +624,7 @@ describe("discovery", () => {
         },
       }).fetch,
     });
-    expect(await mismatch.resolveJwks(NOW)).toEqual({
+    expect(await mismatch.resolveJwks(NOW)).toStrictEqual({
       ok: false,
       cause: "discovery-mismatch",
     });
@@ -637,7 +637,7 @@ describe("discovery", () => {
         },
       }).fetch,
     });
-    expect(await insecure.resolveJwks(NOW)).toEqual({
+    expect(await insecure.resolveJwks(NOW)).toStrictEqual({
       ok: false,
       cause: "discovery-unavailable",
     });
@@ -684,7 +684,7 @@ describe("discovery", () => {
       },
       fetch: fake.fetch,
     });
-    expect(await bad.resolveJwks(NOW)).toEqual({
+    expect(await bad.resolveJwks(NOW)).toStrictEqual({
       ok: false,
       cause: "discovery-mismatch",
     });
@@ -745,7 +745,7 @@ describe("configuration", () => {
       expect({
         label,
         throws: throws(() => assertSubjectConfig(options)),
-      }).toEqual({ label, throws: true });
+      }).toStrictEqual({ label, throws: true });
     }
   });
 
@@ -771,12 +771,12 @@ describe("header helpers", () => {
       decodeHeader(encode(["a"])),
       decodeHeader(encode(null)),
       decodeHeader(encode({ alg: "ES256" })),
-    ]).toEqual([undefined, undefined, { alg: "ES256" }]);
+    ]).toStrictEqual([undefined, undefined, { alg: "ES256" }]);
     expect([
       normalizeTyp(undefined),
       normalizeTyp("Application/AT+JWT"),
       normalizeTyp("JWT"),
-    ]).toEqual([undefined, "at+jwt", "jwt"]);
+    ]).toStrictEqual([undefined, "at+jwt", "jwt"]);
     // SAFETY: an unverified header may carry crit as a string.
     const stringCrit = { crit: "alg" } as unknown as Parameters<
       typeof unknownCrit
@@ -786,7 +786,7 @@ describe("header helpers", () => {
       unknownCrit(stringCrit),
       unknownCrit({ crit: ["alg", "kid"] }),
       unknownCrit({ crit: ["exp"] }),
-    ]).toEqual([false, true, false, true]);
+    ]).toStrictEqual([false, true, false, true]);
   });
 
   it("imports keys as jose would", async () => {

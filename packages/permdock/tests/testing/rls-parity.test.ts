@@ -73,7 +73,7 @@ describe("testRlsParity", () => {
       },
     });
     expect(report.ok).toBe(true);
-    expect(report.results).toEqual([
+    expect(report.results).toStrictEqual([
       { name: "read own", granted: true, database: "allowed", ok: true },
       { name: "update other", granted: false, database: "filtered", ok: true },
     ]);
@@ -282,7 +282,7 @@ describe("testRlsParity relation grantee", () => {
       },
     });
     expect(report.ok).toBe(true);
-    expect(report.results).toEqual([
+    expect(report.results).toStrictEqual([
       { name: "update own", granted: true, database: "allowed", ok: true },
       { name: "update other", granted: false, database: "filtered", ok: true },
     ]);
@@ -312,7 +312,7 @@ describe("testRlsParity relation grantee", () => {
           const claims = JSON.parse(String(values?.[1])) as {
             readonly memberships: readonly unknown[];
           };
-          expect(claims.memberships).toEqual([
+          expect(claims.memberships).toStrictEqual([
             { scope: "tenant", id: "o1", roles: ["member"] },
           ]);
         }
@@ -321,7 +321,7 @@ describe("testRlsParity relation grantee", () => {
           : { rows: [], rowCount: 0 };
       },
     });
-    expect(report.results).toEqual([
+    expect(report.results).toStrictEqual([
       {
         name: "read own",
         granted: true,
@@ -416,7 +416,7 @@ describe("testRlsParity fieldViews", () => {
       ],
       query: db.query,
     });
-    expect(report.results).toEqual([
+    expect(report.results).toStrictEqual([
       {
         name: "finance",
         granted: true,
@@ -456,7 +456,7 @@ describe("testRlsParity fieldViews", () => {
       fixtures: [admin],
       query: missing.query,
     });
-    expect(fallback.results[0]?.fields).toEqual({
+    expect(fallback.results[0]?.fields).toStrictEqual({
       app: ["amount", "id", "title"],
       database: ["amount", "id", "title"],
     });
@@ -496,7 +496,7 @@ describe("testRlsParity fieldViews", () => {
           ? { rows: [], rowCount: 0 }
           : db.query(sql),
     });
-    expect(report.results[0]?.fields).toEqual({ app: [], database: [] });
+    expect(report.results[0]?.fields).toStrictEqual({ app: [], database: [] });
     expect(report.results[1]?.fields).toBeUndefined();
     expect(report.ok).toBe(true);
     expect(db.sqls).toContain(
@@ -526,7 +526,7 @@ describe("testRlsParity fieldViews", () => {
         return { rows: [] };
       },
     });
-    expect(report.results).toEqual([
+    expect(report.results).toStrictEqual([
       {
         name: "anonymous read",
         granted: false,
