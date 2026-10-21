@@ -31,6 +31,7 @@ const CHECK_CALLS: ReadonlySet<string> = new Set([
   "usePermission",
   "getPermission",
   "requirePermission",
+  "protectAction",
   "protect",
   "allow",
   "deny",
