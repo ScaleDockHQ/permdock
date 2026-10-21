@@ -101,19 +101,19 @@ describe("permissions", () => {
     const merged = mergePermissions(posts, billing);
     expect(listPermissions(merged)).toHaveLength(2);
     expect(() => mergePermissions(posts, posts)).toThrow(
-      /duplicate permission key/,
+      /duplicate permission key/u,
     );
   });
 
   it("rejects forbidden keys, empty resources and root resources", () => {
     expect(() =>
       definePermissions({ constructor: resource({ actions: ["read"] }) }),
-    ).toThrow(/forbidden/);
+    ).toThrow(/forbidden/u);
     expect(() => definePermissions({ post: resource({}) })).toThrow(
-      /no actions/,
+      /no actions/u,
     );
     expect(() => definePermissions(resource({ actions: ["read"] }))).toThrow(
-      /cannot be the root/,
+      /cannot be the root/u,
     );
   });
 
@@ -146,7 +146,7 @@ describe("permissions", () => {
           },
         }),
       }),
-    ).toThrow(/exactly one of field, edge, principal or includes/);
+    ).toThrow(/exactly one of field, edge, principal or includes/u);
     expect(() =>
       definePermissions({
         folder: resource({
@@ -154,12 +154,12 @@ describe("permissions", () => {
           relations: { viewer: { edge: "viewers; drop table x" } },
         }),
       }),
-    ).toThrow(/unsafe edge table/);
+    ).toThrow(/unsafe edge table/u);
     expect(() =>
       definePermissions({
         folder: resource({ actions: ["read"], restricted: "__proto__" }),
       }),
-    ).toThrow(/forbidden/);
+    ).toThrow(/forbidden/u);
   });
 
   it("caps group depth at 10", () => {
@@ -168,7 +168,7 @@ describe("permissions", () => {
       tree = { g: tree };
     }
     // SAFETY: a deliberately over-deep tree built above, which the type would reject.
-    expect(() => definePermissions(tree as never)).toThrow(/nesting exceeds/);
+    expect(() => definePermissions(tree as never)).toThrow(/nesting exceeds/u);
   });
 });
 

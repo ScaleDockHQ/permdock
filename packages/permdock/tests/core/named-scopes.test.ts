@@ -423,31 +423,31 @@ describe("named scopes: definition", () => {
           organization: { key: "organization_id" },
         },
       }),
-    ).toThrow(/not declared before it/);
+    ).toThrow(/not declared before it/u);
     expect(() =>
       definePolicy(tree, { subject, scopes: { global: { key: "x" } } }),
-    ).toThrow(/scope name 'global'/);
+    ).toThrow(/scope name 'global'/u);
     expect(() =>
       definePolicy(tree, {
         subject,
         scopes: { organization: { key: "o" }, tenant: { key: "t" } },
       }),
-    ).toThrow(/'tenant' must be declared first/);
+    ).toThrow(/'tenant' must be declared first/u);
     expect(() =>
       definePolicy(tree, {
         subject,
         scopes: { tenant: { key: "orgId" }, team: { key: "teamId" } },
       }),
-    ).toThrow(/scopes.team needs within/);
+    ).toThrow(/scopes.team needs within/u);
     expect(() =>
       definePolicy(tree, {
         subject,
         scopes: { organization: { key: "o" }, region: { key: "r" } },
       }),
-    ).toThrow(/scopes.region needs within/);
+    ).toThrow(/scopes.region needs within/u);
     expect(() =>
       definePolicy(tree, { subject, scopes: { organization: { key: "" } } }),
-    ).toThrow(/needs a key/);
+    ).toThrow(/needs a key/u);
   });
 
   it("requires the scope key on every resource an instance grant touches", () => {
@@ -457,7 +457,7 @@ describe("named scopes: definition", () => {
         scopes: { organization: { key: "organization_id" } },
         roles: [role("reader", [allow(tree.doc.read)], { on: "organization" })],
       }),
-    ).toThrow(/doc.read on 'organization' roles/);
+    ).toThrow(/doc.read on 'organization' roles/u);
     expect(
       definePolicy(tree, {
         subject,
@@ -473,7 +473,7 @@ describe("named scopes: definition", () => {
   it("reserves the restricted role option", () => {
     // SAFETY: a deliberately reserved option, to exercise role()'s refusal.
     expect(() => role("x", [], { restricted: undefined as never })).toThrow(
-      /reserved/,
+      /reserved/u,
     );
   });
 });

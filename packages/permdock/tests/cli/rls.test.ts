@@ -121,14 +121,14 @@ describe("permdock rls", () => {
     );
     expect(result.code).toBe(0);
     const sql = readFileSync(join(cwd, "rls.sql"), "utf8");
-    expect(sql).not.toMatch(/service_role/i);
+    expect(sql).not.toMatch(/service_role/iu);
     expect(sql).toContain("enable row level security");
     expect(sql).toContain("revoke all");
     expect(sql).toContain('(select "permdock".permdock_user_id())');
     expect(sql).toContain("for update");
     expect(sql).toContain("with check");
     expect(sql).toContain("for select");
-    expect(result.stdout).toMatch(/approval:human|skipped approval/i);
+    expect(result.stdout).toMatch(/approval:human|skipped approval/iu);
   });
 
   it("collapses policies by default and keeps the per-role shape behind a flag", async () => {
@@ -217,7 +217,7 @@ export const policy = definePolicy(permissions, {
     expect(sql).toContain(
       'grant execute on function "permdock".permitted_tenant_ids(text) to authenticated;',
     );
-    expect(sql).not.toMatch(/service_role/i);
+    expect(sql).not.toMatch(/service_role/iu);
   });
 
   it("resolves custom roles only with --custom-roles, bounded by the ceiling view", async () => {
@@ -293,7 +293,7 @@ export const policy = definePolicy(permissions, {
       "cross join lateral (select m -> 'grants' -> r.role as g) cg",
     );
     expect(jwt).not.toContain("custom_role_permissions");
-    expect(jwt).not.toMatch(/service_role/i);
+    expect(jwt).not.toMatch(/service_role/iu);
   });
 
   it("emits authorize() and points to the supabase token hook with --rbac-scaffold", async () => {
@@ -323,7 +323,7 @@ export const policy = definePolicy(permissions, {
     expect(sql).toContain("requested_tenant text default null");
     expect(sql).toContain(`(select "permdock".permdock_has('post.read'))`);
     expect(sql).not.toMatch(/using \([^\n]*authorize\(/u);
-    expect(sql).not.toMatch(/service_role/i);
+    expect(sql).not.toMatch(/service_role/iu);
   });
 
   it("seeds top-level definePolicy({ grants }) into the rbac enums and role_permissions", async () => {
@@ -453,7 +453,7 @@ export const policy = definePolicy(permissions, {
       );
       expect(result.code).toBe(0);
       const sql = readFileSync(join(cwd, "rls.sql"), "utf8");
-      expect(sql).not.toMatch(/service_role/i);
+      expect(sql).not.toMatch(/service_role/iu);
       await expect(sql).toMatchFileSnapshot(
         `./fixtures/golden/rbac-supabase-${mode}.sql`,
       );

@@ -181,7 +181,7 @@ describe("permdock/drizzle toWhere", () => {
       toWhere({ op: "eq", field: "missing", value: "x" }, posts, {
         operators: ops(),
       }),
-    ).toThrow(/unknown column/);
+    ).toThrow(/unknown column/u);
     expect(() =>
       toWhere(
         {

@@ -85,10 +85,10 @@ describe("prismaModelFields", () => {
 
   it("throws for an unknown model", () => {
     expect(() => prismaModelFields(SCHEMA, "Missing")).toThrow(
-      /not in the datamodel/,
+      /not in the datamodel/u,
     );
     expect(() => prismaModelFields({ models: [] }, "Post")).toThrow(
-      /not in the datamodel/,
+      /not in the datamodel/u,
     );
   });
 

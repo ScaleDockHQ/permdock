@@ -49,7 +49,7 @@ async function bundled(source: string): Promise<readonly Uint8Array[]> {
       {
         name: "externals",
         setup(pluginBuild): void {
-          pluginBuild.onResolve({ filter: /^[^./]/ }, (args) =>
+          pluginBuild.onResolve({ filter: /^[^./]/u }, (args) =>
             args.path === "permdock" || args.path.startsWith("permdock/")
               ? undefined
               : { path: args.path, external: true },

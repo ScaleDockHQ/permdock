@@ -22,6 +22,6 @@ describe("sha256", () => {
   });
 
   it("encodes base64url without padding", () => {
-    expect(bytesToBase64Url(sha256("abc"))).not.toMatch(/[+/=]/);
+    expect(bytesToBase64Url(sha256("abc"))).not.toMatch(/[+/=]/u);
   });
 });

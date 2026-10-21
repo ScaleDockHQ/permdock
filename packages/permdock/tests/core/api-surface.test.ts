@@ -339,7 +339,7 @@ describe("grantee and vocabulary helpers", () => {
     expect(isPlan(null)).toBe(false);
     expect(listRoles(undefined)).toEqual([]);
     expect(listPlans(undefined)).toEqual([]);
-    expect(() => defineRoles({ constructor: {} })).toThrow(/forbidden/);
-    expect(() => definePlans({ prototype: {} })).toThrow(/forbidden/);
+    expect(() => defineRoles({ constructor: {} })).toThrow(/forbidden/u);
+    expect(() => definePlans({ prototype: {} })).toThrow(/forbidden/u);
   });
 });

@@ -54,10 +54,10 @@ type CatalogEntry = {
 };
 
 const POLICY_RE =
-  /create\s+policy\s+"?([A-Za-z0-9_]+)"?\s+on\s+"?([A-Za-z0-9_]+)"?([\s\S]*?);/gi;
+  /create\s+policy\s+"?([A-Za-z0-9_]+)"?\s+on\s+"?([A-Za-z0-9_]+)"?([\s\S]*?);/giu;
 
 function extractParenClause(sql: string, keyword: string): string | undefined {
-  const match = new RegExp(`\\b${keyword}\\s*\\(`, "i").exec(sql);
+  const match = new RegExp(`\\b${keyword}\\s*\\(`, "iu").exec(sql);
   if (match?.index === undefined) {
     return undefined;
   }
@@ -83,13 +83,13 @@ function splitPolicies(sql: string): ImportedPolicy[] {
     const name = match[1] ?? "policy";
     const table = match[2] ?? "table";
     const body = match[3] ?? "";
-    const clauses = body.search(/\b(?:using|with\s+check)\s*\(/i);
+    const clauses = body.search(/\b(?:using|with\s+check)\s*\(/iu);
     const header = clauses === -1 ? body : body.slice(0, clauses);
-    const asRestrictive = /\bas\s+restrictive\b/i.test(header);
-    const cmdMatch = /\bfor\s+(all|select|insert|update|delete)\b/i.exec(
+    const asRestrictive = /\bas\s+restrictive\b/iu.test(header);
+    const cmdMatch = /\bfor\s+(all|select|insert|update|delete)\b/iu.exec(
       header,
     );
-    const toMatch = /\bto\s+([^\n]+)/i.exec(header);
+    const toMatch = /\bto\s+([^\n]+)/iu.exec(header);
     const using = extractParenClause(body, "using");
     const check = extractParenClause(body, "with\\s+check");
     const roles = (toMatch?.[1] ?? "authenticated")
@@ -155,7 +155,7 @@ function emitGenerated(
         catalog.filter((item) => item.table === table).map((item) => item.cmd),
       );
       return {
-        path: [table.replaceAll(/[^A-Za-z0-9_]/g, "_")],
+        path: [table.replaceAll(/[^A-Za-z0-9_]/gu, "_")],
         schema: emptySchema(kind),
         actions,
         collection,
@@ -165,7 +165,7 @@ function emitGenerated(
 }
 
 function assertNoServiceRole(sql: string): void {
-  if (/\bto\s+service_role\b|\bfrom\s+service_role\b/i.test(sql)) {
+  if (/\bto\s+service_role\b|\bfrom\s+service_role\b/iu.test(sql)) {
     throw configError(
       "PermDock CLI: imported SQL must never target service_role",
     );
@@ -208,7 +208,7 @@ function policyRoles(value: unknown): readonly string[] {
   }
   return typeof value === "string"
     ? value
-        .replaceAll(/[{}]/g, "")
+        .replaceAll(/[{}]/gu, "")
         .split(",")
         .map((item) => item.trim())
         .filter((item) => item !== "")

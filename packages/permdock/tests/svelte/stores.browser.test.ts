@@ -12,6 +12,7 @@ import type {
 } from "../../src/svelte/types.ts";
 
 import { getPermDockSync } from "../../src/core/permdock.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 import {
   memberUser,
   otherPost,
@@ -82,7 +83,7 @@ describe("permdock/svelte context stores", () => {
   it("throw without setPermDock", async () => {
     const { value, stop } = harness({ decision: required });
     expect(value).toBeInstanceOf(Error);
-    expect(String(value)).toMatch(/stores require setPermDock/);
+    expect(String(value)).toMatch(/stores require setPermDock/u);
     await stop();
   });
 
@@ -94,7 +95,7 @@ describe("permdock/svelte context stores", () => {
         snapshot: await memberSnapshot(),
         approvals: "/api/approvals",
         fetch: async (input: string | URL | Request) => {
-          posts.push(String(input));
+          posts.push(requestUrl(input));
           return new Response(JSON.stringify({ status: "pending" }));
         },
       },

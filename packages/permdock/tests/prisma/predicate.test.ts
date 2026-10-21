@@ -85,37 +85,37 @@ describe("permdock/prisma toPredicate (Prisma 8)", () => {
         { op: "contains", field: "tags", value: "a" },
         { combinators, model: { required: [], lists: ["tags"] } },
       )(model),
-    ).toThrow(/list field 'tags'/);
+    ).toThrow(/list field 'tags'/u);
     expect(() =>
       toPredicate(
         { op: "eq", field: "orgId", value: "o1" },
         { combinators },
       )({}),
-    ).toThrow(/no field 'orgId'/);
+    ).toThrow(/no field 'orgId'/u);
     expect(() =>
       toPredicate(
         { op: "eq", field: "constructor", value: "x" },
         { combinators },
       )(model),
-    ).toThrow(/forbidden/);
+    ).toThrow(/forbidden/u);
     expect(() =>
       toPredicate(
         { op: "contains", field: "tags", value: "a" },
         { combinators, listFields: ["tags"] },
       )(model),
-    ).toThrow(/list field 'tags'/);
+    ).toThrow(/list field 'tags'/u);
     expect(() =>
       toPredicate(
         { op: "contains", field: "title", value: 5 },
         { combinators },
       )(model),
-    ).toThrow(/non-string value on 'title'/);
+    ).toThrow(/non-string value on 'title'/u);
     expect(() =>
       toPredicate(
         { op: "eq", field: "orgId", value: "o1" },
         { combinators, fields: { orgId: "__proto__" } },
       )(model),
-    ).toThrow(/forbidden/);
+    ).toThrow(/forbidden/u);
   });
 
   const cases: readonly {
@@ -181,14 +181,14 @@ describe("permdock/prisma toPredicate (Prisma 8)", () => {
 
   it("loads the Prisma combinators by default and explains a missing install", () => {
     expect(() => toPredicate({ op: "eq", field: "a", value: 1 })).toThrow(
-      /needs @prisma\/orm-postgres/,
+      /needs @prisma\/orm-postgres/u,
     );
     const spy = vi
       .spyOn(process, "getBuiltinModule")
       .mockReturnValue(undefined);
     try {
       expect(() => toPredicate({ op: "eq", field: "a", value: 1 })).toThrow(
-        /pass `combinators` on runtimes without require/,
+        /pass `combinators` on runtimes without require/u,
       );
     } finally {
       spy.mockRestore();

@@ -23,6 +23,7 @@ import {
   EX_USAGE,
   TerminalExit,
 } from "../../src/terminal/index.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 import {
   memberUser,
   ownPost,
@@ -423,7 +424,7 @@ describe("permdock/terminal", () => {
         configDir: dir,
         // SAFETY: the device flow calls fetch with a URL and init only, which this stub accepts.
         fetch: (async (input) => {
-          const url = String(input);
+          const url = requestUrl(input);
           calls.push(url);
           if (url.endsWith("/device")) {
             return Response.json({

@@ -205,8 +205,8 @@ function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
 
 describe("cloud", () => {
   it("throws when the key is missing", () => {
-    expect(() => cloud({})).toThrow(/requires a key/);
-    expect(() => cloud({ url: CLOUD_URL })).toThrow(/requires a key/);
+    expect(() => cloud({})).toThrow(/requires a key/u);
+    expect(() => cloud({ url: CLOUD_URL })).toThrow(/requires a key/u);
   });
 
   it("defaults the url to CLOUD_BASE_URL", () => {
@@ -376,7 +376,7 @@ describe("cloud", () => {
     expect(backend.decisions).toEqual([[event]]);
     await expect(
       client.snapshotsFor("subject.jwt.token").get(),
-    ).rejects.toThrow(/unsigned/);
+    ).rejects.toThrow(/unsigned/u);
   });
 
   it("returns a compact JWS snapshot unchanged", async () => {
@@ -482,7 +482,7 @@ describe("cloud", () => {
         status: "rejected",
         by: person,
       }),
-    ).rejects.toThrow(/not pending/);
+    ).rejects.toThrow(/not pending/u);
     await client.approvals.create({
       ...request,
       id: "a_3",
@@ -538,7 +538,7 @@ describe("cloud", () => {
     });
     await expect(
       client.approvals.cancel?.({ tenant: "o_1" }, { by: "admin" }),
-    ).rejects.toThrow(/cancel/);
+    ).rejects.toThrow(/cancel/u);
   });
 
   it("resumes an approval once through the Cloud store", async () => {

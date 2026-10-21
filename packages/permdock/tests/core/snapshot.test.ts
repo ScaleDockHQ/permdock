@@ -27,10 +27,10 @@ describe("parseSnapshot", () => {
     expect(parseSnapshot(fixture).v).toBe(1);
     expect(parseSnapshot(JSON.stringify(fixture)).v).toBe(1);
     expect(() => parseSnapshot({ v: 9 })).toThrow(
-      /unsupported snapshot version/,
+      /unsupported snapshot version/u,
     );
     expect(() => parseSnapshot({ v: 1, constructor: {} })).toThrow(
-      /unsafe snapshot key/,
+      /unsafe snapshot key/u,
     );
   });
 });

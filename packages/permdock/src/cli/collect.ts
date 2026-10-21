@@ -216,7 +216,7 @@ export function guessPermissions(
   const candidates = [
     "src/permissions.ts",
     "permissions.ts",
-    ...srcPath.map((entry) => `${entry.replace(/\/$/, "")}/permissions.ts`),
+    ...srcPath.map((entry) => `${entry.replace(/\/$/u, "")}/permissions.ts`),
   ];
   return candidates.find((file) => existsSync(resolve(cwd, file)));
 }

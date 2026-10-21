@@ -19,6 +19,7 @@ import { joseTokenSigner } from "../../src/jwt/signer.ts";
 import { jwtSubjectResolver, subjectFromJwt } from "../../src/jwt/subject.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
 import { testSubjectResolver } from "../../src/testing/conformance/identity.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 import { memberUser, policy } from "../fixtures/quick-start.ts";
 
 const PRIVATE_JWK = {
@@ -264,7 +265,7 @@ describe("joseTokenVerifier", () => {
   it("fetches discovery and JWKS over https", async () => {
     const token = await accessToken();
     const fetchImpl: typeof fetch = async (input) => {
-      const href = String(input);
+      const href = requestUrl(input);
       if (href.includes("openid-configuration")) {
         return new Response(
           JSON.stringify({
@@ -397,7 +398,7 @@ describe("subjectFromJwt", () => {
         issuer: ISSUER,
         claims: { id: "__proto__.id" },
       }),
-    ).toThrow(/forbidden claim path/);
+    ).toThrow(/forbidden claim path/u);
   });
 
   it("rejects fapi2 tokens without cnf and query-string tokens", async () => {
@@ -544,10 +545,10 @@ describe("configuration and remaining causes", () => {
   it("rejects mutually exclusive or unsafe setup", () => {
     expect(() =>
       joseTokenVerifier({ jwks: PUBLIC_JWKS, discovery: ISSUER }),
-    ).toThrow(/mutually exclusive/);
+    ).toThrow(/mutually exclusive/u);
     expect(() =>
       joseTokenVerifier({ discovery: "http://login.example.com" }),
-    ).toThrow(/https/);
+    ).toThrow(/https/u);
     expect(() =>
       jwtSubjectResolver({
         jwks: PUBLIC_JWKS,
@@ -555,13 +556,13 @@ describe("configuration and remaining causes", () => {
         profile: "fapi2",
         sender: "none",
       }),
-    ).toThrow(/sender constraint/);
+    ).toThrow(/sender constraint/u);
     expect(() => jwtSubjectResolver({ jwks: PUBLIC_JWKS })).toThrow(
-      /issuer is required/,
+      /issuer is required/u,
     );
     expect(() =>
       jwtSubjectResolver({ jwks: PUBLIC_JWKS, issuer: ISSUER }),
-    ).toThrow(/audience is required/);
+    ).toThrow(/audience is required/u);
     expect(() =>
       jwtSubjectResolver({
         jwks: PUBLIC_JWKS,
@@ -576,7 +577,7 @@ describe("configuration and remaining causes", () => {
         kid: "k",
         issuer: ISSUER,
       }),
-    ).toThrow(/refuses/);
+    ).toThrow(/refuses/u);
     expect(() =>
       joseTokenSigner({
         key: { ...PRIVATE_JWK },
@@ -584,10 +585,10 @@ describe("configuration and remaining causes", () => {
         kid: "",
         issuer: ISSUER,
       }),
-    ).toThrow(/requires kid/);
+    ).toThrow(/requires kid/u);
     expect(() =>
       joseTokenVerifier({ jwks: { secret: new Uint8Array(8) } }),
-    ).toThrow(/256 bits/);
+    ).toThrow(/256 bits/u);
   });
 
   it("refuses HMAC material when signing outputs", async () => {
@@ -601,14 +602,14 @@ describe("configuration and remaining causes", () => {
         { snapshot: {} },
         { typ: "vnd.permdock.snapshot+jwt", audience: AUDIENCE },
       ),
-    ).rejects.toThrow(/HMAC/);
+    ).rejects.toThrow(/HMAC/u);
   });
 
   it("requires an issuer, an audience and a whole-second iat", async () => {
     const key = { ...PRIVATE_JWK };
     expect(() =>
       joseTokenSigner({ key, alg: "Ed25519", kid: "k", issuer: "" }),
-    ).toThrow(/requires issuer/);
+    ).toThrow(/requires issuer/u);
     const signer = joseTokenSigner({
       key,
       alg: "Ed25519",
@@ -617,13 +618,13 @@ describe("configuration and remaining causes", () => {
     });
     await expect(
       signer.sign({ snapshot: {} }, { typ: "vnd.permdock.snapshot+jwt" }),
-    ).rejects.toThrow(/audience/);
+    ).rejects.toThrow(/audience/u);
     await expect(
       signer.sign(
         { snapshot: {} },
         { typ: "vnd.permdock.snapshot+jwt", audience: AUDIENCE, issuedAt: 1.5 },
       ),
-    ).rejects.toThrow(/whole NumericDate/);
+    ).rejects.toThrow(/whole NumericDate/u);
     const withDefault = joseTokenSigner({
       key,
       alg: "Ed25519",

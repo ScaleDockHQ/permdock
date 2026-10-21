@@ -25,10 +25,10 @@ describe("permission tree and builder edges", () => {
     const merged = mergePermissions(billing, extra);
     expect(findPermission(merged, "billing.invoice.pay")?.action).toBe("pay");
     expect(findPermission(merged, "constructor")).toBeUndefined();
-    expect(() => mergePermissions()).toThrow(/at least one tree/);
+    expect(() => mergePermissions()).toThrow(/at least one tree/u);
     // SAFETY: neither a schema nor options, the input the runtime guard refuses.
     expect(() => resource(undefined as never)).toThrow(
-      /requires a schema or options/,
+      /requires a schema or options/u,
     );
     expect(tree.post.read.meta).toEqual({ title: "Read" });
   });
@@ -39,24 +39,24 @@ describe("permission tree and builder edges", () => {
         definePermissions({ post: resource({ actions: ["read"] }) }),
         definePermissions({ post: resource({ actions: ["write"] }) }),
       ),
-    ).toThrow(/duplicate resource name/);
+    ).toThrow(/duplicate resource name/u);
     expect(findPermission(tree, "constructor")).toBeUndefined();
     expect(findPermission(tree, "post:read")?.action).toBe("read");
     // SAFETY: deliberately a permission tree where resource() expects a schema.
     expect(() => resource(tree as never, { actions: ["read"] })).toThrow(
-      /must be a schema or options/,
+      /must be a schema or options/u,
     );
     expect(getResource(tree, "missing")).toBeUndefined();
     expect(getResource(tree, "constructor")).toBeUndefined();
     expect(listPermissions(tree.post.read)).toHaveLength(1);
     expect(() =>
       definePermissions({ post: resource({ actions: ["read", "read"] }) }),
-    ).toThrow(/duplicate action/);
+    ).toThrow(/duplicate action/u);
     expect(() =>
       definePermissions({
         post: resource({ actions: ["read"], collection: ["read"] }),
       }),
-    ).toThrow(/duplicate action/);
+    ).toThrow(/duplicate action/u);
   });
 
   it("role and policy builders check scopes, resources, limits and validate", () => {
@@ -71,12 +71,12 @@ describe("permission tree and builder edges", () => {
         roles: [role("lead", [allow(tree.post.read)], { on: "team" })],
         subject: () => ({ id: "u1" }),
       }),
-    ).toThrow(/must declare 'team'/);
+    ).toThrow(/must declare 'team'/u);
     expect(() =>
       role("broken", [allow(tree.post.read)], {
         on: [tree.post.read, tree.org.read],
       }),
-    ).toThrow(/exactly one resource/);
+    ).toThrow(/exactly one resource/u);
     const neverPolicy = definePolicy(tree, {
       roles: [role("member", [allow(tree.post.read)])],
       subject: () => ({ id: "u1", roles: ["member"] }),
@@ -89,7 +89,7 @@ describe("permission tree and builder edges", () => {
       role("nested", [deny([tree.post.read, tree.post.create])]).grants,
     ).toHaveLength(2);
     expect(() => role("empty-on", [allow(tree.post.read)], { on: [] })).toThrow(
-      /exactly one resource/,
+      /exactly one resource/u,
     );
   });
 });

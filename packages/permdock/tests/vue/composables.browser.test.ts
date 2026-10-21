@@ -27,6 +27,7 @@ import {
 } from "../../src/vue/composables.ts";
 import { permdockPlugin } from "../../src/vue/plugin.ts";
 import { Protected } from "../../src/vue/protected.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 import {
   memberUser,
   otherPost,
@@ -90,7 +91,7 @@ describe("permdock/vue composables", () => {
         },
       }),
     );
-    expect(String(failure)).toMatch(/composables require permdockPlugin/);
+    expect(String(failure)).toMatch(/composables require permdockPlugin/u);
     view.unmount();
   });
 
@@ -201,7 +202,7 @@ describe("permdock/vue composables", () => {
         snapshot: await memberSnapshot(),
         approvals: "/api/approvals",
         fetch: async (input) => {
-          posts.push(String(input));
+          posts.push(requestUrl(input));
           return new Response(JSON.stringify({ status: "pending" }));
         },
       },

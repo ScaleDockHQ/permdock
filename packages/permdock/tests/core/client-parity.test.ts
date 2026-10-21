@@ -199,7 +199,7 @@ describe("client parity", () => {
         subject: (user: Principal | null) => user,
         roles: [role("viewer", [allow(loose.memo.read)], { on: "tenant" })],
       }),
-    ).toThrow(/memo.read on 'tenant' roles/);
+    ).toThrow(/memo.read on 'tenant' roles/u);
   });
 
   it("reports only global roles when no tenant is active", async () => {

@@ -14,6 +14,7 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
+import { requestBody, requestUrl } from "../fakes/fetch.ts";
 import { policy as namedScopes } from "../fixtures/named-scopes.ts";
 
 // Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
@@ -254,9 +255,9 @@ export const permissions = definePermissions({
     const io: CliIo = {
       ...IO,
       fetch: (input) => {
-        urls.push(String(input));
+        urls.push(requestUrl(input));
         return Promise.resolve(
-          String(input).endsWith("/v1/environment")
+          requestUrl(input).endsWith("/v1/environment")
             ? Response.json({ environment: "preview" })
             : new Response(null, { status: 201 }),
         );
@@ -308,7 +309,7 @@ export const permissions = definePermissions({
     );
     const bodies: unknown[] = [];
     const fetchStub = vi.fn<typeof fetch>((_input, init) => {
-      bodies.push(JSON.parse(String(init?.body)));
+      bodies.push(JSON.parse(requestBody(init)));
       return Promise.resolve(new Response(null, { status: 201 }));
     });
     vi.stubGlobal("fetch", fetchStub);

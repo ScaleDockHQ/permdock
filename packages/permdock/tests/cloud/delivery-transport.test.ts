@@ -189,6 +189,6 @@ describe("cloudDeliveryTransport", () => {
   it("requires a key", () => {
     expect(() =>
       cloudDeliveryTransport("email", { url: CLOUD_URL, key: "" }),
-    ).toThrow(/requires a key/);
+    ).toThrow(/requires a key/u);
   });
 });

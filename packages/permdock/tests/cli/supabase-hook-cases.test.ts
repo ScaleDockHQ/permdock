@@ -182,7 +182,7 @@ describe("supabase.hook.api", () => {
 
   it("refuses a wrapper that would replace the function it wraps", () => {
     expect(() => hook({ schema: "permdock", prefix: "" })).toThrow(
-      /would replace "permdock"\.subject_for/,
+      /would replace "permdock"\.subject_for/u,
     );
   });
 });

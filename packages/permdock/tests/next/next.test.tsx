@@ -151,7 +151,7 @@ describe("permdock/next", () => {
 
     const permdock = await getPermDock();
     expect(() => permdock.assert(permissions.post.publish, ownPost)).toThrow(
-      /post.publish/,
+      /post.publish/u,
     );
     expect(seen).toEqual(["denied"]);
   });
@@ -461,7 +461,7 @@ describe("permdock/next", () => {
     try {
       expect(() =>
         createPermDock(policy, { subject: () => memberUser }),
-      ).toThrow(/permdock\/next is server-only/);
+      ).toThrow(/permdock\/next is server-only/u);
     } finally {
       vi.unstubAllGlobals();
     }
@@ -522,11 +522,11 @@ describe("permdock/next", () => {
     const scoped = permdock.tenant("acme");
     expect(Object.isFrozen(scoped)).toBe(true);
     expect(() => scoped.assert(permissions.post.publish, ownPost)).toThrow(
-      /post.publish/,
+      /post.publish/u,
     );
     expect(() =>
       permdock.team("t1").assert(permissions.post.publish, ownPost),
-    ).toThrow(/post.publish/);
+    ).toThrow(/post.publish/u);
     expect(seen).toEqual(["denied", "denied"]);
   });
 

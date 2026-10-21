@@ -484,12 +484,12 @@ describe("hosted grants", () => {
   });
 
   it("rejects unknown document versions and unsafe keys", () => {
-    expect(() => parsePolicyDocument({ v: 2 })).toThrow(/version/);
+    expect(() => parsePolicyDocument({ v: 2 })).toThrow(/version/u);
     expect(() =>
       parsePolicyDocument(
         '{"v":1,"id":"d","fingerprint":"f","catalog":"c","issuedAt":"1970-01-01T00:00:01Z","grants":[{"__proto__":{}}]}',
       ),
-    ).toThrow(/unsafe/);
+    ).toThrow(/unsafe/u);
   });
 
   it("recognises the portable subset only", () => {

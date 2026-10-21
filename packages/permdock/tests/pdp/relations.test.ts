@@ -7,6 +7,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { getPermDockSync, openfga, spicedb } from "../../src/pdp/index.ts";
+import { requestBody, requestUrl } from "../fakes/fetch.ts";
 
 const permissions = definePermissions({
   doc: resource(z.object({ id: z.string() }), {
@@ -27,8 +28,8 @@ function recorder(answer: (call: Call) => Response): {
     fetch: async (input, init) => {
       // SAFETY: the provider under test posts a JSON object body on every call.
       const call = {
-        url: String(input),
-        body: JSON.parse(String(init?.body)) as Record<string, unknown>,
+        url: requestUrl(input),
+        body: JSON.parse(requestBody(init)) as Record<string, unknown>,
       };
       calls.push(call);
       return answer(call);
@@ -234,8 +235,8 @@ describe("spicedb", () => {
       authorizations.push(new Headers(init?.headers).get("authorization"));
       // SAFETY: the provider under test posts a JSON object body on every call.
       const call = {
-        url: String(input),
-        body: JSON.parse(String(init?.body)) as Record<string, unknown>,
+        url: requestUrl(input),
+        body: JSON.parse(requestBody(init)) as Record<string, unknown>,
       };
       calls.push(call);
       if (call.url.endsWith("/check")) {

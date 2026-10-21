@@ -530,7 +530,7 @@ describe("compileWhere", () => {
   it("rejects forbidden field keys", () => {
     expect(() =>
       compileWhere({ op: "eq", field: "constructor", value: "x" }),
-    ).toThrow(/forbidden/);
+    ).toThrow(/forbidden/u);
   });
   it("keys parent hops by resource in the in-list and exists forms", () => {
     const condition = {
@@ -695,7 +695,7 @@ describe("compileWhere", () => {
     // SAFETY: a deliberately unknown operator to exercise compileWhere's refusal.
     expect(() =>
       compileWhere({ op: "nope", field: "a" } as unknown as Condition),
-    ).toThrow(/unknown condition/);
+    ).toThrow(/unknown condition/u);
   });
 
   it("compiles a bare parent hop against the row table without a resource key", () => {

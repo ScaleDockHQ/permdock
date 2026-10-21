@@ -25,7 +25,7 @@ describe("permdock/openapi contract helpers", () => {
         {
           name: "relative-only",
           setup(pluginBuild): void {
-            pluginBuild.onResolve({ filter: /^[^./]/ }, (args) => ({
+            pluginBuild.onResolve({ filter: /^[^./]/u }, (args) => ({
               path: args.path,
               external: true,
             }));

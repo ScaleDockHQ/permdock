@@ -75,8 +75,6 @@ export default defineConfig({
       rules: {
         // Commands process files in order for stable output (24 findings).
         "eslint/no-await-in-loop": "off",
-        // Patterns match SQL and TypeScript source text (31 findings).
-        "eslint/require-unicode-regexp": "off",
         // pgsql-parser and oxc-parser ASTs arrive untyped (5 findings).
         "typescript/no-unsafe-assignment": "off",
         // Optional flags and AST fields are checked for presence (2 findings).

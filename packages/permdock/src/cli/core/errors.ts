@@ -168,7 +168,7 @@ export function exitCodeOfError(error: unknown): ExitCode {
  * project's to fix, so they count as `config_invalid`, not as a CLI bug.
  */
 function rejectedDefinition(error: unknown): error is Error {
-  return error instanceof Error && /^PermDock( CLI)?[:\s]/.test(error.message);
+  return error instanceof Error && /^PermDock( CLI)?[:\s]/u.test(error.message);
 }
 
 export function exitCodeOf(kind: CliErrorKind): ExitCode {

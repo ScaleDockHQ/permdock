@@ -7,6 +7,7 @@ import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
+import { requestBody, requestUrl } from "../fakes/fetch.ts";
 import {
   memberUser,
   ownPost,
@@ -56,7 +57,7 @@ describe("createClientStore approvals", () => {
       approvals: "/api/approvals",
       server: false,
       fetch: (input) => {
-        urls.push(String(input));
+        urls.push(requestUrl(input));
         return Promise.resolve(
           json({ status: statuses.shift() ?? "approved" }),
         );
@@ -358,7 +359,7 @@ describe("createClientStore endpoint evaluations", () => {
       headers: { "x-test": "1" },
       server: false,
       fetch: async (_input, init) => {
-        bodies.push(JSON.parse(String(init?.body)));
+        bodies.push(JSON.parse(requestBody(init)));
         return json({
           evaluations: [
             { context: { permdock: granted } },
@@ -573,7 +574,7 @@ describe("createClientStore endpoint evaluations", () => {
       endpoint: "/api/permdock",
       server: false,
       fetch: async (_input, init) => {
-        const body = JSON.parse(String(init?.body));
+        const body = JSON.parse(requestBody(init));
         bodies.push(body);
         return json({
           evaluations: body.evaluations.map(() => ({
@@ -601,7 +602,7 @@ describe("createClientStore endpoint evaluations", () => {
       endpoint: "/api/permdock",
       server: false,
       fetch: async (_input, init) => {
-        bodies.push(JSON.parse(String(init?.body)));
+        bodies.push(JSON.parse(requestBody(init)));
         return json({ evaluations: [{ context: { permdock: granted } }, {}] });
       },
     });
@@ -671,7 +672,7 @@ describe("createClientStore invalidate and refresh", () => {
       snapshotUrl: "/api/snapshot?v=1#top",
       server: false,
       fetch: async (input) => {
-        urls.push(String(input));
+        urls.push(requestUrl(input));
         return json(signedIn("u1"));
       },
     });
@@ -953,7 +954,7 @@ describe("createClientStore approval edge cases", () => {
       input: string | URL | Request,
       init?: RequestInit,
     ): Promise<Response> => {
-      posts.push([String(input), JSON.parse(String(init?.body))]);
+      posts.push([requestUrl(input), JSON.parse(requestBody(init))]);
       return json({ status: "pending" });
     };
     const viaEndpoint = createClientStore({

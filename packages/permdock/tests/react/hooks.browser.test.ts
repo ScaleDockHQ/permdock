@@ -30,6 +30,7 @@ import {
 import { Protected } from "../../src/react/protected.tsx";
 import { PermDockProvider as ClientPermDockProvider } from "../../src/react/provider-client.ts";
 import { PermDockProvider } from "../../src/react/provider.tsx";
+import { requestUrl } from "../fakes/fetch.ts";
 import {
   memberUser,
   otherPost,
@@ -133,7 +134,7 @@ describe("permdock/react hooks on the client", () => {
     }
     try {
       expect(() => mount(createElement(Orphan))).toThrow(
-        /hooks require <PermDockProvider>/,
+        /hooks require <PermDockProvider>/u,
       );
     } finally {
       errors.mockRestore();
@@ -216,7 +217,7 @@ describe("permdock/react hooks on the client", () => {
       approvals: "/api/approvals",
       server: false,
       fetch: async (input) => {
-        posts.push(String(input));
+        posts.push(requestUrl(input));
         return new Response(JSON.stringify({ status: "pending" }));
       },
     });

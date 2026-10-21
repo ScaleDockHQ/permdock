@@ -14,6 +14,7 @@ import { memoryRevocationFeed } from "../../src/core/revocations.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { BACKCHANNEL_LOGOUT_EVENT } from "../../src/ssf/events.ts";
 import { createPermDock, memoryReplayStore } from "../../src/ssf/index.ts";
+import { requestBody } from "../fakes/fetch.ts";
 
 const permissions = definePermissions({
   post: resource(z.object({ id: z.string() }), { id: "id", actions: ["read"] }),
@@ -517,7 +518,7 @@ describe("receiver.poll", () => {
     const result = await receiver.poll({
       endpoint: "https://login.example.com/ssf/poll",
       fetch: async (_url, init) => {
-        fetches.push(JSON.parse(String(init?.body)));
+        fetches.push(JSON.parse(requestBody(init)));
         if (fetches.length === 1) {
           return new Response(
             JSON.stringify({ sets: { "poll-1": "set-poll" } }),
@@ -554,7 +555,7 @@ describe("receiver.poll", () => {
     const result = await receiver.poll({
       endpoint: "https://login.example.com/ssf/poll",
       fetch: async (_url, init) => {
-        fetches.push(JSON.parse(String(init?.body)));
+        fetches.push(JSON.parse(requestBody(init)));
         return new Response(
           JSON.stringify({ sets: { "poll-fail": "set-poll" } }),
           { status: 200 },

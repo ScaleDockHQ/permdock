@@ -44,7 +44,7 @@ describe("policy", () => {
     // SAFETY: a deliberately forbidden where on a collection action, to exercise the refusal.
     expect(() =>
       allow(permissions.post.create, { where: { authorId: "u1" } } as never),
-    ).toThrow(/where is not allowed/);
+    ).toThrow(/where is not allowed/u);
     const dangling = definePermissions({
       comment: resource({
         actions: ["read"],
@@ -56,7 +56,7 @@ describe("policy", () => {
         roles: [role("member", [allow(dangling.comment.read)])],
         subject: () => ({ id: "u1" }),
       }),
-    ).toThrow(/unknown resource/);
+    ).toThrow(/unknown resource/u);
   });
 
   it("keeps a relation approver for the verdict to check", () => {
@@ -75,7 +75,7 @@ describe("policy", () => {
         ],
         subject: () => ({ id: "u1" }),
       }),
-    ).toThrow(/must declare 'tenant'/);
+    ).toThrow(/must declare 'tenant'/u);
   });
 
   it("keeps the on option of a role leaf on its grants", () => {

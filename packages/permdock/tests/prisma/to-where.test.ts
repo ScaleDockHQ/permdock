@@ -389,7 +389,7 @@ describe("permdock/prisma toWhere operators", () => {
       expect(() => toWhere(input)).toThrow(PermDockValidationError);
     }
     expect(() => toWhere({ op: "eq", field: "__proto__", value: 1 })).toThrow(
-      /forbidden/,
+      /forbidden/u,
     );
   });
 });
@@ -453,7 +453,7 @@ describe("permdock/prisma withSubject", () => {
     expect(result).toBe("done");
     expect(calls).toHaveLength(1);
     expect(String(calls[0]?.[0])).toMatch(
-      /set_config\('role'.*request\.jwt\.claims/,
+      /set_config\('role'.*request\.jwt\.claims/u,
     );
     expect(calls[0]?.[1]).toBe("authenticated");
     expect(JSON.parse(String(calls[0]?.[2]))).toMatchObject({ sub: "u1" });

@@ -124,7 +124,7 @@ describe("cloudSigner", () => {
     }
     await expect(
       signer.sign({}, { typ: "vnd.permdock.run+jwt" }),
-    ).rejects.toThrow(/requires an audience/);
+    ).rejects.toThrow(/requires an audience/u);
     expect(fake.signed).toEqual([]);
   });
 
@@ -138,7 +138,7 @@ describe("cloudSigner", () => {
     });
     await expect(
       refused.sign({}, { typ: "vnd.permdock.run+jwt" }),
-    ).rejects.toThrow(/HTTP 403/);
+    ).rejects.toThrow(/HTTP 403/u);
 
     const evidence = await kms.sign(
       {},
@@ -154,7 +154,7 @@ describe("cloudSigner", () => {
       });
       await expect(
         wrong.sign({}, { typ: "vnd.permdock.run+jwt" }),
-      ).rejects.toThrow(/not a vnd\.permdock\.run\+jwt JWS/);
+      ).rejects.toThrow(/not a vnd\.permdock\.run\+jwt JWS/u);
     }
   });
 

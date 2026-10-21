@@ -174,7 +174,7 @@ export function testApprovalStore(
       Promise.resolve().then(() =>
         store.resolve("opaque-token", { status: "rejected", by: approver }),
       ),
-    ).rejects.toThrow(/not pending/);
+    ).rejects.toThrow(/not pending/u);
     await store.create(sampleApproval("stale-token"));
     const expired = await store.expire({
       epochMilliseconds: nowMillis() + 2 * 60 * 60 * 1000,
@@ -226,7 +226,7 @@ export function testApprovalStore(
       Promise.resolve().then(() =>
         store.resolve("gated-token", { status: "approved", by: member }),
       ),
-    ).rejects.toThrow(/eligible|not pending|not found/);
+    ).rejects.toThrow(/eligible|not pending|not found/u);
   });
 
   it("refuses the principal as approver unless the grant sets distinct: false", async () => {

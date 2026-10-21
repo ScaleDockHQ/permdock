@@ -234,7 +234,7 @@ describe("relationship graph declarations", () => {
           },
         }),
       }),
-    ).toThrow(/cycle/);
+    ).toThrow(/cycle/u);
     expect(() =>
       definePermissions({
         folder: resource(Row, {
@@ -242,7 +242,7 @@ describe("relationship graph declarations", () => {
           relations: { a: { edge: "a", includes: ["missing"] } },
         }),
       }),
-    ).toThrow(/missing/);
+    ).toThrow(/missing/u);
   });
 
   it("rejects a group resource that is not declared", () => {
@@ -258,7 +258,7 @@ describe("relationship graph declarations", () => {
           },
         }),
       }),
-    ).toThrow(/team/);
+    ).toThrow(/team/u);
   });
 
   it("rejects a link named parent and a path that does not end at the relation", () => {
@@ -269,7 +269,7 @@ describe("relationship graph declarations", () => {
           links: { parent: { field: "parentId", resource: "folder" } },
         }),
       }),
-    ).toThrow(/parent/);
+    ).toThrow(/parent/u);
     expect(() =>
       definePolicy(permissions, {
         grants: [
@@ -279,6 +279,6 @@ describe("relationship graph declarations", () => {
         ],
         subject: (user: { readonly id: string }) => ({ id: user.id }),
       }),
-    ).toThrow(/do not end on team/);
+    ).toThrow(/do not end on team/u);
   });
 });

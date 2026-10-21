@@ -168,7 +168,7 @@ describe.each([
     expect(generated).toContain("permitted_organization_ids(p_grant text)");
     expect(generated).toContain("permitted_customer_ids(p_grant text)");
     expect(generated).not.toContain("permitted_tenant_ids");
-    expect(generated).not.toMatch(/service_role/i);
+    expect(generated).not.toMatch(/service_role/iu);
   });
 
   it("agrees with decide and the snapshot for every persona, permission and row", async () => {

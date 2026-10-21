@@ -319,17 +319,18 @@ export function runCasbinImport(input: {
     return { code: 2, output: "casbin import needs --out <file>" };
   }
   const modelText = readText(input.cwd, "--model", input.model);
-  const policyText = readText(input.cwd, "--policy", input.policy);
-  for (const read of [modelText, policyText]) {
-    if (typeof read !== "string") {
-      return { code: 2, output: read.error };
-    }
+  if (typeof modelText !== "string") {
+    return { code: 2, output: modelText.error };
   }
-  const model = readCasbinModel(String(modelText));
+  const policyText = readText(input.cwd, "--policy", input.policy);
+  if (typeof policyText !== "string") {
+    return { code: 2, output: policyText.error };
+  }
+  const model = readCasbinModel(modelText);
   if ("refused" in model) {
     return { code: 2, output: `casbin import --model: ${model.refused}` };
   }
-  const imported = importCasbin(model, String(policyText));
+  const imported = importCasbin(model, policyText);
   applyFiles(input.cwd, [
     {
       path: input.out,

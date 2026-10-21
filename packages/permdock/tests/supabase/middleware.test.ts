@@ -466,13 +466,13 @@ describe("permdock/supabase/middleware", () => {
           subject: () => null,
           secretKeys: { "*": key },
         }),
-      ).toThrow(/not a pattern/);
+      ).toThrow(/not a pattern/u);
       expect(() =>
         createPermDock(saasPolicy, {
           subject: () => null,
           secretKeys: { ops: { ...key, id: "" } },
         }),
-      ).toThrow(/non-empty id and tenant/);
+      ).toThrow(/non-empty id and tenant/u);
     });
   });
 

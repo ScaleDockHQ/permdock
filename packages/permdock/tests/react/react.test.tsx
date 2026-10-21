@@ -20,6 +20,7 @@ import {
 } from "../../src/react/hooks.ts";
 import { Protected } from "../../src/react/protected.tsx";
 import { PermDockProvider } from "../../src/react/provider.tsx";
+import { requestBody } from "../fakes/fetch.ts";
 import {
   memberUser,
   otherPost,
@@ -256,7 +257,7 @@ describe("permdock/react", () => {
       endpoint: "/api/permdock",
       server: false,
       fetch: async (_input, init) => {
-        calls.push(JSON.parse(String(init?.body)));
+        calls.push(JSON.parse(requestBody(init)));
         return new Response(
           JSON.stringify({
             evaluations: [

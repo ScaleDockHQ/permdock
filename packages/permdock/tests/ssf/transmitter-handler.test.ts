@@ -21,6 +21,7 @@ import {
   ssfTransmitter,
 } from "../../src/ssf/index.ts";
 import { testSsfStreamStore } from "../../src/testing/index.ts";
+import { requestBody, requestUrl } from "../fakes/fetch.ts";
 
 const ISSUER = "https://cloud.example.com/ssf";
 const AUDIENCE = "https://app.example.com/ssf";
@@ -324,7 +325,7 @@ describe("ssfTransmitter", () => {
     const pushed: { url: string; authorization: string | null }[] = [];
     const fetchFn = vi.fn<typeof fetch>((input, init) => {
       pushed.push({
-        url: String(input),
+        url: requestUrl(input),
         authorization: new Headers(init?.headers).get("authorization"),
       });
       return Promise.resolve(new Response(null, { status: 202 }));
@@ -363,7 +364,7 @@ describe("ssfTransmitter", () => {
   it("holds SETs while paused, delivers them when enabled and drops them when disabled", async () => {
     const pushed: string[] = [];
     const fetchFn = vi.fn<typeof fetch>(async (_input, init) => {
-      pushed.push(String(init?.body));
+      pushed.push(requestBody(init));
       return new Response(null, { status: 202 });
     });
     const { call, create, streams, queue } = transmitter({ fetch: fetchFn });
@@ -554,7 +555,7 @@ describe("pollSets", () => {
       setErrs: { b: { err: "invalid_key", description: "unknown kid" } },
       maxEvents: 5,
       fetch: (_input, init) => {
-        bodies.push(JSON.parse(String(init?.body)));
+        bodies.push(JSON.parse(requestBody(init)));
         return Promise.resolve(
           Response.json({ sets: { j1: "set-1", j2: 2 }, moreAvailable: true }),
         );

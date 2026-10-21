@@ -52,26 +52,26 @@ describe("ownership: role options", () => {
 
   it("rejects holder counts on a role without a named scope", () => {
     expect(() => role("root", [allow(tree.doc.read)], { min: 1 })).toThrow(
-      /need on: '<scope>'/,
+      /need on: '<scope>'/u,
     );
     expect(() =>
       role("root", [allow(tree.doc.read)], { transferOnly: true }),
-    ).toThrow(/need on: '<scope>'/);
+    ).toThrow(/need on: '<scope>'/u);
   });
 
   it("rejects malformed counts and lists", () => {
     expect(() => role("owner", [], { on: "org", min: 2, max: 1 })).toThrow(
-      /min must not exceed max/,
+      /min must not exceed max/u,
     );
     expect(() => role("owner", [], { on: "org", max: 0 })).toThrow(
-      /max must be at least 1/,
+      /max must be at least 1/u,
     );
     expect(() => role("owner", [], { on: "org", min: 1.5 })).toThrow(
-      /whole number/,
+      /whole number/u,
     );
     expect(() =>
       role("owner", [], { on: "org", assigns: ["__proto__"] }),
-    ).toThrow(/list of names/);
+    ).toThrow(/list of names/u);
   });
 
   it("rejects an assigns entry naming an undeclared role", () => {
@@ -81,7 +81,7 @@ describe("ownership: role options", () => {
         subject,
         roles: [role("owner", [], { on: "org", assigns: ["ghost"] })],
       }),
-    ).toThrow(/undeclared role 'ghost'/);
+    ).toThrow(/undeclared role 'ghost'/u);
   });
 
   it("keeps the options on the binding", () => {

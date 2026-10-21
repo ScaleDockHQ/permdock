@@ -197,9 +197,9 @@ describe("supabaseClaims()", () => {
       validate(custom, { sub, app_metadata: { org_id: 2 } }).issues?.[0]?.path,
     ).toEqual(["app_metadata", "org_id"]);
     expect(() => supabaseClaims({ tenantClaim: "memberships" })).toThrow(
-      /tenantClaim/,
+      /tenantClaim/u,
     );
-    expect(() => supabaseClaims({ tenantClaim: "" })).toThrow(/tenantClaim/);
+    expect(() => supabaseClaims({ tenantClaim: "" })).toThrow(/tenantClaim/u);
   });
 
   it("agrees with subjectFromSupabase on what it maps", () => {
@@ -275,13 +275,15 @@ describe("supabaseClaims().extend", () => {
         .optional()
         .transform(() => 1),
     );
-    expect(validate(schema, { sub }).issues?.[0]?.message).toMatch(/object/);
+    expect(validate(schema, { sub }).issues?.[0]?.message).toMatch(/object/u);
   });
 
   it("refuses something that is not a Standard Schema", () => {
     // SAFETY: deliberately not a Standard Schema, to check the runtime guard.
     const notSchema = {} as StandardSchemaV1;
-    expect(() => supabaseClaims().extend(notSchema)).toThrow(/Standard Schema/);
+    expect(() => supabaseClaims().extend(notSchema)).toThrow(
+      /Standard Schema/u,
+    );
   });
 });
 

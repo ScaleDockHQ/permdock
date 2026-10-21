@@ -20,6 +20,7 @@ import {
 } from "../../src/solid/hooks.ts";
 import { Protected } from "../../src/solid/protected.ts";
 import { PermDockProvider } from "../../src/solid/provider.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 import {
   memberUser,
   otherPost,
@@ -97,7 +98,7 @@ describe("permdock/solid hooks", () => {
           dispose();
         }
       }),
-    ).toThrow(/hooks require <PermDockProvider>/);
+    ).toThrow(/hooks require <PermDockProvider>/u);
   });
 
   it("answer a permission set by key and through get", async () => {
@@ -168,7 +169,7 @@ describe("permdock/solid hooks", () => {
         snapshot: await memberSnapshot(),
         approvals: "/api/approvals",
         fetch: async (input) => {
-          posts.push(String(input));
+          posts.push(requestUrl(input));
           return new Response(JSON.stringify({ status: "pending" }));
         },
       },

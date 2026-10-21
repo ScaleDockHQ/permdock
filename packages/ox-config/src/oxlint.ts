@@ -330,8 +330,6 @@ export const library: OxlintConfig = defineConfig({
     "typescript/no-unnecessary-type-parameters": "off",
     // `=== true` keeps fail-closed checks explicit on boolean-ish results (15 findings).
     "typescript/no-unnecessary-boolean-literal-compare": "off",
-    // `String(id)` formats unknown resource ids for audit events (24 findings).
-    "typescript/no-base-to-string": "off",
     // Sources and sinks pass promises through without an extra microtask (249 findings).
     "typescript/promise-function-async": "off",
     // One concept per file; past 1,000 code lines a module splits by concern.
@@ -413,8 +411,6 @@ export const test: OxlintConfig = defineConfig({
     "eslint/max-lines": "off",
     // Integration tests wire many adapters (30 findings).
     "import/max-dependencies": "off",
-    // Test patterns match ASCII output (132 findings).
-    "eslint/require-unicode-regexp": "off",
     // Tests import the module under test from its folder (445 findings).
     "import/no-relative-parent-imports": "off",
     // Tests pass malformed input to prove fail-closed behaviour (54 findings).

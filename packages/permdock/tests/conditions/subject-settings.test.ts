@@ -133,12 +133,12 @@ describe("subjectStatements", () => {
     // SAFETY: a deliberately forbidden role to exercise subjectStatements' refusal.
     expect(() =>
       subjectStatements(user, { role: "service_role" as never }),
-    ).toThrow(/authenticated or anon/);
+    ).toThrow(/authenticated or anon/u);
     expect(() =>
       subjectStatements(user, { dialect: "guc", gucPrefix: "app'; drop" }),
-    ).toThrow(/unsafe setting prefix/);
+    ).toThrow(/unsafe setting prefix/u);
     expect(() =>
       subjectStatements(user, { dialect: "guc", claims: { "a.b": 1 } }),
-    ).toThrow(/unsafe claim name/);
+    ).toThrow(/unsafe claim name/u);
   });
 });

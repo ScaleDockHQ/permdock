@@ -413,7 +413,7 @@ describe("relationship graph", () => {
         ],
         subject,
       }),
-    ).toThrow(/add through: 'parent'/);
+    ).toThrow(/add through: 'parent'/u);
     expect(() =>
       definePolicy(permissions, {
         grants: [
@@ -425,7 +425,7 @@ describe("relationship graph", () => {
         ],
         subject,
       }),
-    ).toThrow(/needs account to parent itself/);
+    ).toThrow(/needs account to parent itself/u);
     expect(() =>
       definePolicy(permissions, {
         grants: [
@@ -435,13 +435,13 @@ describe("relationship graph", () => {
         ],
         subject,
       }),
-    ).toThrow(/has no parent on folder/);
+    ).toThrow(/has no parent on folder/u);
     expect(() => relation(permissions.folder, "viewer", { depth: 2 })).toThrow(
-      /depth needs through/,
+      /depth needs through/u,
     );
     expect(() =>
       relation(permissions.folder, "viewer", { through: "parent", depth: 33 }),
-    ).toThrow(/0 to 32/);
+    ).toThrow(/0 to 32/u);
     expect(
       relation(permissions.folder, "viewer", { through: "parent" }),
     ).toEqual({

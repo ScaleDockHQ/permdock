@@ -163,6 +163,7 @@ export function finish(
       scope: permission.scope,
       resource: compact<DecisionEvent["resource"]>({
         type: permission.resource,
+        // oxlint-disable-next-line typescript/no-base-to-string -- the audit id is the configured id column as text, whatever its type
         id: resourceId === undefined ? undefined : String(resourceId),
       }),
       subject: compact<DecisionEvent["subject"]>({

@@ -13,6 +13,7 @@ import type { CliIo } from "../../src/cli/types.ts";
 
 import { runOpenapiImport } from "../../src/cli/openapi/import.ts";
 import { listPermissions } from "../../src/index.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");
 const temps: string[] = [];
@@ -148,7 +149,7 @@ describe("openapi import from a URL", () => {
     const io: CliIo = {
       ...IO,
       fetch: (input) => {
-        requested.push(String(input));
+        requested.push(requestUrl(input));
         return Promise.resolve(new Response(BODY));
       },
     };

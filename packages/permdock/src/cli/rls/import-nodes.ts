@@ -333,7 +333,7 @@ export async function fingerprintSql(sql: string): Promise<string> {
     return createHash("sha256").update(deparsed).digest("hex").slice(0, 16);
   } catch {
     return createHash("sha256")
-      .update(sql.replaceAll(/\s+/g, " ").trim().toLowerCase())
+      .update(sql.replaceAll(/\s+/gu, " ").trim().toLowerCase())
       .digest("hex")
       .slice(0, 16);
   }

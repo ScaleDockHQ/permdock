@@ -162,6 +162,6 @@ describe("presets", () => {
       definePermissions({
         post: resource(Post, crud({ collection: ["read"] })),
       }),
-    ).toThrow(/duplicate action 'read'/);
+    ).toThrow(/duplicate action 'read'/u);
   });
 });

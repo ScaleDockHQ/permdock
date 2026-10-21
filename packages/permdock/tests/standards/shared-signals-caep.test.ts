@@ -19,6 +19,7 @@ import {
   pushSet,
   signSet,
 } from "../../src/ssf/index.ts";
+import { requestBody } from "../fakes/fetch.ts";
 import { type OcsfClass, standardsFixture } from "./fixtures.ts";
 
 const ISSUER = "https://idp.example.com";
@@ -259,7 +260,7 @@ describe("RFC 8936 poll delivery", () => {
       endpoint: `${ISSUER}/ssf/poll`,
       fetch: async (_url, init) => {
         // SAFETY: pollOnce always sends a JSON object body.
-        bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        bodies.push(JSON.parse(requestBody(init)) as Record<string, unknown>);
         return Response.json(
           bodies.length === 1 ? { sets: { good, bad } } : { sets: {} },
         );
@@ -294,7 +295,7 @@ describe("RFC 8936 poll delivery", () => {
     const result = await handle.poll({
       endpoint: `${ISSUER}/ssf/poll`,
       fetch: async (_url, init) => {
-        bodies.push(JSON.parse(String(init?.body)));
+        bodies.push(JSON.parse(requestBody(init)));
         return Response.json({ sets: { retry: token } });
       },
     });

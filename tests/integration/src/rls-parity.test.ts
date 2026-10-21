@@ -103,7 +103,7 @@ describe("RLS parity", () => {
 
   it("never emits service_role in generated SQL", () => {
     expect(generateCode).toBe(0);
-    expect(generated).not.toMatch(/service_role/i);
+    expect(generated).not.toMatch(/service_role/iu);
     expect(generated).toContain("current_setting");
     expect(generated).toContain("enable row level security");
     expect(generated).toContain('"job_permitted"("id")');
@@ -190,7 +190,7 @@ describe("RLS parity", () => {
         },
       ],
       query: async (sql, values) => {
-        expect(sql).not.toMatch(/service_role/i);
+        expect(sql).not.toMatch(/service_role/iu);
         try {
           const result = await client.query(
             sql,

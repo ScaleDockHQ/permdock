@@ -70,25 +70,25 @@ describe("normalizeWhere", () => {
         args: [{ field: "id" }],
         twin: opaque({ sql: "1=1", fingerprint: "x" }),
       }),
-    ).toThrow(/twin must not be opaque/);
+    ).toThrow(/twin must not be opaque/u);
     expect(() =>
       sqlFunction("job_permitted", {
         args: [{ field: "id" }],
         twin: sqlFunction("other", { twin: { scope: "public" } }),
       }),
-    ).toThrow(/must not nest sqlFunction/);
+    ).toThrow(/must not nest sqlFunction/u);
     expect(() => sqlFunction("a.b.c", { twin: { scope: "public" } })).toThrow(
-      /SQL identifier/,
+      /SQL identifier/u,
     );
     expect(() =>
       sqlFunction("job-permitted", { twin: { scope: "public" } }),
-    ).toThrow(/SQL identifier/);
+    ).toThrow(/SQL identifier/u);
     expect(() =>
       sqlFunction("job_permitted", {
         args: [{ field: "constructor" }],
         twin: { scope: "public" },
       }),
-    ).toThrow(/forbidden/);
+    ).toThrow(/forbidden/u);
     expect(
       sqlFunction("public.job_permitted", {
         twin: { not: { scope: "private" } },
@@ -111,7 +111,7 @@ describe("normalizeWhere", () => {
   });
 
   it("rejects empty objects and forbidden field names", () => {
-    expect(() => normalizeWhere({})).toThrow(/empty condition/);
-    expect(() => normalizeWhere({ constructor: "x" })).toThrow(/forbidden/);
+    expect(() => normalizeWhere({})).toThrow(/empty condition/u);
+    expect(() => normalizeWhere({ constructor: "x" })).toThrow(/forbidden/u);
   });
 });

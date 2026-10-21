@@ -368,17 +368,18 @@ export function resolveCustomRole(
         typeof level === "string" && leaf?.kind === "instance"
           ? levelCondition(policy, leaf.resource, level)
           : undefined;
-      if (condition === undefined) {
+      if (condition === undefined || typeof level !== "string") {
         drop({
           permission: key,
           reason: "unknown-level",
+          // oxlint-disable-next-line typescript/no-base-to-string -- reports the rejected value as written
           level: String(level),
         });
         // An unknown level never falls back to the wider grant.
         denyKeys.add(key);
         continue;
       }
-      narrowing = [String(level), condition];
+      narrowing = [level, condition];
     }
     if (!ceilingKeys.has(key)) {
       drop({ permission: key, reason: "outside-ceiling" });

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { subjectFromIntrospection } from "../../src/jwt/introspection.ts";
 import { jwtSubjectResolver } from "../../src/jwt/subject.ts";
 import { joseTokenVerifier } from "../../src/jwt/verifier.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 
 const PRIVATE_JWK = {
   crv: "Ed25519",
@@ -41,14 +42,14 @@ async function tokenFrom(issuer: string): Promise<string> {
 }
 
 const discoveryFetch: typeof fetch = async (input) =>
-  String(input).includes("openid-configuration")
+  requestUrl(input).includes("openid-configuration")
     ? Response.json({ issuer: ISSUER, jwks_uri: `${ISSUER}/jwks` })
     : Response.json(PUBLIC_JWKS);
 
 describe("issuer binding", () => {
   it("requires issuer with a remote jwks URL", () => {
     for (const jwks of [`${ISSUER}/jwks`, new URL(`${ISSUER}/jwks`)]) {
-      expect(() => jwtSubjectResolver({ jwks })).toThrow(/issuer is required/);
+      expect(() => jwtSubjectResolver({ jwks })).toThrow(/issuer is required/u);
     }
   });
 

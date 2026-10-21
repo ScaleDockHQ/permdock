@@ -89,7 +89,15 @@ export function testCloudPlatform(
 
   it("publishes RFC 8414 metadata for the platform issuer", async () => {
     const metadata = await discoverAuthorizationServer(url, {
-      fetch: (input, init) => fetchFn(String(input), init),
+      fetch: (input, init) =>
+        fetchFn(
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url,
+          init,
+        ),
     });
     expect(metadata).not.toBeNull();
     expect(metadata).toMatchObject({

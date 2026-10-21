@@ -228,7 +228,7 @@ export function testDirectoryStore(
         active: true,
         meta: { created: "", lastModified: "" },
       }),
-    ).rejects.toThrow(/userName/);
+    ).rejects.toThrow(/userName/u);
     const group = await store.putGroup(home, {
       id: "g_editors",
       displayName: "Editors",

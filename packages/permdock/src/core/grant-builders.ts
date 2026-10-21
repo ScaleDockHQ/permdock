@@ -64,6 +64,7 @@ function grantGroup(group: unknown, key: string): string | undefined {
     group === "break-glass"
   ) {
     throw new Error(
+      // oxlint-disable-next-line typescript/no-base-to-string -- reports the rejected value as written
       `PermDock: group '${String(group)}' on ${key} must be lower case letters, digits, _ or -, start with a letter, and not be break-glass`,
     );
   }

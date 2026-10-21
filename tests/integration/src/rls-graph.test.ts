@@ -253,7 +253,7 @@ describe("relationship graph in RLS (closure table)", () => {
       db.admin.query(
         `update public.folder set "parentId" = '${f(3)}' where id = '${f(1)}'`,
       ),
-    ).rejects.toThrow(/its own ancestor/);
+    ).rejects.toThrow(/its own ancestor/u);
   });
 
   it("shows a subject only the closure rows under what it holds, one InitPlan per helper", async () => {
@@ -279,13 +279,13 @@ describe("relationship graph in RLS (closure table)", () => {
           )
         ).rows.map((row) => row["QUERY PLAN"]),
     );
-    expect(plan.join("\n")).toMatch(/InitPlan/);
+    expect(plan.join("\n")).toMatch(/InitPlan/u);
     const helperScans = plan.filter((line) =>
-      /ProjectSet|Function Scan/.test(line),
+      /ProjectSet|Function Scan/u.test(line),
     );
     expect(helperScans.length).toBeGreaterThan(0);
     for (const line of helperScans) {
-      expect(line).toMatch(/loops=1\)|never executed/);
+      expect(line).toMatch(/loops=1\)|never executed/u);
     }
   });
 

@@ -141,7 +141,7 @@ describe("testCredentialVerifier on apiKeyVerifier", () => {
 describe("API key format", () => {
   it("generates pdk_<id>_<secret><checksum> keys that parse back, ids with underscores included", () => {
     const key = generateApiKey("key_1");
-    expect(key).toMatch(/^pdk_key_1_[A-Za-z0-9]{49}$/);
+    expect(key).toMatch(/^pdk_key_1_[A-Za-z0-9]{49}$/u);
     expect(parseApiKey(key)).toEqual({
       id: "key_1",
       secret: key.slice(10, 53),
@@ -226,7 +226,7 @@ describe("memoryCredentialStore", () => {
     await expect(store.issue(credential({ kind: "robot" }))).rejects.toThrow(
       TypeError,
     );
-    await expect(store.issue(credential())).rejects.toThrow(/exists/);
+    await expect(store.issue(credential())).rejects.toThrow(/exists/u);
   });
 
   it("keeps working when the sink throws", async () => {

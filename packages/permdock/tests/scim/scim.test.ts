@@ -742,7 +742,7 @@ describe("scimHandler", () => {
         tenant: TENANT,
         verifier,
       }),
-    ).toThrow(/audience/);
+    ).toThrow(/audience/u);
   });
 
   it("never takes the audience from the request host", async () => {

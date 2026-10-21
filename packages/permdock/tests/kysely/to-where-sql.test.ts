@@ -220,17 +220,17 @@ describe("permdock/kysely toWhere with Kysely", () => {
       ),
     ).toEqual({ sql: '"posts"."org_id" = $1', parameters: ["o1"] });
     expect(() => compile({ op: "eq", field: "org id", value: "o1" })).toThrow(
-      /unsafe SQL identifier 'org id'/,
+      /unsafe SQL identifier 'org id'/u,
     );
     expect(() => compile({ op: "eq", field: "constructor", value: 1 })).toThrow(
-      /forbidden/,
+      /forbidden/u,
     );
   });
 
   it("refuses opaque SQL", () => {
     expect(() =>
       compile({ op: "opaque", sql: "true", fingerprint: "f" }),
-    ).toThrow(/non-portable-condition/);
+    ).toThrow(/non-portable-condition/u);
   });
 });
 
@@ -337,7 +337,7 @@ describe("permdock/kysely relationship grants", () => {
       .mockReturnValue(undefined);
     try {
       expect(() => compile(input, { relations: {} })).toThrow(
-        /need the kysely peer/,
+        /need the kysely peer/u,
       );
     } finally {
       spy.mockRestore();
@@ -345,7 +345,7 @@ describe("permdock/kysely relationship grants", () => {
   });
 
   it("refuses a related node without relations", () => {
-    expect(() => compile(folderViewer)).toThrow(/non-portable-condition/);
+    expect(() => compile(folderViewer)).toThrow(/non-portable-condition/u);
   });
 });
 
@@ -390,6 +390,6 @@ describe("permdock/kysely withSubject and checkRow", () => {
     });
     await expect(
       checkRow(database([{}, {}]).db, "posts", condition, key),
-    ).rejects.toThrow(/more than one row/);
+    ).rejects.toThrow(/more than one row/u);
   });
 });

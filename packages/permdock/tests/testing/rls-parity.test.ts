@@ -62,7 +62,7 @@ describe("testRlsParity", () => {
         },
       ],
       query: async (sql, values) => {
-        expect(sql).not.toMatch(/service_role/i);
+        expect(sql).not.toMatch(/service_role/iu);
         if (sql.startsWith("update") && values?.[0] === "p2") {
           return { rows: [], rowCount: 0 };
         }
@@ -91,7 +91,7 @@ describe("testRlsParity", () => {
         },
       ],
       query: async (sql) => {
-        expect(sql).not.toMatch(/service_role/i);
+        expect(sql).not.toMatch(/service_role/iu);
         if (sql.startsWith("update")) {
           return { rows: [], code: "42501" };
         }
@@ -121,7 +121,7 @@ describe("testRlsParity", () => {
         },
       ],
       query: async (sql, values) => {
-        seen.push(`${sql} ${String(values?.[0] ?? "")}`);
+        seen.push(`${sql} ${JSON.stringify(values?.[0] ?? "")}`);
         if (values?.[0] === "request.jwt.claims") {
           expect(String(values[1])).toContain('"sub":"u1"');
         }
@@ -146,7 +146,7 @@ describe("testRlsParity", () => {
         },
       ],
       query: async (sql, values) => {
-        guc.push(`${sql} ${String(values?.[0] ?? "")}`);
+        guc.push(`${sql} ${JSON.stringify(values?.[0] ?? "")}`);
         if (sql.startsWith("select *")) {
           return { rows: [own], rowCount: 1 };
         }
@@ -205,7 +205,7 @@ describe("testRlsParity", () => {
         ],
         query: async () => ({ rows: [] }),
       }),
-    ).rejects.toThrow(/unsafe SQL identifier/);
+    ).rejects.toThrow(/unsafe SQL identifier/u);
   });
 
   it("reports mismatch when the database filters a granted read", async () => {
@@ -271,7 +271,7 @@ describe("testRlsParity relation grantee", () => {
         },
       ],
       query: async (sql, values) => {
-        expect(sql).not.toMatch(/service_role/i);
+        expect(sql).not.toMatch(/service_role/iu);
         if (sql.startsWith("update") && values?.[0] === "p2") {
           return { rows: [], rowCount: 0 };
         }

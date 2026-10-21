@@ -184,7 +184,7 @@ function helpersNote(helpers: string | undefined, how: string): string[] {
 }
 
 function camelCase(name: string): string {
-  return name.replaceAll(/[_-]+([a-z0-9])/gi, (_, char: string) =>
+  return name.replaceAll(/[_-]+([a-z0-9])/giu, (_, char: string) =>
     char.toUpperCase(),
   );
 }
@@ -198,7 +198,7 @@ function pascalCase(name: string): string {
   return camel.charAt(0).toUpperCase() + camel.slice(1);
 }
 
-const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
+const IDENTIFIER = /^[A-Za-z_$][\w$]*$/u;
 
 function identifier(name: string, what: string): string {
   if (!IDENTIFIER.test(name)) {
@@ -210,11 +210,11 @@ function identifier(name: string, what: string): string {
 }
 
 function quoted(text: string): string {
-  return `'${text.replaceAll(/[\\']/g, (match) => `\\${match}`)}'`;
+  return `'${text.replaceAll(/[\\']/gu, (match) => `\\${match}`)}'`;
 }
 
 function templateText(text: string): string {
-  return text.replaceAll(/[\\`]|\$\{/g, (match) => `\\${match}`);
+  return text.replaceAll(/[\\`]|\$\{/gu, (match) => `\\${match}`);
 }
 
 export type DrizzleEmitOptions = {

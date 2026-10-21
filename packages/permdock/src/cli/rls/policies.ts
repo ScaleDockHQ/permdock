@@ -29,7 +29,7 @@ const DEFAULT_PER_ROLE_NAME = "{role}_{permission}";
 const PLACEHOLDER = /\{(table|op|role|permission)\}/gu;
 
 function sanitize(name: string): string {
-  return name.replaceAll(/[^A-Za-z0-9_]/g, "_");
+  return name.replaceAll(/[^A-Za-z0-9_]/gu, "_");
 }
 
 function render(

@@ -93,7 +93,7 @@ describe("scimHandler configuration", () => {
   it("requires a token or a verifier", () => {
     expect(() =>
       scimHandler({ directory: memoryDirectoryStore(), tenant: TENANT }),
-    ).toThrow(/token or verifier/);
+    ).toThrow(/token or verifier/u);
   });
 });
 

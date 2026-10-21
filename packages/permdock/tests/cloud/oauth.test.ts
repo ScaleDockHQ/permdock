@@ -4,6 +4,7 @@ import { CLOUD_BASE_URL } from "../../src/cloud/base-url.ts";
 import { bearerChallenge } from "../../src/cloud/challenge.ts";
 import { isCloudAuthError } from "../../src/cloud/oauth-error.ts";
 import { cloudOAuth } from "../../src/cloud/oauth.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 import { referencePlatform } from "./fixtures/reference-platform.ts";
 
 const BASE = "https://cloud.test";
@@ -265,7 +266,7 @@ describe("cloudOAuth", () => {
       redirectUri: REDIRECT,
       url: BASE,
       fetch: (input) => {
-        urls.push(String(input));
+        urls.push(requestUrl(input));
         return Promise.resolve(answers.shift() ?? new Response(null));
       },
     });
@@ -313,7 +314,7 @@ describe("cloudOAuth", () => {
       url: BASE,
       fetch: (input) =>
         Promise.resolve(
-          String(input).endsWith("/oauth-authorization-server")
+          requestUrl(input).endsWith("/oauth-authorization-server")
             ? Response.json({
                 issuer: BASE,
                 authorization_endpoint: `${BASE}/oauth/authorize`,

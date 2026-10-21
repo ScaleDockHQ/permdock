@@ -173,7 +173,7 @@ describe("graph grants in RLS", () => {
         plan,
         undefined,
       ),
-    ).toThrow(/PD032/);
+    ).toThrow(/PD032/u);
     expect(closureDepths(plan)).toEqual({ team: 16 });
   });
 
@@ -273,7 +273,7 @@ describe("graph grants in RLS", () => {
   });
 
   it("is refused by toWhere compilers without a relations mapping", () => {
-    expect(() => compileWhere(related())).toThrow(/related/);
+    expect(() => compileWhere(related())).toThrow(/related/u);
   });
 
   it("plans groups, includes and link hops, and emits a helper per link", () => {

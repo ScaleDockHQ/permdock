@@ -301,9 +301,11 @@ describe("supabaseRls and authorizeSql", () => {
     expect(sql).toContain("requested_tenant text default null");
     expect(sql).toContain("security definer");
     expect(sql).toContain("set search_path = ''");
-    expect(sql).toMatch(/if requested_tenant is not null then\s+return false;/);
+    expect(sql).toMatch(
+      /if requested_tenant is not null then\s+return false;/u,
+    );
     expect(sql).not.toContain("perform requested_tenant");
-    expect(sql).not.toMatch(/service_role/);
+    expect(sql).not.toMatch(/service_role/u);
   });
 
   it("reads the memberships table or the hook claims for tenant requests", () => {
@@ -357,7 +359,7 @@ describe("supabaseRls and authorizeSql", () => {
         customRoles: { declared: [] },
       }),
     ).toContain("rp.scope = 'organization'");
-    expect(() => authorizeSql({ scope: "bad scope" })).toThrow(/unsafe scope/);
+    expect(() => authorizeSql({ scope: "bad scope" })).toThrow(/unsafe scope/u);
     expect(jwt).toContain("any('{}'::text[])");
     expect(jwt).not.toContain("custom_role_permissions");
   });

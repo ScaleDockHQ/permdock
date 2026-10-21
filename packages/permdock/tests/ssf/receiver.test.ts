@@ -37,6 +37,7 @@ import {
 import { createPermDock, memoryReplayStore } from "../../src/ssf/index.ts";
 import { DEFAULT_SET_MAX_AGE } from "../../src/ssf/receiver.ts";
 import { contentType, errForCause, parseEvery } from "../../src/ssf/wire.ts";
+import { requestBody } from "../fakes/fetch.ts";
 
 const permissions = definePermissions({
   post: resource(z.object({ id: z.string() }), { id: "id", actions: ["read"] }),
@@ -139,14 +140,14 @@ describe("createPermDock options", () => {
         subject: () => "u",
         issuer: ISSUER,
       } as never),
-    ).toThrow(/audience/);
+    ).toThrow(/audience/u);
     expect(() =>
       createPermDock(policy, {
         verifier: fakeVerifier,
         subject: () => "u",
         audience: AUDIENCE,
       }),
-    ).toThrow(/issuer or discovery/);
+    ).toThrow(/issuer or discovery/u);
   });
 
   it("accepts a JWKS URL string", () => {
@@ -515,7 +516,7 @@ describe("receiver.poll", () => {
     const bodies: unknown[] = [];
     const headers: (string | null)[] = [];
     const fetchFn = vi.fn<typeof fetch>((_url, init) => {
-      bodies.push(JSON.parse(String(init?.body)));
+      bodies.push(JSON.parse(requestBody(init)));
       headers.push(new Headers(init?.headers).get("authorization"));
       return Promise.resolve(Response.json(bodies.length === 1 ? sets : {}));
     });

@@ -186,19 +186,19 @@ describe("permdock/drizzle toWhere with drizzle-orm", () => {
       ),
     ).toEqual({ sql: '"posts"."org_id" = $1', params: ["o1"] });
     expect(() => compile({ op: "eq", field: "missing", value: 1 })).toThrow(
-      /unknown column 'missing'/,
+      /unknown column 'missing'/u,
     );
     // oxlint-disable-next-line typescript/no-misused-spread -- toWhere reads the own column keys only
     const withMethod = { ...posts, helper: (): void => undefined };
     expect(() =>
       render(toWhere({ op: "eq", field: "helper", value: 1 }, withMethod)),
-    ).toThrow(/unknown column 'helper'/);
+    ).toThrow(/unknown column 'helper'/u);
   });
 
   it("refuses opaque SQL", () => {
     expect(() =>
       compile({ op: "opaque", sql: "true", fingerprint: "f" }),
-    ).toThrow(/non-portable-condition/);
+    ).toThrow(/non-portable-condition/u);
   });
 });
 
@@ -336,7 +336,7 @@ describe("permdock/drizzle memberships tables", () => {
           },
         },
       ),
-    ).toThrow(/unsafe SQL identifier 'user id'/);
+    ).toThrow(/unsafe SQL identifier 'user id'/u);
   });
 
   it("compiles memberOf from the subject without a table", () => {
@@ -376,7 +376,7 @@ describe("permdock/drizzle relationship grants", () => {
   });
 
   it("refuses a related node without relations", () => {
-    expect(() => compile(folderViewer)).toThrow(/non-portable-condition/);
+    expect(() => compile(folderViewer)).toThrow(/non-portable-condition/u);
   });
 });
 
@@ -398,7 +398,7 @@ describe("permdock/drizzle withSubject", () => {
     expect(result).toBe(42);
     expect(executed).toHaveLength(1);
     expect(executed[0]?.sql).toMatch(
-      /set_config\('role'.*request\.jwt\.claims/,
+      /set_config\('role'.*request\.jwt\.claims/u,
     );
     expect(executed[0]?.params[0]).toBe("authenticated");
     expect(JSON.parse(String(executed[0]?.params[1]))).toMatchObject({
@@ -463,7 +463,7 @@ describe("permdock/drizzle checkRow", () => {
   it("throws when the key matches more than one row", async () => {
     await expect(
       checkRow(database([{}, {}]).db, posts, condition, key),
-    ).rejects.toThrow(/more than one row/);
+    ).rejects.toThrow(/more than one row/u);
   });
 });
 
@@ -475,7 +475,7 @@ describe("permdock/drizzle operator loading", () => {
     try {
       expect(() =>
         toWhere({ op: "eq", field: "orgId", value: "o1" }, posts),
-      ).toThrow(/requires the drizzle-orm peer/);
+      ).toThrow(/requires the drizzle-orm peer/u);
     } finally {
       spy.mockRestore();
     }

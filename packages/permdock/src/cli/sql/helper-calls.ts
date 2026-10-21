@@ -99,16 +99,20 @@ export const HELPER_TABLE_POLICIES_SQL = `select schemaname || '.' || tablename 
 from pg_policies
 where (schemaname, tablename) in (('storage', 'objects'), ('realtime', 'messages'))`;
 
+function textOf(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 /** The same rows as {@link helperTablePolicies}, from `pg_policies`. */
 export function helperTablePoliciesFromRows(
   rows: readonly Record<string, unknown>[],
 ): readonly HelperTablePolicy[] {
   const found: HelperTablePolicy[] = [];
   for (const row of rows) {
-    const table = helperTable(String(row["target"] ?? ""));
-    const keys = helperCallKeys(String(row["body"] ?? ""), true);
+    const table = helperTable(textOf(row["target"]));
+    const keys = helperCallKeys(textOf(row["body"]), true);
     if (table !== undefined && keys.length > 0) {
-      found.push({ table, name: String(row["policyname"] ?? ""), keys });
+      found.push({ table, name: textOf(row["policyname"]), keys });
     }
   }
   return found;

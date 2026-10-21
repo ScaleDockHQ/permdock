@@ -245,7 +245,7 @@ function session(client: Client): Session {
   return {
     client,
     async query(sql, values) {
-      expect(sql).not.toMatch(/service_role/i);
+      expect(sql).not.toMatch(/service_role/iu);
       try {
         const result = await client.query(
           sql,

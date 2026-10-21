@@ -448,7 +448,7 @@ describe("cloud().approvals.resolve and PermDock-Approver", () => {
     });
     await expect(
       tickets.sign({ sub: "u_9" }, { typ: "at+jwt" }),
-    ).rejects.toThrow(/never signs at\+jwt/);
+    ).rejects.toThrow(/never signs at\+jwt/u);
     expect(calls).toBe(0);
   });
 });

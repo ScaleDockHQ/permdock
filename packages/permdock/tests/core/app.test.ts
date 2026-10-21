@@ -66,8 +66,8 @@ describe("defineApp", () => {
   });
 
   it("throws under prod when a grant needs a store or limits the app lacks", () => {
-    expect(() => defineApp(withApproval)).toThrow(/needs a store/);
-    expect(() => defineApp(withLimit)).toThrow(/needs limits/);
+    expect(() => defineApp(withApproval)).toThrow(/needs a store/u);
+    expect(() => defineApp(withLimit)).toThrow(/needs limits/u);
     expect(() =>
       defineApp(withApproval, { store: memoryApprovalStore() }),
     ).not.toThrow();

@@ -39,6 +39,7 @@ export function assertDecision(
       : undefined;
   const resourceRef = compact<{ readonly type: string; readonly id?: string }>({
     type: permission.resource,
+    // oxlint-disable-next-line typescript/no-base-to-string -- the audit id is the configured id column as text, whatever its type
     id: resourceId === undefined ? undefined : String(resourceId),
   });
   if (decision.outcome === "approval-required") {

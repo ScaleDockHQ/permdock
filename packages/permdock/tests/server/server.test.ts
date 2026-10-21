@@ -13,6 +13,7 @@ import {
   discoverViaSignatureAgent,
 } from "../../src/server/index.ts";
 import { webBotAuthVerifier } from "../../src/server/web-bot-auth.ts";
+import { requestUrl } from "../fakes/fetch.ts";
 import {
   adminUser,
   memberUser,
@@ -516,7 +517,7 @@ describe("permdock/server webBotAuth", () => {
         keys: discoverViaSignatureAgent({
           allow: ["agents.example.com"],
           fetch: async (input) => {
-            expect(String(input)).toBe(
+            expect(requestUrl(input)).toBe(
               "https://agents.example.com/.well-known/http-message-signatures-directory",
             );
             return Response.json({ keys: [{ ...publicJwk, kid: "bot-1" }] });
@@ -532,7 +533,7 @@ describe("permdock/server webBotAuth", () => {
 });
 
 function tamperSignature(header: string): string {
-  const match = /:(.+):/.exec(header);
+  const match = /:(.+):/u.exec(header);
   if (match?.[1] === undefined) {
     return `${header}x`;
   }

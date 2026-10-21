@@ -138,7 +138,7 @@ describe("conditionFromAst", () => {
     const dump = await canonicalDump(
       'create policy "jobs_read" on job for select to authenticated using (job_permitted(id));',
     );
-    expect(dump).toMatch(/CREATE POLICY/i);
+    expect(dump).toMatch(/CREATE POLICY/iu);
     expect(dump).toContain("job_permitted");
   });
 });

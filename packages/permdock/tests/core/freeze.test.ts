@@ -84,7 +84,7 @@ describe("freeze and paths", () => {
   it("reads own paths only", () => {
     expect(readPath({ a: { b: 2 } }, "a.b")).toBe(2);
     expect(readPath({ a: 1 }, "constructor")).toBeUndefined();
-    expect(() => assertSafeKey("prototype", "x")).toThrow(/forbidden/);
+    expect(() => assertSafeKey("prototype", "x")).toThrow(/forbidden/u);
   });
 });
 

@@ -188,7 +188,7 @@ describe("permdock/nest Protect", () => {
     expect(seen).toEqual(["a:update", "b:update"]);
     expect(() => {
       decorateMethod(Posts, "missing", tag("c"));
-    }).toThrow(/missing is not a method/);
+    }).toThrow(/missing is not a method/u);
   });
 
   it("requires reflect-metadata", () => {

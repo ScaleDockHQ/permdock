@@ -365,7 +365,7 @@ join pg_namespace n on n.oid = p.pronamespace
 where n.nspname || '.' || p.proname = any($1::text[])`;
 
 function commandOf(cmd: unknown): string {
-  const text = String(cmd ?? "").toLowerCase();
+  const text = typeof cmd === "string" ? cmd.toLowerCase() : "";
   return text === "*" ? "all" : text;
 }
 
@@ -732,7 +732,7 @@ export async function introspectMixed(
           expression: String(row["expression"]),
           command: String(row["command"]),
           restrictive: row["restrictive"] === true,
-          roles: String(row["roles"] ?? "")
+          roles: (typeof row["roles"] === "string" ? row["roles"] : "")
             .split(",")
             .filter((role) => role !== ""),
         }))

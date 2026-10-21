@@ -14,7 +14,7 @@ describe("condition refs", () => {
     expect(refAt(context, "teamIds").ref).toBe("context.teamIds");
     expect(isSubjectRef(principal.id)).toBe(true);
     expect(isSubjectRef({ ref: "subject.id" })).toBe(false);
-    expect(() => principal.constructor).toThrow(/forbidden/);
+    expect(() => principal.constructor).toThrow(/forbidden/u);
   });
 
   it("claim() names principal.claims paths", () => {
@@ -23,8 +23,8 @@ describe("condition refs", () => {
     expect(claim("attrs..region.").ref).toBe("principal.claims.attrs.region");
     expect(principal.claims.ref).toBe("principal.claims");
     expect(isSubjectRef(claim("team_ids"))).toBe(true);
-    expect(() => claim("")).toThrow(/claim path/);
-    expect(() => claim("attrs.__proto__")).toThrow(/forbidden/);
-    expect(() => claim("constructor")).toThrow(/forbidden/);
+    expect(() => claim("")).toThrow(/claim path/u);
+    expect(() => claim("attrs.__proto__")).toThrow(/forbidden/u);
+    expect(() => claim("constructor")).toThrow(/forbidden/u);
   });
 });

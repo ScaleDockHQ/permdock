@@ -10,6 +10,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { getPermDockSync, remotePdp } from "../../src/pdp/index.ts";
+import { requestBody } from "../fakes/fetch.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 
 const Post = z.object({ id: z.string(), authorId: z.string() });
@@ -279,7 +280,7 @@ describe("permdock/pdp", () => {
           cache: { ttl: 5 },
           fetch: async (_url, init) => {
             // SAFETY: remotePdp posts an AuthZEN evaluation request as a JSON object body.
-            const body = JSON.parse(String(init?.body)) as {
+            const body = JSON.parse(requestBody(init)) as {
               readonly context?: { readonly tenant?: string };
             };
             return jsonResponse({ decision: body.context?.tenant === "acme" });
@@ -354,7 +355,7 @@ describe("permdock/pdp", () => {
         },
         fetch: async (_url, init) => {
           // SAFETY: remotePdp posts an AuthZEN request as a JSON object body.
-          const body = JSON.parse(String(init?.body)) as {
+          const body = JSON.parse(requestBody(init)) as {
             readonly page?: unknown;
           };
           bodies.push(body);
