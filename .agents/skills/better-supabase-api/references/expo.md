@@ -10,6 +10,7 @@ deprecated there and have no effect.
 
 ```ts title="src/lib/supabase/server.ts"
 import { createExpo } from "better-supabase/expo";
+
 import { betterSupabase } from "./index";
 
 export const bs = createExpo(betterSupabase);

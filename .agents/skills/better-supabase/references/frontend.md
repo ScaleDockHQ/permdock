@@ -17,6 +17,7 @@ createApp(App)
 
 ```ts title="src/lib/composables.ts"
 import { createBindings } from "better-supabase/vue";
+
 import type { bs } from "./supabase/client";
 
 export const { useDb, useQueries, useAuth, useSession } =
@@ -47,8 +48,8 @@ return objects whose fields are reactive (`auth.current.status`,
 ## TanStack DB
 
 ```ts
-import { createCollection } from "@tanstack/react-db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
+import { createCollection } from "@tanstack/react-db";
 import { collectionOptions } from "better-supabase/tanstack-db";
 
 export const customers = createCollection(
@@ -70,11 +71,11 @@ Run the same repositories over a local database on the device, without
 PowerSync:
 
 ```ts
-import { addDatabaseChangeListener, openDatabaseAsync } from "expo-sqlite";
 import {
   expoSqliteDatabase,
   expoSqliteExecutor,
 } from "better-supabase/expo-sqlite";
+import { addDatabaseChangeListener, openDatabaseAsync } from "expo-sqlite";
 
 const sqlite = await openDatabaseAsync("app.db", {
   enableChangeListener: true,

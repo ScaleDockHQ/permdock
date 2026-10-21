@@ -207,7 +207,7 @@ catalogs:
     "@nestjs/platform-fastify": 11.2.7
   peers:
     "@anthropic-ai/claude-agent-sdk": ">=0.2"
-    # Every peer range is a floor with no upper bound (decision 0044); this floor is the first entry of the better-supabase CI matrices.
+    # Every peer range is a floor with no upper bound (decision 0045); this floor is the first entry of the better-supabase CI matrices.
     better-supabase: ">=0.13.0"
     chat: ">=4"
     "@modelcontextprotocol/server": ">=2"
@@ -261,7 +261,7 @@ catalogPrune: true
 engineStrict: true
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
-  # Adopted the day it shipped; drop the entry after 2026-10-22 12:41 UTC (decision 0044).
+  # Adopted the day it shipped; drop the entry after 2026-10-22 12:41 UTC (decision 0045).
   - better-supabase@0.13.0
 # Drops excludes the lockfile no longer resolves.
 minimumReleaseAgeExcludePrune: true
