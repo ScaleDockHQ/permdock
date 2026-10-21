@@ -1,5 +1,5 @@
 import { agentClaims, toSession } from "better-supabase/server";
-import { supabaseClaimFixtures } from "better-supabase/testing";
+import { actCases, supabaseClaimFixtures } from "better-supabase/testing";
 import { describe, expect, it } from "vitest";
 
 import { actorOf, delegationOf } from "../../src/supabase/index.ts";
@@ -65,9 +65,43 @@ describe("act claim parity with better-supabase", () => {
       ok: true,
       actor: { kind: "agent", id: "agent-7", tools: ["search_knowledge"] },
     });
-    expect(
-      actorOf(agentClaims({ sub: agentRun.sub }, { agent: "a" })),
-    ).toMatchObject({ ok: true, actor: { kind: "agent", id: "a" } });
+    const everyTool = actorOf(
+      agentClaims({ sub: agentRun.sub }, { agent: "a" }),
+    );
+    expect(everyTool).toMatchObject({
+      ok: true,
+      actor: { kind: "agent", id: "a" },
+    });
+    expect(everyTool.ok && everyTool.actor).not.toHaveProperty("tools");
+  });
+
+  const KEPT_DIVERGENCES = new Set(["session_id without kind (0.5.0 support)"]);
+
+  it.each(actCases.cases.filter((c) => !KEPT_DIVERGENCES.has(c.name)))(
+    "reads the $name act case as better-supabase does",
+    (actCase) => {
+      const read = actorOf({ sub: agentRun.sub, ...actCase.claims });
+      if (!actCase.valid) {
+        expect(read).toEqual({ ok: false, reason: "invalid-chain" });
+        return;
+      }
+      expect(read.ok).toBe(true);
+      const actor = read.ok ? read.actor : undefined;
+      expect(actor?.kind ?? null).toBe(actCase.kind);
+      expect(
+        actor !== undefined && "readOnly" in actor ? actor.readOnly : null,
+      ).toBe(actCase.readOnly);
+      expect(actor?.kind === "agent" ? (actor.tools ?? null) : null).toEqual(
+        actCase.tools,
+      );
+    },
+  );
+
+  it("covers every kept divergence with an act case", () => {
+    const names = new Set(actCases.cases.map((c) => c.name));
+    expect([...KEPT_DIVERGENCES].filter((name) => !names.has(name))).toEqual(
+      [],
+    );
   });
 
   it.each([
