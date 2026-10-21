@@ -7,7 +7,7 @@ import { assertSafeKey, readPath, splitPath } from "../core/paths.ts";
 const REF_BRAND: unique symbol = Symbol.for("permdock.ref");
 
 // Declared so `principal.id` stays `SubjectRef` under noUncheckedIndexedAccess;
-// other claims go through the index signature.
+// other fields go through the index signature, and claim names through `claim()`.
 type KnownRefField =
   | "id"
   | "issuer"
@@ -19,7 +19,8 @@ type KnownRefField =
   | "memberships"
   | "assurance"
   | "binding"
-  | "session";
+  | "session"
+  | "claims";
 
 export type SubjectRef = ConditionRef & {
   readonly [K in KnownRefField]: SubjectRef;
@@ -71,6 +72,19 @@ function createRef(path: string): SubjectRef {
 
 export const principal: SubjectRef = createRef("principal");
 export const context: SubjectRef = createRef("context");
+
+/**
+ * `principal.claims.<path>` for a dot path such as `team_ids` or
+ * `attrs.region`, typed `SubjectRef` under `noUncheckedIndexedAccess` and
+ * `noPropertyAccessFromIndexSignature`.
+ */
+export function claim(path: string): SubjectRef {
+  const segments = splitPath(path);
+  if (segments.length === 0) {
+    throw new Error("PermDock: claim() needs a claim path");
+  }
+  return createRef(["principal", "claims", ...segments].join("."));
+}
 
 export function isSubjectRef(value: unknown): value is ConditionRef {
   if (

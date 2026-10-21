@@ -51,6 +51,30 @@ export function bindingNotes(
   ];
 }
 
+/**
+ * The generate notes for the bindings whose table no project SQL file
+ * creates. A project with no `create table` in those files gets none: its
+ * schema lives elsewhere (an ORM, another repository).
+ */
+export function unknownTableNotes(
+  bindings: readonly TableBinding[],
+  created: ReadonlySet<string>,
+): readonly string[] {
+  if (created.size === 0) {
+    return [];
+  }
+  return bindings
+    .filter(
+      (binding) =>
+        !created.has(binding.table) &&
+        !created.has(binding.table.toLowerCase()),
+    )
+    .map(
+      (binding) =>
+        `resource ${binding.resource} is bound to ${binding.table}, which no SQL file in the migration or schema folders creates; name its table in rls.tables, or set rls.tables.${binding.resource}: false when it has none`,
+    );
+}
+
 /** The inferred bindings whose table `facts` shows missing. */
 export function missingBindings(
   bindings: readonly TableBinding[],
