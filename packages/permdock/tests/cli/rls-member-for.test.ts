@@ -147,6 +147,64 @@ describe("member_<scope>_ids_for", () => {
   });
 });
 
+describe("member_<scope>_ids_of", () => {
+  const teamScopes = scopeList([
+    { name: "organization", key: "organization_id" },
+    { name: "team", key: "team_id", within: "organization" },
+  ]);
+  const teamSources = [
+    tableMembershipSource({ table: "memberships" }),
+    junctionMembershipSource({
+      table: "team_members",
+      scope: "team",
+      within: { organization: "organization_id" },
+      roles: ["member"],
+    }),
+  ];
+
+  it("returns member_<scope>_ids_for(p_user) for the caller only, executable by authenticated", () => {
+    const sql = helpers({
+      ...base,
+      scopes: teamScopes,
+      memberSources: teamSources,
+    });
+    const team = fn(sql, "member_team_ids_of");
+    expect(team).toContain(
+      "member_team_ids_of(p_user uuid)\nreturns setof text\nlanguage sql\nstable\nsecurity definer\nset search_path = ''",
+    );
+    expect(team).toContain(
+      'from "permdock".member_team_ids_for(p_user) as m(id)\n  where p_user = (select "permdock".permdock_user_id())',
+    );
+    expect(team).toContain(
+      'revoke execute on function "permdock".member_team_ids_of(uuid) from public, anon;\ngrant execute on function "permdock".member_team_ids_of(uuid) to authenticated;',
+    );
+  });
+
+  it("is generated only for a team scope with member_<scope>_ids_for", () => {
+    expect(
+      helpers({ ...base, scopes: teamScopes, memberSources: teamSources }),
+    ).not.toContain("member_organization_ids_of");
+    expect(helpers({ ...base, memberSources: sources })).not.toContain(
+      "_ids_of(",
+    );
+    expect(helpers({ ...base, scopes: teamScopes })).not.toContain(
+      "member_team_ids_of",
+    );
+  });
+
+  it("is listed in the manifest for authenticated", () => {
+    const { manifest } = supabaseHookSql(
+      teamScopes,
+      { supabase: { hook: { memberships: teamSources } } },
+      {},
+    );
+    expect(manifest.helpers.functions).toContain("member_team_ids_of");
+    expect(manifest.helpers.functions).not.toContain(
+      "member_organization_ids_of",
+    );
+  });
+});
+
 describe("the hook grants for member_<scope>_ids_for", () => {
   const features = { features: "billing.feature_claims" };
   const config = (
