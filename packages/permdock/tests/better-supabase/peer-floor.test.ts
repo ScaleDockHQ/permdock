@@ -162,8 +162,8 @@ const sources = readdirSync(SOURCE)
   }));
 
 describe("better-supabase peer floor", () => {
-  it("declares a 0.11 floor", () => {
-    expect(peerFloor()).toBe("0.11.0");
+  it("declares a 0.13 floor", () => {
+    expect(peerFloor()).toBe("0.13.0");
   });
 
   it("imports only names the lowest peer version exports", () => {

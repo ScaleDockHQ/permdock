@@ -17,15 +17,15 @@ is no separate CLI package to add.
 
 1. Write the migration: edit `supabase/schemas/*.sql`, then run
    `supabase db schema declarative sync -f <name>`, or `supabase migration
-new` for data and role settings. The sync needs
+   new` for data and role settings. The sync needs
    `[experimental.pgdelta] enabled = true` in `supabase/config.toml`;
    doctor reports BS316 when a project is still on the legacy migra engine.
    `sql.workflow` in the config picks how the SQL modules reach a migration:
    `pg-delta` (the default), `migra` (declarative schemas 1.0, `supabase db
-diff`) or `migrations` (no `supabase/schemas`: the `sql` commands write
+   diff`) or `migrations` (no `supabase/schemas`: the `sql` commands write
    `<stamp>_better_supabase_modules.sql`, applied with `supabase migration up`).
 2. For a new table in an exposed schema, in the same file: `enable row level
-security`, a policy per role and command the app uses, and an index on
+   security`, a policy per role and command the app uses, and an index on
    every column a policy filters by. Write tenant checks as
    `organization_id in (select better_supabase.member_organization_ids())`, which
    Postgres runs once per statement, not `has_organization_role(organization_id)`,
@@ -35,7 +35,7 @@ security`, a policy per role and command the app uses, and an index on
 3. Apply it with `supabase db reset` (or `supabase migration up`).
 4. Run `pnpm better-supabase gen`, then fix the type errors it surfaces. It
    also runs every other generator the config sets up (`sql sync`, `spec
-emit`, the seed client, `scaffold api`); set `gen.tasks` to change the
+   emit`, the seed client, `scaffold api`); set `gen.tasks` to change the
    list. Put flags you would repeat in `better-supabase.config.ts` (with a
    `$ci` block for CI) instead of on the command line.
 5. Run `pnpm better-supabase doctor` and fix every error it reports (RLS off,

@@ -34,8 +34,10 @@ import { scopeTypeOf, tenantTypeOf } from "../sql/columns.ts";
 import { decidingColumns } from "../sql/deciding-columns.ts";
 import { HOOK_MARKER } from "../sql/markers.ts";
 import {
+  isTeamScope,
   memberForHelper,
   memberIdsHelper,
+  memberOfHelper,
   permittedForHelper,
   permittedIdsHelper,
 } from "../sql/names.ts";
@@ -69,6 +71,17 @@ function helperList(
                 "p_user uuid",
                 returns,
                 parts.extra.length === 0 ? [] : ["supabase_auth_admin"],
+              ),
+            ]
+          : []),
+        ...(parts.helpers.memberFor.includes(scope.name) &&
+        isTeamScope(scope.name)
+          ? [
+              helperEntry(
+                memberOfHelper(scope.name),
+                "p_user uuid",
+                returns,
+                client,
               ),
             ]
           : []),

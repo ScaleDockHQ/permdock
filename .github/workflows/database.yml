@@ -38,12 +38,13 @@ jobs:
       id-token: write
     strategy:
       fail-fast: false
-      # The peer floor and the latest better-supabase release; the range has no upper
-      # bound. The last entry is the catalog pin the committed SQL is generated from.
+      # The peer floor and the catalog pin, which are the same release while the floor is
+      # 0.13.0; the range has no upper bound (tests/package/better-supabase-peer-range.test.ts).
+      # The last entry is the catalog pin the committed SQL is generated from.
       matrix:
-        better-supabase: ["0.11.0", "0.12.0"]
+        better-supabase: ["0.13.0"]
     env:
-      CATALOG: ${{ matrix.better-supabase == '0.12.0' }}
+      CATALOG: ${{ matrix.better-supabase == '0.13.0' }}
     defaults:
       run:
         working-directory: apps/examples/next-better-supabase

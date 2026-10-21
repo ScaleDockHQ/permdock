@@ -134,10 +134,9 @@ Deno.serve(
 bridge for the framework:
 
 ```ts title="src/hooks.server.ts"
+import { betterSupabase } from "$lib/supabase";
 import { createServer, withBetterSupabase } from "better-supabase/server";
 import { toSvelteKit } from "better-supabase/sveltekit";
-
-import { betterSupabase } from "$lib/supabase";
 
 export const handle = toSvelteKit([
   withBetterSupabase(createServer(betterSupabase), {
@@ -178,9 +177,9 @@ dependency. Each bridge has a guard and an error handler that answers
 `.orThrow()` failures with Problem Details:
 
 ```ts title="app.ts"
-import express from "express";
 import { guard, problemErrorHandler, toExpress } from "better-supabase/node";
 import { withBetterSupabase } from "better-supabase/server";
+import express from "express";
 
 import { bs } from "./lib/server";
 
@@ -286,9 +285,7 @@ const bs = createMcp(betterSupabase, {
   allowedOrigins: ["https://claude.ai"],
   allowedHosts: ["crm.example.com", "localhost"],
   resourceDocumentation: "https://crm.example.com/docs/mcp",
-  resources: {
-    customers: { select: ["id", "name"], pagination: "cursor" },
-  },
+  resources: { customers: { select: ["id", "name"], pagination: "cursor" } },
   authorize: (ctx) => {
     const session = toSession(ctx.auth);
     const granted =

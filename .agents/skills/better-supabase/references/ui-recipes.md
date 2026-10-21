@@ -111,7 +111,10 @@ import { blocks } from "../lib/blocks";
 const unreadOf = (counts: readonly NotificationCounts[]): number =>
   counts[0]?.unread ?? 0;
 
-/** The unread count, loaded again after each broadcast on `notifications:<user id>`. */
+/**
+ * The unread count, loaded again after each broadcast on `notifications:<user
+ * id>`.
+ */
 export function NotificationBell({
   onPress,
 }: {
@@ -204,8 +207,8 @@ async function loadRows(): Promise<readonly NotificationRow[]> {
 }
 
 /**
- * The caller's latest notifications, loaded again after each broadcast on
- * their private topic `notifications:<user id>`: a new one, or one marked read.
+ * The caller's latest notifications, loaded again after each broadcast on their
+ * private topic `notifications:<user id>`: a new one, or one marked read.
  */
 export function NotificationList() {
   const t = useExtracted("notifications");
@@ -284,8 +287,8 @@ import { ActivityIndicator, FlatList, Text, View } from "react-native";
 import { blocks } from "../lib/blocks";
 
 /**
- * The caller's latest notifications, loaded again after each broadcast on
- * their private topic `notifications:<user id>`: a new one, or one marked read.
+ * The caller's latest notifications, loaded again after each broadcast on their
+ * private topic `notifications:<user id>`: a new one, or one marked read.
  */
 export function NotificationList() {
   const auth = useAuth();
@@ -773,9 +776,11 @@ npx shadcn add button field skeleton textarea
 ```tsx title="apps/examples/nextjs/src/features/customers/components/comment-thread.tsx"
 "use client";
 
+import type { SubmitEvent } from "react";
+
 import { useComments } from "better-supabase/blocks/comments/react";
 import { useExtracted, useFormatter } from "next-intl";
-import { type SubmitEvent, useId, useState } from "react";
+import { useId, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
@@ -785,8 +790,8 @@ import { blockConfig } from "@/lib/supabase/blocks.generated";
 import { useErrorMessage } from "@/lib/use-error-message";
 
 /**
- * A record's comments, oldest first, through the browser client. `subject`
- * is any type in `config.subjects`, such as a customer or a project.
+ * A record's comments, oldest first, through the browser client. `subject` is
+ * any type in `config.subjects`, such as a customer or a project.
  */
 export function CommentThread({
   organizationId,
@@ -1032,9 +1037,9 @@ async function loadOrganizations(): Promise<readonly OrganizationSummary[]> {
 }
 
 /**
- * The organization menu. The server renders it with its rows; switching
- * goes through `switch_organization`, refreshes the session for the new
- * tenant claim, then re-renders the server tree.
+ * The organization menu. The server renders it with its rows; switching goes
+ * through `switch_organization`, refreshes the session for the new tenant
+ * claim, then re-renders the server tree.
  */
 export function OrganizationSwitcherMenu({
   initial,
@@ -1237,8 +1242,8 @@ async function loadCatalog(): Promise<PlanCatalog<PlanOption>> {
 
 /**
  * The plans with a checkout button each. The server renders the catalog;
- * `choose` runs the `startCheckout` server action, which talks to Stripe,
- * and sends the browser to the Checkout URL it returns.
+ * `choose` runs the `startCheckout` server action, which talks to Stripe, and
+ * sends the browser to the Checkout URL it returns.
  */
 export function PlanPicker({
   initial,
@@ -1350,9 +1355,9 @@ const price = (cents: number) =>
   cents === 0 ? "Free" : `$${(cents / 100).toFixed(2)} per month`;
 
 /**
- * The plans with a checkout button each. `choose` posts to the app's own
- * API route, which talks to Stripe, and opens the Checkout URL it returns
- * in the system browser.
+ * The plans with a checkout button each. `choose` posts to the app's own API
+ * route, which talks to Stripe, and opens the Checkout URL it returns in the
+ * system browser.
  */
 export function PlanPicker() {
   const organizationId = tenantOf(useAuth());
@@ -1618,8 +1623,8 @@ import { Link } from "@/i18n/navigation";
 
 /**
  * Renders `children` only when the active organization's plan includes
- * `feature`, read from the session's `features` claim; otherwise a link to
- * the plans. UX only: RLS and the route behind it check the feature too.
+ * `feature`, read from the session's `features` claim; otherwise a link to the
+ * plans. UX only: RLS and the route behind it check the feature too.
  */
 export function FeatureGate({
   feature,
@@ -1662,8 +1667,8 @@ import { ActivityIndicator, Text, View } from "react-native";
 
 /**
  * Renders `children` only when the active organization's plan includes
- * `feature`, read from the session's `features` claim. UX only: RLS checks
- * the feature too.
+ * `feature`, read from the session's `features` claim. UX only: RLS checks the
+ * feature too.
  */
 export function FeatureGate({
   feature,
@@ -2171,8 +2176,8 @@ async function loadOrganizationMembers(): Promise<readonly Member[]> {
 }
 
 /**
- * The organization's members. The server renders the rows; a role change
- * shows at once and goes through `update_member_role` in the browser.
+ * The organization's members. The server renders the rows; a role change shows
+ * at once and goes through `update_member_role` in the browser.
  */
 export function MemberTable({
   organizationId,
@@ -2355,9 +2360,9 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { API_SCHEMA } from "../lib/blocks";
 
 /**
- * The active organization's members. Pressing a role switches it between
- * member and admin at once; the organizations module refuses a role above
- * the caller's, and the row shows the old role again.
+ * The active organization's members. Pressing a role switches it between member
+ * and admin at once; the organizations module refuses a role above the
+ * caller's, and the row shows the old role again.
  */
 export function MembersTable() {
   const auth = useAuth();
@@ -2438,10 +2443,12 @@ npx shadcn add button dialog field input select
 ```tsx title="apps/examples/nextjs/src/features/organization/components/invite-member-dialog.tsx"
 "use client";
 
+import type { SubmitEvent } from "react";
+
 import { useInvitations } from "better-supabase/blocks/organizations/react";
 import { CopyIcon, UserPlusIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
-import { type SubmitEvent, useId, useState } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
@@ -2661,8 +2668,8 @@ import { API_SCHEMA } from "../lib/blocks";
 const ROLES = ["member", "admin"] as const;
 
 /**
- * A button that opens a form to invite a teammate by email with a role,
- * then shows the token for the accept link (the example has no mailer).
+ * A button that opens a form to invite a teammate by email with a role, then
+ * shows the token for the accept link (the example has no mailer).
  */
 export function InviteDialog() {
   const [open, setOpen] = useState(false);
@@ -2806,9 +2813,9 @@ import { apiKeyCreated } from "../api-key-actions";
 import { CreateApiKeyDialog } from "./create-api-key-dialog";
 
 /**
- * The organization's API keys through the browser client, with a button
- * that creates one and shows its token once. Members without
- * `api_keys.manage` create `personal` keys, which act as them.
+ * The organization's API keys through the browser client, with a button that
+ * creates one and shows its token once. Members without `api_keys.manage`
+ * create `personal` keys, which act as them.
  */
 export function ApiKeyTable({
   organizationId,
@@ -2966,9 +2973,9 @@ import {
 import { API_SCHEMA } from "../lib/blocks";
 
 /**
- * The organization's API keys with a field that creates one, whose token
- * shows only until it is dismissed, and a revoke button per key. Members
- * who can't manage the organization's keys create personal ones.
+ * The organization's API keys with a field that creates one, whose token shows
+ * only until it is dismissed, and a revoke button per key. Members who can't
+ * manage the organization's keys create personal ones.
  */
 export function ApiKeysTable({ personal = false }: { personal?: boolean }) {
   const [name, setName] = useState("");
@@ -3094,8 +3101,8 @@ function choices(
 
 /**
  * The organization's audit trail through the browser client, newest first,
- * filtered by actor and action. The audit module's read policy decides
- * which entries the caller sees.
+ * filtered by actor and action. The audit module's read policy decides which
+ * entries the caller sees.
  */
 export function AuditLogTable({ organizationId }: { organizationId: string }) {
   const t = useExtracted("audit");
@@ -3282,9 +3289,9 @@ function Chips({
 }
 
 /**
- * The organization's audit trail, newest first, filtered by actor and by
- * action with the values on the loaded page. Members without `audit.read`
- * get the module's error.
+ * The organization's audit trail, newest first, filtered by actor and by action
+ * with the values on the loaded page. Members without `audit.read` get the
+ * module's error.
  */
 export function AuditLogTable() {
   const { entries, filters, hasMore, loading, error, setFilters, loadMore } =
@@ -3357,10 +3364,12 @@ npx shadcn add badge button input skeleton
 ```tsx title="apps/examples/nextjs/src/features/customers/components/tag-input.tsx"
 "use client";
 
+import type { SubmitEvent } from "react";
+
 import { useTagInput } from "better-supabase/blocks/tags/react";
 import { XIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
-import { type SubmitEvent, useId, useState } from "react";
+import { useId, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -3370,9 +3379,8 @@ import { blockConfig } from "@/lib/supabase/blocks.generated";
 import { useErrorMessage } from "@/lib/use-error-message";
 
 /**
- * A record's tags. Typing a name adds the organization's tag of the
- * subject's kind with that name, or creates it for callers with
- * `tags.manage`.
+ * A record's tags. Typing a name adds the organization's tag of the subject's
+ * kind with that name, or creates it for callers with `tags.manage`.
  */
 export function TagInput({
   organizationId,
@@ -3489,8 +3497,8 @@ import { API_SCHEMA } from "../lib/blocks";
 
 /**
  * A customer's tags as chips that remove themselves when pressed, the
- * organization's other tags as suggestions, and a field that adds or
- * creates one by name.
+ * organization's other tags as suggestions, and a field that adds or creates
+ * one by name.
  */
 export function TagInput({ customerId }: { readonly customerId: string }) {
   const [name, setName] = useState("");
@@ -3595,9 +3603,9 @@ import {
 import { Button } from "@/components/ui/button";
 
 /**
- * The newest live announcement for this user and organization. Loads in
- * the browser and reloads on the module's broadcast, so it adds nothing to
- * the server render.
+ * The newest live announcement for this user and organization. Loads in the
+ * browser and reloads on the module's broadcast, so it adds nothing to the
+ * server render.
  */
 export function AnnouncementBanner({
   organizationId,
@@ -3790,9 +3798,9 @@ interface Enrollment {
 
 /**
  * TOTP through Supabase Auth MFA. The server reads the verified factor
- * (`getTotpFactorId`), so it is in the prefetched page; enrolling and
- * verifying run in the browser. A verified factor raises the session to
- * `aal2`, which `deleteMyAccount` and `DELETE /api/customers/:id` require.
+ * (`getTotpFactorId`), so it is in the prefetched page; enrolling and verifying
+ * run in the browser. A verified factor raises the session to `aal2`, which
+ * `deleteMyAccount` and `DELETE /api/customers/:id` require.
  */
 export function TwoFactorCard({
   initial,
@@ -3845,10 +3853,7 @@ export function TwoFactorCard({
 
     startTransition(async () => {
       const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify(
-        {
-          factorId: enrollment.factorId,
-          code,
-        },
+        { factorId: enrollment.factorId, code },
       );
 
       if (verifyError) {
@@ -4020,13 +4025,11 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
+import type { ConversationRow } from "../inbox-types";
+
 import { loadConversations } from "../inbox-actions";
 import { unwrap } from "../inbox-load";
-import {
-  AssigneeFilter,
-  type ConversationRow,
-  ConversationStatus,
-} from "../inbox-types";
+import { AssigneeFilter, ConversationStatus } from "../inbox-types";
 import { ConversationPanel } from "./conversation-panel";
 
 export function InboxView({
@@ -4364,7 +4367,10 @@ interface PanelProps {
   readonly streaming: boolean;
 }
 
-/** The answer streams from the request; a reload picks it up from the stream store. */
+/**
+ * The answer streams from the request; a reload picks it up from the stream
+ * store.
+ */
 function StandardPanel({ id, messages }: PanelProps) {
   const router = useRouter();
 
@@ -4379,7 +4385,10 @@ function StandardPanel({ id, messages }: PanelProps) {
   return <ChatView id={id} chat={chat} />;
 }
 
-/** The answer runs as a workflow: it survives a closed tab and waits for approvals. */
+/**
+ * The answer runs as a workflow: it survives a closed tab and waits for
+ * approvals.
+ */
 function DurablePanel({
   id,
   messages,
@@ -4557,7 +4566,10 @@ import { Link } from "@/i18n/navigation";
 import { getActivity } from "../assistant-queries";
 import { ApprovalButtons } from "./approval-buttons";
 
-/** Render inside `<Suspense>`: the approval inbox, then the latest runs with their steps. */
+/**
+ * Render inside `<Suspense>`: the approval inbox, then the latest runs with
+ * their steps.
+ */
 export async function AgentActivity() {
   const [{ runs, approvals }, t, format] = await Promise.all([
     getActivity(),
@@ -4694,12 +4706,12 @@ npx shadcn add badge button input select
 ```tsx title="apps/examples/nextjs/src/features/workflows/builder/components/workflow-canvas.tsx"
 "use client";
 
+import type { Connection } from "@xyflow/react";
 import type { WorkflowNodeKind } from "better-supabase/blocks/workflow-builder";
 
 import {
   addEdge,
   Background,
-  type Connection,
   Controls,
   ReactFlow,
   useEdgesState,
@@ -4727,6 +4739,7 @@ import {
 import { useErrorMessage } from "@/lib/use-error-message";
 
 import type { BuilderDetail } from "../builder-queries";
+import type { GraphFlowNode, GraphNodeData } from "./graph-node";
 
 import { isFinished, statusVariant } from "../../workflow-labels";
 import {
@@ -4736,13 +4749,7 @@ import {
   saveDraft,
 } from "../builder-actions";
 import { CredentialSheet } from "./credential-sheet";
-import {
-  fromFlow,
-  type GraphFlowNode,
-  type GraphNodeData,
-  nodeTypes,
-  toFlow,
-} from "./graph-node";
+import { fromFlow, nodeTypes, toFlow } from "./graph-node";
 import { NodePanel } from "./node-panel";
 import { PublishDialog } from "./publish-dialog";
 import { TriggerSheet } from "./trigger-sheet";
@@ -4751,8 +4758,8 @@ const shortId = () => crypto.randomUUID().slice(0, 8);
 
 /**
  * The canvas: a palette from the step library, the graph on React Flow, an
- * inspector for the selected node, and the status of a run's nodes on top,
- * live over `workflow-run:<id>`.
+ * inspector for the selected node, and the status of a run's nodes on top, live
+ * over `workflow-run:<id>`.
  */
 export function WorkflowCanvas({ detail }: { detail: BuilderDetail }) {
   const t = useExtracted("workflows");
@@ -5088,8 +5095,8 @@ import { Link } from "@/i18n/navigation";
 import { statusVariant, workflowName } from "../workflow-labels";
 
 /**
- * The organization's runs from the workflows block, loaded again when a
- * run changes status (`workflow-runs:<tenant>`).
+ * The organization's runs from the workflows block, loaded again when a run
+ * changes status (`workflow-runs:<tenant>`).
  */
 export function WorkflowRuns({ tenant }: { tenant: string | null }) {
   const t = useExtracted("workflows");
@@ -5207,7 +5214,10 @@ import type { CredentialRow } from "../builder-queries";
 
 import { createCredential, revokeCredential } from "../builder-actions";
 
-/** The organization's Slack credentials: the token goes to Vault, the row keeps a reference. */
+/**
+ * The organization's Slack credentials: the token goes to Vault, the row keeps
+ * a reference.
+ */
 export function CredentialSheet({
   credentials,
 }: {
@@ -5319,8 +5329,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getSession } from "../user-queries";
 
 /**
- * Shown during a support session (`bs.startSupport`): staff see the app as
- * the user, and the audit log records who acted. Render inside `<Suspense>`.
+ * Shown during a support session (`bs.startSupport`): staff see the app as the
+ * user, and the audit log records who acted. Render inside `<Suspense>`.
  */
 export async function ImpersonationBanner() {
   const [session, t] = await Promise.all([getSession(), getExtracted("user")]);
@@ -5563,9 +5573,9 @@ function TaskRows({ tasks }: { tasks: readonly AiTaskRow[] }) {
 }
 
 /**
- * The caller's scheduled AI tasks, read on the server through
- * `aiTasks.list`, with each task's next occurrence and its latest run.
- * An admin with `ai.admin` sees every task in the organization.
+ * The caller's scheduled AI tasks, read on the server through `aiTasks.list`,
+ * with each task's next occurrence and its latest run. An admin with `ai.admin`
+ * sees every task in the organization.
  */
 export function AiTaskQueue({ read }: { read: AiTasksRead }) {
   const t = useExtracted("aiTasks");
@@ -5669,10 +5679,12 @@ npx shadcn add alert alert-dialog badge button card dialog empty field input sel
 ```tsx title="apps/examples/nextjs/src/features/ai-providers/components/ai-provider-settings.tsx"
 "use client";
 
+import type { SubmitEvent } from "react";
+
 import { useAction } from "better-supabase/react";
 import { CpuIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useExtracted, useFormatter } from "next-intl";
-import { type SubmitEvent, useId, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -5747,10 +5759,11 @@ import {
 import { useRouter } from "@/i18n/navigation";
 import { useErrorMessage } from "@/lib/use-error-message";
 
+import type { Provider } from "../ai-provider-options";
 import type { ProviderKeyRow, ProviderKeysRead } from "../ai-provider-queries";
 
 import { addProviderKey, removeProviderKey } from "../ai-provider-actions";
-import { PROVIDERS, type Provider } from "../ai-provider-options";
+import { PROVIDERS } from "../ai-provider-options";
 
 const PROVIDER_LABELS = {
   anthropic: "Anthropic",
@@ -6014,9 +6027,9 @@ function ProviderRows({ keys }: { keys: readonly ProviderKeyRow[] }) {
 }
 
 /**
- * The organization's own model provider keys (bring your own key), read on
- * the server through `aiProviders.keys.list`, with the model each one
- * calls. Saving a key stores it in Vault first; the row only names it.
+ * The organization's own model provider keys (bring your own key), read on the
+ * server through `aiProviders.keys.list`, with the model each one calls. Saving
+ * a key stores it in Vault first; the row only names it.
  */
 export function AiProviderSettings({ read }: { read: ProviderKeysRead }) {
   const t = useExtracted("aiProviders");
@@ -6161,7 +6174,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSupabase } from "@/lib/hooks";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 
-/** The worker in `public/` that shows the pushes; it must be served from the site root. */
+/**
+ * The worker in `public/` that shows the pushes; it must be served from the
+ * site root.
+ */
 const WORKER_URL = "/push-sw.js";
 const PUSH_GUIDE = "https://bettersupabase.com/docs/blocks/push";
 
@@ -6209,10 +6225,10 @@ async function currentState(): Promise<PushState> {
 }
 
 /**
- * Asks for web push permission and stores this browser's push subscription
- * as one of the caller's devices in the push module (`register_push_device`),
- * or removes it again. The device row belongs to the signed-in user, so a
- * sender can reach every browser they turned on.
+ * Asks for web push permission and stores this browser's push subscription as
+ * one of the caller's devices in the push module (`register_push_device`), or
+ * removes it again. The device row belongs to the signed-in user, so a sender
+ * can reach every browser they turned on.
  */
 export function PushOptIn() {
   const t = useExtracted("push");
@@ -6475,11 +6491,7 @@ npx shadcn add alert badge button card empty skeleton
 ```
 
 ```tsx title="apps/examples/nextjs/src/features/metrics/components/metrics-dashboard.tsx"
-import {
-  toChartData,
-  type Kpi,
-  type MetricChartRow,
-} from "better-supabase/blocks/metrics";
+import { toChartData } from "better-supabase/blocks/metrics";
 import { tenantOf } from "better-supabase/next";
 import { ChartColumnIcon, TriangleAlertIcon } from "lucide-react";
 import { getExtracted, getFormatter } from "next-intl/server";
@@ -6534,10 +6546,10 @@ type Dashboard =
   | { readonly kind: "error" };
 
 /**
- * Every metric in `src/metrics.ts` over the last 30 days: the total against
- * the 30 days before, and one point per day. Cached per session; the
- * metrics module checks `metrics.read` on each read. It throws on a failed
- * read, so a failure is never cached and Retry reads again.
+ * Every metric in `src/metrics.ts` over the last 30 days: the total against the
+ * 30 days before, and one point per day. Cached per session; the metrics module
+ * checks `metrics.read` on each read. It throws on a failed read, so a failure
+ * is never cached and Retry reads again.
  */
 async function loadPanels(
   organizationId: string,
@@ -6757,10 +6769,10 @@ type FlagValues =
   | { readonly kind: "no-organization" };
 
 /**
- * Each flag as `flag_enabled` answers it for the active organization, with
- * its rules and overrides. Changing a flag is for platform staff
- * (`flags.manage`), so the list only reads. A failed read throws, so it is
- * never cached and Retry reads again.
+ * Each flag as `flag_enabled` answers it for the active organization, with its
+ * rules and overrides. Changing a flag is for platform staff (`flags.manage`),
+ * so the list only reads. A failed read throws, so it is never cached and Retry
+ * reads again.
  */
 async function loadFlags(): Promise<readonly FlagValue[] | null> {
   "use cache: private";
@@ -6885,6 +6897,8 @@ npx shadcn add alert button card empty field input label select skeleton switch
 ```tsx title="apps/examples/nextjs/src/features/rules/components/rule-builder.tsx"
 "use client";
 
+import type { DragEndEvent } from "@dnd-kit/core";
+import type { RuleField } from "better-supabase/blocks/rules";
 import type { RuleBuilderState } from "better-supabase/blocks/rules/react";
 import type {
   FilterCombinator,
@@ -6893,11 +6907,11 @@ import type {
   FilterQuery,
   FilterRule,
 } from "better-supabase/list";
+import type { CSSProperties, ReactNode } from "react";
 
 import {
   closestCenter,
   DndContext,
-  type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -6910,11 +6924,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import {
-  contains,
-  ruleOperators,
-  type RuleField,
-} from "better-supabase/blocks/rules";
+import { contains, ruleOperators } from "better-supabase/blocks/rules";
 import { useRuleBuilder } from "better-supabase/blocks/rules/react";
 import { FILTER_OPERATOR_LABELS } from "better-supabase/list";
 import {
@@ -6926,15 +6936,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { useExtracted } from "next-intl";
-import {
-  type CSSProperties,
-  createContext,
-  type ReactNode,
-  use,
-  useId,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, use, useId, useMemo, useState } from "react";
 import * as v from "valibot";
 
 import {
@@ -7042,9 +7044,9 @@ function nodeAt(
 }
 
 /**
- * The "When" editor of one customer rule: conditions on the catalog fields
- * in nested And/Or groups, reordered by their handles, with the first
- * condition locked. Saves through the browser client as the signed-in user.
+ * The "When" editor of one customer rule: conditions on the catalog fields in
+ * nested And/Or groups, reordered by their handles, with the first condition
+ * locked. Saves through the browser client as the signed-in user.
  */
 export function RuleBuilder({
   organizationId,
@@ -7883,9 +7885,9 @@ npx shadcn add alert-dialog badge button card
 ```tsx title="apps/examples/nextjs/src/features/sessions/components/sessions-list.tsx"
 /**
  * The caller's signed-in session with its sign-in method and time, and the
- * sessions on other devices (`list_my_sessions`). Each one can be ended on
- * its own (`end_my_session`), or all of them at once
- * (`signOut({ scope: "others" })`).
+ * sessions on other devices (`list_my_sessions`). Each one can be ended on its
+ * own (`end_my_session`), or all of them at once (`signOut({ scope: "others"
+ * })`).
  */
 export function SessionsList({
   session,
@@ -8144,9 +8146,9 @@ npx shadcn add alert badge button card empty skeleton
 
 ```tsx title="apps/examples/nextjs/src/features/sso/components/sso-settings.tsx"
 /**
- * The organization's email domains (claimed with a TXT record, then
- * verified) and its SAML connection. A verified domain sets the role new
- * users at it join with and whether they must sign in with SSO.
+ * The organization's email domains (claimed with a TXT record, then verified)
+ * and its SAML connection. A verified domain sets the role new users at it join
+ * with and whether they must sign in with SSO.
  */
 export async function SsoSettings() {
   if (!can(await getSession(), "sso.manage")) {
@@ -8349,9 +8351,9 @@ npx shadcn add alert badge button card empty skeleton table
 
 ```tsx title="apps/examples/nextjs/src/features/access-requests/components/access-requests-inbox.tsx"
 /**
- * Requests for a temporary role in the active organization. Members ask
- * for one; members with `members.update_role` approve or deny it, and the
- * role goes back to the previous one when the duration runs out.
+ * Requests for a temporary role in the active organization. Members ask for
+ * one; members with `members.update_role` approve or deny it, and the role goes
+ * back to the previous one when the duration runs out.
  */
 export async function AccessRequestsInbox() {
   if (!can(await getSession(), "access_requests.create")) {
@@ -8593,7 +8595,10 @@ npx shadcn add badge button dialog field select skeleton
 ```
 
 ```tsx title="apps/examples/nextjs/src/features/drive/components/grants-editor.tsx"
-/** Loads an item's grants; `open` starts a fresh read, so call it with the dialog. */
+/**
+ * Loads an item's grants; `open` starts a fresh read, so call it with the
+ * dialog.
+ */
 export function useDriveSharing(id: string) {
   const load = useAction(loadDriveSharing);
 
@@ -8607,8 +8612,8 @@ export function useDriveSharing(id: string) {
 }
 
 /**
- * Who can open a drive item: its grants, inherited ones from the folders
- * above included, and a picker to share it with a member or a team.
+ * Who can open a drive item: its grants, inherited ones from the folders above
+ * included, and a picker to share it with a member or a team.
  */
 export function GrantsEditor({
   id,
@@ -9320,8 +9325,8 @@ const VARIANT = {
 
 /**
  * Files on the customer, in the private `attachments` bucket. The server
- * records each file and signs a one-time upload; the browser sends the
- * bytes. A file downloads once the scanner marked it clean.
+ * records each file and signs a one-time upload; the browser sends the bytes. A
+ * file downloads once the scanner marked it clean.
  */
 export function AttachmentsUploader({
   customerId,
@@ -9593,8 +9598,8 @@ npx shadcn add badge button card field input
 
 ```tsx title="apps/examples/nextjs/src/features/waitlist/components/waitlist-signup.tsx"
 /**
- * Joins the waitlist with an email address and shows the place in line.
- * Joining again with the same address shows the same place.
+ * Joins the waitlist with an email address and shows the place in line. Joining
+ * again with the same address shows the same place.
  */
 export function WaitlistSignup() {
   const t = useExtracted("waitlist");
@@ -10004,8 +10009,8 @@ const ICONS = new Map<string, LucideIcon>([
 ]);
 
 /**
- * Render inside `<Suspense>`: the calls, emails, meetings and notes logged
- * on a contact, newest first, with a form to log the next one.
+ * Render inside `<Suspense>`: the calls, emails, meetings and notes logged on a
+ * contact, newest first, with a form to log the next one.
  */
 export async function ActivityTimeline({
   subject,
@@ -10134,9 +10139,9 @@ npx shadcn add card skeleton table
 
 ```tsx title="apps/examples/nextjs/src/features/crm/components/quote-builder.tsx"
 /**
- * Render inside `<Suspense>`: a quote's line items and totals. A draft (or
- * a quote with changes requested) is editable; the status decides what
- * comes next: send, record the customer's answer, or revise.
+ * Render inside `<Suspense>`: a quote's line items and totals. A draft (or a
+ * quote with changes requested) is editable; the status decides what comes
+ * next: send, record the customer's answer, or revise.
  */
 export async function QuoteBuilder({
   params,
@@ -10300,7 +10305,10 @@ npx shadcn add badge card empty progress skeleton
 ```
 
 ```tsx title="apps/examples/nextjs/src/features/crm/components/targets-progress.tsx"
-/** Render inside `<Suspense>`: the targets running today and how far along they are. */
+/**
+ * Render inside `<Suspense>`: the targets running today and how far along they
+ * are.
+ */
 export async function TargetsProgress() {
   const [session, t, format, locale] = await Promise.all([
     getSession(),
@@ -10417,12 +10425,12 @@ npx shadcn add badge card @reui/kanban
 
 ```tsx title="apps/examples/nextjs/src/features/work/components/work-item-board.tsx"
 /**
- * Work items in the columns of the workflow's stages, each column labelled
- * with the state its stage stands for. Dragging to another column changes
- * the stage, which the pipelines trigger checks against the allowed
- * transitions; dragging within a column saves the order through the rank
- * block. A refused move puts the card back. The parent keys it by the
- * items' positions, so a server refresh starts it from the saved board.
+ * Work items in the columns of the workflow's stages, each column labelled with
+ * the state its stage stands for. Dragging to another column changes the stage,
+ * which the pipelines trigger checks against the allowed transitions; dragging
+ * within a column saves the order through the rank block. A refused move puts
+ * the card back. The parent keys it by the items' positions, so a server
+ * refresh starts it from the saved board.
  */
 export function WorkItemBoard({
   stages,
@@ -10568,9 +10576,9 @@ npx shadcn add badge button checkbox dialog field input select table
 
 ```tsx title="apps/examples/nextjs/src/features/work/components/work-item-grid.tsx"
 /**
- * Work items as a table. The search, state filter and sort live in the URL
- * and can be saved as named views. State and assignee edit in place, and
- * the checkboxes feed the bulk action bar.
+ * Work items as a table. The search, state filter and sort live in the URL and
+ * can be saved as named views. State and assignee edit in place, and the
+ * checkboxes feed the bulk action bar.
  */
 export function WorkItemGrid({
   rows,
@@ -10645,16 +10653,10 @@ export function WorkItemGrid({
 
   const memberItems = [
     { value: UNASSIGNED, label: t("Unassigned") },
-    ...members.map((member) => ({
-      value: member.userId,
-      label: member.name,
-    })),
+    ...members.map((member) => ({ value: member.userId, label: member.name })),
   ];
 
-  const viewItems = views.map((view) => ({
-    value: view.id,
-    label: view.name,
-  }));
+  const viewItems = views.map((view) => ({ value: view.id, label: view.name }));
 
   const activeView = views.find(
     (view) => workGridSearch(view.query) === workGridSearch(query),
@@ -11115,9 +11117,9 @@ const VARIANT = {
 } as const satisfies Record<SlaClockRow["state"], string>;
 
 /**
- * The customer's SLA clocks as badges. Without clocks, the empty state
- * starts them; with no policy for customers, a caller who manages SLAs gets
- * a default policy first.
+ * The customer's SLA clocks as badges. Without clocks, the empty state starts
+ * them; with no policy for customers, a caller who manages SLAs gets a default
+ * policy first.
  */
 export function SlaBadges({
   customerId,
@@ -11421,9 +11423,9 @@ npx shadcn add alert alert-dialog button select
 
 ```tsx title="apps/examples/nextjs/src/features/work/components/bulk-action-bar.tsx"
 /**
- * The bar over the grid's selected rows. It changes their state or moves
- * them to the trash through the bulk block, which runs each row on its own;
- * the rows that failed stay selected and are listed with their reason.
+ * The bar over the grid's selected rows. It changes their state or moves them
+ * to the trash through the bulk block, which runs each row on its own; the rows
+ * that failed stay selected and are listed with their reason.
  */
 export function BulkActionBar({
   selected,
@@ -11951,9 +11953,9 @@ npx shadcn add card empty skeleton
 
 ```tsx title="apps/examples/nextjs/src/features/people/components/employee-directory.tsx"
 /**
- * Render inside `<Suspense>`: the employees as an org chart, each manager
- * above their reports, with a search. Private details open in a sheet for
- * callers with `employees.view_sensitive`.
+ * Render inside `<Suspense>`: the employees as an org chart, each manager above
+ * their reports, with a search. Private details open in a sheet for callers
+ * with `employees.view_sensitive`.
  */
 export async function EmployeeDirectory() {
   const [session, t] = await Promise.all([
@@ -12042,9 +12044,9 @@ npx shadcn add badge button card empty skeleton
 
 ```tsx title="apps/examples/nextjs/src/features/people/components/hiring-board.tsx"
 /**
- * Render inside `<Suspense>`: the candidates of one opening as cards in
- * its stage columns. Dragging a card to Hired or Rejected closes the
- * application; to another open stage, moves it. `?job=` picks the opening.
+ * Render inside `<Suspense>`: the candidates of one opening as cards in its
+ * stage columns. Dragging a card to Hired or Rejected closes the application;
+ * to another open stage, moves it. `?job=` picks the opening.
  */
 export async function HiringBoard({
   searchParams,
@@ -12195,9 +12197,9 @@ npx shadcn add badge button card empty skeleton table
 
 ```tsx title="apps/examples/nextjs/src/features/people/components/timesheet.tsx"
 /**
- * Render inside `<Suspense>`: the caller's week as one row per project
- * with hours per day and totals, a running timer, and Submit once the
- * week is done. `?week=YYYY-MM-DD` picks the week.
+ * Render inside `<Suspense>`: the caller's week as one row per project with
+ * hours per day and totals, a running timer, and Submit once the week is done.
+ * `?week=YYYY-MM-DD` picks the week.
  */
 export async function Timesheet({
   searchParams,
@@ -12357,6 +12359,7 @@ export async function Timesheet({
                       </TableCell>
                       {row.days.map((seconds, index) => (
                         <TableCell
+                          // oxlint-disable-next-line react-doctor/no-array-index-as-key -- the columns are a fixed week keyed by date; the index only covers a missing day
                           key={sheet.data.days[index]?.date ?? index}
                           className="text-right tabular-nums"
                         >
@@ -12414,8 +12417,8 @@ async function retry() {
 
 /**
  * Render inside `<Suspense>`: the organization's invoices with their status,
- * total and what's still owed. Renders nothing without `invoices.read`, so
- * the billing page still shows the plan.
+ * total and what's still owed. Renders nothing without `invoices.read`, so the
+ * billing page still shows the plan.
  */
 export async function InvoicesTable() {
   const session = await getSession();
@@ -12919,8 +12922,8 @@ async function retry() {
 }
 
 /**
- * Render inside `<Suspense>`: a placed order, or the caller's draft (an
- * open cart) with the same id, with its lines, totals and next steps.
+ * Render inside `<Suspense>`: a placed order, or the caller's draft (an open
+ * cart) with the same id, with its lines, totals and next steps.
  */
 export async function OrderDetail({
   params,
@@ -13256,9 +13259,9 @@ export interface AppliedCode {
 }
 
 /**
- * Applies a promotion code to a draft order's cart. The block checks the
- * code (active, in its window, under its limits) and the cart's totals
- * come back with the discount, which the list below the field shows.
+ * Applies a promotion code to a draft order's cart. The block checks the code
+ * (active, in its window, under its limits) and the cart's totals come back
+ * with the discount, which the list below the field shows.
  */
 export function PromotionCodeField({
   cartId,
@@ -13800,9 +13803,7 @@ export async function AvailabilityEditor() {
           {page
             ? t(
                 "Visitors can book 30 minute slots inside these hours, in {tz}.",
-                {
-                  tz: page.tz,
-                },
+                { tz: page.tz },
               )
             : t("The hours visitors can book you in.")}
         </CardDescription>
@@ -13811,9 +13812,7 @@ export async function AvailabilityEditor() {
             <Badge variant={page.liveLinks > 0 ? "success-light" : "secondary"}>
               {t(
                 "{count, plural, =0 {No live links} one {# live link} other {# live links}}",
-                {
-                  count: page.liveLinks,
-                },
+                { count: page.liveLinks },
               )}
             </Badge>
             {can(session, "share_links.create") ? <BookingLinkButton /> : null}
@@ -13865,8 +13864,8 @@ npx shadcn add card empty skeleton
 
 ```tsx title="apps/examples/nextjs/src/features/calendar/components/reminders-list.tsx"
 /**
- * The next events with the caller's reminders on each. A reminder fires
- * its offset before every occurrence of the event, once per occurrence.
+ * The next events with the caller's reminders on each. A reminder fires its
+ * offset before every occurrence of the event, once per occurrence.
  */
 export async function RemindersList() {
   const session = await getSession();
@@ -14182,8 +14181,8 @@ npx shadcn add alert alert-dialog badge button card dialog empty skeleton
 
 ```tsx title="apps/examples/nextjs/src/features/customers/components/version-history.tsx"
 /**
- * Saved versions of the customer's name and KvK number, newest first. Each
- * one compares with the version before it and restores as a new version.
+ * Saved versions of the customer's name and KvK number, newest first. Each one
+ * compares with the version before it and restores as a new version.
  */
 export function VersionHistory({
   customerId,
@@ -14577,7 +14576,10 @@ async function retry() {
   refresh();
 }
 
-/** Render inside `<Suspense>`: what was deleted, with Restore and Delete forever. */
+/**
+ * Render inside `<Suspense>`: what was deleted, with Restore and Delete
+ * forever.
+ */
 export async function TrashBin() {
   const [view, session, t, format] = await Promise.all([
     getTrash(),
@@ -14758,7 +14760,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { type AnswerCell, getForm } from "../forms-queries";
+import type { AnswerCell } from "../forms-queries";
+
+import { getForm } from "../forms-queries";
 import { FormBuilderWorkspace } from "./form-builder-workspace";
 import { FormStatusBadge } from "./form-status-badge";
 
@@ -15019,17 +15023,11 @@ import {
 import { Link } from "@/i18n/navigation";
 import { useErrorMessage } from "@/lib/use-error-message";
 
-import {
-  type ImportOutcome,
-  type ImportPreview,
-  previewCustomerImport,
-  runCustomerImport,
-} from "../imports-actions";
-import {
-  type ColumnMapping,
-  CUSTOMER_IMPORT_FIELDS,
-  type CustomerImportField,
-} from "../imports-fields";
+import type { ImportOutcome, ImportPreview } from "../imports-actions";
+import type { ColumnMapping, CustomerImportField } from "../imports-fields";
+
+import { previewCustomerImport, runCustomerImport } from "../imports-actions";
+import { CUSTOMER_IMPORT_FIELDS } from "../imports-fields";
 
 const SKIP = "skip";
 const MAX_BYTES = 500_000;
@@ -15423,9 +15421,7 @@ export function CsvImportWizard() {
                     <Badge variant="success-light">
                       {t(
                         "{count, plural, =1 {# valid row} other {# valid rows}}",
-                        {
-                          count: preview.valid,
-                        },
+                        { count: preview.valid },
                       )}
                     </Badge>
                     {preview.errors.length > 0 ? (
@@ -15467,7 +15463,7 @@ export function CsvImportWizard() {
                       </TableHeader>
                       <TableBody>
                         {preview.rows.map((row, index) => (
-                          // oxlint-disable-next-line react/no-array-index-key -- preview rows have no unique column and the list never reorders (1 finding)
+                          // oxlint-disable-next-line react/no-array-index-key, react-doctor/no-array-index-as-key -- preview rows have no unique column and the list never reorders (1 finding)
                           <TableRow key={`${row.name}-${index}`}>
                             <TableCell className="font-medium">
                               {row.name}
@@ -15782,12 +15778,11 @@ npx shadcn add alert badge button card field input skeleton textarea
 ```tsx title="apps/examples/nextjs/src/features/documents/components/document-editor.tsx"
 "use client";
 
+import type { DocumentProviderStatus } from "better-supabase/yjs";
+
 import { rpcTransport } from "better-supabase/blocks";
 import { createDocuments } from "better-supabase/blocks/documents";
-import {
-  createDocumentProvider,
-  type DocumentProviderStatus,
-} from "better-supabase/yjs";
+import { createDocumentProvider } from "better-supabase/yjs";
 import { TriangleAlertIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
@@ -15868,9 +15863,9 @@ interface DocumentTarget {
 }
 
 /**
- * The customer's notes as a Yjs document: a title and a body. Edits are
- * stored as updates through the documents block and reach the other
- * editors over the document's realtime topic.
+ * The customer's notes as a Yjs document: a title and a body. Edits are stored
+ * as updates through the documents block and reach the other editors over the
+ * document's realtime topic.
  */
 export function DocumentEditor(target: DocumentTarget) {
   const [attempt, setAttempt] = useState(0);
@@ -16167,9 +16162,9 @@ function EndpointStatusBadge({
 }
 
 /**
- * Render inside `<Suspense>`: the organization's webhook endpoints and
- * their latest deliveries. Members with `webhooks.manage` add, toggle,
- * test and delete endpoints, and retry finished deliveries.
+ * Render inside `<Suspense>`: the organization's webhook endpoints and their
+ * latest deliveries. Members with `webhooks.manage` add, toggle, test and
+ * delete endpoints, and retry finished deliveries.
  */
 export async function WebhookEndpoints() {
   const [session, state, t, format] = await Promise.all([
@@ -16450,9 +16445,9 @@ async function retry() {
 }
 
 /**
- * Render inside `<Suspense>`: the machine identities workflows and webhooks
- * run as, with their role. Members with `service_principals.manage` add
- * and disable them. Members without `service_principals.read` see nothing.
+ * Render inside `<Suspense>`: the machine identities workflows and webhooks run
+ * as, with their role. Members with `service_principals.manage` add and disable
+ * them. Members without `service_principals.read` see nothing.
  */
 export async function ServicePrincipalsTable() {
   const [session, t, format] = await Promise.all([
@@ -16628,9 +16623,9 @@ async function retry() {
 }
 
 /**
- * Render inside `<Suspense>`: the organization's active signing key and
- * the retired ones still published, with a rotate button. The keys are
- * service-role only, so this checks `organization.update` before it reads.
+ * Render inside `<Suspense>`: the organization's active signing key and the
+ * retired ones still published, with a rotate button. The keys are service-role
+ * only, so this checks `organization.update` before it reads.
  */
 export async function SigningKeysRotation() {
   const [session, t] = await Promise.all([
@@ -17017,9 +17012,9 @@ function JobStatusBadge({ status, t }: { status: JobRunStatus; t: Translate }) {
 }
 
 /**
- * Render inside `<Suspense>`: the organization's latest background jobs
- * across every queue, with a retry button on failed runs. Gated by
- * `audit.read`, since it reads with the database owner.
+ * Render inside `<Suspense>`: the organization's latest background jobs across
+ * every queue, with a retry button on failed runs. Gated by `audit.read`, since
+ * it reads with the database owner.
  */
 export async function JobRunsTable() {
   const [session, t, format] = await Promise.all([
@@ -17155,9 +17150,8 @@ npx shadcn add button empty field input select
 
 ```tsx title="apps/examples/nextjs/src/features/work/components/team-picker.tsx"
 /**
- * Scopes the page to one of the organization's teams through `?team=`.
- * With no teams yet, it offers to create one when the caller holds
- * `teams.manage`.
+ * Scopes the page to one of the organization's teams through `?team=`. With no
+ * teams yet, it offers to create one when the caller holds `teams.manage`.
  */
 export function TeamPicker({
   teams,
@@ -17274,6 +17268,8 @@ Web, with shadcn components:
 ```bash
 npx shadcn add badge button dialog input select @reui/data-grid @reui/filters
 ```
+
+A copy of `@reui/data-grid` installed from ReUI 2.8.0 or earlier memoizes its context on `recordCount` but not on the rows, so an edit that keeps the row count (a status change, a renamed task) doesn't repaint the cells. Reinstall it with `npx shadcn add @reui/data-grid --overwrite`, or add `table.options.data` to the dependency list of the `value` memo in `DataGridProvider`.
 
 ```tsx title="apps/examples/nextjs/src/features/projects/components/task-grid.tsx"
 const STATUS_FIELD = "status";
@@ -17542,8 +17538,8 @@ const UNASSIGNED = "unassigned";
 type SetField = "due_on" | "assignee_id";
 
 /**
- * Sets one field on the selected tasks with the bulk block's
- * `appTables.set`. An empty value clears the field.
+ * Sets one field on the selected tasks with the bulk block's `appTables.set`.
+ * An empty value clears the field.
  */
 function SetFieldDialog({
   ids,
@@ -17600,9 +17596,7 @@ function SetFieldDialog({
               values:
                 field === "due_on"
                   ? { due_on: dueOn === "" ? null : dueOn }
-                  : {
-                      assignee_id: assignee === UNASSIGNED ? null : assignee,
-                    },
+                  : { assignee_id: assignee === UNASSIGNED ? null : assignee },
             });
           }}
         >
@@ -17732,8 +17726,8 @@ function StatusCell({ row }: GridCell) {
 
 /**
  * Tasks in a ReUI data grid. The checkboxes feed a bulk bar that sets the
- * status of the selected rows, sets another field through the bulk block,
- * or deletes them in one statement.
+ * status of the selected rows, sets another field through the bulk block, or
+ * deletes them in one statement.
  */
 export function TaskGrid({
   rows,
@@ -18743,8 +18737,8 @@ const BAR = {
 
 /**
  * One row per task under its project, with a bar from `startsOn` to `dueOn`.
- * Tasks without dates stay in the list with an empty track, so the plan
- * shows what still needs scheduling.
+ * Tasks without dates stay in the list with an empty track, so the plan shows
+ * what still needs scheduling.
  */
 export async function TaskGantt({
   rows,
@@ -18855,7 +18849,10 @@ interface FieldChange {
   readonly after: string | undefined;
 }
 
-/** The fields a version changed from the one before it; all of them for the first. */
+/**
+ * The fields a version changed from the one before it; all of them for the
+ * first.
+ */
 function changesOf(
   version: ProjectVersion,
   previous: ProjectVersion | undefined,
@@ -19102,9 +19099,9 @@ function mappedOnly(
 }
 
 /**
- * Imports tasks into the project from pasted CSV: map the columns, preview
- * what the file creates and changes, then run it. A task with the same
- * title in the project is updated instead of added twice.
+ * Imports tasks into the project from pasted CSV: map the columns, preview what
+ * the file creates and changes, then run it. A task with the same title in the
+ * project is updated instead of added twice.
  */
 export function TaskImportDialog({ projectId }: { projectId: string }) {
   const t = useExtracted("projects");

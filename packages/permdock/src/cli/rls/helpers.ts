@@ -5,6 +5,7 @@ import { configError } from "../core/errors.ts";
 import { scopeTypeOf } from "../sql/columns.ts";
 import {
   hasMemberFor,
+  hasMemberOf,
   permittedForHelper,
   permittedIdsHelper,
 } from "../sql/names.ts";
@@ -35,6 +36,7 @@ import { functionBody, hasBody, scopedBody, sqlBody } from "./helper-bodies.ts";
 import {
   memberForFunction,
   memberFunction,
+  memberOfFunction,
   memberRolesFunction,
 } from "./helper-members.ts";
 import { tokenScopeAllowsCall, tokenScopeAllowsSql } from "./token-scopes.ts";
@@ -398,6 +400,9 @@ revoke all on table ${ur} from anon, authenticated, public;`);
     }
     if (hasMemberFor(ctx, scope.name)) {
       chunks.push(memberForFunction(ctx, scope.name, type));
+    }
+    if (hasMemberOf(ctx, scope.name)) {
+      chunks.push(memberOfFunction(ctx, scope.name, type));
     }
   }
   chunks.push(...viaHelpersSql(ctx, anon));

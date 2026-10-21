@@ -146,6 +146,31 @@ export function memberForHelper(name: string): string {
 }
 
 /**
+ * `member_<scope>_ids_of(p_user uuid)`: `member_<scope>_ids_for(p_user)` when
+ * `p_user` is the caller and no rows otherwise, so `authenticated` may execute
+ * it; better-supabase's `teamIdsOf` template calls it.
+ */
+export function memberOfHelper(name: string): string {
+  return `${memberIdsHelper(name)}_of`;
+}
+
+/** A scope better-supabase reads as its teams: `team` or `teams` (doctor BS417). */
+export function isTeamScope(name: string): boolean {
+  return /^teams?$/u.test(name);
+}
+
+/**
+ * Whether `member_<scope>_ids_of` is generated: a team scope with
+ * `member_<scope>_ids_for`.
+ */
+export function hasMemberOf(
+  input: Parameters<typeof hasMemberFor>[0],
+  name: string,
+): boolean {
+  return isTeamScope(name) && hasMemberFor(input, name);
+}
+
+/**
  * Whether `member_<scope>_ids_for` is generated for `name`: Supabase only (its
  * one caller is `supabase_auth_admin`), and only where `memberships` maps a
  * table for the scope or a membership source can hold it.

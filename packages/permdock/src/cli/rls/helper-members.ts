@@ -8,6 +8,7 @@ import {
   memberForHelper,
   memberForSources,
   memberIdsHelper,
+  memberOfHelper,
   memberRoleOf,
   scopeSources,
   scopeTable,
@@ -248,4 +249,26 @@ export function memberForFunction(
 returns setof ${type}
 ${functionBody(body)}
 revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
+}
+
+/**
+ * `member_<scope>_ids_of(p_user uuid)`: `member_<scope>_ids_for(p_user)` for
+ * the caller only. Any other `p_user` returns no rows, so a client role may
+ * execute it without learning another user's memberships.
+ */
+export function memberOfFunction(
+  ctx: RlsSqlContext,
+  scope: string,
+  type: string,
+): string {
+  const fn = qualified(ctx, memberOfHelper(scope));
+  return `create or replace function ${fn}(p_user uuid)
+returns setof ${type}
+${functionBody(
+  sqlBody(`  select m.id
+  from ${qualified(ctx, memberForHelper(scope))}(p_user) as m(id)
+  where p_user = ${subjectIdSql(ctx)}`),
+)}
+revoke execute on function ${fn}(uuid) from public, anon;
+grant execute on function ${fn}(uuid) to authenticated;`;
 }
