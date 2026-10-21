@@ -28,10 +28,13 @@ The repo kind decides which parts of the standard apply. A `product` repo gets e
 - **Always the latest.** The skill names no versions. Every runtime, package, SDK, action and spec is looked up at run time, and new majors in pre-release are adopted early and tracked in AGENTS.md.
 - **Read installed docs first.** Flag and option names are checked against the installed versions before configuring, starting with the Next.js dev server's `/_next/mcp` and bundled docs.
 - **Strict and typed.** The stable native TypeScript compiler, Ultracite on Oxlint and Oxfmt with every type-aware rule at error, Valibot for every schema, and `Temporal` as the one date library.
+- **Stable compiler, ready for the next one.** A TypeScript minor in pre-release is never installed. The repo fixes the minor's known breaks ahead of time in a form that compiles today, and tracks the bump in an AGENTS.md checklist.
+- **Lint only gets stricter.** Toolchain bumps land as their own reformat commit. Disabled rules come back group by group with re-measured counts, and the few that stay off have a written reason.
 - **Measured performance.** Every run records bundle, type and CLI-startup baselines before and after, experimental flags are opt-ins backed by a measurement, and agent routes are cached.
 - **One web product.** The app, docs and marketing sites share one architecture (`nextjs-app-architecture`) and one design reference, so they look and behave alike.
 - **One name per concept.** Every adapter and doc uses the same names for the same things, and a drift test fails on old ones.
 - **One CLI contract.** Every ScaleDock CLI prints the same JSON envelope, exit codes and problem codes, switches to agent mode for coding agents, and asks for consent before it rewrites files or publishes.
+- **No container engine locally.** Each worktree or agent runs its own Supabase project on the native runtime, with declarative schemas on pg-delta, and tests use that stack instead of Testcontainers. Only PowerSync's local service runs in Docker.
 - **Unit and integration first.** Tests focus on the unit and integration layers. e2e and UI tests are slow and add little, so they are an opt-in for a few critical journeys.
 - **Tool-managed agent files.** The blocks that Next.js and Turborepo write into AGENTS.md are committed as written and never edited by hand.
 - **Done means `pnpm verify` passes.** The run ends with a report of what changed, the deviations kept, the pre-release pins, and the manual steps left.
@@ -43,7 +46,7 @@ The repo kind decides which parts of the standard apply. A `product` repo gets e
 
 **Run:**
 
-- [`references/audit.md`](references/audit.md): placeholders, which references apply to each repo kind, the gap table and its checklist.
+- [`references/audit.md`](references/audit.md): placeholders, which references apply to each repo kind, the `skills` sub-profile of `tooling`, the gap table and its checklist.
 - [`assets/report.md`](assets/report.md): the final report and the manual steps.
 - [`assets/adr-template.md`](assets/adr-template.md): the ADR shape for deviations.
 
@@ -51,9 +54,10 @@ The repo kind decides which parts of the standard apply. A `product` repo gets e
 
 - [`references/skills.md`](references/skills.md): agent skills to install, commit and manage through `skills-lock.json`, in every repo kind.
 - [`references/toolchain.md`](references/toolchain.md): Node, pnpm, TypeScript, workspace, Knip, root scripts.
-- [`references/architecture.md`](references/architecture.md): folder tree, boundaries, one library per concern (including Temporal for dates), env, code rules, naming and layout across adapters.
+- [`references/architecture.md`](references/architecture.md): folder tree, boundaries, one library per concern (including Temporal for dates), env, code rules, naming and layout across adapters, and the library profile (structural `Instant`, Standard Schema only, open peer floors, the TypeScript matrix).
 - [`references/performance.md`](references/performance.md): baselines, caching for agent routes, the client bundle, library runtime cost, generated code.
-- [`references/lint-format.md`](references/lint-format.md): Ultracite presets on Oxlint and Oxfmt, anti-slop, house rules.
+- [`references/lint-format.md`](references/lint-format.md): Ultracite presets on Oxlint and Oxfmt, anti-slop, house rules, toolchain bumps.
+- [`references/lint-tightening.md`](references/lint-tightening.md): turning disabled rules back on, the group order, the keep-off list the per-rule counts, and the measured rules each repo turned on.
 - [`references/vercel.md`](references/vercel.md): Vercel first (Flags, Workflow, Run SDK, Sandbox and Drives, Connect), Services and bindings, Turborepo, Remote Cache.
 - [`references/local-dev-env.md`](references/local-dev-env.md): Portless, the native dev loop, env and secrets.
 
@@ -64,8 +68,8 @@ The repo kind decides which parts of the standard apply. A `product` repo gets e
 - [`references/i18n.md`](references/i18n.md): next-intl with root params, and i18next on Expo.
 - [`references/ui.md`](references/ui.md): shadcn (with `cn` and AI Elements), ReUI Pro, `DESIGN.md`, responsive rules.
 - [`references/app-shell.md`](references/app-shell.md): auth pages, shell, page templates, standard screens.
-- [`references/expo.md`](references/expo.md): Expo shapes, app config, EAS, native UI, Uniwind, push, universal web.
-- [`references/offline-sync.md`](references/offline-sync.md): PowerSync on native.
+- [`references/expo.md`](references/expo.md): Expo shapes, app config, EAS, native UI, Uniwind, push, universal web, Expo Router 58 quirks, Metro and Gradle traps, and Hermes gaps.
+- [`references/offline-sync.md`](references/offline-sync.md): PowerSync on native, attachments, stale trigger columns and device loopback URLs.
 - [`references/data-permissions.md`](references/data-permissions.md): multi-tenancy, Supabase (a local project per worktree or agent on the native runtime, declarative schemas on `pg-delta`, config in code, `@supabase/server` 1.x, Realtime and Storage rules), Stripe data through Data Pipeline, better-supabase, audit log, PermDock.
 - [`references/data-conventions.md`](references/data-conventions.md): UTC timestamps and Temporal types, integer money, UUID and integer IDs, naming, standard codes, pagination, deletion.
 - [`references/auth.md`](references/auth.md): Supabase Auth as the OAuth 2.1 server for every surface, and the OAuth Consent block.
@@ -78,9 +82,9 @@ The repo kind decides which parts of the standard apply. A `product` repo gets e
 **Delivery:**
 
 - [`references/git-workflow.md`](references/git-workflow.md): branches, the agent workflow, the direct-to-develop variant, commitlint, lefthook, Changesets, releases.
-- [`references/ci.md`](references/ci.md): GitHub Actions pins and lockfiles, `$/` same-repo actions, zizmor and actionlint, speed (job shape, build first, affected-gated heavy suites, strict task entrypoints, parallel and background steps, sharding, timeouts, runners), caching (pnpm store, Remote Cache checks, `.next/cache`, `cache-mode`), security defaults, the workflows, EAS builds and Dependabot.
+- [`references/ci.md`](references/ci.md): GitHub Actions on major tags with zizmor `ref-pin`, lockfiles, `$/` same-repo actions, zizmor and actionlint, speed (job shape, build first, affected-gated heavy suites, strict task entrypoints, parallel and background steps, sharding, timeouts, runners), caching (pnpm store, Remote Cache checks, the Turbopack build cache off in CI, `cache-mode`), security defaults, the workflows, EAS builds and Dependabot.
 - [`references/tests.md`](references/tests.md): Vitest, jest-expo, pgTAP, optional Playwright, test rules.
-- [`references/agent-files.md`](references/agent-files.md): AGENTS.md, rules, the "also update" table, writing rules.
+- [`references/agent-files.md`](references/agent-files.md): AGENTS.md, rules, the "also update" table, writing rules, rejected audit findings, sibling-library prompts and vendor rule frontmatter.
 - [`references/repo-files.md`](references/repo-files.md): README, standard files, `.github`, VS Code.
 
 ## Companion skills

@@ -18,9 +18,27 @@ At most 12 KB, not counting the managed blocks. Tools write those blocks between
 - Hard rules
 - Deviations: one line per ADR
 - Pre-release pins: package, version and why
+- A pending TypeScript upgrade checklist, only while a TypeScript minor is in pre-release (below)
 - A rules table, and links to `docs/agents/*.md`
 
 Anything longer moves into a rule or a topic file. A correction needed twice goes into a topic file.
+
+### Pending TypeScript upgrade
+
+While a TypeScript minor is in pre-release, AGENTS.md carries this checklist, and the bump commit removes it (see [`toolchain.md`](toolchain.md)):
+
+```md
+## Pending TypeScript <minor> upgrade
+
+Waits for the stable <minor> release and a matching oxlint-tsgolint build. Never install the pre-release.
+
+- [ ] `typescript` in the catalog, at the stable release that clears `minimumReleaseAge`.
+- [ ] Every override, `peerDependencies` range and `peerDependencyRules` entry that names `typescript`.
+- [ ] `oxlint-tsgolint` at the build for that release, in the same commit.
+- [ ] `typecheck:matrix` passing on every version it lists.
+- [ ] The bundle, type and CLI-startup baselines, before and after, in the commit.
+- [ ] The `target` and `lib` year, decided separately against the runtime.
+```
 
 ## Seed topic files
 
@@ -29,12 +47,20 @@ Every repo starts `docs/agents/` with at least these notes:
 - **`formatting.md`:**
   - A formatter reflow after a rename can move the line that an `oxlint-disable-next-line` or `@ts-expect-error` directive must sit above. Put the directive directly above the exact property or expression line it covers, and check it again after `pnpm format`.
   - Revert unrelated regenerated output, such as a version header that a generator rewrote, instead of committing it.
+- **`audit-rejected-findings.md`:** findings an audit raised and rejected after checking the code, one line each with the reason. Audits read it first so they do not reopen them (PermDock).
+
+Further notes for every repo:
+
+- **Open-source repos never name customers or private adopters** in code, tests, docs, changesets or commit messages. Describe the shape ("an adopter with a bigint id") instead.
+- **Gaps in a sibling library.** When work in one repo hits a bug or missing feature in a library the org owns (better-supabase, PermDock), collect it into a prompt for that repo instead of working around it silently, and link the workaround to it.
+- **Vendor rules after a reinstall.** An installer can rewrite a rule's frontmatter. An argent reinstall writes `.claude/rules/argent.md` with `alwaysApply: true`, which Claude Code ignores, so the 17 KB rule loads every session; restore its `paths:` (Lienlink `native.md`). Diff `.claude/rules` and `.agents/rules` after any installer run.
 
 ## Rules
 
 - `.agents/rules/*.mdc` is the source. Each rule has `description`, `globs` and `alwaysApply` frontmatter for Cursor, plus `paths` for Claude Code.
 - `.cursor/rules` is a symlink to `.agents/rules`, and `.claude/rules/<name>.md` symlinks each file.
 - Always-on rules: `architecture`, `writing` and `git-workflow` (the agent workflow from [`git-workflow.md`](git-workflow.md)). Everything else is path-scoped.
+  - Once the `architecture` rule passes about 10 KB, path-scope it to the source files (`**/*.ts`, `**/*.tsx`) and keep the AGENTS.md invariants as the always-on summary (CentraKit ADR 0028). Every always-on byte loads in every session, including docs-only and SQL-only work.
 - A repo with a CLI ships a `cli` topic rule with `globs` on the CLI source and tests folders. It holds the layout, the contract (exit codes, envelope, problem codes, effects, `FilePlan`, agent mode, secrets, completion), the flag vocabulary, the renames table and the CLI tests from [`cli.md`](cli.md). The naming rule repeats the flag vocabulary.
 
 ## "When you change X, also update Y"
@@ -56,7 +82,8 @@ At least these rows:
 | Entity or integration    | the icon map, `lib/integrations.ts`, its docs page, the completeness tests                                                                                                                           |
 | Package version          | `server.json`                                                                                                                                                                                        |
 | Dependency bump          | catalog, the "Pre-release pins" list, a note on the absorbed API changes, an ADR if a one-library line changes                                                                                       |
-| `typescript` bump        | `oxlint-tsgolint` in the same commit                                                                                                                                                                 |
+| `typescript` bump        | `oxlint-tsgolint` in the same commit, and the pending TypeScript upgrade checklist removed from AGENTS.md                                                                                            |
+| Lint rule turned on      | the comment and count beside each remaining `off` line, the ADR or deviation that lists lint backlogs                                                                                                |
 | Next.js bump             | run `next dev` once and commit the refreshed managed AGENTS.md block                                                                                                                                 |
 | User-visible change      | a changeset                                                                                                                                                                                          |
 | File move                | Knip entries, the `docs:drift` paths                                                                                                                                                                 |

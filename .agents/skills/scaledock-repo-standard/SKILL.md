@@ -4,7 +4,7 @@ description: Create a new repo or bring an existing one up to the ScaleDock stan
 license: MIT
 metadata:
   author: ScaleDockHQ
-  version: "1.15.0"
+  version: "1.19.0"
 ---
 
 # Repo standard
@@ -39,9 +39,9 @@ Resolve the placeholders listed in [`references/audit.md`](references/audit.md) 
 2. **Always the latest, including new majors in pre-release.**
    - This skill names no versions. Look up the latest release of every runtime, package, SDK, action, skill and spec when you run (`pnpm view <pkg> dist-tags`, GitHub releases, vendor docs), never from memory or another repo.
    - **New majors first.** When a newer major is in alpha, beta or rc, adopt it now, absorb its migration guide, and note the API changes in the commit. Otherwise use the latest stable; never a pre-release of a minor or patch.
-   - **Exceptions.** Stay on the current major only when the pre-release fails `minimumReleaseAge` or breaks a peer with no compatible release. Record the blocker in the gap table.
-   - **Tracking.** List every pre-release pin under "Pre-release pins" in AGENTS.md (package, version, why), and move it to stable when the major ships.
-   - Pin exactly in the catalog. Never bypass `minimumReleaseAge`; use the newest release that passes, and add a commented exclude only when a fix needs it.
+   - **Exceptions.** Stay on the current major (status `held`) when the pre-release fails `minimumReleaseAge`, breaks a peer with no compatible release, cannot be found or installed (a version the vendor announced but does not publish), or has stalled (no release in about three months, or a daily `next` line with no rc). Record the blocker in the gap table.
+   - **Tracking.** List every pre-release and held pin under "Pre-release pins" in AGENTS.md: package, version, status (`pre-release` or `held`), why, and the trigger to revisit it (the rc, the stable, the peer release). Move it when the trigger fires.
+   - Pin exactly in the catalog. Never bypass `minimumReleaseAge`; use the newest release that passes, and add a commented exclude only when a fix needs it. A sibling ScaleDock package younger than the window gets one exclude at that exact version with a removal date ([`references/toolchain.md`](references/toolchain.md)); never a sibling `link:` or a read token.
 3. **Read installed docs before configuring.** For Next.js, ask the running dev server's `/_next/mcp` first, then read the bundled `node_modules/next/dist/docs`. Read `node_modules/turbo/docs`, the Expo, Ultracite, oxlint, oxfmt, Fumadocs, AI SDK and MCP SDK docs, and the matching skill. Flag and option names in the references drift; check each against the installed version.
 4. **Done means `pnpm verify` passes.** Report with [`assets/report.md`](assets/report.md).
 5. **One branch and one PR for this whole run.** Follow the agent workflow in [`references/git-workflow.md`](references/git-workflow.md).
@@ -60,7 +60,7 @@ Run these steps in order. Each step names the references to load and the check i
      -> [`references/audit.md`](references/audit.md), [`references/architecture.md`](references/architecture.md) for the target tree, and the Baselines section of [`references/performance.md`](references/performance.md) when the repo ships code.
      ✓ Every row has an `audit.md` status, every dependency behind latest is listed, and the starting baselines are recorded.
 3. **Foundation.** Install the skills, set up the toolchain, workspace, TypeScript, Knip, lint and format, and lay out the folders and boundaries.
-   -> [`references/skills.md`](references/skills.md), [`references/toolchain.md`](references/toolchain.md), [`references/lint-format.md`](references/lint-format.md), [`references/architecture.md`](references/architecture.md).
+   -> [`references/skills.md`](references/skills.md), [`references/toolchain.md`](references/toolchain.md), [`references/lint-format.md`](references/lint-format.md), [`references/lint-tightening.md`](references/lint-tightening.md) when the repo has disabled rules, [`references/architecture.md`](references/architecture.md).
    ✓ `pnpm install` passes under the strict workspace settings, every workspace has a boundary tag, and `pnpm check` runs.
 4. **Platform.** Configure Vercel, Turborepo, Remote Cache, local dev with Portless, and env and secrets.
    -> [`references/vercel.md`](references/vercel.md), [`references/local-dev-env.md`](references/local-dev-env.md).
@@ -90,16 +90,23 @@ The tag in brackets names the input that switches an item on; untagged items alw
 - [ ] The naming rules hold, and the `docs:drift` naming check passes.
 - [ ] The baselines from before and after the run are in the report.
 - [ ] Every dependency is `catalog:` or `workspace:*` at the latest release that passes `minimumReleaseAge`; every override, exclude, `allowBuilds` entry and patch has a comment.
-- [ ] Every pre-release pin is in AGENTS.md (rule 2).
+- [ ] Every `peerDependencies` range of a published package is a floor with no upper bound: no `<`, `^` or `~`.
+- [ ] Every pre-release and held pin is in AGENTS.md with its status and revisit trigger, and every own-org release-age exclude names one exact version and a removal date that has not passed (rule 2).
 - [ ] `pnpm-workspace.yaml` has no key the installed pnpm rejects, and TypeScript is the stable native compiler with no preview package.
 - [ ] Every deviation has an ADR in `docs/decisions/` and a line in the AGENTS.md "Deviations" list.
 - [ ] [workspaces] Every workspace has a Turbo boundary tag, apps never import each other, and `pnpm boundaries` passes.
 - [ ] No Zod in our code, no `@radix-ui/*` or vaul, and each concern uses its one library.
 - [ ] Dates use `Temporal` through the one `temporal.ts` module; no other date library is installed.
 - [ ] Lint and format run on Ultracite: a root `oxlint.config.ts` on the Ultracite presets with type-aware linting and `denyWarnings`, `oxfmt.config.ts` spreading `ultracite/oxfmt`, and `pnpm check` running `ultracite check`.
-- [ ] Every disabled lint rule carries a reason and a finding count.
-- [ ] GitHub-owned actions use major tags, third-party actions use a commit SHA with a `# vX.Y.Z` comment, same-repo actions use `$/...`, and public repos run zizmor.
+- [ ] Every disabled lint rule carries a reason and a re-measured finding count, and no rule is left half-enabled.
+- [ ] A TypeScript minor in pre-release is prepared for, never installed, and tracked in the AGENTS.md pending upgrade checklist.
+- [ ] An oxfmt or oxlint bump is its own commit, with the reformat listed in `.git-blame-ignore-revs`.
+- [ ] Every action uses its latest major tag with zizmor `ref-pin` (scaledock-skills ADR 0008), same-repo actions use `$/...`, public repos run zizmor, and Dependabot has a 7-day cooldown.
 - [ ] `verify.yml` runs the static gates in one job with a `parallel` group, services run as `background` steps, only the default branch saves caches, the Remote Cache step is not skipped in CI, and every job sets `timeout-minutes`.
+- [ ] [web] `next.config` turns the Turbopack build cache off in CI, and no workflow restores `.next/cache`.
+- [ ] [Turbo] `globalEnv` and the other global keys sit at the top level of `turbo.json`, with no `global` block, so `turbo/no-undeclared-env-vars` reads them.
+- [ ] [Vercel] Every service installs the whole workspace from the repo root, `devEngines` selects pnpm, and no project sets `ENABLE_EXPERIMENTAL_COREPACK`.
+- [ ] [library] The Library profile rows in `audit.md` are `done` or `kept`: structural `Instant`, Standard Schema only, the peer floors and their test, the TypeScript matrix, `^build`, `max-lines`.
 - [ ] The managed AGENTS.md blocks (Next.js, Turborepo) are committed as the tools wrote them.
 - [ ] Installed skills and `skills-lock.json` are committed, and the lock tracks every skill in `.agents/skills`; in a repo that publishes skills, `pnpm dlx skills add . --list` offers only its own.
 - [ ] [apps] Each app has one `env.ts`, the only file that reads `process.env`; every env key is in t3-env, `turbo.json`, `.env.example` and all three Vercel environments.
@@ -118,6 +125,7 @@ The tag in brackets names the input that switches an item on; untagged items alw
 - [ ] [cli, scaffolding] One catalogue with defaults drives the builder, `init` and help; every preset key is an `init` flag, with a parity and a round-trip test.
 - [ ] [cli, scaffolding] The builder, CLI, preset JSON and docs use the same names, and no option generates nothing.
 - [ ] [cli, scaffolding] `init` always writes the config, and every generated case is type-checked.
+- [ ] [Database] Local development and `pnpm verify` run without a container engine: `supabase:start` passes `--runtime native` with no `auto` fallback, no stack for the checkout is on `docker`, and tests use the native stack instead of Testcontainers (PowerSync's `sync:*` scripts excepted).
 - [ ] [Database] Every table has RLS and pgTAP tests; every domain table has the audit trigger.
 - [ ] [Database] Timestamps are `timestamptz`, money is integer minor units plus a currency, and public IDs are UUIDs (v7 when the Postgres major provides it).
 - [ ] [Database] Every foreign key is indexed and has an explicit `on delete`.
@@ -130,7 +138,7 @@ The tag in brackets names the input that switches an item on; untagged items alw
 ## Reference index
 
 - **Run:** [`audit.md`](references/audit.md) (placeholders, repo kinds, gap checklist), [`report.md`](assets/report.md) (final report, manual steps), [`adr-template.md`](assets/adr-template.md).
-- **Foundation:** [`skills.md`](references/skills.md) (agent skills), [`toolchain.md`](references/toolchain.md) (Node, pnpm, TypeScript, workspace, Knip, root scripts), [`architecture.md`](references/architecture.md) (tree, boundaries, contract, errors, one library per concern, env, naming and layout), [`performance.md`](references/performance.md) (baselines, agent-route caching, client bundle, library runtime, generated code), [`lint-format.md`](references/lint-format.md) (Ultracite on Oxlint and Oxfmt, anti-slop).
+- **Foundation:** [`skills.md`](references/skills.md) (agent skills), [`toolchain.md`](references/toolchain.md) (Node, pnpm, TypeScript, workspace, Knip, root scripts), [`architecture.md`](references/architecture.md) (tree, boundaries, contract, errors, one library per concern, env, naming and layout), [`performance.md`](references/performance.md) (baselines, agent-route caching, client bundle, library runtime, generated code), [`lint-format.md`](references/lint-format.md) (Ultracite on Oxlint and Oxfmt, anti-slop, toolchain bumps), [`lint-tightening.md`](references/lint-tightening.md) (turning disabled rules back on, group order, the keep-off list).
 - **Platform:** [`vercel.md`](references/vercel.md) (Vercel first, Services, `turbo.json`, Remote Cache), [`local-dev-env.md`](references/local-dev-env.md) (Portless, native toolchain, env and secrets).
 - **Web:** [`nextjs.md`](references/nextjs.md) (config, additions to `nextjs-app-architecture`, pitfalls), [`web-design.md`](references/web-design.md) (patterns app, docs and marketing share), [`i18n.md`](references/i18n.md) (next-intl, and i18next for Expo), [`ui.md`](references/ui.md) (shadcn, ReUI Pro), [`app-shell.md`](references/app-shell.md) (auth pages, shell, page templates, screens).
 - **Expo:** [`expo.md`](references/expo.md) (shapes, app config, EAS, dev client, native UI, Uniwind, push, universal web), [`offline-sync.md`](references/offline-sync.md) (PowerSync).

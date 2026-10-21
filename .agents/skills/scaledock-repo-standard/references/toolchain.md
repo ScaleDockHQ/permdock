@@ -12,8 +12,10 @@ Applies to every repo kind. A tooling repo without TypeScript skips the tsconfig
   - `@types/node` is the latest release on that major.
   - Going from `@types/node` 25 or later down to 24 drops the global `CryptoKey` type. In runtime code, derive it with `Awaited<ReturnType<typeof crypto.subtle.importKey>>` rather than importing it from `node:crypto`.
   - Node strips TypeScript types natively, so never pass `--experimental-strip-types`.
-- **pnpm:** the latest release, as an exact version in `packageManager`, `engines` and `devEngines.packageManager` (`onFail: "error"`), never a range.
-  - With `onFail: "error"`, a bump locks out every local pnpm below the new version, git hooks included. The report lists `pnpm self-update <version>` as a manual step.
+- **pnpm:** the latest release, as an exact version in `packageManager`, `engines` and `devEngines.packageManager` (`onFail: "download"`), never a range.
+  - `onFail: "download"`, not `"error"`: Vercel's build image ships an older pnpm 12, and `"error"` failed the install with `ERR_PNPM_BAD_PM_VERSION` in CentraKit and SignalDock. `"download"` fetches the pinned version, and the lockfile records its integrity hash.
+  - Never turn on Corepack (`ENABLE_EXPERIMENTAL_COREPACK`) on Vercel or in CI. Vercel marks it experimental, Node no longer bundles it after 24, and `devEngines` already selects pnpm. A repo that added the env var removes it in the Vercel dashboard by hand.
+  - macOS Gatekeeper blocks the ad-hoc signed pnpm binary when a GUI git client (Cursor, SourceTree) runs the hooks. The report lists the fix as a manual step: add the client to Developer Tools in System Settings, Privacy and Security. `pnpm self-update` brings the block back.
 - **Root `package.json`:** `"private": true`, `"type": "module"`, `"license": "MIT"`.
 - **TypeScript:** the latest `typescript` release, which is the native Go compiler from 7.0 on.
   - Never install `@typescript/native-preview` (retired). Nothing in the standard needs the JS compiler API: Knip parses with oxc, Next runs the project-local `tsc`, and oxlint type-checks through tsgolint.
@@ -21,6 +23,26 @@ Applies to every repo kind. A tooling repo without TypeScript skips the tsconfig
   - `typecheck` is `tsc --noEmit`, and `next typegen && tsc --noEmit` in a Next app, so `PageProps`, typed routes and root params exist on a clean checkout. Leave `--checkers` and `--builders` at their defaults; use `--singleThreaded` only on a memory-constrained runner, with a comment.
   - Run the compiler through pnpm (`pnpm typecheck` or `pnpm exec tsc`), never `npx tsc`, which can resolve an unrelated package named `tsc` or a global TypeScript.
   - `typescript` and `oxlint-tsgolint` move together, because tsgolint tracks the TypeScript version.
+
+### A TypeScript minor in pre-release
+
+Ground rule 2 adopts new majors early, but never a pre-release of a minor. While a minor is in beta or rc, the repo stays on the latest stable `typescript` and the `oxlint-tsgolint` built for it, and gets ready for the minor instead:
+
+- Never install, run or test the pre-release, not even in a throwaway worktree. The bump waits for the stable release and a matching tsgolint build, and both land in one commit.
+- Read the announcement's "Notable Behavioral Changes" and apply each fix in a form that compiles on the current version and on every version in `typecheck:matrix`.
+- Add the pending upgrade checklist to AGENTS.md (see [`agent-files.md`](agent-files.md)).
+- New `target` and `lib` years, new module features and new compiler APIs are separate decisions, made when the minor ships. The `target` year follows the runtime (see the TypeScript config below).
+
+**Distributed conditional types (TypeScript 7.1).** Inside a branch of a distributive conditional type (`T extends X ? A : B`), `T` stands for one member of the union, not the original type parameter. 7.1 rejects passing a type constrained to the original `T` to a generic whose constraint names `T`:
+
+```text
+Type 'B' does not satisfy the constraint 'A'.
+  'B' is only assignable to the non-distributed 'A', but 'A' has been distributed here.
+```
+
+- An older compiler cannot report this, so read every conditional type in published packages and app sources.
+- Rewrite each risky one: drop the constraint where nothing needs it, or add a nested `extends` check that proves the constraint inside the branch.
+- Add an `expectTypeOf` case for each rewritten type in its mirrored test file, and a changeset when a published declaration changes.
 
 ## `pnpm-workspace.yaml`
 
@@ -52,11 +74,18 @@ overrides:
 
 Every workspace dependency is `catalog:` or `workspace:*`. Every override, `minimumReleaseAgeExclude` entry, `allowBuilds` entry and patch has a comment explaining why.
 
+A published package's `peerDependencies` ranges are open floors such as `>=19`, never `^19` or `>=0.11.0 <0.13.0`. The catalog pins the version the repo installs; the peer range only states the oldest version the package supports ([peer ranges](architecture.md#library-profile)).
+
 - pnpm fails on a key it does not recognize when the pinned version is running, so check every key against the installed `pnpm-workspace.yaml` docs.
 - `blockExoticSubdeps` is set explicitly even where pnpm defaults it on, so the policy survives a default change.
 - An explicit `minimumReleaseAge` makes `minimumReleaseAgeStrict` true, so a too-young version stops with an approval prompt instead of being excluded silently. Never approve it to get around the policy.
 - Before adding or bumping a dependency, run `pnpm view <pkg> time` and pick the newest version older than `minimumReleaseAge`.
 - When several agents share one working tree, only one of them runs `pnpm install` or changes `pnpm-lock.yaml`. The others wait for it, then pull its lockfile.
+- **Own-org packages too young for `minimumReleaseAge`.** When a repo needs a release of a sibling ScaleDock package (better-supabase, permdock) that is younger than the window, add one `minimumReleaseAgeExclude` entry for that exact version (`better-supabase@0.12.0`, never the bare name), with a comment naming the reason and a removal date at the end of the window. Remove the entry on that date. Never link a sibling checkout (`link:../better-supabase`) in a commit, and never add a CI read token to fetch an unpublished build.
+  - A temporary `link:` for local testing needs `pnpm_config_strict_peer_dependencies=false` and `pnpm_config_verify_deps_before_run=false` in the shell, and is reverted before the commit.
+- **Scoped overrides.** When one consumer needs a different version of a shared dependency, override it for that parent only (`"parent>dep": "1.2.3"`), never globally, so the other consumers keep theirs.
+- **`trustPolicy: no-downgrade`** can silently drop an optional platform binary, and the build then fails only on the platform that needs it (Linux on Vercel). Add one commented `trustPolicyExclude` entry for that exact version.
+- **`pnpm add` in a catalog repo** can write `workspace:*` into the catalog or prune catalog entries. Read the `pnpm-workspace.yaml` diff after every add.
 
 With Expo (see [`expo.md`](expo.md)):
 
@@ -75,14 +104,14 @@ With Expo (see [`expo.md`](expo.md)):
   - `types: []`, so each package lists its own `types` (`["node"]` for anything that touches Node globals).
   - Never `baseUrl`; it is removed. Write the full prefix into each `paths` entry.
 - **Defaults to keep explicit.** TypeScript 7 already defaults to `strict`, `types: []`, `noUncheckedSideEffectImports`, `libReplacement: false` and `rootDir: "./"`, and `stableTypeOrdering` is always on. List the strictness options anyway, so the preset reads the same to people and agents and a default change cannot loosen it.
-- **Strictness:** `strict`, `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`, `allowUnreachableCode: false`, `allowUnusedLabels: false`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `noPropertyAccessFromIndexSignature`, `useUnknownInCatchVariables`, `noUncheckedSideEffectImports`.
+- **Strictness**, all listed, and checked against the installed compiler's options on every TypeScript bump: `strict`, `noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`, `allowUnreachableCode: false`, `allowUnusedLabels: false`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `noPropertyAccessFromIndexSignature`, `useUnknownInCatchVariables`, `noUncheckedSideEffectImports`.
 - **Modules and syntax:** `verbatimModuleSyntax`, `allowImportingTsExtensions`, `isolatedModules`, `erasableSyntaxOnly`, `resolveJsonModule`, `forceConsistentCasingInFileNames`, `skipLibCheck`.
 
 Also:
 
 - `library.json` adds `isolatedDeclarations`. Published packages build with tsdown.
 - `react-library.json` extends `library.json` and adds `jsx: "react-jsx"` and the `DOM` and `DOM.Iterable` libs, for `packages/ui` and other React packages.
-- `next.json` extends `base.json` and adds `jsx: "preserve"`, the `DOM` libs, `allowJs` with `checkJs` and the `next` TypeScript plugin, for every Next app.
+- `next.json` extends `base.json` and adds `jsx: "react-jsx"` (Next 16.4 rewrites `preserve` on every run), the `DOM` libs, `allowJs` with `checkJs` and the `next` TypeScript plugin, for every Next app.
 - `Temporal` types come from `temporal-polyfill` until the `lib` of the installed TypeScript declares them (see [`architecture.md`](architecture.md)).
 - `expo.json` (with Expo) extends `expo/tsconfig.base` and adds this repo's strictness options, for Expo apps. `packages/ui` uses it instead of `react-library.json` when it targets React Native.
 - The root `tsconfig.json` covers tooling files through `typecheck:tooling`.
@@ -92,6 +121,10 @@ Also:
 `knip.mts` lists workspaces explicitly and sets `treatConfigHintsAsErrors: true`, `tags: ["-internal"]`, `ignoreExportsUsedInFile` for types, and `ignoreBinaries: ["vercel"]`.
 
 When Knip flags an export that a refactor left unused, remove the export. Never add it to an ignore list.
+
+Knip does not see oxlint `jsPlugins` loaded by name in `oxlint.config.ts`; list those packages under `ignoreDependencies` with a comment. Plugins that Ultracite loads are not affected.
+
+Never run `next build` and `typecheck` of the same app at once, by hand or as two agents: both write `.next/types`, and the loser reports missing route types.
 
 ## Root script names (exact)
 
@@ -109,6 +142,6 @@ When Knip flags an export that a refactor left unused, remove the export. Never 
 - **Offline:** `sync:start`, `sync:stop`, `sync:reset`, `sync:logs`.
 - **Releases:** `changeset`, `version-packages`, `release`.
 - **Env:** `env:pull`, `env:pull:production`, `env:local`.
-- **Database:** `supabase:start` (`supabase start --runtime native`), `supabase:stop`, `supabase:reset`, `supabase:diff` (`supabase db schema declarative sync --no-apply`), `supabase:pull` (`supabase config pull`), `supabase:types`, `supabase:test`, `supabase:signing-key`, `db:gen`.
+- **Database:** `supabase:start` (`supabase start --runtime native`, with no fallback to `--runtime auto`), `supabase:stop`, `supabase:reset`, `supabase:diff` (`supabase db schema declarative sync --no-apply`), `supabase:pull` (`supabase config pull`), `supabase:types`, `supabase:test`, `supabase:signing-key`, `db:gen`.
 - **Generated web data:** one script per generated catalog file (`catalog`, `recipes`, or the repo's names), each with a `--check` mode that `gen:check` runs. Screenshots of an example app run through `screenshots:<name>` (see [`web-design.md`](web-design.md)); they are never part of `verify`.
 - **Other:** `openapi:generate`, `prepare`.

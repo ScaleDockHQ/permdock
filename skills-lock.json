@@ -269,19 +269,19 @@
       "source": "expo/skills",
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/expo-overview/SKILL.md",
-      "computedHash": "455526d4186fe12897374e4af58ead6459ffe8c2819d0304d5210c6d8d8374bc"
+      "computedHash": "18a11f64bd7bcd6b7d8ef872bc3912030a87d0f4c5623ee60db0713057a588b7"
     },
     "expo-project-structure": {
       "source": "expo/skills",
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/expo-project-structure/SKILL.md",
-      "computedHash": "d131a20d31b81e7e04b9ede9f0271bd14e161a8fa525e2e9ba42ba766fe25d2d"
+      "computedHash": "bfe7df71a79422606595d72b8bfb1670620b4ae3828b9792ee196098a1d1d180"
     },
     "expo-router": {
       "source": "expo/skills",
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/expo-router/SKILL.md",
-      "computedHash": "512978d4ea35857932b79ee9b15a47d7ab78382dc1fcd275601b87e4c80c1e59"
+      "computedHash": "eb529b8e5a690d3366a16563a2995efa250111f0677e323516aeb88f1e9f5ac9"
     },
     "fapi": {
       "source": "ScaleDockHQ/scaledock-skills",
@@ -299,7 +299,7 @@
       "source": "vercel/vercel-plugin",
       "sourceType": "github",
       "skillPath": "skills/flags-sdk/upstream/SKILL.md",
-      "computedHash": "567e6cd708ffa4e84b924e697e13d7c84fac31134e224f7e37658030521a0292"
+      "computedHash": "b365b3a821ef9ac937fefc0cdbe167e05f6be839af28dcc70a36a0813361f24b"
     },
     "gnap": {
       "source": "ScaleDockHQ/scaledock-skills",
@@ -521,7 +521,7 @@
       "source": "middleapi/orpc",
       "sourceType": "github",
       "skillPath": "skills/orpc/SKILL.md",
-      "computedHash": "24aeb625eeb54572e2dc862648085a4f2270c9a0a6167162b7fc53290bb3acb2"
+      "computedHash": "09f2e7141ec1f8d8a4996a15d99a49f8135cc767aaddeddfb77efba85708a677"
     },
     "orpc-contract": {
       "source": "middleapi/orpc",
@@ -569,13 +569,13 @@
       "source": "vercel-labs/portless",
       "sourceType": "github",
       "skillPath": "skills/portless/SKILL.md",
-      "computedHash": "70b3906c1ca063c873f53687b569e9a447de269d00b8ba5fef6203511533a8b0"
+      "computedHash": "8d079a4c36926f53f29e6e43c49a5a77e448400cd14ac262cdffae56045e9329"
     },
     "prisma-8": {
       "source": "prisma/orm",
       "sourceType": "github",
       "skillPath": "skills/prisma-8/SKILL.md",
-      "computedHash": "f7aabfc110690d0d7d2db22891ff7893e17292e2d463a91859592deebaf1ab84"
+      "computedHash": "302e3af953286141ca90134d9ce78e2cb326ed41c310e966ae2900781d5a0db9"
     },
     "prisma-cli": {
       "source": "prisma/skills",
@@ -671,7 +671,7 @@
       "source": "ScaleDockHQ/scaledock-skills",
       "sourceType": "github",
       "skillPath": "skills/scaledock-repo-standard/SKILL.md",
-      "computedHash": "55c3781028aa1f7be9efc42c31f87a7a500d61063da96073ca85985c05c75e17"
+      "computedHash": "2abb2a40c8bbb7a3e03ed50973b988e1ed00e9b6f9ca84753038e257c1caf34d"
     },
     "scim": {
       "source": "ScaleDockHQ/scaledock-skills",
