@@ -1,6 +1,9 @@
 import type { POLICY_SCOPES } from "./brands.ts";
+import type { OperationMap } from "./operations.ts";
 import type { Permission } from "./permission-types.ts";
+import type { PolicyVocabulary } from "./policy-types.ts";
 import type { ScopeNames } from "./scopes.ts";
+import type { PlanTree } from "./vocabulary.ts";
 
 /** Recursion guard: a tree nests resources at most this many levels deep. */
 type Depth = [never, 0, 1, 2, 3, 4, 5, 6, 7];
@@ -47,3 +50,27 @@ export type PermissionKeyOf<P> = PermissionOf<TreeOf<P>>["key"];
 export type ScopeNameOf<P> = P extends { readonly [POLICY_SCOPES]?: infer S }
   ? ScopeNames<Exclude<S, undefined>>
   : string;
+
+/**
+ * The plan names a policy declares: the keys of its `definePlans` vocabulary,
+ * else `string`.
+ */
+export type PlanNameOf<P> = P extends { readonly vocabulary: infer V }
+  ? V extends { readonly plans: infer T extends PlanTree }
+    ? T[keyof T]["key"]
+    : string
+  : string;
+
+/** The operation names of a `defineOperations` map, else `string`. */
+export type OperationNameOf<O> =
+  O extends OperationMap<infer D> ? keyof D & string : string;
+
+/**
+ * The vocabulary a policy was defined with, for an instance type such as
+ * `usePermDock<VocabularyOf<typeof policy>>()`; `PolicyVocabulary` otherwise.
+ */
+export type VocabularyOf<P> = P extends {
+  readonly vocabulary: infer V extends PolicyVocabulary;
+}
+  ? V
+  : PolicyVocabulary;

@@ -327,6 +327,13 @@ export type {
   RowOf,
 } from "./core/permission-types.ts";
 export type {
+  OperationNameOf,
+  PermissionOf,
+  PlanNameOf,
+  ScopeNameOf,
+  VocabularyOf,
+} from "./core/type-helpers.ts";
+export type {
   PERMISSION_ROW,
   POLICY_SCOPES,
   RESOURCE_NAME,
