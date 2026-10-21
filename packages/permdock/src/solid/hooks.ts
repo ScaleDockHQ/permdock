@@ -8,27 +8,37 @@ import {
   useContext,
 } from "solid-js";
 
+import type { ProtectedActionState } from "../client/protected-action.ts";
 import type { ClientStore } from "../client/store.ts";
+import type { ProtectedAction } from "../core/action-result.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
+import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
 import type {
   ApprovalHandle,
   ClientPermDock,
   FilterResult,
+  GateMode,
+  GateView,
   PermissionSet,
   PermissionState,
+  ProtectedActionAccessors,
   SubjectView,
   TenantView,
   RolesOptions,
 } from "./types.ts";
 
 import {
+  actionApproval,
+  actionRunner,
   approvalHandle,
   describeWith,
   filterResult,
+  gateView,
   livePermDock,
   permissionSet,
   rolesView,
@@ -52,15 +62,26 @@ function useVersion(store: ClientStore): Accessor<number> {
   return tick;
 }
 
-export function usePermDock(): ClientPermDock {
+export function usePermDock<
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(): ClientPermDock<V> {
   const store = useStore();
   const version = useVersion(store);
+  // SAFETY: V only types the vocabulary; the store holds the instance for the provider's policy.
   return livePermDock(() => {
     version();
     return store.get();
-  });
+  }) as ClientPermDock<V>;
 }
 
+export function usePermission<D>(
+  permission: Permission | Accessor<Permission>,
+  data?: Accessor<UncheckedData<D>>,
+): Accessor<PermissionState>;
+export function usePermission<P extends Permission>(
+  permission: P | Accessor<P>,
+  data?: Accessor<RowData<P>>,
+): Accessor<PermissionState>;
 export function usePermission(
   permission: Permission | Accessor<Permission>,
   data?: Accessor<unknown>,
@@ -72,6 +93,40 @@ export function usePermission(
     const current =
       typeof permission === "function" ? permission() : permission;
     return store.permissionState(current, data?.());
+  });
+}
+
+/**
+ * What a permission-gated control renders, as `useGate` in React: `hidden`,
+ * `disabled`, `needsApproval`, `upgrade` and a localised `reason`.
+ */
+export function useGate<D>(
+  permission: Permission | Accessor<Permission>,
+  data?: Accessor<UncheckedData<D>>,
+  options?: { readonly mode?: GateMode },
+): Accessor<GateView>;
+export function useGate<P extends Permission>(
+  permission: P | Accessor<P>,
+  data?: Accessor<RowData<P>>,
+  options?: { readonly mode?: GateMode },
+): Accessor<GateView>;
+export function useGate(
+  permission: Permission | Accessor<Permission>,
+  data?: Accessor<unknown>,
+  options: { readonly mode?: GateMode } = {},
+): Accessor<GateView> {
+  const store = useStore();
+  const version = useVersion(store);
+  const describeDecision = useDescribe();
+  return createMemo(() => {
+    version();
+    const current =
+      typeof permission === "function" ? permission() : permission;
+    return gateView(
+      store.permissionState(current, data?.()),
+      (decision) => describeDecision(decision, { permission: current }),
+      options.mode,
+    );
   });
 }
 
@@ -88,7 +143,7 @@ export function usePermissions(
 }
 
 export function useFilter<T>(
-  permission: Permission<string, T, "instance">,
+  permission: Permission<string, NoInfer<T>, "instance">,
   rows: Accessor<readonly T[]>,
 ): Accessor<FilterResult<T>> {
   const permdock = usePermDock();
@@ -153,4 +208,54 @@ export function useDescribe(): (
 ) => DecisionDescription {
   const ui = useContext(PermDockUiContext);
   return (decision, options) => describeWith(ui.messages)(decision, options);
+}
+
+/**
+ * A `protectAction` server action wired to a control, as `useProtectedAction`
+ * in React: accessors for `gate`, `result`, `pending` and `approval`, plus
+ * `run` and `retry`.
+ */
+export function useProtectedAction<T, D>(
+  action: ProtectedAction<T>,
+  permission: Permission | Accessor<Permission>,
+  data?: Accessor<UncheckedData<D>>,
+  options?: { readonly mode?: GateMode },
+): ProtectedActionAccessors<T>;
+export function useProtectedAction<T, P extends Permission>(
+  action: ProtectedAction<T>,
+  permission: P | Accessor<P>,
+  data?: Accessor<RowData<P>>,
+  options?: { readonly mode?: GateMode },
+): ProtectedActionAccessors<T>;
+export function useProtectedAction<T>(
+  action: ProtectedAction<T>,
+  permission: Permission | Accessor<Permission>,
+  data?: Accessor<unknown>,
+  options: { readonly mode?: GateMode } = {},
+): ProtectedActionAccessors<T> {
+  const store = useStore();
+  const version = useVersion(store);
+  const gate = useGate(permission, data, options);
+  const [state, setState] = createSignal<ProtectedActionState<T>>({
+    result: undefined,
+    pending: false,
+  });
+  const runner = actionRunner(
+    () => action,
+    (next) => {
+      setState(next);
+    },
+  );
+  const approval = createMemo(() => {
+    version();
+    return actionApproval(store, state().result);
+  });
+  return {
+    gate,
+    result: () => state().result,
+    pending: () => state().pending,
+    approval,
+    run: runner.run,
+    retry: runner.retry,
+  };
 }

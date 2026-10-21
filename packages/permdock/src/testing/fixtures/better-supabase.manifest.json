@@ -312,6 +312,38 @@
       "storage.file_buckets.upload"
     ]
   },
+  "names": {
+    "schema": "permdock",
+    "gucPrefix": "app",
+    "claims": {
+      "tenant": "tenant_id",
+      "role": "user_role"
+    },
+    "scopes": {
+      "organization": {
+        "permittedIds": "permitted_organization_ids",
+        "permittedIdsFor": "permitted_organization_ids_for",
+        "memberIds": "member_organization_ids",
+        "memberIdsFor": "member_organization_ids_for",
+        "permittedUsers": "permitted_organization_users"
+      },
+      "customer": {
+        "permittedIds": "permitted_customer_ids",
+        "permittedIdsFor": "permitted_customer_ids_for",
+        "memberIds": "member_customer_ids",
+        "memberIdsFor": "member_customer_ids_for",
+        "permittedUsers": "permitted_customer_users"
+      }
+    },
+    "resources": {
+      "staff": {
+        "table": "staff"
+      },
+      "quotes": {
+        "table": "quotes"
+      }
+    }
+  },
   "managementApi": {
     "hook_custom_access_token_enabled": true,
     "hook_custom_access_token_uri": "pg-functions://postgres/permdock/custom_access_token_hook",

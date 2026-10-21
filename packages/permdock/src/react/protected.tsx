@@ -3,13 +3,16 @@ import type { ReactNode } from "react";
 import { Suspense, use, useMemo } from "react";
 
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { ProtectedProps } from "./types.ts";
 
 import { protectedView, scopedTenant, slotContent } from "../client/kit.ts";
 import { PermDockUiContext } from "./context.ts";
 import { usePermission, usePermDock } from "./hooks.ts";
 
-export function Protected(props: ProtectedProps): ReactNode {
+export function Protected<P extends Permission>(
+  props: ProtectedProps<P>,
+): ReactNode {
   const { defaults } = use(PermDockUiContext);
   const pending = slotContent("pending", props, defaults);
   if (pending === undefined) {

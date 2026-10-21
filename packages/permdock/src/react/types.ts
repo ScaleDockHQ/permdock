@@ -8,6 +8,7 @@ import type {
 } from "../core/decision.ts";
 import type { DescribeMessages } from "../core/describe.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
+import type { RowData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
 
@@ -21,6 +22,8 @@ export type {
   GateView,
   PermissionSet,
   PermissionState,
+  ProtectedActionHandle,
+  ProtectedActionView,
   SubjectView,
   TenantView,
   RolesOptions,
@@ -69,6 +72,11 @@ export type PermDockProviderProps = (
   readonly onClear?: () => void;
   /** Milliseconds between approval status polls. Defaults to 2000. */
   readonly approvalInterval?: number;
+  /**
+   * Triggers that refresh the snapshot, such as `eventSourceRefresh(url)`; read
+   * when the store is built.
+   */
+  readonly refreshOn?: ClientStoreOptions["refreshOn"];
   readonly children: ReactNode;
 };
 
@@ -81,9 +89,10 @@ export type PermDockDefaults = {
     | ((decision: ApprovalRequiredDecision) => ReactNode);
 };
 
-export type ProtectedProps = {
-  readonly permission: Permission;
-  readonly data?: unknown;
+export type ProtectedProps<P extends Permission = Permission> = {
+  readonly permission: P;
+  /** Any part of the permission's row; see `RowData`. */
+  readonly data?: RowData<P>;
   readonly tenant?: string;
   readonly pending?: ReactNode;
   readonly denied?: ReactNode | ((decision: Decision) => ReactNode);

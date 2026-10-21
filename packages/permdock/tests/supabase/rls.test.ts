@@ -10,14 +10,26 @@ const members = {
   expiresAt: "expires_at",
 };
 
+const table = {
+  table: "members",
+  user: "user_id",
+  role: "role",
+  expiresAt: "expires_at",
+  columns: { tenant: "org_id" },
+};
+
 describe(supabaseRls, () => {
-  it("wraps a single membership table as the tenant table and keeps a scoped map", () => {
+  it("maps a single membership table or a tenant table to scopes.tenant, with its scope columns under columns", () => {
     const scoped = { tenant: members };
     expect({
       single: supabaseRls({ memberships: members }).memberships,
       scoped: supabaseRls({ memberships: scoped }).memberships,
       none: supabaseRls().memberships,
-    }).toStrictEqual({ single: { tenant: members }, scoped, none: undefined });
+    }).toStrictEqual({
+      single: { scopes: { tenant: table } },
+      scoped: { scopes: { tenant: table } },
+      none: undefined,
+    });
   });
 });
 

@@ -179,7 +179,7 @@ export type PdpPermDock<V extends PolicyVocabulary = PolicyVocabulary> = Omit<
     options?: Omit<DecideOptions, "explain">,
   ) => Promise<ExplainedDecision>;
   readonly filter: <T>(
-    permission: Permission<string, T, "instance">,
+    permission: Permission<string, NoInfer<T>, "instance">,
     rows: readonly T[],
     options?: DecideOptions,
   ) => Promise<T[]>;

@@ -34,10 +34,6 @@ export type RlsMembershipTable = {
    * and its ancestors.
    */
   readonly columns?: Readonly<Record<string, string>>;
-  /** Column of the first scope's id; shorthand for `columns[<first scope>]`. */
-  readonly tenant?: string;
-  /** Column of the second scope's id; shorthand for `columns[<second scope>]`. */
-  readonly team?: string;
   readonly id?: string;
   readonly expiresAt?: string;
   readonly disabledAt?: string;
@@ -51,10 +47,6 @@ export type RlsMembershipTable = {
 export type RlsMemberships = {
   /** The membership table of each named scope. */
   readonly scopes?: Readonly<Record<string, RlsMembershipTable>>;
-  /** The first scope's table; shorthand for `scopes[<first scope>]`. */
-  readonly tenant?: RlsMembershipTable;
-  /** The second scope's table; shorthand for `scopes[<second scope>]`. */
-  readonly team?: RlsMembershipTable;
   readonly resource?: Readonly<Record<string, RlsMembershipTable>>;
 };
 
@@ -193,15 +185,9 @@ export type RlsConfig = {
    */
   readonly tenants?: "active" | "all";
   /**
-   * Postgres type of tenant columns (`uuid` by default); the tenant claim and
-   * helper results are cast to it.
-   */
-  readonly tenantType?: string;
-  /** Postgres type of team columns; defaults to `tenantType`. */
-  readonly teamType?: string;
-  /**
-   * Postgres type of each named scope's id column; overrides `tenantType` /
-   * `teamType`.
+   * Postgres type of each named scope's id column, `uuid` by default. The first
+   * scope's type also types the tenant claim and the helper results cast to
+   * it.
    */
   readonly scopeTypes?: Readonly<Record<string, string>>;
   readonly roleClaim?: string;
@@ -942,6 +928,35 @@ export type PermDockConfig = {
   readonly supabase?: SupabaseConfig;
   readonly powersync?: PowerSyncConfig;
   readonly doctor?: DoctorConfig;
+  readonly gen?: GenConfig;
+};
+
+/** What `permdock gen --kind` writes. */
+export type GenKind =
+  | "zod"
+  | "valibot"
+  | "arktype"
+  | "json-schema"
+  | "standard-schema"
+  | "constants"
+  | "factories"
+  | "react"
+  | "vue"
+  | "svelte"
+  | "solid"
+  | "messages";
+
+/** `permdock gen` input. */
+export type GenConfig = {
+  /** The directory the generated files go to; default `src/generated`. */
+  readonly out?: string;
+  /** The kinds `permdock gen` writes without `--kind`; default `['constants']`. */
+  readonly kinds?: readonly GenKind[];
+  /**
+   * The schema kinds also export `<resource>Fields`: per field its `label`,
+   * `required`, enum `options` and bounds, for forms.
+   */
+  readonly fieldMeta?: boolean;
 };
 
 /**

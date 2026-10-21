@@ -4,6 +4,7 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
 import type { CacheEntry } from "./batch.ts";
+import type { RefreshTrigger } from "./refresh-on.ts";
 import type { StoreHeaders } from "./request.ts";
 import type {
   ApprovalState,
@@ -20,6 +21,7 @@ import { nowSeconds } from "../core/tenancy.ts";
 import { secondsOf } from "../core/time.ts";
 import { createApprovals } from "./approvals.ts";
 import { NO_ENDPOINT, SERVER_ONLY, cacheKey, createBatch } from "./batch.ts";
+import { refreshTriggers } from "./refresh-on.ts";
 import { storeRequest } from "./request.ts";
 import { isJws } from "./source.ts";
 
@@ -72,6 +74,11 @@ export type ClientStoreOptions = {
    * and Solid would stop re-running when a reactive row changes in place.
    */
   readonly passCache?: boolean;
+  /**
+   * Triggers that refresh the snapshot, started while something subscribes and
+   * never during a server render. Calls within 250 ms fold into one refresh.
+   */
+  readonly refreshOn?: readonly RefreshTrigger[];
 };
 
 function withTenant(source: string, tenant: string | undefined): string {
@@ -197,6 +204,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   let generation = 0;
   let disposed = false;
   let staleNext = options.stale === true;
+  let cleared = false;
   // The compact JWS the snapshot being hydrated was verified from.
   let rawJws: string | undefined;
 
@@ -270,6 +278,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       approvals.forget();
     }
     snapshot = next;
+    cleared = false;
     instance = fromSnapshot(snapshot, compact({ tenant }));
     base = "ready";
     if (staleNext && next.subject.principal !== null) {
@@ -461,15 +470,25 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
 
   // StrictMode and remounts unsubscribe every listener for a moment; polls resume
   // with the next subscriber instead of waiting for the next render.
+  const triggers = refreshTriggers(
+    server ? [] : (options.refreshOn ?? []),
+    () => {
+      cached.refresh().catch(() => undefined);
+    },
+    () => disposed || cleared,
+  );
+
   const subscribe = (listener: () => void): (() => void) => {
     listeners.add(listener);
     if (listeners.size === 1) {
       approvals.resume();
+      triggers.start();
     }
     return (): void => {
       listeners.delete(listener);
       if (listeners.size === 0) {
         approvals.stop();
+        triggers.stop();
       }
     };
   };
@@ -571,6 +590,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         reset();
         tenant = options.tenant;
         snapshot = emptySnapshot();
+        cleared = true;
         instance = fromSnapshot(snapshot, compact({ tenant }));
         base = "server-only";
         approvals.forget();
@@ -680,6 +700,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       generation += 1;
       batch.clear();
       approvals.forget();
+      triggers.stop();
       listeners.clear();
     },
     requestApproval: approvals.request,

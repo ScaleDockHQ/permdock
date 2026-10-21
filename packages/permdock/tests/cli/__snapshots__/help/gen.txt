@@ -1,0 +1,22 @@
+permdock gen: Write typed constants, schemas, factories, hooks and messages from the policy
+
+Usage  permdock gen [flags]
+
+Flags
+  --kind <kind>      What to write (default gen.kinds, else constants) (repeatable); one of constants, zod, valibot, arktype, json-schema, standard-schema, factories, react, vue, svelte, solid, messages
+  --out <file>       File for a single kind (- for stdout)
+  --out-dir <dir>    Directory for the files (default gen.out, else src/generated)
+  --check            Exit 1 when a file on disk is stale; write nothing
+  --dry-run          Print what would change; write nothing
+  --policy <module>  Module exporting the policy (default policy in the config)
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock gen
+  permdock gen --kind zod --kind factories
+  permdock gen --check
+
+Side effects  files
+Docs  https://permdock.com/docs/cli/gen

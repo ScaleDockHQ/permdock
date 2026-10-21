@@ -2,6 +2,7 @@
 
 export { describe, requiredPlans } from "../core/describe.ts";
 export { approvalHeaders } from "../client/headers.ts";
+export { eventSourceRefresh } from "../client/refresh-on.ts";
 export {
   useApproval,
   useAssignablePermissions,
@@ -18,6 +19,7 @@ export {
   useTenant,
 } from "../react/hooks.ts";
 export { Protected } from "../react/protected.tsx";
+export { useProtectedAction } from "../react/protected-action.ts";
 export type {
   ApprovalHandle,
   ApprovalState,
@@ -26,6 +28,9 @@ export type {
   FilterResult,
   GateMode,
   GateView,
+  ProtectedActionHandle,
+  ProtectedActionView,
+  RolesOptions,
   PermissionSet,
   PermissionState,
   SubjectView,
@@ -64,3 +69,8 @@ export type {
   SubscribeForeground,
   SubscribeOnline,
 } from "./types.ts";
+export type {
+  EventSourceRefreshOptions,
+  RefreshTrigger,
+} from "../client/refresh-on.ts";
+export type { ActionResult, ProtectedAction } from "../core/action-result.ts";

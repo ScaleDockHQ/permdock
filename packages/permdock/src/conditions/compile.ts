@@ -81,9 +81,38 @@ export type CompileWhereOptions = {
   readonly resources?: ReadonlyMap<string, ResourceNode>;
 };
 
+/** The alias scope `name` answers to by position: `tenant` first, `team` second. */
+function aliasOf(scopes: readonly Scope[], name: string): string | undefined {
+  if (name === scopes[0]?.name) {
+    return "tenant";
+  }
+  return name === scopes[1]?.name ? "team" : undefined;
+}
+
+/**
+ * The entry of a per-scope record for scope `name`: its own key, else the
+ * `tenant` / `team` alias of its position.
+ */
+export function byScope<T>(
+  record: Readonly<Record<string, T>> | undefined,
+  scopes: readonly Scope[],
+  name: string,
+): T | undefined {
+  if (record === undefined) {
+    return undefined;
+  }
+  if (Object.hasOwn(record, name)) {
+    return record[name];
+  }
+  const alias = aliasOf(scopes, name);
+  return alias !== undefined && Object.hasOwn(record, alias)
+    ? record[alias]
+    : undefined;
+}
+
 /**
  * The membership table mapped for scope `name`, through the `tenant` / `team`
- * shorthands.
+ * aliases and shorthands.
  */
 export function scopeMembershipTable<T extends Pick<MembershipTable, "table">>(
   mapping:
@@ -96,7 +125,7 @@ export function scopeMembershipTable<T extends Pick<MembershipTable, "table">>(
   scopes: readonly Scope[],
   name: string,
 ): T | undefined {
-  const table = mapping?.scopes?.[name];
+  const table = byScope(mapping?.scopes, scopes, name);
   if (table !== undefined) {
     return table;
   }
@@ -111,14 +140,17 @@ export function scopeMembershipTable<T extends Pick<MembershipTable, "table">>(
 
 /**
  * The column of `table` holding scope `name`'s id, through the `tenant` /
- * `team` shorthands.
+ * `team` aliases and shorthands.
  */
 export function scopeColumn(
-  table: Pick<MembershipTable, "columns" | "tenant" | "team">,
+  table: Pick<MembershipTable, "columns"> & {
+    readonly tenant?: string;
+    readonly team?: string;
+  },
   scopes: readonly Scope[],
   name: string,
 ): string | undefined {
-  const column = table.columns?.[name];
+  const column = byScope(table.columns, scopes, name);
   if (column !== undefined) {
     return column;
   }

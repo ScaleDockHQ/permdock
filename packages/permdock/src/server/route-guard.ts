@@ -14,12 +14,12 @@ import type {
 } from "./server-types.ts";
 
 import { compact } from "../core/compact.ts";
+import { LOAD_FAILED } from "../core/decision.ts";
 import { challengeScope } from "../core/oauth-scopes.ts";
 import { resourceRef } from "../core/resource-ref.ts";
 import { applyApprovalResume } from "./evaluations.ts";
 import { hasCredentials } from "./http.ts";
 import {
-  LOAD_FAILED,
   NOT_DELEGATED,
   loadFailedProblem,
   scopeProblem,

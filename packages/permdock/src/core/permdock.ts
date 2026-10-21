@@ -23,7 +23,7 @@ import type { Limits } from "./limits.ts";
 import type { PermittedIdsOptions } from "./may-use.ts";
 import type { AdapterId } from "./open-union.ts";
 import type { Operation } from "./operations.ts";
-import type { Permission, ResourceNode } from "./permission-types.ts";
+import type { Permission, ResourceNode, RowOf } from "./permission-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type { PrincipalSource } from "./principal-source.ts";
 import type { Scope } from "./scopes.ts";
@@ -146,6 +146,24 @@ export type SimulateOptions = {
 
 export type RowPair<T> = { readonly current: T; readonly next: T };
 
+/**
+ * The `data` a check of `P` takes: any part of its row, or a `{ current, next
+ * }` pair of them for an update. `RowOf` is `unknown` for an untyped
+ * permission, so any value passes.
+ */
+export type RowData<P> =
+  | Partial<RowOf<P>>
+  | RowPair<Partial<RowOf<P>>>
+  | null
+  | undefined;
+
+/**
+ * `data` the type system knows nothing about (`unknown`, `any`), such as a
+ * request body. The check parses it against the resource schema at run time; a
+ * value of a known type that does not fit the row is a type error.
+ */
+export type UncheckedData<D> = D & (unknown extends D ? unknown : never);
+
 export type WhereResult = {
   readonly condition:
     | Condition
@@ -175,9 +193,9 @@ export type SnapshotOptions = {
 
 export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly can: {
-    (
-      permission: Permission<string, unknown, "instance">,
-      data: unknown,
+    <P extends Permission<string, unknown, "instance">>(
+      permission: P,
+      data: RowData<P>,
       options?: DecideOptions,
     ): boolean;
     (
@@ -186,16 +204,29 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       options?: DecideOptions,
     ): boolean;
     /**
+     * Data of no known type (`unknown`, `any`), such as a request body. It is
+     * parsed against the resource schema at run time.
+     */
+    <D>(
+      permission: Permission,
+      data: UncheckedData<D>,
+      options?: DecideOptions,
+    ): boolean;
+    /**
      * A permission held as `Permission` at run time (from a list, a catalog or
      * `findPermission`), whose kind the type does not say: pass `data`, or
      * `undefined` for a check without a row.
      */
-    (permission: Permission, data: unknown, options?: DecideOptions): boolean;
+    <P extends Permission>(
+      permission: P,
+      data: RowData<P>,
+      options?: DecideOptions,
+    ): boolean;
   };
   readonly decide: {
-    (
-      permission: Permission<string, unknown, "instance">,
-      data: unknown,
+    <P extends Permission<string, unknown, "instance">>(
+      permission: P,
+      data: RowData<P>,
       options?: DecideOptions,
     ): Decision;
     (
@@ -204,11 +235,24 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       options?: DecideOptions,
     ): Decision;
     /**
+     * Data of no known type (`unknown`, `any`), such as a request body. It is
+     * parsed against the resource schema at run time.
+     */
+    <D>(
+      permission: Permission,
+      data: UncheckedData<D>,
+      options?: DecideOptions,
+    ): Decision;
+    /**
      * A permission held as `Permission` at run time (from a list, a catalog or
      * `findPermission`), whose kind the type does not say: pass `data`, or
      * `undefined` for a check without a row.
      */
-    (permission: Permission, data: unknown, options?: DecideOptions): Decision;
+    <P extends Permission>(
+      permission: P,
+      data: RowData<P>,
+      options?: DecideOptions,
+    ): Decision;
   };
   /**
    * `can` for every check, on one instance: `true` only when each is granted,
@@ -232,11 +276,18 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * consumed once per granted row, so rows past the cap are denied with
    * `limit`, and each `approval-required` row carries its own token.
    */
-  readonly decideEach: (
-    permission: Permission,
-    rows: readonly unknown[],
-    options?: DecideOptions,
-  ) => readonly Decision[];
+  readonly decideEach: {
+    <D>(
+      permission: Permission,
+      rows: readonly UncheckedData<D>[],
+      options?: DecideOptions,
+    ): readonly Decision[];
+    <P extends Permission>(
+      permission: P,
+      rows: readonly RowData<P>[],
+      options?: DecideOptions,
+    ): readonly Decision[];
+  };
   /**
    * `decide` for each id, in id order, on rows the server loads itself:
    * `options.data(ids)` answers a map from id to row, or the rows with their
@@ -265,9 +316,9 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     row?: unknown,
   ) => Promise<Decision>;
   readonly assert: {
-    (
-      permission: Permission<string, unknown, "instance">,
-      data: unknown,
+    <P extends Permission<string, unknown, "instance">>(
+      permission: P,
+      data: RowData<P>,
       options?: DecideOptions,
     ): Extract<Decision, { readonly outcome: "granted" }>;
     (
@@ -276,13 +327,22 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       options?: DecideOptions,
     ): Extract<Decision, { readonly outcome: "granted" }>;
     /**
+     * Data of no known type (`unknown`, `any`), such as a request body. It is
+     * parsed against the resource schema at run time.
+     */
+    <D>(
+      permission: Permission,
+      data: UncheckedData<D>,
+      options?: DecideOptions,
+    ): Extract<Decision, { readonly outcome: "granted" }>;
+    /**
      * A permission held as `Permission` at run time (from a list, a catalog or
      * `findPermission`), whose kind the type does not say: pass `data`, or
      * `undefined` for a check without a row.
      */
-    (
-      permission: Permission,
-      data: unknown,
+    <P extends Permission>(
+      permission: P,
+      data: RowData<P>,
       options?: DecideOptions,
     ): Extract<Decision, { readonly outcome: "granted" }>;
   };
@@ -293,9 +353,9 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * the trace never reaches a `DecisionSink`.
    */
   readonly explain: {
-    (
-      permission: Permission<string, unknown, "instance">,
-      data: unknown,
+    <P extends Permission<string, unknown, "instance">>(
+      permission: P,
+      data: RowData<P>,
       options?: Omit<DecideOptions, "explain">,
     ): ExplainedDecision;
     (
@@ -303,19 +363,24 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
       data?: unknown,
       options?: Omit<DecideOptions, "explain">,
     ): ExplainedDecision;
-    (
+    <D>(
       permission: Permission,
-      data: unknown,
+      data: UncheckedData<D>,
+      options?: Omit<DecideOptions, "explain">,
+    ): ExplainedDecision;
+    <P extends Permission>(
+      permission: P,
+      data: RowData<P>,
       options?: Omit<DecideOptions, "explain">,
     ): ExplainedDecision;
   };
   readonly filter: <T>(
-    permission: Permission<string, T, "instance">,
+    permission: Permission<string, NoInfer<T>, "instance">,
     rows: readonly T[],
     options?: DecideOptions,
   ) => T[];
   readonly pick: <T>(
-    permission: Permission<string, T, "instance">,
+    permission: Permission<string, NoInfer<T>, "instance">,
     row: T,
     options?: DecideOptions,
   ) => Partial<T>;

@@ -3,7 +3,11 @@ import { tableMembershipSource } from "permdock/supabase";
 export default {
   permissions: "../abac/permissions.ts",
   policy: "../abac/policy.ts",
-  rls: { dialect: "supabase", authorize: "jwt", tenantType: "text" },
+  rls: {
+    dialect: "supabase",
+    authorize: "jwt",
+    scopeTypes: { tenant: "text" },
+  },
   supabase: {
     hook: {
       memberships: [tableMembershipSource({ table: "memberships" })],

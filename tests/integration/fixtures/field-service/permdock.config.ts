@@ -10,7 +10,7 @@ export default {
   policy: "./policy.ts",
   rls: {
     dialect: "guc",
-    tenantType: "text",
+    scopeTypes: { tenant: "text" },
     authorize: "database",
     customRoles: true,
     fixtures: "rls.fixtures.json",

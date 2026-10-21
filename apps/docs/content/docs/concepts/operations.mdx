@@ -50,6 +50,7 @@ It returns a frozen `OperationMap`. Each entry is a frozen `Operation` `{ name, 
 | [Agents](/docs/concepts/agents)                | `decideOperation(name, input, ctx)` loads the row through `data` and decides `permission`; `filterResults` applies `results`                 |
 | [Automations](/docs/concepts/automations)      | An automation lists the operations it runs; a run is narrowed to their permissions                                                           |
 | [Chat](/docs/concepts/chat)                    | `protect(operation, handler)` decides a chat command as its author                                                                           |
+| [oRPC](/docs/adapters/orpc#operations-router)  | `operationsRouter(operations, routes)` builds one procedure per operation, guarded by `permission` and `data`                                |
 | [Delivery](/docs/concepts/delivery)            | `approvalPrompt(request, { operation })` puts `meta.title` and `meta.risk` in the approval email or card                                     |
 | [Catalog](/docs/concepts/wire-formats#catalog) | `permdock collect` writes `{ name, permission, results?, meta }` with permission keys when `permdock.config.ts` names an `operations` module |
 

@@ -347,11 +347,13 @@ export const policy = definePolicy(permissions, {
         rls: {
           authorize: "database",
           memberships: {
-            tenant: {
-              table: "organization_members",
-              tenant: "organization_id",
-              user: "user_id",
-              role: "role",
+            scopes: {
+              tenant: {
+                table: "organization_members",
+                columns: { tenant: "organization_id" },
+                user: "user_id",
+                role: "role",
+              },
             },
           },
           customRoleWrites: { roles },
@@ -478,11 +480,13 @@ export const policy = definePolicy(permissions, {
             rls: {
               authorize: "database",
               memberships: {
-                tenant: {
-                  table: "organization_members",
-                  tenant: "organization_id",
-                  user: "user_id",
-                  role: "role",
+                scopes: {
+                  tenant: {
+                    table: "organization_members",
+                    columns: { tenant: "organization_id" },
+                    user: "user_id",
+                    role: "role",
+                  },
                 },
               },
               customRoleWrites: { roles },

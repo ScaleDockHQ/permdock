@@ -194,13 +194,13 @@ describe("hooks", () => {
           tenant.tenants.join(","),
           keys(useRoles({ tenant: "acme" }).roles),
           keys(useRoles({ tenant: "globex" }).roles),
-          keys(useRoles({ team: "no-such-team" }).roles),
+          keys(useRoles({ scope: "team", id: "no-such-team" }).roles),
           keys(useAssignableRoles()),
         ].join(":");
       }
       const view = mount(withStore(store, createElement(Probe)));
       expect(view.textContent).toBe(
-        "acme:acme,globex:admin:viewer:admin:admin,member,viewer",
+        "acme:acme,globex:admin:viewer::admin,member,viewer",
       );
       await act(async () => {
         await switchTo?.("globex");

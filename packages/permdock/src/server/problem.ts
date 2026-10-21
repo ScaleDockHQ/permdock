@@ -276,42 +276,50 @@ export function decisionResponse(
   });
 }
 
-export function problemFromDecision(
-  decision: Decision,
-  permission: Permission,
-  /** Words the `detail`; without one the detail names no subject. */
-  subject: Subject | undefined,
-  options: {
-    readonly instance?: string;
-    readonly approval?: ApprovalHint;
-    /** `'hide'` on a loaded row: a denial answers as `404` `/not-found`. */
-    readonly disclosure?: Disclosure;
-    /** Whether the request carried credentials, which picks the `401` challenge. */
-    readonly credentials?: boolean;
-    /**
-     * The scope an `insufficient_scope` challenge names; the permission's own
-     * scope when absent.
-     */
-    readonly scope?: string;
-  } = {},
-): Response {
-  if (decision.outcome === "granted") {
-    return new Response(null, { status: 204 });
-  }
-  const validation =
+type DecisionProblemOptions = {
+  readonly instance?: string;
+  readonly approval?: ApprovalHint;
+  /** `'hide'` on a loaded row: a denial answers as `404` `/not-found`. */
+  readonly disclosure?: Disclosure;
+  /** Whether the request carried credentials, which picks the `401` challenge. */
+  readonly credentials?: boolean;
+  /**
+   * The scope an `insufficient_scope` challenge names; the permission's own
+   * scope when absent.
+   */
+  readonly scope?: string;
+};
+
+function validationOf(
+  decision: Exclude<Decision, { readonly outcome: "granted" }>,
+  disclosure: Disclosure | undefined,
+): PermDockValidationError | undefined {
+  const detail =
     decision.outcome === "denied" ? decision.denials[0]?.detail : undefined;
-  if (
-    options.disclosure !== "hide" &&
-    validation instanceof PermDockValidationError
-  ) {
-    return problemResponse(
-      validation.toProblemDetails(),
-      options.scope === undefined
-        ? permission
-        : { ...permission, scope: options.scope },
-      decision,
-    );
-  }
+  return disclosure !== "hide" && detail instanceof PermDockValidationError
+    ? detail
+    : undefined;
+}
+
+/** The Problem Details body `problemFromDecision` answers with. */
+export function decisionProblem(
+  decision: Exclude<Decision, { readonly outcome: "granted" }>,
+  permission: Permission,
+  subject: Subject | undefined,
+  options: Omit<DecisionProblemOptions, "credentials" | "scope"> = {},
+): ProblemDetails {
+  return (
+    validationOf(decision, options.disclosure)?.toProblemDetails() ??
+    refusalDetails(decision, permission, subject, options)
+  );
+}
+
+function refusalDetails(
+  decision: Exclude<Decision, { readonly outcome: "granted" }>,
+  permission: Permission,
+  subject: Subject | undefined,
+  options: Omit<DecisionProblemOptions, "credentials" | "scope">,
+): ProblemDetails {
   const details = problemDetails(
     compact({
       decision,
@@ -341,8 +349,31 @@ export function problemFromDecision(
           at: options.approval.at,
           hint: options.approval.hint,
         });
+  return approval === undefined ? details : { ...details, approval };
+}
+
+export function problemFromDecision(
+  decision: Decision,
+  permission: Permission,
+  /** Words the `detail`; without one the detail names no subject. */
+  subject: Subject | undefined,
+  options: DecisionProblemOptions = {},
+): Response {
+  if (decision.outcome === "granted") {
+    return new Response(null, { status: 204 });
+  }
+  const validation = validationOf(decision, options.disclosure);
+  if (validation !== undefined) {
+    return problemResponse(
+      validation.toProblemDetails(),
+      options.scope === undefined
+        ? permission
+        : { ...permission, scope: options.scope },
+      decision,
+    );
+  }
   return decisionResponse(
-    approval === undefined ? details : { ...details, approval },
+    refusalDetails(decision, permission, subject, options),
     decision,
     compact({
       scope: options.scope ?? permission.scope,

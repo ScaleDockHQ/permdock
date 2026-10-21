@@ -109,11 +109,13 @@ insert into public.role_permissions (role, permission, grant_key, scope, effect)
           ...config,
           rls: {
             memberships: {
-              tenant: {
-                table: "org_members",
-                user: "user_id",
-                role: "role",
-                tenant: "tenant_id",
+              scopes: {
+                tenant: {
+                  table: "org_members",
+                  user: "user_id",
+                  role: "role",
+                  columns: { tenant: "tenant_id" },
+                },
               },
             },
             roleValues: { org_admin: "owner" },
@@ -254,7 +256,7 @@ create view jobs_visible with (security_invoker) as select id, case when (select
         "wrote src/permissions.generated.ts",
         "add rls.functions.job_permitted to make this grant portable",
         "exists over grants stayed opaque; if it holds memberships, map it in permdock.config.ts:",
-        "// rls: { memberships: { tenant: { table: 'grants', user: 'user_id', tenant: 'tenant_id', role: 'role' } } }",
+        "// rls: { memberships: { scopes: { tenant: { table: 'grants', user: 'user_id', columns: { tenant: 'tenant_id' }, role: 'role' } } } }",
         "field view jobs_visible over jobs: secret are field-limited; set fields on the read grants that list them (fieldViews export)",
       ]);
       expect(

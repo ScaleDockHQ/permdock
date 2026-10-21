@@ -13,6 +13,7 @@
     "catalog",
     "diff",
     "usage",
+    "gen",
     "openapi",
     "arazzo",
     "rls",

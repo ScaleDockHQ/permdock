@@ -129,6 +129,7 @@ describe("decideEach", () => {
   it("validates each row like decide", async () => {
     const permdock = getPermDockSync(policy, subjectOf(alice));
     const [bad] = permdock.decideEach(permissions.invoice.read, [
+      // @ts-expect-error the row breaks its schema on purpose
       { id: 1, orgId: "o1" },
     ]);
     expect(bad?.outcome === "denied" ? bad.denials[0]?.reason : undefined).toBe(

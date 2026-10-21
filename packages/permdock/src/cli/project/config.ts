@@ -2,10 +2,13 @@ import { existsSync } from "node:fs";
 import { relative, resolve } from "node:path";
 
 import type { PermDockConfig } from "../types.ts";
+import type { ConfigChecks, PermDockConfigInput } from "./config-checks.ts";
 import type { ParsedConfig } from "./config-schema.ts";
 
+import { isRecord } from "../../core/compact.ts";
 import { CliError } from "../core/errors.ts";
 import { parseConfig } from "./config-schema.ts";
+import { MODULE_KEYS } from "./config-shape.ts";
 
 const CONFIG_FILES = [
   "permdock.config.ts",
@@ -14,7 +17,14 @@ const CONFIG_FILES = [
   "permdock.config.mjs",
 ] as const;
 
-export function defineConfig<T extends PermDockConfig>(config: T): T {
+/**
+ * Types a `permdock.config.ts`. Pass the `policy` value rather than its path,
+ * and resource, scope, action and permission names in the config are checked
+ * against it.
+ */
+export function defineConfig<const C extends PermDockConfigInput>(
+  config: C & ConfigChecks<C>,
+): C {
   return config;
 }
 
@@ -51,13 +61,43 @@ export async function readConfig(
   // Lazy: jiti and the core load only when there is a config file to read.
   const { loadModule, pickNamed } = await import("./load.ts");
   const mod = await loadModule(path, options);
+  const display = relative(cwd, path).replaceAll("\\", "/");
+  const raw = pickNamed(mod, ["default"]);
   return {
     ...parseConfig(
-      pickNamed(mod, ["default"]),
-      relative(cwd, path).replaceAll("\\", "/"),
+      hasModuleValue(raw)
+        ? await traceValues(cwd, path, display, raw, options)
+        : raw,
+      display,
     ),
     file: path,
   };
+}
+
+function hasModuleValue(
+  raw: unknown,
+): raw is Readonly<Record<string, unknown>> {
+  return (
+    isRecord(raw) && Object.keys(MODULE_KEYS).some((key) => isRecord(raw[key]))
+  );
+}
+
+async function traceValues(
+  cwd: string,
+  file: string,
+  display: string,
+  config: Readonly<Record<string, unknown>>,
+  options: { readonly fresh?: boolean } | undefined,
+): Promise<Readonly<Record<string, unknown>>> {
+  // Lazy: oxc-parser loads only for a config that passes a value.
+  const { traceModuleValues } = await import("./module-values.ts");
+  return traceModuleValues({
+    cwd,
+    file,
+    display,
+    config,
+    ...(options === undefined ? {} : { options }),
+  });
 }
 
 export async function loadConfig(

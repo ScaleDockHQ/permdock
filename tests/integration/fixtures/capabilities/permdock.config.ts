@@ -3,7 +3,7 @@ export default {
   policy: "./policy.ts",
   rls: {
     dialect: "supabase",
-    tenantType: "text",
+    scopeTypes: { tenant: "text" },
     authorize: "jwt",
     capabilities: true,
   },

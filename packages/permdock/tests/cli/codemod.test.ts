@@ -638,6 +638,35 @@ describe("the codemod module", () => {
       );
     });
 
+    it("moves the 0.8 config keys in a config file that imports no permdock entry", async () => {
+      const dir = project({
+        "permdock.config.ts":
+          'export default { rls: { tenantType: "text" } };\n',
+        "src/other.ts": "export const rls = { tenantType: 'text' };\n",
+      });
+      const result = await run(["codemod", "0.8", "--cwd", dir]);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("rls.tenantType → rls.scopeTypes.tenant");
+      expect(readFileSync(join(dir, "permdock.config.ts"), "utf8")).toBe(
+        'export default { rls: { scopeTypes: { tenant: "text" } } };\n',
+      );
+      expect(readFileSync(join(dir, "src/other.ts"), "utf8")).toBe(
+        "export const rls = { tenantType: 'text' };\n",
+      );
+    });
+
+    it("reports a 0.8 useRoles call that may pass team", async () => {
+      const source =
+        'import { useRoles } from "permdock/react";\nexport const roles = () => useRoles({ team: "t1" });\n';
+      const dir = project({ "src/roles.ts": source });
+      const result = await run(["codemod", "0.8", "--cwd", dir]);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain(
+        '`useRoles({ team: id })` is now `useRoles({ scope: "team", id })`',
+      );
+      expect(readFileSync(join(dir, "src/roles.ts"), "utf8")).toBe(source);
+    });
+
     it("writes nothing on a dry run and reports JSON", async () => {
       const dir = project(files);
       const result = await run([
@@ -716,7 +745,18 @@ describe("the codemod module", () => {
       };
       expect(problem.type).toBe("https://permdock.com/docs/cli/errors#usage");
       expect(problem.detail).toBe(
-        "unknown codemod version '0.4'. Supported: 0.5.",
+        "unknown codemod version '0.4'. Supported: 0.5, 0.8.",
+      );
+      expect(() =>
+        codemod({
+          cwd: process.cwd(),
+          version: undefined,
+          paths: [],
+          dryRun: true,
+          json: true,
+        }),
+      ).toThrow(
+        "codemod needs a version: permdock codemod <version>. Supported: 0.5, 0.8.",
       );
     });
 

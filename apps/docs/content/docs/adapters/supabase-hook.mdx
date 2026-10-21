@@ -455,6 +455,7 @@ A seat belongs to one membership, not the tenant: a Dev Mode seat in one organiz
 | `rls.customRoles`, `rls.roles`, `rls.suspension`, `rls.assignments`   | Whether custom roles live in tables, the global-roles table, the suspension tables, and the tables the assignment triggers guard                             |
 | `managementApi`                                                       | The Management API fields a hosted project needs for Auth to call the hook: `hook_custom_access_token_enabled`, `hook_custom_access_token_uri` and `jwt_exp` |
 | `decidingColumns`                                                     | Every `schema.table.column` a membership or an `attrs` claim is computed from, which clients must not be able to write                                       |
+| `names`                                                               | Every SQL helper, view and claim name the generated RLS gives application SQL, per scope and per resource                                                    |
 
 The format, its JSON Schema (`schemas/supabase-manifest-v1.json`) and the versioning rule are on [wire formats](/docs/concepts/wire-formats#supabase-hook-manifest); `supabaseHookManifestFixture` in `permdock/testing` is a sample to test a reader against.
 

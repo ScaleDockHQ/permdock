@@ -231,6 +231,36 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
       required: ["hook", "grants"],
       properties: { hook: { const: "v1" }, grants: { const: "v1" } },
     },
+    names: {
+      description:
+        "The SQL names the generated RLS exposes to application SQL, unqualified, in `schema`: per scope and per resource, as `resolveNames` gives them. Absent from a manifest written before 0.8.",
+      type: "object",
+      required: ["schema", "gucPrefix", "claims", "scopes", "resources"],
+      properties: {
+        schema: { type: "string" },
+        gucPrefix: { type: "string" },
+        claims: {
+          type: "object",
+          required: ["tenant", "role"],
+          properties: { tenant: { type: "string" }, role: { type: "string" } },
+        },
+        teamScope: { type: "string" },
+        scopes: {
+          type: "object",
+          additionalProperties: {
+            type: "object",
+            additionalProperties: { type: "string" },
+          },
+        },
+        resources: {
+          type: "object",
+          additionalProperties: {
+            type: "object",
+            additionalProperties: { type: "string" },
+          },
+        },
+      },
+    },
     requires: {
       description:
         "The supabase/sdk capability-matrix feature ids the hook, the helpers and subjectFromSupabase depend on, as of the matrix release tag.",

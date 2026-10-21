@@ -13,7 +13,7 @@ export default {
   rls: {
     dialect: "supabase",
     authorize: "database",
-    tenantType: "uuid",
+    scopeTypes: { tenant: "uuid" },
     suspension,
     roles: { table: "user_roles", role: roleKey },
   },

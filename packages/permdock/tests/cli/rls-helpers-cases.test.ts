@@ -121,7 +121,10 @@ describe("helpersSql with rls.tenants 'all'", () => {
               role: "role",
               column: "org_id",
             },
-            team: { ...teamMembers, tenant: "org_id" },
+            team: {
+              ...teamMembers,
+              columns: { ...teamMembers.columns, tenant: "org_id" },
+            },
           },
         },
       },

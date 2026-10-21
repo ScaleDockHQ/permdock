@@ -1,3 +1,4 @@
+import type { ActionResult } from "../core/action-result.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription } from "../core/describe.ts";
 import type { DescribeMessages } from "../core/describe.ts";
@@ -5,6 +6,8 @@ import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Actor, Delegation, Principal } from "../core/subject.ts";
+import type { ProtectedActionState } from "./protected-action.ts";
+import type { RefreshTrigger } from "./refresh-on.ts";
 import type { ClientStoreOptions } from "./store.ts";
 
 export type ClientStatus = "ready" | "pending" | "stale" | "server-only";
@@ -43,6 +46,23 @@ export type ApprovalHandle = {
   readonly request: (note?: string) => Promise<void>;
 };
 
+/**
+ * A protected server action wired to a control: the gate for its button, the
+ * last answer, and the approval its `approval-required` problem carries. The
+ * client decides nothing; the action answers.
+ */
+export type ProtectedActionView<T> = ProtectedActionState<T> & {
+  readonly gate: GateView;
+  /** On an `approval-required` problem, the handle for its token. */
+  readonly approval: ApprovalHandle | undefined;
+};
+
+export type ProtectedActionHandle<T> = ProtectedActionView<T> & {
+  readonly run: (input: unknown) => Promise<ActionResult<T>>;
+  /** Resends the last input with the approval token; `undefined` without one. */
+  readonly retry: () => Promise<ActionResult<T> | undefined>;
+};
+
 export type SubjectView = {
   readonly principal: Principal | null;
   readonly actor: Actor | undefined;
@@ -60,7 +80,16 @@ export type TenantView = {
 
 export type FilterResult<T> = readonly T[] & { readonly partial: boolean };
 
-export type RolesOptions = { readonly tenant?: string; readonly team?: string };
+/**
+ * Which held roles `useRoles` lists: those of a tenant (the active one by
+ * default), or only those on the memberships of one `scope`, and of one
+ * instance `id` of it.
+ */
+export type RolesOptions = {
+  readonly tenant?: string;
+  readonly scope?: string;
+  readonly id?: string;
+};
 
 /**
  * The provider options Vue, Svelte and Solid share; each adds its own reactive
@@ -86,6 +115,11 @@ export type ProviderOptionsBase = {
   readonly onClear?: () => void;
   /** Milliseconds between approval status polls. Defaults to 2000. */
   readonly approvalInterval?: number;
+  /**
+   * Triggers that refresh the snapshot, such as `eventSourceRefresh(url)`; read
+   * once.
+   */
+  readonly refreshOn?: readonly RefreshTrigger[];
 };
 
 /**

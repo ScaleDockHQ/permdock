@@ -143,6 +143,7 @@ describe("permdock/otel logging and spans", () => {
     const { api, exceptions } = spanApi(true);
     const permdock = getPermDockSync(policy, memberUser);
     instrument(permdock, { api });
+    // @ts-expect-error the row breaks its schema on purpose
     permdock.decide(permissions.post.update, { id: 5 });
     expect(exceptions.length).toBe(1);
   });

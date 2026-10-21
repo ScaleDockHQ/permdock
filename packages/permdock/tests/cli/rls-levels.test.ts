@@ -77,12 +77,12 @@ export const policy = definePolicy(permissions, {
   policy: './src/levels.ts',
   rls: {
     dialect: 'supabase',
-    tenantType: 'text',
+    scopeTypes: { tenant: 'text' },
     authorize: '${authorize}',
     customRoles: true,${create ? "\n    rowHelpers: true," : ""}
     ${
       authorize === "database"
-        ? "memberships: { tenant: { table: 'organization_members', tenant: 'organization_id', user: 'user_id', role: 'role' } },"
+        ? "memberships: { scopes: { tenant: { table: 'organization_members', columns: { tenant: 'organization_id' }, user: 'user_id', role: 'role' } } },"
         : ""
     }
   },

@@ -30,6 +30,7 @@ import { NO_GRANT } from "../core/decision.ts";
 import { cacheLifeFor, snapshotTag } from "../core/snapshot-cache.ts";
 import { wrapPermDock } from "../core/wrap.ts";
 import { evaluationsHandler } from "../server/evaluations.ts";
+import { protectActionOf } from "./action.ts";
 import { renderClientProvider } from "./provider.tsx";
 
 type GrantedDecision = Extract<Decision, { readonly outcome: "granted" }>;
@@ -289,5 +290,11 @@ export function createPermDock<
     requirePermission,
     PermDockProvider,
     permdockHandler,
+    protectAction: protectActionOf({
+      policy,
+      getPermDock,
+      store: options.store,
+      rethrow: unstable_rethrow,
+    }),
   };
 }

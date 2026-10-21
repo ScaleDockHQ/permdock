@@ -4,6 +4,7 @@ import type {
   SupabaseActiveRow,
   SupabaseMembershipTable,
   SupabaseRlsConfig,
+  SupabaseRlsMembershipTable,
   SupabaseRlsOptions,
   SupabaseSuspension,
 } from "./types.ts";
@@ -22,9 +23,7 @@ import { keptKeys } from "./keep.ts";
 import { roleColumn } from "./roles.ts";
 import { PERMDOCK_SCHEMA } from "./sources.ts";
 
-function isTable(
-  value: unknown,
-): value is SupabaseRlsOptions["memberships"] & { readonly table: string } {
+function isTable(value: unknown): value is SupabaseMembershipTable {
   return (
     value !== null &&
     typeof value === "object" &&
@@ -33,18 +32,69 @@ function isTable(
   );
 }
 
+/** A table with its `tenant` / `team` columns moved under `columns`. */
+function configTable(
+  table: SupabaseMembershipTable,
+): SupabaseRlsMembershipTable {
+  const { tenant, team, ...rest } = table;
+  const columns = compact<Record<string, string>>({
+    tenant,
+    team,
+    ...table.columns,
+  });
+  return Object.keys(columns).length === 0 ? rest : { ...rest, columns };
+}
+
+function configTables(
+  tables: Readonly<Record<string, SupabaseMembershipTable>> | undefined,
+): Readonly<Record<string, SupabaseRlsMembershipTable>> | undefined {
+  return tables === undefined
+    ? undefined
+    : Object.fromEntries(
+        Object.entries(tables).map(([name, table]) => [
+          name,
+          configTable(table),
+        ]),
+      );
+}
+
+function configMemberships(
+  raw: SupabaseRlsOptions["memberships"],
+): SupabaseRlsConfig["memberships"] {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (isTable(raw)) {
+    return { scopes: { tenant: configTable(raw) } };
+  }
+  const scopes = configTables(
+    compact<Record<string, SupabaseMembershipTable>>({
+      tenant: raw.tenant,
+      team: raw.team,
+      ...raw.scopes,
+    }),
+  );
+  return compact({
+    scopes:
+      scopes === undefined || Object.keys(scopes).length === 0
+        ? undefined
+        : scopes,
+    resource: configTables(raw.resource),
+  });
+}
+
 export function supabaseRls(
   options: SupabaseRlsOptions = {},
 ): SupabaseRlsConfig {
-  const raw = options.memberships;
-  const memberships =
-    raw === undefined ? undefined : isTable(raw) ? { tenant: raw } : raw;
   return compact<SupabaseRlsConfig>({
     dialect: "supabase",
     roleClaim: options.roleClaim ?? "user_role",
     tenantClaim: options.tenantClaim ?? supabaseTenantClaim,
-    tenantType: options.tenantType,
-    memberships,
+    scopeTypes:
+      options.tenantType === undefined
+        ? undefined
+        : { tenant: options.tenantType },
+    memberships: configMemberships(options.memberships),
     suspension: options.suspension,
     realtime: options.realtime,
     storage: options.storage,

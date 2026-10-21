@@ -54,11 +54,13 @@ describe("rls generate options", () => {
 
   const io = { stdout: () => undefined, stderr: () => undefined };
   const memberships = {
-    tenant: {
-      table: "organization_members",
-      tenant: "organization_id",
-      user: "user_id",
-      role: "role",
+    scopes: {
+      tenant: {
+        table: "organization_members",
+        columns: { tenant: "organization_id" },
+        user: "user_id",
+        role: "role",
+      },
     },
   };
 

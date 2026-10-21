@@ -69,7 +69,7 @@ if (gate.hidden) return null;
 | `upgrade`       | The plans that would grant it, for an upgrade prompt              |
 | `reason`        | `describe(decision)`, localised by the provider's `messages`      |
 
-`gateView(state, describe, mode)` in `permdock/client` is the same computation without React, for Vue, Svelte, Solid or your own binding. The [`@permdock` recipes](/docs/concepts/recipes) build their controls on `useGate`; React and React Native share it.
+Vue and Solid export `useGate` with the same arguments, returning a computed ref and an accessor; Svelte's is the `gate` store. The [`@permdock` recipes](/docs/concepts/recipes) build their controls on `useGate`.
 
 ## Provider defaults
 
@@ -97,6 +97,7 @@ Set what every `<Protected>` renders for a slot it leaves out, and the localised
 | `onSnapshot`       | Called with each snapshot the store accepts, including the initial one                                          |
 | `onClear`          | Called when the store drops its snapshot                                                                        |
 | `approvalInterval` | Milliseconds between `useApproval` status polls; default 2000                                                   |
+| `refreshOn`        | `RefreshTrigger[]` that refetch the snapshot; see [refresh on events](#refresh-on-events)                       |
 
 `<Protected approval>` renders for an `approval-required` decision and receives it, so the slot can offer a request-access button with the token. Resolution runs from the component's own prop to the provider default: `approval` falls back to the component's `denied`, then the provider's `approval`, then the provider's `denied`. A component that sets `denied={null}` therefore stays hidden whatever the provider sets. In Svelte the props are snippets, and the `children` snippet receives a `GrantedDecision`. In Vue the defaults are render functions that get the slot props. The [Next.js](/docs/adapters/next) server provider takes nodes and message records only, because a function cannot cross from a Server Component to the client.
 
@@ -158,7 +159,7 @@ Provider hooks such as Clerk's `useOrganization`, Better Auth's `useActiveOrgani
 ```tsx
 const memberships = useMemberships(); // Membership[] from the snapshot
 const roles = useRoles(); // Role[] held in the active tenant
-const { roles: teamRoles } = useRoles({ team: "t_design" });
+const { roles: teamRoles } = useRoles({ scope: "team", id: "t_design" }); // only that team's memberships
 ```
 
 Render a "Your roles in Acme" chip list from `useRoles()`, an organisation list from `useMemberships()` filtered to `tenant` entries, and a shared-with-me list from `on` entries. The display label for a role is `role.meta.title` on the `Role` leaf; the snapshot's `vocabulary` carries it, so the client needs no catalog for titles.
@@ -176,6 +177,44 @@ const approval = useApproval(decision);
 ```
 
 `request` posts to the `approvals` URL ([approvals adapter](/docs/adapters/approvals)); while a component subscribes, `state` polls `GET <approvals>/<token>` on the `approvalsHandler` every two seconds until the request is `approved`, `rejected` or `expired` (a `404` reads as `expired`), and never during a server render or after logout; when `approved`, the retry helper `approvalHeaders(token)` returns `{ 'PermDock-Approval': token }` for the mutation call ([security: approvals](/docs/security/approvals)). The approver never answers through this hook: approving happens in the inbox or a chat surface, authenticated as the approver. The hook never fabricates a token; it only carries the one the decision returned.
+
+## Protected server actions
+
+`useProtectedAction(action, permission, data?, { mode })` wires a [`protectAction`](/docs/adapters/next#server-actions) Server Action, or any function with its `ProtectedAction` signature, to a control. It returns:
+
+| Field        | Value                                                                                        |
+| ------------ | -------------------------------------------------------------------------------------------- |
+| `gate`       | The `useGate` view for the permission and row                                                |
+| `run(input)` | Calls the action and keeps its `ActionResult`                                                |
+| `result`     | The last `ActionResult`; `undefined` before the first call                                   |
+| `pending`    | A call is in flight                                                                          |
+| `approval`   | On an `approval-required` problem, the `ApprovalHandle` for its token; otherwise `undefined` |
+| `retry()`    | Resends the last input with `{ approval: token }`; `undefined` without a token               |
+
+```tsx
+const approve = useProtectedAction(
+  approveQuote,
+  permissions.quote.approve,
+  quote,
+);
+
+return (
+  <>
+    <Button
+      hidden={approve.gate.hidden}
+      disabled={approve.gate.disabled || approve.pending}
+      onClick={() => approve.run({ org, id: quote.id })}
+    >
+      Approve
+    </Button>
+    {approve.approval?.state === "approved" && (
+      <Button onClick={() => approve.retry()}>Retry</Button>
+    )}
+  </>
+);
+```
+
+The hook decides nothing: the action decides on the server and the hook renders its answer. Only the latest call's result lands. A throw from the action, such as a Next.js `redirect()`, clears `pending` and propagates. Vue and Solid export `useProtectedAction` with computed refs and accessors for the fields; Svelte's is the `protectedAction` store, with `run` and `retry` on it.
 
 ## Impersonation banner
 
@@ -226,6 +265,46 @@ The snapshot is state, not server data: it lives in the provider's external stor
 - **Loader**: fetch the snapshot in the route loader (TanStack Router, React Router) and pass it to `PermDockProvider`; call `refresh()` after mutations that change roles.
 - **TanStack Query**: `queryClient.invalidateQueries` and `permdock.invalidate(permissions.post)` in the same `onSuccess`, so cached rows and cached endpoint answers expire together.
 - **Server Components**: no hook; `getPermission` and `permdock.filter` on the server, snapshot only for the client tree. Pass the snapshot unawaited as `snapshotPromise` so the layout never blocks: hooks answer `status: 'pending'` until it resolves and `<Protected pending>` renders its `pending` slot, so permission UI stays in the static shell; the `suspend` prop suspends readers through `use()` instead ([Next.js adapter](/docs/adapters/next)).
+
+## Refresh on events
+
+`refreshOn` takes a list of `(refresh) => unsubscribe` functions. The store starts them when its first subscriber arrives and stops them with the last one or on `dispose()`. Calls within 250 ms fold into one `refresh()`. None start during a server render, and none refetch after `clear()` until a snapshot hydrates again. A refresh re-fetches the signed snapshot, so a trigger can make the UI current but never grants anything.
+
+`eventSourceRefresh(url, { types })` listens to Server-Sent Events whose data is a structured [CloudEvent](/docs/concepts/wire-formats). It refreshes on `com.permdock.membership.*` and `com.permdock.catalog.*` unless `types` names others; a trailing `*` matches a prefix. Every UI adapter exports it, and every provider takes `refreshOn`.
+
+```tsx
+import { PermDockProvider, eventSourceRefresh } from "permdock/react";
+
+const refreshOn = [eventSourceRefresh("/api/permdock/events")];
+
+<PermDockProvider
+  snapshot={snapshot}
+  snapshotUrl="/api/permdock/snapshot"
+  refreshOn={refreshOn}
+>
+  {children}
+</PermDockProvider>;
+```
+
+Define the list outside the component: the provider reads it when it builds its store. A Supabase Realtime channel on the membership table is a trigger too, and needs nothing from PermDock:
+
+```ts
+import type { RefreshTrigger } from "permdock/react";
+
+const memberships: RefreshTrigger = (refresh) => {
+  const channel = supabase
+    .channel("permdock-memberships")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "memberships" },
+      refresh,
+    )
+    .subscribe();
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+};
+```
 
 ## Status handling
 

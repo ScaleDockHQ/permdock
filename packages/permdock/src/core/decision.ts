@@ -235,3 +235,10 @@ export const NO_GRANT: DeniedDecision = Object.freeze({
   denials: Object.freeze([Object.freeze({ role: null, reason: "no-grant" })]),
   alternatives: Object.freeze([]),
 });
+
+/** The denial for a check whose row loader threw: it fails closed. */
+export const LOAD_FAILED: DeniedDecision = Object.freeze({
+  outcome: "denied",
+  denials: Object.freeze([Object.freeze({ role: null, reason: "validation" })]),
+  alternatives: Object.freeze([]),
+});

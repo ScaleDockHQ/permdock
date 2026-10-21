@@ -3,7 +3,11 @@ import { junctionMembershipSource } from "permdock/supabase";
 export default {
   permissions: "../rls-matrix/permissions.ts",
   policy: "../rls-matrix/policy.ts",
-  rls: { dialect: "supabase", tenantType: "text", authorize: "jwt" },
+  rls: {
+    dialect: "supabase",
+    scopeTypes: { tenant: "text" },
+    authorize: "jwt",
+  },
   supabase: {
     hook: {
       before: ["auth_checks.require_verified", "auth_checks.tag_event"],

@@ -7,6 +7,7 @@
     assignable,
     assignablePermissions,
     filtered,
+    gate,
     getPermDock,
     memberships,
     permission,
@@ -50,11 +51,16 @@
       memberships: memberships(),
       roles: roles(),
       tenantRoles: roles(() => ({ tenant: 'o1' })),
-      teamRoles: roles(() => ({ team: 'no-such-team' })),
+      teamRoles: roles(() => ({ scope: 'team', id: 'no-such-team' })),
       assignable: assignable(),
       assignablePermissions: assignablePermissions(),
       subject: subject(),
       approval: approval(() => decision),
+      gates: [
+        gate(defs.post.update, () => ownPost),
+        gate(defs.post.delete, () => ownPost, { mode: 'hide' }),
+        gate(defs.post.publish, () => ownPost, { mode: 'hide' }),
+      ],
     });
   } catch (error) {
     onReady(error);

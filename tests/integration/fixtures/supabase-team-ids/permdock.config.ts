@@ -19,6 +19,10 @@ const memberships = [
 export default {
   permissions: "./policy.ts",
   policy: "./policy.ts",
-  rls: { dialect: "supabase", tenantType: "text", authorize: "jwt" },
+  rls: {
+    dialect: "supabase",
+    scopeTypes: { tenant: "text" },
+    authorize: "jwt",
+  },
   supabase: { hook: { roles: false, memberships } },
 };

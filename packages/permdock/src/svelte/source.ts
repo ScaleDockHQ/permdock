@@ -6,7 +6,12 @@ import type { ProtectedProps } from "./protected.ts";
 // Kept as source: the app's Svelte compiler builds it for SSR or the client.
 import PermissionBoundaryComponent from "./PermissionBoundary.svelte";
 import ProtectedComponent from "./Protected.svelte";
-export { describe, requiredPlans, approvalHeaders } from "../client/kit.ts";
+export {
+  describe,
+  requiredPlans,
+  approvalHeaders,
+  eventSourceRefresh,
+} from "../client/kit.ts";
 
 export { setPermDock } from "./stores.ts";
 export {
@@ -14,6 +19,8 @@ export {
   assignable,
   assignablePermissions,
   filtered,
+  gate,
+  protectedAction,
   getDescribe,
   getPermDock,
   memberships,
@@ -29,6 +36,10 @@ export type {
   ClientPermDock,
   ClientStatus,
   FilterResult,
+  GateMode,
+  GateView,
+  ProtectedActionReadable,
+  ProtectedActionView,
   PermDockDefaults,
   SveltePermDockOptions,
   PermissionSet,
@@ -46,3 +57,8 @@ export const Protected: Component<ProtectedProps> = ProtectedComponent;
 
 export const PermissionBoundary: Component<PermissionBoundaryProps> =
   PermissionBoundaryComponent;
+export type {
+  EventSourceRefreshOptions,
+  RefreshTrigger,
+} from "../client/refresh-on.ts";
+export type { ActionResult, ProtectedAction } from "../core/action-result.ts";

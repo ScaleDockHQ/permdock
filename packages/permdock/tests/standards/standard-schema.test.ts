@@ -117,6 +117,7 @@ describe("Standard Schema", () => {
         const permdock = getPermDockSync(policy, { id: "u1" });
         const decision = permdock.decide(
           permissions.post.read,
+          // @ts-expect-error the row breaks its schema on purpose
           { id: "p1", title: 7 },
           { trusted: false },
         );
@@ -147,15 +148,19 @@ describe("Standard Schema", () => {
       getPermDockSync(always.policy, { id: "u1" }),
       getPermDockSync(never.policy, { id: "u1" }),
     ];
+    // @ts-expect-error the row breaks its schema on purpose
     expect(b.can(boundary.permissions.post.read, bad, { trusted: true })).toBe(
       true,
     );
+    // @ts-expect-error the row breaks its schema on purpose
     expect(b.can(boundary.permissions.post.read, bad, { trusted: false })).toBe(
       false,
     );
+    // @ts-expect-error the row breaks its schema on purpose
     expect(a.can(always.permissions.post.read, bad, { trusted: true })).toBe(
       false,
     );
+    // @ts-expect-error the row breaks its schema on purpose
     expect(n.can(never.permissions.post.read, bad, { trusted: false })).toBe(
       true,
     );

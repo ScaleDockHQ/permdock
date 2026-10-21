@@ -1,10 +1,13 @@
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { ReactElement, ReactNode } from "react";
 
 import type { ApprovalStore } from "../approvals/types.ts";
+import type { ActionResult, ProtectedAction } from "../core/action-result.ts";
 import type { Decision, DenialReason } from "../core/decision.ts";
 import type { DescribeMessages } from "../core/describe.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";
+import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
@@ -102,6 +105,46 @@ export type PermDockHandler = {
   readonly GET: (request: Request) => Promise<Response>;
 };
 
+export type ProtectActionOptions<TInput, TRow> = {
+  /** Validates the action's argument before anything else runs. */
+  readonly input: StandardSchemaV1<unknown, TInput>;
+  /** The row to decide on; `null` or `undefined` answers `404`. */
+  readonly data?: (
+    input: TInput,
+  ) => TRow | null | undefined | Promise<TRow | null | undefined>;
+  /** The tenant to build the instance for; default the factory's `tenant`. */
+  readonly tenant?: (input: TInput) => string | undefined;
+};
+
+export type ProtectedActionContext<TRow, V extends PolicyVocabulary> = {
+  readonly permdock: PermDock<V>;
+  readonly decision: Extract<Decision, { readonly outcome: "granted" }>;
+  /** The loaded row; `undefined` without a `data` loader. */
+  readonly data: TRow;
+};
+
+export type ProtectedActionHandler<
+  TInput,
+  TRow,
+  TResult,
+  V extends PolicyVocabulary,
+> = (
+  input: TInput,
+  context: ProtectedActionContext<TRow, V>,
+) => TResult | Promise<TResult>;
+
+export type { ActionResult, ProtectedAction };
+
+export type ProtectAction<V extends PolicyVocabulary> = <
+  TInput,
+  TRow = undefined,
+>(
+  permission: Permission,
+  options: ProtectActionOptions<TInput, TRow>,
+) => <TResult>(
+  handler: ProtectedActionHandler<TInput, TRow, TResult, V>,
+) => ProtectedAction<Awaited<TResult>>;
+
 export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly getPermDock: (query?: GetPermDockQuery) => Promise<PermDock<V>>;
   /**
@@ -109,11 +152,18 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * denies; Next.js interrupts (`redirect()`, `notFound()`, request-time
    * bailouts) from `subject` or `tenant` pass through.
    */
-  readonly getPermission: (
-    permission: Permission,
-    data?: unknown,
-    query?: GetPermDockQuery,
-  ) => Promise<ServerPermissionState>;
+  readonly getPermission: {
+    <D>(
+      permission: Permission,
+      data?: UncheckedData<D>,
+      query?: GetPermDockQuery,
+    ): Promise<ServerPermissionState>;
+    <P extends Permission>(
+      permission: P,
+      data?: RowData<P>,
+      query?: GetPermDockQuery,
+    ): Promise<ServerPermissionState>;
+  };
   /**
    * The session's snapshot for a `'use cache: private'` function the app owns:
    * calls `cacheLife(cacheLifeFor(snapshot))` and `cacheTag(snapshotTag(sub),
@@ -126,15 +176,28 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * subject and `forbidden()` otherwise (`experimental.authInterrupts`);
    * approval-required and boundary validation throw as from `assert`.
    */
-  readonly requirePermission: (
-    permission: Permission,
-    data?: unknown,
-    options?: PermissionRequirementOptions,
-  ) => Promise<Extract<Decision, { readonly outcome: "granted" }>>;
+  readonly requirePermission: {
+    <D>(
+      permission: Permission,
+      data?: UncheckedData<D>,
+      options?: PermissionRequirementOptions,
+    ): Promise<Extract<Decision, { readonly outcome: "granted" }>>;
+    <P extends Permission>(
+      permission: P,
+      data?: RowData<P>,
+      options?: PermissionRequirementOptions,
+    ): Promise<Extract<Decision, { readonly outcome: "granted" }>>;
+  };
   /**
    * Never awaits: passes an unawaited snapshot to the client provider, whose
    * hooks suspend.
    */
   readonly PermDockProvider: (props: NextPermDockProviderProps) => ReactElement;
   readonly permdockHandler: () => PermDockHandler;
+  /**
+   * Wraps a server action: validates `input`, loads `data`, decides, then runs
+   * the handler. Resolves to `{ ok: true, value }` or `{ ok: false, problem }`
+   * with RFC 9457 Problem Details; only Next.js interrupts throw.
+   */
+  readonly protectAction: ProtectAction<V>;
 };

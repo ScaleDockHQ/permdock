@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { extname, join, resolve } from "node:path";
+import { basename, extname, join, resolve } from "node:path";
 
 import type { PlannedFile } from "../core/files.ts";
 import type { CommandResult } from "../core/result.ts";
@@ -9,7 +9,9 @@ import { CliError } from "../core/errors.ts";
 import { applyFiles, refuseDirty } from "../core/files.ts";
 import { rel } from "../files.ts";
 import { rewriteCliCalls } from "./cli-calls.ts";
+import { moveConfigKeys } from "./config-moves.ts";
 import { RENAMES_0_5, SIGNATURE_CHANGES_0_5 } from "./renames-0.5.ts";
+import { CONFIG_MOVES_0_8, SIGNATURE_CHANGES_0_8 } from "./renames-0.8.ts";
 import {
   AWAIT_RENAMES_0_5,
   CALL_RENAMES_0_5,
@@ -34,9 +36,16 @@ export const CODEMOD_0_5: RenameSet = Object.freeze({
   durations: DURATION_KEYS_0_5,
 });
 
+export const CODEMOD_0_8: RenameSet = Object.freeze({
+  renames: [],
+  signatures: SIGNATURE_CHANGES_0_8,
+  configMoves: CONFIG_MOVES_0_8,
+});
+
 /** Each codemod version and the rename map it applies. */
 const CODEMODS: Readonly<Record<string, RenameSet>> = Object.freeze({
   "0.5": CODEMOD_0_5,
+  "0.8": CODEMOD_0_8,
 });
 
 export function codemodVersions(): readonly string[] {
@@ -138,12 +147,15 @@ export function codemod(options: CodemodOptions): CodemodReport {
   const writes: PlannedFile[] = [];
   for (const file of files) {
     const source = readFileSync(file, "utf8");
-    if (!source.includes("permdock")) {
+    if (
+      !source.includes("permdock") &&
+      !basename(file).startsWith("permdock.config.")
+    ) {
       continue;
     }
     const name = rel(options.cwd, file);
     const result = isCodeFile(file)
-      ? transformSource(file, source, set)
+      ? withConfigMoves(file, transformSource(file, source, set), set)
       : cliResult(file, source);
     if (result.error !== undefined) {
       followUps.push({
@@ -181,6 +193,22 @@ export function codemod(options: CodemodOptions): CodemodReport {
     scanned: files.length,
     files: changed,
     followUps,
+  };
+}
+
+function withConfigMoves(
+  file: string,
+  result: ReturnType<typeof transformSource>,
+  set: RenameSet,
+): ReturnType<typeof transformSource> {
+  if (result.error !== undefined || set.configMoves === undefined) {
+    return result;
+  }
+  const moved = moveConfigKeys(file, result.source, set.configMoves);
+  return {
+    source: moved.source,
+    changes: [...result.changes, ...moved.changes],
+    followUps: [...result.followUps, ...moved.followUps],
   };
 }
 

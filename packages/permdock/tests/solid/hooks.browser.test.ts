@@ -5,16 +5,24 @@ import { createStore } from "solid-js/store";
 import { render } from "solid-js/web";
 import { describe, expect, it } from "vitest";
 
+import type {
+  ActionResult,
+  ProtectedAction,
+} from "../../src/core/action-result.ts";
 import type { Decision } from "../../src/core/decision.ts";
 import type { Snapshot } from "../../src/core/snapshot-types.ts";
+import type { ProtectedActionAccessors } from "../../src/solid/types.ts";
 
 import { getPermDockSync } from "../../src/core/permdock.ts";
+import { problemType } from "../../src/core/problem-types.ts";
 import {
   useApproval,
   useAssignablePermissions,
   useAssignableRoles,
+  useGate,
   usePermDock,
   usePermission,
+  useProtectedAction,
   usePermissions,
   useRoles,
   useSubject,
@@ -76,7 +84,83 @@ const required: Decision = {
   token: "pd1.token",
 } as unknown as Decision;
 
+function approvalAction(calls: unknown[]): ProtectedAction<string> {
+  const answers: ActionResult<string>[] = [
+    {
+      ok: false,
+      problem: {
+        type: problemType("approval-required"),
+        title: "Approval required",
+        status: 403,
+        detail: "post.update needs an approval.",
+        permission: "post.update",
+        token: "pd1.token/one",
+      },
+    },
+    { ok: true, value: "saved" },
+  ];
+  return (input, options) => {
+    calls.push([input, options]);
+    return Promise.resolve(answers.shift() ?? { ok: true, value: "again" });
+  };
+}
+
 describe("permdock/solid hooks", () => {
+  it("gate a granted, an approval-required and a denied action like React", async () => {
+    const view = mount({ snapshot: await memberSnapshot() }, () => {
+      const update = useGate(permissions.post.update, () => ownPost);
+      const remove = useGate(permissions.post.delete, () => ownPost, {
+        mode: "hide",
+      });
+      const publish = useGate(permissions.post.publish, () => ownPost, {
+        mode: "hide",
+      });
+      return () =>
+        [
+          update().disabled,
+          remove().needsApproval,
+          remove().hidden,
+          publish().hidden,
+          publish().reason.kind,
+        ].join(":");
+    });
+    expect(view.root.textContent).toBe("false:true:false:true:denied");
+    view.dispose();
+  });
+
+  it("run a protected action and retry it with the approval token", async () => {
+    const calls: unknown[] = [];
+    let handle: ProtectedActionAccessors<string> | undefined;
+    const view = mount(
+      { snapshot: await memberSnapshot(), endpoint: false },
+      () => {
+        const current = useProtectedAction(
+          approvalAction(calls),
+          permissions.post.update,
+          () => ownPost,
+        );
+        handle = current;
+        return () =>
+          [
+            current.gate().disabled,
+            current.pending(),
+            current.result()?.ok ?? "none",
+            current.approval()?.token ?? "none",
+          ].join(":");
+      },
+    );
+    expect(view.root.textContent).toBe("false:false:none:none");
+    await handle?.run({ title: "Hello" });
+    expect(view.root.textContent).toBe("false:false:false:pd1.token/one");
+    await handle?.retry();
+    expect(view.root.textContent).toBe("false:false:true:none");
+    expect(calls).toStrictEqual([
+      [{ title: "Hello" }, undefined],
+      [{ title: "Hello" }, { approval: "pd1.token/one" }],
+    ]);
+    view.dispose();
+  });
+
   it("re-run for every reader of one store row edited in place", async () => {
     const [post, setPost] = createStore({ ...ownPost });
     const view = mount({ snapshot: await memberSnapshot() }, () => {
@@ -131,7 +215,7 @@ describe("permdock/solid hooks", () => {
       () => {
         const tenant = useTenant();
         const acme = useRoles(() => ({ tenant: "acme" }));
-        const team = useRoles(() => ({ team: "no-such-team" }));
+        const team = useRoles(() => ({ scope: "team", id: "no-such-team" }));
         const held = useRoles();
         const assignable = useAssignableRoles();
         const leaves = useAssignablePermissions();
@@ -155,7 +239,7 @@ describe("permdock/solid hooks", () => {
       },
     );
     expect(view.root.textContent).toBe(
-      "acme:acme,globex:admin:admin:admin:admin,member,viewer:true:alice:false",
+      "acme:acme,globex:admin::admin:admin,member,viewer:true:alice:false",
     );
     await switchTo?.("globex");
     expect(view.root.textContent?.startsWith("globex:")).toBe(true);

@@ -1,5 +1,6 @@
 import type { Policy } from "../../index.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
+import type { ResolvedNames } from "../sql/resolve-names.ts";
 import type { RlsMemberships } from "../types.ts";
 import type { RlsMigrateConfig } from "../types.ts";
 import type {
@@ -16,8 +17,10 @@ import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { configError, describeError } from "../core/errors.ts";
 import { checkSuspension } from "../sql/active.ts";
+import { firstScopeType } from "../sql/columns.ts";
 import { parseMembershipsFlag } from "../sql/context.ts";
 import { assignableRoles, roleNames } from "../sql/grants.ts";
+import { resolveNames } from "../sql/resolve-names.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
 import { resolveVias, tableNames, tablelessResources } from "../sql/tables.ts";
@@ -47,6 +50,7 @@ function roleMemberScopesOf(migrate: RlsMigrateConfig | undefined): {
 
 export type GenerateContext = {
   readonly ctx: RlsSqlContext;
+  readonly names: ResolvedNames;
   readonly graph: ReturnType<typeof graphPlan>;
   readonly ownership: ReturnType<typeof ownershipRules>;
   readonly schema: string;
@@ -235,8 +239,7 @@ export function buildContext(
     schema,
     authorize,
     roleClaim: rls?.roleClaim ?? "user_role",
-    tenantType: input.tenantType ?? rls?.tenantType ?? "uuid",
-    ...(rls?.teamType === undefined ? {} : { teamType: rls.teamType }),
+    tenantType: input.tenantType ?? firstScopeType(rls?.scopeTypes, scopes),
     ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
     ...(memberships === undefined ? {} : { memberships }),
     ...(sources === undefined || sources.length === 0 ? {} : { sources }),
@@ -324,5 +327,10 @@ export function buildContext(
       refusal: `role ${unsatisfied.role} is for ${unsatisfied.for.join(", ")}, but its membership sources hold ${unsatisfied.sources.join(", ")}: no membership can hold it; set via on a source to one of those kinds`,
     };
   }
-  return { ctx, graph, ownership, schema, authorize };
+  const names = resolveNames(policy, input.config, {
+    schema,
+    gucPrefix: ctx.gucPrefix,
+    tenantClaim: ctx.tenantClaim,
+  });
+  return { ctx, names, graph, ownership, schema, authorize };
 }

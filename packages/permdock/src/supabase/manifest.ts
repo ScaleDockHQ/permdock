@@ -77,6 +77,51 @@ export type SupabaseHookManifest = {
    * SDK that lacks one cannot serve this policy.
    */
   readonly requires?: SupabaseManifestRequires;
+  /**
+   * The SQL names the generated RLS exposes, as `resolveNames` gives them.
+   * Absent from a manifest written before 0.8.
+   */
+  readonly names?: SupabaseManifestNames;
+};
+
+/** The SQL helpers named after one scope, unqualified. */
+export type SupabaseManifestScopeNames = {
+  readonly permittedIds: string;
+  readonly permittedIdsFor: string;
+  readonly memberIds: string;
+  readonly memberIdsFor: string;
+  /**
+   * Only on the team scope (`team` or `teams`), for better-supabase's
+   * `teamIdsOf`.
+   */
+  readonly memberIdsOf?: string;
+  readonly permittedUsers: string;
+};
+
+/** The SQL objects named after one resource, unqualified. */
+export type SupabaseManifestResourceNames = {
+  /** The table `rls.tables` maps, as written there. */
+  readonly table?: string;
+  /** Graph resources only: `permitted_<resource>_ids` and its restriction check. */
+  readonly permittedIds?: string;
+  readonly restricted?: string;
+  /** With `rls.rowHelpers` naming the resource. */
+  readonly rows?: string;
+  readonly row?: string;
+  /** With `rls.fields` and a mapped table. */
+  readonly visible?: string;
+  readonly visibleFields?: string;
+  readonly mask?: string;
+};
+
+export type SupabaseManifestNames = {
+  readonly schema: string;
+  readonly gucPrefix: string;
+  readonly claims: { readonly tenant: string; readonly role: string };
+  /** The scope better-supabase reads as its teams, when one is declared. */
+  readonly teamScope?: string;
+  readonly scopes: Readonly<Record<string, SupabaseManifestScopeNames>>;
+  readonly resources: Readonly<Record<string, SupabaseManifestResourceNames>>;
 };
 
 export type SupabaseManifestRequires = {

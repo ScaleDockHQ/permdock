@@ -29,12 +29,9 @@ export function membershipRoles(
     return undefined;
   }
   const scopeColumns = new Set(
-    [
-      ...Object.values(table.columns ?? {}),
-      table.tenant,
-      table.team,
-      table.id,
-    ].filter((column): column is string => column !== undefined),
+    [...Object.values(table.columns ?? {}), table.id].filter(
+      (column): column is string => column !== undefined,
+    ),
   );
   if (
     subquery.field !== undefined &&

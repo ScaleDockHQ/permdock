@@ -42,7 +42,7 @@ export type Connection = {
     options?: { readonly trusted?: boolean },
   ) => Decision;
   readonly filter: <T>(
-    permission: Permission<string, T, "instance">,
+    permission: Permission<string, NoInfer<T>, "instance">,
     items: readonly T[],
   ) => T[];
   /**

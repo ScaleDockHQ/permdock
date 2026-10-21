@@ -61,11 +61,11 @@ export const policy = definePolicy(permissions, {
   policy: './src/team-reach.ts',
   rls: {
     dialect: 'supabase',
-    tenantType: 'text',
+    scopeTypes: { tenant: 'text' },
     authorize: '${authorize}',
     ${
       authorize === "database"
-        ? "memberships: { tenant: { table: 'organization_members', tenant: 'organization_id', user: 'user_id', role: 'role' } },"
+        ? "memberships: { scopes: { tenant: { table: 'organization_members', columns: { tenant: 'organization_id' }, user: 'user_id', role: 'role' } } },"
         : ""
     }
   },

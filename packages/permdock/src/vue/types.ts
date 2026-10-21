@@ -1,4 +1,4 @@
-import type { MaybeRefOrGetter, VNode } from "vue";
+import type { ComputedRef, MaybeRefOrGetter, VNode } from "vue";
 
 import type {
   ApprovalHandle,
@@ -6,13 +6,17 @@ import type {
   ClientPermDock,
   ClientStatus,
   FilterResult,
+  GateMode,
+  GateView,
   PermissionSet,
   PermissionState,
+  ProtectedActionView,
   ProviderOptionsBase,
   SubjectView,
   TenantView,
   RolesOptions,
 } from "../client/types.ts";
+import type { ActionResult } from "../core/action-result.ts";
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
@@ -64,9 +68,25 @@ export type {
   ClientPermDock,
   ClientStatus,
   FilterResult,
+  GateMode,
+  GateView,
   PermissionSet,
   PermissionState,
+  ProtectedActionView,
   SubjectView,
   TenantView,
   RolesOptions,
+};
+
+/**
+ * `useProtectedAction` in Vue: the fields of `ProtectedActionView` as computed
+ * refs.
+ */
+export type ProtectedActionRefs<T> = {
+  readonly gate: ComputedRef<GateView>;
+  readonly result: ComputedRef<ActionResult<T> | undefined>;
+  readonly pending: ComputedRef<boolean>;
+  readonly approval: ComputedRef<ApprovalHandle | undefined>;
+  readonly run: (input: unknown) => Promise<ActionResult<T>>;
+  readonly retry: () => Promise<ActionResult<T> | undefined>;
 };

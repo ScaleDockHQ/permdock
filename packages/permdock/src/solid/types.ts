@@ -7,13 +7,17 @@ import type {
   ClientPermDock,
   ClientStatus,
   FilterResult,
+  GateMode,
+  GateView,
   PermissionSet,
   PermissionState,
+  ProtectedActionView,
   ProviderOptionsBase,
   SubjectView,
   TenantView,
   RolesOptions,
 } from "../client/types.ts";
+import type { ActionResult } from "../core/action-result.ts";
 import type {
   ApprovalRequiredDecision,
   Decision,
@@ -97,11 +101,27 @@ export type {
   ClientPermDock,
   ClientStatus,
   FilterResult,
+  GateMode,
+  GateView,
   PermissionSet,
   PermissionState,
+  ProtectedActionView,
   SubjectView,
   TenantView,
   RolesOptions,
 };
 
 export type { Accessor, PermissionBoundaryState };
+
+/**
+ * `useProtectedAction` in Solid: the fields of `ProtectedActionView` as
+ * accessors.
+ */
+export type ProtectedActionAccessors<T> = {
+  readonly gate: Accessor<GateView>;
+  readonly result: Accessor<ActionResult<T> | undefined>;
+  readonly pending: Accessor<boolean>;
+  readonly approval: Accessor<ApprovalHandle | undefined>;
+  readonly run: (input: unknown) => Promise<ActionResult<T>>;
+  readonly retry: () => Promise<ActionResult<T> | undefined>;
+};

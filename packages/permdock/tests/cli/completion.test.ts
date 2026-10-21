@@ -121,13 +121,15 @@ describe("completion candidates", () => {
   });
 
   it("offers codemod versions for the first positional only", async () => {
-    expect(await candidates(["codemod", ""])).toStrictEqual(["0.5"]);
+    expect(await candidates(["codemod", ""])).toStrictEqual(["0.5", "0.8"]);
     expect(await candidates(["codemod", "--dry-run", ""])).toStrictEqual([
       "0.5",
+      "0.8",
     ]);
     expect(await candidates(["codemod", "0.5", ""])).toStrictEqual([]);
     expect(await candidates(["codemod", "--cwd", "app", ""])).toStrictEqual([
       "0.5",
+      "0.8",
     ]);
     expect(await candidates(["codemod", "--", ""])).toStrictEqual([]);
   });

@@ -143,7 +143,7 @@ describe("supabase inspect", () => {
       const { cwd } = await generate(
         `{ memberships: [${SOURCES}], attrs: { table: 'profiles', columns: ['locale', 'app_metadata.region'] }, claims: { features: 'billing.feature_claims' } }`,
         [],
-        `{ tenantType: 'text', scopeTypes: { customer: 'bigint' } }`,
+        `{ scopeTypes: { tenant: 'text', customer: 'bigint' } }`,
       );
       const inspect = await run(["supabase", "inspect", "--json"], { cwd });
       const manifest: unknown = jsonData(inspect.stdout);
@@ -772,7 +772,7 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
       const { code, cwd } = await generate(
         `{ memberships: [junctionMembershipSource({ table: 'organization_users', scope: 'organization', roles: 'role', disabledAt: 'disabled_at', suspension: { memberships: { keep: ['invoice.read'] } } })] }`,
         [],
-        `{ tenantType: 'text', authorize: 'database', suspension: { memberships: { keep: ['invoice.read'] } }, memberships: { scopes: { organization: { table: 'organization_users', user: 'user_id', role: 'role', columns: { organization: 'organization_id' }, disabledAt: 'disabled_at' } } } }`,
+        `{ scopeTypes: { tenant: 'text' }, authorize: 'database', suspension: { memberships: { keep: ['invoice.read'] } }, memberships: { scopes: { organization: { table: 'organization_users', user: 'user_id', role: 'role', columns: { organization: 'organization_id' }, disabledAt: 'disabled_at' } } } }`,
       );
       expect(code).toBe(0);
       const inspect = await run(["supabase", "inspect", "--json"], { cwd });

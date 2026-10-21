@@ -622,8 +622,6 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
   const memberships = rls?.memberships;
   for (const table of [
     ...Object.values(memberships?.scopes ?? {}),
-    ...(memberships?.tenant === undefined ? [] : [memberships.tenant]),
-    ...(memberships?.team === undefined ? [] : [memberships.team]),
     ...Object.values(memberships?.resource ?? {}),
   ]) {
     own(table.table, table.user, table.role);

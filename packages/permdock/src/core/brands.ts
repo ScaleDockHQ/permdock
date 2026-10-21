@@ -14,3 +14,22 @@ export const LEAF_FORMER: unique symbol = Symbol.for("permdock.former");
  * value.
  */
 export declare const RESOURCE_X: unique symbol;
+
+/**
+ * Phantom key carrying the literal `name` a `resource(…, { name })` was given,
+ * so its leaves type `resource` by that name rather than the path segment. Type
+ * only; it has no value.
+ */
+export declare const RESOURCE_NAME: unique symbol;
+
+/**
+ * Phantom key carrying a policy's `scopes` input type for `ScopeNameOf`. Type
+ * only; it has no value.
+ */
+export declare const POLICY_SCOPES: unique symbol;
+
+/**
+ * Phantom key carrying a permission's row type for `RowOf`. Type only; a leaf
+ * never has it at run time, so leaves stay plain JSON.
+ */
+export declare const PERMISSION_ROW: unique symbol;

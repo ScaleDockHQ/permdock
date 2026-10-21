@@ -105,7 +105,7 @@ describe("collect watch", () => {
       }
     });
 
-    it("reports a config that fails to load and keeps watching", async () => {
+    it("refuses a config value of the wrong kind before it starts watching", async () => {
       const cwd = copyFixture();
       writeFileSync(
         join(cwd, "broken.config.ts"),
@@ -115,9 +115,9 @@ describe("collect watch", () => {
         ["collect", "--watch", "--config", "broken.config.ts"],
         { cwd, io: { stdout: () => undefined, stderr: () => undefined } },
       );
-      expect(result.code).toBe(0);
+      expect(result.code).toBe(2);
       expect(result.stdout).not.toContain("watching for changes");
-      expect(result.stderr).toContain("srcPath");
+      expect(result.stderr).toContain("collect.srcPath must be an array");
     });
 
     it("rejects --watch with --check", async () => {

@@ -1,8 +1,8 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-14T01:05:30.172Z",
-  "generator": "permdock@0.4.0",
+  "generatedAt": "2026-10-21T17:46:34.664Z",
+  "generator": "permdock@0.7.0",
   "fingerprint": "sha-256:E7G4R7NhectdtojbU3Zsh6WN8PJnXy5K7ZLDvAjp7gk",
   "resources": {
     "post": {
@@ -82,6 +82,11 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/operations.ts",
+          "line": 16,
+          "call": "tools"
+        },
+        {
           "file": "src/policy.ts",
           "line": 13,
           "call": "allow"
@@ -99,7 +104,7 @@
       "usages": [
         {
           "file": "src/app.ts",
-          "line": 24,
+          "line": 27,
           "call": "protect"
         },
         {
@@ -129,6 +134,16 @@
       "meta": {},
       "usages": [
         {
+          "file": "src/app.ts",
+          "line": 40,
+          "call": "filter"
+        },
+        {
+          "file": "src/operations.ts",
+          "line": 10,
+          "call": "tools"
+        },
+        {
           "file": "src/policy.ts",
           "line": 12,
           "call": "allow"
@@ -146,7 +161,7 @@
       "usages": [
         {
           "file": "src/app.ts",
-          "line": 21,
+          "line": 24,
           "call": "protect"
         },
         {

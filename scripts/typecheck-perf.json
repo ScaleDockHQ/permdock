@@ -1,10 +1,10 @@
 {
   "src": {
-    "instantiations": 334582,
+    "instantiations": 347383,
     "maxCheckSeconds": 3
   },
   "tests": {
-    "instantiations": 1162811,
+    "instantiations": 1240669,
     "maxCheckSeconds": 8
   }
 }

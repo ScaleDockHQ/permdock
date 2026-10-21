@@ -26,12 +26,14 @@ describe("numeric scope ids", () => {
   it("matches a bigint key a client read as a number against the membership's text id", async () => {
     const permdock = getPermDockSync(policy, contact);
     const asset = { id: "a", organization_id: "T", customer_id: 42 };
+    // @ts-expect-error a bigint key read as a number is not the string the schema says
     expect(permdock.can(permissions.asset.read, asset, { trusted: true })).toBe(
       true,
     );
     expect(
       permdock.can(
         permissions.asset.read,
+        // @ts-expect-error a bigint key read as a number is not the string the schema says
         { ...asset, customer_id: 43 },
         { trusted: true },
       ),
@@ -45,6 +47,7 @@ describe("numeric scope ids", () => {
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");
     }
+    // @ts-expect-error a bigint key read as a number is not the string the schema says
     expect(fromSnapshot(snapshot).can(permissions.asset.read, asset)).toBe(
       true,
     );

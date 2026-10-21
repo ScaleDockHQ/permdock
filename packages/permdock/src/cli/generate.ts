@@ -61,7 +61,13 @@ function propertyKey(name: string): string {
 }
 
 function literalEnum(schema: JsonSchema): readonly string[] | undefined {
-  const values = schema["enum"];
+  const type = schema["type"];
+  const nullable = Array.isArray(type) && type.includes("null");
+  const all = schema["enum"];
+  const values =
+    nullable && Array.isArray(all)
+      ? all.filter((value) => value !== null)
+      : all;
   if (
     !Array.isArray(values) ||
     values.length === 0 ||
@@ -88,8 +94,86 @@ function schemaType(schema: JsonSchema): string | undefined {
 
 type Resolve = (schema: JsonSchema) => JsonSchema;
 
-function zodOf(schema: JsonSchema, resolve: Resolve, depth: number): string {
-  const node = resolve(schema);
+export type SchemaExpressionOptions = {
+  /**
+   * Also translate `format` (`uuid`, `email`, `uri`, `date-time`, `date`), the
+   * `minimum` / `maximum` / `minLength` / `maxLength` / `minItems` / `maxItems`
+   * bounds and a `null` member of `type`.
+   */
+  readonly constraints?: boolean;
+};
+
+type Emit = { readonly resolve: Resolve; readonly constraints: boolean };
+
+function bound(node: JsonSchema, key: string): number | undefined {
+  const value = node[key];
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+function isNullable(node: JsonSchema, emit: Emit): boolean {
+  const type = node["type"];
+  return emit.constraints && Array.isArray(type) && type.includes("null");
+}
+
+function formatOf(node: JsonSchema, emit: Emit): string | undefined {
+  const format = node["format"];
+  return emit.constraints && typeof format === "string" ? format : undefined;
+}
+
+/** `[method, value]` pairs for the bounds `keys` names, in order. */
+function bounds(
+  node: JsonSchema,
+  emit: Emit,
+  keys: readonly (readonly [string, string])[],
+): readonly (readonly [string, number])[] {
+  if (!emit.constraints) {
+    return [];
+  }
+  return keys.flatMap(([key, method]) => {
+    const value = bound(node, key);
+    return value === undefined ? [] : [[method, value] as const];
+  });
+}
+
+const NUMBER_BOUNDS = [
+  ["minimum", "min"],
+  ["exclusiveMinimum", "gt"],
+  ["maximum", "max"],
+  ["exclusiveMaximum", "lt"],
+] as const;
+const LENGTH_BOUNDS = [
+  ["minLength", "min"],
+  ["maxLength", "max"],
+] as const;
+const ITEM_BOUNDS = [
+  ["minItems", "min"],
+  ["maxItems", "max"],
+] as const;
+
+const ZOD_FORMATS: Readonly<Record<string, string>> = {
+  uuid: "z.uuid()",
+  email: "z.email()",
+  uri: "z.url()",
+  "date-time": "z.iso.datetime({ offset: true })",
+  date: "z.iso.date()",
+};
+
+function zodChain(
+  base: string,
+  pairs: readonly (readonly [string, number])[],
+): string {
+  return `${base}${pairs.map(([method, value]) => `.${method}(${String(value)})`).join("")}`;
+}
+
+function zodOf(schema: JsonSchema, emit: Emit, depth: number): string {
+  const node = emit.resolve(schema);
+  const expression = zodNode(node, emit, depth);
+  return isNullable(node, emit) ? `${expression}.nullable()` : expression;
+}
+
+function zodNode(node: JsonSchema, emit: Emit, depth: number): string {
   const values = literalEnum(node);
   if (values !== undefined) {
     return `z.enum(${JSON.stringify(values)})`;
@@ -100,26 +184,26 @@ function zodOf(schema: JsonSchema, resolve: Resolve, depth: number): string {
   }
   switch (type) {
     case "string":
-      return "z.string()";
+      return zodChain(
+        ZOD_FORMATS[formatOf(node, emit) ?? ""] ?? "z.string()",
+        bounds(node, emit, LENGTH_BOUNDS),
+      );
     case "number":
-      return "z.number()";
+      return zodChain("z.number()", bounds(node, emit, NUMBER_BOUNDS));
     case "integer":
-      return "z.number().int()";
+      return zodChain("z.number().int()", bounds(node, emit, NUMBER_BOUNDS));
     case "boolean":
       return "z.boolean()";
     case "array":
-      return `z.array(${isRecord(node["items"]) ? zodOf(node["items"], resolve, depth + 1) : "z.unknown()"})`;
-    case "object": {
-      const required = new Set(
-        Array.isArray(node["required"]) ? node["required"] : [],
+      return zodChain(
+        `z.array(${isRecord(node["items"]) ? zodOf(node["items"], emit, depth + 1) : "z.unknown()"})`,
+        bounds(node, emit, ITEM_BOUNDS),
       );
-      const properties = isRecord(node["properties"]) ? node["properties"] : {};
-      const fields = Object.entries(properties)
-        .filter((entry): entry is [string, JsonSchema] => isRecord(entry[1]))
-        .map(([name, child]) => {
-          const expression = zodOf(child, resolve, depth + 1);
-          return `${propertyKey(name)}: ${required.has(name) ? expression : `${expression}.optional()`}`;
-        });
+    case "object": {
+      const fields = objectFields(node).map(([name, child, required]) => {
+        const expression = zodOf(child, emit, depth + 1);
+        return `${propertyKey(name)}: ${required ? expression : `${expression}.optional()`}`;
+      });
       return `z.object({${fields.length === 0 ? "" : ` ${fields.join(", ")} `}})`;
     }
     default:
@@ -127,12 +211,56 @@ function zodOf(schema: JsonSchema, resolve: Resolve, depth: number): string {
   }
 }
 
-function valibotOf(
-  schema: JsonSchema,
-  resolve: Resolve,
-  depth: number,
-): string {
-  const node = resolve(schema);
+/** Each property of an object schema with whether `required` names it. */
+function objectFields(
+  node: JsonSchema,
+): readonly (readonly [string, JsonSchema, boolean])[] {
+  const required = new Set(
+    Array.isArray(node["required"]) ? node["required"] : [],
+  );
+  const properties = isRecord(node["properties"]) ? node["properties"] : {};
+  return Object.entries(properties)
+    .filter((entry): entry is [string, JsonSchema] => isRecord(entry[1]))
+    .map(([name, child]) => [name, child, required.has(name)] as const);
+}
+
+const VALIBOT_FORMATS: Readonly<Record<string, string>> = {
+  uuid: "v.uuid()",
+  email: "v.email()",
+  uri: "v.url()",
+  "date-time": "v.isoTimestamp()",
+  date: "v.isoDate()",
+};
+
+const VALIBOT_NUMBER_BOUNDS = [
+  ["minimum", "minValue"],
+  ["exclusiveMinimum", "gtValue"],
+  ["maximum", "maxValue"],
+  ["exclusiveMaximum", "ltValue"],
+] as const;
+
+function valibotPipe(base: string, actions: readonly string[]): string {
+  return actions.length === 0
+    ? base
+    : `v.pipe(${[base, ...actions].join(", ")})`;
+}
+
+function valibotLength(
+  pairs: readonly (readonly [string, number])[],
+): string[] {
+  return pairs.map(
+    ([method, value]) =>
+      `v.${method === "min" ? "minLength" : "maxLength"}(${String(value)})`,
+  );
+}
+
+function valibotOf(schema: JsonSchema, emit: Emit, depth: number): string {
+  const node = emit.resolve(schema);
+  const expression = valibotNode(node, emit, depth);
+  return isNullable(node, emit) ? `v.nullable(${expression})` : expression;
+}
+
+function valibotNode(node: JsonSchema, emit: Emit, depth: number): string {
   const values = literalEnum(node);
   if (values !== undefined) {
     return `v.picklist(${JSON.stringify(values)})`;
@@ -141,28 +269,33 @@ function valibotOf(
   if (type === undefined) {
     return "v.unknown()";
   }
+  const numeric = bounds(node, emit, VALIBOT_NUMBER_BOUNDS).map(
+    ([method, value]) => `v.${method}(${String(value)})`,
+  );
   switch (type) {
-    case "string":
-      return "v.string()";
+    case "string": {
+      const format = VALIBOT_FORMATS[formatOf(node, emit) ?? ""];
+      return valibotPipe("v.string()", [
+        ...(format === undefined ? [] : [format]),
+        ...valibotLength(bounds(node, emit, LENGTH_BOUNDS)),
+      ]);
+    }
     case "number":
-      return "v.number()";
+      return valibotPipe("v.number()", numeric);
     case "integer":
-      return "v.pipe(v.number(), v.integer())";
+      return valibotPipe("v.number()", ["v.integer()", ...numeric]);
     case "boolean":
       return "v.boolean()";
     case "array":
-      return `v.array(${isRecord(node["items"]) ? valibotOf(node["items"], resolve, depth + 1) : "v.unknown()"})`;
-    case "object": {
-      const required = new Set(
-        Array.isArray(node["required"]) ? node["required"] : [],
+      return valibotPipe(
+        `v.array(${isRecord(node["items"]) ? valibotOf(node["items"], emit, depth + 1) : "v.unknown()"})`,
+        valibotLength(bounds(node, emit, ITEM_BOUNDS)),
       );
-      const properties = isRecord(node["properties"]) ? node["properties"] : {};
-      const fields = Object.entries(properties)
-        .filter((entry): entry is [string, JsonSchema] => isRecord(entry[1]))
-        .map(([name, child]) => {
-          const expression = valibotOf(child, resolve, depth + 1);
-          return `${propertyKey(name)}: ${required.has(name) ? expression : `v.optional(${expression})`}`;
-        });
+    case "object": {
+      const fields = objectFields(node).map(([name, child, required]) => {
+        const expression = valibotOf(child, emit, depth + 1);
+        return `${propertyKey(name)}: ${required ? expression : `v.optional(${expression})`}`;
+      });
       return `v.object({${fields.length === 0 ? "" : ` ${fields.join(", ")} `}})`;
     }
     default:
@@ -170,13 +303,47 @@ function valibotOf(
   }
 }
 
-/** An arktype definition: a string keyword or an object literal. */
-function arktypeOf(
-  schema: JsonSchema,
-  resolve: Resolve,
-  depth: number,
+const ARKTYPE_FORMATS: Readonly<Record<string, string>> = {
+  uuid: "string.uuid",
+  email: "string.email",
+  uri: "string.url",
+  "date-time": "string.date.iso",
+  date: "string.date.iso",
+};
+
+/** `1 <= string <= 120`; arktype bounds apply to `string` and `number` only. */
+function arktypeRange(
+  keyword: string,
+  pairs: readonly (readonly [string, number])[],
 ): string {
-  const node = resolve(schema);
+  const lower = pairs.find(([method]) => method === "min" || method === "gt");
+  const upper = pairs.find(([method]) => method === "max" || method === "lt");
+  const left =
+    lower === undefined
+      ? ""
+      : `${String(lower[1])} ${lower[0] === "gt" ? "<" : "<="} `;
+  const right =
+    upper === undefined
+      ? ""
+      : ` ${upper[0] === "lt" ? "<" : "<="} ${String(upper[1])}`;
+  return lower !== undefined && upper === undefined
+    ? `${keyword} ${lower[0] === "gt" ? ">" : ">="} ${String(lower[1])}`
+    : `${left}${keyword}${right}`;
+}
+
+/** An arktype definition: a string keyword or an object literal. */
+function arktypeOf(schema: JsonSchema, emit: Emit, depth: number): string {
+  const node = emit.resolve(schema);
+  const definition = arktypeNode(node, emit, depth);
+  if (!isNullable(node, emit)) {
+    return definition;
+  }
+  return definition.startsWith("'")
+    ? `'${definition.slice(1, -1)} | null'`
+    : `[${definition}, '|', 'null']`;
+}
+
+function arktypeNode(node: JsonSchema, emit: Emit, depth: number): string {
   const values = literalEnum(node);
   if (values !== undefined) {
     return JSON.stringify(
@@ -188,10 +355,14 @@ function arktypeOf(
     return "'unknown'";
   }
   switch (type) {
-    case "string":
-      return "'string'";
+    case "string": {
+      const format = ARKTYPE_FORMATS[formatOf(node, emit) ?? ""];
+      return format === undefined
+        ? `'${arktypeRange("string", bounds(node, emit, LENGTH_BOUNDS))}'`
+        : `'${format}'`;
+    }
     case "number":
-      return "'number'";
+      return `'${arktypeRange("number", bounds(node, emit, NUMBER_BOUNDS))}'`;
     case "integer":
       return "'number.integer'";
     case "boolean":
@@ -200,22 +371,16 @@ function arktypeOf(
       if (!isRecord(node["items"])) {
         return "'unknown[]'";
       }
-      const item = arktypeOf(node["items"], resolve, depth + 1);
+      const item = arktypeOf(node["items"], emit, depth + 1);
       return item.startsWith("'") && !item.includes("|")
         ? `'${item.slice(1, -1)}[]'`
         : `[${item}, '[]']`;
     }
     case "object": {
-      const required = new Set(
-        Array.isArray(node["required"]) ? node["required"] : [],
+      const fields = objectFields(node).map(
+        ([name, child, required]) =>
+          `${JSON.stringify(required ? name : `${name}?`)}: ${arktypeOf(child, emit, depth + 1)}`,
       );
-      const properties = isRecord(node["properties"]) ? node["properties"] : {};
-      const fields = Object.entries(properties)
-        .filter((entry): entry is [string, JsonSchema] => isRecord(entry[1]))
-        .map(
-          ([name, child]) =>
-            `${JSON.stringify(required.has(name) ? name : `${name}?`)}: ${arktypeOf(child, resolve, depth + 1)}`,
-        );
       return `{${fields.length === 0 ? "" : ` ${fields.join(", ")} `}}`;
     }
     default:
@@ -226,20 +391,23 @@ function arktypeOf(
 /**
  * A validator expression for a JSON Schema object. Only the portable core
  * (primitives, enums of strings, arrays, objects with `required`) is
- * translated; anything else becomes the validator's `unknown`.
+ * translated, plus with `constraints` the formats, bounds and nullable types;
+ * anything else becomes the validator's `unknown`.
  */
 export function schemaExpression(
   kind: SchemaKind,
   schema: JsonSchema,
   resolve: Resolve = (node) => node,
+  options: SchemaExpressionOptions = {},
 ): string {
+  const emit: Emit = { resolve, constraints: options.constraints === true };
   switch (kind) {
     case "zod":
-      return zodOf(schema, resolve, 0);
+      return zodOf(schema, emit, 0);
     case "valibot":
-      return valibotOf(schema, resolve, 0);
+      return valibotOf(schema, emit, 0);
     case "arktype": {
-      const definition = arktypeOf(schema, resolve, 0);
+      const definition = arktypeOf(schema, emit, 0);
       return `type(${definition})`;
     }
     default: {

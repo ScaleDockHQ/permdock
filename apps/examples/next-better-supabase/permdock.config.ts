@@ -1,17 +1,22 @@
+import { defineConfig } from "permdock/cli";
+
 import { permissions } from "./src/permissions.ts";
+import { policy } from "./src/policy.ts";
 import { sources } from "./src/sources.ts";
 
 const { quotes } = permissions;
 
-export default {
-  permissions: "./src/permissions.ts",
-  policy: "./src/policy.ts",
+export default defineConfig({
+  permissions,
+  policy,
   collect: { srcPath: ["./src"] },
+  // topics.orgQuotes and paths.quoteFiles, from the realtime and storage blocks below.
+  gen: { kinds: ["constants"], out: "src/generated" },
   rls: {
     dialect: "supabase",
     authorize: "database",
-    tenantType: "uuid",
-    tables: ["staff", "quotes"],
+    scopeTypes: { tenant: "uuid" },
+    tables: { staff: "staff", quotes: "quotes" },
     readOnlyActors: true,
     // Out-of-office covers: a delegate approves for the delegator inside a window.
     approvals: { delegations: true },
@@ -43,7 +48,7 @@ export default {
         args: { source: "permdock" },
       },
     },
-    // supabase.channel(`org:${organizationId}:quotes`, { config: { private: true } })
+    // supabase.channel(topics.orgQuotes({ organization }), { config: { private: true } })
     realtime: {
       topics: {
         "org:{organization}:quotes": {
@@ -73,4 +78,4 @@ export default {
       },
     },
   },
-};
+});

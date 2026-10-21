@@ -9,6 +9,7 @@ import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type {
   ApprovalHandle,
   ClientPermDock,
+  GateView,
   PermissionSet,
   PermissionState,
 } from "../../src/svelte/types.ts";
@@ -53,6 +54,7 @@ type Stores = {
     simulated: boolean;
   }>;
   readonly approval: Readable<ApprovalHandle>;
+  readonly gates: readonly Readable<GateView>[];
 };
 
 // SAFETY: a partial approval-required decision; the store reads only outcome, grant and token.
@@ -106,6 +108,16 @@ describe("permdock/svelte context stores", () => {
     const stores = value as Stores;
     expect(stores.permdock.subject.principal?.id).toBe("u1");
     expect(get(stores.permission).allowed).toBe(true);
+    const [update, remove, publish] = stores.gates.map((store) => get(store));
+    expect(
+      [
+        update?.disabled,
+        remove?.needsApproval,
+        remove?.hidden,
+        publish?.hidden,
+        publish?.reason.kind,
+      ].join(":"),
+    ).toBe("false:true:false:true:denied");
     const set = get(stores.permissions);
     expect(set.granted.map((leaf) => leaf.key)).toStrictEqual(["post.update"]);
     const byKey: unknown = Reflect.get(set, "post.update");
@@ -123,9 +135,7 @@ describe("permdock/svelte context stores", () => {
     expect(get(stores.tenantRoles).roles.map((role) => role.key)).toStrictEqual(
       ["member"],
     );
-    expect(get(stores.teamRoles).roles.map((role) => role.key)).toStrictEqual([
-      "member",
-    ]);
+    expect(get(stores.teamRoles).roles).toStrictEqual([]);
     expect(get(stores.assignable)).toStrictEqual([]);
     expect(get(stores.assignablePermissions)).toStrictEqual([]);
     expect(get(stores.subject)).toMatchObject({

@@ -70,7 +70,12 @@ const config: KnipConfig = {
       ],
     },
     "tests/*": {},
-    "tests/bundle": { entry: ["src/fixtures/rsc/{register,render}.ts"] },
+    "tests/bundle": {
+      entry: [
+        "src/fixtures/rsc/{register,render}.ts",
+        "src/fixtures/gen/{policy,usage}.ts",
+      ],
+    },
     "tests/integration": {
       entry: ["fixtures/**/*.ts", "src/support/openai-resume.ts"],
       // The gitignored client `prisma generate` writes to src/support/prisma imports its runtime.

@@ -3,22 +3,23 @@ export default {
   policy: "./policy.ts",
   rls: {
     dialect: "supabase",
-    tenantType: "text",
+    scopeTypes: { tenant: "text" },
     authorize: "database",
     customRoles: true,
     memberships: {
-      tenant: {
-        table: "organization_members",
-        tenant: "organization_id",
-        user: "user_id",
-        role: "role",
-      },
-      team: {
-        table: "team_members",
-        team: "team_id",
-        tenant: "organization_id",
-        user: "user_id",
-        role: "role",
+      scopes: {
+        tenant: {
+          table: "organization_members",
+          columns: { tenant: "organization_id" },
+          user: "user_id",
+          role: "role",
+        },
+        team: {
+          table: "team_members",
+          columns: { tenant: "organization_id", team: "team_id" },
+          user: "user_id",
+          role: "role",
+        },
       },
     },
   },

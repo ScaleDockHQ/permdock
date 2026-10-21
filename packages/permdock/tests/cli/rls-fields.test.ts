@@ -250,7 +250,7 @@ describe("rls fields", () => {
         `export default {
   permissions: './src/permissions.ts',
   policy: './src/policy.ts',
-  rls: { dialect: 'supabase', tenantType: 'text', fields: 'views', revokeColumns: true },
+  rls: { dialect: 'supabase', scopeTypes: { tenant: 'text' }, fields: 'views', revokeColumns: true },
 };
 `,
       );
@@ -386,7 +386,7 @@ export const permissions = definePermissions({
         `export default {
   permissions: './src/permissions.ts',
   policy: './src/policy.ts',
-  rls: { dialect: 'supabase', tenantType: 'text', fields: 'mask' },
+  rls: { dialect: 'supabase', scopeTypes: { tenant: 'text' }, fields: 'mask' },
 };
 `,
       );

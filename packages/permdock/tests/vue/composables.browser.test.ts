@@ -10,17 +10,27 @@ import {
   shallowRef,
 } from "vue";
 
+import type {
+  ActionResult,
+  ProtectedAction,
+} from "../../src/core/action-result.ts";
 import type { Decision } from "../../src/core/decision.ts";
 import type { Snapshot } from "../../src/core/snapshot-types.ts";
-import type { PermDockPluginOptions } from "../../src/vue/types.ts";
+import type {
+  PermDockPluginOptions,
+  ProtectedActionRefs,
+} from "../../src/vue/types.ts";
 
 import { getPermDockSync } from "../../src/core/permdock.ts";
+import { problemType } from "../../src/core/problem-types.ts";
 import {
   useApproval,
   useAssignablePermissions,
   useAssignableRoles,
+  useGate,
   usePermission,
   usePermissions,
+  useProtectedAction,
   useRoles,
   useSubject,
   useTenant,
@@ -53,6 +63,27 @@ async function aliceSnapshot(): Promise<Snapshot> {
   const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
   // SAFETY: snapshot() returns a Snapshot without a signer.
   return server.snapshot({ tenants: "all" }) as Snapshot;
+}
+
+function approvalAction(calls: unknown[]): ProtectedAction<string> {
+  const answers: ActionResult<string>[] = [
+    {
+      ok: false,
+      problem: {
+        type: problemType("approval-required"),
+        title: "Approval required",
+        status: 403,
+        detail: "post.update needs an approval.",
+        permission: "post.update",
+        token: "pd1.token/one",
+      },
+    },
+    { ok: true, value: "saved" },
+  ];
+  return (input, options) => {
+    calls.push([input, options]);
+    return Promise.resolve(answers.shift() ?? { ok: true, value: "again" });
+  };
 }
 
 function mount(
@@ -118,6 +149,70 @@ describe("permdock/vue composables", () => {
     view.unmount();
   });
 
+  it("gate a granted, an approval-required and a denied action like React", async () => {
+    const view = mount(
+      defineComponent({
+        setup() {
+          const update = useGate(permissions.post.update, ownPost);
+          const remove = useGate(permissions.post.delete, ownPost, {
+            mode: "hide",
+          });
+          const publish = useGate(permissions.post.publish, ownPost, {
+            mode: "hide",
+          });
+          return () =>
+            [
+              update.value.disabled,
+              remove.value.needsApproval,
+              remove.value.hidden,
+              publish.value.hidden,
+              publish.value.reason.kind,
+            ].join(":");
+        },
+      }),
+      { snapshot: await memberSnapshot() },
+    );
+    expect(view.root.textContent).toBe("false:true:false:true:denied");
+    view.unmount();
+  });
+
+  it("run a protected action and retry it with the approval token", async () => {
+    const calls: unknown[] = [];
+    let handle: ProtectedActionRefs<string> | undefined;
+    const view = mount(
+      defineComponent({
+        setup() {
+          const current = useProtectedAction(
+            approvalAction(calls),
+            permissions.post.update,
+            ownPost,
+          );
+          handle = current;
+          return () =>
+            [
+              current.gate.value.disabled,
+              current.pending.value,
+              current.result.value?.ok ?? "none",
+              current.approval.value?.token ?? "none",
+            ].join(":");
+        },
+      }),
+      { snapshot: await memberSnapshot(), endpoint: false },
+    );
+    expect(view.root.textContent).toBe("false:false:none:none");
+    await handle?.run({ title: "Hello" });
+    await nextTick();
+    expect(view.root.textContent).toBe("false:false:false:pd1.token/one");
+    await handle?.retry();
+    await nextTick();
+    expect(view.root.textContent).toBe("false:false:true:none");
+    expect(calls).toStrictEqual([
+      [{ title: "Hello" }, undefined],
+      [{ title: "Hello" }, { approval: "pd1.token/one" }],
+    ]);
+    view.unmount();
+  });
+
   it("answer a permission set by key and through get", async () => {
     let set: ReturnType<typeof usePermissions>["value"] | undefined;
     const view = mount(
@@ -150,7 +245,7 @@ describe("permdock/vue composables", () => {
         setup() {
           const tenant = useTenant();
           const acme = useRoles({ tenant: "acme" });
-          const team = useRoles(() => ({ team: "no-such-team" }));
+          const team = useRoles(() => ({ scope: "team", id: "no-such-team" }));
           const held = useRoles();
           const assignable = useAssignableRoles();
           const leaves = useAssignablePermissions();
@@ -176,7 +271,7 @@ describe("permdock/vue composables", () => {
       { snapshot: await aliceSnapshot(), tenant: "acme" },
     );
     expect(view.root.textContent).toBe(
-      "acme:acme,globex:admin:admin:admin:admin,member,viewer:true:alice:false",
+      "acme:acme,globex:admin::admin:admin,member,viewer:true:alice:false",
     );
     await switchTo?.("globex");
     await nextTick();

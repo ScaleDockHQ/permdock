@@ -35,7 +35,7 @@ describe("rls table via", () => {
   policy: ${JSON.stringify(join(FIXTURE, "policy.ts"))},
   rls: {
     dialect: 'guc',
-    tenantType: 'text',
+    scopeTypes: { tenant: 'text' },
     authorize: 'database',
     tables: ${tables},
     memberships: { scopes: { org: { table: 'members', user: 'user_id', role: 'role', columns: { org: 'org_id' } } } },

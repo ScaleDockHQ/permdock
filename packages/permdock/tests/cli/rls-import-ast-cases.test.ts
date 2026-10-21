@@ -212,18 +212,18 @@ describe("conditionFromAst memberships and helpers", () => {
         columns: { project: "project_id" },
       },
       unmappedScope: { table: "project_members", user: "u", role: "r" },
-    },
-    tenant: {
-      table: "org_members",
-      user: "user_id",
-      role: "role",
-      tenant: "tenant_id",
-    },
-    team: {
-      table: "team_members",
-      user: "user_id",
-      role: "role",
-      team: "team_id",
+      tenant: {
+        table: "org_members",
+        user: "user_id",
+        role: "role",
+        columns: { tenant: "tenant_id" },
+      },
+      team: {
+        table: "team_members",
+        user: "user_id",
+        role: "role",
+        columns: { team: "team_id" },
+      },
     },
   };
 
@@ -555,7 +555,14 @@ describe("legacy parser shapes", () => {
 
   it("reads a role list given as an array and refuses an empty and", async () => {
     const memberships: RlsMemberships = {
-      tenant: { table: "org_members", user: "u", role: "r", tenant: "org" },
+      scopes: {
+        tenant: {
+          table: "org_members",
+          user: "u",
+          role: "r",
+          columns: { tenant: "org" },
+        },
+      },
     };
     const exists = (where: unknown) => ({
       SubLink: {
@@ -603,7 +610,14 @@ describe("legacy parser shapes", () => {
 
   it("reads numeric sublink kinds and IN lists given as arrays", async () => {
     const memberships: RlsMemberships = {
-      tenant: { table: "org_members", user: "u", role: "r", tenant: "org" },
+      scopes: {
+        tenant: {
+          table: "org_members",
+          user: "u",
+          role: "r",
+          columns: { tenant: "org" },
+        },
+      },
     };
     nextParse(
       legacyWhere({

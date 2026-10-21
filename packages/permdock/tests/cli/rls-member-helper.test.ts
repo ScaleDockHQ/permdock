@@ -75,7 +75,7 @@ export default {
   describe("member_<scope>_ids", () => {
     it("reads the memberships claim in jwt mode, with any role and no active-tenant narrowing", async () => {
       const { code, sql } = await generate(
-        "{ dialect: 'supabase', authorize: 'jwt', tenantType: 'text' }",
+        "{ dialect: 'supabase', authorize: 'jwt', scopeTypes: { tenant: 'text' } }",
       );
       expect(code).toBe(0);
       const body = helper(sql, "member_customer_ids");
@@ -96,7 +96,7 @@ export default {
 
     it("runs the membership sources in database mode, so the helpers and the hook share SQL", async () => {
       const { code, output, sql } = await generate(
-        `{ dialect: 'supabase', authorize: 'database', tenantType: 'text', suspension: { users: { table: 'profiles', id: 'user_id', disabledAt: 'disabled_at' }, scopes: { organization: { table: 'organizations', id: 'id', disabledAt: 'disabled_at' } } } }`,
+        `{ dialect: 'supabase', authorize: 'database', scopeTypes: { tenant: 'text' }, suspension: { users: { table: 'profiles', id: 'user_id', disabledAt: 'disabled_at' }, scopes: { organization: { table: 'organizations', id: 'id', disabledAt: 'disabled_at' } } } }`,
         `{ memberships: ${SOURCES} }`,
       );
       expect(code).toBe(0);
@@ -123,7 +123,7 @@ export default {
 
     it("prefers rls.membershipSources over the hook sources, and selects database mode", async () => {
       const { code, sql } = await generate(
-        `{ dialect: 'supabase', tenantType: 'text', membershipSources: [tableMembershipSource({ table: 'staff' })] }`,
+        `{ dialect: 'supabase', scopeTypes: { tenant: 'text' }, membershipSources: [tableMembershipSource({ table: 'staff' })] }`,
         `{ memberships: ${SOURCES} }`,
       );
       expect(code).toBe(0);
@@ -134,7 +134,7 @@ export default {
 
     it("reads a mapped membership table in database mode", async () => {
       const { code, sql } = await generate(
-        `{ dialect: 'supabase', authorize: 'database', tenantType: 'text', memberships: { scopes: { organization: { table: 'organization_users', user: 'user_id', role: 'role', columns: { organization: 'organization_id' }, expiresAt: 'expires_at' } } } }`,
+        `{ dialect: 'supabase', authorize: 'database', scopeTypes: { tenant: 'text' }, memberships: { scopes: { organization: { table: 'organization_users', user: 'user_id', role: 'role', columns: { organization: 'organization_id' }, expiresAt: 'expires_at' } } } }`,
       );
       expect(code).toBe(0);
       const member = helper(sql, "member_organization_ids");

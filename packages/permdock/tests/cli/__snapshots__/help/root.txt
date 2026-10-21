@@ -12,6 +12,7 @@ Get started
 Permissions
   collect  Scan the sources for definePermissions() and references; write the catalog and barrel
   catalog  Export the catalog as catalog JSON, JSON Schema or Markdown
+  gen      Write typed constants, schemas, factories, hooks and messages from the policy
   usage    Report unused, ungranted and role-less permissions and conditions on undeclared fields
   diff     Compare two policies or catalogs; exit 1 on a breaking change
   config   Check permdock.config.ts for unknown keys, or print the effective config

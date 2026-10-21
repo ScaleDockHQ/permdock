@@ -3,14 +3,16 @@ export default {
   policy: "../rls-matrix/policy.ts",
   rls: {
     dialect: "supabase",
-    tenantType: "text",
+    scopeTypes: { tenant: "text" },
     tables: { project: "app.project", task: "app.task" },
     memberships: {
-      tenant: {
-        table: "app.organization_members",
-        tenant: "organization_id",
-        user: "user_id",
-        role: "role",
+      scopes: {
+        tenant: {
+          table: "app.organization_members",
+          columns: { tenant: "organization_id" },
+          user: "user_id",
+          role: "role",
+        },
       },
     },
   },

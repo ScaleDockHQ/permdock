@@ -5,4 +5,13 @@ export type {
   OrpcOpenApiHooks,
   OrpcPermDock,
   OrpcPermDockOptions,
+  OrpcSecuritySpec,
 } from "./create.ts";
+export type {
+  OperationProcedureContext,
+  OperationRoute,
+  OperationRoutes,
+  OperationsRouter,
+  OperationsRouterOf,
+  OperationsRouterOptions,
+} from "./operations.ts";

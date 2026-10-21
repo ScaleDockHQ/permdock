@@ -1,4 +1,5 @@
 import type { Edit, Estree } from "./ast.ts";
+import type { ConfigMove } from "./config-moves.ts";
 import type { Rename, SignatureChange } from "./renames-0.5.ts";
 import type {
   AwaitRename,
@@ -26,6 +27,7 @@ export type RenameSet = {
   readonly functionMethods?: readonly FunctionToMethod[];
   readonly wraps?: readonly OptionWrap[];
   readonly durations?: DurationKeys;
+  readonly configMoves?: readonly ConfigMove[];
 };
 
 /** One rewritten span. */

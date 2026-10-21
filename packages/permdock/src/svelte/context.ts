@@ -74,6 +74,7 @@ function connectSvelteStore(options: SveltePermDockOptions): {
       onSnapshot: options.onSnapshot,
       onClear: options.onClear,
       approvalInterval: options.approvalInterval,
+      refreshOn: options.refreshOn,
     }),
     () => ({
       headers: typeof headers === "function" ? headers() : headers,

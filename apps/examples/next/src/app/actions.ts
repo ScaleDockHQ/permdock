@@ -3,6 +3,7 @@
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { snapshotTag } from "permdock/next";
+import { z } from "zod";
 
 import type { RoleName } from "../permissions.ts";
 
@@ -13,28 +14,28 @@ import {
   setQuoteStatus,
   setStaffRole,
 } from "../lib/store.ts";
-import { requirePermission } from "../permdock/server.ts";
+import { protectAction, requirePermission } from "../permdock/server.ts";
 import { permissions, roles } from "../permissions.ts";
 
 function isRole(value: string): value is RoleName {
   return Object.hasOwn(roles, value);
 }
 
-export async function approveQuote(
-  organization: string,
-  id: string,
-): Promise<void> {
-  const quote = await findQuote(organization, id);
-  if (quote === null) {
-    return;
-  }
-  // Denied: forbidden() or unauthorized(); the write below never runs.
-  await requirePermission(permissions.quote.approve, quote, {
-    tenant: organization,
-  });
-  setQuoteStatus(quote.id, "approved");
+const quoteRef = z.object({ organization: z.string(), id: z.string() });
+
+// Resolves to { ok: false, problem } on a refusal, so the form can show it.
+export const approveQuote = protectAction(permissions.quote.approve, {
+  input: quoteRef,
+  data: async ({ organization, id }) => {
+    const quote = await findQuote(organization, id);
+    return quote;
+  },
+  tenant: ({ organization }) => organization,
+})(({ organization }, { data }) => {
+  setQuoteStatus(data.id, "approved");
   updateTag(orgTag(organization));
-}
+  return data.id;
+});
 
 export async function deleteQuote(
   organization: string,

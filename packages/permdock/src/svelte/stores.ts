@@ -1,29 +1,40 @@
 import type { Readable } from "svelte/store";
 
-import { readable, toStore } from "svelte/store";
+import { derived, readable, toStore, writable } from "svelte/store";
 
+import type { ProtectedActionState } from "../client/protected-action.ts";
 import type { ClientStore } from "../client/store.ts";
+import type { ProtectedAction } from "../core/action-result.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionDescription, DescribeOptions } from "../core/describe.ts";
+import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Membership } from "../core/subject.ts";
 import type { Role } from "../core/vocabulary.ts";
 import type {
   ApprovalHandle,
   ClientPermDock,
   FilterResult,
+  GateMode,
+  GateView,
   SveltePermDockOptions,
   PermissionSet,
   PermissionState,
+  ProtectedActionReadable,
+  ProtectedActionView,
   SubjectView,
   TenantView,
   RolesOptions,
 } from "./types.ts";
 
 import {
+  actionApproval,
+  actionRunner,
   approvalHandle,
   describeWith,
   filterResult,
+  gateView,
   livePermDock,
   permissionSet,
   rolesView,
@@ -55,8 +66,11 @@ export function setPermDock(options: SveltePermDockOptions): ClientPermDock {
   return sveltePermDock(providePermDock(options));
 }
 
-export function getPermDock(): ClientPermDock {
-  return sveltePermDock(getStore());
+export function getPermDock<
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(): ClientPermDock<V> {
+  // SAFETY: V only types the vocabulary; the store holds the instance for the provider's policy.
+  return sveltePermDock(getStore()) as ClientPermDock<V>;
 }
 
 /**
@@ -70,6 +84,14 @@ export function getDescribe(): (
   return describeWith(getUi().messages);
 }
 
+export function permission<D>(
+  reference: Permission,
+  data?: () => UncheckedData<D>,
+): Readable<PermissionState>;
+export function permission<P extends Permission>(
+  reference: P,
+  data?: () => RowData<P>,
+): Readable<PermissionState>;
 export function permission(
   reference: Permission,
   data?: () => unknown,
@@ -83,6 +105,54 @@ export function permissionFor(
   data?: () => unknown,
 ): Readable<PermissionState> {
   return fromStore(store, () => store.permissionState(reference, data?.()));
+}
+
+/**
+ * What a permission-gated control renders, as `useGate` in React: `hidden`,
+ * `disabled`, `needsApproval`, `upgrade` and a `reason` in the provider's
+ * `messages`. Call it during component initialisation.
+ */
+export function gate<D>(
+  reference: Permission,
+  data?: () => UncheckedData<D>,
+  options?: { readonly mode?: GateMode },
+): Readable<GateView>;
+export function gate<P extends Permission>(
+  reference: P,
+  data?: () => RowData<P>,
+  options?: { readonly mode?: GateMode },
+): Readable<GateView>;
+export function gate(
+  reference: Permission,
+  data?: () => unknown,
+  options: { readonly mode?: GateMode } = {},
+): Readable<GateView> {
+  return gateFor(getStore(), reference, data, {
+    ...options,
+    describe: getDescribe(),
+  });
+}
+
+export function gateFor(
+  store: ClientStore,
+  reference: Permission,
+  data?: () => unknown,
+  options: {
+    readonly mode?: GateMode;
+    readonly describe?: (
+      decision: Decision,
+      options?: DescribeOptions,
+    ) => DecisionDescription;
+  } = {},
+): Readable<GateView> {
+  const describeDecision = options.describe ?? describeWith(undefined);
+  return fromStore(store, () =>
+    gateView(
+      store.permissionState(reference, data?.()),
+      (decision) => describeDecision(decision, { permission: reference }),
+      options.mode,
+    ),
+  );
 }
 
 export function permissions(
@@ -101,7 +171,7 @@ export function permissionsFor(
 }
 
 export function filtered<T>(
-  reference: Permission<string, T, "instance">,
+  reference: Permission<string, NoInfer<T>, "instance">,
   rows: () => readonly T[],
 ): Readable<FilterResult<T>> {
   return filteredFor(getStore(), reference, rows);
@@ -109,7 +179,7 @@ export function filtered<T>(
 
 export function filteredFor<T>(
   store: ClientStore,
-  reference: Permission<string, T, "instance">,
+  reference: Permission<string, NoInfer<T>, "instance">,
   rows: () => readonly T[],
 ): Readable<FilterResult<T>> {
   return fromStore(store, () => filterResult(store.get(), reference, rows()));
@@ -194,4 +264,63 @@ export function approvalFor(
   decision: () => Decision,
 ): Readable<ApprovalHandle> {
   return fromStore(store, () => approvalHandle(store, decision()));
+}
+
+/**
+ * A `protectAction` server action wired to a control, as `useProtectedAction`
+ * in React: a readable store of `gate`, `result`, `pending` and `approval`,
+ * with `run` and `retry`. Call it during component initialisation.
+ */
+export function protectedAction<T, D>(
+  action: ProtectedAction<T>,
+  reference: Permission,
+  data?: () => UncheckedData<D>,
+  options?: { readonly mode?: GateMode },
+): ProtectedActionReadable<T>;
+export function protectedAction<T, P extends Permission>(
+  action: ProtectedAction<T>,
+  reference: P,
+  data?: () => RowData<P>,
+  options?: { readonly mode?: GateMode },
+): ProtectedActionReadable<T>;
+export function protectedAction<T>(
+  action: ProtectedAction<T>,
+  reference: Permission,
+  data?: () => unknown,
+  options: { readonly mode?: GateMode } = {},
+): ProtectedActionReadable<T> {
+  return protectedActionFor(getStore(), action, reference, data, {
+    ...options,
+    describe: getDescribe(),
+  });
+}
+
+export function protectedActionFor<T>(
+  store: ClientStore,
+  action: ProtectedAction<T>,
+  reference: Permission,
+  data?: () => unknown,
+  options: {
+    readonly mode?: GateMode;
+    readonly describe?: (
+      decision: Decision,
+      options?: DescribeOptions,
+    ) => DecisionDescription;
+  } = {},
+): ProtectedActionReadable<T> {
+  const state = writable<ProtectedActionState<T>>({
+    result: undefined,
+    pending: false,
+  });
+  const runner = actionRunner(() => action, state.set);
+  const view = derived(
+    [gateFor(store, reference, data, options), state],
+    ([gated, current]): ProtectedActionView<T> => ({
+      gate: gated,
+      result: current.result,
+      pending: current.pending,
+      approval: actionApproval(store, current.result),
+    }),
+  );
+  return { subscribe: view.subscribe, run: runner.run, retry: runner.retry };
 }

@@ -1,8 +1,8 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-18T14:47:16.719Z",
-  "generator": "permdock@0.4.0",
+  "generatedAt": "2026-10-21T17:44:46.991Z",
+  "generator": "permdock@0.7.0",
   "fingerprint": "sha-256:T-Z96MJb0HNjeKTqFsv0j4XFo9LhEHoUKzYy4n-yZzQ",
   "resources": {
     "quote": {
@@ -147,7 +147,7 @@
         },
         {
           "file": "src/app/actions.ts",
-          "line": 64,
+          "line": 65,
           "call": "requirePermission"
         },
         {
@@ -168,8 +168,8 @@
       "usages": [
         {
           "file": "src/app/actions.ts",
-          "line": 32,
-          "call": "requirePermission"
+          "line": 27,
+          "call": "protectAction"
         },
         {
           "file": "src/policy.ts",
@@ -199,7 +199,7 @@
         },
         {
           "file": "src/app/actions.ts",
-          "line": 47,
+          "line": 48,
           "call": "requirePermission"
         },
         {
@@ -256,12 +256,12 @@
       "usages": [
         {
           "file": "src/lib/access.ts",
-          "line": 91,
+          "line": 100,
           "call": "filter"
         },
         {
           "file": "src/lib/access.ts",
-          "line": 118,
+          "line": 127,
           "call": "can"
         },
         {

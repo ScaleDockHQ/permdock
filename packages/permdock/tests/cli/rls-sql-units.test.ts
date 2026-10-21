@@ -11,6 +11,7 @@ import {
 import {
   arrayColumnsOf,
   columnTypesOf,
+  firstScopeType,
   scopeTypeOf,
   tenantTypeOf,
 } from "../../src/cli/sql/columns.ts";
@@ -195,8 +196,7 @@ describe("types and names", () => {
   it("reads scope types by declaration, then position", () => {
     const typed = ctx({
       tenantType: "text",
-      teamType: "bigint",
-      scopeTypes: { project: "int" },
+      scopeTypes: { team: "bigint", project: "int" },
     });
     expect([
       scopeTypeOf(typed, "org"),
@@ -305,6 +305,13 @@ describe("column types from JSON Schema", () => {
       any: "numeric",
       one: "boolean",
     });
+    expect(
+      columnTypesOf({
+        properties: JSON.parse('{"__proto__": { "type": "integer" }}'),
+      }),
+    ).toStrictEqual({});
+    expect(firstScopeType({ tenant: "text" }, [])).toBe("text");
+    expect(firstScopeType(undefined, [])).toBe("uuid");
     expect(columnTypesOf(null)).toStrictEqual({});
     expect(columnTypesOf({ properties: [] })).toStrictEqual({});
   });
@@ -744,20 +751,24 @@ describe("condition walkers and flags", () => {
   it("parses --memberships with defaults and an expiry column", () => {
     expect(parseMembershipsFlag("")).toBeUndefined();
     expect(parseMembershipsFlag("members")).toStrictEqual({
-      tenant: {
-        table: "members",
-        tenant: "tenant_id",
-        user: "user_id",
-        role: "role",
+      scopes: {
+        tenant: {
+          table: "members",
+          columns: { tenant: "tenant_id" },
+          user: "user_id",
+          role: "role",
+        },
       },
     });
     expect(parseMembershipsFlag("members:org, uid, r, until")).toStrictEqual({
-      tenant: {
-        table: "members",
-        tenant: "org",
-        user: "uid",
-        role: "r",
-        expiresAt: "until",
+      scopes: {
+        tenant: {
+          table: "members",
+          columns: { tenant: "org" },
+          user: "uid",
+          role: "r",
+          expiresAt: "until",
+        },
       },
     });
   });

@@ -30,7 +30,7 @@ import { ACTOR_MAY_WRITE, readOnlyActorKinds } from "../rls/policies.ts";
 import { resolveAuthorize } from "../rls/rbac.ts";
 import { TOKEN_SCOPE_ALLOWS } from "../rls/token-scopes.ts";
 import { checkSuspension } from "../sql/active.ts";
-import { scopeTypeOf, tenantTypeOf } from "../sql/columns.ts";
+import { firstScopeType, scopeTypeOf, tenantTypeOf } from "../sql/columns.ts";
 import { decidingColumns } from "../sql/deciding-columns.ts";
 import { HOOK_MARKER } from "../sql/markers.ts";
 import {
@@ -41,6 +41,7 @@ import {
   permittedForHelper,
   permittedIdsHelper,
 } from "../sql/names.ts";
+import { resolveNames } from "../sql/resolve-names.ts";
 import { customRolesOn, HELPERS } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
 import { hookClaims } from "./claims.ts";
@@ -360,8 +361,7 @@ export function manifestOf(
     scopes: parts.scopes,
     tenantClaim: parts.tenantClaim,
     gucPrefix: rls?.gucPrefix ?? "app",
-    tenantType: rls?.tenantType ?? "uuid",
-    ...(rls?.teamType === undefined ? {} : { teamType: rls.teamType }),
+    tenantType: firstScopeType(rls?.scopeTypes, parts.scopes),
     ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
   };
   const types = new Map(
@@ -425,6 +425,14 @@ export function manifestOf(
     ),
     markers: { hook: "v1", grants: "v1" },
     requires: requiredCapabilities(config, policy),
+    ...(policy === undefined
+      ? {}
+      : {
+          names: resolveNames(policy, config, {
+            schema: parts.helpers.schema,
+            tenantClaim: parts.tenantClaim,
+          }),
+        }),
   };
 }
 

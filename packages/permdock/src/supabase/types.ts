@@ -213,12 +213,25 @@ export type SupabaseRlsOptions = {
   readonly storage?: SupabaseStorage;
 };
 
+/**
+ * A membership table as `permdock.config.ts` names it: scope columns in
+ * `columns`.
+ */
+export type SupabaseRlsMembershipTable = Omit<
+  SupabaseMembershipTable,
+  "tenant" | "team"
+>;
+
 export type SupabaseRlsConfig = {
   readonly dialect: "supabase";
   readonly roleClaim: string;
   readonly tenantClaim: string;
-  readonly tenantType?: string;
-  readonly memberships?: SupabaseMemberships;
+  /** `tenantType` as the type of the first scope, under its `tenant` alias. */
+  readonly scopeTypes?: Readonly<Record<string, string>>;
+  readonly memberships?: {
+    readonly scopes?: Readonly<Record<string, SupabaseRlsMembershipTable>>;
+    readonly resource?: Readonly<Record<string, SupabaseRlsMembershipTable>>;
+  };
   readonly suspension?: SupabaseSuspension;
   readonly realtime?: SupabaseRealtime;
   readonly storage?: SupabaseStorage;

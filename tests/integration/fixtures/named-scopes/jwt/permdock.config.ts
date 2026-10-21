@@ -1,5 +1,5 @@
 export default {
   permissions: "../policy.ts",
   policy: "../policy.ts",
-  rls: { dialect: "guc", tenantType: "text", authorize: "jwt" },
+  rls: { dialect: "guc", scopeTypes: { tenant: "text" }, authorize: "jwt" },
 };

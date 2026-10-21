@@ -91,7 +91,9 @@ describe("powersync pd058 sources", () => {
       });
       expect(
         await messages([expiring], {
-          tenant: { table: "members", user: "user_id", role: "role" },
+          scopes: {
+            tenant: { table: "members", user: "user_id", role: "role" },
+          },
         }),
       ).toStrictEqual([]);
     });

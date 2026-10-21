@@ -6,7 +6,7 @@ export default {
   rls: {
     dialect: "supabase",
     authorize: "database",
-    tenantType: "uuid",
+    scopeTypes: { tenant: "uuid" },
     suspension,
   },
   supabase: {

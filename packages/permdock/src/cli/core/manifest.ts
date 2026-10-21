@@ -212,6 +212,21 @@ export const SECTIONS: readonly Section[] = [
         },
       ),
       leaf(
+        "gen",
+        "Write typed constants, schemas, factories, hooks and messages from the policy",
+        {
+          examples: [
+            "permdock gen",
+            "permdock gen --kind zod --kind factories",
+            "permdock gen --check",
+          ],
+          docs: "gen",
+          effects: ["files"],
+          config: true,
+          load: async () => (await import("../commands/gen.ts")).gen,
+        },
+      ),
+      leaf(
         "usage",
         "Report unused, ungranted and role-less permissions and conditions on undeclared fields",
         {

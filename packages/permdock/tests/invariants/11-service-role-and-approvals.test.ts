@@ -102,7 +102,7 @@ describe("11 service role and approvals", () => {
         `export default {
   permissions: ${JSON.stringify(FIXTURE)},
   policy: ${JSON.stringify(FIXTURE)},
-  rls: { authorize: '${authorize}', tenantType: 'text' },
+  rls: { authorize: '${authorize}', scopeTypes: { tenant: 'text' } },
 };
 `,
       );

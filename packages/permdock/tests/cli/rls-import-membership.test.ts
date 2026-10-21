@@ -7,19 +7,21 @@ import { mapRoleValues } from "../../src/cli/rls/import-membership.ts";
 import { textArrayLiteral } from "../../src/cli/sql/quote.ts";
 
 const memberships: RlsMemberships = {
-  tenant: {
-    table: "org_members",
-    user: "user_id",
-    role: "role",
-    tenant: "tenant_id",
-    disabledAt: "disabled_at",
-    expiresAt: "expires_at",
-  },
-  team: {
-    table: "team_members",
-    user: "user_id",
-    role: { through: "roles", on: { role_id: "id" }, column: "key" },
-    team: "team_id",
+  scopes: {
+    tenant: {
+      table: "org_members",
+      user: "user_id",
+      role: "role",
+      columns: { tenant: "tenant_id" },
+      disabledAt: "disabled_at",
+      expiresAt: "expires_at",
+    },
+    team: {
+      table: "team_members",
+      user: "user_id",
+      role: { through: "roles", on: { role_id: "id" }, column: "key" },
+      columns: { team: "team_id" },
+    },
   },
 };
 

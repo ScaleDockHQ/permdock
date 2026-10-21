@@ -7,13 +7,17 @@ import type {
   ClientPermDock,
   ClientStatus,
   FilterResult,
+  GateMode,
+  GateView,
   PermissionSet,
   PermissionState,
+  ProtectedActionView,
   ProviderOptionsBase,
   SubjectView,
   TenantView,
   RolesOptions,
 } from "../client/types.ts";
+import type { ActionResult } from "../core/action-result.ts";
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
@@ -60,9 +64,21 @@ export type {
   ClientPermDock,
   ClientStatus,
   FilterResult,
+  GateMode,
+  GateView,
   PermissionSet,
   PermissionState,
+  ProtectedActionView,
   SubjectView,
   TenantView,
   RolesOptions,
+};
+
+/**
+ * `protectedAction` in Svelte: a readable store of the view, with `run` and
+ * `retry`.
+ */
+export type ProtectedActionReadable<T> = Readable<ProtectedActionView<T>> & {
+  readonly run: (input: unknown) => Promise<ActionResult<T>>;
+  readonly retry: () => Promise<ActionResult<T> | undefined>;
 };

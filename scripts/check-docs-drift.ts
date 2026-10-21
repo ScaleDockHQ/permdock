@@ -3,6 +3,7 @@ import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { cloudRouteDrift } from "./docs-drift-cloud-routes.ts";
+import { configKeyDrift } from "./docs-drift-config-keys.ts";
 import { writeRenamedSection } from "./docs-drift-renamed-section.ts";
 import { renameDrift } from "./docs-drift-renames.ts";
 import { rewriteDrift } from "./docs-drift-rewrites.ts";
@@ -254,6 +255,7 @@ const problems = [
   }),
   ...rewriteDrift(ROOT),
   ...cloudRouteDrift(ROOT),
+  ...configKeyDrift(ROOT),
 ];
 
 if (problems.length > 0) {

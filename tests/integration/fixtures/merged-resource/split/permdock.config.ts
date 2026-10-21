@@ -3,16 +3,18 @@ export default {
   policy: "./policy.ts",
   rls: {
     dialect: "supabase",
-    tenantType: "text",
+    scopeTypes: { tenant: "text" },
     authorize: "database",
     tables: { file: "file_nodes", fileNode: "file_nodes" },
     rowHelpers: ["file", "fileNode"],
     memberships: {
-      tenant: {
-        table: "organization_members",
-        tenant: "organization_id",
-        user: "user_id",
-        role: "role",
+      scopes: {
+        tenant: {
+          table: "organization_members",
+          columns: { tenant: "organization_id" },
+          user: "user_id",
+          role: "role",
+        },
       },
     },
   },

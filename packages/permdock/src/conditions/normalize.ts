@@ -38,7 +38,11 @@ export type FieldOperator = {
   readonly isNull?: boolean;
 };
 
-export type WhereShorthand<T = Record<string, unknown>> = {
+export type WhereShorthand<T = Record<string, unknown>> = unknown extends T
+  ? RowWhere<Record<string, unknown>>
+  : RowWhere<T>;
+
+type RowWhere<T> = {
   readonly and?: readonly WhereShorthand<T>[];
   readonly or?: readonly WhereShorthand<T>[];
   readonly not?: WhereShorthand<T>;

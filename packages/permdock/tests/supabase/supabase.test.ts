@@ -288,7 +288,7 @@ describe(subjectFromSupabase, () => {
 });
 
 describe("supabaseRls and authorizeSql", () => {
-  it("wraps a single memberships table as the tenant mapping", () => {
+  it("maps a single memberships table to scopes.tenant", () => {
     const config = supabaseRls({
       memberships: {
         table: "organization_members",
@@ -298,7 +298,10 @@ describe("supabaseRls and authorizeSql", () => {
       },
     });
     expect(config.dialect).toBe("supabase");
-    expect(config.memberships?.tenant?.table).toBe("organization_members");
+    expect(config.memberships?.scopes?.["tenant"]).toMatchObject({
+      table: "organization_members",
+      columns: { tenant: "organization_id" },
+    });
   });
 
   it("emits authorize() that denies tenant requests without a memberships source", () => {

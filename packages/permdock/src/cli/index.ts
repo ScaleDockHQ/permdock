@@ -1,5 +1,9 @@
 export { catalogPath } from "./catalog-path.ts";
 export { defineConfig } from "./project/config.ts";
+export type {
+  ConfigChecks,
+  PermDockConfigInput,
+} from "./project/config-checks.ts";
 export { parseGrantsMarker, parseHookMarker } from "./sql/markers.ts";
 export { RUN_TICKET_SCHEMA, SUPPORT_SESSION_SCHEMA } from "./token-schemas.ts";
 export type {
@@ -26,6 +30,8 @@ export type {
   CatalogSupportAccess,
   CatalogUsage,
   CollectConfig,
+  GenConfig,
+  GenKind,
   PermDockConfig,
   RlsActiveRow,
   RlsApiKeys,
