@@ -47,3 +47,5 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0039](./0039-better-supabase-0-10-0-release-age-exclude.md)   | better-supabase 0.10.0 skips the one-day release age                                             |
 | [0040](./0040-better-supabase-0-11-0-floor-and-release-age.md) | better-supabase 0.11.0 is the peer floor, with no upper bound, and skips the one-day release age |
 | [0041](./0041-better-supabase-0-12-0-release-age-exclude.md)   | better-supabase 0.12.0 skips the one-day release age                                             |
+| [0042](./0042-two-cli-runtime-dependencies.md)                 | The CLI inlines its dependencies except `oxc-parser` and `jiti`                                  |
+| [0043](./0043-better-supabase-peer-upper-bound.md)             | The better-supabase peer range ends below the minor after the newest tested release              |
