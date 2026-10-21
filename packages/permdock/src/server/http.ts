@@ -82,9 +82,9 @@ export function fetchRequest(
 
 /** A Fastify-style reply: `code`, `header` and `send`. */
 export type ReplyLike = {
-  code(status: number): unknown;
-  header(key: string, value: string): unknown;
-  send(body: string): unknown;
+  code: (status: number) => unknown;
+  header: (key: string, value: string) => unknown;
+  send: (body: string) => unknown;
 };
 
 /** Writes `response` to a Fastify-style reply. */

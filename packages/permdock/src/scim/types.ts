@@ -96,48 +96,48 @@ export type ScimPatchOp = {
 export type DirectoryStore = {
   /** Shown in errors and events; optional, as on every extension interface. */
   readonly name?: string;
-  getUser(
+  getUser: (
     tenant: string,
     id: string,
-  ): DirectoryUser | null | Promise<DirectoryUser | null>;
-  findUsers(
+  ) => DirectoryUser | null | Promise<DirectoryUser | null>;
+  findUsers: (
     tenant: string,
     filter: ScimFilter | undefined,
     page: ScimPage,
-  ): ScimPageResult<DirectoryUser> | Promise<ScimPageResult<DirectoryUser>>;
-  putUser(
+  ) => ScimPageResult<DirectoryUser> | Promise<ScimPageResult<DirectoryUser>>;
+  putUser: (
     tenant: string,
     user: DirectoryUser,
-  ): DirectoryUser | Promise<DirectoryUser>;
-  patchUser(
+  ) => DirectoryUser | Promise<DirectoryUser>;
+  patchUser: (
     tenant: string,
     id: string,
     ops: readonly ScimPatchOp[],
-  ): DirectoryUser | Promise<DirectoryUser>;
-  deleteUser(tenant: string, id: string): void | Promise<void>;
-  getGroup(
+  ) => DirectoryUser | Promise<DirectoryUser>;
+  deleteUser: (tenant: string, id: string) => void | Promise<void>;
+  getGroup: (
     tenant: string,
     id: string,
-  ): DirectoryGroup | null | Promise<DirectoryGroup | null>;
-  findGroups(
+  ) => DirectoryGroup | null | Promise<DirectoryGroup | null>;
+  findGroups: (
     tenant: string,
     filter: ScimFilter | undefined,
     page: ScimPage,
-  ): ScimPageResult<DirectoryGroup> | Promise<ScimPageResult<DirectoryGroup>>;
-  putGroup(
+  ) => ScimPageResult<DirectoryGroup> | Promise<ScimPageResult<DirectoryGroup>>;
+  putGroup: (
     tenant: string,
     group: DirectoryGroup,
-  ): DirectoryGroup | Promise<DirectoryGroup>;
-  patchGroup(
+  ) => DirectoryGroup | Promise<DirectoryGroup>;
+  patchGroup: (
     tenant: string,
     id: string,
     ops: readonly ScimPatchOp[],
-  ): DirectoryGroup | Promise<DirectoryGroup>;
-  deleteGroup(tenant: string, id: string): void | Promise<void>;
-  groupsFor(
+  ) => DirectoryGroup | Promise<DirectoryGroup>;
+  deleteGroup: (tenant: string, id: string) => void | Promise<void>;
+  groupsFor: (
     tenant: string,
     userId: string,
-  ): readonly DirectoryGroup[] | Promise<readonly DirectoryGroup[]>;
+  ) => readonly DirectoryGroup[] | Promise<readonly DirectoryGroup[]>;
 };
 
 export type ScimTokenOptions = {

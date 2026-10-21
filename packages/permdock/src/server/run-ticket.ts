@@ -132,10 +132,10 @@ export type RunTicketOptions = {
 
 /** The live record of an automation, read on every use of its ticket. */
 export type RunTicketAutomations = {
-  automation(
+  automation: (
     id: string,
     options: { readonly tenant?: string },
-  ):
+  ) =>
     | {
         readonly id: string;
         readonly version: number | string;

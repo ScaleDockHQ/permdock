@@ -77,9 +77,9 @@ export type ApprovalPolicy = {
 export type ApprovalPolicySource = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  approvalPoliciesFor(query: {
+  approvalPoliciesFor: (query: {
     readonly tenants: readonly string[];
-  }): readonly ApprovalPolicy[] | Promise<readonly ApprovalPolicy[]>;
+  }) => readonly ApprovalPolicy[] | Promise<readonly ApprovalPolicy[]>;
 };
 
 /**

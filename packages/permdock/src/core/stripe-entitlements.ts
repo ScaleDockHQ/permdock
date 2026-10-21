@@ -7,11 +7,11 @@ import type { EntitlementSource } from "./interfaces.ts";
 export type StripeEntitlementsClient = {
   readonly entitlements: {
     readonly activeEntitlements: {
-      list(params: {
+      list: (params: {
         readonly customer: string;
         readonly limit?: number;
         readonly starting_after?: string;
-      }): PromiseLike<{
+      }) => PromiseLike<{
         readonly data: readonly {
           readonly id: string;
           readonly lookup_key: string;

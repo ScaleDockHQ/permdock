@@ -2,9 +2,9 @@ import type { SnapshotStorage } from "./types.ts";
 
 /** The `expo-secure-store` functions `secureStoreStorage` calls. */
 export type SecureStoreModule = {
-  getItem(key: string, options?: object): string | null;
-  setItem(key: string, value: string, options?: object): void;
-  deleteItemAsync(key: string, options?: object): Promise<void>;
+  getItem: (key: string, options?: object) => string | null;
+  setItem: (key: string, value: string, options?: object) => void;
+  deleteItemAsync: (key: string, options?: object) => Promise<void>;
 };
 
 /**
@@ -12,9 +12,12 @@ export type SecureStoreModule = {
  * or `delete` (v3).
  */
 export type MmkvInstance = {
-  getString(key: string): string | undefined;
-  set(key: string, value: string): void;
-} & ({ remove(key: string): unknown } | { delete(key: string): unknown });
+  getString: (key: string) => string | undefined;
+  set: (key: string, value: string) => void;
+} & (
+  | { remove: (key: string) => unknown }
+  | { delete: (key: string) => unknown }
+);
 
 /**
  * SecureStore warns above 2048 bytes and may refuse larger values on some

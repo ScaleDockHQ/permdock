@@ -13,10 +13,10 @@ import { approvalCard } from "./card.ts";
 
 /** The part of a Chat SDK `Chat` the transport calls; a `new Chat(...)` fits. */
 export type ChatSdkClient = {
-  openDM(
+  openDM: (
     user: string,
-  ): Promise<{
-    post(message: string | CardElement): Promise<{ readonly id: string }>;
+  ) => Promise<{
+    post: (message: string | CardElement) => Promise<{ readonly id: string }>;
   }>;
 };
 

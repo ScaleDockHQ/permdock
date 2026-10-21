@@ -90,9 +90,9 @@ export type SupabaseClaimsSchema<
   TenantClaim extends string = "tenant_id",
   Extra = unknown,
 > = StandardSchemaV1<unknown, SupabaseClaims<TenantClaim> & Extra> & {
-  extend<App extends StandardSchemaV1>(
+  extend: <App extends StandardSchemaV1>(
     app: App,
-  ): SupabaseClaimsSchema<
+  ) => SupabaseClaimsSchema<
     TenantClaim,
     Extra & StandardSchemaV1.InferOutput<App>
   >;

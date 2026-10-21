@@ -65,7 +65,7 @@ export function memoryMembershipSource(
 /** A snapshot held in memory; `set` replaces it and notifies every subscriber. */
 export function memorySnapshotSource(
   initial: Snapshot | string,
-): SnapshotSource & { set(snapshot: Snapshot | string): void } {
+): SnapshotSource & { set: (snapshot: Snapshot | string) => void } {
   let current = initial;
   const listeners = new Set<() => void>();
   return Object.freeze({

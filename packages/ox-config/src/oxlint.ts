@@ -194,6 +194,7 @@ export const core: OxlintConfig = defineConfig({
     "typescript/prefer-reduce-type-parameter": "error",
     "typescript/prefer-regexp-exec": "error",
     "typescript/prefer-return-this-type": "error",
+    "typescript/method-signature-style": ["error", "property"],
     "typescript/prefer-string-starts-ends-with": "error",
     "typescript/no-deprecated": "error",
     "typescript/no-explicit-any": "error",

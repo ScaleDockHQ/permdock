@@ -30,9 +30,9 @@ export type SupportSessionFailureCause =
 /** The live state of each support session, so one can end before it expires. */
 export type SupportSessionSource = {
   /** The session as of now, or `null` for an unknown one. A throw ends it. */
-  session(
+  session: (
     id: string,
-  ):
+  ) =>
     | { readonly id: string; readonly ended?: boolean }
     | null
     | Promise<{ readonly id: string; readonly ended?: boolean } | null>;

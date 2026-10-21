@@ -52,8 +52,8 @@ A handler is enough for one process. When events must leave the process, the ada
 
 ```ts
 interface DecisionSink {
-  write(events: readonly DecisionEvent[]): Promise<void> | void; // batched; never awaited by decide
-  flush?(): Promise<void>; // called at request end when the runtime has waitUntil
+  write: (events: readonly DecisionEvent[]) => Promise<void> | void; // batched; never awaited by decide
+  flush?: () => Promise<void>; // called at request end when the runtime has waitUntil
 }
 
 import { memoryDecisionSink } from "permdock";

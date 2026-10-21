@@ -220,10 +220,12 @@ export function toWhere(
 }
 
 type KyselyLike<Trx> = {
-  transaction(): { execute<T>(fn: (trx: Trx) => Promise<T>): Promise<T> };
+  transaction: () => {
+    execute: <T>(fn: (trx: Trx) => Promise<T>) => Promise<T>;
+  };
 };
 
-type Executable = { execute(db: unknown): Promise<unknown> };
+type Executable = { execute: (db: unknown) => Promise<unknown> };
 
 /**
  * Runs `fn` in a transaction whose role and claims are `permdock.subject`'s, so
@@ -253,11 +255,11 @@ export function withSubject<Trx, T>(
 }
 
 type KyselySelectable = {
-  selectFrom(table: never): {
-    select(selection: (eb: never) => unknown): {
-      where(where: never): {
-        limit(count: number): {
-          execute(): Promise<readonly { readonly granted?: unknown }[]>;
+  selectFrom: (table: never) => {
+    select: (selection: (eb: never) => unknown) => {
+      where: (where: never) => {
+        limit: (count: number) => {
+          execute: () => Promise<readonly { readonly granted?: unknown }[]>;
         };
       };
     };
@@ -283,7 +285,9 @@ export async function checkRow(
     .selectFrom(table as never)
     .select(((eb: KyselyExpressionBuilder) =>
       (
-        sql`coalesce(${filter(eb)}, false)` as { as(alias: string): unknown }
+        sql`coalesce(${filter(eb)}, false)` as {
+          as: (alias: string) => unknown;
+        }
       ).as("granted")) as never)
     .where(key as never)
     .limit(2)

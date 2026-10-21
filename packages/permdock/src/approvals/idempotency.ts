@@ -49,15 +49,15 @@ export type IdempotentResponse = {
 export type IdempotencyStore = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  get(
+  get: (
     key: string,
-  ): IdempotentResponse | undefined | Promise<IdempotentResponse | undefined>;
+  ) => IdempotentResponse | undefined | Promise<IdempotentResponse | undefined>;
   /** `expiresAt` is epoch milliseconds; the store may drop the entry after it. */
-  set(
+  set: (
     key: string,
     response: IdempotentResponse,
     expiresAt: number,
-  ): void | Promise<void>;
+  ) => void | Promise<void>;
 };
 
 /**

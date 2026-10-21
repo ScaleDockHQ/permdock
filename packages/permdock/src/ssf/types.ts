@@ -82,12 +82,12 @@ export type SsfOnEvent = {
 export type ReplayStore = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  seen(key: string): boolean | Promise<boolean>;
-  remember(key: string, expiresAt?: number): void | Promise<void>;
+  seen: (key: string) => boolean | Promise<boolean>;
+  remember: (key: string, expiresAt?: number) => void | Promise<void>;
   /** Records `key` and returns `true` only if it was not already recorded. */
-  claim?(key: string, expiresAt?: number): boolean | Promise<boolean>;
+  claim?: (key: string, expiresAt?: number) => boolean | Promise<boolean>;
   /** Forgets a claimed `key` so a failed delivery can be retried. */
-  release?(key: string): void | Promise<void>;
+  release?: (key: string) => void | Promise<void>;
 };
 
 export type SsfAuditEvent = {
@@ -144,10 +144,10 @@ export type SsfPermDockOptions = {
 };
 
 export type SsfReceiver = {
-  push(request: Request): Promise<Response>;
-  logout(request: Request): Promise<Response>;
-  poll(options: PollOptions): Promise<PollResult> | PollHandle;
-  on(event: "event", handler: SsfEventListener): () => void;
+  push: (request: Request) => Promise<Response>;
+  logout: (request: Request) => Promise<Response>;
+  poll: (options: PollOptions) => Promise<PollResult> | PollHandle;
+  on: (event: "event", handler: SsfEventListener) => () => void;
 };
 
 export type SsfPermDock = { readonly receiver: SsfReceiver };
@@ -240,16 +240,16 @@ export type SetError = { readonly err: string; readonly description: string };
 export type SetQueue = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  enqueue(stream: string, jti: string, set: string): void | Promise<void>;
+  enqueue: (stream: string, jti: string, set: string) => void | Promise<void>;
   /** Up to `max` pending SETs, oldest first. */
-  pending(
+  pending: (
     stream: string,
     max: number,
-  ):
+  ) =>
     | readonly { readonly jti: string; readonly set: string }[]
     | Promise<readonly { readonly jti: string; readonly set: string }[]>;
-  ack(stream: string, jti: string): void | Promise<void>;
-  fail(stream: string, jti: string, error: SetError): void | Promise<void>;
+  ack: (stream: string, jti: string) => void | Promise<void>;
+  fail: (stream: string, jti: string, error: SetError) => void | Promise<void>;
 };
 
 export type SetPollHandlerOptions = {

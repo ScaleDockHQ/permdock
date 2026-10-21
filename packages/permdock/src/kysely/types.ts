@@ -5,28 +5,30 @@ import type { Subject } from "../core/subject.ts";
 import type { Instant } from "../core/time.ts";
 
 export type KyselySelectQuery = {
-  select(expr: unknown): KyselySelectQuery;
-  where(column: string, op: string, value: unknown): KyselySelectQuery;
-  where(expression: unknown): KyselySelectQuery;
-  whereRef(left: string, op: string, right: string): KyselySelectQuery;
+  select: (expr: unknown) => KyselySelectQuery;
+  where: {
+    (column: string, op: string, value: unknown): KyselySelectQuery;
+    (expression: unknown): KyselySelectQuery;
+  };
+  whereRef: (left: string, op: string, right: string) => KyselySelectQuery;
 };
 
 export type KyselyExpressionBuilder = {
   (left: unknown, op: string, right: unknown): unknown;
-  and(args: readonly unknown[]): unknown;
-  or(args: readonly unknown[]): unknown;
-  not(value: unknown): unknown;
-  lit(value: unknown): unknown;
-  val(value: unknown): unknown;
-  ref(column: string): unknown;
-  exists?(query: unknown): unknown;
-  selectFrom?(table: string): KyselySelectQuery;
+  and: (args: readonly unknown[]) => unknown;
+  or: (args: readonly unknown[]) => unknown;
+  not: (value: unknown) => unknown;
+  lit: (value: unknown) => unknown;
+  val: (value: unknown) => unknown;
+  ref: (column: string) => unknown;
+  exists?: (query: unknown) => unknown;
+  selectFrom?: (table: string) => KyselySelectQuery;
 };
 
 /** Kysely's `sql` tag; `import { sql } from 'kysely'`. */
 export type KyselySql = {
   (strings: TemplateStringsArray, ...values: unknown[]): unknown;
-  ref(reference: string): unknown;
+  ref: (reference: string) => unknown;
 };
 
 export type KyselyWhereOptions = {

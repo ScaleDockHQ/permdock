@@ -17,26 +17,28 @@ export type SsfStream = {
 export type SsfStreamStore = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  create(
+  create: (
     owner: string,
     configuration: SsfStreamConfiguration,
-  ): void | Promise<void>;
-  get(streamId: string): SsfStream | null | Promise<SsfStream | null>;
+  ) => void | Promise<void>;
+  get: (streamId: string) => SsfStream | null | Promise<SsfStream | null>;
   /**
    * Every stream of `owner`, or every stream when `owner` is absent, oldest
    * first.
    */
-  list(owner?: string): readonly SsfStream[] | Promise<readonly SsfStream[]>;
+  list: (
+    owner?: string,
+  ) => readonly SsfStream[] | Promise<readonly SsfStream[]>;
   /**
    * Replaces the configuration of the stream `configuration.stream_id`; the
    * owner and status stay.
    */
-  update(configuration: SsfStreamConfiguration): void | Promise<void>;
-  delete(streamId: string): void | Promise<void>;
-  status(
+  update: (configuration: SsfStreamConfiguration) => void | Promise<void>;
+  delete: (streamId: string) => void | Promise<void>;
+  status: (
     streamId: string,
-  ): SsfStreamStatus | null | Promise<SsfStreamStatus | null>;
-  setStatus(status: SsfStreamStatus): void | Promise<void>;
+  ) => SsfStreamStatus | null | Promise<SsfStreamStatus | null>;
+  setStatus: (status: SsfStreamStatus) => void | Promise<void>;
 };
 
 type Entry = { readonly stream: SsfStream; readonly status: SsfStreamStatus };

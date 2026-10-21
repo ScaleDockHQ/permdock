@@ -46,17 +46,17 @@ export type OperationPermissions = {
    * declares only OAuth scopes. A `HEAD` request matches the `GET` entry of its
    * path when no `HEAD` entry matches.
    */
-  forRequest(method: string, path: string): Permission | undefined;
+  forRequest: (method: string, path: string) => Permission | undefined;
   /**
    * The permission of an operation id; pass it as `permissionFor` when tool
    * names are operation ids.
    */
-  forOperation(id: string): Permission | undefined;
-  oauthScopesForRequest(
+  forOperation: (id: string) => Permission | undefined;
+  oauthScopesForRequest: (
     method: string,
     path: string,
-  ): readonly string[] | undefined;
-  oauthScopesForOperation(id: string): readonly string[] | undefined;
+  ) => readonly string[] | undefined;
+  oauthScopesForOperation: (id: string) => readonly string[] | undefined;
 };
 
 type Route = {

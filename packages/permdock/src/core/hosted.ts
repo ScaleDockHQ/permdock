@@ -54,8 +54,8 @@ export type PolicyDocument = {
 export type PolicySource = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  current(): PolicyDocument | null;
-  refresh(): Promise<void>;
+  current: () => PolicyDocument | null;
+  refresh: () => Promise<void>;
 };
 
 export type HostedGrantDropReason =

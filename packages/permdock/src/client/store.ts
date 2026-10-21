@@ -105,41 +105,41 @@ const CURRENT = Symbol.for("permdock.current");
 const STORE = Symbol("permdock.store");
 
 export type ClientStore = {
-  get(): ClientPermDock;
-  subscribe(listener: () => void): () => void;
-  permissionState(permission: Permission, data?: unknown): PermissionState;
-  requestApproval(decision: Decision, note?: string): Promise<void>;
+  get: () => ClientPermDock;
+  subscribe: (listener: () => void) => () => void;
+  permissionState: (permission: Permission, data?: unknown) => PermissionState;
+  requestApproval: (decision: Decision, note?: string) => Promise<void>;
   /** Hydrate from a pushed snapshot; a compact JWS goes through the verifier. */
-  replace(value: unknown): void;
+  replace: (value: unknown) => void;
   /**
    * Stay `pending` until `value` settles, then hydrate; a rejection fails
    * closed.
    */
-  follow(value: PromiseLike<Snapshot | string>): void;
+  follow: (value: PromiseLike<Snapshot | string>) => void;
   /**
    * `follow()` once per `value`, without suspending. A thenable React already
    * settled (`status: 'fulfilled'`) hydrates at once.
    */
-  track(value: PromiseLike<Snapshot | string>): void;
+  track: (value: PromiseLike<Snapshot | string>) => void;
   /**
    * The approval state for a decision. While something subscribes, an
    * `approval-required` decision is polled at `<approvals>/<token>`.
    */
-  approvalState(decision: Decision): ApprovalState;
+  approvalState: (decision: Decision) => ApprovalState;
   /**
    * Hydrate from a resolved `snapshotPromise` during render. Idempotent per
    * `source`; subscribers are notified in a microtask, never synchronously
    * inside render.
    */
-  adopt(value: Snapshot | string, source: object): void;
-  snapshot(): Snapshot;
+  adopt: (value: Snapshot | string, source: object) => void;
+  snapshot: () => Snapshot;
   /** The tenant the store currently answers for. */
-  tenant(): string | undefined;
+  tenant: () => string | undefined;
   /**
    * Stops polls, drops in-flight results and persistence; the store keeps
    * answering from its last snapshot.
    */
-  dispose(): void;
+  dispose: () => void;
 };
 
 const VALIDATION: Decision = {

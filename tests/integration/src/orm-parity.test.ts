@@ -92,9 +92,9 @@ const drizzleTables = {
 } as const;
 
 type DrizzleDb = {
-  select(fields: { id: unknown }): {
-    from(table: unknown): {
-      where(filter: SQL): Promise<readonly { readonly id: unknown }[]>;
+  select: (fields: { id: unknown }) => {
+    from: (table: unknown) => {
+      where: (filter: SQL) => Promise<readonly { readonly id: unknown }[]>;
     };
   };
 };
@@ -208,14 +208,14 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
   let lite: PGlite | undefined;
   let pool: Pool | undefined;
   let kysely: Kysely<OrmDatabase> | undefined;
-  let prisma: { $disconnect(): Promise<void> } | undefined;
+  let prisma: { $disconnect: () => Promise<void> } | undefined;
   let prismaItem:
     | {
-        findFirstOrThrow(args: { where: unknown }): Promise<unknown>;
-        groupBy(args: {
+        findFirstOrThrow: (args: { where: unknown }) => Promise<unknown>;
+        groupBy: (args: {
           by: readonly string[];
           where: unknown;
-        }): Promise<readonly unknown[]>;
+        }) => Promise<readonly unknown[]>;
       }
     | undefined;
   const engines: Engine[] = [];
@@ -276,10 +276,10 @@ describe("ORM parity: filter() in memory equals toWhere(where()) in Postgres", (
       Record<
         Resource,
         {
-          findMany(args: {
+          findMany: (args: {
             where: unknown;
             select: { id: true };
-          }): Promise<readonly { readonly id: string }[]>;
+          }) => Promise<readonly { readonly id: string }[]>;
         }
       >
     >;

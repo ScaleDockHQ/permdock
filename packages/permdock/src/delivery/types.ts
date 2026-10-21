@@ -161,18 +161,18 @@ export type DeliveryTransport<C extends DeliveryChannel = DeliveryChannel> = {
   readonly channel: C;
   /** The provider name delivery events carry (`resend`, `chat-sdk`, `webhook`). */
   readonly name: string;
-  deliver(
+  deliver: (
     target: DeliveryTarget<C>,
     message: TransportMessages[C],
     options: TransportOptions,
-  ): DeliveryResult | Promise<DeliveryResult>;
+  ) => DeliveryResult | Promise<DeliveryResult>;
   /**
    * Sends several deliveries in one provider call, one result per item in item
    * order. The router uses it for two or more ready recipients.
    */
-  deliverBatch?(
+  deliverBatch?: (
     items: readonly TransportItem<C>[],
-  ): readonly DeliveryResult[] | Promise<readonly DeliveryResult[]>;
+  ) => readonly DeliveryResult[] | Promise<readonly DeliveryResult[]>;
   /** The most items one `deliverBatch` call takes. Defaults to 100. */
   readonly batchSize?: number;
 };

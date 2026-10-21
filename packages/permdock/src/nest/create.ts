@@ -69,9 +69,9 @@ export type NestPermDockOptions<TUser = unknown> = ServerAdapterOptions<
 
 /** A gateway client: Socket.IO (`emit`, `disconnect`) or `ws` (`close`). */
 export type NestSocket = {
-  emit?(event: string, payload: unknown): unknown;
-  disconnect?(close?: boolean): unknown;
-  close?(code?: number, reason?: string): unknown;
+  emit?: (event: string, payload: unknown) => unknown;
+  disconnect?: (close?: boolean) => unknown;
+  close?: (code?: number, reason?: string) => unknown;
 };
 
 /**
@@ -131,8 +131,8 @@ type ProtectRule = {
 };
 
 type ReflectMeta = {
-  getMetadata(key: string, target: object): unknown;
-  defineMetadata(key: string, value: unknown, target: object): void;
+  getMetadata: (key: string, target: object) => unknown;
+  defineMetadata: (key: string, value: unknown, target: object) => void;
 };
 
 class PermDockHttpError extends Error {
@@ -168,7 +168,7 @@ function applyParameter(
 
 function hasEmit(
   value: unknown,
-): value is { emit(event: string, payload: unknown): unknown } {
+): value is { emit: (event: string, payload: unknown) => unknown } {
   // SAFETY: checked to be a non-null object first; emit is only typeof-checked.
   return (
     typeof value === "object" &&

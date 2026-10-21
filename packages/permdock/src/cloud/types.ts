@@ -119,7 +119,7 @@ export type CloudCatalog = {
    * when the Cloud refuses it or answers another shape. The Cloud shows and
    * diffs it; it never decides with it.
    */
-  push(catalog: CatalogDocument): Promise<CloudCatalogPush>;
+  push: (catalog: CatalogDocument) => Promise<CloudCatalogPush>;
 };
 
 export type CloudClient = Partial<CloudEndpoints> & {
@@ -128,7 +128,7 @@ export type CloudClient = Partial<CloudEndpoints> & {
    * the environment is configured; otherwise the first call asks `GET
    * /v1/environment` which environment the key belongs to.
    */
-  endpoints(): Promise<CloudEndpoints>;
+  endpoints: () => Promise<CloudEndpoints>;
   readonly approvals: ApprovalStore;
   readonly sink: DecisionSink;
   /**
@@ -137,7 +137,7 @@ export type CloudClient = Partial<CloudEndpoints> & {
    * signed. Sent as `PermDock-Subject`; the Cloud never takes a subject from
    * anything else.
    */
-  snapshotsFor(token: string): SnapshotSource;
+  snapshotsFor: (token: string) => SnapshotSource;
   readonly policies: PolicySource;
   readonly catalog: CloudCatalog;
 };

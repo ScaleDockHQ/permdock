@@ -275,7 +275,7 @@ export function toWhere<T extends object>(
 }
 
 type DrizzleDatabase<Tx> = {
-  transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
+  transaction: <T>(fn: (tx: Tx) => Promise<T>) => Promise<T>;
 };
 
 /**
@@ -283,7 +283,10 @@ type DrizzleDatabase<Tx> = {
  * the generated RLS policies decide for the same subject as the in-process
  * checks.
  */
-export function withSubject<Tx extends { execute(query: never): unknown }, T>(
+export function withSubject<
+  Tx extends { execute: (query: never) => unknown },
+  T,
+>(
   db: DrizzleDatabase<Tx>,
   permdock: { readonly subject: Subject },
   fn: (tx: Tx) => Promise<T>,
@@ -303,12 +306,12 @@ export function withSubject<Tx extends { execute(query: never): unknown }, T>(
 }
 
 type DrizzleSelectable = {
-  select(fields: Record<string, unknown>): {
-    from(table: never): {
-      where(where: unknown): {
-        limit(
+  select: (fields: Record<string, unknown>) => {
+    from: (table: never) => {
+      where: (where: unknown) => {
+        limit: (
           count: number,
-        ): PromiseLike<readonly { readonly granted?: unknown }[]>;
+        ) => PromiseLike<readonly { readonly granted?: unknown }[]>;
       };
     };
   };

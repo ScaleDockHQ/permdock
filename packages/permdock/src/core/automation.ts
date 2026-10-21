@@ -60,10 +60,10 @@ export type AutomationSource = {
    * The automation as of now, or `null` for an unknown one. A throw is no
    * automation.
    */
-  automation(
+  automation: (
     id: string,
     options?: { readonly tenant?: string },
-  ): Automation | null | Promise<Automation | null>;
+  ) => Automation | null | Promise<Automation | null>;
 };
 
 type OperationRef = Pick<Operation, "name" | "permission">;
@@ -175,12 +175,12 @@ export function parseAutomation(input: unknown): Automation | undefined {
 }
 
 export type MemoryAutomationSource = {
-  automation(
+  automation: (
     id: string,
     options?: { readonly tenant?: string },
-  ): Automation | null;
+  ) => Automation | null;
   /** Adds or replaces a record by id; an invalid record throws. */
-  put(automation: Automation): void;
+  put: (automation: Automation) => void;
 };
 
 /**

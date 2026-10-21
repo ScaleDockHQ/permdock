@@ -91,10 +91,10 @@ export type DeniedResponse = (
   | Promise<ProblemDetails | Response | undefined>;
 
 export type OperationScopes = {
-  oauthScopesForRequest(
+  oauthScopesForRequest: (
     method: string,
     path: string,
-  ): readonly string[] | undefined;
+  ) => readonly string[] | undefined;
 };
 
 export type Guard<T = unknown, V extends PolicyVocabulary = PolicyVocabulary> =
@@ -234,6 +234,7 @@ export type ServerPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * resume. A method, so a `ServerPermDock<V>` stays assignable to
    * `ServerPermDock`.
    */
+  // oxlint-disable-next-line typescript/method-signature-style -- bivariant in V
   protectOn<T = unknown>(
     instance: PermDock<V>,
     permission: Permission | null,

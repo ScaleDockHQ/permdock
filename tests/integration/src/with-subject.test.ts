@@ -63,13 +63,13 @@ async function inProcess(permdock: PermDock, table: Table): Promise<string[]> {
 }
 
 type PrismaRawTx = {
-  $queryRawUnsafe<T>(query: string, ...values: unknown[]): Promise<T>;
-  $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
+  $queryRawUnsafe: <T>(query: string, ...values: unknown[]) => Promise<T>;
+  $executeRawUnsafe: (query: string, ...values: unknown[]) => Promise<number>;
 };
 
 type PrismaDb = {
-  $transaction<T>(fn: (tx: PrismaRawTx) => Promise<T>): Promise<T>;
-  $disconnect(): Promise<void>;
+  $transaction: <T>(fn: (tx: PrismaRawTx) => Promise<T>) => Promise<T>;
+  $disconnect: () => Promise<void>;
 };
 
 describe("withSubject runs Drizzle, Kysely and Prisma under the generated RLS", () => {

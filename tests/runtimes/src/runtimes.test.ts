@@ -26,7 +26,7 @@ type Runtime = {
   readonly name: string;
   readonly prefixes: readonly string[];
   readonly available: boolean;
-  start(): Promise<{ readonly base: string; stop(): Promise<void> }>;
+  start: () => Promise<{ readonly base: string; stop: () => Promise<void> }>;
 };
 
 function freePort(): Promise<number> {

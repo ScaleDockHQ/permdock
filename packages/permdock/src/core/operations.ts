@@ -40,6 +40,7 @@ export type OperationMeta = {
  */
 export type OperationData<TInput = never> = {
   // A method type read as a property is bivariant, so an `Operation<{ id: string }>` stays assignable to `Operation`.
+  // oxlint-disable-next-line typescript/method-signature-style -- bivariant in TInput
   load(input: TInput): unknown;
 }["load"];
 

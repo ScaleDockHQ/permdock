@@ -38,7 +38,7 @@ export type ElysiaPermDockOptions<TUser = unknown> = ServerAdapterOptions<
 /** The `ws` Elysia passes to `.ws` handlers; `data` is the upgrade context. */
 export type ElysiaSocket = {
   readonly data: ElysiaRequestContext;
-  close(code?: number, reason?: string): unknown;
+  close: (code?: number, reason?: string) => unknown;
 };
 
 export type ElysiaPermDockContext<

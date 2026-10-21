@@ -12,13 +12,16 @@ import {
 
 /** The `PowerSyncDatabase` methods `powerSyncSource` calls. */
 export type PowerSyncWatchable = {
-  getAll(sql: string, parameters?: unknown[]): Promise<unknown[]>;
-  watch(
+  getAll: (sql: string, parameters?: unknown[]) => Promise<unknown[]>;
+  watch: (
     sql: string,
     parameters: unknown[] | undefined,
-    handler: { onResult(result: unknown): void; onError?(error: Error): void },
+    handler: {
+      onResult: (result: unknown) => void;
+      onError?: (error: Error) => void;
+    },
     options: { readonly signal: AbortSignal },
-  ): void;
+  ) => void;
 };
 
 /** One local query: SQL over the synced tables and its parameters. */

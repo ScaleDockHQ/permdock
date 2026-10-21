@@ -80,12 +80,12 @@ export type ApprovalDelegation = {
 export type ApprovalDelegationSource = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  delegationsFor(query: {
+  delegationsFor: (query: {
     readonly delegate: string;
     readonly tenant?: string;
     /** RFC 3339. The source returns delegations active at this instant. */
     readonly at: string;
-  }): readonly ApprovalDelegation[] | Promise<readonly ApprovalDelegation[]>;
+  }) => readonly ApprovalDelegation[] | Promise<readonly ApprovalDelegation[]>;
 };
 
 export type ApprovalSubjectSummary = {
@@ -208,34 +208,36 @@ export type ApprovalStore = {
    * still caps it.
    */
   readonly ttl?: number;
-  create(request: ApprovalRequest): Promise<void> | void;
-  get(token: string): Promise<ApprovalRequest | null> | ApprovalRequest | null;
+  create: (request: ApprovalRequest) => Promise<void> | void;
+  get: (
+    token: string,
+  ) => Promise<ApprovalRequest | null> | ApprovalRequest | null;
   /**
    * The request with this `id`, for `approvalsHandler`, which routes by id.
    * Without it the handler pages through `list` to find the id.
    */
-  getById?(
+  getById?: (
     id: string,
-  ): Promise<ApprovalRequest | null> | ApprovalRequest | null;
-  resolve(
+  ) => Promise<ApprovalRequest | null> | ApprovalRequest | null;
+  resolve: (
     token: string,
     verdict: ApprovalVerdict,
-  ): Promise<ApprovalRequest> | ApprovalRequest;
-  list(query: ApprovalListQuery): Promise<ApprovalPage> | ApprovalPage;
-  expire(now?: Instant): Promise<number> | number;
+  ) => Promise<ApprovalRequest> | ApprovalRequest;
+  list: (query: ApprovalListQuery) => Promise<ApprovalPage> | ApprovalPage;
+  expire: (now?: Instant) => Promise<number> | number;
   /**
    * Marks an approved, unexpired, unconsumed request consumed and returns it;
    * returns `null` otherwise. Must be atomic: two concurrent calls for one
    * token never both return the request.
    */
-  consume(
+  consume: (
     token: string,
     now?: Instant,
-  ): Promise<ApprovalRequest | null> | ApprovalRequest | null;
-  cancel?(
+  ) => Promise<ApprovalRequest | null> | ApprovalRequest | null;
+  cancel?: (
     filter: ApprovalListFilter,
     meta: ApprovalCancelMeta,
-  ): Promise<number> | number;
+  ) => Promise<number> | number;
 };
 
 export type ApprovalResumeFailureCause =

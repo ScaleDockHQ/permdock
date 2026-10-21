@@ -64,23 +64,23 @@ export type AccessReviewDecision = {
 export type AccessReviewStore = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  create(
+  create: (
     review: AccessReview,
     items: readonly AccessReviewItem[],
-  ): Promise<void> | void;
-  get(id: string): Promise<AccessReview | null> | AccessReview | null;
-  items(
+  ) => Promise<void> | void;
+  get: (id: string) => Promise<AccessReview | null> | AccessReview | null;
+  items: (
     query: AccessReviewItemQuery,
-  ): Promise<AccessReviewItemPage> | AccessReviewItemPage;
-  decide(
+  ) => Promise<AccessReviewItemPage> | AccessReviewItemPage;
+  decide: (
     reviewId: string,
     itemId: string,
     decision: AccessReviewDecision,
-  ): Promise<AccessReviewItem> | AccessReviewItem;
-  markApplied(
+  ) => Promise<AccessReviewItem> | AccessReviewItem;
+  markApplied: (
     reviewId: string,
     itemId: string,
     at: string,
-  ): Promise<AccessReviewItem> | AccessReviewItem;
-  close(id: string): Promise<AccessReview> | AccessReview;
+  ) => Promise<AccessReviewItem> | AccessReviewItem;
+  close: (id: string) => Promise<AccessReview> | AccessReview;
 };

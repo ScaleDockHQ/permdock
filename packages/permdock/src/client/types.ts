@@ -17,16 +17,16 @@ export type PermissionState = {
 
 export type PermissionSet = {
   readonly granted: readonly Permission[];
-  get(permission: Permission): PermissionState | undefined;
+  get: (permission: Permission) => PermissionState | undefined;
 };
 
 export type ClientPermDock<V extends PolicyVocabulary = PolicyVocabulary> =
   PermDock<V> & {
-    status(permission?: Permission, data?: unknown): ClientStatus;
-    invalidate(ref: Permission | { readonly [key: string]: unknown }): void;
-    refresh(options?: { readonly tenant?: string }): Promise<void>;
-    clear(): void;
-    subscribe(listener: () => void): () => void;
+    status: (permission?: Permission, data?: unknown) => ClientStatus;
+    invalidate: (ref: Permission | { readonly [key: string]: unknown }) => void;
+    refresh: (options?: { readonly tenant?: string }) => Promise<void>;
+    clear: () => void;
+    subscribe: (listener: () => void) => () => void;
   };
 
 export type ApprovalState =

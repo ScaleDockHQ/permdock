@@ -42,7 +42,7 @@ export type WebhookMessage = {
 };
 
 export type WebhookSigner = {
-  sign(message: WebhookMessage): Promise<WebhookHeaders>;
+  sign: (message: WebhookMessage) => Promise<WebhookHeaders>;
 };
 
 /** An Ed25519 public JWK set for `v1a`, or the URL that serves one. */
@@ -92,7 +92,7 @@ export type VerifiedWebhookMessage =
 
 export type WebhookVerifier = {
   /** Never throws; claims the `webhook-id` only after a signature verifies. */
-  verify(input: WebhookInput): Promise<VerifiedWebhookMessage>;
+  verify: (input: WebhookInput) => Promise<VerifiedWebhookMessage>;
 };
 
 /**

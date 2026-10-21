@@ -31,9 +31,9 @@ export type ShareLinkRow = {
 
 /** better-supabase's `ShareLinks`, or anything with its `resolve`. */
 export type ShareLinkResolver = {
-  resolve(
+  resolve: (
     token: string,
-  ): PromiseLike<
+  ) => PromiseLike<
     | { readonly ok: true; readonly data: ShareLinkRow | null }
     | { readonly ok: false }
   >;

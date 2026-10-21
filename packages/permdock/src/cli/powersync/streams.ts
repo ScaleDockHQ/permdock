@@ -53,11 +53,11 @@ import {
  */
 export type StreamDialect = {
   readonly user: string;
-  claim(name: string): string;
-  claims(name: string): string;
+  claim: (name: string) => string;
+  claims: (name: string) => string;
   /** A row column; `numeric` keeps its type for a comparison with a number. */
-  column(table: string, name: string, numeric?: boolean): string;
-  literal(value: string | number | boolean): string;
+  column: (table: string, name: string, numeric?: boolean) => string;
+  literal: (value: string | number | boolean) => string;
   readonly names?: TableNames;
 };
 

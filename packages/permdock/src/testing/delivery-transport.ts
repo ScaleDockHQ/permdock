@@ -31,11 +31,11 @@ export type DeliveryTransportHarness<C extends DeliveryChannel> = {
    * What the provider accepted, one entry per delivery, with the idempotency
    * key it received.
    */
-  received():
+  received: () =>
     | readonly { readonly idempotencyKey: string }[]
     | Promise<readonly { readonly idempotencyKey: string }[]>;
   /** Makes the provider's next call fail this way. */
-  fail(kind: DeliveryFailureKind): void;
+  fail: (kind: DeliveryFailureKind) => void;
 };
 
 export type DeliveryTransportOptions<C extends DeliveryChannel> = {
@@ -44,7 +44,7 @@ export type DeliveryTransportOptions<C extends DeliveryChannel> = {
   readonly address: string;
   readonly message: TransportMessages[C];
   /** A fresh harness per test. */
-  create(): DeliveryTransportHarness<C>;
+  create: () => DeliveryTransportHarness<C>;
 };
 
 const permissions = definePermissions({

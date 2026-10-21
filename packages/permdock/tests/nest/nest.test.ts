@@ -16,7 +16,7 @@ import {
   policy,
 } from "../fixtures/quick-start.ts";
 
-const apps: { close(): Promise<void> }[] = [];
+const apps: { close: () => Promise<void> }[] = [];
 
 afterEach(async () => {
   await Promise.all(apps.splice(0).map((app) => app.close()));

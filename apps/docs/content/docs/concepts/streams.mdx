@@ -56,8 +56,8 @@ Revalidating instead of closing on every change means a role edit that adds a pe
 
 ```ts
 interface RevocationFeed {
-  subscribe(listener: (event: RevocationEvent) => void): () => void;
-  revoke(event: RevocationEvent): void | Promise<void>;
+  subscribe: (listener: (event: RevocationEvent) => void) => () => void;
+  revoke: (event: RevocationEvent) => void | Promise<void>;
 }
 
 type RevocationEvent = {

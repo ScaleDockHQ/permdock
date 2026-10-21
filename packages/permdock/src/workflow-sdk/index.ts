@@ -19,7 +19,7 @@ import { freezeDeep } from "../core/freeze.ts";
  */
 export type WorkflowSdkHook = {
   readonly then: PromiseLike<unknown>["then"];
-  dispose(): void;
+  dispose: () => void;
 };
 
 /** `createHook` from `workflow`; valid only inside a `"use workflow"` function. */

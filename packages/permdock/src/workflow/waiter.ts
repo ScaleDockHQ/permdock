@@ -23,9 +23,9 @@ export type ApprovalWaitOptions = {
 export type ApprovalWaiter = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  wait(token: string, options?: ApprovalWaitOptions): Promise<void>;
+  wait: (token: string, options?: ApprovalWaitOptions) => Promise<void>;
   /** Called after an approver resolves the request for `token`. */
-  wake(token: string): void | Promise<void>;
+  wake: (token: string) => void | Promise<void>;
 };
 
 export type PollingApprovalWaiterOptions = {

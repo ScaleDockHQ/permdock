@@ -31,17 +31,17 @@ export type SupabaseRpcResult = {
  * function, such as a `service_role` client after the grant the docs show.
  */
 export type SupabaseRpcClient = {
-  schema(name: string): {
-    rpc(
+  schema: (name: string) => {
+    rpc: (
       fn: string,
       args: Readonly<Record<string, unknown>>,
-    ): PromiseLike<SupabaseRpcResult>;
+    ) => PromiseLike<SupabaseRpcResult>;
   };
 };
 
 export type SupabaseRpcCaller = {
-  schema(name: never): {
-    rpc(fn: never, args: never): PromiseLike<SupabaseRpcResult>;
+  schema: (name: never) => {
+    rpc: (fn: never, args: never) => PromiseLike<SupabaseRpcResult>;
   };
 };
 
@@ -110,18 +110,18 @@ export type PostgrestSources = {
    * truncated.
    */
   readonly memberships: MembershipSource & {
-    list(query: {
+    list: (query: {
       readonly scope: string;
       readonly id: string;
-    }): Promise<MemberEntry[]>;
+    }) => Promise<MemberEntry[]>;
   };
   /** The custom roles `principal` holds, for `createPermDock`'s `customRoles`. */
-  customRoles(principal: { readonly id: string }): CustomRoleSource;
+  customRoles: (principal: { readonly id: string }) => CustomRoleSource;
   /**
    * The subject the hook would mint for `userId`: anonymous when the user is
    * unknown or suspended.
    */
-  subject(userId: string): Promise<Subject>;
+  subject: (userId: string) => Promise<Subject>;
   /**
    * `subject` with its principal read again: roles, memberships and
    * authorization version come from the database, the token's other claims
@@ -131,9 +131,9 @@ export type PostgrestSources = {
    * carries the actor and delegation. A subject with no principal is returned
    * as is.
    */
-  refresh<P extends Principal>(subject: Subject<P>): Promise<Subject<P>>;
+  refresh: <P extends Principal>(subject: Subject<P>) => Promise<Subject<P>>;
   /** The raw record, `undefined` for an unknown user. */
-  record(userId: string): Promise<SubjectRecord | undefined>;
+  record: (userId: string) => Promise<SubjectRecord | undefined>;
 };
 
 function strings(value: unknown): readonly string[] {

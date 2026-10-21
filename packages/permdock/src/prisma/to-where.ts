@@ -288,11 +288,11 @@ export function permdockExtension(): {
 }
 
 type PrismaTransactionClient = {
-  $executeRawUnsafe(query: string, ...values: unknown[]): Promise<number>;
+  $executeRawUnsafe: (query: string, ...values: unknown[]) => Promise<number>;
 };
 
 type PrismaLike<Tx> = {
-  $transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
+  $transaction: <T>(fn: (tx: Tx) => Promise<T>) => Promise<T>;
 };
 
 /**
@@ -317,9 +317,9 @@ export function withSubject<Tx extends PrismaTransactionClient, T>(
 }
 
 type PrismaDelegate = {
-  findFirst(args: {
+  findFirst: (args: {
     readonly where: Record<string, unknown>;
-  }): Promise<unknown>;
+  }) => Promise<unknown>;
 };
 
 /**

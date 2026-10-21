@@ -2,11 +2,11 @@ import { app } from "./app.ts";
 import { elysia } from "./elysia.ts";
 
 declare const Bun: {
-  serve(options: {
+  serve: (options: {
     readonly port: number;
     readonly hostname: string;
     readonly fetch: (request: Request) => Response | Promise<Response>;
-  }): unknown;
+  }) => unknown;
 };
 
 Bun.serve({

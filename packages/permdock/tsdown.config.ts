@@ -8,21 +8,21 @@ const SVELTE_SOURCES = ["Protected.svelte", "PermissionBoundary.svelte"];
 
 function sveltePlugin(): {
   readonly name: string;
-  resolveId(
+  resolveId: (
     source: string,
     importer: string | undefined,
-  ): { readonly id: string; readonly external: true } | null;
-  transform(
+  ) => { readonly id: string; readonly external: true } | null;
+  transform: (
     code: string,
     id: string,
-  ): { readonly code: string; readonly map: unknown } | undefined;
-  generateBundle(this: {
-    emitFile(file: {
+  ) => { readonly code: string; readonly map: unknown } | undefined;
+  generateBundle: (this: {
+    emitFile: (file: {
       readonly type: "asset";
       readonly fileName: string;
       readonly source: string;
-    }): string;
-  }): void;
+    }) => string;
+  }) => void;
 } {
   return {
     name: "svelte",
@@ -61,10 +61,10 @@ function sveltePlugin(): {
 
 function clientReferencePlugin(): {
   readonly name: string;
-  resolveId(
+  resolveId: (
     source: string,
     importer: string | undefined,
-  ): { readonly id: string; readonly external: true } | null;
+  ) => { readonly id: string; readonly external: true } | null;
 } {
   return {
     // The server entry imports the provider from the built

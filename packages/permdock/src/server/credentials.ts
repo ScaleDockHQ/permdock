@@ -277,14 +277,14 @@ export function apiKeyVerifier(options: {
 
 export type MemoryCredentialStore = CredentialVerifier & {
   /** Stores `credential` and returns its key; the key is never stored. */
-  issue(credential: Credential): Promise<string>;
+  issue: (credential: Credential) => Promise<string>;
   /** A new secret for the same id; the old key stops verifying at once. */
-  rotate(id: string): Promise<string | undefined>;
+  rotate: (id: string) => Promise<string | undefined>;
   /** `true` when a credential was removed. */
-  revoke(id: string): boolean;
-  list(): readonly Credential[];
+  revoke: (id: string) => boolean;
+  list: () => readonly Credential[];
   /** When `touch` last recorded a use of `id`, as RFC 3339. */
-  lastUsedAt(id: string): string | undefined;
+  lastUsedAt: (id: string) => string | undefined;
 };
 
 function write(

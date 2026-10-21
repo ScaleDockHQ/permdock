@@ -22,19 +22,19 @@ export type ClientStoreStatus = "ready" | "pending" | "stale" | "server-only";
 
 /** The client surface every UI adapter hands to components. */
 export type ClientStorePermDock = PermDock & {
-  status(permission?: Permission, data?: unknown): ClientStoreStatus;
-  refresh(query?: { readonly tenant?: string }): Promise<void>;
-  clear(): void;
-  subscribe(listener: () => void): () => void;
+  status: (permission?: Permission, data?: unknown) => ClientStoreStatus;
+  refresh: (query?: { readonly tenant?: string }) => Promise<void>;
+  clear: () => void;
+  subscribe: (listener: () => void) => () => void;
 };
 
 export type ClientStoreHandle = {
-  get(): ClientStorePermDock;
+  get: () => ClientStorePermDock;
   /**
    * Hydrate from a server-pushed snapshot (a Server Action result, a socket
    * message).
    */
-  replace(value: unknown): void;
+  replace: (value: unknown) => void;
 };
 
 export type ClientStoreFactoryOptions = {

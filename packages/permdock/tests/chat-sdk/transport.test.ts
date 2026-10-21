@@ -31,7 +31,7 @@ type Posted = { readonly user: string; readonly message: unknown };
 type FakeChat = {
   readonly client: ChatSdkClient;
   readonly posted: Posted[];
-  failNext(error: Error): void;
+  failNext: (error: Error) => void;
 };
 
 function chatError(code: string): Error {

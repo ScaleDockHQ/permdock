@@ -40,23 +40,23 @@ export type Unread = "pending" | "failed";
 export type RelationReader = {
   /** Whether a `RelationSource` was configured at all. */
   readonly available: boolean;
-  chain(query: {
+  chain: (query: {
     readonly resource: string;
     readonly id: string;
     readonly depth: number;
     /** `'parent'` (the default) or a link name. */
     readonly through?: string;
-  }): RelationChain | Unread;
-  row(query: {
+  }) => RelationChain | Unread;
+  row: (query: {
     readonly resource: string;
     readonly id: string;
-  }): { readonly row: Readonly<Record<string, unknown>> | null } | Unread;
+  }) => { readonly row: Readonly<Record<string, unknown>> | null } | Unread;
   /** Holders of `relation` and of every relation it includes. */
-  holders(query: {
+  holders: (query: {
     readonly resource: string;
     readonly id: string;
     readonly relation: string;
-  }): readonly ReadHolder[] | Unread;
+  }) => readonly ReadHolder[] | Unread;
 };
 
 export type RelatedVerdict =

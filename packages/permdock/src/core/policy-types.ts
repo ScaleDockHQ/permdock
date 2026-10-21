@@ -540,8 +540,12 @@ export type Policy<
   readonly grants: readonly Grant[];
   readonly vocabulary: V;
   readonly scopes: PolicyScopes;
+  // Bivariant in `TUser`, so a `Policy<User>` passes where a `Policy` is accepted.
+  // oxlint-disable-next-line typescript/method-signature-style -- bivariant in TUser
   principal(user: TUser): TPrincipal | null;
+  // oxlint-disable-next-line typescript/method-signature-style -- bivariant in TUser
   subject(user: TUser): TPrincipal | null;
+  // oxlint-disable-next-line typescript/method-signature-style -- bivariant in TUser
   context?(
     user: TUser,
   ):

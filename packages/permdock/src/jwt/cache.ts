@@ -25,8 +25,8 @@ type DiscoveryResult =
 type CachedDocument<T> = { value: T; expiresAt: number };
 
 export type KeyCache = {
-  resolveJwks(now?: number): Promise<ResolvedKeys>;
-  refetchJwks(now?: number): Promise<ResolvedKeys>;
+  resolveJwks: (now?: number) => Promise<ResolvedKeys>;
+  refetchJwks: (now?: number) => Promise<ResolvedKeys>;
 };
 
 function clampTtl(seconds: number, minTtl: number, maxTtl: number): number {

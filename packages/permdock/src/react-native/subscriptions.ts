@@ -2,10 +2,10 @@ import type { SubscribeForeground, SubscribeOnline } from "./types.ts";
 
 /** The `AppState` export of `react-native`, as `appStateForeground` calls it. */
 export type AppStateModule = {
-  addEventListener(
+  addEventListener: (
     type: "change",
     listener: (state: string) => void,
-  ): { remove(): void };
+  ) => { remove: () => void };
 };
 
 /**
@@ -13,12 +13,12 @@ export type AppStateModule = {
  * calls it.
  */
 export type NetInfoModule = {
-  addEventListener(
+  addEventListener: (
     listener: (state: {
       readonly isConnected: boolean | null;
       readonly isInternetReachable?: boolean | null;
     }) => void,
-  ): () => void;
+  ) => () => void;
 };
 
 /**

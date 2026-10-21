@@ -67,8 +67,8 @@ type BatchOptions = {
 
 export type Batch = {
   /** Called from render: notifies subscribers in a microtask, never inline. */
-  enqueue(key: string, permission: Permission, data: unknown): void;
-  clear(): void;
+  enqueue: (key: string, permission: Permission, data: unknown) => void;
+  clear: () => void;
 };
 
 /**

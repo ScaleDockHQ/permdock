@@ -16,16 +16,16 @@ import { PermDockValidationError } from "../core/validation-error.ts";
 
 /** A Prisma 8 ORM field proxy: `u.email` inside `.where((u) => ...)`. */
 export type PrismaFieldProxy = {
-  eq(value: unknown): unknown;
-  neq(value: unknown): unknown;
-  gt(value: unknown): unknown;
-  gte(value: unknown): unknown;
-  lt(value: unknown): unknown;
-  lte(value: unknown): unknown;
-  like(pattern: string): unknown;
-  in(values: readonly unknown[]): unknown;
-  isNull(): unknown;
-  isNotNull(): unknown;
+  eq: (value: unknown) => unknown;
+  neq: (value: unknown) => unknown;
+  gt: (value: unknown) => unknown;
+  gte: (value: unknown) => unknown;
+  lt: (value: unknown) => unknown;
+  lte: (value: unknown) => unknown;
+  like: (pattern: string) => unknown;
+  in: (values: readonly unknown[]) => unknown;
+  isNull: () => unknown;
+  isNotNull: () => unknown;
 };
 
 /** `import { and, or, not } from '@prisma/orm-postgres/orm-client'`. */

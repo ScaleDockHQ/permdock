@@ -55,7 +55,7 @@ function locate(
 
 export function memoryLimitStore(): LimitStore & {
   /** Live counters, for tests and diagnostics. */
-  size(): number;
+  size: () => number;
 } {
   const used = new Map<string, { count: number; until: number }>();
   let earliest = Number.POSITIVE_INFINITY;

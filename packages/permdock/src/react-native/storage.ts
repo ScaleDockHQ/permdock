@@ -93,10 +93,10 @@ function storedRead(
  * development builds warn once per store.
  */
 export type GuardedStorage = {
-  read(key: string): string | null | PromiseLike<string | null>;
-  write(key: string, value: string): void;
-  remove(key: string): void;
-  fail(error: unknown): void;
+  read: (key: string) => string | null | PromiseLike<string | null>;
+  write: (key: string, value: string) => void;
+  remove: (key: string) => void;
+  fail: (error: unknown) => void;
 };
 
 export function guardStorage(storage: SnapshotStorage): GuardedStorage {

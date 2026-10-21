@@ -191,7 +191,7 @@ function resultOf(value: unknown): DeliveryResult | Failure {
 type Ready = {
   readonly transport: DeliveryTransport;
   readonly item: TransportItem;
-  finish(result: DeliveryResult | Failure): DeliveryEvent;
+  finish: (result: DeliveryResult | Failure) => DeliveryEvent;
 };
 
 const THREW: Failure = Object.freeze({

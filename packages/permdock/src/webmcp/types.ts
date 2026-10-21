@@ -7,12 +7,12 @@ import type { Snapshot } from "../core/snapshot-types.ts";
 export type WebMcpClientStatus = "ready" | "pending" | "stale" | "server-only";
 
 export type WebMcpPermDock = {
-  can(permission: Permission, data?: unknown): boolean;
-  decide(permission: Permission, data?: unknown): Decision;
-  snapshot(): Snapshot | string | Promise<Snapshot | string>;
-  tenant?(id: string): WebMcpPermDock;
-  subscribe?(listener: () => void): () => void;
-  status?(permission?: Permission, data?: unknown): WebMcpClientStatus;
+  can: (permission: Permission, data?: unknown) => boolean;
+  decide: (permission: Permission, data?: unknown) => Decision;
+  snapshot: () => Snapshot | string | Promise<Snapshot | string>;
+  tenant?: (id: string) => WebMcpPermDock;
+  subscribe?: (listener: () => void) => () => void;
+  status?: (permission?: Permission, data?: unknown) => WebMcpClientStatus;
 };
 
 export type WebMcpToolContent = {
@@ -46,14 +46,14 @@ export type WebMcpRegisteredTool = {
   readonly description?: string;
   readonly inputSchema?: Readonly<Record<string, unknown>>;
   readonly annotations?: WebMcpToolAnnotations;
-  execute(input: unknown): Promise<WebMcpToolResult>;
+  execute: (input: unknown) => Promise<WebMcpToolResult>;
 };
 
 export type ModelContext = {
-  registerTool(
+  registerTool: (
     tool: WebMcpRegisteredTool,
     options?: { readonly signal?: AbortSignal },
-  ): { readonly unregister?: () => void };
+  ) => { readonly unregister?: () => void };
 };
 
 export type WebMcpApprovalRequest = {

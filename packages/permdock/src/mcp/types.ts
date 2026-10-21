@@ -116,37 +116,41 @@ export type GuardedMcpServer = Omit<
   McpServer,
   "registerTool" | "registerResource" | "registerPrompt"
 > & {
-  registerTool<
+  registerTool: <
     TInput extends StandardSchemaWithJSON | undefined = undefined,
     TOutput extends StandardSchemaWithJSON | undefined = undefined,
   >(
     name: string,
     config: McpToolConfig<TInput, TOutput>,
     handler: ToolCallback<TInput>,
-  ): RegisteredTool;
-  registerResource(
-    name: string,
-    uri: `ui://${string}`,
-    config: McpUiResourceConfig,
-    read: ReadResourceCallback,
-  ): RegisteredResource;
-  registerResource(
-    name: string,
-    uri: string,
-    config: McpResourceConfig<[uri: URL]>,
-    read: ReadResourceCallback,
-  ): RegisteredResource;
-  registerResource(
-    name: string,
-    template: ResourceTemplate,
-    config: McpResourceConfig<[uri: URL, variables: Variables]>,
-    read: ReadResourceTemplateCallback,
-  ): RegisteredResourceTemplate;
-  registerPrompt<TArgs extends StandardSchemaWithJSON | undefined = undefined>(
+  ) => RegisteredTool;
+  registerResource: {
+    (
+      name: string,
+      uri: `ui://${string}`,
+      config: McpUiResourceConfig,
+      read: ReadResourceCallback,
+    ): RegisteredResource;
+    (
+      name: string,
+      uri: string,
+      config: McpResourceConfig<[uri: URL]>,
+      read: ReadResourceCallback,
+    ): RegisteredResource;
+    (
+      name: string,
+      template: ResourceTemplate,
+      config: McpResourceConfig<[uri: URL, variables: Variables]>,
+      read: ReadResourceTemplateCallback,
+    ): RegisteredResourceTemplate;
+  };
+  registerPrompt: <
+    TArgs extends StandardSchemaWithJSON | undefined = undefined,
+  >(
     name: string,
     config: McpPromptConfig<TArgs>,
     handler: PromptCallback<TArgs>,
-  ): RegisteredPrompt;
+  ) => RegisteredPrompt;
 };
 
 /** A tool config when the tool's own procedure decides: no loader, no re-check. */
@@ -166,14 +170,14 @@ export type McpProcedureToolConfig<
  * decided by the procedure they call.
  */
 export type ProcedureMcpServer = Omit<GuardedMcpServer, "registerTool"> & {
-  registerTool<
+  registerTool: <
     TInput extends StandardSchemaWithJSON | undefined = undefined,
     TOutput extends StandardSchemaWithJSON | undefined = undefined,
   >(
     name: string,
     config: McpProcedureToolConfig<TInput, TOutput>,
     handler: ToolCallback<TInput>,
-  ): RegisteredTool;
+  ) => RegisteredTool;
 };
 
 /**

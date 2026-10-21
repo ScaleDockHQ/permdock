@@ -18,8 +18,8 @@ export type RevocationListener = (event: RevocationEvent) => void;
 export type RevocationFeed = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  subscribe(listener: RevocationListener): () => void;
-  revoke(event: RevocationEvent): void | Promise<void>;
+  subscribe: (listener: RevocationListener) => () => void;
+  revoke: (event: RevocationEvent) => void | Promise<void>;
 };
 
 function isRevocationEvent(value: unknown): value is RevocationEvent {

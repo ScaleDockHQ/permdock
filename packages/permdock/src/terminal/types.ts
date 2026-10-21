@@ -92,9 +92,9 @@ export type TerminalRuntime = {
 
 /** The shape of `Entry` from `@napi-rs/keyring`. */
 export type KeyringEntry = {
-  getPassword(): string | null | undefined;
-  setPassword(password: string): void;
-  deletePassword(): unknown;
+  getPassword: () => string | null | undefined;
+  setPassword: (password: string) => void;
+  deletePassword: () => unknown;
 };
 
 export type TerminalStorageOptions = {

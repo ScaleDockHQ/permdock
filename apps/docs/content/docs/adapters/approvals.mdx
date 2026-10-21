@@ -38,13 +38,15 @@ app.all("/permdock/approvals/*", (c) => handler(c.req.raw));
 ```ts
 interface ApprovalStore {
   readonly ttl?: number; // seconds a new request stays open; default one hour
-  create(request: ApprovalRequest): Promise<void> | void;
-  get(token: string): Promise<ApprovalRequest | null> | ApprovalRequest | null;
-  resolve(
+  create: (request: ApprovalRequest) => Promise<void> | void;
+  get: (
+    token: string,
+  ) => Promise<ApprovalRequest | null> | ApprovalRequest | null;
+  resolve: (
     token: string,
     verdict: { status: "approved" | "rejected"; by: Subject; note?: string },
-  ): Promise<ApprovalRequest> | ApprovalRequest;
-  list(query: {
+  ) => Promise<ApprovalRequest> | ApprovalRequest;
+  list: (query: {
     status?: ApprovalRequest["status"];
     principalId?: string;
     actorId?: string;
@@ -52,17 +54,17 @@ interface ApprovalStore {
     session?: string;
     limit?: number;
     cursor?: string;
-  }): Promise<ApprovalPage> | ApprovalPage;
+  }) => Promise<ApprovalPage> | ApprovalPage;
   // ApprovalPage = { items: ApprovalRequest[]; next?: string }
-  expire(now?: Instant): Promise<number> | number;
-  consume(
+  expire: (now?: Instant) => Promise<number> | number;
+  consume: (
     token: string,
     now?: Instant,
-  ): Promise<ApprovalRequest | null> | ApprovalRequest | null;
-  cancel?(
+  ) => Promise<ApprovalRequest | null> | ApprovalRequest | null;
+  cancel?: (
     filter,
     meta: { by: string; note?: string },
-  ): Promise<number> | number;
+  ) => Promise<number> | number;
 }
 ```
 

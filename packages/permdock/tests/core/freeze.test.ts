@@ -21,9 +21,9 @@ import {
  * reaches.
  */
 type MapWriter = {
-  set(key: unknown, value: unknown): unknown;
-  delete(key: unknown): boolean;
-  clear(): void;
+  set: (key: unknown, value: unknown) => unknown;
+  delete: (key: unknown) => boolean;
+  clear: () => void;
 };
 
 function writer(collection: object): MapWriter {

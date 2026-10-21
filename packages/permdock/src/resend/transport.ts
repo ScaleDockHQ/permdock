@@ -36,16 +36,16 @@ export type ResendResult<T> =
 /** The part of a `Resend` client the transport calls; a `new Resend(key)` fits. */
 export type ResendClient = {
   readonly emails: {
-    send(
+    send: (
       payload: ResendEmailPayload,
       options?: { readonly idempotencyKey?: string },
-    ): Promise<ResendResult<{ readonly id: string }>>;
+    ) => Promise<ResendResult<{ readonly id: string }>>;
   };
   readonly batch?: {
-    send(
+    send: (
       payloads: ResendEmailPayload[],
       options?: { readonly idempotencyKey?: string },
-    ): Promise<
+    ) => Promise<
       ResendResult<{ readonly data: readonly { readonly id: string }[] }>
     >;
   };

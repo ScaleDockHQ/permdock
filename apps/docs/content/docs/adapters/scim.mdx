@@ -62,33 +62,33 @@ export const { middleware, protect } = createPermDock(policy, {
 
 ```ts
 interface DirectoryStore {
-  getUser(tenant: string, id: string): Promise<DirectoryUser | null>;
-  findUsers(
+  getUser: (tenant: string, id: string) => Promise<DirectoryUser | null>;
+  findUsers: (
     tenant: string,
     filter: ScimFilter,
     page: ScimPage,
-  ): Promise<ScimPageResult<DirectoryUser>>;
-  putUser(tenant: string, user: DirectoryUser): Promise<DirectoryUser>; // create or replace; id assigned by the store on create
-  patchUser(
+  ) => Promise<ScimPageResult<DirectoryUser>>;
+  putUser: (tenant: string, user: DirectoryUser) => Promise<DirectoryUser>; // create or replace; id assigned by the store on create
+  patchUser: (
     tenant: string,
     id: string,
     ops: ScimPatchOp[],
-  ): Promise<DirectoryUser>;
-  deleteUser(tenant: string, id: string): Promise<void>;
-  getGroup(tenant: string, id: string): Promise<DirectoryGroup | null>;
-  findGroups(
+  ) => Promise<DirectoryUser>;
+  deleteUser: (tenant: string, id: string) => Promise<void>;
+  getGroup: (tenant: string, id: string) => Promise<DirectoryGroup | null>;
+  findGroups: (
     tenant: string,
     filter: ScimFilter,
     page: ScimPage,
-  ): Promise<ScimPageResult<DirectoryGroup>>;
-  putGroup(tenant: string, group: DirectoryGroup): Promise<DirectoryGroup>;
-  patchGroup(
+  ) => Promise<ScimPageResult<DirectoryGroup>>;
+  putGroup: (tenant: string, group: DirectoryGroup) => Promise<DirectoryGroup>;
+  patchGroup: (
     tenant: string,
     id: string,
     ops: ScimPatchOp[],
-  ): Promise<DirectoryGroup>;
-  deleteGroup(tenant: string, id: string): Promise<void>;
-  groupsFor(tenant: string, userId: string): Promise<DirectoryGroup[]>; // what directoryMembershipSource reads
+  ) => Promise<DirectoryGroup>;
+  deleteGroup: (tenant: string, id: string) => Promise<void>;
+  groupsFor: (tenant: string, userId: string) => Promise<DirectoryGroup[]>; // what directoryMembershipSource reads
 }
 
 type DirectoryUser = {

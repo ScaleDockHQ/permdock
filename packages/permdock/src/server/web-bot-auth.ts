@@ -49,7 +49,7 @@ export type WebBotAuthVerifier = {
    * The verified signer as an actor, `undefined` for an unsigned request;
    * throws `InvalidSignatureError` for a bad signature.
    */
-  verify(request: Request): Promise<Actor | undefined>;
+  verify: (request: Request) => Promise<Actor | undefined>;
 };
 
 export type DiscoverViaSignatureAgentOptions = {

@@ -9,9 +9,9 @@ import type { PermDockDefaults } from "../react/types.ts";
 export type SnapshotStorage = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  getItem(key: string): string | null | Promise<string | null>;
-  setItem(key: string, value: string): void | Promise<void>;
-  removeItem(key: string): void | Promise<void>;
+  getItem: (key: string) => string | null | Promise<string | null>;
+  setItem: (key: string, value: string) => void | Promise<void>;
+  removeItem: (key: string) => void | Promise<void>;
 };
 
 export type NativeRevalidate = "launch" | "focus" | number;

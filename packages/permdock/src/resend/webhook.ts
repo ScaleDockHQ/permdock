@@ -15,7 +15,7 @@ import { CATEGORY_TAG, DELIVERY_TAG, KEY_TAG } from "./transport.ts";
 /** The part of a `Resend` client the webhook calls; a `new Resend(key)` fits. */
 export type ResendWebhookClient = {
   readonly webhooks: {
-    verify(input: {
+    verify: (input: {
       readonly payload: string;
       readonly headers: {
         readonly id: string;
@@ -23,7 +23,7 @@ export type ResendWebhookClient = {
         readonly signature: string;
       };
       readonly webhookSecret: string;
-    }): unknown;
+    }) => unknown;
   };
 };
 

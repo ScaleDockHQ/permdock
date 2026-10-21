@@ -32,17 +32,17 @@ export type PrincipalSource<TPrincipal extends Principal = Principal> = {
    * The principal as of this request, or `null` for one deleted, suspended or
    * unknown.
    */
-  principal(
+  principal: (
     id: string,
     options?: { readonly tenant?: string },
-  ): TPrincipal | null | Promise<TPrincipal | null>;
+  ) => TPrincipal | null | Promise<TPrincipal | null>;
   /**
    * The principal an app-owned identity link points to, or `null` when none
    * does.
    */
-  principalByIdentity?(
+  principalByIdentity?: (
     identity: PrincipalIdentity,
-  ): TPrincipal | null | Promise<TPrincipal | null>;
+  ) => TPrincipal | null | Promise<TPrincipal | null>;
 };
 
 /**
@@ -168,7 +168,7 @@ export function memoryPrincipalSource<TPrincipal extends Principal>(input: {
   readonly principals: readonly TPrincipal[];
   readonly identities?: readonly PrincipalIdentityLink[];
 }): PrincipalSource<TPrincipal> & {
-  principalByIdentity(identity: PrincipalIdentity): TPrincipal | null;
+  principalByIdentity: (identity: PrincipalIdentity) => TPrincipal | null;
 } {
   const byId = new Map<string, TPrincipal>();
   for (const principal of input.principals) {

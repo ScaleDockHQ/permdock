@@ -47,9 +47,14 @@ export type OpenAiInterruption = {
   };
 };
 
-/** Structural `RunState` from `@openai/agents`. */
+/**
+ * Structural `RunState` from `@openai/agents`. Its methods take the SDK's own
+ * interruption item, so they stay bivariant in `TItem`.
+ */
 export type OpenAiRunState<TItem> = {
+  // oxlint-disable-next-line typescript/method-signature-style -- bivariant in TItem
   approve(item: TItem, options?: { alwaysApprove?: boolean }): unknown;
+  // oxlint-disable-next-line typescript/method-signature-style -- bivariant in TItem
   reject(
     item: TItem,
     options?: { alwaysReject?: boolean; message?: string },

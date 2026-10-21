@@ -14,12 +14,12 @@ export type CustomRoleReader = {
    * Every custom role of `tenant`, whether or not anyone in the request holds
    * it.
    */
-  rolesFor(tenant: string): CustomRole[] | Promise<CustomRole[]>;
-  assignable?(tenant: string): string[] | Promise<string[]>;
+  rolesFor: (tenant: string) => CustomRole[] | Promise<CustomRole[]>;
+  assignable?: (tenant: string) => string[] | Promise<string[]>;
   /** Platform custom roles (`scope: 'global'`). */
-  globalRoles?(): CustomRole[] | Promise<CustomRole[]>;
+  globalRoles?: () => CustomRole[] | Promise<CustomRole[]>;
   /** Shared custom roles (`shared: true`), the same for every tenant. */
-  sharedRoles?(): CustomRole[] | Promise<CustomRole[]>;
+  sharedRoles?: () => CustomRole[] | Promise<CustomRole[]>;
 };
 
 export type CustomRoleSourceOptions =

@@ -23,7 +23,7 @@ type Posted = { readonly idempotencyKey: string; readonly body: unknown };
 function fakeCloud(): {
   readonly fetch: typeof fetch;
   readonly posted: Posted[];
-  respond(status: number | "throw"): void;
+  respond: (status: number | "throw") => void;
 } {
   const posted: Posted[] = [];
   let next: number | "throw" | undefined;

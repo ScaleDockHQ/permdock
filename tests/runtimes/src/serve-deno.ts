@@ -1,11 +1,11 @@
 import { app } from "./app.ts";
 
 declare const Deno: {
-  serve(
+  serve: (
     options: { readonly port: number; readonly hostname: string },
     handler: (request: Request) => Response | Promise<Response>,
-  ): unknown;
-  readonly env: { get(name: string): string | undefined };
+  ) => unknown;
+  readonly env: { get: (name: string) => string | undefined };
 };
 
 Deno.serve(

@@ -151,9 +151,9 @@ export type MembershipSql = {
    * `keep` adds the `keep` column; it defaults to `keeps`, and a `union` with a
    * source that keeps passes `true`.
    */
-  select(user: string, keep?: boolean): string;
+  select: (user: string, keep?: boolean) => string;
   /** The `select` of member rows for one scope instance (`$1` scope, `$2` id). */
-  list(keep?: boolean): string;
+  list: (keep?: boolean) => string;
   /**
    * A suspended scope on the source keeps permissions: rows of its suspended
    * instances stay, with a `keep` column.
@@ -243,16 +243,16 @@ export type MembershipHolders = {
    * The instance id of scope `scope` the PL/pgSQL record `row` holds, as text;
    * null on a row of another scope.
    */
-  id(scope: string, row: string): string;
+  id: (scope: string, row: string) => string;
   /**
    * `select id, user_id, role, via, live` over the rows of scope `scope` in
    * `from` (default the table): one row per held role key, `live` false once
    * expired. `id` is an expression of `idType` the id column must equal.
    */
-  rows(
+  rows: (
     scope: string,
     options?: { readonly id?: string; readonly from?: string },
-  ): string;
+  ) => string;
 };
 
 export type SqlMembershipSource = MembershipSource & {
