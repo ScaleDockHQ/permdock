@@ -165,19 +165,34 @@ export default defineConfig({
     "src/testing/saas/permissions.ts",
   ],
   platform: "neutral",
+  // The inlined CLI packages `sisteransi` and `fast-wrap-ansi` publish only
+  // `main`, which the neutral platform does not read.
+  inputOptions: { resolve: { mainFields: ["module", "main"] } },
   dts: true,
   clean: true,
-  // Only the pure-JS CLI helpers may be inlined, into the lazily loaded
-  // command chunks; `oxc-parser` is a dependency and the other CLI packages
-  // are optional peers, so they stay external.
+  // Only the pure-JS CLI helpers may be inlined, into the CLI chunks, so an app
+  // that imports a runtime entry installs none of them. `oxc-parser` loads
+  // native binaries and `jiti` loads its Babel bundle by a path relative to
+  // its own file, so both stay dependencies (decision 0042); the other CLI
+  // packages are optional peers.
   deps: {
     neverBundle: [/^#next\//u],
     onlyBundle: [
+      "@clack/core",
+      "@clack/prompts",
       "ajv",
+      "diff",
       "fast-deep-equal",
+      "fast-string-truncated-width",
+      "fast-string-width",
       "fast-uri",
+      "fast-wrap-ansi",
+      "fastest-levenshtein",
       "json-schema-traverse",
+      "package-manager-detector",
       "require-from-string",
+      "sisteransi",
+      "smol-toml",
       "yaml",
     ],
   },
