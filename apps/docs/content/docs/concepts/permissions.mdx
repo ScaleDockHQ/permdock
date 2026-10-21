@@ -216,6 +216,32 @@ function guard<K extends string, T>(permission: Permission<K, T>, data: T) {
 
 No template-literal unions are generated from the tree, which keeps TypeScript 7 checking fast and keeps error messages readable. Conditions and field lists are typed from the schema output (`StandardSchemaV1.InferOutput`), not from hand-written flat types.
 
+### Exported trees under isolatedDeclarations
+
+With `isolatedDeclarations: true`, an exported `definePermissions(...)` needs a type annotation, and `typeof` of a local spec does not help, because the declaration file would then need the spec's inferred type. `PermissionsOf<Spec>` names the tree from a spec type written with `ResourceInit<Row, Actions, Collection>`:
+
+```ts
+import type { PermissionsOf, ResourceInit } from "permdock";
+import { definePermissions, resource } from "permdock";
+
+type Spec = {
+  readonly post: ResourceInit<
+    Post,
+    readonly ["read", "update"],
+    readonly ["list"]
+  >;
+};
+
+export const permissions: PermissionsOf<Spec> = definePermissions({
+  post: resource(postSchema, {
+    actions: ["read", "update"],
+    collection: ["list"],
+  }),
+});
+```
+
+The annotation is checked against the definition: an action in `Spec` that the definition lacks is a type error. The second and third parameters are the `x` types of `definePermissions`' options. `tests/types/src/isolated-declarations.ts` compiles this under TypeScript 5.9, 6 and 7.
+
 ## Invariants
 
 These hold for every leaf and every adapter depends on them.

@@ -1,9 +1,8 @@
 import type {
+  PermissionsOf,
   PermissionsOptions,
-  InferPermissionTree,
   Permission,
   ResourceNode,
-  ResourceXTree,
 } from "./permission-types.ts";
 
 import { freezeDeep } from "./freeze.ts";
@@ -16,7 +15,7 @@ export type { MetaValue } from "./app-data.ts";
 export function definePermissions<const Input, PX = never, RX = never>(
   input: Input,
   options?: PermissionsOptions<PX, RX>,
-): InferPermissionTree<Input, "", PX> & ResourceXTree<RX> {
+): PermissionsOf<Input, PX, RX> {
   const registry = new Map<string, ResourceNode>();
   const leaves: Permission[] = [];
   const former = formerByKey(options?.renamed);
@@ -27,6 +26,6 @@ export function definePermissions<const Input, PX = never, RX = never>(
   assertKeys(leaves, former);
   assertGraphTargets(registry);
   const built: unknown = freezeDeep(attachRegistry(tree, registry, leaves));
-  // SAFETY: walk builds the tree key by key from input, the shape InferPermissionTree maps; metaFor checked every x against the schema; the resource x key is phantom.
-  return built as InferPermissionTree<Input, "", PX> & ResourceXTree<RX>;
+  // SAFETY: walk builds the tree key by key from input, the shape PermissionsOf maps; metaFor checked every x against the schema; the resource x key is phantom.
+  return built as PermissionsOf<Input, PX, RX>;
 }
