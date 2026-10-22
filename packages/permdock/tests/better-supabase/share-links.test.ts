@@ -104,7 +104,7 @@ describe(subjectFromShareLink, () => {
     expect(granted(permissions.quote.accept, "q_1")).toBe(false);
   });
 
-  it("reads better-supabase 1.0's subject reference as the row's subject", async () => {
+  it("reads better-supabase 0.14's subject reference as the row's subject", async () => {
     const onAuth = vi.fn<(event: AuthEvent) => void>();
     const current: ShareLinkRow = {
       id: "lnk_1",

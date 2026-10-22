@@ -5,7 +5,7 @@ description: The permdock/better-supabase entry fills better-supabase's authoriz
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
 
-The entry needs `better-supabase` 0.13 or later as a peer (`>=0.13.0`), and works with better-supabase 1.x. The range has no upper bound: CI tests the floor on every pull request, and a daily job tests the newest release. Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
+The entry needs `better-supabase` 0.13 or later as a peer (`>=0.13.0`), and works with better-supabase 0.14 and later. The range has no upper bound: CI tests the floor on every pull request, and a daily job tests the newest release. Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
 
 ## Why
 
@@ -519,7 +519,7 @@ if (!permdock.can(permissions.quote.read, { id: quoteId }).granted) notFound();
 const db = await exchangeCapability(subject, { key, alg: "HS256", ttl: 300 });
 ```
 
-- `links` maps each share-link subject type to its PermDock resource and maps the row's role to PermDock roles. A type or role it does not name denies. The row's subject is `subject: { type, id }` from better-supabase 1.0 and `subjectType` with `subjectId` before it; `subjectFromShareLink` reads either.
+- `links` maps each share-link subject type to its PermDock resource and maps the row's role to PermDock roles. A type or role it does not name denies. The row's subject is `subject: { type, id }` from better-supabase 0.14 and `subjectType` with `subjectId` before it; `subjectFromShareLink` reads either.
 - The capability holds the row's subject id and expires at the earlier of `ttl` (default 300 seconds, at most 3600) and the row's `expiresAt`. Revoking the row stops new subjects at once; a token already exchanged lasts until its `ttl`.
 - Every failure is the anonymous subject, so every check denies: an empty, unknown, revoked or expired token, a failed or throwing `resolve`, a malformed row, and a `linkPolicy` that refuses. So is a link pinned to a version (`versionId`): the capability grants the subject's current rows, so read a pinned link through better-supabase's `versions.getShared(token)`. `onAuth` receives each denial with `source: "share-link"`.
 - `linkPolicy` applies [link rules](/docs/concepts/capabilities#link-policy-per-scope) to the capability. The row carries no issue time, so a `maxLifetime` rule always refuses.

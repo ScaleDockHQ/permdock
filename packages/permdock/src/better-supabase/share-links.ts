@@ -20,7 +20,7 @@ import { nowSeconds } from "../core/time.ts";
 
 /**
  * The fields of better-supabase's `ResolvedShareLink` a link subject is built
- * from: `subject` from better-supabase 1.0, `subjectType` and `subjectId`
+ * from: `subject` from better-supabase 0.14, `subjectType` and `subjectId`
  * before it.
  */
 export type ShareLinkRow = ShareLinkRowFields &
