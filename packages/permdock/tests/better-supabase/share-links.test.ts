@@ -104,6 +104,42 @@ describe(subjectFromShareLink, () => {
     expect(granted(permissions.quote.accept, "q_1")).toBe(false);
   });
 
+  it("reads better-supabase 0.14's subject reference as the row's subject", async () => {
+    const onAuth = vi.fn<(event: AuthEvent) => void>();
+    const current: ShareLinkRow = {
+      id: "lnk_1",
+      organizationId: "org_1",
+      subject: { type: "quotes", id: "q_1" },
+      role: "view",
+    };
+    const subject = await subjectFromShareLink(
+      "tok",
+      options({ shareLinks: resolver({ ok: true, data: current }) }),
+    );
+    const malformed = await subjectFromShareLink(
+      "tok",
+      options({
+        shareLinks: resolver({
+          ok: true,
+          // SAFETY: a broken resolver whose subject reference has no id.
+          data: {
+            ...current,
+            subject: { type: "quotes" },
+          } as unknown as ShareLinkRow,
+        }),
+        onAuth,
+      }),
+    );
+    expect(subject.principal).toMatchObject({
+      id: "lnk_1",
+      capability: { on: { resource: "quote", id: "q_1" }, roles: ["guest"] },
+    });
+    expect(malformed.principal).toBeNull();
+    expect(onAuth.mock.calls.map(([event]) => event.cause)).toStrictEqual([
+      "share-link-malformed",
+    ]);
+  });
+
   it("caps the subject at the link's own expiry and at 3600 seconds", async () => {
     const soon = await subjectFromShareLink(
       "tok",
