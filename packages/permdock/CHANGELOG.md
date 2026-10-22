@@ -1,5 +1,25 @@
 # permdock
 
+## 0.8.0
+
+### Minor Changes
+
+- [#208](https://github.com/ScaleDockHQ/permdock/pull/208) [`76d3bd6`](https://github.com/ScaleDockHQ/permdock/commit/76d3bd613dcc05fc630ba2189c4f98603fbd7bdc) Thanks [@martijn00](https://github.com/martijn00)! - Breaking: `permdock/better-supabase` requires better-supabase 0.13.0 or later, and no peer range caps the major any more (`jose` is `>=6`, `react` is `>=19`). `permdock rls generate` writes `member_<scope>_ids_of(p_user)` on Supabase for a `team` or `teams` scope with membership sources; it answers only for the caller, and `authorizationProvider` fills better-supabase's `teamIdsOf` with it.
+
+- [#213](https://github.com/ScaleDockHQ/permdock/pull/213) [`e5103ba`](https://github.com/ScaleDockHQ/permdock/commit/e5103ba13201405c968c80f8b15ffd70eaa2a87f) Thanks [@martijn00](https://github.com/martijn00)! - `permdock rls verify --introspect` matches each `security definer` helper by its full signature, so an overloaded helper such as `permdock_permission_keys()` and `permdock_permission_keys(text)` no longer reports a random overload. Breaking for `rls.verify.ignore` and `--ignore`: helper finding ids now carry the signature, `helper-definer:permdock.permdock_has(text):helper` instead of `helper-definer:permdock.permdock_has:helper`.
+
+- [#213](https://github.com/ScaleDockHQ/permdock/pull/213) [`add98b3`](https://github.com/ScaleDockHQ/permdock/commit/add98b34a1a29bc078279fbba15193ca07c4c3c2) Thanks [@martijn00](https://github.com/martijn00)! - `buildLocalSnapshot`, `localSnapshot` and `powerSyncSource` in `permdock/react-native` now fill `snapshot.assignable` for the active tenant, so `assignableRoles()`, `assignablePermissions()` and `assignableLevels()` answer on the device as the server does. Regenerate the manifest with `localSnapshotManifest(policy)` (or `permdock powersync generate`) to get its new `assignable` section; an older manifest still yields no assignable permissions.
+
+- [#213](https://github.com/ScaleDockHQ/permdock/pull/213) [`15da2f6`](https://github.com/ScaleDockHQ/permdock/commit/15da2f68d03241004d1066870b70441a1cabf8c5) Thanks [@martijn00](https://github.com/martijn00)! - `resource(…, { orderedLevels: true })` marks levels declared from narrowest to widest: a holder of a level may hand out every earlier level in `assignableLevels`, `assignableRoles`, the snapshot and the SQL custom-role write functions. Decisions are unchanged, and the catalog marks such permissions with `orderedLevels: true`. `permdock_custom_role_guard` and `permdock_custom_role_beyond` are now documented as stable for an app's own `security definer` write path.
+
+- [#205](https://github.com/ScaleDockHQ/permdock/pull/205) [`1b9822b`](https://github.com/ScaleDockHQ/permdock/commit/1b9822baf8dadb4a3daea415cf7d9ab539eee0b5) Thanks [@martijn00](https://github.com/martijn00)! - Breaking, types only: the members of the extension interfaces and the other public object types are declared as properties (`get: (token: string) => …`) instead of methods (`get(token: string): …`). TypeScript now checks their parameters contravariantly, so an implementation that declares a narrower parameter type than the interface fails to compile; widen the parameter to the declared type. `Policy`'s `principal`, `subject` and `context`, `ServerPermDock.protectOn`, `OperationData` and `OpenAiRunState` stay methods, so a `Policy<User>` or a `ServerPermDock<V>` is still accepted where the default is.
+
+### Patch Changes
+
+- [#214](https://github.com/ScaleDockHQ/permdock/pull/214) [`20d551d`](https://github.com/ScaleDockHQ/permdock/commit/20d551d9bf7b0c5dff8957349f7252f368cb12c8) Thanks [@mick340](https://github.com/mick340)! - `permdock/better-supabase` works with better-supabase 0.14. `subjectFromShareLink` reads the share-link row's `subject: { type, id }` that better-supabase 0.14 returns, as well as `subjectType` and `subjectId` from 0.13, and `ShareLinkRow` accepts both shapes. `authorizationProvider` leaves the new `portalSubjects` and `portalParties` templates unset, so its functions type check against 0.14. The peer range stays `>=0.13.0` with no upper bound.
+
+- [#213](https://github.com/ScaleDockHQ/permdock/pull/213) [`944c1b8`](https://github.com/ScaleDockHQ/permdock/commit/944c1b84137bf73875b66c1294a0607a012b665b) Thanks [@martijn00](https://github.com/martijn00)! - Security: with `rls.customRoles.from.sync: 'trigger'`, a signed-in caller who wrote the application's role tables could hand out a permission they lack, including on a role they hold. `permdock rls generate` now adds `permdock_sync_custom_role_guard_<table>` before-row triggers that hold such a write to the checks of `permdock_replace_custom_role_grants` (`not-member`, `manage-roles`, `not-assignable-by`) against the copy as it stood before the statement. Regenerate and apply the helpers.
+
 ## 0.7.0
 
 ### Minor Changes
