@@ -20,13 +20,18 @@ import { nowSeconds } from "../core/time.ts";
 
 /**
  * The fields of better-supabase's `ResolvedShareLink` a link subject is built
- * from.
+ * from: `subject` from better-supabase 1.0, `subjectType` and `subjectId`
+ * before it.
  */
-export type ShareLinkRow = {
+export type ShareLinkRow = ShareLinkRowFields &
+  (
+    | { readonly subject: { readonly type: string; readonly id: string } }
+    | { readonly subjectType: string; readonly subjectId: string }
+  );
+
+type ShareLinkRowFields = {
   readonly id: string;
   readonly organizationId: string;
-  readonly subjectType: string;
-  readonly subjectId: string;
   readonly role: string;
   /** Set on a link pinned to one version, which `subjectFromShareLink` refuses. */
   readonly versionId?: string;
@@ -97,6 +102,37 @@ function ownEntry<T>(
   return Object.hasOwn(record, key) ? record[key] : undefined;
 }
 
+type ShareLinkSubject = { readonly type: string; readonly id: string };
+
+function rowSubject(
+  row: Readonly<Record<string, unknown>>,
+): ShareLinkSubject | undefined {
+  if (!Object.hasOwn(row, "subject")) {
+    const type = row["subjectType"];
+    const id = row["subjectId"];
+    return isId(type) && isId(id) ? { type, id } : undefined;
+  }
+  const subject = row["subject"];
+  if (typeof subject !== "object" || subject === null) return undefined;
+  const ref: Readonly<Record<string, unknown>> = Object.fromEntries(
+    Object.entries(subject),
+  );
+  const type = ref["type"];
+  const id = ref["id"];
+  return isId(type) && isId(id) ? { type, id } : undefined;
+}
+
+/** The row and its subject, or `undefined` for a malformed row. */
+function parseRow(
+  value: unknown,
+):
+  | { readonly row: ShareLinkRow; readonly subject: ShareLinkSubject }
+  | undefined {
+  if (!isRow(value)) return undefined;
+  const subject = rowSubject(Object.fromEntries(Object.entries(value)));
+  return subject === undefined ? undefined : { row: value, subject };
+}
+
 function isRow(value: unknown): value is ShareLinkRow {
   if (typeof value !== "object" || value === null) return false;
   const row: Readonly<Record<string, unknown>> = Object.fromEntries(
@@ -106,8 +142,7 @@ function isRow(value: unknown): value is ShareLinkRow {
   return (
     isId(row["id"]) &&
     isId(row["organizationId"]) &&
-    isId(row["subjectType"]) &&
-    isId(row["subjectId"]) &&
+    rowSubject(row) !== undefined &&
     typeof row["role"] === "string" &&
     (row["versionId"] === undefined || typeof row["versionId"] === "string") &&
     (expiresAt === undefined ||
@@ -150,6 +185,7 @@ export async function subjectFromShareLink(
     return anonymousSubject();
   };
   let row: ShareLinkRow;
+  let subject: ShareLinkSubject;
   try {
     const resolved = await options.shareLinks.resolve(token);
     if (!resolved.ok) {
@@ -158,17 +194,18 @@ export async function subjectFromShareLink(
     if (resolved.data === null) {
       return deny("invalid-token", "share-link-unknown");
     }
-    if (!isRow(resolved.data)) {
+    const parsed = parseRow(resolved.data);
+    if (parsed === undefined) {
       return deny("schema", "share-link-malformed");
     }
-    row = resolved.data;
+    ({ row, subject } = parsed);
   } catch {
     return deny("source-threw");
   }
   if (row.versionId !== undefined) {
     return deny("invalid-token", "share-link-pinned");
   }
-  const target = ownEntry(options.links, row.subjectType);
+  const target = ownEntry(options.links, subject.type);
   if (target === undefined) {
     return deny("invalid-token", "subject-type-unknown");
   }
@@ -190,7 +227,7 @@ export async function subjectFromShareLink(
   try {
     capability = capabilityOf({
       id: row.id,
-      on: { resource: target.resource, id: row.subjectId },
+      on: { resource: target.resource, id: subject.id },
       roles,
       expiresAt,
     });

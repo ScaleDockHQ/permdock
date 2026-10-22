@@ -5,7 +5,7 @@ description: The permdock/better-supabase entry fills better-supabase's authoriz
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
 
-The entry needs `better-supabase` 0.13 or later as a peer (`>=0.13.0`). The range has no upper bound: CI tests the floor on every pull request, and a daily job tests the newest release. Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
+The entry needs `better-supabase` 0.13 or later as a peer (`>=0.13.0`), and works with better-supabase 1.x. The range has no upper bound: CI tests the floor on every pull request, and a daily job tests the newest release. Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
 
 ## Why
 
@@ -67,6 +67,7 @@ import {
 - `delegation.scopes` maps each catalog permission's `.scope` to its key, so an OAuth client or agent token granted `invoice:read` gets `invoice.read`. Each coarse scope in the catalog's `oauthScopes` maps to the keys it covers ([OAuth scopes](#oauth-scopes)). Keys are sorted by code point. A scope the catalog does not list grants nothing.
 - `approver` is a permission. It becomes the `'ai-tool'` entry of `approvers` unless `approvers` names one. A key the catalog lacks is a problem.
 - `approvers` maps each better-supabase request kind to `user()`, `holder()` or `anyOf()` approvers and fills `isApprover`, which better-supabase asks for every request that waits on an approval ([Approvers](#approvers)). It needs `permdock_is_approver`, which `rls.approvals` writes; without it `isApprover` is unset and `problems` names the helper. The provider never sets `canApprove`.
+- The provider leaves `portalSubjects` and `portalParties` unset: PermDock has no guest grants, so better-supabase's `guests` block decides which records and parties a guest reaches.
 - `scopes` carry each scope's `idType`: `uuid`, `text`, `bigint` or `integer`, with `int8`, `int` and `int4` normalised. Any other id type is a problem.
 - `requires` lists each helper with the role that must execute it; `memberships`, `suspension` and `roleSources` come from `rls`; `tokenHook` names the hook function, the claims it owns and the `grantsCommand` that restores the hook's grants for the manifest's `hook.schemas`: `permdock supabase hook generate && supabase db schema declarative sync -f permdock_hook` under pg-delta, the `--grants-out` command under migra. A manifest written without `supabase.hook` (`rls.authorize: 'database'`) has no `hook` section, so `tokenHook` is absent. A manifest that cannot fill a field is recorded in `problems`, which better-supabase's doctor reports, and an invalid manifest throws a `TypeError`.
 - `authorizer({ policy, subject?, operations?, options? })` returns better-supabase's `Authorizer` (`apiVersion: 1`, `name: "PermDock"`) for its `authorizer` server option. It decides every `permission` a resource, action, route guard or MCP tool declares ([Authorizer](#authorizer)).
@@ -518,7 +519,7 @@ if (!permdock.can(permissions.quote.read, { id: quoteId }).granted) notFound();
 const db = await exchangeCapability(subject, { key, alg: "HS256", ttl: 300 });
 ```
 
-- `links` maps each share-link `subjectType` to its PermDock resource and maps the row's role to PermDock roles. A type or role it does not name denies.
+- `links` maps each share-link subject type to its PermDock resource and maps the row's role to PermDock roles. A type or role it does not name denies. The row's subject is `subject: { type, id }` from better-supabase 1.0 and `subjectType` with `subjectId` before it; `subjectFromShareLink` reads either.
 - The capability holds the row's subject id and expires at the earlier of `ttl` (default 300 seconds, at most 3600) and the row's `expiresAt`. Revoking the row stops new subjects at once; a token already exchanged lasts until its `ttl`.
 - Every failure is the anonymous subject, so every check denies: an empty, unknown, revoked or expired token, a failed or throwing `resolve`, a malformed row, and a `linkPolicy` that refuses. So is a link pinned to a version (`versionId`): the capability grants the subject's current rows, so read a pinned link through better-supabase's `versions.getShared(token)`. `onAuth` receives each denial with `source: "share-link"`.
 - `linkPolicy` applies [link rules](/docs/concepts/capabilities#link-policy-per-scope) to the capability. The row carries no issue time, so a `maxLifetime` rule always refuses.

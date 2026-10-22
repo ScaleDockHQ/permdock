@@ -77,6 +77,8 @@ type Template = Exclude<
   | "teamIdsOf"
   | "actorMayWrite"
   | "permitted"
+  | "portalSubjects"
+  | "portalParties"
 >;
 
 type TemplateEntry = {
