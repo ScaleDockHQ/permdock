@@ -170,6 +170,7 @@
     "//#openapi:check": {
       "inputs": [
         "scripts/fetch-openapi-schemas.ts",
+        "oxfmt.config.ts",
         "packages/permdock/schemas/openapi/**"
       ],
       "outputs": []
