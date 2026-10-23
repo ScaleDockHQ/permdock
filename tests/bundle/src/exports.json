@@ -112,6 +112,7 @@
     "memoryRevocationFeed",
     "memorySettingsSource",
     "memorySnapshotSource",
+    "memoryVersionCache",
     "mergeHostedGrants",
     "mergePermissions",
     "normalizeApproval",
@@ -817,6 +818,7 @@
     "testSupportSessionSource",
     "testTokenSigner",
     "testTokenVerifier",
+    "testVersionCache",
     "testWhereCompiler"
   ],
   "./testing/core": ["policyMatrix", "testOrmParity", "testRlsParity"],
