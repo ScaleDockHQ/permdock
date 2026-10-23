@@ -2,9 +2,11 @@ import type { AuthEvent } from "./event-types.ts";
 import type {
   CustomRoleSource,
   CustomRoleSourceFactory,
+  SourceMemo,
 } from "./interfaces.ts";
 import type { CustomRole, Subject } from "./subject.ts";
 
+import { compact } from "./compact.ts";
 import { isCustomRoleName } from "./custom-roles.ts";
 import { sourceName } from "./source-name.ts";
 import { isThenable } from "./thenable.ts";
@@ -59,6 +61,7 @@ export function customRolesFor(
   auth: AuthEvent[],
   globalHeld: readonly string[] | undefined,
   heldIn: (tenant: string) => readonly string[],
+  memo?: SourceMemo,
 ): CustomRole[] | Promise<CustomRole[]> {
   if (source === undefined) {
     return [];
@@ -66,7 +69,9 @@ export function customRolesFor(
   const loaded: (CustomRole[] | Promise<CustomRole[]>)[] = [];
   for (const tenant of tenants) {
     try {
-      loaded.push(source.rolesFor(tenant, { held: heldIn(tenant) }));
+      loaded.push(
+        source.rolesFor(tenant, compact({ held: heldIn(tenant), memo })),
+      );
     } catch {
       auth.push({
         reason: "source-threw",
@@ -94,12 +99,12 @@ export function customRolesFor(
   };
   if (globalHeld !== undefined && source.globalRoles !== undefined) {
     const read = source.globalRoles.bind(source);
-    once(() => read({ held: globalHeld }), onlyGlobal);
+    once(() => read(compact({ held: globalHeld, memo })), onlyGlobal);
   }
   if (tenants.length > 0 && source.sharedRoles !== undefined) {
     const read = source.sharedRoles.bind(source);
     const held = [...new Set(tenants.flatMap((tenant) => heldIn(tenant)))];
-    once(() => read({ held }), onlyShared);
+    once(() => read(compact({ held, memo })), onlyShared);
   }
   if (loaded.some((item) => isThenable(item))) {
     return Promise.all(

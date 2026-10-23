@@ -1,6 +1,6 @@
 import type { AppDataSchema } from "./app-data.ts";
 import type { AuthEvent } from "./event-types.ts";
-import type { MembershipSource } from "./interfaces.ts";
+import type { MembershipSource, SourceMemo } from "./interfaces.ts";
 import type { PermDockOptions } from "./permdock.ts";
 import type { Policy } from "./policy-types.ts";
 import type {
@@ -16,11 +16,13 @@ import { compact } from "./compact.ts";
 import { contactMemberships, isContact } from "./contact.ts";
 import { sanitizeContext } from "./fields.ts";
 import { freezeCopy } from "./freeze.ts";
+import { rereadStale, staleness } from "./freshness.ts";
 import { asMembershipSource } from "./memberships.ts";
 import { expandOAuthScopes } from "./oauth-scopes.ts";
 import { policyX } from "./policy-fingerprint.ts";
 import { applyRoleKinds } from "./role-rank.ts";
 import { normalizeMemberships, scopeList, tenantOf } from "./scopes.ts";
+import { sourceMemo } from "./source-memo.ts";
 import { sourceName } from "./source-name.ts";
 import { anonymousSubject, isSubject } from "./subject.ts";
 import { resolveActiveTenant } from "./tenancy.ts";
@@ -68,6 +70,7 @@ function assemblePrincipal(
   user: unknown,
   options: PermDockOptions,
   auth: AuthEvent[],
+  memo: SourceMemo,
 ): {
   readonly principal: Principal | null;
   readonly context:
@@ -77,6 +80,7 @@ function assemblePrincipal(
   readonly delegation: Delegation | undefined;
   readonly session: string | undefined;
   readonly expiresAt: number | undefined;
+  readonly issuedAt: number | undefined;
   readonly memberships: readonly Membership[] | Promise<readonly Membership[]>;
   /**
    * Global roles a stale-token reread read live; they replace the token's
@@ -98,6 +102,7 @@ function assemblePrincipal(
   let delegation = options.delegation;
   let session = options.session;
   let expiresAt = options.expiresAt;
+  let issuedAt: number | undefined;
   let liveSession: true | undefined;
   try {
     if (user === null || user === undefined) {
@@ -110,6 +115,10 @@ function assemblePrincipal(
       delegation = user.delegation ?? delegation;
       session = user.session ?? session;
       expiresAt = user.expiresAt ?? expiresAt;
+      issuedAt =
+        typeof user.issuedAt === "number" && Number.isFinite(user.issuedAt)
+          ? user.issuedAt
+          : undefined;
       liveSession = user.liveSession === true ? true : undefined;
     } else {
       // SAFETY: TUser is erased at the policy boundary; getPermDock types user as TUser.
@@ -140,7 +149,7 @@ function assemblePrincipal(
     try {
       return from.membershipsFor(
         compact({ id: of.id, kind: of.kind }),
-        compact({ tenant: options.tenant }),
+        compact({ tenant: options.tenant, memo }),
       );
     } catch {
       auth.push({
@@ -168,7 +177,8 @@ function assemblePrincipal(
     const reread = rereadStale(
       source,
       principal,
-      principal.memberships,
+      issuedAt,
+      { memo, intent: options.intent ?? "write" },
       () => read(source, principal),
       auth,
       source.globalRolesFor === undefined
@@ -176,6 +186,7 @@ function assemblePrincipal(
         : (): readonly string[] | Promise<readonly string[]> =>
             source.globalRolesFor?.(
               compact({ id: principal.id, kind: principal.kind }),
+              { memo },
             ) ?? [],
     );
     memberships = reread.memberships;
@@ -190,99 +201,11 @@ function assemblePrincipal(
     delegation: expandOAuthScopes(policy, delegation),
     session,
     expiresAt,
+    issuedAt,
     memberships,
     live,
     stale,
     liveSession: principal === null ? undefined : liveSession,
-  });
-}
-
-type Freshness = "fresh" | "reread" | "unknown";
-
-function versionQuery(principal: Principal): {
-  readonly id: string;
-  readonly roles?: readonly string[];
-  readonly memberships?: readonly Membership[];
-} {
-  return compact({
-    id: principal.id,
-    roles: principal.roles,
-    memberships: principal.memberships,
-  });
-}
-
-function rereadStale(
-  source: MembershipSource,
-  principal: Principal,
-  claims: readonly Membership[],
-  read: () => readonly Membership[] | Promise<readonly Membership[]>,
-  auth: AuthEvent[],
-  readRoles?: () => readonly string[] | Promise<readonly string[]>,
-): {
-  readonly memberships: readonly Membership[] | Promise<readonly Membership[]>;
-  readonly stale: boolean | Promise<boolean>;
-  readonly roles?: readonly string[] | Promise<readonly string[] | undefined>;
-} {
-  const claimed = principal.authzVersion;
-  const judge = (current: number | undefined): Freshness =>
-    typeof claimed === "number" && current !== undefined && claimed >= current
-      ? "fresh"
-      : "reread";
-  const unknown = (): Freshness => {
-    auth.push({
-      reason: "source-threw",
-      source: "memberships",
-      ...sourceName(source),
-    });
-    return "unknown";
-  };
-  let freshness: Freshness | Promise<Freshness>;
-  try {
-    const current = source.version?.(versionQuery(principal));
-    freshness = isThenable(current)
-      ? Promise.resolve(current).then(judge, unknown)
-      : judge(current);
-  } catch {
-    freshness = unknown();
-  }
-  const failed = (): readonly string[] => {
-    auth.push({
-      reason: "source-threw",
-      source: "memberships",
-      ...sourceName(source),
-    });
-    return [];
-  };
-  const rolesOf = (
-    found: Freshness,
-  ): readonly string[] | Promise<readonly string[] | undefined> | undefined => {
-    if (found !== "reread" || readRoles === undefined) {
-      return undefined;
-    }
-    try {
-      const roles = readRoles();
-      return isThenable(roles) ? Promise.resolve(roles).catch(failed) : roles;
-    } catch {
-      return failed();
-    }
-  };
-  if (isThenable(freshness)) {
-    const settled = freshness.then((found) => ({
-      found,
-      roles: rolesOf(found),
-    }));
-    return {
-      memberships: settled.then(({ found }) =>
-        found === "reread" ? read() : claims,
-      ),
-      stale: settled.then(({ found }) => found === "unknown"),
-      roles: settled.then(({ roles }) => roles),
-    };
-  }
-  return compact({
-    memberships: freshness === "reread" ? read() : claims,
-    stale: freshness === "unknown",
-    roles: rolesOf(freshness),
   });
 }
 
@@ -306,6 +229,7 @@ function finishSubject(
         delegation: assembled.delegation,
         session: assembled.session,
         expiresAt: assembled.expiresAt,
+        issuedAt: assembled.issuedAt,
       }),
     );
   }
@@ -360,6 +284,7 @@ function finishSubject(
       context: freezeCopy(context),
       session: assembled.session,
       expiresAt: assembled.expiresAt,
+      issuedAt: assembled.issuedAt,
       stale: extra.stale ? (true as const) : undefined,
       liveSession: assembled.liveSession,
     }),
@@ -429,59 +354,6 @@ function settle<T>(
     });
   }
   return value;
-}
-
-/**
- * Whether the token's memberships are behind the source for `fresh`
- * permissions. Live memberships are never stale; token memberships are stale
- * unless a source reports a version the token's `authzVersion` has reached.
- */
-function staleness(
-  policy: Policy,
-  assembled: ReturnType<typeof assemblePrincipal>,
-  options: PermDockOptions,
-  auth: AuthEvent[],
-): boolean | Promise<boolean> {
-  const principal = assembled.principal;
-  if (
-    (policy.fresh ?? []).length === 0 ||
-    principal === null ||
-    assembled.live
-  ) {
-    return false;
-  }
-  if (assembled.stale !== undefined) {
-    return assembled.stale;
-  }
-  const source =
-    options.memberships === undefined
-      ? undefined
-      : asMembershipSource(options.memberships);
-  const claimed = principal.authzVersion;
-  if (source?.version === undefined || typeof claimed !== "number") {
-    return true;
-  }
-  const compare = (current: number | undefined): boolean =>
-    current === undefined || claimed < current;
-  try {
-    const current = source.version(versionQuery(principal));
-    return isThenable(current)
-      ? settle(Promise.resolve(current).then(compare), true, () => {
-          auth.push({
-            reason: "source-threw",
-            source: "memberships",
-            ...sourceName(source),
-          });
-        })
-      : compare(current);
-  } catch {
-    auth.push({
-      reason: "source-threw",
-      source: "memberships",
-      ...sourceName(source),
-    });
-    return true;
-  }
 }
 
 function cleanNames(list: unknown): readonly string[] {
@@ -574,8 +446,9 @@ export function resolveSubject(
   user: unknown,
   options: PermDockOptions,
   auth: AuthEvent[],
+  memo: SourceMemo = sourceMemo(),
 ): Subject | Promise<Subject> {
-  const first = assemblePrincipal(policy, user, options, auth);
+  const first = assemblePrincipal(policy, user, options, auth, memo);
   const apply = (
     roles: readonly string[] | undefined,
   ): Subject | Promise<Subject> =>
@@ -586,6 +459,7 @@ export function resolveSubject(
         : { ...first, principal: { ...first.principal, roles } },
       options,
       auth,
+      memo,
     );
   return isThenable(first.roles)
     ? Promise.resolve(first.roles).then(apply)
@@ -597,11 +471,25 @@ function resolveAssembled(
   assembled: ReturnType<typeof assemblePrincipal>,
   options: PermDockOptions,
   auth: AuthEvent[],
+  memo: SourceMemo,
 ): Subject | Promise<Subject> {
   const memberships = settle(assembled.memberships, [], () => {
     auth.push({ reason: "source-threw", source: "memberships" });
   });
-  const stale = staleness(policy, assembled, options, auth);
+  const stale = staleness(
+    policy,
+    assembled.principal,
+    options.memberships === undefined
+      ? undefined
+      : asMembershipSource(options.memberships),
+    {
+      live: assembled.live,
+      stale: assembled.stale,
+      issuedAt: assembled.issuedAt,
+      context: { memo, intent: options.intent ?? "write" },
+    },
+    auth,
+  );
   const withPlans = (
     resolved: readonly Membership[],
   ): readonly string[] | Promise<readonly string[]> =>

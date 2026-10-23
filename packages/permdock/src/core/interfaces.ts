@@ -34,6 +34,32 @@ export type DecisionProvider = {
   }) => Promise<readonly string[] | null | undefined>;
 };
 
+/**
+ * Shares one read per key within one `getPermDock` call: the first call runs
+ * `read`, every later call with the same key gets its answer. A source created
+ * once at module scope uses it so the reads of one instance share a single
+ * query and no answer outlives the instance.
+ */
+export type SourceMemo = <T>(key: string, read: () => T) => T;
+
+/** What `getPermDock` passes to every source call besides its query. */
+export type SourceContext = {
+  /** Absent when the source is called outside `getPermDock`. */
+  readonly memo?: SourceMemo;
+};
+
+/**
+ * Whether an instance answers reads or writes: `read` may judge a token fresh
+ * from a shared `VersionCache` within its `maxStaleMs`; `write` reads the
+ * version live.
+ */
+export type Intent = "read" | "write";
+
+/** The custom-role sources' second argument. */
+export type CustomRoleContext = SourceContext & {
+  readonly held: readonly string[];
+};
+
 export type CustomRoleSource = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
@@ -44,7 +70,7 @@ export type CustomRoleSource = {
    */
   rolesFor: (
     tenant: string,
-    context?: { readonly held: readonly string[] },
+    context?: CustomRoleContext,
   ) => CustomRole[] | Promise<CustomRole[]>;
   assignable?: (tenant: string) => string[] | Promise<string[]>;
   /**
@@ -52,18 +78,18 @@ export type CustomRoleSource = {
    * with `held`, the global role names the subject holds. A role here with a
    * tenant is ignored.
    */
-  globalRoles?: (context?: {
-    readonly held: readonly string[];
-  }) => CustomRole[] | Promise<CustomRole[]>;
+  globalRoles?: (
+    context?: CustomRoleContext,
+  ) => CustomRole[] | Promise<CustomRole[]>;
   /**
    * Shared custom roles (`shared: true`), defined once for every tenant and
    * read once per subject with a tenant membership, with `held`, the role names
    * its live memberships hold in any tenant. A role here without `shared: true`
    * is ignored.
    */
-  sharedRoles?: (context?: {
-    readonly held: readonly string[];
-  }) => CustomRole[] | Promise<CustomRole[]>;
+  sharedRoles?: (
+    context?: CustomRoleContext,
+  ) => CustomRole[] | Promise<CustomRole[]>;
 };
 
 /**
@@ -77,6 +103,25 @@ export type CustomRoleSourceFactory = (
   subject: Subject,
 ) => CustomRoleSource | undefined;
 
+/**
+ * The principal `MembershipSource.version` is asked about: what its token
+ * claims.
+ */
+export type VersionQuery = {
+  readonly id: string;
+  readonly roles?: readonly string[];
+  readonly memberships?: readonly Membership[];
+  readonly authzVersion?: number;
+  /** When the token was issued, in seconds since the epoch (`iat`). */
+  readonly issuedAt?: number;
+};
+
+/** `MembershipSource.version`'s second argument. */
+export type VersionContext = SourceContext & {
+  /** Absent outside `getPermDock`, where the read is live. */
+  readonly intent?: Intent;
+};
+
 /** One member of a scope instance, as `MembershipSource.list` returns it. */
 export type MemberEntry = {
   readonly principal: { readonly id: string };
@@ -88,7 +133,7 @@ export type MembershipSource = {
   readonly name?: string;
   membershipsFor: (
     principal: { readonly id: string; readonly kind?: string },
-    options: { readonly tenant?: string },
+    options: SourceContext & { readonly tenant?: string },
   ) => Membership[] | Promise<Membership[]>;
   /**
    * Every membership held in one scope instance, for member lists and access
@@ -103,23 +148,23 @@ export type MembershipSource = {
    * change. A token whose `authzVersion` is behind it is stale for the policy's
    * `fresh` permissions. `roles` and `memberships` are what the token claims,
    * so a source can read more than the version in the same call when the claims
-   * show it will be needed.
+   * show it will be needed. `authzVersion` and `issuedAt` (seconds) are the
+   * token's, for a `VersionCache`.
    */
-  version?: (principal: {
-    readonly id: string;
-    readonly roles?: readonly string[];
-    readonly memberships?: readonly Membership[];
-  }) => number | undefined | Promise<number | undefined>;
+  version?: (
+    principal: VersionQuery,
+    context?: VersionContext,
+  ) => number | undefined | Promise<number | undefined>;
   /**
    * The global roles the principal holds now. With `onStale: 'reread'`, a stale
    * token's `principal.roles` is replaced by this answer, so a revoked platform
    * role is lost with the memberships. A throw or rejection leaves no global
    * roles. Without it, a reread keeps the token's roles.
    */
-  globalRolesFor?: (principal: {
-    readonly id: string;
-    readonly kind?: string;
-  }) => readonly string[] | Promise<readonly string[]>;
+  globalRolesFor?: (
+    principal: { readonly id: string; readonly kind?: string },
+    context?: SourceContext,
+  ) => readonly string[] | Promise<readonly string[]>;
   /**
    * Keep the memberships the verified token carries and read this source only
    * when the token says they were truncated (`claimsFirst`).

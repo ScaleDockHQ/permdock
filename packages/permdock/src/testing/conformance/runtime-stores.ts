@@ -7,6 +7,7 @@ import type {
   PolicyDocument,
   PolicySource,
   SnapshotSource,
+  VersionCache,
 } from "../../index.ts";
 
 import { isoNow } from "../../core/time.ts";
@@ -122,4 +123,61 @@ export function testPolicySource(
       }
     });
   }
+}
+
+export function testVersionCache(cache: VersionCache): void {
+  const counted = (version: number) => {
+    const calls = { count: 0 };
+    const read = async (): Promise<number> => {
+      calls.count += 1;
+      return version;
+    };
+    return { calls, read };
+  };
+
+  it("reads live for a write and answers a read from that entry", async () => {
+    const { calls, read } = counted(4);
+    const principal = { id: "u-version-write" };
+    expect(await cache.current(principal, read, { live: true })).toBe(4);
+    expect(await cache.current(principal, read, { live: true })).toBe(4);
+    expect(calls.count).toBe(2);
+    if (cache.maxStaleMs > 0) {
+      expect(await cache.current(principal, read, { live: false })).toBe(4);
+      expect(calls.count).toBe(2);
+    }
+  });
+
+  it("shares one read between concurrent reads", async () => {
+    const { calls, read } = counted(2);
+    const principal = { id: "u-version-shared" };
+    const answers = await Promise.all(
+      Array.from({ length: 5 }, async () =>
+        cache.current(principal, read, { live: false }),
+      ),
+    );
+    expect(answers).toStrictEqual([2, 2, 2, 2, 2]);
+    expect(calls.count).toBe(1);
+  });
+
+  it("stores no rejected read", async () => {
+    const principal = { id: "u-version-failed" };
+    await expect(
+      cache.current(principal, () => Promise.reject(new Error("down")), {
+        live: false,
+      }),
+    ).rejects.toThrow("down");
+    const { calls, read } = counted(1);
+    expect(await cache.current(principal, read, { live: false })).toBe(1);
+    expect(calls.count).toBe(1);
+  });
+
+  it("reads again after evict", async () => {
+    const { calls, read } = counted(3);
+    const principal = { id: "u-version-evict" };
+    await cache.current(principal, read, { live: false });
+    cache.evict(principal.id);
+    await cache.current(principal, read, { live: false });
+    expect(calls.count).toBe(2);
+    expect(cache.stats().reads).toBeGreaterThanOrEqual(2);
+  });
 }

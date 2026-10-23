@@ -3,6 +3,7 @@ import type { TenantScope } from "../core/adapter-context.ts";
 import type { Decision } from "../core/decision.ts";
 import type { ApprovalHint, ProblemDetails } from "../core/errors.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
+import type { Intent } from "../core/interfaces.ts";
 import type { PermDock, SnapshotOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
@@ -61,6 +62,13 @@ export type ServerPermDockOptions<TUser = unknown> = InstanceOptions & {
    * cover derived instances.
    */
   readonly wrap?: PermDockWrap;
+  /**
+   * `'read'` lets `claimsFirst(…, { versions })` judge the token from the
+   * shared version cache. Defaults to `'read'` for `GET`, `HEAD` and `OPTIONS`
+   * and `'write'` for every other method. `undefined` keeps the default; a
+   * throw or any other value is `'write'`.
+   */
+  readonly intent?: (request: Request) => Intent | undefined;
   /**
    * The `adapter` label on decision events, revocations and approvals. Defaults
    * to `server`.

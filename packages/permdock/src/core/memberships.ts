@@ -1,5 +1,6 @@
 import type { MemberEntry, MembershipSource } from "./interfaces.ts";
 import type { Membership } from "./subject.ts";
+import type { VersionCache } from "./version-cache.ts";
 
 import { byCodePoint } from "./compare.ts";
 import { isThenable } from "./thenable.ts";
@@ -91,11 +92,11 @@ export function composeMemberships(
     ...(rolesReaders.length === 0
       ? {}
       : {
-          globalRolesFor(principal) {
+          globalRolesFor(principal, context) {
             return then(
               all(
                 rolesReaders.map(
-                  (source) => source.globalRolesFor?.(principal) ?? [],
+                  (source) => source.globalRolesFor?.(principal, context) ?? [],
                 ),
               ),
               (lists) => [...new Set(lists.flat())],
@@ -145,9 +146,11 @@ export function composeMemberships(
     ...(versioned.length === 0
       ? {}
       : {
-          version(principal) {
+          version(principal, context) {
             return then(
-              all(versioned.map((source) => source.version?.(principal))),
+              all(
+                versioned.map((source) => source.version?.(principal, context)),
+              ),
               (versions) => {
                 const known = versions.filter(
                   (value): value is number =>
@@ -175,24 +178,31 @@ export function asMembershipSource(
  * Trust the memberships the verified token carries, and read `source` only when
  * the token marks them truncated. With `version`, a token minted before the
  * latest membership change is stale for the policy's `fresh` permissions, or
- * with `onStale: 'reread'` has its memberships read from `source` instead.
+ * with `onStale: 'reread'` has its memberships read from `source` instead. With
+ * `versions`, an instance with intent `read` takes the version from that
+ * process-wide cache, so concurrent instances share one read and a token issued
+ * within its `maxStaleMs` needs none; intent `write` always reads.
  */
 export function claimsFirst(
   source: MembershipSource | readonly MembershipSource[],
   options: {
     readonly version?: MembershipSource["version"];
     readonly onStale?: "deny" | "reread";
+    readonly versions?: VersionCache;
   } = {},
 ): MembershipSource {
   const inner = asMembershipSource(source);
-  const version =
-    options.version ??
-    (inner.version === undefined
+  const read = options.version ?? inner.version?.bind(inner);
+  const versions = options.versions;
+  const version: MembershipSource["version"] =
+    read === undefined
       ? undefined
-      : (
-          principal: Parameters<NonNullable<MembershipSource["version"]>>[0],
-        ): ReturnType<NonNullable<MembershipSource["version"]>> | undefined =>
-          inner.version?.(principal));
+      : versions === undefined
+        ? (principal, context) => read(principal, context)
+        : (principal, context) =>
+            versions.current(principal, () => read(principal, context), {
+              live: context?.intent !== "read",
+            });
   return {
     membershipsFor: (principal, query) =>
       inner.membershipsFor(principal, query),
@@ -203,8 +213,8 @@ export function claimsFirst(
     ...(inner.globalRolesFor === undefined
       ? {}
       : {
-          globalRolesFor: (principal) =>
-            inner.globalRolesFor?.(principal) ?? [],
+          globalRolesFor: (principal, context) =>
+            inner.globalRolesFor?.(principal, context) ?? [],
         }),
     ...(options.onStale === "reread" ? { onStale: "reread" as const } : {}),
     claimsFirst: true,

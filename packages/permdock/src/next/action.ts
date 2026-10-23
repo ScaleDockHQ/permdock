@@ -3,6 +3,7 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { ProblemDetails } from "../core/errors.ts";
+import type { Intent } from "../core/interfaces.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
@@ -28,6 +29,7 @@ export type ActionDeps<V extends PolicyVocabulary> = {
   readonly policy: Policy;
   readonly getPermDock: (query?: {
     readonly tenant?: string;
+    readonly intent?: Intent;
   }) => Promise<PermDock<V>>;
   readonly store: ApprovalStore | undefined;
   /** `unstable_rethrow`: lets `redirect()`, `notFound()` and bailouts through. */
@@ -107,7 +109,7 @@ export function protectActionOf<V extends PolicyVocabulary>(
       let data: TRow | undefined;
       try {
         permdock = await deps.getPermDock(
-          compact({ tenant: options.tenant?.(input) }),
+          compact({ tenant: options.tenant?.(input), intent: "write" }),
         );
       } catch (error) {
         deps.rethrow(error);

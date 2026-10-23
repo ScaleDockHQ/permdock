@@ -12,11 +12,13 @@ import type { InstanceEnv } from "./instance-env.ts";
 import type {
   DecisionSink,
   EntitlementSource,
+  Intent,
   MembershipSource,
   RelationSource,
   CustomRoleSource,
   CustomRoleSourceFactory,
   SettingsSource,
+  SourceMemo,
   TokenSigner,
 } from "./interfaces.ts";
 import type { Limits } from "./limits.ts";
@@ -53,6 +55,7 @@ import {
 } from "./role-loading.ts";
 import { scopeList } from "./scopes.ts";
 import { parseSnapshot } from "./snapshot.ts";
+import { sourceMemo } from "./source-memo.ts";
 import { heldRoleNamesIn, tenantsOf } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
 
@@ -513,6 +516,13 @@ export type PermDockOptions = {
   readonly tenant?: string;
   /** One source, or several composed with `composeMemberships`. */
   readonly memberships?: MembershipSource | readonly MembershipSource[];
+  /**
+   * `'read'` lets `claimsFirst(source, { versions })` judge the token from the
+   * shared version cache, at most its `maxStaleMs` stale; `'write'` (the
+   * default) reads the version live. Pick `'read'` for rendering and `GET`
+   * handlers, never for a mutation.
+   */
+  readonly intent?: Intent;
   readonly customRoles?: CustomRoleSource | CustomRoleSourceFactory;
   /**
    * Plans and seats from billing, merged into `principal.plans` for the active
@@ -563,6 +573,7 @@ function instantiate(
   subject: Subject,
   options: PermDockOptions,
   auth: AuthEvent[],
+  memo: SourceMemo,
 ): PermDock | Promise<PermDock> {
   const { policy, errors } = options.policies?.apply(codePolicy) ?? {
     policy: codePolicy,
@@ -577,6 +588,7 @@ function instantiate(
     auth,
     subject.principal === null ? undefined : (subject.principal.roles ?? []),
     (tenant) => heldRoleNamesIn(subject.principal, scopes, tenant),
+    memo,
   );
   const assignable = assignableNamesFor(roleSource, tenants, auth);
   const approvals = options.approvalPolicies?.load(policy, tenants, auth);
@@ -619,6 +631,7 @@ function instantiate(
             { principal, context: {} },
             compact<PermDockOptions>({
               tenant,
+              intent: options.intent,
               memberships: options.memberships,
               customRoles: options.customRoles,
               entitlements: options.entitlements,
@@ -654,15 +667,16 @@ function create<
 ): PermDock<V> | Promise<PermDock<V>> {
   const options = withApp(policy, given);
   const auth: AuthEvent[] = [];
-  const subject = resolveSubject(policy, user, options, auth);
+  const memo = sourceMemo();
+  const subject = resolveSubject(policy, user, options, auth, memo);
   if (isThenable(subject)) {
     // SAFETY: instantiate builds the instance from this policy, whose vocabulary type is V.
     return subject.then((resolved) =>
-      instantiate(policy, resolved, options, auth),
+      instantiate(policy, resolved, options, auth, memo),
     ) as Promise<PermDock<V>>;
   }
   // SAFETY: instantiate builds the instance from this policy, whose vocabulary type is V.
-  return instantiate(policy, subject, options, auth) as PermDock<V>;
+  return instantiate(policy, subject, options, auth, memo) as PermDock<V>;
 }
 
 /**

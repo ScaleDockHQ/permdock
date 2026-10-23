@@ -1,4 +1,5 @@
 import type { TenantOption, TenantScope } from "../core/adapter-context.ts";
+import type { Intent } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
@@ -55,6 +56,7 @@ async function resolveActor(
 }
 
 const NO_TENANT = "\u0000";
+const READ_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
  * The Fetch factory behind every HTTP adapter. The subject and actor are
@@ -95,15 +97,29 @@ export function createPermDock<
 
   const reporters = new WeakMap<PermDock<V>, Report>();
 
+  const intentOf = (request: Request): Intent => {
+    let chosen: unknown;
+    try {
+      chosen = options.intent?.(request);
+    } catch {
+      return "write";
+    }
+    if (chosen === undefined) {
+      return READ_METHODS.has(request.method) ? "read" : "write";
+    }
+    return chosen === "read" ? "read" : "write";
+  };
+
   const instanceFor = async (
     { user, actor, context, errors }: Resolved<TUser>,
     tenant: string | undefined,
+    intent: Intent,
   ): Promise<Built<V>> => {
     const built = await buildReportingInstance({
       policy,
       user,
       sources: options,
-      scope: { tenant, actor, context },
+      scope: { tenant, actor, context, intent },
       errors,
       wrap: (created: PermDock<V>): PermDock<V> =>
         options.wrap === undefined ? created : options.wrap(created),
@@ -132,7 +148,7 @@ export function createPermDock<
       return hit;
     }
     const built = (async (): Promise<Built<V>> =>
-      instanceFor(await resolveSubject(request), tenant))();
+      instanceFor(await resolveSubject(request), tenant, intentOf(request)))();
     byTenant.set(key, built);
     return built;
   };
@@ -148,7 +164,8 @@ export function createPermDock<
       open: async (): Promise<PermDock<V>> =>
         (await build(request, { tenant })).permdock,
       rebuild: async (): Promise<PermDock<V>> =>
-        (await instanceFor(await freshSubject(request), tenant)).permdock,
+        (await instanceFor(await freshSubject(request), tenant, "write"))
+          .permdock,
       tenant,
       ...(options.revocations === undefined
         ? {}

@@ -242,6 +242,12 @@ export type Subject<TPrincipal extends Principal = Principal> = {
   readonly session?: string;
   readonly expiresAt?: number;
   /**
+   * When the verified token was issued (`iat`), in seconds since the epoch. A
+   * `VersionCache` trusts the token's `authzVersion` for its `maxStaleMs` after
+   * it.
+   */
+  readonly issuedAt?: number;
+  /**
    * The token's memberships are behind the source's authorization version:
    * `fresh` permissions deny.
    */

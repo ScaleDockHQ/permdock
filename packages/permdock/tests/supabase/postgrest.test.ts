@@ -81,7 +81,7 @@ describe("postgrestSources api", () => {
 });
 
 describe(postgrestSources, () => {
-  it("reads one record per user and builds the subject the hook would mint", async () => {
+  it("builds the subject the hook would mint and reads live on every call outside an instance", async () => {
     const calls: string[] = [];
     const sources = postgrestSources(fakeClient({ u1: owner }, calls), {
       schema: "api",
@@ -115,8 +115,11 @@ describe(postgrestSources, () => {
         grants: [{ permission: "organization.read", effect: "allow" }],
       },
     ]);
-    expect(await sources.memberships.version?.({ id: "u1" })).toBe(4);
-    expect(calls).toStrictEqual(["api.permdock_subject_for(u1)"]);
+    expect(calls).toStrictEqual([
+      "api.permdock_subject_for(u1)",
+      "api.permdock_subject_for(u1)",
+      "api.permdock_subject_for(u1)",
+    ]);
   });
 
   it("answers an unknown or suspended user with no subject and no memberships", async () => {
@@ -371,7 +374,10 @@ describe(postgrestSources, () => {
         role: "owner",
       }),
     ).toBe(2);
-    expect(calls).toStrictEqual(["permdock.list_members(organization, acme)"]);
+    expect(calls).toStrictEqual([
+      "permdock.list_members(organization, acme)",
+      "permdock.list_members(organization, acme)",
+    ]);
     await expect(
       sources.memberships.list({ scope: "organization", id: "broken" }),
     ).rejects.toThrow("PermDock: permdock.list_members failed: boom");
