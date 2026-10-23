@@ -13,7 +13,7 @@ import { isThenable } from "./thenable.ts";
 
 type Freshness = "fresh" | "reread" | "unknown";
 
-export function versionQuery(
+function versionQuery(
   principal: Principal,
   issuedAt: number | undefined,
 ): VersionQuery {

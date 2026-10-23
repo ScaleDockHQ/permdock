@@ -151,7 +151,7 @@ export function testVersionCache(cache: VersionCache): void {
     const { calls, read } = counted(2);
     const principal = { id: "u-version-shared" };
     const answers = await Promise.all(
-      Array.from({ length: 5 }, () =>
+      Array.from({ length: 5 }, async () =>
         cache.current(principal, read, { live: false }),
       ),
     );
