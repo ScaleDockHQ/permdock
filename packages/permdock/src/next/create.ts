@@ -6,7 +6,7 @@ import { after } from "next/server.js";
 import { cache } from "react";
 
 import type { Decision } from "../core/decision.ts";
-import type { DecisionSink } from "../core/interfaces.ts";
+import type { DecisionSink, Intent } from "../core/interfaces.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
@@ -155,27 +155,29 @@ export function createPermDock<
     readTenant(options.tenant),
   );
 
-  const instantiate = cache(async (tenantKey: string): Promise<PermDock<V>> => {
-    const tenant = tenantKey === "" ? undefined : tenantKey;
-    const user = await resolveSubject();
-    // Decisions read the clock (membership and token expiry), so the instance
-    // is created past a dynamic boundary; inside a cache scope this resolves at once.
-    await io();
-    const built = await buildInstance({
-      policy,
-      user,
-      sources: options,
-      scope: { tenant, sink },
-      wrap: decorate,
-    });
-    return built.permdock;
-  });
+  const instantiate = cache(
+    async (tenantKey: string, intent: Intent): Promise<PermDock<V>> => {
+      const tenant = tenantKey === "" ? undefined : tenantKey;
+      const user = await resolveSubject();
+      // Decisions read the clock (membership and token expiry), so the instance
+      // is created past a dynamic boundary; inside a cache scope this resolves at once.
+      await io();
+      const built = await buildInstance({
+        policy,
+        user,
+        sources: options,
+        scope: { tenant, sink, intent },
+        wrap: decorate,
+      });
+      return built.permdock;
+    },
+  );
 
   const getPermDock = async (
     query?: GetPermDockQuery,
   ): Promise<PermDock<V>> => {
     const tenant = query?.tenant ?? (await resolveFallbackTenant());
-    return instantiate(tenant ?? "");
+    return instantiate(tenant ?? "", query?.intent ?? "read");
   };
 
   const getPermission = async (
@@ -229,9 +231,7 @@ export function createPermDock<
     requirement: PermissionRequirementOptions = {},
   ): Promise<GrantedDecision> => {
     const permdock = await getPermDock(
-      requirement.tenant === undefined
-        ? undefined
-        : { tenant: requirement.tenant },
+      compact({ tenant: requirement.tenant, intent: requirement.intent }),
     );
     // SAFETY: assert's instance and collection overloads share one implementation that takes either kind.
     const assert = permdock.assert as (

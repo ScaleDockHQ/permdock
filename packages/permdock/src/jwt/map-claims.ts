@@ -457,6 +457,7 @@ export function mapClaimsToSubject(
         readonly context: Readonly<Record<string, unknown>>;
         readonly session?: string;
         readonly expiresAt?: number;
+        readonly issuedAt?: number;
       };
   readonly invalidClaims: boolean;
   readonly invalidChain: boolean;
@@ -583,6 +584,10 @@ export function mapClaimsToSubject(
         context: {},
         session: typeof sessionValue === "string" ? sessionValue : undefined,
         expiresAt,
+        issuedAt:
+          typeof claims.iat === "number" && Number.isFinite(claims.iat)
+            ? claims.iat
+            : undefined,
       }),
     ),
     invalidClaims,

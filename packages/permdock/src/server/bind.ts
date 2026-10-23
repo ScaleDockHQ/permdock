@@ -1,5 +1,6 @@
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
+import type { Intent } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
@@ -49,6 +50,11 @@ export type ServerAdapterOptions<TContext, TUser = unknown> = InstanceOptions &
     readonly context?: (
       context: TContext,
     ) => RequestContext | undefined | Promise<RequestContext | undefined>;
+    /**
+     * Overrides the default: `'read'` for `GET`, `HEAD` and `OPTIONS`,
+     * `'write'` for every other method.
+     */
+    readonly intent?: (context: TContext) => Intent;
   };
 
 /** The services an adapter hands to its kernel unchanged. */
@@ -167,6 +173,15 @@ export function adapterKernel<
               return context === undefined
                 ? undefined
                 : options.context?.(context);
+            },
+      intent:
+        options.intent === undefined
+          ? undefined
+          : (request: Request): Intent | undefined => {
+              const context = contextOf(request);
+              return context === undefined
+                ? undefined
+                : options.intent?.(context);
             },
       ...instanceOptions(options),
       store: options.store,

@@ -6,6 +6,7 @@ import type { ActionResult, ProtectedAction } from "../core/action-result.ts";
 import type { Decision, DenialReason } from "../core/decision.ts";
 import type { DescribeMessages } from "../core/describe.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
+import type { Intent } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
@@ -41,7 +42,16 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = InstanceOptions & {
   readonly endpoint?: string | false;
 };
 
-export type GetPermDockQuery = { readonly tenant?: string };
+export type GetPermDockQuery = {
+  readonly tenant?: string;
+  /**
+   * Default `'read'`: with `claimsFirst(…, { versions })` the token may be
+   * judged from the shared version cache, at most its `maxStaleMs` stale. Pass
+   * `'write'` before a mutation outside `protectAction`, which always reads the
+   * version live.
+   */
+  readonly intent?: Intent;
+};
 
 export type GetSnapshotQuery = GetPermDockQuery & {
   readonly include?: readonly (
