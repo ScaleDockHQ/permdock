@@ -163,6 +163,8 @@ export type {
   LimitRemaining,
   LimitStore,
   EntitlementSource,
+  CustomRoleContext,
+  Intent,
   MemberEntry,
   MembershipSource,
   RelationChain,
@@ -173,6 +175,8 @@ export type {
   CustomRoleSourceFactory,
   SettingsSource,
   SnapshotSource,
+  SourceContext,
+  SourceMemo,
   SubjectResolver,
   TenantSettings,
   TokenFailureCause,
@@ -180,8 +184,16 @@ export type {
   TokenVerifier,
   VerificationFailure,
   VerifiedToken,
+  VersionContext,
+  VersionQuery,
   WhereCompiler,
 } from "./core/interfaces.ts";
+export { memoryVersionCache } from "./core/version-cache.ts";
+export type {
+  MemoryVersionCacheOptions,
+  VersionCache,
+  VersionCacheStats,
+} from "./core/version-cache.ts";
 export type {
   LocalCustomRoleTable,
   LocalMembershipRows,

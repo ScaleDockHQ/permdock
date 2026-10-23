@@ -1,7 +1,9 @@
 import type {
+  CustomRoleContext,
+  CustomRoleSource,
   MemberEntry,
   MembershipSource,
-  CustomRoleSource,
+  SourceMemo,
 } from "../core/interfaces.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type {
@@ -258,6 +260,14 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
   });
 }
 
+function once<T>(
+  memo: SourceMemo | undefined,
+  key: string,
+  read: () => Promise<T>,
+): Promise<T> {
+  return memo === undefined ? read() : memo(key, read);
+}
+
 /**
  * Membership, custom-role and subject sources over the `subject_for(p_user)`,
  * `authz_version_for(p_user)` and `members_of(p_scope, p_id)` functions
@@ -267,8 +277,9 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
  * stale token; when the version function is missing it falls back to
  * `subject_for`. With `policy`, a token that claims a custom role has its
  * subject read in one `subject_for` call instead, and custom roles are read
- * only for a subject that holds one. Each user and each instance is read once
- * per `postgrestSources` call, so create it per request or per job.
+ * only for a subject that holds one. It keeps no answers: create it once at
+ * module scope, and `getPermDock` shares each read within one instance. Pass
+ * `claimsFirst(…, { versions })` to share version reads across instances.
  */
 export function postgrestSources(
   client: SupabaseRpcCaller,
@@ -290,42 +301,27 @@ export function postgrestSources(
   const onlyDeclared = (held: readonly string[] | undefined): boolean =>
     declared !== undefined &&
     held?.every((name) => declared.has(name)) === true;
-  const loaded = new Map<string, Promise<SubjectRecord | undefined>>();
-  const versions = new Map<string, Promise<number | undefined>>();
-  const listed = new Map<string, Promise<MemberEntry[]>>();
-  const list = (query: {
+  const list = async (query: {
     readonly scope: string;
     readonly id: string;
   }): Promise<MemberEntry[]> => {
-    const key = JSON.stringify([query.scope, query.id]);
-    const cached = listed.get(key);
-    if (cached !== undefined) {
-      return cached.then((entries) => [...entries]);
-    }
-    const pending = Promise.resolve(
-      callRpc(client, schema, membersFn, {
-        p_scope: query.scope,
-        p_id: query.id,
-      }),
-    ).then((result) => {
-      if (result.error !== null) {
-        throw new Error(
-          `PermDock: ${schema}.${membersFn} failed: ${result.error.message}`,
-        );
-      }
-      return readMemberEntries(result.data);
+    const result = await callRpc(client, schema, membersFn, {
+      p_scope: query.scope,
+      p_id: query.id,
     });
-    listed.set(key, pending);
-    return pending.then((entries) => [...entries]);
-  };
-  const record = (userId: string): Promise<SubjectRecord | undefined> => {
-    const cached = loaded.get(userId);
-    if (cached !== undefined) {
-      return cached;
+    if (result.error !== null) {
+      throw new Error(
+        `PermDock: ${schema}.${membersFn} failed: ${result.error.message}`,
+      );
     }
-    const pending = Promise.resolve(
-      callRpc(client, schema, fn, { p_user: userId }),
-    ).then((result) => {
+    return readMemberEntries(result.data);
+  };
+  const record = (
+    userId: string,
+    memo?: SourceMemo,
+  ): Promise<SubjectRecord | undefined> =>
+    once(memo, `${schema}.${fn}:${userId}`, async () => {
+      const result = await callRpc(client, schema, fn, { p_user: userId });
       if (result.error !== null) {
         throw new Error(
           `PermDock: ${schema}.${fn} failed: ${result.error.message}`,
@@ -333,38 +329,31 @@ export function postgrestSources(
       }
       return readSubjectRecord(result.data);
     });
-    loaded.set(userId, pending);
-    return pending;
-  };
-  const version = (userId: string): Promise<number | undefined> => {
-    const read = loaded.get(userId);
-    if (read !== undefined) {
-      return read.then((found) => found?.authzVersion);
-    }
-    const cached = versions.get(userId);
-    if (cached !== undefined) {
-      return cached;
-    }
-    const pending = Promise.resolve(
-      callRpc(client, schema, versionFn, { p_user: userId }),
-    ).then((result) =>
-      result.error === null
+  const version = (
+    userId: string,
+    memo?: SourceMemo,
+  ): Promise<number | undefined> =>
+    once(memo, `${schema}.${versionFn}:${userId}`, async () => {
+      const result = await callRpc(client, schema, versionFn, {
+        p_user: userId,
+      });
+      return result.error === null
         ? versionOf(result.data)
-        : record(userId).then((found) => found?.authzVersion),
-    );
-    versions.set(userId, pending);
-    return pending;
-  };
-  const live = async (userId: string): Promise<SubjectRecord | undefined> => {
-    const found = await record(userId);
+        : (await record(userId, memo))?.authzVersion;
+    });
+  const live = async (
+    userId: string,
+    memo?: SourceMemo,
+  ): Promise<SubjectRecord | undefined> => {
+    const found = await record(userId, memo);
     return found?.active === true ? found : undefined;
   };
   return {
     memberships: {
-      async membershipsFor(principal) {
-        return [...((await live(principal.id))?.memberships ?? [])];
+      async membershipsFor(principal, query) {
+        return [...((await live(principal.id, query.memo))?.memberships ?? [])];
       },
-      version(principal) {
+      version(principal, context) {
         return declared !== undefined &&
           !onlyDeclared([
             ...(principal.roles ?? []),
@@ -372,40 +361,32 @@ export function postgrestSources(
               (membership) => membership.roles,
             ),
           ])
-          ? record(principal.id).then((found) => found?.authzVersion)
-          : version(principal.id);
+          ? record(principal.id, context?.memo).then(
+              (found) => found?.authzVersion,
+            )
+          : version(principal.id, context?.memo);
       },
       list,
-      async globalRolesFor(principal) {
-        return [...((await live(principal.id))?.roles ?? [])];
+      async globalRolesFor(principal, context) {
+        return [...((await live(principal.id, context?.memo))?.roles ?? [])];
       },
     },
     customRoles(principal) {
+      const held = async (
+        context: CustomRoleContext | undefined,
+        keep: (role: CustomRole) => boolean,
+      ): Promise<CustomRole[]> =>
+        onlyDeclared(context?.held)
+          ? []
+          : (
+              (await live(principal.id, context?.memo))?.customRoles ?? []
+            ).filter(keep);
       return {
-        async rolesFor(tenant, context) {
-          if (onlyDeclared(context?.held)) {
-            return [];
-          }
-          return ((await live(principal.id))?.customRoles ?? []).filter(
-            (role) => role.tenant === tenant,
-          );
-        },
-        async globalRoles(context) {
-          if (onlyDeclared(context?.held)) {
-            return [];
-          }
-          return ((await live(principal.id))?.customRoles ?? []).filter(
-            (role) => role.scope === "global",
-          );
-        },
-        async sharedRoles(context) {
-          if (onlyDeclared(context?.held)) {
-            return [];
-          }
-          return ((await live(principal.id))?.customRoles ?? []).filter(
-            (role) => role.shared === true,
-          );
-        },
+        rolesFor: (tenant, context) =>
+          held(context, (role) => role.tenant === tenant),
+        globalRoles: (context) =>
+          held(context, (role) => role.scope === "global"),
+        sharedRoles: (context) => held(context, (role) => role.shared === true),
       };
     },
     async subject(userId) {
@@ -455,6 +436,6 @@ export function postgrestSources(
       }) as unknown as P;
       return { ...kept, principal };
     },
-    record,
+    record: (userId) => record(userId),
   };
 }

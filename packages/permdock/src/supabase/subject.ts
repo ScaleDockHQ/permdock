@@ -567,6 +567,10 @@ function mapClaims(
     typeof claims["session_id"] === "string" ? claims["session_id"] : undefined;
   const expiresAt =
     typeof claims["exp"] === "number" ? claims["exp"] : undefined;
+  const issuedAt =
+    typeof claims["iat"] === "number" && Number.isFinite(claims["iat"])
+      ? claims["iat"]
+      : undefined;
   return freezeDeep(
     compact<Subject<SupabasePrincipal>>({
       principal,
@@ -578,6 +582,7 @@ function mapClaims(
       context: {},
       session,
       expiresAt,
+      issuedAt,
       liveSession:
         options.liveSession === true && session !== undefined
           ? true
