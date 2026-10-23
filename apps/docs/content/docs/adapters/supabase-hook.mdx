@@ -147,7 +147,7 @@ const permdock = await getPermDock(
 );
 ```
 
-`claimsFirst(sources, { version?, onStale? })` keeps the memberships the verified token carries and reads the sources only when the token says it dropped some (`memberships_truncated`), or, with `onStale: 'reread'`, when the token's `authz_ver` is behind the version table (one version read, then one memberships read only when the token is behind). Staleness applies only to permissions the policy marks `fresh`: with the default `onStale: 'deny'` every other permission keeps the token's claims, and only `'reread'` replaces the claims for every decision. A reread replaces `principal.roles` as well when the source has `globalRolesFor` (`postgrestSources().memberships` has it), so a revoked platform role is lost with the memberships; `actor`, `delegation`, `session` and the token's other claims stay on the subject. Without `claimsFirst`, a `memberships` source is always read and the token's copy is ignored. `getPermDock` in [`permdock/next`](/docs/adapters/next) takes the same `memberships` option.
+`claimsFirst(sources, { version?, onStale? })` keeps the memberships the verified token carries and reads the sources only when the token says it dropped some (`memberships_truncated`), or, with `onStale: 'reread'`, when the token's `authz_ver` is behind the version table (one version read, then one memberships read only when the token is behind). `versions: memoryVersionCache({ maxStaleMs })` shares that version read across instances ([freshness and the version cache](/docs/adapters/supabase#freshness-and-the-version-cache)). Staleness applies only to permissions the policy marks `fresh`: with the default `onStale: 'deny'` every other permission keeps the token's claims, and only `'reread'` replaces the claims for every decision. A reread replaces `principal.roles` as well when the source has `globalRolesFor` (`postgrestSources().memberships` has it), so a revoked platform role is lost with the memberships; `actor`, `delegation`, `session` and the token's other claims stay on the subject. Without `claimsFirst`, a `memberships` source is always read and the token's copy is ignored. `getPermDock` in [`permdock/next`](/docs/adapters/next) takes the same `memberships` option.
 
 ### A stored user over PostgREST
 
@@ -166,21 +166,23 @@ supabase: {
 
 That writes `public.permdock_subject_for(p_user uuid)`, `public.permdock_members_of(p_scope text, p_id text)` and `public.permdock_authz_version_for(p_user uuid)`. Each is a `security invoker` function with an empty `search_path` that calls the function in the hook schema, revoked from `public`, `anon` and `authenticated` and granted to `service_role`. The `security definer` readers stay in the `permdock` schema, which the Data API does not expose, so the API schema holds no definer function and a catalog test that forbids them passes without an allow-list. To let `service_role` reach them, `hook generate` also grants it `usage` on the hook schema and `execute` on the three readers: the only grants the hook makes to `service_role`, and only with `api`. The trade-off: a role that can execute a wrapper needs the grant on the inner function too, so granting a wrapper to another role means granting the reader. Without `api`, no wrapper is written and nothing is granted to `service_role`. `generate` refuses an `api` that would replace the function it wraps (the hook schema with an empty prefix).
 
-`postgrestSources(client, { api?, schema?, fn?, membersFn?, versionFn?, policy? })` in `permdock/supabase` calls `subject_for` once per user and `members_of` once per instance, and returns the three inputs `createPermDock` takes. `sources.memberships.version` calls `authz_version_for` (or the record already read), so `claimsFirst(sources.memberships, { onStale: "reread" })` checks the token's freshness with one cheap call per request and reads `subject_for` only when the token is behind. When the version function does not exist yet, `version` falls back to `subject_for`; regenerate the hook file to get it. Pass `policy` when the app has custom roles: `customRoles` then reads nothing while every role the subject holds is declared, and `version` calls `subject_for` instead of `authz_version_for` when the token claims a role the policy does not declare, because the custom roles need that record anyway. A current token with only declared roles costs one version call; a custom-role token costs one `subject_for` call, fresh or stale. `sources.memberships.list(query)` is the member list `countHolders` and `whoCan` read, so a role change can pass the holders `decideRoleChange` needs:
+`postgrestSources(client, { api?, schema?, fn?, membersFn?, versionFn?, policy? })` in `permdock/supabase` returns the three inputs `createPermDock` takes. It keeps no answers, so create it once at module scope and share it across requests, cache scopes and workers. Within one instance, `getPermDock` shares each call: `subject_for` runs at most once per user, whether `membershipsFor`, `globalRolesFor` or a custom-role read asks for it, and the next instance reads again. `sources.memberships.version` calls `authz_version_for` (or the record already read), so `claimsFirst(sources.memberships, { onStale: "reread" })` checks the token's freshness with one cheap call per request and reads `subject_for` only when the token is behind. When the version function does not exist yet, `version` falls back to `subject_for`; regenerate the hook file to get it. Pass `policy` when the app has custom roles: `customRoles` then reads nothing while every role the subject holds is declared, and `version` calls `subject_for` instead of `authz_version_for` when the token claims a role the policy does not declare, because the custom roles need that record anyway. A current token with only declared roles costs one version call; a custom-role token costs one `subject_for` call, fresh or stale. `sources.memberships.list(query)` is the member list `countHolders` and `whoCan` read, so a role change can pass the holders `decideRoleChange` needs:
 
 ```ts
 import { claimsFirst, countHolders, getPermDock } from "permdock";
 import { postgrestSources, subjectFromSupabase } from "permdock/supabase";
 
+// module scope: created once per process
 const sources = postgrestSources(admin, {
   api: { schema: "public", prefix: "permdock_" }, // the supabase.hook.api setting
   policy,
 });
+const memberships = claimsFirst(sources.memberships);
 
 // a request: the token's memberships, the database's when it was truncated
 const subject = subjectFromSupabase(claims);
 const permdock = await getPermDock(policy, subject, {
-  memberships: claimsFirst(sources.memberships),
+  memberships,
   ...(subject.principal === null
     ? {}
     : { customRoles: sources.customRoles(subject.principal) }),

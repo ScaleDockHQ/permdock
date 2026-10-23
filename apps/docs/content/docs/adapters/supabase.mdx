@@ -45,9 +45,9 @@ export default defineConfig({
 });
 ```
 
-- `subjectFromSupabase(claims, options)` takes the verified claims from `getClaims()` (or `null`) and returns a subject whose principal is `{ id: sub, roles, tenant, memberships, assurance, claims }`: `id` is the `sub`; `roles` is derived from `claims.roles` (default `user_role`, top-level as the hook writes it or under `app_metadata`) and holds global roles; `tenant` comes from `claims.tenant` (default `supabaseTenantClaim`, `tenant_id`, hook-injected or under `app_metadata`; keep it equal to `rls.tenantClaim`, which `permdock doctor` PD038 checks); `memberships` comes from a hook-injected claim (`claims.memberships`, default `memberships`) of `{ scope, id, within?, roles, via?, expires_at? }` entries, where `expires_at` is a NumericDate in seconds (the [named scopes](/docs/concepts/scopes) form; `{ tenant, team? }` is still read) when the hook writes one, or from a `MembershipSource` over your tables when it does not; `issuer` is `iss`; `assurance.acr` is `aal`; `claims` exposes `app_metadata` values. `user_metadata` is never read because it is user-writable. It never throws; malformed or `anon` claims yield the anonymous subject. Details in "Verified material" below.
+- `subjectFromSupabase(claims, options)` takes the verified claims from `getClaims()` (or `null`) and returns a subject whose principal is `{ id: sub, roles, tenant, memberships, assurance, claims }`: `id` is the `sub`; `roles` is derived from `claims.roles` (default `user_role`, top-level as the hook writes it or under `app_metadata`) and holds global roles; `tenant` comes from `claims.tenant` (default `supabaseTenantClaim`, `tenant_id`, hook-injected or under `app_metadata`; keep it equal to `rls.tenantClaim`, which `permdock doctor` PD038 checks); `memberships` comes from a hook-injected claim (`claims.memberships`, default `memberships`) of `{ scope, id, within?, roles, via?, expires_at? }` entries, where `expires_at` is a NumericDate in seconds (the [named scopes](/docs/concepts/scopes) form; `{ tenant, team? }` is still read) when the hook writes one, or from a `MembershipSource` over your tables when it does not; `issuer` is `iss`; `assurance.acr` is `aal`; `claims` exposes `app_metadata` values. The subject's `issuedAt` is `iat`. `user_metadata` is never read because it is user-writable. It never throws; malformed or `anon` claims yield the anonymous subject. Details in "Verified material" below.
 - `options.schema` (any Standard Schema, for example a Zod object) validates and types the custom claims before they reach `principal.claims`; an invalid claim set drops `claims` with a development warning, never the subject.
-- `postgrestSources(client, { schema?, fn?, membersFn?, versionFn?, policy? })` reads a stored user's roles, memberships, held custom roles and authorization version through supabase-js from the `subject_for(p_user)` function the hook file defines, for a backend with no `SqlQuery`: `memberships` for `claimsFirst` (with `version`, one `authz_version_for(p_user)` call, so a fresh token costs no full read, and `list`, the members of one instance from `members_of(p_scope, p_id)`, for `countHolders` and `whoCan`), `customRoles(principal)` and `subject(userId)`; with `policy`, custom roles are read only for a subject that holds one, and a token that claims one has its subject read in one `subject_for` call ([a stored user over PostgREST](/docs/adapters/supabase-hook#a-stored-user-over-postgrest)).
+- `postgrestSources(client, { schema?, fn?, membersFn?, versionFn?, policy? })` reads a stored user's roles, memberships, held custom roles and authorization version through supabase-js from the `subject_for(p_user)` function the hook file defines, for a backend with no `SqlQuery`: `memberships` for `claimsFirst` (with `version`, one `authz_version_for(p_user)` call, so a fresh token costs no full read, and `list`, the members of one instance from `members_of(p_scope, p_id)`, for `countHolders` and `whoCan`), `customRoles(principal)` and `subject(userId)`; with `policy`, custom roles are read only for a subject that holds one, and a token that claims one has its subject read in one `subject_for` call ([a stored user over PostgREST](/docs/adapters/supabase-hook#a-stored-user-over-postgrest)). It keeps no answers: create it once at module scope ([freshness and the version cache](#freshness-and-the-version-cache)).
 - `supabaseApprovalStore(client, { schema?, ttl?, onOpen? })` is an `ApprovalStore` over the table and functions `rls.approvals` generates ([a generated store](/docs/adapters/approvals#a-generated-store-for-postgres-and-supabase)).
 - Both take the client as a `SupabaseRpcCaller`: anything with `schema(name).rpc(fn, args)`, including a supabase-js client typed with a generated `Database` (`SupabaseClient<Database>`), whose `rpc` accepts only the functions that `Database` declares, so it passes without a cast or a second untyped client.
 - `supabaseRls({ realtime, storage })` adds policies for private Realtime channels and Storage buckets, so a channel such as `org:<id>:chat` or an object under `<id>/` follows the same permission as your tables ([Realtime and Storage](/docs/cli/rls#realtime-channels-and-storage-buckets)).
@@ -504,6 +504,98 @@ The two `--authorize` modes trade freshness for a query:
 A suspension in `rls.suspension` reaches RLS on the next statement in both modes, because the helpers read the status tables directly. It reaches `principal.memberships` on the next token refresh, unless the app reads memberships through a `MembershipSource` that honours the same status.
 
 In `jwt` mode the policy and PermDock read one claim written by one function. Keep `jwt_expiry` at 3600 seconds or less when the policy grants sensitive verbs; `permdock doctor` flags it as PD019. A [Shared Signals receiver](/docs/adapters/ssf) can reject a revoked session for the app, not for RLS. `updateTag` and `router.refresh()` do not help in `jwt` mode: they re-render from the same stale claims. The per-layer staleness table for a Next.js app, including other members' browsers, is in the [Next.js Cache Components guide](/docs/guides/next-cache-components).
+
+## Freshness and the version cache
+
+`claimsFirst(…, { onStale: 'reread' })` reads `authz_version_for` once per instance to compare it with the token's `authz_ver`. A Next.js page with ten `'use cache: private'` islands builds ten instances, so it makes ten calls. `memoryVersionCache` shares that read across every instance in the process:
+
+```ts
+// src/permdock/server.ts: module scope, created once per process
+import { claimsFirst, memoryVersionCache } from "permdock";
+import { postgrestSources } from "permdock/supabase";
+
+const sources = postgrestSources(admin, { api: {}, policy });
+
+export const versions = memoryVersionCache({
+  maxStaleMs: 5_000,
+  maxEntries: 50_000,
+});
+
+export const memberships = claimsFirst(sources.memberships, {
+  onStale: "reread",
+  versions,
+});
+export const customRoles = sources.customRoles;
+```
+
+Every instance reads through the same cache, and its intent decides how:
+
+| Intent  | Set by                                                                                                                                              | Version read                                                                       |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `read`  | `getPermDock`, `getSnapshot`, `getPermission` and `PermDockProvider` in `permdock/next`; `GET`, `HEAD` and `OPTIONS` in every HTTP adapter          | the cached version when at most `maxStaleMs` old; concurrent misses share one call |
+| `write` | `protectAction`; `requirePermission(…, { intent: 'write' })`; every other HTTP method; `getPermDock` in `permdock` core, agents, workflows and jobs | always live; the answer refreshes the cache                                        |
+
+A token minted less than `maxStaleMs` ago needs no call at all: `subjectFromSupabase` maps `iat` to `Subject.issuedAt`, and the cache takes the token's `authz_ver` as the version at that time. A token whose `authz_ver` is greater than the cached version raises the entry. A failed read is cached nowhere and leaves the token's claims in place; a `fresh` permission then denies.
+
+`maxStaleMs` is the one number to choose. It is clamped to 60 seconds and bounds how long a removed member keeps read access; a write is checked live. `maxEntries` bounds memory, and the least recently used principal goes first.
+
+### Evict on change
+
+`versions.evict(userId)` drops one user's entry, so the next read instance reads live. Call it in the Server Action or Route Handler that changes a role in the same process. Other processes learn of the change through a broadcast from the version table:
+
+```sql
+create or replace function permdock.permdock_broadcast_authz_version()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform realtime.send(
+    jsonb_build_object('user_id', new.user_id),
+    'authz_version',
+    'permdock:authz',
+    true
+  );
+  return null;
+end;
+$$;
+
+create trigger permdock_broadcast_authz_version
+  after insert or update on permdock.permdock_authz_version
+  for each row execute function permdock.permdock_broadcast_authz_version();
+```
+
+The last argument makes the topic private. Add no `realtime.messages` policy for `permdock:authz`, so only a secret-key client can join it. Subscribe from the module that owns the cache:
+
+```ts
+// src/permdock/server.ts, after `versions`
+admin
+  .channel("permdock:authz", { config: { private: true } })
+  .on("broadcast", { event: "authz_version" }, ({ payload }) => {
+    if (typeof payload?.user_id === "string") {
+      versions.evict(payload.user_id);
+    }
+  })
+  .subscribe();
+```
+
+A dropped broadcast costs nothing but staleness: the entry still expires after `maxStaleMs`. Next.js may bundle `instrumentation.ts` apart from route code, so a subscriber started there can evict from a second cache. Start it where the cache is created.
+
+### Measure it
+
+`versions.stats()` returns `reads`, `shared`, `hits`, `evictions` and `size` since the process started. Read it before and after a render to count calls per request, or report it as a `Server-Timing` metric:
+
+```ts
+const before = versions.stats().reads;
+const response = await render();
+response.headers.append(
+  "Server-Timing",
+  `authz-version;desc="reads ${versions.stats().reads - before}"`,
+);
+```
+
+Concurrent requests share the counters, so read the per-request number under load as an upper bound.
 
 ## Memberships in an app schema
 

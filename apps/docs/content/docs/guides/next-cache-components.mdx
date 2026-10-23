@@ -107,6 +107,121 @@ export function BillingLink({ org }) {
 
 `usePermission(permissions.project.delete, project)` evaluates the snapshot's portable conditions (`ownerId`, `archived`, the tenant key) in the browser, so row actions render without a request. A grant whose condition is a closure cannot travel in a snapshot. For those, annotate rows on the server (`permdock.can(p, row)` per row inside the cached list) or let `usePermission` ask the endpoint.
 
+## Cache Components, PPR and PermDock
+
+A page with Partial Prerendering streams several permission islands, and each `'use cache: private'` function is its own scope: `React.cache` does not reach across them, so each island builds its own instance. These eight steps keep that cheap and safe.
+
+### 1. Wire the sources once
+
+Sources, the version cache and the factory live at module scope. Only the instance is per request or per scope.
+
+```ts
+// src/permdock/server.ts
+import "server-only";
+import { claimsFirst, memoryVersionCache } from "permdock";
+import { createPermDock } from "permdock/next";
+import { postgrestSources, subjectFromSupabase } from "permdock/supabase";
+
+const sources = postgrestSources(admin, { api: {}, policy });
+
+export const versions = memoryVersionCache({ maxStaleMs: 5_000 });
+
+export const { getPermDock, getSnapshot, protectAction, requirePermission } =
+  createPermDock(policy, {
+    subject: async () => subjectFromSupabase(await getClaims()),
+    memberships: claimsFirst(sources.memberships, {
+      onStale: "reread",
+      versions,
+    }),
+    customRoles: (subject) =>
+      subject.principal === null
+        ? undefined
+        : sources.customRoles(subject.principal),
+  });
+```
+
+`postgrestSources` keeps no answers, so it is safe to share; within one instance `subject_for` still runs at most once ([Supabase sources](/docs/adapters/supabase-hook#a-stored-user-over-postgrest)). With ten islands, the version check is one shared call instead of ten, and none for a token minted within `maxStaleMs`.
+
+### 2. A synchronous shell with Suspense per island
+
+The layout never awaits. Each island that reads the session sits in its own `<Suspense>`, so the static shell paints and the islands stream:
+
+```tsx
+export default function ProjectPage({ params }) {
+  return (
+    <>
+      <ProjectHeader params={params} />
+      <Suspense fallback={<ToolbarSkeleton />}>
+        <ProjectToolbar params={params} />
+      </Suspense>
+      <Suspense fallback={<MembersSkeleton />}>
+        <MembersPanel params={params} />
+      </Suspense>
+    </>
+  );
+}
+```
+
+### 3. Private islands read the session first
+
+```tsx
+async function ProjectToolbar({ params }) {
+  const { org } = await params;
+  return <ToolbarIsland org={org} />;
+}
+
+async function ToolbarIsland({ org }: { org: string }) {
+  "use cache: private";
+  const permdock = await getPermDock({ tenant: org });
+  cacheTag(snapshotTag(permdock.subject.principal?.id), `org:${org}`);
+  return <Toolbar canEdit={permdock.can(permissions.project.update)} />;
+}
+```
+
+`getPermDock` resolves the subject through the factory's `subject`, which reads cookies inside the private scope, and runs `await io()` before the version cache reads its clock. It defaults to intent `read`. A private scope is cached in the browser only, so every runtime prefetch and every full render runs the island on the server again; the version cache is what keeps those runs cheap.
+
+### 4. Key and tag islands
+
+A private island's cache key is its arguments plus the session. Tag every island with `snapshotTag(userId)` and the app's own `org:<id>`, so one `updateTag` reaches them all.
+
+To cache an island's output on the server, resolve the claims outside and pass `(userId, authzVersion, tenant)` into a plain `'use cache'` function. The version is part of the key, so the first token after a role change misses the entry. Pass identifiers only: Next.js stores arguments and tags in plain text, so never pass the token or the claims object.
+
+### 5. Writes go through `protectAction`
+
+```ts
+"use server";
+export const changeRole = protectAction(permissions.member.assignRole, {
+  input: ChangeRole,
+  tenant: (input) => input.org,
+})(async ({ userId, org, role }) => {
+  await db.memberships.update({ userId, org, role }); // the trigger bumps authz_ver
+  versions.evict(userId);
+  updateTag(snapshotTag(userId));
+  updateTag(`org:${org}`);
+});
+```
+
+`protectAction` builds a `write` instance, so the acting user's version is read live whatever the cache holds. `versions.evict` makes the affected user's next render read live in this process; other processes evict on the [Realtime broadcast](/docs/adapters/supabase#evict-on-change) or after `maxStaleMs`.
+
+### 6. What a runtime prefetch may touch
+
+A runtime prefetch renders the private islands with the session's cookies. It may read the version cache and call `authz_version_for`; it must not write. Keep side effects (audit writes, `updateTag`, counters) in Server Actions and Route Handlers. `getPermDock` never writes, and `sink` events from a prefetch are decisions about UI, not about a write.
+
+### 7. Staleness
+
+| Change                              | Read UI (islands, `GET`)                                    | Writes (`protectAction`, `POST`) |
+| ----------------------------------- | ----------------------------------------------------------- | -------------------------------- |
+| Member removed, same process evicts | next render                                                 | next write                       |
+| Member removed, other process       | after the Realtime eviction, or within `maxStaleMs`         | next write                       |
+| Member removed, no `versions`       | next render (one version call per instance)                 | next write                       |
+| Cached island output                | until its tag is updated or its key changes (step 4)        | not cached                       |
+
+The version cache bounds the version check, not the island output: an island cached for 300 seconds keeps its HTML until `updateTag` or a new key. Writes are always live, so a stale island can show a button for a moment too long; it can never make a write succeed.
+
+### 8. Measure
+
+Read `versions.stats()` around a render to count version calls, and report it with `Server-Timing` ([measure it](/docs/adapters/supabase#measure-it)). A page of ten islands should show at most one `reads`, and `hits` for the rest.
+
 ## URL slugs
 
 Most apps put a slug in the URL and a tenant id in the token: `app/[locale]/(app)/[orgSlug]/projects/page.tsx`. The snapshot is keyed by id, so the route resolves the slug first, in a public cache, and only then enters the private one.
