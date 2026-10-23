@@ -2,6 +2,10 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.9.0 (2026-10-23)
+
+- `memoryVersionCache({ maxStaleMs })` shares authorization-version reads across instances through `claimsFirst(source, { onStale: 'reread', versions })`, so a page of ten Next.js private cache scopes makes at most one `authz_version_for` call. A token minted within `maxStaleMs` makes none. `getPermDock(…, { intent })` picks how fresh the version must be: `permdock/next` rendering and `GET`, `HEAD` and `OPTIONS` in the HTTP adapters use `read`, while `protectAction`, other methods and core `getPermDock` use `write`, which always reads live. Sources now receive a per-instance `memo`, and `subjectFromSupabase` and `permdock/jwt` map `iat` to `Subject.issuedAt`. Breaking: `postgrestSources` keeps no answers between calls, so create it once at module scope; outside an instance, each call now reads the database.
+
 ## 0.8.0 (2026-10-22)
 
 - Breaking, types only: the members of the extension interfaces and the other public object types are declared as properties (`get: (token: string) => …`) instead of methods (`get(token: string): …`). TypeScript now checks their parameters contravariantly, so an implementation that declares a narrower parameter type than the interface fails to compile; widen the parameter to the declared type. `Policy`'s `principal`, `subject` and `context`, `ServerPermDock.protectOn`, `OperationData` and `OpenAiRunState` stay methods, so a `Policy<User>` or a `ServerPermDock<V>` is still accepted where the default is.
