@@ -29,6 +29,7 @@ import { customRoleSyncSql } from "./custom-role-sync.ts";
 import { closureDepths, graphPlan } from "./graph.ts";
 import { ownershipRules, unsatisfiedKinds } from "./ownership.ts";
 import { resolveAuthorize } from "./rbac.ts";
+import { inheritTargets } from "./rows.ts";
 import { tokenScopesPlan } from "./token-scopes.ts";
 
 /**
@@ -294,7 +295,7 @@ export function buildContext(
         }),
     ...(options.fieldsMode === undefined ? {} : { fields: options.fieldsMode }),
     ...(vias === undefined ? {} : { vias }),
-    ...(graph.size === 0
+    ...(graph.size === 0 && inheritTargets(policy).length === 0
       ? {}
       : {
           graph: {

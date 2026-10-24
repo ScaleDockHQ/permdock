@@ -111,10 +111,29 @@ describe("permitted_<resource>_rows", () => {
       'create or replace function "permdock".permitted_doc_row(p_row "app"."documents", p_permission text)\nreturns boolean',
     );
     expect(sql).toContain(
-      `select exists (select 1 from (select (p_row).*) r where case p_permission\n    when 'doc.archive' then`,
+      `with permdock_candidates as (select (p_row).*)\n  select exists (select 1 from permdock_candidates where case p_permission\n    when 'doc.archive' then`,
     );
     expect(sql).toContain(
       'grant execute on function "permdock".permitted_doc_row("app"."documents", text) to authenticated;',
+    );
+  });
+
+  it("writes a form narrowed to candidate ids that reads them through the id column", () => {
+    const { sql } = generate("supabase", ["doc"]);
+    expect(sql).toContain(
+      'create or replace function "permdock".permitted_doc_rows(p_permission text, p_ids text[])\nreturns setof text\nlanguage plpgsql',
+    );
+    expect(sql).toContain('v_row "app"."documents";');
+    expect(sql).toContain(`foreach v_id in array coalesce(p_ids, '{}') loop`);
+    expect(sql).toContain("exception when data_exception then");
+    expect(sql).toContain(
+      'select * from "app"."documents" where "id" = any (array(select (r)."id" from pg_catalog.unnest(v_rows) r))',
+    );
+    expect(sql).toContain(
+      `select "id"::text from permdock_candidates\n  where case p_permission\n    when 'doc.archive' then`,
+    );
+    expect(sql).toContain(
+      'grant execute on function "permdock".permitted_doc_rows(text, text[]) to authenticated;',
     );
   });
 

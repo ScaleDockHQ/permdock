@@ -131,6 +131,22 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
           `${user.id}: rls [${got.join(",")}] can [${want.join(",")}]`,
         );
       }
+      for (const key of ["node.read", "node.share"] as const) {
+        const candidates = await asUser(
+          db,
+          user.id,
+          `select id from permdock.permitted_node_rows('${key}', array[${nodes.map((row) => `'${row.id}'`).join(", ")}]) id order by id`,
+        );
+        const can = await inProcess(
+          user,
+          key === "node.read" ? permissions.node.read : permissions.node.share,
+        );
+        if (JSON.stringify(candidates) !== JSON.stringify(can)) {
+          mismatches.push(
+            `${user.id} ${key}: candidates [${candidates.join(",")}] can [${can.join(",")}]`,
+          );
+        }
+      }
     }
     expect(mismatches).toStrictEqual([]);
     expect(

@@ -76,6 +76,9 @@ describe("permitted_<resource>_rows with helpersOnly: the graph without hand-wri
   it("writes the row helpers and no table policy", () => {
     expect(sql).toContain('"permdock".permitted_doc_rows(p_permission text)');
     expect(sql).toContain(
+      '"permdock".permitted_doc_rows(p_permission text, p_ids text[])',
+    );
+    expect(sql).toContain(
       '"permdock".permitted_doc_rows_for(p_user text, p_permission text, p_claims jsonb',
     );
     expect(sql).not.toMatch(/create policy \S+ on "public"/u);
@@ -101,6 +104,18 @@ describe("permitted_<resource>_rows with helpersOnly: the graph without hand-wri
               )
             ).rows.map((row) => row.id),
         );
+        const narrowed = await target.as(
+          { role: "authenticated", settings: { "app.user_id": user.id } },
+          async () =>
+            (
+              await target.tester.query<{ id: string }>(
+                "select id from permdock.permitted_" +
+                  table +
+                  "_rows($1, $2) id order by id",
+                [permission.key, rows[table].map((row) => row.id)],
+              )
+            ).rows.map((row) => row.id),
+        );
         const named = (
           await target.admin.query<{ id: string }>(
             "select id from permdock.permitted_" +
@@ -113,6 +128,11 @@ describe("permitted_<resource>_rows with helpersOnly: the graph without hand-wri
         if (JSON.stringify(got) !== JSON.stringify(want)) {
           mismatches.push(
             `${user.id} ${permission.key}: rows [${got.join(",")}] can [${want.join(",")}]`,
+          );
+        }
+        if (JSON.stringify(narrowed) !== JSON.stringify(want)) {
+          mismatches.push(
+            `${user.id} ${permission.key}: candidates [${narrowed.join(",")}] can [${want.join(",")}]`,
           );
         }
         if (JSON.stringify(named) !== JSON.stringify(want)) {

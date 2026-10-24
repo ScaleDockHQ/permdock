@@ -1,6 +1,7 @@
 import { basename } from "node:path";
 
 import type { Policy } from "../../index.ts";
+import type { CompiledBranch, CompiledGrants } from "../sql/compile.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { PermDockConfig, RlsShimsConfig } from "../types.ts";
 import type { GenerateContext } from "./generate-context.ts";
@@ -20,6 +21,7 @@ import { qualifySqlTable } from "../../core/sql.ts";
 import { listPermissions } from "../../index.ts";
 import { describeError } from "../core/errors.ts";
 import { nonEmptyOr } from "../core/output.ts";
+import { compileGrants } from "../sql/compile.ts";
 import { INDEXES_MARKER, SEEDS_MARKER } from "../sql/markers.ts";
 import { graphHelper, scopeTable } from "../sql/names.ts";
 import { quoteQualified } from "../sql/quote.ts";
@@ -53,7 +55,7 @@ import { permissionHoldersSql } from "./permission-holders.ts";
 import { permissionHelpersSql } from "./permission-keys.ts";
 import { actorMayWriteSql, readOnlyActorKinds } from "./policies.ts";
 import { rbacScaffold } from "./rbac.ts";
-import { inheritTargets, rowHelpersSql } from "./rows.ts";
+import { CANDIDATES, inheritTargets, rowHelpersSql } from "./rows.ts";
 import { shimGrants, shimsSql } from "./shims.ts";
 import { auditSql, generatedTables, triggersSql } from "./triggers.ts";
 
@@ -207,19 +209,29 @@ function sectionsSql(
   const graphed = graphSql(ctx, graph, tableNames(rls?.tables));
   let rowHelpers = "";
   if (rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0) {
+    const readable = (grants: CompiledGrants): readonly CompiledBranch[] => [
+      ...(options.fieldsMode === undefined
+        ? grants.branches
+        : rowBranches(grants.branches)),
+      ...grants.actionBranches,
+    ];
     try {
+      const narrowed = compileGrants(
+        policy,
+        { ...ctx, candidates: CANDIDATES },
+        tableNames(rls?.tables),
+        [],
+        input.skipClosures,
+        true,
+      );
       rowHelpers = rowHelpersSql(
         ctx,
         policy,
-        [
-          ...(options.fieldsMode === undefined
-            ? compiled.branches
-            : rowBranches(compiled.branches)),
-          ...compiled.actionBranches,
-        ],
+        readable(compiled),
         rls?.rowHelpers ?? [],
         tableNames(rls?.tables),
         warnings,
+        readable(narrowed),
       );
     } catch (cause) {
       return { refusal: describeError(cause) };
