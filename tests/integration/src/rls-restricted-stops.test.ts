@@ -91,6 +91,11 @@ describe("restricted stops in RLS: the parent walk, the drive link and rows belo
         user.id,
         `select id from permdock.permitted_${tree}_rows('${tree}.${action}') id`,
       );
+      const candidates = await asUser(
+        database(),
+        user.id,
+        `select id from permdock.permitted_${tree}_rows('${tree}.${action}', array[${rows.map((row) => `'${row.id}'`).join(", ")}]) id`,
+      );
       const table =
         action === "read"
           ? await asUser(database(), user.id, `select id from public.${tree}`)
@@ -98,6 +103,7 @@ describe("restricted stops in RLS: the parent walk, the drive link and rows belo
       for (const [label, got] of [
         ["policy", table],
         ["rows", helper],
+        ["candidates", candidates],
       ] as const) {
         if (JSON.stringify(got) !== JSON.stringify(want)) {
           mismatches.push(

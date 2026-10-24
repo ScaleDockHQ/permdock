@@ -189,9 +189,13 @@ export function inheritTargets(policy: Policy): readonly string[] {
   return [...out].toSorted();
 }
 
+export const CANDIDATES = "permdock_candidates";
+
 function stubSql(ctx: RlsSqlContext, resource: string): string {
   const fn = qualified(ctx, rowsHelper(resource));
-  return `create or replace function ${fn}(p_permission text)
+  return ["p_permission text", "p_permission text, p_ids text[]"]
+    .map(
+      (parameters) => `create or replace function ${fn}(${parameters})
 returns setof text
 language sql
 stable
@@ -199,7 +203,9 @@ security definer
 set search_path = ''
 as $$
   select null::text where false
-$$;`;
+$$;`,
+    )
+    .join("\n");
 }
 
 function rowSql(
@@ -216,29 +222,83 @@ stable
 security definer
 set search_path = ''
 as $$
-  select exists (select 1 from (select (p_row).*) r where ${where})
+  with ${CANDIDATES} as (select (p_row).*)
+  select exists (select 1 from ${CANDIDATES} where ${where})
 $$;
 revoke execute on function ${fn}(${table}, text) from public, anon;
 grant execute on function ${fn}(${table}, text) to authenticated;`;
+}
+
+function whereOf(
+  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
+): string {
+  const cases = [...branches.keys()].toSorted().flatMap((key) => {
+    const sql = permissionCase(key, branches.get(key) ?? []);
+    return sql === undefined ? [] : [sql];
+  });
+  return cases.length === 0
+    ? "false"
+    : `case p_permission\n${cases.join("\n")}\n    else false\n  end`;
+}
+
+function candidatesSql(
+  fn: string,
+  table: string,
+  id: string,
+  where: string,
+): string {
+  const assign = (indent: string): string =>
+    `${indent}v_row.${id} := v_id;\n${indent}v_rows := pg_catalog.array_append(v_rows, v_row);`;
+  return `create or replace function ${fn}(p_permission text, p_ids text[])
+returns setof text
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_row ${table};
+  v_rows ${table}[] := '{}';
+  v_id text;
+begin
+  begin
+    foreach v_id in array coalesce(p_ids, '{}') loop
+${assign("      ")}
+    end loop;
+  exception when data_exception then
+    v_rows := '{}';
+    foreach v_id in array p_ids loop
+      begin
+${assign("        ")}
+      exception when data_exception then
+        null;
+      end;
+    end loop;
+  end;
+  return query
+  with ${CANDIDATES} as materialized (
+    select * from ${table} where ${id} = any (array(select (r).${id} from pg_catalog.unnest(v_rows) r))
+  )
+  select ${id}::text from ${CANDIDATES}
+  where ${where};
+end
+$$;
+revoke execute on function ${fn}(text, text[]) from public, anon;
+grant execute on function ${fn}(text, text[]) to authenticated;`;
 }
 
 function resourceSql(
   ctx: RlsSqlContext,
   node: ResourceNode,
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
+  narrowed: ReadonlyMap<string, readonly CompiledBranch[]>,
   tables: Readonly<Record<string, string>> | undefined,
 ): string {
   const name = rowsHelper(node.name);
   const fn = qualified(ctx, name);
   const table = quoteQualified(tableFor(node.name, tables));
-  const cases = [...branches.keys()].toSorted().flatMap((key) => {
-    const sql = permissionCase(key, branches.get(key) ?? []);
-    return sql === undefined ? [] : [sql];
-  });
-  const where =
-    cases.length === 0
-      ? "false"
-      : `case p_permission\n${cases.join("\n")}\n    else false\n  end`;
+  const where = whereOf(branches);
+  const near = whereOf(narrowed);
   const rows = `-- ${node.name}: ids of the rows the caller may act on with p_permission, as the table's policies decide it
 create or replace function ${fn}(p_permission text)
 returns setof text
@@ -252,7 +312,8 @@ as $$
 $$;
 revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;
-${rowSql(ctx, name, table, where)}`;
+${candidatesSql(fn, table, quoteIdent(node.id), near)}
+${rowSql(ctx, name, table, near)}`;
   if (ctx.dialect === "neon") {
     return rows;
   }
@@ -279,6 +340,7 @@ export function rowHelpersSql(
   select: true | readonly string[],
   tables: Readonly<Record<string, string>> | undefined,
   warnings: string[],
+  narrowed: readonly CompiledBranch[] = branches,
 ): string {
   const names =
     select === true
@@ -304,7 +366,15 @@ export function rowHelpersSql(
         `PermDock CLI: rls.rowHelpers names '${name}', which the policy does not declare`,
       );
     }
-    chunks.push(resourceSql(ctx, node, rowBranchesOf(branches, name), tables));
+    chunks.push(
+      resourceSql(
+        ctx,
+        node,
+        rowBranchesOf(branches, name),
+        rowBranchesOf(narrowed, name),
+        tables,
+      ),
+    );
   }
   if (chunks.length > 0 && ctx.dialect === "neon") {
     warnings.push(

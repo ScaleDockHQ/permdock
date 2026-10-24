@@ -217,6 +217,7 @@ export type RlsSqlContext = {
     /** The table of each resource, as `rls.tables` maps it. */
     readonly tables?: Readonly<Record<string, string>>;
   };
+  readonly candidates?: string;
 };
 
 export type ApiKeysPlan = {

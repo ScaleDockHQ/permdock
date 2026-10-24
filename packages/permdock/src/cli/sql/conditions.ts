@@ -666,6 +666,18 @@ export function sqlFunctionNames(
   }
 }
 
+function candidateIds(
+  ctx: RlsSqlContext,
+  field: string,
+  wrap: (ids: string) => string,
+): string {
+  return ctx.candidates === undefined
+    ? ""
+    : wrap(`array(select ${quoteIdent(field)}::text from ${ctx.candidates})`);
+}
+
+const idsArgument = (ids: string): string => `, ${ids}`;
+
 /**
  * A `related` condition as uncorrelated subqueries, so Postgres runs the helper
  * once per statement: the row's field in the closure's descendants of the ids
@@ -689,13 +701,18 @@ function compileRelatedSql(
   const helper =
     condition.permission === undefined
       ? `${qualified(ctx, graphHelper(condition.resource))}(${quoteLiteral(condition.relation)})`
-      : `${qualified(ctx, inheritedRowsHelper(condition.resource))}(${quoteLiteral(condition.permission)})`;
+      : `${qualified(ctx, inheritedRowsHelper(condition.resource))}(${quoteLiteral(condition.permission)}${condition.depth === 0 ? candidateIds(ctx, condition.field, idsArgument) : ""})`;
   const cap = ctx.graph?.closures[condition.resource];
   let inner: string;
   if (condition.depth > 0 && cap !== undefined) {
     const depth =
       condition.depth < cap ? ` and depth <= ${String(condition.depth)}` : "";
-    inner = `select descendant${cast} from ${qualified(ctx, CLOSURE.table)} where resource = ${quoteLiteral(condition.resource)}${depth} and ancestor = any (array(select ${helper}))`;
+    const narrowed = candidateIds(
+      ctx,
+      condition.field,
+      (ids) => ` and descendant = any (${ids})`,
+    );
+    inner = `select descendant${cast} from ${qualified(ctx, CLOSURE.table)} where resource = ${quoteLiteral(condition.resource)}${depth}${narrowed} and ancestor = any (array(select ${helper}))`;
   } else {
     inner =
       cast === ""
@@ -739,7 +756,7 @@ function compileHoppedSql(
       ],
       permitted: (resource, permission) => [
         {
-          text: `select ${schema}.${inheritedRowsHelper(resource)}(${quoteLiteral(permission)})`,
+          text: `select ${schema}.${inheritedRowsHelper(resource)}(${quoteLiteral(permission)}${condition.hops?.length === 1 ? candidateIds(ctx, condition.field, idsArgument) : ""})`,
         },
       ],
       restrictedRows: (resource) => [
