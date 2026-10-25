@@ -13,26 +13,26 @@ import { createExpo } from "better-supabase/expo";
 
 import { betterSupabase } from "./index";
 
-export const bs = createExpo(betterSupabase);
+export const bsb = createExpo(betterSupabase);
 ```
 
 ```tsx title="src/app/customers/index.tsx"
-export const loader = bs.loader(
-  ({ db }) => db.customers.findMany({ select: ["id", "name"] }).orThrow(),
+export const loader = bsb.loader(
+  ({ db }) => db.customers.list({ select: ["id", "name"] }).orThrow(),
   { allow: ["user"] },
 );
 ```
 
 ```ts title="src/app/+middleware.ts"
-export default bs.middleware();
+export default bsb.middleware();
 ```
 
 - Loaders run as the caller (bearer token first, then the cookie), so RLS applies.
 - A refused caller and a `DbException` from `.orThrow()` become a `StatusError` with the right status.
 - Only `+middleware.ts` refreshes the session; loaders never do.
-- `bs.loader` returns an `expo-server` `LoaderFunction`. Inside an existing `createServerLoader(async (request, params) => ...)`, call `const { db } = await bs.request(request, { allow })`. Static rendering has no request: use `createStaticLoader` from `expo-server` for public data there.
+- `bsb.loader` returns an `expo-server` `LoaderFunction`. Inside an existing `createServerLoader(async (request, params) => ...)`, call `const { db } = await bsb.request(request, { allow })`. Static rendering has no request: use `createStaticLoader` from `expo-server` for public data there.
 - Loader data is JSON: select the columns the screen needs and turn Temporal values into strings.
-- API routes: `export const GET = bs.handler((request, { db }) => db.customers.findMany())` in `+api.ts`.
+- API routes: `export const GET = bsb.handler((request, { db }) => db.customers.list())` in `+api.ts`.
 
 ## Device: `better-supabase/client/native`
 
@@ -54,7 +54,7 @@ const supabase = createClient(url, key, {
   },
 });
 autoRefreshOnForeground(supabase, AppState);
-export const bs = createNativeClient(betterSupabase, supabase);
+export const bsb = createNativeClient(betterSupabase, supabase);
 ```
 
 - `autoRefreshOnForeground(supabase, AppState)` refreshes the session only while the app is active; supabase-js can't detect the background on React Native.
@@ -63,7 +63,7 @@ export const bs = createNativeClient(betterSupabase, supabase);
 - Put device-only code (SecureStore, PowerSync) in `.native.ts` files or modules only they import.
 
 Done when the web export has no `expo-secure-store` or PowerSync code, a loader
-answers 401 for a signed-out request, and a native screen reads with `bs.db`.
+answers 401 for a signed-out request, and a native screen reads with `bsb.db`.
 
 Docs: https://bettersupabase.com/docs/frameworks/expo.md and
 https://bettersupabase.com/docs/frontend/react-native.md.

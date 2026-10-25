@@ -7,13 +7,13 @@ description: Read and check the caller in better-supabase apps, including sessio
 
 Every adapter resolves the caller once. It verifies the access token locally
 against the project's JWKS, so a valid token costs no network call, and only
-the Next.js proxy (`bs.proxy`) refreshes sessions. Don't call
+the Next.js proxy (`bsb.proxy`) refreshes sessions. Don't call
 `supabase.auth.getUser()` per request, and don't read cookies yourself.
 
 ## Workflow: read the caller
 
 1. Take `auth` from the handler context (`ctx.auth`, `c.var.auth`,
-   `context.auth`), or a token-free `AuthSession` from `await bs.session()`
+   `context.auth`), or a token-free `AuthSession` from `await bsb.session()`
    or `toSession(ctx.auth)`.
 2. Branch on `kind` with an exhaustive `switch` that ends in a `never` check:
 
@@ -72,7 +72,7 @@ names who acts for the user:
 | `act: { kind: "agent", sub, tools, read_only }`  | `{ kind: "agent", id, tools, readOnly, chain }` | with a `scope` claim |
 
 - Limit what delegated tokens may do with the `scopes` guard option on
-  `bs.route`, `bs.action`, `bs.handler` and `bs.middleware`. A missing
+  `bsb.route`, `bsb.action`, `bsb.handler` and `bsb.middleware`. A missing
   scope answers 403 with an `insufficient_scope` challenge. Only an
   `oauth-client` actor, and an `agent` on a token with a `scope`, are
   limited: the user's own token, a support session and an impersonated
@@ -111,7 +111,7 @@ Nothing calls it by default; keep it to the actions that need it.
 
 When RLS checks the session (so an ended session sees no rows), sign the
 browser out on page loads instead of showing an empty app. Next.js:
-`bs.proxy(request, { endedSession: { redirect: "/login" } })` asks Auth on
+`bsb.proxy(request, { endedSession: { redirect: "/login" } })` asks Auth on
 document loads (and on `paths`), clears the cookies and redirects with
 `?reason=session_ended`.
 A proxy or middleware with its own Supabase client calls
@@ -122,13 +122,13 @@ A proxy or middleware with its own Supabase client calls
 Done when the irreversible action returns `SESSION_REVOKED` for a signed-out
 session in a test.
 
-To lock a user out, call `bs.suspendAccount(userId, { suspended: true })`.
+To lock a user out, call `bsb.suspendAccount(userId, { suspended: true })`.
 It bans the user in Auth and keeps the sessions, so Auth answers with
 `user_banned`, `sessionStatus` returns `"banned"` and the `session_active()`
 policy refuses the user's tokens. `{ suspended: false }` ends every session
 and refresh token, then lifts the ban. Without the `sessions` SQL module, pass
 `endSessions: true` to delete the sessions on suspension too (the app then
-sees `"ended"`). `bs.endSessions(userId)` signs a user out everywhere without
+sees `"ended"`). `bsb.endSessions(userId)` signs a user out everywhere without
 a ban. To
 switch a member off in one organization only, use the organizations block's
 `suspendMember`.
@@ -148,32 +148,32 @@ membership lasts until the next refresh. When that window matters:
   `supabase.auth.refreshSession()` in the browser (in Next.js, through
   `useSessionChange`'s `refreshToken`, below).
 - In Next.js, drop the user's cached views with
-  `bs.invalidateSession(userId, { tags })`.
+  `bsb.invalidateSession(userId, { tags })`.
 
 ## Next.js caching
 
-- Per-user data goes through `bs.cached()` inside your own
-  `'use cache: private'` function. It tags the entry `bs:session:<user id>`
+- Per-user data goes through `bsb.cached()` inside your own
+  `'use cache: private'` function. It tags the entry `bsb:session:<user id>`
   and caps its lifetime at the token's.
-- `bs.cached({ tags, life: { stale } })` adds tags and caps the stale time
+- `bsb.cached({ tags, life: { stale } })` adds tags and caps the stale time
   further, for example for a permission snapshot.
-- `bs.cached({ tables: ["customers"] })` tags the entry by table, so an
+- `bsb.cached({ tables: ["customers"] })` tags the entry by table, so an
   action that writes the table drops it without a hand-written tag.
-- `bs.invalidateSession(userId)` reaches the server caches and the caller's
+- `bsb.invalidateSession(userId)` reaches the server caches and the caller's
   router only; another user's browser keeps its private entries until they
   go stale.
 - After signing in or out: `useSessionChange(sessionChanged)` from
   `better-supabase/next/client`. After switching the active organization:
   `useSessionChange(sessionChanged, router, { refreshToken: supabase })`, so
   the new token reaches the server before it renders.
-- For a tenant from the route params, call `bs.cached({ tenant })` and take
+- For a tenant from the route params, call `bsb.cached({ tenant })` and take
   the tenant as an argument of the `'use cache: private'` function, so it is
-  part of the cache key. Outside a cache, use `bs.context({ tenant })`.
-- In the proxy, set `bs.proxy(request, { protect, expiredPrefetch: "render" })`
+  part of the cache key. Outside a cache, use `bsb.context({ tenant })`.
+- In the proxy, set `bsb.proxy(request, { protect, expiredPrefetch: "render" })`
   instead of returning early for `{ kind: "anon", reason: "expired" }` in
   `protect`. A prefetch never refreshes, so without it the prefetch caches a
   redirect to sign-in.
-- Keep layouts synchronous: pass the `bs.session()` promise to
+- Keep layouts synchronous: pass the `bsb.session()` promise to
   `<SessionProvider>` and read it with `useSession()`.
 
 ## Authorization providers
@@ -188,7 +188,7 @@ before touching the hook, claims, tenant or entitlements.
 
 - Don't refresh sessions outside the proxy, and don't verify tokens by
   calling the Auth server.
-- Don't use `bs.admin()` or the service role for a user's request.
+- Don't use `bsb.admin()` or the service role for a user's request.
 - Don't downgrade an `invalid` caller to `anon`.
 - Don't build 401 or 403 JSON by hand; return the `DbError` or use `allow`
   and `scopes`.

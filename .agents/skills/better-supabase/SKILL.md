@@ -20,9 +20,9 @@ is no separate CLI package to add.
    new` for data and role settings. The sync needs
    `[experimental.pgdelta] enabled = true` in `supabase/config.toml`;
    doctor reports BS316 when a project is still on the legacy migra engine.
-   `sql.workflow` in the config picks how the SQL modules reach a migration:
+   `database.sql.workflow` in the config picks how the SQL modules reach a migration:
    `pg-delta` (the default), `migra` (declarative schemas 1.0, `supabase db
-   diff`) or `migrations` (no `supabase/schemas`: the `sql` commands write
+   diff`) or `migrations` (no `supabase/schemas`: `add` and `upgrade` write
    `<stamp>_better_supabase_modules.sql`, applied with `supabase migration up`).
 2. For a new table in an exposed schema, in the same file: `enable row level
    security`, a policy per role and command the app uses, and an index on
@@ -34,8 +34,8 @@ is no separate CLI package to add.
    new tables get no Data API grants on their own.
 3. Apply it with `supabase db reset` (or `supabase migration up`).
 4. Run `pnpm better-supabase gen`, then fix the type errors it surfaces. It
-   also runs every other generator the config sets up (`sql sync`, `spec
-   emit`, the seed client, `scaffold api`); set `gen.tasks` to change the
+   also runs every other generator the config sets up (`upgrade`, `spec
+   emit`, the seed client); set `gen.tasks` to change the
    list. Put flags you would repeat in `better-supabase.config.ts` (with a
    `$ci` block for CI) instead of on the command line.
 5. Run `pnpm better-supabase doctor` and fix every error it reports (RLS off,
@@ -50,8 +50,9 @@ Done when `gen --check` and `doctor` exit 0 and the project typechecks.
 1. Get `db` from the request context (see below), never from a global client,
    so RLS applies.
 2. Call the repository method and return or branch on its `Result`.
-3. If a plugin owns a column (timestamps, soft delete, tenant, actor), leave
-   it out of the input. See [references/plugins.md](references/plugins.md).
+3. If a block extension owns a column (timestamps, soft delete, organization,
+   actor), leave it out of the input. See
+   [references/block-extensions.md](references/block-extensions.md).
 4. Cover the rule with an RLS test as a real user (the
    `better-supabase-testing` skill).
 
@@ -64,7 +65,7 @@ stay hidden.
 1. Run `pnpm better-supabase codemod <version> --dry-run` for each minor
    version you crossed (`codemod` without a name lists them), then without
    `--dry-run`, and fix the lines it lists for review.
-2. Run `pnpm better-supabase sql upgrade`, so the SQL modules get the
+2. Run `pnpm better-supabase upgrade`, so the SQL modules get the
    release's SQL and any forward steps land in a migration, then write a
    migration from the changed files (under the `migrations` workflow it
    writes that migration itself).
@@ -82,35 +83,76 @@ stay hidden.
    `Temporal` (see below), `--db-url` is gone, `doctor --format json` is
    `doctor --json`, `BetterResultShape` is `BetterResultValue`, and an
    exhaustive `switch` over the `invalid` auth reason needs an `'actor'` case.
+   For 0.15, follow the upgrade order at the end of
+   https://bettersupabase.com/docs/migration/0.14-to-0.15 and fix each
+   BS418 finding `doctor` reports.
 
 Done when `gen --check`, `doctor` and the typecheck pass.
 
 ## Where `db` comes from
 
-Name the definition `betterSupabase` (in `lib/supabase/index.ts`) and every runtime instance `bs` (`lib/supabase/server.ts`, `lib/supabase/client.ts`, or the Hono, oRPC or Edge Function entry).
+Name the definition `betterSupabase` (in `lib/supabase/index.ts`) and every runtime instance `bsb` (`lib/supabase/server.ts`, `lib/supabase/client.ts`, or the Hono, oRPC or Edge Function entry).
 
-- Next.js: `const { db } = await bs.context()`, `bs.route(...)`, `bs.action(...)`
-- Next.js Cache Components: keep layouts synchronous; read `bs.session()` in a `'use cache: private'` function inside `<Suspense>`, pass the promise to `<SessionProvider>` and read it with `useSession()`
-- Next.js with the tenant in the route (`/[organizationId]/...`): `bs.context({ tenant: organizationId })`, `bs.cached({ tenant })` inside a `'use cache: private'` function that takes the tenant as an argument, and `bs.action({ input, tenant: (input) => input.organizationId }, fn)`. The tenant gets the resolver's membership checks. Client Components get the id as a prop and pass it to actions and to `useLiveQuery(spec, { tenant })`; the browser client only knows the claim's tenant
-- Hono: `c.var.db` after `bs.middleware()`
-- oRPC: `context.db` after `bs.middleware()`
-- Edge Functions: `bs.handler((request, { db }) => ...)`
+- Next.js: `const { db } = await bsb.context()`, `bsb.route(...)`, `bsb.action(...)`
+- Next.js Cache Components: keep layouts synchronous; read `bsb.session()` in a `'use cache: private'` function inside `<Suspense>`, pass the promise to `<SessionProvider>` and read it with `useSession()`
+- Next.js with the tenant in the route (`/[organizationId]/...`): `bsb.context({ tenant: organizationId })`, `bsb.cached({ tenant })` inside a `'use cache: private'` function that takes the tenant as an argument, and `bsb.action({ input, tenant: (input) => input.organizationId }, fn)`. The tenant gets the resolver's membership checks. Client Components get the id as a prop and pass it to actions and to `useLiveQuery(spec, { tenant })`; the browser client only knows the claim's tenant
+- Hono: `c.var.db` after `bsb.middleware()`
+- oRPC: `context.db` after `bsb.middleware()`
+- Edge Functions: `bsb.handler((request, { db }) => ...)`
 - Express: `res.locals.db`; Fastify: `request.locals.db`; Koa: `ctx.state.db`; NestJS: `@Ctx("db")`
 - SvelteKit: `event.locals.db`; H3, Nitro and Nuxt: `event.context.db`; TanStack Start: the middleware `context.db`
-- Astro: `bs.locals(Astro).db`; SolidStart: `(await bs.require()).db`
-- Browser: `bs.db`, or the hooks from `createHooks<typeof bs>()`
-- Vue, Solid and Svelte, TanStack DB collections and a local expo-sqlite database: [references/frontend.md](references/frontend.md)
+- Astro: `bsb.locals(Astro).db`; SolidStart: `(await bsb.require()).db`
+- Browser: `bsb.db`, or the hooks from `createHooks<typeof bsb>()`
+- Vue, Solid and Svelte, TanStack DB collections and a local SQLite database: [references/frontend.md](references/frontend.md)
 - UI for a block (notification bell, notification list, command search, onboarding checklist): build it from the app's shadcn or React Native components and the block's hook, following [references/ui-recipes.md](references/ui-recipes.md). There is no better-supabase UI package; install glue with `npx shadcn add @better-supabase/<item>`.
 
 For who the caller is (sessions, claims, OAuth clients, agents, scopes), use
 the `better-supabase-auth` skill.
 
+## Blocks and instances
+
+- Each `blocks` key is an instance. It installs the block named by the key, or
+  by `block`: `labels: { block: "tags" }` installs tags a second time. Rename
+  a block's nouns with `names` (`tasks: { names: { work_item: "ticket" } }`),
+  limit it to record types with `on`, and pick a dependency's instance with
+  `uses`. Never copy a block's table to get a second one.
+- Clients are keyed by instance: `defineBlocks(blockConfig, { labels: tagsBlock })`,
+  and `bsb.record(<type>Record)` from `@/lib/supabase/records/<type>` for a
+  record's timeline, actions and tags.
+- After `bsb add <block>`, follow its numbered checklist. Keys go in
+  `.env.example`; set them in `.env.local`. Fill in the provider stubs in
+  `lib/supabase/providers.ts` and spread them:
+  `defineBlocks(blockConfig, { ...blocks, ...providers })`. Doctor fails on a
+  missing env key (BS504) or an unwired required provider (BS505).
+- A preset can write instances too (`preset: { blocks, instances }`); your
+  own `blocks` entry for the same key wins.
+- Keep your own tables in your own files in `supabase/schemas`. A block
+  whose table your schema already creates runs over it: it adds only the
+  missing columns, names its policies and triggers there `bsb_...`, and
+  never recreates the table or revokes grants. There is no `ownership:
+  "adopt"` any more (`codemod 0.15` removes it). Don't edit block files: an
+  edited file fails `upgrade` until you move the change into your own file
+  or pass `--force`.
+- A `tables.<name>` entry over a table you already have adds the scope
+  column with a `not valid` not-null check: new rows need an owner, old rows
+  stay reachable only by the service role. Fill them with
+  `pnpm better-supabase db backfill <table>.<column> --from <table.column> via <column>`
+  (or `--value`), then run `pnpm better-supabase doctor --fix` to validate
+  the check. Doctor reports the rows as BS238. See
+  https://bettersupabase.com/docs/blocks/own-schemas.
+- A block's React hooks are registry items: `npx shadcn add
+  @better-supabase/use-<block>` writes `hooks/use-<block>.ts`, and the app
+  imports from `@/hooks/use-<block>`. Vue, Svelte and Solid call
+  `useBlockController(create<Name>Controller, options)` from
+  `better-supabase/vue`, `/svelte` or `/solid`. There is no
+  `better-supabase/blocks/<block>/react` entry.
+
 ## Forms and actions (Next.js)
 
 - Put the permission check in the action's options, not its body:
-  `bs.action({ input, requireTenant: true, authorize: (session, input) => can(session, "members.invite") }, (input, { db, tenant, session }) => ...)`.
-  `requireTenant` types `tenant` as a string; a refusal is a `forbidden`
-  `ActionResult`. `bs.route(handler, { requireTenant, authorize })` takes the same.
+  `bsb.action({ input, requireOrganization: true, authorize: (session, input) => can(session, "members.invite") }, (input, { db, tenant, session }) => ...)`.
+  `requireOrganization` types `tenant` as a string; a refusal is a `forbidden`
+  `ActionResult`. `bsb.route(handler, { requireOrganization, authorize })` takes the same.
 - A form: `const form = useActionForm(action, { onSuccess })` from
   `better-supabase/react`, then `<form {...form.formProps}>`, `form.pending`
   and `form.fieldErrors.<field>`. Fields survive a failed submit. Pass
@@ -119,7 +161,7 @@ the `better-supabase-auth` skill.
   `remove.run(input)`, and `remove.pendingInputs` to mark the row in flight.
 - Error copy: `createErrorMessages({ ...one entry per DbError kind })` from
   `better-supabase`; a missing kind is a type error.
-- A page only some callers may see: `await bs.require({ authorize })` throws
+- A page only some callers may see: `await bsb.require({ authorize })` throws
   `forbidden()` or `unauthorized()` (needs `experimental.authInterrupts`).
   Under Cache Components, check the privately cached session and call
   `forbidden()` instead, so the page stays prefetchable.
@@ -129,7 +171,7 @@ the `better-supabase-auth` skill.
 ## Querying
 
 ```ts
-const result = await db.customers.findMany({
+const result = await db.customers.list({
   select: ["id", "name"],
   where: { status: "active", notes: { some: { kind: "call" } } },
   include: { organization: { select: ["name"] } },
@@ -140,14 +182,15 @@ if (!result.ok) return result; // DbError: kind, message, status, code
 const customers = result.data;
 ```
 
-- Methods return a `Result`, and database errors never throw. Use `.orThrow()` only where an exception is really wanted.
+- Methods return a `Result`, and database errors never throw. Use `.orThrow()` only where an exception is really wanted. The `DbException` it throws has the `DbError` as `error` and `cause`, plus its own `kind`, `status`, `code`, `details`, `hint` and `table`; kind-specific fields such as `constraint` stay on `error`.
 - Apps on better-result: `withBetterResult(db, toResult)` from `better-supabase/better-result` returns a `db` whose repositories, `$rpc` and `$list(list, query)` return better-result values; `toBetterResult(result, Result, mapError)` converts one result, and `defineBetterResultErrors(Result, { not_found: NotFound }, DbFailure)` maps `DbError` kinds to `TaggedError` classes once. Annotate the expected `Result<T, E>` type instead of casting.
 - Column names use the configured casing (`casing: 'camel'` means `organizationId`). Raw escape hatches (`$client`, and `queryRaw` on the `better-supabase/postgres` clients) use database names.
-- Writes: `create`, `createMany`, `update(id, patch)`, `updateMany`, `upsert`, `delete`.
-- Page lists with a cursor: `paginate({ after: null, size: 25, orderBy })`, then pass `nextCursor` back as `after` with the same `orderBy` and `where`. Use `page` numbers only when users jump to a page and need a total, and `paginate({ offset, limit, count: 'exact' })` when the caller already has an offset; both return the rows and the total in one request.
+- Writes: `create` (one row or an array), `update(id, patch)`, `update({ where })`, `upsert`, `delete`.
+- Page lists with a cursor: `page({ after: null, size: 25, orderBy })`, then pass `nextCursor` back as `after` with the same `orderBy` and `where`. Use page numbers only when users jump to a page and need a total, and `page({ offset, limit, count: 'exact' })` when the caller already has an offset; both return the rows and the total in one request.
 - Handlers may return a `Result` directly. Adapters turn errors into RFC 9457 Problem Details with the right status.
-- Jobs and webhooks run as a user so RLS applies: `bs.forContext(job.context)` for a job enqueued with `{ context: db.$context }`, `bs.actingAs(userId, { tenant_id })` for a webhook or script. `bs.admin()` bypasses RLS: use it only for work no user owns, never for a user's request.
+- Jobs and webhooks run as a user so RLS applies: `bsb.forContext(job.context)` for a job enqueued with `{ context: db.$context }`, `bsb.actingAs(userId, { tenant_id })` for a webhook or script. `bsb.admin()` bypasses RLS: use it only for work no user owns, never for a user's request.
 - PostgREST has no multi-request transactions. Put multi-step writes in a database function (`db.$rpc()`) or use `postgres.transaction()` on the server.
+- `$rpc` types each `returns table` column and scalar result `| null`, because Postgres can't declare them not null. Don't cast them: add `@notNull(a, b)` to the function's comment (or `gen.functions.<name>.notNull` in the config), type the column with a `not null` domain, or return `setof` a table. `gen` prints a notice for each function still nullable. Arguments accept `null` too; that only widens the input.
 
 ## Time values
 
@@ -158,10 +201,10 @@ const customers = result.data;
 
 ## CLI in scripts and CI
 
-- No command takes a connection string as an argument. Set `$DATABASE_URL`, `$SUPABASE_DB_URL` or `source.dbUrl`, or pipe it in with `--db-url-stdin`.
+- No command takes a connection string as an argument. Set `$DATABASE_URL`, `$SUPABASE_DB_URL` or `database.source.dbUrl`, or pipe it in with `--db-url-stdin`.
 - `--json` prints one envelope on stdout: `status`, the result under `data`, Problem Details with a `code` under `error`, and the commands to run under `next`. `--yes` and `CI` turn prompts off.
 - Exit codes: 0 success, 1 a failure or finding (`--check` drift, doctor errors), 2 a usage, config or environment problem, 3 when the user has to act. Each error code is listed at https://bettersupabase.com/docs/cli/errors.
-- When the CLI detects an agent it prints JSON and never prompts. Exit code 3 with `input_required` lists `missing` flags and their `choices`; run the `next` command with the value filled in. `consent_required` means the user must agree first (`--force` over their files, `seed --apply` on a remote database): ask them, then run the `next` command with its `--confirm` token. Never pass `--confirm` without asking. See https://bettersupabase.com/docs/cli/agent-mode.
+- When the CLI detects an agent it prints JSON and never prompts. Exit code 3 with `input_required` lists `missing` flags and their `choices`; run the `next` command with the value filled in. `consent_required` means the user must agree first (`--force` over their files, `db seed --apply` on a remote database): ask them, then run the `next` command with its `--confirm` token. Never pass `--confirm` without asking. See https://bettersupabase.com/docs/cli/agent-mode.
 - `better-supabase mcp` serves the same commands as MCP tools on stdio, read-only unless started with `--allow-writes`. A write tool first returns `consent_required` with a `token`; ask the user, then call it again with the same arguments and `confirm` set to the token. See https://bettersupabase.com/docs/cli/mcp.
 
 ## Don't

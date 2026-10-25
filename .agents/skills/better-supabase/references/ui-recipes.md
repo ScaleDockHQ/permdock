@@ -8,7 +8,7 @@ Build the UI this way: add the shadcn components the recipe lists, install the g
 
 ## Notification bell
 
-A header button with the unread count, which updates when a notification arrives or is read. Both sides call `useNotifications` from `better-supabase/blocks/notifications/react`; the [notifications block](https://bettersupabase.com/blocks/notifications) must be installed (`npx better-supabase add notifications`). Page: https://bettersupabase.com/recipes/notification-bell.
+A header button with the unread count, which updates when a notification arrives or is read. Both sides call `useNotifications` from `@/hooks/use-notifications`; the [notifications block](https://bettersupabase.com/blocks/notifications) must be installed (`npx better-supabase add notifications`). Page: https://bettersupabase.com/recipes/notification-bell.
 
 Web, with shadcn components:
 
@@ -17,7 +17,7 @@ npx shadcn add badge button
 ```
 
 ```bash
-npx shadcn add @better-supabase/notifications-actions-next
+npx shadcn add @better-supabase/use-notifications @better-supabase/notifications-actions-next
 ```
 
 ```tsx title="apps/examples/nextjs/src/features/notifications/components/unread-badge.tsx"
@@ -25,12 +25,12 @@ npx shadcn add @better-supabase/notifications-actions-next
 
 import type { NotificationCounts } from "better-supabase/blocks/notifications";
 
-import { useNotifications } from "better-supabase/blocks/notifications/react";
 import { BellIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { useNotifications } from "@/hooks/use-notifications";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/hooks";
 
@@ -96,16 +96,16 @@ export function UnreadBadge() {
 React Native, with `Pressable`, `Text`, `View` from `react-native`:
 
 ```bash
-npx shadcn add @better-supabase/blocks
+npx shadcn add @better-supabase/use-notifications @better-supabase/blocks
 ```
 
 ```tsx title="apps/examples/expo-powersync/src/components/notification-bell.tsx"
 import type { NotificationCounts } from "better-supabase/blocks/notifications";
 
-import { useNotifications } from "better-supabase/blocks/notifications/react";
 import { tenantOf, useAuth, useSupabase } from "better-supabase/react";
 import { Pressable, Text, View } from "react-native";
 
+import { useNotifications } from "../hooks/use-notifications";
 import { blocks } from "../lib/blocks";
 
 const unreadOf = (counts: readonly NotificationCounts[]): number =>
@@ -166,7 +166,7 @@ export function NotificationBell({
 
 ## Notification list
 
-The caller's latest notifications with an unread marker, loaded again on every change. Both sides call `useNotifications` from `better-supabase/blocks/notifications/react`; the [notifications block](https://bettersupabase.com/blocks/notifications) must be installed (`npx better-supabase add notifications`). Page: https://bettersupabase.com/recipes/notification-list.
+The caller's latest notifications with an unread marker, loaded again on every change. Both sides call `useNotifications` from `@/hooks/use-notifications`; the [notifications block](https://bettersupabase.com/blocks/notifications) must be installed (`npx better-supabase add notifications`). Page: https://bettersupabase.com/recipes/notification-list.
 
 Web, with shadcn components:
 
@@ -175,13 +175,12 @@ npx shadcn add badge empty skeleton
 ```
 
 ```bash
-npx shadcn add @better-supabase/notifications-actions-next
+npx shadcn add @better-supabase/use-notifications @better-supabase/notifications-actions-next
 ```
 
 ```tsx title="apps/examples/nextjs/src/features/notifications/components/notification-list.tsx"
 "use client";
 
-import { useNotifications } from "better-supabase/blocks/notifications/react";
 import { BellIcon } from "lucide-react";
 import { useExtracted, useFormatter } from "next-intl";
 
@@ -194,6 +193,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useNotifications } from "@/hooks/use-notifications";
 import { useAuth } from "@/lib/hooks";
 
 import type { NotificationRow } from "../notification-types";
@@ -276,14 +276,14 @@ function NotificationListSkeleton() {
 React Native, with `ActivityIndicator`, `FlatList`, `Text`, `View` from `react-native`:
 
 ```bash
-npx shadcn add @better-supabase/blocks
+npx shadcn add @better-supabase/use-notifications @better-supabase/blocks
 ```
 
 ```tsx title="apps/examples/expo-powersync/src/components/notification-list.tsx"
-import { useNotifications } from "better-supabase/blocks/notifications/react";
 import { tenantOf, useAuth, useSupabase } from "better-supabase/react";
 import { ActivityIndicator, FlatList, Text, View } from "react-native";
 
+import { useNotifications } from "../hooks/use-notifications";
 import { blocks } from "../lib/blocks";
 
 /**
@@ -340,7 +340,7 @@ export function NotificationList() {
 
 ## Command search
 
-A search dialog over the search index, with favorites and recents before the user types. Both sides call `useCommandSearch` from `better-supabase/blocks/search/react`; the [search block](https://bettersupabase.com/blocks/search) must be installed (`npx better-supabase add search`). Page: https://bettersupabase.com/recipes/command-search.
+A search dialog over the search index, with favorites and recents before the user types. Both sides call `useCommandSearch` from `@/hooks/use-search`; the [search block](https://bettersupabase.com/blocks/search) must be installed (`npx better-supabase add search`). Page: https://bettersupabase.com/recipes/command-search.
 
 Web, with shadcn components:
 
@@ -348,10 +348,13 @@ Web, with shadcn components:
 npx shadcn add button dialog input
 ```
 
+```bash
+npx shadcn add @better-supabase/use-search
+```
+
 ```tsx title="apps/examples/nextjs/src/features/search/components/command-search.tsx"
 "use client";
 
-import { useCommandSearch } from "better-supabase/blocks/search/react";
 import { SearchIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 
@@ -364,6 +367,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useCommandSearch } from "@/hooks/use-search";
 import { Link } from "@/i18n/navigation";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 
@@ -466,8 +470,11 @@ export function CommandSearch() {
 
 React Native, with `Modal`, `Pressable`, `SectionList`, `Text`, `TextInput`, `View` from `react-native`:
 
+```bash
+npx shadcn add @better-supabase/use-search
+```
+
 ```tsx title="apps/examples/expo-powersync/src/components/command-search.tsx"
-import { useCommandSearch } from "better-supabase/blocks/search/react";
 import {
   Modal,
   Pressable,
@@ -477,6 +484,7 @@ import {
   View,
 } from "react-native";
 
+import { useCommandSearch } from "../hooks/use-search";
 import { API_SCHEMA } from "../lib/blocks";
 
 function heading(key: string): string {
@@ -577,7 +585,7 @@ export function CommandSearch() {
 
 ## Onboarding checklist
 
-The organization's getting-started steps with progress, hidden once every step is done. Both sides call `useOnboarding` from `better-supabase/blocks/onboarding/react`; the [onboarding block](https://bettersupabase.com/blocks/onboarding) must be installed (`npx better-supabase add onboarding`). Page: https://bettersupabase.com/recipes/onboarding-checklist.
+The organization's getting-started steps with progress, hidden once every step is done. Both sides call `useOnboarding` from `@/hooks/use-onboarding`; the [onboarding block](https://bettersupabase.com/blocks/onboarding) must be installed (`npx better-supabase add onboarding`). Page: https://bettersupabase.com/recipes/onboarding-checklist.
 
 Web, with shadcn components:
 
@@ -586,13 +594,12 @@ npx shadcn add button card progress skeleton
 ```
 
 ```bash
-npx shadcn add @better-supabase/onboarding-checklist
+npx shadcn add @better-supabase/use-onboarding @better-supabase/onboarding-checklist
 ```
 
 ```tsx title="apps/examples/nextjs/src/features/dashboard/components/onboarding-card.tsx"
 "use client";
 
-import { useOnboarding } from "better-supabase/blocks/onboarding/react";
 import { tenantOf } from "better-supabase/react";
 import { CheckCircle2Icon, CircleIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
@@ -608,6 +615,7 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { gettingStarted } from "@/features/onboarding/checklist";
+import { useOnboarding } from "@/hooks/use-onboarding";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/hooks";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
@@ -698,14 +706,14 @@ export function OnboardingCardSkeleton() {
 React Native, with `ActivityIndicator`, `Text`, `View` from `react-native`:
 
 ```bash
-npx shadcn add @better-supabase/onboarding-checklist
+npx shadcn add @better-supabase/use-onboarding @better-supabase/onboarding-checklist
 ```
 
 ```tsx title="apps/examples/expo-powersync/src/components/onboarding-checklist.tsx"
-import { useOnboarding } from "better-supabase/blocks/onboarding/react";
 import { tenantOf, useAuth } from "better-supabase/react";
 import { ActivityIndicator, Text, View } from "react-native";
 
+import { useOnboarding } from "../hooks/use-onboarding";
 import { API_SCHEMA } from "../lib/blocks";
 import { gettingStarted } from "../lib/onboarding";
 
@@ -765,7 +773,7 @@ export function OnboardingChecklist() {
 
 ## Comment thread
 
-A record's comments with their authors and a form to add one, kept current after each write. Both sides call `useComments` from `better-supabase/blocks/comments/react`; the [comments block](https://bettersupabase.com/blocks/comments) must be installed (`npx better-supabase add comments`). Page: https://bettersupabase.com/recipes/comment-thread.
+A record's comments with their authors and a form to add one, kept current after each write. Both sides call `useComments` from `@/hooks/use-comments`; the [comments block](https://bettersupabase.com/blocks/comments) must be installed (`npx better-supabase add comments`). Page: https://bettersupabase.com/recipes/comment-thread.
 
 Web, with shadcn components:
 
@@ -773,12 +781,15 @@ Web, with shadcn components:
 npx shadcn add button field skeleton textarea
 ```
 
+```bash
+npx shadcn add @better-supabase/use-comments
+```
+
 ```tsx title="apps/examples/nextjs/src/features/customers/components/comment-thread.tsx"
 "use client";
 
 import type { SubmitEvent } from "react";
 
-import { useComments } from "better-supabase/blocks/comments/react";
 import { useExtracted, useFormatter } from "next-intl";
 import { useId, useState } from "react";
 
@@ -786,20 +797,18 @@ import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
+import { useComments } from "@/hooks/use-comments";
 import { useErrorMessage } from "@/lib/use-error-message";
 
 /**
  * A record's comments, oldest first, through the browser client. `subject` is
- * any type in `config.subjects`, such as a customer or a project.
+ * any type in `config.records`, such as a customer or a project.
  */
 export function CommentThread({
-  organizationId,
   subject,
   authors,
   canComment,
 }: {
-  organizationId: string;
   subject: { readonly type: string; readonly id: string };
   /** Display names by user id. */
   authors: Readonly<Record<string, string>>;
@@ -812,12 +821,7 @@ export function CommentThread({
   const [body, setBody] = useState("");
   const [pending, setPending] = useState(false);
 
-  const { comments, error, add } = useComments({
-    organizationId,
-    subjectType: subject.type,
-    subjectId: subject.id,
-    schema: blockConfig.comments.api,
-  });
+  const { comments, error, add } = useComments({ subject });
 
   const visible = comments?.filter((comment) => !comment.deletedAt);
 
@@ -854,10 +858,10 @@ export function CommentThread({
                     t("Someone")}
                 </span>{" "}
                 <span className="text-xs text-muted-foreground">
-                  {format.dateTime(comment.createdAt.epochMilliseconds, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  })}
+                  {format.dateTime(
+                    (comment.sentAt ?? comment.createdAt).epochMilliseconds,
+                    { dateStyle: "medium", timeStyle: "short" },
+                  )}
                 </span>
               </p>
               <p className="text-sm whitespace-pre-wrap">{comment.body}</p>
@@ -896,9 +900,11 @@ export function CommentThread({
 
 React Native, with `ActivityIndicator`, `Button`, `FlatList`, `Text`, `TextInput`, `View` from `react-native`:
 
+```bash
+npx shadcn add @better-supabase/use-comments
+```
+
 ```tsx title="apps/examples/expo-powersync/src/components/comment-thread.tsx"
-import { useComments } from "better-supabase/blocks/comments/react";
-import { tenantOf, useAuth } from "better-supabase/react";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -909,19 +915,15 @@ import {
   View,
 } from "react-native";
 
-import { API_SCHEMA } from "../lib/blocks";
+import { useComments } from "../hooks/use-comments";
 
 /** A customer's comments, oldest first, with a box to add one. */
 export function CommentThread({ customerId }: { readonly customerId: string }) {
-  const organizationId = tenantOf(useAuth());
   const [body, setBody] = useState("");
   const [pending, setPending] = useState(false);
 
   const { comments, error, add } = useComments({
-    organizationId,
-    subjectType: "customer",
-    subjectId: customerId,
-    schema: API_SCHEMA,
+    subject: { type: "customer", id: customerId },
   });
 
   const submit = async () => {
@@ -953,7 +955,7 @@ export function CommentThread({ customerId }: { readonly customerId: string }) {
         renderItem={({ item }) => (
           <View style={{ paddingVertical: 8 }}>
             <Text style={{ color: "#737373", fontSize: 12 }}>
-              {item.createdAt.toLocaleString()}
+              {(item.sentAt ?? item.createdAt).toLocaleString()}
             </Text>
             <Text>{item.body}</Text>
           </View>
@@ -980,7 +982,7 @@ export function CommentThread({ customerId }: { readonly customerId: string }) {
 
 ## Organization switcher
 
-A menu of the user's organizations that switches the active one and refreshes the session for its tenant claim. Both sides call `useOrganizations` from `better-supabase/blocks/organizations/react`; the [organizations block](https://bettersupabase.com/blocks/organizations) must be installed (`npx better-supabase add organizations`). Page: https://bettersupabase.com/recipes/org-switcher.
+A menu of the user's organizations that switches the active one and refreshes the session for its tenant claim. Both sides call `useOrganizations` from `@/hooks/use-organizations`; the [organizations block](https://bettersupabase.com/blocks/organizations) must be installed (`npx better-supabase add organizations`). Page: https://bettersupabase.com/recipes/org-switcher.
 
 Web, with shadcn components:
 
@@ -988,11 +990,14 @@ Web, with shadcn components:
 npx shadcn add dropdown-menu sidebar
 ```
 
+```bash
+npx shadcn add @better-supabase/use-organizations
+```
+
 ```tsx title="apps/examples/nextjs/src/features/organization/components/organization-switcher-menu.tsx"
 "use client";
 
 import { DbException } from "better-supabase";
-import { useOrganizations } from "better-supabase/blocks/organizations/react";
 import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 import { useState, useTransition } from "react";
@@ -1008,6 +1013,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenuButton } from "@/components/ui/sidebar";
+import { useOrganizations } from "@/hooks/use-organizations";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 import { useErrorMessage } from "@/lib/use-error-message";
 
@@ -1147,10 +1153,14 @@ export function OrganizationSwitcherMenu({
 
 React Native, with `ActivityIndicator`, `Pressable`, `Text`, `View` from `react-native`:
 
+```bash
+npx shadcn add @better-supabase/use-organizations
+```
+
 ```tsx title="apps/examples/expo-powersync/src/components/organization-switcher.tsx"
-import { useOrganizations } from "better-supabase/blocks/organizations/react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
+import { useOrganizations } from "../hooks/use-organizations";
 import { API_SCHEMA } from "../lib/blocks";
 
 /**
@@ -1195,7 +1205,7 @@ export function OrganizationSwitcher() {
 
 ## Plan picker
 
-The plans with their prices and a checkout button each. Checkout starts in a server action or API route that holds the Stripe key, and the client opens the URL it returns. Both sides call `usePlanPicker` from `better-supabase/blocks/billing/react`; the [billing block](https://bettersupabase.com/blocks/billing) must be installed (`npx better-supabase add billing`). Page: https://bettersupabase.com/recipes/plan-picker.
+The plans with their prices and a checkout button each. Checkout starts in a server action or API route that holds the Stripe key, and the client opens the URL it returns. Both sides call `usePlanPicker` from `@/hooks/use-billing`; the [billing block](https://bettersupabase.com/blocks/billing) must be installed (`npx better-supabase add billing`). Page: https://bettersupabase.com/recipes/plan-picker.
 
 Web, with shadcn components:
 
@@ -1203,17 +1213,21 @@ Web, with shadcn components:
 npx shadcn add button card
 ```
 
+```bash
+npx shadcn add @better-supabase/use-billing
+```
+
 ```tsx title="apps/examples/nextjs/src/features/billing/components/plan-picker.tsx"
 "use client";
 
-import type { PlanCatalog } from "better-supabase/blocks/billing/react";
 import type { Money } from "better-supabase/commerce";
 
 import { DbException } from "better-supabase";
-import { usePlanPicker } from "better-supabase/blocks/billing/react";
 import { formatMoney } from "better-supabase/commerce";
 import { useExtracted, useLocale } from "next-intl";
 import { toast } from "sonner";
+
+import type { PlanCatalog } from "@/hooks/use-billing";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -1224,6 +1238,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { usePlanPicker } from "@/hooks/use-billing";
 import { useErrorMessage } from "@/lib/use-error-message";
 
 import type { PlanOption } from "../billing-queries";
@@ -1343,12 +1358,16 @@ export function PlanPicker({
 
 React Native, with `ActivityIndicator`, `Pressable`, `Text`, `View` from `react-native`:
 
+```bash
+npx shadcn add @better-supabase/use-billing
+```
+
 ```tsx title="apps/examples/expo-powersync/src/components/plan-picker.tsx"
-import { usePlanPicker } from "better-supabase/blocks/billing/react";
 import { tenantOf, useAuth } from "better-supabase/react";
 import * as WebBrowser from "expo-web-browser";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
+import { usePlanPicker } from "../hooks/use-billing";
 import { loadPlanCatalog, startCheckout } from "../lib/billing";
 
 const price = (cents: number) =>
@@ -1418,7 +1437,7 @@ export function PlanPicker() {
 
 ## Usage meter
 
-This period's usage per meter against the plan's quota, with the reset date. Both sides call `useUsageMeter` from `better-supabase/blocks/usage/react`; the [usage block](https://bettersupabase.com/blocks/usage) must be installed (`npx better-supabase add usage`). Page: https://bettersupabase.com/recipes/usage-meter.
+This period's usage per meter against the plan's quota, with the reset date. Both sides call `useUsageMeter` from `@/hooks/use-usage`; the [usage block](https://bettersupabase.com/blocks/usage) must be installed (`npx better-supabase add usage`). Page: https://bettersupabase.com/recipes/usage-meter.
 
 Web, with shadcn components:
 
@@ -1426,10 +1445,13 @@ Web, with shadcn components:
 npx shadcn add card progress skeleton
 ```
 
+```bash
+npx shadcn add @better-supabase/use-usage
+```
+
 ```tsx title="apps/examples/nextjs/src/features/dashboard/components/usage-card.tsx"
 "use client";
 
-import { useUsageMeter } from "better-supabase/blocks/usage/react";
 import { tenantOf } from "better-supabase/react";
 import { useExtracted, useFormatter } from "next-intl";
 
@@ -1442,6 +1464,7 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useUsageMeter } from "@/hooks/use-usage";
 import { useAuth } from "@/lib/hooks";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 
@@ -1528,11 +1551,15 @@ export function UsageCardSkeleton() {
 
 React Native, with `ActivityIndicator`, `Text`, `View` from `react-native`:
 
+```bash
+npx shadcn add @better-supabase/use-usage
+```
+
 ```tsx title="apps/examples/expo-powersync/src/components/usage-meter.tsx"
-import { useUsageMeter } from "better-supabase/blocks/usage/react";
 import { tenantOf, useAuth } from "better-supabase/react";
 import { ActivityIndicator, Text, View } from "react-native";
 
+import { useUsageMeter } from "../hooks/use-usage";
 import { API_SCHEMA } from "../lib/blocks";
 
 const labels = new Map([
@@ -1598,7 +1625,7 @@ export function UsageMeter() {
 
 ## Feature gate
 
-Content shown only when the active organization's plan includes a feature, read from the session's features claim and updated when the session refreshes. Both sides call `useFeatureGate` from `better-supabase/blocks/entitlements/react`; the [entitlements block](https://bettersupabase.com/blocks/entitlements) must be installed (`npx better-supabase add entitlements`). Page: https://bettersupabase.com/recipes/feature-gate.
+Content shown only when the active organization's plan includes a feature, read from the session's features claim and updated when the session refreshes. Both sides call `useFeatureGate` from `@/hooks/use-entitlements`; the [entitlements block](https://bettersupabase.com/blocks/entitlements) must be installed (`npx better-supabase add entitlements`). Page: https://bettersupabase.com/recipes/feature-gate.
 
 Web, with shadcn components:
 
@@ -1606,12 +1633,15 @@ Web, with shadcn components:
 npx shadcn add button skeleton
 ```
 
+```bash
+npx shadcn add @better-supabase/use-entitlements
+```
+
 ```tsx title="apps/examples/nextjs/src/features/billing/components/feature-gate.tsx"
 "use client";
 
 import type { ReactNode } from "react";
 
-import { useFeatureGate } from "better-supabase/blocks/entitlements/react";
 import { LockIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 
@@ -1619,6 +1649,7 @@ import type { Entitlement } from "@/lib/claims";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFeatureGate } from "@/hooks/use-entitlements";
 import { Link } from "@/i18n/navigation";
 
 /**
@@ -1659,11 +1690,16 @@ export function FeatureGate({
 
 React Native, with `ActivityIndicator`, `Text`, `View` from `react-native`:
 
+```bash
+npx shadcn add @better-supabase/use-entitlements
+```
+
 ```tsx title="apps/examples/expo-powersync/src/components/feature-gate.tsx"
 import type { ReactNode } from "react";
 
-import { useFeatureGate } from "better-supabase/blocks/entitlements/react";
 import { ActivityIndicator, Text, View } from "react-native";
+
+import { useFeatureGate } from "../hooks/use-entitlements";
 
 /**
  * Renders `children` only when the active organization's plan includes
@@ -1700,7 +1736,7 @@ export function FeatureGate({
 
 ## Settings layout
 
-Settings pages generated from the settings definition: a section per scope and a control per key, picked by the kind its schema declares. Both sides call `useSettings` from `better-supabase/blocks/settings/react`; the [settings block](https://bettersupabase.com/blocks/settings) must be installed (`npx better-supabase add settings`). Page: https://bettersupabase.com/recipes/settings-layout.
+Settings pages generated from the settings definition: a section per scope and a control per key, picked by the kind its schema declares. Both sides call `useSettings` from `@/hooks/use-settings`; the [settings block](https://bettersupabase.com/blocks/settings) must be installed (`npx better-supabase add settings`). Page: https://bettersupabase.com/recipes/settings-layout.
 
 Web, with shadcn components:
 
@@ -1708,20 +1744,21 @@ Web, with shadcn components:
 npx shadcn add card field input select skeleton switch
 ```
 
+```bash
+npx shadcn add @better-supabase/use-settings
+```
+
 ```tsx title="apps/examples/nextjs/src/features/settings/components/settings-layout.tsx"
 "use client";
 
 import type { SettingEntries } from "better-supabase/blocks/settings";
-import type {
-  SettingField,
-  SettingsState,
-} from "better-supabase/blocks/settings/react";
 
-import { useSettings } from "better-supabase/blocks/settings/react";
 import { tenantOf } from "better-supabase/react";
 import { useExtracted } from "next-intl";
 import { useId } from "react";
 import { toast } from "sonner";
+
+import type { SettingField, SettingsState } from "@/hooks/use-settings";
 
 import {
   Card,
@@ -1747,6 +1784,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { useSettings } from "@/hooks/use-settings";
 import { useAuth } from "@/lib/hooks";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 import { useErrorMessage } from "@/lib/use-error-message";
@@ -1956,14 +1994,13 @@ export function SettingsLayout({
 
 React Native, with `ActivityIndicator`, `Pressable`, `ScrollView`, `Switch`, `Text`, `TextInput`, `View` from `react-native`:
 
+```bash
+npx shadcn add @better-supabase/use-settings
+```
+
 ```tsx title="apps/examples/expo-powersync/src/components/settings-layout.tsx"
 import type { SettingEntries } from "better-supabase/blocks/settings";
-import type {
-  SettingField,
-  SettingsState,
-} from "better-supabase/blocks/settings/react";
 
-import { useSettings } from "better-supabase/blocks/settings/react";
 import { tenantOf, useAuth } from "better-supabase/react";
 import {
   ActivityIndicator,
@@ -1975,6 +2012,9 @@ import {
   View,
 } from "react-native";
 
+import type { SettingField, SettingsState } from "../hooks/use-settings";
+
+import { useSettings } from "../hooks/use-settings";
 import { API_SCHEMA } from "../lib/blocks";
 import { settings } from "../lib/settings";
 
@@ -2118,7 +2158,7 @@ export function SettingsLayout() {
 
 ## Members table
 
-An organization's members with their roles, where a role change shows at once and a member can be removed. Both sides call `useMembers` from `better-supabase/blocks/organizations/react`; the [organizations block](https://bettersupabase.com/blocks/organizations) must be installed (`npx better-supabase add organizations`). Page: https://bettersupabase.com/recipes/members-table.
+An organization's members with their roles, where a role change shows at once and a member can be removed. Both sides call `useMembers` from `@/hooks/use-organizations`; the [organizations block](https://bettersupabase.com/blocks/organizations) must be installed (`npx better-supabase add organizations`). Page: https://bettersupabase.com/recipes/members-table.
 
 Web, with shadcn components:
 
@@ -2126,11 +2166,14 @@ Web, with shadcn components:
 npx shadcn add avatar button select table
 ```
 
+```bash
+npx shadcn add @better-supabase/use-organizations
+```
+
 ```tsx title="apps/examples/nextjs/src/features/organization/components/member-table.tsx"
 "use client";
 
 import { DbException } from "better-supabase";
-import { useMembers } from "better-supabase/blocks/organizations/react";
 import { UserMinusIcon } from "lucide-react";
 import { useExtracted, useFormatter } from "next-intl";
 import { toast } from "sonner";
@@ -2155,6 +2198,7 @@ import {
 } from "@/components/ui/table";
 import { RoleBadge } from "@/features/user/components/role-badge";
 import { assignableRoles } from "@/features/user/user-permissions";
+import { useMembers } from "@/hooks/use-organizations";
 import { Role } from "@/lib/claims";
 import { initials } from "@/lib/initials";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
@@ -2352,11 +2396,15 @@ export function MemberTable({
 
 React Native, with `ActivityIndicator`, `Pressable`, `Text`, `View` from `react-native`:
 
+```bash
+npx shadcn add @better-supabase/use-organizations
+```
+
 ```tsx title="apps/examples/expo-powersync/src/components/members-table.tsx"
-import { useMembers } from "better-supabase/blocks/organizations/react";
 import { tenantOf, useAuth } from "better-supabase/react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
+import { useMembers } from "../hooks/use-organizations";
 import { API_SCHEMA } from "../lib/blocks";
 
 /**
@@ -2432,7 +2480,7 @@ export function MembersTable() {
 
 ## Invite dialog
 
-A form that invites a teammate by email with a role, then shows the token for the accept link. Both sides call `useInvitations` from `better-supabase/blocks/organizations/react`; the [invitations block](https://bettersupabase.com/blocks/invitations) must be installed (`npx better-supabase add invitations`). Page: https://bettersupabase.com/recipes/invite-dialog.
+A form that invites a teammate by email with a role, then shows the token for the accept link. Both sides call `useInvitations` from `@/hooks/use-organizations`; the [invitations block](https://bettersupabase.com/blocks/invitations) must be installed (`npx better-supabase add invitations`). Page: https://bettersupabase.com/recipes/invite-dialog.
 
 Web, with shadcn components:
 
@@ -2440,12 +2488,15 @@ Web, with shadcn components:
 npx shadcn add button dialog field input select
 ```
 
+```bash
+npx shadcn add @better-supabase/use-organizations
+```
+
 ```tsx title="apps/examples/nextjs/src/features/organization/components/invite-member-dialog.tsx"
 "use client";
 
 import type { SubmitEvent } from "react";
 
-import { useInvitations } from "better-supabase/blocks/organizations/react";
 import { CopyIcon, UserPlusIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 import { useId, useState } from "react";
@@ -2478,6 +2529,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { assignableRoles } from "@/features/user/user-permissions";
+import { useInvitations } from "@/hooks/use-organizations";
 import { Role } from "@/lib/claims";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 import { useErrorMessage } from "@/lib/use-error-message";
@@ -2657,12 +2709,16 @@ export function InviteMemberDialog({
 
 React Native, with `Button`, `Modal`, `Pressable`, `Text`, `TextInput`, `View` from `react-native`:
 
+```bash
+npx shadcn add @better-supabase/use-organizations
+```
+
 ```tsx title="apps/examples/expo-powersync/src/components/invite-dialog.tsx"
-import { useInvitations } from "better-supabase/blocks/organizations/react";
 import { tenantOf, useAuth } from "better-supabase/react";
 import { useState } from "react";
 import { Button, Modal, Pressable, Text, TextInput, View } from "react-native";
 
+import { useInvitations } from "../hooks/use-organizations";
 import { API_SCHEMA } from "../lib/blocks";
 
 const ROLES = ["member", "admin"] as const;
@@ -2772,7 +2828,7 @@ export function InviteDialog() {
 
 ## API keys table
 
-The organization's API keys, with a form that creates one and shows its token once, and a revoke button per key. Both sides call `useApiKeys` from `better-supabase/blocks/api-keys/react`; the [api-keys block](https://bettersupabase.com/blocks/api-keys) must be installed (`npx better-supabase add api-keys`). Page: https://bettersupabase.com/recipes/api-keys-table.
+The organization's API keys, with a form that creates one and shows its token once, and a revoke button per key. Both sides call `useApiKeys` from `@/hooks/use-api-keys`; the [api-keys block](https://bettersupabase.com/blocks/api-keys) must be installed (`npx better-supabase add api-keys`). Page: https://bettersupabase.com/recipes/api-keys-table.
 
 Web, with shadcn components:
 
@@ -2780,10 +2836,13 @@ Web, with shadcn components:
 npx shadcn add alert badge button dialog empty field input skeleton table
 ```
 
+```bash
+npx shadcn add @better-supabase/use-api-keys
+```
+
 ```tsx title="apps/examples/nextjs/src/features/api-keys/components/api-key-table.tsx"
 "use client";
 
-import { useApiKeys } from "better-supabase/blocks/api-keys/react";
 import { KeyRoundIcon } from "lucide-react";
 import { useExtracted, useFormatter } from "next-intl";
 import { toast } from "sonner";
@@ -2806,6 +2865,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useApiKeys } from "@/hooks/use-api-keys";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 import { useErrorMessage } from "@/lib/use-error-message";
 
@@ -2957,8 +3017,11 @@ export function ApiKeyTable({
 
 React Native, with `ActivityIndicator`, `Button`, `Pressable`, `Text`, `TextInput`, `View` from `react-native`:
 
+```bash
+npx shadcn add @better-supabase/use-api-keys
+```
+
 ```tsx title="apps/examples/expo-powersync/src/components/api-keys-table.tsx"
-import { useApiKeys } from "better-supabase/blocks/api-keys/react";
 import { tenantOf, useAuth } from "better-supabase/react";
 import { useState } from "react";
 import {
@@ -2970,6 +3033,7 @@ import {
   View,
 } from "react-native";
 
+import { useApiKeys } from "../hooks/use-api-keys";
 import { API_SCHEMA } from "../lib/blocks";
 
 /**
@@ -3053,7 +3117,7 @@ export function ApiKeysTable({ personal = false }: { personal?: boolean }) {
 
 ## Audit log table
 
-The audit trail, newest first, with filters by actor and action and older pages on demand. Both sides call `useAuditLog` from `better-supabase/blocks/audit/react`; the [audit block](https://bettersupabase.com/blocks/audit) must be installed (`npx better-supabase add audit`). Page: https://bettersupabase.com/recipes/audit-log-table.
+The audit trail, newest first, with filters by actor and action and older pages on demand. Both sides call `useAuditLog` from `@/hooks/use-audit`; the [audit block](https://bettersupabase.com/blocks/audit) must be installed (`npx better-supabase add audit`). Page: https://bettersupabase.com/recipes/audit-log-table.
 
 Web, with shadcn components:
 
@@ -3061,10 +3125,13 @@ Web, with shadcn components:
 npx shadcn add button select skeleton table
 ```
 
+```bash
+npx shadcn add @better-supabase/use-audit
+```
+
 ```tsx title="apps/examples/nextjs/src/features/audit/components/audit-log-table.tsx"
 "use client";
 
-import { useAuditLog } from "better-supabase/blocks/audit/react";
 import { useExtracted, useFormatter } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -3084,6 +3151,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAuditLog } from "@/hooks/use-audit";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 import { useErrorMessage } from "@/lib/use-error-message";
 
@@ -3246,11 +3314,15 @@ export function AuditLogTable({ organizationId }: { organizationId: string }) {
 
 React Native, with `ActivityIndicator`, `Button`, `Pressable`, `Text`, `View` from `react-native`:
 
+```bash
+npx shadcn add @better-supabase/use-audit
+```
+
 ```tsx title="apps/examples/expo-powersync/src/components/audit-log-table.tsx"
-import { useAuditLog } from "better-supabase/blocks/audit/react";
 import { tenantOf, useAuth } from "better-supabase/react";
 import { ActivityIndicator, Button, Pressable, Text, View } from "react-native";
 
+import { useAuditLog } from "../hooks/use-audit";
 import { API_SCHEMA } from "../lib/blocks";
 
 /** A row of chips that filters by one value, or by none. */
@@ -3353,7 +3425,7 @@ export function AuditLogTable() {
 
 ## Tag input
 
-A record's tags with suggestions, where typing a name adds a tag or creates it. Both sides call `useTagInput` from `better-supabase/blocks/tags/react`; the [tags block](https://bettersupabase.com/blocks/tags) must be installed (`npx better-supabase add tags`). Page: https://bettersupabase.com/recipes/tag-input.
+A record's tags with suggestions, where typing a name adds a tag or creates it. Both sides call `useTagInput` from `@/hooks/use-tags`; the [tags block](https://bettersupabase.com/blocks/tags) must be installed (`npx better-supabase add tags`). Page: https://bettersupabase.com/recipes/tag-input.
 
 Web, with shadcn components:
 
@@ -3361,12 +3433,15 @@ Web, with shadcn components:
 npx shadcn add badge button input skeleton
 ```
 
+```bash
+npx shadcn add @better-supabase/use-tags
+```
+
 ```tsx title="apps/examples/nextjs/src/features/customers/components/tag-input.tsx"
 "use client";
 
 import type { SubmitEvent } from "react";
 
-import { useTagInput } from "better-supabase/blocks/tags/react";
 import { XIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 import { useId, useState } from "react";
@@ -3375,7 +3450,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { blockConfig } from "@/lib/supabase/blocks.generated";
+import { useTagInput } from "@/hooks/use-tags";
 import { useErrorMessage } from "@/lib/use-error-message";
 
 /**
@@ -3383,10 +3458,8 @@ import { useErrorMessage } from "@/lib/use-error-message";
  * kind with that name, or creates it for callers with `tags.manage`.
  */
 export function TagInput({
-  organizationId,
   subject,
 }: {
-  organizationId: string;
   subject: { readonly type: string; readonly id: string };
 }) {
   const t = useExtracted("customers");
@@ -3395,11 +3468,8 @@ export function TagInput({
   const [name, setName] = useState("");
 
   const { tags, available, pending, error, create, remove } = useTagInput({
-    organizationId,
-    subjectType: subject.type,
-    subjectId: subject.id,
+    subject,
     kind: subject.type,
-    schema: blockConfig.tags.api,
   });
 
   const applied = new Set(tags?.map((tag) => tag.id));
@@ -3480,9 +3550,11 @@ export function TagInput({
 
 React Native, with `ActivityIndicator`, `Button`, `Pressable`, `Text`, `TextInput`, `View` from `react-native`:
 
+```bash
+npx shadcn add @better-supabase/use-tags
+```
+
 ```tsx title="apps/examples/expo-powersync/src/components/tag-input.tsx"
-import { useTagInput } from "better-supabase/blocks/tags/react";
-import { tenantOf, useAuth } from "better-supabase/react";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -3493,7 +3565,7 @@ import {
   View,
 } from "react-native";
 
-import { API_SCHEMA } from "../lib/blocks";
+import { useTagInput } from "../hooks/use-tags";
 
 /**
  * A customer's tags as chips that remove themselves when pressed, the
@@ -3504,11 +3576,8 @@ export function TagInput({ customerId }: { readonly customerId: string }) {
   const [name, setName] = useState("");
 
   const { tags, available, pending, error, add, remove, create } = useTagInput({
-    organizationId: tenantOf(useAuth()),
-    subjectType: "customer",
-    subjectId: customerId,
+    subject: { type: "customer", id: customerId },
     kind: "customer",
-    schema: API_SCHEMA,
   });
 
   if (tags === undefined) {
@@ -3579,7 +3648,7 @@ export function TagInput({ customerId }: { readonly customerId: string }) {
 
 ## Announcement banner
 
-The newest live announcement for the user and organization, with a dismiss button. It calls `useAnnouncements` from `better-supabase/blocks/announcements/react`; the [announcements block](https://bettersupabase.com/blocks/announcements) must be installed (`npx better-supabase add announcements`). Page: https://bettersupabase.com/recipes/announcement-banner.
+The newest live announcement for the user and organization, with a dismiss button. It calls `useAnnouncements` from `@/hooks/use-announcements`; the [announcements block](https://bettersupabase.com/blocks/announcements) must be installed (`npx better-supabase add announcements`). Page: https://bettersupabase.com/recipes/announcement-banner.
 
 Web, with shadcn components:
 
@@ -3587,10 +3656,13 @@ Web, with shadcn components:
 npx shadcn add alert button
 ```
 
+```bash
+npx shadcn add @better-supabase/use-announcements
+```
+
 ```tsx title="apps/examples/nextjs/src/features/announcements/components/announcement-banner.tsx"
 "use client";
 
-import { useAnnouncements } from "better-supabase/blocks/announcements/react";
 import { MegaphoneIcon, XIcon } from "lucide-react";
 import { useExtracted } from "next-intl";
 
@@ -3601,6 +3673,7 @@ import {
   AlertTitle,
 } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useAnnouncements } from "@/hooks/use-announcements";
 
 /**
  * The newest live announcement for this user and organization. Loads in the
@@ -3990,7 +4063,7 @@ export function TwoFactorCard({
 
 ## Inbox with threads
 
-A shared inbox of conversations with status tabs, an assignee filter and the open thread beside the list. It calls `useInbox` from `better-supabase/blocks/inbox/react`; the [inbox block](https://bettersupabase.com/blocks/inbox) must be installed (`npx better-supabase add inbox`). Page: https://bettersupabase.com/recipes/inbox-threads.
+A shared inbox of conversations with status tabs, an assignee filter and the open thread beside the list. It calls `useInbox` from `@/hooks/use-inbox`; the [inbox block](https://bettersupabase.com/blocks/inbox) must be installed (`npx better-supabase add inbox`). Page: https://bettersupabase.com/recipes/inbox-threads.
 
 Web, with shadcn components:
 
@@ -3998,10 +4071,13 @@ Web, with shadcn components:
 npx shadcn add badge empty select tabs
 ```
 
+```bash
+npx shadcn add @better-supabase/use-inbox
+```
+
 ```tsx title="apps/examples/nextjs/src/features/inbox/components/inbox-view.tsx"
 "use client";
 
-import { useInbox } from "better-supabase/blocks/inbox/react";
 import { InboxIcon } from "lucide-react";
 import { useExtracted, useFormatter } from "next-intl";
 import { useState } from "react";
@@ -4023,6 +4099,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useInbox } from "@/hooks/use-inbox";
 import { cn } from "@/lib/utils";
 
 import type { ConversationRow } from "../inbox-types";
@@ -4221,6 +4298,1155 @@ function ConversationList({
         </li>
       ))}
     </ul>
+  );
+}
+```
+
+## Channel sidebar
+
+The caller's channels with unread and mention counts, kept live, with dialogs to browse, join and create channels. It calls `useConversations` from `@/hooks/use-messaging`; the [channels](https://bettersupabase.com/blocks/channels), [messaging](https://bettersupabase.com/blocks/messaging) blocks must be installed (`npx better-supabase add channels messaging`). Page: https://bettersupabase.com/recipes/channel-sidebar.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card dialog empty field input label scroll-area skeleton switch
+```
+
+```bash
+npx shadcn add @better-supabase/use-messaging
+```
+
+```tsx title="apps/examples/nextjs/src/features/chat/components/channel-sidebar.tsx"
+"use client";
+
+import type { SubmitEvent } from "react";
+
+import { useAction } from "better-supabase/react";
+import {
+  HashIcon,
+  LockIcon,
+  PlusIcon,
+  RotateCwIcon,
+  SearchIcon,
+} from "lucide-react";
+import { useExtracted } from "next-intl";
+import { useId, useState } from "react";
+import { toast } from "sonner";
+
+import { Alert, AlertAction, AlertTitle } from "@/components/reui/alert";
+import { Badge } from "@/components/reui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { useConversations } from "@/hooks/use-messaging";
+import { useErrorMessage } from "@/lib/use-error-message";
+import { cn } from "@/lib/utils";
+
+import type { ChannelRow } from "../chat-actions";
+
+import { browseChannels, createChannel, joinChannel } from "../chat-actions";
+
+export interface OpenChannel {
+  readonly id: string;
+  readonly name: string;
+}
+
+const KINDS = ["channel"] as const;
+
+/**
+ * The caller's channels with unread and mention counts, kept live over
+ * Realtime, plus dialogs to browse the organization's channels and create one.
+ */
+export function ChannelSidebar({
+  selected,
+  onSelect,
+}: {
+  selected: string | null;
+  onSelect: (channel: OpenChannel) => void;
+}) {
+  const t = useExtracted("chat");
+  const errorMessage = useErrorMessage();
+  const { conversations, error, refresh } = useConversations({ kinds: KINDS });
+
+  const opened = (channel: OpenChannel) => {
+    void refresh();
+    onSelect(channel);
+  };
+
+  return (
+    <Card size="sm" className="min-h-0">
+      <CardHeader>
+        <CardTitle>{t("Channels")}</CardTitle>
+        <CardAction className="flex gap-1">
+          <BrowseChannelsDialog onOpened={opened} />
+          <CreateChannelDialog onCreated={opened} />
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
+        {error ? (
+          <Alert variant="destructive" aria-live="polite">
+            <AlertTitle>{errorMessage(error)}</AlertTitle>
+            <AlertAction>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void refresh()}
+              >
+                <RotateCwIcon aria-hidden />
+                {t("Retry")}
+              </Button>
+            </AlertAction>
+          </Alert>
+        ) : null}
+        {conversations === undefined ? (
+          <div
+            className="flex flex-col gap-2"
+            aria-busy="true"
+            aria-live="polite"
+          >
+            <span className="sr-only">{t("Loading channels")}</span>
+            <Skeleton className="h-8" />
+            <Skeleton className="h-8" />
+            <Skeleton className="h-8" />
+          </div>
+        ) : conversations.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <HashIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No channels yet")}</EmptyTitle>
+              <EmptyDescription>
+                {t("Create one, or browse the channels others made.")}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <ScrollArea className="min-h-0 flex-1">
+            <ul className="flex flex-col gap-0.5" data-testid="channels">
+              {conversations.map((conversation) => {
+                const name = conversation.title ?? conversation.id;
+                const current = selected === conversation.id;
+
+                return (
+                  <li key={conversation.id}>
+                    <Button
+                      type="button"
+                      variant={current ? "secondary" : "ghost"}
+                      size="sm"
+                      className="w-full justify-start"
+                      aria-current={current ? "true" : undefined}
+                      onClick={() => {
+                        onSelect({ id: conversation.id, name });
+                      }}
+                    >
+                      {conversation.access === "members" ? (
+                        <LockIcon aria-hidden />
+                      ) : (
+                        <HashIcon aria-hidden />
+                      )}
+                      <span
+                        className={cn(
+                          "truncate",
+                          conversation.unread > 0 && "font-semibold",
+                        )}
+                      >
+                        {name}
+                      </span>
+                      {conversation.mentions > 0 ? (
+                        <Badge variant="destructive" className="ml-auto">
+                          @{conversation.mentions}
+                        </Badge>
+                      ) : conversation.unread > 0 ? (
+                        <Badge variant="secondary" className="ml-auto">
+                          {conversation.unread}
+                        </Badge>
+                      ) : null}
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+          </ScrollArea>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function BrowseChannelsDialog({
+  onOpened,
+}: {
+  onOpened: (channel: OpenChannel) => void;
+}) {
+  const t = useExtracted("chat");
+  const errorMessage = useErrorMessage();
+  const [open, setOpen] = useState(false);
+  const browse = useAction(browseChannels);
+  const join = useAction(joinChannel);
+
+  const pick = async (channel: ChannelRow) => {
+    if (!channel.joined) {
+      const joined = await join.run({ channelId: channel.id });
+
+      if (!joined.ok) {
+        toast.error(errorMessage(joined.error));
+
+        return;
+      }
+    }
+
+    setOpen(false);
+    onOpened({ id: channel.id, name: channel.name });
+  };
+
+  const rows = browse.data;
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+
+        if (next) {
+          void browse.run({});
+        }
+      }}
+    >
+      <DialogTrigger
+        render={
+          <Button
+            size="icon-sm"
+            variant="outline"
+            aria-label={t("Browse channels")}
+          />
+        }
+      >
+        <SearchIcon aria-hidden />
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("Browse channels")}</DialogTitle>
+          <DialogDescription>
+            {t("Every public channel, and the private ones you are in.")}
+          </DialogDescription>
+        </DialogHeader>
+        {browse.error ? (
+          <Alert variant="destructive" aria-live="polite">
+            <AlertTitle>{errorMessage(browse.error)}</AlertTitle>
+            <AlertAction>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void browse.run({})}
+              >
+                <RotateCwIcon aria-hidden />
+                {t("Retry")}
+              </Button>
+            </AlertAction>
+          </Alert>
+        ) : rows === undefined ? (
+          <div
+            className="flex flex-col gap-2"
+            aria-busy="true"
+            aria-live="polite"
+          >
+            <span className="sr-only">{t("Loading channels")}</span>
+            <Skeleton className="h-10" />
+            <Skeleton className="h-10" />
+          </div>
+        ) : rows.length === 0 ? (
+          <Empty>
+            <EmptyHeader>
+              <EmptyTitle>{t("No channels to join")}</EmptyTitle>
+              <EmptyDescription>
+                {t("Close this and create the first one.")}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {rows.map((channel) => (
+              <li key={channel.id} className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="flex items-center gap-1 text-sm font-medium">
+                    {channel.visibility === "private" ? (
+                      <LockIcon aria-hidden className="size-3.5" />
+                    ) : (
+                      <HashIcon aria-hidden className="size-3.5" />
+                    )}
+                    <span className="truncate">{channel.name}</span>
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {channel.topic ??
+                      t("{count, plural, one {# member} other {# members}}", {
+                        count: channel.memberCount,
+                      })}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={channel.joined ? "outline" : "default"}
+                  disabled={join.pending}
+                  onClick={() => void pick(channel)}
+                >
+                  {channel.joined ? t("Open") : t("Join")}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function CreateChannelDialog({
+  onCreated,
+}: {
+  onCreated: (channel: OpenChannel) => void;
+}) {
+  const t = useExtracted("chat");
+  const errorMessage = useErrorMessage();
+  const fieldId = useId();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [topic, setTopic] = useState("");
+  const [isPrivate, setPrivate] = useState(false);
+
+  const create = useAction(createChannel, {
+    onSuccess: (id) => {
+      setOpen(false);
+      onCreated({ id, name: name.trim().toLowerCase() });
+    },
+  });
+
+  const message =
+    create.error === undefined ? null : errorMessage(create.error);
+
+  const submit = (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void create.run({
+      name,
+      topic,
+      visibility: isPrivate ? "private" : "public",
+    });
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        setName("");
+        setTopic("");
+        setPrivate(false);
+        create.reset();
+      }}
+    >
+      <DialogTrigger
+        render={<Button size="icon-sm" aria-label={t("Create a channel")} />}
+      >
+        <PlusIcon aria-hidden />
+      </DialogTrigger>
+      <DialogContent>
+        <form onSubmit={submit} className="grid gap-6">
+          <DialogHeader>
+            <DialogTitle>{t("Create a channel")}</DialogTitle>
+            <DialogDescription>
+              {t("A place for one team, project or topic.")}
+            </DialogDescription>
+          </DialogHeader>
+          <FieldGroup>
+            <Field data-invalid={message ? true : undefined}>
+              <FieldLabel htmlFor={`${fieldId}-name`}>{t("Name")}</FieldLabel>
+              <Input
+                id={`${fieldId}-name`}
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                }}
+                required
+                maxLength={80}
+                pattern="[A-Za-z0-9][A-Za-z0-9_\-]*"
+                placeholder="launch"
+              />
+              <FieldDescription>
+                {t("Lowercase letters, digits, - and _.")}
+              </FieldDescription>
+              {message ? <FieldError>{message}</FieldError> : null}
+            </Field>
+            <Field>
+              <FieldLabel htmlFor={`${fieldId}-topic`}>{t("Topic")}</FieldLabel>
+              <Input
+                id={`${fieldId}-topic`}
+                value={topic}
+                onChange={(event) => {
+                  setTopic(event.target.value);
+                }}
+                maxLength={250}
+              />
+            </Field>
+            <div className="flex items-center gap-2">
+              <Switch
+                id={`${fieldId}-private`}
+                checked={isPrivate}
+                onCheckedChange={setPrivate}
+              />
+              <Label
+                htmlFor={`${fieldId}-private`}
+                className="text-sm font-normal"
+              >
+                {t("Private: only the people you add see it")}
+              </Label>
+            </div>
+          </FieldGroup>
+          <DialogFooter>
+            <DialogClose render={<Button type="button" variant="outline" />}>
+              {t("Cancel")}
+            </DialogClose>
+            <Button type="submit" disabled={create.pending}>
+              {t("Create")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+## Message list
+
+A conversation's messages over Realtime, with older pages on demand, who is typing, reply counts and the composer. It calls `useMessages` from `@/hooks/use-messaging`; the [messaging](https://bettersupabase.com/blocks/messaging), [channels](https://bettersupabase.com/blocks/channels) blocks must be installed (`npx better-supabase add messaging channels`). Page: https://bettersupabase.com/recipes/message-list.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert button card empty scroll-area skeleton
+```
+
+```bash
+npx shadcn add @better-supabase/use-messaging
+```
+
+```tsx title="apps/examples/nextjs/src/features/chat/components/message-list.tsx"
+"use client";
+
+import type { Message } from "better-supabase/blocks/messaging";
+
+import { MessagesSquareIcon, RotateCwIcon } from "lucide-react";
+import { useExtracted } from "next-intl";
+import { useRef } from "react";
+
+import { Alert, AlertAction, AlertTitle } from "@/components/reui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useMessages } from "@/hooks/use-messaging";
+import { useErrorMessage } from "@/lib/use-error-message";
+
+import { MessageComposer } from "./message-composer";
+import { MessageItem } from "./message-item";
+import { PresenceAvatars } from "./presence-avatars";
+
+/**
+ * A channel's top-level messages, live over Realtime: older pages on demand,
+ * who is typing, and the composer. Replies open in a thread.
+ */
+export function MessageList({
+  conversationId,
+  name,
+  topic,
+  onOpenThread,
+}: {
+  conversationId: string;
+  name: string;
+  topic?: string | undefined;
+  onOpenThread: (root: Message) => void;
+}) {
+  const t = useExtracted("chat");
+  const errorMessage = useErrorMessage();
+  const input = useRef<HTMLTextAreaElement>(null);
+
+  const {
+    messages,
+    hasOlder,
+    typing,
+    error,
+    send,
+    setTyping,
+    loadOlder,
+    refresh,
+  } = useMessages({ conversationId });
+
+  return (
+    <Card size="sm" className="min-h-0">
+      <CardHeader>
+        <CardTitle>#{name}</CardTitle>
+        {topic ? <CardDescription>{topic}</CardDescription> : null}
+        <CardAction>
+          <PresenceAvatars
+            subject={{ type: "conversation", id: conversationId }}
+          />
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
+        {error ? (
+          <Alert variant="destructive" aria-live="polite">
+            <AlertTitle>{errorMessage(error)}</AlertTitle>
+            <AlertAction>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void refresh()}
+              >
+                <RotateCwIcon aria-hidden />
+                {t("Retry")}
+              </Button>
+            </AlertAction>
+          </Alert>
+        ) : null}
+        {messages === undefined ? (
+          <div
+            className="flex flex-col gap-4"
+            aria-busy="true"
+            aria-live="polite"
+          >
+            <span className="sr-only">{t("Loading messages")}</span>
+            <Skeleton className="h-12" />
+            <Skeleton className="h-12" />
+            <Skeleton className="h-12" />
+          </div>
+        ) : messages.length === 0 ? (
+          <Empty className="flex-1">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <MessagesSquareIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No messages yet")}</EmptyTitle>
+              <EmptyDescription>
+                {t("Say hello to start the conversation.")}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => input.current?.focus()}
+              >
+                {t("Write a message")}
+              </Button>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="flex flex-col gap-4 pr-3">
+              {hasOlder ? (
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="ghost"
+                  className="self-center"
+                  onClick={() => void loadOlder()}
+                >
+                  {t("Load older messages")}
+                </Button>
+              ) : null}
+              <ol className="flex flex-col gap-4" data-testid="messages">
+                {messages.map((message) => (
+                  <MessageItem
+                    key={message.id}
+                    message={message}
+                    onOpenThread={onOpenThread}
+                  />
+                ))}
+              </ol>
+            </div>
+          </ScrollArea>
+        )}
+      </CardContent>
+      <CardFooter className="flex-col items-stretch gap-1">
+        <p className="text-xs text-muted-foreground" aria-live="polite">
+          {typing.length > 0
+            ? t(
+                "{count, plural, one {Someone is typing} other {# people are typing}}",
+                { count: typing.length },
+              )
+            : null}
+        </p>
+        <MessageComposer
+          conversationId={conversationId}
+          inputRef={input}
+          placeholder={t("Message #{name}", { name })}
+          onSend={send}
+          onTyping={setTyping}
+        />
+      </CardFooter>
+    </Card>
+  );
+}
+```
+
+## Message composer
+
+A message box that sends on Enter, signals typing, and uploads dropped, pasted or picked files onto the message. It loads its data on the server through the block's client; the [messaging](https://bettersupabase.com/blocks/messaging), [attachments](https://bettersupabase.com/blocks/attachments) blocks must be installed (`npx better-supabase add messaging attachments`). Page: https://bettersupabase.com/recipes/message-composer.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add badge button label spinner textarea
+```
+
+```tsx title="apps/examples/nextjs/src/features/chat/components/message-composer.tsx"
+"use client";
+
+import type { Result } from "better-supabase";
+import type { DragEvent, Ref } from "react";
+
+import { useAction } from "better-supabase/react";
+import { PaperclipIcon, SendIcon, XIcon } from "lucide-react";
+import { useExtracted } from "next-intl";
+import { useId, useRef, useState } from "react";
+import { toast } from "sonner";
+
+import type { MessageDraft } from "@/hooks/use-messaging";
+
+import { Badge } from "@/components/reui/badge";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
+import { useSupabase } from "@/lib/hooks";
+import { useErrorMessage } from "@/lib/use-error-message";
+
+import { confirmChatUpload, startChatUpload } from "../chat-actions";
+
+interface PendingFile {
+  readonly key: string;
+  readonly name: string;
+  /** Set once the bytes are uploaded and confirmed. */
+  readonly id: string | null;
+}
+
+/** How often a held key press tells the others the caller is typing. */
+const TYPING_EVERY_MS = 2000;
+
+/**
+ * Writes a message with files: drop them on the box, paste them, or pick them.
+ * Each file uploads to the conversation first; `send` moves it onto the
+ * message.
+ */
+export function MessageComposer({
+  conversationId,
+  placeholder,
+  inputRef,
+  onSend,
+  onTyping,
+}: {
+  conversationId: string;
+  placeholder: string;
+  inputRef?: Ref<HTMLTextAreaElement>;
+  onSend: (body: string, draft: MessageDraft) => Promise<Result<unknown>>;
+  onTyping: (typing: boolean) => void;
+}) {
+  const t = useExtracted("chat");
+  const errorMessage = useErrorMessage();
+  const supabase = useSupabase();
+  const bodyId = useId();
+  const picker = useRef<HTMLInputElement>(null);
+  const lastPing = useRef(0);
+  const [body, setBody] = useState("");
+  const [files, setFiles] = useState<readonly PendingFile[]>([]);
+  const [sending, setSending] = useState(false);
+
+  const start = useAction(startChatUpload);
+  const confirm = useAction(confirmChatUpload);
+
+  const uploading = files.some((file) => file.id === null);
+
+  const drop = (key: string) => {
+    setFiles((current) => current.filter((file) => file.key !== key));
+  };
+
+  const upload = async (file: File) => {
+    const key = crypto.randomUUID();
+    setFiles((current) => [...current, { key, name: file.name, id: null }]);
+
+    const started = await start.run({
+      conversationId,
+      name: file.name,
+      mimeType: file.type,
+      size: file.size,
+    });
+
+    if (!started.ok) {
+      drop(key);
+      toast.error(errorMessage(started.error));
+
+      return;
+    }
+
+    const { id, bucket, path, token } = started.data;
+
+    const sent = await supabase.storage
+      .from(bucket)
+      .uploadToSignedUrl(path, token, file, { contentType: file.type });
+
+    const confirmed = sent.error ? undefined : await confirm.run({ id });
+
+    if (!confirmed?.ok) {
+      drop(key);
+      toast.error(t("{name} did not upload. Try again.", { name: file.name }));
+
+      return;
+    }
+
+    setFiles((current) =>
+      current.map((each) => (each.key === key ? { ...each, id } : each)),
+    );
+  };
+
+  const add = (list: FileList | null) => {
+    for (const file of list ?? []) {
+      void upload(file);
+    }
+  };
+
+  const submit = async () => {
+    const text = body.trim();
+
+    if ((text === "" && files.length === 0) || uploading) {
+      return;
+    }
+
+    setSending(true);
+
+    const result = await onSend(text, {
+      attachmentIds: files.flatMap((file) => (file.id ? [file.id] : [])),
+    });
+
+    setSending(false);
+
+    if (result.ok) {
+      setBody("");
+      setFiles([]);
+    } else {
+      toast.error(errorMessage(result.error));
+    }
+  };
+
+  return (
+    <form
+      className="flex flex-col gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void submit();
+      }}
+    >
+      <Label htmlFor={bodyId} className="sr-only">
+        {t("Message")}
+      </Label>
+      <Textarea
+        ref={inputRef}
+        id={bodyId}
+        value={body}
+        rows={2}
+        maxLength={4000}
+        placeholder={placeholder}
+        onDragOver={(event: DragEvent) => {
+          event.preventDefault();
+        }}
+        onDrop={(event: DragEvent) => {
+          event.preventDefault();
+          add(event.dataTransfer.files);
+        }}
+        onChange={(event) => {
+          setBody(event.target.value);
+
+          if (event.timeStamp - lastPing.current > TYPING_EVERY_MS) {
+            lastPing.current = event.timeStamp;
+            onTyping(true);
+          }
+        }}
+        onPaste={(event) => {
+          if (event.clipboardData.files.length > 0) {
+            event.preventDefault();
+            add(event.clipboardData.files);
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            void submit();
+          }
+        }}
+      />
+      {files.length > 0 ? (
+        <ul className="flex flex-wrap gap-2" aria-live="polite">
+          {files.map((file) => (
+            <li key={file.key}>
+              <Badge variant="outline">
+                {file.id === null ? <Spinner /> : <PaperclipIcon aria-hidden />}
+                {file.name}
+                <button
+                  type="button"
+                  aria-label={t("Remove {name}", { name: file.name })}
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  onClick={() => {
+                    drop(file.key);
+                  }}
+                >
+                  <XIcon aria-hidden />
+                </button>
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <div className="flex items-center gap-2">
+        <input
+          ref={picker}
+          type="file"
+          multiple
+          hidden
+          onChange={(event) => {
+            add(event.target.files);
+            event.target.value = "";
+          }}
+        />
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label={t("Attach files")}
+          onClick={() => picker.current?.click()}
+        >
+          <PaperclipIcon aria-hidden />
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          {t("Drop or paste files to attach them.")}
+        </span>
+        <Button
+          type="submit"
+          size="sm"
+          className="ml-auto"
+          disabled={sending || uploading}
+        >
+          <SendIcon aria-hidden />
+          {t("Send")}
+        </Button>
+      </div>
+    </form>
+  );
+}
+```
+
+## Thread panel
+
+A thread beside the channel: the root message, its replies live over Realtime, and a composer that replies into it. It calls `useMessages` from `@/hooks/use-messaging`; the [messaging](https://bettersupabase.com/blocks/messaging), [channels](https://bettersupabase.com/blocks/channels) blocks must be installed (`npx better-supabase add messaging channels`). Page: https://bettersupabase.com/recipes/thread-panel.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert button card empty scroll-area separator skeleton
+```
+
+```bash
+npx shadcn add @better-supabase/use-messaging
+```
+
+```tsx title="apps/examples/nextjs/src/features/chat/components/thread-panel.tsx"
+"use client";
+
+import type { Message } from "better-supabase/blocks/messaging";
+
+import { MessageSquareIcon, RotateCwIcon, XIcon } from "lucide-react";
+import { useExtracted } from "next-intl";
+import { useRef } from "react";
+
+import { Alert, AlertAction, AlertTitle } from "@/components/reui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useMessages } from "@/hooks/use-messaging";
+import { useErrorMessage } from "@/lib/use-error-message";
+
+import { MessageComposer } from "./message-composer";
+import { MessageItem } from "./message-item";
+
+/** A thread: its root message, the replies, and a composer that replies into it. */
+export function ThreadPanel({
+  root,
+  onClose,
+}: {
+  /** The top-level message the thread hangs off. */
+  root: Message;
+  onClose: () => void;
+}) {
+  const t = useExtracted("chat");
+  const errorMessage = useErrorMessage();
+  const input = useRef<HTMLTextAreaElement>(null);
+
+  const thread = useMessages({
+    conversationId: root.conversationId,
+    threadId: root.id,
+  });
+
+  return (
+    <Card size="sm" className="min-h-0">
+      <CardHeader>
+        <CardTitle>{t("Thread")}</CardTitle>
+        <CardAction>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label={t("Close the thread")}
+            onClick={onClose}
+          >
+            <XIcon aria-hidden />
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
+        {thread.error ? (
+          <Alert variant="destructive" aria-live="polite">
+            <AlertTitle>{errorMessage(thread.error)}</AlertTitle>
+            <AlertAction>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void thread.refresh()}
+              >
+                <RotateCwIcon aria-hidden />
+                {t("Retry")}
+              </Button>
+            </AlertAction>
+          </Alert>
+        ) : null}
+        {thread.messages === undefined ? (
+          <div
+            className="flex flex-col gap-4"
+            aria-busy="true"
+            aria-live="polite"
+          >
+            <span className="sr-only">{t("Loading the thread")}</span>
+            <Skeleton className="h-12" />
+            <Skeleton className="h-12" />
+          </div>
+        ) : (
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="flex flex-col gap-4 pr-3">
+              <ol>
+                <MessageItem message={root} />
+              </ol>
+              <Separator />
+              {thread.messages.length === 0 ? (
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <MessageSquareIcon />
+                    </EmptyMedia>
+                    <EmptyTitle>{t("No replies yet")}</EmptyTitle>
+                    <EmptyDescription>
+                      {t("Replies stay here, out of the channel.")}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  <EmptyContent>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => input.current?.focus()}
+                    >
+                      {t("Reply")}
+                    </Button>
+                  </EmptyContent>
+                </Empty>
+              ) : (
+                <ol className="flex flex-col gap-4">
+                  {thread.messages.map((message) => (
+                    <MessageItem key={message.id} message={message} />
+                  ))}
+                </ol>
+              )}
+            </div>
+          </ScrollArea>
+        )}
+      </CardContent>
+      <CardFooter className="flex-col items-stretch">
+        <MessageComposer
+          conversationId={root.conversationId}
+          inputRef={input}
+          placeholder={t("Reply in the thread")}
+          onSend={thread.send}
+          onTyping={thread.setTyping}
+        />
+      </CardFooter>
+    </Card>
+  );
+}
+```
+
+## Presence avatars
+
+Who else has a record open (a channel, a comment thread's record or a document), on the record's presence topic. It calls `usePresence` from `better-supabase/react`; the [messaging block](https://bettersupabase.com/blocks/messaging) must be installed (`npx better-supabase add messaging`). Page: https://bettersupabase.com/recipes/presence-avatars.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add avatar
+```
+
+```tsx title="apps/examples/nextjs/src/features/chat/components/presence-avatars.tsx"
+"use client";
+
+import { usePresence } from "better-supabase/react";
+import {
+  subjectPresenceTopic,
+  subjectPresenceValues,
+} from "better-supabase/realtime";
+import { useExtracted } from "next-intl";
+import * as v from "valibot";
+
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+} from "@/components/ui/avatar";
+import { useSession } from "@/lib/hooks";
+
+const SHOWN = 4;
+
+/** States that fail the schema never reach `members`. */
+const viewers = subjectPresenceTopic(
+  v.object({ userId: v.string(), name: v.string() }),
+);
+
+/**
+ * Who else has a record open: a channel, a comment thread's record or a
+ * document. The subjects module lets anyone who reads the record join its
+ * presence topic. States come from the clients, so they only label avatars.
+ */
+export function PresenceAvatars({
+  subject,
+}: {
+  subject: { readonly type: string; readonly id: string };
+}) {
+  const t = useExtracted("chat");
+  const session = useSession();
+  const me = session.kind === "user" ? session.user : null;
+
+  const { members } = usePresence(
+    viewers,
+    subjectPresenceValues(me ? subject : null),
+    { state: me ? { userId: me.id, name: me.email ?? t("Someone") } : null },
+  );
+
+  const others = new Map<string, string>();
+
+  for (const { state } of members) {
+    if (state.userId !== me?.id) {
+      others.set(state.userId, state.name);
+    }
+  }
+
+  if (others.size === 0) {
+    return null;
+  }
+
+  const people = [...others];
+
+  return (
+    <AvatarGroup
+      aria-label={t(
+        "{count, plural, one {# other viewer} other {# other viewers}}",
+        { count: people.length },
+      )}
+    >
+      {people.slice(0, SHOWN).map(([userId, name]) => (
+        <Avatar key={userId} size="sm" title={name}>
+          <AvatarFallback>{name.charAt(0).toUpperCase()}</AvatarFallback>
+        </Avatar>
+      ))}
+      {people.length > SHOWN ? (
+        <AvatarGroupCount>+{people.length - SHOWN}</AvatarGroupCount>
+      ) : null}
+    </AvatarGroup>
   );
 }
 ```
@@ -4695,7 +5921,7 @@ export function AgentActivitySkeleton() {
 
 ## Workflow canvas
 
-A node editor for a workflow definition that saves drafts, publishes versions and runs the workflow. It calls `useWorkflowCanvasRun` from `better-supabase/blocks/workflow-builder/react`; the [workflow-builder](https://bettersupabase.com/blocks/workflow-builder), [workflows](https://bettersupabase.com/blocks/workflows) blocks must be installed (`npx better-supabase add workflow-builder workflows`). Page: https://bettersupabase.com/recipes/workflow-canvas.
+A node editor for a workflow definition that saves drafts, publishes versions and runs the workflow. It calls `useWorkflowCanvasRun` from `@/hooks/use-workflow-editor`; the [workflow-editor](https://bettersupabase.com/blocks/workflow-editor), [workflows](https://bettersupabase.com/blocks/workflows) blocks must be installed (`npx better-supabase add workflow-editor workflows`). Page: https://bettersupabase.com/recipes/workflow-canvas.
 
 Web, with shadcn components:
 
@@ -4703,11 +5929,15 @@ Web, with shadcn components:
 npx shadcn add badge button input select
 ```
 
+```bash
+npx shadcn add @better-supabase/use-workflow-editor
+```
+
 ```tsx title="apps/examples/nextjs/src/features/workflows/builder/components/workflow-canvas.tsx"
 "use client";
 
 import type { Connection } from "@xyflow/react";
-import type { WorkflowNodeKind } from "better-supabase/blocks/workflow-builder";
+import type { WorkflowNodeKind } from "better-supabase/blocks/workflow-editor";
 
 import {
   addEdge,
@@ -4718,8 +5948,6 @@ import {
   useNodesState,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useWorkflowCanvasRun } from "better-supabase/blocks/workflow-builder/react";
-import { useWorkflowRuns } from "better-supabase/blocks/workflows/react";
 import { useAction } from "better-supabase/react";
 import { PlayIcon, PlusIcon, SaveIcon } from "lucide-react";
 import { useExtracted, useFormatter } from "next-intl";
@@ -4736,6 +5964,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useWorkflowCanvasRun } from "@/hooks/use-workflow-editor";
+import { useWorkflowRuns } from "@/hooks/use-workflows";
 import { useErrorMessage } from "@/lib/use-error-message";
 
 import type { BuilderDetail } from "../builder-queries";
@@ -4785,7 +6015,7 @@ export function WorkflowCanvas({ detail }: { detail: BuilderDetail }) {
   const overlay = useWorkflowCanvasRun(runId, { schema: "api" });
 
   const definitionRuns = (runs ?? []).filter(
-    (run) => run.attributes["bs.definition"] === detail.definition.id,
+    (run) => run.attributes["bsb.definition"] === detail.definition.id,
   );
 
   const graph = fromFlow(nodes, edges);
@@ -5058,7 +6288,7 @@ export function WorkflowCanvas({ detail }: { detail: BuilderDetail }) {
 
 ## Workflow runs
 
-The latest workflow runs with their status, which update while a run is in progress. It calls `useWorkflowRuns` from `better-supabase/blocks/workflows/react`; the [workflows block](https://bettersupabase.com/blocks/workflows) must be installed (`npx better-supabase add workflows`). Page: https://bettersupabase.com/recipes/workflow-runs.
+The latest workflow runs with their status, which update while a run is in progress. It calls `useWorkflowRuns` from `@/hooks/use-workflows`; the [workflows block](https://bettersupabase.com/blocks/workflows) must be installed (`npx better-supabase add workflows`). Page: https://bettersupabase.com/recipes/workflow-runs.
 
 Web, with shadcn components:
 
@@ -5066,10 +6296,13 @@ Web, with shadcn components:
 npx shadcn add badge empty skeleton table
 ```
 
+```bash
+npx shadcn add @better-supabase/use-workflows
+```
+
 ```tsx title="apps/examples/nextjs/src/features/workflows/components/workflow-runs.tsx"
 "use client";
 
-import { useWorkflowRuns } from "better-supabase/blocks/workflows/react";
 import { WorkflowIcon } from "lucide-react";
 import { useExtracted, useFormatter } from "next-intl";
 
@@ -5090,6 +6323,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useWorkflowRuns } from "@/hooks/use-workflows";
 import { Link } from "@/i18n/navigation";
 
 import { statusVariant, workflowName } from "../workflow-labels";
@@ -5312,7 +6546,7 @@ export function CredentialSheet({
 
 ## Support session banner
 
-A banner that tells the user a support agent is viewing the app as them, rendered on the server. It loads its data on the server through the block's client; the [support-sessions block](https://bettersupabase.com/blocks/support-sessions) must be installed (`npx better-supabase add support-sessions`). Page: https://bettersupabase.com/recipes/support-session-banner.
+A banner that tells the user a support agent is viewing the app as them, rendered on the server. It loads its data on the server through the block's client; the [impersonation block](https://bettersupabase.com/blocks/impersonation) must be installed (`npx better-supabase add impersonation`). Page: https://bettersupabase.com/recipes/support-session-banner.
 
 Web, with shadcn components:
 
@@ -5329,7 +6563,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getSession } from "../user-queries";
 
 /**
- * Shown during a support session (`bs.startSupport`): staff see the app as the
+ * Shown during a support session (`bsb.startSupport`): staff see the app as the
  * user, and the audit log records who acted. Render inside `<Suspense>`.
  */
 export async function ImpersonationBanner() {
@@ -5357,7 +6591,7 @@ export async function ImpersonationBanner() {
 
 ## AI task queue
 
-A table of scheduled AI prompts with each task's next run and latest run status, plus pause and resume. It loads its data on the server through the block's client; the [ai-tasks block](https://bettersupabase.com/blocks/ai-tasks) must be installed (`npx better-supabase add ai-tasks`). Page: https://bettersupabase.com/recipes/ai-task-queue.
+A table of scheduled AI prompts with each task's next run and latest run status, plus pause and resume. It loads its data on the server through the block's client; the [ai-schedules block](https://bettersupabase.com/blocks/ai-schedules) must be installed (`npx better-supabase add ai-schedules`). Page: https://bettersupabase.com/recipes/ai-task-queue.
 
 Web, with shadcn components:
 
@@ -5368,7 +6602,7 @@ npx shadcn add alert badge button card empty skeleton table
 ```tsx title="apps/examples/nextjs/src/features/ai-tasks/components/ai-task-queue.tsx"
 "use client";
 
-import type { AiTaskRunStatus } from "better-supabase/blocks/ai-tasks";
+import type { AiTaskRunStatus } from "better-supabase/blocks/ai-schedules";
 
 import { useAction } from "better-supabase/react";
 import { CalendarClockIcon, PauseIcon, PlayIcon } from "lucide-react";
@@ -5489,7 +6723,7 @@ function TaskRows({ tasks }: { tasks: readonly AiTaskRow[] }) {
     format.dateTime(new Date(iso), { dateStyle: "medium", timeStyle: "short" });
 
   return (
-    <Table data-testid="ai-tasks">
+    <Table data-testid="ai-schedules">
       <TableHeader>
         <TableRow>
           <TableHead>{t("Task")}</TableHead>
@@ -5668,7 +6902,7 @@ export function AiTaskQueueSkeleton() {
 
 ## AI provider settings
 
-A settings card that lists the organization's own AI provider keys and models, adds a key to Vault and removes one. It loads its data on the server through the block's client; the [ai-providers block](https://bettersupabase.com/blocks/ai-providers) must be installed (`npx better-supabase add ai-providers`). Page: https://bettersupabase.com/recipes/ai-provider-settings.
+A settings card that lists the organization's own AI provider keys and models, adds a key to Vault and removes one. It loads its data on the server through the block's client; the [ai-keys block](https://bettersupabase.com/blocks/ai-keys) must be installed (`npx better-supabase add ai-keys`). Page: https://bettersupabase.com/recipes/ai-provider-settings.
 
 Web, with shadcn components:
 
@@ -6526,8 +7760,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSession } from "@/features/user/user-queries";
 import { Link } from "@/i18n/navigation";
-import { blocks } from "@/lib/blocks";
-import { bs } from "@/lib/supabase/server";
+import { bsb } from "@/lib/supabase/server";
 import { metrics } from "@/metrics";
 
 const DAYS = 30;
@@ -6555,7 +7788,7 @@ async function loadPanels(
   organizationId: string,
 ): Promise<readonly MetricPanel[]> {
   "use cache: private";
-  const { supabase } = await bs.cached();
+  const { db } = await bsb.cached();
   const until = Temporal.Now.instant();
 
   const range = {
@@ -6563,7 +7796,7 @@ async function loadPanels(
     until,
   };
 
-  const client = blocks(supabase).metrics;
+  const client = db.metrics;
 
   return Promise.all(
     metrics.map(async ({ key }) => {
@@ -6750,8 +7983,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { blocks } from "@/lib/blocks";
-import { bs } from "@/lib/supabase/server";
+import { bsb } from "@/lib/supabase/server";
 
 /** The flags `src/flags.ts` defines. */
 const FLAG_KEYS = ["beta-page", "pricing-banner"] as const;
@@ -6776,19 +8008,17 @@ type FlagValues =
  */
 async function loadFlags(): Promise<readonly FlagValue[] | null> {
   "use cache: private";
-  const { session, supabase } = await bs.cached();
+  const { session, db } = await bsb.cached();
   const tenant = tenantOf(session);
 
   if (!tenant) {
     return null;
   }
 
-  const { call } = blocks(supabase);
-
   return Promise.all(
     FLAG_KEYS.map(async (key) => ({
       key,
-      on: (await call("flag_enabled", { key, tenant })) === true,
+      on: (await db.$api("flag_enabled", { key, tenant })) === true,
     })),
   );
 }
@@ -6828,7 +8058,7 @@ export async function FeatureFlagList() {
   };
 
   return (
-    <Card data-testid="feature-flags" data-recipe="feature-flag-toggles">
+    <Card data-testid="flags" data-recipe="feature-flag-toggles">
       <CardHeader>
         <CardTitle>{t("Feature flags")}</CardTitle>
         <CardDescription>
@@ -6886,7 +8116,7 @@ export function FeatureFlagListSkeleton() {
 
 ## Rule builder
 
-A condition tree with field, operator and value rows, nested And and Or groups, drag to reorder and a fixed first condition, saved as a versioned rule. It calls `useRuleBuilder` from `better-supabase/blocks/rules/react`; the [rules block](https://bettersupabase.com/blocks/rules) must be installed (`npx better-supabase add rules`). Page: https://bettersupabase.com/recipes/rule-builder.
+A condition tree with field, operator and value rows, nested And and Or groups, drag to reorder and a fixed first condition, saved as a versioned rule. It calls `useRuleBuilder` from `@/hooks/use-automations`; the [automations block](https://bettersupabase.com/blocks/automations) must be installed (`npx better-supabase add automations`). Page: https://bettersupabase.com/recipes/rule-builder.
 
 Web, with shadcn components:
 
@@ -6894,12 +8124,15 @@ Web, with shadcn components:
 npx shadcn add alert button card empty field input label select skeleton switch
 ```
 
+```bash
+npx shadcn add @better-supabase/use-automations
+```
+
 ```tsx title="apps/examples/nextjs/src/features/rules/components/rule-builder.tsx"
 "use client";
 
 import type { DragEndEvent } from "@dnd-kit/core";
-import type { RuleField } from "better-supabase/blocks/rules";
-import type { RuleBuilderState } from "better-supabase/blocks/rules/react";
+import type { RuleField } from "better-supabase/blocks/automations";
 import type {
   FilterCombinator,
   FilterGroupNode,
@@ -6924,8 +8157,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { contains, ruleOperators } from "better-supabase/blocks/rules";
-import { useRuleBuilder } from "better-supabase/blocks/rules/react";
+import { contains, ruleOperators } from "better-supabase/blocks/automations";
 import { FILTER_OPERATOR_LABELS } from "better-supabase/list";
 import {
   GripVerticalIcon,
@@ -6938,6 +8170,8 @@ import {
 import { useExtracted } from "next-intl";
 import { createContext, use, useId, useMemo, useState } from "react";
 import * as v from "valibot";
+
+import type { RuleBuilderState } from "@/hooks/use-automations";
 
 import {
   Alert,
@@ -6975,6 +8209,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useStatusLabel } from "@/features/customers/use-status-label";
+import { useRuleBuilder } from "@/hooks/use-automations";
 import { useRouter } from "@/i18n/navigation";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 import { useErrorMessage } from "@/lib/use-error-message";
@@ -7074,7 +8309,7 @@ export function RuleBuilder({
     trigger: RULE_TRIGGER,
     initial: initialConditions,
     locked: LOCKED,
-    schema: blockConfig.rules.api,
+    schema: blockConfig.automations.api,
   });
 
   const enabled = enabledEdit ?? builder.rule?.enabled ?? false;
@@ -7868,6 +9103,176 @@ export function RuleBuilderSkeleton() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+```
+
+## Can
+
+Shows an action only to members who hold a permission key; the checks of one render share one round trip. It loads its data on the server through the block's client; the [permissions block](https://bettersupabase.com/blocks/permissions) must be installed (`npx better-supabase add permissions`). Page: https://bettersupabase.com/recipes/can.
+
+Web, with no shadcn components.
+
+```tsx title="apps/examples/nextjs/src/features/projects/components/task-import-action.tsx"
+"use client";
+
+import { Can } from "@/hooks/use-permissions";
+import { permissions } from "@/lib/supabase/blocks.generated";
+
+import { TaskImportDialog } from "./task-import-dialog";
+
+/**
+ * The import button, for members with `imports.manage` in the active
+ * organization. The `<Can>` checks of one render share one `my_permissions`
+ * call; the import action checks the key again on the server.
+ */
+export function TaskImportAction({ projectId }: { projectId: string }) {
+  return (
+    <Can permission={permissions.imports.manage}>
+      <TaskImportDialog projectId={projectId} />
+    </Can>
+  );
+}
+```
+
+## Subject link
+
+A link to any subject type, titled and routed by subject_titles, with plain text for a record the caller can't read. It calls `useSubject` from `@/hooks/use-subjects`; the [subjects block](https://bettersupabase.com/blocks/subjects) must be installed (`npx better-supabase add subjects`). Page: https://bettersupabase.com/recipes/subject-link.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add button skeleton
+```
+
+```bash
+npx shadcn add @better-supabase/use-subjects
+```
+
+```tsx title="apps/examples/nextjs/src/features/subjects/components/subject-link.tsx"
+"use client";
+
+import type { RecordRef } from "better-supabase/blocks/subjects";
+
+import { RotateCwIcon } from "lucide-react";
+import { useExtracted } from "next-intl";
+
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSubject } from "@/hooks/use-subjects";
+import { Link } from "@/i18n/navigation";
+
+/**
+ * A link to any subject in `config.records`, titled and routed by
+ * `subject_titles`. The links rendered in one pass share one round trip, and a
+ * subject the caller can't read shows as plain text.
+ */
+export function SubjectLink({ subject }: { subject: RecordRef }) {
+  const t = useExtracted("subjects");
+  const { subject: resolved, error, refresh } = useSubject(subject);
+
+  if (error) {
+    return (
+      <span className="flex items-center gap-1 text-sm text-muted-foreground">
+        {t("The title didn't load")}
+        <Button
+          size="icon-xs"
+          variant="ghost"
+          aria-label={t("Retry")}
+          onClick={() => {
+            void refresh();
+          }}
+        >
+          <RotateCwIcon />
+        </Button>
+      </span>
+    );
+  }
+
+  if (resolved === undefined) {
+    return <Skeleton className="h-4 w-32" />;
+  }
+
+  if (resolved === null) {
+    return (
+      <span className="truncate text-sm text-muted-foreground">
+        {t("A record you can't open")}
+      </span>
+    );
+  }
+
+  const title = resolved.title ?? t("Untitled");
+
+  return resolved.url === undefined ? (
+    <span className="truncate text-sm font-medium">{title}</span>
+  ) : (
+    <Link
+      href={resolved.url}
+      className="truncate text-sm font-medium underline-offset-4 transition-colors hover:underline"
+    >
+      {title}
+    </Link>
+  );
+}
+```
+
+## Subject chip
+
+A compact badge with a subject's type and title that links to its page. It calls `useSubject` from `@/hooks/use-subjects`; the [subjects block](https://bettersupabase.com/blocks/subjects) must be installed (`npx better-supabase add subjects`). Page: https://bettersupabase.com/recipes/subject-chip.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add skeleton
+```
+
+```bash
+npx shadcn add @better-supabase/use-subjects
+```
+
+```tsx title="apps/examples/nextjs/src/features/subjects/components/subject-chip.tsx"
+"use client";
+
+import type { RecordRef } from "better-supabase/blocks/subjects";
+
+import { useExtracted } from "next-intl";
+
+import { Badge } from "@/components/reui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useSubject } from "@/hooks/use-subjects";
+import { Link } from "@/i18n/navigation";
+
+/**
+ * A compact badge for a subject: its type and title, linking to its page. Rows
+ * that each render a chip share one `subject_titles` call.
+ */
+export function SubjectChip({ subject }: { subject: RecordRef }) {
+  const t = useExtracted("subjects");
+  const { subject: resolved, error } = useSubject(subject);
+
+  if (resolved === undefined && !error) {
+    return <Skeleton className="h-5 w-24" />;
+  }
+
+  const label = resolved?.title ?? t("Unavailable");
+
+  const content = (
+    <>
+      <span className="text-muted-foreground">{subject.type}</span>
+      <span className="truncate">{label}</span>
+    </>
+  );
+
+  return resolved?.url === undefined ? (
+    <Badge variant="outline">{content}</Badge>
+  ) : (
+    <Badge
+      variant="outline"
+      className="transition-colors hover:bg-accent"
+      render={<Link href={resolved.url} />}
+    >
+      {content}
+    </Badge>
   );
 }
 ```
@@ -8861,27 +10266,23 @@ const EMOJIS = ["👍", "🎉", "❤️", "👀", "🚀"] as const;
  * when anyone in the organization reacts (the `reactions` topic).
  */
 export function ReactionsBar({
-  organizationId,
   customerId,
   canReact,
 }: {
-  organizationId: string;
   customerId: string;
   canReact: boolean;
 }) {
   const t = useExtracted("customers");
   const [busy, setBusy] = useState<string | null>(null);
 
+  const subject = { type: "customer", id: customerId };
+
   const { reactions, error, toggle, refresh } = useReactions({
-    organizationId,
-    subjectType: "customer",
-    subjectIds: [customerId],
-    topic: blockConfig.reactions.options.topic,
-    schema: blockConfig.reactions.api,
+    subjects: [subject],
   });
 
   const counts = new Map(
-    (reactions?.[customerId] ?? []).map((each) => [each.emoji, each]),
+    (reactions?.[subjectKey(subject)] ?? []).map((each) => [each.emoji, each]),
   );
 
   const total = [...counts.values()].reduce((sum, each) => sum + each.count, 0);
@@ -8934,7 +10335,7 @@ export function ReactionsBar({
                     disabled={!canReact || busy !== null}
                     onClick={() => {
                       setBusy(emoji);
-                      void toggle(customerId, emoji).finally(() => {
+                      void toggle(subject, emoji).finally(() => {
                         setBusy(null);
                       });
                     }}
@@ -9035,7 +10436,11 @@ export function ShareLinkDialog({
             ) : null}
           </Empty>
         ) : (
-          <ShareLinkList links={links.data} canRevoke={canCreate} />
+          <ShareLinkList
+            customerId={customerId}
+            links={links.data}
+            canRevoke={canCreate}
+          />
         )}
       </CardContent>
     </Card>
@@ -9043,9 +10448,11 @@ export function ShareLinkDialog({
 }
 
 function ShareLinkList({
+  customerId,
   links,
   canRevoke,
 }: {
+  customerId: string;
   links: readonly ShareLinkRow[];
   canRevoke: boolean;
 }) {
@@ -9085,7 +10492,7 @@ function ShareLinkList({
               </span>
             </div>
             {canRevoke && state === "active" ? (
-              <RevokeShareLink id={link.id} />
+              <RevokeShareLink id={link.id} customerId={customerId} />
             ) : null}
           </li>
         );
@@ -9225,11 +10632,17 @@ function CreateShareLink({ customerId }: { customerId: string }) {
   );
 }
 
-function RevokeShareLink({ id }: { id: string }) {
+function RevokeShareLink({
+  id,
+  customerId,
+}: {
+  id: string;
+  customerId: string;
+}) {
   const t = useExtracted("customers");
   const errorMessage = useErrorMessage();
 
-  const revoke = useAction(revokeShareLink, {
+  const revoke = useAction(revokeCustomerShareLinks, {
     onSuccess: () => {
       toast.success(t("Link revoked"));
     },
@@ -9259,7 +10672,7 @@ function RevokeShareLink({ id }: { id: string }) {
           <AlertDialogAction
             variant="destructive"
             onClick={() => {
-              void revoke.run({ id });
+              void revoke.run({ id: customerId, input: { id } });
             }}
           >
             {t("Revoke")}
@@ -9324,9 +10737,10 @@ const VARIANT = {
 } as const satisfies Record<FileState, string>;
 
 /**
- * Files on the customer, in the private `attachments` bucket. The server
- * records each file and signs a one-time upload; the browser sends the bytes. A
- * file downloads once the scanner marked it clean.
+ * Files on the customer, in the private `attachments` bucket. Pick, drop or
+ * paste files: the server records each one and signs its upload,
+ * `useAttachmentUpload` sends the bytes with progress, and the server confirms
+ * it. A file downloads once the scanner marked it clean.
  */
 export function AttachmentsUploader({
   customerId,
@@ -9340,54 +10754,281 @@ export function AttachmentsUploader({
   canRemove: boolean;
 }) {
   const t = useExtracted("customers");
+  const upload = useCustomerUpload(customerId);
 
   return (
     <Card size="sm" data-recipe="attachments-uploader">
       <CardHeader>
         <CardTitle>{t("Files")}</CardTitle>
         <CardDescription>
-          {t("Files download after the virus scan marks them clean.")}
+          {canUpload
+            ? t(
+                "Drop or paste files to upload. They download after the virus scan.",
+              )
+            : t("Files download after the virus scan marks them clean.")}
         </CardDescription>
         {canUpload && files.kind === "ok" && files.data.length > 0 ? (
           <CardAction>
-            <UploadButton customerId={customerId} />
+            <UploadButton busy={upload.busy} onPick={upload.add} />
           </CardAction>
         ) : null}
       </CardHeader>
       <CardContent>
-        {files.kind === "error" ? (
-          <RecordLoadError title={t("The files didn't load")} />
-        ) : files.data.length === 0 ? (
-          <Empty className="border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <PaperclipIcon />
-              </EmptyMedia>
-              <EmptyTitle>{t("No files yet")}</EmptyTitle>
-              <EmptyDescription>
-                {t(
-                  "Attach contracts, quotes or anything else about this customer.",
-                )}
-              </EmptyDescription>
-            </EmptyHeader>
-            {canUpload ? (
-              <EmptyContent>
-                <UploadButton customerId={customerId} />
-              </EmptyContent>
-            ) : null}
-          </Empty>
-        ) : (
-          <FileList files={files.data} canRemove={canRemove} />
-        )}
+        <DropZone enabled={canUpload} onFiles={upload.add}>
+          {upload.uploads.length > 0 ? <UploadList upload={upload} /> : null}
+          {files.kind === "error" ? (
+            <RecordLoadError title={t("The files didn't load")} />
+          ) : files.data.length === 0 ? (
+            upload.uploads.length > 0 ? null : (
+              <Empty className="border">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <PaperclipIcon />
+                  </EmptyMedia>
+                  <EmptyTitle>{t("No files yet")}</EmptyTitle>
+                  <EmptyDescription>
+                    {t(
+                      "Attach contracts, quotes or anything else about this customer.",
+                    )}
+                  </EmptyDescription>
+                </EmptyHeader>
+                {canUpload ? (
+                  <EmptyContent>
+                    <UploadButton busy={upload.busy} onPick={upload.add} />
+                  </EmptyContent>
+                ) : null}
+              </Empty>
+            )
+          ) : (
+            <FileList
+              customerId={customerId}
+              files={files.data}
+              canRemove={canRemove}
+            />
+          )}
+        </DropZone>
       </CardContent>
     </Card>
   );
 }
 
+/**
+ * Uploads to the customer through the server actions, which check
+ * `attachments.upload` and read the page again once a file is confirmed.
+ */
+function useCustomerUpload(customerId: string): AttachmentUploadState {
+  const t = useExtracted("customers");
+  const start = useAction(startAttachmentUpload);
+  const confirm = useAction(confirmAttachment);
+
+  return useAttachmentUpload({
+    subject: { type: "customer", id: customerId },
+    start: (file) =>
+      start.run({
+        customerId,
+        name: file.name,
+        mimeType: file.mimeType,
+        size: file.size,
+      }),
+    confirm: (id) => confirm.run({ id }),
+    refresh: false,
+    onUploaded: () => {
+      toast.success(t("File uploaded"));
+    },
+  });
+}
+
+const asInputs = (files: Iterable<File>): AttachmentFileInput[] =>
+  [...files].map((file) => ({ file, name: file.name }));
+
+const EDITABLE = "input, textarea, select, [contenteditable]";
+
+/**
+ * Takes files dropped on it and files pasted anywhere on the page outside a
+ * text field; a plain wrapper when uploads are off. The Upload button is the
+ * keyboard path, so the zone itself takes no focus.
+ */
+function DropZone({
+  enabled,
+  onFiles,
+  children,
+}: {
+  enabled: boolean;
+  onFiles: (files: readonly AttachmentFileInput[]) => void;
+  children: ReactNode;
+}) {
+  const zone = useRef<HTMLDivElement>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const take = useEffectEvent((files: FileList | null | undefined) => {
+    const inputs = asInputs(files ?? []);
+
+    if (inputs.length > 0) {
+      onFiles(inputs);
+    }
+  });
+
+  useEffect(() => {
+    const element = zone.current;
+
+    if (!enabled || !element) {
+      return;
+    }
+
+    const over = (event: DragEvent) => {
+      event.preventDefault();
+      setDragging(true);
+    };
+
+    const leave = () => {
+      setDragging(false);
+    };
+
+    const drop = (event: DragEvent) => {
+      event.preventDefault();
+      setDragging(false);
+      take(event.dataTransfer?.files);
+    };
+
+    const paste = (event: ClipboardEvent) => {
+      const files = event.clipboardData?.files;
+
+      if (
+        !files ||
+        files.length === 0 ||
+        (event.target instanceof Element && event.target.closest(EDITABLE))
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      take(files);
+    };
+
+    element.addEventListener("dragover", over);
+    element.addEventListener("dragleave", leave);
+    element.addEventListener("drop", drop);
+    document.addEventListener("paste", paste);
+
+    return () => {
+      element.removeEventListener("dragover", over);
+      element.removeEventListener("dragleave", leave);
+      element.removeEventListener("drop", drop);
+      document.removeEventListener("paste", paste);
+    };
+  }, [enabled]);
+
+  return (
+    <div
+      ref={zone}
+      data-dragging={(enabled && dragging) || undefined}
+      className="-m-2 flex flex-col gap-3 p-2 transition-colors data-dragging:bg-muted"
+    >
+      {children}
+    </div>
+  );
+}
+
+function UploadList({ upload }: { upload: AttachmentUploadState }) {
+  return (
+    <ul className="flex flex-col divide-y" data-testid="uploads">
+      {upload.uploads.map((item) => (
+        <UploadRow
+          key={item.key}
+          item={item}
+          onRetry={upload.retry}
+          onDismiss={upload.dismiss}
+        />
+      ))}
+    </ul>
+  );
+}
+
+const UPLOAD_VARIANT = {
+  uploading: "info-light",
+  confirming: "info-light",
+  scanning: "info-light",
+  done: "success-light",
+  blocked: "destructive-light",
+  error: "destructive-light",
+} as const satisfies Record<AttachmentUploadItem["status"], string>;
+
+function UploadRow({
+  item,
+  onRetry,
+  onDismiss,
+}: {
+  item: AttachmentUploadItem;
+  onRetry: (key: string) => void;
+  onDismiss: (key: string) => void;
+}) {
+  const t = useExtracted("customers");
+  const errorMessage = useErrorMessage();
+
+  const label: Record<AttachmentUploadItem["status"], string> = {
+    uploading: t("Uploading"),
+    confirming: t("Saving"),
+    scanning: t("Waiting for scan"),
+    done: t("Uploaded"),
+    blocked: t("Blocked"),
+    error: t("Failed"),
+  };
+
+  return (
+    <li className="flex items-center justify-between gap-2 py-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="truncate text-sm font-medium">{item.name}</span>
+        <div className="flex items-center gap-2">
+          <Badge variant={UPLOAD_VARIANT[item.status]}>
+            {label[item.status]}
+          </Badge>
+          {item.status === "uploading" ? (
+            <Progress
+              className="flex-1"
+              value={Math.round(item.progress * 100)}
+              aria-label={t("Upload progress for {name}", { name: item.name })}
+            />
+          ) : item.error === undefined ? null : (
+            <span className="truncate text-xs text-muted-foreground">
+              {errorMessage(item.error)}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-1">
+        {item.status === "error" ? (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={t("Retry {name}", { name: item.name })}
+            onClick={() => {
+              onRetry(item.key);
+            }}
+          >
+            <RotateCwIcon />
+          </Button>
+        ) : null}
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label={t("Dismiss {name}", { name: item.name })}
+          onClick={() => {
+            onDismiss(item.key);
+          }}
+        >
+          <XIcon />
+        </Button>
+      </div>
+    </li>
+  );
+}
+
 function FileList({
+  customerId,
   files,
   canRemove,
 }: {
+  customerId: string;
   files: readonly AttachmentRow[];
   canRemove: boolean;
 }) {
@@ -9447,7 +11088,13 @@ function FileList({
               >
                 <DownloadIcon />
               </Button>
-              {canRemove ? <RemoveFile id={file.id} name={file.name} /> : null}
+              {canRemove ? (
+                <RemoveFile
+                  id={file.id}
+                  customerId={customerId}
+                  name={file.name}
+                />
+              ) : null}
             </div>
           </li>
         );
@@ -9456,63 +11103,23 @@ function FileList({
   );
 }
 
-function UploadButton({ customerId }: { customerId: string }) {
+function UploadButton({
+  busy,
+  onPick,
+}: {
+  busy: boolean;
+  onPick: (files: readonly AttachmentFileInput[]) => void;
+}) {
   const t = useExtracted("customers");
-  const errorMessage = useErrorMessage();
-  const supabase = useSupabase();
   const input = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-
-  const start = useAction(startAttachmentUpload);
-  const confirm = useAction(confirmAttachment);
-
-  const upload = async (file: File) => {
-    const started = await start.run({
-      customerId,
-      name: file.name,
-      mimeType: file.type,
-      size: file.size,
-    });
-
-    if (!started.ok) {
-      toast.error(errorMessage(started.error));
-
-      return;
-    }
-
-    const { id, bucket, path, token } = started.data;
-
-    const sent = await supabase.storage
-      .from(bucket)
-      .uploadToSignedUrl(path, token, file, { contentType: file.type });
-
-    if (sent.error) {
-      toast.error(t("The upload failed. Try again."));
-
-      return;
-    }
-
-    const confirmed = await confirm.run({ id });
-
-    if (confirmed.ok) {
-      toast.success(t("File uploaded"));
-    } else {
-      toast.error(errorMessage(confirmed.error));
-    }
-  };
 
   const pick = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const inputs = asInputs(event.target.files ?? []);
     event.target.value = "";
 
-    if (!file) {
-      return;
+    if (inputs.length > 0) {
+      onPick(inputs);
     }
-
-    setUploading(true);
-    void upload(file).finally(() => {
-      setUploading(false);
-    });
   };
 
   return (
@@ -9520,28 +11127,33 @@ function UploadButton({ customerId }: { customerId: string }) {
       <input
         ref={input}
         type="file"
+        multiple
         className="sr-only"
         tabIndex={-1}
         aria-hidden
         onChange={pick}
       />
-      <Button
-        size="sm"
-        disabled={uploading}
-        onClick={() => input.current?.click()}
-      >
+      <Button size="sm" onClick={() => input.current?.click()}>
         <UploadIcon />
-        {uploading ? t("Uploading") : t("Upload file")}
+        {busy ? t("Upload more") : t("Upload files")}
       </Button>
     </>
   );
 }
 
-function RemoveFile({ id, name }: { id: string; name: string }) {
+function RemoveFile({
+  id,
+  customerId,
+  name,
+}: {
+  id: string;
+  customerId: string;
+  name: string;
+}) {
   const t = useExtracted("customers");
   const errorMessage = useErrorMessage();
 
-  const remove = useAction(removeAttachment, {
+  const remove = useAction(removeCustomerAttachments, {
     onSuccess: () => {
       toast.success(t("File removed"));
     },
@@ -9569,7 +11181,7 @@ function RemoveFile({ id, name }: { id: string; name: string }) {
           <AlertDialogAction
             variant="destructive"
             onClick={() => {
-              void remove.run({ id });
+              void remove.run({ id: customerId, input: { id } });
             }}
           >
             {t("Remove")}
@@ -9709,7 +11321,7 @@ export function WaitlistSignup() {
 
 ## Contact detail
 
-A person or company with its details, related contacts and the latest activity. It loads its data on the server through the block's client; the [parties block](https://bettersupabase.com/blocks/parties) must be installed (`npx better-supabase add parties`). Page: https://bettersupabase.com/recipes/contact-detail.
+A person or company with its details, related contacts and the latest activity. It loads its data on the server through the block's client; the [contacts block](https://bettersupabase.com/blocks/contacts) must be installed (`npx better-supabase add contacts`). Page: https://bettersupabase.com/recipes/contact-detail.
 
 Web, with shadcn components:
 
@@ -9989,9 +11601,190 @@ export async function DealBoard() {
 }
 ```
 
+## Sequence builder
+
+Each sequence's email, wait and task steps in order, with its enrollment counts, an Add step dialog and an Activate or Pause button. It loads its data on the server through the block's client; the [sequences block](https://bettersupabase.com/blocks/sequences) must be installed (`npx better-supabase add sequences`). Page: https://bettersupabase.com/recipes/sequence-builder.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card dialog empty field input select skeleton
+```
+
+```tsx title="apps/examples/nextjs/src/features/sequences/components/sequence-builder.tsx"
+const statusVariants = {
+  draft: "secondary",
+  active: "success-light",
+  paused: "warning-light",
+  archived: "outline",
+} as const satisfies Record<SequenceStatus, string>;
+
+const stepIcons = {
+  email: MailIcon,
+  wait: ClockIcon,
+  task: ListChecksIcon,
+} as const satisfies Record<SequenceStep["kind"], LucideIcon>;
+
+/** Render inside `<Suspense>`: the organization's sequences and their steps. */
+export async function SequenceBuilder() {
+  const [view, session, t] = await Promise.all([
+    getSequences(),
+    getSession(),
+    getExtracted("sequences"),
+  ]);
+
+  if (view.kind === "no-organization") {
+    return null;
+  }
+
+  if (view.kind === "error") {
+    return (
+      <Alert variant="destructive">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The sequences didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  const manage = can(session, "sequences.manage");
+
+  if (view.data.length === 0) {
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <SendIcon />
+          </EmptyMedia>
+          <EmptyTitle>{t("No sequences yet")}</EmptyTitle>
+          <EmptyDescription>
+            {manage
+              ? t(
+                  "Create a sample sequence, then activate it to enroll contacts.",
+                )
+              : t(
+                  "An admin sets up the sequences your team enrolls contacts in.",
+                )}
+          </EmptyDescription>
+        </EmptyHeader>
+        {manage ? (
+          <EmptyContent>
+            <SampleSequenceButton />
+          </EmptyContent>
+        ) : null}
+      </Empty>
+    );
+  }
+
+  const statusLabels: Record<SequenceStatus, string> = {
+    draft: t("Draft"),
+    active: t("Active"),
+    paused: t("Paused"),
+    archived: t("Archived"),
+  };
+
+  const stepLabel = (step: SequenceStep): string => {
+    switch (step.kind) {
+      case "email": {
+        return step.subject;
+      }
+
+      case "wait": {
+        return t("Wait {minutes} minutes", { minutes: String(step.minutes) });
+      }
+
+      case "task": {
+        return step.title;
+      }
+
+      default: {
+        const unknown: never = step;
+
+        return unknown;
+      }
+    }
+  };
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      {view.data.map((sequence) => (
+        <Card key={sequence.id}>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <CardTitle>{sequence.name}</CardTitle>
+              <Badge variant={statusVariants[sequence.status]}>
+                {statusLabels[sequence.status]}
+              </Badge>
+            </div>
+            {manage && sequence.status !== "archived" ? (
+              <CardAction className="flex gap-2">
+                <AddStepDialog sequenceId={sequence.id} />
+                <SequenceStatusButton
+                  sequenceId={sequence.id}
+                  active={sequence.status === "active"}
+                />
+              </CardAction>
+            ) : null}
+          </CardHeader>
+          <CardContent>
+            {sequence.steps.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                {t("No steps yet.")}
+              </p>
+            ) : (
+              <ol className="flex flex-col gap-2">
+                {sequence.steps.map((step, index) => {
+                  const Icon = stepIcons[step.kind];
+
+                  return (
+                    <li
+                      key={step.id}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <span className="w-5 text-xs text-muted-foreground tabular-nums">
+                        {index + 1}
+                      </span>
+                      <Icon
+                        aria-hidden
+                        className="size-4 text-muted-foreground"
+                      />
+                      <span className="truncate">{stepLabel(step)}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </CardContent>
+          <CardFooter className="gap-4 text-xs text-muted-foreground tabular-nums">
+            <span>
+              {t("{count} active", { count: String(sequence.counts.active) })}
+            </span>
+            <span>
+              {t("{count} completed", {
+                count: String(sequence.counts.completed),
+              })}
+            </span>
+            <span>
+              {t("{count} replied", { count: String(sequence.counts.replied) })}
+            </span>
+          </CardFooter>
+        </Card>
+      ))}
+    </div>
+  );
+}
+```
+
 ## Activity timeline
 
-Calls, emails and meetings with a contact, newest first. It loads its data on the server through the block's client; the [engagements block](https://bettersupabase.com/blocks/engagements) must be installed (`npx better-supabase add engagements`). Page: https://bettersupabase.com/recipes/activity-timeline.
+Calls, emails and meetings with a contact, newest first. It loads its data on the server through the block's client; the [activities block](https://bettersupabase.com/blocks/activities) must be installed (`npx better-supabase add activities`). Page: https://bettersupabase.com/recipes/activity-timeline.
 
 Web, with shadcn components:
 
@@ -10296,7 +12089,7 @@ export async function QuoteBuilder({
 
 ## Targets progress
 
-Sales targets for the period with the progress toward each one. It loads its data on the server through the block's client; the [targets block](https://bettersupabase.com/blocks/targets) must be installed (`npx better-supabase add targets`). Page: https://bettersupabase.com/recipes/targets-progress.
+Sales targets for the period with the progress toward each one. It loads its data on the server through the block's client; the [goals block](https://bettersupabase.com/blocks/goals) must be installed (`npx better-supabase add goals`). Page: https://bettersupabase.com/recipes/targets-progress.
 
 Web, with shadcn components:
 
@@ -10415,7 +12208,7 @@ export async function TargetsProgress() {
 
 ## Work item board
 
-Work items in state columns, ordered by rank and moved through allowed transitions. It loads its data on the server through the block's client; the [work-items](https://bettersupabase.com/blocks/work-items), [state-machine](https://bettersupabase.com/blocks/state-machine), [rank](https://bettersupabase.com/blocks/rank) blocks must be installed (`npx better-supabase add work-items state-machine rank`). Page: https://bettersupabase.com/recipes/work-item-board.
+Work items in state columns, ordered by rank and moved through allowed transitions. It loads its data on the server through the block's client; the [tasks](https://bettersupabase.com/blocks/tasks), [state-machine](https://bettersupabase.com/blocks/state-machine), [rank](https://bettersupabase.com/blocks/rank) blocks must be installed (`npx better-supabase add tasks state-machine rank`). Page: https://bettersupabase.com/recipes/work-item-board.
 
 Web, with shadcn components:
 
@@ -10564,9 +12357,303 @@ export function WorkItemBoard({
 }
 ```
 
+## Entity form
+
+A create dialog whose inputs come from `recordForm`: the entity's own fields and the organization's custom fields, validated together by `useRecordForm` before the Server Action runs. It calls `useRecordForm` from `better-supabase/react`; the [tasks](https://bettersupabase.com/blocks/tasks), [custom-fields](https://bettersupabase.com/blocks/custom-fields) blocks must be installed (`npx better-supabase add tasks custom-fields`). Page: https://bettersupabase.com/recipes/entity-form.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add button checkbox dialog field input select
+```
+
+```tsx title="apps/examples/nextjs/src/features/work/components/create-work-item-dialog.tsx"
+import type { DbError } from "better-supabase";
+import type { RecordFormInput } from "better-supabase/records";
+
+import { workItemInputSchema } from "better-supabase/blocks/tasks";
+import { useRecordForm } from "better-supabase/react";
+import { recordForm } from "better-supabase/records";
+import { PlusIcon } from "lucide-react";
+import { useExtracted } from "next-intl";
+import { useId, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import type { FieldRow } from "@/features/custom-fields/custom-fields-types";
+
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useErrorMessage } from "@/lib/use-error-message";
+
+import type { TeamOption } from "../work-types";
+
+import { usePriorityLabel } from "../use-work-labels";
+import { createWorkItem } from "../work-actions";
+
+const NO_TEAM = "";
+
+/** The HTML input type for each form input; the rest are text inputs. */
+const INPUT_TYPES: Partial<Record<RecordFormInput, string>> = {
+  number: "number",
+  integer: "number",
+  date: "date",
+  datetime: "datetime-local",
+  email: "email",
+  url: "url",
+};
+
+/**
+ * A dialog that creates a work item with a title, a team, a priority and the
+ * organization's custom fields for work items. `recordForm` turns the entity
+ * schema and the field definitions into one list of inputs and validates them
+ * together.
+ */
+export function CreateWorkItemDialog({
+  teams,
+  defaultTeamId,
+  customFields,
+}: {
+  teams: readonly TeamOption[];
+  defaultTeamId: string | null;
+  customFields: readonly FieldRow[];
+}) {
+  const t = useExtracted("work");
+  const fieldId = useId();
+  const errorMessage = useErrorMessage();
+  const priorityLabel = usePriorityLabel();
+  const [open, setOpen] = useState(false);
+  const [teamId, setTeamId] = useState(defaultTeamId ?? NO_TEAM);
+
+  const definition = useMemo(
+    () =>
+      recordForm(workItemInputSchema, {
+        fields: ["title", "priority"],
+        customFields: customFields.map((field) => ({
+          key: field.key,
+          label: field.label,
+          type: field.type,
+          required: false,
+          sensitive: field.sensitive,
+        })),
+      }),
+    [customFields],
+  );
+
+  const [failure, setFailure] = useState<DbError>();
+
+  const form = useRecordForm(definition, {
+    initial: { title: "", priority: "0" },
+    onSubmit: async ({ input, custom }) => {
+      const result = await createWorkItem({
+        title: input.title,
+        teamId,
+        priority: input.priority ?? 0,
+        custom: Object.fromEntries(
+          Object.entries(custom).map(([key, value]) => [key, String(value)]),
+        ),
+      });
+
+      if (!result.ok) {
+        setFailure(result.error);
+
+        return;
+      }
+
+      toast.success(t("Created {identifier}", { identifier: result.data }));
+      setOpen(false);
+      form.reset();
+    },
+  });
+
+  const error = failure === undefined ? null : errorMessage(failure);
+  const textOf = (key: string) => String(form.values[key] ?? "");
+
+  const teamItems = [
+    { value: NO_TEAM, label: t("No team") },
+    ...teams.map((team) => ({ value: team.id, label: team.name })),
+  ];
+
+  const priorityItems = ["0", "1", "2", "3", "4"].map((value) => ({
+    value,
+    label: priorityLabel(Number(value)),
+  }));
+
+  const custom = definition.fields.filter((field) => field.source === "custom");
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+
+        if (!next) {
+          form.reset();
+          setFailure(undefined);
+        }
+      }}
+    >
+      <DialogTrigger render={<Button size="sm" />}>
+        <PlusIcon />
+        {t("New item")}
+      </DialogTrigger>
+      <DialogContent>
+        <form
+          onSubmit={(event) => {
+            void form.submit(event);
+          }}
+          className="grid gap-6"
+        >
+          <DialogHeader>
+            <DialogTitle>{t("New work item")}</DialogTitle>
+            <DialogDescription>
+              {t("It starts in the first stage of your workflow.")}
+            </DialogDescription>
+          </DialogHeader>
+          <FieldGroup>
+            <Field
+              data-invalid={error || form.errors["title"] ? true : undefined}
+            >
+              <FieldLabel htmlFor={`${fieldId}-title`}>{t("Title")}</FieldLabel>
+              <Input
+                id={`${fieldId}-title`}
+                name="title"
+                required
+                maxLength={200}
+                autoComplete="off"
+                value={textOf("title")}
+                onChange={(event) => {
+                  form.set("title", event.target.value);
+                }}
+              />
+              {form.errors["title"] ? (
+                <FieldError>{t("Enter a title.")}</FieldError>
+              ) : null}
+              {error ? <FieldError>{error}</FieldError> : null}
+            </Field>
+            <Field>
+              <FieldLabel htmlFor={`${fieldId}-team`}>{t("Team")}</FieldLabel>
+              <Select
+                value={teamId}
+                items={teamItems}
+                onValueChange={(value) => {
+                  setTeamId(value ?? NO_TEAM);
+                }}
+              >
+                <SelectTrigger id={`${fieldId}-team`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {teamItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor={`${fieldId}-priority`}>
+                {t("Priority")}
+              </FieldLabel>
+              <Select
+                value={textOf("priority")}
+                items={priorityItems}
+                onValueChange={(value) => {
+                  form.set("priority", value ?? "0");
+                }}
+              >
+                <SelectTrigger id={`${fieldId}-priority`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {priorityItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            {custom.map((field) =>
+              field.input === "bool" ? (
+                <Field key={field.key} orientation="horizontal">
+                  <Checkbox
+                    id={`${fieldId}-${field.key}`}
+                    checked={form.values[field.key] === true}
+                    onCheckedChange={(checked) => {
+                      form.set(field.key, checked);
+                    }}
+                  />
+                  <FieldLabel htmlFor={`${fieldId}-${field.key}`}>
+                    {field.label}
+                  </FieldLabel>
+                </Field>
+              ) : (
+                <Field
+                  key={field.key}
+                  data-invalid={form.errors[field.key] ? true : undefined}
+                >
+                  <FieldLabel htmlFor={`${fieldId}-${field.key}`}>
+                    {field.label}
+                  </FieldLabel>
+                  <Input
+                    id={`${fieldId}-${field.key}`}
+                    type={INPUT_TYPES[field.input] ?? "text"}
+                    autoComplete="off"
+                    value={textOf(field.key)}
+                    onChange={(event) => {
+                      form.set(field.key, event.target.value);
+                    }}
+                  />
+                  {form.errors[field.key] ? (
+                    <FieldError>{form.errors[field.key]}</FieldError>
+                  ) : null}
+                </Field>
+              ),
+            )}
+          </FieldGroup>
+          <DialogFooter>
+            <DialogClose render={<Button type="button" variant="outline" />}>
+              {t("Cancel")}
+            </DialogClose>
+            <Button type="submit" disabled={form.pending}>
+              {t("Create item")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
 ## Work item grid
 
-A data grid of work items with filters, sorting and saved views. It loads its data on the server through the block's client; the [work-items](https://bettersupabase.com/blocks/work-items), [saved-views](https://bettersupabase.com/blocks/saved-views) blocks must be installed (`npx better-supabase add work-items saved-views`). Page: https://bettersupabase.com/recipes/work-item-grid.
+A data grid of work items with filters, sorting and saved views. It loads its data on the server through the block's client; the [tasks](https://bettersupabase.com/blocks/tasks), [saved-views](https://bettersupabase.com/blocks/saved-views) blocks must be installed (`npx better-supabase add tasks saved-views`). Page: https://bettersupabase.com/recipes/work-item-grid.
 
 Web, with shadcn components:
 
@@ -11055,8 +13142,14 @@ export async function ApprovalsQueue() {
                 return (
                   <TableRow key={request.id}>
                     <TableCell>
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col items-start gap-1">
                         <span className="font-medium">{label}</span>
+                        <SubjectChip
+                          subject={{
+                            type: request.subjectType,
+                            id: request.subjectId,
+                          }}
+                        />
                         {request.reason ? (
                           <span className="text-xs text-muted-foreground">
                             {request.reason}
@@ -11091,6 +13184,242 @@ export async function ApprovalsQueue() {
               })}
             </TableBody>
           </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+## My work
+
+What waits on the caller across the installed blocks, from `loadMyWork`: assigned work, approvals, due reminders, mentions and SLA warnings, each linked to its record. It loads its data on the server through the block's client; the [subjects](https://bettersupabase.com/blocks/subjects), [tasks](https://bettersupabase.com/blocks/tasks), [approvals](https://bettersupabase.com/blocks/approvals), [reminders](https://bettersupabase.com/blocks/reminders), [comments](https://bettersupabase.com/blocks/comments) blocks must be installed (`npx better-supabase add subjects tasks approvals reminders comments`). Page: https://bettersupabase.com/recipes/my-work.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty skeleton
+```
+
+```tsx title="apps/examples/nextjs/src/features/my-work/components/my-work-list.tsx"
+/**
+ * Render inside `<Suspense>`: everything that waits on the caller, from
+ * `loadMyWork`, newest first.
+ */
+export async function MyWorkList() {
+  const [work, t, format] = await Promise.all([
+    getMyWork(),
+    getExtracted("myWork"),
+    getFormatter(),
+  ]);
+
+  if (work.kind === "no-organization") {
+    return null;
+  }
+
+  const kindLabel = (kind: MyWorkKind): string => {
+    switch (kind) {
+      case "assigned": {
+        return t("Assigned");
+      }
+
+      case "approval": {
+        return t("Approval");
+      }
+
+      case "reminder": {
+        return t("Reminder");
+      }
+
+      case "mention": {
+        return t("Mention");
+      }
+
+      case "sla": {
+        return t("SLA warning");
+      }
+
+      default: {
+        const never: never = kind;
+
+        return never;
+      }
+    }
+  };
+
+  return (
+    <Card data-recipe="my-work">
+      <CardHeader>
+        <CardTitle>{t("Waiting on you")}</CardTitle>
+        <CardDescription>
+          {t(
+            "Assigned work, approvals, due reminders, mentions and SLA warnings.",
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {work.kind === "error" ? (
+          <Alert variant="destructive">
+            <TriangleAlertIcon />
+            <AlertTitle>{t("My work didn't load")}</AlertTitle>
+            <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+            <AlertAction>
+              <form action={retryMyWork}>
+                <Button size="sm" variant="outline" type="submit">
+                  {t("Retry")}
+                </Button>
+              </form>
+            </AlertAction>
+          </Alert>
+        ) : work.data.rows.length === 0 ? (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <InboxIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("Nothing waiting on you")}</EmptyTitle>
+              <EmptyDescription>
+                {t("Work assigned to you and requests for you show up here.")}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Link
+                href="/work"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                {t("Open the work board")}
+              </Link>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {work.data.rows.map((row) => (
+              <li key={row.key} className="flex items-center gap-2 text-sm">
+                <Badge variant={BADGES[row.kind]}>{kindLabel(row.kind)}</Badge>
+                {row.url === null ? (
+                  <span className="truncate">{row.title}</span>
+                ) : (
+                  <Link
+                    href={row.url}
+                    className="truncate font-medium underline-offset-4 transition-colors hover:underline"
+                  >
+                    {row.title}
+                  </Link>
+                )}
+                {row.at === null ? null : (
+                  <time
+                    dateTime={new Date(row.at).toISOString()}
+                    className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums"
+                  >
+                    {format.relativeTime(row.at)}
+                  </time>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+## Subject timeline
+
+One record's comments, files and versions merged newest first, from `bsb.record(...).timeline`, skipping the bindings the caller can't read. It loads its data on the server through the block's client; the [comments](https://bettersupabase.com/blocks/comments), [attachments](https://bettersupabase.com/blocks/attachments), [versions](https://bettersupabase.com/blocks/versions) blocks must be installed (`npx better-supabase add comments attachments versions`). Page: https://bettersupabase.com/recipes/subject-timeline.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add badge button card empty
+```
+
+```tsx title="apps/examples/nextjs/src/features/customers/components/customer-timeline.tsx"
+/**
+ * The customer's history from `customerRecord.timeline`: comments, files and
+ * versions in one list, newest first.
+ */
+export async function CustomerTimeline({
+  timeline,
+  authors,
+}: {
+  timeline: Loaded<readonly TimelineRow[]>;
+  authors: Readonly<Record<string, string>>;
+}) {
+  const [t, format] = await Promise.all([
+    getExtracted("customers"),
+    getFormatter(),
+  ]);
+
+  const kindLabel = (kind: string): string => {
+    switch (kind) {
+      case "comment": {
+        return t("Comment");
+      }
+
+      case "attachment": {
+        return t("File");
+      }
+
+      case "version": {
+        return t("Version");
+      }
+
+      default: {
+        return kind;
+      }
+    }
+  };
+
+  return (
+    <Card size="sm" data-recipe="record-timeline">
+      <CardHeader>
+        <CardTitle>{t("Timeline")}</CardTitle>
+        <CardDescription>
+          {t("Comments, files and versions, newest first.")}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {timeline.kind === "error" ? (
+          <RecordLoadError title={t("The timeline didn't load")} />
+        ) : timeline.data.length === 0 ? (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <HistoryIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("Nothing happened yet")}</EmptyTitle>
+              <EmptyDescription>
+                {t("Comments, files and versions show up here.")}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <a
+                href="#comments"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
+                {t("Write a comment")}
+              </a>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <ol className="flex flex-col gap-3">
+            {timeline.data.map((entry) => (
+              <li key={entry.id} className="flex items-center gap-2 text-sm">
+                <Badge variant="outline">{kindLabel(entry.kind)}</Badge>
+                <span className="truncate">
+                  {(entry.actor === null ? undefined : authors[entry.actor]) ??
+                    t("Someone")}
+                </span>
+                <time
+                  dateTime={new Date(entry.at).toISOString()}
+                  className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums"
+                >
+                  {format.relativeTime(entry.at)}
+                </time>
+              </li>
+            ))}
+          </ol>
         )}
       </CardContent>
     </Card>
@@ -11798,7 +14127,7 @@ function RelatedList({
   const t = useExtracted("customers");
   const errorMessage = useErrorMessage();
 
-  const unlink = useAction(unlinkCustomer, {
+  const unlink = useAction(unlinkCustomerRelations, {
     onSuccess: () => {
       toast.success(t("Link removed"));
     },
@@ -11815,18 +14144,9 @@ function RelatedList({
           className="flex items-center justify-between gap-2 py-2"
         >
           <div className="flex min-w-0 items-center gap-2">
-            {link.subjectType === "customer" && link.name !== null ? (
-              <Link
-                href={`/customers/${link.subjectId}`}
-                className="truncate text-sm font-medium underline-offset-4 transition-colors hover:underline"
-              >
-                {link.name}
-              </Link>
-            ) : (
-              <span className="truncate text-sm text-muted-foreground">
-                {t("A record you can't open")}
-              </span>
-            )}
+            <SubjectLink
+              subject={{ type: link.subjectType, id: link.subjectId }}
+            />
             {link.kind === "relates" ? null : (
               <Badge variant="outline">{link.kind}</Badge>
             )}
@@ -11839,14 +14159,15 @@ function RelatedList({
               disabled={unlink.pendingInputs.some(
                 (input) =>
                   !(input instanceof FormData) &&
-                  input.subjectId === link.subjectId,
+                  input.input.target.id === link.subjectId,
               )}
               onClick={() => {
                 void unlink.run({
-                  customerId,
-                  kind: link.kind,
-                  subjectType: link.subjectType,
-                  subjectId: link.subjectId,
+                  id: customerId,
+                  input: {
+                    kind: link.kind,
+                    target: { type: link.subjectType, id: link.subjectId },
+                  },
                 });
               }}
             >
@@ -11871,7 +14192,7 @@ function LinkForm({
   const errorMessage = useErrorMessage();
   const [targetId, setTargetId] = useState<string | null>(null);
 
-  const link = useAction(linkCustomer, {
+  const link = useAction(linkCustomerRelations, {
     onSuccess: () => {
       setTargetId(null);
       toast.success(t("Customer linked"));
@@ -11894,7 +14215,13 @@ function LinkForm({
         event.preventDefault();
 
         if (targetId) {
-          void link.run({ customerId, targetId });
+          void link.run({
+            id: customerId,
+            input: {
+              kind: "relates",
+              target: { type: "customer", id: targetId },
+            },
+          });
         }
       }}
     >
@@ -12394,6 +14721,560 @@ export async function Timesheet({
         )}
       </CardContent>
     </Card>
+  );
+}
+```
+
+## Dispatch board
+
+A week of technicians by day with their scheduled work orders, and the backlog to schedule. It loads its data on the server through the block's client; the [dispatch block](https://bettersupabase.com/blocks/dispatch) must be installed (`npx better-supabase add dispatch`). Page: https://bettersupabase.com/recipes/dispatch-board.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card dialog empty field input skeleton table
+```
+
+```tsx title="apps/examples/nextjs/src/features/field/components/dispatch-board.tsx"
+/**
+ * Render inside `<Suspense>`: a week of technicians by day with their scheduled
+ * work orders, and the unscheduled backlog below. `?week=YYYY-MM-DD` picks the
+ * week.
+ */
+export async function DispatchBoard({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [session, t, format, query] = await Promise.all([
+    getSession(),
+    getExtracted("field"),
+    getFormatter(),
+    searchParams,
+    connection(),
+  ]);
+
+  if (!can(session, "dispatch.read")) {
+    forbidden();
+  }
+
+  const manage = can(session, "dispatch.manage");
+  const monday = mondayOf(query["week"]);
+  const board = await settle(() => loadDispatchWeek(monday.toString()));
+
+  if (board.kind === "no-organization") {
+    return null;
+  }
+
+  const dayLabel = (date: string) =>
+    format.dateTime(new Date(`${date}T12:00:00Z`), {
+      weekday: "short",
+      day: "numeric",
+      timeZone: "UTC",
+    });
+
+  const range = format.dateTimeRange(
+    new Date(`${monday.toString()}T12:00:00Z`),
+    new Date(`${monday.add({ days: 6 }).toString()}T12:00:00Z`),
+    { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" },
+  );
+
+  const newWorkOrder = manage ? <NewWorkOrderDialog /> : null;
+
+  return (
+    <div data-recipe="dispatch-board" className="flex flex-col gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("Week of {range}", { range })}</CardTitle>
+          <CardDescription>
+            {board.kind === "ok"
+              ? t("Scheduled work per technician, in {zone}.", {
+                  zone: board.data.timeZone,
+                })
+              : t("Scheduled work per technician.")}
+          </CardDescription>
+          <CardAction className="flex items-center gap-2">
+            <Link
+              href={`/field/dispatch?week=${monday.subtract({ weeks: 1 }).toString()}`}
+              className={buttonVariants({
+                variant: "outline",
+                size: "icon-sm",
+              })}
+              aria-label={t("Previous week")}
+            >
+              <ChevronLeftIcon />
+            </Link>
+            <Link
+              href={`/field/dispatch?week=${monday.add({ weeks: 1 }).toString()}`}
+              className={buttonVariants({
+                variant: "outline",
+                size: "icon-sm",
+              })}
+              aria-label={t("Next week")}
+            >
+              <ChevronRightIcon />
+            </Link>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          {board.kind === "error" ? (
+            <FieldLoadError title={t("The schedule board didn't load")} />
+          ) : board.data.rows.length === 0 ? (
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <CalendarRangeIcon />
+                </EmptyMedia>
+                <EmptyTitle>{t("Nothing scheduled this week")}</EmptyTitle>
+                <EmptyDescription>
+                  {t("Work orders show here once they have a technician.")}
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Link
+                  href={`/field/dispatch?week=${monday.add({ weeks: 1 }).toString()}`}
+                  className={buttonVariants({ variant: "outline" })}
+                >
+                  {t("Show next week")}
+                </Link>
+              </EmptyContent>
+            </Empty>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("Technician")}</TableHead>
+                  {board.data.days.map((day) => (
+                    <TableHead key={day}>{dayLabel(day)}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {board.data.rows.map((row) => (
+                  <TableRow key={row.technicianId}>
+                    <TableCell className="align-top text-sm font-medium">
+                      {row.name}
+                    </TableCell>
+                    {row.days.map(({ date, orders }) => (
+                      <TableCell key={date} className="align-top">
+                        <div className="flex flex-col gap-2">
+                          {orders.map((order) => (
+                            <div key={order.id} className="flex flex-col gap-1">
+                              <span className="text-sm font-medium">
+                                {order.title}
+                              </span>
+                              <span className="text-xs text-muted-foreground tabular-nums">
+                                {order.startsAt
+                                  ? format.dateTime(new Date(order.startsAt), {
+                                      timeStyle: "short",
+                                      timeZone: board.data.timeZone,
+                                    })
+                                  : null}
+                              </span>
+                              <WorkOrderStatusBadge status={order.status} />
+                            </div>
+                          ))}
+                        </div>
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("Backlog")}</CardTitle>
+          <CardDescription>
+            {t("Work orders without a slot, most urgent first.")}
+          </CardDescription>
+          {newWorkOrder ? <CardAction>{newWorkOrder}</CardAction> : null}
+        </CardHeader>
+        <CardContent>
+          {board.kind === "error" ? (
+            <FieldLoadError title={t("The backlog didn't load")} />
+          ) : board.data.backlog.length === 0 ? (
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <InboxIcon />
+                </EmptyMedia>
+                <EmptyTitle>{t("The backlog is empty")}</EmptyTitle>
+                <EmptyDescription>
+                  {t("Every open work order has a slot.")}
+                </EmptyDescription>
+              </EmptyHeader>
+              {newWorkOrder ? (
+                <EmptyContent>{newWorkOrder}</EmptyContent>
+              ) : null}
+            </Empty>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("Job")}</TableHead>
+                  <TableHead>{t("Address")}</TableHead>
+                  <TableHead>{t("Priority")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {board.data.backlog.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="text-sm font-medium">
+                      {order.title}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {order.address ?? ""}
+                    </TableCell>
+                    <TableCell>
+                      <WorkOrderPriorityBadge priority={order.priority} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+```
+
+## Technician day
+
+A technician's stops for the day in route order, each with the button that moves it on. It loads its data on the server through the block's client; the [dispatch block](https://bettersupabase.com/blocks/dispatch) must be installed (`npx better-supabase add dispatch`). Page: https://bettersupabase.com/recipes/technician-day.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty skeleton
+```
+
+```tsx title="apps/examples/nextjs/src/features/field/components/technician-day.tsx"
+/**
+ * Render inside `<Suspense>`: the caller's stops for a day in route order, each
+ * with the button that moves it on. `?day=YYYY-MM-DD` picks the day.
+ */
+export async function TechnicianDay({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [session, t, format, query] = await Promise.all([
+    getSession(),
+    getExtracted("field"),
+    getFormatter(),
+    searchParams,
+    connection(),
+  ]);
+
+  if (!can(session, "dispatch.work")) {
+    forbidden();
+  }
+
+  const day = dayOf(query["day"]);
+  const plan = await settle(() => loadTechnicianDay(day.toString()));
+
+  if (plan.kind === "no-organization") {
+    return null;
+  }
+
+  const title = format.dateTime(new Date(`${day.toString()}T12:00:00Z`), {
+    dateStyle: "full",
+    timeZone: "UTC",
+  });
+
+  const time = (instant: string | null) =>
+    instant ? format.dateTime(new Date(instant), { timeStyle: "short" }) : null;
+
+  return (
+    <Card data-recipe="technician-day">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>
+          {plan.kind === "ok" && plan.data.planned
+            ? t("Your stops in the order of the planned route.")
+            : t("Your stops by start time.")}
+        </CardDescription>
+        <CardAction className="flex items-center gap-2">
+          <Link
+            href={`/field/day?day=${day.subtract({ days: 1 }).toString()}`}
+            className={buttonVariants({ variant: "outline", size: "icon-sm" })}
+            aria-label={t("Previous day")}
+          >
+            <ChevronLeftIcon />
+          </Link>
+          <Link
+            href={`/field/day?day=${day.add({ days: 1 }).toString()}`}
+            className={buttonVariants({ variant: "outline", size: "icon-sm" })}
+            aria-label={t("Next day")}
+          >
+            <ChevronRightIcon />
+          </Link>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        {plan.kind === "error" ? (
+          <FieldLoadError title={t("Your day didn't load")} />
+        ) : plan.data.stops.length === 0 ? (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <RouteIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No stops on this day")}</EmptyTitle>
+              <EmptyDescription>
+                {t("Work orders scheduled for you show here.")}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Link
+                href={`/field/day?day=${day.add({ days: 1 }).toString()}`}
+                className={buttonVariants({ variant: "outline" })}
+              >
+                {t("Show the next day")}
+              </Link>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <ol className="flex flex-col divide-y">
+            {plan.data.stops.map(({ position, workOrder }) => {
+              const next = nextStep(workOrder.status);
+              const from = time(workOrder.startsAt);
+              const to = time(workOrder.endsAt);
+
+              return (
+                <li
+                  key={workOrder.id}
+                  className="flex flex-wrap items-center gap-3 py-3"
+                >
+                  <Badge variant="outline" className="tabular-nums">
+                    {position}
+                  </Badge>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="text-sm font-medium">
+                      {workOrder.title}
+                    </span>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {[
+                        from && to ? t("{from} to {to}", { from, to }) : from,
+                        workOrder.address,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  </div>
+                  <WorkOrderStatusBadge status={workOrder.status} />
+                  {next ? (
+                    <AdvanceWorkOrderButton id={workOrder.id} to={next} />
+                  ) : null}
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+## Shipment tracking
+
+Shipments with their status and the tracking timeline of the selected one, newest event first. It loads its data on the server through the block's client; the [shipments block](https://bettersupabase.com/blocks/shipments) must be installed (`npx better-supabase add shipments`). Page: https://bettersupabase.com/recipes/shipment-tracking.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card dialog empty field input skeleton table
+```
+
+```tsx title="apps/examples/nextjs/src/features/field/components/shipment-tracking.tsx"
+/**
+ * Render inside `<Suspense>`: the latest shipments with their status, and the
+ * tracking timeline of the selected one, newest event first. `?shipment=<id>`
+ * picks the shipment.
+ */
+export async function ShipmentTracking({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [session, t, format, query] = await Promise.all([
+    getSession(),
+    getExtracted("field"),
+    getFormatter(),
+    searchParams,
+    connection(),
+  ]);
+
+  if (!can(session, "shipments.read")) {
+    forbidden();
+  }
+
+  const picked = v.safeParse(ShipmentParam, query["shipment"]);
+
+  const tracking = await settle(() =>
+    loadShipmentTracking(picked.success ? picked.output : undefined),
+  );
+
+  if (tracking.kind === "no-organization") {
+    return null;
+  }
+
+  const newShipment = can(session, "shipments.manage") ? (
+    <NewShipmentDialog />
+  ) : null;
+
+  const selected = tracking.kind === "ok" ? tracking.data.selected : null;
+
+  return (
+    <div data-recipe="shipment-tracking" className="flex flex-col gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("Shipments")}</CardTitle>
+          <CardDescription>
+            {t("The status follows the latest tracking event.")}
+          </CardDescription>
+          {newShipment ? <CardAction>{newShipment}</CardAction> : null}
+        </CardHeader>
+        <CardContent>
+          {tracking.kind === "error" ? (
+            <FieldLoadError title={t("The shipments didn't load")} />
+          ) : tracking.data.shipments.length === 0 ? (
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <PackageIcon />
+                </EmptyMedia>
+                <EmptyTitle>{t("No shipments yet")}</EmptyTitle>
+                <EmptyDescription>
+                  {t("Create a shipment, then buy its label from a carrier.")}
+                </EmptyDescription>
+              </EmptyHeader>
+              {newShipment ? <EmptyContent>{newShipment}</EmptyContent> : null}
+            </Empty>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("Reference")}</TableHead>
+                  <TableHead>{t("Recipient")}</TableHead>
+                  <TableHead>{t("Destination")}</TableHead>
+                  <TableHead>{t("Tracking number")}</TableHead>
+                  <TableHead>{t("Status")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tracking.data.shipments.map((shipment) => (
+                  <TableRow
+                    key={shipment.id}
+                    data-state={
+                      shipment.id === selected?.id ? "selected" : undefined
+                    }
+                  >
+                    <TableCell>
+                      <Link
+                        href={`/field/shipments?shipment=${shipment.id}`}
+                        className="text-sm font-medium underline-offset-4 transition-colors hover:underline"
+                        aria-current={
+                          shipment.id === selected?.id ? "true" : undefined
+                        }
+                      >
+                        {shipment.reference}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {shipment.recipient}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {shipment.destination}
+                    </TableCell>
+                    <TableCell className="text-sm tabular-nums">
+                      {shipment.trackingNumber ?? ""}
+                    </TableCell>
+                    <TableCell>
+                      <ShipmentStatusBadge status={shipment.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+      {tracking.kind === "ok" && selected ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {t("Tracking for {reference}", { reference: selected.reference })}
+            </CardTitle>
+            <CardDescription>
+              {selected.carrier
+                ? t("Events from {carrier}, newest first.", {
+                    carrier: selected.carrier,
+                  })
+                : t("Events show once the shipment has a label.")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {tracking.data.timeline.length === 0 ? (
+              <Empty className="border">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <TruckIcon />
+                  </EmptyMedia>
+                  <EmptyTitle>{t("No tracking events yet")}</EmptyTitle>
+                  <EmptyDescription>
+                    {t(
+                      "The carrier's webhook adds events as the package moves.",
+                    )}
+                  </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                  <Link
+                    href={`/field/shipments?shipment=${selected.id}`}
+                    className="text-sm font-medium underline-offset-4 transition-colors hover:underline"
+                  >
+                    {t("Check again")}
+                  </Link>
+                </EmptyContent>
+              </Empty>
+            ) : (
+              <ol className="flex flex-col divide-y">
+                {tracking.data.timeline.map((step) => (
+                  <li
+                    key={step.id}
+                    className="flex flex-wrap items-center gap-3 py-3"
+                  >
+                    <ShipmentStatusBadge status={step.status} />
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="text-sm">
+                        {step.description ?? step.location ?? ""}
+                      </span>
+                      {step.description && step.location ? (
+                        <span className="text-xs text-muted-foreground">
+                          {step.location}
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {format.dateTime(new Date(step.occurredAt), {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
+    </div>
   );
 }
 ```
@@ -13241,6 +16122,260 @@ export async function OrderDetail({
 }
 ```
 
+## Kitchen display
+
+Open tickets per kitchen station, each line moved from queued to served, refreshed over Realtime. It loads its data on the server through the block's client; the [orders block](https://bettersupabase.com/blocks/orders) must be installed (`npx better-supabase add orders`). Page: https://bettersupabase.com/recipes/kitchen-display.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty skeleton
+```
+
+```tsx title="apps/examples/nextjs/src/features/shop/components/kitchen-display.tsx"
+/**
+ * Render inside `<Suspense>`: the open tickets at one station, or at every
+ * station, oldest first. Each ticket moves its lines to the next state, and the
+ * page refreshes when a line changes anywhere in the kitchen.
+ */
+export async function KitchenDisplay({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [session, params] = await Promise.all([getSession(), searchParams]);
+
+  if (!can(session, "orders.read") && !can(session, "orders.prepare")) {
+    forbidden();
+  }
+
+  const canPrepare =
+    can(session, "orders.prepare") || can(session, "orders.manage");
+
+  const [kitchen, t] = await Promise.all([
+    getKitchen(
+      v.is(StationParam, params["station"]) ? params["station"] : null,
+    ),
+    getExtracted("shop"),
+  ]);
+
+  if (kitchen.kind === "no-organization") {
+    return null;
+  }
+
+  if (kitchen.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="kitchen-display">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The kitchen didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  const { organizationId, stations, stationId, tickets } = kitchen.data;
+
+  return (
+    <div data-recipe="kitchen-display" className="flex flex-col gap-4">
+      <KitchenLive organizationId={organizationId} />
+      {stations.length > 1 ? (
+        <nav aria-label={t("Stations")} className="flex flex-wrap gap-1">
+          <Link
+            href="/shop/kitchen"
+            aria-current={stationId === null ? "page" : undefined}
+            className={buttonVariants({
+              size: "sm",
+              variant: stationId === null ? "secondary" : "ghost",
+            })}
+          >
+            {t("All stations")}
+          </Link>
+          {stations.map((each) => (
+            <Link
+              key={each.id}
+              href={`/shop/kitchen?station=${each.id}`}
+              aria-current={stationId === each.id ? "page" : undefined}
+              className={buttonVariants({
+                size: "sm",
+                variant: stationId === each.id ? "secondary" : "ghost",
+              })}
+            >
+              {each.name}
+            </Link>
+          ))}
+        </nav>
+      ) : null}
+      {tickets.length === 0 ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ChefHatIcon />
+            </EmptyMedia>
+            <EmptyTitle>{t("No open tickets")}</EmptyTitle>
+            <EmptyDescription>
+              {t(
+                "Send a paid order to the kitchen and its lines show up here.",
+              )}
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Link
+              href="/shop/orders"
+              className={buttonVariants({ size: "sm" })}
+            >
+              {t("Open orders")}
+            </Link>
+          </EmptyContent>
+        </Empty>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {tickets.map((ticket) => (
+            <KitchenTicket
+              key={ticket.orderId}
+              ticket={ticket}
+              stationId={stationId}
+              canPrepare={canPrepare}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Order state board
+
+Today's kitchen orders in preparation-state columns; dragging an order forward moves all of its lines. It loads its data on the server through the block's client; the [orders block](https://bettersupabase.com/blocks/orders) must be installed (`npx better-supabase add orders`). Page: https://bettersupabase.com/recipes/order-state-board.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add badge card @reui/kanban
+```
+
+```tsx title="apps/examples/nextjs/src/features/shop/components/order-state-board.tsx"
+/**
+ * The orders sent to the kitchen today, in a column for the state of their
+ * least advanced line. Dragging a card to a later column moves every line of
+ * the order up to that state; a move back or within a column puts the card
+ * back. The parent keys it by the cards' states, so a refresh starts it from
+ * the saved board.
+ */
+export function OrderStateBoard({
+  cards,
+  canPrepare,
+}: {
+  cards: readonly BoardCardView[];
+  canPrepare: boolean;
+}) {
+  const t = useExtracted("shop");
+  const errorMessage = useErrorMessage();
+  const label = usePreparationLabel();
+  const [columns, setColumns] = useState(() => columnsOf(cards));
+  const bump = useAction(bumpTicket);
+  const byId = new Map(cards.map((card) => [card.orderId, card]));
+
+  return (
+    <div data-recipe="order-state-board">
+      <Kanban
+        value={columns}
+        onValueChange={setColumns}
+        getItemValue={(card) => card.orderId}
+        onValueCommit={(_value, meta) => {
+          if (meta.kind !== "item") {
+            return;
+          }
+
+          const from = v.parse(StateSchema, meta.activeContainer);
+          const to = v.parse(StateSchema, meta.overContainer);
+
+          if (
+            PREPARATION_STATES.indexOf(to) <= PREPARATION_STATES.indexOf(from)
+          ) {
+            setColumns(meta.previousValue);
+
+            if (from !== to) {
+              toast.warning(t("An order only moves forward on this board."));
+            }
+
+            return;
+          }
+
+          void bump
+            .run({
+              orderId: String(meta.event.active.id),
+              state: to,
+              stationId: null,
+            })
+            .then((result) => {
+              if (!result.ok) {
+                setColumns(meta.previousValue);
+                toast.error(errorMessage(result.error));
+              }
+            });
+        }}
+      >
+        <KanbanBoard className="flex overflow-x-auto">
+          {PREPARATION_STATES.map((state) => {
+            const column = columns[state] ?? [];
+            const count = column.length;
+
+            return (
+              <KanbanColumn
+                key={state}
+                value={state}
+                className="w-72 shrink-0 gap-3 rounded-lg bg-muted/50 p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <Badge variant={preparationBadgeVariant(state)}>
+                    {label(state)}
+                  </Badge>
+                  <Badge variant="outline">{count}</Badge>
+                </div>
+                <KanbanColumnContent value={state} className="min-h-16">
+                  {column.map((card) => (
+                    <KanbanItem
+                      key={card.orderId}
+                      value={card.orderId}
+                      disabled={!canPrepare || bump.pending}
+                    >
+                      <KanbanItemHandle cursor={canPrepare}>
+                        <OrderCard card={card} />
+                      </KanbanItemHandle>
+                    </KanbanItem>
+                  ))}
+                  {count === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      {t("No orders here.")}
+                    </p>
+                  ) : null}
+                </KanbanColumnContent>
+              </KanbanColumn>
+            );
+          })}
+        </KanbanBoard>
+        <KanbanOverlay>
+          {({ value, variant }) => {
+            const card =
+              variant === "item" ? byId.get(String(value)) : undefined;
+
+            return card ? <OrderCard card={card} /> : null;
+          }}
+        </KanbanOverlay>
+      </Kanban>
+    </div>
+  );
+}
+```
+
 ## Promotion code field
 
 A field that checks a promotion code and shows the discount it gives. It loads its data on the server through the block's client; the [promotions block](https://bettersupabase.com/blocks/promotions) must be installed (`npx better-supabase add promotions`). Page: https://bettersupabase.com/recipes/promotion-code-field.
@@ -13542,6 +16677,7 @@ export async function CalendarView({
           >
             <ChevronRightIcon />
           </Link>
+          {calendars.length > 0 ? <WorkingHoursDialog /> : null}
           {canWrite && calendars.length > 0 ? (
             <CreateEventDialog
               calendars={calendars}
@@ -13948,12 +17084,12 @@ export async function RemindersList() {
 
 ## Drive explorer
 
-Folders and files with upload, rename, move and a breadcrumb trail. It loads its data on the server through the block's client; the [drive block](https://bettersupabase.com/blocks/drive) must be installed (`npx better-supabase add drive`). Page: https://bettersupabase.com/recipes/drive-explorer.
+Folders and files with upload, rename, move and a breadcrumb trail, each file with its labels and the approval of its current version. It loads its data on the server through the block's client; the [drive block](https://bettersupabase.com/blocks/drive) must be installed (`npx better-supabase add drive`). Page: https://bettersupabase.com/recipes/drive-explorer.
 
 Web, with shadcn components:
 
 ```bash
-npx shadcn add alert breadcrumb button card empty skeleton table
+npx shadcn add alert badge breadcrumb button card empty skeleton table
 ```
 
 ```tsx title="apps/examples/nextjs/src/features/drive/components/drive-explorer.tsx"
@@ -13973,6 +17109,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/reui/alert";
+import { Badge } from "@/components/reui/badge";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -14002,9 +17139,24 @@ import {
 } from "@/components/ui/table";
 import { Link } from "@/i18n/navigation";
 
+import type { DriveItem } from "../drive-queries";
+
 import { getDriveFolder } from "../drive-queries";
 import { DriveItemActions } from "./drive-item-actions";
 import { CreateFolderDialog, UploadFileButton } from "./drive-toolbar";
+
+type Approval = NonNullable<DriveItem["approval"]>;
+
+const APPROVAL_BADGE: Record<
+  Approval,
+  ComponentProps<typeof Badge>["variant"]
+> = {
+  pending: "warning-light",
+  approved: "success-light",
+  rejected: "destructive-light",
+  cancelled: "secondary",
+  expired: "secondary",
+};
 
 // oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
 async function retry() {
@@ -14046,6 +17198,14 @@ export async function DriveExplorer({
   }
 
   const current = view.crumbs.at(-1);
+
+  const approvalLabels: Record<Approval, string> = {
+    pending: t("Awaiting approval"),
+    approved: t("Approved"),
+    rejected: t("Rejected"),
+    cancelled: t("Approval cancelled"),
+    expired: t("Approval expired"),
+  };
 
   return (
     <Card data-recipe="drive-explorer">
@@ -14116,20 +17276,36 @@ export async function DriveExplorer({
               {view.items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">
-                    {item.kind === "folder" ? (
-                      <Link
-                        href={`/drive/${item.id}`}
-                        className="flex items-center gap-2 transition-colors hover:text-primary"
-                      >
-                        <FolderIcon className="size-4 text-muted-foreground" />
-                        {item.name}
-                      </Link>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        <FileIcon className="size-4 text-muted-foreground" />
-                        {item.name}
-                      </span>
-                    )}
+                    <div className="flex flex-col gap-1">
+                      {item.kind === "folder" ? (
+                        <Link
+                          href={`/drive/${item.id}`}
+                          className="flex items-center gap-2 transition-colors hover:text-primary"
+                        >
+                          <FolderIcon className="size-4 text-muted-foreground" />
+                          {item.name}
+                        </Link>
+                      ) : (
+                        <span className="flex flex-wrap items-center gap-2">
+                          <FileIcon className="size-4 text-muted-foreground" />
+                          {item.name}
+                          {item.approval === null ? null : (
+                            <Badge variant={APPROVAL_BADGE[item.approval]}>
+                              {approvalLabels[item.approval]}
+                            </Badge>
+                          )}
+                        </span>
+                      )}
+                      {item.labels.length === 0 ? null : (
+                        <span className="flex flex-wrap gap-1">
+                          {item.labels.map((label) => (
+                            <Badge key={label.id} variant="outline">
+                              {label.name}
+                            </Badge>
+                          ))}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {item.kind === "folder"
@@ -14315,7 +17491,7 @@ function SaveVersionButton({ customerId }: { customerId: string }) {
   const t = useExtracted("customers");
   const errorMessage = useErrorMessage();
 
-  const save = useAction(saveCustomerVersion, {
+  const save = useAction(snapshotCustomerVersions, {
     onSuccess: () => {
       toast.success(t("Version saved"));
     },
@@ -14330,7 +17506,7 @@ function SaveVersionButton({ customerId }: { customerId: string }) {
       variant="outline"
       disabled={save.pending}
       onClick={() => {
-        void save.run({ customerId });
+        void save.run({ id: customerId, input: {} });
       }}
     >
       <HistoryIcon />
@@ -14943,6 +18119,679 @@ export function FormBuilderSkeleton() {
       <Skeleton className="h-48 rounded-xl" />
     </div>
   );
+}
+```
+
+## Post board
+
+A feedback board's posts ranked by votes, with an upvote toggle, the roadmap status, moderation state and a New post dialog. It loads its data on the server through the block's client; the [posts block](https://bettersupabase.com/blocks/posts) must be installed (`npx better-supabase add posts`). Page: https://bettersupabase.com/recipes/post-board.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card dialog empty field input skeleton textarea
+```
+
+```tsx title="apps/examples/nextjs/src/features/community/components/post-board.tsx"
+const statusVariants = {
+  open: "outline",
+  under_review: "info-light",
+  planned: "primary-light",
+  in_progress: "warning-light",
+  done: "success-light",
+  closed: "secondary",
+} as const satisfies Record<PostStatus, string>;
+
+const moderationVariants = {
+  visible: null,
+  pending: "warning-light",
+  hidden: "destructive-light",
+  removed: "destructive-light",
+} as const satisfies Record<PostModeration, string | null>;
+
+/** Render inside `<Suspense>`: the board's posts, top voted first. */
+export async function PostBoard() {
+  const [view, session, t] = await Promise.all([
+    getBoard(),
+    getSession(),
+    getExtracted("community"),
+  ]);
+
+  if (view.kind === "no-organization") {
+    return null;
+  }
+
+  if (view.kind === "error") {
+    return (
+      <Alert variant="destructive">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The board didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  const board = view.data;
+
+  if (board === null) {
+    const manage = can(session, "posts.manage");
+
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <MessageSquareTextIcon />
+          </EmptyMedia>
+          <EmptyTitle>{t("No board yet")}</EmptyTitle>
+          <EmptyDescription>
+            {manage
+              ? t("Open a feedback board where members post and vote on ideas.")
+              : t("An admin opens the board your team posts on.")}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          {manage ? (
+            <CreateBoardButton />
+          ) : (
+            <Link href="/" className={buttonVariants({ variant: "outline" })}>
+              {t("Back to the dashboard")}
+            </Link>
+          )}
+        </EmptyContent>
+      </Empty>
+    );
+  }
+
+  const write = can(session, "posts.write");
+
+  const statusLabels: Record<PostStatus, string> = {
+    open: t("Open"),
+    under_review: t("Under review"),
+    planned: t("Planned"),
+    in_progress: t("In progress"),
+    done: t("Done"),
+    closed: t("Closed"),
+  };
+
+  const moderationLabels: Record<PostModeration, string> = {
+    visible: t("Visible"),
+    pending: t("Awaiting review"),
+    hidden: t("Hidden"),
+    removed: t("Removed"),
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-medium">{board.name}</h2>
+        {write ? <NewPostDialog boardId={board.id} /> : null}
+      </div>
+      {board.posts.length === 0 ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <MessageSquareIcon />
+            </EmptyMedia>
+            <EmptyTitle>{t("No posts yet")}</EmptyTitle>
+            <EmptyDescription>
+              {t("Post the first idea for others to vote on.")}
+            </EmptyDescription>
+          </EmptyHeader>
+          {write ? (
+            <EmptyContent>
+              <NewPostDialog boardId={board.id} />
+            </EmptyContent>
+          ) : null}
+        </Empty>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {board.posts.map((post) => {
+            const moderation = moderationVariants[post.moderation];
+
+            return (
+              <li key={post.id}>
+                <Card size="sm">
+                  <CardContent className="flex items-start gap-3">
+                    <VoteButton
+                      postId={post.id}
+                      score={post.score}
+                      voted={post.vote > 0}
+                      disabled={post.moderation !== "visible"}
+                    />
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {post.pinned ? (
+                          <PinIcon
+                            aria-label={t("Pinned")}
+                            className="size-4 text-muted-foreground"
+                          />
+                        ) : null}
+                        <span className="text-sm font-medium">
+                          {post.title}
+                        </span>
+                        <Badge variant={statusVariants[post.status]}>
+                          {statusLabels[post.status]}
+                        </Badge>
+                        {moderation === null ? null : (
+                          <Badge variant={moderation}>
+                            {moderationLabels[post.moderation]}
+                          </Badge>
+                        )}
+                      </div>
+                      {post.body ? (
+                        <p className="line-clamp-2 text-sm text-muted-foreground">
+                          {post.body}
+                        </p>
+                      ) : null}
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground tabular-nums">
+                        <span className="flex items-center gap-1">
+                          <MessageSquareIcon aria-hidden className="size-3.5" />
+                          {t("{count} replies", {
+                            count: String(post.replyCount),
+                          })}
+                        </span>
+                        {post.locked ? (
+                          <span className="flex items-center gap-1">
+                            <LockIcon aria-hidden className="size-3.5" />
+                            {t("Locked")}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+```
+
+## Course outline
+
+A course's modules and lessons in rank order, with the caller's progress, certificate and an Enroll button. It loads its data on the server through the block's client; the [courses block](https://bettersupabase.com/blocks/courses) must be installed (`npx better-supabase add courses`). Page: https://bettersupabase.com/recipes/course-outline.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty progress skeleton
+```
+
+```tsx title="apps/examples/nextjs/src/features/courses/components/course-outline.tsx"
+import type {
+  CourseLessonKind,
+  CourseStatus,
+} from "better-supabase/blocks/courses";
+import type { LucideIcon } from "lucide-react";
+
+import {
+  AwardIcon,
+  CircleCheckIcon,
+  CircleIcon,
+  FileTextIcon,
+  ListChecksIcon,
+  PlayCircleIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
+import { getExtracted } from "next-intl/server";
+import { refresh } from "next/cache";
+
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/reui/alert";
+import { Badge } from "@/components/reui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "@/i18n/navigation";
+
+import { getOutline } from "../courses-queries";
+import { EnrollButton } from "./course-controls";
+
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+const statusVariants = {
+  draft: "secondary",
+  published: "success-light",
+  archived: "outline",
+} as const satisfies Record<CourseStatus, string>;
+
+const kindIcons = {
+  content: FileTextIcon,
+  video: PlayCircleIcon,
+  quiz: ListChecksIcon,
+} as const satisfies Record<CourseLessonKind, LucideIcon>;
+
+/**
+ * Render inside `<Suspense>`: a course's modules, lessons and the caller's
+ * progress.
+ */
+export async function CourseOutline({
+  params,
+}: {
+  params: Promise<{ courseId: string }>;
+}) {
+  const { courseId } = await params;
+
+  const [view, t] = await Promise.all([
+    getOutline(courseId),
+    getExtracted("courses"),
+  ]);
+
+  if (view.kind === "no-organization") {
+    return null;
+  }
+
+  if (view.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="course-outline">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The course didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  const course = view.data;
+  const learner = course.learner;
+
+  const statusLabels: Record<CourseStatus, string> = {
+    draft: t("Draft"),
+    published: t("Published"),
+    archived: t("Archived"),
+  };
+
+  const kindLabels: Record<CourseLessonKind, string> = {
+    content: t("Reading"),
+    video: t("Video"),
+    quiz: t("Quiz"),
+  };
+
+  const next = course.modules
+    .flatMap((module) => module.lessons)
+    .find((lesson) => !lesson.done);
+
+  return (
+    <div data-recipe="course-outline" className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">{course.title}</h2>
+            <Badge variant={statusVariants[course.status]}>
+              {statusLabels[course.status]}
+            </Badge>
+          </div>
+          {course.summary ? (
+            <p className="text-sm text-muted-foreground">{course.summary}</p>
+          ) : null}
+        </div>
+        {learner === null ? (
+          course.status === "published" ? (
+            <EnrollButton courseId={course.id} />
+          ) : null
+        ) : next === undefined ? null : (
+          <Link
+            href={`/courses/${course.id}/lessons/${next.id}`}
+            className={buttonVariants()}
+          >
+            <PlayCircleIcon />
+            {t("Continue")}
+          </Link>
+        )}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="flex flex-col gap-4 lg:col-span-2">
+          {course.modules.length === 0 ? (
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <ListChecksIcon />
+                </EmptyMedia>
+                <EmptyTitle>{t("No lessons yet")}</EmptyTitle>
+                <EmptyDescription>
+                  {t("Lessons show up here once a manager adds them.")}
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Link
+                  href="/courses"
+                  className={buttonVariants({ variant: "outline" })}
+                >
+                  {t("All courses")}
+                </Link>
+              </EmptyContent>
+            </Empty>
+          ) : (
+            course.modules.map((module) => (
+              <Card key={module.id}>
+                <CardHeader>
+                  <CardTitle>{module.title}</CardTitle>
+                  <CardDescription>
+                    {t("{count, plural, one {# lesson} other {# lessons}}", {
+                      count: module.lessons.length,
+                    })}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="divide-y">
+                    {module.lessons.map((lesson) => {
+                      const KindIcon = kindIcons[lesson.kind];
+
+                      return (
+                        <li
+                          key={lesson.id}
+                          className="flex items-center gap-3 py-2"
+                        >
+                          {lesson.done ? (
+                            <CircleCheckIcon
+                              className="size-4 text-success"
+                              aria-label={t("Done")}
+                            />
+                          ) : (
+                            <CircleIcon
+                              className="size-4 text-muted-foreground"
+                              aria-label={t("Not done")}
+                            />
+                          )}
+                          {learner === null ? (
+                            <span className="flex-1 text-sm">
+                              {lesson.title}
+                            </span>
+                          ) : (
+                            <Link
+                              href={`/courses/${course.id}/lessons/${lesson.id}`}
+                              className="flex-1 text-sm transition-colors hover:text-primary"
+                            >
+                              {lesson.title}
+                            </Link>
+                          )}
+                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <KindIcon className="size-3.5" />
+                            {kindLabels[lesson.kind]}
+                          </span>
+                          {lesson.minutes === null ? null : (
+                            <span className="text-xs text-muted-foreground">
+                              {t("{minutes, number} min", {
+                                minutes: lesson.minutes,
+                              })}
+                            </span>
+                          )}
+                          {lesson.required ? null : (
+                            <Badge variant="outline">{t("Optional")}</Badge>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("Your progress")}</CardTitle>
+            <CardDescription>
+              {learner === null
+                ? t("Enroll to track your progress.")
+                : t("{done, number} of {total, number} lessons done", {
+                    done: learner.completed,
+                    total: learner.total,
+                  })}
+            </CardDescription>
+          </CardHeader>
+          {learner === null ? null : (
+            <CardContent className="flex flex-col gap-4">
+              <Progress
+                value={
+                  learner.total === 0
+                    ? 0
+                    : (learner.completed / learner.total) * 100
+                }
+                aria-label={t("Your progress")}
+              />
+              {learner.certificateCode === null ? null : (
+                <div className="flex items-center gap-2 text-sm">
+                  <AwardIcon className="size-4 text-success" />
+                  <span>{t("Certificate")}</span>
+                  <code className="text-xs text-muted-foreground">
+                    {learner.certificateCode}
+                  </code>
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+export function CourseOutlineSkeleton() {
+  return (
+    <div className="flex flex-col gap-6" aria-busy="true">
+      <Skeleton className="h-8 w-64" />
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Skeleton className="h-64 rounded-xl lg:col-span-2" />
+        <Skeleton className="h-40 rounded-xl" />
+      </div>
+    </div>
+  );
+}
+```
+
+## Lesson player
+
+One lesson's content with a Mark as done button, or its quiz, which the database grades on submit. It loads its data on the server through the block's client; the [courses block](https://bettersupabase.com/blocks/courses) must be installed (`npx better-supabase add courses`). Page: https://bettersupabase.com/recipes/lesson-player.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card checkbox field input select skeleton textarea
+```
+
+```tsx title="apps/examples/nextjs/src/features/courses/components/lesson-player.tsx"
+import type { CourseLessonKind } from "better-supabase/blocks/courses";
+
+import { ArrowLeftIcon, TriangleAlertIcon } from "lucide-react";
+import { getExtracted } from "next-intl/server";
+import { refresh } from "next/cache";
+
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/reui/alert";
+import { Badge } from "@/components/reui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "@/i18n/navigation";
+
+import { getLesson } from "../courses-queries";
+import { CompleteLessonButton } from "./course-controls";
+import { QuizForm } from "./quiz-form";
+
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+/** Render inside `<Suspense>`: one lesson's content, or its quiz. */
+export async function LessonPlayer({
+  params,
+}: {
+  params: Promise<{ courseId: string; lessonId: string }>;
+}) {
+  const { courseId, lessonId } = await params;
+
+  const [view, t] = await Promise.all([
+    getLesson(lessonId),
+    getExtracted("courses"),
+  ]);
+
+  const back = (
+    <Link
+      href={`/courses/${courseId}`}
+      className={buttonVariants({
+        variant: "ghost",
+        size: "sm",
+        className: "w-fit",
+      })}
+    >
+      <ArrowLeftIcon />
+      {t("Course outline")}
+    </Link>
+  );
+
+  if (view.kind === "no-organization") {
+    return null;
+  }
+
+  if (view.kind === "error") {
+    return (
+      <div data-recipe="lesson-player" className="flex flex-col gap-4">
+        {back}
+        <Alert variant="destructive">
+          <TriangleAlertIcon />
+          <AlertTitle>{t("The lesson didn't load")}</AlertTitle>
+          <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+          <AlertAction>
+            <form action={retry}>
+              <Button size="sm" variant="outline" type="submit">
+                {t("Retry")}
+              </Button>
+            </form>
+          </AlertAction>
+        </Alert>
+      </div>
+    );
+  }
+
+  const lesson = view.data;
+
+  const kindLabels: Record<CourseLessonKind, string> = {
+    content: t("Reading"),
+    video: t("Video"),
+    quiz: t("Quiz"),
+  };
+
+  return (
+    <div data-recipe="lesson-player" className="flex flex-col gap-4">
+      {back}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center gap-2">
+            <CardTitle>{lesson.title}</CardTitle>
+            <Badge variant="outline">{kindLabels[lesson.kind]}</Badge>
+            {lesson.done ? (
+              <Badge variant="success-light">{t("Done")}</Badge>
+            ) : null}
+          </div>
+          {lesson.lastScore === null ? null : (
+            <CardDescription>
+              {t("Last score: {score, number} of {max, number}", {
+                score: lesson.lastScore.score,
+                max: lesson.lastScore.max,
+              })}
+            </CardDescription>
+          )}
+        </CardHeader>
+        {lesson.kind === "quiz" ? (
+          lesson.quiz === null || lesson.quiz.length === 0 ? (
+            <CardContent>
+              <Alert variant="warning">
+                <TriangleAlertIcon />
+                <AlertTitle>{t("This quiz has no questions")}</AlertTitle>
+                <AlertDescription>
+                  {t("A manager publishes the quiz form first.")}
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          ) : (
+            <QuizForm lessonId={lesson.id} fields={lesson.quiz} />
+          )
+        ) : (
+          <>
+            <CardContent className="flex flex-col gap-4">
+              {lesson.text === null ? null : (
+                <p className="text-sm whitespace-pre-line">{lesson.text}</p>
+              )}
+              {lesson.mediaUrl === null ? null : (
+                <a
+                  href={lesson.mediaUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-primary transition-colors hover:text-primary/80"
+                >
+                  {t("Open the video")}
+                </a>
+              )}
+            </CardContent>
+            {lesson.done ? null : (
+              <CardFooter className="flex justify-end">
+                <CompleteLessonButton lessonId={lesson.id} />
+              </CardFooter>
+            )}
+          </>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+export function LessonPlayerSkeleton() {
+  return <Skeleton className="h-64 rounded-xl" aria-busy="true" />;
 }
 ```
 
@@ -15767,25 +19616,32 @@ export function TemplatesGallerySkeleton() {
 
 ## Document editor
 
-A rich text editor for a document with autosave and collaborators. It loads its data on the server through the block's client; the [documents block](https://bettersupabase.com/blocks/documents) must be installed (`npx better-supabase add documents`). Page: https://bettersupabase.com/recipes/document-editor.
+A rich text editor for a document with autosave, collaborators and a suggestion mode that editors accept or reject. It loads its data on the server through the block's client; the [documents block](https://bettersupabase.com/blocks/documents) must be installed (`npx better-supabase add documents`). Page: https://bettersupabase.com/recipes/document-editor.
 
 Web, with shadcn components:
 
 ```bash
-npx shadcn add alert badge button card field input skeleton textarea
+npx shadcn add alert badge button card empty field input skeleton tabs textarea
 ```
 
 ```tsx title="apps/examples/nextjs/src/features/documents/components/document-editor.tsx"
 "use client";
 
-import type { DocumentProviderStatus } from "better-supabase/yjs";
+import type {
+  DocumentSuggestion,
+  Documents,
+} from "better-supabase/blocks/documents";
+import type {
+  DocumentProviderMode,
+  DocumentProviderStatus,
+} from "better-supabase/yjs";
 
 import { rpcTransport } from "better-supabase/blocks";
 import { createDocuments } from "better-supabase/blocks/documents";
 import { createDocumentProvider } from "better-supabase/yjs";
-import { TriangleAlertIcon } from "lucide-react";
-import { useExtracted } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { MessageSquareDiffIcon, TriangleAlertIcon } from "lucide-react";
+import { useExtracted, useFormatter } from "next-intl";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import * as Y from "yjs";
 
 import {
@@ -15803,9 +19659,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useSupabase } from "@/lib/hooks";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
@@ -15860,6 +19725,16 @@ interface DocumentTarget {
   readonly customerId: string;
   readonly customerName: string;
   readonly canWrite: boolean;
+  readonly canSuggest: boolean;
+}
+
+type SuggestionsState =
+  | { readonly kind: "loading" }
+  | { readonly kind: "error" }
+  | { readonly kind: "ok"; readonly items: readonly DocumentSuggestion[] };
+
+function isMode(value: unknown): value is DocumentProviderMode {
+  return value === "edit" || value === "suggest";
 }
 
 /**
@@ -15887,17 +19762,37 @@ function DocumentSession({
   customerId,
   customerName,
   canWrite,
+  canSuggest,
   onRetry,
 }: DocumentTarget & { readonly onRetry: () => void }) {
   const t = useExtracted("documents");
   const fieldId = useId();
   const supabase = useSupabase();
   const editing = useRef<Editing | null>(null);
+
+  const session = useRef<{
+    readonly documents: Documents;
+    readonly provider: ReturnType<typeof createDocumentProvider>;
+  } | null>(null);
+
   const [status, setStatus] = useState<DocumentProviderStatus>("connecting");
   const [failed, setFailed] = useState(false);
   const [writable, setWritable] = useState(false);
+  const [suggestable, setSuggestable] = useState(false);
+  const [documentId, setDocumentId] = useState<string | null>(null);
+
+  const [mode, setMode] = useState<DocumentProviderMode>(
+    canWrite ? "edit" : "suggest",
+  );
+
+  const [hasDraft, setHasDraft] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+
+  const [suggestions, setSuggestions] = useState<SuggestionsState>({
+    kind: "loading",
+  });
 
   useEffect(() => {
     const doc = new Y.Doc();
@@ -15908,11 +19803,13 @@ function DocumentSession({
       setBody(texts.body.toString());
     };
 
+    const documents = createDocuments({
+      transport: rpcTransport(supabase),
+      schema: blockConfig.documents.api,
+    });
+
     const provider = createDocumentProvider({
-      documents: createDocuments({
-        transport: rpcTransport(supabase),
-        schema: blockConfig.documents.api,
-      }),
+      documents,
       client: supabase,
       doc,
       yjs: Y,
@@ -15922,16 +19819,20 @@ function DocumentSession({
         subjectId: customerId,
         name: DOCUMENT_NAME,
       },
+      mode: canWrite ? "edit" : "suggest",
       onStatus: setStatus,
     });
 
     texts.title.observe(sync);
     texts.body.observe(sync);
     editing.current = texts;
+    session.current = { documents, provider };
 
     void provider.connect().then((opened) => {
       if (opened.ok) {
         setWritable(opened.data.canWrite);
+        setSuggestable(opened.data.canSuggest);
+        setDocumentId(opened.data.id);
         sync();
       } else {
         setFailed(true);
@@ -15942,10 +19843,28 @@ function DocumentSession({
       texts.title.unobserve(sync);
       texts.body.unobserve(sync);
       editing.current = null;
+      session.current = null;
       void provider.destroy();
       doc.destroy();
     };
-  }, [supabase, organizationId, customerId]);
+  }, [supabase, organizationId, customerId, canWrite]);
+
+  const loadSuggestions = useCallback(async () => {
+    if (documentId === null || session.current === null) {
+      return;
+    }
+
+    setSuggestions({ kind: "loading" });
+    const listed = await session.current.documents.suggestions(documentId);
+
+    setSuggestions(
+      listed.ok ? { kind: "ok", items: listed.data } : { kind: "error" },
+    );
+  }, [documentId]);
+
+  useEffect(() => {
+    void loadSuggestions();
+  }, [loadSuggestions]);
 
   const statusLabels: Record<DocumentProviderStatus, string> = {
     connecting: t("Connecting"),
@@ -15954,7 +19873,37 @@ function DocumentSession({
     closed: t("Closed"),
   };
 
-  const readOnly = !canWrite || !writable;
+  const editable = canWrite && writable;
+  const suggesting = mode === "suggest" && canSuggest && suggestable;
+  const readOnly = !(suggesting || (mode === "edit" && editable));
+
+  const changeMode = (next: DocumentProviderMode) => {
+    setMode(next);
+    session.current?.provider.setMode(next);
+  };
+
+  const edit = (text: "title" | "body", value: string) => {
+    if (editing.current) {
+      replaceText(editing.current[text], value);
+    }
+
+    setHasDraft(session.current?.provider.hasDraft ?? false);
+  };
+
+  const submit = async () => {
+    if (session.current === null) {
+      return;
+    }
+
+    setSubmitting(true);
+    const stored = await session.current.provider.submitSuggestion();
+    setSubmitting(false);
+
+    if (stored.ok) {
+      setHasDraft(false);
+      await loadSuggestions();
+    }
+  };
 
   if (failed) {
     return (
@@ -15981,17 +19930,34 @@ function DocumentSession({
         <CardDescription>
           {readOnly
             ? t("You can read this document. Ask an admin for edit access.")
-            : t("Changes save as you type and show up for everyone editing.")}
+            : suggesting
+              ? t("Your edits become a suggestion that an editor accepts.")
+              : t("Changes save as you type and show up for everyone editing.")}
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+      <CardContent className="flex flex-col gap-6">
+        {editable && canSuggest ? (
+          <Tabs
+            value={mode}
+            onValueChange={(value) => {
+              if (isMode(value)) {
+                changeMode(value);
+              }
+            }}
+          >
+            <TabsList>
+              <TabsTrigger value="edit">{t("Editing")}</TabsTrigger>
+              <TabsTrigger value="suggest">{t("Suggesting")}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        ) : null}
         {status === "connecting" && title === "" && body === "" ? (
           <div className="flex flex-col gap-4" aria-busy="true">
             <Skeleton className="h-9 w-full" />
             <Skeleton className="h-64 w-full" />
           </div>
         ) : (
-          <>
+          <div className="flex flex-col gap-4">
             <Field>
               <FieldLabel htmlFor={`${fieldId}-title`}>{t("Title")}</FieldLabel>
               <Input
@@ -16002,10 +19968,7 @@ function DocumentSession({
                 placeholder={t("Untitled")}
                 onChange={(event) => {
                   setTitle(event.target.value);
-
-                  if (editing.current) {
-                    replaceText(editing.current.title, event.target.value);
-                  }
+                  edit("title", event.target.value);
                 }}
               />
             </Field>
@@ -16019,10 +19982,7 @@ function DocumentSession({
                 placeholder={t("Write the notes here.")}
                 onChange={(event) => {
                   setBody(event.target.value);
-
-                  if (editing.current) {
-                    replaceText(editing.current.body, event.target.value);
-                  }
+                  edit("body", event.target.value);
                 }}
               />
               <FieldDescription>
@@ -16031,10 +19991,178 @@ function DocumentSession({
                 )}
               </FieldDescription>
             </Field>
-          </>
+            {suggesting ? (
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  size="sm"
+                  disabled={!hasDraft || submitting}
+                  onClick={() => {
+                    void submit();
+                  }}
+                >
+                  {t("Submit suggestion")}
+                </Button>
+              </div>
+            ) : null}
+          </div>
         )}
+        <SuggestionList
+          state={suggestions}
+          canDecide={editable}
+          canSuggest={canSuggest && suggestable}
+          onRetry={() => {
+            void loadSuggestions();
+          }}
+          onSuggest={() => {
+            changeMode("suggest");
+          }}
+          onDecide={async (suggestion, decision) => {
+            if (session.current === null) {
+              return;
+            }
+
+            const decided =
+              decision === "accepted"
+                ? await session.current.provider.acceptSuggestion(suggestion.id)
+                : await session.current.documents.decideSuggestion(
+                    suggestion.id,
+                    "rejected",
+                  );
+
+            if (decided.ok) {
+              await loadSuggestions();
+            }
+          }}
+        />
       </CardContent>
     </Card>
+  );
+}
+
+interface SuggestionListProps {
+  readonly state: SuggestionsState;
+  readonly canDecide: boolean;
+  readonly canSuggest: boolean;
+  readonly onRetry: () => void;
+  readonly onSuggest: () => void;
+  readonly onDecide: (
+    suggestion: DocumentSuggestion,
+    decision: "accepted" | "rejected",
+  ) => Promise<void>;
+}
+
+/** The open suggestions; editors accept them into the document or reject them. */
+function SuggestionList({
+  state,
+  canDecide,
+  canSuggest,
+  onRetry,
+  onSuggest,
+  onDecide,
+}: SuggestionListProps) {
+  const t = useExtracted("documents");
+  const format = useFormatter();
+  const [busy, setBusy] = useState<string | null>(null);
+
+  if (state.kind === "loading") {
+    return (
+      <div className="flex flex-col gap-2" aria-busy="true">
+        <Skeleton className="h-5 w-32" />
+        <Skeleton className="h-14 w-full" />
+      </div>
+    );
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Alert variant="destructive">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The suggestions didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <Button size="sm" variant="outline" onClick={onRetry}>
+            {t("Retry")}
+          </Button>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  if (state.items.length === 0) {
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <MessageSquareDiffIcon />
+          </EmptyMedia>
+          <EmptyTitle>{t("No open suggestions")}</EmptyTitle>
+          <EmptyDescription>
+            {t("Suggested edits wait here until an editor accepts them.")}
+          </EmptyDescription>
+        </EmptyHeader>
+        {canSuggest ? (
+          <EmptyContent>
+            <Button size="sm" variant="outline" onClick={onSuggest}>
+              {t("Suggest a change")}
+            </Button>
+          </EmptyContent>
+        ) : null}
+      </Empty>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h3 className="text-sm font-medium tracking-tight">{t("Suggestions")}</h3>
+      <ul className="flex flex-col divide-y">
+        {state.items.map((suggestion) => (
+          <li
+            key={suggestion.id}
+            className="flex items-center justify-between gap-4 py-3"
+          >
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm">
+                {suggestion.summary ?? t("Suggested edit")}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {format.relativeTime(
+                  new Date(suggestion.createdAt.epochMilliseconds),
+                )}
+              </span>
+            </div>
+            {canDecide ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy !== null}
+                  onClick={() => {
+                    setBusy(suggestion.id);
+                    void onDecide(suggestion, "rejected").finally(() => {
+                      setBusy(null);
+                    });
+                  }}
+                >
+                  {t("Reject")}
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={busy !== null}
+                  onClick={() => {
+                    setBusy(suggestion.id);
+                    void onDecide(suggestion, "accepted").finally(() => {
+                      setBusy(null);
+                    });
+                  }}
+                >
+                  {t("Accept")}
+                </Button>
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -16410,7 +20538,7 @@ export function WebhookEndpointsSkeleton() {
 
 ## Service principals table
 
-Machine identities with their scopes, last use and a button to disable one. It loads its data on the server through the block's client; the [service-principals block](https://bettersupabase.com/blocks/service-principals) must be installed (`npx better-supabase add service-principals`). Page: https://bettersupabase.com/recipes/service-principals-table.
+Machine identities with their scopes, last use and a button to disable one. It loads its data on the server through the block's client; the [service-accounts block](https://bettersupabase.com/blocks/service-accounts) must be installed (`npx better-supabase add service-accounts`). Page: https://bettersupabase.com/recipes/service-principals-table.
 
 Web, with shadcn components:
 
@@ -16943,7 +21071,7 @@ export async function PrivacySettings() {
 
 ## Job runs table
 
-The latest background job runs with their status, attempts and error, and a button to retry a failed run. It loads its data on the server through the block's client; the [jobs block](https://bettersupabase.com/blocks/jobs) must be installed (`npx better-supabase add jobs`). Page: https://bettersupabase.com/recipes/job-runs-table.
+The latest background job runs with their status, attempts and error, and a button to retry a failed run. It loads its data on the server through the block's client; the [queue block](https://bettersupabase.com/blocks/queue) must be installed (`npx better-supabase add queue`). Page: https://bettersupabase.com/recipes/job-runs-table.
 
 Web, with shadcn components:
 
@@ -17254,6 +21382,679 @@ export function TeamPicker({
           ))}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+```
+
+## Contract renewals
+
+Active contracts with their value, end date and notice deadline, the nearest deadline first, so a renewal is decided in time. It loads its data on the server through the block's client; the [contracts block](https://bettersupabase.com/blocks/contracts) must be installed (`npx better-supabase add contracts`). Page: https://bettersupabase.com/recipes/contract-renewals.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty skeleton table
+```
+
+```tsx title="apps/examples/nextjs/src/features/compliance/components/contract-renewals.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+const SOON_DAYS = 30;
+
+/**
+ * Render inside `<Suspense>`: the organization's active contracts, the nearest
+ * notice deadline first, so the team decides on a renewal before the
+ * counterparty's notice period runs out.
+ */
+export async function ContractRenewals() {
+  const [state, t, format, locale] = await Promise.all([
+    getRenewals(),
+    getExtracted("compliance"),
+    getFormatter(),
+    getLocale(),
+  ]);
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  const day = (date: string) =>
+    format.dateTime(new Date(date), { dateStyle: "medium", timeZone: "UTC" });
+
+  const renewal = (row: RenewalRow) => {
+    const days = row.noticeInDays;
+
+    if (days === null) {
+      return <Badge variant="secondary">{t("No end date")}</Badge>;
+    }
+
+    if (days < 0) {
+      return (
+        <Badge variant="destructive-light">
+          {row.autoRenew ? t("Renews, notice passed") : t("Notice passed")}
+        </Badge>
+      );
+    }
+
+    if (days <= SOON_DAYS) {
+      return (
+        <Badge variant="warning-light">
+          {t("Notice in {days, number} days", { days })}
+        </Badge>
+      );
+    }
+
+    return row.autoRenew ? (
+      <Badge variant="info-light">{t("Auto-renews")}</Badge>
+    ) : (
+      <Badge variant="success-light">{t("Active")}</Badge>
+    );
+  };
+
+  return (
+    <Card data-recipe="contract-renewals">
+      <CardHeader>
+        <CardTitle>{t("Contract renewals")}</CardTitle>
+        <CardDescription>
+          {t(
+            "Active contracts, the nearest notice deadline first. A contract that auto-renews extends itself unless someone gives notice before the deadline.",
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {state.kind === "error" ? (
+          <Alert variant="destructive">
+            <TriangleAlertIcon />
+            <AlertTitle>{t("The contracts didn't load")}</AlertTitle>
+            <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+            <AlertAction>
+              <form action={retry}>
+                <Button size="sm" variant="outline" type="submit">
+                  {t("Retry")}
+                </Button>
+              </form>
+            </AlertAction>
+          </Alert>
+        ) : state.data.length === 0 ? (
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileSignatureIcon />
+              </EmptyMedia>
+              <EmptyTitle>{t("No active contracts")}</EmptyTitle>
+              <EmptyDescription>
+                {t(
+                  "A contract becomes active once every signer has signed. Draft one from a customer's record.",
+                )}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Link href="/customers" className={buttonVariants()}>
+                {t("Open customers")}
+              </Link>
+            </EmptyContent>
+          </Empty>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t("Contract")}</TableHead>
+                <TableHead className="text-right">{t("Value")}</TableHead>
+                <TableHead>{t("Ends")}</TableHead>
+                <TableHead>{t("Notice by")}</TableHead>
+                <TableHead>{t("Renewal")}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {state.data.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell className="font-medium">{row.title}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {row.value
+                      ? formatMoney(moneyFromJson(row.value), locale)
+                      : "–"}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {row.endsOn ? day(row.endsOn) : "–"}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {row.noticeDeadline ? day(row.noticeDeadline) : "–"}
+                  </TableCell>
+                  <TableCell>{renewal(row)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function ContractRenewalsSkeleton() {
+  return <Skeleton className="h-40 rounded-xl" aria-busy="true" />;
+}
+```
+
+## Control posture
+
+One card per compliance framework with its passing, failing and not started controls, then the overdue evidence tasks. It loads its data on the server through the block's client; the [compliance block](https://bettersupabase.com/blocks/compliance) must be installed (`npx better-supabase add compliance`). Page: https://bettersupabase.com/recipes/control-posture.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty progress skeleton table
+```
+
+```tsx title="apps/examples/nextjs/src/features/compliance/components/control-posture.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+/**
+ * Render inside `<Suspense>`: one card per compliance framework with how many
+ * of its controls pass, then the evidence tasks that are past their due date.
+ */
+export async function ControlPosture() {
+  const [state, t, format] = await Promise.all([
+    getPosture(),
+    getExtracted("compliance"),
+    getFormatter(),
+  ]);
+
+  if (state.kind === "no-organization") {
+    return null;
+  }
+
+  if (state.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="control-posture">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The control posture didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  const { frameworks, overdue } = state.data;
+
+  if (frameworks.length === 0) {
+    return (
+      <Empty className="border" data-recipe="control-posture">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ShieldCheckIcon />
+          </EmptyMedia>
+          <EmptyTitle>{t("No frameworks yet")}</EmptyTitle>
+          <EmptyDescription>
+            {t(
+              "Add a framework such as SOC 2 or ISO 27001 with the controls block, then link evidence to each control.",
+            )}
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <a
+            className="text-sm underline underline-offset-4"
+            href="https://bettersupabase.com/docs/blocks/compliance"
+          >
+            {t("Read the controls guide")}
+          </a>
+        </EmptyContent>
+      </Empty>
+    );
+  }
+
+  const day = (date: string) =>
+    format.dateTime(new Date(date), { dateStyle: "medium", timeZone: "UTC" });
+
+  return (
+    <div className="flex flex-col gap-6" data-recipe="control-posture">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {frameworks.map((framework) => {
+          const applicable = framework.total - framework.notApplicable;
+
+          const percent =
+            applicable === 0
+              ? 100
+              : Math.round((framework.passing / applicable) * 100);
+
+          return (
+            <Card key={framework.frameworkId}>
+              <CardHeader>
+                <CardTitle>{framework.name}</CardTitle>
+                <CardDescription>
+                  {t(
+                    "{passing, number} of {applicable, number} controls passing",
+                    { passing: framework.passing, applicable },
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <Progress value={percent} aria-label={t("Controls passing")} />
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="success-light">
+                    {t("{count, number} passing", { count: framework.passing })}
+                  </Badge>
+                  {framework.failing > 0 ? (
+                    <Badge variant="destructive-light">
+                      {t("{count, number} failing", {
+                        count: framework.failing,
+                      })}
+                    </Badge>
+                  ) : null}
+                  {framework.notStarted > 0 ? (
+                    <Badge variant="secondary">
+                      {t("{count, number} not started", {
+                        count: framework.notStarted,
+                      })}
+                    </Badge>
+                  ) : null}
+                  {framework.overdueTasks > 0 ? (
+                    <Badge variant="warning-light">
+                      {t("{count, number} overdue tasks", {
+                        count: framework.overdueTasks,
+                      })}
+                    </Badge>
+                  ) : null}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("Overdue evidence")}</CardTitle>
+          <CardDescription>
+            {t(
+              "Recurring tasks whose evidence is past due. Collecting evidence moves the task to its next due date.",
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {overdue.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t("Every evidence task is on schedule.")}
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("Task")}</TableHead>
+                  <TableHead>{t("Control")}</TableHead>
+                  <TableHead>{t("Due")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {overdue.map((task) => (
+                  <TableRow key={task.id}>
+                    <TableCell className="font-medium">{task.title}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {task.controlCode ?? "–"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="destructive-light">
+                        {day(task.dueOn)}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function ControlPostureSkeleton() {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-busy="true">
+      <Skeleton className="h-36 rounded-xl" />
+      <Skeleton className="h-36 rounded-xl" />
+      <Skeleton className="h-36 rounded-xl" />
+    </div>
+  );
+}
+```
+
+## Status page
+
+A public status page: the overall status, each public component with its daily uptime, and the public incident updates. It loads its data on the server through the block's client; the [incidents block](https://bettersupabase.com/blocks/incidents) must be installed (`npx better-supabase add incidents`). Page: https://bettersupabase.com/recipes/status-page.
+
+Web, with shadcn components:
+
+```bash
+npx shadcn add alert badge button card empty skeleton
+```
+
+```tsx title="apps/examples/nextjs/src/features/status/components/status-page.tsx"
+// oxlint-disable-next-line typescript/require-await -- a Server Action must be async, and refresh() returns nothing to await
+async function retry() {
+  "use server";
+  refresh();
+}
+
+type BadgeVariant = ComponentProps<typeof Badge>["variant"];
+
+interface StatusLook {
+  readonly badge: BadgeVariant;
+  /** The background of an uptime cell. */
+  readonly cell: string;
+}
+
+function statusLook(status: ComponentStatus): StatusLook {
+  switch (status) {
+    case "operational": {
+      return { badge: "success-light", cell: "bg-success" };
+    }
+
+    case "maintenance": {
+      return { badge: "info-light", cell: "bg-info" };
+    }
+
+    case "degraded": {
+      return { badge: "warning-light", cell: "bg-warning" };
+    }
+
+    case "partial_outage": {
+      return { badge: "warning-light", cell: "bg-warning" };
+    }
+
+    case "major_outage": {
+      return { badge: "destructive-light", cell: "bg-destructive" };
+    }
+
+    default: {
+      const never: never = status;
+
+      return never;
+    }
+  }
+}
+
+function OverallAlert({
+  status,
+  title,
+}: {
+  status: ComponentStatus;
+  title: string;
+}) {
+  switch (status) {
+    case "operational": {
+      return (
+        <Alert variant="success">
+          <CircleCheckIcon />
+          <AlertTitle>{title}</AlertTitle>
+        </Alert>
+      );
+    }
+
+    case "maintenance": {
+      return (
+        <Alert variant="info">
+          <WrenchIcon />
+          <AlertTitle>{title}</AlertTitle>
+        </Alert>
+      );
+    }
+
+    case "degraded":
+    case "partial_outage": {
+      return (
+        <Alert variant="warning">
+          <TriangleAlertIcon />
+          <AlertTitle>{title}</AlertTitle>
+        </Alert>
+      );
+    }
+
+    case "major_outage": {
+      return (
+        <Alert variant="destructive">
+          <TriangleAlertIcon />
+          <AlertTitle>{title}</AlertTitle>
+        </Alert>
+      );
+    }
+
+    default: {
+      const never: never = status;
+
+      return never;
+    }
+  }
+}
+
+/**
+ * The public status page published at `slug`: the overall status, each public
+ * component with its uptime, then the public incidents with their updates.
+ * Anyone can open it; the incidents block returns only fields marked public.
+ */
+export async function StatusPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const [{ slug }, t, format] = await Promise.all([
+    params,
+    getExtracted("status"),
+    getFormatter(),
+  ]);
+
+  const page = await settle(() => loadStatusPage(slug));
+
+  if (page.kind === "missing") {
+    notFound();
+  }
+
+  if (page.kind === "error") {
+    return (
+      <Alert variant="destructive" data-recipe="status-page">
+        <TriangleAlertIcon />
+        <AlertTitle>{t("The status page didn't load")}</AlertTitle>
+        <AlertDescription>{t("Try again in a moment.")}</AlertDescription>
+        <AlertAction>
+          <form action={retry}>
+            <Button size="sm" variant="outline" type="submit">
+              {t("Retry")}
+            </Button>
+          </form>
+        </AlertAction>
+      </Alert>
+    );
+  }
+
+  const { data } = page;
+
+  const labels: Record<ComponentStatus, string> = {
+    operational: t("Operational"),
+    maintenance: t("Maintenance"),
+    degraded: t("Degraded performance"),
+    partial_outage: t("Partial outage"),
+    major_outage: t("Major outage"),
+  };
+
+  const overall: Record<ComponentStatus, string> = {
+    operational: t("All systems operational"),
+    maintenance: t("Scheduled maintenance in progress"),
+    degraded: t("Some systems are affected"),
+    partial_outage: t("Some systems are affected"),
+    major_outage: t("Major outage"),
+  };
+
+  const updates: Record<IncidentStatus, string> = {
+    investigating: t("Investigating"),
+    identified: t("Identified"),
+    monitoring: t("Monitoring"),
+    resolved: t("Resolved"),
+  };
+
+  const day = (date: string) =>
+    format.dateTime(new Date(`${date}T12:00:00Z`), {
+      dateStyle: "medium",
+      timeZone: "UTC",
+    });
+
+  const when = (iso: string) =>
+    format.dateTime(new Date(iso), { dateStyle: "medium", timeStyle: "short" });
+
+  return (
+    <div className="flex flex-col gap-6" data-recipe="status-page">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight">{data.title}</h1>
+        {data.description ? (
+          <p className="text-sm text-muted-foreground">{data.description}</p>
+        ) : null}
+      </div>
+      <OverallAlert status={data.status} title={overall[data.status]} />
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("Components")}</CardTitle>
+          <CardDescription>
+            {t("Uptime over the last {days, number} days.", {
+              days: UPTIME_DAYS,
+            })}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data.components.length === 0 ? (
+            <Empty className="border">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <ActivityIcon />
+                </EmptyMedia>
+                <EmptyTitle>{t("No components yet")}</EmptyTitle>
+                <EmptyDescription>
+                  {t(
+                    "Components appear here once the team marks them public. Check back later.",
+                  )}
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <ul className="flex flex-col gap-6">
+              {data.components.map((component) => {
+                const look = statusLook(component.status);
+
+                return (
+                  <li key={component.id} className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium">
+                        {component.name}
+                      </span>
+                      <Badge variant={look.badge}>
+                        {labels[component.status]}
+                      </Badge>
+                    </div>
+                    <div className="flex h-8 gap-px" aria-hidden="true">
+                      {component.uptime.map((entry) => (
+                        <span
+                          key={entry.date}
+                          className={`flex-1 rounded-sm ${statusLook(entry.status).cell}`}
+                          title={`${day(entry.date)}: ${labels[entry.status]}`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {t("{percent, number}% uptime", {
+                        percent: component.uptimePercent,
+                      })}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("Incidents")}</CardTitle>
+          <CardDescription>
+            {t(
+              "Open incidents and those resolved in the last {days, number} days.",
+              { days: UPTIME_DAYS },
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {data.incidents.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t("No incidents reported.")}
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-6">
+              {data.incidents.map((incident) => (
+                <li key={incident.id} className="flex flex-col gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-medium">
+                      {incident.title}
+                    </span>
+                    <Badge
+                      variant={
+                        incident.status === "resolved"
+                          ? "success-light"
+                          : "warning-light"
+                      }
+                    >
+                      {updates[incident.status]}
+                    </Badge>
+                  </div>
+                  {incident.components.length > 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      {t("Affects {components}", {
+                        components: incident.components
+                          .map((component) => component.name)
+                          .join(", "),
+                      })}
+                    </p>
+                  ) : null}
+                  <ol className="flex flex-col gap-3 border-l pl-4">
+                    {incident.updates.map((update) => (
+                      <li
+                        key={update.createdAt}
+                        className="flex flex-col gap-1"
+                      >
+                        <span className="text-xs text-muted-foreground">
+                          {updates[update.status]}
+                          {" · "}
+                          {when(update.createdAt)}
+                        </span>
+                        <p className="text-sm">{update.body}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function StatusPageSkeleton() {
+  return (
+    <div className="flex flex-col gap-6" aria-busy="true">
+      <Skeleton className="h-12 rounded-xl" />
+      <Skeleton className="h-64 rounded-xl" />
     </div>
   );
 }
@@ -18151,9 +22952,7 @@ export async function ProjectPage({
               })}
             </CardDescription>
             <CardAction className="flex items-center gap-2">
-              {can(session, "imports.manage") ? (
-                <TaskImportDialog projectId={record.id} />
-              ) : null}
+              <TaskImportAction projectId={record.id} />
               <TaskFormDialog
                 projects={[{ id: record.id, name: record.name }]}
                 members={members.data}
@@ -18203,12 +23002,11 @@ export async function ProjectPage({
           </CardHeader>
           <CardContent>
             <CommentThread
-              organizationId={organizationId}
               subject={subject}
               authors={Object.fromEntries(
                 members.data.map((member) => [member.userId, member.name]),
               )}
-              canComment={can(session, "comments.create")}
+              canComment={can(session, "messages.send")}
             />
           </CardContent>
         </Card>
@@ -18254,7 +23052,7 @@ export async function ProjectPage({
             <CardTitle>{t("Tags")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <TagInput organizationId={organizationId} subject={subject} />
+            <TagInput subject={subject} />
           </CardContent>
         </Card>
         <Link
@@ -19043,7 +23841,7 @@ function SaveVersionButton({ projectId }: { projectId: string }) {
   const t = useExtracted("projects");
   const errorMessage = useErrorMessage();
 
-  const save = useAction(saveProjectVersion, {
+  const save = useAction(snapshotProjectVersions, {
     onSuccess: () => {
       toast.success(t("Version saved"));
     },
@@ -19058,7 +23856,7 @@ function SaveVersionButton({ projectId }: { projectId: string }) {
       variant="outline"
       disabled={save.pending}
       onClick={() => {
-        void save.run({ projectId });
+        void save.run({ id: projectId, input: {} });
       }}
     >
       <HistoryIcon />

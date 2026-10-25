@@ -1,22 +1,29 @@
 # PowerSync (offline reads and writes)
 
-```ts title="src/lib/powersync/database.ts"
-import { powersyncExecutor } from "better-supabase/powersync";
+```ts title="src/lib/supabase/client.native.ts"
+import { createNativeClient } from "better-supabase/client/native";
+import { powersyncEngine } from "better-supabase/powersync";
 
-export const local = betterSupabase.connect(powersyncExecutor(powersync));
+export const bsb = createNativeClient(betterSupabase, supabase, {
+  engine: powersyncEngine(powersync, { connector, local: ["customers"] }),
+});
 ```
 
-- `local.customers.findMany(...)` and `list.run(local, query)` run on the device's SQLite database and return the same rows (casing, Temporal values) as PostgREST.
-- Live results: `watch(powersync, () => list.run(local, query), { tables: sqliteTables(betterSupabase, ["customers"]), onResult })`.
-- Includes, related counts, full-text search, `db.$rpc` and writes to tables without a primary key return a `DbError` of kind `unsupported`. Assert `checkSqlite(betterSupabase, list, { all: true })` is `[]` in a test for every list a native screen runs.
-- `powersyncExecutor(powersync, { fallback: postgrestExecutor(supabase, betterSupabase.executorOptions()) })` sends unsupported reads and `$rpc` to PostgREST (online only); writes never fall back. In `watch`, a fallback read reruns on local changes to `tables`, not on server changes; pass `refresh: { everyMs: 30_000, onReconnect: true }` to `watch` or `useWatch` so it reruns on an interval (skipped offline) and on reconnect. Prefer syncing a summary table through sync rules when the screen must work offline.
+- `bsb.db.customers.list(...)`, `list.run(bsb.db, query)` and the generated hooks (`useCustomers(...)`) run on the device's SQLite database and return the same rows (casing, Temporal values) as PostgREST. Tables missing from `local` run on PostgREST; leave `local` out when every table syncs.
+- Hooks read again when PowerSync reports a change to their table. A hook named after something else (`defineDataHooks("customer-pages", ...)`) names its tables: `tables: { "customer-pages": ["customers"] }`.
+- `useSyncStatus()` and `useConflicts()` from `better-supabase/react` read the engine's sync state and the connector's rejected changes.
+- Includes (nested, filtered, ordered, limited, `required`), related counts and related aggregates run on SQLite as one statement, so sync the included tables too. Full-text search, function sources and writes to tables without a primary key compile to `unsupported`. Assert `checkSqlite(betterSupabase, list, { all: true })` is `[]` in a test for every list a native screen runs, and pass a `betterSupabase.spec.<table>.<method>(...)` spec to check a single read.
+- Unsupported reads and `db.$rpc` fall back to PostgREST (online only); writes never fall back. Every hook reads again when PowerSync reconnects. Pass `fallback: false` to keep every call on the device. Prefer syncing a summary table through sync rules when the screen must work offline.
+- To run the repositories without the client: `betterSupabase.connect(powersyncExecutor(powersync))`.
 - `ilike` is SQLite `like` (case-insensitive for ASCII only).
 
 ## Uploading local writes
 
-In the connector's `uploadData`, replay each `CrudEntry` through the online
-client's repositories (`bs.db` from `better-supabase/client/native`), so RLS
-and validation run:
+In the connector's `uploadData`, replay each `CrudEntry` through repositories
+on PostgREST, so RLS and validation run. `bsb.db` runs on the device with the
+engine, so build a second client without it:
+`const server = bindClient(betterSupabase, supabase)` from
+`better-supabase/client`, in its own module to avoid an import cycle.
 
 | `entry.op` | Call                                        |
 | ---------- | ------------------------------------------- |
@@ -32,5 +39,12 @@ Decide by `error.kind`, with an exhaustive `switch` ending in a `never` check:
 
 Never throw for a kind that can't succeed: it blocks the upload queue.
 
-Docs: https://bettersupabase.com/docs/repository/powersync.md and
+`createUploadConnector({ endpoint, supabase, tables })` from
+`better-supabase/powersync` does this replay and the outcome mapping for you:
+
+- `tables: { customers: server.db.customers }` takes a repository; every generated repository fits `UploadRepository<Insert, Key>` without a cast.
+- `uploadRoute(server.db.attachments, { put: "create" })` for write-once tables: a `PUT` calls `create` and a `conflict` counts as applied (the row is already on the server); a `PATCH` is discarded as `unsupported`.
+- `onError: (error, { phase }) => ...` logs a failed `getSession` (`phase: "credentials"`, kind `unauthorized` or `network`; `fetchCredentials` returns `null`) and uploads that stay queued for a retry (`phase: "upload"`).
+
+Docs: https://bettersupabase.com/docs/frontend/powersync.md and
 https://bettersupabase.com/docs/guides/offline-first.md.

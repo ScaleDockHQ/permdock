@@ -11,7 +11,7 @@ supabase-js, and don't use the service role for anything a user does.
 ## Workflow: test a table or policy
 
 1. Start the stack (`supabase start`) and write `.env.local` with
-   `better-supabase env`. In a sandbox without Docker, start it with
+   `better-supabase dev env`. In a sandbox without Docker, start it with
    `SUPABASE_EXPERIMENTAL_STACK=1` (the Supabase CLI's native stack).
 2. Add the rows the test needs to `supabase/seed.ts`, including one row
    owned by another tenant, then `supabase db reset`.
@@ -25,8 +25,8 @@ again once you restore it.
 
 ## Setup
 
-- `better-supabase env` writes the URL and keys to `.env.local`; load it in the test setup.
-- `better-supabase keys` creates `supabase/signing_keys.json`. Set `signing_keys_path = "./signing_keys.json"` under `[auth]` in `supabase/config.toml`, gitignore the file and restart the stack. `asUser` signs ES256 tokens with it.
+- `better-supabase dev env` writes the URL and keys to `.env.local`; load it in the test setup.
+- `better-supabase dev keys` creates `supabase/signing_keys.json`. Set `signing_keys_path = "./signing_keys.json"` under `[auth]` in `supabase/config.toml`, gitignore the file and restart the stack. `asUser` signs ES256 tokens with it.
 - Typed fixtures live in `supabase/seed.ts`:
 
 ```ts
@@ -40,7 +40,7 @@ export const seed = defineSeed(betterSupabase, {
 });
 ```
 
-`better-supabase seed` renders them to SQL for `supabase db reset`, and
+`better-supabase db seed` renders them to SQL for `supabase db reset`, and
 tests import the same rows (`seed.rows.customers.first.id`).
 
 ## RLS tests
@@ -52,9 +52,9 @@ const alice = await asUser(
   { postgres },
 );
 expect(await alice.db.customers.count().orThrow()).toBe(1);
-expect(
-  await alice.db.customers.findById(OTHER_ORGANIZATION_CUSTOMER),
-).toMatchObject({ ok: false });
+expect(await alice.db.customers.get(OTHER_ORGANIZATION_CUSTOMER)).toMatchObject(
+  { ok: false },
+);
 ```
 
 - Check both directions: the user sees their own rows and never sees another tenant's.
@@ -90,7 +90,7 @@ malformed `act` claim (`act: { sub: "" }`) must get a 401.
 
 ## Time values
 
-With `codecs.timestamptz: 'instant'`, rows hold `Temporal` values. Import
+With `gen.codecs.timestamptz: 'instant'`, rows hold `Temporal` values. Import
 `temporal-polyfill/global` in the test setup on Node 24, and compare with
 `.equals()` or an equality tester, because `toEqual` treats any two instants
 as equal:

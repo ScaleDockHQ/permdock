@@ -1,6 +1,6 @@
-# Vue, Solid, Svelte, TanStack DB and expo-sqlite
+# Vue, Solid, Svelte, TanStack DB and SQLite
 
-Each framework binding wraps the browser client `bs` from
+Each framework binding wraps the browser client `bsb` from
 `lib/supabase/client.ts` and the TanStack Query client for that framework.
 Reads still go through PostgREST as the signed-in user, so RLS applies.
 
@@ -11,35 +11,35 @@ import { betterSupabase } from "better-supabase/vue";
 
 createApp(App)
   .use(VueQueryPlugin, { queryClient })
-  .use(betterSupabase(bs, { queryClient }))
+  .use(betterSupabase(bsb, { queryClient }))
   .mount("#app");
 ```
 
 ```ts title="src/lib/composables.ts"
 import { createBindings } from "better-supabase/vue";
 
-import type { bs } from "./supabase/client";
+import type { bsb } from "./supabase/client";
 
 export const { useDb, useQueries, useAuth, useSession } =
-  createBindings<typeof bs>();
+  createBindings<typeof bsb>();
 ```
 
-Use `useQuery(q.customers.findMany({ ... }))` from `@tanstack/vue-query`
+Use `useQuery(q.customers.list({ ... }))` from `@tanstack/vue-query`
 with `const q = useQueries()`. `useLiveQuery`, `useLiveCount`,
 `useBroadcast`, `usePresence` and `useAction` come from
 `better-supabase/vue` directly.
 
 ## Solid
 
-Wrap the app in `<BetterSupabaseProvider client={bs} queryClient={queryClient}>`
+Wrap the app in `<BetterSupabaseProvider client={bsb} queryClient={queryClient}>`
 inside `QueryClientProvider`, and get typed primitives from
-`createBindings<typeof bs>()` in `better-supabase/solid`. Pass a function to
+`createBindings<typeof bsb>()` in `better-supabase/solid`. Pass a function to
 the live primitives, so they track their inputs:
 `useLiveCount(() => betterSupabase.spec.messages.count({ where: { read: false } }))`.
 
 ## Svelte 5
 
-In the root `+layout.svelte`, call `setBetterSupabase(bs, { queryClient })`
+In the root `+layout.svelte`, call `setBetterSupabase(bsb, { queryClient })`
 and `setSession(() => data.session)` from `better-supabase/svelte`. In
 components, `useAuth()`, `useLiveQuery(() => spec)` and `useLiveCount(() => spec)`
 return objects whose fields are reactive (`auth.current.status`,
@@ -55,7 +55,7 @@ import { collectionOptions } from "better-supabase/tanstack-db";
 export const customers = createCollection(
   queryCollectionOptions(
     collectionOptions(betterSupabase, db, "customers", {
-      query: queries.customers.findMany({ where: { status: "active" } }),
+      query: queries.customers.list({ where: { status: "active" } }),
       queryClient,
     }),
   ),
@@ -65,33 +65,36 @@ export const customers = createCollection(
 The collection loads through the query and writes through the
 repositories, so its inserts and updates run as the signed-in user.
 
-## expo-sqlite
+## SQLite on the device
 
-Run the same repositories over a local database on the device, without
-PowerSync:
+Run the data hooks and `bsb.db` on a local database, without PowerSync:
 
 ```ts
-import {
-  expoSqliteDatabase,
-  expoSqliteExecutor,
-} from "better-supabase/expo-sqlite";
+import { createNativeClient } from "better-supabase/client/native";
+import { expoSqliteDatabase, sqliteEngine } from "better-supabase/sqlite";
 import { addDatabaseChangeListener, openDatabaseAsync } from "expo-sqlite";
 
 const sqlite = await openDatabaseAsync("app.db", {
   enableChangeListener: true,
 });
-export const local = betterSupabase.connect(
-  expoSqliteExecutor(sqlite, { addDatabaseChangeListener }),
-);
-export const database = expoSqliteDatabase(sqlite, {
-  addDatabaseChangeListener,
+export const bsb = createNativeClient(betterSupabase, supabase, {
+  engine: sqliteEngine(
+    expoSqliteDatabase(sqlite, { addDatabaseChangeListener }),
+    { local: ["notes"] },
+  ),
 });
 ```
 
-Keep a list live with `useWatch({ db: database, tables: ["notes"], query: () => local.notes.findMany(...) })`
-from `better-supabase/powersync/react`. The local database has no RLS: it
-holds only what this device's user synced or wrote.
+`local` lists the tables the device database holds; the rest run on
+PostgREST. The generated hooks (`useNotes(...)`) read the local table and
+read again when it changes. `liteDatabase(connection)` does the same for a
+Supabase Lite connection. The local database has no RLS: it holds only what
+this device's user synced or wrote.
+
+`tanstackDbEngine({ collections: () => ({ customers }) })` from
+`better-supabase/tanstack-db` keeps the hooks in step with TanStack DB
+collections.
 
 Docs: https://bettersupabase.com/docs/frontend/vue.md (and `solid`,
 `svelte`, `tanstack-db` under `/docs/frontend/`) and
-https://bettersupabase.com/docs/repository/expo-sqlite.md.
+https://bettersupabase.com/docs/frontend/sqlite.md.

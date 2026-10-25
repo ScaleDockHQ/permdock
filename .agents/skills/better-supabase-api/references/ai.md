@@ -53,7 +53,7 @@ const memory = createMemory({
 ## Agents, connectors and scheduled tasks
 
 ```bash
-pnpm better-supabase add agents connectors ai-tasks
+pnpm better-supabase add agents connectors ai-schedules
 ```
 
 - `createAgents({ transport })` stores assistants: `agents.create(organizationId, { slug, name, instructions, tools, knowledgeScopes })`,
@@ -70,9 +70,9 @@ pnpm better-supabase add agents connectors ai-tasks
   returns `{ tools, skipped, close }`. Call `close()` in a `finally`.
   Review changed tool lists with `connectors.fingerprints.check`, `.approve`
   and `.reject`.
-- `createAiTasks({ transport, service, run })` stores scheduled prompts with
+- `createAiSchedules({ transport, service, run })` stores scheduled prompts with
   a `cron` and a `timezone`. `tick()` queues the due runs (handle them with
-  `runJob()` on the `ai_task_run` queue when the `jobs` module is
+  `runJob()` on the `ai_task_run` queue when the `queue` module is
   installed); without jobs, call `drain()` from a cron route.
 
 ## Files, cache and batches
@@ -89,7 +89,7 @@ pnpm better-supabase add agents connectors ai-tasks
 
 ```bash
 pnpm add eve @workflow/world @workflow/world-postgres pg
-pnpm better-supabase add workflow-sdk-world ai-chat memory knowledge credentials inbox
+pnpm better-supabase add workflow-sdk ai-chat memory knowledge credentials inbox
 ```
 
 Set `experimental.workflow.world` to `"better-supabase/workflow-sdk/world"`

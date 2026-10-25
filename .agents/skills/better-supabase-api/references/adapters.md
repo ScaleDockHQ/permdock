@@ -20,24 +20,24 @@ import { createNext } from "better-supabase/next";
 
 import { betterSupabase } from "./index";
 
-export const bs = createNext(betterSupabase);
+export const bsb = createNext(betterSupabase);
 ```
 
 ```ts title="src/proxy.ts"
 import type { NextRequest } from "next/server";
 
-import { bs } from "./lib/supabase/server";
+import { bsb } from "./lib/supabase/server";
 
-export const proxy = (request: NextRequest) => bs.proxy(request);
+export const proxy = (request: NextRequest) => bsb.proxy(request);
 ```
 
 The proxy is the only place that refreshes sessions. Server Components,
 route handlers and actions read the verified token:
 
 ```ts
-const { db } = await bs.context();
-export const GET = bs.route(
-  (request, { db }) => db.customers.findMany({ limit: 20 }),
+const { db } = await bsb.context();
+export const GET = bsb.route(
+  (request, { db }) => db.customers.list({ limit: 20 }),
   { scopes: ["customers:read"] }, // only limits OAuth clients and agents
 );
 ```
@@ -49,16 +49,16 @@ import { createHono } from "better-supabase/hono";
 
 import { betterSupabase } from "./lib/supabase";
 
-const bs = createHono(betterSupabase);
+const bsb = createHono(betterSupabase);
 
-// bs.app() is new Hono<typeof bs.Env>() with bs.onError installed.
-const app = bs
+// bsb.app() is new Hono<typeof bsb.Env>() with bsb.onError installed.
+const app = bsb
   .app()
-  .use("/api/*", bs.middleware())
+  .use("/api/*", bsb.middleware())
   .get("/api/me", (c) => c.json({ kind: c.var.auth.kind }))
   .route(
     "/api/customers",
-    bs.resource("customers", { select: ["id", "name"] }),
+    bsb.resource("customers", { select: ["id", "name"] }),
   );
 
 export default app;
@@ -72,12 +72,12 @@ import { createOrpc, type OrpcRequestContext } from "better-supabase/orpc";
 
 import { betterSupabase } from "./lib/supabase";
 
-export const bs = createOrpc(betterSupabase);
-const authed = os.$context<OrpcRequestContext>().use(bs.middleware());
+export const bsb = createOrpc(betterSupabase);
+const authed = os.$context<OrpcRequestContext>().use(bsb.middleware());
 
 export const router = {
   customers: authed.handler(({ context }) =>
-    bs.unwrap(context.db.customers.findMany({ limit: 20 })),
+    bsb.unwrap(context.db.customers.list({ limit: 20 })),
   ),
 };
 ```
@@ -89,20 +89,20 @@ status (RLS denials answer 403):
 ```ts title="src/server.ts"
 const os = implement(contract)
   .$context<OrpcRequestContext>()
-  .use(bs.middleware());
+  .use(bsb.middleware());
 const router = os.router({
   customers: {
     get: os.customers.get.handler(({ context, input }) =>
-      bs.unwrap(context.db.customers.findById(input.id)),
+      bsb.unwrap(context.db.customers.get(input.id)),
     ),
   },
 });
-const handle = bs.fetchHandler(new OpenAPIHandler(router), { prefix: "/api" });
+const handle = bsb.fetchHandler(new OpenAPIHandler(router), { prefix: "/api" });
 const app = new Hono().all("/api/*", (c) => handle(c.req.raw));
 ```
 
-`bs.authed()` doesn't apply to a contract implementer. Guard one procedure
-with `os.customers.remove.use(bs.middleware({ permission: "customers.delete" }))`
+`bsb.authed()` doesn't apply to a contract implementer. Guard one procedure
+with `os.customers.remove.use(bsb.middleware({ permission: "customers.delete" }))`
 before `.handler(...)`. The `authorizer` passed to `createOrpc` decides the
 permission, so an authorization package plugs in as that authorizer, not as
 a second guard.
@@ -114,14 +114,17 @@ import { createEdge } from "better-supabase/edge";
 
 import { betterSupabase } from "../_shared/supabase.ts";
 
-export const bs = createEdge(betterSupabase, { cors: true });
+export const bsb = createEdge(betterSupabase, { cors: true });
 ```
 
 ```ts title="supabase/functions/api/index.ts"
-import { bs } from "./server.ts";
+import { bsb } from "./server.ts";
 
 Deno.serve(
-  bs.resources({ customers: { select: ["id", "name"] } }, { basePath: "/api" }),
+  bsb.resources(
+    { customers: { select: ["id", "name"] } },
+    { basePath: "/api" },
+  ),
 );
 ```
 
@@ -129,7 +132,7 @@ Deno.serve(
 
 `withBetterSupabase(server, { allow })` from `better-supabase/server` is one
 `@supabase/middleware` entry: it resolves the caller, guards, and contributes
-`bs`, `db`, `sql`, `jwtClaims`, `userClaims` and `authMode`. Put
+`bsb`, `db`, `sql`, `jwtClaims`, `userClaims` and `authMode`. Put
 `withPostgresClient` or `withCors` next to it, then run the array with the
 bridge for the framework:
 
@@ -181,16 +184,16 @@ import { guard, problemErrorHandler, toExpress } from "better-supabase/node";
 import { withBetterSupabase } from "better-supabase/server";
 import express from "express";
 
-import { bs } from "./lib/server";
+import { bsb } from "./lib/server";
 
 const app = express();
 app.use(
   toExpress([
-    withBetterSupabase(bs, { refresh: true, allow: ["user", "anon"] }),
+    withBetterSupabase(bsb, { refresh: true, allow: ["user", "anon"] }),
   ]),
 );
 app.get("/admin/members", guard({ roles: ["admin"] }), async (req, res) => {
-  res.json(await res.locals.db.members.findMany().orThrow());
+  res.json(await res.locals.db.members.list().orThrow());
 });
 app.use(problemErrorHandler());
 ```
@@ -211,7 +214,7 @@ Express's `res.locals` by extending `Express.Locals` with
 
 ```ts title="src/app.module.ts"
 consumer
-  .apply(toNestMiddleware([withBetterSupabase(bs, { allow: ["user"] })]))
+  .apply(toNestMiddleware([withBetterSupabase(bsb, { allow: ["user"] })]))
   .forRoutes("*");
 ```
 
@@ -225,7 +228,7 @@ export class NotesController {
   @Get()
   @UseGuards(guard({ roles: ["admin"] }))
   list(@Ctx("db") db: Db) {
-    return db.notes.findMany({ select: ["id", "title"] }).orThrow();
+    return db.notes.list({ select: ["id", "title"] }).orThrow();
   }
 }
 ```
@@ -235,13 +238,13 @@ export class NotesController {
 ```ts title="src/lib/server.ts"
 import { createAstro } from "better-supabase/astro";
 
-export const bs = createAstro(betterSupabase, { signIn: "/sign-in" });
-// src/middleware.ts: export const onRequest = bs.onRequest;
+export const bsb = createAstro(betterSupabase, { signIn: "/sign-in" });
+// src/middleware.ts: export const onRequest = bsb.onRequest;
 ```
 
-In a page, `const refused = await bs.guard(Astro, { roles: ["admin"] })`
-returns the refusal to send, and `bs.locals(Astro).db` is the caller's
-`db`. Wrap an Action's handler with `bs.action({ input, requireTenant }, fn)`.
+In a page, `const refused = await bsb.guard(Astro, { roles: ["admin"] })`
+returns the refusal to send, and `bsb.locals(Astro).db` is the caller's
+`db`. Wrap an Action's handler with `bsb.action({ input, requireOrganization }, fn)`.
 `createImageService({ url })` serves Storage images through Astro's image
 service.
 
@@ -249,15 +252,15 @@ service.
 import { createSolidStart } from "better-supabase/solid-start";
 import { getRequestEvent } from "solid-js/web";
 
-export const bs = createSolidStart(betterSupabase, {
+export const bsb = createSolidStart(betterSupabase, {
   getRequestEvent,
   signIn: "/sign-in",
 });
-// src/middleware.ts: export default createMiddleware(bs.middleware);
+// src/middleware.ts: export default createMiddleware(bsb.middleware);
 ```
 
-In a `"use server"` query, `const { db } = await bs.require()`; for forms,
-`bs.action({ input }, (input, { db }) => ...)`.
+In a `"use server"` query, `const { db } = await bsb.require()`; for forms,
+`bsb.action({ input }, (input, { db }) => ...)`.
 
 ## Nuxt and Nitro 2
 
@@ -278,7 +281,7 @@ import { toSession } from "better-supabase/server";
 
 import { betterSupabase } from "../_shared/supabase.ts";
 
-const bs = createMcp(betterSupabase, {
+const bsb = createMcp(betterSupabase, {
   name: "crm",
   version: "0.1.0",
   advertisedScopes: ["openid", "crm.read"],
@@ -296,7 +299,7 @@ const bs = createMcp(betterSupabase, {
   },
 });
 
-Deno.serve(bs.fetch);
+Deno.serve(bsb.fetch);
 ```
 
 Tools run as the calling user, so RLS applies to every tool call.

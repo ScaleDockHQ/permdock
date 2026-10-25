@@ -8,8 +8,10 @@ membership tables and the access token hook the provider generates.
 
 ```ts
 export default defineConfig({
-  authorization: authorizationProvider(), // from the authorization package
-  blocks: { access: { model: "provider" } },
+  auth: {
+    authorization: authorizationProvider(), // from the authorization package
+  },
+  blocks: { permissions: { model: "provider" } },
 });
 ```
 
@@ -17,17 +19,17 @@ export default defineConfig({
 
 - When `authorization.tokenHook.ownedClaims` has `memberships`, the
   provider's hook owns the memberships and the tenant claim. Don't run
-  `better-supabase add tenant` (it stops without `--force`), don't call
+  `better-supabase add memberships` (it stops without `--force`), don't call
   `membership_claims()` from a hook, and don't write the claims in
   `ownedClaims` yourself. Doctor reports BS407 when a hook does.
 - `add entitlements` is fine. With a provider it reads memberships through
-  the provider's `memberIds` and `memberIdsFor` (`entitlements.memberships`
+  the provider's `memberIds` and `memberIdsFor` (`auth.entitlements.memberships`
   defaults to `"provider"`). For `hasEntitlement(session, ...)`, the
   provider's hook must fill `features` from `better_supabase.feature_claims`;
   doctor reports BS408 otherwise.
-- Name the same tenant claim on both sides: `claims.tenant` must equal
+- Name the same tenant claim on both sides: `auth.organization.claim` must equal
   `authorization.tokenHook.tenantClaim` (BS409).
-- `blocks.access.model: "provider"` makes `can()`, `tenant_ids_with()`
+- `blocks.permissions.model: "provider"` makes `can()`, `tenant_ids_with()`
   and `platform_can()` call the provider's `idsWith` and `isPlatform`. Every
   permission key a SQL module checks must be `sqlComplete: true` in
   `authorization.permissions`; map an action to another key with

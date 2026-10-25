@@ -77,25 +77,25 @@
       "source": "ScaleDockHQ/better-supabase",
       "sourceType": "github",
       "skillPath": "packages/better-supabase/skills/better-supabase/SKILL.md",
-      "computedHash": "210389264332cf9dd9dcc5c37d1549a008ac2f853ea5331b17418b8dc65842df"
+      "computedHash": "1cdf58b6d07c64542b61aa432bd889288dbd830779d249a3fed0d000d0a1f7d2"
     },
     "better-supabase-api": {
       "source": "ScaleDockHQ/better-supabase",
       "sourceType": "github",
       "skillPath": "packages/better-supabase/skills/better-supabase-api/SKILL.md",
-      "computedHash": "38db2bcc0d1b52233879be83988bbbd0534541b76fb21dd9a8874ac0bc0ffc82"
+      "computedHash": "2fea42572f59e0b66c55e59487d6246e8c12025a3a621bf89523d6230184b503"
     },
     "better-supabase-auth": {
       "source": "ScaleDockHQ/better-supabase",
       "sourceType": "github",
       "skillPath": "packages/better-supabase/skills/better-supabase-auth/SKILL.md",
-      "computedHash": "8a9eeef578109f211341b0127302c1877b28065beb7af25e6ed908cc1c81948d"
+      "computedHash": "c360b6c46580c604fd7fede9594feea18edcd2c3100f3853fb4327a4c9d27f8b"
     },
     "better-supabase-testing": {
       "source": "ScaleDockHQ/better-supabase",
       "sourceType": "github",
       "skillPath": "packages/better-supabase/skills/better-supabase-testing/SKILL.md",
-      "computedHash": "e1d5cbde4fac70db4fc9d64c9b3cb747503ecd4907d20e0c587fdd74076eddf9"
+      "computedHash": "1d50ce81480205a785a9dd234877186d9e5c97a77d9ba536eb25780553a4dd8c"
     },
     "cedar": {
       "source": "ScaleDockHQ/scaledock-skills",
@@ -119,13 +119,13 @@
       "source": "clerk/skills",
       "sourceType": "github",
       "skillPath": "skills/clerk-nextjs-patterns/SKILL.md",
-      "computedHash": "72c949607a371a463e5a8bbce4d47d58f35bf6d8c4e84b79701c378344b465e4"
+      "computedHash": "dbd12076e3f36815bdb967312184723e78d829278dcf0df366a77cabde1f5fbf"
     },
     "clerk-orgs": {
       "source": "clerk/skills",
       "sourceType": "github",
       "skillPath": "skills/clerk-orgs/SKILL.md",
-      "computedHash": "bde537f399aaefec16f0be1b0fb3e0f5416afdd1d5b5488fb16263fb6a2304b9"
+      "computedHash": "af269c4460159bacd2934e4e2213ebcba76f25462ae0fe4ad1cdc3dcb5335ba8"
     },
     "clerk-react-patterns": {
       "source": "clerk/skills",
@@ -137,7 +137,7 @@
       "source": "clerk/skills",
       "sourceType": "github",
       "skillPath": "skills/clerk-setup/SKILL.md",
-      "computedHash": "211c3359cdfc488090eb356283106d510a5c75568eea72d3158f43c12ea28ec7"
+      "computedHash": "6d825a2d4745d1b26a04d8bc2e5706c68c969220c19dc968845ca1188a8feaa6"
     },
     "clerk-tanstack-patterns": {
       "source": "clerk/skills",
@@ -269,19 +269,19 @@
       "source": "expo/skills",
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/expo-overview/SKILL.md",
-      "computedHash": "18a11f64bd7bcd6b7d8ef872bc3912030a87d0f4c5623ee60db0713057a588b7"
+      "computedHash": "cbabcfabc28e0110c4ad4f58d07fa5e95cebe3b4cc49cbfc190bf20a4bdad40e"
     },
     "expo-project-structure": {
       "source": "expo/skills",
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/expo-project-structure/SKILL.md",
-      "computedHash": "bfe7df71a79422606595d72b8bfb1670620b4ae3828b9792ee196098a1d1d180"
+      "computedHash": "7529399aa63517d004328d0cc90bf86a868fdd945146aff31e32cb19f8577da3"
     },
     "expo-router": {
       "source": "expo/skills",
       "sourceType": "github",
       "skillPath": "plugins/expo/skills/expo-router/SKILL.md",
-      "computedHash": "eb529b8e5a690d3366a16563a2995efa250111f0677e323516aeb88f1e9f5ac9"
+      "computedHash": "fd3ab5a7526d8ecff6f776144ac6a6dffeac4923a56ac848de2fd2d4d6fb265e"
     },
     "fapi": {
       "source": "ScaleDockHQ/scaledock-skills",
@@ -299,7 +299,7 @@
       "source": "vercel/vercel-plugin",
       "sourceType": "github",
       "skillPath": "skills/flags-sdk/upstream/SKILL.md",
-      "computedHash": "b365b3a821ef9ac937fefc0cdbe167e05f6be839af28dcc70a36a0813361f24b"
+      "computedHash": "b9900583f62aeab437b90c74af3cadbfc0b473c1d9eb918e903c7d89148f0808"
     },
     "gnap": {
       "source": "ScaleDockHQ/scaledock-skills",
@@ -377,7 +377,7 @@
       "source": "neondatabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/neon-postgres/SKILL.md",
-      "computedHash": "0d936096676b18674d47828a87b21fcabf37cf0d7e3ed002e46e169eb7e0a7da"
+      "computedHash": "3c09fbeadf705429a831b7321e535a43655bddf733438b8ffa5dae2537dd6efc"
     },
     "next-bundle-optimizer": {
       "source": "vercel/next.js",
@@ -569,13 +569,13 @@
       "source": "vercel-labs/portless",
       "sourceType": "github",
       "skillPath": "skills/portless/SKILL.md",
-      "computedHash": "8d079a4c36926f53f29e6e43c49a5a77e448400cd14ac262cdffae56045e9329"
+      "computedHash": "9ce19ea221881e94ea4894c91b30dd19536c748f64a9fbef4373b569de180e7d"
     },
     "prisma-8": {
       "source": "prisma/orm",
       "sourceType": "github",
       "skillPath": "skills/prisma-8/SKILL.md",
-      "computedHash": "302e3af953286141ca90134d9ce78e2cb326ed41c310e966ae2900781d5a0db9"
+      "computedHash": "dc8f5831830c46ec92c6fac01ee9ee91bfde766f8389af2bdf53619b31bd0571"
     },
     "prisma-cli": {
       "source": "prisma/skills",
@@ -671,7 +671,7 @@
       "source": "ScaleDockHQ/scaledock-skills",
       "sourceType": "github",
       "skillPath": "skills/scaledock-repo-standard/SKILL.md",
-      "computedHash": "2abb2a40c8bbb7a3e03ed50973b988e1ed00e9b6f9ca84753038e257c1caf34d"
+      "computedHash": "41bbbd6ef82e64de3e5b6257c9a0e65e51319162e10e802d874740407619d736"
     },
     "scim": {
       "source": "ScaleDockHQ/scaledock-skills",
@@ -839,7 +839,7 @@
       "source": "vercel/vercel-plugin",
       "sourceType": "github",
       "skillPath": "skills/vercel-functions/SKILL.md",
-      "computedHash": "b0692cba405c5f7243ccf4223561794835b8c1d41513778ae9bd66a52ab16f71"
+      "computedHash": "d06142ee90b4c019ef0b21b68cae75ef8ee51b5d3d21c811da8be33cfdd15836"
     },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
