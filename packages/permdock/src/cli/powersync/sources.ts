@@ -44,7 +44,7 @@ export function streamOf(
 ): MembershipStream | string {
   const { stream } = source.sql;
   if (stream === undefined) {
-    return `the ${source.sql.table} membership source has no stream form: build it with tableMembershipSource or junctionMembershipSource`;
+    return `the ${source.sql.table} membership source has no stream form: build it with tableMembershipSource, junctionMembershipSource or blockMembershipSource`;
   }
   if (stream.expiresAt !== undefined) {
     return `the ${stream.table} membership source has no stream: it has an expiry`;

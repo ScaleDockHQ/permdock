@@ -124,31 +124,6 @@ export type Database = {
         }
         Relationships: []
       }
-      memberships: {
-        Row: {
-          created_at: string
-          role: string
-          scope: string
-          scope_id: string
-          user_id: string
-        }
-        ComputedFields: never
-        Insert: {
-          created_at?: string
-          role: string
-          scope: string
-          scope_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          role?: string
-          scope?: string
-          scope_id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       organization_features: {
         Row: {
           created_at: string
@@ -169,6 +144,36 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "organization_features_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_memberships: {
+        Row: {
+          created_at: string
+          organization_id: string
+          role: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          organization_id: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          organization_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_memberships_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -351,16 +356,7 @@ export type Database = {
       }
     }
     Views: {
-      organization_memberships: {
-        Row: {
-          created_at: string
-          organization_id: string
-          role: string
-          user_id: string
-        }
-        ComputedFields: never
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       audit_retention: { Args: { tenant: string }; Returns: string }

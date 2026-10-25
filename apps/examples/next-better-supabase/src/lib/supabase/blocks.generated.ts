@@ -61,8 +61,8 @@ export const blocks = {
  */
 export const permissions = {
   audit: {
-    view: "audit.view",
-    viewAll: "audit.view",
+    view: "audit.read",
+    viewAll: "audit.read",
     revert: "audit.revert",
   },
   "share-links": {
@@ -76,7 +76,7 @@ export const permissions = {
  * the `permission` of actions and routes.
  * @public
  */
-export type PermissionKey = "audit.revert" | "audit.view" | "quotes.read" | "quotes.update";
+export type PermissionKey = "audit.read" | "audit.revert" | "quotes.read" | "quotes.update";
 
 /** Every installed block's events: type to data. @public */
 export type BlockEvents = AuditEvents & ShareLinksEvents;

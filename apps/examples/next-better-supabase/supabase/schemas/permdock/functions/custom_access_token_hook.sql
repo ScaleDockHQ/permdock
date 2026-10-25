@@ -28,7 +28,7 @@ declare
   budget integer := 1024;
   used integer := 0;
   item record;
-  v_user_0 "public"."memberships"."user_id"%type := uid;
+  v_user_0 "public"."organization_memberships"."user_id"%type := uid;
   v_user_1 "public"."contacts"."user_id"%type := uid;
   v_roles_user "permdock"."user_roles"."user_id"%type := uid;
   extra jsonb;
@@ -58,10 +58,10 @@ begin
           'managed_by', s.managed_by, 'entitlements', s.seats
         )) as entry
       from (
-        select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-        from "public"."memberships" m
+        select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+        from "public"."organization_memberships" m
         where m."user_id" = v_user_0
-        group by m."scope"::text, m."scope_id"::text
+        group by m."organization_id"
         having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
       ) s
       union all
@@ -153,7 +153,7 @@ end;
 $$;
 revoke execute on function "permdock".permdock_bump_authz_version() from public, anon, authenticated;
 create or replace trigger "permdock_authz_version"
-  after insert or update or delete on "public"."memberships"
+  after insert or update or delete on "public"."organization_memberships"
   for each row execute function "permdock".permdock_bump_authz_version('user_id');
 create or replace trigger "permdock_authz_version"
   after insert or update or delete on "public"."contacts"
@@ -178,7 +178,7 @@ declare
   ver bigint;
   claims jsonb := '{}'::jsonb;
   extra jsonb;
-  v_user_0 "public"."memberships"."user_id"%type := uid;
+  v_user_0 "public"."organization_memberships"."user_id"%type := uid;
   v_user_1 "public"."contacts"."user_id"%type := uid;
   v_roles_user "permdock"."user_roles"."user_id"%type := uid;
 begin
@@ -201,10 +201,10 @@ begin
           'managed_by', s.managed_by, 'entitlements', s.seats
         )) as entry
       from (
-        select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-        from "public"."memberships" m
+        select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+        from "public"."organization_memberships" m
         where m."user_id" = v_user_0
-        group by m."scope"::text, m."scope_id"::text
+        group by m."organization_id"
         having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
       ) s
       union all
@@ -326,10 +326,10 @@ as $$
       ))
     ) order by s.user_id, s.roles::text), '[]'::jsonb)
   from (
-      select m."user_id"::text as user_id, m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-      from "public"."memberships" m
-      where m."scope"::text = $1::text and m."scope_id"::text = $2::text
-      group by m."user_id", m."scope"::text, m."scope_id"::text
+      select m."user_id"::text as user_id, 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+      from "public"."organization_memberships" m
+      where $1::text = 'organization' and m."organization_id"::text = $2::text
+      group by m."user_id", m."organization_id"
       having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
       union all
       select m."user_id"::text as user_id, 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
@@ -353,8 +353,8 @@ grant execute on function "public"."feature_claims"(uuid) to supabase_auth_admin
 grant execute on function "permdock".member_organization_ids_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".member_customer_ids_for(uuid) to supabase_auth_admin;
 grant usage on schema "public" to supabase_auth_admin;
-grant select on table "public"."memberships" to supabase_auth_admin;
-create policy "permdock_auth_admin_read_memberships" on "public"."memberships"
+grant select on table "public"."organization_memberships" to supabase_auth_admin;
+create policy "permdock_auth_admin_read_memberships" on "public"."organization_memberships"
   as permissive for select
   to supabase_auth_admin
   using (true);

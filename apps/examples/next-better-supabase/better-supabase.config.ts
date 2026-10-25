@@ -3,11 +3,10 @@ import { readFileSync } from "node:fs";
 import { authorizationProvider } from "permdock/better-supabase";
 
 /**
- * Membership and PermDock tables stay off the Data API: only the token hook and
- * the security definer helpers read them.
+ * Contact, role and PermDock tables stay off the Data API: only the token hook
+ * and the security definer helpers read them.
  */
 const internal = [
-  "memberships",
   "contacts",
   "customers",
   "organization_features",
@@ -17,7 +16,6 @@ const internal = [
   "roles",
   "custom_role_permissions",
   "custom_role_includes",
-  "organization_memberships",
 ] as const;
 
 export default defineConfig({
@@ -40,6 +38,7 @@ export default defineConfig({
       organizations: { anon: ["select"], authenticated: ["select"] },
       staff: ["select"],
       quotes: ["select"],
+      organization_memberships: ["select"],
       datetime_preferences: ["select"],
       ...Object.fromEntries(internal.map((table) => [table, []])),
     },
@@ -53,13 +52,13 @@ export default defineConfig({
     "updated-at": {},
     audit: {
       permissions: {
-        view: "audit.view",
-        viewAll: "audit.view",
+        view: "audit.read",
+        viewAll: "audit.read",
         revert: "audit.revert",
       },
     },
     pgtap: {},
-    // share-links requires memberships; mapping it onto the view keeps PermDock the only owner of memberships.
+    // The block runs over the app's table, which PermDock reads with blockMembershipSource.
     memberships: {
       tables: { memberships: "public.organization_memberships" },
       columns: { memberships: { updatedAt: null, lastUsedAt: null } },
@@ -73,9 +72,7 @@ export default defineConfig({
     doctor: {
       // staff and quotes are read-only to clients: the API roles hold no write
       // privilege on them, so a missing insert, update or delete policy denies nothing extra.
-      // The memberships block only reads the view; PermDock writes public.memberships
-      // and the app never loads the block's TypeScript client.
-      ignore: ["BS107", "BS349"],
+      ignore: ["BS107"],
     },
   },
 });

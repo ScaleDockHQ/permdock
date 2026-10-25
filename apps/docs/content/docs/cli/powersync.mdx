@@ -56,7 +56,7 @@ streams:
 | `--fixtures`     | a path   | `rls.fixtures`, else `rls.fixtures.json` | `verify`: the [`rls verify`](/docs/cli/rls) fixtures                                                                                                          |
 | `--policy`       | a module | `policy` in the config                   | The module exporting `policy`                                                                                                                                 |
 
-`powersync` also takes `resources` (the resources that get a stream; default every resource with a grant of the action), `action` (default `read`) and `manifest` (a path; none by default).
+`powersync` also takes `resources` (the resources that get a stream; default every resource with a grant of the action), `action` (default `read`), `manifest` (a path; none by default) and `tables` ([tables that are not resources](#tables-that-are-not-resources)).
 
 ## Tier column plus role assignments
 
@@ -149,31 +149,64 @@ A table outside `public` is read as `"<schema>"."<table>" AS <name>`, since Sync
 
 With `powersync.manifest` set, `generate` writes `localSnapshotManifest(policy)` as JSON to that path, with a `rows` section naming those device tables and their columns ([wire formats](/docs/concepts/wire-formats#local-snapshot-manifest)), so the app bundles the manifest without importing the policy. `powerSyncSource(db, { manifest, user })` in `permdock/react-native` builds the snapshot from those tables ([PowerSync source](/docs/adapters/react-native#powersync-source)).
 
+## Tables that are not resources
+
+`powersync.tables` adds a stream per table the policy has no resource for, such as a notification inbox or a file table. A stream holds the user's own rows (`user`, the user id column), the rows that point at a resource row the user reads (`follow`), or both. Each `follow` entry names the `resource`, the `field` that holds its id, and an optional `match` of column values for a table whose rows point at several resources. Its query is `<field> IN (SELECT <id> FROM <resource table> WHERE …)`, one per query of the resource's own read grants:
+
+```ts
+powersync: {
+  tables: {
+    "public.notification_recipients": { user: "user_id" },
+    "public.attachments": {
+      user: "uploaded_by",
+      follow: [
+        { resource: "job", field: "subject_id", match: { subject_type: "job" } },
+      ],
+    },
+  },
+},
+```
+
+```yaml
+notification_recipients:
+  auto_subscribe: true
+  queries:
+    - "SELECT * FROM notification_recipients WHERE notification_recipients.user_id = auth.user_id()"
+attachments:
+  auto_subscribe: true
+  queries:
+    - "SELECT * FROM attachments WHERE attachments.uploaded_by = auth.user_id()"
+    - "SELECT * FROM attachments WHERE attachments.subject_id IN (SELECT jobs.id FROM jobs WHERE jobs.organization_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id() AND organization_users.tier IN ('admin'))) AND attachments.subject_type = 'job'"
+```
+
+A followed resource whose read permission has a `deny` grant, or no grant that compiles, adds no query, and `generate` warns. A table whose stream would share a resource stream's name, or that names a column that is not an identifier, gets no stream. `verify` checks that a stream of only the user's own rows holds no other user's row; it has no fixtures for the rows a `follow` syncs.
+
 ## What compiles
 
 A query uses only `IN (SELECT …)`, `INNER JOIN`, `auth.user_id()` and `auth.parameter(…)`, the subset the Sync Streams compiler runs without `EXISTS`.
 
-| Policy                                                                        | Stream query                                                                                                                       |
-| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `role(…, { on: '<scope>' })`                                                  | `<row key> IN (SELECT <scope id> FROM <memberships> WHERE <user> = auth.user_id() AND <role> IN (…))`                              |
-| A role column `through` a roles table                                         | The same subquery with `INNER JOIN <roles> ON …`, comparing the roles table's key                                                  |
-| Several role sources                                                          | One query per source                                                                                                               |
-| `rls.membershipSources` (`tableMembershipSource`, `junctionMembershipSource`) | One query per source and role: `<row key> IN (SELECT <id> FROM <source> WHERE <user> = auth.user_id() AND <role> = '…')`           |
-| A tenant custom role (`rls.customRoles`, `database` mode, membership sources) | One query per source and level, joining `custom_role_permissions` on the role key and `cr.level`, ANDed with the level's condition |
-| `levels` on the resource                                                      | The level's condition ANDed with the custom-role query of that level                                                               |
-| `sqlFunction(…, { twin })`                                                    | The twin's query                                                                                                                   |
-| A role with `for` kinds                                                       | `AND <via> IN (…)` in the subquery                                                                                                 |
-| A resource role (`on: permissions.<resource>`)                                | The same subquery over `rls.memberships.resource.<resource>`                                                                       |
-| `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `isNull`, `in`, `notIn` literals        | The comparison on the row column                                                                                                   |
-| `principal.id`, `principal.claims.<name>`                                     | `auth.user_id()`, `auth.parameter('<name>')`; `in` a claim is `IN (SELECT value FROM json_each(…))`                                |
-| `or`                                                                          | One query per branch                                                                                                               |
-| `fields`                                                                      | The id and the listed columns instead of `*`                                                                                       |
+| Policy                                                                        | Stream query                                                                                                                        |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `role(…, { on: '<scope>' })`                                                  | `<row key> IN (SELECT <scope id> FROM <memberships> WHERE <user> = auth.user_id() AND <role> IN (…))`                               |
+| A role column `through` a roles table                                         | The same subquery with `INNER JOIN <roles> ON …`, comparing the roles table's key                                                   |
+| Several role sources                                                          | One query per source                                                                                                                |
+| `rls.membershipSources` (`tableMembershipSource`, `junctionMembershipSource`) | One query per source and role: `<row key> IN (SELECT <id> FROM <source> WHERE <user> = auth.user_id() AND <role> = '…')`            |
+| A tenant custom role (`rls.customRoles`, `database` mode, membership sources) | One query per source and level, joining `custom_role_permissions` on the role key and `cr.level`, ANDed with the level's condition  |
+| `levels` on the resource                                                      | The level's condition ANDed with the custom-role query of that level                                                                |
+| `sqlFunction(…, { twin })`                                                    | The twin's query                                                                                                                    |
+| A role with `for` kinds                                                       | `AND <via> IN (…)` in the subquery                                                                                                  |
+| A resource role (`on: permissions.<resource>`)                                | The same subquery over `rls.memberships.resource.<resource>`                                                                        |
+| `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `isNull`, `in`, `notIn` literals        | The comparison on the row column                                                                                                    |
+| `principal.id`, `principal.claims.<name>`                                     | `auth.user_id()`, `auth.parameter('<name>')`; `in` a claim is `IN (SELECT value FROM json_each(…))`                                 |
+| `or`                                                                          | One query per branch                                                                                                                |
+| `inherit(<parent>.read, { through })`                                         | `<field> IN (SELECT <parent id> FROM <parent> WHERE …)` per query of the parent's own read grants; one nested subquery per link hop |
+| `fields`                                                                      | The id and the listed columns instead of `*`                                                                                        |
 
-Everything else leaves the grant out of the stream, and `generate` prints why: a global role (no row filter), a custom role of a root scope that `rls.memberships` maps, `not`, `contains`, `related` and `opaque` conditions, request context, approval, break-glass, `validFrom` / `validUntil`, and a memberships table or membership source with `expiresAt` or `disabledAt` (the sync service cannot compare with the current time). A custom role's deny rows, includes and shared roles do not change its stream: a row a custom-role deny removes still syncs, and `can()` on the device denies it. A resource whose read permission has any `deny` grant gets no stream, because a stream can only add rows. A resource with more than 32 queries gets no stream. A resource with no stream is listed as a comment at the end of the file.
+Everything else leaves the grant out of the stream, and `generate` prints why: a global role (no row filter), a custom role of a root scope that `rls.memberships` maps, `not`, `contains`, `opaque` and `relation()` conditions (they read the closure table), request context, approval, break-glass, `validFrom` / `validUntil`, and a memberships table or membership source with `expiresAt` or `disabledAt` (the sync service cannot compare with the current time). A custom role's deny rows, includes and shared roles do not change its stream: a row a custom-role deny removes still syncs, and `can()` on the device denies it. A resource whose read permission has any `deny` grant gets no stream, because a stream can only add rows. An `inherit()` grant follows at most 4 nested `inherit()` grants. It syncs nothing when the parent's permission has a `deny` grant or none of its grants compiles; a parent grant that does not compile leaves its rows out with an `under-syncs` warning. A restricted child row (`restricted`) is left out, as `can()` does. A resource with more than 32 queries gets no stream. A resource with no stream is listed as a comment at the end of the file.
 
 ## Verify
 
-`verify` compiles the policy again and fails when `sync-config.yaml` differs. With `--db-url-stdin`, it runs each fixture of a synced permission: the stream queries with the subject's id against the database, and `can()` in process with the row's organization active, since a stream holds rows of every organization the user belongs to. A row a stream syncs and the policy denies is a mismatch and exits `1`. A row the policy grants and no stream syncs is a mismatch too, unless `generate` warned for that permission and a role the subject holds, or for the level of a custom role it holds; then it is a note: the app reads it from the server. A fixture row without the resource's id is a note. The database must hold the fixture rows, memberships and custom-role rows, as for `rls verify --db-url-stdin`.
+`verify` compiles the policy again and fails when `sync-config.yaml` differs. With `--db-url-stdin`, it runs each fixture of a synced permission: the stream queries with the subject's id against the database, and `can()` in process with the row's organization active, since a stream holds rows of every organization the user belongs to. A row a stream syncs and the policy denies is a mismatch and exits `1`. A row the policy grants and no stream syncs is a mismatch too, unless `generate` warned for that permission and a role the subject holds, or for the level of a custom role it holds; then it is a note: the app reads it from the server. A fixture row without the resource's id is a note. `can()` in `verify` has no relation source, so a row an `inherit()` stream syncs and `can()` denies is a note, not a mismatch. The database must hold the fixture rows, memberships and custom-role rows, as for `rls verify --db-url-stdin`.
 
 With a database, `verify` also reads `pg_publication_tables`: each synced table outside `public` that the `powersync` publication leaves out is a PD058 mismatch. A database with no `powersync` publication is a note.
 

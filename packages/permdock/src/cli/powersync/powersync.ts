@@ -11,6 +11,7 @@ import type {
   SubjectStream,
 } from "./streams.ts";
 
+import { hasConditionOp } from "../../conditions/ast.ts";
 import {
   findPermission,
   getPermDock,
@@ -24,10 +25,12 @@ import { fixtureRow, fixtureSubject, loadFixtures } from "../fixtures.ts";
 import { pgConnector } from "../pg.ts";
 import { requirePolicy } from "../project/load.ts";
 import { canFixture } from "../rls/verify.ts";
+import { collectGrants } from "../sql/grants.ts";
 import { quoteIdent } from "../sql/quote.ts";
 import { localRows } from "./rows.ts";
-import { POSTGRES, powersyncPlan, powersyncYaml } from "./streams.ts";
+import { POSTGRES, powersyncPlan } from "./streams.ts";
 import { warnedFor } from "./verify-gaps.ts";
+import { powersyncYaml } from "./yaml.ts";
 
 const POWERSYNC_HELP = `permdock powersync generate [--out sync-config.yaml] [--check]
 permdock powersync verify [--db-url-stdin] [--fixtures rls.fixtures.json]`;
@@ -201,6 +204,11 @@ async function verifyStreams(input: {
   readonly connect: SqlConnect;
 }): Promise<{ readonly mismatches: string[]; readonly notes: string[] }> {
   const plan = powersyncPlan(input.policy, input.config, POSTGRES);
+  const inherited = new Set(
+    collectGrants(input.policy)
+      .filter((item) => hasConditionOp(item.where, "related"))
+      .map((item) => item.grant.permission.key),
+  );
   const mismatches: string[] = [];
   const notes: string[] = [];
   const client = await input.connect(input.db);
@@ -216,7 +224,7 @@ async function verifyStreams(input: {
         continue;
       }
       checked.add(fixture.subject.id);
-      for (const stream of plan.subject) {
+      for (const stream of [...plan.subject, ...plan.tables]) {
         if (
           stream.user !== undefined &&
           (await leaks(query, stream, stream.user, fixture))
@@ -261,6 +269,10 @@ async function verifyStreams(input: {
       if (holds === undefined) {
         notes.push(
           `${fixture.action} for ${fixture.subject.id}: not checked against stream ${stream.name}: the fixture row has no ${stream.id}`,
+        );
+      } else if (holds && !granted && inherited.has(permission.key)) {
+        notes.push(
+          `${fixture.action} for ${fixture.subject.id}: stream ${stream.name} syncs the row through inherit(), which verify does not check: can() here has no relation source`,
         );
       } else if (holds && !granted) {
         mismatches.push(

@@ -1,13 +1,13 @@
 import type { Snapshot } from "permdock";
 
 import { cacheLife, cacheTag } from "next/cache";
-import { emptySnapshot, snapshotFor } from "permdock";
+import { emptySnapshot, getPermDock } from "permdock";
 import { subjectFromBetterSupabase } from "permdock/better-supabase";
 import { cacheLifeFor, snapshotTag } from "permdock/next";
 
 import { policy } from "../policy.ts";
 import { latency } from "./latency.ts";
-import { bsb, postgres } from "./supabase/server.ts";
+import { bsb, freshMemberships, postgres } from "./supabase/server.ts";
 
 export type Organization = {
   readonly id: string;
@@ -58,10 +58,11 @@ export async function organizationBySlug(
 }
 
 /**
- * Private layer: the session's snapshot for one organization. `bsb.cached()`
- * caps `stale` at the token's expiry and at 300 s, which joins the App Shell so
- * a prefetch carries the snapshot; `cacheLifeFor` caps it at the snapshot's,
- * and Next keeps the smaller of the two.
+ * Private layer: the session's snapshot for one organization, read with intent
+ * `read` through the shared version cache. `bsb.cached()` caps `stale` at the
+ * token's expiry and at 300 s, which joins the App Shell so a prefetch carries
+ * the snapshot; `cacheLifeFor` caps it at the snapshot's, and Next keeps the
+ * smaller of the two.
  */
 export async function loadSnapshot(organization: string): Promise<Snapshot> {
   "use cache: private";
@@ -69,7 +70,13 @@ export async function loadSnapshot(organization: string): Promise<Snapshot> {
   const { session } = await bsb.cached({ tags: [orgTag(organization)] });
   cacheTag(snapshotTag(session.kind === "user" ? session.user.id : null));
   const subject = subjectFromBetterSupabase(session);
-  const snapshot = snapshotFor(policy, subject, { tenant: organization });
+  // A render only reads, so `claimsFirst` may answer the version from the cache.
+  const permdock = await getPermDock(policy, subject, {
+    tenant: organization,
+    memberships: freshMemberships,
+    intent: "read",
+  });
+  const snapshot = permdock.snapshot();
   cacheLife({ stale: cacheLifeFor(snapshot).stale });
   return snapshot;
 }

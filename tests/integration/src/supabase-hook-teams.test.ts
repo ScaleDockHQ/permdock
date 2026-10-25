@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { jwtClaims } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/hook-teams");
@@ -139,5 +140,46 @@ describe("supabase.hook.teams", () => {
 
   it("writes no team_ids for a user in no team", async () => {
     expect((await mint(SUSPENDED))["team_ids"]).toBeUndefined();
+  });
+
+  describe("member_team_ids_of", () => {
+    async function teamsOf(caller: string, user: string): Promise<string[]> {
+      if (db === undefined) {
+        throw new Error("PermDock: Postgres was not started");
+      }
+      const client = db.tester;
+      return db.as(
+        { role: "authenticated", settings: jwtClaims(caller) },
+        async () =>
+          (
+            await client.query<{ id: string }>(
+              "select id from permdock.member_team_ids_of($1::uuid) id order by id",
+              [user],
+            )
+          ).rows.map((row) => row.id),
+      );
+    }
+
+    it("lists the caller's teams from supabase.hook.teams", async () => {
+      expect(await teamsOf(MEMBER, MEMBER)).toStrictEqual([TEAM(1), TEAM(2)]);
+    });
+
+    it("lists nothing for another user", async () => {
+      expect(await teamsOf(MEMBER, CROWDED)).toStrictEqual([]);
+    });
+
+    it("denies anon", async () => {
+      if (db === undefined) {
+        throw new Error("PermDock: Postgres was not started");
+      }
+      const client = db.tester;
+      await expect(
+        db.as({ role: "anon" }, () =>
+          client.query("select permdock.member_team_ids_of($1::uuid)", [
+            MEMBER,
+          ]),
+        ),
+      ).rejects.toMatchObject({ code: "42501" });
+    });
   });
 });

@@ -1,5 +1,8 @@
 import type { Scope } from "../../core/scopes.ts";
-import type { SupabaseManifestMembership } from "../../supabase/manifest.ts";
+import type {
+  SupabaseManifestActiveFrom,
+  SupabaseManifestMembership,
+} from "../../supabase/manifest.ts";
 import type { SqlMembershipSource } from "../../supabase/sources.ts";
 import type { RoleRows } from "../sql/global-roles.ts";
 import type { RlsActiveRow, SupabaseHookConfig } from "../types.ts";
@@ -20,6 +23,7 @@ export type Parts = {
   /** Global roles for `user_role` and `roles`; `undefined` with `roles: false`. */
   readonly roles: RoleRows | undefined;
   readonly active: ReturnType<typeof activeFromSql>;
+  readonly activeFrom: SupabaseManifestActiveFrom;
   readonly attrs: AttrsPlan | undefined;
   readonly extra: readonly ExtraClaim[];
   readonly before: readonly string[];

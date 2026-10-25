@@ -64,6 +64,7 @@ import {
   hookSql,
   managedSql,
 } from "./sql.ts";
+import { teamIdsOfSql } from "./teams.ts";
 import { versionSql } from "./version.ts";
 
 const SUPABASE_HELP = `permdock supabase hook generate | inspect
@@ -202,6 +203,7 @@ ${toml}${grantsOut === undefined ? "" : `\n-- what supabase db diff drops from t
     subjectForSql(parts, config),
     authzVersionForSql(parts),
     membersOfSql(parts),
+    teamIdsOfSql(parts),
     apiWrappersSql(parts),
     grantsSql(parts),
     managedSql(parts),

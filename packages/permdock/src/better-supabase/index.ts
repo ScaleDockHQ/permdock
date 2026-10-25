@@ -10,7 +10,18 @@ export type { AuthorizationHooksOptions } from "./hooks.ts";
 export { authorizationProvider } from "./provider.ts";
 export type { AuthorizationProviderOptions } from "./provider.ts";
 export { authorizer } from "./authorizer.ts";
+export { blockMembershipSource } from "./block-memberships.ts";
+export type {
+  BlockMembershipSourceOptions,
+  BlockRoleJunction,
+  BlockRoleThrough,
+} from "./block-memberships.ts";
 export type { AuthorizerOperation, AuthorizerOptions } from "./authorizer.ts";
+export type {
+  BetterSupabaseErrorContext,
+  BetterSupabaseOnError,
+} from "./report.ts";
+export type { BetterSupabaseActiveTenant } from "./active-tenant.ts";
 export { bucketPolicy, topicPolicy } from "./policies.ts";
 export type {
   AccessPolicyOptions,

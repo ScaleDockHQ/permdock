@@ -3,10 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { SqlMembershipSource } from "../../src/supabase/index.ts";
 
-import {
-  powersyncPlan,
-  powersyncYaml,
-} from "../../src/cli/powersync/streams.ts";
+import { powersyncPlan } from "../../src/cli/powersync/streams.ts";
+import { powersyncYaml } from "../../src/cli/powersync/yaml.ts";
 import {
   allow,
   definePermissions,
@@ -151,7 +149,7 @@ describe("powersync streams over membership sources", () => {
     const handWritten: SqlMembershipSource = { ...tier, sql };
     const plan = powersyncPlan(policy, configOf([handWritten]));
     expect(plan.warnings).toContain(
-      "owner/job.read under-syncs: the tenant_users membership source has no stream form: build it with tableMembershipSource or junctionMembershipSource",
+      "owner/job.read under-syncs: the tenant_users membership source has no stream form: build it with tableMembershipSource, junctionMembershipSource or blockMembershipSource",
     );
     expect(plan.omitted).toStrictEqual([
       { resource: "job", reason: "no grant of job.read compiles" },

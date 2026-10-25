@@ -12,6 +12,23 @@
   2. Pass `versions: memoryVersionCache({ maxStaleMs })` to `claimsFirst(sources.memberships, { onStale: 'reread', versions })`, with the cache created at module scope too.
   3. In `permdock/next`, which reads with `intent: 'read'` by default, call `getPermDock({ intent: 'write' })` before a mutation outside `protectAction`, so the version is read live.
 
+  For Hono and oRPC with better-supabase, pass the same cache to the server and to `claimsFirst` ([Hono](https://permdock.com/docs/adapters/hono#with-better-supabase), [oRPC](https://permdock.com/docs/adapters/orpc#with-better-supabase)):
+
+  ```ts
+  // Once per process: a source or cache built per request keeps nothing.
+  const sources = postgrestSources(admin, { api: {}, policy });
+  const versions = memoryVersionCache({ maxStaleMs: 5_000 });
+
+  const bsb = createHono(betterSupabase, { versions }); // or createOrpc(betterSupabase, { versions })
+  const { protect } = createPermDock(policy, {
+    subject: (c) => subjectFromBetterSupabase(c.get("auth")),
+    memberships: claimsFirst(sources.memberships, {
+      onStale: "reread",
+      versions,
+    }),
+  });
+  ```
+
 ## 0.8.0
 
 ### Minor Changes
@@ -52,7 +69,7 @@
 
 - [#198](https://github.com/ScaleDockHQ/permdock/pull/198) [`ab0b1ad`](https://github.com/ScaleDockHQ/permdock/commit/ab0b1ad77637382c0cfc27d1aae3f9ca3de2bba1) Thanks [@martijn00](https://github.com/martijn00)! - `permdock/authzen` exports the rules its handler applies, so a hosted PDP answers the same: `parseAuthzenRequest(kind, body)` and `readAuthzenRequest(kind, request)` return the handler's 400 and 413 Problem Details in its order and wording; `readAuthzenPage` and `authzenPage` page search results; `searchActions(policy, user, resource)` decides every catalog permission of a resource type; and `searchSubjects(policy, lister, request)` filters the candidates an `AuthzenSubjectLister` answers. The `subjects` option is now typed `AuthzenSubjectLister`, and `list` receives `{ type, action, resource, context? }`; a `list()` that takes no argument still fits.
 
-- [#199](https://github.com/ScaleDockHQ/permdock/pull/199) [`fc89aa3`](https://github.com/ScaleDockHQ/permdock/commit/fc89aa3a67441ca93c4ef1ef48bda7213b3c0e23) Thanks [@martijn00](https://github.com/martijn00)! - `principalFromMemberships(userId, rows, { scope?, tenant? })` in `permdock/better-supabase` builds a `Principal` from rows of the organizations block's `memberships` table, one membership per `organization_id`, and drops other users' rows and disabled rows.
+- [#199](https://github.com/ScaleDockHQ/permdock/pull/199) [`fc89aa3`](https://github.com/ScaleDockHQ/permdock/commit/fc89aa3a67441ca93c4ef1ef48bda7213b3c0e23) Thanks [@martijn00](https://github.com/martijn00)! - `principalFromMemberships(userId, rows, { scope?, tenant? })` in `permdock/better-supabase` builds a `Principal` from rows of the `memberships` block's table (its own block since better-supabase 0.15), one membership per `organization_id`, and drops other users' rows and disabled rows.
 
 - [#193](https://github.com/ScaleDockHQ/permdock/pull/193) [`088192a`](https://github.com/ScaleDockHQ/permdock/commit/088192a3bed88a9991f9ab49b1f9c158d90947b0) Thanks [@martijn00](https://github.com/martijn00)! - Breaking: the `better-supabase` peer range is `>=0.11.0 <0.13.0`, the versions CI tests. Apps on better-supabase 0.9 or 0.10 must upgrade to 0.11 before they take this release, and each new better-supabase minor needs a PermDock release that raises the bound.
 

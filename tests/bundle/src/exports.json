@@ -700,6 +700,7 @@
     "authorizationHooks",
     "authorizationProvider",
     "authorizer",
+    "blockMembershipSource",
     "bucketPolicy",
     "credentialGuard",
     "handlerCan",

@@ -128,14 +128,29 @@ better-supabase's `createHono` verifies the session and puts it on `c.var.auth`;
 
 ```ts title="src/server.ts"
 import { createHono } from "better-supabase/hono";
-import type { Permission } from "permdock";
+import { claimsFirst, memoryVersionCache, type Permission } from "permdock";
 import { createPermDock } from "permdock/hono";
-import { subjectFromBetterSupabase } from "permdock/better-supabase";
+import {
+  authorizer,
+  subjectFromBetterSupabase,
+} from "permdock/better-supabase";
+import { postgrestSources } from "permdock/supabase";
 
-const bsb = createHono(betterSupabase);
+// Once per process: a source or cache built per request keeps nothing.
+const sources = postgrestSources(admin, { api: {}, policy });
+const versions = memoryVersionCache({ maxStaleMs: 5_000 });
+
+const bsb = createHono(betterSupabase, {
+  versions,
+  authorizer: authorizer({ policy, memberships: sources.memberships }),
+});
 const { protect } = createPermDock(policy, {
   subject: (c) =>
     subjectFromBetterSupabase(c.get("auth"), { anonymousSignIns: "deny" }),
+  memberships: claimsFirst(sources.memberships, {
+    onStale: "reread",
+    versions,
+  }),
 });
 
 const guarded = (permission: Permission) =>
@@ -148,7 +163,7 @@ export const app = bsb.app().get(
 );
 ```
 
-`protect` sets `c.get('permdock')` itself, so the route needs no `middleware()`. A support session's token is the user's, with the admin as the actor; it reaches only what a policy delegation names ([Supabase](/docs/adapters/supabase#support-and-impersonation-actors)).
+`admin` is a secret-key client. Create `sources` and `versions` once at module scope and pass the same cache to `createHono` and `claimsFirst`: `bsb.invalidateSession` evicts it, and a `GET` route (intent `read`) answers the version from it within `maxStaleMs` ([version cache](/docs/adapters/better-supabase#version-cache-and-session-snapshots)). `protect` sets `c.get('permdock')` itself, so the route needs no `middleware()`. A support session's token is the user's, with the admin as the actor; it reaches only what a policy delegation names ([Supabase](/docs/adapters/supabase#support-and-impersonation-actors)).
 
 ## Request lifecycle
 

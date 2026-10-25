@@ -87,7 +87,7 @@ export default defineConfig({
 
 | Checked                                                                                                      | Against                                           |
 | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------- |
-| Keys of `rls.tables`, entries of `powersync.resources`                                                       | Resource names                                    |
+| Keys of `rls.tables`, entries of `powersync.resources`, `resource` in `powersync.tables.*.follow`            | Resource names                                    |
 | Keys of `rls.scopeTypes`, `rls.memberships.scopes`, `rls.suspension.scopes`; `rls.storage.buckets.<b>.scope` | Scope names, plus the `tenant` and `team` aliases |
 | `{placeholder}` segments in `rls.realtime.topics` keys                                                       | Scope names                                       |
 | Keys of `rls.actions`, `powersync.action`                                                                    | Action names                                      |
@@ -103,81 +103,82 @@ Every command checks the config before it runs. A module key that is neither a p
 
 Every key PermDock reads, with the kinds of value it accepts. The command page owns what each key does.
 
-| Key                       | Accepts                | Read by                          |
-| ------------------------- | ---------------------- | -------------------------------- |
-| `collect.srcPath`         | an array               | [collect](/docs/cli/collect)     |
-| `collect.out`             | a string               | [collect](/docs/cli/collect)     |
-| `collect.barrel`          | a boolean or a string  | [collect](/docs/cli/collect)     |
-| `catalog.out`             | a string               | [catalog](/docs/cli/catalog)     |
-| `gen.out`                 | a string               | [gen](/docs/cli/gen)             |
-| `gen.kinds`               | an array               | [gen](/docs/cli/gen)             |
-| `gen.fieldMeta`           | a boolean              | [gen](/docs/cli/gen)             |
-| `openapi.doc`             | an array               | [openapi](/docs/cli/openapi)     |
-| `rls.tables`              | an object              | [rls](/docs/cli/rls)             |
-| `rls.dialect`             | a string               | [rls](/docs/cli/rls)             |
-| `rls.memberships`         | an object              | [rls](/docs/cli/rls)             |
-| `rls.membershipSources`   | an array               | [rls](/docs/cli/rls)             |
-| `rls.suspension`          | an object              | [rls](/docs/cli/rls)             |
-| `rls.functions`           | an object              | [rls](/docs/cli/rls)             |
-| `rls.inlineFunctions`     | a boolean              | [rls](/docs/cli/rls)             |
-| `rls.force`               | a boolean              | [rls](/docs/cli/rls)             |
-| `rls.fixtures`            | a string               | [rls](/docs/cli/rls)             |
-| `rls.verify`              | an object              | [rls](/docs/cli/rls)             |
-| `rls.tenantClaim`         | a string               | [rls](/docs/cli/rls)             |
-| `rls.scopeTypes`          | an object              | [rls](/docs/cli/rls)             |
-| `rls.roleClaim`           | a string               | [rls](/docs/cli/rls)             |
-| `rls.roleValues`          | an object              | [rls](/docs/cli/rls)             |
-| `rls.gucPrefix`           | a string               | [rls](/docs/cli/rls)             |
-| `rls.out`                 | a string               | [rls](/docs/cli/rls)             |
-| `rls.drizzle`             | an object              | [rls](/docs/cli/rls)             |
-| `rls.prisma`              | an object              | [rls](/docs/cli/rls)             |
-| `rls.schema`              | a string               | [rls](/docs/cli/rls)             |
-| `rls.authorize`           | a string               | [rls](/docs/cli/rls)             |
-| `rls.policyPerRole`       | a boolean              | [rls](/docs/cli/rls)             |
-| `rls.customRoles`         | a boolean or an object | [rls](/docs/cli/rls)             |
-| `rls.triggers`            | an object              | [rls](/docs/cli/rls)             |
-| `rls.audit`               | an object              | [rls](/docs/cli/rls)             |
-| `rls.capabilities`        | a boolean              | [rls](/docs/cli/rls)             |
-| `rls.anonymousSignIns`    | a string               | [rls](/docs/cli/rls)             |
-| `rls.fields`              | a string               | [rls](/docs/cli/rls)             |
-| `rls.revokeColumns`       | a boolean              | [rls](/docs/cli/rls)             |
-| `rls.policyName`          | a string               | [rls](/docs/cli/rls)             |
-| `rls.rbac`                | an object              | [rls](/docs/cli/rls)             |
-| `rls.roles`               | an object              | [rls](/docs/cli/rls)             |
-| `rls.actions`             | an object              | [rls](/docs/cli/rls)             |
-| `rls.helpersOnly`         | a boolean              | [rls](/docs/cli/rls)             |
-| `rls.rowHelpers`          | a boolean or an array  | [rls](/docs/cli/rls)             |
-| `rls.seeds`               | a string               | [rls](/docs/cli/rls)             |
-| `rls.treeValues`          | an object              | [rls](/docs/cli/rls)             |
-| `rls.trustedReaders`      | an array               | [rls](/docs/cli/rls)             |
-| `rls.migrate`             | an object              | [rls](/docs/cli/rls)             |
-| `rls.shims`               | a boolean or an object | [rls](/docs/cli/rls)             |
-| `rls.tenants`             | a string               | [rls](/docs/cli/rls)             |
-| `rls.customRoleWrites`    | an object              | [rls](/docs/cli/rls)             |
-| `rls.anonExecute`         | a boolean              | [rls](/docs/cli/rls)             |
-| `rls.assignments`         | a boolean or an object | [rls](/docs/cli/rls)             |
-| `rls.approvals`           | a boolean or an object | [rls](/docs/cli/rls)             |
-| `rls.jsonSchema`          | a boolean or a string  | [rls](/docs/cli/rls)             |
-| `rls.ownershipTriggers`   | a boolean or an object | [rls](/docs/cli/rls)             |
-| `rls.readOnlyActors`      | a boolean or an array  | [rls](/docs/cli/rls)             |
-| `rls.apiKeys`             | a boolean or an object | [rls](/docs/cli/rls)             |
-| `rls.tokenScopes`         | a boolean              | [rls](/docs/cli/rls)             |
-| `rls.realtime`            | an object              | [rls](/docs/cli/rls)             |
-| `rls.storage`             | an object              | [rls](/docs/cli/rls)             |
-| `supabase.hook`           | an object              | [supabase](/docs/cli/supabase)   |
-| `supabase.schemas`        | a string               | [supabase](/docs/cli/supabase)   |
-| `powersync.out`           | a string               | [powersync](/docs/cli/powersync) |
-| `powersync.resources`     | an array               | [powersync](/docs/cli/powersync) |
-| `powersync.action`        | a string               | [powersync](/docs/cli/powersync) |
-| `powersync.manifest`      | a string               | [powersync](/docs/cli/powersync) |
-| `doctor.sensitiveActions` | an array               | [doctor](/docs/cli/doctor)       |
-| `doctor.memberships`      | a string               | [doctor](/docs/cli/doctor)       |
-| `doctor.credentials`      | a string               | [doctor](/docs/cli/doctor)       |
-| `doctor.clientEntries`    | an array               | [doctor](/docs/cli/doctor)       |
-| `doctor.migrations`       | an array               | [doctor](/docs/cli/doctor)       |
-| `doctor.claims`           | a string               | [doctor](/docs/cli/doctor)       |
-| `doctor.srcPath`          | an array               | [doctor](/docs/cli/doctor)       |
-| `doctor.sharedTables`     | an array               | [doctor](/docs/cli/doctor)       |
+| Key                       | Accepts                | Read by                                                        |
+| ------------------------- | ---------------------- | -------------------------------------------------------------- |
+| `collect.srcPath`         | an array               | [collect](/docs/cli/collect)                                   |
+| `collect.out`             | a string               | [collect](/docs/cli/collect)                                   |
+| `collect.barrel`          | a boolean or a string  | [collect](/docs/cli/collect)                                   |
+| `catalog.out`             | a string               | [catalog](/docs/cli/catalog)                                   |
+| `gen.out`                 | a string               | [gen](/docs/cli/gen)                                           |
+| `gen.kinds`               | an array               | [gen](/docs/cli/gen)                                           |
+| `gen.fieldMeta`           | a boolean              | [gen](/docs/cli/gen)                                           |
+| `openapi.doc`             | an array               | [openapi](/docs/cli/openapi)                                   |
+| `rls.tables`              | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.dialect`             | a string               | [rls](/docs/cli/rls)                                           |
+| `rls.memberships`         | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.membershipSources`   | an array               | [rls](/docs/cli/rls)                                           |
+| `rls.suspension`          | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.functions`           | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.inlineFunctions`     | a boolean              | [rls](/docs/cli/rls)                                           |
+| `rls.force`               | a boolean              | [rls](/docs/cli/rls)                                           |
+| `rls.fixtures`            | a string               | [rls](/docs/cli/rls)                                           |
+| `rls.verify`              | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.tenantClaim`         | a string               | [rls](/docs/cli/rls)                                           |
+| `rls.scopeTypes`          | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.roleClaim`           | a string               | [rls](/docs/cli/rls)                                           |
+| `rls.roleValues`          | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.gucPrefix`           | a string               | [rls](/docs/cli/rls)                                           |
+| `rls.out`                 | a string               | [rls](/docs/cli/rls)                                           |
+| `rls.drizzle`             | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.prisma`              | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.schema`              | a string               | [rls](/docs/cli/rls)                                           |
+| `rls.authorize`           | a string               | [rls](/docs/cli/rls)                                           |
+| `rls.policyPerRole`       | a boolean              | [rls](/docs/cli/rls)                                           |
+| `rls.customRoles`         | a boolean or an object | [rls](/docs/cli/rls)                                           |
+| `rls.triggers`            | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.audit`               | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.capabilities`        | a boolean              | [rls](/docs/cli/rls)                                           |
+| `rls.anonymousSignIns`    | a string               | [rls](/docs/cli/rls)                                           |
+| `rls.fields`              | a string               | [rls](/docs/cli/rls)                                           |
+| `rls.revokeColumns`       | a boolean              | [rls](/docs/cli/rls)                                           |
+| `rls.policyName`          | a string               | [rls](/docs/cli/rls)                                           |
+| `rls.rbac`                | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.roles`               | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.actions`             | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.helpersOnly`         | a boolean              | [rls](/docs/cli/rls)                                           |
+| `rls.rowHelpers`          | a boolean or an array  | [rls](/docs/cli/rls)                                           |
+| `rls.seeds`               | a string               | [rls](/docs/cli/rls)                                           |
+| `rls.treeValues`          | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.trustedReaders`      | an array               | [rls](/docs/cli/rls)                                           |
+| `rls.migrate`             | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.shims`               | a boolean or an object | [rls](/docs/cli/rls)                                           |
+| `rls.tenants`             | a string               | [rls](/docs/cli/rls)                                           |
+| `rls.customRoleWrites`    | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.anonExecute`         | a boolean              | [rls](/docs/cli/rls)                                           |
+| `rls.assignments`         | a boolean or an object | [rls](/docs/cli/rls)                                           |
+| `rls.approvals`           | a boolean or an object | [rls](/docs/cli/rls)                                           |
+| `rls.jsonSchema`          | a boolean or a string  | [rls](/docs/cli/rls)                                           |
+| `rls.ownershipTriggers`   | a boolean or an object | [rls](/docs/cli/rls)                                           |
+| `rls.readOnlyActors`      | a boolean or an array  | [rls](/docs/cli/rls)                                           |
+| `rls.apiKeys`             | a boolean or an object | [rls](/docs/cli/rls)                                           |
+| `rls.tokenScopes`         | a boolean              | [rls](/docs/cli/rls)                                           |
+| `rls.realtime`            | an object              | [rls](/docs/cli/rls)                                           |
+| `rls.storage`             | an object              | [rls](/docs/cli/rls)                                           |
+| `supabase.hook`           | an object              | [supabase](/docs/cli/supabase)                                 |
+| `supabase.schemas`        | a string               | [supabase](/docs/cli/supabase)                                 |
+| `powersync.out`           | a string               | [powersync](/docs/cli/powersync)                               |
+| `powersync.resources`     | an array               | [powersync](/docs/cli/powersync)                               |
+| `powersync.action`        | a string               | [powersync](/docs/cli/powersync)                               |
+| `powersync.manifest`      | a string               | [powersync](/docs/cli/powersync)                               |
+| `powersync.tables`        | an object              | [powersync](/docs/cli/powersync#tables-that-are-not-resources) |
+| `doctor.sensitiveActions` | an array               | [doctor](/docs/cli/doctor)                                     |
+| `doctor.memberships`      | a string               | [doctor](/docs/cli/doctor)                                     |
+| `doctor.credentials`      | a string               | [doctor](/docs/cli/doctor)                                     |
+| `doctor.clientEntries`    | an array               | [doctor](/docs/cli/doctor)                                     |
+| `doctor.migrations`       | an array               | [doctor](/docs/cli/doctor)                                     |
+| `doctor.claims`           | a string               | [doctor](/docs/cli/doctor)                                     |
+| `doctor.srcPath`          | an array               | [doctor](/docs/cli/doctor)                                     |
+| `doctor.sharedTables`     | an array               | [doctor](/docs/cli/doctor)                                     |
 
 ## Side effects
 

@@ -25,7 +25,7 @@ export const policy = definePolicy(
             permissions.quotes.read,
             permissions.quotes.list,
             permissions.quotes.update,
-            permissions.audit.view,
+            permissions.audit.read,
             permissions.audit.revert,
             permissions.roles.manage,
           ]),

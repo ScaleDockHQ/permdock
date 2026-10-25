@@ -53,7 +53,7 @@ describe(toolPolicy, () => {
       await tools.authorize(ctx, { meta: customer.delete }, {}),
     ).toStrictEqual({
       allowed: false,
-      reason: "PermDock denied customer.delete.",
+      reason: "PermDock denied customer.delete: no-grant.",
     });
     expect(await tools.visible(ctx, { meta: customer.delete })).toBe(false);
   });
@@ -91,5 +91,26 @@ describe(toolPolicy, () => {
     expect(
       await loader.authorize(ctx, { meta: customer.read }, {}),
     ).toMatchObject({ allowed: false });
+  });
+
+  it("reports a throw to onError and stays refused when the sink throws", async () => {
+    const seen: unknown[] = [];
+    const failing = toolPolicy({
+      permdock: () => Promise.reject(new Error("down")),
+      onError: (error, context) => {
+        seen.push(error instanceof Error ? error.message : error, context);
+        throw new Error("sink down");
+      },
+    });
+    expect(
+      await failing.authorize(ctx, { meta: customer.read }, {}),
+    ).toStrictEqual({ allowed: false, reason: "The permission check failed." });
+    expect(await failing.visible(ctx, { meta: customer.read })).toBe(false);
+    expect(seen).toStrictEqual([
+      "down",
+      { permission: "customer.read", tenant: null },
+      "down",
+      { permission: "customer.read", tenant: null },
+    ]);
   });
 });

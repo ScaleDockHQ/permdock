@@ -230,6 +230,65 @@ describe(authorizationProvider, () => {
     expect(provider).not.toHaveProperty("problems");
   });
 
+  describe("activeTenant", () => {
+    const hooked = (
+      activeFrom: NonNullable<SupabaseHookManifest["hook"]["activeFrom"]>,
+    ): SupabaseHookManifest => ({
+      ...supabaseHookManifestFixture,
+      hook: { ...supabaseHookManifestFixture.hook, activeFrom },
+    });
+
+    it("reports a hook that reads another place than better-supabase writes", () => {
+      const provider = authorizationProvider({
+        manifest: hooked({ appMetadata: "active_tenant" }),
+        catalog: emptyCatalog,
+        activeTenant: "claim",
+      });
+      expect(provider.problems).toStrictEqual([
+        `blocks.permissions.activeTenant is "claim", so better-supabase's switch_organization writes app_metadata.${supabaseHookManifestFixture.tenantClaim}, but PermDock's token hook reads the active tenant from app_metadata.active_tenant. Set supabase.hook.activeFrom: "app_metadata.${supabaseHookManifestFixture.tenantClaim}" and run permdock supabase hook generate.`,
+      ]);
+    });
+
+    it("reports nothing when they agree, for the resolver, or without activeFrom", () => {
+      const claim = supabaseHookManifestFixture.tenantClaim;
+      for (const provider of [
+        authorizationProvider({
+          manifest: hooked({ appMetadata: claim }),
+          catalog: emptyCatalog,
+          activeTenant: "claim",
+        }),
+        authorizationProvider({
+          manifest: hooked({ appMetadata: "active_tenant" }),
+          catalog: emptyCatalog,
+          activeTenant: "resolver",
+        }),
+        authorizationProvider({
+          manifest: hooked({
+            table: "public.profiles",
+            column: "active_org",
+            id: "id",
+          }),
+          catalog: emptyCatalog,
+          activeTenant: { profileColumn: "profiles.active_org" },
+        }),
+        authorizationProvider({
+          manifest: {
+            ...supabaseHookManifestFixture,
+            hook: {
+              schema: supabaseHookManifestFixture.hook.schema,
+              function: supabaseHookManifestFixture.hook.function,
+              out: supabaseHookManifestFixture.hook.out,
+            },
+          },
+          catalog: emptyCatalog,
+          activeTenant: "claim",
+        }),
+      ]) {
+        expect(provider.problems).toBeUndefined();
+      }
+    });
+  });
+
   describe("teamIdsOf", () => {
     const teamManifest = (name: string, listed: boolean) =>
       withRls({
@@ -269,6 +328,31 @@ describe(authorizationProvider, () => {
         });
       },
     );
+
+    it("calls the hook's member_team_ids_of without a team scope", () => {
+      const provider = authorizationProvider({
+        manifest: teamManifest("squad", false),
+        catalog: emptyCatalog,
+      });
+      expect(provider.functions).not.toHaveProperty("teamIdsOf");
+      const hooked = authorizationProvider({
+        manifest: withRls({
+          helpers: [
+            ...supabaseHookManifestFixture.rls.helpers,
+            {
+              name: "member_team_ids_of",
+              args: "p_user uuid",
+              returns: "setof uuid",
+              execute: ["authenticated"],
+            },
+          ],
+        }),
+        catalog: emptyCatalog,
+      });
+      expect(hooked.functions.teamIdsOf).toBe(
+        "permdock.member_team_ids_of({user})",
+      );
+    });
 
     it("stays unset without the helper or a team scope", () => {
       expect(

@@ -128,6 +128,25 @@ const dispatcher: CustomRole = {
 - Levels are unordered by default: holding `team` does not let a subject hand out `own`, because `team` need not contain `own`. Set `orderedLevels: true` on the resource when its levels run from narrowest to widest in declaration order and each contains the ones before it. A holder of a level may then hand out every earlier level, in-process, in the snapshot and in the SQL write functions. Evaluation is unchanged: each level still applies only its own condition, so declare the levels in that order only when the conditions nest. `orderedLevels` needs at least two levels.
 - `permdock catalog` lists the levels of each permission (`levels` in `catalog-v1.json`, with `orderedLevels: true` when set), and `permdock diff` reports a removed level as breaking (`level-removed`): a stored role that picks it starts denying ([diff](/docs/cli/diff)).
 
+With `orderedLevels: true`, the hand-out rule follows declaration order. Here every job's owner is on the job's team, so `own` is inside `team`, and `team` is inside `all`:
+
+```ts
+const permissions = definePermissions({
+  job: resource({
+    id: "id",
+    actions: ["read", "update"],
+    levels: {
+      own: { ownerId: principal.id },
+      team: { teamId: { in: principal.teamIds } },
+      all: {},
+    },
+    orderedLevels: true,
+  }),
+});
+```
+
+A subject that holds `job.update` at `team` may hand out `job.update` at `team` or `own`, and not at `all`; `assignableLevels(permissions.job.update)` answers `["own", "team"]`. Without `orderedLevels`, it answers `["team"]`.
+
 ### Dropped entries
 
 Nothing that fails resolution widens a role. `dropped` names each entry that was left out:

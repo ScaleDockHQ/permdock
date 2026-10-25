@@ -121,6 +121,53 @@ export const policy = definePolicy(permissions, {
       ]);
     });
 
+    it("notes a row an inherit() stream syncs instead of failing verify", async () => {
+      const cwd = project();
+      writeFileSync(
+        join(cwd, "policy.ts"),
+        `import { allow, authenticated, definePermissions, definePolicy, inherit, principal, resource } from '${join(HERE, "../../src/index.ts")}';
+
+export const permissions = definePermissions({
+  folder: resource({ id: 'id', actions: ['read'] }),
+  file: resource({ id: 'id', parent: { field: 'folder_id', resource: 'folder' }, actions: ['read'] }),
+});
+
+export const policy = definePolicy(permissions, {
+  subject: () => null,
+  grants: [
+    allow(permissions.folder.read, { to: authenticated(), where: { owner_id: principal.id } }),
+    allow(permissions.file.read, { to: inherit(permissions.folder.read, { through: 'parent' }) }),
+  ],
+});
+`,
+      );
+      writeFileSync(
+        join(cwd, "rls.fixtures.json"),
+        JSON.stringify([
+          {
+            subject: { id: "u1" },
+            action: "file.read",
+            row: { id: "f1", folder_id: "d1" },
+          },
+        ]),
+      );
+      const base = { cwd, config: projectConfig, check: false };
+      await runPowerSync({ ...base, rest: ["generate"] });
+      expect(readFileSync(join(cwd, "sync-config.yaml"), "utf8")).toContain(
+        "SELECT * FROM file WHERE file.folder_id IN (SELECT folder.id FROM folder WHERE folder.owner_id = auth.user_id())",
+      );
+      const result = await runPowerSync({
+        ...base,
+        rest: ["verify"],
+        db: "postgres://test",
+        connect: fakeDb(() => true),
+      });
+      expect(result.code).toBe(0);
+      expect(result.output).toContain(
+        "file.read for u1: stream file syncs the row through inherit(), which verify does not check: can() here has no relation source",
+      );
+    });
+
     it("fails verify when a stream syncs a row the policy denies", async () => {
       const cwd = project();
       const base = { cwd, config: projectConfig, check: false };

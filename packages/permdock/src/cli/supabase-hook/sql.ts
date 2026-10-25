@@ -33,6 +33,7 @@ import {
 } from "./claims.ts";
 import {
   activeFromSql,
+  activeSource,
   checkSources,
   entriesSql,
   memberForPlan,
@@ -436,6 +437,7 @@ export function hookParts(
             config.rls?.customRoleWrites?.roles,
           ),
     active: activeFromSql(overrides.activeFrom ?? hook.activeFrom, root),
+    activeFrom: activeSource(overrides.activeFrom ?? hook.activeFrom, root),
     attrs: hook.attrs === undefined ? undefined : attrsPlan(hook.attrs),
     extra: extraPlan.claims,
     before: beforePlan(hook.before),

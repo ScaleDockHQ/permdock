@@ -247,7 +247,7 @@ describe(authorizer, () => {
     ]);
   });
 
-  it("shares one instance per claims and tenant through better-supabase 0.15's runtime memo", async () => {
+  it("shares one instance per claims, tenant and intent through better-supabase 0.15's runtime memo", async () => {
     const answers = new Map<string, Promise<unknown>>();
     let loads = 0;
     const memo = {
@@ -293,7 +293,148 @@ describe(authorizer, () => {
       "denied",
       "granted",
     ]);
-    expect(loads).toBe(2);
+    // A read and a delete in ORG, and a read in OTHER.
+    expect(loads).toBe(3);
+  });
+
+  describe("intent and versions", () => {
+    const tracked = () => {
+      const live: boolean[] = [];
+      const versions = {
+        maxStaleMs: 5_000,
+        current: (
+          _principal: unknown,
+          read: () => number | undefined | Promise<number | undefined>,
+          options: { readonly live: boolean },
+        ) => {
+          live.push(options.live);
+          return read();
+        },
+        evict: () => undefined,
+        stats: () => ({ reads: 0, shared: 0, hits: 0, evictions: 0, size: 0 }),
+      };
+      return { live, versions };
+    };
+    const source = { membershipsFor: () => [], version: () => 1 };
+    const versioned = { ...claims(), authz_ver: 1 };
+    // 0.13 types `evaluate` and `evaluations` with one parameter; 0.15 passes the runtime second.
+    type Runtime = { readonly versions?: unknown };
+    const evaluateOf =
+      (checked: ReturnType<typeof authorizer>) =>
+      (r: AuthorizationRequest<Permission>, runtime: Runtime) =>
+        // SAFETY: 0.15 calls evaluate with the runtime second; the 0.13 type omits it
+        (
+          checked.evaluate as (
+            r: AuthorizationRequest<Permission>,
+            runtime: Runtime,
+          ) => Promise<AuthorizationOutcome>
+        )(r, runtime);
+
+    it("reads from better-supabase's runtime versions for a read and live for a write", async () => {
+      const { live, versions } = tracked();
+      const evaluate = evaluateOf(authorizer({ policy, memberships: source }));
+      const read = await evaluate(
+        request(quote.read, {
+          claims: versioned,
+          tenant: ORG,
+          properties: row,
+        }),
+        { versions },
+      );
+      const write = await evaluate(
+        request(quote.update, {
+          claims: versioned,
+          tenant: ORG,
+          properties: row,
+        }),
+        { versions },
+      );
+      expect([read.outcome, write.outcome]).toStrictEqual([
+        "granted",
+        "granted",
+      ]);
+      expect(live).toStrictEqual([false, true]);
+    });
+
+    it("treats a batch as a read and falls back to the versions option", async () => {
+      const { live, versions } = tracked();
+      const checked = authorizer({ policy, memberships: source, versions });
+      await checked.evaluations?.([
+        request(quote.update, {
+          claims: versioned,
+          tenant: ORG,
+          properties: row,
+        }),
+      ]);
+      expect(live).toStrictEqual([false]);
+    });
+
+    it("reads the version from the version option", async () => {
+      const { live, versions } = tracked();
+      let reads = 0;
+      const checked = authorizer({
+        policy,
+        memberships: { membershipsFor: () => [] },
+        version: () => {
+          reads += 1;
+          return 1;
+        },
+        versions,
+      });
+      await checked.evaluate(
+        request(quote.update, {
+          claims: versioned,
+          tenant: ORG,
+          properties: row,
+        }),
+      );
+      expect([live, reads]).toStrictEqual([[true], 1]);
+    });
+
+    it("takes the intent from the intent option", async () => {
+      const { live, versions } = tracked();
+      const evaluate = evaluateOf(
+        authorizer({ policy, memberships: source, intent: () => "write" }),
+      );
+      await evaluate(
+        request(quote.read, {
+          claims: versioned,
+          tenant: ORG,
+          properties: row,
+        }),
+        { versions },
+      );
+      expect(live).toStrictEqual([true]);
+    });
+  });
+
+  it("reports a thrown check to onError and still denies", async () => {
+    const seen: unknown[] = [];
+    const failing = authorizer({
+      // SAFETY: not a policy, so getPermDock throws; only that throw matters.
+      policy: {} as never,
+      onError: (error, context) => {
+        seen.push(error instanceof Error, context);
+        throw new Error("sink down");
+      },
+    });
+    expect(
+      await failing.evaluate(
+        request(quote.list, { claims: claims(), tenant: ORG }),
+      ),
+    ).toStrictEqual({
+      outcome: "denied",
+      reason: "The permission check failed.",
+    });
+    expect(
+      await failing.evaluations?.([request(quote.read, { claims: claims() })]),
+    ).toMatchObject([{ outcome: "denied" }]);
+    expect(seen).toStrictEqual([
+      true,
+      { permission: "quote.list", tenant: ORG },
+      true,
+      { permission: "quote.read", tenant: null },
+    ]);
   });
 
   it("resolves forOperation only when operations are given", () => {

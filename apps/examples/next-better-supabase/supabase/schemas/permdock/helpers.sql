@@ -230,15 +230,15 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user_0 "public"."organization_memberships"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
   select (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
@@ -253,10 +253,10 @@ begin
   union
   select (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
@@ -285,15 +285,15 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user_0 "public"."organization_memberships"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
   select distinct (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
@@ -313,15 +313,15 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := p_user;
+  v_user_0 "public"."organization_memberships"."user_id"%type := p_user;
 begin
   return query
   select distinct (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   where coalesce(p_user::text, '') <> ''
@@ -340,21 +340,14 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
-  v_user_1 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user_0 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
   select (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -370,15 +363,9 @@ begin
   union
   select (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -408,21 +395,14 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
-  v_user_1 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user_0 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
   select distinct (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -443,21 +423,14 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := p_user;
-  v_user_1 "public"."contacts"."user_id"%type := p_user;
+  v_user_0 "public"."contacts"."user_id"%type := p_user;
 begin
   return query
   select distinct (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -508,15 +481,15 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := p_user;
+  v_user_0 "public"."organization_memberships"."user_id"%type := p_user;
 begin
   return query
   select (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
@@ -530,10 +503,10 @@ begin
   union
   select (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
@@ -560,21 +533,14 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := p_user;
-  v_user_1 "public"."contacts"."user_id"%type := p_user;
+  v_user_0 "public"."contacts"."user_id"%type := p_user;
 begin
   return query
   select (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -589,15 +555,9 @@ begin
   union
   select (ms.id)::uuid
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -853,7 +813,7 @@ as $$
 declare
   v_key text := p_entry;
 begin
-  if p_entry is null or not (v_key = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then
+  if p_entry is null or not (v_key = any(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then
     return 'unknown-permission';
   end if;
   if not exists (
@@ -897,7 +857,7 @@ begin
     end if;
   end loop;
   foreach v_entry in array coalesce(p_deny, '{}'::text[]) loop
-    if not (v_entry = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then
+    if not (v_entry = any(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then
       raise exception using
         errcode = '22023',
         message = 'permdock: ' || v_entry || ' is not a declared permission',
@@ -1235,7 +1195,7 @@ begin
     judged as (
       select m.legacy, m.key, m.effect, m.level as level, case
           when m.effect not in ('allow', 'deny') then 'effect ' || m.effect || ' is not allow or deny'
-          when m.key is null or not (m.key = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then 'not a declared permission'
+          when m.key is null or not (m.key = any(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then 'not a declared permission'
           when m.effect = 'allow' and not exists (select 1 from "permdock".permdock_ceiling c where c.scope = v.scope and c.effect = 'allow' and c.permission = m.key) then 'outside the ceiling of ' || v.scope
         end as dropped
       from mapped m
@@ -1319,7 +1279,7 @@ begin
     judged as (
       select m.legacy, m.key, m.effect, m.level as level, case
           when m.effect not in ('allow', 'deny') then 'effect ' || m.effect || ' is not allow or deny'
-          when m.key is null or not (m.key = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then 'not a declared permission'
+          when m.key is null or not (m.key = any(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then 'not a declared permission'
           when m.effect = 'allow' and not exists (select 1 from "permdock".permdock_ceiling c where c.scope = v.scope and c.effect = 'allow' and c.permission = m.key) then 'outside the ceiling of ' || v.scope
         end as dropped
       from mapped m
@@ -1473,7 +1433,7 @@ begin
     and c.scope_id is not distinct from v.scope_id
     and c.role = v.role
   where c.effect = 'allow'
-    and c.permission = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])
+    and c.permission = any(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])
   order by 1, 2;
 end;
 $$;
@@ -1521,7 +1481,7 @@ language sql
 stable
 set search_path = ''
 as $$
-  select k.permission from unnest(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[]) k(permission) order by 1
+  select k.permission from unnest(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[]) k(permission) order by 1
 $$;
 revoke execute on function "permdock".permdock_permission_keys() from public, anon;
 grant execute on function "permdock".permdock_permission_keys() to authenticated;
@@ -1537,7 +1497,7 @@ as $$
   from "permdock".role_permissions rp
   where rp.scope = p_scope
     and rp.effect = 'allow'
-    and rp.permission = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])
+    and rp.permission = any(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])
   order by 1
 $$;
 revoke execute on function "permdock".permdock_permission_keys(text) from public, anon;
@@ -1629,7 +1589,7 @@ set search_path = ''
 as $$
   select g.grant_key
   from pg_catalog.jsonb_array_elements_text(coalesce(
-    '{"customer":{"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]}},"organization":{"audit.revert":{"allow":["audit.revert"],"deny":[]},"audit.view":{"allow":["audit.view"],"deny":[]},"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]},"quotes.update":{"allow":["quotes.update"],"deny":[]},"roles.manage":{"allow":["roles.manage"],"deny":[]},"staff.list":{"allow":["staff.list"],"deny":[]},"staff.read":{"allow":["staff.read"],"deny":[]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
+    '{"customer":{"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]}},"organization":{"audit.read":{"allow":["audit.read"],"deny":[]},"audit.revert":{"allow":["audit.revert"],"deny":[]},"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]},"quotes.update":{"allow":["quotes.update"],"deny":[]},"roles.manage":{"allow":["roles.manage"],"deny":[]},"staff.list":{"allow":["staff.list"],"deny":[]},"staff.read":{"allow":["staff.read"],"deny":[]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
     '[]'::jsonb
   )) g(grant_key)
 $$;
@@ -1678,13 +1638,13 @@ set search_path = ''
 set jit = off
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user_0 "public"."organization_memberships"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
     values
+      ('audit.read', 'organization', 'allow', 'audit.read'),
       ('audit.revert', 'organization', 'allow', 'audit.revert'),
-      ('audit.view', 'organization', 'allow', 'audit.view'),
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
@@ -1719,10 +1679,10 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
@@ -1736,10 +1696,10 @@ begin
   union
   select (ms.id)::uuid, ck.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
@@ -1782,13 +1742,13 @@ set search_path = ''
 set jit = off
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user_0 "public"."organization_memberships"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
     values
+      ('audit.read', 'organization', 'allow', 'audit.read'),
       ('audit.revert', 'organization', 'allow', 'audit.revert'),
-      ('audit.view', 'organization', 'allow', 'audit.view'),
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
@@ -1824,10 +1784,10 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
@@ -1841,10 +1801,10 @@ begin
   union
   select (ms.id)::uuid, ck.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
@@ -1936,8 +1896,7 @@ set search_path = ''
 set jit = off
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
-  v_user_1 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user_0 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
@@ -1972,15 +1931,9 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -1995,15 +1948,9 @@ begin
   union
   select (ms.id)::uuid, ck.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -2047,8 +1994,7 @@ set search_path = ''
 set jit = off
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := (select "permdock".permdock_user_id());
-  v_user_1 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user_0 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
@@ -2084,15 +2030,9 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -2107,15 +2047,9 @@ begin
   union
   select (ms.id)::uuid, ck.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -2246,13 +2180,13 @@ set search_path = ''
 set jit = off
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := p_user;
+  v_user_0 "public"."organization_memberships"."user_id"%type := p_user;
 begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
     values
+      ('audit.read', 'organization', 'allow', 'audit.read'),
       ('audit.revert', 'organization', 'allow', 'audit.revert'),
-      ('audit.view', 'organization', 'allow', 'audit.view'),
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
@@ -2287,10 +2221,10 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
@@ -2303,10 +2237,10 @@ begin
   union
   select (ms.id)::uuid, ck.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
@@ -2347,13 +2281,13 @@ set search_path = ''
 set jit = off
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := p_user;
+  v_user_0 "public"."organization_memberships"."user_id"%type := p_user;
 begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
     values
+      ('audit.read', 'organization', 'allow', 'audit.read'),
       ('audit.revert', 'organization', 'allow', 'audit.revert'),
-      ('audit.view', 'organization', 'allow', 'audit.view'),
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
@@ -2389,10 +2323,10 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
@@ -2405,10 +2339,10 @@ begin
   union
   select (ms.id)::uuid, ck.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
     where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
+    group by m."organization_id"
     having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
   ) ms
   cross join lateral jsonb_array_elements_text(
@@ -2494,8 +2428,7 @@ set search_path = ''
 set jit = off
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := p_user;
-  v_user_1 "public"."contacts"."user_id"%type := p_user;
+  v_user_0 "public"."contacts"."user_id"%type := p_user;
 begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
@@ -2530,15 +2463,9 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -2552,15 +2479,9 @@ begin
   union
   select (ms.id)::uuid, ck.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -2602,8 +2523,7 @@ set search_path = ''
 set jit = off
 as $$
 declare
-  v_user_0 "public"."memberships"."user_id"%type := p_user;
-  v_user_1 "public"."contacts"."user_id"%type := p_user;
+  v_user_0 "public"."contacts"."user_id"%type := p_user;
 begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
@@ -2639,15 +2559,9 @@ begin
     from (
   select (ms.id)::uuid, rp.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -2661,15 +2575,9 @@ begin
   union
   select (ms.id)::uuid, ck.grant_key
   from (
-    select m."scope"::text as scope, m."scope_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."memberships" m
-    where m."user_id" = v_user_0
-    group by m."scope"::text, m."scope_id"::text
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-    union all
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
     from "public"."contacts" m
-    where m."user_id" = v_user_1
+    where m."user_id" = v_user_0
     group by m."customer_id", m."organization_id"
     having jsonb_build_array('contact') is not null
   ) ms
@@ -2712,16 +2620,16 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_key_0 "public"."memberships"."scope_id"%type := p_id;
+  v_key_0 "public"."organization_memberships"."organization_id"%type := p_id;
 begin
   return query
     select c.user_id
     from (
       select h.user_id::uuid
       from (
-        select m."scope_id"::text as id, m."user_id"::text as user_id, m."role"::text as role, null::text as via, true as live
-        from "public"."memberships" m
-        where m."scope"::text = 'organization' and m."scope_id" = v_key_0
+        select m."organization_id"::text as id, m."user_id"::text as user_id, m."role"::text as role, null::text as via, true as live
+        from "public"."organization_memberships" m
+        where m."organization_id" = v_key_0
       ) h
       union
       select ur.user_id::uuid
@@ -2746,24 +2654,16 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_key_0 "public"."memberships"."scope_id"%type := p_id;
-  v_key_1 "public"."contacts"."customer_id"%type := p_id;
+  v_key_0 "public"."contacts"."customer_id"%type := p_id;
 begin
   return query
     select c.user_id
     from (
       select h.user_id::uuid
       from (
-        select m."scope_id"::text as id, m."user_id"::text as user_id, m."role"::text as role, null::text as via, true as live
-        from "public"."memberships" m
-        where m."scope"::text = 'customer' and m."scope_id" = v_key_0
-      ) h
-      union
-      select h.user_id::uuid
-      from (
         select m."customer_id"::text as id, m."user_id"::text as user_id, mf.role as role, 'contact'::text as via, true as live
         from "public"."contacts" m cross join lateral unnest(array['contact']::text[]) mf(role)
-        where m."customer_id" = v_key_1
+        where m."customer_id" = v_key_0
       ) h
       union
       select ur.user_id::uuid
@@ -3157,16 +3057,16 @@ as $$
 declare
   v_ids text[] := '{}';
   v_id text;
-  v_key_0 "public"."memberships"."scope_id"%type;
+  v_key_0 "public"."organization_memberships"."organization_id"%type;
   v_total bigint;
   v_count bigint;
 begin
-  if tg_relid = '"public"."memberships"'::regclass then
+  if tg_relid = '"public"."organization_memberships"'::regclass then
     if tg_op in ('UPDATE', 'DELETE') then
-      v_ids := v_ids || case when old."scope"::text = 'organization' then old."scope_id"::text end;
+      v_ids := v_ids || old."organization_id"::text;
     end if;
     if tg_op in ('INSERT', 'UPDATE') then
-      v_ids := v_ids || case when new."scope"::text = 'organization' then new."scope_id"::text end;
+      v_ids := v_ids || new."organization_id"::text;
     end if;
   end if;
   foreach v_id in array v_ids loop
@@ -3174,15 +3074,15 @@ begin
     v_key_0 := v_id;
     select count(*) into v_total
       from (
-        select m."scope_id"::text as id, m."user_id"::text as user_id, m."role"::text as role, null::text as via, true as live
-        from "public"."memberships" m
-        where m."scope"::text = 'organization' and m."scope_id" = v_key_0
+        select m."organization_id"::text as id, m."user_id"::text as user_id, m."role"::text as role, null::text as via, true as live
+        from "public"."organization_memberships" m
+        where m."organization_id" = v_key_0
       ) h;
     select count(distinct h.user_id) into v_count
       from (
-        select m."scope_id"::text as id, m."user_id"::text as user_id, m."role"::text as role, null::text as via, true as live
-        from "public"."memberships" m
-        where m."scope"::text = 'organization' and m."scope_id" = v_key_0
+        select m."organization_id"::text as id, m."user_id"::text as user_id, m."role"::text as role, null::text as via, true as live
+        from "public"."organization_memberships" m
+        where m."organization_id" = v_key_0
       ) h
       where h.live
         and h.role = 'owner';
@@ -3197,6 +3097,6 @@ begin
 end;
 $$;
 create constraint trigger "permdock_holders_organization"
-  after insert or update or delete on "public"."memberships"
+  after insert or update or delete on "public"."organization_memberships"
   deferrable initially deferred
   for each row execute function "permdock".permdock_holders_organization();

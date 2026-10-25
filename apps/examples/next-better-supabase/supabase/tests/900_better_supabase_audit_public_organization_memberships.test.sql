@@ -1,6 +1,6 @@
 -- better-supabase module: audit
 -- @bsb-block-test audit
--- @bsb-hash sha256:ba541520f520b49626b8f524c0cdcf87e618c6509fec909efa1d29d95cf32df6
+-- @bsb-hash sha256:4e10f1d0aff77e68aa8605213614d3fcecc176c4bc8aa73adc6fe7715e2b0da7
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select extensions.plan(5);
 
-create temp table bsb_audit_probe (like "public"."memberships" including defaults including identity including generated) on commit drop;
+create temp table bsb_audit_probe (like "public"."organization_memberships" including defaults including identity including generated) on commit drop;
 do $$
 declare
   col record;
@@ -50,11 +50,11 @@ begin
 end;
 $$;
 
-select extensions.has_trigger('public', 'memberships', 'bsb_audit', 'public.memberships has the bsb_audit trigger');
-select extensions.trigger_is('public', 'memberships', 'bsb_audit', 'better_supabase', 'audit_row_change', 'bsb_audit on public.memberships calls audit_row_change()');
-select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."memberships"'::regclass) -> 'ignore', '[]'))), '{}'::text[], 'public.memberships is registered with its ignored columns');
-select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."memberships"'::regclass) -> 'redact', '[]'))), '{}'::text[], 'public.memberships is registered with its redacted columns');
-select extensions.results_eq($$select l."op"::text from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe' order by l."id"$$, $$values ('insert'), ('update'), ('delete')$$, 'inserts, updates and deletes on public.memberships write entries');
+select extensions.has_trigger('public', 'organization_memberships', 'bsb_audit', 'public.organization_memberships has the bsb_audit trigger');
+select extensions.trigger_is('public', 'organization_memberships', 'bsb_audit', 'better_supabase', 'audit_row_change', 'bsb_audit on public.organization_memberships calls audit_row_change()');
+select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."organization_memberships"'::regclass) -> 'ignore', '[]'))), '{}'::text[], 'public.organization_memberships is registered with its ignored columns');
+select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."organization_memberships"'::regclass) -> 'redact', '[]'))), '{}'::text[], 'public.organization_memberships is registered with its redacted columns');
+select extensions.results_eq($$select l."op"::text from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe' order by l."id"$$, $$values ('insert'), ('update'), ('delete')$$, 'inserts, updates and deletes on public.organization_memberships write entries');
 
 select * from extensions.finish();
 rollback;

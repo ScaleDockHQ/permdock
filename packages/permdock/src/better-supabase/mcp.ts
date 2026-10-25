@@ -1,8 +1,10 @@
 import type { ToolDecision, ToolRef } from "better-supabase/mcp";
 
 import type { PermDock } from "../core/permdock.ts";
+import type { BetterSupabaseOnError } from "./report.ts";
 
 import { isPermission } from "../core/permission-registry.ts";
+import { deniedMessage, report } from "./report.ts";
 
 /** What better-supabase's `createMcp` hooks see of a tool. */
 export type McpToolRef = Pick<ToolRef, "meta">;
@@ -19,6 +21,11 @@ export type ToolPolicyOptions<C> = {
    * with a row condition denies.
    */
   readonly data?: (ctx: C, tool: McpToolRef, args: unknown) => unknown;
+  /**
+   * Receives every error `authorize` or `visible` threw; the tool stays
+   * refused.
+   */
+  readonly onError?: BetterSupabaseOnError;
 };
 
 export type ToolPolicy<C> = {
@@ -40,7 +47,8 @@ const refused = (reason: string): McpToolDecision => ({
  * tools whose `meta` is a PermDock permission. A tool without a permission is
  * hidden and refused. `authorize` grants only a `granted` decision: an
  * approval-required call is refused, because `createMcp` has no approval flow.
- * A throw anywhere refuses.
+ * A denial's text names the first denial reason. A throw anywhere refuses and
+ * reaches `onError`.
  */
 export function toolPolicy<C>(options: ToolPolicyOptions<C>): ToolPolicy<C> {
   return Object.freeze({
@@ -65,13 +73,17 @@ export function toolPolicy<C>(options: ToolPolicyOptions<C>): ToolPolicy<C> {
               `${permission.key} needs approval, which this server does not collect.`,
             );
           case "denied":
-            return refused(`PermDock denied ${permission.key}.`);
+            return refused(deniedMessage(permission.key, decision));
           default: {
             const never: never = decision;
             return never;
           }
         }
-      } catch {
+      } catch (error) {
+        report(options.onError, error, {
+          permission: permission.key,
+          tenant: null,
+        });
         return refused("The permission check failed.");
       }
     },
@@ -80,7 +92,11 @@ export function toolPolicy<C>(options: ToolPolicyOptions<C>): ToolPolicy<C> {
       if (!isPermission(permission)) return false;
       try {
         return (await options.permdock(ctx)).mayUse(permission);
-      } catch {
+      } catch (error) {
+        report(options.onError, error, {
+          permission: permission.key,
+          tenant: null,
+        });
         return false;
       }
     },

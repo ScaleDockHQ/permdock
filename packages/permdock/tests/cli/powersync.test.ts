@@ -7,8 +7,8 @@ import {
   POSTGRES,
   POWERSYNC,
   powersyncPlan,
-  powersyncYaml,
 } from "../../src/cli/powersync/streams.ts";
+import { powersyncYaml } from "../../src/cli/powersync/yaml.ts";
 import {
   actor,
   allow,
