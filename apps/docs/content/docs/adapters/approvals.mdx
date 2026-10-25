@@ -456,7 +456,7 @@ export function drizzleApprovalStore(db: NodePgDatabase): ApprovalStore {
 
 ## A generated store for Postgres and Supabase
 
-`rls.approvals: true` makes `permdock rls generate` add the store to the helpers: an `approval_requests` table in the helper schema (`permdock` unless `rls.schema` says otherwise) holding each request's body with the columns `list` filters on, and one `security definer` function per method (`permdock_approval_open`, `_get`, `_resolve`, `_consume`, `_list`, `_expire`, `_cancel`), each one statement, so a repeated ask keeps the open request, a quorum race loses the write and not an approval, and two resumes never both consume. RLS is on, and no client role may read the table or execute the functions. `supabaseApprovalStore(client, { schema?, ttl?, onOpen? })` from `permdock/supabase` implements `ApprovalStore` over them through supabase-js; grant the functions to the role of the client you pass, which is a server-side one:
+`rls.approvals: true` makes `permdock rls generate` add the store to the helpers: an `approval_requests` table in the helper schema (`permdock` unless `rls.schema` says otherwise) holding each request's body with the columns `list` filters on, and one `security definer` function per method (`permdock_approval_open`, `_get`, `_resolve`, `_consume`, `_list`, `_expire`, `_cancel`), each one statement, so a repeated ask keeps the open request, a quorum race loses the write and not an approval, and two resumes never both consume. RLS is on, and no client role may read the table or execute the functions. `supabaseApprovalStore(client, { schema?, ttl?, beforeOpen?, onOpen? })` from `permdock/supabase` implements `ApprovalStore` over them through supabase-js; grant the functions to the role of the client you pass, which is a server-side one:
 
 ```sql
 grant usage on schema permdock to service_role;
@@ -495,15 +495,13 @@ rls: {
 
 `generate` adds the `token` and `body` columns when the table lacks them, a unique index on the token and indexes for paging and status, and writes the same `permdock_approval_*` functions over the table, so `supabaseApprovalStore` works unchanged. The functions read every field from the body, which stays the record of truth: no column type of the app's has to match PermDock's, and rows the app wrote without a body are never listed, expired or cancelled. `mirror` copies request fields (`status`, `permission`, `tenant`, `principalId`, `actorId`, `session`, `approvals` as a count, `createdAt`, `expiresAt`, `resolvedAt`, `resolvedBy`, `consumedAt`) into the app's columns on every write, converted to each column's type through `jsonb_populate_record`, so the app's own screens and queries keep reading them. Other columns need a default or must accept null, unless the app inserts the row itself with `open: 'attach'`. The table's grants and policies stay the app's: `generate` does not enable RLS or revoke anything on it, so keep client roles from reading bodies there, which carry a summary of the requesting subject. `rls.jsonSchema` checks the adopted body column.
 
-When the table has required columns only the app can fill (an organization, a title, a link to the record awaiting approval), set `open: 'attach'`. The app inserts its row with the request's token in the token column before the store opens the request, and `permdock_approval_open` attaches the request to that row instead of inserting one: it writes the body and the mirrored columns where the token matches and the row has no body yet, or an expired one, and keeps a pending one. With no row holding the token it raises `P0002` (`no row of <table> holds approval token <token>`), so the open fails and the action does not run. Wrapping `create` inserts the row on every path that opens a request, adapters included:
+When the table has required columns only the app can fill (an organization, a title, a link to the record awaiting approval), set `open: 'attach'`. The app inserts its row with the request's token in the token column before the store opens the request, and `permdock_approval_open` attaches the request to that row instead of inserting one: it writes the body and the mirrored columns where the token matches and the row has no body yet, or an expired one, and keeps a pending one. With no row holding the token it raises `P0002` (`no row of <table> holds approval token <token>`), so the open fails and the action does not run. `beforeOpen` inserts the row in the same flow: the store calls it on every `create`, before `permdock_approval_open`, with the request, so every path that opens a request, adapters included, gets its row:
 
 ```ts
-const generated = supabaseApprovalStore(admin, { schema: "public" });
-
-export const store: ApprovalStore = {
-  ...generated,
-  async create(request) {
-    await admin
+export const store = supabaseApprovalStore(admin, {
+  schema: "public",
+  beforeOpen: async (request) => {
+    const { error } = await admin
       .from("approvals")
       .upsert(
         {
@@ -513,10 +511,13 @@ export const store: ApprovalStore = {
         },
         { onConflict: "permdock_token", ignoreDuplicates: true },
       );
-    await generated.create(request);
+    if (error !== null) throw error;
   },
-};
+  onOpen: async (request) => notifyApprovers(request),
+});
 ```
+
+A repeated ask and a retried open call `beforeOpen` again, so it must be idempotent: ignore a conflict on the token, as above. A throw fails the open before anything is stored. `onOpen` still runs after the open, once per stored request.
 
 `schema` writes the store functions into another schema than the helper schema, such as `public` when the helper schema is not exposed through the API: `approvals: { table: 'public.approvals', schema: 'public' }` with `supabaseApprovalStore(client, { schema: 'public' })` needs no wrapper functions. They stay closed to `anon` and `authenticated` wherever they live.
 

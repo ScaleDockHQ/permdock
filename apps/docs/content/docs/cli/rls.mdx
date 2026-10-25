@@ -390,7 +390,7 @@ create policy "job_update_actor" on "public"."job" as restrictive for update to 
   with check ((select "permdock".permdock_actor_may_write()));
 ```
 
-`verify --introspect --helpers-only` then names each insert, update or delete on a table that a permissive policy grants to `authenticated` or `public` without a call: `public.job: update policies for authenticated do not call permdock_actor_may_write(), so a read-only support or impersonation session can write (rls.readOnlyActors)`. A command counts as guarded when a restrictive policy for it calls the function, or every permissive policy for it does. [Support access](/docs/guides/support-access) covers the in-process side.
+`verify --introspect --helpers-only` then names each insert, update or delete on a table that a permissive policy grants to `authenticated` or `public` without a call: `public.job: update policies for authenticated do not call permdock_actor_may_write(), so a read-only support or impersonation session can write (rls.readOnlyActors)`. Its finding id is `write-unguarded:<table>:<command>`, such as `write-unguarded:public.job:update`, for `rls.verify.ignore`. A `for all` policy counts for each write command. A command counts as guarded when a restrictive policy for it calls the function, or every permissive policy for it does. [Support access](/docs/guides/support-access) covers the in-process side.
 
 ### Realtime channels and Storage buckets
 
