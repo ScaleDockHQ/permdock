@@ -31,7 +31,7 @@ env:
 jobs:
   supabase:
     # The catalog pin only: the example's config and SQL are in that release's shape,
-    # which older releases cannot read (docs/decisions/0047-better-supabase-0-16-0-release-age.md).
+    # which older releases cannot read (docs/decisions/0048-better-supabase-0-18-0-release-age.md).
     name: Supabase stack (next-better-supabase)
     runs-on: ubuntu-latest
     timeout-minutes: 20

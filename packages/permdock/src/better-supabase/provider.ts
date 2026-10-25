@@ -19,6 +19,7 @@ import type {
   SupabaseManifestActiveRow,
   SupabaseManifestHelper,
   SupabaseManifestMembership,
+  SupabaseManifestRole,
 } from "../supabase/manifest.ts";
 import type { BetterSupabaseActiveTenant } from "./active-tenant.ts";
 import type { ProviderApprovers } from "./approvers.ts";
@@ -29,7 +30,10 @@ import { freezeDeep } from "../core/freeze.ts";
 import { delegatedScopeMap } from "../core/oauth-scopes.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 import { hasTokenHook, parseSupabaseManifest } from "../supabase/manifest.ts";
-import { activeTenantMismatch } from "./active-tenant.ts";
+import {
+  activeOrganizationFrom,
+  activeTenantMismatch,
+} from "./active-tenant.ts";
 import { IS_APPROVER, isApproverTemplate } from "./approvers.ts";
 
 export type AuthorizationProviderOptions = {
@@ -64,7 +68,9 @@ export type AuthorizationProviderOptions = {
   /**
    * better-supabase's `blocks.permissions.activeTenant`. When the token hook
    * reads the active tenant from another place than better-supabase writes it,
-   * `problems` names the `supabase.hook.activeFrom` to set.
+   * `problems` names the `supabase.hook.activeFrom` to set. With `"resolver"`
+   * the tenant comes from the request, so `tokenHook.activeOrganizationFrom`
+   * stays unset and doctor BS409 has nothing to compare.
    */
   readonly activeTenant?: BetterSupabaseActiveTenant;
 };
@@ -298,14 +304,44 @@ function membershipOf(
         ? { column: source.scope.column }
         : { value: scope },
     idColumn: source.id.column,
+    ...rolesTableOf(source),
   };
+}
+
+/**
+ * The role set a member's roles come from, one row per scope id, user and role:
+ * a role read through a reference over several columns.
+ */
+function rolesTableOf(source: SupabaseManifestMembership): {
+  readonly rolesTable?: string;
+} {
+  const roles: readonly SupabaseManifestRole[] = isRoleList(source.role)
+    ? source.role
+    : [source.role];
+  for (const role of roles) {
+    if ("through" in role && role.through.on !== undefined) {
+      return { rolesTable: role.through.table };
+    }
+  }
+  return {};
+}
+
+function isRoleList(
+  role: SupabaseManifestMembership["role"],
+): role is readonly SupabaseManifestRole[] {
+  return Array.isArray(role);
 }
 
 function roleSourceOf(
   source: SupabaseManifestMembership,
 ): AuthorizationRoleSource | undefined {
   const role = source.role;
-  if (Array.isArray(role) || !("column" in role) || !("through" in role)) {
+  if (
+    Array.isArray(role) ||
+    !("column" in role) ||
+    !("through" in role) ||
+    role.through.on !== undefined
+  ) {
     return undefined;
   }
   return {
@@ -355,15 +391,23 @@ function permissionsOf(
   });
 }
 
-function tokenHookOf(manifest: SupabaseHookManifest): AuthorizationTokenHook {
+function tokenHookOf(
+  manifest: SupabaseHookManifest,
+  activeTenant: BetterSupabaseActiveTenant | undefined,
+): AuthorizationTokenHook {
   const owned = manifest.claims.filter((claim) => claim.source === "permdock");
   const registered = manifest.claims.filter(
     (claim) => claim.source !== "permdock",
   );
   const budgeted = manifest.claims.filter((claim) => claim.budget);
+  const activeFrom =
+    activeTenant === "resolver" || manifest.hook.activeFrom === undefined
+      ? undefined
+      : activeOrganizationFrom(manifest.hook.activeFrom, manifest.tenantClaim);
   return {
     function: `${manifest.hook.schema}.${manifest.hook.function}`,
     tenantClaim: manifest.tenantClaim,
+    ...(activeFrom === undefined ? {} : { activeOrganizationFrom: activeFrom }),
     ownedClaims: owned.map((claim) => claim.name),
     ...(registered.length > 0
       ? {
@@ -729,7 +773,9 @@ export function authorizationProvider(
       ? { delegation: { scopes: delegated } }
       : {}),
     decidingColumns: manifest.decidingColumns,
-    ...(hasTokenHook(manifest) ? { tokenHook: tokenHookOf(manifest) } : {}),
+    ...(hasTokenHook(manifest)
+      ? { tokenHook: tokenHookOf(manifest, options.activeTenant) }
+      : {}),
     ...(problems.length > 0 ? { problems } : {}),
   });
 }

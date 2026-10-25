@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, it } from "vitest";
 
-import type { DenialReason } from "../../src/index.ts";
+import type { DenialReason, Snapshot } from "../../src/index.ts";
 import type {
   NextPermDockOptions,
   NextPermDockProviderProps,
@@ -23,5 +23,19 @@ describe("endpoint: false", () => {
 
   it("adds server-only to the closed denial reasons", () => {
     expectTypeOf<"server-only">().toExtend<DenialReason>();
+  });
+});
+
+describe("the next PermDockProvider props", () => {
+  it("takes a snapshot or include and tenants, never both", () => {
+    type Given = { children: null; snapshot: Promise<Snapshot> };
+    expectTypeOf<Given>().toExtend<NextPermDockProviderProps>();
+    expectTypeOf<{
+      children: null;
+      tenants: "all";
+    }>().toExtend<NextPermDockProviderProps>();
+    expectTypeOf<
+      Given & { tenants: "all" }
+    >().not.toExtend<NextPermDockProviderProps>();
   });
 });

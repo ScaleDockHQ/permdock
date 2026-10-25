@@ -2,6 +2,7 @@ import type { SqlQuery } from "../core/sql.ts";
 import type { SqlMembershipSource } from "../supabase/sources.ts";
 import type { RoleThrough, SupabaseSuspension } from "../supabase/types.ts";
 
+import { qualifySqlTable } from "../core/sql.ts";
 import { junctionMembershipSource } from "../supabase/sources.ts";
 
 /**
@@ -51,20 +52,38 @@ export type BlockMembershipSourceOptions = {
    * through it. The same value as `blocks.memberships.options.roleThrough`.
    */
   readonly roleThrough?: BlockRoleThrough;
-  /** A role junction read instead of the role column. */
-  readonly roles?: BlockRoleJunction;
+  /**
+   * A role junction read instead of the role column. `"many"` reads
+   * `membership_roles` in the table's schema, the role set
+   * `blocks.memberships.options.roles.many` keeps, keyed by the tenant and user
+   * columns.
+   */
+  readonly roles?: BlockRoleJunction | "many";
   readonly query?: SqlQuery;
   readonly suspension?: SupabaseSuspension;
 };
 
 function roleOf(
   options: BlockMembershipSourceOptions,
-  column: string,
+  columns: {
+    readonly table: string;
+    readonly role: string;
+    readonly tenant: string;
+    readonly user: string;
+  },
 ): string | RoleThrough {
+  const column = columns.role;
   if (options.roles !== undefined && options.roleThrough !== undefined) {
     throw new TypeError(
       "PermDock: blockMembershipSource takes roles or roleThrough, not both; a junction holds role keys",
     );
+  }
+  if (options.roles === "many") {
+    return {
+      through: `${qualifySqlTable(columns.table).split(".")[0] ?? "better_supabase"}.membership_roles`,
+      on: { [columns.tenant]: columns.tenant, [columns.user]: columns.user },
+      column: "role",
+    };
   }
   if (options.roles !== undefined) {
     return {
@@ -86,8 +105,9 @@ function roleOf(
 /**
  * Memberships from better-supabase's `memberships` block table: one row per
  * user and organization, its role key in `role`, a custom role's key through
- * `roleThrough`, or several roles from a `roles` junction. A row with
- * `disabled_at` set is no membership.
+ * `roleThrough`, or several roles from a `roles` junction or, with `roles:
+ * "many"`, from better-supabase's `membership_roles`. A row with `disabled_at`
+ * set is no membership.
  */
 export function blockMembershipSource(
   options: BlockMembershipSourceOptions = {},
@@ -96,12 +116,15 @@ export function blockMembershipSource(
   const scope = options.scope ?? "organization";
   const disabledAt =
     c.disabledAt === null ? undefined : (c.disabledAt ?? "disabled_at");
+  const table = options.table ?? "better_supabase.memberships";
+  const tenant = c.tenant ?? "organization_id";
+  const user = c.user ?? "user_id";
   return junctionMembershipSource({
-    table: options.table ?? "better_supabase.memberships",
+    table,
     scope,
-    id: c.tenant ?? "organization_id",
-    user: c.user ?? "user_id",
-    roles: roleOf(options, c.role ?? "role"),
+    id: tenant,
+    user,
+    roles: roleOf(options, { table, role: c.role ?? "role", tenant, user }),
     ...(disabledAt === undefined ? {} : { disabledAt }),
     ...(options.query === undefined ? {} : { query: options.query }),
     ...(options.suspension === undefined

@@ -18,6 +18,11 @@ export type RoleKeys = {
   readonly key: string;
   /** The referencing table's column. */
   readonly ref: string;
+  /**
+   * Every referencing column and the column of `table` it matches, `ref` and
+   * `id` first; more than one pair for a composite reference.
+   */
+  readonly match: readonly (readonly [ref: string, id: string])[];
 };
 
 /**
@@ -93,6 +98,12 @@ type RoleOptions = {
   readonly indent?: string;
   readonly joined?: string;
   readonly example?: string;
+  /**
+   * Accepts an `on` of several columns, such as a role set keyed by
+   * `(organization_id, user_id)`. Only membership sources set it: other readers
+   * of a roles table match one column.
+   */
+  readonly composite?: boolean;
 };
 
 function isRoleList(role: RoleSpec): role is readonly RoleSource[] {
@@ -186,9 +197,14 @@ function singleRole(
   }
   const pairs = Object.entries(role.on);
   const [pair] = pairs;
-  if (pair === undefined || pairs.length !== 1) {
+  if (
+    pair === undefined ||
+    (pairs.length !== 1 && options.composite !== true)
+  ) {
     throw new TypeError(
-      `${prefix}: ${options.label}.on must map exactly one column of ${table} to ${role.through}, for example ${options.example ?? "{ role_id: 'id' }"}`,
+      options.composite === true
+        ? `${prefix}: ${options.label}.on must map at least one column of ${table} to ${role.through}, for example ${options.example ?? "{ role_id: 'id' }"}`
+        : `${prefix}: ${options.label}.on must map exactly one column of ${table} to ${role.through}, for example ${options.example ?? "{ role_id: 'id' }"}`,
     );
   }
   const [ref, id] = pair;
@@ -200,7 +216,16 @@ function singleRole(
     : `${schema}.${role.through}`;
   const keys = options.joined ?? `${alias}k`;
   const target = quoteSqlTable(through, prefix);
-  const keyed = { table: through, id, key: role.column, ref };
+  const keyed: RoleKeys = {
+    table: through,
+    id,
+    key: role.column,
+    ref,
+    match: pairs,
+  };
+  const on = pairs
+    .map(([from, to]) => `${keys}.${q(to)} = ${alias}.${q(from)}`)
+    .join(" and ");
   const plain = `${keys}.${q(role.column)}::text`;
   const guard = options.guard;
   const key =
@@ -210,10 +235,10 @@ function singleRole(
   return {
     column: ref,
     sql: key,
-    join: `${options.indent === undefined ? " " : `\n${options.indent}`}join ${target} ${keys} on ${keys}.${q(id)} = ${alias}.${q(ref)}`,
-    lookup: `(select ${key} from ${target} ${keys} where ${keys}.${q(id)} = ${alias}.${q(ref)})`,
+    join: `${options.indent === undefined ? " " : `\n${options.indent}`}join ${target} ${keys} on ${on}`,
+    lookup: `(select ${key} from ${target} ${keys} where ${on})`,
     through: keyed,
-    columns: [ref],
+    columns: pairs.map(([from]) => from),
     throughs: [keyed],
     lateral: false,
     nullable: false,
@@ -232,12 +257,20 @@ function sourceManifest(
   if (map !== undefined) {
     return { column, map };
   }
-  return through === undefined
-    ? { column }
-    : {
-        column,
-        through: { table: through.table, id: through.id, column: through.key },
-      };
+  if (through === undefined) {
+    return { column };
+  }
+  return {
+    column,
+    through: {
+      table: through.table,
+      id: through.id,
+      column: through.key,
+      ...(through.match.length > 1
+        ? { on: Object.fromEntries(through.match) }
+        : {}),
+    },
+  };
 }
 
 /** The manifest entry of a single-source column, such as a membership's user. */

@@ -42,8 +42,17 @@ export function NavSkeleton() {
   );
 }
 
+// Pending keeps the row's height, so links do not shift in when the snapshot
+// resolves.
 function GatedLink(props: { readonly item: Item; readonly href: string }) {
-  const { allowed } = usePermission(props.item.permission);
+  const { allowed, status } = usePermission(props.item.permission);
+  if (status === "pending") {
+    return (
+      <li aria-hidden="true" data-nav-pending={props.item.id}>
+        &nbsp;
+      </li>
+    );
+  }
   if (!allowed) {
     return null;
   }

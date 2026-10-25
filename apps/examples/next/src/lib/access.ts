@@ -1,7 +1,7 @@
 import type { Snapshot } from "permdock";
 
 import { cacheLife, cacheTag } from "next/cache";
-import { snapshotTag } from "permdock/next";
+import { cacheLifeFor, snapshotTag } from "permdock/next";
 
 import type { Quote } from "../permissions.ts";
 
@@ -69,8 +69,8 @@ export async function getQuote(
 
 /**
  * Private layer: the session's snapshot for one organization. `getSnapshot`
- * sets `stale` from the snapshot (at least 30 s, so per-link prefetches carry
- * it; 300 s, so it joins the App Shell) and tags it for this subject.
+ * sets `stale` from the snapshot (at least 30 s, so a per-link prefetch carries
+ * it) and tags it for this subject.
  */
 export async function loadSnapshot(organization: string): Promise<Snapshot> {
   "use cache: private";
@@ -93,7 +93,7 @@ export async function visibleQuotes(
     getPermDock({ tenant: organization }),
     getQuotes(organization),
   ]);
-  cacheLife({ stale: 300 });
+  cacheLife(cacheLifeFor(permdock.subject));
   cacheTag(snapshotTag(permdock.subject.principal?.id), orgTag(organization));
   return {
     ...quotes,
@@ -121,7 +121,7 @@ export async function quoteAccess(
     getPermDock({ tenant: organization }),
     getQuote(organization, id),
   ]);
-  cacheLife({ stale: 300 });
+  cacheLife(cacheLifeFor(permdock.subject));
   cacheTag(snapshotTag(permdock.subject.principal?.id), orgTag(organization));
   const quote = loaded.value;
   if (quote === null || !permdock.can(permissions.quote.read, quote)) {

@@ -80,14 +80,32 @@ export type ServerPermissionState = {
   readonly decision: Decision;
 };
 
-export type NextPermDockProviderProps = {
+export type NextPermDockProviderProps = NextPermDockProviderDisplay &
+  (
+    | {
+        /**
+         * The snapshot to hand to the client, usually from the app's `'use
+         * cache: private'` loader around `getSnapshot`, so a prefetch carries
+         * it. The loader decides what it includes.
+         */
+        readonly snapshot: Promise<Snapshot>;
+        readonly include?: never;
+        readonly tenants?: never;
+      }
+    | {
+        /** Without `snapshot`, the provider builds one outside any cache. */
+        readonly snapshot?: undefined;
+        readonly include?: readonly (
+          | Permission
+          | { readonly [key: string]: unknown }
+        )[];
+        readonly tenants?: "all";
+      }
+  );
+
+type NextPermDockProviderDisplay = {
   readonly children: ReactNode;
   readonly tenant?: string;
-  readonly include?: readonly (
-    | Permission
-    | { readonly [key: string]: unknown }
-  )[];
-  readonly tenants?: "all";
   /** Overrides the factory's `endpoint`; `false` is snapshot-only. */
   readonly endpoint?: string | false;
   /**

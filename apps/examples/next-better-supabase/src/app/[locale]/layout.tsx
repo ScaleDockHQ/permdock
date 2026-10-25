@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { locale } from "next/root-params";
+
 export const metadata = {
   title: "PermDock with better-supabase",
   description:
@@ -12,11 +14,9 @@ export function generateStaticParams(): { locale: string }[] {
 
 export default async function RootLayout(props: {
   readonly children: ReactNode;
-  readonly params: Promise<{ readonly locale: string }>;
 }) {
-  const { locale } = await props.params;
   return (
-    <html lang={locale}>
+    <html lang={await locale()}>
       <body>{props.children}</body>
     </html>
   );

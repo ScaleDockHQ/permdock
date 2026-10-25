@@ -1,9 +1,9 @@
 ---
 title: Next.js Cache Components
-description: How a multi-org SaaS keeps permission UI in the prefetched App Shell with Next.js 16.3 Cache Components, Partial Prefetching and instant navigation, how fresh each layer is after a role or plan change, and how Supabase claims plug in.
+description: How a multi-org SaaS keeps permission UI in the prefetched App Shell with Next.js 16.4 Cache Components, Partial Prefetching and instant navigation, how fresh each layer is after a role or plan change, and how Supabase claims plug in.
 ---
 
-This guide builds permission UI for a multi-org SaaS on Next.js 16.3 with `cacheComponents`, `partialPrefetching` and instant navigation. Routes live under `/[org]/...`. Users hold roles per organization (owner, admin, member, viewer, plus custom roles), and organizations are on a free or pro plan.
+This guide builds permission UI for a multi-org SaaS on Next.js 16.4 with `cacheComponents`, `partialPrefetching` and instant navigation. Routes live under `/[org]/...`. Users hold roles per organization (owner, admin, member, viewer, plus custom roles), and organizations are on a free or pro plan.
 
 `apps/examples/next` and `apps/examples/next-better-supabase` run this pattern.
 
@@ -66,19 +66,19 @@ export async function loadSnapshot(org: string) {
 }
 ```
 
-`snapshotFor` is synchronous and makes no network call. `cacheLifeFor` returns `{ stale }`: 300 seconds when the token lives longer, the remaining lifetime when it is shorter, and less than 30 seconds only when the token is about to expire. A `stale` of at least 30 seconds lets a `<Link prefetch>` carry the snapshot; at least 300 seconds puts it in the route's App Shell.
+`snapshotFor` is synchronous and makes no network call. `cacheLifeFor` returns `{ stale }`: 300 seconds when the token lives longer, the remaining lifetime when it is shorter, and less than 30 seconds only when the token is about to expire. A `stale` of at least 30 seconds lets a `<Link prefetch={true}>` carry the snapshot. At least 300 seconds puts session content in the route's App Shell, but the App Shell never holds URL data such as `params`: a snapshot keyed on `[org]` arrives through the per-link prefetch, so links into an organisation use `prefetch={true}`.
 
 ### Static shell: a synchronous layout
 
 ```tsx
 // src/app/[org]/layout.tsx
-import { PermDockProvider } from "permdock/react";
+import { PermDockProvider } from "@/permdock/server";
 
 export default function OrgLayout({ children, params }) {
   const snapshot = params.then(({ org }) => loadSnapshot(org));
   const org = params.then(({ org }) => getOrg(org));
   return (
-    <PermDockProvider snapshotPromise={snapshot}>
+    <PermDockProvider snapshot={snapshot}>
       <Suspense fallback={<NavSkeleton />}>
         <Nav org={org} />
       </Suspense>
@@ -88,9 +88,11 @@ export default function OrgLayout({ children, params }) {
 }
 ```
 
+`PermDockProvider` from the `permdock/next` factory takes the loader's promise as `snapshot` and adds the factory's `endpoint`; the client `PermDockProvider` from `permdock/react` takes it as `snapshotPromise`. Without `snapshot`, the factory's provider builds one outside any cache, which no prefetch carries.
+
 The layout never awaits. `PermDockProvider` renders its children at once, and no hook suspends: until the snapshot resolves, `usePermission` denies with `status: 'pending'` and `<Protected pending>` renders its `pending` slot, so permission UI stays in the static shell. When the promise settles, the store re-renders the readers. On a client navigation the prefetched snapshot is already settled and hydrates before paint. Pass `suspend` to the provider only when you want the readers to wait inside a Suspense boundary instead.
 
-````tsx
+```tsx
 "use client";
 import Link from "next/link";
 import { usePermission } from "permdock/react";
@@ -99,9 +101,15 @@ import { permissions } from "@/permissions";
 export function BillingLink({ org }) {
   const { allowed, status } = usePermission(permissions.billing.read);
   if (status === "pending") return <LinkSkeleton />;
-  return allowed ? <Link href={`/${org}/billing`} prefetch>Billing</Link> : null;
+  return allowed ? (
+    <Link href={`/${org}/billing`} prefetch>
+      Billing
+    </Link>
+  ) : null;
 }
-``` Nav links use `prefetch` so the per-link prefetch resolves `params` and the private snapshot before the click.
+```
+
+Nav links use `prefetch` so the per-link prefetch resolves `params` and the private snapshot before the click.
 
 ### Rows: portable conditions answer on the client
 
@@ -209,12 +217,12 @@ A runtime prefetch renders the private islands with the session's cookies. It ma
 
 ### 7. Staleness
 
-| Change                              | Read UI (islands, `GET`)                                    | Writes (`protectAction`, `POST`) |
-| ----------------------------------- | ----------------------------------------------------------- | -------------------------------- |
-| Member removed, same process evicts | next render                                                 | next write                       |
-| Member removed, other process       | after the Realtime eviction, or within `maxStaleMs`         | next write                       |
-| Member removed, no `versions`       | next render (one version call per instance)                 | next write                       |
-| Cached island output                | until its tag is updated or its key changes (step 4)        | not cached                       |
+| Change                              | Read UI (islands, `GET`)                             | Writes (`protectAction`, `POST`) |
+| ----------------------------------- | ---------------------------------------------------- | -------------------------------- |
+| Member removed, same process evicts | next render                                          | next write                       |
+| Member removed, other process       | after the Realtime eviction, or within `maxStaleMs`  | next write                       |
+| Member removed, no `versions`       | next render (one version call per instance)          | next write                       |
+| Cached island output                | until its tag is updated or its key changes (step 4) | not cached                       |
 
 The version cache bounds the version check, not the island output: an island cached for 300 seconds keeps its HTML until `updateTag` or a new key. Writes are always live, so a stale island can show a button for a moment too long; it can never make a write succeed.
 
@@ -257,13 +265,13 @@ export async function snapshotForSlug(slug: string) {
   const org = await orgBySlug(slug);
   return org === null ? emptySnapshot() : loadSnapshot(org.id);
 }
-````
+```
 
 ```tsx
 // src/app/[locale]/(app)/[orgSlug]/layout.tsx: synchronous, the nav waits for the snapshot
 const snapshot = params.then(({ orgSlug }) => orgSlug).then(snapshotForSlug);
 return (
-  <PermDockProvider snapshotPromise={snapshot} endpoint={false}>
+  <PermDockProvider snapshot={snapshot} endpoint={false}>
     {children}
   </PermDockProvider>
 );
@@ -411,7 +419,7 @@ export async function loadSnapshot(orgId: string) {
 }
 ```
 
-Next keeps the smallest `stale` set in one scope, so the entry lives no longer than either the token or the snapshot, and at 300 seconds it joins the App Shell. The snapshot's tag and lifetime come after `bsb.cached()` because both depend on the session it returns. The same `bsb.cached()` hands out `sql`, typed repositories over direct Postgres that run as the caller, so RLS on `permitted_<scope>_ids()` decides the rows in another `'use cache: private'` function.
+Next keeps the smallest `stale` set in one scope, so the entry lives no longer than either the token or the snapshot, and at 30 seconds or more a per-link prefetch carries it. The snapshot's tag and lifetime come after `bsb.cached()` because both depend on the session it returns. The same `bsb.cached()` hands out `sql`, typed repositories over direct Postgres that run as the caller, so RLS on `permitted_<scope>_ids()` decides the rows in another `'use cache: private'` function.
 
 A role change drops both in the Server Action that made it:
 
@@ -466,7 +474,7 @@ Run it against `next build && next start` with `experimental.exposeTestingApiInP
 - `updateTag` works only in Server Actions. Webhooks and other Route Handlers call `revalidateTag(tag, { expire: 0 })`, never `'max'`, which would serve the revoked grant once more.
 - Bust `snapshotTag(sub)` on every input to the snapshot: role, membership and custom-role writes, a revocation-counter bump in the token, and entitlement or billing webhooks.
 - `refresh()` and `updateTag` reach only the browser that acted; other members need a signal.
-- A `stale` below 30 seconds silently drops the snapshot from per-link prefetches, and below 300 seconds from the App Shell. `cacheLifeFor` keeps the floor unless the token is about to expire.
+- A `stale` below 30 seconds silently drops the snapshot from per-link prefetches. Below 300 seconds, session content that reads no `params` drops out of the App Shell. `cacheLifeFor` keeps the floor unless the token is about to expire.
 - Plan gates live in the snapshot and in Server Actions; the generated `authorize()` seeds ignore plans, so RLS does not enforce them.
 - Sign out with a document navigation (a plain `<form method="post">` to a Route Handler that clears the cookie and answers `303`), not a Server Action `redirect`. The App Router keeps visited routes as hidden trees in the page, so after a client-side sign-out the previous user's gated nav can stay in the DOM while the next user signs in.
 

@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 
 import Link from "next/link";
-import { PermDockProvider } from "permdock/react";
+import { locale } from "next/root-params";
 import { Suspense } from "react";
 
 import { snapshotForSlug } from "../../../../lib/access.ts";
+import { PermDockProvider } from "../../../../permdock/server.ts";
 import { Nav, NavSkeleton } from "./nav.tsx";
 
 const organizations = [
@@ -12,9 +13,28 @@ const organizations = [
   { slug: "globex", name: "Globex" },
 ] as const;
 
+async function OrganizationSwitch() {
+  const prefix = `/${await locale()}`;
+  return (
+    <header>
+      <nav aria-label="Organizations">
+        {organizations.map((organization) => (
+          <Link
+            key={organization.slug}
+            href={`${prefix}/${organization.slug}/staff`}
+            prefetch
+            data-switch={organization.slug}
+          >
+            {organization.name}
+          </Link>
+        ))}
+      </nav>
+    </header>
+  );
+}
+
 // Synchronous: the shell is static, and only the gated nav waits for the
 // private-cached snapshot, which the prefetch already carries.
-// `endpoint={false}`: no `/api/permdock` route exists, every check is local.
 export default function OrganizationLayout(props: {
   readonly children: ReactNode;
   readonly params: Promise<{
@@ -23,27 +43,14 @@ export default function OrganizationLayout(props: {
   }>;
 }) {
   const base = props.params.then(
-    ({ locale, orgSlug }) => `/${locale}/${orgSlug}`,
+    (params) => `/${params.locale}/${params.orgSlug}`,
   );
   const snapshot = props.params
     .then(({ orgSlug }) => orgSlug)
     .then(snapshotForSlug);
   return (
-    <PermDockProvider snapshotPromise={snapshot} endpoint={false}>
-      <header>
-        <nav aria-label="Organizations">
-          {organizations.map((organization) => (
-            <Link
-              key={organization.slug}
-              href={`/en/${organization.slug}/staff`}
-              prefetch
-              data-switch={organization.slug}
-            >
-              {organization.name}
-            </Link>
-          ))}
-        </nav>
-      </header>
+    <PermDockProvider snapshot={snapshot}>
+      <OrganizationSwitch />
       <Suspense fallback={<NavSkeleton />}>
         <Nav base={base} />
       </Suspense>

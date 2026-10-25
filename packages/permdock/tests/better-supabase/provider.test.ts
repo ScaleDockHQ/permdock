@@ -287,6 +287,28 @@ describe(authorizationProvider, () => {
         expect(provider.problems).toBeUndefined();
       }
     });
+
+    it("names the hook's source as tokenHook.activeOrganizationFrom for doctor BS409", () => {
+      const claim = supabaseHookManifestFixture.tenantClaim;
+      const from = (
+        activeFrom: NonNullable<SupabaseHookManifest["hook"]["activeFrom"]>,
+        activeTenant?: "resolver",
+      ) =>
+        authorizationProvider({
+          manifest: hooked(activeFrom),
+          catalog: emptyCatalog,
+          ...(activeTenant === undefined ? {} : { activeTenant }),
+        }).tokenHook?.activeOrganizationFrom;
+      expect(from({ appMetadata: claim })).toBe("claim");
+      expect(
+        from({ table: "profiles", column: "active_org", id: "id" }),
+      ).toStrictEqual({ profileColumn: "public.profiles.active_org" });
+      expect(
+        from({ table: "app.users", column: "org", id: "user_id" }),
+      ).toStrictEqual({ profileColumn: "app.users.org", key: "user_id" });
+      expect(from({ appMetadata: "active_tenant" })).toBeUndefined();
+      expect(from({ appMetadata: claim }, "resolver")).toBeUndefined();
+    });
   });
 
   describe("teamIdsOf", () => {
@@ -562,6 +584,55 @@ describe(authorizationProvider, () => {
         active: ["active"],
       },
     });
+  });
+
+  it("names a role set read over a composite reference as rolesTable", () => {
+    const membership = {
+      table: "better_supabase.memberships",
+      user: { column: "user_id" },
+      scope: { value: "tenant" },
+      id: { column: "organization_id" },
+      columns: ["user_id", "organization_id"],
+    } as const;
+    const provider = authorizationProvider({
+      manifest: withRls({
+        memberships: [
+          {
+            ...membership,
+            role: {
+              column: "organization_id",
+              through: {
+                table: "better_supabase.membership_roles",
+                id: "organization_id",
+                column: "role",
+                on: { organization_id: "organization_id", user_id: "user_id" },
+              },
+            },
+          },
+          {
+            ...membership,
+            table: "public.memberships",
+            role: { column: "role" },
+          },
+        ],
+      }),
+    });
+    expect(provider.memberships).toStrictEqual([
+      {
+        table: "better_supabase.memberships",
+        userColumn: "user_id",
+        scope: { value: "tenant" },
+        idColumn: "organization_id",
+        rolesTable: "better_supabase.membership_roles",
+      },
+      {
+        table: "public.memberships",
+        userColumn: "user_id",
+        scope: { value: "tenant" },
+        idColumn: "organization_id",
+      },
+    ]);
+    expect(provider).not.toHaveProperty("roleSources");
   });
 
   it("checks custom roles through permdock_can_assign_any at the tenant scope", async () => {

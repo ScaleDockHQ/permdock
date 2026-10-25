@@ -285,6 +285,7 @@ function memberRole(
   return roleColumn(role, qualifySqlTable(table), "m", {
     label,
     indent: "",
+    composite: true,
     ...(guard === undefined ? {} : { guard }),
   });
 }

@@ -106,6 +106,34 @@ describe(blockMembershipSource, () => {
     });
   });
 
+  it("reads better-supabase's membership_roles with roles many", () => {
+    const { sql } = blockMembershipSource({ roles: "many" });
+    expect(sql.select("$1")).toContain(
+      'join "better_supabase"."membership_roles" mk on mk."organization_id" = m."organization_id" and mk."user_id" = m."user_id"',
+    );
+    expect(sql.select("$1")).toContain('m."disabled_at" is null');
+    expect(sql.manifest).toMatchObject({
+      role: {
+        through: {
+          table: "better_supabase.membership_roles",
+          column: "role",
+          on: { organization_id: "organization_id", user_id: "user_id" },
+        },
+      },
+    });
+  });
+
+  it("keeps membership_roles in the schema of a renamed table", () => {
+    const { sql } = blockMembershipSource({
+      table: "tenancy.members",
+      columns: { tenant: "tenant_id", user: "member_id" },
+      roles: "many",
+    });
+    expect(sql.select("$1")).toContain(
+      'join "tenancy"."membership_roles" mk on mk."tenant_id" = m."tenant_id" and mk."member_id" = m."member_id"',
+    );
+  });
+
   it("refuses roles and roleThrough together", () => {
     expect(() =>
       blockMembershipSource({

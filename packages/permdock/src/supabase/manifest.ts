@@ -165,6 +165,11 @@ export type SupabaseManifestThrough = {
   readonly table: string;
   readonly id: string;
   readonly column: string;
+  /**
+   * Every referencing column to the column of `table` it matches, when the
+   * reference spans several columns (a role set keyed by scope id and user).
+   */
+  readonly on?: Readonly<Record<string, string>>;
 };
 
 /**

@@ -54,3 +54,22 @@ export function activeTenantMismatch(
   }
   return `blocks.permissions.activeTenant writes the active tenant to ${table}.${column} (joined on ${id}), but PermDock's token hook reads it from ${describe(from)}. Set supabase.hook.activeFrom: { table: "${table}", column: "${column}", id: "${id}" } and run permdock supabase hook generate.`;
 }
+
+/**
+ * Where the token hook reads the active tenant, as better-supabase names it in
+ * `tokenHook.activeOrganizationFrom`, or `undefined` when the hook reads an
+ * `app_metadata` key other than the tenant claim, which has no better-supabase
+ * name.
+ */
+export function activeOrganizationFrom(
+  from: SupabaseManifestActiveFrom,
+  tenantClaim: string,
+): Exclude<BetterSupabaseActiveTenant, "resolver"> | undefined {
+  if ("appMetadata" in from) {
+    return from.appMetadata === tenantClaim ? "claim" : undefined;
+  }
+  return {
+    profileColumn: `${qualifySqlTable(from.table)}.${from.column}`,
+    ...(from.id === "id" ? {} : { key: from.id }),
+  };
+}

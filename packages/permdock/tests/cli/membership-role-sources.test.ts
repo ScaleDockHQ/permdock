@@ -82,7 +82,13 @@ describe("role sources", () => {
       'jsonb_agg(distinct "mr".permdock_role order by "mr".permdock_role)',
     );
     expect(organizationUsers.sql.throughs).toStrictEqual([
-      { table: "public.roles", id: "id", key: "key", ref: "role_id" },
+      {
+        table: "public.roles",
+        id: "id",
+        key: "key",
+        ref: "role_id",
+        match: [["role_id", "id"]],
+      },
     ]);
     expect(organizationUsers.sql.manifest.role).toStrictEqual([
       { column: "tier" },
