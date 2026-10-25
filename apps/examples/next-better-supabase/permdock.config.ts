@@ -16,7 +16,8 @@ export default defineConfig({
     dialect: "supabase",
     authorize: "database",
     scopeTypes: { tenant: "uuid" },
-    tables: { staff: "staff", quotes: "quotes" },
+    // `audit` names better-supabase's audit block keys; the block owns its table and policies.
+    tables: { staff: "staff", quotes: "quotes", audit: false },
     readOnlyActors: true,
     // Out-of-office covers: a delegate approves for the delegator inside a window.
     approvals: { delegations: true },

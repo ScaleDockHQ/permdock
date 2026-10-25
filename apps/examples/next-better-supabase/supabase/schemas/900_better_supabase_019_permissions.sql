@@ -1,6 +1,6 @@
 -- better-supabase module: permissions
 -- @bsb-block permissions@1 managed
--- @bsb-hash sha256:5ea531bb487d630f30288317227ca6fbcad26b64e0c5303f7263dead4a9c2b75
+-- @bsb-hash sha256:227e0ae055fecfb23732fdfae4b0eb64031525b70c27e12e4f19455e3e96653c
 -- can(), tenant_ids_with() and is_platform(): one permission contract for policies and SQL modules, over a roles list, a role and permission catalog, an authorization provider or the app's own functions (blocks.permissions.model).
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -58,8 +58,8 @@ immutable
 set search_path = ''
 as $$
   select case scope
+    when 'audit:read' then array['audit.read']::text[]
     when 'audit:revert' then array['audit.revert']::text[]
-    when 'audit:view' then array['audit.view']::text[]
     when 'quotes:list' then array['quotes.list']::text[]
     when 'quotes:read' then array['quotes.read']::text[]
     when 'quotes:update' then array['quotes.update']::text[]
@@ -122,8 +122,8 @@ set search_path = ''
 as $$
   select case op
     when 'audit.revert' then 'audit.revert'
-    when 'audit.view' then 'audit.view'
-    when 'audit.viewAll' then 'audit.view'
+    when 'audit.view' then 'audit.read'
+    when 'audit.viewAll' then 'audit.read'
     when 'share-links.create' then 'quotes.update'
     when 'share-links.read' then 'quotes.read'
   end

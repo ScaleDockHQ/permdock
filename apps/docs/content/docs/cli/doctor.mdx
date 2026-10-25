@@ -488,10 +488,10 @@ warning PD078  blocks.permissions.activeTenant is "claim", so better-supabase's 
 
 ### PD079: block permission keys missing from the catalog
 
-Each better-supabase block checks permission keys through the provider: its defaults (`members.read`, `teams.read`, `notifications.send`, `audit.revert`, …) or the keys `blocks.<block>.permissions` maps them to. A key the catalog does not list has no role that holds it, so the block's SQL check denies it for everyone. The check loads `better-supabase.config.ts`, asks the project's `better-supabase/sql` for every key the configured blocks check, and reports each one missing from `permissions.catalog.json` with the block actions that use it:
+Each better-supabase block checks permission keys through the provider: its defaults (`audit.read`, `audit.revert`, `teams.read`, `notifications.send`, …) or the keys `blocks.<block>.permissions` maps them to. A key the catalog does not list has no role that holds it, so the block's SQL check denies it for everyone. The check loads `better-supabase.config.ts`, asks the project's `better-supabase/sql` for every key the configured blocks check, and reports each one missing from `permissions.catalog.json` with the block actions that use it:
 
 ```txt
-warning PD079  audit.view (blocks.audit.permissions.view, blocks.audit.permissions.viewAll) is not in permissions.catalog.json, so no role holds it and better-supabase's SQL check denies it
+warning PD079  notifications.send (blocks.notifications.permissions.send) is not in permissions.catalog.json, so no role holds it and better-supabase's SQL check denies it
 ```
 
 Declare the key in the policy and run `permdock collect`, or map the block action to a key the catalog lists. `--only catalog` (or `--only better-supabase`) runs PD079.

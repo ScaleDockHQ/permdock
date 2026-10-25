@@ -813,7 +813,7 @@ as $$
 declare
   v_key text := p_entry;
 begin
-  if p_entry is null or not (v_key = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then
+  if p_entry is null or not (v_key = any(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then
     return 'unknown-permission';
   end if;
   if not exists (
@@ -857,7 +857,7 @@ begin
     end if;
   end loop;
   foreach v_entry in array coalesce(p_deny, '{}'::text[]) loop
-    if not (v_entry = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then
+    if not (v_entry = any(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then
       raise exception using
         errcode = '22023',
         message = 'permdock: ' || v_entry || ' is not a declared permission',
@@ -1195,7 +1195,7 @@ begin
     judged as (
       select m.legacy, m.key, m.effect, m.level as level, case
           when m.effect not in ('allow', 'deny') then 'effect ' || m.effect || ' is not allow or deny'
-          when m.key is null or not (m.key = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then 'not a declared permission'
+          when m.key is null or not (m.key = any(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then 'not a declared permission'
           when m.effect = 'allow' and not exists (select 1 from "permdock".permdock_ceiling c where c.scope = v.scope and c.effect = 'allow' and c.permission = m.key) then 'outside the ceiling of ' || v.scope
         end as dropped
       from mapped m
@@ -1279,7 +1279,7 @@ begin
     judged as (
       select m.legacy, m.key, m.effect, m.level as level, case
           when m.effect not in ('allow', 'deny') then 'effect ' || m.effect || ' is not allow or deny'
-          when m.key is null or not (m.key = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then 'not a declared permission'
+          when m.key is null or not (m.key = any(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])) then 'not a declared permission'
           when m.effect = 'allow' and not exists (select 1 from "permdock".permdock_ceiling c where c.scope = v.scope and c.effect = 'allow' and c.permission = m.key) then 'outside the ceiling of ' || v.scope
         end as dropped
       from mapped m
@@ -1433,7 +1433,7 @@ begin
     and c.scope_id is not distinct from v.scope_id
     and c.role = v.role
   where c.effect = 'allow'
-    and c.permission = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])
+    and c.permission = any(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])
   order by 1, 2;
 end;
 $$;
@@ -1481,7 +1481,7 @@ language sql
 stable
 set search_path = ''
 as $$
-  select k.permission from unnest(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[]) k(permission) order by 1
+  select k.permission from unnest(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[]) k(permission) order by 1
 $$;
 revoke execute on function "permdock".permdock_permission_keys() from public, anon;
 grant execute on function "permdock".permdock_permission_keys() to authenticated;
@@ -1497,7 +1497,7 @@ as $$
   from "permdock".role_permissions rp
   where rp.scope = p_scope
     and rp.effect = 'allow'
-    and rp.permission = any(array['audit.revert', 'audit.view', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])
+    and rp.permission = any(array['audit.read', 'audit.revert', 'quotes.list', 'quotes.read', 'quotes.update', 'roles.manage', 'staff.list', 'staff.read']::text[])
   order by 1
 $$;
 revoke execute on function "permdock".permdock_permission_keys(text) from public, anon;
@@ -1589,7 +1589,7 @@ set search_path = ''
 as $$
   select g.grant_key
   from pg_catalog.jsonb_array_elements_text(coalesce(
-    '{"customer":{"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]}},"organization":{"audit.revert":{"allow":["audit.revert"],"deny":[]},"audit.view":{"allow":["audit.view"],"deny":[]},"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]},"quotes.update":{"allow":["quotes.update"],"deny":[]},"roles.manage":{"allow":["roles.manage"],"deny":[]},"staff.list":{"allow":["staff.list"],"deny":[]},"staff.read":{"allow":["staff.read"],"deny":[]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
+    '{"customer":{"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]}},"organization":{"audit.read":{"allow":["audit.read"],"deny":[]},"audit.revert":{"allow":["audit.revert"],"deny":[]},"quotes.list":{"allow":["quotes.list"],"deny":[]},"quotes.read":{"allow":["quotes.read"],"deny":[]},"quotes.update":{"allow":["quotes.update"],"deny":[]},"roles.manage":{"allow":["roles.manage"],"deny":[]},"staff.list":{"allow":["staff.list"],"deny":[]},"staff.read":{"allow":["staff.read"],"deny":[]}}}'::jsonb -> p_scope -> p_permission -> p_effect,
     '[]'::jsonb
   )) g(grant_key)
 $$;
@@ -1643,8 +1643,8 @@ begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
     values
+      ('audit.read', 'organization', 'allow', 'audit.read'),
       ('audit.revert', 'organization', 'allow', 'audit.revert'),
-      ('audit.view', 'organization', 'allow', 'audit.view'),
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
@@ -1747,8 +1747,8 @@ begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
     values
+      ('audit.read', 'organization', 'allow', 'audit.read'),
       ('audit.revert', 'organization', 'allow', 'audit.revert'),
-      ('audit.view', 'organization', 'allow', 'audit.view'),
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
@@ -2185,8 +2185,8 @@ begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
     values
+      ('audit.read', 'organization', 'allow', 'audit.read'),
       ('audit.revert', 'organization', 'allow', 'audit.revert'),
-      ('audit.view', 'organization', 'allow', 'audit.view'),
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),
@@ -2286,8 +2286,8 @@ begin
   return query
   with pdk_m(key, scope, effect, grant_key) as (
     values
+      ('audit.read', 'organization', 'allow', 'audit.read'),
       ('audit.revert', 'organization', 'allow', 'audit.revert'),
-      ('audit.view', 'organization', 'allow', 'audit.view'),
       ('quotes.list', 'organization', 'allow', 'quotes.list'),
       ('quotes.read', 'organization', 'allow', 'quotes.read'),
       ('quotes.update', 'organization', 'allow', 'quotes.update'),

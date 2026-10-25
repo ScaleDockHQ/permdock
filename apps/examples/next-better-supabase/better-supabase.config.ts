@@ -52,8 +52,8 @@ export default defineConfig({
     "updated-at": {},
     audit: {
       permissions: {
-        view: "audit.view",
-        viewAll: "audit.view",
+        view: "audit.read",
+        viewAll: "audit.read",
         revert: "audit.revert",
       },
     },

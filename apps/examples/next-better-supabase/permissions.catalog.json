@@ -1,9 +1,9 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-21T18:26:20.894Z",
-  "generator": "permdock@0.7.0",
-  "fingerprint": "sha-256:2VY9uDRP6NWXTNcU989MMBZa3-z22VbDWKWkvnXaTFc",
+  "generatedAt": "2026-10-25T13:10:40.583Z",
+  "generator": "permdock@0.9.0",
+  "fingerprint": "sha-256:vWJUJuM8Qg6Cd8ozHqIOkaPdpE4p6cxof-Hypzwe3tg",
   "resources": {
     "staff": {
       "id": "id",
@@ -120,6 +120,22 @@
   },
   "permissions": [
     {
+      "key": "audit.read",
+      "scope": "audit:read",
+      "resource": "audit",
+      "action": "read",
+      "arity": "collection",
+      "meta": {},
+      "usages": [
+        {
+          "file": "src/policy.ts",
+          "line": 28,
+          "call": "reference"
+        }
+      ],
+      "rowConditions": false
+    },
+    {
       "key": "audit.revert",
       "scope": "audit:revert",
       "resource": "audit",
@@ -130,22 +146,6 @@
         {
           "file": "src/policy.ts",
           "line": 29,
-          "call": "reference"
-        }
-      ],
-      "rowConditions": false
-    },
-    {
-      "key": "audit.view",
-      "scope": "audit:view",
-      "resource": "audit",
-      "action": "view",
-      "arity": "collection",
-      "meta": {},
-      "usages": [
-        {
-          "file": "src/policy.ts",
-          "line": 28,
           "call": "reference"
         }
       ],
@@ -354,7 +354,7 @@
   ],
   "grants": [
     {
-      "permission": "audit.revert",
+      "permission": "audit.read",
       "effect": "allow",
       "role": "owner",
       "to": {
@@ -365,7 +365,7 @@
       "scope": "organization"
     },
     {
-      "permission": "audit.view",
+      "permission": "audit.revert",
       "effect": "allow",
       "role": "owner",
       "to": {
