@@ -149,6 +149,43 @@ describe(supabaseApprovalStore, () => {
     expect(opened).toStrictEqual([request.createdAt]);
   });
 
+  it("runs beforeOpen before the open call, and a throw stores nothing", async () => {
+    const calls: Call[] = [];
+    const order: string[] = [];
+    const store = supabaseApprovalStore(
+      client((call) => {
+        order.push(call.fn);
+        return { data: null, error: null };
+      }),
+      {
+        schema: "auth_z",
+        beforeOpen: async (opening) => {
+          await Promise.resolve();
+          order.push(`before:${opening.token}`);
+        },
+      },
+    );
+    await store.create(request);
+    await store.create(request);
+    expect(order).toStrictEqual([
+      "before:t1",
+      "permdock_approval_open",
+      "before:t1",
+      "permdock_approval_open",
+    ]);
+    const refused = supabaseApprovalStore(
+      client(() => ({ data: null, error: null }), calls),
+      {
+        schema: "auth_z",
+        beforeOpen: () => {
+          throw new Error("no inbox row");
+        },
+      },
+    );
+    await expect(refused.create(request)).rejects.toThrow("no inbox row");
+    expect(calls).toStrictEqual([]);
+  });
+
   it("refuses a verdict on a missing or no longer pending request", async () => {
     const store = supabaseApprovalStore(
       client((call) =>

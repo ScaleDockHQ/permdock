@@ -28,6 +28,14 @@ export type SupabaseApprovalStoreOptions = {
   /** Seconds a request stays open when the caller sets no `ttl`. */
   readonly ttl?: number;
   /**
+   * Runs on every `create`, before the call that stores the request, with the
+   * request: insert the app's own row holding `request.token`, which `open:
+   * 'attach'` then attaches the request to. A repeated ask and a retried open
+   * run it again, so it must be idempotent, such as an insert that ignores a
+   * conflict on the token. A throw fails the open before anything is stored.
+   */
+  readonly beforeOpen?: (request: ApprovalRequest) => void | Promise<void>;
+  /**
    * Runs once per stored request, after the call that stored it, with the
    * stored request: notify the approvers, or cancel the requests this one
    * replaces. A repeated ask that finds the request still open does not run it
@@ -92,6 +100,7 @@ export function supabaseApprovalStore(
   return {
     ...(options.ttl === undefined ? {} : { ttl: options.ttl }),
     async create(request) {
+      await options.beforeOpen?.(request);
       await call("permdock_approval_open", { p_request: request });
       if (options.onOpen !== undefined) {
         const stored = await get(request.token);

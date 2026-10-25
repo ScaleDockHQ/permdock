@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { run } from "permdock/cli";
 import { supabaseApprovalStore } from "permdock/supabase";
+import { testApprovalStore } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -86,6 +87,25 @@ function request(token: string): ApprovalRequest {
   };
 }
 
+function inboxStore(): ReturnType<typeof supabaseApprovalStore> {
+  return supabaseApprovalStore(rpcClient(), {
+    schema: "public",
+    beforeOpen: async (opening) => {
+      if (db === undefined) {
+        throw new Error("PermDock: Postgres was not started");
+      }
+      await db.admin.query(
+        "insert into public.approvals (organization_id, title, permdock_token) values ($1, $2, $3) on conflict (permdock_token) do nothing",
+        [
+          opening.subject.principal?.tenant ?? "none",
+          opening.detail,
+          opening.token,
+        ],
+      );
+    },
+  });
+}
+
 let generated = "";
 
 describe("supabase approval attach", () => {
@@ -161,12 +181,45 @@ describe("supabase approval attach", () => {
       ]);
     });
 
+    it("opens the app's inbox row in beforeOpen and attaches to it once", async () => {
+      if (db === undefined) {
+        throw new Error("PermDock: Postgres was not started");
+      }
+      const store = inboxStore();
+      await store.create(request("inbox-token"));
+      await store.create({ ...request("inbox-token"), detail: "again" });
+      const rows = await db.admin.query<{ title: string; state: string }>(
+        "select title, state from public.approvals where permdock_token = 'inbox-token'",
+      );
+      expect(rows.rows).toStrictEqual([
+        { title: "approval", state: "pending" },
+      ]);
+      expect((await store.get("inbox-token"))?.detail).toBe("approval");
+    });
+
     it("refuses to open a request no application row holds", async () => {
       const store = supabaseApprovalStore(rpcClient(), { schema: "public" });
       await expect(store.create(request("orphan-token"))).rejects.toThrow(
         /no row of public.approvals holds approval token orphan-token/u,
       );
       expect(await store.get("orphan-token")).toBeNull();
+    });
+  });
+
+  describe("supabaseApprovalStore with beforeOpen over an attach table", () => {
+    testApprovalStore(inboxStore(), {
+      reopen: inboxStore,
+      capabilities: {
+        expire: async (token) => {
+          if (db === undefined) {
+            throw new Error("PermDock: Postgres was not started");
+          }
+          await db.admin.query(
+            "update public.approvals set request = jsonb_set(request, '{expiresAt}', to_jsonb('2000-01-01T00:00:00.000Z'::text)) where permdock_token = $1",
+            [token],
+          );
+        },
+      },
     });
   });
 });
