@@ -20,12 +20,16 @@ const ORG = "11111111-1111-4111-8111-111111111111";
 const OTHER = "33333333-3333-4333-8333-333333333333";
 const USER = "22222222-2222-4222-8222-222222222222";
 
-const Run = z.object({ id: z.string(), organization_id: z.string() });
+const Run = z.object({
+  id: z.string(),
+  organization_id: z.string(),
+  status: z.enum(["running", "failed"]),
+});
 
 const permissions = definePermissions({
   run: resource(Run, {
     id: "id",
-    actions: [],
+    actions: ["retry"],
     collection: ["approve", "list", "cancel"],
     relations: {
       organization: { field: "organization_id", memberOf: "organization" },
@@ -47,6 +51,7 @@ const policy = definePolicy(
         [
           allow([run.approve, run.list]),
           allow(run.cancel, { approval: "human" }),
+          allow(run.retry, { where: { status: "failed" } }),
         ],
         { on: "organization" },
       ),
@@ -69,6 +74,11 @@ const member = () =>
   );
 const anonymous = () =>
   getPermDockSync(policy, subjectFromBetterSupabase(null));
+const runRow = (status: "running" | "failed") => ({
+  id: "run_1",
+  organization_id: ORG,
+  status,
+});
 
 describe(hookCan, () => {
   it("grants a member who holds the permission in the hook's tenant", async () => {
@@ -93,6 +103,20 @@ describe(hookCan, () => {
     const can = hookCan(member());
     expect(await can(ORG, run.approve.scope)).toBe(true);
   });
+
+  it("decides a row condition on the row data loads", async () => {
+    let status: "running" | "failed" = "failed";
+    const can = hookCan(member(), { data: () => runRow(status) });
+    expect(await hookCan(member())(ORG, run.retry.key)).toBe(false);
+    expect(await can(ORG, run.retry.key)).toBe(true);
+    status = "running";
+    expect(await can(ORG, run.retry.key)).toBe(false);
+    expect(await can(OTHER, run.retry.key)).toBe(false);
+    const failing = hookCan(member(), {
+      data: () => Promise.reject(new Error("gone")),
+    });
+    expect(await failing(ORG, run.retry.key)).toBe(false);
+  });
 });
 
 describe(handlerCan, () => {
@@ -113,5 +137,30 @@ describe(handlerCan, () => {
       getPermDock: () => Promise.reject(new Error("no session")),
     });
     expect(await failing(request, run.list.key)).toBeUndefined();
+  });
+
+  it("decides a row condition on the row data loads", async () => {
+    const can = (status: "running" | "failed") =>
+      handlerCan(
+        { getPermDock: member },
+        {
+          data: (_request, key) =>
+            key === run.retry.key ? runRow(status) : undefined,
+        },
+      );
+    expect(
+      await handlerCan({ getPermDock: member })(request, run.retry.key),
+    ).toBe(false);
+    expect(await can("failed")(request, run.retry.key)).toBe(true);
+    expect(await can("running")(request, run.retry.key)).toBe(false);
+    const failing = handlerCan(
+      { getPermDock: member },
+      {
+        data: () => {
+          throw new Error("gone");
+        },
+      },
+    );
+    expect(await failing(request, run.retry.key)).toBe(false);
   });
 });

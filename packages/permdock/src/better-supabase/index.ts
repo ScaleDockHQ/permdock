@@ -55,7 +55,11 @@ export type {
 export { supportPolicy } from "./support.ts";
 export type { PendingSupportSession, SupportPolicyOptions } from "./support.ts";
 export { handlerCan, hookCan } from "./workflow.ts";
-export type { HandlerPermDockSource } from "./workflow.ts";
+export type {
+  HandlerCanOptions,
+  HandlerPermDockSource,
+  HookCanOptions,
+} from "./workflow.ts";
 export { subjectFromBetterSupabase } from "./subject.ts";
 export type {
   ApiKeySession,

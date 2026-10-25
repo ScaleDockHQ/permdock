@@ -204,6 +204,42 @@ describe("permdock/workflow: runs of a publisher automation", () => {
     });
   });
 
+  it("binds a run to one record through an authorization_details identifier", async () => {
+    const { workflow } = setup();
+    const resource = { type: "invoice", id: "inv_1" };
+    const started = await workflow.start("auto_1", { resource });
+    if (started.outcome !== "started") {
+      throw new Error("expected a started run");
+    }
+    expect(started.run.resource).toStrictEqual(resource);
+    const run = await workflow.getPermDock(started.ticket);
+    expect(run.subject.context["run"]).toMatchObject({ resource });
+    expect(run.subject.delegation?.authorizationDetails).toStrictEqual([
+      { type: "invoice", identifier: "inv_1", actions: ["read", "send"] },
+    ]);
+    const other = { ...invoice, id: "inv_2" };
+    expect(run.can(permissions.invoice.read, invoice)).toBe(true);
+    expect(run.can(permissions.invoice.send, invoice)).toBe(true);
+    expect(run.can(permissions.invoice.read, other)).toBe(false);
+    expect(run.can(permissions.invoice.send, other)).toBe(false);
+    expect(run.can(permissions.invoice.delete, invoice)).toBe(false);
+  });
+
+  it("refuses to bind a run to a type none of its permissions is on", async () => {
+    const { workflow } = setup();
+    expect(
+      await workflow.start("auto_1", {
+        resource: { type: "report", id: "r_1" },
+      }),
+    ).toMatchObject({
+      outcome: "denied",
+      denials: [{ reason: "validation", detail: { resource: "report" } }],
+    });
+    expect(
+      await workflow.start("auto_1", { resource: { type: "invoice", id: "" } }),
+    ).toMatchObject({ outcome: "denied", denials: [{ reason: "validation" }] });
+  });
+
   it("refuses a ticket whose principal is not the automation's", async () => {
     const { workflow, automations, ticketFor } = setup([
       person("u_1", ["owner"]),

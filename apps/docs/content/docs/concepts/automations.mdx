@@ -72,6 +72,23 @@ run.can(permissions.invoice.send, invoice);
 - `awaitApproval(ticket, permission, row)` decides, and on `approval-required` opens a request, parks on the `ApprovalWaiter`, then rebuilds the run and decides again with the token. The second decision reads the publisher's rights as of then, so a demotion while waiting denies.
 - `openApproval(ticket, permission, row)` and `resumeApproval(ticket, permission, token, row)` are the two halves of `awaitApproval`, for runners that must wait outside the call. `openApproval` returns the `approval-required` decision with its token. `resumeApproval` decides again with the token; a request still pending denies with reason `approval`.
 
+### Bind a run to a record
+
+`start(id, { resource: { type, id } })` binds the run to one record. The automation's permissions on `resource.type` move from `scope` to one RFC 9396 `authorization_details` entry with `identifier: id`, so they hold on that row only. A check on another row, or with no row, is `not-delegated`. Its permissions on other resources keep their scopes. A `type` none of its permissions is on denies the start with `validation`.
+
+```ts
+const started = await workflow.start("chase-invoice", {
+  caller: permdock,
+  resource: { type: "invoice", id: invoice.id },
+});
+// started.run.resource and run.subject.context.run.resource are { type: "invoice", id }
+const run = await workflow.getPermDock(started.ticket);
+run.can(permissions.invoice.send, invoice); // true
+run.can(permissions.invoice.send, otherInvoice); // false
+```
+
+The run ticket also carries the record as the `resource` claim for the adapter and the audit trail; the claim grants nothing.
+
 `ApprovalWaiter` has `wait(token, { expiresAt, signal })` and `wake(token)`. `pollingApprovalWaiter({ store, interval })` polls the store every `interval` milliseconds (5,000 by default) and resolves when the request leaves `pending`, is woken or expires.
 
 ## Events

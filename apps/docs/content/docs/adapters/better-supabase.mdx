@@ -500,7 +500,7 @@ Build it per request, with that request's PermDock. `testCredentialProvider` fro
 
 ## Workflows
 
-`better-supabase/workflow-sdk` checks a permission key before a workflow hook resumes and before a web handler runs. `hookCan` and `handlerCan` answer both with `decide` on no row:
+`better-supabase/workflow-sdk` checks a permission key before a workflow hook resumes and before a web handler runs. `hookCan` and `handlerCan` answer both with `decide`, on no row unless `data` loads one:
 
 ```ts
 import { authorizeHook, protectWebHandler } from "better-supabase/workflow-sdk";
@@ -516,7 +516,18 @@ export const POST = protectWebHandler(handler, {
 
 - `hookCan(permdock)` grants only when the caller is a member of the hook's tenant and the permission its `hookMetadata` names is `granted` there.
 - `handlerCan` returns `undefined`, which better-supabase answers with 401, when the request has no signed-in principal or `getPermDock` throws. Otherwise it decides in the request's active tenant, and a denial is 403.
-- An unknown key, `approval-required` and a throw are `false`. A permission with a row condition denies here; check it inside the handler.
+- An unknown key, `approval-required` and a throw are `false`.
+- Without `data`, a permission with a row condition denies. `hookCan(permdock, { data: (tenant, key) => row })` and `handlerCan(source, { data: (request, key) => row })` load the row first, so the condition decides on it; a throwing `data` is `false`.
+
+```ts
+await authorizeHook(hook, {
+  can: hookCan(permdock, {
+    data: (tenant, key) => runs.get(tenant, hook.metadata.runId),
+  }),
+});
+```
+
+A better-supabase workflow run belongs to a record: its `subject` is a `RecordRef`, stored as the `bsb.subject` attribute (`type/id`), and the workflow editor starts a run on one with `start(subject_type, subject_id)`. Pass the same record to PermDock's `start(id, { resource: subject })` so the run's permissions on that type hold on that row only ([bind a run to a record](/docs/concepts/automations#bind-a-run-to-a-record)).
 
 `tests/better-supabase/workflow.test-d.ts` type-checks both against `better-supabase/workflow-sdk`.
 
