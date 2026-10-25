@@ -66,15 +66,15 @@ describe(activeFromSql, () => {
 describe("supabase.hook.memberships sources", () => {
   it("needs at least one source", () => {
     expect(hookWith([])).toThrow(
-      "supabase.hook.memberships needs at least one tableMembershipSource or junctionMembershipSource source",
+      "supabase.hook.memberships needs at least one tableMembershipSource, junctionMembershipSource or blockMembershipSource source",
     );
   });
 
-  it("takes only tableMembershipSource and junctionMembershipSource sources", () => {
+  it("takes only tableMembershipSource, junctionMembershipSource and blockMembershipSource sources", () => {
     // SAFETY: a config written without the permdock/supabase helpers, which the check refuses.
     const plain = { table: "memberships" } as unknown as SqlMembershipSource;
     expect(hookWith([plain])).toThrow(
-      "takes tableMembershipSource / junctionMembershipSource sources from permdock/supabase",
+      "takes tableMembershipSource, junctionMembershipSource or blockMembershipSource sources from permdock/supabase",
     );
   });
 
@@ -254,6 +254,91 @@ describe("supabase.hook.teams", () => {
     });
     expect(sql).toContain('order by t."team_id"');
     expect(sql).not.toContain('(t."organization_id"::text is not distinct');
+  });
+
+  describe("member_team_ids_of", () => {
+    const teamsHook = (extraScopes: typeof scopes = []) =>
+      supabaseHookSql([...scopes, ...extraScopes], {
+        policy: "p.ts",
+        supabase: {
+          hook: {
+            teams: { table: "team_members", user: "user_id", team: "team_id" },
+            memberships: [
+              junctionMembershipSource({
+                table: "organization_members",
+                scope: "organization",
+                id: "organization_id",
+                roles: "role",
+              }),
+            ],
+          },
+        },
+      });
+
+    it("writes the caller-bound helper from supabase.hook.teams", () => {
+      const { sql, manifest } = teamsHook();
+      expect(sql)
+        .toContain(`create or replace function "permdock"."member_team_ids_of"(p_user uuid)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select t."team_id"
+  from "public"."team_members" t
+  where t."user_id" = p_user
+    and p_user = (select auth.uid())
+$$;
+revoke execute on function "permdock"."member_team_ids_of"(uuid) from public, anon;
+grant execute on function "permdock"."member_team_ids_of"(uuid) to authenticated;`);
+      expect(manifest.helpers.functions).toContain("member_team_ids_of");
+      expect(manifest.rls.helpers).toContainEqual({
+        name: "member_team_ids_of",
+        args: "p_user uuid",
+        returns: "setof uuid",
+        execute: ["authenticated"],
+      });
+    });
+
+    it("leaves it to rls generate when a team scope has memberships", () => {
+      const { sql, manifest } = supabaseHookSql(
+        [...scopes, { name: "team", key: "team_id", within: "organization" }],
+        {
+          policy: "p.ts",
+          supabase: {
+            hook: {
+              teams: {
+                table: "team_members",
+                user: "user_id",
+                team: "team_id",
+              },
+              memberships: [
+                junctionMembershipSource({
+                  table: "organization_members",
+                  scope: "organization",
+                  id: "organization_id",
+                  roles: "role",
+                }),
+                junctionMembershipSource({
+                  table: "team_members",
+                  scope: "team",
+                  id: "team_id",
+                  roles: "role",
+                  within: { organization: "organization_id" },
+                }),
+              ],
+            },
+          },
+        },
+      );
+      expect(sql).not.toContain("for better-supabase's teamIdsOf");
+      expect(
+        manifest.rls.helpers.filter(
+          (helper) => helper.name === "member_team_ids_of",
+        ),
+      ).toHaveLength(1);
+    });
   });
 
   it("refuses team_ids as an extra claim name", () => {

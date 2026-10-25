@@ -189,7 +189,8 @@ const HOLDERS_OF = "permitted_{scope}_users";
 /**
  * better-supabase calls `teamIdsOf` from RLS policies as `authenticated`, so it
  * fills from the caller-bound `member_<scope>_ids_of`, never from the `_for`
- * form only `supabase_auth_admin` may execute.
+ * form only `supabase_auth_admin` may execute. Without a team scope, the hook
+ * writes `member_team_ids_of` from `supabase.hook.teams`.
  */
 const TEAM_IDS_OF = "member_{scope}_ids_of";
 /** The scope names better-supabase reads as its teams (doctor BS417). */
@@ -627,10 +628,12 @@ export function authorizationProvider(
     });
   }
   let teamIdsOf: string | undefined;
-  const teamHelper = scopeNames
-    .filter((scope) => TEAM_SCOPE.test(scope))
-    .map((scope) => helpers.get(TEAM_IDS_OF.replace("{scope}", scope)))
-    .find((helper) => helper !== undefined);
+  const teamHelper =
+    scopeNames
+      .filter((scope) => TEAM_SCOPE.test(scope))
+      .map((scope) => helpers.get(TEAM_IDS_OF.replace("{scope}", scope)))
+      .find((helper) => helper !== undefined) ??
+    helpers.get(TEAM_IDS_OF.replace("{scope}", "team"));
   if (teamHelper !== undefined) {
     const fn = `${schema}.${sqlIdent(teamHelper.name)}`;
     teamIdsOf = `${fn}({user})`;

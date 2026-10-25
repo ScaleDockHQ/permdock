@@ -324,6 +324,7 @@ teams: {
 - A suspended user gets no `team_ids`, and the hook drops any `team_ids` the incoming claims carry.
 - `team_ids` is reserved: `hook.claims` cannot name it. `supabase-claims-v1.json` and `SupabaseClaims` type it as an array of strings.
 - The table's `user`, `team` and `tenant` columns are deciding columns in the manifest, and `supabase_auth_admin` gets a read policy on it. A client role that can write the table can choose its own `team_ids`, so revoke insert and update on it.
+- Without a `team` or `teams` scope that has membership sources, the hook file also writes `member_team_ids_of(p_user uuid) returns setof uuid` in the `rls.schema` from the same table. It answers only for the caller, skips a suspended user, and `authenticated` may execute it; [better-supabase](/docs/adapters/better-supabase#api)'s `teamIdsOf` calls it. The `team` column is a `uuid`.
 
 ## Claims other packages own
 

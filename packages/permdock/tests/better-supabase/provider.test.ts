@@ -270,6 +270,31 @@ describe(authorizationProvider, () => {
       },
     );
 
+    it("calls the hook's member_team_ids_of without a team scope", () => {
+      const provider = authorizationProvider({
+        manifest: teamManifest("squad", false),
+        catalog: emptyCatalog,
+      });
+      expect(provider.functions).not.toHaveProperty("teamIdsOf");
+      const hooked = authorizationProvider({
+        manifest: withRls({
+          helpers: [
+            ...supabaseHookManifestFixture.rls.helpers,
+            {
+              name: "member_team_ids_of",
+              args: "p_user uuid",
+              returns: "setof uuid",
+              execute: ["authenticated"],
+            },
+          ],
+        }),
+        catalog: emptyCatalog,
+      });
+      expect(hooked.functions.teamIdsOf).toBe(
+        "permdock.member_team_ids_of({user})",
+      );
+    });
+
     it("stays unset without the helper or a team scope", () => {
       expect(
         authorizationProvider({

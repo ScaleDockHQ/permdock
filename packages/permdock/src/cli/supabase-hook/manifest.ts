@@ -46,6 +46,7 @@ import { customRolesOn, HELPERS } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
 import { hookClaims } from "./claims.ts";
 import { BUDGET_MEASURE } from "./sql.ts";
+import { hookTeamsHelper } from "./teams.ts";
 import { AUTHZ_VERSION_BUMP } from "./version.ts";
 
 function helperList(
@@ -53,6 +54,7 @@ function helperList(
   types: ReadonlyMap<string, string>,
 ): readonly SupabaseManifestHelper[] {
   const client = ["authenticated"];
+  const teams = hookTeamsHelper(parts);
   return [
     helperEntry(HELPERS.has, "p_grant text", "boolean", client),
     ...parts.scopes.flatMap((scope): SupabaseManifestHelper[] => {
@@ -88,6 +90,9 @@ function helperList(
           : []),
       ];
     }),
+    ...(teams === undefined
+      ? []
+      : [helperEntry(teams, "p_user uuid", "setof uuid", client)]),
   ];
 }
 
