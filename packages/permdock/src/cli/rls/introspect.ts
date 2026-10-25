@@ -642,6 +642,14 @@ export type ActualMixed = {
 const WRITES = ["insert", "update", "delete"] as const;
 
 /**
+ * `rls generate` inlines the check in its `<table>_<command>_read_only_actors`
+ * policies.
+ */
+function inlinesActorCheck(expression: string): boolean {
+  return expression.includes("'act'") && expression.includes("'read_only'");
+}
+
+/**
  * Each table and write command whose permissive policies reach `authenticated`
  * (or `public`) without the read-only actor check: no restrictive policy for
  * the command calls `permdock_actor_may_write()`, and some permissive one does
@@ -671,14 +679,11 @@ function unguardedWrites(
         continue;
       }
       const calls = (expression: string): boolean => expression.includes(fn);
-      // `rls generate` inlines the check in its `<table>_<command>_read_only_actors` policies.
-      const inlines = (expression: string): boolean =>
-        expression.includes("'act'") && expression.includes("'read_only'");
       const guarded =
         applying.some(
           (policy) =>
             policy.restrictive === true &&
-            (calls(policy.expression) || inlines(policy.expression)),
+            (calls(policy.expression) || inlinesActorCheck(policy.expression)),
         ) || permissive.every((policy) => calls(policy.expression));
       if (!guarded) {
         out.push(
