@@ -301,6 +301,32 @@ grant execute on function "permdock"."member_team_ids_of"(uuid) to authenticated
       });
     });
 
+    it("returns no teams for a suspended user", () => {
+      const { sql } = supabaseHookSql(scopes, {
+        policy: "p.ts",
+        supabase: {
+          hook: {
+            teams: { table: "team_members", user: "user_id", team: "team_id" },
+            suspension: {
+              users: { table: "profiles", id: "id", disabledAt: "disabled_at" },
+            },
+            memberships: [
+              junctionMembershipSource({
+                table: "organization_members",
+                scope: "organization",
+                id: "organization_id",
+                roles: "role",
+              }),
+            ],
+          },
+        },
+      });
+      const helper = sql.slice(
+        sql.indexOf('"member_team_ids_of"(p_user uuid)'),
+      );
+      expect(helper.slice(0, helper.indexOf("$$;"))).toContain("disabled_at");
+    });
+
     it("leaves it to rls generate when a team scope has memberships", () => {
       const { sql, manifest } = supabaseHookSql(
         [...scopes, { name: "team", key: "team_id", within: "organization" }],

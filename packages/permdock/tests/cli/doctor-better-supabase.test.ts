@@ -118,6 +118,82 @@ describe("doctor better-supabase", () => {
         [],
       );
     });
+
+    it("stays quiet without a hook, a readable config or a valid activeFrom", async () => {
+      const claim = policyProject(
+        { policy: POLICY },
+        {
+          "better-supabase.config.mjs": betterSupabaseConfig({
+            permissions: { activeTenant: "claim" },
+          }),
+        },
+      );
+      expect(
+        await pd078({
+          cwd: claim,
+          config: {
+            permissions: "src/permissions.ts",
+            policy: "src/policy.ts",
+          },
+        }),
+      ).toStrictEqual([]);
+      expect(
+        await pd078({ cwd: claim, config: hookConfig("not a source") }),
+      ).toStrictEqual([]);
+      const throwing = policyProject(
+        { policy: POLICY },
+        { "better-supabase.config.mjs": 'throw new Error("broken");\n' },
+      );
+      expect(
+        await pd078({ cwd: throwing, config: hookConfig() }),
+      ).toStrictEqual([]);
+      const bare = policyProject(
+        { policy: POLICY },
+        { "better-supabase.config.mjs": "export default 1;\n" },
+      );
+      expect(await pd078({ cwd: bare, config: hookConfig() })).toStrictEqual(
+        [],
+      );
+      const noBlocks = policyProject(
+        { policy: POLICY },
+        { "better-supabase.config.mjs": "export default {};\n" },
+      );
+      expect(
+        await pd078({ cwd: noBlocks, config: hookConfig() }),
+      ).toStrictEqual([]);
+    });
+
+    it("checks the hook's default source when the policy does not load", async () => {
+      const cwd = policyProject(
+        {},
+        {
+          "better-supabase.config.mjs": betterSupabaseConfig({
+            permissions: { activeTenant: "claim" },
+          }),
+        },
+      );
+      expect(await pd078({ cwd, config: hookConfig() })).toStrictEqual([
+        expect.objectContaining({ code: "PD078" }),
+      ]);
+    });
+
+    it("reads the key of a profile column", async () => {
+      const cwd = policyProject(
+        { policy: POLICY },
+        {
+          "better-supabase.config.mjs": betterSupabaseConfig({
+            permissions: {
+              activeTenant: {
+                profileColumn: "profiles.active_org",
+                key: "user_id",
+              },
+            },
+          }),
+        },
+      );
+      const [finding] = await pd078({ cwd, config: hookConfig() });
+      expect(finding?.message).toContain('id: "user_id"');
+    });
   });
 
   describe("PD079", () => {
@@ -168,6 +244,33 @@ describe("doctor better-supabase", () => {
         },
       );
       expect(await pd079({ cwd, config })).toStrictEqual([]);
+    });
+
+    it("stays quiet without blocks or a readable catalog", async () => {
+      const blocks = betterSupabaseConfig({
+        audit: { permissions: { view: "audit.view" } },
+      });
+      const noBlocks = policyProject(
+        { policy: POLICY },
+        {
+          "permissions.catalog.json": CATALOG,
+          "better-supabase.config.mjs": "export default {};\n",
+        },
+      );
+      expect(await pd079({ cwd: noBlocks, config })).toStrictEqual([]);
+      const noCatalog = policyProject(
+        { policy: POLICY },
+        { "better-supabase.config.mjs": blocks },
+      );
+      expect(await pd079({ cwd: noCatalog, config })).toStrictEqual([]);
+      const badCatalog = policyProject(
+        { policy: POLICY },
+        {
+          "permissions.catalog.json": "{",
+          "better-supabase.config.mjs": blocks,
+        },
+      );
+      expect(await pd079({ cwd: badCatalog, config })).toStrictEqual([]);
     });
   });
 });

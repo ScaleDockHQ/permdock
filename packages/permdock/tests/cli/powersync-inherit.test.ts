@@ -4,8 +4,10 @@ import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import { powersyncPlan } from "../../src/cli/powersync/streams.ts";
 import {
+  actor,
   allow,
   authenticated,
+  deny,
   definePermissions,
   definePolicy,
   inherit,
@@ -128,5 +130,52 @@ describe("powersync streams for inherit() grants", () => {
     expect(plan.warnings).toContain(
       "authenticated/secret.read under-syncs: inherit() of vault.read leaves out authenticated: its condition has no Sync Streams form",
     );
+  });
+});
+
+describe("powersync streams for inherit() of other parent grants", () => {
+  const more = definePermissions({
+    doc: resource(Row, { id: "id", actions: ["read"] }),
+    note: resource(Row, {
+      id: "id",
+      parent: { field: "doc_id", resource: "doc" },
+      actions: ["read"],
+    }),
+    locked: resource(Row, { id: "id", actions: ["read"] }),
+    pin: resource(Row, {
+      id: "id",
+      parent: { field: "locked_id", resource: "locked" },
+      actions: ["read"],
+    }),
+  });
+  const plan = powersyncPlan(
+    definePolicy(more, {
+      // SAFETY: stream generation never calls the subject mapper.
+      subject: (user: unknown) => user as never,
+      grants: [
+        allow(more.doc.read, { to: authenticated() }),
+        allow(more.note.read, {
+          to: inherit(more.doc.read, { through: "parent" }),
+        }),
+        allow(more.locked.read, { to: authenticated() }),
+        deny(more.locked.read, { to: actor("oauth-client") }),
+        allow(more.pin.read, {
+          to: inherit(more.locked.read, { through: "parent" }),
+        }),
+      ],
+    }),
+    { policy: "p.ts" },
+  );
+  const queries = (name: string): readonly string[] | undefined =>
+    plan.streams.find((stream) => stream.name === name)?.queries;
+
+  it("reads every parent row an unconditional grant gives", () => {
+    expect(queries("note")).toStrictEqual([
+      "SELECT * FROM note WHERE note.doc_id IN (SELECT doc.id FROM doc)",
+    ]);
+  });
+
+  it("syncs nothing under a parent with a deny grant", () => {
+    expect(queries("pin")).toBeUndefined();
   });
 });

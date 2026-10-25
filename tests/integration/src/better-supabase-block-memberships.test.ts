@@ -37,20 +37,20 @@ insert into public.membership_roles values
   ('00000000-0000-4000-8000-0000000000c3', 'billing');
 `;
 
-let db: Postgres;
-let query: SqlQuery;
-
-beforeAll(async () => {
-  db = await startPostgres([SETUP]);
-  query = async (text, values) =>
-    (await db.admin.query(text, [...values])).rows;
-}, 120_000);
-
-afterAll(async () => {
-  await db.stop();
-});
-
 describe("blockMembershipSource against better-supabase's memberships table", () => {
+  let db: Postgres;
+  let query: SqlQuery;
+
+  beforeAll(async () => {
+    db = await startPostgres([SETUP]);
+    query = async (text, values) =>
+      (await db.admin.query(text, [...values])).rows;
+  }, 120_000);
+
+  afterAll(async () => {
+    await db.stop();
+  });
+
   it("reads role keys and drops disabled rows", async () => {
     const source = blockMembershipSource({ query });
     expect(await source.membershipsFor({ id: OWNER }, {})).toStrictEqual([

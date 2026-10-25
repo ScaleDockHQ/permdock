@@ -45,7 +45,7 @@ const policy = definePolicy(permissions, {
   ],
 });
 
-const memberships: PermDockConfig["rls"] = {
+const memberships: NonNullable<PermDockConfig["rls"]> = {
   authorize: "database",
   memberships: {
     scopes: {
@@ -59,7 +59,9 @@ const memberships: PermDockConfig["rls"] = {
   },
 };
 
-function plan(tables: NonNullable<PermDockConfig["powersync"]>["tables"]) {
+function plan(
+  tables: NonNullable<NonNullable<PermDockConfig["powersync"]>["tables"]>,
+) {
   return powersyncPlan(policy, {
     policy: "p.ts",
     rls: memberships,
@@ -116,6 +118,21 @@ describe("powersync.tables", () => {
       },
     ]);
     expect(result.outside).toContain("files.attachments");
+  });
+
+  it("follows a resource without a match", () => {
+    const result = plan({
+      job_notes: { follow: [{ resource: "job", field: "job_id" }] },
+    });
+    expect(result.tables).toStrictEqual([
+      {
+        name: "job_notes",
+        table: "job_notes",
+        queries: [
+          `SELECT * FROM job_notes WHERE job_notes.job_id IN (${jobs.replaceAll("jobs", "job")})`,
+        ],
+      },
+    ]);
   });
 
   it("leaves out the rows of a resource whose read permission has a deny grant", () => {
