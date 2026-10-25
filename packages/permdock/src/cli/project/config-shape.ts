@@ -110,6 +110,7 @@ const POWERSYNC = {
   resources: ARRAY,
   action: STRING,
   manifest: STRING,
+  tables: OBJECT,
 } as const satisfies Record<keyof PowerSyncConfig, KeyShape>;
 
 const DOCTOR = {

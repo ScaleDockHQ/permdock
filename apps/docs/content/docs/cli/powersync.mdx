@@ -56,7 +56,7 @@ streams:
 | `--fixtures`     | a path   | `rls.fixtures`, else `rls.fixtures.json` | `verify`: the [`rls verify`](/docs/cli/rls) fixtures                                                                                                          |
 | `--policy`       | a module | `policy` in the config                   | The module exporting `policy`                                                                                                                                 |
 
-`powersync` also takes `resources` (the resources that get a stream; default every resource with a grant of the action), `action` (default `read`) and `manifest` (a path; none by default).
+`powersync` also takes `resources` (the resources that get a stream; default every resource with a grant of the action), `action` (default `read`), `manifest` (a path; none by default) and `tables` ([tables that are not resources](#tables-that-are-not-resources)).
 
 ## Tier column plus role assignments
 
@@ -148,6 +148,38 @@ alter publication powersync add table permdock.custom_role_includes, permdock.cu
 A table outside `public` is read as `"<schema>"."<table>" AS <name>`, since Sync Streams need the schema in double quotes. The device table is `<name>`: the table's own name, or `<schema>_<table>` when another synced table has the same name. Every synced table outside `public` must be in the `powersync` publication; `generate` prints the `alter publication` statement and writes it as a comment at the top of the file.
 
 With `powersync.manifest` set, `generate` writes `localSnapshotManifest(policy)` as JSON to that path, with a `rows` section naming those device tables and their columns ([wire formats](/docs/concepts/wire-formats#local-snapshot-manifest)), so the app bundles the manifest without importing the policy. `powerSyncSource(db, { manifest, user })` in `permdock/react-native` builds the snapshot from those tables ([PowerSync source](/docs/adapters/react-native#powersync-source)).
+
+## Tables that are not resources
+
+`powersync.tables` adds a stream per table the policy has no resource for, such as a notification inbox or a file table. A stream holds the user's own rows (`user`, the user id column), the rows that point at a resource row the user reads (`follow`), or both. Each `follow` entry names the `resource`, the `field` that holds its id, and an optional `match` of column values for a table whose rows point at several resources. Its query is `<field> IN (SELECT <id> FROM <resource table> WHERE …)`, one per query of the resource's own read grants:
+
+```ts
+powersync: {
+  tables: {
+    "public.notification_recipients": { user: "user_id" },
+    "public.attachments": {
+      user: "uploaded_by",
+      follow: [
+        { resource: "job", field: "subject_id", match: { subject_type: "job" } },
+      ],
+    },
+  },
+},
+```
+
+```yaml
+notification_recipients:
+  auto_subscribe: true
+  queries:
+    - "SELECT * FROM notification_recipients WHERE notification_recipients.user_id = auth.user_id()"
+attachments:
+  auto_subscribe: true
+  queries:
+    - "SELECT * FROM attachments WHERE attachments.uploaded_by = auth.user_id()"
+    - "SELECT * FROM attachments WHERE attachments.subject_id IN (SELECT jobs.id FROM jobs WHERE jobs.organization_id IN (SELECT organization_users.organization_id FROM organization_users WHERE organization_users.user_id = auth.user_id() AND organization_users.tier IN ('admin'))) AND attachments.subject_type = 'job'"
+```
+
+A followed resource whose read permission has a `deny` grant, or no grant that compiles, adds no query, and `generate` warns. A table whose stream would share a resource stream's name, or that names a column that is not an identifier, gets no stream. `verify` checks that a stream of only the user's own rows holds no other user's row; it has no fixtures for the rows a `follow` syncs.
 
 ## What compiles
 

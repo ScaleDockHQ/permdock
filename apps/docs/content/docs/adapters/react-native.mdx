@@ -102,7 +102,7 @@ Define `storage` and `onForeground` outside the component: the provider rebuilds
 
 ### 3. Refresh on foreground
 
-`revalidate: 'focus'` with `subscribeForeground` fetches `snapshotUrl` on launch and whenever `AppState` reports `active`, so a role removed while the app was in the background applies when the user returns. It refreshes only `snapshotUrl`. A [local snapshot](#local-snapshot) re-reads its rows when its own `subscribe` fires; add the same `AppState` listener there.
+`revalidate: 'focus'` with `subscribeForeground` fetches `snapshotUrl` on launch and whenever `AppState` reports `active`, so a role removed while the app was in the background applies when the user returns. With a [local snapshot](#local-snapshot) `source`, `subscribeForeground` also re-reads its rows on each return to the foreground.
 
 ### 4. Clear on sign-out
 
@@ -236,6 +236,26 @@ const source = powerSyncSource(db, {
   tenant: tenantId,
   attributes: { claims: { team_ids: teamIds } },
 });
+```
+
+Build the source once per signed-in user and tenant, not on every render. `PermDockProvider` reconnects when `source` changes, so a source rebuilt per render runs every `db.watch` and `db.getAll` again. Create it where the session changes (the sign-in handler or a session store), or at module scope for a fixed user. In an app built with the React Compiler, a source created in a component from `db`, `userId` and `tenantId` keeps its identity while those values do.
+
+Pass `subscribeForeground={appStateForeground(AppState)}` as well. A `db.watch` reports rows that sync while the app runs; on the return to the foreground the provider reads the tables again, so rows synced while JavaScript was suspended apply at once:
+
+```tsx
+import { AppState } from "react-native";
+import { appStateForeground, PermDockProvider } from "permdock/react-native";
+
+const foreground = appStateForeground(AppState);
+
+<PermDockProvider
+  storage={storage}
+  source={source}
+  subjectId={userId}
+  subscribeForeground={foreground}
+>
+  {children}
+</PermDockProvider>;
 ```
 
 For tables the manifest does not describe, pass `queries` and `read` instead:

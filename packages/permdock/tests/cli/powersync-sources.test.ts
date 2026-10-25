@@ -3,10 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { SqlMembershipSource } from "../../src/supabase/index.ts";
 
-import {
-  powersyncPlan,
-  powersyncYaml,
-} from "../../src/cli/powersync/streams.ts";
+import { powersyncPlan } from "../../src/cli/powersync/streams.ts";
+import { powersyncYaml } from "../../src/cli/powersync/yaml.ts";
 import {
   allow,
   definePermissions,

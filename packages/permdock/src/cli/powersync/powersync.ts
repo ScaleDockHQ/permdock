@@ -28,8 +28,9 @@ import { canFixture } from "../rls/verify.ts";
 import { collectGrants } from "../sql/grants.ts";
 import { quoteIdent } from "../sql/quote.ts";
 import { localRows } from "./rows.ts";
-import { POSTGRES, powersyncPlan, powersyncYaml } from "./streams.ts";
+import { POSTGRES, powersyncPlan } from "./streams.ts";
 import { warnedFor } from "./verify-gaps.ts";
+import { powersyncYaml } from "./yaml.ts";
 
 const POWERSYNC_HELP = `permdock powersync generate [--out sync-config.yaml] [--check]
 permdock powersync verify [--db-url-stdin] [--fixtures rls.fixtures.json]`;
@@ -223,7 +224,7 @@ async function verifyStreams(input: {
         continue;
       }
       checked.add(fixture.subject.id);
-      for (const stream of plan.subject) {
+      for (const stream of [...plan.subject, ...plan.tables]) {
         if (
           stream.user !== undefined &&
           (await leaks(query, stream, stream.user, fixture))

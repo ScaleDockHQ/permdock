@@ -114,5 +114,15 @@ export type ConfigChecks<C> = [PolicyOf<C>] extends [never]
       readonly powersync?: {
         readonly resources?: readonly ResourceNameOf<PolicyOf<C>>[];
         readonly action?: ActionNameOf<PolicyOf<C>>;
+        readonly tables?: Readonly<
+          Record<
+            string,
+            {
+              readonly follow?: readonly {
+                readonly resource: ResourceNameOf<PolicyOf<C>>;
+              }[];
+            }
+          >
+        >;
       };
     };
