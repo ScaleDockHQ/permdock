@@ -626,6 +626,41 @@ const db = await exchangeCapability(subject, { key, alg: "HS256", ttl: 300 });
 - `linkPolicy` applies [link rules](/docs/concepts/capabilities#link-policy-per-scope) to the capability. The row carries no issue time, so a `maxLifetime` rule always refuses.
 - better-supabase resolves the token in its own `security definer` function, which reads only the share-link table. The guest's reads of the quote itself still go through the exchanged token and RLS.
 
+### Feeds and calendar links
+
+A calendar subscription or a feed reader polls one URL for months and sends no headers, so the token sits in the path. Create the link without `expiresAt` and `maxUses`: it lives until revoked, and `resolve` counts every poll as a use. Each request resolves the token again, so the first poll after `revoke(id)` gets the anonymous subject and an empty feed.
+
+```ts title="app/feeds/[token]/route.ts"
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ token: string }> },
+) {
+  const { token } = await params;
+  const subject = await subjectFromShareLink(token, {
+    shareLinks,
+    links: {
+      calendar: { resource: permissions.calendar, roles: { view: ["viewer"] } },
+    },
+    ttl: 60,
+  });
+  const jwt = await exchangeCapability(subject, { key, alg: "HS256", ttl: 60 });
+  if (jwt === undefined) return new Response(null, { status: 404 });
+  const events = await eventsUnderRls(jwt); // a client with `jwt` as its token
+  return new Response(toICalendar(events), {
+    headers: {
+      "content-type": "text/calendar; charset=utf-8",
+      "cache-control": "private, no-store",
+    },
+  });
+}
+```
+
+- A link with no expiry still yields a capability that ends after `ttl`; keep it near the poll's own duration.
+- The URL is the credential. Proxies and calendar providers log it, so offer a "reset link" that revokes the row and creates a new one.
+- `no-store` keeps a shared cache from serving the feed after the link is revoked.
+
+`tests/integration/src/better-supabase-share-link-feed.test.ts` creates a link with no expiry, reads it under RLS on two polls, revokes it and reads nothing.
+
 ## Access reviews
 
 `accessReviewApplier` applies the revoked items of an [access review](/docs/concepts/access-reviews) through better-supabase's organizations and invitations blocks, then calls `markApplied` for each:
