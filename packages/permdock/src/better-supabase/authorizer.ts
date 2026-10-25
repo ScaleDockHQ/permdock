@@ -50,6 +50,17 @@ export type AuthorizerOptions = {
   >;
 };
 
+/**
+ * better-supabase's `AuthorizerRuntime` (0.15 and later), the optional second
+ * argument of `evaluate` and `evaluations`. 0.13 and 0.14 pass none.
+ */
+type AuthorizerRuntimeLike = {
+  /** The request scope's memo: one PermDock instance per claims and tenant. */
+  readonly memo?: {
+    readonly once: <T>(key: string, load: () => Promise<T>) => Promise<T>;
+  };
+};
+
 const OPERATIONS: ReadonlySet<string> = new Set<AuthorizerOperation>([
   "list",
   "get",
@@ -113,7 +124,8 @@ function claimsOf(request: AuthorizationRequest<Permission>): unknown {
  * subject is mapped from the verified claims with `subjectFromBetterSupabase`;
  * the request's `context.tenant` selects the active tenant only among the
  * memberships the claims hold. A caller without claims is anonymous, and a
- * throw denies.
+ * throw denies. With better-supabase 0.15's runtime `memo`, the checks of one
+ * request scope share an instance per claims and tenant.
  */
 export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
   const { operations } = options;
@@ -130,6 +142,17 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
     );
     return typeof tenant === "string" ? base.tenant(tenant) : base;
   };
+  const scoped = (
+    claims: unknown,
+    tenant: unknown,
+    runtime: AuthorizerRuntimeLike | undefined,
+  ): Promise<PermDock> =>
+    runtime?.memo === undefined
+      ? instanceFor(claims, tenant)
+      : runtime.memo.once(
+          `permdock:authorizer:${JSON.stringify([claims ?? null, typeof tenant === "string" ? tenant : null])}`,
+          () => instanceFor(claims, tenant),
+        );
 
   return Object.freeze({
     apiVersion: 1,
@@ -151,17 +174,23 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
             return operations[table]?.[operation as AuthorizerOperation];
           },
         }),
-    async evaluate(request): Promise<AuthorizationOutcome> {
+    async evaluate(
+      request: AuthorizationRequest<Permission>,
+      runtime?: AuthorizerRuntimeLike,
+    ): Promise<AuthorizationOutcome> {
       try {
         return decideWith(
-          await instanceFor(claimsOf(request), request.context["tenant"]),
+          await scoped(claimsOf(request), request.context["tenant"], runtime),
           request,
         );
       } catch {
         return denied("The permission check failed.");
       }
     },
-    evaluations(requests): Promise<readonly AuthorizationOutcome[]> {
+    evaluations(
+      requests: readonly AuthorizationRequest<Permission>[],
+      runtime?: AuthorizerRuntimeLike,
+    ): Promise<readonly AuthorizationOutcome[]> {
       // A batch is one caller's rows, so one instance serves every request
       // that carries the same claims object and tenant.
       const cache = new Map<unknown, Map<unknown, Promise<PermDock>>>();
@@ -173,7 +202,7 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
         }
         let instance = byTenant.get(tenant);
         if (instance === undefined) {
-          instance = instanceFor(claims, tenant);
+          instance = scoped(claims, tenant, runtime);
           byTenant.set(tenant, instance);
         }
         return instance;

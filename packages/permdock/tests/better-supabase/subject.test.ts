@@ -72,6 +72,37 @@ describe(subjectFromBetterSupabase, () => {
     expect(subjectFromBetterSupabase({ kind: "anon" }).principal).toBeNull();
   });
 
+  it("maps better-supabase 0.15's SessionSnapshot, authz_ver and iat included", () => {
+    const claims = {
+      sub: USER,
+      role: "authenticated",
+      iat: 1_790_000_000,
+      authz_ver: 7,
+      tenant_id: ORG,
+      memberships: [{ scope: "organization", id: ORG, roles: ["owner"] }],
+    };
+    const snapshot = {
+      accessToken: "token",
+      claims,
+      sessionId: "session-1",
+      userId: USER,
+      expiresAt: 1_790_003_600,
+      issuedAt: 1_790_000_000,
+      authzVersion: 7,
+    };
+    const subject = subjectFromBetterSupabase(snapshot);
+    expect(subject.principal).toMatchObject({
+      id: USER,
+      tenant: ORG,
+      authzVersion: 7,
+    });
+    expect(subject.issuedAt).toBe(snapshot.issuedAt);
+    expect(
+      subjectFromBetterSupabase({ ...snapshot, userId: "someone-else" })
+        .principal,
+    ).toBeNull();
+  });
+
   testSubjectResolver(
     (input: unknown) =>
       // SAFETY: the runner passes the invalid session below, which the resolver must refuse.

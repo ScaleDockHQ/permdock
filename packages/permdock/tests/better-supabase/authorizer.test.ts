@@ -1,4 +1,7 @@
-import type { AuthorizationRequest } from "better-supabase/server";
+import type {
+  AuthorizationOutcome,
+  AuthorizationRequest,
+} from "better-supabase/server";
 
 import { testAuthorizer } from "better-supabase/testing";
 import { describe, expect, it } from "vitest";
@@ -242,6 +245,55 @@ describe(authorizer, () => {
       "denied",
       "denied",
     ]);
+  });
+
+  it("shares one instance per claims and tenant through better-supabase 0.15's runtime memo", async () => {
+    const answers = new Map<string, Promise<unknown>>();
+    let loads = 0;
+    const memo = {
+      once<T>(key: string, load: () => Promise<T>): Promise<T> {
+        if (!answers.has(key)) {
+          loads += 1;
+          answers.set(key, load());
+        }
+        // SAFETY: every key is written once above with the promise of a load of the same T.
+        return answers.get(key) as Promise<T>;
+      },
+    };
+    // 0.13 types `evaluate` with one parameter; 0.15 passes the runtime second.
+    const evaluate: (
+      request: AuthorizationRequest<Permission>,
+      runtime: { readonly memo: typeof memo },
+    ) => AuthorizationOutcome | Promise<AuthorizationOutcome> =
+      pd.evaluate.bind(pd);
+    const outcomes = [
+      await evaluate(
+        request(quote.read, { claims: claims(), tenant: ORG, properties: row }),
+        { memo },
+      ),
+      await evaluate(
+        request(quote.delete, {
+          claims: claims(),
+          tenant: ORG,
+          properties: row,
+        }),
+        { memo },
+      ),
+      await evaluate(
+        request(quote.read, {
+          claims: claims(OTHER, [ORG, OTHER]),
+          tenant: OTHER,
+          properties: { id: "q2", organization_id: OTHER },
+        }),
+        { memo },
+      ),
+    ];
+    expect(outcomes.map((o) => o.outcome)).toStrictEqual([
+      "granted",
+      "denied",
+      "granted",
+    ]);
+    expect(loads).toBe(2);
   });
 
   it("resolves forOperation only when operations are given", () => {

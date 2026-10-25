@@ -61,5 +61,6 @@ export type {
   ApiKeySession,
   ApiKeySessionOptions,
   BetterSupabaseSubjectOptions,
+  SessionSnapshotLike,
 } from "./subject.ts";
 export type { SupabasePrincipal } from "../supabase/types.ts";

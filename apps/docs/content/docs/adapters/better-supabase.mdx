@@ -288,6 +288,90 @@ The adapter maps the request this way:
 
 `testAuthorizer` from `better-supabase/testing` checks the adapter against the contract; `tests/better-supabase/authorizer.test.ts` runs it on a fixture policy.
 
+## Version cache and session snapshots
+
+From better-supabase 0.15, one [`memoryVersionCache`](/docs/adapters/supabase#freshness-and-the-version-cache) serves both libraries. Create it once at module scope, read memberships through it with `claimsFirst`, and pass the same cache to better-supabase as `versions`:
+
+```ts title="src/lib/supabase/server.ts"
+import { createNext } from "better-supabase/next";
+import { claimsFirst, memoryVersionCache } from "permdock";
+import { authorizer } from "permdock/better-supabase";
+import { postgrestSources } from "permdock/supabase";
+
+const sources = postgrestSources(admin, { api: {}, policy });
+export const versions = memoryVersionCache({ maxStaleMs: 5_000 });
+
+export const bsb = createNext(betterSupabase, {
+  versions,
+  authorizer: authorizer({
+    policy,
+    options: {
+      memberships: claimsFirst(sources.memberships, {
+        onStale: "reread",
+        versions,
+      }),
+    },
+  }),
+  // env, postgres and auth as before
+});
+```
+
+- `bsb.invalidateSession(userId, { tags })` forgets the user's verified session and calls `versions.evict(userId)`, so the next PermDock instance reads the version live.
+- better-supabase passes `authorizer` a request-scope `memo`, and the checks of one scope share one PermDock instance per claims and tenant. 0.13 and 0.14 pass none, and each check builds its instance.
+- `bsb.getRequestSession()` verifies the token once per request and returns a `SessionSnapshot`. `subjectFromBetterSupabase(snapshot)` maps it like the user session of its claims, with `iat` as `Subject.issuedAt` and `authz_ver` as `principal.authzVersion`. A snapshot whose `claims.sub` is not its `userId` maps to the anonymous subject.
+
+```tsx title="src/app/[orgSlug]/quotes/island.tsx"
+async function QuotesIsland({ orgId }: { orgId: string }) {
+  "use cache: private";
+  const snapshot = await bsb.getRequestSession();
+  const permdock = await getPermDock(
+    policy,
+    subjectFromBetterSupabase(snapshot),
+    { tenant: orgId, memberships, intent: "read" },
+  );
+  // …
+}
+```
+
+Other processes learn of a role or membership change through `subscribeAuthzVersions`. A trigger on PermDock's version table sends the user id on a private topic:
+
+```sql
+create or replace function permdock.permdock_send_authz_version()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform realtime.send(
+    jsonb_build_object('user_id', new.user_id),
+    'changed',
+    'authz-versions',
+    true
+  );
+  return null;
+end;
+$$;
+
+create trigger permdock_send_authz_version
+  after insert or update on permdock.permdock_authz_version
+  for each row execute function permdock.permdock_send_authz_version();
+```
+
+```ts title="src/lib/supabase/server.ts"
+import { subscribeAuthzVersions } from "better-supabase/server";
+
+subscribeAuthzVersions({
+  client: admin,
+  topic: "authz-versions",
+  event: "changed",
+  userIdKey: "user_id",
+  versions,
+});
+```
+
+`admin` is a secret-key client; add no `realtime.messages` policy for `authz-versions`, so no user can join the topic. Subscribe in the module that creates `versions`. `tests/better-supabase/version-cache.test.ts` checks that `forgetSession` and `subscribeAuthzVersions` evict a shared cache.
+
 ## Storage and Realtime
 
 ```ts
