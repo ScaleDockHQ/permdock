@@ -11,6 +11,10 @@ export { authorizationProvider } from "./provider.ts";
 export type { AuthorizationProviderOptions } from "./provider.ts";
 export { authorizer } from "./authorizer.ts";
 export type { AuthorizerOperation, AuthorizerOptions } from "./authorizer.ts";
+export type {
+  BetterSupabaseErrorContext,
+  BetterSupabaseErrorSink,
+} from "./report.ts";
 export { bucketPolicy, topicPolicy } from "./policies.ts";
 export type {
   AccessPolicyOptions,

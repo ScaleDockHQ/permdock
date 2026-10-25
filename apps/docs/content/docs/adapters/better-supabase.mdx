@@ -284,17 +284,29 @@ The adapter maps the request this way:
 | `denied`            | `denied` with the permission key and the first denial reason as the reason |
 | `approval-required` | `approval-required` with the approval token as `approval.id`               |
 
-`evaluations` builds one PermDock instance per caller and tenant, so a list that checks each row costs one instance. `permissions: true` on a resource needs `operations`, a map from a table to the permission of each of `list`, `get`, `create`, `update` and `delete`; without it such a resource is refused. Pass `subject` to change the claim names and `options` for the sources and sinks of each instance (`memberships`, `customRoles`, `sink`, `limits`). `tenant`, `actor`, `delegation` and `session` always come from the verified request.
+`evaluations` builds one PermDock instance per caller and tenant, so a list that checks each row costs one instance. `permissions: true` on a resource needs `operations`, a map from a table to the permission of each of `list`, `get`, `create`, `update` and `delete`; without it such a resource is refused. Pass `subject` to change the claim names and `options` for the sources and sinks of each instance (`customRoles`, `sink`, `limits`). `tenant`, `actor`, `delegation`, `session` and `intent` always come from the verified request.
+
+Each check builds its instance with an [`intent`](/docs/adapters/supabase#freshness-and-the-version-cache). better-supabase's request does not say whether it reads or writes, so the adapter decides:
+
+| Check                                                               | Intent  |
+| ------------------------------------------------------------------- | ------- |
+| `evaluations`: list filtering and per-row checks                    | `read`  |
+| `evaluate` of a permission whose action is `read`, `list` or `view` | `read`  |
+| Every other `evaluate`: actions, mutations, route guards            | `write` |
+
+Pass `intent: (request) => "read" | "write"` to decide it yourself. With `read`, `claimsFirst` may answer the version from the cache; with `write` it reads the version live.
+
+`onError: (error, { permission, tenant }) => void` receives every error a check threw. The check still denies, and a sink that throws is ignored.
 
 `testAuthorizer` from `better-supabase/testing` checks the adapter against the contract; `tests/better-supabase/authorizer.test.ts` runs it on a fixture policy.
 
 ## Version cache and session snapshots
 
-From better-supabase 0.15, one [`memoryVersionCache`](/docs/adapters/supabase#freshness-and-the-version-cache) serves both libraries. Create it once at module scope, read memberships through it with `claimsFirst`, and pass the same cache to better-supabase as `versions`:
+From better-supabase 0.15, one [`memoryVersionCache`](/docs/adapters/supabase#freshness-and-the-version-cache) serves both libraries. Create it and the sources once at module scope, pass the cache to better-supabase as `versions`, and pass the membership source to `authorizer`:
 
 ```ts title="src/lib/supabase/server.ts"
 import { createNext } from "better-supabase/next";
-import { claimsFirst, memoryVersionCache } from "permdock";
+import { memoryVersionCache } from "permdock";
 import { authorizer } from "permdock/better-supabase";
 import { postgrestSources } from "permdock/supabase";
 
@@ -303,21 +315,15 @@ export const versions = memoryVersionCache({ maxStaleMs: 5_000 });
 
 export const bsb = createNext(betterSupabase, {
   versions,
-  authorizer: authorizer({
-    policy,
-    options: {
-      memberships: claimsFirst(sources.memberships, {
-        onStale: "reread",
-        versions,
-      }),
-    },
-  }),
+  authorizer: authorizer({ policy, memberships: sources.memberships }),
   // env, postgres and auth as before
 });
 ```
 
+`authorizer` wraps `memberships` in `claimsFirst(source, { onStale: "reread", versions })` with the cache better-supabase passes at runtime. On 0.13 and 0.14, which pass none, set `versions` on `authorizer` too. A read check answers from the cache within `maxStaleMs`; a write check reads the version live ([Authorizer](#authorizer)).
+
 - `bsb.invalidateSession(userId, { tags })` forgets the user's verified session and calls `versions.evict(userId)`, so the next PermDock instance reads the version live.
-- better-supabase passes `authorizer` a request-scope `memo`, and the checks of one scope share one PermDock instance per claims and tenant. 0.13 and 0.14 pass none, and each check builds its instance.
+- better-supabase passes `authorizer` a request-scope `memo`, and the checks of one scope share one PermDock instance per claims, tenant and intent. 0.13 and 0.14 pass none, and each check builds its instance.
 - `bsb.getRequestSession()` verifies the token once per request and returns a `SessionSnapshot`. `subjectFromBetterSupabase(snapshot)` maps it like the user session of its claims, with `iat` as `Subject.issuedAt` and `authz_ver` as `principal.authzVersion`. A snapshot whose `claims.sub` is not its `userId` maps to the anonymous subject.
 
 ```tsx title="src/app/[orgSlug]/quotes/island.tsx"
@@ -440,7 +446,7 @@ const subject = subjectFromBetterSupabase(session, {
 
 Give `createMcp` the [`authorizer`](#authorizer) and set `permission` on each tool: `tools/list` hides the tools the authorizer denies, and a call is checked after its arguments validate. `toolPolicy` is the route for a permission checked on the row `data` returns.
 
-`permdock/mcp` wraps the official MCP SDK's server, so it cannot wrap better-supabase's `createMcp`. With `createMcp`, put the permission in each tool's `meta` and spread `toolPolicy` into the options. A tool without a permission is hidden and refused, and a check that throws refuses:
+`permdock/mcp` wraps the official MCP SDK's server, so it cannot wrap better-supabase's `createMcp`. With `createMcp`, put the permission in each tool's `meta` and spread `toolPolicy` into the options. A tool without a permission is hidden and refused. A denial's reason names the permission key and the first denial reason, as the authorizer's does. A check that throws refuses and reaches `onError`:
 
 ```ts title="supabase/functions/mcp/index.ts"
 import { createMcp } from "better-supabase/mcp";
@@ -471,7 +477,10 @@ const server = createMcp(betterSupabase, {
   name: "crm",
   version: "1.0.0",
   advertisedScopes: ["openid"],
-  ...toolPolicy({ permdock: permdockFor }),
+  ...toolPolicy({
+    permdock: permdockFor,
+    onError: (error, { permission }) => console.error(permission, error),
+  }),
 }).tool({
   name: "export_customers",
   description: "Export the organisation's customers as CSV.",
