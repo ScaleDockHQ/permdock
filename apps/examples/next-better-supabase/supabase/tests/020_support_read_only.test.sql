@@ -1,7 +1,8 @@
 -- A better-supabase support session acting as Olivia (owner of Acme) reads her
--- quotes and writes only when the session was started with read_only false.
+-- quotes and writes, quotes or approval delegations, only when the session was
+-- started with read_only false.
 begin;
-select extensions.plan(6);
+select extensions.plan(8);
 
 create function pg_temp.act(act jsonb) returns void language sql as $$
   select set_config(
@@ -20,6 +21,11 @@ create function pg_temp.rename(title text) returns int language sql as $$
   select count(*)::int from changed;
 $$;
 
+create function pg_temp.delegate() returns void language sql as $$
+  insert into permdock.approval_delegations (delegate, "until")
+  values ('00000000-0000-4000-8000-0000000000a2', now() + interval '1 day')
+$$;
+
 select tests.authenticate_as('00000000-0000-4000-8000-0000000000a1');
 select extensions.is(pg_temp.rename('Own session'), 1, 'the owner''s own session updates her quote');
 
@@ -33,12 +39,19 @@ select extensions.is(pg_temp.rename('No read_only claim'), 0, 'a support session
 
 select pg_temp.act('{"kind": "support", "sub": "00000000-0000-4000-8000-0000000000ff", "session_id": "support-1", "read_only": true}');
 select extensions.is(pg_temp.rename('Read-only session'), 0, 'a read_only support session cannot update');
+select extensions.throws_ok(
+  'select pg_temp.delegate()',
+  '42501',
+  null,
+  'a read_only support session cannot delegate the owner''s approvals'
+);
 
 select pg_temp.act('{"sub": "00000000-0000-4000-8000-0000000000ff", "session_id": "impersonation-1"}');
 select extensions.is(pg_temp.rename('Impersonation'), 0, 'an impersonation session without read_only cannot update');
 
 select pg_temp.act('{"kind": "support", "sub": "00000000-0000-4000-8000-0000000000ff", "session_id": "support-1", "read_only": false}');
 select extensions.is(pg_temp.rename('Writable session'), 1, 'a support session started with read_only false updates');
+select extensions.lives_ok('select pg_temp.delegate()', 'a support session started with read_only false delegates');
 
 select tests.clear_authentication();
 select * from extensions.finish();

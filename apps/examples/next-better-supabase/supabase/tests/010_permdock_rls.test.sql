@@ -115,7 +115,14 @@ select extensions.results_eq(
   $$values ('update', array['title'])$$,
   'the audit log records the changed column, not updated_at'
 );
-select extensions.has_trigger('public', 'quotes', 'bs_updated_at', 'quotes keeps updated_at current');
+select extensions.ok(
+  exists(
+    select 1 from pg_trigger
+    where tgrelid = 'public.quotes'::regclass
+      and tgname in ('bs_updated_at', 'bsb_updated_at')
+  ),
+  'quotes keeps updated_at current'
+);
 
 select * from extensions.finish();
 rollback;

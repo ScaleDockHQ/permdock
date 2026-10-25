@@ -193,7 +193,12 @@ function sectionsSql(
   }
   let approvals: string | undefined;
   try {
-    approvals = approvalsSql(ctx, rls?.approvals, jsonSchema ?? false);
+    approvals = approvalsSql(
+      ctx,
+      rls?.approvals,
+      jsonSchema ?? false,
+      readOnlyActorKinds(rls?.readOnlyActors) !== undefined,
+    );
   } catch (cause) {
     return { refusal: describeError(cause) };
   }

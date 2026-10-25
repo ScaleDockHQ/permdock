@@ -671,9 +671,14 @@ function unguardedWrites(
         continue;
       }
       const calls = (expression: string): boolean => expression.includes(fn);
+      // `rls generate` inlines the check in its `<table>_<command>_read_only_actors` policies.
+      const inlines = (expression: string): boolean =>
+        expression.includes("'act'") && expression.includes("'read_only'");
       const guarded =
         applying.some(
-          (policy) => policy.restrictive === true && calls(policy.expression),
+          (policy) =>
+            policy.restrictive === true &&
+            (calls(policy.expression) || inlines(policy.expression)),
         ) || permissive.every((policy) => calls(policy.expression));
       if (!guarded) {
         out.push(

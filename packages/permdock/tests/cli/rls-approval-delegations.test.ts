@@ -39,6 +39,27 @@ describe("rls.approvals.delegations", () => {
     );
   });
 
+  it("guards every cover write with permdock_actor_may_write under rls.readOnlyActors", () => {
+    const guard = '(select "permdock".permdock_actor_may_write())';
+    expect(approvalDelegationsSql(ctx)).not.toContain(
+      "permdock_actor_may_write",
+    );
+    const sql = approvalDelegationsSql(ctx, true);
+    for (const command of ["insert", "update", "delete"]) {
+      const statement = new RegExp(
+        `create policy "approval_delegations_${command}"[^;]*;`,
+        "u",
+      ).exec(sql)?.[0];
+      expect(statement).toContain(guard);
+    }
+    expect(
+      /create policy "approval_delegations_read"[^;]*;/u.exec(sql)?.[0],
+    ).not.toContain(guard);
+    expect(approvalsSql(ctx, { delegations: true }, false, true)).toContain(
+      guard,
+    );
+  });
+
   it("checks holder() approvers through a cover only in database mode", () => {
     expect(approvalDelegationsSql(ctx)).not.toContain(
       "permdock_has_permission_for",

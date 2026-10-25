@@ -16,6 +16,7 @@ import {
   checkName,
   permittedByPermissionHelper,
 } from "./permission-keys.ts";
+import { ACTOR_MAY_WRITE } from "./policies.ts";
 
 /**
  * `rls.approvals`' approver check; better-supabase's `isApprover` template
@@ -342,12 +343,15 @@ grant execute on function ${fn}(jsonb, text) to authenticated;
 
 /**
  * Everything `rls.approvals` writes: the generated or adopted store, the
- * approver check and, with `delegations: true`, the covers.
+ * approver check and, with `delegations: true`, the covers. With
+ * `actorMayWrite`, the covers' write policies call
+ * `permdock_actor_may_write()`.
  */
 export function approvalsSql(
   ctx: RlsSqlContext,
   approvals: boolean | RlsApprovalsAdopt | undefined,
   jsonSchema: "auto" | boolean,
+  actorMayWrite = false,
 ): string | undefined {
   if (approvals === undefined || approvals === false) {
     return undefined;
@@ -378,7 +382,7 @@ export function approvalsSql(
   return (
     store +
     isApproverSql(ctx) +
-    (delegations === true ? approvalDelegationsSql(ctx) : "")
+    (delegations === true ? approvalDelegationsSql(ctx, actorMayWrite) : "")
   );
 }
 
@@ -400,7 +404,10 @@ const DELEGATIONS = {
  * cover needs `rls.mode: "database"`, where the `_for` helpers exist; in `jwt`
  * mode only `user()` approvers pass.
  */
-export function approvalDelegationsSql(ctx: RlsSqlContext): string {
+export function approvalDelegationsSql(
+  ctx: RlsSqlContext,
+  actorMayWrite = false,
+): string {
   const table = qualified(ctx, DELEGATIONS.table);
   const fn = qualified(ctx, APPROVAL_STORE.isApprover);
   const covers = qualified(ctx, DELEGATIONS.covers);
@@ -427,7 +434,11 @@ export function approvalDelegationsSql(ctx: RlsSqlContext): string {
       : "false";
   const policy = (name: string): string =>
     quoteIdent(`${DELEGATIONS.table}_${name}`);
-  const own = `delegator::text = ${me} and (tenant is null or ${member("tenant")})`;
+  const writable = actorMayWrite
+    ? ` and (select ${qualified(ctx, ACTOR_MAY_WRITE)}())`
+    : "";
+  const mine = `delegator::text = ${me}${writable}`;
+  const own = `${mine} and (tenant is null or ${member("tenant")})`;
   return `
 -- approval delegations: out-of-office covers a user writes for themselves; tableApprovalDelegationSource and permdock_is_approver read them
 create table if not exists ${table} (
@@ -458,12 +469,12 @@ create policy ${policy("insert")} on ${table}
 drop policy if exists ${policy("update")} on ${table};
 create policy ${policy("update")} on ${table}
   for update to authenticated
-  using (delegator::text = ${me})
+  using (${mine})
   with check (${own});
 drop policy if exists ${policy("delete")} on ${table};
 create policy ${policy("delete")} on ${table}
   for delete to authenticated
-  using (delegator::text = ${me});
+  using (${mine});
 
 -- approval delegations: whether a delegator's own rights match approvers.by; only permdock_is_approver calls it
 create or replace function ${covers}(p_delegator ${user}, p_approvers jsonb, p_tenant text)
