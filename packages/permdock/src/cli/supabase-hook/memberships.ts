@@ -182,13 +182,13 @@ export function checkSources(parts: {
 }): void {
   if (parts.sources.length === 0) {
     throw configError(
-      "PermDock CLI: supabase.hook.memberships needs at least one tableMembershipSource or junctionMembershipSource source",
+      "PermDock CLI: supabase.hook.memberships needs at least one tableMembershipSource, junctionMembershipSource or blockMembershipSource source",
     );
   }
   for (const source of parts.sources) {
     if (source.sql === undefined || typeof source.sql.select !== "function") {
       throw configError(
-        "PermDock CLI: supabase.hook.memberships takes tableMembershipSource / junctionMembershipSource sources from permdock/supabase",
+        "PermDock CLI: supabase.hook.memberships takes tableMembershipSource, junctionMembershipSource or blockMembershipSource sources from permdock/supabase",
       );
     }
     const scope = source.sql.scope;
