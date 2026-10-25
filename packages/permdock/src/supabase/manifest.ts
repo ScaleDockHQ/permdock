@@ -12,6 +12,11 @@ import { supabaseManifestSchema } from "./manifest-schema.ts";
  * is the major of this shape; a field is only ever added within it.
  * `schemas/supabase-manifest-v1.json` is its JSON Schema.
  */
+/** An `app_metadata` key, or a column of a table joined on `id`. */
+export type SupabaseManifestActiveFrom =
+  | { readonly appMetadata: string }
+  | { readonly table: string; readonly column: string; readonly id: string };
+
 export type SupabaseHookManifest = {
   readonly $schema: "https://permdock.com/schemas/supabase-manifest-v1.json";
   readonly version: 1;
@@ -27,6 +32,12 @@ export type SupabaseHookManifest = {
      */
     readonly schemas?: "pg-delta" | "migra" | "migrations";
     readonly before?: readonly string[];
+    /**
+     * Where the hook reads the active first-scope id
+     * (`supabase.hook.activeFrom`). Absent from a manifest written before
+     * 0.10.
+     */
+    readonly activeFrom?: SupabaseManifestActiveFrom;
   };
   readonly helpers: {
     readonly schema: string;

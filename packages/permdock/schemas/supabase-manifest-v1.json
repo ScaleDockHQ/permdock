@@ -43,6 +43,27 @@
             "type": "string",
             "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
           }
+        },
+        "activeFrom": {
+          "description": "Where the hook reads the active first-scope id (supabase.hook.activeFrom): an app_metadata key, or a column of a table joined on id. Absent from a manifest written before 0.10.",
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["appMetadata"],
+              "additionalProperties": false,
+              "properties": { "appMetadata": { "type": "string" } }
+            },
+            {
+              "type": "object",
+              "required": ["table", "column", "id"],
+              "additionalProperties": false,
+              "properties": {
+                "table": { "type": "string" },
+                "column": { "type": "string" },
+                "id": { "type": "string" }
+              }
+            }
+          ]
         }
       }
     },

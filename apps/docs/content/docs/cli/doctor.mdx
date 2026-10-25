@@ -113,6 +113,8 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD075` | Two resources that `rls.tables` maps to one table, so the same rows carry two sets of keys and helpers; `doctor.sharedTables` lists tables split on purpose                                                                                                                                                | warning         |
 | `PD076` | `rls.actions` entries set to `'none'` on a verb that compiles to `'none'` anyway, or entries for a verb no permission uses                                                                                                                                                                                 | info            |
 | `PD077` | A config key or value names a scope, resource or action the policy does not declare, such as a Realtime topic `{organisation}` placeholder; or two of them give one SQL helper name                                                                                                                        | error           |
+| `PD078` | better-supabase's `blocks.permissions.activeTenant` writes the active tenant to another place than `supabase.hook.activeFrom` reads it                                                                                                                                                                     | warning         |
+| `PD079` | A permission key a configured better-supabase block checks is not in the catalog                                                                                                                                                                                                                           | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -473,6 +475,26 @@ error PD077  rls.realtime.topics['org:{organisation}:quotes'] names the scope 'o
 [Typed config](/docs/cli/config#typed-config) reports the same names when the config compiles.
 
 PD077 also reports a SQL helper name `rls generate` cannot write: a scope and a resource that both give `permitted_<name>_ids` (scope `project` beside a graph resource `project`), or a name longer than the 63 bytes Postgres keeps, which Postgres would truncate into another helper's name. `rls generate` and `supabase inspect` refuse the same config with `config_invalid`. `--only rls` and `--only scopes` run PD077.
+
+### PD078: active tenant read from another place
+
+better-supabase's `switch_organization` writes the active tenant where `blocks.permissions.activeTenant` says: `app_metadata.<auth.organization.claim>` for `"claim"`, or the profile column for `{ profileColumn, key? }`. PermDock's token hook reads it from `supabase.hook.activeFrom`, `app_metadata.active_<first scope>` by default. When the two differ, switching organizations never changes the tenant claim. The check loads `better-supabase.config.ts` and reports the `activeFrom` to set:
+
+```txt
+warning PD078  blocks.permissions.activeTenant is "claim", so better-supabase's switch_organization writes app_metadata.tenant_id, but PermDock's token hook reads the active tenant from app_metadata.active_organization. Set supabase.hook.activeFrom: "app_metadata.tenant_id" and run permdock supabase hook generate.
+```
+
+`"resolver"`, better-supabase's default, takes the tenant from the request, so PD078 reports nothing for it. `authorizationProvider({ activeTenant })` reports the same mismatch in `problems` ([better-supabase](/docs/adapters/better-supabase#api)). `--only supabase` (or `--only better-supabase`) runs PD078.
+
+### PD079: block permission keys missing from the catalog
+
+Each better-supabase block checks permission keys through the provider: its defaults (`members.read`, `teams.read`, `notifications.send`, `audit.revert`, …) or the keys `blocks.<block>.permissions` maps them to. A key the catalog does not list has no role that holds it, so the block's SQL check denies it for everyone. The check loads `better-supabase.config.ts`, asks the project's `better-supabase/sql` for every key the configured blocks check, and reports each one missing from `permissions.catalog.json` with the block actions that use it:
+
+```txt
+warning PD079  audit.view (blocks.audit.permissions.view, blocks.audit.permissions.viewAll) is not in permissions.catalog.json, so no role holds it and better-supabase's SQL check denies it
+```
+
+Declare the key in the policy and run `permdock collect`, or map the block action to a key the catalog lists. `--only catalog` (or `--only better-supabase`) runs PD079.
 
 ## Side effects
 

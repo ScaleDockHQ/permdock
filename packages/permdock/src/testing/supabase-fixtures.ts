@@ -453,6 +453,7 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
     schema: "permdock",
     function: "custom_access_token_hook",
     out: "supabase/permdock-hook.sql",
+    activeFrom: { appMetadata: "active_tenant" },
   },
   helpers: {
     schema: "permdock",

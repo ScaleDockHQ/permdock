@@ -20,6 +20,7 @@ import type {
   SupabaseManifestHelper,
   SupabaseManifestMembership,
 } from "../supabase/manifest.ts";
+import type { BetterSupabaseActiveTenant } from "./active-tenant.ts";
 import type { ProviderApprovers } from "./approvers.ts";
 
 import { parseCatalog } from "../catalog/parse.ts";
@@ -28,6 +29,7 @@ import { freezeDeep } from "../core/freeze.ts";
 import { delegatedScopeMap } from "../core/oauth-scopes.ts";
 import { quoteSqlLiteral, sqlIdent } from "../core/sql.ts";
 import { hasTokenHook, parseSupabaseManifest } from "../supabase/manifest.ts";
+import { activeTenantMismatch } from "./active-tenant.ts";
 import { IS_APPROVER, isApproverTemplate } from "./approvers.ts";
 
 export type AuthorizationProviderOptions = {
@@ -59,6 +61,12 @@ export type AuthorizationProviderOptions = {
    * `permdock_is_approver` from `rls.approvals`.
    */
   readonly approvers?: ProviderApprovers;
+  /**
+   * better-supabase's `blocks.permissions.activeTenant`. When the token hook
+   * reads the active tenant from another place than better-supabase writes it,
+   * `problems` names the `supabase.hook.activeFrom` to set.
+   */
+  readonly activeTenant?: BetterSupabaseActiveTenant;
 };
 
 type DisabledRow = NonNullable<
@@ -524,6 +532,17 @@ export function authorizationProvider(
     problems.push(
       "No catalog: better-supabase cannot check that the permission keys its SQL modules use (ai_chat, workflow, inbox and the rest) exist. Pass `catalog`.",
     );
+  }
+  const activeFrom = hasTokenHook(manifest)
+    ? manifest.hook.activeFrom
+    : undefined;
+  if (options.activeTenant !== undefined && activeFrom !== undefined) {
+    const mismatch = activeTenantMismatch(
+      activeFrom,
+      manifest.tenantClaim,
+      options.activeTenant,
+    );
+    if (mismatch !== undefined) problems.push(mismatch);
   }
   const tenantScope = tenantScopeOf(manifest, options.scope);
   const scopeNames = rls.scopes.map((scope) => scope.name);

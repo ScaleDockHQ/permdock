@@ -320,10 +320,11 @@ describe(authorizer, () => {
     // 0.13 types `evaluate` and `evaluations` with one parameter; 0.15 passes the runtime second.
     type Runtime = { readonly versions?: unknown };
     const evaluateOf =
-      (pd: ReturnType<typeof authorizer>) =>
+      (checked: ReturnType<typeof authorizer>) =>
       (r: AuthorizationRequest<Permission>, runtime: Runtime) =>
+        // SAFETY: 0.15 calls evaluate with the runtime second; the 0.13 type omits it
         (
-          pd.evaluate as (
+          checked.evaluate as (
             r: AuthorizationRequest<Permission>,
             runtime: Runtime,
           ) => Promise<AuthorizationOutcome>
@@ -357,8 +358,8 @@ describe(authorizer, () => {
 
     it("treats a batch as a read and falls back to the versions option", async () => {
       const { live, versions } = tracked();
-      const pd = authorizer({ policy, memberships: source, versions });
-      await pd.evaluations?.([
+      const checked = authorizer({ policy, memberships: source, versions });
+      await checked.evaluations?.([
         request(quote.update, {
           claims: versioned,
           tenant: ORG,
@@ -371,7 +372,7 @@ describe(authorizer, () => {
     it("reads the version from the version option", async () => {
       const { live, versions } = tracked();
       let reads = 0;
-      const pd = authorizer({
+      const checked = authorizer({
         policy,
         memberships: { membershipsFor: () => [] },
         version: () => {
@@ -380,7 +381,7 @@ describe(authorizer, () => {
         },
         versions,
       });
-      await pd.evaluate(
+      await checked.evaluate(
         request(quote.update, {
           claims: versioned,
           tenant: ORG,

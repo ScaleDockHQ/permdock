@@ -381,6 +381,7 @@ export function manifestOf(
       function: "custom_access_token_hook",
       out,
       ...(parts.before.length === 0 ? {} : { before: parts.before }),
+      activeFrom: parts.activeFrom,
     },
     helpers: {
       schema: parts.helpers.schema,

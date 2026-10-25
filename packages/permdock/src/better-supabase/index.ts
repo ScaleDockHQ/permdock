@@ -21,6 +21,7 @@ export type {
   BetterSupabaseErrorContext,
   BetterSupabaseOnError,
 } from "./report.ts";
+export type { BetterSupabaseActiveTenant } from "./active-tenant.ts";
 export { bucketPolicy, topicPolicy } from "./policies.ts";
 export type {
   AccessPolicyOptions,

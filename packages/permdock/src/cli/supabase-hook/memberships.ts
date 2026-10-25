@@ -1,5 +1,8 @@
 import type { Scope } from "../../core/scopes.ts";
-import type { SupabaseManifestMembership } from "../../supabase/manifest.ts";
+import type {
+  SupabaseManifestActiveFrom,
+  SupabaseManifestMembership,
+} from "../../supabase/manifest.ts";
 import type { SqlMembershipSource } from "../../supabase/sources.ts";
 import type {
   RlsMembershipTable,
@@ -114,6 +117,34 @@ export function positiveInteger(value: unknown, label: string): number {
 }
 
 /**
+ * Where the hook reads the active first-scope id: `supabase.hook.activeFrom`,
+ * or `app_metadata.active_<root>` by default.
+ */
+export function activeSource(
+  input: SupabaseHookConfig["activeFrom"],
+  root: string,
+): SupabaseManifestActiveFrom {
+  const spec = input ?? `app_metadata.active_${root}`;
+  if (typeof spec === "string" && spec.startsWith("app_metadata.")) {
+    const key = spec.slice("app_metadata.".length);
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(key)) {
+      throw configError(`PermDock CLI: unsafe app_metadata key '${key}'`);
+    }
+    return { appMetadata: key };
+  }
+  if (typeof spec !== "string") {
+    return { table: spec.table, column: spec.column, id: spec.id ?? "id" };
+  }
+  const dot = spec.lastIndexOf(".");
+  if (dot <= 0) {
+    throw configError(
+      `PermDock CLI: --active-from must be app_metadata.<key> or <table>.<column>, got '${spec}'`,
+    );
+  }
+  return { table: spec.slice(0, dot), column: spec.slice(dot + 1), id: "id" };
+}
+
+/**
  * SQL for the active first-scope id, as text, for user `uid`; a table source
  * compares its id column with `v_active_user`, declared as `userType`.
  */
@@ -121,30 +152,15 @@ export function activeFromSql(
   input: SupabaseHookConfig["activeFrom"],
   root: string,
 ): { readonly sql: string; readonly userType?: string } {
-  const spec = input ?? `app_metadata.active_${root}`;
-  if (typeof spec === "string" && spec.startsWith("app_metadata.")) {
-    const key = spec.slice("app_metadata.".length);
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/u.test(key)) {
-      throw configError(`PermDock CLI: unsafe app_metadata key '${key}'`);
-    }
-    return { sql: `claims -> 'app_metadata' ->> ${quoteLiteral(key)}` };
+  const from = activeSource(input, root);
+  if ("appMetadata" in from) {
+    return {
+      sql: `claims -> 'app_metadata' ->> ${quoteLiteral(from.appMetadata)}`,
+    };
   }
-  const parsed =
-    typeof spec === "string"
-      ? (() => {
-          const dot = spec.lastIndexOf(".");
-          if (dot <= 0) {
-            throw configError(
-              `PermDock CLI: --active-from must be app_metadata.<key> or <table>.<column>, got '${spec}'`,
-            );
-          }
-          return { table: spec.slice(0, dot), column: spec.slice(dot + 1) };
-        })()
-      : spec;
-  const id = "id" in parsed && parsed.id !== undefined ? parsed.id : "id";
   return {
-    sql: `(select a.${quoteIdent(parsed.column)}::text from ${quoteQualified(parsed.table)} a where a.${quoteIdent(id)} = v_active_user)`,
-    userType: `${quoteQualified(parsed.table)}.${quoteIdent(id)}%type`,
+    sql: `(select a.${quoteIdent(from.column)}::text from ${quoteQualified(from.table)} a where a.${quoteIdent(from.id)} = v_active_user)`,
+    userType: `${quoteQualified(from.table)}.${quoteIdent(from.id)}%type`,
   };
 }
 

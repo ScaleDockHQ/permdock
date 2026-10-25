@@ -5,6 +5,9 @@
     "schema": "permdock",
     "function": "custom_access_token_hook",
     "out": "supabase/schemas/permdock/functions/custom_access_token_hook.sql",
+    "activeFrom": {
+      "appMetadata": "active_organization"
+    },
     "schemas": "pg-delta"
   },
   "helpers": {
