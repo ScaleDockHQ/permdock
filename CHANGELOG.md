@@ -10,6 +10,23 @@ Every PermDock release, newest first. Per-package detail is in [`packages/permdo
   2. Pass `versions: memoryVersionCache({ maxStaleMs })` to `claimsFirst(sources.memberships, { onStale: 'reread', versions })`, with the cache created at module scope too.
   3. In `permdock/next`, which reads with `intent: 'read'` by default, call `getPermDock({ intent: 'write' })` before a mutation outside `protectAction`, so the version is read live.
 
+  For Hono and oRPC with better-supabase, pass the same cache to the server and to `claimsFirst` ([Hono](https://permdock.com/docs/adapters/hono#with-better-supabase), [oRPC](https://permdock.com/docs/adapters/orpc#with-better-supabase)):
+
+  ```ts
+  // Once per process: a source or cache built per request keeps nothing.
+  const sources = postgrestSources(admin, { api: {}, policy });
+  const versions = memoryVersionCache({ maxStaleMs: 5_000 });
+
+  const bsb = createHono(betterSupabase, { versions }); // or createOrpc(betterSupabase, { versions })
+  const { protect } = createPermDock(policy, {
+    subject: (c) => subjectFromBetterSupabase(c.get("auth")),
+    memberships: claimsFirst(sources.memberships, {
+      onStale: "reread",
+      versions,
+    }),
+  });
+  ```
+
 - `rls.rowHelpers` also writes `permitted_<resource>_rows(p_permission text, p_ids text[])`, which answers for the candidate ids only and finds them through the id column before it runs the row checks, so its cost follows the number of ids instead of the size of the table. Inside it and inside `permitted_<resource>_row`, a one-link or `'parent'` `inherit()` asks the target's helper about the ids the checked rows point at, and a closure walk about those rows only, so a row check no longer reads the whole target table; the existing signatures and answers are unchanged. `rls generate` also compiles a one-link `inherit()` in a policy with no relation grant, which failed with "a related condition with link hops needs the policy resources".
 
 ## 0.8.0 (2026-10-22)

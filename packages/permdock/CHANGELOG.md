@@ -12,6 +12,23 @@
   2. Pass `versions: memoryVersionCache({ maxStaleMs })` to `claimsFirst(sources.memberships, { onStale: 'reread', versions })`, with the cache created at module scope too.
   3. In `permdock/next`, which reads with `intent: 'read'` by default, call `getPermDock({ intent: 'write' })` before a mutation outside `protectAction`, so the version is read live.
 
+  For Hono and oRPC with better-supabase, pass the same cache to the server and to `claimsFirst` ([Hono](https://permdock.com/docs/adapters/hono#with-better-supabase), [oRPC](https://permdock.com/docs/adapters/orpc#with-better-supabase)):
+
+  ```ts
+  // Once per process: a source or cache built per request keeps nothing.
+  const sources = postgrestSources(admin, { api: {}, policy });
+  const versions = memoryVersionCache({ maxStaleMs: 5_000 });
+
+  const bsb = createHono(betterSupabase, { versions }); // or createOrpc(betterSupabase, { versions })
+  const { protect } = createPermDock(policy, {
+    subject: (c) => subjectFromBetterSupabase(c.get("auth")),
+    memberships: claimsFirst(sources.memberships, {
+      onStale: "reread",
+      versions,
+    }),
+  });
+  ```
+
 ## 0.8.0
 
 ### Minor Changes
