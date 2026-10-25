@@ -40,5 +40,5 @@ create policy role_permissions_delete_read_only_actors on public.role_permission
   as restrictive for delete to authenticated
   using ((select permdock.permdock_actor_may_write()));
 
-create trigger bs_audit after insert or update or delete on public.role_permissions
+create trigger bsb_audit after insert or update or delete on public.role_permissions
   for each row execute function better_supabase.audit_row_change('{"ignore": [], "redact": [], "key_columns": ["role_id", "permission"]}');

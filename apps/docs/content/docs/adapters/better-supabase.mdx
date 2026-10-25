@@ -5,7 +5,7 @@ description: The permdock/better-supabase entry fills better-supabase's authoriz
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
 
-The entry needs `better-supabase` 0.13 or later as a peer (`>=0.13.0`). The range has no upper bound: CI tests 0.13.0 and 0.15.0 on every pull request, and a daily job tests the newest release.
+The entry needs `better-supabase` 0.13 or later as a peer (`>=0.13.0`). The range has no upper bound: CI tests 0.13.0 and 0.15.1 on every pull request, and a daily job tests the newest release.
 
 This page uses the better-supabase 0.15 names. `better-supabase codemod 0.15 --yes` rewrites an app from the 0.13 and 0.14 names, and `better-supabase upgrade` rewrites the block SQL:
 
@@ -874,13 +874,13 @@ The arguments apply to every listed table, so `user_roles`, which has no `tenant
 
 ## Example app
 
-`apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. The example stays on better-supabase 0.13 and its names until better-supabase maps a block onto a view (0.15.0 maps blocks onto tables only); CI runs it on 0.15.0 after `better-supabase codemod 0.15 --yes` and `better-supabase upgrade`.
+`apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. It runs on better-supabase 0.15.1, the first release that maps a block onto a view.
 
-- `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`, sets `blocks.access.model: "provider"` (`blocks.permissions` in 0.15), and sets `canAssign` to `false` because its membership tables are service-only.
+- `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`, sets `blocks.permissions.model: "provider"`, and sets `canAssign` to `false` because its membership tables are service-only.
 - `src/lib/supabase/server.ts` passes `authorizer({ policy })` to `createNext`, and `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.
 - `src/lib/supabase/index.ts` validates sessions with `supabaseClaims().extend(appClaims)`, and `src/lib/access.ts` maps them with `subjectFromBetterSupabase`.
 - `supabase/schemas/public/functions/feature_claims.sql` adds `public.feature_claims(user_id)`, which reads `organization_features` for the organizations `permdock.member_organization_ids_for(user_id)` returns. `permdock.config.ts` registers it as the `features` claim.
-- The share-links block requires better-supabase's `tenant` block (`memberships` in 0.15). `blocks.tenant` adopts the `public.organization_memberships` view of PermDock's `memberships` table (`mode: "adopt"`), so better-supabase creates no second memberships table.
+- The share-links block requires better-supabase's `memberships` block. `blocks.memberships` maps onto the `public.organization_memberships` view of PermDock's `memberships` table, so better-supabase creates no second memberships table and writes only the functions that read the view.
 - `src/app/[locale]/share/[token]/page.tsx` is the guest quote page. `src/lib/share.ts` resolves the token with `subjectFromShareLink`, checks `quotes.read` for the link-only `guest` role and reads the quote under RLS with the `exchangeCapability` claims (`rls.capabilities`). The seed's link opens at `/en/share/acme-initech-rollout`.
 - `rls.approvals.delegations` writes `approval_delegations`, and the seed gives Mason a 30-day cover for Olivia's Acme approvals.
 - `supabase/tests` holds pgTAP tests over the seeded tenants, and `tests/claims.test.ts` maps every claim fixture through better-supabase's `createServer`.

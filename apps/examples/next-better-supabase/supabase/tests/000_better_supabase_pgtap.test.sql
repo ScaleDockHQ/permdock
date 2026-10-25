@@ -1,7 +1,8 @@
--- better-supabase module: pgtap (0.11.0)
--- @bs-module pgtap@1 managed
+-- better-supabase module: pgtap
+-- @bsb-block pgtap@1 managed
+-- @bsb-hash sha256:8e7bcbbf2f39f3fb6a6e3d4db8fd0d7afd7c3ccb25c3791276f3bc08057e8e03
 -- tests.create_user, tests.authenticate_as and catalog checks (every_table_has_rls, policies_use, no_anon_policies, every_table_audited, partitions_have_rls) for `supabase test db`. Written to supabase/tests, never to your schema.
--- Managed by `better-supabase add`; re-running it overwrites this file.
+-- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
 -- Runs first (000_) and commits, so later test files can use the helpers.
@@ -162,7 +163,7 @@ as $$
           from pg_catalog.pg_trigger t
           join pg_catalog.pg_proc f on f.oid = t.tgfoid
           where t.tgrelid = c.oid and not t.tgisinternal
-            and (left(t.tgname, 8) = 'bs_audit' or f.proname = 'audit_row_change')
+            and (left(t.tgname, 8) = 'bsb_audit' or f.proname = 'audit_row_change')
         )
     ),
     '{}'::text[],

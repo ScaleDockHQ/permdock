@@ -1,7 +1,8 @@
--- better-supabase module: access (0.12.0)
--- @bs-module access@1 managed
--- can(), tenant_ids_with() and is_platform(): one permission contract for policies and SQL modules, over a roles list, a role and permission catalog, an authorization provider or the app's own functions (blocks.access.model).
--- Managed by `better-supabase add`; re-running it overwrites this file.
+-- better-supabase module: permissions
+-- @bsb-block permissions@1 managed
+-- @bsb-hash sha256:5ea531bb487d630f30288317227ca6fbcad26b64e0c5303f7263dead4a9c2b75
+-- can(), tenant_ids_with() and is_platform(): one permission contract for policies and SQL modules, over a roles list, a role and permission catalog, an authorization provider or the app's own functions (blocks.permissions.model).
+-- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
 create schema if not exists better_supabase;
@@ -9,7 +10,7 @@ grant usage on schema better_supabase to anon, authenticated, service_role;
 grant usage on schema better_supabase to supabase_auth_admin;
 
 -- Disabled tenants and users get no permissions and no membership claims
--- (blocks.access.disabled; with the managed organizations module, its
+-- (blocks.permissions.disabled; with the managed organizations module, its
 -- disabled_at and deleted_at columns).
 create or replace function better_supabase.tenant_disabled(tenant uuid)
 returns boolean
@@ -48,7 +49,7 @@ as $$
 $$;
 
 -- The permission keys an OAuth scope grants a delegated token
--- (authorization.delegation.scopes, blocks.access.scopes). A scope
+-- (authorization.delegation.scopes, blocks.permissions.scopes). A scope
 -- without an entry grants the key with its own name.
 create or replace function better_supabase.scope_permissions(scope text)
 returns text[]
@@ -70,8 +71,10 @@ as $$
 $$;
 
 -- False when the token is narrower than the permission: a permission cap
--- (bs_permission_cap) without the key, or a delegated token whose scopes
+-- (bsb_permission_cap) without the key, or a delegated token whose scopes
 -- don't map to it. True for every other token, the service role included.
+-- 0.14 named the cap bs_permission_cap; 0.15 still reads it when the new
+-- claim is missing, so a cap from an older runAs keeps narrowing.
 create or replace function better_supabase.cap_allows(permission text)
 returns boolean
 language sql
@@ -81,9 +84,9 @@ set search_path = ''
 as $$
   select case
     when jwt is null then true
-    when jsonb_typeof(jwt -> 'bs_permission_cap') = 'array'
+    when jsonb_typeof(cap) = 'array'
       and not exists (
-        select 1 from jsonb_array_elements_text(jwt -> 'bs_permission_cap') c(key)
+        select 1 from jsonb_array_elements_text(cap) c(key)
         where better_supabase.permission_matches(c.key, cap_allows.permission)
       ) then false
     when coalesce(jwt ->> 'client_id', '') = ''
@@ -103,6 +106,9 @@ as $$
     )
   end
   from (select auth.jwt() as jwt) as token
+  cross join lateral (
+    select coalesce(jwt -> 'bsb_permission_cap', jwt -> 'bs_permission_cap') as cap
+  ) as capped
 $$;
 
 -- The permission key an operation (<module>.<action>, or a name in
@@ -226,7 +232,7 @@ as $$
     and not better_supabase.tenant_disabled(t.id::uuid)
 $$;
 
--- blocks.access.functions.canAssign, else authorization.functions.canAssign,
+-- blocks.permissions.functions.canAssign, else authorization.functions.canAssign,
 -- decides who assigns which role. Without either, only the service role
 -- assigns roles.
 create or replace function better_supabase.can_assign(tenant uuid, role text)
@@ -287,6 +293,33 @@ as $$
   select coalesce(better_supabase.platform_can(auth.uid(), is_platform.permission), false)
 $$;
 
+-- The caller's permission keys in a tenant, for client checks. With keys,
+-- the ones can() grants: every model answers, including a provider and
+-- delegated tokens. Without them, the keys the model lists for the member,
+-- wildcards as granted (the custom model lists none).
+create or replace function better_supabase.my_permissions(tenant uuid, keys text[] default null)
+returns text[]
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case
+    when auth.uid() is null or my_permissions.tenant is null then '{}'::text[]
+    when my_permissions.keys is not null then coalesce((
+      select array_agg(distinct k order by k)
+      from unnest(my_permissions.keys) as k
+      where better_supabase.can('tenant', my_permissions.tenant, k)
+    ), '{}'::text[])
+    when better_supabase.tenant_disabled(my_permissions.tenant) then '{}'::text[]
+    else coalesce((
+      select array_agg(distinct p order by p)
+      from unnest(better_supabase.member_permissions(auth.uid(), my_permissions.tenant)) as p
+      where better_supabase.cap_allows(p)
+    ), '{}'::text[])
+  end
+$$;
+
 revoke execute on function better_supabase.permission_matches(text, text) from public;
 grant execute on function better_supabase.permission_matches(text, text) to anon, authenticated, service_role;
 revoke execute on function better_supabase.scope_permissions(text) from public;
@@ -303,6 +336,8 @@ revoke execute on function better_supabase.is_platform(text) from public;
 grant execute on function better_supabase.is_platform(text) to anon, authenticated, service_role;
 revoke execute on function better_supabase.can_assign(uuid, text) from public;
 grant execute on function better_supabase.can_assign(uuid, text) to anon, authenticated, service_role;
+revoke execute on function better_supabase.my_permissions(uuid, text[]) from public;
+grant execute on function better_supabase.my_permissions(uuid, text[]) to anon, authenticated, service_role;
 revoke execute on function better_supabase.member_can(uuid, uuid, text) from public, anon, authenticated;
 grant execute on function better_supabase.member_can(uuid, uuid, text) to service_role, supabase_auth_admin;
 revoke execute on function better_supabase.member_can_while_deleting(uuid, uuid, text) from public, anon, authenticated;
@@ -322,13 +357,14 @@ grant execute on function better_supabase.permission_claims(uuid) to service_rol
 --     better_supabase.permission_claims((event ->> 'user_id')::uuid));
 
 create schema if not exists better_supabase;
-create table if not exists better_supabase.modules (
+create table if not exists better_supabase.blocks (
   name text primary key,
+  block text,
   version integer not null,
   mode text not null,
   installed_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-alter table better_supabase.modules enable row level security;
-revoke all on better_supabase.modules from anon, authenticated;
-grant select on better_supabase.modules to service_role;
+alter table better_supabase.blocks enable row level security;
+revoke all on better_supabase.blocks from anon, authenticated;
+grant select on better_supabase.blocks to service_role;

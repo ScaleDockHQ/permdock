@@ -1,4 +1,4 @@
--- better-supabase's tenant block adopts this view (blocks.tenant.tables.memberships), so
+-- better-supabase's memberships block maps onto this view (blocks.memberships.tables.memberships), so
 -- share links and the other tenant blocks read PermDock's memberships instead of a second table.
 -- A user holding two roles in one organization appears once, with the earliest.
 create view public.organization_memberships

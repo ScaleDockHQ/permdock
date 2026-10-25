@@ -119,7 +119,7 @@ select extensions.ok(
   exists(
     select 1 from pg_trigger
     where tgrelid = 'public.quotes'::regclass
-      and tgname in ('bs_updated_at', 'bsb_updated_at')
+      and tgname = 'bsb_updated_at'
   ),
   'quotes keeps updated_at current'
 );

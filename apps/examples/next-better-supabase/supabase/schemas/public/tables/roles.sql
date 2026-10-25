@@ -20,5 +20,5 @@ create policy roles_read_members on public.roles
   for select to authenticated
   using (organization_id in (select permdock.member_organization_ids()));
 
-create trigger bs_audit after insert or update or delete on public.roles
+create trigger bsb_audit after insert or update or delete on public.roles
   for each row execute function better_supabase.audit_row_change('{"ignore": [], "redact": [], "key_columns": ["id"]}');
