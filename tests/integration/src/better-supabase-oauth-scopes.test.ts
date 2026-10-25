@@ -112,13 +112,13 @@ describe("policy oauthScopes in better-supabase's SQL delegation cap", () => {
   });
 
   it("caps an automation run to the keys authorizationHooks writes", async () => {
-    const run = {
+    const capped = {
       bs_permission_cap: ["task.read"],
       bsb_permission_cap: ["task.read"],
     };
     expect({
-      read: await memberCan(run, "task.read"),
-      update: await memberCan(run, "task.update"),
+      read: await memberCan(capped, "task.read"),
+      update: await memberCan(capped, "task.update"),
     }).toStrictEqual({ read: true, update: false });
   });
 });
