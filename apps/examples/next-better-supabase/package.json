@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "next build",
+    "codemod": "better-supabase codemod",
     "dev": "next dev -p 3489 -H 127.0.0.1",
     "doctor": "permdock doctor && permdock supabase inspect --check && node scripts/better-supabase.ts doctor",
     "gen": "permdock gen && permdock rls generate --target sql --split helpers,seeds,indexes,policies,hook --seeds-out supabase/migrations/ && permdock supabase inspect --out && node scripts/better-supabase.ts gen",

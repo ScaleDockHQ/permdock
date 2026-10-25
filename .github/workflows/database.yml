@@ -78,7 +78,7 @@ jobs:
         run: |
           pnpm --filter permdock build
           if [ "$(printf '%s\n' 0.15.0 "$VERSION" | sort -V | head -n 1)" = 0.15.0 ]; then
-            pnpm exec better-supabase codemod 0.15 --yes
+            pnpm run codemod 0.15 --yes
           fi
           pnpm run sql:regenerate
 
