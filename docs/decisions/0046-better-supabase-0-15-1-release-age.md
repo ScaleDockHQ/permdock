@@ -1,6 +1,6 @@
 # 0046. better-supabase 0.15.1 is the catalog pin and skips the one-day release age; the example stack runs on the pin only
 
-- Status: accepted
+- Status: accepted; the catalog pin and exclude are superseded by 0047
 - Date: 2026-10-25
 - Supersedes: the catalog pin, exclude and `database.yml` matrix parts of 0045
 

@@ -441,8 +441,8 @@ catalogs:
       specifier: 1.1.3
       version: 1.1.3
     better-supabase:
-      specifier: 0.15.1
-      version: 0.15.1
+      specifier: 0.16.0
+      version: 0.16.0
     botid:
       specifier: 1.5.11
       version: 1.5.11
@@ -1765,7 +1765,7 @@ importers:
     dependencies:
       better-supabase:
         specifier: 'catalog:'
-        version: 0.15.1(4d5e15fd1dc89e070ba3e485778add94)
+        version: 0.16.0(4d5e15fd1dc89e070ba3e485778add94)
       jose:
         specifier: 'catalog:'
         version: 6.2.12
@@ -2857,7 +2857,7 @@ importers:
         version: 1.0.0
       better-supabase:
         specifier: 'catalog:'
-        version: 0.15.1(bad2f7b4549a55a3f0d95481b8042e9b)
+        version: 0.16.0(bad2f7b4549a55a3f0d95481b8042e9b)
       better-supabase-floor:
         specifier: npm:better-supabase@0.13.0
         version: better-supabase@0.13.0(bad2f7b4549a55a3f0d95481b8042e9b)
@@ -3190,7 +3190,7 @@ importers:
         version: 7.0.141(zod@4.6.7)
       better-supabase:
         specifier: 'catalog:'
-        version: 0.15.1(b3e6affdf9872b57353d12c784a12304)
+        version: 0.16.0(b3e6affdf9872b57353d12c784a12304)
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@24.19.2))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
@@ -10457,8 +10457,8 @@ packages:
       yjs:
         optional: true
 
-  better-supabase@0.15.1:
-    resolution: {integrity: sha512-r0Qo+K/bA6tH7/D+EmXNZGookOrfrzD3uWKKf7Hnk1iC1Gp4bHI4NRAwtT+9J0ZucsqCvrHmY8YqP5mmcd49Ag==}
+  better-supabase@0.16.0:
+    resolution: {integrity: sha512-LjhngadrLc98h5WwzUg/PkC/+U0AhiYe/btx4Xp73O1xNpaUwx0AQBPqadhcKmTm0B9BiCE4JhxNRHaH8h2glQ==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -26845,7 +26845,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  better-supabase@0.15.1(4d5e15fd1dc89e070ba3e485778add94):
+  better-supabase@0.16.0(4d5e15fd1dc89e070ba3e485778add94):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -26892,7 +26892,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  better-supabase@0.15.1(b3e6affdf9872b57353d12c784a12304):
+  better-supabase@0.16.0(b3e6affdf9872b57353d12c784a12304):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -26938,7 +26938,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  better-supabase@0.15.1(bad2f7b4549a55a3f0d95481b8042e9b):
+  better-supabase@0.16.0(bad2f7b4549a55a3f0d95481b8042e9b):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
