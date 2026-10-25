@@ -1,6 +1,6 @@
 -- better-supabase module: memberships
--- @bsb-block memberships@2 managed
--- @bsb-hash sha256:73714ac6223d28245ff3589119d2521c2dc930e4ea1531bb47676cec44aee357
+-- @bsb-block memberships@3 managed
+-- @bsb-hash sha256:818cb29b983b6bc2fe712f6aafe4f8a6c57ef20125a835027658b9ce6be164ec
 -- Memberships with roles, member_organization_ids() and has_organization_role() for RLS policies, and membership_claims() for the access token hook. Adopt an existing memberships table through blocks.memberships.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -26,6 +26,10 @@ create index if not exists memberships_user_idx on "public"."organization_member
 alter table "public"."organization_memberships" enable row level security;
 grant select on "public"."organization_memberships" to authenticated;
 grant all on "public"."organization_memberships" to service_role;
+
+drop trigger if exists "bsb_membership_roles" on "public"."organization_memberships";
+drop function if exists "better_supabase"."membership_roles_from_role"() cascade;
+drop function if exists "better_supabase"."membership_role_from_roles"() cascade;
 
 drop trigger if exists "bsb_role_scope" on "public"."organization_memberships";
 drop function if exists "better_supabase"."membership_role_scope"();
@@ -103,6 +107,21 @@ set search_path = ''
 as $$
   select m."role" from "public"."organization_memberships" m where m."organization_id" = organization_member_role.organization and m."user_id" = organization_member_role.member and m."organization_id" in (select p.id from permdock.member_organization_ids_for(organization_member_role.member) as p(id))
 $$;
+
+-- The roles of a user in a tenant, highest-ranked first, or null when they
+-- aren't a member.
+create or replace function better_supabase.organization_member_roles(organization uuid, member uuid)
+returns text[]
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select array[m."role"]::text[]
+  from "public"."organization_memberships" m where m."organization_id" = organization_member_roles.organization and m."user_id" = organization_member_roles.member and m."organization_id" in (select p.id from permdock.member_organization_ids_for(organization_member_roles.member) as p(id))
+$$;
+revoke execute on function better_supabase.organization_member_roles(uuid, uuid) from public, anon, authenticated;
+grant execute on function better_supabase.organization_member_roles(uuid, uuid) to service_role;
 
 drop policy if exists bsb_memberships_read on "public"."organization_memberships";
 -- public.organization_memberships: the app's policy organization_memberships_read already allows what bsb_memberships_read would, so the block adds none.
