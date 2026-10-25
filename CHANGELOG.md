@@ -2,6 +2,10 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.12.0 (2026-10-25)
+
+- `rls generate --helpers-only` with `rls.readOnlyActors` now writes the restrictive `{table}_{op}_read_only_actors` policies for each table `rls.tables` names, in the output or the `helpers` part, each skipped when its table does not exist. This changes helpers-only output: regenerate, and drop any hand-written restrictive policy that only calls `permdock_actor_may_write()` on those tables. A resource without an `rls.tables` entry still gets the warning.
+
 ## 0.11.0 (2026-10-25)
 
 - `supabaseApprovalStore` takes a `beforeOpen` hook that runs on every `create`, before the request is stored, with the request. Over an adopted table with `rls.approvals.open: 'attach'`, insert the app's own row holding `request.token` there instead of wrapping `create`; a throw fails the open before anything is stored, and a repeated ask runs it again, so ignore a conflict on the token. The read-only actors docs now name the `write-unguarded:<table>:<command>` finding id that `rls verify --introspect --helpers-only` reports for a hand-written write policy without `permdock_actor_may_write()`.

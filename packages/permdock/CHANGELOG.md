@@ -1,5 +1,11 @@
 # permdock
 
+## 0.12.0
+
+### Minor Changes
+
+- [#226](https://github.com/ScaleDockHQ/permdock/pull/226) [`5db1c4d`](https://github.com/ScaleDockHQ/permdock/commit/5db1c4d6e27cfb8c3ae2a213f62107301ea631a9) Thanks [@martijn00](https://github.com/martijn00)! - `rls generate --helpers-only` with `rls.readOnlyActors` now writes the restrictive `{table}_{op}_read_only_actors` policies for each table `rls.tables` names, in the output or the `helpers` part, each skipped when its table does not exist. This changes helpers-only output: regenerate, and drop any hand-written restrictive policy that only calls `permdock_actor_may_write()` on those tables. A resource without an `rls.tables` entry still gets the warning.
+
 ## 0.11.0
 
 ### Minor Changes
