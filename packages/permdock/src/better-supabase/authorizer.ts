@@ -53,6 +53,11 @@ export type AuthorizerOptions = {
    */
   readonly memberships?: MembershipSource | readonly MembershipSource[];
   /**
+   * The current authorization version for `memberships`, such as
+   * `authzVersion({ query })`; default the source's own `version`.
+   */
+  readonly version?: MembershipSource["version"];
+  /**
    * The version cache for `memberships` when better-supabase passes none (0.13
    * and 0.14, or a server created without `versions`).
    */
@@ -191,6 +196,7 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
     return {
       memberships: claimsFirst(options.memberships, {
         onStale: "reread",
+        ...(options.version === undefined ? {} : { version: options.version }),
         ...(versions === undefined ? {} : { versions }),
       }),
     };

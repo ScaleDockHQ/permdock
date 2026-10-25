@@ -368,6 +368,28 @@ describe(authorizer, () => {
       expect(live).toStrictEqual([false]);
     });
 
+    it("reads the version from the version option", async () => {
+      const { live, versions } = tracked();
+      let reads = 0;
+      const pd = authorizer({
+        policy,
+        memberships: { membershipsFor: () => [] },
+        version: () => {
+          reads += 1;
+          return 1;
+        },
+        versions,
+      });
+      await pd.evaluate(
+        request(quote.update, {
+          claims: versioned,
+          tenant: ORG,
+          properties: row,
+        }),
+      );
+      expect([live, reads]).toStrictEqual([[true], 1]);
+    });
+
     it("takes the intent from the intent option", async () => {
       const { live, versions } = tracked();
       const evaluate = evaluateOf(

@@ -150,11 +150,22 @@ better-supabase's `createOrpc` puts the verified `AuthState` on `context.auth` t
 import { os } from "@orpc/server";
 import { createOrpc, type OrpcRequestContext } from "better-supabase/orpc";
 import type { AuthState } from "better-supabase/server";
-import type { Permission } from "permdock";
+import { claimsFirst, memoryVersionCache, type Permission } from "permdock";
 import { createPermDock } from "permdock/orpc";
-import { subjectFromBetterSupabase } from "permdock/better-supabase";
+import {
+  authorizer,
+  subjectFromBetterSupabase,
+} from "permdock/better-supabase";
+import { postgrestSources } from "permdock/supabase";
 
-export const bsb = createOrpc(betterSupabase);
+// Once per process: a source or cache built per request keeps nothing.
+const sources = postgrestSources(admin, { api: {}, policy });
+const versions = memoryVersionCache({ maxStaleMs: 5_000 });
+
+export const bsb = createOrpc(betterSupabase, {
+  versions,
+  authorizer: authorizer({ policy, memberships: sources.memberships }),
+});
 
 const authed = os.$context<OrpcRequestContext>().use(bsb.middleware());
 const { protect } = createPermDock<
@@ -162,6 +173,10 @@ const { protect } = createPermDock<
 >(policy, {
   subject: ({ context }) =>
     subjectFromBetterSupabase(context.auth, { anonymousSignIns: "deny" }),
+  memberships: claimsFirst(sources.memberships, {
+    onStale: "reread",
+    versions,
+  }),
 });
 
 const procedure = (permission: Permission) => authed.use(protect(permission));
@@ -174,6 +189,8 @@ export const router = {
   },
 };
 ```
+
+`memberships` re-reads a token minted before the user's last membership change, so a removed member loses access before the token expires. `admin` is a secret-key client. Create `sources` and `versions` once at module scope and pass the same cache to `createOrpc` and `claimsFirst`: `bsb.invalidateSession` evicts it, and a `GET` procedure (intent `read`) answers the version from it within `maxStaleMs` ([version cache](/docs/adapters/better-supabase#version-cache-and-session-snapshots)).
 
 `protect` throws `FORBIDDEN` with PermDock's Problem Details as `data`, the same shape `bsb.unwrap` gives a `DbError`. `@orpc/server` must satisfy better-supabase's peer range (2.0.0-beta.40 or later). Before better-supabase 0.8, `bs.authed()` checked `roles` only together with `requireTenant` or `authorize`, so a procedure guarded by `roles` alone admitted every signed-in caller: upgrade before relying on it. From 0.8, `permission` on `authed()` (`bsb.authed()` from 0.15) is decided by PermDock's [`authorizer`](/docs/adapters/better-supabase#authorizer).
 
