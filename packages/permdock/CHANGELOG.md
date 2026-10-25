@@ -1,5 +1,13 @@
 # permdock
 
+## 0.9.0
+
+### Minor Changes
+
+- [#218](https://github.com/ScaleDockHQ/permdock/pull/218) [`0aad286`](https://github.com/ScaleDockHQ/permdock/commit/0aad2863a81fc02b1a8b2a6292d4c0bd64d6fa01) Thanks [@mick340](https://github.com/mick340)! - `rls.rowHelpers` also writes `permitted_<resource>_rows(p_permission text, p_ids text[])`, which answers for the candidate ids only and finds them through the id column before it runs the row checks, so its cost follows the number of ids instead of the size of the table. Inside it and inside `permitted_<resource>_row`, a one-link or `'parent'` `inherit()` asks the target's helper about the ids the checked rows point at, and a closure walk about those rows only, so a row check no longer reads the whole target table; the existing signatures and answers are unchanged. `rls generate` also compiles a one-link `inherit()` in a policy with no relation grant, which failed with "a related condition with link hops needs the policy resources".
+
+- [#216](https://github.com/ScaleDockHQ/permdock/pull/216) [`cb87164`](https://github.com/ScaleDockHQ/permdock/commit/cb8716440b95931d3f1e74f355248bff051e44af) Thanks [@martijn00](https://github.com/martijn00)! - `memoryVersionCache({ maxStaleMs })` shares authorization-version reads across instances through `claimsFirst(source, { onStale: 'reread', versions })`, so a page of ten Next.js private cache scopes makes at most one `authz_version_for` call. A token minted within `maxStaleMs` makes none. `getPermDock(…, { intent })` picks how fresh the version must be: `permdock/next` rendering and `GET`, `HEAD` and `OPTIONS` in the HTTP adapters use `read`, while `protectAction`, other methods and core `getPermDock` use `write`, which always reads live. Sources now receive a per-instance `memo`, and `subjectFromSupabase` and `permdock/jwt` map `iat` to `Subject.issuedAt`. Breaking: `postgrestSources` keeps no answers between calls, so create it once at module scope; outside an instance, each call now reads the database.
+
 ## 0.8.0
 
 ### Minor Changes
