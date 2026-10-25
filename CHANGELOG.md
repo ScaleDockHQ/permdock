@@ -2,6 +2,10 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.11.0 (2026-10-25)
+
+- `supabaseApprovalStore` takes a `beforeOpen` hook that runs on every `create`, before the request is stored, with the request. Over an adopted table with `rls.approvals.open: 'attach'`, insert the app's own row holding `request.token` there instead of wrapping `create`; a throw fails the open before anything is stored, and a repeated ask runs it again, so ignore a conflict on the token. The read-only actors docs now name the `write-unguarded:<table>:<command>` finding id that `rls verify --introspect --helpers-only` reports for a hand-written write policy without `permdock_actor_may_write()`.
+
 ## 0.10.0 (2026-10-25)
 
 - The Supabase manifest records where the token hook reads the active tenant (`hook.activeFrom`), and `authorizationProvider({ activeTenant })` reports in `problems` when better-supabase's `blocks.permissions.activeTenant` writes it elsewhere. `permdock doctor` reports the same mismatch as PD078 and lists each permission key a configured better-supabase block checks that the catalog lacks as PD079.
