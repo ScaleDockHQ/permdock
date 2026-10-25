@@ -60,8 +60,8 @@ describe("better-supabase peer range", () => {
         expect(sorted[0]).toBe(floor);
       });
 
-      it("tests the catalog pin as the latest version", () => {
-        expect(sorted.at(-1)).toBe(catalog);
+      it("tests the catalog pin", () => {
+        expect(matrix).toContain(catalog);
       });
     });
   }

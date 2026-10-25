@@ -38,11 +38,11 @@ jobs:
       id-token: write
     strategy:
       fail-fast: false
-      # The peer floor and the catalog pin, which are the same release while the floor is
-      # 0.13.0; the range has no upper bound (tests/package/better-supabase-peer-range.test.ts).
-      # The last entry is the catalog pin the committed SQL is generated from.
+      # The peer floor and catalog pin (0.13.0), which the committed SQL is generated from,
+      # then the next release; the range has no upper bound
+      # (tests/package/better-supabase-peer-range.test.ts).
       matrix:
-        better-supabase: ["0.13.0"]
+        better-supabase: ["0.13.0", "0.15.0"]
     env:
       CATALOG: ${{ matrix.better-supabase == '0.13.0' }}
     defaults:
@@ -67,12 +67,19 @@ jobs:
           pnpm install --no-frozen-lockfile
           node -p "require('./apps/examples/next-better-supabase/node_modules/better-supabase/package.json').version" | grep -qx "$VERSION"
 
-      # The committed SQL comes from the catalog pin; an older better-supabase writes
-      # its own schemas and migrations before the stack applies them.
+      # The committed SQL comes from the catalog pin; another better-supabase writes
+      # its own schemas and migrations before the stack applies them. From 0.15 the
+      # example first goes through the upgrade an app makes: the codemod regroups the
+      # config, renames bs to bsb and moves the scripts to `better-supabase upgrade`.
       - name: Regenerate the better-supabase SQL
         if: env.CATALOG != 'true'
+        env:
+          VERSION: ${{ matrix.better-supabase }}
         run: |
           pnpm --filter permdock build
+          if [ "$(printf '%s\n' 0.15.0 "$VERSION" | sort -V | head -n 1)" = 0.15.0 ]; then
+            pnpm exec better-supabase codemod 0.15 --yes
+          fi
           pnpm run sql:regenerate
 
       # Native runtime; Postgres comes up while permdock builds.

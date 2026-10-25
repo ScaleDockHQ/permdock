@@ -1,5 +1,4 @@
 import { PGlite } from "@electric-sql/pglite";
-import { renderModules } from "better-supabase/sql";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -8,6 +7,8 @@ import { authorizationProvider } from "permdock/better-supabase";
 import { run } from "permdock/cli";
 import { supabaseHookManifestFixture } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { permissionsBlockSql } from "./support/better-supabase-sql.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/token-scopes");
@@ -73,10 +74,10 @@ describe("rls.tokenScopes", () => {
     });
     lite = new PGlite();
     await lite.exec(SETUP);
-    for (const file of renderModules(["access"], {
+    for (const contents of permissionsBlockSql({
       delegationScopes: provider.delegation?.scopes ?? {},
     })) {
-      await lite.exec(file.contents);
+      await lite.exec(contents);
     }
     await lite.exec(
       `insert into better_supabase.memberships (organization_id, user_id, role) values ('${ORG}', '${OWNER}', 'owner');`,
