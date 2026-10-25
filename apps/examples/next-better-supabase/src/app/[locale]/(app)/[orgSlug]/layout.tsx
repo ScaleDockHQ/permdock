@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 
 import Link from "next/link";
-import { PermDockProvider } from "permdock/react";
 import { Suspense } from "react";
 
 import { snapshotForSlug } from "../../../../lib/access.ts";
+import { PermDockProvider } from "../../../../permdock/server.ts";
 import { Nav, NavSkeleton } from "./nav.tsx";
 
 const organizations = [
@@ -14,7 +14,6 @@ const organizations = [
 
 // Synchronous: the shell is static, and only the gated nav waits for the
 // private-cached snapshot, which the prefetch already carries.
-// `endpoint={false}`: no `/api/permdock` route exists, every check is local.
 export default function OrganizationLayout(props: {
   readonly children: ReactNode;
   readonly params: Promise<{
@@ -29,7 +28,7 @@ export default function OrganizationLayout(props: {
     .then(({ orgSlug }) => orgSlug)
     .then(snapshotForSlug);
   return (
-    <PermDockProvider snapshotPromise={snapshot} endpoint={false}>
+    <PermDockProvider snapshot={snapshot}>
       <header>
         <nav aria-label="Organizations">
           {organizations.map((organization) => (

@@ -260,13 +260,15 @@ export function createPermDock<
   const PermDockProvider = (props: NextPermDockProviderProps): ReactElement => {
     // A rejection reaches the client store as `server-only`, or with
     // `suspend` the nearest error boundary; Next.js interrupts keep working.
-    const snapshotPromise = getPermDock(
-      props.tenant === undefined ? undefined : { tenant: props.tenant },
-    ).then((permdock): Snapshot | string | Promise<string> =>
-      permdock.snapshot(
-        compact({ include: props.include, tenants: props.tenants }),
-      ),
-    );
+    const snapshotPromise: Promise<Snapshot | string | Promise<string>> =
+      props.snapshot ??
+      getPermDock(
+        props.tenant === undefined ? undefined : { tenant: props.tenant },
+      ).then((permdock) =>
+        permdock.snapshot(
+          compact({ include: props.include, tenants: props.tenants }),
+        ),
+      );
     return renderClientProvider(
       compact({
         snapshotPromise,

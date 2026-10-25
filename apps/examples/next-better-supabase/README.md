@@ -31,7 +31,8 @@ Where things live:
 - `src/lib/supabase/index.ts`: the `betterSupabase` definition; sessions validated with `supabaseClaims().extend(...)`.
 - `src/lib/supabase/server.ts`: `import 'server-only'`, then `bsb = createNext(betterSupabase, ...)` with direct Postgres, an inline JWKS and explicit issuer and audience.
 - `src/lib/share.ts` and `src/app/[locale]/share/[token]/page.tsx`: the guest quote page over a better-supabase share link (`subjectFromShareLink`, `exchangeCapability`); the seeded link is `/en/share/acme-initech-rollout`.
-- `src/lib/access.ts`: the shared slug lookup (`'use cache'`), the snapshot loader and the RLS reads (`'use cache: private'` over `bsb.cached({ tags })`), tagged `snapshotTag(sub)`. After a role or plan change, `bsb.invalidateSession(userId, { tags: [snapshotTag(userId)] })` drops them.
+- `src/permdock/server.ts`: `createPermDock` from `permdock/next` with `endpoint: false`; its `subject` reads `bsb.cached()`, and the layouts render its `PermDockProvider` with `snapshot`.
+- `src/lib/access.ts`: the shared slug lookup (`'use cache'`), the snapshot loader (`getSnapshot` in `'use cache: private'`) and the RLS reads (`'use cache: private'` over `bsb.cached({ tags })`), tagged `snapshotTag(sub)`. After a role or plan change, `bsb.invalidateSession(userId, { tags: [snapshotTag(userId)] })` drops them.
 - `src/app/api/test/sign-in/route.ts`: `serve` only (`DEMO_SIGN_IN=1`). Runs the hook as `supabase_auth_admin`, signs the claims and sets the `@supabase/ssr` cookie, as Supabase Auth would.
 - `src/lib/supabase/generated.ts`, `generated.meta.js` and `generated.meta.d.ts`: `pnpm gen` regenerates them from the migrations; `pnpm gen:check` fails on drift.
 

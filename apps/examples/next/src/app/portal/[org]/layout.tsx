@@ -2,13 +2,13 @@ import type { ReactNode } from "react";
 
 import { LogOut } from "lucide-react";
 import Link from "next/link";
-import { PermDockProvider } from "permdock/react";
 
 import { Brand } from "@/components/brand.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { buttonVariants } from "@/components/ui/button.tsx";
 
 import { loadSnapshot } from "../../../lib/access.ts";
+import { PermDockProvider } from "../../../permdock/server.ts";
 
 export default function PortalLayout(props: {
   readonly children: ReactNode;
@@ -16,7 +16,7 @@ export default function PortalLayout(props: {
 }) {
   const snapshot = props.params.then(({ org }) => org).then(loadSnapshot);
   return (
-    <PermDockProvider snapshotPromise={snapshot}>
+    <PermDockProvider snapshot={snapshot}>
       <header className="bg-background/95 supports-backdrop-filter:bg-background/80 sticky top-0 z-40 border-b backdrop-blur">
         <div className="mx-auto flex w-full max-w-4xl items-center gap-3 px-4 py-3 sm:px-6">
           <Brand label="Next.js example" />

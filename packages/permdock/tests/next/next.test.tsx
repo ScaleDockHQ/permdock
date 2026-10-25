@@ -433,6 +433,45 @@ describe("permdock/next", () => {
     expect(await new Response(prelude).text()).toContain("edit");
   });
 
+  it("hands a given snapshot to the client without reading the subject", async () => {
+    const subject = vi.fn<() => typeof memberUser>(() => memberUser);
+    const { PermDockProvider, getPermDock } = createPermDock(policy, {
+      subject,
+    });
+    const snapshot = (await getPermDock()).snapshot();
+    subject.mockClear();
+    const { PermDockProvider: denied } = createPermDock(policy, {
+      subject: () => null,
+    });
+    const guard = (
+      <Protected
+        permission={permissions.post.update}
+        data={ownPost}
+        pending={<span>loading</span>}
+        denied={<span>locked</span>}
+      >
+        <span>edit</span>
+      </Protected>
+    );
+    const { prelude } = await prerender(
+      PermDockProvider({
+        snapshot: Promise.resolve(snapshot),
+        suspend: true,
+        children: guard,
+      }),
+    );
+    expect(await new Response(prelude).text()).toContain("edit");
+    expect(subject).not.toHaveBeenCalled();
+    const other = await prerender(
+      denied({
+        snapshot: Promise.resolve(snapshot),
+        suspend: true,
+        children: guard,
+      }),
+    );
+    expect(await new Response(other.prelude).text()).toContain("edit");
+  });
+
   it("fails closed when the subject cannot be resolved", async () => {
     const { PermDockProvider } = createPermDock(policy, {
       subject: () => {

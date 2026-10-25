@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 
-import { PermDockProvider } from "permdock/react";
-
 import { snapshotForSlug } from "../../../../../lib/access.ts";
+import { PermDockProvider } from "../../../../../permdock/server.ts";
 
 /**
  * The customer portal: same snapshot loader, the contact's grants are
@@ -16,7 +15,7 @@ export default function PortalLayout(props: {
     .then(({ orgSlug }) => orgSlug)
     .then(snapshotForSlug);
   return (
-    <PermDockProvider snapshotPromise={snapshot} endpoint={false}>
+    <PermDockProvider snapshot={snapshot}>
       <main>{props.children}</main>
     </PermDockProvider>
   );

@@ -69,8 +69,8 @@ export async function getQuote(
 
 /**
  * Private layer: the session's snapshot for one organization. `getSnapshot`
- * sets `stale` from the snapshot (at least 30 s, so per-link prefetches carry
- * it; 300 s, so it joins the App Shell) and tags it for this subject.
+ * sets `stale` from the snapshot (at least 30 s, so a per-link prefetch carries
+ * it) and tags it for this subject.
  */
 export async function loadSnapshot(organization: string): Promise<Snapshot> {
   "use cache: private";
