@@ -412,6 +412,12 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
             },
             id: { $ref: "#/$defs/identifier" },
             column: { $ref: "#/$defs/identifier" },
+            on: {
+              description:
+                "Every referencing column to the column of table it matches, when the reference spans several columns.",
+              type: "object",
+              additionalProperties: { $ref: "#/$defs/identifier" },
+            },
           },
         },
       },

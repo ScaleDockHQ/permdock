@@ -108,6 +108,34 @@ describe("membership sources through a roles table", () => {
     ).toHaveLength(1);
   });
 
+  it("bumps the holders of a role set row matched on every column", () => {
+    const { sql } = supabaseHookSql(scopes, {
+      policy: "p.ts",
+      supabase: {
+        hook: {
+          memberships: [
+            junctionMembershipSource({
+              table: "organization_users",
+              scope: "organization",
+              id: "organization_id",
+              roles: {
+                through: "member_roles",
+                on: { organization_id: "organization_id", user_id: "user_id" },
+                column: "role",
+              },
+            }),
+          ],
+        },
+      },
+    });
+    expect(sql).toContain(
+      'select h."user_id"::uuid as user_id from "public"."organization_users" h where h."organization_id" = old."organization_id" and h."user_id" = old."user_id"',
+    );
+    expect(sql).toContain(
+      'and new."organization_id" is not distinct from old."organization_id"',
+    );
+  });
+
   it("branches on the table when holders reference different roles tables", () => {
     const { sql } = supabaseHookSql(scopes, {
       ...config,
@@ -332,12 +360,19 @@ describe("authorizeSql through a roles table", () => {
     expect(sql).toContain('not (mk."key"::text = any(');
   });
 
-  it("refuses a through with more than one join column", () => {
-    expect(() =>
-      tableMembershipSource({
-        table: "memberships",
-        columns: { role: { ...through, on: { a: "id", b: "id" } } },
-      }),
-    ).toThrow("must map exactly one column");
+  it("joins a through on every column of a composite on", () => {
+    const source = tableMembershipSource({
+      table: "memberships",
+      columns: {
+        role: {
+          through: "membership_roles",
+          on: { scope_id: "scope_id", user_id: "user_id" },
+          column: "role",
+        },
+      },
+    });
+    expect(source.sql.select("$1")).toContain(
+      'join "public"."membership_roles" mk on mk."scope_id" = m."scope_id" and mk."user_id" = m."user_id"',
+    );
   });
 });

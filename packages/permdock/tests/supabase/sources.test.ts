@@ -439,6 +439,7 @@ where m."user_id" = $1`);
       id: "id",
       key: "key",
       ref: "role_id",
+      match: [["role_id", "id"]],
     });
     expect(source.sql.columns).toStrictEqual([
       "user_id",
@@ -483,7 +484,7 @@ join "identity"."roles" mk on mk."id" = m."role_id"`);
     });
   });
 
-  it("needs exactly one join column", () => {
+  it("needs at least one join column", () => {
     expect(() =>
       junctionMembershipSource({
         table: "organization_users",
@@ -491,16 +492,37 @@ join "identity"."roles" mk on mk."id" = m."role_id"`);
         roles: { ...through, on: {} },
       }),
     ).toThrow(
-      "PermDock: junctionMembershipSource roles.on must map exactly one column of public.organization_users to roles",
+      "PermDock: junctionMembershipSource roles.on must map at least one column of public.organization_users to roles",
     );
-    expect(() =>
-      tableMembershipSource({
-        table: "memberships",
-        columns: { role: { ...through, on: { a: "id", b: "id" } } },
-      }),
-    ).toThrow(
-      "tableMembershipSource columns.role.on must map exactly one column",
+  });
+
+  it("joins a role set on every column of a composite on", () => {
+    const source = junctionMembershipSource({
+      table: "better_supabase.memberships",
+      scope: "organization",
+      id: "organization_id",
+      roles: {
+        through: "membership_roles",
+        on: { organization_id: "organization_id", user_id: "user_id" },
+        column: "role",
+      },
+    });
+    expect(source.sql.select("$1")).toContain(
+      'join "better_supabase"."membership_roles" mk on mk."organization_id" = m."organization_id" and mk."user_id" = m."user_id"',
     );
+    expect(source.sql.through?.match).toStrictEqual([
+      ["organization_id", "organization_id"],
+      ["user_id", "user_id"],
+    ]);
+    expect(source.sql.manifest.role).toStrictEqual({
+      column: "organization_id",
+      through: {
+        table: "better_supabase.membership_roles",
+        id: "organization_id",
+        column: "role",
+        on: { organization_id: "organization_id", user_id: "user_id" },
+      },
+    });
   });
 });
 
@@ -560,6 +582,7 @@ where mu."user_id" = $1`);
       id: "id",
       key: "user_id",
       ref: "contact_profile_id",
+      match: [["contact_profile_id", "id"]],
     });
     expect(source.sql.userType).toBe(
       '"public"."contact_profiles"."user_id"%type',

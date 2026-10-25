@@ -269,9 +269,8 @@ function roleKeyHolders(parts: Parts): readonly RoleKeyHolder[] {
             holder.userThrough.key,
           ],
       tableKey(holder.through.table),
-      holder.through.id,
       holder.through.key,
-      holder.through.ref,
+      holder.through.match,
     ]);
     if (seen.has(key)) {
       return false;
@@ -292,7 +291,10 @@ function roleKeysBumpSql(
 ): string {
   const columns = [
     ...new Set(
-      holders.flatMap((holder) => [holder.through.key, holder.through.id]),
+      holders.flatMap((holder) => [
+        holder.through.key,
+        ...holder.through.match.map(([, id]) => id),
+      ]),
     ),
   ];
   const unchanged = columns
@@ -302,11 +304,14 @@ function roleKeysBumpSql(
     )
     .join(`\n${indent}  and `);
   const selects = holders
-    .map((holder) =>
-      holder.userThrough === undefined
-        ? `select h.${quoteIdent(holder.user)}::uuid as user_id from ${quoteQualified(holder.table)} h where h.${quoteIdent(holder.through.ref)} = old.${quoteIdent(holder.through.id)}`
-        : `select u.${quoteIdent(holder.userThrough.key)}::uuid as user_id from ${quoteQualified(holder.table)} h join ${quoteQualified(holder.userThrough.table)} u on u.${quoteIdent(holder.userThrough.id)} = h.${quoteIdent(holder.user)} where h.${quoteIdent(holder.through.ref)} = old.${quoteIdent(holder.through.id)}`,
-    )
+    .map((holder) => {
+      const held = holder.through.match
+        .map(([ref, id]) => `h.${quoteIdent(ref)} = old.${quoteIdent(id)}`)
+        .join(" and ");
+      return holder.userThrough === undefined
+        ? `select h.${quoteIdent(holder.user)}::uuid as user_id from ${quoteQualified(holder.table)} h where ${held}`
+        : `select u.${quoteIdent(holder.userThrough.key)}::uuid as user_id from ${quoteQualified(holder.table)} h join ${quoteQualified(holder.userThrough.table)} u on u.${quoteIdent(holder.userThrough.id)} = h.${quoteIdent(holder.user)} where ${held}`;
+    })
     .join(`\n${indent}  union\n${indent}  `);
   return `${indent}if tg_op = 'UPDATE'
 ${indent}  and ${unchanged} then

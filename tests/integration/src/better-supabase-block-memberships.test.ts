@@ -13,8 +13,9 @@ const MULTI = "00000000-0000-4000-8000-0000000000b3";
 const GONE = "00000000-0000-4000-8000-0000000000b4";
 const ORG = "00000000-0000-4000-8000-00000000000a";
 
-// The shape `better-supabase add memberships` installs, plus an app roles
-// table for `roleThrough` and a role junction for several roles per member.
+// The shape `better-supabase add memberships` installs, the role set
+// `roles.many` adds, an app roles table for `roleThrough` and a role junction
+// for several roles per member.
 const SETUP = `
 create schema better_supabase;
 create table better_supabase.memberships (
@@ -35,6 +36,17 @@ insert into better_supabase.memberships (id, organization_id, user_id, role, dis
 insert into public.membership_roles values
   ('00000000-0000-4000-8000-0000000000c3', 'member'),
   ('00000000-0000-4000-8000-0000000000c3', 'billing');
+create table better_supabase.membership_roles (
+  organization_id uuid not null,
+  user_id uuid not null,
+  role text not null,
+  primary key (organization_id, user_id, role)
+);
+insert into better_supabase.membership_roles values
+  ('${ORG}', '${OWNER}', 'owner'),
+  ('${ORG}', '${MULTI}', 'member'),
+  ('${ORG}', '${MULTI}', 'quote-approver'),
+  ('${ORG}', '${GONE}', 'owner');
 `;
 
 describe("blockMembershipSource against better-supabase's memberships table", () => {
@@ -95,5 +107,18 @@ describe("blockMembershipSource against better-supabase's memberships table", ()
         (entry) => entry.principal.id,
       ),
     ).toStrictEqual([MULTI]);
+  });
+
+  it("reads every role of a member from membership_roles with roles many", async () => {
+    const source = blockMembershipSource({ query, roles: "many" });
+    expect(await source.membershipsFor({ id: MULTI }, {})).toStrictEqual([
+      { scope: "organization", id: ORG, roles: ["member", "quote-approver"] },
+    ]);
+    expect(await source.membershipsFor({ id: GONE }, {})).toStrictEqual([]);
+    expect(
+      (await source.list?.({ scope: "organization", id: ORG }))
+        ?.map((entry) => entry.principal.id)
+        .toSorted(),
+    ).toStrictEqual([OWNER, MULTI]);
   });
 });
