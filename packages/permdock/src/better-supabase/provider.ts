@@ -502,13 +502,14 @@ function delegatedScopes(
  * templates, the membership tables, suspension rows, the token hook and every
  * catalog key with `sqlComplete` set from its `rowConditions`. A `_for`
  * template and `permissionsFor` are set only when the manifest lists their
- * helper, which `rls.mode: 'database'` writes; `isApprover` only with
- * `approvers` and `permdock_is_approver`, and otherwise `canApprove` only with
- * `approver`. `holdersOf` (`permitted_<tenant scope>_users`) and
- * `actorMayWrite` (`permdock_actor_may_write()`) are set when the manifest
- * lists their helper, and so is `teamIdsOf` (`member_<scope>_ids_of({user})`)
- * for a scope named `team` or `teams`. Throws when the manifest or catalog is
- * invalid, or when the tenant scope is ambiguous.
+ * helper, which `rls.mode: 'database'` writes. `isApprover` is set with
+ * `approvers` or `approver` and `permdock_is_approver`: `approver` fills its
+ * `'ai-tool'` entry. `canApprove` is never set. `holdersOf` (`permitted_<tenant
+ * scope>_users`) and `actorMayWrite` (`permdock_actor_may_write()`) are set
+ * when the manifest lists their helper, and so is `teamIdsOf`
+ * (`member_<scope>_ids_of({user})`) for a scope named `team` or `teams`. Throws
+ * when the manifest or catalog is invalid, or when the tenant scope is
+ * ambiguous.
  */
 export function authorizationProvider(
   options: AuthorizationProviderOptions,

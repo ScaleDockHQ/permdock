@@ -1,11 +1,12 @@
 import { PGlite } from "@electric-sql/pglite";
-import { renderModules } from "better-supabase/sql";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { authorizationProvider } from "permdock/better-supabase";
 import { run } from "permdock/cli";
 import { supabaseHookManifestFixture } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { permissionsBlockSql } from "./support/better-supabase-sql.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/oauth-scopes");
@@ -47,10 +48,8 @@ describe("policy oauthScopes in better-supabase's SQL delegation cap", () => {
     scopes = provider.delegation?.scopes ?? {};
     lite = new PGlite();
     await lite.exec(SETUP);
-    for (const file of renderModules(["access"], {
-      delegationScopes: scopes,
-    })) {
-      await lite.exec(file.contents);
+    for (const contents of permissionsBlockSql({ delegationScopes: scopes })) {
+      await lite.exec(contents);
     }
     await lite.exec(
       `insert into better_supabase.memberships (organization_id, user_id, role) values ('${ORG}', '${OWNER}', 'owner');`,
@@ -110,5 +109,16 @@ describe("policy oauthScopes in better-supabase's SQL delegation cap", () => {
       unscoped: false,
       user: true,
     });
+  });
+
+  it("caps an automation run to the keys authorizationHooks writes", async () => {
+    const capped = {
+      bs_permission_cap: ["task.read"],
+      bsb_permission_cap: ["task.read"],
+    };
+    expect({
+      read: await memberCan(capped, "task.read"),
+      update: await memberCan(capped, "task.update"),
+    }).toStrictEqual({ read: true, update: false });
   });
 });

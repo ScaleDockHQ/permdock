@@ -580,7 +580,7 @@ admin
   .subscribe();
 ```
 
-A dropped broadcast costs nothing but staleness: the entry still expires after `maxStaleMs`. Next.js may bundle `instrumentation.ts` apart from route code, so a subscriber started there can evict from a second cache. Start it where the cache is created.
+With better-supabase 0.15, pass the same cache as `versions` and subscribe with `subscribeAuthzVersions` instead ([better-supabase](/docs/adapters/better-supabase#version-cache-and-session-snapshots)). A dropped broadcast costs nothing but staleness: the entry still expires after `maxStaleMs`. Next.js may bundle `instrumentation.ts` apart from route code, so a subscriber started there can evict from a second cache. Start it where the cache is created.
 
 ### Measure it
 

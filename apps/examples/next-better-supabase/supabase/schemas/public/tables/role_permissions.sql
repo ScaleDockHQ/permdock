@@ -28,5 +28,17 @@ create policy role_permissions_manage on public.role_permissions
       and r.organization_id in (select permdock.permitted_organization_ids_by_permission('roles.manage'))
   ));
 
-create trigger bs_audit after insert or update or delete on public.role_permissions
+-- A read-only support or impersonation session reads role permissions but never changes them.
+create policy role_permissions_insert_read_only_actors on public.role_permissions
+  as restrictive for insert to authenticated
+  with check ((select permdock.permdock_actor_may_write()));
+create policy role_permissions_update_read_only_actors on public.role_permissions
+  as restrictive for update to authenticated
+  using ((select permdock.permdock_actor_may_write()))
+  with check ((select permdock.permdock_actor_may_write()));
+create policy role_permissions_delete_read_only_actors on public.role_permissions
+  as restrictive for delete to authenticated
+  using ((select permdock.permdock_actor_may_write()));
+
+create trigger bsb_audit after insert or update or delete on public.role_permissions
   for each row execute function better_supabase.audit_row_change('{"ignore": [], "redact": [], "key_columns": ["role_id", "permission"]}');

@@ -209,7 +209,7 @@ export { authed as GET, authed as POST };
     return instance;
   };
 
-  const bs = createMcp(betterSupabase, {
+  const bsb = createMcp(betterSupabase, {
     name: "posts",
     version: "1.0.0",
     advertisedScopes: ["posts:read", "posts:delete"],
@@ -247,7 +247,7 @@ export { authed as GET, authed as POST };
     },
   });
 
-  export const POST = bs.endpoint;
+  export const POST = bsb.endpoint;
   ```
 
   Refuse a tool whose `meta` is not a permission in both hooks: `authorize` is optional in better-supabase, and a missing or permissive one lets the call through. An `approval-required` outcome is refused here, because `createMcp` has no approval store; use `permdock/mcp` on an SDK server when tools need human approval. `createMcp` validates `args` against the tool's `input` before `authorize`, which covers invariant 9 when `input` is the resource schema.

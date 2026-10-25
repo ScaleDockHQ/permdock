@@ -55,6 +55,12 @@ export type RunAutomation = {
 };
 
 /**
+ * The record a run is bound to. `authorization_details` carries the binding as
+ * `identifier`; this claim names it for the adapter and the audit trail.
+ */
+export type RunResource = { readonly type: string; readonly id: string };
+
+/**
  * The v1 claims of a `vnd.permdock.run+jwt`. At least one of `scope` and
  * `authorization_details` is present.
  */
@@ -79,6 +85,7 @@ export type RunTicket = {
    */
   readonly trigger?: Readonly<Record<string, unknown>>;
   readonly binding?: RunBinding;
+  readonly resource?: RunResource;
 };
 
 /**
@@ -101,6 +108,7 @@ export const RUN_TICKET_CLAIMS: readonly (keyof RunTicket)[] = Object.freeze([
   "tenant",
   "trigger",
   "binding",
+  "resource",
 ]);
 
 export type RunTicketInput = {
@@ -118,6 +126,11 @@ export type RunTicketInput = {
   readonly tenant?: string;
   readonly trigger?: Readonly<Record<string, unknown>>;
   readonly binding?: RunBinding;
+  /**
+   * The record the run is bound to. Narrow `delegation` to it with an
+   * `authorization_details` `identifier`; this claim grants nothing.
+   */
+  readonly resource?: RunResource;
   /** `jti`; a fresh UUID when absent. */
   readonly id?: string;
   /** Lifetime in whole seconds. Exactly one of `expiresIn` and `expiresAt`. */
@@ -174,6 +187,7 @@ export type RunContext = {
   readonly kind: RunKind;
   readonly automation?: RunAutomation;
   readonly binding?: RunBinding;
+  readonly resource?: RunResource;
 };
 
 /** The principal of a run subject, with the verified ticket attached. */
@@ -292,6 +306,14 @@ function parseAutomation(value: unknown): RunAutomation | undefined {
   return { id: record["id"], version: record["version"] };
 }
 
+function parseResource(value: unknown): RunResource | undefined {
+  const record = ownRecord(value);
+  if (record === undefined || !isId(record["type"]) || !isId(record["id"])) {
+    return undefined;
+  }
+  return { type: record["type"], id: record["id"] };
+}
+
 function parseBinding(value: unknown): RunBinding | undefined {
   const record = ownRecord(value);
   if (record === undefined) {
@@ -379,12 +401,14 @@ function parseBody(
   const automation = optional(record, "automation", parseAutomation);
   const trigger = optional(record, "trigger", parseTrigger);
   const binding = optional(record, "binding", parseBinding);
+  const resource = optional(record, "resource", parseResource);
   if (
     !act.ok ||
     !details.ok ||
     !automation.ok ||
     !trigger.ok ||
     !binding.ok ||
+    !resource.ok ||
     (scope === undefined && details.value === undefined) ||
     (kind === "automation") !== (automation.value !== undefined)
   ) {
@@ -401,6 +425,7 @@ function parseBody(
     tenant,
     trigger: trigger.value,
     binding: binding.value,
+    resource: resource.value,
   });
 }
 
@@ -493,11 +518,12 @@ export function signRunTicket(
       tenant: input.tenant,
       trigger: input.trigger,
       binding: input.binding,
+      resource: input.resource,
     }),
   );
   if (body === undefined) {
     invalid(
-      "is invalid: check principal, kind, automation, delegation, trigger and binding",
+      "is invalid: check principal, kind, automation, delegation, trigger, binding and resource",
     );
   }
   if (input.id !== undefined && !isId(input.id)) {
@@ -689,6 +715,7 @@ export async function subjectFromRunTicket(
     kind: ticket.kind,
     automation: ticket.automation,
     binding: ticket.binding,
+    resource: ticket.resource,
   });
   return Object.freeze(
     compact<Subject<RunPrincipal>>({

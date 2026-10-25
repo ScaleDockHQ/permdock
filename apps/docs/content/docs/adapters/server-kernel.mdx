@@ -180,10 +180,11 @@ const subject = await subjectFromRunTicket(token, {
 | `tenant`                | The tenant the principal is loaded in                                                                   |
 | `trigger`               | The event that started the run, as a JSON object; never a grant                                         |
 | `binding`               | `{ connector?, tools? }` the run may reach, for the adapter                                             |
+| `resource`              | `{ type, id }`: the record the run is bound to; `authorization_details` `identifier` carries the grant  |
 | `iss`, `aud`, `jti`     | Set by the `TokenSigner`; `jti` is `input.id` or a fresh UUID                                           |
 | `iat`, `exp`            | `exp` is `iat` plus `expiresIn` seconds, or the `expiresAt` instant; exactly one of the two is required |
 
-`subjectFromRunTicket` never throws. It verifies with `typ: vnd.permdock.run+jwt`, re-reads the automation from `automations` and the principal from `principals.principal(sub, { tenant })`, and returns `{ principal, actor, delegation, context: { trigger, run }, expiresAt }`. `principal.runTicket` is the verified ticket; `context.run` is `{ id: jti, kind, automation?, binding? }`. Without `act` there is no actor, and the actor kind defaults to the ticket `kind`. Every failure is the anonymous subject with one `on('auth')` event, `source: 'run-ticket'`:
+`subjectFromRunTicket` never throws. It verifies with `typ: vnd.permdock.run+jwt`, re-reads the automation from `automations` and the principal from `principals.principal(sub, { tenant })`, and returns `{ principal, actor, delegation, context: { trigger, run }, expiresAt }`. `principal.runTicket` is the verified ticket; `context.run` is `{ id: jti, kind, automation?, binding?, resource? }`. Without `act` there is no actor, and the actor kind defaults to the ticket `kind`. Every failure is the anonymous subject with one `on('auth')` event, `source: 'run-ticket'`:
 
 | Cause                    | When                                                                                          |
 | ------------------------ | --------------------------------------------------------------------------------------------- |

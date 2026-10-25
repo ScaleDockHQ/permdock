@@ -7,7 +7,7 @@ import { cacheLifeFor, snapshotTag } from "permdock/next";
 
 import { policy } from "../policy.ts";
 import { latency } from "./latency.ts";
-import { bs, postgres } from "./supabase/server.ts";
+import { bsb, postgres } from "./supabase/server.ts";
 
 export type Organization = {
   readonly id: string;
@@ -58,7 +58,7 @@ export async function organizationBySlug(
 }
 
 /**
- * Private layer: the session's snapshot for one organization. `bs.cached()`
+ * Private layer: the session's snapshot for one organization. `bsb.cached()`
  * caps `stale` at the token's expiry and at 300 s, which joins the App Shell so
  * a prefetch carries the snapshot; `cacheLifeFor` caps it at the snapshot's,
  * and Next keeps the smaller of the two.
@@ -66,7 +66,7 @@ export async function organizationBySlug(
 export async function loadSnapshot(organization: string): Promise<Snapshot> {
   "use cache: private";
   await latency();
-  const { session } = await bs.cached({ tags: [orgTag(organization)] });
+  const { session } = await bsb.cached({ tags: [orgTag(organization)] });
   cacheTag(snapshotTag(session.kind === "user" ? session.user.id : null));
   const subject = subjectFromBetterSupabase(session);
   const snapshot = snapshotFor(policy, subject, { tenant: organization });
@@ -99,14 +99,14 @@ export async function visibleStaff(
   organization: string,
 ): Promise<Loaded<readonly StaffRow[]>> {
   "use cache: private";
-  const { sql, session } = await bs.cached({ tags: [orgTag(organization)] });
+  const { sql, session } = await bsb.cached({ tags: [orgTag(organization)] });
   cacheTag(snapshotTag(session.kind === "user" ? session.user.id : null));
   const loaded = await timed(async () => {
     if (session.kind !== "user" || !sql) {
       return [];
     }
     const rows = await sql.staff
-      .findMany({
+      .list({
         where: { organization_id: organization },
         select: ["id", "name", "title"],
         orderBy: { name: "asc" },
@@ -132,14 +132,14 @@ export async function visibleQuotes(
   organization: string,
 ): Promise<Loaded<readonly QuoteRow[]>> {
   "use cache: private";
-  const { sql, session } = await bs.cached({ tags: [orgTag(organization)] });
+  const { sql, session } = await bsb.cached({ tags: [orgTag(organization)] });
   cacheTag(snapshotTag(session.kind === "user" ? session.user.id : null));
   const loaded = await timed(async () => {
     if (session.kind !== "user" || !sql) {
       return [];
     }
     const rows = await sql.quotes
-      .findMany({
+      .list({
         where: { organization_id: organization },
         select: ["id", "title", "amount_minor", "currency"],
         orderBy: { title: "asc" },

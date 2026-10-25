@@ -21,20 +21,31 @@ const internal = [
 ] as const;
 
 export default defineConfig({
-  output: "src/lib/supabase/generated.ts",
-  authorization: authorizationProvider({
-    manifest: readFileSync(
-      new URL("permdock.manifest.json", import.meta.url),
-      "utf8",
-    ),
-    catalog: readFileSync(
-      new URL("permissions.catalog.json", import.meta.url),
-      "utf8",
-    ),
-  }),
-  sql: { testsDir: "supabase/tests" },
+  gen: { output: "src/lib/supabase/generated.ts" },
+  auth: {
+    authorization: authorizationProvider({
+      manifest: readFileSync(
+        new URL("permdock.manifest.json", import.meta.url),
+        "utf8",
+      ),
+      catalog: readFileSync(
+        new URL("permissions.catalog.json", import.meta.url),
+        "utf8",
+      ),
+    }),
+  },
+  database: {
+    sql: { testsDir: "supabase/tests" },
+    expose: {
+      organizations: { anon: ["select"], authenticated: ["select"] },
+      staff: ["select"],
+      quotes: ["select"],
+      datetime_preferences: ["select"],
+      ...Object.fromEntries(internal.map((table) => [table, []])),
+    },
+  },
   blocks: {
-    access: {
+    permissions: {
       model: "provider",
       // Memberships are service-only tables here, so no client assigns a role.
       functions: { canAssign: "false" },
@@ -48,9 +59,8 @@ export default defineConfig({
       },
     },
     pgtap: {},
-    // share-links requires tenant; adopting the view keeps PermDock the only owner of memberships.
-    tenant: {
-      mode: "adopt",
+    // share-links requires memberships; mapping it onto the view keeps PermDock the only owner of memberships.
+    memberships: {
       tables: { memberships: "public.organization_memberships" },
       columns: { memberships: { updatedAt: null, lastUsedAt: null } },
     },
@@ -59,16 +69,13 @@ export default defineConfig({
       permissions: { create: "quotes.update", read: "quotes.read" },
     },
   },
-  doctor: {
-    // staff and quotes are read-only to clients: the API roles hold no write
-    // privilege on them, so a missing insert, update or delete policy denies nothing extra.
-    ignore: ["BS107"],
-  },
-  expose: {
-    organizations: { anon: ["select"], authenticated: ["select"] },
-    staff: ["select"],
-    quotes: ["select"],
-    datetime_preferences: ["select"],
-    ...Object.fromEntries(internal.map((table) => [table, []])),
+  tooling: {
+    doctor: {
+      // staff and quotes are read-only to clients: the API roles hold no write
+      // privilege on them, so a missing insert, update or delete policy denies nothing extra.
+      // The memberships block only reads the view; PermDock writes public.memberships
+      // and the app never loads the block's TypeScript client.
+      ignore: ["BS107", "BS349"],
+    },
   },
 });

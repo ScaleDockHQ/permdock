@@ -1,6 +1,6 @@
 # 0045. Peer ranges are open floors; better-supabase 0.13.0 is the floor and skips the one-day release age
 
-- Status: accepted
+- Status: accepted; the catalog pin, exclude and `database.yml` matrix are superseded by 0046
 - Date: 2026-10-21
 - Supersedes: 0043, and the floor and exclude parts of 0040 and 0041
 

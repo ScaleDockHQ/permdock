@@ -127,6 +127,7 @@ run.can(permissions.invoice.send, invoice);
 ```
 
 - `start(id, { caller, trigger })` reads the live automation, checks the caller's `run` permission and signs a run ticket (`vnd.permdock.run+jwt`, 24 hours by default). Without `caller`, only server code starts it.
+- `start(id, { resource: { type, id } })` binds the run to one record: its permissions on `type` go into an `authorization_details` entry with `identifier: id`, so they hold on that row only; a type none of its permissions is on denies the start.
 - `getPermDock(ticket)` rebuilds the run on every step. A new version, a revoked automation or a publisher who is gone gives an instance that denies everything.
 - `awaitApproval(ticket, permission, row)` decides, parks on the `waiter` while `approval-required`, then decides again with the token against the publisher's rights as of then.
 - `openApproval(ticket, permission, row)` and `resumeApproval(ticket, permission, token, row)` are the two halves, for runners that wait outside the call. A request still pending denies with reason `approval`.

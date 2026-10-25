@@ -1,8 +1,19 @@
 -- better-supabase module: audit
--- @bs-module audit@9 managed
+-- @bsb-block audit@9 managed
+-- @bsb-hash sha256:f52fafe2b69c9c05b5a60c4b0eb0f263d30b01b22e00458a77535f9ee5f221df
 -- Records inserts, updates and deletes with the actor and changed columns for tables you register, plus semantic events through audit_event(), with redaction, an append-only guard, a tenant read policy and per-tenant retention as options.
--- Managed by `better-supabase add`; re-running it overwrites this file.
+-- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
+
+-- The tenant scope policies call the module's functions, so they go before
+-- the module drops or replaces one and come back at the end.
+do $$
+begin
+  begin
+    drop policy if exists bsb_tenant_scope on "better_supabase"."audit_events";
+  exception when undefined_table or invalid_schema_name then null;
+  end;
+end $$;
 
 create schema if not exists better_supabase;
 grant usage on schema better_supabase to anon, authenticated, service_role;
@@ -23,7 +34,7 @@ alter table better_supabase.audited_tables add column if not exists label_column
 alter table better_supabase.audited_tables enable row level security;
 revoke all on better_supabase.audited_tables from anon, authenticated;
 
--- The user a service caller acts for, from the x-bs-actor header. Null for
+-- The user a service caller acts for, from the x-bsb-actor header. Null for
 -- every other caller, so the header cannot be spoofed with a user's token.
 -- Only service_role may call it; the security definer functions and triggers
 -- that record an actor call it as their owner.
@@ -39,7 +50,7 @@ begin
   if not (coalesce(nullif((select auth.jwt()) ->> 'role', ''), session_user::text) in ('service_role', 'postgres', 'supabase_admin')) then
     return null;
   end if;
-  header := nullif(current_setting('request.headers', true), '')::jsonb ->> 'x-bs-actor';
+  header := nullif(current_setting('request.headers', true), '')::jsonb ->> 'x-bsb-actor';
   return case when header ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then header::uuid end;
 exception when others then
   return null;
@@ -118,11 +129,11 @@ do $$
 begin
   if coalesce(obj_description((
     select c.oid from pg_catalog.pg_constraint c
-    where c.conrelid = '"better_supabase"."audit_events"'::regclass and c.conname = 'bs_audit_op_check'
+    where c.conrelid = '"better_supabase"."audit_events"'::regclass and c.conname = 'bsb_audit_op_check'
   ), 'pg_constraint'), '') <> 'better-supabase check 50fe4698' then
-    alter table "better_supabase"."audit_events" drop constraint if exists "bs_audit_op_check";
-    alter table "better_supabase"."audit_events" add constraint "bs_audit_op_check" check ("op" in ('insert', 'update', 'delete', 'event'));
-    comment on constraint "bs_audit_op_check" on "better_supabase"."audit_events" is 'better-supabase check 50fe4698';
+    alter table "better_supabase"."audit_events" drop constraint if exists "bsb_audit_op_check";
+    alter table "better_supabase"."audit_events" add constraint "bsb_audit_op_check" check ("op" in ('insert', 'update', 'delete', 'event'));
+    comment on constraint "bsb_audit_op_check" on "better_supabase"."audit_events" is 'better-supabase check 50fe4698';
   end if;
 end;
 $$;
@@ -392,7 +403,7 @@ begin
     end loop;
   end if;
   perform better_supabase.replace_equivalent_triggers(
-    target, 'bs_audit', 'audit', replace_trigger
+    target, 'bsb_audit', 'audit', replace_trigger
   );
   select array_agg(c.attname::text order by k.ord) into keys
   from pg_catalog.pg_index i
@@ -412,20 +423,20 @@ begin
     'tenant_path', case when audit.tenant_path is not null then jsonb_build_object('column', path_column, 'steps', path_steps) end,
     'tenant_function', audit.tenant_function::text
   ));
-  execute format('drop trigger if exists bs_audit on %s', target);
-  execute format('drop trigger if exists bs_audit_update on %s', target);
+  execute format('drop trigger if exists bsb_audit on %s', target);
+  execute format('drop trigger if exists bsb_audit_update on %s', target);
   if cardinality(coalesce(audit.ignore, '{}')) > 0 then
     execute format(
-      'create trigger bs_audit after insert or delete on %s for each row execute function better_supabase.audit_row_change(%L)',
+      'create trigger bsb_audit after insert or delete on %s for each row execute function better_supabase.audit_row_change(%L)',
       target, base_settings::text
     );
     execute format(
-      'create trigger bs_audit_update after update on %s for each row when ((to_jsonb(old) - %L::text[]) is distinct from (to_jsonb(new) - %L::text[])) execute function better_supabase.audit_row_change(%L)',
+      'create trigger bsb_audit_update after update on %s for each row when ((to_jsonb(old) - %L::text[]) is distinct from (to_jsonb(new) - %L::text[])) execute function better_supabase.audit_row_change(%L)',
       target, audit.ignore, audit.ignore, base_settings::text
     );
   else
     execute format(
-      'create trigger bs_audit after insert or update or delete on %s for each row execute function better_supabase.audit_row_change(%L)',
+      'create trigger bsb_audit after insert or update or delete on %s for each row execute function better_supabase.audit_row_change(%L)',
       target, base_settings::text
     );
   end if;
@@ -441,7 +452,7 @@ as $$
   select coalesce(
     (select convert_from(substring(t.tgargs from 1 for position('\x00'::bytea in t.tgargs) - 1), 'utf8')::jsonb
      from pg_catalog.pg_trigger t
-     where t.tgrelid = audit_settings.target and t.tgname = 'bs_audit' and t.tgnargs > 0),
+     where t.tgrelid = audit_settings.target and t.tgname = 'bsb_audit' and t.tgnargs > 0),
     (select jsonb_strip_nulls(jsonb_build_object(
        'ignore', to_jsonb(a.ignore), 'redact', to_jsonb(a.redact), 'key_columns', to_jsonb(a.key_columns),
        'category', a.category, 'event_prefix', a.event_prefix, 'target_type', a.target_type,
@@ -456,8 +467,8 @@ language plpgsql
 set search_path = ''
 as $$
 begin
-  execute format('drop trigger if exists bs_audit on %s', target);
-  execute format('drop trigger if exists bs_audit_update on %s', target);
+  execute format('drop trigger if exists bsb_audit on %s', target);
+  execute format('drop trigger if exists bsb_audit_update on %s', target);
   delete from better_supabase.audited_tables a where a.target = unaudit.target;
 end;
 $$;
@@ -492,8 +503,8 @@ begin
 end;
 $$;
 
-drop event trigger if exists bs_audit_forget_dropped;
-create event trigger bs_audit_forget_dropped on sql_drop
+drop event trigger if exists bsb_audit_forget_dropped;
+create event trigger bsb_audit_forget_dropped on sql_drop
   when tag in ('DROP TABLE', 'DROP SCHEMA')
   execute function better_supabase.audit_forget_dropped();
 
@@ -554,7 +565,7 @@ begin
       )
       and not exists (select 1 from unnest(exempt) e where c.relname like e)
       and not exists (
-        select 1 from pg_catalog.pg_trigger t where t.tgrelid = c.oid and t.tgname = 'bs_audit'
+        select 1 from pg_catalog.pg_trigger t where t.tgrelid = c.oid and t.tgname = 'bsb_audit'
       )
     order by c.relname
   loop
@@ -891,16 +902,16 @@ begin
 end;
 $$;
 revoke execute on function better_supabase.audit_append_only() from public, anon, authenticated;
-drop trigger if exists "bs_audit_append_only" on "better_supabase"."audit_events";
-create trigger "bs_audit_append_only" before update or delete on "better_supabase"."audit_events"
+drop trigger if exists "bsb_audit_append_only" on "better_supabase"."audit_events";
+create trigger "bsb_audit_append_only" before update or delete on "better_supabase"."audit_events"
   for each row execute function better_supabase.audit_append_only();
-drop trigger if exists "bs_audit_no_truncate" on "better_supabase"."audit_events";
-create trigger "bs_audit_no_truncate" before truncate on "better_supabase"."audit_events"
+drop trigger if exists "bsb_audit_no_truncate" on "better_supabase"."audit_events";
+create trigger "bsb_audit_no_truncate" before truncate on "better_supabase"."audit_events"
   for each statement execute function better_supabase.audit_append_only();
 
-drop trigger if exists "bs_audit_chain" on "better_supabase"."audit_events";
+drop trigger if exists "bsb_audit_chain" on "better_supabase"."audit_events";
 
-drop policy if exists bs_audit_read on "better_supabase"."audit_events";
+drop policy if exists bsb_audit_read on "better_supabase"."audit_events";
 drop function if exists "better_supabase"."audit_read_tenants"();
 drop function if exists "better_supabase"."audit_reads_all"();
 
@@ -1353,13 +1364,14 @@ revoke execute on function "better_supabase"."revert_audit_entries"(text[]) from
 grant execute on function "better_supabase"."revert_audit_entries"(text[]) to authenticated, service_role;
 
 create schema if not exists better_supabase;
-create table if not exists better_supabase.modules (
+create table if not exists better_supabase.blocks (
   name text primary key,
+  block text,
   version integer not null,
   mode text not null,
   installed_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-alter table better_supabase.modules enable row level security;
-revoke all on better_supabase.modules from anon, authenticated;
-grant select on better_supabase.modules to service_role;
+alter table better_supabase.blocks enable row level security;
+revoke all on better_supabase.blocks from anon, authenticated;
+grant select on better_supabase.blocks to service_role;

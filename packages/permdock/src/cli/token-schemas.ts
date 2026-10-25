@@ -53,6 +53,11 @@ export const RUN_TICKET_SCHEMA: Readonly<Record<string, unknown>> = {
         tools: { type: "array", items: ID, maxItems: 64 },
       },
     },
+    resource: {
+      type: "object",
+      required: ["type", "id"],
+      properties: { type: ID, id: ID },
+    },
   },
   anyOf: [
     { required: ["scope"], properties: { scope: true } },

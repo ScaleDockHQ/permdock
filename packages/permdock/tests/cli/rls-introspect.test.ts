@@ -705,4 +705,33 @@ describe("diffMixed", () => {
       "public.quote: delete policies for authenticated do not call permdock_actor_may_write(), so a read-only support or impersonation session can write (rls.readOnlyActors)",
     ]);
   });
+
+  it("with rls.readOnlyActors, accepts the restrictive policy rls generate writes", () => {
+    const helper =
+      "(organization_id IN ( SELECT public.permitted_organization_ids('asset.update'::text)))";
+    const inline =
+      "(NOT COALESCE(((( SELECT auth.jwt() AS jwt) -> 'act'::text) ->> 'kind'::text) = 'support'::text, false) OR COALESCE((((( SELECT auth.jwt() AS jwt) -> 'act'::text) ->> 'read_only'::text) = 'false'::text), false))";
+    const policies = [
+      {
+        table: "public.asset",
+        name: "assets_update",
+        command: "update",
+        expression: helper,
+        restrictive: false,
+        roles: ["authenticated"],
+      },
+      {
+        table: "public.asset",
+        name: "asset_update_read_only_actors",
+        command: "update",
+        expression: inline,
+        restrictive: true,
+        roles: ["authenticated"],
+      },
+    ];
+    const actual = { seeds: [seed], policies, rlsTables: [] };
+    expect(
+      diffMixed({ ...mixed, readOnlyActors: true }, actual).drift,
+    ).toStrictEqual([]);
+  });
 });

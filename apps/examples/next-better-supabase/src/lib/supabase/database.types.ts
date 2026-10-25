@@ -45,11 +45,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "contacts_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "contacts_customer_id_organization_id_fkey"
+            columns: ["customer_id", "organization_id"]
             isOneToOne: false
             referencedRelation: "customers"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "organization_id"]
           },
           {
             foreignKeyName: "contacts_organization_id_fkey"
@@ -235,11 +235,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "quotes_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "quotes_customer_id_organization_id_fkey"
+            columns: ["customer_id", "organization_id"]
             isOneToOne: false
             referencedRelation: "customers"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "organization_id"]
           },
           {
             foreignKeyName: "quotes_organization_id_fkey"

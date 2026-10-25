@@ -4,10 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const REPO = path.resolve(import.meta.dirname, "../../../..");
 const workspace = readFileSync(path.join(REPO, "pnpm-workspace.yaml"), "utf8");
-const WORKFLOWS = [
-  ".github/workflows/ci.yml",
-  ".github/workflows/database.yml",
-];
+const CI = ".github/workflows/ci.yml";
 
 type Version = readonly [number, number, number];
 
@@ -47,32 +44,28 @@ describe("better-supabase peer range", () => {
     expect(compare(floor ?? "", catalog ?? "")).toBeLessThanOrEqual(0);
   });
 
-  for (const file of WORKFLOWS) {
-    describe(file, () => {
-      const matrix = matrixOf(file);
-      const sorted = matrix.toSorted(compare);
+  describe(CI, () => {
+    const matrix = matrixOf(CI);
+    const sorted = matrix.toSorted(compare);
 
-      it("lists versions from lowest to latest", () => {
-        expect(matrix).toStrictEqual(sorted);
-      });
-
-      it("tests the floor of the peer range", () => {
-        expect(sorted[0]).toBe(floor);
-      });
-
-      it("tests the catalog pin as the latest version", () => {
-        expect(sorted.at(-1)).toBe(catalog);
-      });
+    it("lists versions from lowest to latest", () => {
+      expect(matrix).toStrictEqual(sorted);
     });
-  }
 
-  it("runs the generated-SQL checks on the catalog pin only", () => {
+    it("tests the floor of the peer range", () => {
+      expect(sorted[0]).toBe(floor);
+    });
+
+    it("tests the catalog pin", () => {
+      expect(matrix).toContain(catalog);
+    });
+  });
+
+  it("runs the example stack on the catalog pin only", () => {
     const database = readFileSync(
       path.join(REPO, ".github/workflows/database.yml"),
       "utf8",
     );
-    expect(database).toContain(
-      `CATALOG: \${{ matrix.better-supabase == '${catalog}' }}`,
-    );
+    expect(database).not.toMatch(/better-supabase: \[|pnpm-workspace\.yaml/u);
   });
 });

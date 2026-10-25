@@ -43,6 +43,19 @@ export type ApiKeySessionOptions = {
   readonly serviceRoles?: ServiceRoles<ApiKeySession>;
 };
 
+/**
+ * better-supabase's `SessionSnapshot` (0.15 and later): one verified token,
+ * from `bsb.getRequestSession()`, that `'use cache: private'` scopes share. Its
+ * `issuedAt` and `authzVersion` come from the `iat` and `authz_ver` claims.
+ */
+export type SessionSnapshotLike = {
+  readonly accessToken: string;
+  readonly userId: string;
+  readonly claims: unknown;
+  readonly issuedAt?: number | null;
+  readonly authzVersion?: number | null;
+};
+
 /** The claim, and the short code better-supabase writes for each feature key. */
 export type FeatureClaim = EntitlementClaimOptions;
 
@@ -111,6 +124,26 @@ function isApiKeySession(session: unknown): session is ApiKeySession {
   );
 }
 
+function isSessionSnapshot(session: unknown): session is SessionSnapshotLike {
+  return (
+    isRecord(session) &&
+    !Object.hasOwn(session, "kind") &&
+    typeof session["accessToken"] === "string" &&
+    typeof session["userId"] === "string" &&
+    isRecord(session["claims"])
+  );
+}
+
+/** A snapshot as a user session; one whose `sub` is not its `userId` is none. */
+function snapshotSession(
+  snapshot: SessionSnapshotLike,
+): SupabaseSessionLike | null {
+  const { claims } = snapshot;
+  return isRecord(claims) && claims["sub"] === snapshot.userId
+    ? { kind: "user", claims }
+    : null;
+}
+
 function apiKeySubject(
   session: ApiKeySession,
   options: ApiKeySessionOptions,
@@ -151,10 +184,16 @@ function apiKeySubject(
  * verified `apiKey` session is the key's credential subject: a personal key
  * acts as its user within the key's scopes, a tenant key as a `service`
  * principal holding `serviceRoles`. Without `apiKeys`, and for `anon`,
- * `service` and `invalid` sessions, the subject is anonymous.
+ * `service` and `invalid` sessions, the subject is anonymous. A
+ * `SessionSnapshot` maps as the user session of its claims.
  */
 export function subjectFromBetterSupabase(
-  session: SupabaseSessionLike | ApiKeySession | null | undefined,
+  session:
+    | SupabaseSessionLike
+    | ApiKeySession
+    | SessionSnapshotLike
+    | null
+    | undefined,
   options: BetterSupabaseSubjectOptions = {},
 ): Subject<SupabasePrincipal> | Subject<ApiKeyPrincipal> | Subject {
   const { apiKeys, plans = "features", claims, ...rest } = options;
@@ -163,10 +202,11 @@ export function subjectFromBetterSupabase(
       ? anonymousSubject()
       : apiKeySubject(session, apiKeys);
   }
+  const user = isSessionSnapshot(session) ? snapshotSession(session) : session;
   const claim = typeof plans === "string" ? plans : (plans.claim ?? "features");
   const keys = typeof plans === "string" ? undefined : plans.keys;
   return subjectFromSupabaseSession(
-    keys === undefined ? session : decodedFeatures(session, claim, keys),
+    keys === undefined ? user : decodedFeatures(user, claim, keys),
     {
       ...rest,
       claims: { memberships: "memberships", ...claims, plans: claim },

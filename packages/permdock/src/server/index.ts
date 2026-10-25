@@ -47,6 +47,7 @@ export type {
   RunContext,
   RunKind,
   RunPrincipal,
+  RunResource,
   RunTicket,
   RunTicketAutomations,
   RunTicketFailureCause,

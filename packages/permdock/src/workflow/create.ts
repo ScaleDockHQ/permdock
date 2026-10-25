@@ -16,11 +16,13 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
 import type { Principal, Subject } from "../core/subject.ts";
+import type { AuthorizationDetail } from "../core/subject.ts";
 import type { Instant } from "../core/time.ts";
 import type {
   RunAutomation,
   RunBinding,
   RunPrincipal,
+  RunResource,
 } from "../server/run-ticket.ts";
 import type { ApprovalWaiter } from "./waiter.ts";
 
@@ -29,6 +31,7 @@ import { withApp } from "../core/app.ts";
 import { parseAutomation } from "../core/automation.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
+import { isId } from "../core/ids.ts";
 import { getPermDock as getCorePermDock } from "../core/permdock.ts";
 import { findPermission } from "../core/permission-registry.ts";
 import { automationEvent } from "../core/sink.ts";
@@ -88,6 +91,14 @@ export type AutomationOptions = {
   /** The run id (`jti`); a fresh UUID when absent. */
   readonly id?: string;
   readonly binding?: RunBinding;
+  /**
+   * The record the run is bound to. The automation's permissions on
+   * `resource.type` then hold on that id only, through an
+   * `authorization_details` `identifier`; a check on another id, or with no
+   * row, denies. Its other permissions are unchanged. A type none of its
+   * permissions is on denies the start.
+   */
+  readonly resource?: RunResource;
   readonly now?: Instant;
 };
 
@@ -95,7 +106,11 @@ export type StartAutomationResult =
   | {
       readonly outcome: "started";
       readonly ticket: string;
-      readonly run: { readonly id: string; readonly automation: RunAutomation };
+      readonly run: {
+        readonly id: string;
+        readonly automation: RunAutomation;
+        readonly resource?: RunResource;
+      };
     }
   | { readonly outcome: "denied"; readonly denials: readonly Denial[] };
 
@@ -349,14 +364,30 @@ export function createPermDock<
         });
       }
     }
+    const { resource } = startOptions;
+    if (resource !== undefined && !(isId(resource.type) && isId(resource.id))) {
+      return deniedStart("validation", { cause: "resource-invalid" });
+    }
     const scopes: string[] = [];
+    const bound: string[] = [];
     for (const key of automation.permissions) {
       const leaf = findPermission(policy.permissions, key);
       if (leaf === undefined) {
         return deniedStart("validation", { permission: key });
       }
-      scopes.push(leaf.scope);
+      if (resource !== undefined && leaf.resource === resource.type) {
+        bound.push(leaf.action);
+      } else {
+        scopes.push(leaf.scope);
+      }
     }
+    if (resource !== undefined && bound.length === 0) {
+      return deniedStart("validation", { resource: resource.type });
+    }
+    const authorizationDetails: readonly AuthorizationDetail[] | undefined =
+      resource === undefined
+        ? undefined
+        : [{ type: resource.type, identifier: resource.id, actions: bound }];
     const runId = startOptions.id ?? globalThis.crypto.randomUUID();
     const runAutomation = { id: automation.id, version: automation.version };
     const signed = await signRunTicket(
@@ -364,11 +395,12 @@ export function createPermDock<
         principal: automation.principal,
         kind: "automation" as const,
         actor: { id: automation.id, kind: "automation" },
-        delegation: { scopes },
+        delegation: compact({ scopes, authorizationDetails }),
         automation: runAutomation,
         tenant: automation.tenant,
         trigger: startOptions.trigger,
         binding: startOptions.binding,
+        resource,
         id: runId,
         expiresIn,
       }),
@@ -384,7 +416,7 @@ export function createPermDock<
     return freezeDeep({
       outcome: "started" as const,
       ticket: signed,
-      run: { id: runId, automation: runAutomation },
+      run: compact({ id: runId, automation: runAutomation, resource }),
     });
   };
 

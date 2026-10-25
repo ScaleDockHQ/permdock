@@ -2,6 +2,8 @@
 
 PermDock with [better-supabase](https://www.npmjs.com/package/better-supabase) on Next.js 16.3 with Cache Components, Partial Prefetching and instant navigation, in the CentraKit shape: `/[locale]/[orgSlug]/...` routes, staff roles per organization in `memberships`, and customer-portal contacts through `contacts.user_id`.
 
+The example runs on better-supabase 0.15.1. Its `memberships` block runs over the `public.organization_memberships` view, which needs 0.15.1 or later.
+
 Snapshot-only mode: every grant is portable, so the provider has `endpoint={false}` and the app mounts no `/api/permdock` route. The snapshot rides the prefetched App Shell; Postgres RLS decides which rows come back.
 
 ```bash
@@ -22,14 +24,14 @@ Where things live:
 
 - `src/policy.ts` and `src/sources.ts`: the policy and the membership sources the token hook and the SQL helpers share.
 - `supabase/config.toml`: the local stack (`[experimental] stack = true`), pg-delta (`[experimental.pgdelta]`) and the token hook in the private `permdock` schema, which `[api] schemas` leaves out. The file sets no ports. Each worktree gets its own project on ports the CLI picks, and `pnpm supabase:start` runs it on the native runtime without Docker (macOS 14 or later on Apple silicon, Linux with glibc 2.35 or later). Read its URLs and keys from `supabase status --output-format json`.
-- `supabase/schemas`: the source of truth, in pg-delta's per-schema layout. `public/tables` holds the app tables with `created_at` and `updated_at`, money as `amount_minor` plus `currency`, and the better-supabase `updated-at` and `audit` triggers. `permdock/` and `public/policies/permdock.sql` come from `permdock rls generate --split`, and the `900_better_supabase_*.sql` files come from `better-supabase sql sync`.
+- `supabase/schemas`: the source of truth, in pg-delta's per-schema layout. `public/tables` holds the app tables with `created_at` and `updated_at`, money as `amount_minor` plus `currency`, and the better-supabase `updated-at` and `audit` triggers. `permdock/` and `public/policies/permdock.sql` come from `permdock rls generate --split`, and the `900_better_supabase_*.sql` files come from `better-supabase upgrade`.
 - `supabase/migrations`: the baseline from `pnpm supabase:diff baseline` (`supabase db schema declarative sync`), the `role_permissions` seeds that `--seeds-out supabase/migrations/` writes as a new migration when they change, and the `audited_tables` rows. Never edit the schema in Studio or with `psql`: the diff does not see those changes.
 - `supabase/tests`: pgTAP over the seeded tenants; `pnpm supabase:start`, then `pnpm supabase:test`. `pnpm supabase:check` runs `supabase db lint`, the advisors, `permdock doctor` and `better-supabase doctor --fail-on warning` against the same stack; `scripts/stack-db-url.ts` hands the doctor the stack's database URL.
 - `permdock.manifest.json`: what the hook and helpers expect, from `permdock supabase inspect --out`; `pnpm gen` writes it, `pnpm gen:check` and `pnpm run doctor` fail on drift.
 - `src/lib/supabase/index.ts`: the `betterSupabase` definition; sessions validated with `supabaseClaims().extend(...)`.
-- `src/lib/supabase/server.ts`: `import 'server-only'`, then `bs = createNext(betterSupabase, ...)` with direct Postgres, an inline JWKS and explicit issuer and audience.
+- `src/lib/supabase/server.ts`: `import 'server-only'`, then `bsb = createNext(betterSupabase, ...)` with direct Postgres, an inline JWKS and explicit issuer and audience.
 - `src/lib/share.ts` and `src/app/[locale]/share/[token]/page.tsx`: the guest quote page over a better-supabase share link (`subjectFromShareLink`, `exchangeCapability`); the seeded link is `/en/share/acme-initech-rollout`.
-- `src/lib/access.ts`: the shared slug lookup (`'use cache'`), the snapshot loader and the RLS reads (`'use cache: private'` over `bs.cached({ tags })`), tagged `snapshotTag(sub)`. After a role or plan change, `bs.invalidateSession(userId, { tags: [snapshotTag(userId)] })` drops them.
+- `src/lib/access.ts`: the shared slug lookup (`'use cache'`), the snapshot loader and the RLS reads (`'use cache: private'` over `bsb.cached({ tags })`), tagged `snapshotTag(sub)`. After a role or plan change, `bsb.invalidateSession(userId, { tags: [snapshotTag(userId)] })` drops them.
 - `src/app/api/test/sign-in/route.ts`: `serve` only (`DEMO_SIGN_IN=1`). Runs the hook as `supabase_auth_admin`, signs the claims and sets the `@supabase/ssr` cookie, as Supabase Auth would.
 - `src/lib/supabase/generated.ts`, `generated.meta.js` and `generated.meta.d.ts`: `pnpm gen` regenerates them from the migrations; `pnpm gen:check` fails on drift.
 

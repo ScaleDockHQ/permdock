@@ -144,7 +144,7 @@ A procedure behind `protect(permission, data?, { items })` whose handler returns
 
 ### With better-supabase
 
-better-supabase's `createOrpc` puts the verified `AuthState` on `context.auth` through `bs.middleware()`, which also adds `context.db`. Map it with [`subjectFromBetterSupabase`](/docs/adapters/better-supabase); pass its `apiKeys` option when API keys reach the router. Export one builder that takes a permission and keeps `bs.middleware()` inside it: a procedure built any other way has no `context.db`, and one built with `procedure()` does not compile without a permission. Serve the router with `bs.fetchHandler`.
+better-supabase's `createOrpc` puts the verified `AuthState` on `context.auth` through `bsb.middleware()`, which also adds `context.db`. Map it with [`subjectFromBetterSupabase`](/docs/adapters/better-supabase); pass its `apiKeys` option when API keys reach the router. Export one builder that takes a permission and keeps `bsb.middleware()` inside it: a procedure built any other way has no `context.db`, and one built with `procedure()` does not compile without a permission. Serve the router with `bsb.fetchHandler`.
 
 ```ts title="src/router.ts"
 import { os } from "@orpc/server";
@@ -154,9 +154,9 @@ import type { Permission } from "permdock";
 import { createPermDock } from "permdock/orpc";
 import { subjectFromBetterSupabase } from "permdock/better-supabase";
 
-export const bs = createOrpc(betterSupabase);
+export const bsb = createOrpc(betterSupabase);
 
-const authed = os.$context<OrpcRequestContext>().use(bs.middleware());
+const authed = os.$context<OrpcRequestContext>().use(bsb.middleware());
 const { protect } = createPermDock<
   OrpcRequestContext & { readonly auth: AuthState }
 >(policy, {
@@ -169,13 +169,13 @@ const procedure = (permission: Permission) => authed.use(protect(permission));
 export const router = {
   customers: {
     list: procedure(permissions.customers.read).handler(({ context }) =>
-      bs.unwrap(context.db.customers.findMany({ select: ["id", "name"] })),
+      bsb.unwrap(context.db.customers.list({ select: ["id", "name"] })),
     ),
   },
 };
 ```
 
-`protect` throws `FORBIDDEN` with PermDock's Problem Details as `data`, the same shape `bs.unwrap` gives a `DbError`. `@orpc/server` must satisfy better-supabase's peer range (2.0.0-beta.40 or later). Before better-supabase 0.8, `bs.authed()` checked `roles` only together with `requireTenant` or `authorize`, so a procedure guarded by `roles` alone admitted every signed-in caller: upgrade before relying on it. From 0.8, `permission` on `bs.authed()` is decided by PermDock's [`authorizer`](/docs/adapters/better-supabase#authorizer).
+`protect` throws `FORBIDDEN` with PermDock's Problem Details as `data`, the same shape `bsb.unwrap` gives a `DbError`. `@orpc/server` must satisfy better-supabase's peer range (2.0.0-beta.40 or later). Before better-supabase 0.8, `bs.authed()` checked `roles` only together with `requireTenant` or `authorize`, so a procedure guarded by `roles` alone admitted every signed-in caller: upgrade before relying on it. From 0.8, `permission` on `authed()` (`bsb.authed()` from 0.15) is decided by PermDock's [`authorizer`](/docs/adapters/better-supabase#authorizer).
 
 ## Request lifecycle
 

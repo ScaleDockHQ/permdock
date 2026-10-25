@@ -153,6 +153,7 @@ describe(authorizationHooks, () => {
       expect(await automation.runAs?.(run)).toStrictEqual({
         ...users[EDITOR],
         bs_permission_cap: [doc.read.key, doc.update.key],
+        bsb_permission_cap: [doc.read.key, doc.update.key],
       });
       expect(
         await automation.runAs?.({ ...run, publisher: VIEWER }),
@@ -167,6 +168,7 @@ describe(authorizationHooks, () => {
       expect(await automation.runAs?.(run)).toMatchObject({
         sub: "service-account",
         bs_permission_cap: [doc.read.key],
+        bsb_permission_cap: [doc.read.key],
       });
       expect(
         await defined(authorizationHooks(base).automation).runAs?.(run),

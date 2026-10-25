@@ -1,13 +1,14 @@
--- better-supabase module: audit (0.8.0)
--- @bs-module-test audit
--- Managed by `better-supabase add`; re-running it overwrites this file.
+-- better-supabase module: audit
+-- @bsb-block-test audit
+-- @bsb-hash sha256:0f371915583983a49fb2993c8bc8561523ce2915e1fe767558e79f126e0dc312
+-- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
 begin;
 create extension if not exists pgtap with schema extensions;
 select extensions.plan(6);
 
-create temp table bs_audit_probe (like "public"."organizations" including defaults including identity including generated) on commit drop;
+create temp table bsb_audit_probe (like "public"."organizations" including defaults including identity including generated) on commit drop;
 do $$
 declare
   col record;
@@ -15,13 +16,13 @@ declare
 begin
   for col in
     select a.attname from pg_catalog.pg_attribute a
-    where a.attrelid = 'pg_temp.bs_audit_probe'::regclass and a.attnum > 0 and not a.attisdropped
+    where a.attrelid = 'pg_temp.bsb_audit_probe'::regclass and a.attnum > 0 and not a.attisdropped
       and a.attnotnull and a.attidentity = ''
   loop
-    execute format('alter table pg_temp.bs_audit_probe alter column %I drop not null', col.attname);
+    execute format('alter table pg_temp.bsb_audit_probe alter column %I drop not null', col.attname);
   end loop;
-  perform better_supabase.audit('pg_temp.bs_audit_probe', ignore => '{"updated_at"}'::text[], redact => '{}'::text[]);
-  insert into pg_temp.bs_audit_probe default values;
+  perform better_supabase.audit('pg_temp.bsb_audit_probe', ignore => '{"updated_at"}'::text[], redact => '{}'::text[]);
+  insert into pg_temp.bsb_audit_probe default values;
   select string_agg(format('%I = %s', a.attname, v.value), ', ') into sets
   from pg_catalog.pg_attribute a
   join pg_catalog.pg_type t on t.oid = a.atttypid
@@ -40,21 +41,21 @@ begin
       when t.typcategory = 'A' then quote_literal('{}') || '::' || format_type(t.oid, null)
     end as value
   ) v
-  where a.attrelid = 'pg_temp.bs_audit_probe'::regclass and a.attnum > 0 and not a.attisdropped
+  where a.attrelid = 'pg_temp.bsb_audit_probe'::regclass and a.attnum > 0 and not a.attisdropped
     and a.attidentity = '' and a.attgenerated = '' and v.value is not null;
   if sets is not null then
-    execute format('update pg_temp.bs_audit_probe set %s', sets);
+    execute format('update pg_temp.bsb_audit_probe set %s', sets);
   end if;
-  delete from pg_temp.bs_audit_probe;
+  delete from pg_temp.bsb_audit_probe;
 end;
 $$;
 
-select extensions.has_trigger('public', 'organizations', 'bs_audit', 'public.organizations has the bs_audit trigger');
-select extensions.trigger_is('public', 'organizations', 'bs_audit', 'better_supabase', 'audit_row_change', 'bs_audit on public.organizations calls audit_row_change()');
+select extensions.has_trigger('public', 'organizations', 'bsb_audit', 'public.organizations has the bsb_audit trigger');
+select extensions.trigger_is('public', 'organizations', 'bsb_audit', 'better_supabase', 'audit_row_change', 'bsb_audit on public.organizations calls audit_row_change()');
 select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."organizations"'::regclass) -> 'ignore', '[]'))), '{"updated_at"}'::text[], 'public.organizations is registered with its ignored columns');
 select extensions.is(array(select jsonb_array_elements_text(coalesce(better_supabase.audit_settings('"public"."organizations"'::regclass) -> 'redact', '[]'))), '{}'::text[], 'public.organizations is registered with its redacted columns');
-select extensions.results_eq($$select l."op"::text from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bs_audit_probe' order by l."id"$$, $$values ('insert'), ('update'), ('delete')$$, 'inserts, updates and deletes on public.organizations write entries');
-select extensions.is((select count(*)::int from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bs_audit_probe' and (coalesce(l."changed" && '{"updated_at"}'::text[], false) or coalesce(l."old_record" ?| '{"updated_at"}'::text[], false) or coalesce(l."new_record" ?| '{"updated_at"}'::text[], false))), 0, 'entries for public.organizations leave out updated_at');
+select extensions.results_eq($$select l."op"::text from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe' order by l."id"$$, $$values ('insert'), ('update'), ('delete')$$, 'inserts, updates and deletes on public.organizations write entries');
+select extensions.is((select count(*)::int from "better_supabase"."audit_events" l where l."table_name" = (select n.nspname from pg_catalog.pg_namespace n where n.oid = pg_catalog.pg_my_temp_schema()) || '.bsb_audit_probe' and (coalesce(l."changed" && '{"updated_at"}'::text[], false) or coalesce(l."old_record" ?| '{"updated_at"}'::text[], false) or coalesce(l."new_record" ?| '{"updated_at"}'::text[], false))), 0, 'entries for public.organizations leave out updated_at');
 
 select * from extensions.finish();
 rollback;

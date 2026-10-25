@@ -453,6 +453,36 @@ describe("RunTicket", () => {
   });
 });
 
+describe("the run ticket resource claim", () => {
+  it("keeps a type and an id and rejects any other shape", () => {
+    const now = Math.floor(Date.now() / 1000);
+    const claims = {
+      v: 1,
+      iss: ISSUER,
+      sub: "u_ann",
+      aud: AUDIENCE,
+      jti: "r1",
+      iat: now,
+      exp: now + 60,
+      kind: "job",
+      scope: "doc:read",
+    };
+    expect(
+      parseRunTicket({ ...claims, resource: { type: "doc", id: "d1", x: 1 } })
+        ?.resource,
+    ).toStrictEqual({ type: "doc", id: "d1" });
+    for (const malformed of [
+      { type: "doc" },
+      { type: "doc", id: 1 },
+      "doc/d1",
+    ]) {
+      expect(
+        parseRunTicket({ ...claims, resource: malformed }),
+      ).toBeUndefined();
+    }
+  });
+});
+
 describe("the RUN_TICKET_CLAIMS list", () => {
   it("lists every claim parseRunTicket keeps and the run-v1 schema names", () => {
     const now = Math.floor(Date.now() / 1000);
@@ -472,6 +502,7 @@ describe("the RUN_TICKET_CLAIMS list", () => {
       tenant: "o1",
       trigger: { event: "cron" },
       binding: { connector: "c1", tools: ["t1"] },
+      resource: { type: "doc", id: "d1" },
       extra: "dropped",
     };
     const parsed = parseRunTicket(full);

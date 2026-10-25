@@ -1,7 +1,8 @@
--- better-supabase module: updated-at (0.8.0)
--- @bs-module updated-at@1 managed
+-- better-supabase module: updated-at
+-- @bsb-block updated-at@1 managed
+-- @bsb-hash sha256:a6d750f1e58d27aa1a3fdc4cad2c28182f0d6a8f3522e4c5deff88683e7ced59
 -- Keeps an updated_at column current on every update.
--- Managed by `better-supabase add`; re-running it overwrites this file.
+-- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
 
 create schema if not exists better_supabase;
@@ -73,11 +74,11 @@ set search_path = ''
 as $$
 begin
   perform better_supabase.replace_equivalent_triggers(
-    target, 'bs_updated_at', 'updated_at|moddatetime|touch', replace_trigger
+    target, 'bsb_updated_at', 'updated_at|moddatetime|touch', replace_trigger
   );
-  execute format('drop trigger if exists bs_updated_at on %s', target);
+  execute format('drop trigger if exists bsb_updated_at on %s', target);
   execute format(
-    'create trigger bs_updated_at before update on %s for each row execute function better_supabase.set_updated_at(%L)',
+    'create trigger bsb_updated_at before update on %s for each row execute function better_supabase.set_updated_at(%L)',
     target,
     column_name
   );
@@ -87,13 +88,14 @@ $$;
 revoke execute on function better_supabase.track_updated_at(regclass, text, boolean) from public, anon, authenticated;
 
 create schema if not exists better_supabase;
-create table if not exists better_supabase.modules (
+create table if not exists better_supabase.blocks (
   name text primary key,
+  block text,
   version integer not null,
   mode text not null,
   installed_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-alter table better_supabase.modules enable row level security;
-revoke all on better_supabase.modules from anon, authenticated;
-grant select on better_supabase.modules to service_role;
+alter table better_supabase.blocks enable row level security;
+revoke all on better_supabase.blocks from anon, authenticated;
+grant select on better_supabase.blocks to service_role;

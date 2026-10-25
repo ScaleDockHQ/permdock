@@ -3038,14 +3038,14 @@ create policy "approval_delegations_read" on "permdock".approval_delegations
   using (delegator::text = (select "permdock".permdock_user_id())::text or delegate::text = (select "permdock".permdock_user_id())::text);
 create policy "approval_delegations_insert" on "permdock".approval_delegations
   for insert to authenticated
-  with check (delegator::text = (select "permdock".permdock_user_id())::text and (tenant is null or tenant in (select m.id::text from "permdock".member_organization_ids() m(id))));
+  with check (delegator::text = (select "permdock".permdock_user_id())::text and (select "permdock".permdock_actor_may_write()) and (tenant is null or tenant in (select m.id::text from "permdock".member_organization_ids() m(id))));
 create policy "approval_delegations_update" on "permdock".approval_delegations
   for update to authenticated
-  using (delegator::text = (select "permdock".permdock_user_id())::text)
-  with check (delegator::text = (select "permdock".permdock_user_id())::text and (tenant is null or tenant in (select m.id::text from "permdock".member_organization_ids() m(id))));
+  using (delegator::text = (select "permdock".permdock_user_id())::text and (select "permdock".permdock_actor_may_write()))
+  with check (delegator::text = (select "permdock".permdock_user_id())::text and (select "permdock".permdock_actor_may_write()) and (tenant is null or tenant in (select m.id::text from "permdock".member_organization_ids() m(id))));
 create policy "approval_delegations_delete" on "permdock".approval_delegations
   for delete to authenticated
-  using (delegator::text = (select "permdock".permdock_user_id())::text);
+  using (delegator::text = (select "permdock".permdock_user_id())::text and (select "permdock".permdock_actor_may_write()));
 
 -- approval delegations: whether a delegator's own rights match approvers.by; only permdock_is_approver calls it
 create or replace function "permdock".permdock_cover_approves(p_delegator uuid, p_approvers jsonb, p_tenant text)

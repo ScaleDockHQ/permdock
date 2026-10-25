@@ -2,7 +2,9 @@
 /* oxlint-disable */
 /* eslint-disable */
 
-import { defineSchema, type Schema } from "better-supabase";
+import { defineSchema, type ExtensionsOf, type Schema } from "better-supabase";
+import { updatedAtExtension } from "better-supabase/blocks/updated-at";
+import { membershipsExtension } from "better-supabase/blocks/memberships";
 import type { EnrichDatabase, GeneratedColumns, MutableWhere, OrderByArg, OrderByInput, WritableColumns } from "better-supabase";
 import type { Database as SupabaseDatabase } from "./database.types.ts";
 import meta from "./generated.meta.js";
@@ -61,8 +63,11 @@ export type Models = {
     PrimaryKey: "id";
     UniqueKeys: Record<never, never>;
     Checks: never;
-    ForeignKeys: "contacts_customer_id_fkey" | "contacts_organization_id_fkey" | "contacts_user_id_fkey";
-    Flags: Record<never, never>;
+    ForeignKeys: "contacts_customer_id_organization_id_fkey" | "contacts_organization_id_fkey" | "contacts_user_id_fkey";
+    Flags: {
+      timestamps: true;
+      tenant: "organization_id";
+    };
   };
   customers: {
     Row: {
@@ -92,10 +97,15 @@ export type Models = {
       quotes: { table: "quotes"; kind: "many"; nullable: true };
     };
     PrimaryKey: "id";
-    UniqueKeys: Record<never, never>;
+    UniqueKeys: {
+      customers_id_organization_id_key: readonly ["id", "organization_id"];
+    };
     Checks: never;
     ForeignKeys: "customers_organization_id_fkey";
-    Flags: Record<never, never>;
+    Flags: {
+      timestamps: true;
+      tenant: "organization_id";
+    };
   };
   datetime_preferences: {
     Row: {
@@ -130,7 +140,9 @@ export type Models = {
     UniqueKeys: Record<never, never>;
     Checks: "datetime_preferences_time_format_check" | "datetime_preferences_week_start_check";
     ForeignKeys: "datetime_preferences_user_id_fkey";
-    Flags: Record<never, never>;
+    Flags: {
+      timestamps: true;
+    };
   };
   memberships: {
     Row: {
@@ -159,7 +171,9 @@ export type Models = {
     UniqueKeys: Record<never, never>;
     Checks: never;
     ForeignKeys: "memberships_user_id_fkey";
-    Flags: Record<never, never>;
+    Flags: {
+      timestamps: true;
+    };
   };
   organization_features: {
     Row: {
@@ -184,7 +198,10 @@ export type Models = {
     UniqueKeys: Record<never, never>;
     Checks: never;
     ForeignKeys: "organization_features_organization_id_fkey";
-    Flags: Record<never, never>;
+    Flags: {
+      timestamps: true;
+      tenant: "organization_id";
+    };
   };
   organization_memberships: {
     Row: {
@@ -200,7 +217,10 @@ export type Models = {
     UniqueKeys: Record<never, never>;
     Checks: never;
     ForeignKeys: never;
-    Flags: Record<never, never>;
+    Flags: {
+      timestamps: true;
+      tenant: "organization_id";
+    };
   };
   organizations: {
     Row: {
@@ -238,7 +258,9 @@ export type Models = {
     };
     Checks: never;
     ForeignKeys: never;
-    Flags: Record<never, never>;
+    Flags: {
+      timestamps: true;
+    };
   };
   quotes: {
     Row: {
@@ -278,8 +300,11 @@ export type Models = {
     PrimaryKey: "id";
     UniqueKeys: Record<never, never>;
     Checks: "quotes_amount_minor_check" | "quotes_currency_check";
-    ForeignKeys: "quotes_customer_id_fkey" | "quotes_organization_id_fkey";
-    Flags: Record<never, never>;
+    ForeignKeys: "quotes_customer_id_organization_id_fkey" | "quotes_organization_id_fkey";
+    Flags: {
+      timestamps: true;
+      tenant: "organization_id";
+    };
   };
   role_permissions: {
     Row: {
@@ -304,7 +329,9 @@ export type Models = {
     UniqueKeys: Record<never, never>;
     Checks: never;
     ForeignKeys: "role_permissions_role_id_fkey";
-    Flags: Record<never, never>;
+    Flags: {
+      timestamps: true;
+    };
   };
   roles: {
     Row: {
@@ -338,7 +365,10 @@ export type Models = {
     };
     Checks: never;
     ForeignKeys: "roles_organization_id_fkey";
-    Flags: Record<never, never>;
+    Flags: {
+      timestamps: true;
+      tenant: "organization_id";
+    };
   };
   staff: {
     Row: {
@@ -375,7 +405,10 @@ export type Models = {
     UniqueKeys: Record<never, never>;
     Checks: never;
     ForeignKeys: "staff_organization_id_fkey" | "staff_user_id_fkey";
-    Flags: Record<never, never>;
+    Flags: {
+      timestamps: true;
+      tenant: "organization_id";
+    };
   };
 };
 
@@ -419,4 +452,8 @@ export type WritableColumnOf<T extends TableName> = WritableColumns<Models, T>;
 /** Columns of `T` the database fills (generated columns): in `Row`, never writable. */
 export type GeneratedColumnOf<T extends TableName> = GeneratedColumns<Models, T>;
 
-export const schema: Schema<Models, Database, Functions> = defineSchema(meta);
+/** The installed blocks' repository extensions; `defineSupabase` installs them. */
+type Extensions = readonly [ReturnType<typeof updatedAtExtension>, ReturnType<typeof membershipsExtension>];
+const extensions: Extensions = [updatedAtExtension(), membershipsExtension()];
+
+export const schema: Schema<Models, Database, Functions, string, ExtensionsOf<Extensions>> = defineSchema(meta, extensions);

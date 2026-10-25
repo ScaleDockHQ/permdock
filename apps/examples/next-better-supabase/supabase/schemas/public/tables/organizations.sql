@@ -16,7 +16,7 @@ create policy organizations_public_read on public.organizations
 
 grant select on public.organizations to anon, authenticated;
 
-create trigger bs_updated_at before update on public.organizations
+create trigger bsb_updated_at before update on public.organizations
   for each row execute function better_supabase.set_updated_at('updated_at');
-create trigger bs_audit after insert or update or delete on public.organizations
+create trigger bsb_audit after insert or update or delete on public.organizations
   for each row execute function better_supabase.audit_row_change('{"ignore": ["updated_at"], "redact": [], "key_columns": ["id"]}');
