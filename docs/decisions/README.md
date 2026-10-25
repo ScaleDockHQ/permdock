@@ -53,3 +53,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0045](./0045-open-peer-ranges-and-better-supabase-0-13-floor.md) | Peer ranges are open floors; better-supabase 0.13.0 is the floor and skips the release age             |
 | [0046](./0046-better-supabase-0-15-1-release-age.md)              | better-supabase 0.15.1 is the catalog pin and skips the release age; the example stack runs on it only |
 | [0047](./0047-better-supabase-0-16-0-release-age.md)              | better-supabase 0.16.0 is the catalog pin and skips the release age                                    |
+| [0048](./0048-better-supabase-0-18-0-release-age.md)              | better-supabase 0.18.0 is the catalog pin and skips the release age                                    |
