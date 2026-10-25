@@ -1,7 +1,7 @@
 import type { ToolDecision, ToolRef } from "better-supabase/mcp";
 
 import type { PermDock } from "../core/permdock.ts";
-import type { BetterSupabaseErrorSink } from "./report.ts";
+import type { BetterSupabaseOnError } from "./report.ts";
 
 import { isPermission } from "../core/permission-registry.ts";
 import { deniedMessage, report } from "./report.ts";
@@ -25,7 +25,7 @@ export type ToolPolicyOptions<C> = {
    * Receives every error `authorize` or `visible` threw; the tool stays
    * refused.
    */
-  readonly onError?: BetterSupabaseErrorSink;
+  readonly onError?: BetterSupabaseOnError;
 };
 
 export type ToolPolicy<C> = {

@@ -19,7 +19,7 @@ export type {
 export type { AuthorizerOperation, AuthorizerOptions } from "./authorizer.ts";
 export type {
   BetterSupabaseErrorContext,
-  BetterSupabaseErrorSink,
+  BetterSupabaseOnError,
 } from "./report.ts";
 export { bucketPolicy, topicPolicy } from "./policies.ts";
 export type {

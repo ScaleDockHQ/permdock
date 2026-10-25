@@ -74,20 +74,20 @@
   },
   "memberships": [
     {
-      "table": "public.memberships",
+      "table": "public.organization_memberships",
       "user": {
         "column": "user_id"
       },
       "scope": {
-        "column": "scope"
+        "value": "organization"
       },
       "id": {
-        "column": "scope_id"
+        "column": "organization_id"
       },
       "role": {
         "column": "role"
       },
-      "columns": ["user_id", "scope", "scope_id", "role"]
+      "columns": ["user_id", "organization_id", "role"]
     },
     {
       "table": "public.contacts",
@@ -235,20 +235,20 @@
     ],
     "memberships": [
       {
-        "table": "public.memberships",
+        "table": "public.organization_memberships",
         "user": {
           "column": "user_id"
         },
         "scope": {
-          "column": "scope"
+          "value": "organization"
         },
         "id": {
-          "column": "scope_id"
+          "column": "organization_id"
         },
         "role": {
           "column": "role"
         },
-        "columns": ["user_id", "scope", "scope_id", "role"]
+        "columns": ["user_id", "organization_id", "role"]
       },
       {
         "table": "public.contacts",
@@ -290,10 +290,9 @@
     "public.contacts.customer_id",
     "public.contacts.organization_id",
     "public.contacts.user_id",
-    "public.memberships.role",
-    "public.memberships.scope",
-    "public.memberships.scope_id",
-    "public.memberships.user_id"
+    "public.organization_memberships.organization_id",
+    "public.organization_memberships.role",
+    "public.organization_memberships.user_id"
   ],
   "markers": {
     "hook": "v1",

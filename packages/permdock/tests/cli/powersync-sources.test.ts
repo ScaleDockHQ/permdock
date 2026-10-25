@@ -151,7 +151,7 @@ describe("powersync streams over membership sources", () => {
     const handWritten: SqlMembershipSource = { ...tier, sql };
     const plan = powersyncPlan(policy, configOf([handWritten]));
     expect(plan.warnings).toContain(
-      "owner/job.read under-syncs: the tenant_users membership source has no stream form: build it with tableMembershipSource or junctionMembershipSource",
+      "owner/job.read under-syncs: the tenant_users membership source has no stream form: build it with tableMembershipSource, junctionMembershipSource or blockMembershipSource",
     );
     expect(plan.omitted).toStrictEqual([
       { resource: "job", reason: "no grant of job.read compiles" },

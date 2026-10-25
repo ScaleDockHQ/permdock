@@ -12,7 +12,7 @@ export type BetterSupabaseErrorContext = {
  * Receives an error a permission check threw. The check still denies; a sink
  * that throws is ignored.
  */
-export type BetterSupabaseErrorSink = (
+export type BetterSupabaseOnError = (
   error: unknown,
   context: BetterSupabaseErrorContext,
 ) => void;
@@ -29,7 +29,7 @@ export function deniedMessage(
 }
 
 export function report(
-  sink: BetterSupabaseErrorSink | undefined,
+  sink: BetterSupabaseOnError | undefined,
   error: unknown,
   context: BetterSupabaseErrorContext,
 ): void {

@@ -10,7 +10,7 @@ import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { VersionCache } from "../core/version-cache.ts";
-import type { BetterSupabaseErrorSink } from "./report.ts";
+import type { BetterSupabaseOnError } from "./report.ts";
 import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 
 import { isRecord } from "../core/compact.ts";
@@ -70,7 +70,7 @@ export type AuthorizerOptions = {
    */
   readonly intent?: (request: AuthorizationRequest<Permission>) => Intent;
   /** Receives every error a check threw; the check still denies. */
-  readonly onError?: BetterSupabaseErrorSink;
+  readonly onError?: BetterSupabaseOnError;
   /**
    * Sources and sinks for each instance. The subject, actor, tenant and intent
    * always come from the verified request.
