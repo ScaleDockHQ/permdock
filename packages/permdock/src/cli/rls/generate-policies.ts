@@ -1,5 +1,6 @@
 import type { Policy } from "../../index.ts";
 import type { CompiledGrants, CompiledPolicy } from "../sql/compile.ts";
+import type { RlsTable } from "../types.ts";
 import type { FieldView } from "./fields.ts";
 import type { GenerateContext } from "./generate-context.ts";
 import type {
@@ -40,15 +41,25 @@ export type GeneratedPolicies = {
   readonly helperTables?: string;
   /** `helperTables` with each policy guarded by its table, for pg-delta. */
   readonly guardedTables?: string;
+  /**
+   * With `helpersOnly` and `rls.readOnlyActors`: the restrictive read-only
+   * actor policies on the tables `rls.tables` names, each guarded by its table,
+   * for the helpers output.
+   */
+  readonly actorGuards?: string;
 };
+
+const ACTOR_GUARDS_HEADER =
+  "-- rls.readOnlyActors with --helpers-only: restrictive policies on the write commands, which narrow the hand-written policies and grant nothing. A table that does not exist yet is skipped.";
 
 const SERVICE_TABLES_HEADER =
   "-- Supabase Realtime and Storage: rls.realtime and rls.storage. RLS on both tables is Supabase's.";
 
 /**
- * A `realtime.messages` or `storage.objects` policy that applies only where the
- * table exists. The Realtime and Storage services create those tables, so a
- * local stack with the service off, and pg-delta's shadow database, have none.
+ * A policy that applies only where its table exists. The Realtime and Storage
+ * services create `realtime.messages` and `storage.objects`, so a local stack
+ * with the service off, and pg-delta's shadow database, have none; under
+ * `--helpers-only` the app's own migrations create its tables.
  */
 function guardedPolicySql(item: CompiledPolicy): string {
   const body = policySql(item)
@@ -79,6 +90,40 @@ export function withHelperTables(
   }
   const tables = `${helperTables.trimEnd()}\n`;
   return sql.trim() === "" ? tables : `${sql.trimEnd()}\n\n${tables}`;
+}
+
+/**
+ * The read-only actor policies `--helpers-only` writes: those on a table
+ * `rls.tables` names. A resource it does not name has no known table, so its
+ * write commands get a warning instead.
+ */
+function helpersOnlyActorGuards(
+  guards: readonly CompiledPolicy[],
+  tables: Readonly<Record<string, RlsTable>> | undefined,
+  actorMayWrite: string,
+  warnings: string[],
+): readonly CompiledPolicy[] {
+  const named = new Set(
+    Object.values(tableNames(tables) ?? {}).map((table) =>
+      qualifySqlTable(table),
+    ),
+  );
+  const kept = guards.filter((guard) =>
+    named.has(qualifySqlTable(guard.table)),
+  );
+  const unmapped = [
+    ...new Set(
+      guards
+        .filter((guard) => !named.has(qualifySqlTable(guard.table)))
+        .map((guard) => qualifySqlTable(guard.table)),
+    ),
+  ].toSorted();
+  if (unmapped.length > 0) {
+    warnings.push(
+      `rls.readOnlyActors with --helpers-only writes read-only actor policies only on tables rls.tables names; for ${unmapped.join(", ")}, name the table in rls.tables, or add \`and (select ${actorMayWrite}())\` to each hand-written insert, update and delete policy`,
+    );
+  }
+  return kept;
 }
 
 function databaseModeWarnings(
@@ -150,23 +195,29 @@ export function generatePolicies(
     );
   }
   const policyName = input.policyName ?? rls?.policyName;
-  const assembled = helpersOnly
-    ? []
-    : assemblePolicies(
-        fieldsMode === undefined
-          ? compiled.branches
-          : rowBranches(compiled.branches),
-        {
-          perRole: input.policyPerRole === true || rls?.policyPerRole === true,
-          ...(policyName === undefined ? {} : { name: policyName }),
-        },
-      );
+  const assembled = assemblePolicies(
+    fieldsMode === undefined
+      ? compiled.branches
+      : rowBranches(compiled.branches),
+    {
+      perRole: input.policyPerRole === true || rls?.policyPerRole === true,
+      ...(policyName === undefined ? {} : { name: policyName }),
+    },
+  );
   const actorKinds = readOnlyActorKinds(rls?.readOnlyActors);
-  if (actorKinds !== undefined && helpersOnly) {
-    warnings.push(
-      `rls.readOnlyActors with --helpers-only writes no policies: add \`and (select ${qualified(ctx, ACTOR_MAY_WRITE)}())\` to each hand-written insert, update and delete policy, or a restrictive policy that calls it`,
-    );
-  }
+  const actorGuards =
+    actorKinds === undefined || !helpersOnly
+      ? []
+      : helpersOnlyActorGuards(
+          readOnlyActorPolicies(
+            assembled,
+            subjectClaimJsonSql(ctx, "act"),
+            actorKinds,
+          ),
+          rls?.tables,
+          qualified(ctx, ACTOR_MAY_WRITE),
+          warnings,
+        );
   const withActors = (
     items: readonly CompiledPolicy[],
   ): readonly CompiledPolicy[] =>
@@ -211,7 +262,15 @@ export function generatePolicies(
     helpersOnly,
     force,
     views,
-    policies: withActors(assembled),
+    policies: helpersOnly ? [] : withActors(assembled),
+    ...(actorGuards.length === 0
+      ? {}
+      : {
+          actorGuards: [
+            ACTOR_GUARDS_HEADER,
+            ...actorGuards.map(guardedPolicySql),
+          ].join("\n"),
+        }),
   };
   if (servicePolicies.length === 0) {
     return generated;

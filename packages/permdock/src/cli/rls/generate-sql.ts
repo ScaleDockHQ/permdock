@@ -458,7 +458,7 @@ function emitTarget(
 ): Pick<GeneratedSql, "text" | "migration" | "migrationRel" | "outRel"> {
   const rls = input.config.rls;
   const { ctx } = built;
-  const { policies, force, views, helperTables } = generated;
+  const { policies, force, views, helperTables, actorGuards } = generated;
   const outRel = input.out ?? rls?.out ?? defaultOut(input.target);
   const migration =
     input.target === "sql"
@@ -480,8 +480,11 @@ function emitTarget(
     case "sql":
       text = dialectRoles(
         withHelperTables(
-          emitSql(policies, preamble, force, views),
-          helperTables,
+          withHelperTables(
+            emitSql(policies, preamble, force, views),
+            helperTables,
+          ),
+          actorGuards,
         ),
         ctx.dialect,
       );
@@ -559,8 +562,15 @@ export function generateSql(
     forceWarnings(built, warnings);
   }
   const emitted = emitTarget(input, built, generated, preamble);
-  const { policies, force, views, helperTables, guardedTables, helpersOnly } =
-    generated;
+  const {
+    policies,
+    force,
+    views,
+    helperTables,
+    guardedTables,
+    helpersOnly,
+    actorGuards,
+  } = generated;
   const seedsSplit = splitsPart(input.split, "seeds");
   return {
     ...generated,
@@ -588,7 +598,10 @@ export function generateSql(
         ? {}
         : { servicePolicies: dialectRoles(guardedTables, ctx.dialect) }),
       helpers: dialectRoles(
-        emitSql([], preamble, false, helpersOnly ? views : []),
+        withHelperTables(
+          emitSql([], preamble, false, helpersOnly ? views : []),
+          actorGuards,
+        ),
         ctx.dialect,
       ),
       seeds: `${SEEDS_MARKER} schema=${built.schema}\n${seedsBody(ctx, built.schema, generated.compiled.rolePermissions)}\n${seedsSplit ? audit : ""}`,

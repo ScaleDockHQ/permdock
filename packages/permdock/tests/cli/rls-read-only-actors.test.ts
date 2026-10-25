@@ -110,7 +110,7 @@ describe("rls read only actors", () => {
       expect(() => readOnlyActorKinds(["x'; drop"])).toThrow(/actor kinds/u);
     });
 
-    it("writes the policies from rls generate, and warns with --helpers-only", async () => {
+    it("writes the policies from rls generate, and the function with --helpers-only", async () => {
       const policyPath = path.join(
         import.meta.dirname,
         "../fixtures/named-scopes.ts",
@@ -144,7 +144,7 @@ describe("rls read only actors", () => {
         cwd: helpers,
       });
       expect(quiet.stdout + quiet.stderr).toContain(
-        'rls.readOnlyActors with --helpers-only writes no policies: add `and (select "permdock".permdock_actor_may_write())` to each hand-written insert, update and delete policy',
+        'rls.readOnlyActors with --helpers-only writes read-only actor policies only on tables rls.tables names; for public.asset, public.quote, name the table in rls.tables, or add `and (select "permdock".permdock_actor_may_write())` to each hand-written insert, update and delete policy',
       );
       const helperSql = readFileSync(path.join(helpers, "rls.sql"), "utf8");
       expect(helperSql).not.toContain("_read_only_actors");
@@ -161,6 +161,67 @@ revoke execute on function "permdock".permdock_actor_may_write() from public, an
 grant execute on function "permdock".permdock_actor_may_write() to authenticated;`,
       );
       expect(sql).toContain('"permdock".permdock_actor_may_write()');
+    });
+
+    it("writes guarded read-only actor policies with --helpers-only on the tables rls.tables names", async () => {
+      const policyPath = path.join(
+        import.meta.dirname,
+        "../fixtures/named-scopes.ts",
+      );
+      const cwd = project({
+        "permdock.config.ts": `export default ${JSON.stringify({
+          permissions: policyPath,
+          policy: policyPath,
+          rls: {
+            dialect: "supabase",
+            readOnlyActors: true,
+            helpersOnly: true,
+            tables: { quote: "public.quotes", invoice: "invoices" },
+          },
+        })};\n`,
+      });
+      const result = await run(["rls", "generate", "--out", "rls.sql"], {
+        cwd,
+      });
+      expect(result.code).toBe(0);
+      const output = result.stdout + result.stderr;
+      expect(output).toContain("for public.asset, name the table");
+      expect(output).not.toContain("public.quotes, name");
+      const sql = readFileSync(path.join(cwd, "rls.sql"), "utf8");
+      expect(sql).toContain(
+        `do $permdock$
+begin
+  if to_regclass('public.quotes') is not null then
+    drop policy if exists "public_quotes_update_read_only_actors" on "public"."quotes";
+    create policy "public_quotes_update_read_only_actors"
+      on "public"."quotes"
+      as restrictive
+      for update
+      to authenticated`,
+      );
+      expect(sql).toContain('"public_quotes_delete_read_only_actors"');
+      expect(sql).not.toMatch(/on "public"\."(asset|invoices)"/u);
+      expect(sql).not.toMatch(/as permissive/u);
+      expect(sql).not.toContain("_select_read_only_actors");
+      expect(sql).not.toMatch(/"public"\.\S+ enable row level security/u);
+      expect(sql).not.toMatch(/^grant .* on table "public"\."quotes"/mu);
+
+      const split = await run(
+        [
+          "rls",
+          "generate",
+          "--split",
+          "helpers",
+          "--no-seeds",
+          "--out",
+          "rls_{part}.sql",
+        ],
+        { cwd },
+      );
+      expect(split.code).toBe(0);
+      const helpers = readFileSync(path.join(cwd, "rls_helpers.sql"), "utf8");
+      expect(helpers).toContain('"public_quotes_update_read_only_actors"');
+      expect(helpers).toContain("permdock_actor_may_write()");
     });
   });
 });
