@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import Link from "next/link";
+import { locale } from "next/root-params";
 import { Suspense } from "react";
 
 import { snapshotForSlug } from "../../../../lib/access.ts";
@@ -12,6 +13,26 @@ const organizations = [
   { slug: "globex", name: "Globex" },
 ] as const;
 
+async function OrganizationSwitch() {
+  const prefix = `/${await locale()}`;
+  return (
+    <header>
+      <nav aria-label="Organizations">
+        {organizations.map((organization) => (
+          <Link
+            key={organization.slug}
+            href={`${prefix}/${organization.slug}/staff`}
+            prefetch
+            data-switch={organization.slug}
+          >
+            {organization.name}
+          </Link>
+        ))}
+      </nav>
+    </header>
+  );
+}
+
 // Synchronous: the shell is static, and only the gated nav waits for the
 // private-cached snapshot, which the prefetch already carries.
 export default function OrganizationLayout(props: {
@@ -22,27 +43,14 @@ export default function OrganizationLayout(props: {
   }>;
 }) {
   const base = props.params.then(
-    ({ locale, orgSlug }) => `/${locale}/${orgSlug}`,
+    (params) => `/${params.locale}/${params.orgSlug}`,
   );
   const snapshot = props.params
     .then(({ orgSlug }) => orgSlug)
     .then(snapshotForSlug);
   return (
     <PermDockProvider snapshot={snapshot}>
-      <header>
-        <nav aria-label="Organizations">
-          {organizations.map((organization) => (
-            <Link
-              key={organization.slug}
-              href={`/en/${organization.slug}/staff`}
-              prefetch
-              data-switch={organization.slug}
-            >
-              {organization.name}
-            </Link>
-          ))}
-        </nav>
-      </header>
+      <OrganizationSwitch />
       <Suspense fallback={<NavSkeleton />}>
         <Nav base={base} />
       </Suspense>

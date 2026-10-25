@@ -2,6 +2,11 @@ import { Suspense } from "react";
 
 import { sharedQuote } from "../../../../lib/share.ts";
 
+// Every read counts a use of the link, so no prefetch may run it; the page
+// renders at request time.
+export const prefetch = "force-disabled";
+export const instant = false;
+
 function SharedQuoteSkeleton() {
   return (
     <p aria-busy="true" data-testid="shared-quote-skeleton">
