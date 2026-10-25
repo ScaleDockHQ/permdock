@@ -245,3 +245,106 @@ describe("rls.readOnlyActors with --helpers-only", () => {
     );
   });
 });
+
+const HAND_WRITTEN_PERMISSIVE = `
+alter table public.job enable row level security;
+create policy job_select on public.job for select to authenticated using (true);
+create policy job_update on public.job for update to authenticated using (true) with check (true);
+`;
+
+describe("rls.readOnlyActors with --helpers-only and rls.tables", () => {
+  const dir = mkdtempSync(join(tmpdir(), "permdock-read-only-tables-"));
+  const fixture = join(HERE, "../fixtures/read-only-actors-tables");
+  let db: Postgres | undefined;
+
+  beforeAll(async () => {
+    const out = join(dir, "rls.sql");
+    const result = await runPipingDbUrl(
+      ["rls", "generate", "--target", "sql", "--helpers-only", "--out", out],
+      { cwd: fixture },
+    );
+    if (result.code !== 0) {
+      throw new Error(`rls generate: ${result.stdout}`);
+    }
+    db = await startPostgres([
+      SETUP,
+      HAND_WRITTEN_PERMISSIVE,
+      readFileSync(out, "utf8"),
+    ]);
+  }, 240_000);
+
+  afterAll(async () => {
+    rmSync(dir, { recursive: true, force: true });
+    await db?.stop();
+  });
+
+  const started = (): Postgres => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    return db;
+  };
+
+  const updates = async (
+    act?: Readonly<Record<string, unknown>>,
+  ): Promise<number> => {
+    const target = started();
+    let updated = 0;
+    await target.as(
+      {
+        role: "authenticated",
+        settings: {
+          "request.jwt.claims": JSON.stringify({
+            sub: OWNER,
+            role: "authenticated",
+            ...(act === undefined ? {} : { act }),
+          }),
+        },
+      },
+      async () => {
+        updated =
+          (
+            await target.tester.query(
+              "update public.job set title = 'changed' where id = 'j1'",
+            )
+          ).rowCount ?? 0;
+      },
+    );
+    return updated;
+  };
+
+  it("refuses a read-only support session through the generated restrictive policy alone", async () => {
+    expect(await updates()).toBe(1);
+    expect(
+      await updates({ sub: STAFF, kind: "support", session_id: "s1" }),
+    ).toBe(0);
+    expect(
+      await updates({
+        sub: STAFF,
+        kind: "support",
+        session_id: "s1",
+        read_only: false,
+      }),
+    ).toBe(1);
+  });
+
+  it("verify --introspect --helpers-only accepts the policies it wrote", async () => {
+    const result = await runPipingDbUrl(
+      [
+        "rls",
+        "verify",
+        "--introspect",
+        "--helpers-only",
+        "--db-url",
+        started().uri,
+        "--dialect",
+        "supabase",
+      ],
+      { cwd: fixture },
+    );
+    expect(`${result.stdout}${result.stderr}`).not.toContain(
+      "do not call permdock_actor_may_write()",
+    );
+    expect(result.code).toBe(0);
+  });
+});
