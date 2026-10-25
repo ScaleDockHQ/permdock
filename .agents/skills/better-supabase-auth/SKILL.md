@@ -118,6 +118,13 @@ A proxy or middleware with its own Supabase client calls
 `sessionStatus(request, { url, publishableKey })` from `better-supabase/ssr`
 (`"ended"` on a 401 or 403 from Auth; treat `"unknown"` as active) and
 `clearSessionCookies(request, response, { url })` before redirecting.
+An app with httpOnly session cookies and no browser Supabase client watches
+an open page with `export const GET = sessionStatusRoute(bsb)` (from
+`better-supabase/server`) and `useSessionWatch({ redirect: "/login" })` (from
+`better-supabase/next/client`): it checks on focus, visibility and an
+interval, reloads on `ended`, `banned` or `signed_out`, refreshes the router
+on `claims_changed` (the claims fingerprint, support target included, moved)
+and tells the other tabs over a `BroadcastChannel`.
 
 Done when the irreversible action returns `SESSION_REVOKED` for a signed-out
 session in a test.

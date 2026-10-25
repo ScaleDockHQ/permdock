@@ -2,7 +2,7 @@
 
 PermDock with [better-supabase](https://www.npmjs.com/package/better-supabase) on Next.js 16.3 with Cache Components, Partial Prefetching and instant navigation, in the CentraKit shape: `/[locale]/[orgSlug]/...` routes, staff roles per organization in `memberships`, and customer-portal contacts through `contacts.user_id`.
 
-The example runs on better-supabase 0.15.1. Its `memberships` block runs over the `public.organization_memberships` view, which needs 0.15.1 or later.
+The example runs on better-supabase 0.16.0. Its `memberships` block runs over the `public.organization_memberships` view, which needs 0.15.1 or later.
 
 Snapshot-only mode: every grant is portable, so the provider has `endpoint={false}` and the app mounts no `/api/permdock` route. The snapshot rides the prefetched App Shell; Postgres RLS decides which rows come back.
 
