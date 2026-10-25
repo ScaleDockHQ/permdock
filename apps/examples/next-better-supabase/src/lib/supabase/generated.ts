@@ -144,37 +144,6 @@ export type Models = {
       timestamps: true;
     };
   };
-  memberships: {
-    Row: {
-      user_id: string;
-      scope: string;
-      scope_id: string;
-      role: string;
-      created_at: string;
-    };
-    Insert: {
-      user_id: string;
-      scope: string;
-      scope_id: string;
-      role: string;
-      created_at?: string;
-    };
-    Update: {
-      user_id?: string;
-      scope?: string;
-      scope_id?: string;
-      role?: string;
-      created_at?: string;
-    };
-    Relations: Record<never, never>;
-    PrimaryKey: "user_id" | "scope" | "scope_id" | "role";
-    UniqueKeys: Record<never, never>;
-    Checks: never;
-    ForeignKeys: "memberships_user_id_fkey";
-    Flags: {
-      timestamps: true;
-    };
-  };
   organization_features: {
     Row: {
       organization_id: string;
@@ -210,13 +179,25 @@ export type Models = {
       role: string;
       created_at: string;
     };
-    Insert: never;
-    Update: never;
-    Relations: Record<never, never>;
-    PrimaryKey: never;
+    Insert: {
+      organization_id: string;
+      user_id: string;
+      role: string;
+      created_at?: string;
+    };
+    Update: {
+      organization_id?: string;
+      user_id?: string;
+      role?: string;
+      created_at?: string;
+    };
+    Relations: {
+      organization: { table: "organizations"; kind: "one"; nullable: false };
+    };
+    PrimaryKey: "organization_id" | "user_id";
     UniqueKeys: Record<never, never>;
     Checks: never;
-    ForeignKeys: never;
+    ForeignKeys: "organization_memberships_organization_id_fkey" | "organization_memberships_user_id_fkey";
     Flags: {
       timestamps: true;
       tenant: "organization_id";
@@ -248,6 +229,7 @@ export type Models = {
       contacts: { table: "contacts"; kind: "many"; nullable: true };
       customers: { table: "customers"; kind: "many"; nullable: true };
       organization_features: { table: "organization_features"; kind: "many"; nullable: true };
+      organization_memberships: { table: "organization_memberships"; kind: "many"; nullable: true };
       quotes: { table: "quotes"; kind: "many"; nullable: true };
       roles: { table: "roles"; kind: "many"; nullable: true };
       staff: { table: "staff"; kind: "many"; nullable: true };

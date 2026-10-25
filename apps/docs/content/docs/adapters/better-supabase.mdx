@@ -162,29 +162,45 @@ A token whose claims fail either schema resolves to an `invalid` session. Pass `
 
 ### Memberships
 
-PermDock owns the memberships. Keep them in the app's own tables and describe them with PermDock sources. Don't run `better-supabase add memberships`, whose `membership_claims()` would write a second set of tenant claims: it refuses while the provider's `tokenHook.ownedClaims` lists `memberships`, and better-supabase's doctor reports BS407 for a hook that writes them next to PermDock's.
+PermDock's token hook writes the membership claims; the memberships block supplies the table that blocks such as share links and organizations read. Run both over one table the app declares:
 
-The entitlements module's `features` claim goes through `supabase.hook.claims`:
+1. Create the memberships table in the app's own schema file, one row per member: `(organization_id, user_id, role)`.
+2. Map the block onto it with `blocks.memberships.tables.memberships`. The block runs over a table it does not own: it adds only the columns it lacks and its `bsb_` policies and triggers.
+3. With the organizations block installed, set `blocks.organizations.options.assignmentGuard: "external"`. PermDock's assignment triggers then check role changes, and better-supabase drops its own guard; it refuses `"external"` on a table the block created.
+4. Point PermDock's sources at the same table with `blockMembershipSource`.
+
+```ts title="better-supabase.config.ts"
+export default defineConfig({
+  blocks: {
+    memberships: { tables: { memberships: "public.organization_memberships" } },
+    organizations: { options: { assignmentGuard: "external" } },
+  },
+});
+```
+
+`blockMembershipSource` from `permdock/better-supabase` reads the block's logical columns: `organization_id`, `user_id`, `role` and `disabled_at`, under the `organization` scope. Rename a column through `columns`, and pass `disabledAt: null` when the table has none. A role kept in another table goes through `roleThrough` (the block's option of the same name), and several roles per member go through `roles`, a junction keyed by the membership's id:
 
 ```ts title="permdock.config.ts"
-import { junctionMembershipSource } from "permdock/supabase";
+import { blockMembershipSource } from "permdock/better-supabase";
 
 export default {
   supabase: {
     hook: {
       memberships: [
-        junctionMembershipSource({
-          table: "app.memberships",
-          scope: "organization",
-          id: "organization_id",
-          roles: "role",
+        blockMembershipSource({
+          table: "public.organization_memberships",
+          columns: { disabledAt: null },
         }),
+        // Several roles per member:
+        // blockMembershipSource({ roles: { table: "public.membership_roles", membership: "membership_id", role: "role" } }),
       ],
       claims: { features: "public.feature_claims" },
     },
   },
 };
 ```
+
+Don't let the block write the claims. `better-supabase add memberships` stops while the provider's `tokenHook.ownedClaims` lists `memberships`, and better-supabase's doctor reports BS407 for a hook that calls `membership_claims()` next to PermDock's. The `features` claim above goes through `supabase.hook.claims`.
 
 With the provider set, the entitlements module reads membership through `member_<scope>_ids` and its `_for` form, so an expired membership or a suspended organization loses its features in the same token that loses the membership ([claims other packages own](/docs/adapters/supabase-hook#claims-other-packages-own)).
 
@@ -883,13 +899,13 @@ The arguments apply to every listed table, so `user_roles`, which has no `tenant
 
 ## Example app
 
-`apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. It runs on better-supabase 0.16.0. Its `memberships` block maps onto a view, which needs 0.15.1 or later.
+`apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. It runs on better-supabase 0.16.0.
 
 - `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`, sets `blocks.permissions.model: "provider"`, and sets `canAssign` to `false` because its membership tables are service-only.
 - `src/lib/supabase/server.ts` passes `authorizer({ policy })` to `createNext`, and `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.
 - `src/lib/supabase/index.ts` validates sessions with `supabaseClaims().extend(appClaims)`, and `src/lib/access.ts` maps them with `subjectFromBetterSupabase`.
 - `supabase/schemas/public/functions/feature_claims.sql` adds `public.feature_claims(user_id)`, which reads `organization_features` for the organizations `permdock.member_organization_ids_for(user_id)` returns. `permdock.config.ts` registers it as the `features` claim.
-- The share-links block requires better-supabase's `memberships` block. `blocks.memberships` maps onto the `public.organization_memberships` view of PermDock's `memberships` table, so better-supabase creates no second memberships table and writes only the functions that read the view.
+- The share-links block requires better-supabase's `memberships` block. `blocks.memberships` maps onto the app's `public.organization_memberships` table, and `src/sources.ts` reads the same table with `blockMembershipSource`, so the block and the token hook share one set of rows. The example installs no organizations block, so it sets no `assignmentGuard`.
 - `src/app/[locale]/share/[token]/page.tsx` is the guest quote page. `src/lib/share.ts` resolves the token with `subjectFromShareLink`, checks `quotes.read` for the link-only `guest` role and reads the quote under RLS with the `exchangeCapability` claims (`rls.capabilities`). The seed's link opens at `/en/share/acme-initech-rollout`.
 - `rls.approvals.delegations` writes `approval_delegations`, and the seed gives Mason a 30-day cover for Olivia's Acme approvals.
 - `supabase/tests` holds pgTAP tests over the seeded tenants, and `tests/claims.test.ts` maps every claim fixture through better-supabase's `createServer`.

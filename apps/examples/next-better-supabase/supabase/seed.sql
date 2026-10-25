@@ -11,11 +11,11 @@ insert into public.organizations (id, slug, name) values
   ('00000000-0000-4000-8000-0000000000b1', 'acme', 'Acme'),
   ('00000000-0000-4000-8000-0000000000b2', 'globex', 'Globex');
 
-insert into public.memberships (user_id, scope, scope_id, role) values
-  ('00000000-0000-4000-8000-0000000000a1', 'organization', '00000000-0000-4000-8000-0000000000b1', 'owner'),
-  ('00000000-0000-4000-8000-0000000000a1', 'organization', '00000000-0000-4000-8000-0000000000b2', 'member'),
-  ('00000000-0000-4000-8000-0000000000a4', 'organization', '00000000-0000-4000-8000-0000000000b2', 'owner'),
-  ('00000000-0000-4000-8000-0000000000a2', 'organization', '00000000-0000-4000-8000-0000000000b1', 'member');
+insert into public.organization_memberships (organization_id, user_id, role) values
+  ('00000000-0000-4000-8000-0000000000b1', '00000000-0000-4000-8000-0000000000a1', 'owner'),
+  ('00000000-0000-4000-8000-0000000000b2', '00000000-0000-4000-8000-0000000000a1', 'member'),
+  ('00000000-0000-4000-8000-0000000000b2', '00000000-0000-4000-8000-0000000000a4', 'owner'),
+  ('00000000-0000-4000-8000-0000000000b1', '00000000-0000-4000-8000-0000000000a2', 'member');
 
 -- Acme's custom role; system rows mirror declared roles and are not editable.
 insert into public.roles (id, organization_id, key, is_system) values

@@ -4,12 +4,12 @@
 begin;
 select extensions.plan(6);
 
--- Olivia, the owner, gives estimator roles.manage and quotes.read and assigns it to Mason.
+-- Olivia, the owner, gives estimator roles.manage and quotes.read and makes it Mason's role.
 insert into public.role_permissions (role_id, permission) values
   ('00000000-0000-4000-8000-0000000000e1', 'roles.manage'),
   ('00000000-0000-4000-8000-0000000000e1', 'quotes.read');
-insert into public.memberships (user_id, scope, scope_id, role) values
-  ('00000000-0000-4000-8000-0000000000a2', 'organization', '00000000-0000-4000-8000-0000000000b1', 'estimator');
+update public.organization_memberships set role = 'estimator'
+  where organization_id = '00000000-0000-4000-8000-0000000000b1' and user_id = '00000000-0000-4000-8000-0000000000a2';
 insert into public.roles (id, organization_id, key, is_system) values
   ('00000000-0000-4000-8000-0000000000e4', '00000000-0000-4000-8000-0000000000b1', 'viewer', false);
 
