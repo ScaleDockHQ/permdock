@@ -312,6 +312,31 @@ describe("inherit() in generated RLS", () => {
     expect(branch?.roles).toStrictEqual(["authenticated"]);
   });
 
+  it("narrows the target's row helper to the ids the candidate rows point at", () => {
+    const compiled = compileGrants(
+      policy,
+      {
+        dialect: "supabase" as const,
+        scopes: scopeList(policy.scopes),
+        tenantClaim: "tenant_id",
+        gucPrefix: "app",
+        graph: { resources: policy.resources, closures: {} },
+        candidates: "permdock_candidates",
+      },
+      undefined,
+      [],
+      false,
+    );
+    const using = (key: string): string | undefined =>
+      compiled.branches.find((item) => item.permissionKey === key)?.using;
+    expect(using("node.read")).toBe(
+      `(coalesce("driveId"::text in (select "permdock".permitted_drive_rows('drive.read', array(select "driveId"::text from permdock_candidates))), false) and "restricted" is not true)`,
+    );
+    expect(using("node.delete")).toContain(
+      `"folderId"::text in (select "permdock".permitted_folder_rows('folder.read', array(select "folderId"::text from permdock_candidates)))`,
+    );
+  });
+
   it("writes a stub for each inherited row helper before the helpers that call it", () => {
     const ctx = {
       dialect: "supabase" as const,
@@ -334,6 +359,11 @@ describe("inherit() in generated RLS", () => {
     const driveHelper = sql.indexOf(
       '"permdock".permitted_drive_rows(p_permission text)',
     );
+    expect(
+      sql.indexOf(
+        '"permdock".permitted_drive_rows(p_permission text, p_ids text[])',
+      ),
+    ).toBeLessThan(sql.indexOf("when 'node.read' then"));
     expect(stub).toBeGreaterThan(-1);
     expect(driveHelper).toBeGreaterThan(-1);
     expect(stub).toBeLessThan(sql.indexOf("when 'node.read' then"));

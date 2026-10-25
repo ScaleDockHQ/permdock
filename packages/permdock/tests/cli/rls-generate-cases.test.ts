@@ -105,6 +105,24 @@ export const policy = definePolicy(permissions, {
 `,
 );
 
+writeFileSync(
+  path.join(cwd, "inherit.ts"),
+  `import { allow, definePermissions, definePolicy, inherit, resource, role } from 'permdock';
+
+const permissions = definePermissions({
+  space: resource({ actions: ['read'], relations: { org: { field: 'orgId', memberOf: 'tenant' } } }),
+  item: resource({ actions: ['read'], links: { space: { field: 'spaceId', resource: 'space' } } }),
+});
+
+export const policy = definePolicy(permissions, {
+  scopes: { tenant: { key: 'orgId' } },
+  roles: [role('member', [allow(permissions.space.read)], { on: 'tenant' })],
+  grants: [allow(permissions.item.read, { to: inherit(permissions.space.read, { through: ['space'] }) })],
+  subject: () => null,
+});
+`,
+);
+
 describe("rls generate cases", () => {
   afterAll(() => {
     rmSync(cwd, { recursive: true, force: true });
@@ -282,6 +300,23 @@ describe("rls generate cases", () => {
       expect(result.code).toBe(2);
       expect(result.output).toBe(
         "PermDock CLI: rls generate --shims needs rls.migrate.helpers in permdock.config.ts",
+      );
+    });
+
+    it("compiles a one-link inherit without any relation grant, with row helpers narrowed to candidate ids", async () => {
+      const outcome = await generate({
+        from: "inherit.ts",
+        config: { rls: { rowHelpers: ["item"] } },
+      });
+      expect(outcome.code).toBe(0);
+      expect(outcome.text).toContain(
+        `coalesce("spaceId"::text in (select "permdock".permitted_space_rows('space.read')), false)`,
+      );
+      expect(outcome.text).toContain(
+        `"permdock".permitted_space_rows('space.read', array(select "spaceId"::text from permdock_candidates))`,
+      );
+      expect(outcome.text).toContain(
+        '"permdock".permitted_item_rows(p_permission text, p_ids text[])',
       );
     });
 
