@@ -218,3 +218,64 @@ export function powerSyncSource<Q extends string>(
     },
   };
 }
+
+/** `powerSyncSource` over one database, memoised per manifest and options. */
+export type PowerSyncSourceCache = {
+  readonly source: <Q extends string>(
+    options: PowerSyncSourceOptions<Q>,
+  ) => SnapshotSource;
+};
+
+type Entries = {
+  readonly rows: Map<string, SnapshotSource>;
+  readonly custom: WeakMap<object, WeakMap<object, SnapshotSource>>;
+};
+
+/**
+ * A cache of `powerSyncSource` sources over `db`. `source` answers the same
+ * source for the same `manifest` object and, with `user`, the same `user`,
+ * `tenant` and `attributes` content, or, with `queries`, the same `queries` and
+ * `read` objects. A render that rebuilds its options then keeps the source, so
+ * `PermDockProvider` neither resubscribes nor rereads. Entries live as long as
+ * their manifest; create one cache per database, outside render.
+ */
+export function powerSyncSourceCache(
+  db: PowerSyncWatchable,
+): PowerSyncSourceCache {
+  const byManifest = new WeakMap<LocalSnapshotManifest, Entries>();
+  return Object.freeze({
+    source: <Q extends string>(
+      options: PowerSyncSourceOptions<Q>,
+    ): SnapshotSource => {
+      let entries = byManifest.get(options.manifest);
+      if (entries === undefined) {
+        entries = { rows: new Map(), custom: new WeakMap() };
+        byManifest.set(options.manifest, entries);
+      }
+      if ("user" in options) {
+        const key = JSON.stringify([
+          options.user,
+          options.tenant ?? null,
+          options.attributes ?? null,
+        ]);
+        let source = entries.rows.get(key);
+        if (source === undefined) {
+          source = powerSyncSource(db, options);
+          entries.rows.set(key, source);
+        }
+        return source;
+      }
+      let byRead = entries.custom.get(options.queries);
+      if (byRead === undefined) {
+        byRead = new WeakMap();
+        entries.custom.set(options.queries, byRead);
+      }
+      let source = byRead.get(options.read);
+      if (source === undefined) {
+        source = powerSyncSource(db, options);
+        byRead.set(options.read, source);
+      }
+      return source;
+    },
+  });
+}
