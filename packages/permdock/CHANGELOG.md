@@ -1,5 +1,27 @@
 # permdock
 
+## 0.14.0
+
+### Minor Changes
+
+- [#236](https://github.com/ScaleDockHQ/permdock/pull/236) [`48462e3`](https://github.com/ScaleDockHQ/permdock/commit/48462e386f38906fda61bd9c6c1d7bf31bc9cb44) Thanks [@martijn00](https://github.com/martijn00)! - Breaking: `permdock/better-supabase` requires better-supabase 0.29.0 or later. `ShareLinkRow` takes only `subject: { type, id }`, so a share-link row with `subjectType` and `subjectId` now denies, and `authorizationHooks` caps an automation run with `bsb_permission_cap` only. Before upgrading, run `better-supabase migrate schema-first` if your `better-supabase.config.ts` has `tables` or `records`, then `better-supabase upgrade` and generate a migration.
+
+- [#234](https://github.com/ScaleDockHQ/permdock/pull/234) [`d746854`](https://github.com/ScaleDockHQ/permdock/commit/d7468542fc10e7420e1453bbd122d64f12d322ec) Thanks [@martijn00](https://github.com/martijn00)! - Default the token hook's active source to `app_metadata.<rls.tenantClaim ?? tenant_id>` when a readable `better-supabase.config.*` exports an object. Generation, inspection and PD078 share detection. Explicit sources still win; absent, invalid or unreadable configs keep the plain Supabase `app_metadata.active_<first scope>` default.
+
+  This changes the default for detected better-supabase projects. To keep the old source, set `supabase.hook.activeFrom` explicitly before regenerating SQL and the manifest. Regenerate and deploy both together; no wire-format fields change.
+
+- [#234](https://github.com/ScaleDockHQ/permdock/pull/234) [`25f0212`](https://github.com/ScaleDockHQ/permdock/commit/25f0212b6a383799f2749fcfb6a61cb3caa33cfb) Thanks [@martijn00](https://github.com/martijn00)! - `protectServer` in `permdock/mcp` takes `onError(error, { permission, name })`, which receives a check that threw: a `data` loader, `decide`, an approval input or a subject a list cannot build. The call still refuses as PermDock built it, and a sink that throws is ignored.
+
+### Patch Changes
+
+- [#234](https://github.com/ScaleDockHQ/permdock/pull/234) [`afe05db`](https://github.com/ScaleDockHQ/permdock/commit/afe05db9ff67cc65829f7ff32446dd5dde90e2ac) Thanks [@martijn00](https://github.com/martijn00)! - Document every `authorizer` option in `permdock/better-supabase`, including live memberships, the authorization version reader, the shared version cache, intent and error reporting. The example now uses the generated membership source and `authzVersion` reader together.
+
+- [#234](https://github.com/ScaleDockHQ/permdock/pull/234) [`1d1164c`](https://github.com/ScaleDockHQ/permdock/commit/1d1164c90c64e559bee7fb66c636ee2c3bbda0e1) Thanks [@martijn00](https://github.com/martijn00)! - Check PowerSync followed-row fixtures shaped as `{ subject, table, row, expected }` against parent access and the generated table stream. Reject invalid fixtures and report leaked or missing attachment rows instead of silently leaving followed tables unchecked.
+
+- [#234](https://github.com/ScaleDockHQ/permdock/pull/234) [`cc1828b`](https://github.com/ScaleDockHQ/permdock/commit/cc1828b9bfe435abe1a83bacbaf98c467d14c7c8) Thanks [@martijn00](https://github.com/martijn00)! - Cache PowerSync rows per query and coalesce watch bursts. Watch-triggered reads refresh only changed queries, concurrent reads share a refresh, and unchanged data reuses the snapshot. Explicit foreground reads still refresh every query, and membership expiry rebuilds the snapshot on the next read.
+
+- [#234](https://github.com/ScaleDockHQ/permdock/pull/234) [`f1e7f0b`](https://github.com/ScaleDockHQ/permdock/commit/f1e7f0b5cd449916e14f105026d09e445feb3312) Thanks [@martijn00](https://github.com/martijn00)! - Compile PowerSync memberships with `disabledAt` to `IS NULL` filters instead of excluding their streams. Honour `rls.suspension.memberships.keep` in declared grants, membership conditions and custom-role levels; keep `expiresAt` gaps and stop reporting suspension alone as a PD058 source gap.
+
 ## 0.13.0
 
 ### Minor Changes
