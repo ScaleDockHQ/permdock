@@ -1,6 +1,6 @@
 # 0048. better-supabase 0.18.0 is the catalog pin and skips the one-day release age
 
-- Status: accepted
+- Status: accepted; the catalog pin is superseded by 0050
 - Date: 2026-10-25
 - Supersedes: the catalog pin and exclude of 0047
 
