@@ -71,9 +71,16 @@ describe("powersync over rls.membershipSources", () => {
     expect(result.code).toBe(0);
   });
 
-  it("syncs every granted fixture row and no denied one", async () => {
+  it("syncs granted resource and attachment fixtures, but no denied parent or mismatched kind", async () => {
     const result = await runPipingDbUrl(
-      ["powersync", "verify", "--db-url", defined(db).uri],
+      [
+        "powersync",
+        "verify",
+        "--fixtures",
+        "powersync.fixtures.json",
+        "--db-url",
+        defined(db).uri,
+      ],
       { cwd: FIXTURE },
     );
     expect(result.stdout).toContain("no stream syncs a row the fixtures deny");
@@ -84,11 +91,46 @@ describe("powersync over rls.membershipSources", () => {
     expect(result.code).toBe(0);
   });
 
+  it("fails when an attachment fixture denied by parent access reaches the device", async () => {
+    await defined(db).admin.query(
+      "update attachments set parent_id = 'j-blue' where id = 'a-red'",
+    );
+    try {
+      const result = await runPipingDbUrl(
+        [
+          "powersync",
+          "verify",
+          "--fixtures",
+          "powersync.fixtures.json",
+          "--db-url",
+          defined(db).uri,
+        ],
+        { cwd: FIXTURE },
+      );
+      expect(result.code).toBe(1);
+      expect(result.stdout).toContain(
+        "attachments for u-lead: stream attachments syncs a row the policy denies",
+      );
+    } finally {
+      await defined(db).admin.query(
+        "update attachments set parent_id = 'j-red' where id = 'a-red'",
+      );
+    }
+  });
+
   it("fails with PD058 while the publication leaves out a synced table", async () => {
     const verify = () =>
-      runPipingDbUrl(["powersync", "verify", "--db-url", defined(db).uri], {
-        cwd: FIXTURE,
-      });
+      runPipingDbUrl(
+        [
+          "powersync",
+          "verify",
+          "--fixtures",
+          "powersync.fixtures.json",
+          "--db-url",
+          defined(db).uri,
+        ],
+        { cwd: FIXTURE },
+      );
     await defined(db).admin.query(
       "create publication powersync for table jobs",
     );
@@ -115,7 +157,14 @@ describe("powersync over rls.membershipSources", () => {
     );
     try {
       const result = await runPipingDbUrl(
-        ["powersync", "verify", "--db-url", defined(db).uri],
+        [
+          "powersync",
+          "verify",
+          "--fixtures",
+          "powersync.fixtures.json",
+          "--db-url",
+          defined(db).uri,
+        ],
         { cwd: FIXTURE },
       );
       expect(result.code).toBe(1);

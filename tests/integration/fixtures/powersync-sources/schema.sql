@@ -41,3 +41,13 @@ insert into jobs values
   ('j-red', 'acme', 'u-other', 'red'),
   ('j-globex', 'globex', 'u-tech', 'blue');
 grant select, update on jobs to authenticated;
+
+create table attachments (
+  id text primary key,
+  parent_id text not null,
+  kind text not null
+);
+insert into attachments values
+  ('a-blue', 'j-blue', 'job'),
+  ('a-red', 'j-red', 'job'),
+  ('a-other', 'j-blue', 'invoice');
