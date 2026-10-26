@@ -135,13 +135,13 @@ Records in `docs/decisions`:
 - 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
 - 0026 no commit header length limit; 0027 7-day Dependabot cooldown; 0028 `ox-config` over Ultracite
 - 0029 no Turbopack CI cache; 0030 `Vary` only on Markdown
-- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock`; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038-0041, 0046-0048, 0050 better-supabase release age; 0042 `oxc-parser`, `jiti` as deps; 0044 lint rules kept off; 0045 open peer ranges, better-supabase 0.13; 0049 hook gate
+- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock`; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038-0041, 0046-0048, 0050-0051 better-supabase release age and floor; 0042 `oxc-parser`, `jiti` as deps; 0044 lint rules kept off; 0045 open peer ranges; 0049 hook gate
 
 ## Pre-release pins
 
 - `@orpc/server`, `@orpc/client`, `@orpc/contract`, `@orpc/openapi` 2.0.0-beta.42: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
 - `drizzle-orm` 1.0.0-rc.5-5935859: the release candidate the standard asks for; the peer also accepts 0.40.
-- `@supabase/pg-delta` 1.0.0-alpha.59: the Declarative Schemas 2.0 engine `tests/integration` plans against; it has no stable release.
+- `@supabase/pg-delta` 1.0.0-alpha.60: the Declarative Schemas 2.0 engine `tests/integration` plans against; it has no stable release.
 - Prisma 8 and Expo SDK 58 stay on 7.10.0 and SDK 57 until their blockers clear (0018).
 
 ## Turbo agent guidance

@@ -1,6 +1,6 @@
 # 0050. better-supabase 0.25.0 is the catalog pin with an exact release-age exception
 
-- Status: accepted
+- Status: superseded by 0051
 - Date: 2026-10-26
 - Supersedes: the catalog pin of 0048
 

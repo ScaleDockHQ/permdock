@@ -1,6 +1,6 @@
 import type {
-  AuthorizationOutcome,
   AuthorizationRequest,
+  AuthorizerRuntime,
 } from "better-supabase/server";
 
 import { testAuthorizer } from "better-supabase/testing";
@@ -247,7 +247,7 @@ describe(authorizer, () => {
     ]);
   });
 
-  it("shares one instance per claims, tenant and intent through better-supabase 0.15's runtime memo", async () => {
+  it("shares one instance per claims, tenant and intent through better-supabase's runtime memo", async () => {
     const answers = new Map<string, Promise<unknown>>();
     let loads = 0;
     const memo = {
@@ -260,12 +260,7 @@ describe(authorizer, () => {
         return answers.get(key) as Promise<T>;
       },
     };
-    // 0.13 types `evaluate` with one parameter; 0.15 passes the runtime second.
-    const evaluate: (
-      request: AuthorizationRequest<Permission>,
-      runtime: { readonly memo: typeof memo },
-    ) => AuthorizationOutcome | Promise<AuthorizationOutcome> =
-      pd.evaluate.bind(pd);
+    const evaluate = pd.evaluate.bind(pd);
     const outcomes = [
       await evaluate(
         request(quote.read, { claims: claims(), tenant: ORG, properties: row }),
@@ -317,18 +312,10 @@ describe(authorizer, () => {
     };
     const source = { membershipsFor: () => [], version: () => 1 };
     const versioned = { ...claims(), authz_ver: 1 };
-    // 0.13 types `evaluate` and `evaluations` with one parameter; 0.15 passes the runtime second.
-    type Runtime = { readonly versions?: unknown };
     const evaluateOf =
       (checked: ReturnType<typeof authorizer>) =>
-      (r: AuthorizationRequest<Permission>, runtime: Runtime) =>
-        // SAFETY: 0.15 calls evaluate with the runtime second; the 0.13 type omits it
-        (
-          checked.evaluate as (
-            r: AuthorizationRequest<Permission>,
-            runtime: Runtime,
-          ) => Promise<AuthorizationOutcome>
-        )(r, runtime);
+      (r: AuthorizationRequest<Permission>, runtime: AuthorizerRuntime) =>
+        checked.evaluate(r, runtime);
 
     it("reads from better-supabase's runtime versions for a read and live for a write", async () => {
       const { live, versions } = tracked();

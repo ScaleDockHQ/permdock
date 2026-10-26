@@ -52,10 +52,6 @@ describe("better-supabase peer range", () => {
       expect(matrix).toStrictEqual(sorted);
     });
 
-    it("retains the previous pin alongside the floor and current pin", () => {
-      expect(matrix).toStrictEqual(["0.13.0", "0.18.0", "0.25.0"]);
-    });
-
     it("tests the floor of the peer range", () => {
       expect(sorted[0]).toBe(floor);
     });

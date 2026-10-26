@@ -62,7 +62,7 @@ Each policy (`quotes_update_read_only_actors`, `quotes_insert_read_only_actors`,
 
 ## Audit
 
-Every decision event carries both identities: `subject.principal` is the user and `subject.actor` is `{ id, kind: 'support' }`. Send them to a [decision sink](/docs/concepts/audit-and-observability) and a reviewer can list what a staff member did in each session. better-supabase's audit log fills `impersonated_by` (the `act.sub`) and `support_session_id` (the `act.session_id`) on every write the session makes. A file a writable session uploads through a signed URL (better-supabase 0.12.0 or later) belongs to the user and carries `supportSessionId` and `supportAdminId` in the object's `user_metadata`. The decision event carries the actor id but not the session id, so join the two logs on the actor id and time.
+Every decision event carries both identities: `subject.principal` is the user and `subject.actor` is `{ id, kind: 'support' }`. Send them to a [decision sink](/docs/concepts/audit-and-observability) and a reviewer can list what a staff member did in each session. better-supabase's audit log fills `impersonated_by` (the `act.sub`) and `support_session_id` (the `act.session_id`) on every write the session makes. A file a writable session uploads through a signed URL belongs to the user and carries `supportSessionId` and `supportAdminId` in the object's `user_metadata`. The decision event carries the actor id but not the session id, so join the two logs on the actor id and time.
 
 PermDock keeps no support-session state. A session ends when its token stops verifying, which is decided upstream ([authentication](/docs/concepts/authentication)).
 

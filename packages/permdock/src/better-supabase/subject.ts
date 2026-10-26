@@ -44,9 +44,10 @@ export type ApiKeySessionOptions = {
 };
 
 /**
- * better-supabase's `SessionSnapshot` (0.15 and later): one verified token,
- * from `bsb.getRequestSession()`, that `'use cache: private'` scopes share. Its
- * `issuedAt` and `authzVersion` come from the `iat` and `authz_ver` claims.
+ * The fields of better-supabase's `SessionSnapshot` a subject reads: one
+ * verified token, from `bsb.getRequestSession()`, that `'use cache: private'`
+ * scopes share. Its `issuedAt` and `authzVersion` come from the `iat` and
+ * `authz_ver` claims.
  */
 export type SessionSnapshotLike = {
   readonly accessToken: string;

@@ -18,7 +18,7 @@ try {
   const result = spawnSync(bin, args, {
     cwd,
     stdio: "inherit",
-    // 0.8 reads SUPABASE_DB_URL when DATABASE_URL is unset; a DATABASE_URL in the caller's shell must not win.
+    // better-supabase reads SUPABASE_DB_URL only when DATABASE_URL is unset; a DATABASE_URL in the caller's shell must not win.
     env: { ...process.env, DATABASE_URL: "", SUPABASE_DB_URL: database.url },
   });
   process.exitCode = result.status ?? 1;

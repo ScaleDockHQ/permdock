@@ -76,9 +76,8 @@ export type AuthorizationProviderOptions = {
   /**
    * Fill better-supabase's `rowsWith` (and `rowsWithFor` when the `_for`
    * helpers exist) from the `rls.rowHelpers` helpers the manifest names, so a
-   * `config.records.<type>.permissions.<action>` entry with `rows` checks the
-   * rows the caller holds a permission on. Needs better-supabase 0.22 or later,
-   * whose config takes those templates.
+   * `config.subjects.<type>.permissions.<action>` entry with `rows` checks the
+   * rows the caller holds a permission on.
    */
   readonly rowHelpers?: boolean;
 };
@@ -104,7 +103,7 @@ type Template = Exclude<
   | RowTemplate
 >;
 
-/** The row templates better-supabase 0.22 added to `AuthorizationFunctions`. */
+/** The row templates of `AuthorizationFunctions`, filled only with `rowHelpers`. */
 type RowTemplate = "rowsWith" | "rowsWithFor";
 
 type TemplateEntry = {

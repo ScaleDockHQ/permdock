@@ -20,17 +20,11 @@ import { nowSeconds } from "../core/time.ts";
 
 /**
  * The fields of better-supabase's `ResolvedShareLink` a link subject is built
- * from: `subject` from better-supabase 0.14, `subjectType` and `subjectId`
- * before it.
+ * from.
  */
-export type ShareLinkRow = ShareLinkRowFields &
-  (
-    | { readonly subject: { readonly type: string; readonly id: string } }
-    | { readonly subjectType: string; readonly subjectId: string }
-  );
-
-type ShareLinkRowFields = {
+export type ShareLinkRow = {
   readonly id: string;
+  readonly subject: { readonly type: string; readonly id: string };
   readonly organizationId: string;
   readonly role: string;
   /** Set on a link pinned to one version, which `subjectFromShareLink` refuses. */
@@ -65,8 +59,8 @@ export type ShareLinkTarget = {
 export type ShareLinkSubjectOptions = {
   readonly shareLinks: ShareLinkResolver;
   /**
-   * One entry per subject type a guest page serves, keyed by better-supabase's
-   * `subjectType`.
+   * One entry per subject type a guest page serves, keyed by the row's
+   * `subject.type`.
    */
   readonly links: Readonly<Record<string, ShareLinkTarget>>;
   /**
@@ -107,11 +101,6 @@ type ShareLinkSubject = { readonly type: string; readonly id: string };
 function rowSubject(
   row: Readonly<Record<string, unknown>>,
 ): ShareLinkSubject | undefined {
-  if (!Object.hasOwn(row, "subject")) {
-    const type = row["subjectType"];
-    const id = row["subjectId"];
-    return isId(type) && isId(id) ? { type, id } : undefined;
-  }
   const subject = row["subject"];
   if (typeof subject !== "object" || subject === null) return undefined;
   const ref: Readonly<Record<string, unknown>> = Object.fromEntries(

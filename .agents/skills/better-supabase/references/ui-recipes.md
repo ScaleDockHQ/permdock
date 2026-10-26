@@ -802,7 +802,7 @@ import { useErrorMessage } from "@/lib/use-error-message";
 
 /**
  * A record's comments, oldest first, through the browser client. `subject` is
- * any type in `config.records`, such as a customer or a project.
+ * any type in `config.subjects`, such as a customer or a project.
  */
 export function CommentThread({
   subject,
@@ -8018,7 +8018,7 @@ async function loadFlags(): Promise<readonly FlagValue[] | null> {
   return Promise.all(
     FLAG_KEYS.map(async (key) => ({
       key,
-      on: (await db.$api("flag_enabled", { key, tenant })) === true,
+      on: (await db.$api("flag_enabled", { key, tenant }).orThrow()) === true,
     })),
   );
 }
@@ -9163,7 +9163,7 @@ import { useSubject } from "@/hooks/use-subjects";
 import { Link } from "@/i18n/navigation";
 
 /**
- * A link to any subject in `config.records`, titled and routed by
+ * A link to any subject in `config.subjects`, titled and routed by
  * `subject_titles`. The links rendered in one pass share one round trip, and a
  * subject the caller can't read shows as plain text.
  */
@@ -22062,7 +22062,7 @@ export function StatusPageSkeleton() {
 
 ## Record grid
 
-An app table as a data grid with search, filters, saved views and bulk actions on the selected rows, including Set field through `appTables.set`. It loads its data on the server through the block's client; the [saved-views block](https://bettersupabase.com/blocks/saved-views) must be installed (`npx better-supabase add saved-views`). Page: https://bettersupabase.com/recipes/record-grid.
+An app table as a data grid with search, filters, saved views and bulk actions on the selected rows, including a Set field action. It loads its data on the server through the block's client; the [saved-views block](https://bettersupabase.com/blocks/saved-views) must be installed (`npx better-supabase add saved-views`). Page: https://bettersupabase.com/recipes/record-grid.
 
 Web, with shadcn components:
 
@@ -22339,8 +22339,8 @@ const UNASSIGNED = "unassigned";
 type SetField = "due_on" | "assignee_id";
 
 /**
- * Sets one field on the selected tasks with the bulk block's `appTables.set`.
- * An empty value clears the field.
+ * Sets one field on the selected tasks through the typed repository. An empty
+ * value clears the field.
  */
 function SetFieldDialog({
   ids,
