@@ -1157,4 +1157,59 @@ describe(authorizationProvider, () => {
       scopes: { "doc:read": ["doc.read"], "doc:view": ["doc.read"] },
     });
   });
+
+  describe("rowHelpers", () => {
+    const withRows: SupabaseHookManifest = {
+      ...supabaseHookManifestFixture,
+      names: {
+        schema: "permdock",
+        gucPrefix: "permdock",
+        claims: { tenant: "tenant_id", role: "role" },
+        scopes: {},
+        resources: { fileNode: { rows: "permitted_file_node_rows" } },
+      },
+    };
+
+    it("fills rowsWith from the row helpers only when asked", () => {
+      expect(
+        authorizationProvider({ manifest: withRows, catalog: emptyCatalog })
+          .functions,
+      ).not.toHaveProperty("rowsWith");
+
+      const provider = authorizationProvider({
+        manifest: withRows,
+        catalog: emptyCatalog,
+        rowHelpers: true,
+      });
+
+      expect(provider.functions).toMatchObject({
+        rowsWith: "permdock.permitted_{resource}_rows({permission}, {ids})",
+        rowsWithFor:
+          "permdock.permitted_{resource}_rows_for({user}, {permission})",
+      });
+      expect(provider.requires).toContainEqual({
+        function: "permdock.permitted_file_node_rows",
+        args: "text, text[]",
+        role: "authenticated",
+      });
+      expect(provider.requires).toContainEqual({
+        function: "permdock.permitted_file_node_rows_for",
+        args: "uuid, text, jsonb",
+        role: "postgres",
+      });
+    });
+
+    it("names a missing row helper", () => {
+      const none = authorizationProvider({
+        manifest: supabaseHookManifestFixture,
+        catalog: emptyCatalog,
+        rowHelpers: true,
+      });
+
+      expect(none.functions).not.toHaveProperty("rowsWith");
+      expect(none.problems).toContainEqual(
+        expect.stringContaining("names no permitted_<resource>_rows helper"),
+      );
+    });
+  });
 });
