@@ -190,6 +190,23 @@ export const router = {
 };
 ```
 
+When the memberships live in better-supabase's `memberships` block table, read them with [`blockMembershipSource`](/docs/adapters/better-supabase#memberships) instead of `postgrestSources`. It reads SQL, so give it a secret-role query, and pass `authzVersion({ query })` as the version the token hook stamps:
+
+```ts title="src/router.ts"
+import { blockMembershipSource } from "permdock/better-supabase";
+import { authzVersion, supabasePostgresQuery } from "permdock/supabase";
+
+const query = supabasePostgresQuery(postgres.admin);
+const memberships = blockMembershipSource({ query });
+const version = authzVersion({ query });
+
+export const bsb = createOrpc(betterSupabase, {
+  versions,
+  authorizer: authorizer({ policy, memberships, version }),
+});
+// and in createPermDock: claimsFirst(memberships, { onStale: "reread", version, versions })
+```
+
 `memberships` re-reads a token minted before the user's last membership change, so a removed member loses access before the token expires. `admin` is a secret-key client. Create `sources` and `versions` once at module scope and pass the same cache to `createOrpc` and `claimsFirst`: `bsb.invalidateSession` evicts it, and a `GET` procedure (intent `read`) answers the version from it within `maxStaleMs` ([version cache](/docs/adapters/better-supabase#version-cache-and-session-snapshots)).
 
 `protect` throws `FORBIDDEN` with PermDock's Problem Details as `data`, the same shape `bsb.unwrap` gives a `DbError`. `@orpc/server` must satisfy better-supabase's peer range (2.0.0-beta.40 or later). `permission` on `bsb.authed()` is decided by PermDock's [`authorizer`](/docs/adapters/better-supabase#authorizer).

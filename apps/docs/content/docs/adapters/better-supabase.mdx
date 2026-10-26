@@ -316,7 +316,20 @@ Each check builds its instance with an [`intent`](/docs/adapters/supabase#freshn
 | `evaluate` of a permission whose action is `read`, `list` or `view` | `read`  |
 | Every other `evaluate`: actions, mutations, route guards            | `write` |
 
-Pass `intent: (request) => "read" | "write"` to decide it yourself. With `read`, `claimsFirst` may answer the version from the cache; with `write` it reads the version live.
+Pass `intent: (request) => "read" | "write"` to decide it yourself. With `read`, `claimsFirst` may answer the version from the cache; with `write` it reads the version live. The function replaces the whole table, `evaluations` included, because the request does not say whether it is a batch:
+
+```ts
+import type { AuthorizationRequest } from "better-supabase/server";
+import { isPermission, type Intent, type Permission } from "permdock";
+
+const intent = (request: AuthorizationRequest<Permission>): Intent =>
+  isPermission(request.action) &&
+  ["read", "list", "view"].includes(request.action.action)
+    ? "read"
+    : "write";
+
+authorizer({ policy, memberships, version, intent });
+```
 
 `onError: (error, { permission, tenant }) => void` receives every error a check threw. The check still denies, and a sink that throws is ignored.
 
@@ -911,7 +924,7 @@ The arguments apply to every listed table, so `user_roles`, which has no `tenant
 `apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. It runs on better-supabase 0.29.0.
 
 - `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`, sets `blocks.permissions.model: "provider"`, and sets `canAssign` to `false` because its membership tables are service-only.
-- `src/lib/supabase/server.ts` passes `authorizer({ policy, memberships, version })` and the shared `versions` cache to `createNext`. `memberships` comes from the generated source factory, and `version` is `authzVersion({ query })`. `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.
+- `src/lib/supabase/server.ts` passes `authorizer({ policy, memberships, version, intent })` and the shared `versions` cache to `createNext`. `memberships` comes from the generated source factory, `version` is `authzVersion({ query })`, and `intent` makes a `read`, `list` or `view` permission `read` and every other check `write`. `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.
 - `src/lib/supabase/index.ts` validates sessions with `supabaseClaims().extend(appClaims)`, and `src/lib/access.ts` maps them with `subjectFromBetterSupabase`.
 - `supabase/schemas/public/functions/feature_claims.sql` adds `public.feature_claims(user_id)`, which reads `organization_features` for the organizations `permdock.member_organization_ids_for(user_id)` returns. `permdock.config.ts` registers it as the `features` claim.
 - The share-links block requires better-supabase's `memberships` block. `blocks.memberships` maps onto the app's `public.organization_memberships` table, and `src/sources.ts` reads the same table with `blockMembershipSource`, so the block and the token hook share one set of rows. The example installs no organizations block, so it sets no `assignmentGuard`.

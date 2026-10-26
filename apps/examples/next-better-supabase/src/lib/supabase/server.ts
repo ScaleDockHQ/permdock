@@ -1,7 +1,10 @@
 import "server-only";
+import type { AuthorizationRequest } from "better-supabase/server";
+import type { Intent, Permission } from "permdock";
+
 import { createNext } from "better-supabase/next";
 import { createPostgres } from "better-supabase/postgres";
-import { claimsFirst, memoryVersionCache } from "permdock";
+import { claimsFirst, isPermission, memoryVersionCache } from "permdock";
 import { authorizer } from "permdock/better-supabase";
 import { authzVersion, supabasePostgresQuery } from "permdock/supabase";
 
@@ -28,6 +31,17 @@ export const memberships = sources({ query });
 export const versions = memoryVersionCache({ maxStaleMs: 5_000 });
 const version = authzVersion({ query });
 
+/**
+ * A `read`, `list` or `view` permission may answer from `versions`; every other
+ * check, list filtering by a write permission included, reads the version
+ * live.
+ */
+const intent = (request: AuthorizationRequest<Permission>): Intent =>
+  isPermission(request.action) &&
+  ["read", "list", "view"].includes(request.action.action)
+    ? "read"
+    : "write";
+
 /** The same sources and cache for server code outside the authorizer. */
 export const freshMemberships = claimsFirst(memberships, {
   onStale: "reread",
@@ -43,7 +57,7 @@ export const bsb = createNext(betterSupabase, {
   },
   postgres,
   versions,
-  authorizer: authorizer({ policy, memberships, version }),
+  authorizer: authorizer({ policy, memberships, version, intent }),
   auth: {
     ...(env.verificationKeys && { jwks: env.verificationKeys }),
     issuer,
