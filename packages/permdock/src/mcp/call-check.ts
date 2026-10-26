@@ -32,7 +32,7 @@ import {
   stepUpRefusal,
   stillAllowed,
 } from "./refusals.ts";
-import { report } from "./report.ts";
+import { report, reportedTenant } from "./report.ts";
 
 /**
  * What every MCP call check reads: the policy, the options it honours and the
@@ -48,6 +48,7 @@ export type McpChecks = {
     | "requestState"
     | "stepUp"
     | "deniedText"
+    | "tenant"
   >;
   readonly kernel: ReturnType<typeof createAgentKernel<McpCall>>;
   /** Receives an error a check threw; the refusal stays as PermDock built it. */
@@ -144,19 +145,13 @@ async function recheck(
   permission: Permission,
   approved: string | undefined,
   tool: string | undefined,
-  name: string,
+  onError: (error: unknown) => void,
 ): Promise<Checked> {
   const rechecked = await checks.kernel.check(
     binding,
     args,
     call,
-    compact({
-      simulate: true,
-      tool,
-      onError: (error: unknown): void => {
-        report(checks.onError, error, { permission: permission.key, name });
-      },
-    }),
+    compact({ simulate: true, tool, onError }),
   );
   if (!rechecked.ok) {
     return { ok: false, refusal: failedRefusal(permission, rechecked.failure) };
@@ -181,6 +176,24 @@ async function recheck(
   };
 }
 
+/**
+ * Sends the errors a check collected to the `onError` sink, after the check, so
+ * the tenant resolves only when there is something to report.
+ */
+async function flush(
+  checks: McpChecks,
+  authInfo: McpAuthInfo | undefined,
+  errors: readonly unknown[],
+  permission: string | null,
+  name: string,
+): Promise<void> {
+  if (errors.length === 0 || checks.onError === undefined) return;
+  const tenant = await reportedTenant(checks.options.tenant, authInfo);
+  for (const error of errors) {
+    report(checks.onError, error, { permission, name, tenant });
+  }
+}
+
 async function decideCall(
   checks: McpChecks,
   permission: Permission,
@@ -195,9 +208,43 @@ async function decideCall(
   name: string = tool ?? permission.key,
 ): Promise<Checked> {
   const authInfo = context.http?.authInfo;
+  const errors: unknown[] = [];
   const onError = (error: unknown): void => {
-    report(checks.onError, error, { permission: permission.key, name });
+    errors.push(error);
   };
+  try {
+    return await decided(
+      checks,
+      permission,
+      reach,
+      args,
+      load,
+      context,
+      handlerContext,
+      capabilities,
+      completion,
+      tool,
+      onError,
+    );
+  } finally {
+    await flush(checks, authInfo, errors, permission.key, name);
+  }
+}
+
+async function decided(
+  checks: McpChecks,
+  permission: Permission,
+  reach: Reach,
+  args: readonly unknown[],
+  load: (() => unknown) | undefined,
+  context: Context,
+  handlerContext: unknown,
+  capabilities: (() => unknown) | undefined,
+  completion: { readonly approved: string | undefined } | undefined,
+  tool: string | undefined,
+  onError: (error: unknown) => void,
+): Promise<Checked> {
+  const authInfo = context.http?.authInfo;
   const refused = credentialRefusal(checks, permission, reach, authInfo);
   if (refused !== undefined) {
     return { ok: false, refusal: refused };
@@ -216,7 +263,7 @@ async function decideCall(
       permission,
       completion.approved,
       tool,
-      name,
+      onError,
     );
   }
   const checked = await checks.kernel.check(
@@ -370,11 +417,15 @@ export async function visible(
     permdock = await checks.kernel.instance(compact({ authInfo }));
   } catch (error) {
     // A subject that cannot be built sees no guarded entry.
-    for (const entry of guarded) {
-      report(checks.onError, error, {
-        permission: entry.permission.key,
-        name: entry.key,
-      });
+    if (checks.onError !== undefined) {
+      const tenant = await reportedTenant(checks.options.tenant, authInfo);
+      for (const entry of guarded) {
+        report(checks.onError, error, {
+          permission: entry.permission.key,
+          name: entry.key,
+          tenant,
+        });
+      }
     }
     return shown;
   }

@@ -2,6 +2,10 @@ import { Client } from "@modelcontextprotocol/client";
 import { InMemoryTransport, McpServer } from "@modelcontextprotocol/server";
 import { describe, expect, it, vi } from "vitest";
 
+import type {
+  BetterSupabaseErrorContext,
+  BetterSupabaseOnError,
+} from "../../src/better-supabase/index.ts";
 import type { McpOnError } from "../../src/mcp/index.ts";
 
 import { wrapPermDock } from "../../src/index.ts";
@@ -80,6 +84,7 @@ describe("MCP check error boundaries", () => {
       expect(onError).toHaveBeenCalledExactlyOnceWith(error, {
         permission: "post.list",
         name: "browse_posts",
+        tenant: null,
       });
     },
   );
@@ -104,7 +109,66 @@ describe("MCP check error boundaries", () => {
     expect(onError).toHaveBeenCalledExactlyOnceWith(error, {
       permission: "post.list",
       name: "browse_posts",
+      tenant: null,
     });
+  });
+
+  it.each([
+    ["a fixed tenant", "o1", "o1"],
+    ["a tenant function", (): string => "o2", "o2"],
+    [
+      "a tenant function that throws",
+      (): never => {
+        throw new Error("tenant unavailable");
+      },
+      null,
+    ],
+  ] as const)(
+    "reports the tenant of %s, and a BetterSupabaseOnError fits",
+    async (_, tenant, expected) => {
+      const error = new Error("database down");
+      const contexts: BetterSupabaseErrorContext[] = [];
+      const sink: BetterSupabaseOnError = (_error, context) => {
+        contexts.push(context);
+      };
+      const server = new McpServer({ name: "posts", version: "1.0.0" });
+      const guarded = createPermDock(policy, {
+        subject: () => memberUser,
+        tenant,
+      }).protectServer(server, sink);
+      guarded.registerTool(
+        "browse_posts",
+        {
+          permission: permissions.post.list,
+          data: () => {
+            throw error;
+          },
+        },
+        () => ({ content: [] }),
+      );
+      const client = await connect(server);
+      expect(await client.callTool({ name: "browse_posts" })).toMatchObject({
+        isError: true,
+      });
+      expect(contexts).toStrictEqual([
+        { permission: "post.list", name: "browse_posts", tenant: expected },
+      ]);
+    },
+  );
+
+  it("resolves no tenant when nothing throws", async () => {
+    const tenant = vi.fn<() => string>(() => "o1");
+    const server = new McpServer({ name: "posts", version: "1.0.0" });
+    createPermDock(policy, { subject: () => memberUser, tenant })
+      .protectServer(server, vi.fn<McpOnError>())
+      .registerTool(
+        "browse_posts",
+        { permission: permissions.post.list },
+        () => ({ content: [] }),
+      );
+    const client = await connect(server);
+    await client.callTool({ name: "browse_posts" });
+    expect(tenant).toHaveBeenCalledOnce();
   });
 
   it.each([false, true])(
