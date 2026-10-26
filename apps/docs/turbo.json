@@ -24,6 +24,9 @@
     },
     "test": {
       "dependsOn": ["^build"]
+    },
+    "typegen": {
+      "outputs": [".next/types/**"]
     }
   }
 }

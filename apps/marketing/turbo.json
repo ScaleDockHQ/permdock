@@ -22,7 +22,10 @@
       "dependsOn": ["^build"]
     },
     "typecheck": {
-      "dependsOn": ["build", "^build"]
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
+    },
+    "typegen": {
+      "outputs": [".next/types/**"]
     }
   }
 }
