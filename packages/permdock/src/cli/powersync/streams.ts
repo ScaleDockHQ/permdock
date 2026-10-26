@@ -20,6 +20,7 @@ import { scopeColumn, scopeMembershipTable } from "../../conditions/compile.ts";
 import { resolveScope, scopeList } from "../../core/scopes.ts";
 import { quoteSqlLiteral, SQL_IDENT } from "../../core/sql.ts";
 import { requiresApproval } from "../../index.ts";
+import { keptKeys } from "../../supabase/keep.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { ownershipRules } from "../rls/ownership.ts";
 import { tableFor } from "../sql/compile.ts";
@@ -235,6 +236,7 @@ function conditionSql(
   condition: Condition,
   table: string,
   ctx: Ctx,
+  permission?: string,
 ): readonly (readonly string[])[] | undefined {
   const column = (field: string): string | undefined =>
     SQL_IDENT.test(field) ? ctx.dialect.column(table, field) : undefined;
@@ -301,7 +303,9 @@ function conditionSql(
     case "and":
     case "or": {
       const parts = every(
-        condition.conditions.map((child) => conditionSql(child, table, ctx)),
+        condition.conditions.map((child) =>
+          conditionSql(child, table, ctx, permission),
+        ),
       );
       if (parts === undefined) {
         return undefined;
@@ -317,10 +321,10 @@ function conditionSql(
       if (scope === undefined || left === undefined) {
         return undefined;
       }
-      return membershipSql(scope, left, condition.roles, ctx);
+      return membershipSql(scope, left, condition.roles, ctx, permission);
     }
     case "sqlFunction":
-      return conditionSql(condition.twin, table, ctx);
+      return conditionSql(condition.twin, table, ctx, permission);
     case "related":
       return relatedSql(condition, table, ctx);
     case "not":
@@ -452,7 +456,7 @@ function permittedSql(
     const where =
       typeof access === "string" || item.where === undefined
         ? [[]]
-        : conditionSql(item.where, table, ctx);
+        : conditionSql(item.where, table, ctx, item.grant.permission.key);
     if (typeof access === "string" || where === undefined) {
       ctx.gaps.push(
         `inherit() of ${key} leaves out ${item.label}: ${typeof access === "string" ? access : "its condition has no Sync Streams form"}`,
@@ -469,8 +473,21 @@ function permittedSql(
 }
 
 /**
+ * Whether `permission` keeps a suspended membership: its key is in
+ * `rls.suspension.memberships.keep`, so the stream drops the suspension
+ * filter.
+ */
+function keepsSuspended(permission: string | undefined, ctx: Ctx): boolean {
+  return (
+    permission !== undefined &&
+    keptKeys(ctx.config.rls?.suspension?.memberships).includes(permission)
+  );
+}
+
+/**
  * One `IN (SELECT …)` per role source of the membership table: the row's `left`
- * is an instance the user holds `roles` in.
+ * is an instance the user holds `roles` in. `keep` drops the suspension
+ * filter.
  */
 function membershipIn(
   table: RlsMembershipTable,
@@ -478,8 +495,9 @@ function membershipIn(
   left: string,
   roles: readonly string[],
   ctx: Ctx,
+  keep = false,
 ): readonly (readonly string[])[] | undefined {
-  if (table.expiresAt !== undefined || table.disabledAt !== undefined) {
+  if (table.expiresAt !== undefined) {
     return undefined;
   }
   const name = bare(table.table, ctx.dialect);
@@ -501,6 +519,9 @@ function membershipIn(
       ? [
           `${ctx.dialect.column(name, via)} IN (${kinds.map((kind) => ctx.dialect.literal(kind)).join(", ")})`,
         ]
+      : []),
+    ...(!keep && table.disabledAt !== undefined
+      ? [`${ctx.dialect.column(name, table.disabledAt)} IS NULL`]
       : []),
   ];
   const list = roles.map((role) => ctx.dialect.literal(role)).join(", ");
@@ -539,7 +560,9 @@ function membershipSql(
   left: string,
   roles: readonly string[],
   ctx: Ctx,
+  permission?: string,
 ): readonly (readonly string[])[] | undefined {
+  const keep = keepsSuspended(permission, ctx);
   const table = scopeMembershipTable(
     ctx.config.rls?.memberships,
     ctx.scopes,
@@ -549,7 +572,7 @@ function membershipSql(
     const idColumn = scopeColumn(table, ctx.scopes, scope);
     return idColumn === undefined
       ? undefined
-      : membershipIn(table, idColumn, left, roles, ctx);
+      : membershipIn(table, idColumn, left, roles, ctx, keep);
   }
   const sources = scopeSourcesOf(ctx.sources, scope);
   if (sources.length === 0) {
@@ -561,7 +584,7 @@ function membershipSql(
       ctx.gaps.push(stream);
       return [];
     }
-    return sourceIn(stream, scope, left, roles, ctx);
+    return sourceIn(stream, scope, left, roles, ctx, keep);
   });
 }
 
@@ -595,8 +618,9 @@ function accessSql(
           ctx.dialect.column(table, field),
           [access.role],
           ctx,
+          item.grant.permission.key,
         ) ??
-        `no rls.memberships table without an expiry or disabledAt and with the kinds of ${access.role}, and no membership source, for scope ${access.scope}`
+        `no rls.memberships table without an expiry and with the kinds of ${access.role}, and no membership source, for scope ${access.scope}`
       );
     }
     case "resource": {
@@ -622,8 +646,9 @@ function accessSql(
           ctx.dialect.column(table, field),
           [access.role],
           ctx,
+          keepsSuspended(item.grant.permission.key, ctx),
         ) ??
-        `the ${access.resource} memberships table has an expiry or disabledAt, or lacks via`
+        `the ${access.resource} memberships table has an expiry, or lacks via`
       );
     }
     case "actor":
@@ -676,10 +701,15 @@ function userTenantIds(ctx: Ctx): readonly string[] {
   if (tenants !== undefined) {
     const column = scopeColumn(tenants, ctx.scopes, root);
     const members = bare(tenants.table, dialect);
+    const active =
+      tenants.disabledAt !== undefined &&
+      keptKeys(ctx.config.rls?.suspension?.memberships).length === 0
+        ? ` AND ${dialect.column(members, tenants.disabledAt)} IS NULL`
+        : "";
     return column === undefined
       ? []
       : [
-          `SELECT ${dialect.column(members, column)} FROM ${fromTable(tenants.table, dialect)} WHERE ${dialect.column(members, tenants.user)} = ${dialect.user}`,
+          `SELECT ${dialect.column(members, column)} FROM ${fromTable(tenants.table, dialect)} WHERE ${dialect.column(members, tenants.user)} = ${dialect.user}${active}`,
         ];
   }
   return scopeSourcesOf(ctx.sources, root).flatMap((source) => {
@@ -687,7 +717,12 @@ function userTenantIds(ctx: Ctx): readonly string[] {
     if (typeof stream === "string") {
       return [];
     }
-    const rows = ownRows(stream, dialect, root);
+    const rows = ownRows(
+      stream,
+      dialect,
+      root,
+      keptKeys(ctx.config.rls?.suspension?.memberships).length > 0,
+    );
     return [
       `SELECT ${dialect.column(rows.table, stream.id)} FROM ${rows.from} WHERE ${rows.where.join(" AND ")}`,
     ];
@@ -746,9 +781,15 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
     table: string,
     user: string,
     role: RlsMembershipTable["role"] | GlobalRoles["role"],
+    disabledAt?: string,
   ): void => {
     const name = bare(table, dialect);
-    const mine = `${dialect.column(name, user)} = ${dialect.user}`;
+    const active =
+      disabledAt !== undefined &&
+      keptKeys(rls?.suspension?.memberships).length === 0
+        ? ` AND ${dialect.column(name, disabledAt)} IS NULL`
+        : "";
+    const mine = `${dialect.column(name, user)} = ${dialect.user}${active}`;
     add(name, `SELECT * FROM ${fromTable(table, dialect)} WHERE ${mine}`, user);
     for (const through of roleThroughs(role)) {
       const keys = bare(through.through, dialect);
@@ -768,10 +809,11 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
     ...Object.values(memberships?.scopes ?? {}),
     ...Object.values(memberships?.resource ?? {}),
   ]) {
-    own(table.table, table.user, table.role);
+    own(table.table, table.user, table.role, table.disabledAt);
   }
   for (const stream of unmappedStreams(ctx)) {
-    const rows = ownRows(stream, dialect);
+    const keep = keptKeys(rls?.suspension?.memberships).length > 0;
+    const rows = ownRows(stream, dialect, undefined, keep);
     add(
       rows.table,
       typeof stream.user === "string"
@@ -787,7 +829,7 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
         stream.user.column,
       );
     }
-    for (const keys of roleTableRows(stream, dialect)) {
+    for (const keys of roleTableRows(stream, dialect, keep)) {
       add(keys.table, keys.query);
     }
   }
@@ -960,7 +1002,7 @@ function planWith(
       const where =
         typeof access === "string" || item.where === undefined
           ? [[]]
-          : conditionSql(item.where, table, ctx);
+          : conditionSql(item.where, table, ctx, item.grant.permission.key);
       const gaps = [...new Set(ctx.gaps.splice(0))];
       for (const reason of gaps) {
         warnings.push(`${label} under-syncs: ${reason}`);

@@ -9,6 +9,7 @@ import type { StreamDialect } from "./streams.ts";
 import { scopeMembershipTable } from "../../conditions/compile.ts";
 import { policyLevels } from "../../core/policy.ts";
 import { SQL_IDENT } from "../../core/sql.ts";
+import { keptKeys } from "../../supabase/keep.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import { andConditions } from "../sql/conditions.ts";
 import { assignableRoles } from "../sql/grants.ts";
@@ -99,7 +100,12 @@ function customRoleIn(
     if (isFixed(stream.roles)) {
       continue;
     }
-    const own = ownRows(stream, dialect, root);
+    const own = ownRows(
+      stream,
+      dialect,
+      root,
+      keptKeys(rls?.suspension?.memberships).includes(key),
+    );
     const id = dialect.column(own.table, stream.id);
     for (const role of roleSources(stream.roles)) {
       const keyed = roleKeyOf(role, own.table, dialect);

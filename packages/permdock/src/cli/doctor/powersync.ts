@@ -69,7 +69,7 @@ export async function pd058(
     code: "PD058",
     severity: "warning",
     message: gap,
-    fix: "build the source with tableMembershipSource or junctionMembershipSource, without expiresAt or disabledAt, or serve its members from the server",
+    fix: "build the source with tableMembershipSource or junctionMembershipSource, without expiresAt, or serve its members from the server",
   }));
   const stale = staleFiles(cwd, compiled.files).map((file): DoctorFinding => ({
     code: "PD058",
