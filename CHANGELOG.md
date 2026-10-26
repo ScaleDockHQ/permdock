@@ -2,6 +2,19 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.14.0 (2026-10-26)
+
+- Breaking: `permdock/better-supabase` requires better-supabase 0.29.0 or later. `ShareLinkRow` takes only `subject: { type, id }`, so a share-link row with `subjectType` and `subjectId` now denies, and `authorizationHooks` caps an automation run with `bsb_permission_cap` only. Before upgrading, run `better-supabase migrate schema-first` if your `better-supabase.config.ts` has `tables` or `records`, then `better-supabase upgrade` and generate a migration.
+- Cache PowerSync rows per query and coalesce watch bursts. Watch-triggered reads refresh only changed queries, concurrent reads share a refresh, and unchanged data reuses the snapshot. Explicit foreground reads still refresh every query, and membership expiry rebuilds the snapshot on the next read.
+- Check PowerSync followed-row fixtures shaped as `{ subject, table, row, expected }` against parent access and the generated table stream. Reject invalid fixtures and report leaked or missing attachment rows instead of silently leaving followed tables unchecked.
+- Compile PowerSync memberships with `disabledAt` to `IS NULL` filters instead of excluding their streams. Honour `rls.suspension.memberships.keep` in declared grants, membership conditions and custom-role levels; keep `expiresAt` gaps and stop reporting suspension alone as a PD058 source gap.
+- Default the token hook's active source to `app_metadata.<rls.tenantClaim ?? tenant_id>` when a readable `better-supabase.config.*` exports an object. Generation, inspection and PD078 share detection. Explicit sources still win; absent, invalid or unreadable configs keep the plain Supabase `app_metadata.active_<first scope>` default.
+
+  This changes the default for detected better-supabase projects. To keep the old source, set `supabase.hook.activeFrom` explicitly before regenerating SQL and the manifest. Regenerate and deploy both together; no wire-format fields change.
+
+- Document every `authorizer` option in `permdock/better-supabase`, including live memberships, the authorization version reader, the shared version cache, intent and error reporting. The example now uses the generated membership source and `authzVersion` reader together.
+- `protectServer` in `permdock/mcp` takes `onError(error, { permission, name })`, which receives a check that threw: a `data` loader, `decide`, an approval input or a subject a list cannot build. The call still refuses as PermDock built it, and a sink that throws is ignored.
+
 ## 0.13.0 (2026-10-26)
 
 - `authorizationProvider({ rowHelpers: true })` fills better-supabase's `rowsWith` and `rowsWithFor` templates from the `permitted_<resource>_rows` helpers that `rls.rowHelpers` writes, so better-supabase record actions with `rows` check the rows a caller holds a permission on, as the generated policies decide them. It lists each helper in `requires` and, when the manifest names none, adds a problem. The option needs better-supabase 0.22 or later and is off by default, so providers for earlier releases are unchanged.
