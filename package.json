@@ -38,6 +38,7 @@
     "release": "node scripts/publish.ts",
     "size": "turbo run size",
     "standards:fixtures": "node scripts/fetch-standards-fixtures.ts && oxfmt packages/permdock/tests/fixtures/standards",
+    "supabase:prune": "node scripts/supabase-prune.ts",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e --concurrency=1",
     "test:integration": "pnpm --filter @permdock/integration test:integration",
