@@ -37,9 +37,9 @@ jobs:
           TITLE: ${{ github.event.pull_request.title }}
         run: printf '%s\n' "$TITLE" | pnpm exec commitlint
 
-  # Fills the Remote Cache first, so every later job restores the builds instead of repeating them.
-  build:
-    name: Production builds
+  # Every later job needs only `permdock#build`; the app and example builds run beside them in `build`.
+  dist:
+    name: Package build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -61,7 +61,7 @@ jobs:
           turbo-team: ${{ vars.TURBO_TEAM }}
 
       - name: Build
-        run: pnpm run build
+        run: pnpm exec turbo run build --filter=permdock
 
       - uses: actions/upload-artifact@v7
         with:
@@ -84,9 +84,28 @@ jobs:
             echo "$suite=$run" | tee -a "$GITHUB_OUTPUT"
           done
 
+  build:
+    name: Production builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: $/.github/actions/setup
+        with:
+          turbo-team: ${{ vars.TURBO_TEAM }}
+
+      - name: Build
+        run: pnpm run build
+
   verify:
     name: Verify
-    needs: build
+    needs: dist
     permissions:
       contents: read
       id-token: write
@@ -98,8 +117,8 @@ jobs:
 
   integration:
     name: Integration (Postgres ${{ matrix.shard }}/3)
-    needs: build
-    if: needs.build.outputs.integration == 'true'
+    needs: dist
+    if: needs.dist.outputs.integration == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -130,7 +149,7 @@ jobs:
   # (tests/package/better-supabase-peer-range.test.ts).
   better-supabase:
     name: better-supabase ${{ matrix.better-supabase }}
-    needs: build
+    needs: dist
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -172,8 +191,8 @@ jobs:
 
   runtimes:
     name: Runtimes (Bun, Deno, workerd)
-    needs: build
-    if: needs.build.outputs.runtimes == 'true'
+    needs: dist
+    if: needs.dist.outputs.runtimes == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

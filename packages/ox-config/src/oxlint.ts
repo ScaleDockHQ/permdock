@@ -8,7 +8,7 @@ type Rules = NonNullable<OxlintConfig["rules"]>;
 
 interface TurboGlobal {
   readonly global: {
-    readonly env: readonly string[];
+    readonly env?: readonly string[];
     readonly passThroughEnv: readonly string[];
   };
 }
@@ -44,7 +44,7 @@ const turbo = JSON.parse(
 ) as TurboGlobal;
 
 const envAllowList = [
-  ...turbo.global.env,
+  ...(turbo.global.env ?? []),
   ...turbo.global.passThroughEnv,
   ...runtimeOnlyEnv,
 ].map((name) => `^${name.replace("*", ".*")}$`);

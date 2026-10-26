@@ -1,21 +1,37 @@
+# Hooks call binaries from node_modules/.bin: `pnpm exec` adds 70 to 260 ms per call.
+# The gate matches `pnpm check:affected`; tests run in CI only (docs/decisions/0049-affected-hook-gate.md).
+# Without `execution`, a job prints its output only when it fails.
+output:
+  - meta
+  - summary
+  - failure
+
 pre-commit:
+  piped: true
+  skip:
+    - merge
+    - rebase
   jobs:
     - name: format
       glob: "*.{ts,tsx,mts,js,mjs,cjs,json,jsonc,md,mdx,css,yml,yaml}"
       exclude:
         - "{.agents,.cursor,.claude}/**"
         - "**/permissions.catalog.json"
-      run: pnpm exec oxfmt --no-error-on-unmatched-pattern {staged_files}
+      run: node_modules/.bin/oxfmt --no-error-on-unmatched-pattern {staged_files}
       stage_fixed: true
+    - name: affected
+      env:
+        TURBO_SCM_BASE: origin/main
+      run: node_modules/.bin/turbo run lint:root lint typecheck --affected --cache=local:rw,remote:r --output-logs=errors-only --continue=dependencies-successful
 
 commit-msg:
   jobs:
     - name: commitlint
-      run: pnpm exec commitlint --edit {1}
+      run: node_modules/.bin/commitlint --edit {1}
 
 pre-push:
   jobs:
     - name: affected
       env:
         TURBO_SCM_BASE: origin/main
-      run: pnpm exec turbo run lint:root lint typecheck test --affected
+      run: node_modules/.bin/turbo run lint:root lint typecheck --affected --cache=local:rw,remote:r --output-logs=errors-only --continue=dependencies-successful
