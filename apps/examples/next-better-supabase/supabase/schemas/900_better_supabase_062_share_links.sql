@@ -1,6 +1,6 @@
 -- better-supabase module: share-links
 -- @bsb-block share-links@1 managed
--- @bsb-hash sha256:2b306cd2a60fb3a335d0fa54edf50cc17d57b36f91cac3fd58ca05f5e15a9187
+-- @bsb-hash sha256:a2bc21e0cf10ade93ce9e38a06e3bfd6c7d938ab2e1165c063080da3a82bc0b7
 -- Hashed share links, view counts and per-user state. The token is returned once. Resolving a link hashes the token the caller presents, so a stored plaintext token keeps working after it is hashed.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -45,6 +45,10 @@ do $$
 begin
   begin
     drop policy if exists bsb_tenant_scope on "better_supabase"."share_links";
+    drop policy if exists bsb_tenant_scope_select on "better_supabase"."share_links";
+    drop policy if exists bsb_tenant_scope_insert on "better_supabase"."share_links";
+    drop policy if exists bsb_tenant_scope_update on "better_supabase"."share_links";
+    drop policy if exists bsb_tenant_scope_delete on "better_supabase"."share_links";
   exception when undefined_table or invalid_schema_name then null;
   end;
 end $$;
@@ -68,7 +72,7 @@ create table if not exists "better_supabase"."share_links" (
 alter table "better_supabase"."share_links" add column if not exists "version_id" uuid;
 alter table "better_supabase"."share_links" add column if not exists "use_count" integer not null default 0;
 alter table "better_supabase"."share_links" enable row level security;
-revoke all on "better_supabase"."share_links" from anon, authenticated;
+revoke all on "better_supabase"."share_links" from public, anon, authenticated;
 grant select on "better_supabase"."share_links" to authenticated;
 grant all on "better_supabase"."share_links" to service_role;
 create index if not exists "share_links_subject_idx" on "better_supabase"."share_links" ("tenant_id", "subject_type", "subject_id");
@@ -86,7 +90,7 @@ create table if not exists "better_supabase"."subject_views" (
   unique ("tenant_id", "subject_type", "subject_id", "viewer_kind", "viewer")
 );
 alter table "better_supabase"."subject_views" enable row level security;
-revoke all on "better_supabase"."subject_views" from anon, authenticated;
+revoke all on "better_supabase"."subject_views" from public, anon, authenticated;
 grant select on "better_supabase"."subject_views" to authenticated;
 grant all on "better_supabase"."subject_views" to service_role;
 
@@ -99,7 +103,7 @@ create table if not exists "better_supabase"."subject_user_state" (
   primary key ("subject_type", "subject_id", "user_id")
 );
 alter table "better_supabase"."subject_user_state" enable row level security;
-revoke all on "better_supabase"."subject_user_state" from anon, authenticated;
+revoke all on "better_supabase"."subject_user_state" from public, anon, authenticated;
 grant select on "better_supabase"."subject_user_state" to authenticated;
 grant all on "better_supabase"."subject_user_state" to service_role;
 
@@ -301,10 +305,23 @@ begin
   end if;
 end $$;
 drop policy if exists bsb_tenant_scope on "better_supabase"."share_links";
-create policy bsb_tenant_scope on "better_supabase"."share_links" as restrictive
-  for all to authenticated
+drop policy if exists bsb_tenant_scope_select on "better_supabase"."share_links";
+create policy bsb_tenant_scope_select on "better_supabase"."share_links" as restrictive
+  for select to public
+  using ("tenant_id" in (select better_supabase.member_organization_ids()));
+drop policy if exists bsb_tenant_scope_insert on "better_supabase"."share_links";
+create policy bsb_tenant_scope_insert on "better_supabase"."share_links" as restrictive
+  for insert to public
+  with check ("tenant_id" in (select better_supabase.member_organization_ids()));
+drop policy if exists bsb_tenant_scope_update on "better_supabase"."share_links";
+create policy bsb_tenant_scope_update on "better_supabase"."share_links" as restrictive
+  for update to public
   using ("tenant_id" in (select better_supabase.member_organization_ids()))
   with check ("tenant_id" in (select better_supabase.member_organization_ids()));
+drop policy if exists bsb_tenant_scope_delete on "better_supabase"."share_links";
+create policy bsb_tenant_scope_delete on "better_supabase"."share_links" as restrictive
+  for delete to public
+  using ("tenant_id" in (select better_supabase.member_organization_ids()));
 
 create schema if not exists better_supabase;
 create table if not exists better_supabase.blocks (
@@ -316,5 +333,5 @@ create table if not exists better_supabase.blocks (
   updated_at timestamptz not null default now()
 );
 alter table better_supabase.blocks enable row level security;
-revoke all on better_supabase.blocks from anon, authenticated;
+revoke all on better_supabase.blocks from public, anon, authenticated;
 grant select on better_supabase.blocks to service_role;
