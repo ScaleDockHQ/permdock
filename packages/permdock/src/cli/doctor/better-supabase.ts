@@ -9,12 +9,12 @@ import { activeTenantMismatch } from "../../better-supabase/active-tenant.ts";
 import { parseCatalog } from "../../catalog/parse.ts";
 import { isRecord } from "../../core/compact.ts";
 import { rootScope, scopeList } from "../../core/scopes.ts";
-import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { catalogPath } from "../catalog-path.ts";
 import { rel } from "../files.ts";
 import {
   betterSupabaseConfig,
   betterSupabaseDefaults,
+  betterSupabaseTenantClaim,
 } from "../project/better-supabase.ts";
 import { filesOf } from "../shared/doctor-files.ts";
 import { activeSource } from "../supabase-hook/memberships.ts";
@@ -52,8 +52,10 @@ export async function pd078(
     return [];
   }
   const config = await betterSupabaseConfig(input);
-  const activeTenant =
-    config === undefined ? undefined : activeTenantOf(config);
+  if (config === undefined) {
+    return [];
+  }
+  const activeTenant = activeTenantOf(config);
   if (activeTenant === undefined) {
     return [];
   }
@@ -63,8 +65,7 @@ export async function pd078(
   let from: ReturnType<typeof activeSource>;
   try {
     from = activeSource(
-      betterSupabaseDefaults(input.config, config !== undefined).supabase?.hook
-        ?.activeFrom,
+      betterSupabaseDefaults(input.config, config).supabase?.hook?.activeFrom,
       root ?? "tenant",
     );
   } catch {
@@ -72,7 +73,7 @@ export async function pd078(
   }
   const mismatch = activeTenantMismatch(
     from,
-    input.config.rls?.tenantClaim ?? supabaseTenantClaim,
+    betterSupabaseTenantClaim(input.config, config),
     activeTenant,
   );
   return mismatch === undefined

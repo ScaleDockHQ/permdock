@@ -77,7 +77,7 @@ export async function readConfig(
     ...parsed,
     config: betterSupabaseDefaults(
       parsed.config,
-      (await betterSupabaseConfig({ cwd })) !== undefined,
+      await betterSupabaseConfig({ cwd }),
     ),
     file: path,
   };
