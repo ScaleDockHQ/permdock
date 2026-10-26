@@ -46,6 +46,7 @@ export default defineConfig({
   blocks: {
     permissions: {
       model: "provider",
+      activeTenant: "claim",
       // Memberships are service-only tables here, so no client assigns a role.
       functions: { canAssign: "false" },
     },

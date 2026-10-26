@@ -5,7 +5,7 @@ description: The permdock/better-supabase entry fills better-supabase's authoriz
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
 
-The entry needs `better-supabase` 0.13 or later as a peer (`>=0.13.0`). The range has no upper bound: CI tests 0.13.0 and 0.18.0 on every pull request, and a daily job tests the newest release.
+The entry needs `better-supabase` 0.13 or later as a peer (`>=0.13.0`). The range has no upper bound: CI tests 0.13.0, 0.18.0 and 0.25.0 on every pull request, and a daily job tests the newest release.
 
 This page uses the better-supabase 0.15 names. `better-supabase codemod 0.15 --yes` rewrites an app from the 0.13 and 0.14 names, and `better-supabase upgrade` rewrites the block SQL:
 
@@ -922,7 +922,7 @@ The arguments apply to every listed table, so `user_roles`, which has no `tenant
 
 ## Example app
 
-`apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. It runs on better-supabase 0.18.0.
+`apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. It runs on better-supabase 0.25.0.
 
 - `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`, sets `blocks.permissions.model: "provider"`, and sets `canAssign` to `false` because its membership tables are service-only.
 - `src/lib/supabase/server.ts` passes `authorizer({ policy, memberships, version })` and the shared `versions` cache to `createNext`. `memberships` comes from the generated source factory, and `version` is `authzVersion({ query })`. `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.

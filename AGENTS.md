@@ -2,7 +2,7 @@
 
 For agents and humans changing this repository. Consumers get the `permdock` and `permdock-*` skills from the `permdock` package (`npx skills add ScaleDockHQ/PermDock`); consumer instructions never go here and maintainer instructions never go in those skills. `CLAUDE.md` is the one line `@AGENTS.md`; put nothing else there.
 
-`PRODUCT.md` is the product brief. Every design decision and its rationale lives in `apps/docs/content/docs/`, in the `Why` section of the page that owns it. Read `index.mdx`, `getting-started/naming.mdx` and `security/threat-model.mdx` there before touching code.
+`PRODUCT.md` is the product brief. Design decisions and their rationale live in `apps/docs/content/docs/`, in the `Why` section of the page that owns it. Read `index.mdx`, `getting-started/naming.mdx` and `security/threat-model.mdx` there before touching code.
 
 ## Rules and conventions
 
@@ -135,7 +135,7 @@ Records in `docs/decisions`:
 - 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
 - 0026 no commit header length limit; 0027 7-day Dependabot cooldown; 0028 `ox-config` over Ultracite
 - 0029 no Turbopack CI cache; 0030 `Vary` only on Markdown
-- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock`; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038-0041, 0046-0048 better-supabase release age; 0042 `oxc-parser`, `jiti` as deps; 0044 lint rules kept off; 0045 open peer ranges, better-supabase 0.13; 0049 hook gate
+- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock`; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038-0041, 0046-0048, 0050 better-supabase release age; 0042 `oxc-parser`, `jiti` as deps; 0044 lint rules kept off; 0045 open peer ranges, better-supabase 0.13; 0049 hook gate
 
 ## Pre-release pins
 
