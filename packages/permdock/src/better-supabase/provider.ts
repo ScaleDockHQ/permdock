@@ -73,6 +73,14 @@ export type AuthorizationProviderOptions = {
    * stays unset and doctor BS409 has nothing to compare.
    */
   readonly activeTenant?: BetterSupabaseActiveTenant;
+  /**
+   * Fill better-supabase's `rowsWith` (and `rowsWithFor` when the `_for`
+   * helpers exist) from the `rls.rowHelpers` helpers the manifest names, so a
+   * `config.records.<type>.permissions.<action>` entry with `rows` checks the
+   * rows the caller holds a permission on. Needs better-supabase 0.22 or later,
+   * whose config takes those templates.
+   */
+  readonly rowHelpers?: boolean;
 };
 
 type DisabledRow = NonNullable<
@@ -93,7 +101,11 @@ type Template = Exclude<
   | "permitted"
   | "portalSubjects"
   | "portalParties"
+  | RowTemplate
 >;
+
+/** The row templates better-supabase 0.22 added to `AuthorizationFunctions`. */
+type RowTemplate = "rowsWith" | "rowsWithFor";
 
 type TemplateEntry = {
   readonly helper: string;
@@ -481,6 +493,47 @@ function permittedTemplate(
   return `case ${branches.join(" ")} else ${otherwise} end`;
 }
 
+/**
+ * better-supabase's `rowsWith` and `rowsWithFor` over the
+ * `permitted_<resource>_rows` helpers: `{resource}` is the resource's SQL name,
+ * `rowsWith` takes the candidate ids being checked, and `rowsWithFor` runs the
+ * helper's `_for` form, which `rls generate` writes beside it for Supabase.
+ */
+function rowTemplatesOf(
+  schema: string,
+  manifest: SupabaseManifest,
+  requires: AuthorizationRequirement[],
+  problems: string[],
+): Partial<Record<RowTemplate, string>> {
+  const rows = Object.values(manifest.names?.resources ?? {}).flatMap(
+    (names) => (names.rows === undefined ? [] : [names.rows]),
+  );
+  if (rows.length === 0) {
+    problems.push(
+      "rowHelpers: the manifest names no permitted_<resource>_rows helper. Set rls.rowHelpers, run `permdock rls generate`, then `permdock supabase inspect --out`.",
+    );
+    return {};
+  }
+  for (const name of rows) {
+    requires.push(
+      {
+        function: `${schema}.${sqlIdent(name)}`,
+        args: "text, text[]",
+        role: "authenticated",
+      },
+      {
+        function: `${schema}.${sqlIdent(`${name}_for`)}`,
+        args: "uuid, text, jsonb",
+        role: "postgres",
+      },
+    );
+  }
+  return {
+    rowsWith: `${schema}.permitted_{resource}_rows({permission}, {ids})`,
+    rowsWithFor: `${schema}.permitted_{resource}_rows_for({user}, {permission})`,
+  };
+}
+
 const RISKS: Readonly<
   Record<
     OperationRisk,
@@ -720,7 +773,12 @@ export function authorizationProvider(
         catalog,
       )
     : undefined;
+  const rowTemplates =
+    options.rowHelpers === true
+      ? rowTemplatesOf(schema, manifest, requires, problems)
+      : {};
   const functions: AuthorizationFunctions = {
+    ...rowTemplates,
     ...optional,
     idsWith: `${schema}.${TEMPLATES.idsWith.sql}`,
     isPlatform: `${schema}.${TEMPLATES.isPlatform.sql}`,
