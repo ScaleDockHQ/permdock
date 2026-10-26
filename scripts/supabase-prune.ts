@@ -103,12 +103,18 @@ for (const { stack, reason } of orphans) {
     stdout.write(`would destroy ${label}\n`);
     continue;
   }
-  execFileSync(
-    supabase,
-    ["stack", "destroy", "--stack-id", stack.id, "--yes"],
-    { cwd: example, stdio: "inherit" },
-  );
-  stdout.write(`destroyed ${label}\n`);
+  try {
+    execFileSync(
+      supabase,
+      ["stack", "destroy", "--stack-id", stack.id, "--yes"],
+      { cwd: example, stdio: "inherit" },
+    );
+    stdout.write(`destroyed ${label}\n`);
+  } catch {
+    // A `docker` stack needs Docker running; the CLI printed its own reason.
+    stdout.write(`failed    ${label}\n`);
+    process.exitCode = 1;
+  }
 }
 if (!apply && orphans.length > 0) {
   stdout.write("Run with --apply to destroy them and their data.\n");
