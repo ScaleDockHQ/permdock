@@ -12,6 +12,8 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
+import type { McpErrorContext } from "../../src/mcp/index.ts";
+
 import {
   memoryApprovalStore,
   resolveApproval,
@@ -283,7 +285,7 @@ describe("verified auth info", () => {
   });
 
   it("reports each guarded list entry a subject that cannot be built hides", async () => {
-    const errors: { permission: string | null; name: string }[] = [];
+    const errors: McpErrorContext[] = [];
     const server = new McpServer({ name: "posts", version: "1.0.0" });
     const guarded = createPermDock(policy, {
       subject: () => memberUser,
@@ -308,8 +310,8 @@ describe("verified auth info", () => {
     });
     expect(await names(client)).toStrictEqual([]);
     expect(errors).toStrictEqual([
-      { permission: "post.list", name: "list_posts" },
-      { permission: "post.update", name: "update_post" },
+      { permission: "post.list", name: "list_posts", tenant: null },
+      { permission: "post.update", name: "update_post", tenant: null },
     ]);
   });
 });

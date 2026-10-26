@@ -54,8 +54,12 @@ export type AuthorizerOptions = {
    */
   readonly memberships?: MembershipSource | readonly MembershipSource[];
   /**
-   * The current authorization version for `memberships`, such as
-   * `authzVersion({ query })`; default the source's own `version`.
+   * Reads the user's current authorization version, which `claimsFirst`
+   * compares with the token's `authz_ver` claim; default the source's own
+   * `version`. Pass `authzVersion({ query })` from `permdock/supabase`, which
+   * reads `permdock_authz_version`, the table the token hook stamps `authz_ver`
+   * from, when the membership source has no `version` of its own or reads
+   * another one.
    */
   readonly version?: MembershipSource["version"];
   /**

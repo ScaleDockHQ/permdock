@@ -52,6 +52,17 @@ describe("doctor better-supabase", () => {
     [undefined, undefined, "active_tenant"],
     ["export default {};", undefined, "tenant_id"],
     ["export default {};", "workspace_id", "workspace_id"],
+    [
+      'export default { auth: { organization: { claim: "org_id" } } };',
+      "workspace_id",
+      "org_id",
+    ],
+    ['export default { claims: { tenant: "team_id" } };', undefined, "team_id"],
+    [
+      'export default { auth: { organization: { claim: "" } } };',
+      undefined,
+      "tenant_id",
+    ],
     ["throw new Error('broken');", undefined, "active_tenant"],
     ["export default 1;", undefined, "active_tenant"],
   ])(
@@ -139,6 +150,28 @@ describe("doctor better-supabase", () => {
       expect(
         await pd078({ cwd, config: hookConfig("app_metadata.tenant_id") }),
       ).toStrictEqual([]);
+    });
+
+    it("names the claim better-supabase's auth.organization.claim writes", async () => {
+      const cwd = policyProject(
+        { policy: POLICY },
+        {
+          "better-supabase.config.mjs": `export default ${JSON.stringify({
+            auth: { organization: { claim: "org_id" } },
+            blocks: { permissions: { activeTenant: "claim" } },
+          })};\n`,
+        },
+      );
+      expect(
+        await pd078({ cwd, config: hookConfig("app_metadata.org_id") }),
+      ).toStrictEqual([]);
+      const [finding] = await pd078({
+        cwd,
+        config: hookConfig("app_metadata.tenant_id"),
+      });
+      expect(finding?.message).toContain(
+        'supabase.hook.activeFrom: "app_metadata.org_id"',
+      );
     });
 
     it("compares a profile column with the hook's table source", async () => {

@@ -246,6 +246,17 @@ const source = powerSyncSource(db, {
 
 Build the source once per signed-in user and tenant, not on every render. `PermDockProvider` reconnects when `source` changes, so a source rebuilt per render runs every `db.watch` and `db.getAll` again. Create it where the session changes (the sign-in handler or a session store), or at module scope for a fixed user. In an app built with the React Compiler, a source created in a component from `db`, `userId` and `tenantId` keeps its identity while those values do.
 
+Without the React Compiler, or where the options are rebuilt on every render, create one `powerSyncSourceCache(db)` beside the database and call `cache.source(options)` in the component. It answers the same source for the same `manifest` object and the same `user`, `tenant` and `attributes` content; with `queries` and `read`, for the same `queries` and `read` objects. Switching tenant answers another source, and switching back answers the first again with its rows cached. Entries live as long as their manifest.
+
+```tsx
+import { powerSyncSourceCache } from "permdock/react-native";
+
+export const sources = powerSyncSourceCache(db);
+
+// In a component:
+const source = sources.source({ manifest, user: userId, tenant: tenantId });
+```
+
 Pass `subscribeForeground={appStateForeground(AppState)}` as well. A `db.watch` reports rows that sync while the app runs; on the return to the foreground the provider reads the tables again, so rows synced while JavaScript was suspended apply at once:
 
 ```tsx

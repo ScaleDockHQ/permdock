@@ -12,6 +12,8 @@ import {
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { McpErrorContext } from "../../src/mcp/index.ts";
+
 import {
   memoryApprovalStore,
   resolveApproval,
@@ -542,7 +544,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
   });
 
   it("reports a thrown loader to onError and keeps the refusal", async () => {
-    const errors: { permission: string | null; name: string }[] = [];
+    const errors: McpErrorContext[] = [];
     const server = new McpServer({ name: "posts", version: "1.0.0" });
     const guarded = createPermDock(policy, {
       subject: () => memberUser,
@@ -568,7 +570,9 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
     });
     expect(boom.isError).toBe(true);
     expect(text(boom)).not.toContain("database down");
-    expect(errors).toStrictEqual([{ permission: "post.read", name: "boom" }]);
+    expect(errors).toStrictEqual([
+      { permission: "post.read", name: "boom", tenant: null },
+    ]);
   });
 
   it("ignores an onError sink that throws", async () => {
@@ -599,7 +603,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
   });
 
   it("reports a failed approval input and keeps the refusal", async () => {
-    const errors: { permission: string | null; name: string }[] = [];
+    const errors: McpErrorContext[] = [];
     const server = new McpServer({ name: "posts", version: "1.0.0" });
     const guarded = createPermDock(policy, {
       subject: () => memberUser,
@@ -628,7 +632,7 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
     });
     expect(refused.isError).toBe(true);
     expect(errors).toStrictEqual([
-      { permission: "post.delete", name: "delete_post" },
+      { permission: "post.delete", name: "delete_post", tenant: null },
     ]);
   });
 

@@ -35,13 +35,46 @@ export async function betterSupabaseConfig(
   }
 }
 
+function stringAt(
+  value: unknown,
+  ...path: readonly string[]
+): string | undefined {
+  let at = value;
+  for (const key of path) {
+    if (!isRecord(at)) return undefined;
+    at = at[key];
+  }
+  return typeof at === "string" && at !== "" ? at : undefined;
+}
+
+/**
+ * The claim better-supabase writes the active tenant to:
+ * `auth.organization.claim` in a grouped config, `claims.tenant` in a flat one,
+ * then `rls.tenantClaim` and `tenant_id`.
+ */
+export function betterSupabaseTenantClaim(
+  config: PermDockConfig,
+  betterSupabase: Record<string, unknown>,
+): string {
+  return (
+    stringAt(betterSupabase, "auth", "organization", "claim") ??
+    stringAt(betterSupabase, "claims", "tenant") ??
+    config.rls?.tenantClaim ??
+    supabaseTenantClaim
+  );
+}
+
 /** Resolve the hook default once for generation, inspection and doctor. */
 export function betterSupabaseDefaults(
   config: PermDockConfig,
-  detected: boolean,
+  betterSupabase: Record<string, unknown> | undefined,
 ): PermDockConfig {
   const hook = config.supabase?.hook;
-  if (!detected || hook === undefined || hook.activeFrom !== undefined) {
+  if (
+    betterSupabase === undefined ||
+    hook === undefined ||
+    hook.activeFrom !== undefined
+  ) {
     return config;
   }
   return {
@@ -50,7 +83,7 @@ export function betterSupabaseDefaults(
       ...config.supabase,
       hook: {
         ...hook,
-        activeFrom: `app_metadata.${config.rls?.tenantClaim ?? supabaseTenantClaim}`,
+        activeFrom: `app_metadata.${betterSupabaseTenantClaim(config, betterSupabase)}`,
       },
     },
   };

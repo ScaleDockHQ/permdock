@@ -68,7 +68,7 @@ import {
 - `operations` lists each catalog [operation](/docs/concepts/operations) as better-supabase tools: a name without a dot becomes `ai.tool.<name>` and `mcp.tool.<name>`, and a dotted name is used as written. `risk: 'critical'` maps to `high`, and the effects `send` and `spend` to `external`.
 - `delegation.scopes` maps each catalog permission's `.scope` to its key, so an OAuth client or agent token granted `invoice:read` gets `invoice.read`. Each coarse scope in the catalog's `oauthScopes` maps to the keys it covers ([OAuth scopes](#oauth-scopes)). Keys are sorted by code point. A scope the catalog does not list grants nothing.
 - `approver` is a permission. It becomes the `'ai-tool'` entry of `approvers` unless `approvers` names one. A key the catalog lacks is a problem.
-- In a project with a readable `better-supabase.config.*` object export, the CLI defaults the hook's active source to `app_metadata.<rls.tenantClaim ?? tenant_id>`. An explicit `supabase.hook.activeFrom` or `--active-from` wins. Plain Supabase keeps `app_metadata.active_<first scope>`. This makes generation, inspection and PD078 agree without changing plain Supabase projects.
+- In a project with a readable `better-supabase.config.*` object export, the CLI defaults the hook's active source to `app_metadata.<claim>`, where the claim is better-supabase's `auth.organization.claim` (or `claims.tenant` in a flat config), then `rls.tenantClaim`, then `tenant_id`. An explicit `supabase.hook.activeFrom` or `--active-from` wins. Plain Supabase keeps `app_metadata.active_<first scope>`. This makes generation, inspection and PD078 agree without changing plain Supabase projects.
 - `activeTenant` is better-supabase's `blocks.permissions.activeTenant`. When the token hook reads the active tenant from another place than better-supabase writes it, `problems` names the `supabase.hook.activeFrom` to set: `app_metadata.<tenant claim>` for `"claim"`, or the profile column for `{ profileColumn }`. Doctor reports the same as PD078.
 - `rowHelpers: true` fills better-supabase's `rowsWith` and `rowsWithFor` from the `permitted_<resource>_rows` helpers that `rls.rowHelpers` writes and the manifest names. A better-supabase subject type whose action in `subjects.<type>.permissions` names `rows: "<resource SQL name>"` with a `key` then checks the rows the caller holds that key on, through the candidate form `permitted_<resource>_rows(permission, ids)`, and for another user through `permitted_<resource>_rows_for`. Without row helpers in the manifest, `problems` names the step to run.
 - `tokenHook.activeOrganizationFrom` names where the token hook reads the active tenant, from the manifest's `hook.activeFrom`: `"claim"` for `app_metadata.<tenant claim>`, or `{ profileColumn, key? }` for a profile column. better-supabase's doctor BS409 warns when it differs from `blocks.permissions.activeTenant`. It stays unset for an `app_metadata` key other than the tenant claim, which better-supabase has no name for, and when `activeTenant` is `"resolver"`, where the tenant comes from the request.
@@ -316,7 +316,20 @@ Each check builds its instance with an [`intent`](/docs/adapters/supabase#freshn
 | `evaluate` of a permission whose action is `read`, `list` or `view` | `read`  |
 | Every other `evaluate`: actions, mutations, route guards            | `write` |
 
-Pass `intent: (request) => "read" | "write"` to decide it yourself. With `read`, `claimsFirst` may answer the version from the cache; with `write` it reads the version live.
+Pass `intent: (request) => "read" | "write"` to decide it yourself. With `read`, `claimsFirst` may answer the version from the cache; with `write` it reads the version live. The function replaces the whole table, `evaluations` included, because the request does not say whether it is a batch:
+
+```ts
+import type { AuthorizationRequest } from "better-supabase/server";
+import { isPermission, type Intent, type Permission } from "permdock";
+
+const intent = (request: AuthorizationRequest<Permission>): Intent =>
+  isPermission(request.action) &&
+  ["read", "list", "view"].includes(request.action.action)
+    ? "read"
+    : "write";
+
+authorizer({ policy, memberships, version, intent });
+```
 
 `onError: (error, { permission, tenant }) => void` receives every error a check threw. The check still denies, and a sink that throws is ignored.
 
@@ -911,7 +924,7 @@ The arguments apply to every listed table, so `user_roles`, which has no `tenant
 `apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. It runs on better-supabase 0.29.0.
 
 - `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`, sets `blocks.permissions.model: "provider"`, and sets `canAssign` to `false` because its membership tables are service-only.
-- `src/lib/supabase/server.ts` passes `authorizer({ policy, memberships, version })` and the shared `versions` cache to `createNext`. `memberships` comes from the generated source factory, and `version` is `authzVersion({ query })`. `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.
+- `src/lib/supabase/server.ts` passes `authorizer({ policy, memberships, version, intent })` and the shared `versions` cache to `createNext`. `memberships` comes from the generated source factory, `version` is `authzVersion({ query })`, and `intent` makes a `read`, `list` or `view` permission `read` and every other check `write`. `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.
 - `src/lib/supabase/index.ts` validates sessions with `supabaseClaims().extend(appClaims)`, and `src/lib/access.ts` maps them with `subjectFromBetterSupabase`.
 - `supabase/schemas/public/functions/feature_claims.sql` adds `public.feature_claims(user_id)`, which reads `organization_features` for the organizations `permdock.member_organization_ids_for(user_id)` returns. `permdock.config.ts` registers it as the `features` claim.
 - The share-links block requires better-supabase's `memberships` block. `blocks.memberships` maps onto the app's `public.organization_memberships` table, and `src/sources.ts` reads the same table with `blockMembershipSource`, so the block and the token hook share one set of rows. The example installs no organizations block, so it sets no `assignmentGuard`.

@@ -195,15 +195,25 @@ export type McpProcedureEnforcement = {
   readonly oauthScopesFor?: (name: string) => readonly string[] | undefined;
 };
 
+/** What an `onError` sink receives next to the thrown error. */
+export type McpErrorContext = {
+  /** The key of the permission being checked. */
+  readonly permission: string | null;
+  /** The tool, resource or prompt name. */
+  readonly name: string;
+  /**
+   * The tenant the `tenant` option resolves for the call, or `null` when it
+   * resolves none or throws.
+   */
+  readonly tenant: string | null;
+};
+
 /**
  * Receives an error a check threw: a loader, `decide`, an approval input or a
  * subject a list cannot build. The call still refuses; a sink that throws is
- * ignored.
+ * ignored. A `BetterSupabaseOnError` from `permdock/better-supabase` fits.
  */
-export type McpOnError = (
-  error: unknown,
-  context: { readonly permission: string | null; readonly name: string },
-) => void;
+export type McpOnError = (error: unknown, context: McpErrorContext) => void;
 
 export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
   /**
