@@ -478,10 +478,10 @@ PD077 also reports a SQL helper name `rls generate` cannot write: a scope and a 
 
 ### PD078: active tenant read from another place
 
-better-supabase's `switch_organization` writes the active tenant where `blocks.permissions.activeTenant` says: `app_metadata.<auth.organization.claim>` for `"claim"`, or the profile column for `{ profileColumn, key? }`. PermDock's token hook reads it from `supabase.hook.activeFrom`, `app_metadata.active_<first scope>` by default. When the two differ, switching organizations never changes the tenant claim. The check loads `better-supabase.config.ts` and reports the `activeFrom` to set:
+better-supabase's `switch_organization` writes the active tenant where `blocks.permissions.activeTenant` says: `app_metadata.<auth.organization.claim>` for `"claim"`, or the profile column for `{ profileColumn, key? }`. PermDock's token hook reads it from `supabase.hook.activeFrom`, `app_metadata.<rls.tenantClaim ?? tenant_id>` by default when a readable `better-supabase.config.*` exports an object; plain Supabase keeps `app_metadata.active_<first scope>`. When the two differ, switching organizations never changes the tenant claim. The check loads `better-supabase.config.ts` and reports the `activeFrom` to set:
 
 ```txt
-warning PD078  blocks.permissions.activeTenant is "claim", so better-supabase's switch_organization writes app_metadata.tenant_id, but PermDock's token hook reads the active tenant from app_metadata.active_organization. Set supabase.hook.activeFrom: "app_metadata.tenant_id" and run permdock supabase hook generate.
+warning PD078  blocks.permissions.activeTenant is "claim", so better-supabase's switch_organization writes app_metadata.tenant_id, but PermDock's token hook reads the active tenant from app_metadata.custom. Set supabase.hook.activeFrom: "app_metadata.tenant_id" and run permdock supabase hook generate.
 ```
 
 `"resolver"`, better-supabase's default, takes the tenant from the request, so PD078 reports nothing for it. `authorizationProvider({ activeTenant })` reports the same mismatch in `problems` ([better-supabase](/docs/adapters/better-supabase#api)). `--only supabase` (or `--only better-supabase`) runs PD078.

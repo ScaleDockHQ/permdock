@@ -12,36 +12,13 @@ import { rootScope, scopeList } from "../../core/scopes.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { catalogPath } from "../catalog-path.ts";
 import { rel } from "../files.ts";
-import { loadModule } from "../project/load.ts";
+import {
+  betterSupabaseConfig,
+  betterSupabaseDefaults,
+} from "../project/better-supabase.ts";
 import { filesOf } from "../shared/doctor-files.ts";
 import { activeSource } from "../supabase-hook/memberships.ts";
 import { policyOf } from "./inputs.ts";
-
-const CONFIG_FILES = [
-  "better-supabase.config.ts",
-  "better-supabase.config.mts",
-  "better-supabase.config.js",
-  "better-supabase.config.mjs",
-] as const;
-
-/** The default export of the project's `better-supabase.config.*`, if it loads. */
-async function betterSupabaseConfig(
-  input: DoctorInput,
-): Promise<Record<string, unknown> | undefined> {
-  const files = filesOf(input);
-  const path = CONFIG_FILES.map((name) => resolve(input.cwd, name)).find(
-    (file) => files.exists(file),
-  );
-  if (path === undefined) {
-    return undefined;
-  }
-  try {
-    const loaded = (await loadModule(path))["default"];
-    return isRecord(loaded) ? loaded : undefined;
-  } catch {
-    return undefined;
-  }
-}
 
 function activeTenantOf(
   config: Record<string, unknown>,
@@ -85,7 +62,11 @@ export async function pd078(
     policy === undefined ? undefined : rootScope(scopeList(policy.scopes));
   let from: ReturnType<typeof activeSource>;
   try {
-    from = activeSource(hook.activeFrom, root ?? "tenant");
+    from = activeSource(
+      betterSupabaseDefaults(input.config, config !== undefined).supabase?.hook
+        ?.activeFrom,
+      root ?? "tenant",
+    );
   } catch {
     return [];
   }

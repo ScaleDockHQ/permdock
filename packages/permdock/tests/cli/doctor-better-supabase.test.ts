@@ -3,6 +3,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import { pd078, pd079 } from "../../src/cli/doctor/better-supabase.ts";
+import { loadConfig } from "../../src/cli/project/config.ts";
+import { supabaseHookSql } from "../../src/cli/supabase-hook/supabase-hook.ts";
+import { tableMembershipSource } from "../../src/supabase/index.ts";
 import { policyProject, removeProjects } from "./doctor-kit.ts";
 
 const POLICY = "roles: [],";
@@ -45,6 +48,60 @@ function hookConfig(activeFrom?: string): PermDockConfig {
 describe("doctor better-supabase", () => {
   afterEach(removeProjects);
 
+  it.each([
+    [undefined, undefined, "active_tenant"],
+    ["export default {};", undefined, "tenant_id"],
+    ["export default {};", "workspace_id", "workspace_id"],
+    ["throw new Error('broken');", undefined, "active_tenant"],
+    ["export default 1;", undefined, "active_tenant"],
+  ])(
+    "shares detected defaults with SQL and manifest: %s / %s",
+    async (source, tenantClaim, expected) => {
+      const config = {
+        ...hookConfig(),
+        ...(tenantClaim === undefined ? {} : { rls: { tenantClaim } }),
+      };
+      const cwd = policyProject(
+        {},
+        {
+          "permdock.config.mjs": `export default ${JSON.stringify(config)};`,
+          ...(source === undefined
+            ? {}
+            : { "better-supabase.config.mjs": source }),
+        },
+      );
+      const loaded = await loadConfig(cwd);
+      const generated = supabaseHookSql([], {
+        ...loaded,
+        supabase: {
+          hook: {
+            ...loaded.supabase?.hook,
+            memberships: [tableMembershipSource({ table: "memberships" })],
+          },
+        },
+      });
+      expect(generated.manifest.hook.activeFrom).toStrictEqual({
+        appMetadata: expected,
+      });
+      expect(generated.sql).toContain(
+        `claims -> 'app_metadata' ->> '${expected}'`,
+      );
+    },
+  );
+
+  it("preserves an explicit source in detected projects", async () => {
+    const cwd = policyProject(
+      {},
+      {
+        "permdock.config.mjs": `export default ${JSON.stringify(hookConfig("app_metadata.custom"))};`,
+        "better-supabase.config.mjs": "export default {};",
+      },
+    );
+    expect((await loadConfig(cwd)).supabase?.hook?.activeFrom).toBe(
+      "app_metadata.custom",
+    );
+  });
+
   describe("PD078", () => {
     it("warns when switch_organization writes a claim the hook does not read", async () => {
       const cwd = policyProject(
@@ -55,7 +112,10 @@ describe("doctor better-supabase", () => {
           }),
         },
       );
-      const findings = await pd078({ cwd, config: hookConfig() });
+      const findings = await pd078({
+        cwd,
+        config: hookConfig("app_metadata.active_tenant"),
+      });
       expect(findings).toStrictEqual([
         expect.objectContaining({ code: "PD078", severity: "warning" }),
       ]);
@@ -163,7 +223,7 @@ describe("doctor better-supabase", () => {
       ).toStrictEqual([]);
     });
 
-    it("checks the hook's default source when the policy does not load", async () => {
+    it("uses the detected claim default even when the policy does not load", async () => {
       const cwd = policyProject(
         {},
         {
@@ -172,9 +232,7 @@ describe("doctor better-supabase", () => {
           }),
         },
       );
-      expect(await pd078({ cwd, config: hookConfig() })).toStrictEqual([
-        expect.objectContaining({ code: "PD078" }),
-      ]);
+      expect(await pd078({ cwd, config: hookConfig() })).toStrictEqual([]);
     });
 
     it("reads the key of a profile column", async () => {

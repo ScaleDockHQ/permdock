@@ -7,6 +7,10 @@ import type { ParsedConfig } from "./config-schema.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { CliError } from "../core/errors.ts";
+import {
+  betterSupabaseConfig,
+  betterSupabaseDefaults,
+} from "./better-supabase.ts";
 import { parseConfig } from "./config-schema.ts";
 import { MODULE_KEYS } from "./config-shape.ts";
 
@@ -63,12 +67,17 @@ export async function readConfig(
   const mod = await loadModule(path, options);
   const display = relative(cwd, path).replaceAll("\\", "/");
   const raw = pickNamed(mod, ["default"]);
+  const parsed = parseConfig(
+    hasModuleValue(raw)
+      ? await traceValues(cwd, path, display, raw, options)
+      : raw,
+    display,
+  );
   return {
-    ...parseConfig(
-      hasModuleValue(raw)
-        ? await traceValues(cwd, path, display, raw, options)
-        : raw,
-      display,
+    ...parsed,
+    config: betterSupabaseDefaults(
+      parsed.config,
+      (await betterSupabaseConfig({ cwd })) !== undefined,
     ),
     file: path,
   };
