@@ -1,0 +1,3 @@
+{
+  "setup-worktree": ["node scripts/worktree-setup.ts"]
+}

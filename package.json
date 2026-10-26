@@ -46,7 +46,8 @@
     "typecheck:perf": "node scripts/typecheck-perf.ts",
     "typecheck:tooling": "tsc --noEmit",
     "verify": "pnpm run format:check && pnpm run lint:root && pnpm run boundaries && turbo run --continue=dependencies-successful lint typecheck typecheck:tooling knip test size docs:drift openapi:check gen:check doctor check:publish typecheck:perf cli:startup audit:high",
-    "version-packages": "node scripts/root-changelog.ts && changeset version && node scripts/sync-server-version.ts && oxfmt ."
+    "version-packages": "node scripts/root-changelog.ts && changeset version && node scripts/sync-server-version.ts && oxfmt .",
+    "worktree:setup": "node scripts/worktree-setup.ts"
   },
   "devDependencies": {
     "@changesets/assemble-release-plan": "catalog:",
