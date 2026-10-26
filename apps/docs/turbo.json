@@ -4,12 +4,23 @@
   "tags": ["app"],
   "tasks": {
     "build": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"],
       "inputs": [
         "$TURBO_DEFAULT$",
+        "!AGENTS.md",
+        "!CLAUDE.md",
+        "!tests/**",
+        "!vitest.config.*",
         "$TURBO_ROOT$/vercel.json",
         "$TURBO_ROOT$/CHANGELOG.md"
       ],
       "env": ["$TURBO_EXTENDS$", "EXPOSE_TESTING_API"]
+    },
+    "typecheck": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
+    },
+    "lint": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
     },
     "test": {
       "dependsOn": ["^build"]

@@ -4,7 +4,14 @@
   "tags": ["example"],
   "tasks": {
     "build": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"],
       "env": ["$TURBO_EXTENDS$", "DEMO_LATENCY_MS", "EXPOSE_TESTING_API"]
+    },
+    "typecheck": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
+    },
+    "lint": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
     }
   }
 }

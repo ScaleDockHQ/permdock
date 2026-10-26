@@ -3,13 +3,24 @@
   "extends": ["//"],
   "tags": ["library"],
   "tasks": {
+    "build": {
+      "inputs": [
+        "src/**",
+        "schemas/**",
+        "rulesets/**",
+        "skills/**",
+        "package.json",
+        "tsconfig.json",
+        "tsdown.config.ts"
+      ]
+    },
     "typecheck": {
       "dependsOn": ["build", "^build"]
     },
     "test": {
-      "dependsOn": ["$TURBO_EXTENDS$", "//#authzen:vectors"],
+      "dependsOn": ["$TURBO_EXTENDS$", "build", "//#authzen:vectors"],
       "inputs": ["$TURBO_DEFAULT$", "tests/testing/fixtures/authzen/**"],
-      "env": ["$TURBO_EXTENDS$", "PERMDOCK_COLLECT"]
+      "env": ["$TURBO_EXTENDS$", "CI", "PERMDOCK_COLLECT"]
     },
     "gen:check": {
       "inputs": [

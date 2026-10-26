@@ -1,5 +1,13 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
   "extends": ["//"],
-  "tags": ["test"]
+  "tags": ["test"],
+  "tasks": {
+    "typecheck": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
+    },
+    "lint": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
+    }
+  }
 }

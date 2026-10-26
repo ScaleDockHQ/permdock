@@ -4,7 +4,13 @@
   "tags": ["example"],
   "tasks": {
     "build": {
-      "dependsOn": ["^build", "typegen"]
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
+    },
+    "typecheck": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
+    },
+    "lint": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
     },
     "typegen": {
       "outputs": ["src/generated/**"]

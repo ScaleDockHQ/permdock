@@ -3,6 +3,16 @@
   "extends": ["//"],
   "tags": ["example"],
   "tasks": {
+    "build": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"],
+      "outputs": ["build/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
+    },
+    "lint": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
+    },
     "typegen": {
       "outputs": [".react-router/**"]
     }

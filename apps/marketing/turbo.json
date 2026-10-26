@@ -4,11 +4,19 @@
   "tags": ["app"],
   "tasks": {
     "build": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/vercel.json"],
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"],
+      "inputs": [
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/vercel.json",
+        "$TURBO_ROOT$/packages/permdock/CHANGELOG.md"
+      ],
       "env": ["$TURBO_EXTENDS$", "DOCS_ORIGIN", "EXPOSE_TESTING_API"]
     },
     "dev": {
       "passThroughEnv": ["PORT", "DOCS_ORIGIN"]
+    },
+    "lint": {
+      "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
     },
     "test": {
       "dependsOn": ["^build"]

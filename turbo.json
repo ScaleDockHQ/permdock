@@ -20,8 +20,8 @@
       "enabled": true,
       "signature": true
     },
-    "env": ["CI", "NODE_ENV"],
     "passThroughEnv": [
+      "CI",
       "COREPACK_HOME",
       "ENABLE_EXPERIMENTAL_COREPACK",
       "GITHUB_ACTIONS",
@@ -77,10 +77,26 @@
   "tasks": {
     "typegen": {
       "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.md",
+        "!**/*.mdx",
+        "!tests/**",
+        "!**/*.test.*"
+      ],
       "outputs": []
     },
     "build": {
-      "dependsOn": ["^build", "typegen"],
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.md",
+        "!**/*.mdx",
+        "!tests/**",
+        "!**/*.test.*",
+        "!vitest.config.*",
+        "!playwright.config.*"
+      ],
       "outputs": [
         "dist/**",
         ".next/**",
@@ -88,23 +104,28 @@
         "!.next/dev/**",
         ".source/**"
       ],
-      "env": ["NEXT_PUBLIC_*", "SENTRY_ORG", "SENTRY_PROJECT"],
+      "env": ["NEXT_PUBLIC_*", "NODE_ENV", "SENTRY_ORG", "SENTRY_PROJECT"],
       "passThroughEnv": ["SENTRY_AUTH_TOKEN"]
     },
     "typecheck": {
-      "dependsOn": ["^build", "typegen"],
-      "inputs": ["$TURBO_DEFAULT$"]
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "!**/*.md", "!**/*.mdx"]
     },
     "lint": {
-      "dependsOn": ["^build", "typegen"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/turbo.json"]
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/turbo.json",
+        "!**/*.md",
+        "!**/*.mdx"
+      ]
     },
     "//#lint:root": {
       "inputs": ["*.config.ts", "knip.mts", "scripts/**"],
       "outputs": []
     },
     "test": {
-      "dependsOn": ["build", "^build"],
+      "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$"]
     },
     "//#authzen:vectors": {
@@ -148,12 +169,14 @@
         "packages/permdock/src/**",
         "packages/permdock/tests/**"
       ],
-      "outputs": []
+      "outputs": [],
+      "env": ["CI"]
     },
     "//#cli:startup": {
       "dependsOn": ["permdock#build"],
       "inputs": ["scripts/cli-startup.*", "packages/permdock/src/cli/**"],
-      "outputs": []
+      "outputs": [],
+      "env": ["CI"]
     },
     "//#knip": {
       "dependsOn": [
