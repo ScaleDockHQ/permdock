@@ -81,6 +81,20 @@ describe("powersync pd058 sources", () => {
       expect(await messages([tier])).toStrictEqual([]);
     });
 
+    it("accepts disabledAt without an expiry", async () => {
+      expect(
+        await messages([
+          junctionMembershipSource({
+            table: "members",
+            scope: "tenant",
+            id: "tenant_id",
+            roles: "role",
+            disabledAt: "disabled_at",
+          }),
+        ]),
+      ).toStrictEqual([]);
+    });
+
     it("skips a scope an rls.memberships table maps", async () => {
       const expiring = junctionMembershipSource({
         table: "user_roles",

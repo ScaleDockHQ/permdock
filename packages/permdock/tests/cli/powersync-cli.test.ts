@@ -86,6 +86,345 @@ export const policy = definePolicy(permissions, {
   }
 
   describe("permdock powersync", () => {
+    it("reports missing synced rows and missing ids for granted followed fixtures", async () => {
+      const cwd = project();
+      const config: PermDockConfig = {
+        ...projectConfig,
+        powersync: {
+          tables: {
+            attachments: { follow: [{ resource: "note", field: "parent_id" }] },
+          },
+        },
+      };
+      writeFileSync(
+        join(cwd, "rls.fixtures.json"),
+        JSON.stringify([
+          {
+            subject: { id: "u1", tenant: "different" },
+            table: "attachments",
+            row: { id: "a1", parent_id: "n1" },
+            expected: "granted",
+          },
+          {
+            subject: { id: "u1" },
+            table: "attachments",
+            row: { parent_id: "n1" },
+            expected: "granted",
+          },
+        ]),
+      );
+      const base = { cwd, config, check: false };
+      await runPowerSync({ ...base, rest: ["generate"] });
+      const result = await runPowerSync({
+        ...base,
+        rest: ["verify"],
+        db: "postgres://test",
+        connect: async () => ({
+          query: async (sql) => ({
+            rows: sql.startsWith("select * from")
+              ? [{ id: "n1", author_id: "u1", org_id: "o1" }]
+              : [],
+          }),
+          end: async () => undefined,
+        }),
+      });
+      expect(result.code).toBe(1);
+      expect(result.output).toContain(
+        "attachments for u1: granted, but stream attachments does not sync the row",
+      );
+      expect(result.output).toContain(
+        "attachments for u1: fixture row needs id",
+      );
+      expect(result.output).not.toContain(
+        "expected granted, but parent access is denied",
+      );
+    });
+
+    it("denies malformed parent ids and unknown parent permissions without granting followed access", async () => {
+      const cwd = project();
+      const config: PermDockConfig = {
+        ...projectConfig,
+        powersync: {
+          tables: {
+            attachments: {
+              user: "user_id",
+              follow: [
+                { resource: "note", field: "parent_id" },
+                { resource: "unknown", field: "other_id" },
+              ],
+            },
+          },
+        },
+      };
+      writeFileSync(
+        join(cwd, "rls.fixtures.json"),
+        JSON.stringify([
+          {
+            subject: { id: "u1" },
+            table: "attachments",
+            row: { id: "a-null", parent_id: null, other_id: "x" },
+            expected: "denied",
+          },
+          {
+            subject: { id: "u1" },
+            table: "attachments",
+            row: { id: "a-object", parent_id: { id: "n1" }, other_id: "x" },
+            expected: "denied",
+          },
+        ]),
+      );
+      const base = { cwd, config, check: false };
+      await runPowerSync({ ...base, rest: ["generate"] });
+      const result = await runPowerSync({
+        ...base,
+        rest: ["verify"],
+        db: "postgres://test",
+        connect: fakeDb(() => false),
+      });
+      expect(result.code).toBe(0);
+      expect(result.output).toContain(
+        "no stream syncs a row the fixtures deny",
+      );
+    });
+
+    it("verifies a pure own-user table without requiring follow rules", async () => {
+      const cwd = project();
+      const config: PermDockConfig = {
+        ...projectConfig,
+        powersync: { tables: { preferences: { user: "user_id" } } },
+      };
+      writeFileSync(
+        join(cwd, "rls.fixtures.json"),
+        JSON.stringify([
+          {
+            subject: { id: "u1" },
+            table: "preferences",
+            row: { id: "p1", user_id: "u1" },
+            expected: "granted",
+          },
+          {
+            subject: { id: "u1" },
+            table: "preferences",
+            row: { id: "p2", user_id: "u2" },
+            expected: "denied",
+          },
+        ]),
+      );
+      const base = { cwd, config, check: false };
+      await runPowerSync({ ...base, rest: ["generate"] });
+      const result = await runPowerSync({
+        ...base,
+        rest: ["verify"],
+        db: "postgres://test",
+        connect: fakeDb((values) => values.length === 3 && values[2] === "p1"),
+      });
+      expect(result.code).toBe(0);
+      expect(result.output).toContain(
+        "no stream syncs a row the fixtures deny",
+      );
+    });
+
+    it("checks followed attachment rows against their parent access and expected outcome", async () => {
+      const cwd = project();
+      const config: PermDockConfig = {
+        ...projectConfig,
+        powersync: {
+          tables: {
+            attachments: {
+              follow: [
+                {
+                  resource: "note",
+                  field: "parent_id",
+                  match: { kind: "note" },
+                },
+              ],
+            },
+          },
+        },
+      };
+      writeFileSync(
+        join(cwd, "rls.fixtures.json"),
+        JSON.stringify([
+          {
+            subject: { id: "u1" },
+            table: "attachments",
+            row: { id: "a1", parent_id: "n1", kind: "note" },
+            expected: "granted",
+          },
+          {
+            subject: { id: "u2" },
+            table: "attachments",
+            row: { id: "a1", parent_id: "n1", kind: "note" },
+            expected: "denied",
+          },
+        ]),
+      );
+      const base = { cwd, config, check: false };
+      await runPowerSync({ ...base, rest: ["generate"] });
+      const verify = (leak: boolean) =>
+        runPowerSync({
+          ...base,
+          rest: ["verify"],
+          db: "postgres://test",
+          connect: async () => ({
+            query: async (sql, values) => ({
+              rows: sql.startsWith("select * from")
+                ? [{ id: "n1", author_id: "u1" }]
+                : values.length === 3 && (values[0] === "u1" || leak)
+                  ? [{ id: "a1" }]
+                  : [],
+            }),
+            end: async () => undefined,
+          }),
+        });
+      expect((await verify(false)).code).toBe(0);
+      writeFileSync(
+        join(cwd, "rls.fixtures.json"),
+        JSON.stringify([
+          {
+            subject: { id: "u1" },
+            table: "attachments",
+            row: { id: "a1", parent_id: "n1", kind: "note" },
+            expected: "denied",
+          },
+        ]),
+      );
+      expect(await verify(false)).toMatchObject({
+        code: 1,
+        output: expect.stringContaining(
+          "expected denied, but parent access is granted",
+        ),
+      });
+      writeFileSync(
+        join(cwd, "rls.fixtures.json"),
+        JSON.stringify([
+          {
+            subject: { id: "u2" },
+            table: "attachments",
+            row: { id: "a1", parent_id: "n1", kind: "note" },
+            expected: "denied",
+          },
+        ]),
+      );
+      expect(await verify(true)).toMatchObject({
+        code: 1,
+        output: expect.stringContaining(
+          "attachments for u2: stream attachments syncs a row the policy denies",
+        ),
+      });
+    });
+
+    it("fails closed for invalid followed-row fixtures and unsupported table streams", async () => {
+      const cwd = project();
+      const base = { cwd, config: projectConfig, check: false };
+      await runPowerSync({ ...base, rest: ["generate"] });
+      const verify = () =>
+        runPowerSync({
+          ...base,
+          rest: ["verify"],
+          db: "postgres://test",
+          connect: fakeDb(() => false),
+        });
+      for (const fixture of [
+        { subject: { id: "u1" }, table: "attachments", row: { id: "a1" } },
+        {
+          subject: { id: "u1" },
+          table: "attachments",
+          action: "note.read",
+          row: { id: "a1" },
+          expected: "denied",
+        },
+        {
+          subject: { id: "u1" },
+          table: "attachments",
+          row: { id: "a1" },
+          expected: "unknown",
+        },
+      ]) {
+        writeFileSync(
+          join(cwd, "rls.fixtures.json"),
+          JSON.stringify([fixture]),
+        );
+        await expect(verify()).rejects.toMatchObject({
+          code: "config_invalid",
+        });
+      }
+      writeFileSync(
+        join(cwd, "rls.fixtures.json"),
+        JSON.stringify([
+          {
+            subject: { id: "u1" },
+            table: "attachments",
+            row: { id: "a1" },
+            expected: "denied",
+          },
+        ]),
+      );
+      expect(await verify()).toMatchObject({
+        code: 1,
+        output: expect.stringContaining("no configured table stream"),
+      });
+    });
+
+    it("checks own-user and follow rules as a union, rejecting missing parents and mismatched kinds", async () => {
+      const cwd = project();
+      const config: PermDockConfig = {
+        ...projectConfig,
+        powersync: {
+          tables: {
+            attachments: {
+              user: "user_id",
+              follow: [
+                {
+                  resource: "note",
+                  field: "parent_id",
+                  match: { kind: "note" },
+                },
+              ],
+            },
+          },
+        },
+      };
+      const rows = [
+        { id: "own", user_id: "u1", kind: "other" },
+        { id: "parent", user_id: "u2", parent_id: "n1", kind: "note" },
+        { id: "missing", parent_id: "missing", kind: "note" },
+        { id: "wrong-kind", parent_id: "n1", kind: "other" },
+      ];
+      writeFileSync(
+        join(cwd, "rls.fixtures.json"),
+        JSON.stringify(
+          rows.map((row, index) => ({
+            subject: { id: "u1" },
+            table: "attachments",
+            row,
+            expected: index < 2 ? "granted" : "denied",
+          })),
+        ),
+      );
+      const base = { cwd, config, check: false };
+      await runPowerSync({ ...base, rest: ["generate"] });
+      const result = await runPowerSync({
+        ...base,
+        rest: ["verify"],
+        db: "postgres://test",
+        connect: async () => ({
+          query: async (sql, values) => ({
+            rows: sql.startsWith("select * from")
+              ? values[0] === "n1"
+                ? [{ id: "n1", author_id: "u1" }]
+                : []
+              : values.length === 3 &&
+                  (values[2] === "own" || values[2] === "parent")
+                ? [{}]
+                : [],
+          }),
+          end: async () => undefined,
+        }),
+      });
+      expect(result.code).toBe(0);
+    });
+
     it("generates, checks and verifies the file", async () => {
       const cwd = project();
       const base = { cwd, config: projectConfig, check: false };

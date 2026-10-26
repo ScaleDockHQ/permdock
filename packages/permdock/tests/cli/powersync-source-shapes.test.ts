@@ -78,21 +78,24 @@ describe("powersync over membership source shapes", () => {
     expect(plan.streams.find((stream) => stream.name === "job")).toMatchObject({
       queries: [
         "SELECT * FROM jobs WHERE jobs.tenant_id IN (SELECT plans.tenant_id FROM plans WHERE plans.user_id = auth.user_id() AND plans.tier = 'business')",
+        "SELECT * FROM jobs WHERE jobs.tenant_id IN (SELECT paused.tenant_id FROM paused WHERE paused.user_id = auth.user_id() AND paused.paused_at IS NULL AND paused.role = 'owner')",
         "SELECT * FROM jobs WHERE jobs.tenant_id IN (SELECT contacts.tenant_id FROM contacts INNER JOIN accounts ON accounts.id = contacts.account_id WHERE accounts.user_id = auth.user_id())",
+        "SELECT * FROM jobs WHERE jobs.tenant_id IN (SELECT paused.tenant_id FROM paused INNER JOIN \"permdock\".\"custom_role_permissions\" AS cr ON cr.role = paused.role WHERE paused.user_id = auth.user_id() AND paused.paused_at IS NULL AND cr.tenant_id = paused.tenant_id AND cr.scope = 'tenant' AND cr.permission = 'job.read' AND cr.effect = 'allow' AND cr.level IS NULL)",
       ],
     });
   });
 
-  it("warns for each role a disabledAt source leaves unsynced", () => {
+  it("filters disabledAt sources without a suspension gap", () => {
     expect(plan.warnings).toStrictEqual([
-      "owner/job.read under-syncs: the public.paused membership source has no stream: it has disabledAt",
-      "viewer/job.read under-syncs: the public.paused membership source has no stream: it has disabledAt",
-      "custom role/job.read does not sync: the public.paused membership source has no stream: it has disabledAt",
+      "custom role/job.read: a custom role's deny rows, includes and shared roles do not change its stream; the device still applies them",
     ]);
     expect(plan.unsynced).toStrictEqual([
-      { permission: "job.read", role: "owner" },
-      { permission: "job.read", role: "viewer" },
-      { permission: "job.read", role: CUSTOM_ROLE },
+      { permission: "job.read", role: CUSTOM_ROLE, composed: true },
+    ]);
+    expect(
+      plan.subject.find((stream) => stream.table === "paused")?.queries,
+    ).toStrictEqual([
+      "SELECT * FROM paused WHERE paused.user_id = auth.user_id() AND paused.paused_at IS NULL",
     ]);
   });
 

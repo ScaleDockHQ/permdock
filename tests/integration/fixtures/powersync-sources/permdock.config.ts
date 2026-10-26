@@ -25,5 +25,15 @@ export default {
       }),
     ],
   },
-  powersync: { out: "sync-config.yaml", manifest: "permdock-manifest.json" },
+  powersync: {
+    out: "sync-config.yaml",
+    manifest: "permdock-manifest.json",
+    tables: {
+      attachments: {
+        follow: [
+          { resource: "job", field: "parent_id", match: { kind: "job" } },
+        ],
+      },
+    },
+  },
 };

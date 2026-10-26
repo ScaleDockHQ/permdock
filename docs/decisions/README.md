@@ -55,3 +55,5 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0047](./0047-better-supabase-0-16-0-release-age.md)              | better-supabase 0.16.0 is the catalog pin and skips the release age                                    |
 | [0048](./0048-better-supabase-0-18-0-release-age.md)              | better-supabase 0.18.0 is the catalog pin and skips the release age                                    |
 | [0049](./0049-affected-hook-gate.md)                              | Affected lint and typecheck on commit, no tests in hooks, `CI` not hashed                              |
+
+| [0050](./0050-better-supabase-0-25-0-release-age.md) | better-supabase 0.25.0 catalog pin, release age exception and three-version compatibility CI |

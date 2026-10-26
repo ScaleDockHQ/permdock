@@ -541,6 +541,97 @@ describe("permdock/mcp on @modelcontextprotocol/server 2", () => {
     });
   });
 
+  it("reports a thrown loader to onError and keeps the refusal", async () => {
+    const errors: { permission: string | null; name: string }[] = [];
+    const server = new McpServer({ name: "posts", version: "1.0.0" });
+    const guarded = createPermDock(policy, {
+      subject: () => memberUser,
+    }).protectServer(server, (error, context) => {
+      expect(error).toBeInstanceOf(Error);
+      errors.push(context);
+    });
+    guarded.registerTool(
+      "boom",
+      {
+        permission: permissions.post.read,
+        inputSchema: idInput,
+        data: () => {
+          throw new Error("database down");
+        },
+      },
+      () => ({ content: [{ type: "text", text: "read" }] }),
+    );
+    const { client } = await connect(server, { authInfo: undefined });
+    const boom = await client.callTool({
+      name: "boom",
+      arguments: { id: "p1" },
+    });
+    expect(boom.isError).toBe(true);
+    expect(text(boom)).not.toContain("database down");
+    expect(errors).toStrictEqual([{ permission: "post.read", name: "boom" }]);
+  });
+
+  it("ignores an onError sink that throws", async () => {
+    const server = new McpServer({ name: "posts", version: "1.0.0" });
+    const guarded = createPermDock(policy, {
+      subject: () => memberUser,
+    }).protectServer(server, () => {
+      throw new Error("sink down");
+    });
+    guarded.registerTool(
+      "boom",
+      {
+        permission: permissions.post.read,
+        inputSchema: idInput,
+        data: () => {
+          throw new Error("database down");
+        },
+      },
+      () => ({ content: [{ type: "text", text: "read" }] }),
+    );
+    const { client } = await connect(server, { authInfo: undefined });
+    const boom = await client.callTool({
+      name: "boom",
+      arguments: { id: "p1" },
+    });
+    expect(boom.isError).toBe(true);
+    expect(text(boom)).not.toContain("database down");
+  });
+
+  it("reports a failed approval input and keeps the refusal", async () => {
+    const errors: { permission: string | null; name: string }[] = [];
+    const server = new McpServer({ name: "posts", version: "1.0.0" });
+    const guarded = createPermDock(policy, {
+      subject: () => memberUser,
+      approval: { at: "https://app.example.com/approvals" },
+      requestState: {
+        mint: () => {
+          throw new Error("codec down");
+        },
+      },
+    }).protectServer(server, (_error, context) => {
+      errors.push(context);
+    });
+    guarded.registerTool(
+      "delete_post",
+      { permission: permissions.post.delete, inputSchema: idInput, data: byId },
+      ({ id }) => ({ content: [{ type: "text", text: `deleted ${id}` }] }),
+    );
+    const { client } = await connect(
+      server,
+      { authInfo: auth(["post:delete"]) },
+      { elicitation: { url: {} } },
+    );
+    const refused = await client.callTool({
+      name: "delete_post",
+      arguments: { id: "p1" },
+    });
+    expect(refused.isError).toBe(true);
+    expect(errors).toStrictEqual([
+      { permission: "post.delete", name: "delete_post" },
+    ]);
+  });
+
   it("never takes the subject from tool arguments", async () => {
     const { server } = postServer({
       subject: (authInfo) => authInfo.extra?.["subject"] ?? null,

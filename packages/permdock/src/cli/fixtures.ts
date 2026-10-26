@@ -33,7 +33,17 @@ export type FixtureFile = {
   readonly customRoles: readonly CustomRole[];
 };
 
-function asFixtures(value: unknown): readonly RlsFixture[] {
+export type FollowedRowFixture = Omit<
+  RlsFixture,
+  "action" | "newRow" | "expected"
+> & { readonly table: string; readonly expected: "granted" | "denied" };
+
+export type PowerSyncFixture = RlsFixture | FollowedRowFixture;
+
+function asFixtures(
+  value: unknown,
+  followed = false,
+): readonly PowerSyncFixture[] {
   const list = Array.isArray(value)
     ? value
     : isRecord(value) && Array.isArray(value["fixtures"])
@@ -52,7 +62,18 @@ function asFixtures(value: unknown): readonly RlsFixture[] {
     ) {
       throw configError(`PermDock CLI: fixture ${index} needs subject and row`);
     }
-    if (typeof item["action"] !== "string") {
+    if (followed && item["table"] !== undefined) {
+      if (
+        typeof item["table"] !== "string" ||
+        item["table"].length === 0 ||
+        item["action"] !== undefined ||
+        (item["expected"] !== "granted" && item["expected"] !== "denied")
+      ) {
+        throw configError(
+          `PermDock CLI: fixture ${index} needs table and expected (granted or denied), without action`,
+        );
+      }
+    } else if (typeof item["action"] !== "string") {
       throw new TypeError(`PermDock CLI: fixture ${index} needs action`);
     }
     if (typeof item["subject"]["id"] !== "string") {
@@ -76,8 +97,8 @@ function asFixtures(value: unknown): readonly RlsFixture[] {
         `PermDock CLI: fixture ${index} subject.claims must be an object`,
       );
     }
-    // SAFETY: subject, row, action, subject.id, memberships, tenant and claims were each checked above.
-    return item as RlsFixture;
+    // SAFETY: subject, row, action or table/expected, subject.id, memberships, tenant and claims were checked above.
+    return item as PowerSyncFixture;
   });
 }
 
@@ -96,21 +117,37 @@ function asCustomRoles(value: unknown): readonly CustomRole[] {
  * A `.json` file or a module exporting `fixtures` (or default) and optionally
  * `customRoles`.
  */
+export function loadFixtures(cwd: string, path: string): Promise<FixtureFile>;
+export function loadFixtures(
+  cwd: string,
+  path: string,
+  followed: true,
+): Promise<{
+  readonly fixtures: readonly PowerSyncFixture[];
+  readonly customRoles: readonly CustomRole[];
+}>;
 export async function loadFixtures(
   cwd: string,
   path: string,
-): Promise<FixtureFile> {
+  followed = false,
+): Promise<{
+  readonly fixtures: readonly PowerSyncFixture[];
+  readonly customRoles: readonly CustomRole[];
+}> {
   const abs = resolve(cwd, path);
   if (!existsSync(abs)) {
     throw configError(`PermDock CLI: fixtures not found: ${path}`);
   }
   if (abs.endsWith(".json")) {
     const parsed: unknown = readJsonFile(abs);
-    return { fixtures: asFixtures(parsed), customRoles: asCustomRoles(parsed) };
+    return {
+      fixtures: asFixtures(parsed, followed),
+      customRoles: asCustomRoles(parsed),
+    };
   }
   const mod = await loadModule(abs);
   return {
-    fixtures: asFixtures(pickNamed(mod, ["fixtures", "default"])),
+    fixtures: asFixtures(pickNamed(mod, ["fixtures", "default"]), followed),
     customRoles: asCustomRoles(mod),
   };
 }

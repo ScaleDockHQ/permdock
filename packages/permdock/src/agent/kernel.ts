@@ -191,10 +191,17 @@ export function createAgentKernel<
     how: {
       readonly resume: boolean;
       readonly call: "adapter" | "simulate";
-      readonly decideOptions: DecideToolOptions;
+      readonly decideOptions: CheckOptions;
       readonly tool?: string;
     },
   ): Promise<CheckResult<V>> => {
+    const onError = (error: unknown): void => {
+      try {
+        how.decideOptions.onError?.(error);
+      } catch {
+        // A failing sink must not turn a failure into a throw (invariant 1).
+      }
+    };
     let permdock: PermDock<V> | undefined;
     try {
       permdock = await instance(context);
@@ -219,7 +226,8 @@ export function createAgentKernel<
       if (binding.data !== undefined) {
         try {
           data = await binding.data(args);
-        } catch {
+        } catch (error) {
+          onError(error);
           return { ok: false, failure: "load-failed", permdock };
         }
         if (
@@ -260,7 +268,8 @@ export function createAgentKernel<
           })
         : raw;
       return { ok: true, permdock, data, raw, decision };
-    } catch {
+    } catch (error) {
+      onError(error);
       return compact<CheckResult<V>>({
         ok: false,
         failure: "failed",

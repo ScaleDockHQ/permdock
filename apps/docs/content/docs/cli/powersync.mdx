@@ -202,11 +202,28 @@ A query uses only `IN (SELECT …)`, `INNER JOIN`, `auth.user_id()` and `auth.pa
 | `inherit(<parent>.read, { through })`                                         | `<field> IN (SELECT <parent id> FROM <parent> WHERE …)` per query of the parent's own read grants; one nested subquery per link hop |
 | `fields`                                                                      | The id and the listed columns instead of `*`                                                                                        |
 
-Everything else leaves the grant out of the stream, and `generate` prints why: a global role (no row filter), a custom role of a root scope that `rls.memberships` maps, `not`, `contains`, `opaque` and `relation()` conditions (they read the closure table), request context, approval, break-glass, `validFrom` / `validUntil`, and a memberships table or membership source with `expiresAt` or `disabledAt` (the sync service cannot compare with the current time). A custom role's deny rows, includes and shared roles do not change its stream: a row a custom-role deny removes still syncs, and `can()` on the device denies it. A resource whose read permission has any `deny` grant gets no stream, because a stream can only add rows. An `inherit()` grant follows at most 4 nested `inherit()` grants. It syncs nothing when the parent's permission has a `deny` grant or none of its grants compiles; a parent grant that does not compile leaves its rows out with an `under-syncs` warning. A restricted child row (`restricted`) is left out, as `can()` does. A resource with more than 32 queries gets no stream. A resource with no stream is listed as a comment at the end of the file.
+Everything else leaves the grant out of the stream, and `generate` prints why: a global role (no row filter), a custom role of a root scope that `rls.memberships` maps, `not`, `contains`, `opaque` and `relation()` conditions (they read the closure table), request context, approval, break-glass, `validFrom` / `validUntil`, and a memberships table or membership source with `expiresAt` (the sync service cannot compare with the current time). A custom role's deny rows, includes and shared roles do not change its stream: a row a custom-role deny removes still syncs, and `can()` on the device denies it. A resource whose read permission has any `deny` grant gets no stream, because a stream can only add rows. An `inherit()` grant follows at most 4 nested `inherit()` grants. It syncs nothing when the parent's permission has a `deny` grant or none of its grants compiles; a parent grant that does not compile leaves its rows out with an `under-syncs` warning. A restricted child row (`restricted`) is left out, as `can()` does. A resource with more than 32 queries gets no stream. A resource with no stream is listed as a comment at the end of the file.
+
+Memberships with `disabledAt` compile to `IS NULL` filters in membership checks and custom-role levels. A permission listed in `rls.suspension.memberships.keep` omits that filter. The user's own membership rows and their referenced roles are filtered too, unless a kept permission needs suspended membership metadata for the local snapshot. This does not make `expiresAt` supported.
 
 ## Verify
 
 `verify` compiles the policy again and fails when `sync-config.yaml` differs. With `--db-url-stdin`, it runs each fixture of a synced permission: the stream queries with the subject's id against the database, and `can()` in process with the row's organization active, since a stream holds rows of every organization the user belongs to. A row a stream syncs and the policy denies is a mismatch and exits `1`. A row the policy grants and no stream syncs is a mismatch too, unless `generate` warned for that permission and a role the subject holds, or for the level of a custom role it holds; then it is a note: the app reads it from the server. A fixture row without the resource's id is a note. `can()` in `verify` has no relation source, so a row an `inherit()` stream syncs and `can()` denies is a note, not a mismatch. The database must hold the fixture rows, memberships and custom-role rows, as for `rls verify --db-url-stdin`.
+
+For a non-resource table in `powersync.tables`, use `{ subject, table, row, expected }` instead of an `action` fixture. `table` is the exact configured table name, `row.id` identifies the synced row, and `expected` is required (`granted` or `denied`). These fixtures may share a file with action fixtures for `powersync verify`; keep them in a separate file when `rls verify` also reads the action fixtures.
+
+```json
+[
+  {
+    "subject": { "id": "u1" },
+    "table": "attachments",
+    "row": { "id": "a1", "parent_id": "j1", "kind": "job" },
+    "expected": "granted"
+  }
+]
+```
+
+`verify` checks the union of the table's own-user rule and its `follow` rules. A follow rule must match every configured `match` field; its parent must exist in the database and pass the resource's configured action in `can()`, with the parent's organization active. Missing parents and mismatched kinds grant no access. The expected outcome must agree with that access, and the table stream must sync exactly the granted fixture rows. Unknown or omitted table streams and rows without `id` fail verification. Parent checks have the same no-relation-source limit as resource checks. Fixture validation lives in the CLI loader; there is no separate fixture JSON Schema under the package's `schemas/` directory.
 
 With a database, `verify` also reads `pg_publication_tables`: each synced table outside `public` that the `powersync` publication leaves out is a PD058 mismatch. A database with no `powersync` publication is a note.
 
@@ -225,6 +242,9 @@ What each command may change; [side effects](/docs/cli#side-effects) explains ea
 
 ## Why
 
+- **Suspension is a row change.** `disabledAt IS NULL` can be re-evaluated when a membership changes; expiry needs a clock, which Sync Streams cannot compare. Kept permissions retain suspended memberships without widening other permissions' queries.
+
 - **Under-sync, never over-sync.** A device keeps synced rows offline, so a row the policy denies must never reach it. Every grant that does not compile is left out, deny grants drop the stream, and the server still decides every request ([threat model](/docs/security/threat-model)). Tenant custom roles are the one exception: their deny rows live in a table the tenant edits, so a stream cannot subtract them, and the device applies them in `can()`.
 - **The `database`-mode tables, not the token.** The sync service evaluates the queries when a row or membership changes, so a membership change re-syncs without a new token. A `jwt`-mode `memberships` claim is not compiled; it is planned.
 - **One file, checked in.** `generate --check`, `verify` and PD058 all compare the same bytes, so CI fails before a stale file is deployed.
+- **Followed rows need their own fixtures.** An attachment has no permission action of its own. Checking its parent with `can()` independently of the generated stream catches leaked child rows and wrong polymorphic kinds, rather than treating a stream query as proof of access.

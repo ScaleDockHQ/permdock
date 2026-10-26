@@ -281,6 +281,37 @@ describe("verified auth info", () => {
     });
     expect(isError).toBe(true);
   });
+
+  it("reports each guarded list entry a subject that cannot be built hides", async () => {
+    const errors: { permission: string | null; name: string }[] = [];
+    const server = new McpServer({ name: "posts", version: "1.0.0" });
+    const guarded = createPermDock(policy, {
+      subject: () => memberUser,
+      wrap: () => {
+        throw new Error("directory down");
+      },
+    }).protectServer(server, (_error, context) => {
+      errors.push(context);
+    });
+    guarded.registerTool(
+      "list_posts",
+      { permission: permissions.post.list },
+      () => ({ content: [{ type: "text", text: "[]" }] }),
+    );
+    guarded.registerTool(
+      "update_post",
+      { permission: permissions.post.update, inputSchema: idInput, data: byId },
+      ({ id }) => ({ content: [{ type: "text", text: `updated ${id}` }] }),
+    );
+    const client = await connect(server, {
+      authInfo: auth(["post:list", "post:update"]),
+    });
+    expect(await names(client)).toStrictEqual([]);
+    expect(errors).toStrictEqual([
+      { permission: "post.list", name: "list_posts" },
+      { permission: "post.update", name: "update_post" },
+    ]);
+  });
 });
 
 describe("approval resume sources", () => {

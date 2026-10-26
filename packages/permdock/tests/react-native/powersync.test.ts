@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { PowerSyncWatchable } from "../../src/react-native/powersync.ts";
 
@@ -63,6 +63,184 @@ async function settle(): Promise<void> {
 }
 
 describe(powerSyncSource, () => {
+  it("coalesces watch bursts and rereads only the queries that fired", async () => {
+    const calls: string[] = [];
+    const handlers = new Map<string, () => void>();
+    let roles = ["member"];
+    const source = powerSyncSource(
+      {
+        getAll: async (sql) => {
+          calls.push(sql);
+          return sql === "roles" ? [...roles] : ["o1"];
+        },
+        watch: (sql, _parameters, handler) => {
+          handlers.set(sql, () => handler.onResult({ ignored: true }));
+        },
+      },
+      {
+        manifest: localSnapshotManifest(policy),
+        queries: { roles: { sql: "roles" }, org: { sql: "org" } },
+        read: (rows) => ({
+          principal: {
+            id: "u1",
+            roles: rows.roles.filter(
+              (row): row is string => typeof row === "string",
+            ),
+          },
+        }),
+      },
+    );
+    let notifications = 0;
+    const stop = source.subscribe?.(() => {
+      notifications += 1;
+    });
+    const first = await source.get();
+    expect(calls).toStrictEqual(["roles", "org"]);
+    calls.length = 0;
+    handlers.get("roles")?.();
+    handlers.get("roles")?.();
+    handlers.get("roles")?.();
+    await settle();
+    expect(notifications).toBe(1);
+    expect(await source.get()).toBe(first);
+    expect(calls).toStrictEqual(["roles"]);
+    calls.length = 0;
+    roles = ["admin"];
+    handlers.get("roles")?.();
+    handlers.get("org")?.();
+    await settle();
+    const changed = await source.get();
+    expect(changed).not.toBe(first);
+    if (typeof changed === "string") {
+      throw new TypeError("Expected a local snapshot");
+    }
+    expect(changed.subject.principal?.roles).toStrictEqual(["admin"]);
+    expect(calls).toStrictEqual(["roles", "org"]);
+    stop?.();
+    const beforeStop = notifications;
+    handlers.get("roles")?.();
+    await settle();
+    expect(notifications).toBe(beforeStop);
+  });
+
+  it("keeps source caches isolated and refreshes on explicit pulls", async () => {
+    const tables = { user_roles: [{ user_id: "u1", role: "member" }] };
+    const db = fakeDb(tables);
+    const create = (user: string) =>
+      powerSyncSource(db, {
+        manifest: localSnapshotManifest(policy),
+        queries: {
+          roles: {
+            sql: "SELECT * FROM user_roles WHERE user_id = ?",
+            parameters: [user],
+          },
+        },
+        read: (rows) => ({
+          principal: {
+            id: user,
+            roles: rows.roles.flatMap((row) =>
+              typeof row === "object" &&
+              row !== null &&
+              "role" in row &&
+              typeof row.role === "string"
+                ? [row.role]
+                : [],
+            ),
+          },
+        }),
+      });
+    const first = create("u1");
+    const other = create("u2");
+    const original = await first.get();
+    const isolated = await other.get();
+    expect(isolated).not.toStrictEqual(original);
+    tables.user_roles = [{ user_id: "u1", role: "admin" }];
+    expect(await first.get()).not.toStrictEqual(original);
+    expect(await other.get()).toBe(isolated);
+  });
+
+  it("retries failed reads and does not publish rows invalidated during a read", async () => {
+    let fire: () => void = () => undefined;
+    let finish: ((rows: unknown[]) => void) | undefined;
+    let attempts = 0;
+    const source = powerSyncSource(
+      {
+        getAll: async () => {
+          attempts += 1;
+          if (attempts === 1) {
+            throw new Error("offline");
+          }
+          if (attempts === 2) {
+            return new Promise((resolve) => {
+              finish = resolve;
+            });
+          }
+          return ["member"];
+        },
+        watch: (_sql, _params, handler) => {
+          fire = () => handler.onResult({});
+        },
+      },
+      {
+        manifest: localSnapshotManifest(policy),
+        queries: { roles: { sql: "roles" } },
+        read: (rows) => ({
+          principal: {
+            id: "u1",
+            roles: rows.roles.filter(
+              (row): row is string => typeof row === "string",
+            ),
+          },
+        }),
+      },
+    );
+    const stop = source.subscribe?.(() => undefined);
+    await expect(source.get()).rejects.toThrow("offline");
+    const pending = source.get();
+    const concurrent = source.get();
+    fire();
+    finish?.(["admin"]);
+    const snapshot = await pending;
+    expect(await concurrent).toBe(snapshot);
+    expect(attempts).toBe(3);
+    if (typeof snapshot === "string") {
+      throw new TypeError("Expected a local snapshot");
+    }
+    expect(snapshot.subject.principal?.roles).toStrictEqual(["member"]);
+    stop?.();
+  });
+
+  it("rebuilds unchanged rows when a membership expires", async () => {
+    const clock = vi
+      .spyOn(Date, "now")
+      .mockReturnValue(Date.parse("2026-01-01T00:00:00Z"));
+    try {
+      const source = powerSyncSource(fakeDb({}), {
+        manifest: localSnapshotManifest(policy),
+        queries: {},
+        read: () => ({
+          principal: {
+            id: "u1",
+            memberships: [
+              {
+                scope: "org",
+                id: "o1",
+                roles: ["member"],
+                expiresAt: Date.parse("2026-01-01T00:00:01Z") / 1000,
+              },
+            ],
+          },
+        }),
+      });
+      const before = await source.get();
+      expect(await source.get()).toBe(before);
+      clock.mockReturnValue(Date.parse("2026-01-01T00:00:02Z"));
+      expect(await source.get()).not.toBe(before);
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
   it("builds the snapshot from the watched rows and follows their changes", async () => {
     const tables: Record<string, Row[]> = {
       user_roles: [{ user_id: "u1", role: "member" }],

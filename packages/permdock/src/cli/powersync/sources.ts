@@ -49,9 +49,6 @@ export function streamOf(
   if (stream.expiresAt !== undefined) {
     return `the ${stream.table} membership source has no stream: it has an expiry`;
   }
-  if (stream.disabledAt !== undefined) {
-    return `the ${stream.table} membership source has no stream: it has disabledAt`;
-  }
   return stream;
 }
 
@@ -87,12 +84,14 @@ function anyOf(clauses: readonly string[]): string {
 
 /**
  * The user's own rows of the source, of scope `scope` when the source has a
- * scope column.
+ * scope column. `keep` drops the suspension filter: the grant keeps a suspended
+ * membership.
  */
 export function ownRows(
   stream: MembershipStream,
   dialect: StreamDialect,
   scope?: string,
+  keep = false,
 ): OwnRows {
   const table = bare(stream.table, dialect);
   const scoped =
@@ -101,6 +100,10 @@ export function ownRows(
           `${dialect.column(table, stream.scope.column)} = ${dialect.literal(scope)}`,
         ]
       : [];
+  const suspended =
+    !keep && stream.disabledAt !== undefined
+      ? [`${dialect.column(table, stream.disabledAt)} IS NULL`]
+      : [];
   if (typeof stream.user === "string") {
     return {
       table,
@@ -108,6 +111,7 @@ export function ownRows(
       where: [
         `${dialect.column(table, stream.user)} = ${dialect.user}`,
         ...scoped,
+        ...suspended,
       ],
     };
   }
@@ -119,6 +123,7 @@ export function ownRows(
     where: [
       `${dialect.column(users, stream.user.column)} = ${dialect.user}`,
       ...scoped,
+      ...suspended,
     ],
   };
 }
@@ -213,6 +218,7 @@ function kindFilter(
  * One `IN (SELECT …)` per role source of the stream that can hold one of
  * `roles` in scope `scope`: the row's `left` is an instance the user holds it
  * in. A null role never equals a key, so a row without a role grants nothing.
+ * `keep` drops the suspension filter of a membership the grant keeps.
  */
 export function sourceIn(
   stream: MembershipStream,
@@ -220,8 +226,9 @@ export function sourceIn(
   left: string,
   roles: readonly string[],
   ctx: SourceCtx,
+  keep = false,
 ): Alternatives {
-  const own = ownRows(stream, ctx.dialect, scope);
+  const own = ownRows(stream, ctx.dialect, scope, keep);
   const select = (join: string, filters: readonly string[]): string =>
     `${left} IN (SELECT ${ctx.dialect.column(own.table, stream.id)} FROM ${own.from}${join} WHERE ${[...own.where, ...filters].join(" AND ")})`;
   const out: string[][] = [];
@@ -253,11 +260,12 @@ export function sourceIn(
 export function roleTableRows(
   stream: MembershipStream,
   dialect: StreamDialect,
+  keep = false,
 ): readonly { readonly table: string; readonly query: string }[] {
   if (isFixed(stream.roles)) {
     return [];
   }
-  const own = ownRows(stream, dialect);
+  const own = ownRows(stream, dialect, undefined, keep);
   return roleSources(stream.roles).flatMap((source) => {
     if (typeof source === "string" || "map" in source) {
       return [];

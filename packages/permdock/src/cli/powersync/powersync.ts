@@ -2,7 +2,7 @@ import { resolve } from "node:path";
 
 import type { Policy } from "../../index.ts";
 import type { CommandResult } from "../core/result.ts";
-import type { RlsFixture } from "../fixtures.ts";
+import type { PowerSyncFixture } from "../fixtures.ts";
 import type { SqlConnect } from "../pg.ts";
 import type { PermDockConfig } from "../types.ts";
 import type {
@@ -29,6 +29,7 @@ import { collectGrants } from "../sql/grants.ts";
 import { quoteIdent } from "../sql/quote.ts";
 import { localRows } from "./rows.ts";
 import { POSTGRES, powersyncPlan } from "./streams.ts";
+import { verifyFollowedRow } from "./verify-followed.ts";
 import { warnedFor } from "./verify-gaps.ts";
 import { powersyncYaml } from "./yaml.ts";
 
@@ -146,7 +147,7 @@ function rowValue(row: unknown, key: string | undefined): string | undefined {
   return value === undefined || value === null ? undefined : String(value);
 }
 
-function claimsJson(fixture: RlsFixture): string {
+function claimsJson(fixture: PowerSyncFixture): string {
   return JSON.stringify(fixture.subject.claims ?? {});
 }
 
@@ -155,7 +156,7 @@ async function leaks(
   query: (sql: string, values: unknown[]) => Promise<readonly unknown[]>,
   stream: SubjectStream,
   user: string,
-  fixture: RlsFixture,
+  fixture: PowerSyncFixture,
 ): Promise<boolean> {
   for (const text of stream.queries) {
     const rows = await query(
@@ -176,7 +177,7 @@ async function leaks(
 async function synced(
   query: (sql: string, values: unknown[]) => Promise<readonly unknown[]>,
   stream: PowerSyncStream,
-  fixture: RlsFixture,
+  fixture: PowerSyncFixture,
 ): Promise<boolean | undefined> {
   const value = rowValue(fixture.row, stream.id);
   if (value === undefined) {
@@ -198,7 +199,7 @@ async function synced(
 async function verifyStreams(input: {
   readonly policy: Policy;
   readonly config: PermDockConfig;
-  readonly fixtures: readonly RlsFixture[];
+  readonly fixtures: readonly PowerSyncFixture[];
   readonly customRoles: Parameters<typeof memoryCustomRoleSource>[0];
   readonly db: string;
   readonly connect: SqlConnect;
@@ -236,6 +237,19 @@ async function verifyStreams(input: {
       }
     }
     for (const fixture of input.fixtures) {
+      if ("table" in fixture) {
+        await verifyFollowedRow({
+          policy: input.policy,
+          config: input.config,
+          customRoles: input.customRoles,
+          plan,
+          fixture,
+          query,
+          mismatches,
+          synced: (stream, row) => synced(query, stream, row),
+        });
+        continue;
+      }
       const permission = findPermission(
         input.policy.permissions,
         fixture.action,
@@ -417,6 +431,7 @@ export async function runPowerSync(input: {
       const { fixtures, customRoles } = await loadFixtures(
         input.cwd,
         fixturesPath,
+        true,
       );
       const database = await verifyStreams({
         policy,

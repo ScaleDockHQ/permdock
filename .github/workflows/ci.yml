@@ -145,7 +145,7 @@ jobs:
       - name: Integration
         run: pnpm run test:integration --shard=${{ matrix.shard }}/3
 
-  # The peer floor (0.13.0) and the catalog pin; the range has no upper bound
+  # The peer floor (0.13.0), previous pin (0.18.0) and catalog pin; the range has no upper bound
   # (tests/package/better-supabase-peer-range.test.ts).
   better-supabase:
     name: better-supabase ${{ matrix.better-supabase }}
@@ -158,7 +158,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        better-supabase: ["0.13.0", "0.18.0"]
+        better-supabase: ["0.13.0", "0.18.0", "0.25.0"]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -173,6 +173,8 @@ jobs:
           VERSION: ${{ matrix.better-supabase }}
         run: |
           sed -i -E "s/^  better-supabase: [0-9.]+$/  better-supabase: $VERSION/" pnpm-workspace.yaml
+          # The previous pin is still within the one-day gate; exact exception only.
+          sed -i '/^minimumReleaseAgeExclude:/a\  - better-supabase@0.18.0' pnpm-workspace.yaml
           pnpm install --no-frozen-lockfile
           node -p "require('./packages/permdock/node_modules/better-supabase/package.json').version" | grep -qx "$VERSION"
 

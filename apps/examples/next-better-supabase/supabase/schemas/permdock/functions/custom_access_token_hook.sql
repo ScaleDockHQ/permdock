@@ -45,7 +45,7 @@ begin
   elsif jsonb_array_length(held) > 1 then
     claims := jsonb_set(claims, '{user_role}', held);
   end if;
-  active := claims -> 'app_metadata' ->> 'active_organization';
+  active := claims -> 'app_metadata' ->> 'tenant_id';
   for item in
     select x.entry, x.tenant is not distinct from active as current
     from (

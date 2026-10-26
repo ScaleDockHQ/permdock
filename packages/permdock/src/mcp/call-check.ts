@@ -6,7 +6,7 @@ import type { Policy } from "../core/policy-types.ts";
 import type { Context, McpCall, Reach } from "./mcp-auth.ts";
 import type { Handler } from "./protect-server.ts";
 import type { Checked, Refusal } from "./refusals.ts";
-import type { McpAuthInfo, McpPermDockOptions } from "./types.ts";
+import type { McpAuthInfo, McpOnError, McpPermDockOptions } from "./types.ts";
 
 import { refusalText } from "../agent/denied-text.ts";
 import { compact } from "../core/compact.ts";
@@ -32,6 +32,7 @@ import {
   stepUpRefusal,
   stillAllowed,
 } from "./refusals.ts";
+import { report } from "./report.ts";
 
 /**
  * What every MCP call check reads: the policy, the options it honours and the
@@ -49,6 +50,8 @@ export type McpChecks = {
     | "deniedText"
   >;
   readonly kernel: ReturnType<typeof createAgentKernel<McpCall>>;
+  /** Receives an error a check threw; the refusal stays as PermDock built it. */
+  readonly onError?: McpOnError;
 };
 
 export function reachOf(
@@ -141,12 +144,19 @@ async function recheck(
   permission: Permission,
   approved: string | undefined,
   tool: string | undefined,
+  name: string,
 ): Promise<Checked> {
   const rechecked = await checks.kernel.check(
     binding,
     args,
     call,
-    compact({ simulate: true, tool }),
+    compact({
+      simulate: true,
+      tool,
+      onError: (error: unknown): void => {
+        report(checks.onError, error, { permission: permission.key, name });
+      },
+    }),
   );
   if (!rechecked.ok) {
     return { ok: false, refusal: failedRefusal(permission, rechecked.failure) };
@@ -182,8 +192,12 @@ async function decideCall(
   capabilities: (() => unknown) | undefined,
   completion?: { readonly approved: string | undefined },
   tool?: string,
+  name: string = tool ?? permission.key,
 ): Promise<Checked> {
   const authInfo = context.http?.authInfo;
+  const onError = (error: unknown): void => {
+    report(checks.onError, error, { permission: permission.key, name });
+  };
   const refused = credentialRefusal(checks, permission, reach, authInfo);
   if (refused !== undefined) {
     return { ok: false, refusal: refused };
@@ -202,13 +216,14 @@ async function decideCall(
       permission,
       completion.approved,
       tool,
+      name,
     );
   }
   const checked = await checks.kernel.check(
     binding,
     args,
     call,
-    compact({ resumeToken: approvalTokenOf(context), tool }),
+    compact({ resumeToken: approvalTokenOf(context), tool, onError }),
   );
   if (!checked.ok) {
     return { ok: false, refusal: failedRefusal(permission, checked.failure) };
@@ -256,7 +271,8 @@ async function decideCall(
             ),
           }),
         };
-      } catch {
+      } catch (error) {
+        onError(error);
         return { ok: false, refusal: failedRefusal(permission, "failed") };
       }
     default: {
@@ -278,6 +294,7 @@ async function checkCall(
   capabilities: (() => unknown) | undefined,
   completion?: { readonly approved: string | undefined },
   tool?: string,
+  name: string = tool ?? permission.key,
 ): Promise<Checked> {
   const checked = await decideCall(
     checks,
@@ -290,6 +307,7 @@ async function checkCall(
     capabilities,
     completion,
     tool,
+    name,
   );
   const { deniedText } = checks.options;
   if (checked.ok || deniedText === undefined) {
@@ -350,8 +368,14 @@ export async function visible(
   let permdock: PermDock;
   try {
     permdock = await checks.kernel.instance(compact({ authInfo }));
-  } catch {
+  } catch (error) {
     // A subject that cannot be built sees no guarded entry.
+    for (const entry of guarded) {
+      report(checks.onError, error, {
+        permission: entry.permission.key,
+        name: entry.key,
+      });
+    }
     return shown;
   }
   for (const entry of guarded) {
@@ -372,6 +396,8 @@ export type GuardExtra = {
   readonly reach?: Reach;
   /** The tool's current name, for an `agent` actor's `tools` list. */
   readonly tool?: () => string;
+  /** The tool, resource or prompt name an `onError` sink receives. */
+  readonly name?: () => string;
 };
 
 /** `handler` behind the call check; a refusal goes to `onRefusal` instead. */
@@ -393,6 +419,7 @@ export function guard(
       load === undefined ? undefined : (): unknown => load(...args);
     const reach = extra.reach ?? reachOf(checks.policy, permission, undefined);
     const tool = extra.tool?.();
+    const name = extra.name?.() ?? tool ?? permission.key;
     const checked = await checkCall(
       checks,
       permission,
@@ -404,6 +431,7 @@ export function guard(
       extra.capabilities,
       undefined,
       tool,
+      name,
     );
     let result: unknown;
     if (checked.ok) {
@@ -420,6 +448,7 @@ export function guard(
           extra.capabilities,
           { approved: checked.approved },
           tool,
+          name,
         );
         if (!again.ok) {
           result = onRefusal(again.refusal);

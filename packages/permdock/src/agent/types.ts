@@ -146,6 +146,11 @@ export type CheckOptions = DecideToolOptions & {
    * denied `agent-tool-not-delegated`.
    */
   readonly tool?: string;
+  /**
+   * Receives an error a loader, the instance or `decide` threw. The check still
+   * fails closed; a sink that throws is ignored.
+   */
+  readonly onError?: (error: unknown) => void;
 };
 
 export type ToolVerdict =

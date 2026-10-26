@@ -1,6 +1,6 @@
 -- better-supabase module: audit
 -- @bsb-block-data audit
--- @bsb-hash sha256:7c82e03def4e740125420a5ba68a4b9013881cdee0a9d886ac38ac30ed914c04
+-- @bsb-hash sha256:1281b44af207c58632eac0ed74435a3060fa43302c307d4295e2bd74e4bf2076
 -- Rows and settings a schema diff doesn't capture. Run `better-supabase add --adopt`
 -- after the schema migration to put them in a migration.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
@@ -12,8 +12,8 @@ create event trigger bsb_audit_forget_dropped on sql_drop
   execute function better_supabase.audit_forget_dropped();
 
 -- Registrations of tables dropped before bsb_audit_forget_dropped existed.
-delete from better_supabase.audited_tables a
-where not exists (select 1 from pg_catalog.pg_class c where c.oid = a.target::oid);
+delete from "better_supabase"."audited_tables" a
+where not exists (select 1 from pg_catalog.pg_class c where c.oid = a."target"::oid);
 
 insert into better_supabase.blocks (name, version, mode)
 values ('audit', 9, 'managed')

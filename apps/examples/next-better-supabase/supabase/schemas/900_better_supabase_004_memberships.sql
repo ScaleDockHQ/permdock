@@ -1,6 +1,6 @@
 -- better-supabase module: memberships
 -- @bsb-block memberships@3 managed
--- @bsb-hash sha256:818cb29b983b6bc2fe712f6aafe4f8a6c57ef20125a835027658b9ce6be164ec
+-- @bsb-hash sha256:ba42aa34fa91477596618a81abb264e86d027c6d239c3841c68a7c6b74dd577a
 -- Memberships with roles, member_organization_ids() and has_organization_role() for RLS policies, and membership_claims() for the access token hook. Adopt an existing memberships table through blocks.memberships.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -35,9 +35,10 @@ drop trigger if exists "bsb_role_scope" on "public"."organization_memberships";
 drop function if exists "better_supabase"."membership_role_scope"();
 
 
--- The tenant the server resolved (the better_supabase.tenant setting over Postgres,
--- the x-bsb-tenant header over the Data API), then the `tenant_id` claim.
--- A tenant the caller isn't a member of counts as none.
+-- The top-level `tenant_id` claim (custom access token hook) or
+-- `app_metadata.tenant_id` (switch_organization), while the caller is
+-- still a member: a token issued before a removal grants nothing. Never
+-- user_metadata: users can write it.
 create or replace function better_supabase.current_tenant_id()
 returns uuid
 language sql
@@ -45,14 +46,29 @@ stable
 security definer
 set search_path = ''
 as $$
-  select coalesce(
-    (select m."organization_id"::text from "public"."organization_memberships" m where m."organization_id"::text = nullif(current_setting('better_supabase.tenant', true), '') and m."user_id" = auth.uid() limit 1),
-    (select m."organization_id"::text from "public"."organization_memberships" m where m."organization_id"::text = nullif(current_setting('request.headers', true)::jsonb ->> 'x-bsb-tenant', '') and m."user_id" = auth.uid() limit 1),
-    (select m."organization_id"::text from "public"."organization_memberships" m where m."organization_id"::text = nullif(coalesce(auth.jwt() ->> 'tenant_id', auth.jwt() -> 'app_metadata' ->> 'tenant_id'), '') and m."user_id" = auth.uid() limit 1)
-  )::uuid
+  select (select m."organization_id"::text from "public"."organization_memberships" m where m."organization_id"::text = nullif(coalesce(auth.jwt() ->> 'tenant_id', auth.jwt() -> 'app_metadata' ->> 'tenant_id'), '') and m."user_id" = auth.uid() limit 1)::uuid
 $$;
 revoke execute on function better_supabase.current_tenant_id() from public;
 grant execute on function better_supabase.current_tenant_id() to anon, authenticated, service_role, supabase_auth_admin;
+
+create or replace function better_supabase.clear_tenant_claim()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  update auth.users u
+  set raw_app_meta_data = u.raw_app_meta_data - 'tenant_id'
+  where u.id = old."user_id"
+    and u.raw_app_meta_data ->> 'tenant_id' = old."organization_id"::text;
+  return null;
+end;
+$$;
+revoke execute on function better_supabase.clear_tenant_claim() from public, anon, authenticated;
+drop trigger if exists "bsb_clear_tenant_claim" on "public"."organization_memberships";
+create trigger "bsb_clear_tenant_claim" after delete on "public"."organization_memberships"
+  for each row execute function better_supabase.clear_tenant_claim();
 
 -- Policies compare against the set once per statement:
 --   using (organization_id in (select better_supabase.member_organization_ids('{owner,admin}')))
