@@ -89,7 +89,7 @@ import {
 - The provider leaves `portalSubjects` and `portalParties` unset: PermDock has no guest grants, so better-supabase's `guests` block decides which records and parties a guest reaches.
 - `scopes` carry each scope's `idType`: `uuid`, `text`, `bigint` or `integer`, with `int8`, `int` and `int4` normalised. Any other id type is a problem.
 - `requires` lists each helper with the role that must execute it; `memberships`, `suspension` and `roleSources` come from `rls`; `tokenHook` names the hook function, the claims it owns and the `grantsCommand` that restores the hook's grants for the manifest's `hook.schemas`: `permdock supabase hook generate && supabase db schema declarative sync -f permdock_hook` under pg-delta, the `--grants-out` command under migra. A manifest written without `supabase.hook` (`rls.authorize: 'database'`) has no `hook` section, so `tokenHook` is absent. A manifest that cannot fill a field is recorded in `problems`, which better-supabase's doctor reports, and an invalid manifest throws a `TypeError`.
-- `authorizer({ policy, subject?, operations?, options? })` returns better-supabase's `Authorizer` (`apiVersion: 1`, `name: "PermDock"`) for its `authorizer` server option. It decides every `permission` a resource, action, route guard or MCP tool declares ([Authorizer](#authorizer)).
+- `authorizer({ policy, subject?, operations?, memberships?, version?, versions?, intent?, onError?, options? })` returns better-supabase's `Authorizer` (`apiVersion: 1`, `name: "PermDock"`) for its `authorizer` server option. It decides every `permission` a resource, action, route guard or MCP tool declares ([Authorizer](#authorizer)).
 - `bucketPolicy(access, options)` and `topicPolicy(access, options)` return the `access` policy for `defineBucket` and `defineTopic`. `access` maps the operations (`read`, `list`, `write`, `delete` for a bucket; `receive`, `send` for a topic) to permissions, and `options` is `{ manifest, catalog, scope, segment? }` or `{ policy, schema?, scope, segment? }`. With `policy`, the `definePolicy` result the app already imports, nothing is read at runtime: the scopes, the permissions with row conditions and the scopes each permission is granted at come from the definitions, and `schema` names the helper schema (`rls.schema`, default `permdock`). The checks below are the same either way. They call `permitted_<scope>_ids_by_permission` and `permdock_has_permission`, which check role and scope only and subtract denies, so a permission the catalog marks `rowConditions: true` (or a conditioned grant in `policy`), or does not grant at `scope`, throws. `scope: "platform"` checks a permission granted globally.
 - `apiKeyVerifier({ keys, manifest?, serviceRoles?, allPermissions? })` is a `CredentialVerifier` over better-supabase's `createApiKeys()`, for [`subjectFromApiKey`](/docs/concepts/credentials#using-a-key). A personal key is a `user` credential acting as its user, a tenant key a `service` credential holding `serviceRoles` in its tenant, and the key's scopes are the credential's permissions. `serviceRoles` defaults to the manifest's `rls.apiKeys.serviceRoles`. A rotated key in its grace period verifies, and its credential's `expiresAt` is the end of the grace period when that comes before the key's own expiry. An invalid, revoked, expired or rate-limited key, and a failed lookup, verify to `null`.
 - `apiKeyClaimOptions(manifest)` returns the `claim` and `tenantClaim` options of better-supabase's `apiKeyClaims()` and `apiKeyResolver()`, from the manifest's `rls.apiKeys`, so a key's token carries the scopes ceiling, tenant and roles the helpers read. It throws when the manifest has no `rls.apiKeys`.
@@ -309,6 +309,18 @@ The adapter maps the request this way:
 
 `evaluations` builds one PermDock instance per caller and tenant, so a list that checks each row costs one instance. `permissions: true` on a resource needs `operations`, a map from a table to the permission of each of `list`, `get`, `create`, `update` and `delete`; without it such a resource is refused. Pass `subject` to change the claim names and `options` for the sources and sinks of each instance (`customRoles`, `sink`, `limits`). `tenant`, `actor`, `delegation`, `session` and `intent` always come from the verified request.
 
+### Options
+
+<auto-type-table
+  cwd
+  path="../../packages/permdock/src/better-supabase/authorizer.ts"
+  name="AuthorizerOptions"
+/>
+
+`memberships` supplies live rows when token memberships are stale or truncated. `version` reads the current authorization version; it defaults to the source's own `version` method. A generated SQL membership source does not necessarily read the version stored by the token hook: pass `authzVersion({ query })` from `permdock/supabase` when the hook's `authz_ver` is the freshness contract. `version` is the reader function, `authz_ver` is the token claim, and `principal.authzVersion` is the verified claim mapped onto the subject.
+
+`versions` is the cache of those version reads, not a membership source. better-supabase's runtime cache takes precedence over this fallback option. It caches reads only within `maxStaleMs`; a write check reads the version live. Without `memberships`, the authorizer does not install `claimsFirst`, and `version` and `versions` do not add freshness checks on their own.
+
 Each check builds its instance with an [`intent`](/docs/adapters/supabase#freshness-and-the-version-cache). better-supabase's request does not say whether it reads or writes, so the adapter decides:
 
 | Check                                                               | Intent  |
@@ -325,25 +337,28 @@ Pass `intent: (request) => "read" | "write"` to decide it yourself. With `read`,
 
 ## Version cache and session snapshots
 
-From better-supabase 0.15, one [`memoryVersionCache`](/docs/adapters/supabase#freshness-and-the-version-cache) serves both libraries. Create it and the sources once at module scope, pass the cache to better-supabase as `versions`, and pass the membership source to `authorizer`:
+From better-supabase 0.15, one [`memoryVersionCache`](/docs/adapters/supabase#freshness-and-the-version-cache) serves both libraries. Create it and the sources once at module scope, pass the cache to better-supabase as `versions`, and pass the membership source and version reader to `authorizer`:
 
 ```ts title="src/lib/supabase/server.ts"
 import { createNext } from "better-supabase/next";
 import { memoryVersionCache } from "permdock";
 import { authorizer } from "permdock/better-supabase";
-import { postgrestSources } from "permdock/supabase";
+import { authzVersion, supabasePostgresQuery } from "permdock/supabase";
+import { sources } from "@/sources";
 
-const sources = postgrestSources(admin, { api: {}, policy });
+const query = supabasePostgresQuery(postgres.admin);
+const memberships = sources({ query });
+const version = authzVersion({ query });
 export const versions = memoryVersionCache({ maxStaleMs: 5_000 });
 
 export const bsb = createNext(betterSupabase, {
   versions,
-  authorizer: authorizer({ policy, memberships: sources.memberships }),
+  authorizer: authorizer({ policy, memberships, version }),
   // env, postgres and auth as before
 });
 ```
 
-`authorizer` wraps `memberships` in `claimsFirst(source, { onStale: "reread", versions })` with the cache better-supabase passes at runtime. On 0.13 and 0.14, which pass none, set `versions` on `authorizer` too. A read check answers from the cache within `maxStaleMs`; a write check reads the version live ([Authorizer](#authorizer)).
+Here `sources` is the app's generated membership-source factory. `authorizer` wraps `memberships` in `claimsFirst(source, { onStale: "reread", version, versions })` with the cache better-supabase passes at runtime. On 0.13 and 0.14, which pass none, set `versions` on `authorizer` too. A read check answers from the cache within `maxStaleMs`; a write check reads the version live ([Authorizer](#authorizer)). `postgrestSources(...).memberships` already has a version reader; pass a separate `version` only to override it.
 
 - `bsb.invalidateSession(userId, { tags })` forgets the user's verified session and calls `versions.evict(userId)`, so the next PermDock instance reads the version live.
 - better-supabase passes `authorizer` a request-scope `memo`, and the checks of one scope share one PermDock instance per claims, tenant and intent. 0.13 and 0.14 pass none, and each check builds its instance.
@@ -909,7 +924,7 @@ The arguments apply to every listed table, so `user_roles`, which has no `tenant
 `apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. It runs on better-supabase 0.18.0.
 
 - `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`, sets `blocks.permissions.model: "provider"`, and sets `canAssign` to `false` because its membership tables are service-only.
-- `src/lib/supabase/server.ts` passes `authorizer({ policy })` to `createNext`, and `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.
+- `src/lib/supabase/server.ts` passes `authorizer({ policy, memberships, version })` and the shared `versions` cache to `createNext`. `memberships` comes from the generated source factory, and `version` is `authzVersion({ query })`. `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.
 - `src/lib/supabase/index.ts` validates sessions with `supabaseClaims().extend(appClaims)`, and `src/lib/access.ts` maps them with `subjectFromBetterSupabase`.
 - `supabase/schemas/public/functions/feature_claims.sql` adds `public.feature_claims(user_id)`, which reads `organization_features` for the organizations `permdock.member_organization_ids_for(user_id)` returns. `permdock.config.ts` registers it as the `features` claim.
 - The share-links block requires better-supabase's `memberships` block. `blocks.memberships` maps onto the app's `public.organization_memberships` table, and `src/sources.ts` reads the same table with `blockMembershipSource`, so the block and the token hook share one set of rows. The example installs no organizations block, so it sets no `assignmentGuard`.
