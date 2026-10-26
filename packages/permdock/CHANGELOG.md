@@ -1,5 +1,11 @@
 # permdock
 
+## 0.13.0
+
+### Minor Changes
+
+- [#229](https://github.com/ScaleDockHQ/permdock/pull/229) [`f443cb5`](https://github.com/ScaleDockHQ/permdock/commit/f443cb5e85f430d73eaa0c622a7c2b9e917471d2) Thanks [@mick340](https://github.com/mick340)! - `authorizationProvider({ rowHelpers: true })` fills better-supabase's `rowsWith` and `rowsWithFor` templates from the `permitted_<resource>_rows` helpers that `rls.rowHelpers` writes, so better-supabase record actions with `rows` check the rows a caller holds a permission on, as the generated policies decide them. It lists each helper in `requires` and, when the manifest names none, adds a problem. The option needs better-supabase 0.22 or later and is off by default, so providers for earlier releases are unchanged.
+
 ## 0.12.0
 
 ### Minor Changes

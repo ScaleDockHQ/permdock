@@ -2,6 +2,10 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.13.0 (2026-10-26)
+
+- `authorizationProvider({ rowHelpers: true })` fills better-supabase's `rowsWith` and `rowsWithFor` templates from the `permitted_<resource>_rows` helpers that `rls.rowHelpers` writes, so better-supabase record actions with `rows` check the rows a caller holds a permission on, as the generated policies decide them. It lists each helper in `requires` and, when the manifest names none, adds a problem. The option needs better-supabase 0.22 or later and is off by default, so providers for earlier releases are unchanged.
+
 ## 0.12.0 (2026-10-25)
 
 - `rls generate --helpers-only` with `rls.readOnlyActors` now writes the restrictive `{table}_{op}_read_only_actors` policies for each table `rls.tables` names, in the output or the `helpers` part, each skipped when its table does not exist. This changes helpers-only output: regenerate, and drop any hand-written restrictive policy that only calls `permdock_actor_may_write()` on those tables. A resource without an `rls.tables` entry still gets the warning.
