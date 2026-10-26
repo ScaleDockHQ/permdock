@@ -820,9 +820,6 @@ importers:
       oxlint-tsgolint:
         specifier: 'catalog:'
         version: 7.0.2004
-      permdock:
-        specifier: workspace:*
-        version: link:packages/permdock
       portless:
         specifier: 'catalog:'
         version: 0.15.8
