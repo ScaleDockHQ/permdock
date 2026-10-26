@@ -124,7 +124,7 @@ One branch and one PR per chat or plan, small conventional commits, and merge on
 
 ## Deviations
 
-Each is a record in `docs/decisions`:
+Records in `docs/decisions`:
 
 - 0002 no global `typescript` override; 0003 Zod and agent SDKs; 0004 `engines.node: ">=24"`
 - 0005 extra workspaces and root scripts; 0006 relaxed tsconfig for vendored UI
@@ -134,8 +134,8 @@ Each is a record in `docs/decisions`:
 - 0019 `<Adapter>PermDock` and no `$` members; 0020 the CLI inside `permdock`; 0021 `^build` over `transit`
 - 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
 - 0026 no commit header length limit; 0027 7-day Dependabot cooldown; 0028 `ox-config` over Ultracite
-- 0029 no Turbopack cache in CI; 0030 `Vary` only on Markdown
-- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock`; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038 to 0041, 0046-0048 better-supabase release age; 0042 `oxc-parser`, `jiti` as deps; 0044 lint rules kept off; 0045 open peer ranges, better-supabase 0.13
+- 0029 no Turbopack CI cache; 0030 `Vary` only on Markdown
+- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock`; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038-0041, 0046-0048 better-supabase release age; 0042 `oxc-parser`, `jiti` as deps; 0044 lint rules kept off; 0045 open peer ranges, better-supabase 0.13; 0049 hook gate
 
 ## Pre-release pins
 
