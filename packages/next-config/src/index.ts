@@ -40,6 +40,7 @@ export type CreateNextConfigOptions = {
 };
 
 export function createNextConfig(options: CreateNextConfigOptions): NextConfig {
+  const githubActions = process.env["GITHUB_ACTIONS"] === "true";
   return {
     reactCompiler: true,
     typedRoutes: true,
@@ -48,6 +49,8 @@ export function createNextConfig(options: CreateNextConfigOptions): NextConfig {
     cacheComponents: true,
     partialPrefetching: true,
     allowedDevOrigins,
+    // CI builds only gate the PR; Vercel builds keep source maps for Sentry and stack traces.
+    enablePrerenderSourceMaps: !githubActions,
     compiler: {
       removeConsole:
         options.nodeEnv === "production"
@@ -69,8 +72,8 @@ export function createNextConfig(options: CreateNextConfigOptions): NextConfig {
       serverComponentsHmrCancellation: true,
       exposeTestingApiInProductionBuild: options.exposeTestingApi,
       // GitHub runners start without `.next/cache`, and the persistent cache has hung parallel builds there.
-      turbopackFileSystemCacheForBuild:
-        process.env["GITHUB_ACTIONS"] !== "true",
+      turbopackFileSystemCacheForBuild: !githubActions,
+      serverSourceMaps: !githubActions,
     },
     typescript: { ignoreBuildErrors: true },
   };
