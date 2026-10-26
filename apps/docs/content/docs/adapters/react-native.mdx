@@ -219,7 +219,13 @@ With `snapshotUrl` set as well, the latest answer wins: the server snapshot afte
 
 ### PowerSync source
 
-With PowerSync, `permdock powersync generate` writes the manifest to `powersync.manifest` and adds `permdock_*` streams for the rows `read` needs ([PowerSync](/docs/cli/powersync#local-snapshot-rows)). `powerSyncSource` replaces the hand-written `read` and `subscribe`: `get` runs every query with `db.getAll`, and one `db.watch` per query reports changes. `permdock/react-native` never imports `@powersync/*`; the app passes its `PowerSyncDatabase`.
+With PowerSync, `permdock powersync generate` writes the manifest to `powersync.manifest` and adds `permdock_*` streams for the rows `read` needs ([PowerSync](/docs/cli/powersync#local-snapshot-rows)). `powerSyncSource` replaces the hand-written `read` and `subscribe`: the first `get` runs every query with `db.getAll`, and one `db.watch` per query reports changes. `permdock/react-native` never imports `@powersync/*`; the app passes its `PowerSyncDatabase`.
+
+#### Why cache per query
+
+Each source keeps its own row cache. Watch callbacks in the same microtask turn produce one notification; the next read refreshes only the queries that fired and combines them with the other cached rows. Watch payloads are not trusted as rows. Concurrent reads share the pending refresh, and a callback during a read forces another read of that query before publishing. Failed reads reject and remain pending for retry; they never return the cached snapshot as a successful refresh.
+
+When the mapped data is unchanged, the source returns the same snapshot object instead of rebuilding grants. Membership expiry still triggers a rebuild on the next read. An explicit pull without a pending watch change rereads every query, so foreground refresh does not depend on callbacks delivered while JavaScript was suspended. Caches are closure-local, never shared between users, tenants or source instances; create a new source when the session changes.
 
 `powerSyncSource(db, { manifest, user, tenant?, attributes? })` reads the tables the manifest's `rows` section names ([wire formats](/docs/concepts/wire-formats#local-snapshot-manifest)): the user's memberships from every membership table and source, the global roles, and the tenant's custom roles with their levels. A row with a null role, or a value in `expiresAt` or `disabledAt`, holds no role. `tenant` is the active tenant and `attributes` the principal values conditions read, such as `{ claims: { team_ids } }`. A manifest without `rows` throws a `TypeError`; run `generate` with `powersync.manifest` set.
 
