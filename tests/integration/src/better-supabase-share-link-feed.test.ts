@@ -4,7 +4,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { pgcrypto } from "@electric-sql/pglite/contrib/pgcrypto";
 import { sqlTransport } from "better-supabase/blocks";
 import { createShareLinks } from "better-supabase/blocks/share-links";
-import * as sql from "better-supabase/sql";
+import { renderBlocks } from "better-supabase/sql";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -57,23 +57,8 @@ insert into public.quote values ${quotes
 grant select on public.quote to authenticated, anon;
 `;
 
-type Render = (
-  names: readonly string[],
-  layout: Readonly<Record<string, unknown>>,
-) => readonly { readonly contents: string }[];
-
-function isRender(value: unknown): value is Render {
-  return typeof value === "function";
-}
-
-/** 0.15 renders blocks with `renderBlocks`; 0.13 and 0.14 with `renderModules`. */
 function shareLinksSql(): readonly string[] {
-  const render: unknown =
-    Reflect.get(sql, "renderBlocks") ?? Reflect.get(sql, "renderModules");
-  if (!isRender(render)) {
-    throw new Error("PermDock: better-supabase/sql exports no renderer");
-  }
-  return render(["share-links"], {}).map((file) => file.contents);
+  return renderBlocks(["share-links"]).map((file) => file.contents);
 }
 
 function claimsOf(jwt: string | undefined): Record<string, unknown> {

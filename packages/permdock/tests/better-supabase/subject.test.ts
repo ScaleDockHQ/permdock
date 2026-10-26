@@ -72,7 +72,7 @@ describe(subjectFromBetterSupabase, () => {
     expect(subjectFromBetterSupabase({ kind: "anon" }).principal).toBeNull();
   });
 
-  it("maps better-supabase 0.15's SessionSnapshot, authz_ver and iat included", () => {
+  it("maps better-supabase's SessionSnapshot, authz_ver and iat included", () => {
     const claims = {
       sub: USER,
       role: "authenticated",

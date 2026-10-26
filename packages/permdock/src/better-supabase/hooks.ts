@@ -36,12 +36,8 @@ type Maybe<T> = T | null | undefined | Promise<T | null | undefined>;
 type Claims = Readonly<Record<string, unknown>>;
 type RequestContext = NonNullable<Awaited<ReturnType<TicketSubject>>>;
 
-/**
- * better-supabase's claim that caps a context to the permission keys it lists:
- * `bs_permission_cap` before 0.15, `bsb_permission_cap` from 0.15. A run sets
- * both, so the cap holds on every version in the peer range.
- */
-const PERMISSION_CAP_CLAIMS = ["bs_permission_cap", "bsb_permission_cap"];
+/** better-supabase's claim that caps a context to the permission keys it lists. */
+const PERMISSION_CAP_CLAIM = "bsb_permission_cap";
 
 export type AuthorizationHooksOptions = {
   readonly policy: Policy;
@@ -220,9 +216,7 @@ export function authorizationHooks(
         if (!isRecord(claims) || !(await holdsAll(claims, ref))) return null;
         return Object.freeze({
           ...claims,
-          ...Object.fromEntries(
-            PERMISSION_CAP_CLAIMS.map((claim) => [claim, [...ref.permissions]]),
-          ),
+          [PERMISSION_CAP_CLAIM]: [...ref.permissions],
         });
       } catch {
         return null;

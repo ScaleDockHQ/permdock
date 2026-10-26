@@ -43,8 +43,7 @@ const nowSeconds = NOW.epochMilliseconds / 1000;
 const row: ShareLinkRow = {
   id: "lnk_1",
   organizationId: "org_1",
-  subjectType: "quotes",
-  subjectId: "q_1",
+  subject: { type: "quotes", id: "q_1" },
   role: "view",
 };
 
@@ -104,38 +103,42 @@ describe(subjectFromShareLink, () => {
     expect(granted(permissions.quote.accept, "q_1")).toBe(false);
   });
 
-  it("reads better-supabase 0.14's subject reference as the row's subject", async () => {
+  it("refuses a row whose subject reference is incomplete or flat", async () => {
     const onAuth = vi.fn<(event: AuthEvent) => void>();
-    const current: ShareLinkRow = {
-      id: "lnk_1",
-      organizationId: "org_1",
-      subject: { type: "quotes", id: "q_1" },
-      role: "view",
-    };
-    const subject = await subjectFromShareLink(
-      "tok",
-      options({ shareLinks: resolver({ ok: true, data: current }) }),
-    );
-    const malformed = await subjectFromShareLink(
+    const noId = await subjectFromShareLink(
       "tok",
       options({
         shareLinks: resolver({
           ok: true,
           // SAFETY: a broken resolver whose subject reference has no id.
           data: {
-            ...current,
+            ...row,
             subject: { type: "quotes" },
           } as unknown as ShareLinkRow,
         }),
         onAuth,
       }),
     );
-    expect(subject.principal).toMatchObject({
-      id: "lnk_1",
-      capability: { on: { resource: "quote", id: "q_1" }, roles: ["guest"] },
-    });
-    expect(malformed.principal).toBeNull();
+    const { subject: _subject, ...rest } = row;
+    const flat = await subjectFromShareLink(
+      "tok",
+      options({
+        shareLinks: resolver({
+          ok: true,
+          // SAFETY: a row with `subjectType` and `subjectId` instead of `subject`.
+          data: {
+            ...rest,
+            subjectType: "quotes",
+            subjectId: "q_1",
+          } as unknown as ShareLinkRow,
+        }),
+        onAuth,
+      }),
+    );
+    expect(noId.principal).toBeNull();
+    expect(flat.principal).toBeNull();
     expect(onAuth.mock.calls.map(([event]) => event.cause)).toStrictEqual([
+      "share-link-malformed",
       "share-link-malformed",
     ]);
   });
@@ -201,7 +204,7 @@ describe(subjectFromShareLink, () => {
       options({
         shareLinks: resolver({
           ok: true,
-          data: { ...row, subjectType: "__proto__" },
+          data: { ...row, subject: { type: "__proto__", id: "q_1" } },
         }),
         onAuth,
       }),
@@ -254,7 +257,7 @@ describe(subjectFromShareLink, () => {
       options({
         shareLinks: resolver({
           ok: true,
-          // SAFETY: a row from an older or broken resolver, missing organizationId.
+          // SAFETY: a row from a broken resolver, missing organizationId.
           data: {
             ...row,
             organizationId: undefined,

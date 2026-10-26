@@ -2,6 +2,7 @@ import type {
   AuthorizationOutcome,
   AuthorizationRequest,
   Authorizer,
+  AuthorizerRuntime,
 } from "better-supabase/server";
 
 import type { Decision } from "../core/decision.ts";
@@ -58,8 +59,8 @@ export type AuthorizerOptions = {
    */
   readonly version?: MembershipSource["version"];
   /**
-   * The version cache for `memberships` when better-supabase passes none (0.13
-   * and 0.14, or a server created without `versions`).
+   * The version cache for `memberships` when better-supabase passes none (a
+   * server created without `versions`).
    */
   readonly versions?: VersionCache;
   /**
@@ -79,19 +80,6 @@ export type AuthorizerOptions = {
     PermDockOptions,
     "tenant" | "actor" | "delegation" | "session" | "expiresAt" | "intent"
   >;
-};
-
-/**
- * better-supabase's `AuthorizerRuntime` (0.15 and later), the optional second
- * argument of `evaluate` and `evaluations`. 0.13 and 0.14 pass none.
- */
-type AuthorizerRuntimeLike = {
-  /** The request scope's memo: one PermDock instance per claims and tenant. */
-  readonly memo?: {
-    readonly once: <T>(key: string, load: () => Promise<T>) => Promise<T>;
-  };
-  /** The server's `versions` option, evicted by `bsb.invalidateSession`. */
-  readonly versions?: unknown;
 };
 
 const OPERATIONS: ReadonlySet<string> = new Set<AuthorizerOperation>([
@@ -170,7 +158,7 @@ const keyOf = (request: AuthorizationRequest<Permission>): string | null =>
  * subject is mapped from the verified claims with `subjectFromBetterSupabase`;
  * the request's `context.tenant` selects the active tenant only among the
  * memberships the claims hold. A caller without claims is anonymous, and a
- * throw denies. With better-supabase 0.15's runtime `memo`, the checks of one
+ * throw denies. With better-supabase's runtime `memo`, the checks of one
  * request scope share an instance per claims, tenant and intent.
  */
 export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
@@ -187,7 +175,7 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
       : "write";
   };
   const membershipsFor = (
-    runtime: AuthorizerRuntimeLike | undefined,
+    runtime: AuthorizerRuntime | undefined,
   ): Pick<PermDockOptions, "memberships"> => {
     if (options.memberships === undefined) return {};
     const versions = isVersionCache(runtime?.versions)
@@ -205,7 +193,7 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
     claims: unknown,
     tenant: string | null,
     intent: Intent,
-    runtime: AuthorizerRuntimeLike | undefined,
+    runtime: AuthorizerRuntime | undefined,
   ): Promise<PermDock> => {
     const session =
       claims === undefined ? null : { kind: "user" as const, claims };
@@ -220,7 +208,7 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
     claims: unknown,
     tenant: string | null,
     intent: Intent,
-    runtime: AuthorizerRuntimeLike | undefined,
+    runtime: AuthorizerRuntime | undefined,
   ): Promise<PermDock> =>
     runtime?.memo === undefined
       ? instanceFor(claims, tenant, intent, runtime)
@@ -261,7 +249,7 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
         }),
     async evaluate(
       request: AuthorizationRequest<Permission>,
-      runtime?: AuthorizerRuntimeLike,
+      runtime?: AuthorizerRuntime,
     ): Promise<AuthorizationOutcome> {
       try {
         return decideWith(
@@ -279,7 +267,7 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
     },
     evaluations(
       requests: readonly AuthorizationRequest<Permission>[],
-      runtime?: AuthorizerRuntimeLike,
+      runtime?: AuthorizerRuntime,
     ): Promise<readonly AuthorizationOutcome[]> {
       // A batch is one caller's rows, so one instance serves every request
       // that carries the same claims object, tenant and intent.
