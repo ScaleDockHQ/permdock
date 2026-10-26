@@ -1291,6 +1291,17 @@ begin
     from judged j;
     v_dropped := v_dropped || coalesce(v_lost, '{}'::text[]);
     v_include := null;
+    if cardinality(v_dropped) > 0 then
+      raise exception using
+        errcode = '22023',
+        message = 'permdock: ' || v_dropped[1],
+        hint = case
+          when v_dropped[1] like '%outside the ceiling of %' then 'outside-ceiling'
+          when v_dropped[1] like '%, level % is not declared' then 'unknown-level'
+          when v_dropped[1] like '%, not a declared role' then 'unknown-role'
+          else 'unknown-permission'
+        end;
+    end if;
     select string_agg(b, ', ' order by b) into v_beyond
     from "permdock".permdock_custom_role_beyond(v.tenant_id, v.scope, v.scope_id, v_allow, v_deny, v_include) b;
     if v_beyond is not null then

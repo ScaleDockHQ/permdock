@@ -394,6 +394,19 @@ describe("RLS adopter cutover: database mode with an application roles table", (
       ).rejects.toMatchObject({ code: "42501" });
     });
 
+    it("refuses an entry the guarded replace would refuse instead of dropping it", async () => {
+      await expect(
+        started().as(asUser(MANAGER), () =>
+          insert("helper", "job.delete", null),
+        ),
+      ).rejects.toMatchObject({ code: "22023", hint: "outside-ceiling" });
+      await expect(
+        started().as(asUser(MANAGER), () =>
+          insert("helper", "job.read", "mine"),
+        ),
+      ).rejects.toMatchObject({ code: "22023", hint: "unknown-level" });
+    });
+
     it("copies an entry the caller may hand out", async () => {
       const copied = await started().as(asUser(MANAGER), async () => {
         await insert("helper", "job.read", "all");

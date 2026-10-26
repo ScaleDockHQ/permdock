@@ -16,8 +16,8 @@ import { raiseSql } from "./custom-roles.ts";
  * shared role holds is skipped with a warning (`name-taken`). Before-row
  * triggers hold a signed-in caller at trigger depth 1 to the checks of
  * `permdock_replace_custom_role_grants`: `permdock_custom_role_guard` on each
- * role the row names, then `permdock_custom_role_beyond` on the entry it adds;
- * a refusal aborts the write.
+ * role the row names, the entry it adds against the ceiling, then
+ * `permdock_custom_role_beyond` on that entry; a refusal aborts the write.
  */
 export function customRoleSyncSql(
   ctx: RlsSqlContext,
@@ -141,6 +141,17 @@ begin
     end if;
     v_dropped := '{}'::text[];
 ${plan.collectNew[name]}
+    if cardinality(v_dropped) > 0 then
+      raise exception using
+        errcode = '22023',
+        message = 'permdock: ' || v_dropped[1],
+        hint = case
+          when v_dropped[1] like '%outside the ceiling of %' then 'outside-ceiling'
+          when v_dropped[1] like '%, level % is not declared' then 'unknown-level'
+          when v_dropped[1] like '%, not a declared role' then 'unknown-role'
+          else 'unknown-permission'
+        end;
+    end if;
     select string_agg(b, ', ' order by b) into v_beyond
     from ${beyond}(v.tenant_id, v.scope, v.scope_id, v_allow, v_deny, v_include) b;
     if v_beyond is not null then
