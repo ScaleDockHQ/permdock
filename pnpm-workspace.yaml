@@ -100,7 +100,7 @@ catalog:
   hono: 4.13.13
   jose: 6.2.12
   knip: 6.42.0
-  lefthook: 2.1.16
+  lefthook: 2.2.1
   lucide-react: 1.59.0
   miniflare: 4.20260730.0
   next: 16.4.2
