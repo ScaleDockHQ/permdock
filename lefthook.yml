@@ -1,5 +1,11 @@
 # Hooks call binaries from node_modules/.bin: `pnpm exec` adds 70 to 260 ms per call.
 # The gate matches `pnpm check:affected`; tests run in CI only (docs/decisions/0049-affected-hook-gate.md).
+# Without `execution`, a job prints its output only when it fails.
+output:
+  - meta
+  - summary
+  - failure
+
 pre-commit:
   piped: true
   skip:
