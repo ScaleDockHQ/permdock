@@ -195,6 +195,16 @@ export type McpProcedureEnforcement = {
   readonly oauthScopesFor?: (name: string) => readonly string[] | undefined;
 };
 
+/**
+ * Receives an error a check threw: a loader, `decide`, an approval input or a
+ * subject a list cannot build. The call still refuses; a sink that throws is
+ * ignored.
+ */
+export type McpOnError = (
+  error: unknown,
+  context: { readonly permission: string | null; readonly name: string },
+) => void;
+
 export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
   /**
    * Receives the verified auth info, or `{}` on a transport without one
@@ -285,7 +295,11 @@ export type McpPermDock = {
    * `permission`.
    */
   readonly protectServer: {
-    (server: McpServer): GuardedMcpServer;
-    (server: McpServer, options: McpProcedureEnforcement): ProcedureMcpServer;
+    (server: McpServer, onError?: McpOnError): GuardedMcpServer;
+    (
+      server: McpServer,
+      options: McpProcedureEnforcement,
+      onError?: McpOnError,
+    ): ProcedureMcpServer;
   };
 };

@@ -15,6 +15,7 @@ export type { DeniedTextEvent, DeniedText } from "../agent/denied-text.ts";
 export type {
   GuardedMcpServer,
   McpAuthInfo,
+  McpOnError,
   McpPermDock,
   McpPermDockOptions,
   McpPrincipal,

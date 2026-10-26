@@ -269,7 +269,7 @@ export function protectServer(
       handler,
       (params) => (params.length >= 2 ? [params[0]] : [undefined]),
       toolRefusal,
-      { after: announce, longRunning, capabilities, reach, tool },
+      { after: announce, longRunning, capabilities, reach, tool, name: tool },
     );
 
   // SAFETY: the SDK overloads are generic over schemas; the wrapper forwards the same arguments.
@@ -424,7 +424,7 @@ export function protectServer(
         callback,
         (params) => (params.length >= 2 ? [params[0]] : [undefined]),
         throwRefusal,
-        { capabilities },
+        { capabilities, name: () => name },
       );
     // SAFETY: GuardedMcpServer types a prompt config's scopeChallenge as ScopeChallengeHandler.
     const registered = originalPrompt(
@@ -499,7 +499,7 @@ export function protectServer(
           callback,
           (args) => args.slice(0, -1),
           throwRefusal,
-          { capabilities },
+          { capabilities, name: () => name },
         )(...params);
       };
     const registered = originalResource(

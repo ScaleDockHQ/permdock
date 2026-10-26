@@ -5,6 +5,7 @@ import type { Principal } from "../core/subject.ts";
 import type { McpChecks } from "./call-check.ts";
 import type { McpCall } from "./mcp-auth.ts";
 import type {
+  McpOnError,
   McpPermDock,
   McpPermDockOptions,
   McpProcedureEnforcement,
@@ -81,12 +82,17 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   return {
     protectServer: ((
       server: McpServer,
-      enforcement?: McpProcedureEnforcement,
-    ) =>
-      protectServer(
-        checks,
+      enforcement?: McpProcedureEnforcement | McpOnError,
+      onError?: McpOnError,
+    ) => {
+      const sink = typeof enforcement === "function" ? enforcement : onError;
+      const next: McpChecks =
+        sink === undefined ? checks : { ...checks, onError: sink };
+      return protectServer(
+        next,
         server,
-        enforcement,
-      )) as McpPermDock["protectServer"],
+        typeof enforcement === "function" ? undefined : enforcement,
+      );
+    }) as McpPermDock["protectServer"],
   };
 }
