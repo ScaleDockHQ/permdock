@@ -395,7 +395,7 @@ subjectFromSupabaseSession(session, { claims: { memberships: "memberships" } });
 
 `subjectFromSupabaseSession` maps only `kind: 'user'`. `anon`, `service`, `invalid` or an unknown `kind` become the anonymous subject whatever `claims` holds. A top-level `user_role: null` (what the RBAC hook writes for a user without a role row) falls back to `app_metadata.user_role`.
 
-better-supabase is one such session source; its `AuthSession` union already has the `{ kind, claims }` shape. `bsb.cached()` is the first statement of an app-authored `'use cache: private'` function: it verifies the session locally against the JWKS, caps `stale` at the token's expiry and at 300 seconds, tags the entry `bsb:session:<user id>` (`bs:session:<user id>` before 0.15) plus the `tags` you pass, and returns the caller's context:
+better-supabase is one such session source; its `AuthSession` union already has the `{ kind, claims }` shape. `bsb.cached()` is the first statement of an app-authored `'use cache: private'` function: it verifies the session locally against the JWKS, caps `stale` at the token's expiry and at 300 seconds, tags the entry `bsb:session:<user id>` plus the `tags` you pass, and returns the caller's context:
 
 ```ts
 // src/lib/access.ts

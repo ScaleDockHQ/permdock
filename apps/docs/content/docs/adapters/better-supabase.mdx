@@ -5,21 +5,7 @@ description: The permdock/better-supabase entry fills better-supabase's authoriz
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
 
-The entry needs `better-supabase` 0.13 or later as a peer (`>=0.13.0`). The range has no upper bound: CI tests 0.13.0, 0.18.0 and 0.25.0 on every pull request, and a daily job tests the newest release.
-
-This page uses the better-supabase 0.15 names. `better-supabase codemod 0.15 --yes` rewrites an app from the 0.13 and 0.14 names, and `better-supabase upgrade` rewrites the block SQL:
-
-| 0.13 and 0.14                              | 0.15                                                                  |
-| ------------------------------------------ | --------------------------------------------------------------------- |
-| `bs` (the runtime instance)                | `bsb`                                                                 |
-| `blocks.access`, `blocks.tenant`           | `blocks.permissions`, `blocks.memberships`                            |
-| `authorization`, `output`, `sql`, `expose` | `auth.authorization`, `gen.output`, `database.sql`, `database.expose` |
-| `claims.tenant`                            | `auth.organization.claim`                                             |
-| `subjects.<type>`, `options.subjects`      | `records.<type>`, `on`                                                |
-| `requireTenant`                            | `requireOrganization`                                                 |
-| `findMany`                                 | `list`                                                                |
-| `better-supabase sql sync`, `sql upgrade`  | `better-supabase upgrade`                                             |
-| `bs:session:<id>`, `bs_permission_cap`     | `bsb:session:<id>`, `bsb_permission_cap`                              |
+The entry needs `better-supabase` 0.29 or later as a peer (`>=0.29.0`). The range has no upper bound: CI tests 0.29.0 on every pull request, and a daily job tests the newest release.
 
 Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
 
@@ -77,15 +63,15 @@ import {
 - Its `functions` call `permitted_<scope>_ids_by_permission`, `member_<scope>_ids`, `permdock_has_permission` and their `_for` forms in `rls.schema`. These take a permission key and subtract the instances a deny of it reaches, so a permission split into `#n` grant keys still matches. `permissionsFor` calls `permitted_<scope>_permission_keys_for`, so better-supabase's `member_permissions` lists a member's keys; like the other `_for` templates it is set only when the manifest lists the helper, which `rls.mode: 'database'` writes.
 - `canAssign` and `canAssignFor` call `permdock_can_assign` and `permdock_can_assign_for`. When the manifest's `rls.customRoles` is set and the tenant scope is a root scope, they call `permdock_can_assign_any` and `permdock_can_assign_any_for` at the tenant scope instead, so better-supabase's `can_assign` and `can_assign_as` also answer for a custom role.
 - `holdersOf` is `permitted_<scope>_users(permission, tenant)`, the user ids holding a permission in a tenant, for a notification's audience. `actorMayWrite` is `permdock_actor_may_write()`, which the inbox and workflow modules call before a write. Each is set when the manifest lists its helper, with the role that runs it in `requires`.
-- `teamIdsOf` is `member_<scope>_ids_of(user)` for a scope named `team` or `teams`. With `blocks.permissions.model: 'provider'`, better-supabase's `team_ids_of()` and the team-sharing policies of `saved-views` and `collections` call it instead of reading the teams block. The helper answers only for the caller and returns no rows for another user's id. Since better-supabase 0.18, `team_ids_of()` itself refuses a signed-in caller who names another user with `TEAM_FORBIDDEN`; the service role and direct database sessions still pass through. It is set when the manifest lists the helper. `permdock rls generate` writes it for a team scope with membership sources; without one, `permdock supabase hook generate` writes `member_team_ids_of` from `supabase.hook.teams` ([teams](/docs/adapters/supabase-hook#teams)). With neither, `team_ids_of()` reads the teams block, and doctor reports `BS417`.
+- `teamIdsOf` is `member_<scope>_ids_of(user)` for a scope named `team` or `teams`. With `blocks.permissions.model: 'provider'`, better-supabase's `team_ids_of()` and the team-sharing policies of `saved-views` and `collections` call it instead of reading the teams block. The helper answers only for the caller and returns no rows for another user's id. `team_ids_of()` itself refuses a signed-in caller who names another user with `TEAM_FORBIDDEN`; the service role and direct database sessions still pass through. It is set when the manifest lists the helper. `permdock rls generate` writes it for a team scope with membership sources; without one, `permdock supabase hook generate` writes `member_team_ids_of` from `supabase.hook.teams` ([teams](/docs/adapters/supabase-hook#teams)). With neither, `team_ids_of()` reads the teams block, and doctor reports `BS417`.
 - `permitted` answers better-supabase's `permitted(resource, id, permission)`: for a resource that names a scope, whether `id` is among `permitted_<scope>_ids_by_permission(permission)`; for any other resource, whether the key is granted in the tenant. That second branch only holds for a key the catalog marks `rowConditions: false`; a key with row conditions is `false` there, so its table policies decide.
 - `operations` lists each catalog [operation](/docs/concepts/operations) as better-supabase tools: a name without a dot becomes `ai.tool.<name>` and `mcp.tool.<name>`, and a dotted name is used as written. `risk: 'critical'` maps to `high`, and the effects `send` and `spend` to `external`.
 - `delegation.scopes` maps each catalog permission's `.scope` to its key, so an OAuth client or agent token granted `invoice:read` gets `invoice.read`. Each coarse scope in the catalog's `oauthScopes` maps to the keys it covers ([OAuth scopes](#oauth-scopes)). Keys are sorted by code point. A scope the catalog does not list grants nothing.
 - `approver` is a permission. It becomes the `'ai-tool'` entry of `approvers` unless `approvers` names one. A key the catalog lacks is a problem.
 - In a project with a readable `better-supabase.config.*` object export, the CLI defaults the hook's active source to `app_metadata.<rls.tenantClaim ?? tenant_id>`. An explicit `supabase.hook.activeFrom` or `--active-from` wins. Plain Supabase keeps `app_metadata.active_<first scope>`. This makes generation, inspection and PD078 agree without changing plain Supabase projects.
 - `activeTenant` is better-supabase's `blocks.permissions.activeTenant`. When the token hook reads the active tenant from another place than better-supabase writes it, `problems` names the `supabase.hook.activeFrom` to set: `app_metadata.<tenant claim>` for `"claim"`, or the profile column for `{ profileColumn }`. Doctor reports the same as PD078.
-- `rowHelpers: true` fills better-supabase's `rowsWith` and `rowsWithFor` from the `permitted_<resource>_rows` helpers that `rls.rowHelpers` writes and the manifest names. A better-supabase record type whose action names `rows: "<resource SQL name>"` with a `key` then checks the rows the caller holds that key on, through the candidate form `permitted_<resource>_rows(permission, ids)`, and for another user through `permitted_<resource>_rows_for`. It needs better-supabase 0.22 or later, whose config takes those templates; without row helpers in the manifest `problems` names the step to run.
-- `tokenHook.activeOrganizationFrom` names where the token hook reads the active tenant, from the manifest's `hook.activeFrom`: `"claim"` for `app_metadata.<tenant claim>`, or `{ profileColumn, key? }` for a profile column. better-supabase 0.18's doctor BS409 warns when it differs from `blocks.permissions.activeTenant`. It stays unset for an `app_metadata` key other than the tenant claim, which better-supabase has no name for, and when `activeTenant` is `"resolver"`, where the tenant comes from the request.
+- `rowHelpers: true` fills better-supabase's `rowsWith` and `rowsWithFor` from the `permitted_<resource>_rows` helpers that `rls.rowHelpers` writes and the manifest names. A better-supabase subject type whose action in `subjects.<type>.permissions` names `rows: "<resource SQL name>"` with a `key` then checks the rows the caller holds that key on, through the candidate form `permitted_<resource>_rows(permission, ids)`, and for another user through `permitted_<resource>_rows_for`. Without row helpers in the manifest, `problems` names the step to run.
+- `tokenHook.activeOrganizationFrom` names where the token hook reads the active tenant, from the manifest's `hook.activeFrom`: `"claim"` for `app_metadata.<tenant claim>`, or `{ profileColumn, key? }` for a profile column. better-supabase's doctor BS409 warns when it differs from `blocks.permissions.activeTenant`. It stays unset for an `app_metadata` key other than the tenant claim, which better-supabase has no name for, and when `activeTenant` is `"resolver"`, where the tenant comes from the request.
 - `approvers` maps each better-supabase request kind to `user()`, `holder()` or `anyOf()` approvers and fills `isApprover`, which better-supabase asks for every request that waits on an approval ([Approvers](#approvers)). It needs `permdock_is_approver`, which `rls.approvals` writes; without it `isApprover` is unset and `problems` names the helper. The provider never sets `canApprove`.
 - The provider leaves `portalSubjects` and `portalParties` unset: PermDock has no guest grants, so better-supabase's `guests` block decides which records and parties a guest reaches.
 - `scopes` carry each scope's `idType`: `uuid`, `text`, `bigint` or `integer`, with `int8`, `int` and `int4` normalised. Any other id type is a problem.
@@ -102,7 +88,7 @@ import {
 - `supportPolicy({ policy, subject?, options?, writable?, approval?, approved? })` returns the `authorize` option of `supportSessions` ([Support sessions](#support-sessions)).
 - `subscriberPolicy({ policy, principals, events, row?, sender?, options? })` returns the per-subscriber check for an outbox, webhook or realtime fan-out ([Subscriber fan-out](#subscriber-fan-out)).
 - `principalSource({ claims, identities?, subject? })` returns a `PrincipalSource` over the claims better-supabase mints ([Principals](#principals)).
-- `principalFromMemberships(userId, rows, { scope?, tenant? })` builds a frozen `Principal` from rows of the `memberships` block's table, its own block since better-supabase 0.15 (`BetterSupabaseMembershipRow`: `user_id`, `organization_id`, `role`, `disabled_at?`), for server code that reads the table instead of the token ([Server code](#server-code)).
+- `principalFromMemberships(userId, rows, { scope?, tenant? })` builds a frozen `Principal` from rows of the `memberships` block's table (`BetterSupabaseMembershipRow`: `user_id`, `organization_id`, `role`, `disabled_at?`), for server code that reads the table instead of the token ([Server code](#server-code)).
 - `accessReviewApplier({ client, reviews, policy, demoteTo?, email?, permdockFor?, schema?, scope?, now? })` applies the revoked items of an [access review](/docs/concepts/access-reviews) through the organizations and invitations blocks, then marks each one applied ([Access reviews](#access-reviews)).
 - `authorizationHooks({ policy, claims, ... })` returns better-supabase's `AuthorizationHooks` for `createServer(betterSupabase, { authorization })` ([Authorization hooks](#authorization-hooks)).
 - `roleOrderFromCatalog(catalog, { scope?, owner? })` returns the catalog's role keys highest first, for the SSO block's `roleOrder` ([SSO role order](#sso-role-order)).
@@ -182,7 +168,7 @@ export default defineConfig({
 });
 ```
 
-`blockMembershipSource` from `permdock/better-supabase` reads the block's logical columns: `organization_id`, `user_id`, `role` and `disabled_at`, under the `organization` scope. Rename a column through `columns`, and pass `disabledAt: null` when the table has none. A role kept in another table goes through `roleThrough` (the block's option of the same name). Several roles per member go through `roles`: a junction keyed by the membership's id, or `"many"` for the `membership_roles` table that `blocks.memberships.options.roles.many` keeps (better-supabase 0.18), joined on the tenant and user columns:
+`blockMembershipSource` from `permdock/better-supabase` reads the block's logical columns: `organization_id`, `user_id`, `role` and `disabled_at`, under the `organization` scope. Rename a column through `columns`, and pass `disabledAt: null` when the table has none. A role kept in another table goes through `roleThrough` (the block's option of the same name). Several roles per member go through `roles`: a junction keyed by the membership's id, or `"many"` for the `membership_roles` table that `blocks.memberships.options.roles.many` keeps, joined on the tenant and user columns:
 
 ```ts title="permdock.config.ts"
 import { blockMembershipSource } from "permdock/better-supabase";
@@ -338,7 +324,7 @@ Pass `intent: (request) => "read" | "write"` to decide it yourself. With `read`,
 
 ## Version cache and session snapshots
 
-From better-supabase 0.15, one [`memoryVersionCache`](/docs/adapters/supabase#freshness-and-the-version-cache) serves both libraries. Create it and the sources once at module scope, pass the cache to better-supabase as `versions`, and pass the membership source and version reader to `authorizer`:
+One [`memoryVersionCache`](/docs/adapters/supabase#freshness-and-the-version-cache) serves both libraries. Create it and the sources once at module scope, pass the cache to better-supabase as `versions`, and pass the membership source and version reader to `authorizer`:
 
 ```ts title="src/lib/supabase/server.ts"
 import { createNext } from "better-supabase/next";
@@ -359,10 +345,10 @@ export const bsb = createNext(betterSupabase, {
 });
 ```
 
-Here `sources` is the app's generated membership-source factory. `authorizer` wraps `memberships` in `claimsFirst(source, { onStale: "reread", version, versions })` with the cache better-supabase passes at runtime. On 0.13 and 0.14, which pass none, set `versions` on `authorizer` too. A read check answers from the cache within `maxStaleMs`; a write check reads the version live ([Authorizer](#authorizer)). `postgrestSources(...).memberships` already has a version reader; pass a separate `version` only to override it.
+Here `sources` is the app's generated membership-source factory. `authorizer` wraps `memberships` in `claimsFirst(source, { onStale: "reread", version, versions })` with the cache better-supabase passes at runtime. For a server created without `versions`, set `versions` on `authorizer` too. A read check answers from the cache within `maxStaleMs`; a write check reads the version live ([Authorizer](#authorizer)). `postgrestSources(...).memberships` already has a version reader; pass a separate `version` only to override it.
 
 - `bsb.invalidateSession(userId, { tags })` forgets the user's verified session and calls `versions.evict(userId)`, so the next PermDock instance reads the version live.
-- better-supabase passes `authorizer` a request-scope `memo`, and the checks of one scope share one PermDock instance per claims, tenant and intent. 0.13 and 0.14 pass none, and each check builds its instance.
+- better-supabase passes `authorizer` a request-scope `memo`, and the checks of one scope share one PermDock instance per claims, tenant and intent.
 - `bsb.getRequestSession()` verifies the token once per request and returns a `SessionSnapshot`. `subjectFromBetterSupabase(snapshot)` maps it like the user session of its claims, with `iat` as `Subject.issuedAt` and `authz_ver` as `principal.authzVersion`. A snapshot whose `claims.sub` is not its `userId` maps to the anonymous subject.
 
 ```tsx title="src/app/[orgSlug]/quotes/island.tsx"
@@ -679,7 +665,7 @@ if (!permdock.can(permissions.quote.read, { id: quoteId }).granted) notFound();
 const db = await exchangeCapability(subject, { key, alg: "HS256", ttl: 300 });
 ```
 
-- `links` maps each share-link subject type to its PermDock resource and maps the row's role to PermDock roles. A type or role it does not name denies. The row's subject is `subject: { type, id }` from better-supabase 0.14 and `subjectType` with `subjectId` before it; `subjectFromShareLink` reads either.
+- `links` maps each share-link subject type to its PermDock resource and maps the row's role to PermDock roles. A type or role it does not name denies. The row's subject is `subject: { type, id }`; a row without it denies.
 - The capability holds the row's subject id and expires at the earlier of `ttl` (default 300 seconds, at most 3600) and the row's `expiresAt`. Revoking the row stops new subjects at once; a token already exchanged lasts until its `ttl`.
 - Every failure is the anonymous subject, so every check denies: an empty, unknown, revoked or expired token, a failed or throwing `resolve`, a malformed row, and a `linkPolicy` that refuses. So is a link pinned to a version (`versionId`): the capability grants the subject's current rows, so read a pinned link through better-supabase's `versions.getShared(token)`. `onAuth` receives each denial with `source: "share-link"`.
 - `linkPolicy` applies [link rules](/docs/concepts/capabilities#link-policy-per-scope) to the capability. The row carries no issue time, so a `maxLifetime` rule always refuses.
@@ -813,7 +799,7 @@ export const server = createServer(betterSupabase, {
 });
 ```
 
-- `automation.mayPublish` lets a user publish an automation only with every key it uses granted to them in its tenant. `automation.runAs` loads the publisher's current claims, or `service(tenant)` for an organization-owned automation, checks every key again, and adds the automation's keys as `bsb_permission_cap`, plus `bs_permission_cap` for 0.13 and 0.14. A deleted or suspended publisher, a key they lost and a missing `service` run as no one.
+- `automation.mayPublish` lets a user publish an automation only with every key it uses granted to them in its tenant. `automation.runAs` loads the publisher's current claims, or `service(tenant)` for an organization-owned automation, checks every key again, and adds the automation's keys as `bsb_permission_cap`. A deleted or suspended publisher, a key they lost and a missing `service` run as no one.
 - `delegation.permissions` maps a token's OAuth scopes to the keys whose `.scope` they are or were renamed from, and to the keys a policy `oauthScopes` entry covers. It reads no `authorization_details`.
 - `approverOf` exists with `approvers`. It refuses the requester and claims whose `sub` is not the approver, then matches `user()` by id and `holder()` with `decide` in the request's tenant.
 - `identities.principalByIdentity` exists when `principals` has `principalByIdentity`; a contact maps to `{ kind: "contact" }`. `delivery.subscribers` and `delivery.audience` are `subscriberPolicy` and exist with `principals` and `events`.
@@ -886,7 +872,7 @@ delegations: [
 
 better-supabase's SQL modules check permission keys, such as `audit.read`, `api_keys.manage` and the AI, workflow and inbox modules' keys. Its doctor reports a key the provider's `permissions` lacks, so pass `catalog` and declare each key the installed modules check in the policy. Rename a key with `blocks.<block>.permissions` in `better-supabase.config.ts`; doctor PD079 lists each key a configured block checks that the catalog lacks ([doctor](/docs/cli/doctor)). The example declares the audit block's `audit.read` and `audit.revert` on an `audit` resource with no table: set `rls.tables.audit: false`, or `rls generate` writes policies for a `public.audit` table the block does not create.
 
-The attachments and comments blocks take per-subject keys from the record registry, `records.<type>.permissions` in `better-supabase.config.ts`: `upload` and `manage` for attachments, `create` and `moderate` for comments. Point each at a catalog key of the subject's resource, such as `contracts.update` for `upload`, so a member who may not update a contract cannot attach files to it. The registry's `read` stays the key for the subject row; set the files' own `read` in `blocks.attachments.on.<type>.permissions`. Without per-subject keys, any tenant member with `attachments.read` reads every subject's files, and better-supabase's doctor warns with BS345 when the subject table's policies check more than tenant membership.
+The attachments and comments blocks take per-subject keys from the subject registry, `subjects.<type>.permissions` in `better-supabase.config.ts`: `upload` and `manage` for attachments, `create` and `moderate` for comments. Point each at a catalog key of the subject's resource, such as `contracts.update` for `upload`, so a member who may not update a contract cannot attach files to it. The registry's `read` stays the key for the subject row; set the files' own `read` in `blocks.attachments.on.<type>.permissions`. Without per-subject keys, any tenant member with `attachments.read` reads every subject's files, and better-supabase's doctor warns with BS345 when the subject table's policies check more than tenant membership.
 
 ## Audit the PermDock tables
 
@@ -922,7 +908,7 @@ The arguments apply to every listed table, so `user_roles`, which has no `tenant
 
 ## Example app
 
-`apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. It runs on better-supabase 0.25.0.
+`apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. It runs on better-supabase 0.29.0.
 
 - `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`, sets `blocks.permissions.model: "provider"`, and sets `canAssign` to `false` because its membership tables are service-only.
 - `src/lib/supabase/server.ts` passes `authorizer({ policy, memberships, version })` and the shared `versions` cache to `createNext`. `memberships` comes from the generated source factory, and `version` is `authzVersion({ query })`. `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.
