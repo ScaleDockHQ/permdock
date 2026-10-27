@@ -85,6 +85,22 @@ describe(customRoleSyncSql, () => {
     expect(sql).toContain("not-assignable-by");
   });
 
+  it("refuses a signed-in entry the guarded replace would refuse, before the hand-out check", () => {
+    const sql = customRoleSyncSql(ctx, from, undefined);
+    const guard = sql.slice(
+      sql.indexOf("permdock_sync_custom_role_guard_permissions()"),
+    );
+    const refusal = guard.indexOf(
+      "if cardinality(v_dropped) > 0 then\n      raise exception",
+    );
+    expect(refusal).toBeGreaterThan(0);
+    expect(refusal).toBeLessThan(guard.indexOf("permdock_custom_role_beyond"));
+    expect(guard).toContain("then 'outside-ceiling'");
+    expect(guard).toContain("then 'unknown-level'");
+    expect(guard).toContain("then 'unknown-role'");
+    expect(guard).toContain("else 'unknown-permission'");
+  });
+
   it("accepts a schema-qualified through table", () => {
     const qualifiedFrom: RlsCustomRolesFrom = {
       sync: "trigger",
