@@ -126,10 +126,16 @@ function permissionCase(
   return `    when ${quoteLiteral(key)} then ${deny === undefined ? granted : `${granted} and (${deny}) is not true`}`;
 }
 
-function forUserSql(ctx: RlsSqlContext, fn: string, helper: string): string {
+function forUserSql(
+  ctx: RlsSqlContext,
+  fn: string,
+  helper: string,
+  ids: boolean,
+): string {
   const user = ctx.dialect === "supabase" ? "uuid" : "text";
-  const signature = `${user}, text, jsonb`;
-  const head = `create or replace function ${fn}(p_user ${user}, p_permission text, p_claims jsonb default '{}')
+  const signature = `${user}, text, ${ids ? "text[], " : ""}jsonb`;
+  const call = `${helper}(p_permission${ids ? ", p_ids" : ""})`;
+  const head = `create or replace function ${fn}(p_user ${user}, p_permission text, ${ids ? "p_ids text[], " : ""}p_claims jsonb default '{}')
 returns setof text
 language plpgsql
 volatile
@@ -147,7 +153,7 @@ begin
     (coalesce(p_claims, '{}'::jsonb) || pg_catalog.jsonb_build_object('sub', p_user::text, 'role', 'authenticated'))::text,
     true
   );
-  return query select r.id from ${helper}(p_permission) r(id);
+  return query select r.id from ${call} r(id);
   perform pg_catalog.set_config('request.jwt.claims', coalesce(v_claims, ''), true);
 end
 $$;
@@ -168,7 +174,7 @@ begin
     v_saved := v_saved || pg_catalog.jsonb_build_object(v_key, coalesce(pg_catalog.current_setting(${quoteLiteral(`${prefix}.`)} || v_key, true), ''));
     perform pg_catalog.set_config(${quoteLiteral(`${prefix}.`)} || v_key, v_value, true);
   end loop;
-  return query select r.id from ${helper}(p_permission) r(id);
+  return query select r.id from ${call} r(id);
   for v_key, v_value in select s.key, s.value from pg_catalog.jsonb_each_text(v_saved) s loop
     perform pg_catalog.set_config(${quoteLiteral(`${prefix}.`)} || v_key, v_value, true);
   end loop;
@@ -319,7 +325,8 @@ ${rowSql(ctx, name, table, near)}`;
   }
   return `${rows}
 -- the same rows for a user the caller names, with claims it supplies; no client role may execute it
-${forUserSql(ctx, qualified(ctx, `${name}_for`), fn)}`;
+${forUserSql(ctx, qualified(ctx, `${name}_for`), fn, false)}
+${forUserSql(ctx, qualified(ctx, `${name}_for`), fn, true)}`;
 }
 
 /**

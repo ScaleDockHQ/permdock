@@ -105,10 +105,17 @@ describe("requires in RLS: a share counts only where the role permission is held
           [user.id],
         )
       ).rows.map((row) => row.id);
+      const candidates = (
+        await target.admin.query<{ id: string }>(
+          "select id from permdock.permitted_drive_rows_for($1, 'drive.read', $2::text[]) id order by id",
+          [user.id, drives.map((drive) => drive.id)],
+        )
+      ).rows.map((row) => row.id);
       const want = await inProcess(user);
       for (const [label, list] of [
         ["rows", got],
         ["rows_for", named],
+        ["rows_for candidates", candidates],
       ] as const) {
         if (JSON.stringify(list) !== JSON.stringify(want)) {
           mismatches.push(
@@ -118,6 +125,30 @@ describe("requires in RLS: a share counts only where the role permission is held
       }
     }
     expect(mismatches).toStrictEqual([]);
+  });
+
+  it("lets no client role run permitted_drive_rows_for for another user", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const target = db;
+    const member = users[0]?.id ?? "";
+    await target.admin.query("grant usage on schema permdock to anon");
+    for (const role of ["anon", "authenticated"] as const) {
+      for (const sql of [
+        "select permdock.permitted_drive_rows_for($1::uuid, 'drive.read')",
+        "select permdock.permitted_drive_rows_for($1::uuid, 'drive.read', array['d-acme'])",
+      ]) {
+        await expect(
+          target.as({ role, settings: jwtClaims(member) }, async () =>
+            target.tester.query(sql, [member]),
+          ),
+        ).rejects.toMatchObject({
+          code: "42501",
+          message: expect.stringMatching(/permission denied for function/u),
+        });
+      }
+    }
   });
 
   it("lets a key scoped to the required permission read the drives the share reaches", async () => {
