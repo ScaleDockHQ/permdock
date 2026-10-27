@@ -43,7 +43,6 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "catalog:",
-    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@tailwindcss/postcss": "catalog:",
     "@types/mdast": "catalog:",

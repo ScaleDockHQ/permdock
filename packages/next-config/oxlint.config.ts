@@ -1,5 +1,6 @@
 import { defineConfig } from "oxlint";
 
-import { core, library, node } from "@permdock/ox-config/oxlint";
+// @boundaries-ignore the shared lint config lives at the repository root
+import { core, library, node } from "../../oxlint.config.ts";
 
 export default defineConfig({ extends: [core, library, node] });

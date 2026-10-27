@@ -1,11 +1,862 @@
+import type { OxlintConfig } from "oxlint";
+
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "oxlint";
+import antiSlop from "ultracite/oxlint/anti-slop";
+import ultracite from "ultracite/oxlint/core";
 
-import { core, ignorePatterns, node } from "@permdock/ox-config/oxlint";
+type Rules = NonNullable<OxlintConfig["rules"]>;
 
-// Root tooling only: every workspace lints itself through its own
-// oxlint.config.ts and the `lint` turbo task.
+interface TurboGlobal {
+  readonly global: {
+    readonly env?: readonly string[];
+    readonly passThroughEnv: readonly string[];
+  };
+}
+
+/**
+ * Build output and caches that no workspace should lint.
+ *
+ * `extends` merges `rules`, `plugins` and `overrides`, but a consumer's own
+ * `ignorePatterns` replaces the inherited list. Consumers that add ignores must
+ * spread this constant in front of their own patterns.
+ */
+export const ignorePatterns: readonly string[] = [
+  "**/{dist,.next,.nuxt,.output,.svelte-kit,.source,.expo,coverage,.turbo,node_modules}/**",
+];
+
+// Read by servers Vitest or an example's `serve` script start and by CI scripts, never by a turbo task.
+const runtimeOnlyEnv = [
+  "AGENT_USER",
+  "HOST",
+  "INIT_CWD",
+  "PG_URI",
+  "PORT",
+  "RUNNER_TEMP",
+  "SESSION_SECRET",
+  "SKIP_BUILD",
+];
+
+// eslint-plugin-turbo reads only the legacy `globalEnv` keys, not the
+// `futureFlags.globalConfiguration` block, so it gets turbo.json's lists here.
+// SAFETY: turbo.json is the repository's own file and its schema is checked by turbo.
+const turbo = JSON.parse(
+  readFileSync(new URL("turbo.json", import.meta.url), "utf-8"),
+) as TurboGlobal;
+
+const envAllowList = [
+  ...(turbo.global.env ?? []),
+  ...turbo.global.passThroughEnv,
+  ...runtimeOnlyEnv,
+].map((name) => `^${name.replace("*", ".*")}$`);
+
+function banned(
+  names: readonly string[],
+  message: string,
+): { name: string; message: string }[] {
+  return names.map((name) => ({ name, message }));
+}
+
+const dateMessage = "Dates use `Temporal`.";
+
+/**
+ * Imports the repository never takes, anywhere: Base UI replaces Radix, the
+ * shadcn Drawer replaces vaul, and dates use `Temporal`.
+ */
+export const neverImport: {
+  readonly paths: readonly {
+    readonly name: string;
+    readonly message: string;
+  }[];
+  readonly patterns: readonly {
+    readonly group: readonly string[];
+    readonly message: string;
+  }[];
+} = {
+  paths: [
+    { name: "vaul", message: "Use the shadcn Drawer from `@permdock/ui`." },
+    ...banned(["date-fns", "dayjs", "luxon", "moment"], dateMessage),
+  ],
+  patterns: [
+    { group: ["@radix-ui/*"], message: "Use Base UI (`@base-ui/react`)." },
+    { group: ["@date-fns/*"], message: dateMessage },
+  ],
+};
+
+/**
+ * One library per concern for the docs and marketing apps and the packages they
+ * share. The published package, its tests and the examples are exempt: they
+ * exercise Zod, ArkType and third-party agent SDKs on purpose.
+ */
+export const oneLibraryPerConcern: Rules = {
+  "eslint/no-restricted-imports": [
+    "error",
+    {
+      paths: [
+        ...neverImport.paths,
+        ...banned(
+          ["zod", "zod/mini", "arktype", "yup", "joi"],
+          "Schemas use Valibot.",
+        ),
+        ...banned(
+          [
+            "openai",
+            "@anthropic-ai/sdk",
+            "@google/genai",
+            "@google/generative-ai",
+            "@ai-sdk/openai",
+            "@ai-sdk/anthropic",
+            "@ai-sdk/google",
+          ],
+          "Model calls use the AI SDK (`ai`) through AI Gateway.",
+        ),
+        ...banned(["react-icons"], "Icons come from lucide-react."),
+        ...banned(["react-hook-form", "formik"], "Forms use TanStack Form."),
+        ...banned(
+          ["swr", "zustand", "jotai", "redux", "@reduxjs/toolkit"],
+          "Remote data uses RSC or TanStack Query; UI state uses TanStack Store.",
+        ),
+      ],
+      patterns: [
+        ...neverImport.patterns,
+        {
+          group: ["react-icons/*", "@heroicons/*"],
+          message: "Icons come from lucide-react.",
+        },
+      ],
+    },
+  ],
+};
+
+/**
+ * Rules Ultracite's `core` preset turns off that this repository ran through
+ * its Oxlint categories before the migration. Stating them after the preset
+ * keeps every one of them at error.
+ */
+const keptOn: Rules = {
+  "eslint/no-empty-function": "error",
+  "unicorn/prefer-module": "error",
+  "eslint/max-depth": "error",
+  "eslint/max-lines": "error",
+  "eslint/max-lines-per-function": "error",
+  "eslint/no-console": "error",
+  "eslint/no-implicit-coercion": "error",
+  "eslint/no-restricted-properties": "error",
+  "eslint/no-undefined": "error",
+  "eslint/no-underscore-dangle": "error",
+  "import/extensions": "error",
+  "import/max-dependencies": "error",
+  "import/no-commonjs": "error",
+  "import/no-default-export": "error",
+  "import/no-dynamic-require": "error",
+  "import/no-relative-parent-imports": "error",
+  "import/no-unassigned-import": "error",
+  "import/unambiguous": "error",
+  "jsdoc/require-param-type": "error",
+  "jsdoc/require-returns-type": "error",
+  "node/no-process-env": "error",
+  "node/no-top-level-await": "error",
+  "oxc/no-async-await": "error",
+  "oxc/no-optional-chaining": "error",
+  "oxc/no-rest-spread-properties": "error",
+  "promise/prefer-await-to-then": "error",
+  "typescript/explicit-function-return-type": "error",
+  "typescript/explicit-member-accessibility": "error",
+  "typescript/explicit-module-boundary-types": "error",
+  "typescript/no-require-imports": "error",
+  "typescript/no-var-requires": "error",
+  "typescript/prefer-readonly-parameter-types": "error",
+  "typescript/require-await": "error",
+  "unicorn/explicit-length-check": "error",
+  "unicorn/no-array-callback-reference": "error",
+  "unicorn/no-process-exit": "error",
+  "unicorn/prefer-top-level-await": "error",
+};
+
+/**
+ * Shared Oxlint baseline for every workspace in the repository.
+ *
+ * Every workspace's `oxlint.config.ts` extends `core` plus the presets it
+ * needs. The categories go beyond correctness and suspicious on purpose; the
+ * pinned rules below stay on whatever a category change does.
+ */
+export const core: OxlintConfig = defineConfig({
+  extends: [ultracite, antiSlop],
+  ignorePatterns: [...ignorePatterns],
+  options: { denyWarnings: true, reportUnusedDisableDirectives: "error" },
+  // Oxlint resolves bare and relative specifiers from the consuming config,
+  // so every plugin is handed over as an absolute path from this package.
+  jsPlugins: [
+    {
+      name: "turbo",
+      specifier: fileURLToPath(import.meta.resolve("eslint-plugin-turbo")),
+    },
+  ],
+  plugins: [
+    "eslint",
+    "typescript",
+    "oxc",
+    "unicorn",
+    "import",
+    "node",
+    "promise",
+  ],
+  categories: {
+    correctness: "error",
+    suspicious: "error",
+    perf: "error",
+    restriction: "error",
+    pedantic: "error",
+    // oxfmt owns layout; the style rules worth keeping are enabled one by one below (36653 findings in `packages/permdock/src`).
+    style: "off",
+    // Unstable rules that change between oxlint releases (414 findings in `packages/permdock/src`).
+    nursery: "off",
+  },
+  rules: {
+    ...keptOn,
+    // Public `interface` declarations stay augmentable; type aliases do not merge (1593 findings).
+    "typescript/consistent-type-definitions": "off",
+    // Rules Ultracite turns on that this repository has not cleared. Each stays off until a per-site review lands; counts are from the migration run (docs/decisions/0028).
+    // 688 findings.
+    "unicorn/switch-case-braces": "off",
+    // 516 findings.
+    "eslint/prefer-destructuring": "off",
+    // 437 findings.
+    "unicorn/text-encoding-identifier-case": "off",
+    // 232 findings.
+    "eslint/prefer-named-capture-group": "off",
+    // 166 findings.
+    "eslint/no-nested-ternary": "off",
+    // 114 findings.
+    "unicorn/numeric-separators-style": "off",
+    // 80 findings.
+    "promise/avoid-new": "off",
+    // 79 findings.
+    "eslint/curly": "off",
+    // 73 findings.
+    "unicorn/prefer-export-from": "off",
+    // 68 findings.
+    "unicorn/prefer-structured-clone": "off",
+    // 44 findings.
+    "unicorn/no-array-method-this-argument": "off",
+    // 44 findings.
+    "unicorn/prefer-response-static-json": "off",
+    // 42 findings.
+    "unicorn/catch-error-name": "off",
+    // 17 findings.
+    "eslint/prefer-object-spread": "off",
+    // 16 findings.
+    "unicorn/no-useless-collection-argument": "off",
+    // 16 findings.
+    "promise/param-names": "off",
+    // 15 findings.
+    "import/no-duplicates": "off",
+    // 15 findings.
+    "eslint/no-duplicate-imports": "off",
+    // 13 findings.
+    "unicorn/custom-error-definition": "off",
+    // 12 findings.
+    "import/first": "off",
+    // 10 findings.
+    "eslint/object-shorthand": "off",
+    // 9 findings.
+    "unicorn/filename-case": "off",
+    // 9 findings.
+    "eslint/no-template-curly-in-string": "off",
+    // 8 findings.
+    "eslint/prefer-template": "off",
+    // 7 findings.
+    "unicorn/prefer-spread": "off",
+    // 7 findings.
+    "node/callback-return": "off",
+    // 6 findings.
+    "unicorn/relative-url-style": "off",
+    // 6 findings.
+    "unicorn/no-unreadable-array-destructuring": "off",
+    // 6 findings.
+    "import/newline-after-import": "off",
+    // 5 findings.
+    "promise/prefer-catch": "off",
+    // 5 findings.
+    "eslint/arrow-body-style": "off",
+    // 5 findings.
+    "eslint/func-names": "off",
+    // 4 findings.
+    "typescript/no-inferrable-types": "off",
+    // 2 findings.
+    "eslint/no-multi-assign": "off",
+    // 2 findings.
+    "unicorn/consistent-existence-index-check": "off",
+    // 2 findings.
+    "unicorn/prefer-default-parameters": "off",
+    // 2 findings.
+    "eslint/logical-assignment-operators": "off",
+    // 2 findings.
+    "eslint/prefer-regex-literals": "off",
+    // 1 findings.
+    "unicorn/prefer-ternary": "off",
+    // 1 findings.
+    "eslint/prefer-const": "off",
+    // 1 findings.
+    "promise/no-return-wrap": "off",
+    // 1 findings.
+    "eslint/default-param-last": "off",
+    // 1 findings.
+    "typescript/prefer-for-of": "off",
+    // 1 findings.
+    "jsdoc/require-yields": "off",
+    // 1 findings.
+    "typescript/array-type": "off",
+    // 1 findings.
+    "eslint/no-script-url": "off",
+    // 1 findings.
+    "unicorn/error-message": "off",
+    "eslint/eqeqeq": "error",
+    "eslint/no-empty": "error",
+    "eslint/no-restricted-imports": ["error", neverImport],
+    // Invariant 10: no eval, no `new Function`.
+    "eslint/no-eval": "error",
+    "eslint/no-implied-eval": "error",
+    "eslint/no-new-func": "error",
+    "import/no-cycle": "error",
+    "import/no-unassigned-import": "error",
+    "node/no-process-env": "error",
+    // turbo.json runs in strict env mode; undeclared variables are cache bugs.
+    "turbo/no-undeclared-env-vars": ["error", { allowList: envAllowList }],
+    "typescript/await-thenable": "error",
+    "typescript/consistent-type-exports": "error",
+    "typescript/consistent-type-imports": "error",
+    "import/consistent-type-specifier-style": ["error", "prefer-top-level"],
+    // noPropertyAccessFromIndexSignature requires brackets for index-signature reads.
+    "typescript/dot-notation": [
+      "error",
+      { allowIndexSignaturePropertyAccess: true },
+    ],
+    "typescript/non-nullable-type-assertion-style": "error",
+    "typescript/prefer-find": "error",
+    "typescript/prefer-includes": "error",
+    "typescript/prefer-reduce-type-parameter": "error",
+    "typescript/prefer-regexp-exec": "error",
+    "typescript/prefer-return-this-type": "error",
+    "typescript/method-signature-style": ["error", "property"],
+    "typescript/prefer-string-starts-ends-with": "error",
+    "typescript/no-deprecated": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "promise/catch-or-return": ["error", { allowThen: true }],
+    "promise/always-return": ["error", { ignoreLastCallback: true }],
+    "typescript/no-non-null-assertion": "error",
+    "typescript/no-unnecessary-condition": "error",
+    "typescript/no-unsafe-argument": "error",
+    "typescript/no-unsafe-assignment": "error",
+    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-declaration-merging": "error",
+    "typescript/no-unsafe-enum-comparison": "error",
+    "typescript/no-unsafe-function-type": "error",
+    "typescript/no-unsafe-member-access": "error",
+    "typescript/no-unsafe-return": "error",
+    "typescript/no-unsafe-type-assertion": "error",
+    "typescript/no-unsafe-unary-minus": "error",
+    "typescript/only-throw-error": "error",
+    "typescript/prefer-nullish-coalescing": "error",
+    "typescript/prefer-optional-chain": "error",
+    "typescript/return-await": "error",
+    "typescript/strict-boolean-expressions": [
+      "error",
+      { allowString: false, allowNullableObject: true },
+    ],
+    "typescript/switch-exhaustiveness-check": "error",
+    "typescript/unbound-method": "error",
+    "unicorn/prefer-module": "error",
+    "eslint/func-style": [
+      "error",
+      "declaration",
+      { allowArrowFunctions: true },
+    ],
+    // Key order is the wire and docs order, such as the permission leaf
+    // `{ key, resource, action, scope, meta }` (19130 findings).
+    "eslint/sort-keys": "off",
+    // Lazy `import()` loaders, optional reads, called members and repeated
+    // names in one test read worse through a temporary (718 findings).
+    "unicorn/no-await-expression-member": "off",
+    // Node 24 and ES2025 targets: native syntax, never down-levelled (6619 findings).
+    "oxc/no-async-await": "off",
+    // Node 24 and ES2025 targets: native syntax, never down-levelled (4082 findings).
+    "oxc/no-optional-chaining": "off",
+    // Node 24 and ES2025 targets: native syntax, never down-levelled (3119 findings).
+    "oxc/no-rest-spread-properties": "off",
+    // The preset reports every `vi.mock`; the rule this repo ran before skipped third-party specifiers such as `node:child_process`, which tests cannot spy on (17 findings).
+    "anti-slop/no-module-mocking": "off",
+    // Layout belongs to oxfmt; the rule only inserts blank lines (32435 findings).
+    "anti-slop/require-readable-spacing": "off",
+    // `.filter().map()` chains read clearer than `flatMap` and keep type guards (67 findings).
+    "anti-slop/no-array-filter-map": "off",
+    "anti-slop/no-reflect-apply": "error",
+    "anti-slop/no-unknown-type-aliases": "error",
+    "anti-slop/no-widen-then-assert": "error",
+    // `as unknown as` erases the TUser / listener generics at the policy boundary (57 findings).
+    "anti-slop/no-chained-type-assertions": "off",
+    "anti-slop/require-safety-comment-for-type-assertion": "error",
+    // UI adapters' Proxy get traps forward reads with the receiver-preserving Reflect.get (11 findings).
+    "anti-slop/no-reflect-get": "off",
+    // Boundary validation (invariant 9) narrows untrusted JSON with `typeof` (1129 findings).
+    "anti-slop/no-runtime-typeof": "off",
+    // Boundary entry points (refresh, tool args, remote decisions) take `unknown` and validate it (699 findings).
+    "anti-slop/no-unknown-parameters": "off",
+    // Condition paths, claims and adapter hooks hand back `unknown` for the caller to validate under invariant 9 (427 findings).
+    "anti-slop/no-unknown-returns": "off",
+    // `Record<string, unknown>` is the JSON boundary type; noUncheckedIndexedAccess guards reads (547 findings).
+    "anti-slop/no-unsafe-dictionary-type": "off",
+    // exactOptionalPropertyTypes forbids `key: undefined`; the conditional spread omits the key (649 findings).
+    "anti-slop/no-conditional-empty-object-spread": "off",
+    // Explicit return and wire types (isolatedDeclarations on exports) are the contract by design (567 findings).
+    "anti-slop/no-known-value-widening": "off",
+    // `object` is the non-primitive bound for prototype-safe reads, WeakMap keys and foreign tables / contexts (46 findings).
+    "anti-slop/no-object-parameters": "off",
+    // "Shape" is Standard Schema, tRPC and SQL vocabulary here, including public type parameters (179 findings).
+    "anti-slop/no-shape-in-symbol-names": "off",
+    // `Record<never, never>` is the deliberate empty context in adapter and middleware generics (1 finding).
+    "typescript/no-generated-empty-object-type": "off",
+    // Config files (`*.config.ts`) need a default export; `library` turns it back on (193 findings).
+    "import/no-default-export": "off",
+    // A promise handed on unresolved cannot be awaited: a Next.js layout passes
+    // `snapshotPromise` to the client so the page streams, and sync Node
+    // handlers end with a fire-and-forget `.catch` (93 findings).
+    "promise/prefer-await-to-then": "off",
+    // Flags every parameter named `callback`, `error`, `next` or `done`, such as
+    // `it.each` rows and MCP handler wrappers, not only continuation-passing
+    // code (22 findings).
+    "promise/prefer-await-to-callbacks": "off",
+  },
+  overrides: [
+    {
+      files: ["**/*.cjs"],
+      rules: {
+        // CommonJS files have no import or export (4 findings).
+        "import/unambiguous": "off",
+        // These files are CommonJS by extension (10 findings).
+        "import/no-commonjs": "off",
+        // CommonJS loads with require() (4 findings).
+        "typescript/no-require-imports": "off",
+        // CommonJS loads with require() (4 findings).
+        "typescript/no-var-requires": "off",
+        // require() results are untyped (2 findings).
+        "typescript/no-unsafe-call": "off",
+        // require() results are untyped (2 findings).
+        "typescript/no-unsafe-member-access": "off",
+      },
+    },
+    {
+      files: [
+        "**/*.config.ts",
+        "**/*.config.mts",
+        "**/vitest.config.ts",
+        "**/tsdown.config.ts",
+        "**/knip.mts",
+      ],
+      rules: {
+        // Tools load the config's default export (120 findings).
+        "import/no-default-export": "off",
+        // Workspace configs extend the root `oxlint.config.ts`.
+        "import/no-relative-parent-imports": "off",
+      },
+    },
+  ],
+});
+
+/**
+ * Published library code: named exports only, and the relaxations that frozen
+ * JSON, closures and isolatedDeclarations need.
+ */
+export const library: OxlintConfig = defineConfig({
+  rules: {
+    "import/no-default-export": "error",
+    // Same-package folders (core, conditions) import each other (1241 findings).
+    "import/no-relative-parent-imports": "off",
+    // exactOptionalPropertyTypes and compact() use `undefined` as the omit sentinel (3738 findings).
+    "eslint/no-undefined": "off",
+    // Same sentinel: explicit `undefined` marks an omitted field (115 findings).
+    "unicorn/no-useless-undefined": "off",
+    // Modules read top-down from the export; helpers are hoisted below it (263 findings).
+    "eslint/no-use-before-define": "off",
+    // Request, Response and framework contexts are never deeply readonly (3516 findings).
+    "typescript/prefer-readonly-parameter-types": "off",
+    // Fail-closed guards check untyped runtime input that the static types call impossible (116 findings).
+    "typescript/no-unnecessary-condition": "off",
+    // `.map(fn)` with typed callbacks is the house style (76 findings).
+    "unicorn/no-array-callback-reference": "off",
+    // createPermDock and adapter factories are closures by design (502 findings).
+    "eslint/max-lines-per-function": "off",
+    // Generic trees, frozen JSON and isolatedDeclarations need assertions; each carries a SAFETY comment (652 findings).
+    "typescript/no-unsafe-type-assertion": "off",
+    // Assertions pin declaration types that tsgolint infers but tsc 5.9 in the type matrix does not (98 findings).
+    "typescript/no-unnecessary-type-assertion": "off",
+    // Single-use type parameters carry inference for public generics (5 findings).
+    "typescript/no-unnecessary-type-parameters": "off",
+    // `=== true` keeps fail-closed checks explicit on boolean-ish results (15 findings).
+    "typescript/no-unnecessary-boolean-literal-compare": "off",
+    // Sources and sinks pass promises through without an extra microtask (269 findings).
+    "typescript/promise-function-async": "off",
+    // One concept per file; past 1,000 code lines a module splits by concern.
+    "eslint/max-lines": [
+      "error",
+      { max: 1000, skipBlankLines: true, skipComments: true },
+    ],
+    // Evaluation branches mirror the decision table; splitting hides the order (80 findings).
+    "eslint/complexity": "off",
+    // Adapter entry files wire many core modules (48 findings).
+    "import/max-dependencies": "off",
+    // `void` marks deliberate fire-and-forget sink writes (22 findings).
+    "eslint/no-void": "off",
+    // sha256 and constant-time comparison are bitwise by definition (56 findings).
+    "eslint/no-bitwise": "off",
+    // `| 0` is 32-bit wraparound in sha256, not truncation (13 findings).
+    "unicorn/prefer-math-trunc": "off",
+    // Related error and store classes share one module (6 findings).
+    "eslint/max-classes-per-file": "off",
+  },
+});
+
+/** Node tooling: repository scripts, test workspaces and fixture servers. */
+export const node: OxlintConfig = defineConfig({
+  rules: {
+    // Tests pass `undefined` to probe optional inputs (358 findings).
+    "eslint/no-undefined": "off",
+    // Node built-ins are imported by name (57 findings).
+    "unicorn/import-style": "off",
+    // `import.meta.url` is the form Bun, Deno and bundlers all support (52 findings).
+    "unicorn/prefer-import-meta-properties": "off",
+    // Scripts read untyped JSON and child-process output (7 findings).
+    "typescript/no-unsafe-return": "off",
+    // Scripts narrow parsed JSON they wrote themselves (166 findings).
+    "typescript/no-unsafe-type-assertion": "off",
+    // Scripts and tests are not a published API (48 findings).
+    "typescript/explicit-module-boundary-types": "off",
+    // Scripts and fixtures read CI, port and database settings (39 findings).
+    "node/no-process-env": "off",
+    // Fixture apps export defaults for their framework (95 findings).
+    "import/no-default-export": "off",
+    // `.map(fn)` with typed callbacks is the house style (26 findings).
+    "unicorn/no-array-callback-reference": "off",
+    // Child-process scripts run as ESM, never through require(esm) (22 findings).
+    "node/no-top-level-await": "off",
+  },
+});
+
+/**
+ * Vitest suites. Test-only workspaces extend it for every file; packages apply
+ * `test.rules` in an override on their `tests/` folder.
+ */
+export const test: OxlintConfig = defineConfig({
+  plugins: ["vitest"],
+  rules: {
+    // Test helpers are local; inference is enough (430 findings).
+    "typescript/explicit-function-return-type": "off",
+    // Test doubles mutate their inputs on purpose (2611 findings).
+    "typescript/prefer-readonly-parameter-types": "off",
+    // Type tests probe the empty context on purpose (1 finding).
+    "typescript/no-generated-empty-object-type": "off",
+    // The Vitest config sets the timeout once (1501 findings).
+    "vitest/require-test-timeout": "off",
+    // Matrix cases branch on the expected outcome (549 findings).
+    "vitest/no-conditional-in-test": "off",
+    // Tests feed impossible values and assert identity across copies on purpose (49 findings).
+    "typescript/no-unnecessary-condition": "off",
+    // Matrix cases assert the branch they took (122 findings).
+    "vitest/no-conditional-expect": "off",
+    // Runtime-specific cases skip by environment (8 findings).
+    "vitest/no-conditional-tests": "off",
+    // Titles are built from matrix rows (6 findings).
+    "vitest/valid-title": "off",
+    // Conformance runners assert inside shared helpers (14 findings).
+    "vitest/expect-expect": "off",
+    // A describe block groups many cases (350 findings).
+    "eslint/max-lines-per-function": "off",
+    // Matrix suites are long by design (71 findings).
+    "eslint/max-lines": "off",
+    // Integration tests wire many adapters (30 findings).
+    "import/max-dependencies": "off",
+    // Tests import the module under test from its folder (445 findings).
+    "import/no-relative-parent-imports": "off",
+    // Tests pass malformed input to prove fail-closed behaviour (54 findings).
+    "typescript/no-unsafe-argument": "off",
+    // Tests read untyped JSON responses (31 findings).
+    "typescript/no-unsafe-member-access": "off",
+    // Tests call untyped framework handles (38 findings).
+    "typescript/no-unsafe-call": "off",
+    // Tests read untyped JSON responses (46 findings).
+    "typescript/no-unsafe-assignment": "off",
+    // Assertions pin literal types in fixtures (48 findings).
+    "typescript/no-unnecessary-type-assertion": "off",
+    // Test doubles return untyped JSON and framework handles (31 findings).
+    "typescript/no-unsafe-return": "off",
+    // Async callbacks match the interface under test (161 findings).
+    "typescript/require-await": "off",
+    // Async callbacks match the interface under test (214 findings).
+    "eslint/require-await": "off",
+    // Test doubles return promises without async (704 findings).
+    "typescript/promise-function-async": "off",
+    // Arrow shorthand returns void calls in callbacks (9 findings).
+    "typescript/no-confusing-void-expression": "off",
+    // `void` marks deliberately ignored promises (15 findings).
+    "eslint/no-void": "off",
+    // Ordered steps model sequential requests and pages (441 findings).
+    "eslint/no-await-in-loop": "off",
+    // Case-local helpers stay next to the assertions that use them (286 findings).
+    "unicorn/consistent-function-scoping": "off",
+    // Test files never import each other, so a focused or skipped case is always a mistake.
+    "vitest/no-focused-tests": "error",
+    "vitest/no-disabled-tests": "error",
+    "vitest/prefer-strict-equal": "error",
+    "vitest/prefer-import-in-mock": "error",
+    "vitest/require-top-level-describe": "error",
+    "vitest/padding-around-test-blocks": "error",
+    "vitest/padding-around-after-all-blocks": "error",
+    "vitest/prefer-describe-function-title": "error",
+    "vitest/prefer-expect-type-of": "error",
+    "vitest/consistent-test-filename": "error",
+    "vitest/prefer-importing-vitest-globals": "error",
+    // Extension methods return `T | Promise<T>`; `.resolves` throws on a plain
+    // value, `expect(await x)` takes both (1883 findings).
+    "vitest/prefer-expect-resolves": "off",
+    // Matrix and conformance cases assert every field of one decision; at the
+    // p95 of 6 expects per test (858 findings).
+    "vitest/max-expects": "off",
+  },
+});
+
+/**
+ * React, jsx-a11y and Next.js rules for UI apps, the React Doctor effect rules,
+ * and the shadcn design-system rules.
+ *
+ * This lists every rule of the react, jsx-a11y and nextjs plugins in the
+ * categories `core` enables as of oxlint 1.89. Re-check it on oxlint upgrades.
+ */
+export const react: OxlintConfig = defineConfig({
+  jsPlugins: [
+    {
+      name: "react-doctor",
+      specifier: fileURLToPath(
+        import.meta.resolve("oxlint-plugin-react-doctor"),
+      ),
+    },
+    {
+      name: "shadcn",
+      specifier: fileURLToPath(import.meta.resolve("@shadcn/lint")),
+    },
+  ],
+  plugins: ["react", "jsx-a11y", "nextjs"],
+  rules: {
+    "jsx-a11y/alt-text": "error",
+    "jsx-a11y/anchor-ambiguous-text": "error",
+    "jsx-a11y/anchor-has-content": "error",
+    "jsx-a11y/anchor-is-valid": "error",
+    "jsx-a11y/aria-activedescendant-has-tabindex": "error",
+    "jsx-a11y/aria-props": "error",
+    "jsx-a11y/aria-proptypes": "error",
+    "jsx-a11y/aria-role": "error",
+    "jsx-a11y/aria-unsupported-elements": "error",
+    "jsx-a11y/autocomplete-valid": "error",
+    "jsx-a11y/click-events-have-key-events": "error",
+    "jsx-a11y/control-has-associated-label": "error",
+    "jsx-a11y/heading-has-content": "error",
+    "jsx-a11y/html-has-lang": "error",
+    "jsx-a11y/iframe-has-title": "error",
+    "jsx-a11y/img-redundant-alt": "error",
+    "jsx-a11y/interactive-supports-focus": "error",
+    "jsx-a11y/label-has-associated-control": "error",
+    "jsx-a11y/lang": "error",
+    "jsx-a11y/media-has-caption": "error",
+    "jsx-a11y/mouse-events-have-key-events": "error",
+    "jsx-a11y/no-access-key": "error",
+    "jsx-a11y/no-aria-hidden-on-focusable": "error",
+    "jsx-a11y/no-autofocus": "error",
+    "jsx-a11y/no-distracting-elements": "error",
+    "jsx-a11y/no-interactive-element-to-noninteractive-role": "error",
+    "jsx-a11y/no-noninteractive-element-interactions": "error",
+    "jsx-a11y/no-noninteractive-element-to-interactive-role": "error",
+    "jsx-a11y/no-noninteractive-tabindex": "error",
+    "jsx-a11y/no-redundant-roles": "error",
+    "jsx-a11y/no-static-element-interactions": "error",
+    "jsx-a11y/prefer-tag-over-role": "error",
+    "jsx-a11y/role-has-required-aria-props": "error",
+    "jsx-a11y/role-supports-aria-props": "error",
+    "jsx-a11y/scope": "error",
+    "jsx-a11y/tabindex-no-positive": "error",
+    "nextjs/google-font-display": "error",
+    "nextjs/google-font-preconnect": "error",
+    "nextjs/inline-script-id": "error",
+    "nextjs/next-script-for-ga": "error",
+    "nextjs/no-assign-module-variable": "error",
+    "nextjs/no-async-client-component": "error",
+    "nextjs/no-before-interactive-script-outside-document": "error",
+    "nextjs/no-css-tags": "error",
+    "nextjs/no-document-import-in-page": "error",
+    "nextjs/no-duplicate-head": "error",
+    "nextjs/no-head-element": "error",
+    "nextjs/no-head-import-in-document": "error",
+    "nextjs/no-html-link-for-pages": "error",
+    "nextjs/no-img-element": "error",
+    "nextjs/no-page-custom-font": "error",
+    "nextjs/no-script-component-in-head": "error",
+    "nextjs/no-styled-jsx-in-document": "error",
+    "nextjs/no-sync-scripts": "error",
+    "nextjs/no-title-in-document-head": "error",
+    "nextjs/no-typos": "error",
+    "nextjs/no-unwanted-polyfillio": "error",
+    "react/button-has-type": "error",
+    "react/capitalized-calls": "error",
+    "react/checked-requires-onchange-or-readonly": "error",
+    "react/display-name": "error",
+    "react/error-boundaries": "error",
+    "react/exhaustive-deps": "error",
+    "react/exhaustive-effect-dependencies": "error",
+    // Tailwind styles components through `className` (89 findings).
+    "react/forbid-component-props": "off",
+    "react/forbid-dom-props": "error",
+    "react/forbid-elements": "error",
+    "react/forward-ref-uses-ref": "error",
+    "react/globals": "error",
+    "react/hooks": "error",
+    "react/iframe-missing-sandbox": "error",
+    "react/immutability": "error",
+    "react/incompatible-library": "error",
+    "react/invariant": "error",
+    // Its default allows JSX only in `.jsx`; the apps are TSX (66 findings).
+    "react/jsx-filename-extension": "off",
+    "react/function-component-definition": [
+      "error",
+      {
+        namedComponents: "function-declaration",
+        unnamedComponents: "arrow-function",
+      },
+    ],
+    "react/jsx-key": "error",
+    "react/jsx-no-comment-textnodes": "error",
+    "react/jsx-no-constructed-context-values": "error",
+    "react/jsx-no-duplicate-props": "error",
+    // Copy lives in JSX; the docs and marketing sites are English only (133 findings).
+    "react/jsx-no-literals": "off",
+    "react/jsx-no-script-url": "error",
+    "react/jsx-no-target-blank": "error",
+    "react/jsx-no-undef": "error",
+    "react/jsx-no-useless-fragment": "error",
+    "react/jsx-props-no-spread-multi": "error",
+    "react/memo-dependencies": "error",
+    "react/no-array-index-key": "error",
+    "react/no-children-prop": "error",
+    "react/no-clone-element": "error",
+    "react/no-danger": "error",
+    "react/no-danger-with-children": "error",
+    "react/no-deriving-state-in-effects": "error",
+    "react/no-did-mount-set-state": "error",
+    "react/no-did-update-set-state": "error",
+    "react/no-direct-mutation-state": "error",
+    "react/no-find-dom-node": "error",
+    "react/no-is-mounted": "error",
+    // Pages keep small private sections next to the component that uses them (33 findings).
+    "react/no-multi-comp": "off",
+    "react/no-namespace": "error",
+    "react/no-object-type-as-default-prop": "error",
+    "react/no-react-children": "error",
+    "react/no-render-return-value": "error",
+    "react/no-string-refs": "error",
+    "react/no-this-in-sfc": "error",
+    "react/no-unescaped-entities": "error",
+    "react/no-unknown-property": "error",
+    "react/no-unsafe": "error",
+    "react/no-unstable-nested-components": "error",
+    "react/no-will-update-set-state": "error",
+    // Next.js route files export `metadata` and config next to the page (50 findings).
+    "react/only-export-components": "off",
+    "react/prefer-function-component": "error",
+    "react/preserve-manual-memoization": "error",
+    "react/purity": "error",
+    // `jsx: react-jsx` uses the automatic runtime (696 findings).
+    "react/react-in-jsx-scope": "off",
+    "react/refs": "error",
+    "react/rule-suppression": "error",
+    "react/rules-of-hooks": "error",
+    "react/set-state-in-effect": "error",
+    "react/set-state-in-render": "error",
+    "react/static-components": "error",
+    "react/style-prop-object": "error",
+    "react/syntax": "error",
+    "react/todo": "error",
+    "react/unsupported-syntax": "error",
+    "react/use-memo": "error",
+    "react/void-dom-elements-no-children": "error",
+    "react/void-use-memo": "error",
+    "react-doctor/effect-listener-cleanup-mismatch": "error",
+    "react-doctor/effect-needs-cleanup": "error",
+    "react-doctor/effect-observer-needs-disconnect": "error",
+    "react-doctor/effect-raf-loop-needs-cancel": "error",
+    "react-doctor/no-adjust-state-on-prop-change": "error",
+    "react-doctor/no-async-effect-callback": "error",
+    "react-doctor/no-cascading-set-state": "error",
+    "react-doctor/no-derived-state-effect": "error",
+    "react-doctor/no-effect-chain": "error",
+    "react-doctor/no-effect-event-handler": "error",
+    "react-doctor/no-effect-event-in-deps": "error",
+    "react-doctor/no-effect-with-fresh-deps": "error",
+    "react-doctor/no-event-trigger-state": "error",
+    "react-doctor/no-fetch-in-effect": "error",
+    "react-doctor/no-initialize-state": "error",
+    "react-doctor/no-mirror-prop-effect": "error",
+    "react-doctor/no-pass-live-state-to-parent": "error",
+    "react-doctor/no-prop-callback-in-effect": "error",
+    "react-doctor/no-reset-all-state-on-prop-change": "error",
+    "react-doctor/no-self-updating-effect": "error",
+    "react-doctor/no-set-state-after-await-in-effect": "error",
+    "react-doctor/prefer-use-effect-event": "error",
+    "shadcn/no-inline-styles": "error",
+    "shadcn/no-raw-colors": "error",
+    // Clearing it restyles the marketing site and the Next.js example and adds
+    // variants in packages/ui: a design pass with visual review (162 findings).
+    "shadcn/no-restyle": "off",
+    // Framework file conventions infer page and layout types (140 findings).
+    "typescript/explicit-function-return-type": "off",
+    // Framework file conventions infer page and layout types (91 findings).
+    "typescript/explicit-module-boundary-types": "off",
+    // Pages, layouts and configs are default exports (91 findings).
+    "import/no-default-export": "off",
+    // Framework props are not deeply readonly (366 findings).
+    "typescript/prefer-readonly-parameter-types": "off",
+    // CSS entries and `reflect-metadata` are side-effect imports (4 findings).
+    "import/no-unassigned-import": "off",
+    // `.map(fn)` with typed callbacks is the house style (2 findings).
+    "unicorn/no-array-callback-reference": "off",
+  },
+});
+
+/** Adapter example apps under `apps/examples`. */
+export const example: OxlintConfig = defineConfig({
+  rules: {
+    // App-router and factory files import across src/ folders (47 findings).
+    "import/no-relative-parent-imports": "off",
+    // Vite and Next client entries boot with top-level await (21 findings).
+    "node/no-top-level-await": "off",
+    // Adapter factories take Policy (TUser = unknown); typed policies need a cast (6 findings).
+    "typescript/no-unsafe-type-assertion": "off",
+    // Example servers read PORT from the environment (25 findings).
+    "node/no-process-env": "off",
+    // A check without a row passes `undefined` as `data` before its options (2 findings).
+    "eslint/no-undefined": "off",
+  },
+});
+
+/** Root tooling: configs and repository scripts. */
 export default defineConfig({
   options: { typeAware: true },
   extends: [core, node],
+  rules: {
+    // The shared presets live in this file, so it reads top to bottom as one concept.
+    "eslint/max-lines": [
+      "error",
+      { max: 1000, skipBlankLines: true, skipComments: true },
+    ],
+  },
   ignorePatterns: [...ignorePatterns, ".agents/**", ".cursor/**", ".claude/**"],
 });

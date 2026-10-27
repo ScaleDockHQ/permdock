@@ -1,11 +1,12 @@
 import { defineConfig } from "oxlint";
 
+// @boundaries-ignore the shared lint config lives at the repository root
 import {
   core,
   example,
   ignorePatterns,
   react,
-} from "@permdock/ox-config/oxlint";
+} from "../../../oxlint.config.ts";
 
 export default defineConfig({
   extends: [core, react, example],

@@ -27,7 +27,6 @@
   },
   "devDependencies": {
     "@next/playwright": "catalog:",
-    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@playwright/test": "catalog:",
     "@tailwindcss/postcss": "catalog:",
@@ -38,6 +37,7 @@
     "oxlint-tsgolint": "catalog:",
     "postcss": "catalog:",
     "tailwindcss": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "ultracite": "catalog:"
   }
 }

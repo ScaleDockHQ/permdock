@@ -8,7 +8,6 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.isolated.json"
   },
   "devDependencies": {
-    "@permdock/ox-config": "workspace:*",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "permdock": "workspace:*",

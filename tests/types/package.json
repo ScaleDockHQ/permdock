@@ -10,7 +10,6 @@
     "@modelcontextprotocol/server": "catalog:",
     "@orpc/contract": "catalog:",
     "@orpc/server": "catalog:",
-    "@permdock/ox-config": "workspace:*",
     "@types/node": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",

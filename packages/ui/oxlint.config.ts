@@ -1,6 +1,7 @@
 import { defineConfig } from "oxlint";
 
-import { core, ignorePatterns, react } from "@permdock/ox-config/oxlint";
+// @boundaries-ignore the shared lint config lives at the repository root
+import { core, ignorePatterns, react } from "../../oxlint.config.ts";
 
 export default defineConfig({
   extends: [core, react],

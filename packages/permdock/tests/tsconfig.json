@@ -1,7 +1,8 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "rootDir": "..",
+    // The package oxlint.config.ts imports the root config.
+    "rootDir": "../../..",
     "declaration": false,
     "isolatedDeclarations": false,
     "lib": ["ES2025", "DOM", "DOM.Iterable"]

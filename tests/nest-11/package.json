@@ -14,7 +14,6 @@
     "@nestjs/platform-express": "catalog:nest11",
     "@nestjs/platform-fastify": "catalog:nest11",
     "@permdock/integration": "workspace:*",
-    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "oxlint": "catalog:",
