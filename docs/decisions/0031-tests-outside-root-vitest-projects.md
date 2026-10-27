@@ -14,7 +14,7 @@ The standard runs every Vitest suite from the root `vitest.config.ts` through `t
 
 ## Decision
 
-The root `projects` list holds `apps/docs`, `apps/marketing`, `packages/ox-config` and `packages/permdock`. Each `tests/*` workspace has its own `vitest.config.ts` and its own Turbo task: `tests/bundle` runs as `size`, `tests/nest-11` as `test`, both in `pnpm verify` after the build. The suites that need Docker or other runtimes run as `pnpm test:integration` and `pnpm test:runtimes`.
+The root `projects` list holds `apps/docs`, `apps/marketing` and `packages/permdock`. Each `tests/*` workspace has its own `vitest.config.ts` and its own Turbo task: `tests/bundle` runs as `size`, `tests/nest-11` as `test`, both in `pnpm verify` after the build. The suites that need Docker or other runtimes run as `pnpm test:integration` and `pnpm test:runtimes`.
 
 ## Consequences
 

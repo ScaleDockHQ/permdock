@@ -38,7 +38,7 @@ packages/permdock/    npm `permdock`, the only published package
   src/testing         `permdock/testing`: policy matrix, conformance and scenario runners
   src/cli             the `permdock` bin and `permdock/cli`; commands load on demand
   schemas/ rulesets/ skills/   catalog and OpenAPI schemas, lint ruleset, consumer skills
-packages/{typescript-config,ox-config,next-config,ui}   private presets, createNextConfig(), vendored UI
+packages/{typescript-config,next-config,ui}   private presets, createNextConfig(), vendored UI
 apps/marketing/ apps/docs/   Next.js 16.4, Vercel Services at `/` and `/docs`
 apps/examples/<name>/        one app per adapter
 tests/{types,integration,runtimes,bundle}       TS 5.9/6/7, Postgres, Bun/Deno/workerd, size
@@ -133,7 +133,7 @@ Records in `docs/decisions`:
 - 0015 Ask AI input from `InputGroup`; 0016 Portless names; 0017 `permdock-<topic>` skills; 0018 blocked majors
 - 0019 `<Adapter>PermDock` and no `$` members; 0020 the CLI inside `permdock`; 0021 `^build` over `transit`
 - 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
-- 0026 no commit header length limit; 0027 7-day Dependabot cooldown; 0028 `ox-config` over Ultracite
+- 0026 no commit header length limit; 0027 7-day Dependabot cooldown; 0052 Ultracite kept-off rules
 - 0029 no Turbopack CI cache; 0030 `Vary` only on Markdown
 - 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock`; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038-0041, 0046-0048, 0050-0051 better-supabase release age and floor; 0042 `oxc-parser`, `jiti` as deps; 0044 lint rules kept off; 0045 open peer ranges; 0049 hook gate
 

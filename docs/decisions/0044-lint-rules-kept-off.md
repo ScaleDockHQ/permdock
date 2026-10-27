@@ -5,7 +5,7 @@
 
 ## Context
 
-Decision 0028 keeps lint on `packages/ox-config` instead of the Ultracite presets. It enables the `correctness`, `suspicious`, `perf`, `restriction` and `pedantic` categories and turns `style` and `nursery` rules on one by one. Every `off` line carries a reason and a finding count. Before the TypeScript 7.1 preparation, every explicit `off` was flipped to `error` and the candidate style rules were added, then the findings were counted per rule across every workspace with oxlint 1.89. Most rules were cleared and switched on. A rule that could not be cleared completely stays `off`; the repository never lands a rule that is half on.
+Lint runs on the Ultracite `core` and `anti-slop` presets plus the house rules in the root `oxlint.config.ts` ([0052](./0052-ultracite-presets-and-kept-off-rules.md)). The house config enables the `correctness`, `suspicious`, `perf`, `restriction` and `pedantic` categories and turns `style` and `nursery` rules on one by one. Every `off` line carries a reason and a finding count. Before the TypeScript 7.1 preparation, every explicit `off` was flipped to `error` and the candidate style rules were added, then the findings were counted per rule across every workspace with oxlint 1.89. Most rules were cleared and switched on. A rule that could not be cleared completely stays `off`; the repository never lands a rule that is half on.
 
 ## Decision
 
@@ -35,7 +35,7 @@ These rules stay off as backlogs that need a larger change than a lint pass:
 
 ## Consequences
 
-The reason and count beside each `off` line in `packages/ox-config/src/oxlint.ts` and the workspace configs stay the source of truth. When a backlog is cleared, the rule turns on in the same pull request and its entry here is deleted. An oxlint upgrade that changes a count updates the comment, not this record.
+The reason and count beside each `off` line in the root `oxlint.config.ts` and the workspace configs stay the source of truth. When a backlog is cleared, the rule turns on in the same pull request and its entry here is deleted. An oxlint upgrade that changes a count updates the comment, not this record.
 
 ## Alternatives considered
 

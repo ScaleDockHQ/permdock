@@ -145,7 +145,7 @@ In a git worktree the branch is prefixed: `https://<branch>.permdock.localhost`.
 - Fifteen invariants (fail-closed, deny overrides allow, no string keys, frozen JSON leaves, zero runtime dependencies beyond `@standard-schema/spec`, authentication upstream, the Cloud optional, and more) are listed in [`AGENTS.md`](./AGENTS.md) and spelled out in [`.agents/rules/invariants.mdc`](./.agents/rules/invariants.mdc). A PR that breaks one is wrong.
 - The naming convention is public API: every adapter exports `createPermDock`, every provider is `subjectFrom*`. See [`.agents/rules/naming.mdc`](./.agents/rules/naming.mdc) and the [naming page](./apps/docs/content/docs/getting-started/naming.mdx).
 - TypeScript 7 in strict mode with `exactOptionalPropertyTypes`, `isolatedDeclarations` and `erasableSyntaxOnly`; presets in `packages/typescript-config`.
-- Oxlint with type-aware rules and Oxfmt (double quotes, semicolons, width 80, sorted Tailwind classes, Markdown and MDX included); config in `packages/ox-config`.
+- Oxlint with type-aware rules and Oxfmt (double quotes, semicolons, width 80, sorted Tailwind classes, Markdown and MDX included); Ultracite presets plus the house rules in the root `oxlint.config.ts`.
 - Exact dependency pins from the pnpm catalog, `trustPolicy: no-downgrade`, and a one-day minimum release age.
 - Conventional commits, enforced by commitlint on `commit-msg`. Prose follows [`.agents/rules/writing.mdc`](./.agents/rules/writing.mdc).
 
@@ -170,7 +170,6 @@ Read [`CONTRIBUTING.md`](./CONTRIBUTING.md). Public API changes start as an RFC 
 | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`packages/permdock`](./packages/permdock)                   | npm `permdock`: `src/core`, `src/conditions`, one folder per adapter, `src/cli` (the `permdock` bin), `src/testing` (`permdock/testing`), JSON schemas, the OpenAPI lint ruleset and the consumer skills |
 | [`packages/typescript-config`](./packages/typescript-config) | Private tsconfig presets: `base`, `library`, `react-library`, `next`                                                                                                                                     |
-| [`packages/ox-config`](./packages/ox-config)                 | Private Oxlint and Oxfmt configuration                                                                                                                                                                   |
 | [`packages/next-config`](./packages/next-config)             | Private `createNextConfig()`: security headers, dev origins, Sentry options                                                                                                                              |
 | [`packages/ui`](./packages/ui)                               | Private vendored shadcn/ui, ReUI and AI Elements components, one export per file                                                                                                                         |
 

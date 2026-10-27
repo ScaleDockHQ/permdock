@@ -1,6 +1,6 @@
 # 0028. `packages/ox-config` instead of Ultracite
 
-- Status: accepted
+- Status: withdrawn
 - Date: 2026-10-16
 
 ## Context
@@ -10,6 +10,10 @@ The standard runs lint and format through Ultracite 8: a root `oxlint.config.ts`
 ## Decision
 
 Lint and format stay on `packages/ox-config`, which the root `oxlint.config.ts` and `oxfmt.config.ts` import. `pnpm check` and `pnpm fix` run Oxfmt and Oxlint directly, and the pre-commit hook runs `oxfmt` on staged files.
+
+## Withdrawn
+
+Lint and format run on Ultracite 8.1: `packages/ox-config` is deleted, the root `oxlint.config.ts` holds the house rules and the shared presets, and `oxfmt.config.ts` spreads `ultracite/oxfmt`. The deviations that remain are in [0052](./0052-ultracite-presets-and-kept-off-rules.md).
 
 ## Consequences
 
