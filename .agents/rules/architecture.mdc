@@ -13,7 +13,7 @@ PermDock is a library repository: one published package, two deployed apps, and 
 - `packages/permdock` is the only published package. Apps, examples and tests import it through its package `exports`, which point at `dist/`, so checks depend on `^build` (`docs/decisions/0021-build-over-transit.md`).
 - Every workspace has a Turbo tag in its `turbo.json`, and `pnpm boundaries` enforces the rules in the root `turbo.json`:
   - `library`: `permdock`. Depends on no workspace but `tooling`.
-  - `tooling`: `typescript-config`, `ox-config`. Every workspace may use them as dev dependencies.
+  - `tooling`: `typescript-config`. Every workspace may use them as dev dependencies.
   - `ui`: `packages/ui`. Never imports an app, example, test or `next-config`; only apps depend on it.
   - `next-config`: `packages/next-config`, used by the Next.js apps.
   - `app`: `apps/docs`, `apps/marketing`. Never import each other or an example.

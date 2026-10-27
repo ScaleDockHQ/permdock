@@ -50,7 +50,7 @@ Useful scripts:
 Every package and app extends the shared configuration instead of copying it:
 
 - `tsconfig.json`: `"extends": "@permdock/typescript-config/library.json"` (packages), `react-library.json` (packages with `.tsx` entries) or `next.json` (Next.js apps). Add `"@permdock/typescript-config": "workspace:*"` to `devDependencies` and a `"typecheck": "tsc --noEmit"` script so `turbo run typecheck` picks it up.
-- `oxlint.config.ts`: extend the presets from `@permdock/ox-config/oxlint` that apply (`core` always, plus `react`, `node`, `library`, `test` or `example`), and add a `"lint": "oxlint --disable-nested-config"` script so `turbo run lint` picks it up. Formatting runs once from the root. See [`packages/ox-config/README.md`](./packages/ox-config/README.md).
+- `oxlint.config.ts`: extend the presets exported by the root `oxlint.config.ts` that apply (import it with a `// @boundaries-ignore <reason>` comment) (`core` always, plus `react`, `node`, `library`, `test` or `example`), and add a `"lint": "oxlint --disable-nested-config"` script so `turbo run lint` picks it up. Formatting runs once from the root.
 - `turbo.json`: `"extends": ["//"]` and a `tags` entry (`library`, `app`, `example`, `test`, `config` or `ui`) so `pnpm boundaries` checks its dependencies.
 
 ## Commits

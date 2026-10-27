@@ -37,7 +37,6 @@
   },
   "devDependencies": {
     "@next/playwright": "catalog:",
-    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@playwright/test": "catalog:",
     "@supabase/postgrest-typegen": "catalog:",
@@ -51,6 +50,7 @@
     "oxlint-tsgolint": "catalog:",
     "supabase": "catalog:",
     "typescript": "catalog:",
+    "ultracite": "catalog:",
     "vitest": "catalog:"
   }
 }

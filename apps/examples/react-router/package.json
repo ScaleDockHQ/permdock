@@ -23,7 +23,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@react-router/dev": "catalog:",
     "@types/react": "catalog:",

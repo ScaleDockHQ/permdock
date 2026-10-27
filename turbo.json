@@ -35,7 +35,7 @@
     ],
     "inputs": [
       "packages/typescript-config/*.json",
-      "packages/ox-config/src/**",
+      "oxlint.config.ts",
       "pnpm-workspace.yaml"
     ]
   },

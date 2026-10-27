@@ -9,7 +9,6 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "deno": "catalog:",

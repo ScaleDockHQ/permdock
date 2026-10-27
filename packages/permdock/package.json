@@ -343,7 +343,6 @@
     "@orpc/contract": "catalog:",
     "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
-    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@solidjs/start": "catalog:",
     "@supabase/middleware": "catalog:",

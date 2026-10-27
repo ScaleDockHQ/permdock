@@ -33,7 +33,7 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0025](./0025-vercel-json-over-vercel-ts.md)                      | `vercel.json` instead of `vercel.ts`                                                                   |
 | [0026](./0026-commit-header-length.md)                            | Commit headers without a length limit                                                                  |
 | [0027](./0027-dependabot-cooldown.md)                             | Dependabot waits 7 days                                                                                |
-| [0028](./0028-ox-config-over-ultracite.md)                        | `packages/ox-config` instead of Ultracite                                                              |
+| [0028](./0028-ox-config-over-ultracite.md)                        | Withdrawn: lint and format run on Ultracite                                                            |
 | [0029](./0029-no-turbopack-build-cache-in-ci.md)                  | No Turbopack build cache on GitHub runners                                                             |
 | [0030](./0030-vary-on-markdown-only.md)                           | `Vary: Accept` only on the Markdown response                                                           |
 | [0031](./0031-tests-outside-root-vitest-projects.md)              | `tests/*` stays outside the root Vitest `projects`                                                     |
@@ -57,3 +57,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0049](./0049-affected-hook-gate.md)                              | Affected lint and typecheck on commit, no tests in hooks, `CI` not hashed                              |
 | [0050](./0050-better-supabase-0-25-0-release-age.md)              | better-supabase 0.25.0 catalog pin, release age exception and three-version compatibility CI           |
 | [0051](./0051-better-supabase-0-29-0-floor-and-release-age.md)    | better-supabase 0.29.0 is the peer floor and catalog pin, and skips the release age                    |
+| [0052](./0052-ultracite-presets-and-kept-off-rules.md)            | Ultracite `core` and `anti-slop` only, house presets in the root config, kept-off rules with counts    |

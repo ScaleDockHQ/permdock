@@ -1,12 +1,13 @@
 import { defineConfig } from "oxlint";
 
+// @boundaries-ignore the shared lint config lives at the repository root
 import {
   core,
   ignorePatterns,
   library,
   neverImport,
   test,
-} from "@permdock/ox-config/oxlint";
+} from "../../oxlint.config.ts";
 
 /**
  * An adapter family's runtime imports go through its kit and nothing else

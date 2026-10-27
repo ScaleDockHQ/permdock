@@ -19,7 +19,6 @@
     "next": "catalog:"
   },
   "devDependencies": {
-    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "oxlint": "catalog:",

@@ -11,7 +11,7 @@ The standard asks that `tooling` packages depend only on `tooling`, that `next-c
 
 - `turbo.json` has rules for the `library`, `app`, `example`, `test` and `ui` tags.
 - The `ui` rule denies `app`, `example`, `test` and `next-config` dependencies instead of allowing only `tooling`, and allows only `app` dependents.
-- `packages/typescript-config` and `packages/ox-config` are tagged `tooling`, and `packages/next-config` is tagged `next-config`, but neither tag has a rule of its own. Review covers them, and all three packages are private.
+- `packages/typescript-config` is tagged `tooling`, and `packages/next-config` is tagged `next-config`, but neither tag has a rule of its own. Review covers them, and all three packages are private.
 
 ## Consequences
 

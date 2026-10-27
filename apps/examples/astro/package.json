@@ -15,7 +15,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@permdock/ox-config": "workspace:*",
     "@permdock/typescript-config": "workspace:*",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
