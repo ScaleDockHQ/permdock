@@ -2,6 +2,13 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.15.0 (2026-10-27)
+
+- In a project with a `better-supabase.config.*`, the token hook's default `supabase.hook.activeFrom` and doctor PD078 now read the claim better-supabase writes: `auth.organization.claim` (or `claims.tenant` in a flat config), then `rls.tenantClaim`, then `tenant_id`. A project that renames the claim in better-supabase only now gets a hook that reads it; regenerate the hook SQL and manifest together.
+- The `onError` sink of `protectServer` in `permdock/mcp` now receives `tenant` next to `permission` and `name` (`McpErrorContext`), so a `BetterSupabaseOnError` from `permdock/better-supabase` can be passed as is. `tenant` is what the `tenant` option resolves for the call, or `null`.
+- The `rls.customRoles.from.sync` guard triggers now refuse a signed-in write of an entry PermDock cannot hold, as `permdock_replace_custom_role_grants` does: `22023` with `outside-ceiling`, `unknown-permission`, `unknown-level` or `unknown-role`. Before, the guard skipped such an entry and the after-row sync dropped it with a warning, so the legacy table kept a row that granted nothing. Writes without a caller (migrations, jobs, backfills) still drop with a warning. Regenerate the RLS SQL to pick this up.
+- `permdock/react-native` exports `powerSyncSourceCache(db)`: its `source(options)` answers the same `powerSyncSource` for the same manifest and options, so a component that rebuilds its options on every render keeps one source and one set of `db.watch` subscriptions.
+
 ## 0.14.0 (2026-10-26)
 
 - Breaking: `permdock/better-supabase` requires better-supabase 0.29.0 or later. `ShareLinkRow` takes only `subject: { type, id }`, so a share-link row with `subjectType` and `subjectId` now denies, and `authorizationHooks` caps an automation run with `bsb_permission_cap` only. Before upgrading, run `better-supabase migrate schema-first` if your `better-supabase.config.ts` has `tables` or `records`, then `better-supabase upgrade` and generate a migration.

@@ -1,5 +1,17 @@
 # permdock
 
+## 0.15.0
+
+### Minor Changes
+
+- [#237](https://github.com/ScaleDockHQ/permdock/pull/237) [`6b68d77`](https://github.com/ScaleDockHQ/permdock/commit/6b68d770bedd093852f673913197ecaf96a327f2) Thanks [@martijn00](https://github.com/martijn00)! - In a project with a `better-supabase.config.*`, the token hook's default `supabase.hook.activeFrom` and doctor PD078 now read the claim better-supabase writes: `auth.organization.claim` (or `claims.tenant` in a flat config), then `rls.tenantClaim`, then `tenant_id`. A project that renames the claim in better-supabase only now gets a hook that reads it; regenerate the hook SQL and manifest together.
+
+- [#237](https://github.com/ScaleDockHQ/permdock/pull/237) [`37fa2f4`](https://github.com/ScaleDockHQ/permdock/commit/37fa2f407889d87969886242398831b4000c2069) Thanks [@martijn00](https://github.com/martijn00)! - The `onError` sink of `protectServer` in `permdock/mcp` now receives `tenant` next to `permission` and `name` (`McpErrorContext`), so a `BetterSupabaseOnError` from `permdock/better-supabase` can be passed as is. `tenant` is what the `tenant` option resolves for the call, or `null`.
+
+- [#237](https://github.com/ScaleDockHQ/permdock/pull/237) [`b0cd63a`](https://github.com/ScaleDockHQ/permdock/commit/b0cd63a650c64975608291a19d6df2e09a6022c5) Thanks [@martijn00](https://github.com/martijn00)! - `permdock/react-native` exports `powerSyncSourceCache(db)`: its `source(options)` answers the same `powerSyncSource` for the same manifest and options, so a component that rebuilds its options on every render keeps one source and one set of `db.watch` subscriptions.
+
+- [#239](https://github.com/ScaleDockHQ/permdock/pull/239) [`be92044`](https://github.com/ScaleDockHQ/permdock/commit/be9204470822e13a3a7f0f38d91158ca58d36647) Thanks [@mick340](https://github.com/mick340)! - The `rls.customRoles.from.sync` guard triggers now refuse a signed-in write of an entry PermDock cannot hold, as `permdock_replace_custom_role_grants` does: `22023` with `outside-ceiling`, `unknown-permission`, `unknown-level` or `unknown-role`. Before, the guard skipped such an entry and the after-row sync dropped it with a warning, so the legacy table kept a row that granted nothing. Writes without a caller (migrations, jobs, backfills) still drop with a warning. Regenerate the RLS SQL to pick this up.
+
 ## 0.14.0
 
 ### Minor Changes
