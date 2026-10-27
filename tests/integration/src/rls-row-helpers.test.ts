@@ -81,6 +81,9 @@ describe("permitted_<resource>_rows with helpersOnly: the graph without hand-wri
     expect(sql).toContain(
       '"permdock".permitted_doc_rows_for(p_user text, p_permission text, p_claims jsonb',
     );
+    expect(sql).toContain(
+      '"permdock".permitted_doc_rows_for(p_user text, p_permission text, p_ids text[], p_claims jsonb',
+    );
     expect(sql).not.toMatch(/create policy \S+ on "public"/u);
   });
 
@@ -124,6 +127,14 @@ describe("permitted_<resource>_rows with helpersOnly: the graph without hand-wri
             [user.id, permission.key],
           )
         ).rows.map((row) => row.id);
+        const namedCandidates = (
+          await target.admin.query<{ id: string }>(
+            "select id from permdock.permitted_" +
+              table +
+              "_rows_for($1, $2, $3::text[]) id order by id",
+            [user.id, permission.key, rows[table].map((row) => row.id)],
+          )
+        ).rows.map((row) => row.id);
         const want = await inProcess(user.id, table, permission);
         if (JSON.stringify(got) !== JSON.stringify(want)) {
           mismatches.push(
@@ -140,6 +151,11 @@ describe("permitted_<resource>_rows with helpersOnly: the graph without hand-wri
             `${user.id} ${permission.key}: rows_for [${named.join(",")}] can [${want.join(",")}]`,
           );
         }
+        if (JSON.stringify(namedCandidates) !== JSON.stringify(want)) {
+          mismatches.push(
+            `${user.id} ${permission.key}: rows_for candidates [${namedCandidates.join(",")}] can [${want.join(",")}]`,
+          );
+        }
       }
     }
     expect(mismatches).toStrictEqual([]);
@@ -147,6 +163,12 @@ describe("permitted_<resource>_rows with helpersOnly: the graph without hand-wri
       "select id from permdock.permitted_doc_rows_for('lena', 'doc.review') id",
     );
     expect(lena.rows.map((row) => row.id)).toStrictEqual(["deep-doc"]);
+    const lenaCandidates = await target.admin.query<{ id: string }>(
+      "select id from permdock.permitted_doc_rows_for('lena', 'doc.review', array['deep-doc', 'missing']) id",
+    );
+    expect(lenaCandidates.rows.map((row) => row.id)).toStrictEqual([
+      "deep-doc",
+    ]);
     const setting = await target.admin.query<{ value: string | null }>(
       "select current_setting('app.user_id', true) as value",
     );

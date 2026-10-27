@@ -97,6 +97,18 @@ describe("permitted_<resource>_rows", () => {
     expect(sql).toContain(
       'revoke execute on function "permdock".permitted_doc_rows_for(uuid, text, jsonb) from public, anon, authenticated;',
     );
+    expect(sql).toContain(
+      `"permdock".permitted_doc_rows_for(p_user uuid, p_permission text, p_ids text[], p_claims jsonb default '{}')`,
+    );
+    expect(sql).toContain(
+      'return query select r.id from "permdock".permitted_doc_rows(p_permission, p_ids) r(id);',
+    );
+    expect(sql).toContain(
+      'revoke execute on function "permdock".permitted_doc_rows_for(uuid, text, text[], jsonb) from public, anon, authenticated;',
+    );
+    expect(sql).not.toMatch(
+      /grant execute on function "permdock"\.permitted_doc_rows_for/u,
+    );
     expect(sql).toContain('"permdock".permitted_note_rows');
     expect(sql).not.toContain(`when 'note.read'`);
     expect(sql).toMatch(
