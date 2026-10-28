@@ -1,4 +1,4 @@
-import type { ToolDecision, ToolRef } from "better-supabase/mcp";
+import type { ToolDecision, ToolRef } from "better-supabase/contract";
 
 import type { PermDock } from "../core/permdock.ts";
 import type { BetterSupabaseOnError } from "./report.ts";
@@ -46,9 +46,10 @@ const refused = (reason: string): McpToolDecision => ({
  * The `authorize` and `visible` hooks of better-supabase's `createMcp`, for
  * tools whose `meta` is a PermDock permission. A tool without a permission is
  * hidden and refused. `authorize` grants only a `granted` decision: an
- * approval-required call is refused, because `createMcp` has no approval flow.
- * A denial's text names the first denial reason. A throw anywhere refuses and
- * reaches `onError`.
+ * approval-required call is refused, because `authorize` has no approval
+ * outcome. A tool whose `permission` goes through `authorizer` with a `store`
+ * returns the approval id and resumes it instead. A denial's text names the
+ * first denial reason. A throw anywhere refuses and reaches `onError`.
  */
 export function toolPolicy<C>(options: ToolPolicyOptions<C>): ToolPolicy<C> {
   return Object.freeze({

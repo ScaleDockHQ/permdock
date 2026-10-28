@@ -1,10 +1,12 @@
 import type {
   AuthorizationOutcome,
   AuthorizationRequest,
+  AuthorizationResource,
   Authorizer,
   AuthorizerRuntime,
-} from "better-supabase/server";
+} from "better-supabase/contract";
 
+import type { ApprovalStore } from "../approvals/types.ts";
 import type { Decision } from "../core/decision.ts";
 import type { Intent, MembershipSource } from "../core/interfaces.ts";
 import type { PermDock, PermDockOptions } from "../core/permdock.ts";
@@ -14,6 +16,8 @@ import type { VersionCache } from "../core/version-cache.ts";
 import type { BetterSupabaseOnError } from "./report.ts";
 import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 
+import { resumeDecision } from "../approvals/helpers.ts";
+import { parseApprovalHeader } from "../core/approval-header.ts";
 import { isRecord } from "../core/compact.ts";
 import { claimsFirst } from "../core/memberships.ts";
 import { getPermDock } from "../core/permdock.ts";
@@ -68,12 +72,20 @@ export type AuthorizerOptions = {
    */
   readonly versions?: VersionCache;
   /**
-   * The intent of one check. By default a batch (`evaluations`, list and row
-   * filtering) and an action named `read`, `list` or `view` are `read`, so
-   * `claimsFirst` may answer from the version cache; every other check is
-   * `write` and reads the version live.
+   * The intent of one check. By default better-supabase's `context.intent`;
+   * without it a batch (`evaluations`, list and row filtering) and an action
+   * named `read`, `list` or `view` are `read`, so `claimsFirst` may answer from
+   * the version cache, and every other check is `write` and reads the version
+   * live.
    */
   readonly intent?: (request: AuthorizationRequest<Permission>) => Intent;
+  /**
+   * The approval store an `approval-required` decision files its request in and
+   * resumes from. The approval id the client sends (better-supabase's
+   * `approval: { header }`) resumes one `evaluate` call; `evaluations` never
+   * consumes it. Without a store, `approval-required` is returned as is.
+   */
+  readonly store?: ApprovalStore;
   /** Receives every error a check threw; the check still denies. */
   readonly onError?: BetterSupabaseOnError;
   /**
@@ -101,15 +113,6 @@ const denied = (reason: string): AuthorizationOutcome => ({
   reason,
 });
 
-function isVersionCache(value: unknown): value is VersionCache {
-  return (
-    isRecord(value) &&
-    typeof value["maxStaleMs"] === "number" &&
-    typeof value["current"] === "function" &&
-    typeof value["evict"] === "function"
-  );
-}
-
 function outcomeOf(decision: Decision, key: string): AuthorizationOutcome {
   switch (decision.outcome) {
     case "granted":
@@ -125,16 +128,29 @@ function outcomeOf(decision: Decision, key: string): AuthorizationOutcome {
   }
 }
 
-function decideWith(
-  permdock: PermDock,
-  request: AuthorizationRequest<Permission>,
-): AuthorizationOutcome {
-  const { action } = request;
-  if (!isPermission(action)) return denied("Unknown permission.");
-  return outcomeOf(
-    permdock.decide(action, request.resource.properties),
-    action.key,
-  );
+/**
+ * The row a check decides on. A write is `change`: a create checks the new
+ * values, an update the stored row against the stored row with the new values
+ * over it. Only a row better-supabase loaded itself, with no change, skips
+ * schema validation.
+ */
+function dataOf(resource: AuthorizationResource): {
+  readonly data: unknown;
+  readonly trusted: boolean;
+} {
+  const { change } = resource;
+  if (change !== undefined) {
+    return change.current === undefined
+      ? { data: change.next, trusted: false }
+      : {
+          data: {
+            current: change.current,
+            next: { ...change.current, ...change.next },
+          },
+          trusted: false,
+        };
+  }
+  return { data: resource.properties, trusted: resource.source === "loaded" };
 }
 
 /**
@@ -165,13 +181,17 @@ const keyOf = (request: AuthorizationRequest<Permission>): string | null =>
  * throw denies. With better-supabase's runtime `memo`, the checks of one
  * request scope share an instance per claims, tenant and intent.
  */
-export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
-  const { operations } = options;
+export function authorizer(
+  options: AuthorizerOptions,
+): Authorizer<Permission, VersionCache> {
+  const { operations, store } = options;
   const intentOf = (
     request: AuthorizationRequest<Permission>,
     batch: boolean,
   ): Intent => {
     if (options.intent !== undefined) return options.intent(request);
+    const { intent } = request.context;
+    if (intent === "read" || intent === "write") return intent;
     if (batch) return "read";
     return isPermission(request.action) &&
       READ_ACTIONS.has(request.action.action)
@@ -179,12 +199,10 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
       : "write";
   };
   const membershipsFor = (
-    runtime: AuthorizerRuntime | undefined,
+    runtime: AuthorizerRuntime<VersionCache> | undefined,
   ): Pick<PermDockOptions, "memberships"> => {
     if (options.memberships === undefined) return {};
-    const versions = isVersionCache(runtime?.versions)
-      ? runtime.versions
-      : options.versions;
+    const versions = runtime?.versions ?? options.versions;
     return {
       memberships: claimsFirst(options.memberships, {
         onStale: "reread",
@@ -197,7 +215,7 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
     claims: unknown,
     tenant: string | null,
     intent: Intent,
-    runtime: AuthorizerRuntime | undefined,
+    runtime: AuthorizerRuntime<VersionCache> | undefined,
   ): Promise<PermDock> => {
     const session =
       claims === undefined ? null : { kind: "user" as const, claims };
@@ -212,7 +230,7 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
     claims: unknown,
     tenant: string | null,
     intent: Intent,
-    runtime: AuthorizerRuntime | undefined,
+    runtime: AuthorizerRuntime<VersionCache> | undefined,
   ): Promise<PermDock> =>
     runtime?.memo === undefined
       ? instanceFor(claims, tenant, intent, runtime)
@@ -220,6 +238,37 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
           `permdock:authorizer:${JSON.stringify([claims ?? null, tenant, intent])}`,
           () => instanceFor(claims, tenant, intent, runtime),
         );
+  const decideWith = async (
+    permdock: PermDock,
+    request: AuthorizationRequest<Permission>,
+    consume: boolean,
+  ): Promise<AuthorizationOutcome> => {
+    const { action } = request;
+    if (!isPermission(action)) return denied("Unknown permission.");
+    const { data, trusted } = dataOf(request.resource);
+    const decision = permdock.decide(action, data, {
+      trusted,
+      adapter: "better-supabase",
+    });
+    if (store === undefined || decision.outcome !== "approval-required") {
+      return outcomeOf(decision, action.key);
+    }
+    const { id } = request.resource;
+    const resumed = await resumeDecision({
+      decision,
+      permission: action,
+      subject: permdock.subject,
+      store,
+      resource:
+        id === undefined
+          ? { type: action.resource }
+          : { type: action.resource, id },
+      adapter: "better-supabase",
+      token: parseApprovalHeader(request.context.approval ?? null),
+      consume,
+    });
+    return outcomeOf(resumed, action.key);
+  };
   const failed = (
     error: unknown,
     request: AuthorizationRequest<Permission>,
@@ -253,10 +302,10 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
         }),
     async evaluate(
       request: AuthorizationRequest<Permission>,
-      runtime?: AuthorizerRuntime,
+      runtime?: AuthorizerRuntime<VersionCache>,
     ): Promise<AuthorizationOutcome> {
       try {
-        return decideWith(
+        return await decideWith(
           await scoped(
             claimsOf(request),
             tenantOf(request),
@@ -264,6 +313,7 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
             runtime,
           ),
           request,
+          true,
         );
       } catch (error) {
         return failed(error, request);
@@ -271,7 +321,7 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
     },
     evaluations(
       requests: readonly AuthorizationRequest<Permission>[],
-      runtime?: AuthorizerRuntime,
+      runtime?: AuthorizerRuntime<VersionCache>,
     ): Promise<readonly AuthorizationOutcome[]> {
       // A batch is one caller's rows, so one instance serves every request
       // that carries the same claims object, tenant and intent.
@@ -298,12 +348,12 @@ export function authorizer(options: AuthorizerOptions): Authorizer<Permission> {
       return Promise.all(
         requests.map(async (request) => {
           try {
-            return decideWith(await shared(request), request);
+            return await decideWith(await shared(request), request, false);
           } catch (error) {
             return failed(error, request);
           }
         }),
       );
     },
-  } satisfies Authorizer<Permission>);
+  } satisfies Authorizer<Permission, VersionCache>);
 }

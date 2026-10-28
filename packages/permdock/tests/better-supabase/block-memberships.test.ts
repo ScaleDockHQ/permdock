@@ -1,3 +1,5 @@
+import { defineConfig, resolveConfig } from "better-supabase/config";
+import { blockTables } from "better-supabase/sql";
 import { describe, expect, it } from "vitest";
 
 import type { SqlQuery } from "../../src/supabase/sources.ts";
@@ -141,5 +143,54 @@ describe(blockMembershipSource, () => {
         roles: { table: "membership_roles", membership: "m", role: "r" },
       }),
     ).toThrow(/roles or roleThrough/u);
+  });
+
+  describe("tables from blockTables", () => {
+    const renamed = blockTables(
+      resolveConfig(
+        defineConfig({
+          blocks: {
+            memberships: {
+              tables: { memberships: "org_members" },
+              columns: {
+                memberships: { tenant: "tenant_id", user: "member_id" },
+              },
+              options: { roles: { many: true } },
+            },
+          },
+        }),
+        ".",
+      ),
+    );
+
+    it("reads the renamed table and columns", () => {
+      const { sql } = blockMembershipSource({ tables: renamed });
+      expect(sql.table).toBe("better_supabase.org_members");
+      const select = sql.select("$1");
+      expect(select).toContain('"better_supabase"."org_members"');
+      expect(select).toContain('m."tenant_id"');
+      expect(select).toContain('m."member_id"');
+      expect(select).toContain('m."disabled_at" is null');
+    });
+
+    it("joins the renamed membership_roles columns with roles many", () => {
+      const { sql } = blockMembershipSource({ tables: renamed, roles: "many" });
+      expect(sql.select("$1")).toContain(
+        'join "better_supabase"."membership_roles" mk on mk."tenant_id" = m."tenant_id" and mk."member_id" = m."member_id"',
+      );
+    });
+
+    it("lets table and columns win over tables", () => {
+      const { sql } = blockMembershipSource({
+        tables: renamed,
+        table: "public.members",
+        columns: { user: "account_id", disabledAt: null },
+      });
+      const select = sql.select("$1");
+      expect(sql.table).toBe("public.members");
+      expect(select).toContain('m."tenant_id"');
+      expect(select).toContain('m."account_id"');
+      expect(select).not.toContain("disabled_at");
+    });
   });
 });

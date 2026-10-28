@@ -162,8 +162,21 @@ const sources = readdirSync(SOURCE)
   }));
 
 describe("better-supabase peer floor", () => {
-  it("declares a 0.29 floor", () => {
-    expect(peerFloor()).toBe("0.29.0");
+  it("declares a 0.33 floor", () => {
+    expect(peerFloor()).toBe("0.33.0");
+  });
+
+  it("takes the slot types from better-supabase/contract", () => {
+    const imports = sources.flatMap(({ file, text }) => importsOf(file, text));
+    expect(
+      imports
+        .filter((item) =>
+          /^better-supabase\/(?:config|storage|realtime|mcp)$/u.test(
+            item.specifier,
+          ),
+        )
+        .map((item) => `${item.file}: ${item.name} from ${item.specifier}`),
+    ).toStrictEqual([]);
   });
 
   it("imports only names the lowest peer version exports", () => {
