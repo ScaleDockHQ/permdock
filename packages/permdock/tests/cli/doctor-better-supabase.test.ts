@@ -53,13 +53,13 @@ describe("doctor better-supabase", () => {
     ["export default {};", undefined, "tenant_id"],
     ["export default {};", "workspace_id", "workspace_id"],
     [
-      'export default { auth: { organization: { claim: "org_id" } } };',
+      'export default { auth: { tenant: { claim: "org_id" } } };',
       "workspace_id",
       "org_id",
     ],
     ['export default { claims: { tenant: "team_id" } };', undefined, "team_id"],
     [
-      'export default { auth: { organization: { claim: "" } } };',
+      'export default { auth: { tenant: { claim: "" } } };',
       undefined,
       "tenant_id",
     ],
@@ -152,12 +152,12 @@ describe("doctor better-supabase", () => {
       ).toStrictEqual([]);
     });
 
-    it("names the claim better-supabase's auth.organization.claim writes", async () => {
+    it("names the claim better-supabase's auth.tenant.claim writes", async () => {
       const cwd = policyProject(
         { policy: POLICY },
         {
           "better-supabase.config.mjs": `export default ${JSON.stringify({
-            auth: { organization: { claim: "org_id" } },
+            auth: { tenant: { claim: "org_id" } },
             blocks: { permissions: { activeTenant: "claim" } },
           })};\n`,
         },

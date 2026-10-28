@@ -58,3 +58,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0050](./0050-better-supabase-0-25-0-release-age.md)              | better-supabase 0.25.0 catalog pin, release age exception and three-version compatibility CI           |
 | [0051](./0051-better-supabase-0-29-0-floor-and-release-age.md)    | better-supabase 0.29.0 is the peer floor and catalog pin, and skips the release age                    |
 | [0052](./0052-ultracite-presets-and-kept-off-rules.md)            | Ultracite `core` and `anti-slop` only, house presets in the root config, kept-off rules with counts    |
+| [0053](./0053-better-supabase-0-33-0-floor-and-release-age.md)    | better-supabase 0.33.0 is the peer floor and catalog pin, and skips the release age                    |

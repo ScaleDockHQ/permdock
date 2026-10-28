@@ -14,7 +14,7 @@ blocks: {
 }
 ```
 
-An app with its own tenancy sets `auth.organization.column` instead of
+An app with its own tenancy sets `auth.tenant.column` instead of
 installing `memberships`. With a `zod()`, `valibot()` or `standardSchema()`
 generator, the generated schema also validates every write.
 
@@ -46,7 +46,7 @@ makes queries explicit and fills the column; it doesn't replace the policy.
 
 The organization comes from `context.tenant`, which the server's `tenant` resolver
 sets per request (the default `blocks.permissions.activeTenant: 'resolver'`), then
-the verified `tenant_id` claim (renamed with `auth.organization.claim` in
+the verified `tenant_id` claim (renamed with `auth.tenant.claim` in
 `better-supabase.config.ts`), then `app_metadata.tenant_id`. A resolver may
 read the URL, but `current_tenant_id()` only returns a tenant the caller is a
 member of. In Next.js Server Components and actions there is no request URL:

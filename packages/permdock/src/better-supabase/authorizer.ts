@@ -149,7 +149,7 @@ function claimsOf(request: AuthorizationRequest<Permission>): unknown {
 }
 
 const tenantOf = (request: AuthorizationRequest<Permission>): string | null => {
-  const tenant = request.context["tenant"];
+  const { tenant } = request.context;
   return typeof tenant === "string" ? tenant : null;
 };
 

@@ -368,7 +368,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useCommandSearch } from "@/hooks/use-search";
-import { Link } from "@/i18n/navigation";
+import { Link, toAppHref } from "@/i18n/navigation";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 
 /** The API schema `gen` wrote for the search block. */
@@ -449,7 +449,7 @@ export function CommandSearch() {
                   {group.items.map((item) => (
                     <li key={`${item.subjectType}:${item.subjectId}`}>
                       <Link
-                        href={item.url ?? "/"}
+                        href={toAppHref(item.url)}
                         onClick={() => void search.select(item)}
                         className="block rounded-md px-2 py-1.5 outline-none hover:bg-muted focus-visible:bg-muted"
                       >
@@ -616,7 +616,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { gettingStarted } from "@/features/onboarding/checklist";
 import { useOnboarding } from "@/hooks/use-onboarding";
-import { Link } from "@/i18n/navigation";
+import { Link, toAppHref } from "@/i18n/navigation";
 import { useAuth } from "@/lib/hooks";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 
@@ -684,7 +684,7 @@ export function OnboardingCard() {
               </span>
               {step.completed ? null : (
                 <Link
-                  href={step.href ?? "/"}
+                  href={toAppHref(step.href)}
                   className={buttonVariants({ variant: "outline", size: "sm" })}
                 >
                   {t("Start")}
@@ -1158,18 +1158,31 @@ npx shadcn add @better-supabase/use-organizations
 ```
 
 ```tsx title="apps/examples/expo-powersync/src/components/organization-switcher.tsx"
+import type { OrganizationMembership } from "better-supabase/blocks/organizations";
+
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
+
+import type { OrganizationSource } from "../hooks/use-organizations";
 
 import { useOrganizations } from "../hooks/use-organizations";
 import { API_SCHEMA } from "../lib/blocks";
 
 /**
  * The caller's organizations. Pressing one switches to it, refreshes the
- * session so the token carries the new tenant, and loads the list again.
+ * session so the token carries the new tenant, and loads the list again. `load`
+ * reads them elsewhere, such as from the PowerSync database.
  */
-export function OrganizationSwitcher() {
+export function OrganizationSwitcher({
+  load,
+}: {
+  readonly load?: OrganizationSource<OrganizationMembership>;
+}) {
   const { organizations, activeId, switching, error, switchTo } =
-    useOrganizations({ schema: API_SCHEMA });
+    useOrganizations(
+      load === undefined
+        ? { schema: API_SCHEMA }
+        : { schema: API_SCHEMA, load },
+    );
 
   if (organizations === undefined) {
     return <ActivityIndicator />;
@@ -1338,6 +1351,8 @@ export function PlanPicker({
                     if (!started.ok) {
                       toast.error(errorMessage(started.error));
                     }
+
+                    return started;
                   });
                 }}
               >
@@ -1940,6 +1955,8 @@ function SettingsSection<E extends SettingEntries>({
                       if (!saved.ok) {
                         toast.error(errorMessage(saved.error));
                       }
+
+                      return saved;
                     });
                   }}
                 />
@@ -2163,24 +2180,47 @@ An organization's members with their roles, where a role change shows at once an
 Web, with shadcn components:
 
 ```bash
-npx shadcn add avatar button select table
+npx shadcn add avatar badge button empty input select
 ```
 
 ```bash
 npx shadcn add @better-supabase/use-organizations
 ```
 
-```tsx title="apps/examples/nextjs/src/features/organization/components/member-table.tsx"
+```tsx title="apps/examples/nextjs/src/features/members/components/member-table.tsx"
 "use client";
 
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
+
+import { useTable } from "@tanstack/react-table";
 import { DbException } from "better-supabase";
 import { UserMinusIcon } from "lucide-react";
 import { useExtracted, useFormatter } from "next-intl";
+import { createContext, use, useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
+import type { DataGridFeatures } from "@/components/reui/data-grid/data-grid";
+import type { Member } from "@/features/organization/organization-queries";
+
+import {
+  DataGrid,
+  DataGridContainer,
+  dataGridFeatures,
+} from "@/components/reui/data-grid/data-grid";
+import { DataGridScrollArea } from "@/components/reui/data-grid/data-grid-scroll-area";
+import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -2189,25 +2229,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  loadMembers,
+  memberChanged,
+} from "@/features/organization/organization-actions";
+import { useRoleLabel } from "@/features/organization/use-role-label";
 import { RoleBadge } from "@/features/user/components/role-badge";
-import { assignableRoles } from "@/features/user/user-permissions";
 import { useMembers } from "@/hooks/use-organizations";
+import { Link } from "@/i18n/navigation";
 import { Role } from "@/lib/claims";
 import { initials } from "@/lib/initials";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 import { useErrorMessage } from "@/lib/use-error-message";
-
-import type { Member } from "../organization-queries";
-
-import { loadMembers, memberChanged } from "../organization-actions";
-import { useRoleLabel } from "../use-role-label";
 
 async function loadOrganizationMembers(): Promise<readonly Member[]> {
   const result = await loadMembers({});
@@ -2219,29 +2251,204 @@ async function loadOrganizationMembers(): Promise<readonly Member[]> {
   return result.data;
 }
 
+/** A team as the members table shows it: its name and who is on it. */
+export interface MemberTeam {
+  readonly id: string;
+  readonly name: string;
+  readonly memberIds: readonly string[];
+}
+
+type MemberRow = Member & {
+  readonly teams: readonly MemberTeam[];
+  readonly you: boolean;
+  /** The roles the caller may pick here, empty when the role is fixed. */
+  readonly roleChoices: readonly Role[];
+  readonly removable: boolean;
+  readonly busy: boolean;
+};
+
+type MemberCell = CellContext<DataGridFeatures, MemberRow>;
+
+const ALL_ROLES = "all";
+
+function MemberCellView({ row }: MemberCell) {
+  const t = useExtracted("members");
+  const member = row.original;
+
+  return (
+    <div className="flex items-center gap-3">
+      <Avatar className="size-8">
+        {member.avatarUrl ? (
+          <AvatarImage src={member.avatarUrl} alt="" />
+        ) : null}
+        <AvatarFallback>{initials(member.name, member.email)}</AvatarFallback>
+      </Avatar>
+      <div className="grid min-w-0 leading-tight">
+        <Link
+          href={`/settings/members/${member.userId}`}
+          prefetch
+          className="truncate font-medium hover:underline"
+        >
+          {member.name ?? member.email}
+          {member.you ? (
+            <span className="font-normal text-muted-foreground">
+              {" "}
+              ({t("you")})
+            </span>
+          ) : null}
+        </Link>
+        <span className="truncate text-xs text-muted-foreground">
+          {member.email}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function TeamsCell({ row }: MemberCell) {
+  const { teams } = row.original;
+
+  if (teams.length === 0) {
+    return <span className="text-muted-foreground">–</span>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {teams.map((team) => (
+        <Badge key={team.id} variant="outline">
+          {team.name}
+        </Badge>
+      ))}
+    </div>
+  );
+}
+
+function JoinedCell({ row }: MemberCell) {
+  const format = useFormatter();
+  const { joinedAt } = row.original;
+
+  return (
+    <span className="text-muted-foreground tabular-nums">
+      {joinedAt
+        ? format.dateTime(new Date(joinedAt), { dateStyle: "medium" })
+        : "–"}
+    </span>
+  );
+}
+
+interface MemberActions {
+  readonly changeRole: (member: Member, role: Role) => Promise<void>;
+  readonly removeMember: (member: Member) => Promise<void>;
+}
+
+const MemberActionsContext = createContext<MemberActions | null>(null);
+
+function useMemberActions(): MemberActions {
+  const actions = use(MemberActionsContext);
+
+  if (actions === null) {
+    throw new Error("Render member cells inside <MemberTable>.");
+  }
+
+  return actions;
+}
+
+function RoleCell({ row }: MemberCell) {
+  const t = useExtracted("members");
+  const roleLabel = useRoleLabel();
+  const { changeRole } = useMemberActions();
+  const member = row.original;
+
+  if (member.roleChoices.length === 0) {
+    return <RoleBadge role={member.role} />;
+  }
+
+  const items = member.roleChoices.map((role) => ({
+    value: role,
+    label: roleLabel(role),
+  }));
+
+  return (
+    <Select
+      value={member.role}
+      items={items}
+      disabled={member.busy}
+      onValueChange={(value) => {
+        if (v.is(Role, value)) {
+          void changeRole(member, value);
+        }
+      }}
+    >
+      <SelectTrigger size="sm" className="w-32" aria-label={t("Role")}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function ActionsCell({ row }: MemberCell) {
+  const t = useExtracted("members");
+  const { removeMember } = useMemberActions();
+  const member = row.original;
+
+  if (!member.removable) {
+    return null;
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      disabled={member.busy}
+      aria-label={t("Remove {name}", {
+        name: member.name ?? member.email ?? "",
+      })}
+      onClick={() => {
+        void removeMember(member);
+      }}
+    >
+      <UserMinusIcon />
+    </Button>
+  );
+}
+
 /**
- * The organization's members. The server renders the rows; a role change shows
- * at once and goes through `update_member_role` in the browser.
+ * The organization's members in a ReUI data grid, with a search and a role
+ * filter. The server renders the rows; a role change shows at once and goes
+ * through `update_member_role` in the browser.
  */
 export function MemberTable({
   organizationId,
   initial,
+  teams,
   currentUserId,
-  myRole,
+  assignable,
   canUpdateRole,
   canRemove,
 }: {
   organizationId: string;
   initial: readonly Member[];
+  teams: readonly MemberTeam[];
   currentUserId: string;
-  myRole: Role;
+  assignable: readonly Role[];
   canUpdateRole: boolean;
   canRemove: boolean;
 }) {
-  const t = useExtracted("organization");
+  const t = useExtracted("members");
   const roleLabel = useRoleLabel();
   const errorMessage = useErrorMessage();
-  const format = useFormatter();
+  const [search, setSearch] = useState("");
+
+  const [roleFilter, setRoleFilter] = useState<Role | typeof ALL_ROLES>(
+    ALL_ROLES,
+  );
 
   const { members, pending, setRole, remove } = useMembers({
     organizationId,
@@ -2253,12 +2460,10 @@ export function MemberTable({
     },
   });
 
-  const assignable = assignableRoles(myRole);
-
-  const roleItems = assignable.map((role) => ({
-    value: role,
-    label: roleLabel(role),
-  }));
+  const filterItems = [
+    { value: ALL_ROLES, label: t("All roles") },
+    ...Role.options.map((role) => ({ value: role, label: roleLabel(role) })),
+  ];
 
   // Nobody changes their own role or an owner's here; ownership moves by transfer.
   const editable = (member: Member) =>
@@ -2266,130 +2471,146 @@ export function MemberTable({
     member.role !== "owner" &&
     assignable.includes(member.role);
 
-  const busy = (member: Member) => pending.includes(member.userId);
+  const changeRole = useCallback(
+    async (member: Member, role: Role) => {
+      const result = await setRole(member.userId, role);
 
-  const changeRole = async (member: Member, role: Role) => {
-    const result = await setRole(member.userId, role);
+      if (result.ok) {
+        toast.success(t("Role updated"));
+      } else {
+        toast.error(errorMessage(result.error));
+      }
+    },
+    [setRole, t, errorMessage],
+  );
 
-    if (result.ok) {
-      toast.success(t("Role updated"));
-    } else {
-      toast.error(errorMessage(result.error));
-    }
-  };
+  const removeMember = useCallback(
+    async (member: Member) => {
+      const result = await remove(member.userId);
 
-  const removeMember = async (member: Member) => {
-    const result = await remove(member.userId);
+      if (result.ok) {
+        toast.success(t("Member removed"));
+      } else {
+        toast.error(errorMessage(result.error));
+      }
+    },
+    [remove, t, errorMessage],
+  );
 
-    if (result.ok) {
-      toast.success(t("Member removed"));
-    } else {
-      toast.error(errorMessage(result.error));
-    }
+  const actions = useMemo(
+    () => ({ changeRole, removeMember }),
+    [changeRole, removeMember],
+  );
+
+  const columns: ColumnDef<DataGridFeatures, MemberRow>[] = [
+    { id: "member", header: t("Member"), cell: MemberCellView, size: 280 },
+    { accessorKey: "role", header: t("Role"), cell: RoleCell, size: 150 },
+    { id: "teams", header: t("Teams"), cell: TeamsCell, size: 200 },
+    {
+      accessorKey: "joinedAt",
+      header: t("Joined"),
+      cell: JoinedCell,
+      size: 140,
+    },
+    { id: "actions", header: "", cell: ActionsCell, size: 56 },
+  ];
+
+  const needle = search.trim().toLowerCase();
+  const all = members ?? initial;
+
+  const data: MemberRow[] = all
+    .filter(
+      (member) =>
+        (roleFilter === ALL_ROLES || member.role === roleFilter) &&
+        (needle === "" ||
+          [member.name, member.email].some((text) =>
+            text?.toLowerCase().includes(needle),
+          )),
+    )
+    .map((member) => ({
+      ...member,
+      teams: teams.filter((team) => team.memberIds.includes(member.userId)),
+      you: member.userId === currentUserId,
+      roleChoices: canUpdateRole && editable(member) ? assignable : [],
+      removable: canRemove && editable(member),
+      busy: pending.includes(member.userId),
+    }));
+
+  const table = useTable({
+    features: dataGridFeatures,
+    columns,
+    data,
+    getRowId: (row) => row.userId,
+  });
+
+  const clearFilters = () => {
+    setSearch("");
+    setRoleFilter(ALL_ROLES);
   };
 
   return (
-    <Table data-testid="members">
-      <TableHeader>
-        <TableRow>
-          <TableHead>{t("Member")}</TableHead>
-          <TableHead>{t("Role")}</TableHead>
-          <TableHead className="hidden sm:table-cell">{t("Joined")}</TableHead>
-          <TableHead className="w-10" />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {(members ?? initial).map((member) => (
-          <TableRow
-            key={member.userId}
-            aria-busy={busy(member) ? true : undefined}
-            className={busy(member) ? "opacity-50" : undefined}
+    <MemberActionsContext value={actions}>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            type="search"
+            className="w-56"
+            value={search}
+            placeholder={t("Search members")}
+            aria-label={t("Search members")}
+            onChange={(event) => {
+              setSearch(event.target.value);
+            }}
+          />
+          <Select
+            value={roleFilter}
+            items={filterItems}
+            onValueChange={(value) => {
+              setRoleFilter(v.is(Role, value) ? value : ALL_ROLES);
+            }}
           >
-            <TableCell>
-              <div className="flex items-center gap-3">
-                <Avatar className="size-8">
-                  {member.avatarUrl ? (
-                    <AvatarImage src={member.avatarUrl} alt="" />
-                  ) : null}
-                  <AvatarFallback>
-                    {initials(member.name, member.email)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="grid leading-tight">
-                  <span className="font-medium">
-                    {member.name ?? member.email}
-                    {member.userId === currentUserId ? (
-                      <span className="font-normal text-muted-foreground">
-                        {" "}
-                        ({t("you")})
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {member.email}
-                  </span>
-                </div>
-              </div>
-            </TableCell>
-            <TableCell>
-              {canUpdateRole && editable(member) ? (
-                <Select
-                  value={member.role}
-                  items={roleItems}
-                  disabled={busy(member)}
-                  onValueChange={(value) => {
-                    if (v.is(Role, value)) {
-                      void changeRole(member, value);
-                    }
-                  }}
-                >
-                  <SelectTrigger
-                    size="sm"
-                    className="w-32"
-                    aria-label={t("Role")}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {roleItems.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <RoleBadge role={member.role} />
-              )}
-            </TableCell>
-            <TableCell className="hidden text-muted-foreground sm:table-cell">
-              {member.joinedAt
-                ? format.dateTime(new Date(member.joinedAt), {
-                    dateStyle: "medium",
-                  })
-                : "–"}
-            </TableCell>
-            <TableCell>
-              {canRemove && editable(member) ? (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={busy(member)}
-                  aria-label={t("Remove {name}", {
-                    name: member.name ?? member.email ?? "",
-                  })}
-                  onClick={() => {
-                    void removeMember(member);
-                  }}
-                >
-                  <UserMinusIcon />
-                </Button>
-              ) : null}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+            <SelectTrigger size="sm" className="w-36" aria-label={t("Role")}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {filterItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div data-testid="members">
+          <DataGrid
+            table={table}
+            recordCount={data.length}
+            tableLayout={{ dense: true }}
+            emptyMessage={
+              <Empty>
+                <EmptyHeader>
+                  <EmptyTitle>{t("No members match")}</EmptyTitle>
+                  <EmptyDescription>
+                    {t("Try another name or role.")}
+                  </EmptyDescription>
+                </EmptyHeader>
+                <EmptyContent>
+                  <Button size="sm" variant="outline" onClick={clearFilters}>
+                    {t("Clear filters")}
+                  </Button>
+                </EmptyContent>
+              </Empty>
+            }
+          >
+            <DataGridContainer>
+              <DataGridScrollArea>
+                <DataGridTable />
+              </DataGridScrollArea>
+            </DataGridContainer>
+          </DataGrid>
+        </div>
+      </div>
+    </MemberActionsContext>
   );
 }
 ```
@@ -2492,7 +2713,7 @@ npx shadcn add button dialog field input select
 npx shadcn add @better-supabase/use-organizations
 ```
 
-```tsx title="apps/examples/nextjs/src/features/organization/components/invite-member-dialog.tsx"
+```tsx title="apps/examples/nextjs/src/features/members/components/invite-member-dialog.tsx"
 "use client";
 
 import type { SubmitEvent } from "react";
@@ -2528,15 +2749,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { assignableRoles } from "@/features/user/user-permissions";
+import { SubmitLabel } from "@/features/offline/components/submit-label";
+import { invitationSent } from "@/features/organization/organization-actions";
+import { useInviteLink } from "@/features/organization/use-invite-link";
+import { useRoleLabel } from "@/features/organization/use-role-label";
 import { useInvitations } from "@/hooks/use-organizations";
 import { Role } from "@/lib/claims";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 import { useErrorMessage } from "@/lib/use-error-message";
-
-import { invitationSent } from "../organization-actions";
-import { useInviteLink } from "../use-invite-link";
-import { useRoleLabel } from "../use-role-label";
 
 /**
  * Invites a teammate through `invite_member` in the browser, then shows the
@@ -2544,10 +2764,10 @@ import { useRoleLabel } from "../use-role-label";
  */
 export function InviteMemberDialog({
   organizationId,
-  myRole,
+  assignable,
 }: {
   organizationId: string;
-  myRole: Role;
+  assignable: readonly Role[];
 }) {
   const t = useExtracted("organization");
   const fieldId = useId();
@@ -2558,7 +2778,7 @@ export function InviteMemberDialog({
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("member");
 
-  const roles = assignableRoles(myRole).map((each) => ({
+  const roles = assignable.map((each) => ({
     value: each,
     label: roleLabel(each),
   }));
@@ -2696,7 +2916,9 @@ export function InviteMemberDialog({
                 {t("Cancel")}
               </DialogClose>
               <Button type="submit" disabled={inviting}>
-                {t("Send invitation")}
+                <SubmitLabel pending={inviting}>
+                  {t("Send invitation")}
+                </SubmitLabel>
               </Button>
             </DialogFooter>
           </form>
@@ -3638,6 +3860,8 @@ export function TagInput({ customerId }: { readonly customerId: string }) {
             if (result.ok) {
               setName("");
             }
+
+            return result;
           })
         }
       />
@@ -3752,6 +3976,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { SubmitLabel } from "@/features/offline/components/submit-label";
 import { useErrorMessage } from "@/lib/use-error-message";
 
 import { updateProfile } from "../user-actions";
@@ -3809,7 +4034,7 @@ export function ProfileForm({
         </Field>
       </FieldGroup>
       <Button type="submit" disabled={form.pending}>
-        {t("Save")}
+        <SubmitLabel pending={form.pending}>{t("Save")}</SubmitLabel>
       </Button>
     </form>
   );
@@ -6380,7 +6605,11 @@ export function WorkflowRuns({ tenant }: { tenant: string | null }) {
           {runs.map((run) => (
             <TableRow key={run.id}>
               <TableCell>
-                <Link href={`/workflows/${run.id}`} className="font-medium">
+                <Link
+                  href={`/workflows/${run.id}`}
+                  prefetch
+                  className="font-medium"
+                >
                   {workflowName(run.definition)}
                 </Link>
               </TableCell>
@@ -7405,17 +7634,19 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { env } from "@/env";
 import { useSupabase } from "@/lib/hooks";
 import { blockConfig } from "@/lib/supabase/blocks.generated";
 
 /**
- * The worker in `public/` that shows the pushes; it must be served from the
- * site root.
+ * The app's one service worker in `public/`, which shows the pushes. It must be
+ * served from the site root, and any other registration of the app's worker
+ * must use the same URL, or the two replace each other.
  */
-const WORKER_URL = "/push-sw.js";
+const WORKER_URL = "/sw.js";
 const PUSH_GUIDE = "https://bettersupabase.com/docs/blocks/push";
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const VAPID_PUBLIC_KEY = env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
 type PushState =
   | { readonly kind: "checking" }
@@ -7476,9 +7707,18 @@ export function PushOptIn() {
   });
 
   const read = () => {
-    currentState().then(setState, () => {
-      setState({ kind: "error" });
-    });
+    void currentState().then(
+      (state) => {
+        setState(state);
+
+        return state;
+      },
+      () => {
+        setState({ kind: "error" });
+
+        return null;
+      },
+    );
   };
 
   const check = () => {
@@ -9160,7 +9400,7 @@ import { useExtracted } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSubject } from "@/hooks/use-subjects";
-import { Link } from "@/i18n/navigation";
+import { Link, toAppHref } from "@/i18n/navigation";
 
 /**
  * A link to any subject in `config.subjects`, titled and routed by
@@ -9207,7 +9447,7 @@ export function SubjectLink({ subject }: { subject: RecordRef }) {
     <span className="truncate text-sm font-medium">{title}</span>
   ) : (
     <Link
-      href={resolved.url}
+      href={toAppHref(resolved.url)}
       className="truncate text-sm font-medium underline-offset-4 transition-colors hover:underline"
     >
       {title}
@@ -9240,7 +9480,7 @@ import { useExtracted } from "next-intl";
 import { Badge } from "@/components/reui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSubject } from "@/hooks/use-subjects";
-import { Link } from "@/i18n/navigation";
+import { Link, toAppHref } from "@/i18n/navigation";
 
 /**
  * A compact badge for a subject: its type and title, linking to its page. Rows
@@ -9269,7 +9509,7 @@ export function SubjectChip({ subject }: { subject: RecordRef }) {
     <Badge
       variant="outline"
       className="transition-colors hover:bg-accent"
-      render={<Link href={resolved.url} />}
+      render={<Link href={toAppHref(resolved.url)} />}
     >
       {content}
     </Badge>
@@ -9556,7 +9796,7 @@ npx shadcn add alert badge button card empty skeleton
  * with and whether they must sign in with SSO.
  */
 export async function SsoSettings() {
-  if (!can(await getSession(), "sso.manage")) {
+  if (!can(await getPermissions(), "sso.manage")) {
     forbidden();
   }
 
@@ -9761,7 +10001,7 @@ npx shadcn add alert badge button card empty skeleton table
  * back to the previous one when the duration runs out.
  */
 export async function AccessRequestsInbox() {
-  if (!can(await getSession(), "access_requests.create")) {
+  if (!can(await getPermissions(), "access_requests.create")) {
     forbidden();
   }
 
@@ -11339,13 +11579,13 @@ export async function ContactDetail({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const [{ id }, session, t] = await Promise.all([
+  const [{ id }, t, permissions] = await Promise.all([
     params,
-    getSession(),
     getExtracted("crm"),
+    getPermissions(),
   ]);
 
-  if (!can(session, "parties.read")) {
+  if (!can(permissions, "parties.read")) {
     forbidden();
   }
 
@@ -11476,7 +11716,7 @@ export async function ContactDetail({
                 ))}
               </ul>
             )}
-            {can(session, "parties.write") ? (
+            {can(permissions, "parties.write") ? (
               <LinkPersonForm
                 companyId={contact.id}
                 people={contact.candidates.map((person) => ({
@@ -11527,9 +11767,12 @@ npx shadcn add card empty skeleton
  * pipeline. Dragging a deal saves its new stage through `moveDeal`.
  */
 export async function DealBoard() {
-  const [session, t] = await Promise.all([getSession(), getExtracted("crm")]);
+  const [t, permissions] = await Promise.all([
+    getExtracted("crm"),
+    getPermissions(),
+  ]);
 
-  if (!can(session, "deals.read")) {
+  if (!can(permissions, "deals.read")) {
     forbidden();
   }
 
@@ -11555,7 +11798,7 @@ export async function DealBoard() {
         <CardDescription>
           {t("Drag a deal to another stage to move it.")}
         </CardDescription>
-        {pipeline && can(session, "deals.write") ? (
+        {pipeline && can(permissions, "deals.write") ? (
           <CardAction>
             <CreateDealDialog pipelineId={pipeline.id} stages={openStages} />
           </CardAction>
@@ -11572,14 +11815,14 @@ export async function DealBoard() {
               </EmptyMedia>
               <EmptyTitle>{t("No pipeline yet")}</EmptyTitle>
               <EmptyDescription>
-                {can(session, "pipelines.manage")
+                {can(permissions, "pipelines.manage")
                   ? t(
                       "Start with six stages, from qualified to closed won or lost.",
                     )
                   : t("Ask an admin to create the sales pipeline.")}
               </EmptyDescription>
             </EmptyHeader>
-            {can(session, "pipelines.manage") ? (
+            {can(permissions, "pipelines.manage") ? (
               <EmptyContent>
                 <CreatePipelineButton />
               </EmptyContent>
@@ -11592,7 +11835,7 @@ export async function DealBoard() {
               .join(",")}
             stages={board.data.stages}
             deals={board.data.deals}
-            canMove={can(session, "deals.write")}
+            canMove={can(permissions, "deals.write")}
           />
         )}
       </CardContent>
@@ -11627,10 +11870,10 @@ const stepIcons = {
 
 /** Render inside `<Suspense>`: the organization's sequences and their steps. */
 export async function SequenceBuilder() {
-  const [view, session, t] = await Promise.all([
+  const [view, t, permissions] = await Promise.all([
     getSequences(),
-    getSession(),
     getExtracted("sequences"),
+    getPermissions(),
   ]);
 
   if (view.kind === "no-organization") {
@@ -11654,7 +11897,7 @@ export async function SequenceBuilder() {
     );
   }
 
-  const manage = can(session, "sequences.manage");
+  const manage = can(permissions, "sequences.manage");
 
   if (view.data.length === 0) {
     return (
@@ -11810,13 +12053,13 @@ export async function ActivityTimeline({
 }: {
   subject: { type: ContactKind; id: string };
 }) {
-  const [session, t, format] = await Promise.all([
-    getSession(),
+  const [t, format, permissions] = await Promise.all([
     getExtracted("crm"),
     getFormatter(),
+    getPermissions(),
   ]);
 
-  if (!can(session, "engagements.read")) {
+  if (!can(permissions, "engagements.read")) {
     return null;
   }
 
@@ -11826,7 +12069,7 @@ export async function ActivityTimeline({
     return null;
   }
 
-  const canLog = can(session, "engagements.write");
+  const canLog = can(permissions, "engagements.write");
 
   const types = new Map([
     ["call", t("Call")],
@@ -11941,14 +12184,14 @@ export async function QuoteBuilder({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const [{ id }, session, t, locale] = await Promise.all([
+  const [{ id }, t, locale, permissions] = await Promise.all([
     params,
-    getSession(),
     getExtracted("crm"),
     getLocale(),
+    getPermissions(),
   ]);
 
-  if (!can(session, "quotes.read")) {
+  if (!can(permissions, "quotes.read")) {
     forbidden();
   }
 
@@ -11968,7 +12211,7 @@ export async function QuoteBuilder({
     notFound();
   }
 
-  const canWrite = can(session, "quotes.write");
+  const canWrite = can(permissions, "quotes.write");
 
   const editable =
     canWrite &&
@@ -12103,14 +12346,14 @@ npx shadcn add badge card empty progress skeleton
  * are.
  */
 export async function TargetsProgress() {
-  const [session, t, format, locale] = await Promise.all([
-    getSession(),
+  const [t, format, locale, permissions] = await Promise.all([
     getExtracted("crm"),
     getFormatter(),
     getLocale(),
+    getPermissions(),
   ]);
 
-  if (!can(session, "targets.read")) {
+  if (!can(permissions, "targets.read")) {
     return null;
   }
 
@@ -12120,7 +12363,7 @@ export async function TargetsProgress() {
     return null;
   }
 
-  const canManage = can(session, "targets.manage");
+  const canManage = can(permissions, "targets.manage");
 
   const amountOf = (target: TargetRow, value: bigint) =>
     target.currency === null
@@ -12273,7 +12516,7 @@ export function WorkItemBoard({
                     errorMessage(result.error),
                 );
 
-                return;
+                return result;
               }
 
               if (!result.data.ordered) {
@@ -12281,6 +12524,8 @@ export function WorkItemBoard({
                   t("Moved, but its place in the column wasn't saved."),
                 );
               }
+
+              return result;
             });
         }}
       >
@@ -12711,7 +12956,7 @@ export function WorkItemGrid({
 
   const go = (next: WorkGridQuery) => {
     startTransition(() => {
-      router.replace(`${pathname}${workGridSearch(next)}`);
+      router.replace(withSearch(pathname, workGridSearch(next)));
     });
   };
 
@@ -13049,13 +13294,13 @@ npx shadcn add alert badge button card empty skeleton table
  * caller is an approver of the current step.
  */
 export async function ApprovalsQueue() {
-  const [session, t, format] = await Promise.all([
-    getSession(),
+  const [t, format, permissions] = await Promise.all([
     getExtracted("approvals"),
     getFormatter(),
+    getPermissions(),
   ]);
 
-  if (!can(session, "approvals.read")) {
+  if (!can(permissions, "approvals.read")) {
     forbidden();
   }
 
@@ -13065,8 +13310,8 @@ export async function ApprovalsQueue() {
     return null;
   }
 
-  const canRequest = can(session, "approvals.request");
-  const canDecide = can(session, "approvals.manage");
+  const canRequest = can(permissions, "approvals.request");
+  const canDecide = can(permissions, "approvals.manage");
   const customers = queue.kind === "ok" ? queue.data.customers : [];
 
   const actionLabel = (action: string) =>
@@ -13300,7 +13545,7 @@ export async function MyWorkList() {
                   <span className="truncate">{row.title}</span>
                 ) : (
                   <Link
-                    href={row.url}
+                    href={toAppHref(row.url)}
                     className="truncate font-medium underline-offset-4 transition-colors hover:underline"
                   >
                     {row.title}
@@ -13619,13 +13864,13 @@ export async function CustomFieldsEditor({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [session, t, params] = await Promise.all([
-    getSession(),
+  const [t, params, permissions] = await Promise.all([
     getExtracted("custom-fields"),
     searchParams,
+    getPermissions(),
   ]);
 
-  if (!can(session, "custom_fields.read")) {
+  if (!can(permissions, "custom_fields.read")) {
     forbidden();
   }
 
@@ -13637,7 +13882,7 @@ export async function CustomFieldsEditor({
     return null;
   }
 
-  const canManage = can(session, "custom_fields.manage");
+  const canManage = can(permissions, "custom_fields.manage");
 
   return (
     <Card data-recipe="custom-fields-editor">
@@ -13915,6 +14160,8 @@ export function BulkActionBar({
                   onClick={() => {
                     void run({ action: "delete" }).then(() => {
                       setConfirming(false);
+
+                      return true;
                     });
                   }}
                 >
@@ -14285,12 +14532,12 @@ npx shadcn add card empty skeleton
  * with `employees.view_sensitive`.
  */
 export async function EmployeeDirectory() {
-  const [session, t] = await Promise.all([
-    getSession(),
+  const [t, permissions] = await Promise.all([
     getExtracted("people"),
+    getPermissions(),
   ]);
 
-  if (!can(session, "employees.read")) {
+  if (!can(permissions, "employees.read")) {
     forbidden();
   }
 
@@ -14300,8 +14547,8 @@ export async function EmployeeDirectory() {
     return null;
   }
 
-  const canWrite = can(session, "employees.write");
-  const canViewSensitive = can(session, "employees.view_sensitive");
+  const canWrite = can(permissions, "employees.write");
+  const canViewSensitive = can(permissions, "employees.view_sensitive");
 
   const managers =
     directory.kind === "ok"
@@ -14380,13 +14627,13 @@ export async function HiringBoard({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [session, t, query] = await Promise.all([
-    getSession(),
+  const [t, query, permissions] = await Promise.all([
     getExtracted("people"),
     searchParams,
+    getPermissions(),
   ]);
 
-  if (!can(session, "hiring.read")) {
+  if (!can(permissions, "hiring.read")) {
     forbidden();
   }
 
@@ -14396,8 +14643,8 @@ export async function HiringBoard({
     return null;
   }
 
-  const canManage = can(session, "hiring.manage");
-  const canWrite = can(session, "hiring.write");
+  const canManage = can(permissions, "hiring.manage");
+  const canWrite = can(permissions, "hiring.write");
   const jobs = board.kind === "ok" ? board.data.jobs : [];
   const job = jobs.find((item) => item.id === query["job"]) ?? jobs[0];
 
@@ -14533,15 +14780,15 @@ export async function Timesheet({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [session, t, format, query] = await Promise.all([
-    getSession(),
+  const [t, format, query, permissions] = await Promise.all([
     getExtracted("people"),
     getFormatter(),
     searchParams,
+    getPermissions(),
     connection(),
   ]);
 
-  if (!can(session, "time_tracking.track")) {
+  if (!can(permissions, "time_tracking.track")) {
     forbidden();
   }
 
@@ -14746,19 +14993,19 @@ export async function DispatchBoard({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [session, t, format, query] = await Promise.all([
-    getSession(),
+  const [t, format, query, permissions] = await Promise.all([
     getExtracted("field"),
     getFormatter(),
     searchParams,
+    getPermissions(),
     connection(),
   ]);
 
-  if (!can(session, "dispatch.read")) {
+  if (!can(permissions, "dispatch.read")) {
     forbidden();
   }
 
-  const manage = can(session, "dispatch.manage");
+  const manage = can(permissions, "dispatch.manage");
   const monday = mondayOf(query["week"]);
   const board = await settle(() => loadDispatchWeek(monday.toString()));
 
@@ -14963,15 +15210,15 @@ export async function TechnicianDay({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [session, t, format, query] = await Promise.all([
-    getSession(),
+  const [t, format, query, permissions] = await Promise.all([
     getExtracted("field"),
     getFormatter(),
     searchParams,
+    getPermissions(),
     connection(),
   ]);
 
-  if (!can(session, "dispatch.work")) {
+  if (!can(permissions, "dispatch.work")) {
     forbidden();
   }
 
@@ -15103,15 +15350,15 @@ export async function ShipmentTracking({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [session, t, format, query] = await Promise.all([
-    getSession(),
+  const [t, format, query, permissions] = await Promise.all([
     getExtracted("field"),
     getFormatter(),
     searchParams,
+    getPermissions(),
     connection(),
   ]);
 
-  if (!can(session, "shipments.read")) {
+  if (!can(permissions, "shipments.read")) {
     forbidden();
   }
 
@@ -15125,7 +15372,7 @@ export async function ShipmentTracking({
     return null;
   }
 
-  const newShipment = can(session, "shipments.manage") ? (
+  const newShipment = can(permissions, "shipments.manage") ? (
     <NewShipmentDialog />
   ) : null;
 
@@ -15302,24 +15549,25 @@ async function retry() {
  * billing page still shows the plan.
  */
 export async function InvoicesTable() {
-  const session = await getSession();
-
-  if (!can(session, "invoices.read")) {
-    return null;
-  }
-
-  const [list, t, format, locale] = await Promise.all([
+  // One round trip: the invoices read starts with the permission read, and RLS
+  // limits it to what the caller may see either way.
+  const [permissions, list, t, format, locale] = await Promise.all([
+    getPermissions(),
     getInvoices(),
     getExtracted("billing"),
     getFormatter(),
     getLocale(),
   ]);
 
+  if (!can(permissions, "invoices.read")) {
+    return null;
+  }
+
   if (list.kind === "no-organization") {
     return null;
   }
 
-  const canWrite = can(session, "invoices.write");
+  const canWrite = can(permissions, "invoices.write");
 
   const status = (value: InvoiceStatus, overdue: boolean) => {
     if (overdue) {
@@ -15486,23 +15734,23 @@ async function retry() {
 
 /** Render inside `<Suspense>`: the organization's products as cards. */
 export async function ProductCatalogGrid() {
-  const session = await getSession();
-
-  if (!can(session, "catalog.read")) {
-    forbidden();
-  }
-
-  const [products, t, locale] = await Promise.all([
+  // The read starts with the permission check; RLS guards it either way.
+  const [permissions, products, t, locale] = await Promise.all([
+    getPermissions(),
     getProducts(),
     getExtracted("shop"),
     getLocale(),
   ]);
 
+  if (!can(permissions, "catalog.read")) {
+    forbidden();
+  }
+
   if (products.kind === "no-organization") {
     return null;
   }
 
-  const canManage = can(session, "catalog.manage");
+  const canManage = can(permissions, "catalog.manage");
 
   const status = (product: Product) => {
     switch (product.status) {
@@ -15567,7 +15815,7 @@ export async function ProductCatalogGrid() {
               })}
             </p>
             <div className="flex items-center gap-2">
-              {can(session, "promotions.manage") ? (
+              {can(permissions, "promotions.manage") ? (
                 <CreatePromotionCodeDialog />
               ) : null}
               {canManage ? <CreateProductDialog variant="outline" /> : null}
@@ -15628,22 +15876,22 @@ async function retry() {
 
 /** Render inside `<Suspense>`: stock per tracked variant and active location. */
 export async function InventoryTable() {
-  const session = await getSession();
-
-  if (!can(session, "inventory.read")) {
-    forbidden();
-  }
-
-  const [stock, t] = await Promise.all([
+  // The read starts with the permission check; RLS guards it either way.
+  const [permissions, stock, t] = await Promise.all([
+    getPermissions(),
     getStockLevels(),
     getExtracted("shop"),
   ]);
+
+  if (!can(permissions, "inventory.read")) {
+    forbidden();
+  }
 
   if (stock.kind === "no-organization") {
     return null;
   }
 
-  const canManage = can(session, "inventory.manage");
+  const canManage = can(permissions, "inventory.manage");
 
   const locationName = new Map(
     stock.kind === "ok"
@@ -15811,9 +16059,9 @@ export async function OrderDetail({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const [{ id }, session] = await Promise.all([params, getSession()]);
+  const [{ id }, permissions] = await Promise.all([params, getPermissions()]);
 
-  if (!can(session, "orders.read")) {
+  if (!can(permissions, "orders.read")) {
     forbidden();
   }
 
@@ -15846,7 +16094,7 @@ export async function OrderDetail({
   }
 
   const view = detail.data;
-  const canManage = can(session, "orders.manage");
+  const canManage = can(permissions, "orders.manage");
   const amount = (value: Money) => formatMoney(value, locale);
 
   const problemLabel = (problem: string) => {
@@ -16084,7 +16332,7 @@ export async function OrderDetail({
                       ]
                     : [],
                 )}
-                canCreate={can(session, "promotions.manage")}
+                canCreate={can(permissions, "promotions.manage")}
               />
             ) : view.promotions.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -16143,14 +16391,17 @@ export async function KitchenDisplay({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [session, params] = await Promise.all([getSession(), searchParams]);
+  const [params, permissions] = await Promise.all([
+    searchParams,
+    getPermissions(),
+  ]);
 
-  if (!can(session, "orders.read") && !can(session, "orders.prepare")) {
+  if (!can(permissions, "orders.read") && !can(permissions, "orders.prepare")) {
     forbidden();
   }
 
   const canPrepare =
-    can(session, "orders.prepare") || can(session, "orders.manage");
+    can(permissions, "orders.prepare") || can(permissions, "orders.manage");
 
   const [kitchen, t] = await Promise.all([
     getKitchen(
@@ -16320,6 +16571,8 @@ export function OrderStateBoard({
                 setColumns(meta.previousValue);
                 toast.error(errorMessage(result.error));
               }
+
+              return result;
             });
         }}
       >
@@ -16595,9 +16848,9 @@ export async function CalendarView({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const session = await getSession();
+  const permissions = await getPermissions();
 
-  if (!can(session, "calendar.read")) {
+  if (!can(permissions, "calendar.read")) {
     forbidden();
   }
 
@@ -16608,8 +16861,8 @@ export async function CalendarView({
     connection(),
   ]);
 
-  const canWrite = can(session, "calendar.write");
-  const canManage = can(session, "calendar.manage");
+  const canWrite = can(permissions, "calendar.write");
+  const canManage = can(permissions, "calendar.manage");
   const first = firstOfMonth(query["month"], "UTC");
   const weeks = weeksOf(first);
   const from = weeks[0]?.[0] ?? first;
@@ -16918,16 +17171,16 @@ npx shadcn add badge card empty skeleton
 
 ```tsx title="apps/examples/nextjs/src/features/bookings/components/availability-editor.tsx"
 export async function AvailabilityEditor() {
-  const session = await getSession();
-
-  if (!can(session, "bookings.manage")) {
-    forbidden();
-  }
-
-  const [t, setup] = await Promise.all([
+  // The read starts with the permission check; RLS guards it either way.
+  const [permissions, t, setup] = await Promise.all([
+    getPermissions(),
     getExtracted("bookings"),
     settle(loadBookingSetup),
   ]);
+
+  if (!can(permissions, "bookings.manage")) {
+    forbidden();
+  }
 
   const page = setup.kind === "ok" ? setup.data.page : null;
 
@@ -16951,7 +17204,9 @@ export async function AvailabilityEditor() {
                 { count: page.liveLinks },
               )}
             </Badge>
-            {can(session, "share_links.create") ? <BookingLinkButton /> : null}
+            {can(permissions, "share_links.create") ? (
+              <BookingLinkButton />
+            ) : null}
           </CardAction>
         ) : null}
       </CardHeader>
@@ -17004,18 +17259,18 @@ npx shadcn add card empty skeleton
  * offset before every occurrence of the event, once per occurrence.
  */
 export async function RemindersList() {
-  const session = await getSession();
-
-  if (!can(session, "reminders.manage")) {
-    return null;
-  }
-
-  const [t, format, upcoming] = await Promise.all([
+  // The read starts with the permission check; RLS guards it either way.
+  const [permissions, t, format, upcoming] = await Promise.all([
+    getPermissions(),
     getExtracted("calendar"),
     getFormatter(),
     settle(loadUpcomingReminders),
     connection(),
   ]);
+
+  if (!can(permissions, "reminders.manage")) {
+    return null;
+  }
 
   if (upcoming.kind === "no-organization") {
     return null;
@@ -17049,7 +17304,7 @@ export async function RemindersList() {
                 {t("Add an event, then set a reminder for it here.")}
               </EmptyDescription>
             </EmptyHeader>
-            {calendars.length > 0 && can(session, "calendar.write") ? (
+            {calendars.length > 0 && can(permissions, "calendar.write") ? (
               <EmptyContent>
                 <CreateEventDialog
                   calendars={calendars}
@@ -17739,8 +17994,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { getPermissions } from "@/features/user/permission-snapshot";
 import { can } from "@/features/user/user-permissions";
-import { getSession } from "@/features/user/user-queries";
 import { Link } from "@/i18n/navigation";
 
 import { getTrash } from "../trash-queries";
@@ -17757,11 +18012,11 @@ async function retry() {
  * forever.
  */
 export async function TrashBin() {
-  const [view, session, t, format] = await Promise.all([
+  const [view, t, format, permissions] = await Promise.all([
     getTrash(),
-    getSession(),
     getExtracted("trash"),
     getFormatter(),
+    getPermissions(),
   ]);
 
   if (view.kind === "no-organization") {
@@ -17773,7 +18028,7 @@ export async function TrashBin() {
     ["drive_node", t("Drive item")],
   ]);
 
-  const canPurge = can(session, "trash.manage");
+  const canPurge = can(permissions, "trash.manage");
 
   return (
     <Card data-recipe="trash-bin">
@@ -18151,10 +18406,10 @@ const moderationVariants = {
 
 /** Render inside `<Suspense>`: the board's posts, top voted first. */
 export async function PostBoard() {
-  const [view, session, t] = await Promise.all([
+  const [view, t, permissions] = await Promise.all([
     getBoard(),
-    getSession(),
     getExtracted("community"),
+    getPermissions(),
   ]);
 
   if (view.kind === "no-organization") {
@@ -18181,7 +18436,7 @@ export async function PostBoard() {
   const board = view.data;
 
   if (board === null) {
-    const manage = can(session, "posts.manage");
+    const manage = can(permissions, "posts.manage");
 
     return (
       <Empty className="border">
@@ -18209,7 +18464,7 @@ export async function PostBoard() {
     );
   }
 
-  const write = can(session, "posts.write");
+  const write = can(permissions, "posts.write");
 
   const statusLabels: Record<PostStatus, string> = {
     open: t("Open"),
@@ -19475,8 +19730,8 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getPermissions } from "@/features/user/permission-snapshot";
 import { can } from "@/features/user/user-permissions";
-import { getSession } from "@/features/user/user-queries";
 
 import { getTemplates } from "../templates-queries";
 import { CreateTemplateDialog } from "./create-template-dialog";
@@ -19490,18 +19745,18 @@ async function retry() {
 
 /** The New template button, for members who may manage templates. */
 export async function TemplateManagerActions() {
-  const session = await getSession();
+  const permissions = await getPermissions();
 
-  return can(session, "templates.manage") ? <CreateTemplateDialog /> : null;
+  return can(permissions, "templates.manage") ? <CreateTemplateDialog /> : null;
 }
 
 /** Render inside `<Suspense>`: the customer templates, each with Use template. */
 export async function TemplatesGallery() {
-  const [view, session, t, format] = await Promise.all([
+  const [view, t, format, permissions] = await Promise.all([
     getTemplates(),
-    getSession(),
     getExtracted("templates"),
     getFormatter(),
+    getPermissions(),
   ]);
 
   if (view.kind === "no-organization") {
@@ -19509,7 +19764,7 @@ export async function TemplatesGallery() {
   }
 
   const canApply =
-    can(session, "templates.apply") && can(session, "customers.write");
+    can(permissions, "templates.apply") && can(permissions, "customers.write");
 
   if (view.kind === "error") {
     return (
@@ -19542,7 +19797,7 @@ export async function TemplatesGallery() {
             )}
           </EmptyDescription>
         </EmptyHeader>
-        {can(session, "templates.manage") ? (
+        {can(permissions, "templates.manage") ? (
           <EmptyContent>
             <CreateTemplateDialog />
           </EmptyContent>
@@ -19837,6 +20092,8 @@ function DocumentSession({
       } else {
         setFailed(true);
       }
+
+      return opened;
     });
 
     return () => {
@@ -20295,14 +20552,14 @@ function EndpointStatusBadge({
  * delete endpoints, and retry finished deliveries.
  */
 export async function WebhookEndpoints() {
-  const [session, state, t, format] = await Promise.all([
-    getSession(),
+  const [state, t, format, permissions] = await Promise.all([
     loadWebhooksState(),
     getExtracted("webhooks"),
     getFormatter(),
+    getPermissions(),
   ]);
 
-  if (!can(session, "webhooks.read")) {
+  if (!can(permissions, "webhooks.read")) {
     forbidden();
   }
 
@@ -20310,7 +20567,7 @@ export async function WebhookEndpoints() {
     return null;
   }
 
-  const manage = can(session, "webhooks.manage");
+  const manage = can(permissions, "webhooks.manage");
 
   const firstEnabled =
     state.kind === "ok"
@@ -20578,13 +20835,13 @@ async function retry() {
  * them. Members without `service_principals.read` see nothing.
  */
 export async function ServicePrincipalsTable() {
-  const [session, t, format] = await Promise.all([
-    getSession(),
+  const [t, format, permissions] = await Promise.all([
     getExtracted("servicePrincipals"),
     getFormatter(),
+    getPermissions(),
   ]);
 
-  if (!can(session, "service_principals.read")) {
+  if (!can(permissions, "service_principals.read")) {
     return null;
   }
 
@@ -20594,7 +20851,7 @@ export async function ServicePrincipalsTable() {
     return null;
   }
 
-  const manage = can(session, "service_principals.manage");
+  const manage = can(permissions, "service_principals.manage");
 
   const roles = new Map([
     ["owner", t("Owner")],
@@ -20756,12 +21013,12 @@ async function retry() {
  * only, so this checks `organization.update` before it reads.
  */
 export async function SigningKeysRotation() {
-  const [session, t] = await Promise.all([
-    getSession(),
+  const [t, permissions] = await Promise.all([
     getExtracted("signingKeys"),
+    getPermissions(),
   ]);
 
-  if (!can(session, SIGNING_KEYS_PERMISSION)) {
+  if (!can(permissions, SIGNING_KEYS_PERMISSION)) {
     forbidden();
   }
 
@@ -21145,13 +21402,13 @@ function JobStatusBadge({ status, t }: { status: JobRunStatus; t: Translate }) {
  * it reads with the database owner.
  */
 export async function JobRunsTable() {
-  const [session, t, format] = await Promise.all([
-    getSession(),
+  const [t, format, permissions] = await Promise.all([
     getExtracted("jobs"),
     getFormatter(),
+    getPermissions(),
   ]);
 
-  if (!can(session, JOBS_PERMISSION)) {
+  if (!can(permissions, JOBS_PERMISSION)) {
     forbidden();
   }
 
@@ -22145,7 +22402,7 @@ export function TaskToolbar({
 
   const go = (next: TaskQuery) => {
     startTransition(() => {
-      router.replace(`${pathname}${taskSearch(next)}`);
+      router.replace(withSearch(pathname, taskSearch(next)));
     });
   };
 
@@ -22297,6 +22554,8 @@ function SaveTaskViewDialog({ query }: { query: TaskQuery }) {
                 setName("");
                 setOpen(false);
               }
+
+              return result;
             });
           }}
         >
@@ -22891,7 +23150,12 @@ export async function ProjectPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const [{ id }, session] = await Promise.all([params, getSession()]);
+  const [{ id }, session, permissions] = await Promise.all([
+    params,
+    getSession(),
+    getPermissions(),
+  ]);
+
   const organizationId = tenantOf(session);
 
   if (!organizationId) {
@@ -23006,7 +23270,7 @@ export async function ProjectPage({
               authors={Object.fromEntries(
                 members.data.map((member) => [member.userId, member.name]),
               )}
-              canComment={can(session, "messages.send")}
+              canComment={can(permissions, "messages.send")}
             />
           </CardContent>
         </Card>
@@ -23041,8 +23305,8 @@ export async function ProjectPage({
           <ProjectHistory
             projectId={record.id}
             versions={history.data}
-            canSave={can(session, "versions.create")}
-            canRestore={can(session, "versions.restore")}
+            canSave={can(permissions, "versions.create")}
+            canRestore={can(permissions, "versions.restore")}
           />
         ) : (
           <ProjectLoadError title={t("The history didn't load")} />
@@ -23171,6 +23435,8 @@ export function TaskBoard({
                 setColumns(meta.previousValue);
                 toast.error(errorMessage(result.error));
               }
+
+              return result;
             });
         }}
       >
@@ -23255,7 +23521,7 @@ export async function TaskCalendar({
   rows: readonly TaskRow[];
   first: Temporal.PlainDate;
   today: Temporal.PlainDate;
-  monthHref: (month: string) => string;
+  monthHref: (month: string) => AppHref;
 }) {
   const [t, format] = await Promise.all([
     getExtracted("projects"),
@@ -23427,7 +23693,7 @@ export async function TaskTimeline({
   members: readonly MemberOption[];
   from: Temporal.PlainDate;
   today: Temporal.PlainDate;
-  windowHref: (from: string) => string;
+  windowHref: (from: string) => AppHref;
 }) {
   const t = await getExtracted("projects");
   const lanes = new Map<string, TaskRow[]>();
@@ -23549,7 +23815,7 @@ export async function TaskGantt({
   projects: readonly ProjectOption[];
   from: Temporal.PlainDate;
   today: Temporal.PlainDate;
-  windowHref: (from: string) => string;
+  windowHref: (from: string) => AppHref;
 }) {
   const t = await getExtracted("projects");
 

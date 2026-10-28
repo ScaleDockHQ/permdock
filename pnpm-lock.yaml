@@ -438,8 +438,8 @@ catalogs:
       specifier: 1.1.3
       version: 1.1.3
     better-supabase:
-      specifier: 0.29.0
-      version: 0.29.0
+      specifier: 0.33.0
+      version: 0.33.0
     botid:
       specifier: 1.5.11
       version: 1.5.11
@@ -1711,7 +1711,7 @@ importers:
     dependencies:
       better-supabase:
         specifier: 'catalog:'
-        version: 0.29.0(04652cbc3e455bbfabed2dabf9575b6e)
+        version: 0.33.0(04652cbc3e455bbfabed2dabf9575b6e)
       jose:
         specifier: 'catalog:'
         version: 6.2.12
@@ -2700,10 +2700,10 @@ importers:
         version: 1.0.0
       better-supabase:
         specifier: 'catalog:'
-        version: 0.29.0(5c0ee5d70784799e5a089bc5e3508b78)
+        version: 0.33.0(5c0ee5d70784799e5a089bc5e3508b78)
       better-supabase-floor:
-        specifier: npm:better-supabase@0.29.0
-        version: better-supabase@0.29.0(5c0ee5d70784799e5a089bc5e3508b78)
+        specifier: npm:better-supabase@0.33.0
+        version: better-supabase@0.33.0(5c0ee5d70784799e5a089bc5e3508b78)
       chat:
         specifier: 'catalog:'
         version: 4.42.0(ai@7.0.143(zod@4.6.7))(supports-color@11.0.0)(workflow@5.2.2(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.1.3)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.2(@babel/core@8.0.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
@@ -3024,7 +3024,7 @@ importers:
         version: 7.0.143(zod@4.6.7)
       better-supabase:
         specifier: 'catalog:'
-        version: 0.29.0(b3149d60729b4ffc49be721be0ebaa59)
+        version: 0.33.0(b3149d60729b4ffc49be721be0ebaa59)
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@26.6.5))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
@@ -9531,11 +9531,6 @@ packages:
 
   ajv-formats@2.1.1:
     resolution: {integrity: sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA==}
-    peerDependencies:
-      ajv: ^8.0.0
-    peerDependenciesMeta:
-      ajv:
-        optional: true
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
@@ -9883,14 +9878,15 @@ packages:
   better-result@2.10.0:
     resolution: {integrity: sha512-oQhh0y1qo2/ZKdAAEvHZAqKKiHOFU5k/bW96fE2ScgQOVkJRiHwB+nOS1SgFsYqRlxMDWvefXi9Q3px7QvgNDw==}
 
-  better-supabase@0.29.0:
-    resolution: {integrity: sha512-jtXEVbsdMTiNkKlRbEFv0jn/JJq8LC2odeylCBHcUM7aCDK6ZqeOZHnmIlceYO883Kz+ASS7kRmqpfW8kctWQw==}
+  better-supabase@0.33.0:
+    resolution: {integrity: sha512-iMu6DB25Rn5i5b7lQ1U27flaw8zZlt67qr1StPeLUT0mzpPHycqHSZZOThPOHt1tIkTPIEgc6utCg/V9HMI1CQ==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
       '@ai-sdk/anthropic': '>=4 <5'
       '@ai-sdk/mcp': '>=2 <3'
       '@ai-sdk/react': '>=4 <5'
+      '@ai-sdk/sandbox-vercel': '>=1 <2'
       '@ai-sdk/workflow': '>=2 <3'
       '@modelcontextprotocol/server': '>=2.3.0 <3'
       '@nestjs/common': '>=11 <13'
@@ -9913,6 +9909,7 @@ packages:
       '@tanstack/react-start': '>=1 <2'
       '@vercel/connect': '>=2 <3'
       '@vercel/queue': '>=0.8 <0.9'
+      '@vercel/sandbox': '>=3 <4'
       '@workflow/world': '>=5.0.2 <5.1'
       '@workflow/world-postgres': '>=5.0.2 <5.1'
       ai: '>=7 <8'
@@ -9950,6 +9947,8 @@ packages:
       '@ai-sdk/mcp':
         optional: true
       '@ai-sdk/react':
+        optional: true
+      '@ai-sdk/sandbox-vercel':
         optional: true
       '@ai-sdk/workflow':
         optional: true
@@ -9992,6 +9991,8 @@ packages:
       '@vercel/connect':
         optional: true
       '@vercel/queue':
+        optional: true
+      '@vercel/sandbox':
         optional: true
       '@workflow/world':
         optional: true
@@ -11818,7 +11819,6 @@ packages:
     resolution: {integrity: sha512-U1rsFwcuZNnU61Z/YLnnVC/ZqP0wpxh/rCKUMff3ot/rhLpxFY1zxEqu4vyaexyvBAB1mwpl9lA/ltcHBoQGyg==}
     hasBin: true
     peerDependencies:
-      '@expo/dom-webview': '*'
       '@expo/metro-runtime': '*'
       react: 19.3.1
       react-dom: 19.3.1
@@ -11826,8 +11826,6 @@ packages:
       react-native-web: '*'
       react-native-webview: '*'
     peerDependenciesMeta:
-      '@expo/dom-webview':
-        optional: true
       '@expo/metro-runtime':
         optional: true
       react-dom:
@@ -25904,7 +25902,7 @@ snapshots:
 
   better-result@2.10.0: {}
 
-  better-supabase@0.29.0(04652cbc3e455bbfabed2dabf9575b6e):
+  better-supabase@0.33.0(04652cbc3e455bbfabed2dabf9575b6e):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -25952,7 +25950,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  better-supabase@0.29.0(5c0ee5d70784799e5a089bc5e3508b78):
+  better-supabase@0.33.0(5c0ee5d70784799e5a089bc5e3508b78):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -26000,7 +25998,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  better-supabase@0.29.0(b3149d60729b4ffc49be721be0ebaa59):
+  better-supabase@0.33.0(b3149d60729b4ffc49be721be0ebaa59):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)

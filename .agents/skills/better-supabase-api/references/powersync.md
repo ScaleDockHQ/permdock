@@ -46,5 +46,21 @@ Never throw for a kind that can't succeed: it blocks the upload queue.
 - `uploadRoute(server.db.attachments, { put: "create" })` for write-once tables: a `PUT` calls `create` and a `conflict` counts as applied (the row is already on the server); a `PATCH` is discarded as `unsupported`.
 - `onError: (error, { phase }) => ...` logs a failed `getSession` (`phase: "credentials"`, kind `unauthorized` or `network`; `fetchCredentials` returns `null`) and uploads that stay queued for a retry (`phase: "upload"`).
 
+## Offline blocks
+
+`gen.powersync.instances` syncs `notifications`, `attachments`, `memberships`,
+`teams` and `profiles`. Give each block client a local transport with
+`server: rpcTransport(supabase)`, and route its tables through a server client:
+
+| Block         | Transport                         | Upload routes                                                                    |
+| ------------- | --------------------------------- | -------------------------------------------------------------------------------- |
+| notifications | `powersyncNotificationsTransport` | `notification_recipients: notificationRecipientsRoute(remote)`                   |
+| organizations | `powersyncMembershipsTransport`   | `memberships: membershipsRoute(remote)`                                          |
+| teams         | `powersyncTeamsTransport`         | `teams: teamsRoute(remote, powersync)`, `team_members: teamMembersRoute(remote)` |
+| profiles      | `powersyncProfilesTransport`      | `profiles: profilesRoute(remote)`                                                |
+
+The synced rows are the user's own (memberships, their teams, their profile).
+Switching organizations and creating or deleting a team need the network.
+
 Docs: https://bettersupabase.com/docs/frontend/powersync.md and
 https://bettersupabase.com/docs/guides/offline-first.md.
