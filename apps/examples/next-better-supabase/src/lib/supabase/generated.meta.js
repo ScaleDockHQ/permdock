@@ -23,5 +23,8 @@ export default {
     "audit_retention": {"name":"audit_retention","schema":"public","args":[{"name":"tenant","type":"uuid"}],"returns":"interval","returnsSet":false,"volatility":"stable"},
     "datetime_preference_claims": {"name":"datetime_preference_claims","schema":"public","args":[{"name":"p_user_id","type":"uuid"}],"returns":"jsonb","returnsSet":false,"volatility":"stable"},
     "feature_claims": {"name":"feature_claims","schema":"public","args":[{"name":"p_user_id","type":"uuid"}],"returns":"jsonb","returnsSet":false,"volatility":"stable"}
+  },
+  "claims": {
+    "permissionsTruncated": "memberships_truncated"
   }
 };

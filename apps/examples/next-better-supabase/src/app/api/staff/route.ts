@@ -12,5 +12,5 @@ export const GET = bsb.route(
       .orThrow();
     return Response.json(staff);
   },
-  { requireOrganization: true, permission: permissions.staff.list },
+  { requireTenant: true, permission: permissions.staff.list },
 );

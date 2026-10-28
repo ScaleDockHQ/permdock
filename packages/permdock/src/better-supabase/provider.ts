@@ -7,7 +7,7 @@ import type {
   AuthorizationRequirement,
   AuthorizationRoleSource,
   AuthorizationTokenHook,
-} from "better-supabase/config";
+} from "better-supabase/contract";
 
 import type { CatalogDocument } from "../catalog/types.ts";
 import type { OperationRisk } from "../core/operation-risks.ts";
@@ -411,6 +411,11 @@ function tokenHookOf(
     (claim) => claim.source !== "permdock",
   );
   const budgeted = manifest.claims.filter((claim) => claim.budget);
+  const truncated = owned.some(
+    (claim) => claim.name === "memberships_truncated",
+  )
+    ? "memberships_truncated"
+    : undefined;
   const activeFrom =
     activeTenant === "resolver" || manifest.hook.activeFrom === undefined
       ? undefined
@@ -420,6 +425,10 @@ function tokenHookOf(
     tenantClaim: manifest.tenantClaim,
     ...(activeFrom === undefined ? {} : { activeOrganizationFrom: activeFrom }),
     ownedClaims: owned.map((claim) => claim.name),
+    // better-supabase takes one marker per hook: its `permissions` readers and
+    // doctor's budget check read the same claim, so a memberships cut sends
+    // permissionsOf to the database.
+    ...(truncated === undefined ? {} : { truncatedClaim: truncated }),
     ...(registered.length > 0
       ? {
           registeredClaims: registered.map((claim) => ({
@@ -431,9 +440,7 @@ function tokenHookOf(
     budget: {
       claims: budgeted.map((claim) => claim.name),
       bytes: manifest.budget.bytes,
-      ...(owned.some((claim) => claim.name === "memberships_truncated")
-        ? { truncatedClaim: "memberships_truncated" }
-        : {}),
+      ...(truncated === undefined ? {} : { truncatedClaim: truncated }),
     },
     markers: {
       hook: `-- permdock:hook ${manifest.markers.hook}`,

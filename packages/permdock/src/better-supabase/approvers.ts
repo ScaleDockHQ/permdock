@@ -1,4 +1,4 @@
-import type { AuthorizationRequirement } from "better-supabase/config";
+import type { AuthorizationRequirement } from "better-supabase/contract";
 
 import type { CatalogDocument } from "../catalog/types.ts";
 import type { ApproverInput } from "../core/approvers.ts";

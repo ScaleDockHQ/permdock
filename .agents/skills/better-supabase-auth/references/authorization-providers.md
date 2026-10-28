@@ -27,7 +27,7 @@ export default defineConfig({
   defaults to `"provider"`). For `hasEntitlement(session, ...)`, the
   provider's hook must fill `features` from `better_supabase.feature_claims`;
   doctor reports BS408 otherwise.
-- Name the same tenant claim on both sides: `auth.organization.claim` must equal
+- Name the same tenant claim on both sides: `auth.tenant.claim` must equal
   `authorization.tokenHook.tenantClaim` (BS409).
 - `blocks.permissions.model: "provider"` makes `can()`, `tenant_ids_with()`
   and `platform_can()` call the provider's `idsWith` and `isPlatform`. Every

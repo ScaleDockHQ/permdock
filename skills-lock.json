@@ -77,19 +77,19 @@
       "source": "ScaleDockHQ/better-supabase",
       "sourceType": "github",
       "skillPath": "packages/better-supabase/skills/better-supabase/SKILL.md",
-      "computedHash": "92097bc65dc6e681b4afc3f9801575b1852dc5556d8703efb70ced1dffcf1e16"
+      "computedHash": "78f089066ad27e808d5e0ce114c92e3f31e7407cfdec36e23ce5f24f0d710982"
     },
     "better-supabase-api": {
       "source": "ScaleDockHQ/better-supabase",
       "sourceType": "github",
       "skillPath": "packages/better-supabase/skills/better-supabase-api/SKILL.md",
-      "computedHash": "78be117f3c8bf998f803a7adb2bc555d1b5443d3061531cd59695c9673a6e8a3"
+      "computedHash": "a9619cded5aa0797efa63ea1b0252bf7841a0d7c84dd31fddb2fce3c6aa4a2ab"
     },
     "better-supabase-auth": {
       "source": "ScaleDockHQ/better-supabase",
       "sourceType": "github",
       "skillPath": "packages/better-supabase/skills/better-supabase-auth/SKILL.md",
-      "computedHash": "72bd005b282f37da01305a71581e0a8aae80bebd37e6b99d9ec5fd58a9ded10e"
+      "computedHash": "8abbff589bb15eb9944a30398a98ca707b3c4ee639f09927553a593c05559a3b"
     },
     "better-supabase-testing": {
       "source": "ScaleDockHQ/better-supabase",

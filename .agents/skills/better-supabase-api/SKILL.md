@@ -6,7 +6,7 @@ description: Build HTTP APIs, Edge Functions and MCP servers on Supabase with be
 # APIs with better-supabase
 
 Every adapter resolves the caller once and hands you `{ auth, db, supabase }`.
-`auth.kind` is `user`, `anon`, `service` or `invalid`. For sessions, claims
+`auth.kind` is `user`, `none`, `secret`, `apiKey` or `invalid`. For sessions, claims
 and the OAuth client or agent behind a token, see the `better-supabase-auth`
 skill.
 

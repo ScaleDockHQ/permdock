@@ -47,7 +47,7 @@ function fakeRealtime() {
 }
 
 describe("one memoryVersionCache shared with better-supabase", () => {
-  it("is evicted by createServer's forgetSession", async () => {
+  it("is evicted by createServer's evictSession", async () => {
     const cache = await warmCache();
     const signer = await createTestSigner();
     const bsb = createServer(
@@ -71,7 +71,7 @@ describe("one memoryVersionCache shared with better-supabase", () => {
       },
     );
     expect(cache.stats().size).toBe(1);
-    await bsb.forgetSession(USER);
+    await bsb.evictSession(USER);
     expect(cache.stats()).toMatchObject({ size: 0, evictions: 1 });
   });
 

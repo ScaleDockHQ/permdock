@@ -1,7 +1,7 @@
+import type { AuthorizationHooks } from "better-supabase/contract";
 import type {
   Approver as BetterSupabaseApprover,
   ApprovalRequestRef,
-  AuthorizationHooks,
   AutomationRef,
   DelegationRef,
   IdentityRef,

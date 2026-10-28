@@ -31,7 +31,7 @@ Branch on `result.error.kind`, not on the message.
 | Code                             | Meaning                                                                    | Fix                                                                                        |
 | -------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `CLAIMS_INVALID` (unauthorized)  | The token verified but failed the `betterSupabase.claims(schema)` schema   | Fix the access token hook or loosen the schema; the error names the failing paths          |
-| `SESSION_REVOKED` (unauthorized) | `checkSession` found the session gone (signed out, or ended by an admin)   | Expected for irreversible actions; ask the user to sign in again                           |
+| `SESSION_REVOKED` (unauthorized) | `verifySession` found the session gone (signed out, or ended by an admin)  | Expected for irreversible actions; ask the user to sign in again                           |
 | `INSUFFICIENT_SCOPE` (forbidden) | A delegated token (OAuth client or agent) lacks a scope the route requires | The 403 carries an `insufficient_scope` challenge; the client asks the user for that scope |
 
 ## Other symptoms

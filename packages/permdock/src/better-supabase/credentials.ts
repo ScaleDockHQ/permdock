@@ -1,7 +1,5 @@
-import type {
-  CredentialProvider,
-  CredentialRef,
-} from "better-supabase/credentials";
+import type { CredentialProvider } from "better-supabase/contract";
+import type { CredentialRef } from "better-supabase/credentials";
 
 import { AsyncResult, dbError } from "better-supabase";
 

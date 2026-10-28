@@ -1,14 +1,16 @@
 import type {
   AuthorizationRequest,
   AuthorizerRuntime,
-} from "better-supabase/server";
+} from "better-supabase/contract";
 
-import { testAuthorizer } from "better-supabase/testing";
+import { authorizationRequest, testAuthorizer } from "better-supabase/testing";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { Permission } from "../../src/core/permission-types.ts";
+import type { VersionCache } from "../../src/core/version-cache.ts";
 
+import { memoryApprovalStore } from "../../src/approvals/store.ts";
 import { authorizer } from "../../src/better-supabase/index.ts";
 import {
   allow,
@@ -314,7 +316,10 @@ describe(authorizer, () => {
     const versioned = { ...claims(), authz_ver: 1 };
     const evaluateOf =
       (checked: ReturnType<typeof authorizer>) =>
-      (r: AuthorizationRequest<Permission>, runtime: AuthorizerRuntime) =>
+      (
+        r: AuthorizationRequest<Permission>,
+        runtime: AuthorizerRuntime<VersionCache>,
+      ) =>
         checked.evaluate(r, runtime);
 
     it("reads from better-supabase's runtime versions for a read and live for a write", async () => {
@@ -392,6 +397,177 @@ describe(authorizer, () => {
         { versions },
       );
       expect(live).toStrictEqual([true]);
+    });
+
+    it("takes the intent from better-supabase's context before the action", async () => {
+      const { live, versions } = tracked();
+      const evaluate = evaluateOf(authorizer({ policy, memberships: source }));
+      for (const intent of ["write", "read"] as const) {
+        await evaluate(
+          authorizationRequest({
+            action: intent === "write" ? quote.read : quote.update,
+            claims: versioned,
+            resource: { type: "quotes", properties: row },
+            context: { tenant: ORG, intent },
+          }),
+          { versions },
+        );
+      }
+      expect(live).toStrictEqual([true, false]);
+    });
+
+    it("lets the intent option win over the context's intent", async () => {
+      const { live, versions } = tracked();
+      const evaluate = evaluateOf(
+        authorizer({ policy, memberships: source, intent: () => "read" }),
+      );
+      await evaluate(
+        authorizationRequest({
+          action: quote.update,
+          claims: versioned,
+          resource: { type: "quotes", properties: row },
+          context: { tenant: ORG, intent: "write" },
+        }),
+        { versions },
+      );
+      expect(live).toStrictEqual([false]);
+    });
+  });
+
+  describe("resource source and change", () => {
+    const partial = { organization_id: ORG };
+
+    it("validates an input row and trusts only a row better-supabase loaded", async () => {
+      const of = (source: "loaded" | "input") =>
+        pd.evaluate(
+          authorizationRequest({
+            action: quote.read,
+            claims: claims(),
+            resource: { type: "quotes", properties: partial, source },
+            context: { tenant: ORG },
+          }),
+        );
+      expect(await of("loaded")).toStrictEqual({ outcome: "granted" });
+      expect(await of("input")).toMatchObject({ outcome: "denied" });
+    });
+
+    it("checks an update's stored row and the row it becomes", async () => {
+      const update = (next: Record<string, unknown>) =>
+        pd.evaluate(
+          authorizationRequest({
+            action: quote.update,
+            claims: claims(),
+            resource: {
+              type: "quotes",
+              id: row.id,
+              source: "loaded",
+              change: { current: row, next },
+            },
+            context: { tenant: ORG },
+          }),
+        );
+      expect(await update({ id: row.id })).toStrictEqual({
+        outcome: "granted",
+      });
+      expect(await update({ organization_id: OTHER })).toMatchObject({
+        outcome: "denied",
+      });
+    });
+
+    it("checks a create's new values, validated", async () => {
+      const create = (next: Record<string, unknown>) =>
+        pd.evaluate(
+          authorizationRequest({
+            action: quote.update,
+            claims: claims(),
+            resource: { type: "quotes", source: "input", change: { next } },
+            context: { tenant: ORG },
+          }),
+        );
+      expect(await create(row)).toStrictEqual({ outcome: "granted" });
+      expect(await create({ ...row, organization_id: OTHER })).toMatchObject({
+        outcome: "denied",
+      });
+      expect(await create(partial)).toMatchObject({ outcome: "denied" });
+    });
+  });
+
+  describe("approval resume", () => {
+    const run = (approval?: string) =>
+      authorizationRequest({
+        action: permissions.export.run,
+        claims: claims(),
+        resource: { type: "quotes" },
+        context: {
+          tenant: ORG,
+          ...(approval === undefined ? {} : { approval }),
+        },
+      });
+    const approvalOf = (outcome: { readonly outcome: string }): string => {
+      if (
+        outcome.outcome !== "approval-required" ||
+        !("approval" in outcome) ||
+        typeof outcome.approval !== "object" ||
+        outcome.approval === null ||
+        !("id" in outcome.approval) ||
+        typeof outcome.approval.id !== "string"
+      ) {
+        throw new Error("expected an approval-required outcome");
+      }
+      return outcome.approval.id;
+    };
+
+    it("files a request, grants the approved token once and denies a replay", async () => {
+      const store = memoryApprovalStore();
+      const checked = authorizer({ policy, store });
+      const token = approvalOf(await checked.evaluate(run()));
+      expect(await store.get(token)).toMatchObject({
+        status: "pending",
+        permission: "export.run",
+      });
+      await store.resolve(token, {
+        status: "approved",
+        by: {
+          principal: { id: "approver", roles: [], tenant: ORG },
+          context: {},
+        },
+      });
+      expect(await checked.evaluations?.([run(token)])).toMatchObject([
+        { outcome: "granted" },
+      ]);
+      expect(await checked.evaluate(run(token))).toStrictEqual({
+        outcome: "granted",
+      });
+      expect(await checked.evaluate(run(token))).toMatchObject({
+        outcome: "denied",
+      });
+    });
+
+    it("denies a token whose approval is still pending", async () => {
+      const store = memoryApprovalStore();
+      const checked = authorizer({ policy, store });
+      const token = approvalOf(await checked.evaluate(run()));
+      expect(await checked.evaluate(run(token))).toMatchObject({
+        outcome: "denied",
+      });
+    });
+
+    it("ignores the approval header without a store", async () => {
+      const token = approvalOf(await pd.evaluate(run()));
+      expect(await pd.evaluate(run(token))).toMatchObject({
+        outcome: "approval-required",
+        approval: { id: token },
+      });
+    });
+
+    it("asks again for a malformed or foreign token", async () => {
+      const store = memoryApprovalStore();
+      const checked = authorizer({ policy, store });
+      for (const header of ['"quoted"', "someone-elses-token"]) {
+        expect(await checked.evaluate(run(header))).toMatchObject({
+          outcome: "approval-required",
+        });
+      }
     });
   });
 

@@ -50,6 +50,7 @@ export type AdapterId = OpenUnion<
   | "trpc"
   | "orpc"
   | "supabase-middleware"
+  | "better-supabase"
   | "convex"
   | "authzen"
   | "mcp"

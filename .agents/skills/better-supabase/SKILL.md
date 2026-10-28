@@ -94,7 +94,7 @@ Done when `gen --check`, `doctor` and the typecheck pass.
 Name the definition `betterSupabase` (in `lib/supabase/index.ts`) and every runtime instance `bsb` (`lib/supabase/server.ts`, `lib/supabase/client.ts`, or the Hono, oRPC or Edge Function entry).
 
 - Next.js: `const { db } = await bsb.context()`, `bsb.route(...)`, `bsb.action(...)`
-- Next.js Cache Components: keep layouts synchronous; read `bsb.session()` in a `'use cache: private'` function inside `<Suspense>`, pass the promise to `<SessionProvider>` and read it with `useSession()`
+- Next.js Cache Components: keep layouts synchronous; read `bsb.claims()` in a `'use cache: private'` function inside `<Suspense>`, pass the promise to `<SessionProvider>` and read it with `useSession()`
 - Next.js with the tenant in the route (`/[organizationId]/...`): `bsb.context({ tenant: organizationId })`, `bsb.cached({ tenant })` inside a `'use cache: private'` function that takes the tenant as an argument, and `bsb.action({ input, tenant: (input) => input.organizationId }, fn)`. The tenant gets the resolver's membership checks. Client Components get the id as a prop and pass it to actions and to `useLiveQuery(spec, { tenant })`; the browser client only knows the claim's tenant
 - Hono: `c.var.db` after `bsb.middleware()`
 - oRPC: `context.db` after `bsb.middleware()`
@@ -150,9 +150,9 @@ the `better-supabase-auth` skill.
 ## Forms and actions (Next.js)
 
 - Put the permission check in the action's options, not its body:
-  `bsb.action({ input, requireOrganization: true, authorize: (session, input) => can(session, "members.invite") }, (input, { db, tenant, session }) => ...)`.
-  `requireOrganization` types `tenant` as a string; a refusal is a `forbidden`
-  `ActionResult`. `bsb.route(handler, { requireOrganization, authorize })` takes the same.
+  `bsb.action({ input, requireTenant: true, authorize: (session, input) => can(session, "members.invite") }, (input, { db, tenant, session }) => ...)`.
+  `requireTenant` types `tenant` as a string; a refusal is a `forbidden`
+  `ActionResult`. `bsb.route(handler, { requireTenant, authorize })` takes the same.
 - A form: `const form = useActionForm(action, { onSuccess })` from
   `better-supabase/react`, then `<form {...form.formProps}>`, `form.pending`
   and `form.fieldErrors.<field>`. Fields survive a failed submit. Pass

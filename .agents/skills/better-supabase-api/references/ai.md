@@ -119,6 +119,14 @@ a cron. Mirror platform messages into the inbox with
 `handler.mirror(thread, message)`. Platform adapters such as
 `@chat-adapter/slack` are the app's own dependencies.
 
+Inbox thread ids are `inbox:<inboxId>:<conversationId>`; build and read them
+with `inboxThreadId` and `decodeInboxThreadId`, never by string slicing. Pass
+`waitUntil` (Next.js `after`) in the options of `bot.webhooks.inbox(request,
+options)` so the drain returns before the bot answers. Adapter
+calls throw `ChatError` (a `RateLimitError` for `rate_limited`) with the
+`DbError` as `cause`, and `deliver` retries a platform `RATE_LIMITED` reply
+after its `retryAfterMs`.
+
 Docs: https://bettersupabase.com/docs/ai-sdk.md (and `agents`, `mcp`,
 `embeddings`, `memory`, `files`, `batches` under `/docs/ai-sdk/`),
 https://bettersupabase.com/docs/eve.md and

@@ -1,7 +1,7 @@
 import type {
   SupportAuthorize,
   SupportAuthorizeInput,
-} from "better-supabase/server";
+} from "better-supabase/contract";
 
 import type { PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";

@@ -13,7 +13,7 @@ the Next.js proxy (`bsb.proxy`) refreshes sessions. Don't call
 ## Workflow: read the caller
 
 1. Take `auth` from the handler context (`ctx.auth`, `c.var.auth`,
-   `context.auth`), or a token-free `AuthSession` from `await bsb.session()`
+   `context.auth`), or a token-free `AuthSession` from `await bsb.claims()`
    or `toSession(ctx.auth)`.
 2. Branch on `kind` with an exhaustive `switch` that ends in a `never` check:
 
@@ -21,9 +21,9 @@ the Next.js proxy (`bsb.proxy`) refreshes sessions. Don't call
 switch (auth.kind) {
   case "user": // auth.user.id, auth.claims
     break;
-  case "service": // a secret key
+  case "secret": // a secret key
     break;
-  case "anon": // auth.reason: 'none' | 'expired' | 'signed_out' | 'refresh_failed'
+  case "none": // auth.reason: 'none' | 'expired' | 'signed_out' | 'refresh_failed'
     break;
   case "invalid": // auth.reason: 'token' | 'claims' | 'actor', answer 401
     break;
@@ -47,9 +47,9 @@ path treats `invalid` as `anon`.
    `z.looseObject`) so claims the schema doesn't list stay on the session.
    Make anything the hook doesn't always set optional or give it a default.
 2. For display data users edit themselves (name, avatar), use
-   `betterSupabase.userMetadata(schema)` and read `session.profile`.
+   `betterSupabase.userMetadata(schema)` and read `session.userMetadata`.
 3. Read roles, memberships, the tenant and entitlements from the verified
-   claims only. Never from `user_metadata`, `session.profile`, a URL or a
+   claims only. Never from `user_metadata`, `session.userMetadata`, a URL or a
    request body. A tenant from the URL or input is only safe through the
    `tenant` resolver or the `{ tenant }` option, which check membership.
 
@@ -100,9 +100,9 @@ that the session still exists:
 
 ```ts
 import { err } from "better-supabase";
-import { checkSession } from "better-supabase/server";
+import { verifySession } from "better-supabase/server";
 
-const ended = await checkSession(postgres.admin, auth);
+const ended = await verifySession(postgres.admin, auth);
 if (ended) return err(ended); // unauthorized, code SESSION_REVOKED
 ```
 
@@ -111,9 +111,9 @@ Nothing calls it by default; keep it to the actions that need it.
 
 When RLS checks the session (so an ended session sees no rows), sign the
 browser out on page loads instead of showing an empty app. Next.js:
-`bsb.proxy(request, { endedSession: { redirect: "/login" } })` asks Auth on
+`bsb.proxy(request, { verifySession: { redirect: "/login" } })` asks Auth on
 document loads (and on `paths`), clears the cookies and redirects with
-`?reason=session_ended`.
+`?reason=session_not_found`.
 A proxy or middleware with its own Supabase client calls
 `sessionStatus(request, { url, publishableKey })` from `better-supabase/ssr`
 (`"ended"` on a 401 or 403 from Auth; treat `"unknown"` as active) and
@@ -155,7 +155,7 @@ membership lasts until the next refresh. When that window matters:
   `supabase.auth.refreshSession()` in the browser (in Next.js, through
   `useSessionChange`'s `refreshToken`, below).
 - In Next.js, drop the user's cached views with
-  `bsb.invalidateSession(userId, { tags })`.
+  `bsb.evictSession(userId, { tags })`.
 
 ## Next.js caching
 
@@ -166,21 +166,30 @@ membership lasts until the next refresh. When that window matters:
   further, for example for a permission snapshot.
 - `bsb.cached({ tables: ["customers"] })` tags the entry by table, so an
   action that writes the table drops it without a hand-written tag.
-- `bsb.invalidateSession(userId)` reaches the server caches and the caller's
+- `bsb.evictSession(userId)` reaches the server caches and the caller's
   router only; another user's browser keeps its private entries until they
   go stale.
-- After signing in or out: `useSessionChange(sessionChanged)` from
+- Sign in and out from a Server Action with `bsb.signInWithPassword`, `verifyOtp`,
+  `signInWithOAuth` and `exchangeCodeForSession`, `verifyMfa` or `signOut`, then
+  `redirect(result.data.redirectTo)`. The result is plain data
+  (`redirectTo`, `mfa`, `user`); reads later in the action (`bsb.context()`,
+  `bsb.getClaims()`) see the new session, so build the landing
+  context from them.
+- Start email link flows with `bsb.signInWithOtp`, `resetPasswordForEmail`,
+  `signUp` or `resend`, not supabase-js: they write the PKCE verifier cookie
+  that `exchangeCodeForSession` reads on the link's callback.
+- After signing in or out in the browser client: `useSessionChange(sessionChanged)` from
   `better-supabase/next/client`. After switching the active organization:
   `useSessionChange(sessionChanged, router, { refreshToken: supabase })`, so
   the new token reaches the server before it renders.
 - For a tenant from the route params, call `bsb.cached({ tenant })` and take
   the tenant as an argument of the `'use cache: private'` function, so it is
   part of the cache key. Outside a cache, use `bsb.context({ tenant })`.
-- In the proxy, set `bsb.proxy(request, { protect, expiredPrefetch: "render" })`
-  instead of returning early for `{ kind: "anon", reason: "expired" }` in
+- In the proxy, set `bsb.proxy(request, { protect, onExpiredPrefetch: "render" })`
+  instead of returning early for `{ kind: "none", reason: "expired" }` in
   `protect`. A prefetch never refreshes, so without it the prefetch caches a
   redirect to sign-in.
-- Keep layouts synchronous: pass the `bsb.session()` promise to
+- Keep layouts synchronous: pass the `bsb.claims()` promise to
   `<SessionProvider>` and read it with `useSession()`.
 
 ## Authorization providers
@@ -199,13 +208,14 @@ before touching the hook, claims, tenant or entitlements.
 - Don't downgrade an `invalid` caller to `anon`.
 - Don't build 401 or 403 JSON by hand; return the `DbError` or use `allow`
   and `scopes`.
-- Don't use `allow: ['anon']` for users from `signInAnonymously()`: `'anon'`
+- Don't use `allow: ['none']` for users from `signInAnonymously()`: `'none'`
   means no session, and only `'anonymous'` admits anonymous sign-ins.
 
 ## Docs
 
 https://bettersupabase.com/docs/auth.md,
 https://bettersupabase.com/docs/frameworks/next.md (bearer callers),
+https://bettersupabase.com/docs/frameworks/next-auth.md (sign-in and sign-out),
 https://bettersupabase.com/docs/auth/account-deletion.md,
 https://bettersupabase.com/docs/frameworks/next-cache-components.md and
 https://bettersupabase.com/docs/extending/authorization-providers.md.

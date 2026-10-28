@@ -48,16 +48,16 @@ function stringAt(
 }
 
 /**
- * The claim better-supabase writes the active tenant to:
- * `auth.organization.claim` in a grouped config, `claims.tenant` in a flat one,
- * then `rls.tenantClaim` and `tenant_id`.
+ * The claim better-supabase writes the active tenant to: `auth.tenant.claim` in
+ * a grouped config, `claims.tenant` in a flat one, then `rls.tenantClaim` and
+ * `tenant_id`.
  */
 export function betterSupabaseTenantClaim(
   config: PermDockConfig,
   betterSupabase: Record<string, unknown>,
 ): string {
   return (
-    stringAt(betterSupabase, "auth", "organization", "claim") ??
+    stringAt(betterSupabase, "auth", "tenant", "claim") ??
     stringAt(betterSupabase, "claims", "tenant") ??
     config.rls?.tenantClaim ??
     supabaseTenantClaim

@@ -131,6 +131,7 @@ describe(authorizationProvider, () => {
         "tenant_id",
         "authz_ver",
       ],
+      truncatedClaim: "memberships_truncated",
       registeredClaims: [
         { name: "features", function: "public.feature_claims" },
       ],
@@ -143,6 +144,19 @@ describe(authorizationProvider, () => {
       grantsCommand:
         "permdock supabase hook generate && supabase db schema declarative sync -f permdock_hook",
     });
+  });
+
+  it("names no truncated marker when the hook writes none", () => {
+    const { tokenHook } = authorizationProvider({
+      manifest: {
+        ...supabaseHookManifestFixture,
+        claims: supabaseHookManifestFixture.claims.filter(
+          (claim) => claim.name !== "memberships_truncated",
+        ),
+      },
+    });
+    expect(tokenHook).not.toHaveProperty("truncatedClaim");
+    expect(tokenHook?.budget).not.toHaveProperty("truncatedClaim");
   });
 
   it("names the grants command of the manifest's schema workflow", () => {

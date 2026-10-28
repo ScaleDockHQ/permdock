@@ -207,7 +207,7 @@ export const bsb = createOrpc(betterSupabase, {
 // and in createPermDock: claimsFirst(memberships, { onStale: "reread", version, versions })
 ```
 
-`memberships` re-reads a token minted before the user's last membership change, so a removed member loses access before the token expires. `admin` is a secret-key client. Create `sources` and `versions` once at module scope and pass the same cache to `createOrpc` and `claimsFirst`: `bsb.invalidateSession` evicts it, and a `GET` procedure (intent `read`) answers the version from it within `maxStaleMs` ([version cache](/docs/adapters/better-supabase#version-cache-and-session-snapshots)).
+`memberships` re-reads a token minted before the user's last membership change, so a removed member loses access before the token expires. `admin` is a secret-key client. Create `sources` and `versions` once at module scope and pass the same cache to `createOrpc` and `claimsFirst`: `bsb.evictSession` evicts it, and a `GET` procedure (intent `read`) answers the version from it within `maxStaleMs` ([version cache](/docs/adapters/better-supabase#version-cache-and-session-snapshots)).
 
 `protect` throws `FORBIDDEN` with PermDock's Problem Details as `data`, the same shape `bsb.unwrap` gives a `DbError`. `@orpc/server` must satisfy better-supabase's peer range (2.0.0-beta.40 or later). `permission` on `bsb.authed()` is decided by PermDock's [`authorizer`](/docs/adapters/better-supabase#authorizer).
 

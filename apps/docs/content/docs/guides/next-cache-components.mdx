@@ -431,7 +431,7 @@ import { bsb } from "@/lib/supabase/server";
 export async function changeRole(userId: string, role: string) {
   // ...authorize and write the membership...
   // every bsb.cached() entry of that user, and PermDock's snapshot entries
-  bsb.invalidateSession(userId, { tags: [snapshotTag(userId)] });
+  await bsb.evictSession(userId, { tags: [snapshotTag(userId)] });
 }
 ```
 
