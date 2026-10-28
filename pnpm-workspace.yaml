@@ -159,6 +159,7 @@ catalog:
   dotenv-cli: 11.0.0
   portless: 0.15.8
   better-supabase: 0.33.0
+  better-result: 3.0.1
   "@supabase/postgrest-typegen": 0.6.0
   supabase: 2.121.0
   server-only: 0.0.1
@@ -176,6 +177,7 @@ catalog:
   "@pgkit/client": 0.6.1
   "@pgkit/migra": 0.6.1
   "@supabase/pg-delta": 1.0.0-alpha.60
+  "@supabase/pg-topo": 1.0.0-alpha.8
   "@openfeature/server-sdk": 1.23.0
   "@supabase-labs/middleware-openfeature": 0.2.0
   "@next/playwright": 16.4.2
@@ -377,6 +379,8 @@ allowBuilds:
   ssh2: true
   # dockerode's gRPC client; the postinstall only prints a notice but strictDepBuilds needs a decision.
   protobufjs: true
+  # @supabase/pg-topo's parser fork of protobufjs; its postinstall only prints the same notice.
+  "@launchql/protobufjs": false
   # tests/runtimes: the Deno CLI and Miniflare's workerd binary.
   deno: true
   workerd: true
