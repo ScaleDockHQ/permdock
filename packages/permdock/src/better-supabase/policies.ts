@@ -1,8 +1,8 @@
-import type { AccessTopicPolicy } from "better-supabase/realtime";
 import type {
   AccessBucketPolicy,
   AccessPolicySql,
-} from "better-supabase/storage";
+  AccessTopicPolicy,
+} from "better-supabase/contract";
 
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
