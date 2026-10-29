@@ -151,6 +151,7 @@ function catalogApproval(
         combine: approval.combine,
         stages: approval.stages,
         mode: approval.mode,
+        fallback: approval.fallback,
         staleOn: approval.staleOn,
         quorum: approval.quorum,
         ttl: approval.ttl,

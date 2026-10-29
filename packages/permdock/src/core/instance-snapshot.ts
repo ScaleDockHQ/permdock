@@ -1,7 +1,11 @@
 import type { CustomGrant } from "./custom-roles.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
-import type { Snapshot, SnapshotAssignable } from "./snapshot-types.ts";
+import type {
+  Snapshot,
+  SnapshotAssignable,
+  SnapshotTenants,
+} from "./snapshot-types.ts";
 import type { CustomRole, Subject } from "./subject.ts";
 
 import { assignableIn } from "./assignable.ts";
@@ -38,7 +42,7 @@ export function snapshotOf(
     /** Role names `CustomRoleSource.assignable` returned, per tenant. */
     readonly assignable?: ReadonlyMap<string, readonly string[]>;
     readonly include?: SnapshotInclude;
-    readonly tenants?: "all";
+    readonly tenants?: SnapshotTenants;
     readonly simulated?: boolean;
     readonly now?: number;
   },

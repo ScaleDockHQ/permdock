@@ -11,6 +11,12 @@ import type { Membership } from "./subject.ts";
 import type { Plan, Role } from "./vocabulary.ts";
 import type { WireDelegation } from "./wire-delegation.ts";
 
+/**
+ * The tenants a snapshot lists: `'all'` for every tenant the subject belongs
+ * to, or the named tenants among them. A name with no membership is dropped.
+ */
+export type SnapshotTenants = "all" | readonly string[];
+
 export type Snapshot = {
   readonly v: 1;
   /**

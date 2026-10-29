@@ -9,7 +9,7 @@ import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { Report, RequestContext } from "../core/request-context.ts";
 import type { RevocationFeed } from "../core/revocations.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { Snapshot, SnapshotTenants } from "../core/snapshot-types.ts";
 import type { Actor, Subject } from "../core/subject.ts";
 import type { PermDockWrap } from "../core/wrap.ts";
 import type { PdpFactory, PdpPermDock } from "../pdp/types.ts";
@@ -234,7 +234,7 @@ export type SnapshotQuery = {
    */
   readonly tenant?: string;
   readonly include?: SnapshotOptions["include"];
-  readonly tenants?: "all";
+  readonly tenants?: SnapshotTenants;
 };
 
 /**

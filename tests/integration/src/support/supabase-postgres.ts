@@ -1,6 +1,6 @@
 import { setTimeout } from "node:timers/promises";
 import { Client } from "pg";
-import { GenericContainer, Wait } from "testcontainers";
+import { GenericContainer, PullPolicy, Wait } from "testcontainers";
 
 /**
  * The Postgres image the Supabase CLI runs; supautils and pg_jsonschema ship in
@@ -73,6 +73,7 @@ async function connect(
 /** One throwaway `supabase/postgres` per suite. */
 export async function startSupabasePostgres(): Promise<SupabasePostgres> {
   const container = await new GenericContainer(SUPABASE_POSTGRES_IMAGE)
+    .withPullPolicy(PullPolicy.alwaysPull())
     .withEnvironment({ POSTGRES_PASSWORD: PASSWORD })
     .withExposedPorts(5432)
     .withWaitStrategy(

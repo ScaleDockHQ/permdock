@@ -733,7 +733,7 @@ authorizationProvider({
 
 ### Manager approvers
 
-`manager({ levels? })` matches in SQL when `rls.approvals.managers` names the app's table of reporting lines:
+`manager({ levels? })` matches in SQL when `rls.approvals.managers` names the app's table of reporting lines. With `managers` set, the two-argument `permdock_is_approver(p_approvers, p_tenant)` also answers `manager`; without it, that overload is unchanged and a `manager` approver matches nobody:
 
 ```ts title="permdock.config.ts"
 export default {

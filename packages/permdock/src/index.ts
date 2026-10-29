@@ -64,6 +64,7 @@ export type {
 export {
   memoryEntitlementSource,
   memoryMembershipSource,
+  subjectMembershipSource,
   memoryCustomRoleSource,
   memorySnapshotSource,
   memorySettingsSource,
@@ -213,6 +214,7 @@ export type {
   Snapshot,
   SnapshotAssignable,
   SnapshotGrant,
+  SnapshotTenants,
   SnapshotNotEntitled,
   SnapshotScope,
 } from "./core/snapshot-types.ts";
@@ -388,6 +390,7 @@ export type {
   ActivationOption,
   ApprovalEscalation,
   ApprovalCombine,
+  ApprovalFallback,
   ApprovalMode,
   ApprovalOption,
   ApprovalRequirement,

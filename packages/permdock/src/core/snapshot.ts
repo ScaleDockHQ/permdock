@@ -5,6 +5,7 @@ import type {
   SnapshotAssignable,
   SnapshotGrant,
   SnapshotNotEntitled,
+  SnapshotTenants,
 } from "./snapshot-types.ts";
 import type { Delegation, Membership, Subject } from "./subject.ts";
 import type { Plan, Role } from "./vocabulary.ts";
@@ -137,7 +138,7 @@ export function buildSnapshot(input: {
     readonly membership?: Membership;
   }[];
   readonly include?: readonly string[];
-  readonly tenants?: "all" | undefined;
+  readonly tenants?: SnapshotTenants | undefined;
   readonly simulated?: boolean;
   readonly now?: number;
   readonly vocabulary?: PolicyVocabulary;
@@ -151,12 +152,15 @@ export function buildSnapshot(input: {
   const now = input.now ?? nowSeconds();
   const principal = input.subject.principal;
   const allTenants = tenantsOf(principal, scopeList(input.scopes));
+  const wanted = input.tenants;
   const tenants =
-    input.tenants === "all"
+    wanted === "all"
       ? allTenants
-      : principal?.tenant === undefined
-        ? []
-        : [principal.tenant];
+      : wanted === undefined
+        ? principal?.tenant === undefined
+          ? []
+          : [principal.tenant]
+        : allTenants.filter((tenant) => wanted.includes(tenant));
   const include = input.include;
   const included = (permission: Grant["permission"]): boolean =>
     include === undefined ||

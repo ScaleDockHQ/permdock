@@ -12,12 +12,27 @@ permdock doctor                # all checks
 permdock doctor --json         # report with $schema, for agents
 permdock doctor --only imports,references
 permdock doctor --fix          # apply safe fixes (install skills, regenerate the catalog)
+permdock doctor --ignore PD017:post.delete   # accept one finding for this run
 printf %s "$DATABASE_URL" | permdock doctor --db-url-stdin   # also run the checks that query the database (PD085)
 ```
 
 Exit code `1` on any error, `0` otherwise; warnings only fail with `--fail-on warning`. A finding is an `error`, a `warning` or an `info` hint. `info` never fails the run, renders as `::notice` with `--format github` and as a SARIF `note`, and the summary counts it as a note.
 
 Without `--fix`, doctor only reads: it never writes the catalog or any other file. On a terminal, `--fix` asks before it writes; answering no prints the report without fixing, and cancelling exits `130`. In CI, in a pipe or with `--json` it fixes without asking. The report lists each fix it applied first, as `fixed` in the JSON report. An `--only` value that names no check code or group exits `2` with the nearest match.
+
+### Ignore a finding
+
+Every finding has a `target` (a permission key, a `file:line`, a table) and an `id` of `<code>:<target>`. The text report prints the id after the fix line, and the JSON report carries both fields. A check that sets no target gets the `file:line` its message opens with, or the message's first word when it is a path or a key, else `project`.
+
+`doctor.ignore` accepts findings on purpose, in the form of `rls.verify.ignore`:
+
+```ts
+doctor: {
+  ignore: [{ id: "PD017:post.delete", reason: "clerks delete drafts only" }],
+}
+```
+
+An ignored finding leaves `findings`, no longer counts as an error or warning, and appears under `ignored` in the JSON report with its reason. An entry without a reason is a config error. An entry that matches no finding is reported as an `ignore-stale` warning, so the list shrinks when the cause goes away. `--ignore <id>` (repeatable) accepts a finding for one run without a reason.
 
 ### Where doctor reads source files
 
@@ -220,6 +235,8 @@ The Unicode markers are replaced with `error` / `warn` under `--no-color` or whe
 ### PD017: sensitive verbs without approval
 
 Loads the policy and warns on each `allow` whose action is in the sensitive list and that carries neither `approval` nor a `deny` on the same leaf. Override the list with `doctor.sensitiveActions` in `permdock.config.ts`. The fix text points at `approval: { by }`.
+
+To accept one leaf, list it in `doctor.waivers`: `[{ code: "PD017", key: "post.delete", reason: "clerks delete drafts only" }]`. `code` is `PD017`, `key` is the permission key and `reason` must not be empty. A waiver that matches no unapproved sensitive allow is reported as a PD017 warning with the target `waiver:<key>`.
 
 ### PD018: static separation of duty
 
@@ -439,7 +456,7 @@ A verb with no `rls.actions` entry and no default compiles to `'none'`: no SQL p
 
 ### PD072: tenant-written role rows read through a source
 
-A membership source whose role column is a `through` reference to `rls.customRoleWrites.roles` reads keys from a table tenants write. A tenant row named `owner` would then grant the declared `owner` role. The helpers `rls generate` writes read such a row as no role, and the `permdock_custom_role_name_guard` trigger on the roles table refuses it (`declared-role`, `name-taken`); a row with no tenant (a global or shared role) is not affected. The check reports each source that reads through the table, so a hand-written helper or a config that predates the guard is regenerated ([custom role writes](/docs/cli/rls#custom-role-writes)). `--only rls` runs PD072.
+A membership source whose role column is a `through` reference to `rls.customRoleWrites.roles` reads keys from a table tenants write. A tenant row named `owner` would then grant the declared `owner` role. The helpers `rls generate` writes read such a row as no role, and the `permdock_custom_role_name_guard` trigger on the roles table refuses it (`declared-role`, `name-taken`); a row with no tenant (a global or shared role) is not affected. The check reports each source that reads through the table, unless a file under `supabase/schemas`, the migration folders (`doctor.migrations`) or `rls.out` creates the `permdock_custom_role_name_guard` trigger, so a hand-written helper or a config that predates the guard is regenerated ([custom role writes](/docs/cli/rls#custom-role-writes)). `--only rls` runs PD072.
 
 ### PD073: role `for` that no source can hold
 
@@ -517,7 +534,7 @@ A `claimsFirst` created per call costs more than its own reads: the instance cac
 warning PD080  src/lib/access.ts:6 creates claimsFirst() inside a function, so every call passes a new memberships source, which the instance cache compares by identity, and no instance is reused
 ```
 
-Move the call to module scope and pass the same object to every adapter; with better-supabase, spread `permdockFor(...).sources(versions)` ([One instance per version](/docs/adapters/better-supabase#one-instance-per-version)). A lazy singleton, `cache ??= instanceCache()`, passes. PD080 covers the sources, `claimsFirst` and the version cache, PD081 the instance cache. `--only caching` runs both.
+Move the call to module scope and pass the same object to every adapter; with better-supabase, spread `permdockFor(...).sources(versions)` ([One instance per version](/docs/adapters/better-supabase#one-instance-per-version)). These build the object once and pass: `cache ??= instanceCache()`, `cache ||= instanceCache()`, `if (!cache) cache = instanceCache()`, and a call passed to a function named in `doctor.cacheHelpers`, as in `once(() => instanceCache())`. PD080 covers the sources, `claimsFirst` and the version cache, PD081 the instance cache. `--only caching` runs both.
 
 ### PD082: two authorization version tables
 

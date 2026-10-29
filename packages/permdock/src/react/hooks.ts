@@ -58,7 +58,7 @@ export function usePermDock<
   return useSyncExternalStore(
     (listener) => store.subscribe(listener),
     () => store.get(),
-    () => store.get(),
+    () => store.serverGet(),
   ) as ClientPermDock<V>;
 }
 

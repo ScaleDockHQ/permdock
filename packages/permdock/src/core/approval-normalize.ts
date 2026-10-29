@@ -4,6 +4,7 @@ import type { ResourceNode } from "./permission-types.ts";
 import type {
   ApprovalEscalation,
   ApprovalCombine,
+  ApprovalFallback,
   ApprovalMode,
   ApprovalOption,
   ApprovalRequirement,
@@ -111,12 +112,14 @@ export function normalizeApproval(
   }
   const escalation = normalizeEscalation(approval.escalation, label);
   const mode = approvalMode(approval.mode, label);
+  const fallback = approvalFallback(approval.fallback, label);
   const combine = approval.combine ?? "any";
   if (combine !== "any") {
     return compact<ApprovalRequirement>({
       combine,
       stages: normalizeStages(approval, combine, label),
       mode,
+      fallback,
       staleOn: approval.staleOn,
       ttl: approval.ttl,
       escalation,
@@ -131,6 +134,7 @@ export function normalizeApproval(
   if (
     by === undefined &&
     mode === undefined &&
+    fallback === undefined &&
     approval.staleOn === undefined &&
     approval.quorum === undefined &&
     approval.ttl === undefined &&
@@ -141,6 +145,7 @@ export function normalizeApproval(
   return compact<ApprovalRequirement>({
     by: by ?? authenticated(),
     mode,
+    fallback,
     staleOn: approval.staleOn,
     quorum: approval.quorum,
     ttl: approval.ttl,
@@ -212,6 +217,18 @@ function approvalMode(
     );
   }
   return mode;
+}
+
+function approvalFallback(
+  fallback: ApprovalFallback | undefined,
+  label: string,
+): "confirm" | undefined {
+  if (fallback !== undefined && fallback !== "confirm") {
+    throw new Error(
+      `PermDock: approval.fallback on '${label}' must be 'confirm', got '${String(fallback)}'`,
+    );
+  }
+  return fallback;
 }
 
 function normalizeStages(

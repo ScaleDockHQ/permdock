@@ -67,6 +67,7 @@ export type CatalogApproval =
         readonly quorum?: number;
       }[];
       readonly mode?: "confirm" | "authorize";
+      readonly fallback?: "confirm";
       readonly staleOn?: "resource-change";
       readonly quorum?: number;
       /** Seconds. */

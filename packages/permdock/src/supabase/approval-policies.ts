@@ -14,6 +14,11 @@ export type TableApprovalPolicySourceOptions = {
    * `permdock`, where `rls.approvals.tenantPolicies` writes it.
    */
   readonly schema?: string;
+  /**
+   * The function to call, when `rls.approvals.tenantPolicies.function` renames
+   * it. Defaults to `permdock_approval_policies_for`.
+   */
+  readonly function?: string;
 };
 
 function rowsOf(
@@ -36,7 +41,7 @@ export function tableApprovalPolicySource(
   options: TableApprovalPolicySourceOptions,
 ): ApprovalPolicySource {
   const fn = quoteQualifiedTable(
-    `${options.schema ?? "permdock"}.permdock_approval_policies_for`,
+    `${options.schema ?? "permdock"}.${options.function ?? "permdock_approval_policies_for"}`,
   );
   return {
     name: "table",

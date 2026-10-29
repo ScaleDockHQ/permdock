@@ -56,6 +56,11 @@ export type PermDockProviderProps = (
   readonly endpoint?: string | false;
   /** Where `refresh()` fetches a fresh snapshot. Defaults to `endpoint`. */
   readonly snapshotUrl?: string;
+  /**
+   * Answers `refresh()` in place of a request to `snapshotUrl` or `endpoint`;
+   * see `ClientStoreOptions.fetchSnapshot`.
+   */
+  readonly fetchSnapshot?: NonNullable<ClientStoreOptions["fetchSnapshot"]>;
   readonly approvals?: string;
   readonly tenant?: string;
   readonly fetch?: typeof fetch;

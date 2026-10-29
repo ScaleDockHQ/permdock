@@ -24,6 +24,19 @@ describe(tableApprovalPolicySource, () => {
     ]);
   });
 
+  it("calls a renamed function", async () => {
+    const sql: string[] = [];
+    const source = tableApprovalPolicySource({
+      function: "approval_rules_for",
+      query: async (text) => {
+        sql.push(text);
+        return [];
+      },
+    });
+    await source.approvalPoliciesFor({ tenants: [] });
+    expect(sql[0]).toContain('"permdock"."approval_rules_for"');
+  });
+
   it("takes bare rows from the default schema and throws on a body that is not an object", async () => {
     const sql: string[] = [];
     const source = tableApprovalPolicySource({
