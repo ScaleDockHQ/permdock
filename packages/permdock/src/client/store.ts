@@ -29,6 +29,15 @@ export type ClientStoreOptions = {
   readonly snapshot: Snapshot | string;
   readonly endpoint?: string;
   readonly snapshotUrl?: string;
+  /**
+   * Answers a refresh in place of a request to `snapshotUrl` or `endpoint`: the
+   * app's own source of a snapshot, such as a server action. A rejection keeps
+   * the current snapshot and marks it stale. With a `verifier`, it must answer
+   * a signed snapshot.
+   */
+  readonly fetchSnapshot?: (query: {
+    readonly tenant?: string;
+  }) => Snapshot | string | Promise<Snapshot | string>;
   readonly approvals?: string;
   readonly tenant?: string;
   readonly fetch?: typeof fetch;
@@ -125,6 +134,19 @@ export type ClientStore = {
    */
   track: (value: PromiseLike<Snapshot | string>) => void;
   /**
+   * Render-time `track()`: hydrates at once from a promise React already
+   * settled (`status: 'fulfilled'`) and does nothing for a pending one, which
+   * `track()` follows after commit. Subscribers are notified in a microtask,
+   * never inside render.
+   */
+  seed: (value: PromiseLike<Snapshot | string>) => void;
+  /**
+   * What a server render saw: the instance the store held when first read after
+   * `seed()`. Pass it as `getServerSnapshot`, so a boundary that hydrates after
+   * the store moved on still matches the server's markup, then updates.
+   */
+  serverGet: () => ClientPermDock;
+  /**
    * The approval state for a decision. While something subscribes, an
    * `approval-required` decision is polled at `<approvals>/<token>`.
    */
@@ -201,6 +223,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
   let awaiting = options.awaiting === true;
   let following = awaiting ? 1 : 0;
   let tracked: object | undefined;
+  let serverView: ClientPermDock | undefined;
   let refreshSeq = 0;
   let silent = false;
   let adopted: object | undefined;
@@ -525,10 +548,12 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       },
       async refresh(query?: { readonly tenant?: string }): Promise<void> {
         const requested = query?.tenant;
+        const fetchSnapshot = options.fetchSnapshot;
         const source = options.snapshotUrl ?? options.endpoint;
+        const hasSource = fetchSnapshot !== undefined || source !== undefined;
         if (
           requested !== undefined &&
-          (snapshot.tenants.includes(requested) || source === undefined)
+          (snapshot.tenants.includes(requested) || !hasSource)
         ) {
           const wasStale = base === "stale";
           tenant = requested;
@@ -539,7 +564,7 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
           }
           return;
         }
-        if (source === undefined || disposed) {
+        if (!hasSource || disposed) {
           return;
         }
         const started = generation;
@@ -550,10 +575,15 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
         let body: unknown;
         let ok = false;
         try {
-          const response = await request(withTenant(source, requested));
-          if (response.ok) {
-            body = await response.json();
+          if (fetchSnapshot !== undefined) {
+            body = await fetchSnapshot(compact({ tenant: requested }));
             ok = true;
+          } else if (source !== undefined) {
+            const response = await request(withTenant(source, requested));
+            if (response.ok) {
+              body = await response.json();
+              ok = true;
+            }
           }
         } catch {
           ok = false;
@@ -679,6 +709,30 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
       } else {
         follow(value);
       }
+    },
+    seed(value: PromiseLike<Snapshot | string>): void {
+      // SAFETY: React marks a thenable it has read with `status` and `value`; anything else is pending.
+      const thenable = value as {
+        readonly status?: unknown;
+        readonly value?: unknown;
+      };
+      if (tracked === value || thenable.status !== "fulfilled") {
+        return;
+      }
+      tracked = value;
+      if (awaiting) {
+        awaiting = false;
+        following -= 1;
+      }
+      store.adopt(
+        // SAFETY: a fulfilled thenable of PromiseLike<Snapshot | string> holds that value.
+        thenable.value as Snapshot | string,
+        value,
+      );
+    },
+    serverGet(): ClientPermDock {
+      serverView ??= cached;
+      return serverView;
     },
     adopt(value: Snapshot | string, source: object): void {
       if (adopted === source) {

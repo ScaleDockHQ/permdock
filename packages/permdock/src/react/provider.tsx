@@ -24,6 +24,7 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
         compact({
           endpoint: props.endpoint,
           snapshotUrl: props.snapshotUrl,
+          fetchSnapshot: props.fetchSnapshot,
           approvals: props.approvals,
           tenant: props.tenant,
           fetch: live.fetch,
@@ -43,6 +44,7 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
       props.snapshot,
       props.endpoint,
       props.snapshotUrl,
+      props.fetchSnapshot,
       props.approvals,
       props.tenant,
       live.fetch,
@@ -55,6 +57,9 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
       props.approvalInterval,
     ],
   );
+  if (promise !== null && !suspend) {
+    store.seed(promise);
+  }
   const ui = useMemo(
     () => ({ defaults: props.defaults, messages: props.messages }),
     [props.defaults, props.messages],

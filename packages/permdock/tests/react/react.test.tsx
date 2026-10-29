@@ -356,6 +356,43 @@ describe("permdock/react", () => {
     expect(html).toContain("false:pending:pending");
   });
 
+  it("renders a fulfilled snapshotPromise on the server", async () => {
+    const snapshot = await memberSnapshot();
+    const settled = Object.assign(Promise.resolve(snapshot), {
+      status: "fulfilled" as const,
+      value: snapshot,
+    });
+    function Status(): string {
+      const { allowed, status } = usePermission(
+        permissions.post.update,
+        ownPost,
+      );
+      return `${allowed}:${status}:${usePermDock().status()}`;
+    }
+    const html = renderToString(
+      <PermDockProvider snapshotPromise={settled}>
+        <Status />
+      </PermDockProvider>,
+    );
+    expect(html).toContain("true:ready:ready");
+  });
+
+  it("keeps the server view pending after the store hydrates", async () => {
+    const snapshot = await memberSnapshot();
+    const store = createClientStore({
+      snapshot: emptySnapshot(),
+      awaiting: true,
+      server: false,
+    });
+    const first = store.serverGet();
+    expect(first.status()).toBe("pending");
+    store.track(Promise.resolve(snapshot));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(store.get().status()).not.toBe("pending");
+    expect(store.serverGet()).toBe(first);
+  });
+
   it("suspends only the readers of a snapshotPromise with suspend", async () => {
     const snapshot = await memberSnapshot();
     const never = new Promise<typeof snapshot>(() => {

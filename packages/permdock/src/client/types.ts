@@ -103,6 +103,11 @@ export type ProviderOptionsBase = {
   readonly endpoint?: string | false;
   /** Where `refresh()` fetches a fresh snapshot. Defaults to `endpoint`. */
   readonly snapshotUrl?: string;
+  /**
+   * Answers `refresh()` in place of a request to `snapshotUrl` or `endpoint`;
+   * see `ClientStoreOptions.fetchSnapshot`.
+   */
+  readonly fetchSnapshot?: NonNullable<ClientStoreOptions["fetchSnapshot"]>;
   readonly approvals?: string;
   /** Read on every request, so a new `fetch` applies without a new store. */
   readonly fetch?: typeof fetch;

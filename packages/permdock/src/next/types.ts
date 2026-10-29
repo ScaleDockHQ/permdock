@@ -13,7 +13,7 @@ import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { CacheLifeForOptions } from "../core/snapshot-cache.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { Snapshot, SnapshotTenants } from "../core/snapshot-types.ts";
 import type { Subject } from "../core/subject.ts";
 import type { PermDockWrap } from "../core/wrap.ts";
 import type { OtelWrap } from "../otel/types.ts";
@@ -78,7 +78,7 @@ export type GetSnapshotQuery = GetPermDockQuery & {
     | Permission
     | { readonly [key: string]: unknown }
   )[];
-  readonly tenants?: "all";
+  readonly tenants?: SnapshotTenants;
   /**
    * Tags added next to `snapshotTag(sub)`, such as the app's own organisation
    * tag.
@@ -124,7 +124,7 @@ export type NextPermDockProviderProps = NextPermDockProviderDisplay &
           | Permission
           | { readonly [key: string]: unknown }
         )[];
-        readonly tenants?: "all";
+        readonly tenants?: SnapshotTenants;
       }
   );
 
