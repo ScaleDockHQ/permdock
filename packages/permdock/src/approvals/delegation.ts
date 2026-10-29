@@ -9,7 +9,7 @@ import type {
 import { freezeDeep } from "../core/freeze.ts";
 import { isId } from "../core/ids.ts";
 import { ownRecord } from "../core/paths.ts";
-import { rootMembershipId } from "../core/scopes.ts";
+import { rootMembershipId } from "../core/subject.ts";
 import { dateAt } from "../core/time.ts";
 import { assertApprover } from "./store.ts";
 

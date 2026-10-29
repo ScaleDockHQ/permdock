@@ -9,7 +9,7 @@ import type {
 import type { SaasProject } from "../saas/permissions.ts";
 
 import { memoryApprovalStore } from "../../approvals/index.ts";
-import { rootMembershipId } from "../../core/scopes.ts";
+import { rootMembershipId } from "../../core/subject.ts";
 import {
   limits,
   getPermDock,

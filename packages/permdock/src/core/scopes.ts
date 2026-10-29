@@ -200,16 +200,6 @@ export function scopeIdOf(
 }
 
 /**
- * A membership of the first scope itself (the only scope without a parent): its
- * id is a tenant. Needs no scope list, for code that holds only a subject.
- */
-export function rootMembershipId(membership: Membership): string | undefined {
-  return membership.scope !== undefined && membership.within === undefined
-    ? membership.id
-    : undefined;
-}
-
-/**
  * The instance of the first scope a membership sits in; what the active tenant
  * selects.
  */

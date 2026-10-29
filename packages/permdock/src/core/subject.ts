@@ -306,6 +306,16 @@ export function isActor(value: unknown): value is Actor {
   return typeof record.id === "string" && typeof record.kind === "string";
 }
 
+/**
+ * A membership of the first scope itself (the only scope without a parent): its
+ * id is a tenant. Needs no scope list, for code that holds only a subject.
+ */
+export function rootMembershipId(membership: Membership): string | undefined {
+  return membership.scope !== undefined && membership.within === undefined
+    ? membership.id
+    : undefined;
+}
+
 export function anonymousSubject<TPrincipal extends Principal = Principal>(
   context: Readonly<Record<string, unknown>> = {},
 ): Subject<TPrincipal> {

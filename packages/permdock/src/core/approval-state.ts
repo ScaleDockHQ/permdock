@@ -1,6 +1,6 @@
 import type { Subject } from "./subject.ts";
 
-import { rootMembershipId } from "./scopes.ts";
+import { rootMembershipId } from "./subject.ts";
 
 /**
  * The denial detail when an `ApprovalPolicySource` threw or returned an invalid

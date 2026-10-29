@@ -18,7 +18,7 @@ import { approverManagerKey, flattenApprovers } from "../core/approvers.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { matchGrantee } from "../core/grantee-match.ts";
-import { rootMembershipId } from "../core/scopes.ts";
+import { rootMembershipId } from "../core/subject.ts";
 import { dateAt, durationOf } from "../core/time.ts";
 import { ApprovalError } from "./errors.ts";
 import { pageApprovals } from "./page.ts";

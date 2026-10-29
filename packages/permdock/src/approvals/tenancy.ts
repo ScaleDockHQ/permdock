@@ -1,6 +1,6 @@
 import type { Subject } from "../core/subject.ts";
 
-import { rootMembershipId } from "../core/scopes.ts";
+import { rootMembershipId } from "../core/subject.ts";
 
 /**
  * The tenants a subject acts in for approvals: `principal.tenant` and the

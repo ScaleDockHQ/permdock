@@ -11,8 +11,7 @@ import type {
 import { readClaim } from "../core/claims-map.ts";
 import { compact, isRecord, omitKeys } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { rootMembershipId } from "../core/scopes.ts";
-import { anonymousSubject } from "../core/subject.ts";
+import { anonymousSubject, rootMembershipId } from "../core/subject.ts";
 import { validateRecord } from "../core/thenable.ts";
 import { ttlCache, ttlMs } from "../pdp/shared.ts";
 

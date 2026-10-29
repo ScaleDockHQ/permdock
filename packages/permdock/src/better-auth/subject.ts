@@ -7,8 +7,7 @@ import type {
 
 import { compact, isReadonlyArray, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { rootMembershipId } from "../core/scopes.ts";
-import { anonymousSubject } from "../core/subject.ts";
+import { anonymousSubject, rootMembershipId } from "../core/subject.ts";
 import { validateRecord } from "../core/thenable.ts";
 import {
   asRoles,
