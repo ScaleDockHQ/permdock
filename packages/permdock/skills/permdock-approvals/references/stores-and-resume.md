@@ -106,7 +106,7 @@ Send the prompt with `approvalPrompt` and `permdock/delivery`: `approvalEmail` f
 
 ## Approvers
 
-`by` takes roles, `user(id)`, `relation()`, `manager({ levels? })` (whoever holds `manager` on the requester's `user` record, up to `levels` steps), `holder(permission)` and `anyOf(...)`. A list is all-of; use `anyOf(user(id), holder(permissions.x.approve))` for "this person or anyone who holds the permission". `holder()` needs `approvalsHandler(store, { permdockFor: (approver, request) => createPermDock(policy, approver, { customRoles }) })`, so custom roles count. Stages may carry their own `escalation`.
+`by` takes roles, `user(id)`, `relation()`, `manager({ levels? })` (whoever holds `manager` on the requester's `user` record, up to `levels` steps; with better-supabase, set `rls.approvals.managers: { table, user, manager }` so SQL matches it too), `holder(permission)` and `anyOf(...)`. A list is all-of; use `anyOf(user(id), holder(permissions.x.approve))` for "this person or anyone who holds the permission". `holder()` needs `approvalsHandler(store, { permdockFor: (approver, request) => createPermDock(policy, approver, { customRoles }) })`, so custom roles count. Stages may carry their own `escalation`.
 
 ## Operation fingerprints
 
