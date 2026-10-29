@@ -92,31 +92,48 @@ function rowsOf(tables: Tables, table: string): readonly Row[] {
 }
 
 /**
- * The value a column holds, read through its referenced table or map;
- * `undefined` for none.
+ * The values a column holds, read through its referenced table or map: one per
+ * `through` row that matches every pair of the reference.
  */
-function columnValue(
+function columnValues(
+  row: Row,
+  column: LocalRowColumn,
+  tables: Tables,
+): readonly string[] {
+  const raw = text(row[column.column]);
+  if (raw === undefined) {
+    return [];
+  }
+  if ("through" in column) {
+    const { through } = column;
+    const pairs = Object.entries(through.on ?? { [column.column]: through.id });
+    const wanted: readonly (readonly [string, string | undefined])[] =
+      pairs.map(([ref, id]) => [id, text(row[ref])]);
+    if (wanted.some(([, value]) => value === undefined)) {
+      return [];
+    }
+    return rowsOf(tables, through.table).flatMap((item) => {
+      const value = wanted.every(([id, key]) => text(item[id]) === key)
+        ? text(item[through.column])
+        : undefined;
+      return value === undefined ? [] : [value];
+    });
+  }
+  if ("map" in column) {
+    const key = Object.hasOwn(column.map, raw) ? column.map[raw] : undefined;
+    return key === undefined || key === null ? [] : [key];
+  }
+  return [raw];
+}
+
+/** The one user a user column holds; matches naming two users are none. */
+function userOf(
   row: Row,
   column: LocalRowColumn,
   tables: Tables,
 ): string | undefined {
-  const raw = text(row[column.column]);
-  if (raw === undefined) {
-    return undefined;
-  }
-  if ("through" in column) {
-    const { through } = column;
-    const target = rowsOf(tables, through.table).find(
-      (item) => text(item[through.id]) === raw,
-    );
-    return target === undefined ? undefined : text(target[through.column]);
-  }
-  if ("map" in column) {
-    return Object.hasOwn(column.map, raw)
-      ? (column.map[raw] ?? undefined)
-      : undefined;
-  }
-  return raw;
+  const [user, ...others] = new Set(columnValues(row, column, tables));
+  return others.length === 0 ? user : undefined;
 }
 
 function membershipsOf(
@@ -130,7 +147,7 @@ function membershipsOf(
   >();
   for (const row of rowsOf(tables, source.table)) {
     if (
-      columnValue(row, source.user, tables) !== user ||
+      userOf(row, source.user, tables) !== user ||
       isSet(row, source.expiresAt) ||
       isSet(row, source.disabledAt)
     ) {
@@ -148,10 +165,7 @@ function membershipsOf(
           ? source.via.value
           : text(row[source.via.column]);
     const roles = isColumns(source.roles)
-      ? source.roles.flatMap((column) => {
-          const key = columnValue(row, column, tables);
-          return key === undefined ? [] : [key];
-        })
+      ? source.roles.flatMap((column) => columnValues(row, column, tables))
       : source.roles.value;
     if (scope === undefined || id === undefined || roles.length === 0) {
       continue;
@@ -302,10 +316,9 @@ export function readRows(
       ? []
       : rowsOf(tables, global.table).flatMap((row) =>
           text(row[global.user]) === user
-            ? global.roles.flatMap((column) => {
-                const key = columnValue(row, column, tables);
-                return key === undefined ? [] : [key];
-              })
+            ? global.roles.flatMap((column) =>
+                columnValues(row, column, tables),
+              )
             : [],
         );
   const custom = rows.customRoles;

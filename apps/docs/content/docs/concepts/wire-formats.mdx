@@ -213,6 +213,7 @@ Three optional grant fields were added within `v: 1`. They carry app data and ch
 
 - `memberships` holds one entry per membership table or membership source. `user`, `scope` and `via` are a column or a fixed `value`; `roles` lists role columns, or a fixed `value` of roles every row holds.
 - A role column is the key itself, a `through` table whose `column` holds the key, or a `map` from the stored value to a role key (`null` for no role).
+- A `through` with an optional `on` (row column to `through` column, at least one entry) is a composite reference: a `through` row matches only when every pair does, and the row holds the key of every match. `column` and `id` still name the first pair. A reader that ignores `on` matches on that pair alone, so it can over-grant: upgrade the device with the manifest.
 - A row with a value in `expiresAt` or `disabledAt` is no membership on the device.
 - `customRoles` names the device's `custom_role_permissions` and `custom_role_includes` tables.
 - `version` names the device's copy of `permdock_authz_version`, the row the token hook stamps `authz_ver` from. `powerSyncSource` sets its highest `version` for the user as the snapshot's `authzVersion`, and `nativeRefresh` compares it with the token ([role and tenant changes](/docs/adapters/react-native#role-and-tenant-changes)).

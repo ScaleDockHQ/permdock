@@ -172,6 +172,56 @@ describe(readRows, () => {
     ]);
   });
 
+  it("matches a composite junction on every pair and keeps every role", () => {
+    const junction: LocalSnapshotRows = {
+      memberships: [
+        {
+          table: "memberships",
+          user: { column: "user_id" },
+          scope: { value: "organization" },
+          id: "organization_id",
+          roles: [
+            {
+              column: "organization_id",
+              through: {
+                table: "membership_roles",
+                id: "organization_id",
+                column: "role",
+                on: { organization_id: "organization_id", user_id: "user_id" },
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const synced = {
+      memberships: [
+        { organization_id: "o1", user_id: "u1" },
+        { organization_id: "o1", user_id: "u2" },
+      ],
+      membership_roles: [
+        { organization_id: "o1", user_id: "u2", role: "owner" },
+        { organization_id: "o1", user_id: "u1", role: "billing" },
+        { organization_id: "o1", user_id: "u1", role: "member" },
+        { organization_id: "o2", user_id: "u1", role: "owner" },
+      ],
+    };
+    expect(
+      readRows(junction, synced, { id: "u1" }).principal?.memberships,
+    ).toStrictEqual([
+      { scope: "organization", id: "o1", roles: ["billing", "member"] },
+    ]);
+    expect(
+      parseLocalSnapshotManifest({
+        v: 1,
+        roles: [],
+        grants: [],
+        custom: {},
+        rows: junction,
+      }),
+    ).toBe(true);
+  });
+
   it("reads nothing from tables the device has not synced", () => {
     const data = readRows(rows, {}, { id: "u1" });
     expect(data.principal?.memberships).toStrictEqual([]);

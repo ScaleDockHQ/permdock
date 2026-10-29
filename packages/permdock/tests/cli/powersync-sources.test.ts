@@ -4,6 +4,7 @@ import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { SqlMembershipSource } from "../../src/supabase/index.ts";
 
 import { blockMembershipSource } from "../../src/better-supabase/block-memberships.ts";
+import { localRows } from "../../src/cli/powersync/rows.ts";
 import { powersyncPlan } from "../../src/cli/powersync/streams.ts";
 import { powersyncYaml } from "../../src/cli/powersync/yaml.ts";
 import {
@@ -294,5 +295,25 @@ describe("powersync streams over a composite roles junction", () => {
         `SELECT membership_roles.organization_id, membership_roles.user_id, membership_roles.role, membership_roles.organization_id || ':' || membership_roles.user_id || ':' || membership_roles.role AS id FROM "better_supabase"."membership_roles" AS membership_roles WHERE membership_roles.organization_id IN (SELECT memberships.organization_id FROM "better_supabase"."memberships" AS memberships WHERE memberships.user_id = auth.user_id() AND memberships.disabled_at IS NULL) AND membership_roles.user_id = auth.user_id()`,
       ],
     });
+  });
+
+  it("hands the device every pair of the junction", () => {
+    const config: PermDockConfig = {
+      policy: "p.ts",
+      rls: { membershipSources: [blockMembershipSource({ roles: "many" })] },
+    };
+    expect(
+      localRows(byOrganization, config, plan.devices).memberships[0]?.roles,
+    ).toStrictEqual([
+      {
+        column: "organization_id",
+        through: {
+          table: "membership_roles",
+          id: "organization_id",
+          column: "role",
+          on: { organization_id: "organization_id", user_id: "user_id" },
+        },
+      },
+    ]);
   });
 });
