@@ -154,9 +154,7 @@ function subjectOf(
  * object per version cache, so every instance of one subject at one version
  * shares an `instances` entry.
  */
-export function permdockResolver(
-  options: PermDockForOptions,
-): PermDockResolver {
+function permdockResolver(options: PermDockForOptions): PermDockResolver {
   const byCache = new WeakMap<VersionCache, InstanceOptions>();
   let uncached: InstanceOptions | undefined;
   const sourcesOf = (versions: VersionCache | undefined): InstanceOptions => ({
