@@ -2,6 +2,10 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.18.1 (2026-10-29)
+
+- `authorizationProvider({ requestApprovers: true })` writes `pg_catalog.split_part` in its `isApprover` template, so better-supabase 0.43, which refuses template calls without a schema, accepts it.
+
 ## 0.18.0 (2026-10-29)
 
 - Out-of-office covers now reach the approvers of a request's current step. `permdock rls generate` with `rls.approvals.delegations` or `rls.approvals.managers` writes a five-argument `permdock_is_approver(p_approvers, p_tenant, p_requester, p_resource, p_request_approvers)` that also checks the approvals block step's `users`, `manager` and `permission`, and `authorizationProvider({ requestApprovers: true })` passes better-supabase's `{approvers}` to it for every kind. Set it only with a better-supabase release that fills `{approvers}`. With `managers` and `delegations`, a cover now passes a `manager()` leaf when the delegator manages the requester; before, a cover never passed one. `rls.approvals: { store: false, delegations: true }` writes the covers and approver checks without the approval store.

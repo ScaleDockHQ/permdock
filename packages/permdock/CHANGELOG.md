@@ -1,5 +1,11 @@
 # permdock
 
+## 0.18.1
+
+### Patch Changes
+
+- [#249](https://github.com/ScaleDockHQ/permdock/pull/249) [`647cb5b`](https://github.com/ScaleDockHQ/permdock/commit/647cb5bacbe9313674b10721d4ec8c6381e727a2) Thanks [@mick340](https://github.com/mick340)! - `authorizationProvider({ requestApprovers: true })` writes `pg_catalog.split_part` in its `isApprover` template, so better-supabase 0.43, which refuses template calls without a schema, accepts it.
+
 ## 0.18.0
 
 ### Minor Changes
