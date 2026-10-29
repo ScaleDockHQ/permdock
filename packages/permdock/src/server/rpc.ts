@@ -61,6 +61,16 @@ export type RpcAdapterOptions<TOpts, TCtx, TUser> = ServerAdapterOptions<
   readonly revocations?: RevocationFeed;
 };
 
+/**
+ * `protect`'s options in an RPC adapter: `rows` reads the procedure's opts
+ * instead of the request.
+ */
+export type RpcProtectOptions<TOpts> = Omit<StreamProtectOptions, "rows"> & {
+  readonly rows?: (
+    opts: TOpts,
+  ) => readonly unknown[] | Promise<readonly unknown[]>;
+};
+
 export type RpcKernel<TOpts, V extends PolicyVocabulary> = {
   readonly kernel: ServerPermDock<V>;
   /**
@@ -90,10 +100,10 @@ export type RpcKernel<TOpts, V extends PolicyVocabulary> = {
    * resolved.
    */
   readonly guard: (
-    permission: Permission | null,
+    permission: Permission | readonly Permission[] | null,
     data: ((opts: TOpts) => unknown) | undefined,
     opts: TOpts,
-    protectOptions?: StreamProtectOptions,
+    protectOptions?: RpcProtectOptions<TOpts>,
   ) => Promise<{
     readonly request: Request;
     readonly scope: TenantScope;
@@ -171,10 +181,10 @@ export function bindRpcKernel<
   });
 
   const guard = async (
-    permission: Permission | null,
+    permission: Permission | readonly Permission[] | null,
     data: ((opts: TOpts) => unknown) | undefined,
     opts: TOpts,
-    protectOptions?: StreamProtectOptions,
+    protectOptions: RpcProtectOptions<TOpts> = {},
   ): Promise<{
     readonly request: Request;
     readonly scope: TenantScope;
@@ -182,13 +192,14 @@ export function bindRpcKernel<
   }> => {
     const request = bind(opts);
     const scope = await scopeOf(opts);
+    const { rows, ...rest } = protectOptions;
     return {
       request,
       scope,
       guard: await kernel.protect(
         permission,
         data === undefined ? undefined : (): unknown => data(opts),
-        protectOptions,
+        rows === undefined ? rest : { ...rest, rows: () => rows(opts) },
       )(request, scope),
     };
   };
@@ -213,6 +224,12 @@ export function bindRpcKernel<
   };
 }
 
+function isList(
+  permission: Permission | readonly Permission[],
+): permission is readonly Permission[] {
+  return Array.isArray(permission);
+}
+
 /**
  * Wraps a streamed result so revocation ends it and items the subscriber cannot
  * read drop.
@@ -220,16 +237,24 @@ export function bindRpcKernel<
 export async function guardStream(
   source: AsyncIterable<unknown>,
   open: (connectionOptions: ConnectionOptions) => Promise<Connection>,
-  permission: Permission | null,
+  permission: Permission | readonly Permission[] | null,
   data: (() => unknown) | undefined,
-  protectOptions: StreamProtectOptions | undefined,
+  protectOptions: Pick<RpcProtectOptions<never>, "items" | "rows"> | undefined,
   guard: {
     readonly unwrap?: (item: unknown) => unknown;
     readonly onRevoked: (error: PermDockRevokedError) => unknown;
   },
 ): Promise<AsyncIterable<unknown>> {
+  const single: readonly (Permission | null)[] =
+    permission !== null && isList(permission) ? permission : [permission];
+  const [lead = null] = single;
+  if (single.length !== 1 || protectOptions?.rows !== undefined) {
+    throw new TypeError(
+      "PermDock: a streamed result is revalidated against one permission and its data; protect it without rows or a permission list",
+    );
+  }
   const conn = await open(
-    permission === null ? {} : compact({ permission, data: data }),
+    lead === null ? {} : compact({ permission: lead, data: data }),
   );
   return guardIterable(
     source,

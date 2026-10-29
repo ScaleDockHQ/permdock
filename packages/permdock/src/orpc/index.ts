@@ -5,6 +5,7 @@ export type {
   OrpcOpenApiHooks,
   OrpcPermDock,
   OrpcPermDockOptions,
+  OrpcProtectOptions,
   OrpcSecuritySpec,
 } from "./create.ts";
 export type {

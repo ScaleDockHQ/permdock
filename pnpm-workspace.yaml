@@ -260,6 +260,9 @@ auditConfig:
     - GHSA-86w9-cpqp-85rv
     # braces <=3.0.3, through micromatch in Expo's Metro file map; build-time globs only.
     - GHSA-vfj7-8cjw-p6xm
+    # decode-uri-component <=0.5.0, through query-string 7 under expo-router in the Expo example;
+    # the fix ships only in the ESM-only 0.5.1, which query-string 7 cannot require.
+    - GHSA-qr28-fpjm-wq7f
 catalogMode: strict
 catalogPrune: true
 engineStrict: true

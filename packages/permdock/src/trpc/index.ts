@@ -5,4 +5,5 @@ export type {
   TrpcOpenApiHooks,
   TrpcPermDock,
   TrpcPermDockOptions,
+  TrpcProtectOptions,
 } from "./create.ts";

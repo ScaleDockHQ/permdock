@@ -113,14 +113,14 @@ export function protectActionOf<V extends PolicyVocabulary>(
         );
       } catch (error) {
         deps.rethrow(error);
-        return refused(decisionProblem(NO_GRANT, permission, undefined));
+        return refused(decisionProblem(NO_GRANT, permission));
       }
       if (options.data !== undefined) {
         try {
           data = (await options.data(input)) ?? undefined;
         } catch (error) {
           deps.rethrow(error);
-          return refused(decisionProblem(LOAD_FAILED, permission, undefined));
+          return refused(decisionProblem(LOAD_FAILED, permission));
         }
         if (data === undefined) {
           return refused(notFoundDetails());
@@ -150,7 +150,6 @@ export function protectActionOf<V extends PolicyVocabulary>(
           decisionProblem(
             decision,
             permission,
-            permdock.subject,
             compact({
               disclosure:
                 data === undefined

@@ -47,6 +47,19 @@ export const postsRouter = router({
 | `permdockHandler()`                    | Returns the Fetch handler `(request) => Promise<Response>` implementing the AuthZEN-shaped decision endpoint for `permdock/react` clients that share the tRPC server.                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `request` option                       | `(ctx) => Request \| null \| undefined`. The Web `Request` behind a context, for adapters whose context holds it under another name; defaults to `ctx.request` or `ctx.req`. A throwing mapper is no request.                                                                                                                                                                                                                                                                                                                                                                         |
 
+### Permission lists and many rows
+
+`protect` takes a list of permissions: the caller needs every one, or one with `anyOf: true`. `openapi.security` takes the same list and options. The `rows` option loads many rows in place of `data`; every row must be granted, a denial reports the first denied row, `ctx.permdockData` holds the rows, and no rows answers `NOT_FOUND`. The semantics match the [oRPC adapter](/docs/adapters/orpc#permission-lists-and-many-rows).
+
+```ts
+archiveMany: t.procedure
+  .input(z.object({ ids: z.array(z.string()) }))
+  .use(protect(permissions.post.update, undefined, { rows: ({ input }) => loadPosts(input.ids) }))
+  .mutation(({ ctx }) => archive(ctx.permdockData)),
+```
+
+A subscription takes one permission and no `rows`.
+
 ### Subscriptions
 
 A subscription procedure behind `protect(permission, data?, { items })` opens a kernel [`Connection`](/docs/adapters/server-kernel#connections) when its resolver returns an async iterable. Items the subscriber cannot read under `items` are dropped (for `tracked()` envelopes the row inside is checked), and when the connection aborts (a revoked session, an expired token, a re-denied opening permission) the iterator ends with a `TRPCError`: `UNAUTHORIZED` or `FORBIDDEN`, with the Problem Details on `cause`. The connection's first data read is the row `protect` already loaded; `load` runs again only when a revocation event revalidates the connection. Pass `revocations` to `createPermDock` to feed it. `connection(opts, options?)` opens a connection by hand for anything else.

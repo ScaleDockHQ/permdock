@@ -305,6 +305,41 @@ describe(nativeRefresh, () => {
     expect(db.aborted()).toBe(true);
   });
 
+  it("reads the synced version from powersync.source on the return to the foreground", async () => {
+    const state = { version: 3, user: "u1" };
+    const { client, log } = fakeSupabase(state);
+    const db = fakeDb(log, { value: 0 });
+    const appState = fakeAppState();
+    const synced: { value: number | undefined } = { value: 3 };
+    const off = nativeRefresh({
+      supabase: client,
+      appState,
+      powersync: {
+        db,
+        connector: "connector",
+        source: { authzVersion: async () => synced.value },
+      },
+    })(() => {
+      log.push("refresh");
+    });
+    await settle();
+    appState.emit("background");
+    appState.emit("active");
+    await settle();
+    expect(log).toStrictEqual([]);
+    synced.value = 5;
+    appState.emit("background");
+    appState.emit("active");
+    await settle();
+    expect(log).toStrictEqual([
+      "refreshSession",
+      "disconnect",
+      "connect:connector",
+      "refresh",
+    ]);
+    off();
+  });
+
   it("joins no topic without a session", async () => {
     const { client, channels, log } = fakeSupabase({ version: 1, user: null });
     const off = nativeRefresh({ supabase: client, appState: fakeAppState() })(

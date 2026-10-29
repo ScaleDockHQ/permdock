@@ -144,4 +144,25 @@ describe(createPermDock, () => {
       expect(guard.response.status).toBe(403);
     }
   });
+
+  it("asks the remote decision once per row", async () => {
+    const decide = vi.fn<PdpPermDock["decide"]>();
+    const pdp: PdpFactory = async (p, user, options) => {
+      const permdock = createCorePermDock(p, user, options);
+      decide.mockImplementation((permission, row) =>
+        Promise.resolve(permdock.decide(permission, row)),
+      );
+      // SAFETY: the kernel only calls decide on the remote instance in protect.
+      return { ...permdock, decide } as unknown as PdpPermDock;
+    };
+    const { protect } = createPermDock(policy, {
+      subject: () => memberUser,
+      pdp,
+    });
+    const guard = await protect(permissions.post.read, undefined, {
+      rows: () => [ownPost, ownPost],
+    })(request());
+    expect(guard.ok).toBe(true);
+    expect(decide).toHaveBeenCalledTimes(2);
+  });
 });

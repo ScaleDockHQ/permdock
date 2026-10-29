@@ -23,9 +23,24 @@ export type RealtimeRefreshClient<
   readonly removeChannel: (channel: C) => unknown;
 };
 
-export type SupabaseRealtimeRefreshOptions = {
+export type SupabaseRealtimeRefreshOptions<
+  C extends RealtimeRefreshChannel = RealtimeRefreshChannel,
+> = {
   /** The signed-in user's id, the `sub` of their token. */
   readonly userId: string;
+  /**
+   * A channel on `authz:<userId>` the app already owns. The trigger binds the
+   * `changed` event to it and never subscribes or removes it; without it, the
+   * trigger is the only owner of the channel it opens and removes.
+   */
+  readonly channel?: C;
+  /**
+   * `subscribeForeground` from `permdock/react-native`, or any function of that
+   * shape. The trigger's own channel is removed when `active` is `false` and
+   * opened again on the return, followed by one `refresh()` for the bumps sent
+   * while it was away; an app-owned channel only gets the `refresh()`.
+   */
+  readonly foreground?: (listener: (active?: boolean) => void) => () => void;
 };
 
 /**
@@ -37,16 +52,52 @@ export type SupabaseRealtimeRefreshOptions = {
  */
 export function supabaseRealtimeRefresh<C extends RealtimeRefreshChannel>(
   client: RealtimeRefreshClient<C>,
-  options: SupabaseRealtimeRefreshOptions,
+  options: SupabaseRealtimeRefreshOptions<C>,
 ): RefreshTrigger {
   return (refresh) => {
-    const channel = client.channel(authzUserTopic(options.userId), {
-      config: { private: true },
+    let stopped = false;
+    const onChange = (): void => {
+      if (!stopped) {
+        refresh();
+      }
+    };
+    const shared = options.channel;
+    if (shared !== undefined) {
+      shared.on("broadcast", { event: AUTHZ_EVENT }, onChange);
+    }
+    const open = (): C | undefined => {
+      if (shared !== undefined) {
+        return undefined;
+      }
+      const channel = client.channel(authzUserTopic(options.userId), {
+        config: { private: true },
+      });
+      channel.on("broadcast", { event: AUTHZ_EVENT }, onChange);
+      channel.subscribe();
+      return channel;
+    };
+    let owned = open();
+    const close = (): void => {
+      if (owned !== undefined) {
+        client.removeChannel(owned);
+        owned = undefined;
+      }
+    };
+    const offForeground = options.foreground?.((active) => {
+      if (stopped) {
+        return;
+      }
+      if (active === false) {
+        close();
+        return;
+      }
+      owned ??= open();
+      refresh();
     });
-    channel.on("broadcast", { event: AUTHZ_EVENT }, refresh);
-    channel.subscribe();
     return () => {
-      client.removeChannel(channel);
+      stopped = true;
+      offForeground?.();
+      close();
     };
   };
 }

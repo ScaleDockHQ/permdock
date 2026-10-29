@@ -47,6 +47,7 @@ export type { LocalSnapshotData, LocalSnapshotOptions } from "./local.ts";
 export { powerSyncSource, powerSyncSourceCache } from "./powersync.ts";
 export type {
   PowerSyncQuery,
+  PowerSyncSnapshotSource,
   PowerSyncSourceCache,
   PowerSyncSourceOptions,
   PowerSyncWatchable,
