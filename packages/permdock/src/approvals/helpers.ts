@@ -4,6 +4,7 @@ import type { Permission } from "../core/permission-types.ts";
 import type { ApprovalRequirement } from "../core/policy-types.ts";
 import type { Delegation, Membership, Subject } from "../core/subject.ts";
 import type { Instant } from "../core/time.ts";
+import type { ApproverDirectory } from "./directory.ts";
 import type { ApprovalsHandlerOptions } from "./handler.ts";
 import type { ApproverRelationsOptions } from "./relations.ts";
 import type {
@@ -23,6 +24,7 @@ import { describe } from "../core/describe.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { dateAt, durationOf, isoAt } from "../core/time.ts";
 import { toWireDelegation } from "../core/wire-delegation.ts";
+import { countOtherApprovers } from "./directory.ts";
 import { ApprovalError } from "./errors.ts";
 import { listAllApprovals } from "./page.ts";
 import { heldPermissions } from "./permissions.ts";
@@ -135,6 +137,7 @@ export async function requestApproval(
           combine: approval.combine,
           stages: approval.stages,
           mode: approval.mode,
+          fallback: approval.fallback,
           staleOn: approval.staleOn,
           quorum: approval.quorum,
           escalation: approval.escalation,
@@ -175,6 +178,7 @@ export async function resolveApproval(
   options: ApproverRelationsOptions & {
     readonly requireDistinctApprover?: boolean;
     readonly permdockFor?: ApprovalsHandlerOptions["permdockFor"];
+    readonly approverDirectory?: ApproverDirectory;
   } = {},
 ): Promise<ApprovalRequest> {
   const current = await store.get(token);
@@ -187,6 +191,9 @@ export async function resolveApproval(
   const permissions =
     verdict.permissions ??
     (await heldPermissions(current, verdict.by, options.permdockFor));
+  const otherApprovers =
+    verdict.otherApprovers ??
+    (await countOtherApprovers(current, verdict.by, options.approverDirectory));
   assertApprover(
     current,
     verdict.by,
@@ -194,8 +201,14 @@ export async function resolveApproval(
     options.now,
     relations,
     permissions,
+    otherApprovers,
   );
-  return store.resolve(token, { ...verdict, relations, permissions });
+  return store.resolve(token, {
+    ...verdict,
+    relations,
+    permissions,
+    ...(otherApprovers === undefined ? {} : { otherApprovers }),
+  });
 }
 
 export async function vouchApproval(

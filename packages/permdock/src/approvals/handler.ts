@@ -2,6 +2,7 @@ import type { RelationSource, TokenSigner } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { PermissionTree } from "../core/permission-types.ts";
 import type { Subject } from "../core/subject.ts";
+import type { ApproverDirectory } from "./directory.ts";
 import type { IdempotencyStore, IdempotentCall } from "./idempotency.ts";
 import type {
   ApprovalRequest,
@@ -22,6 +23,7 @@ import {
   validationProblem,
 } from "../server/problem.ts";
 import { matchDelegation } from "./delegation.ts";
+import { countOtherApprovers } from "./directory.ts";
 import { approvalEntityTag, approvalView } from "./entity-tag.ts";
 import { ApprovalError, isApprovalError } from "./errors.ts";
 import {
@@ -53,6 +55,12 @@ export type ApprovalsHandlerOptions = {
    * without it they match nobody.
    */
   readonly relations?: RelationSource;
+  /**
+   * Lists the eligible approvers of a request, so `approval: { fallback:
+   * "confirm" }` lets the principal approve only when nobody else can. Without
+   * it, or when it answers `null` or throws, the fallback never applies.
+   */
+  readonly approverDirectory?: ApproverDirectory;
   /**
    * The policy's permission tree, for `through` links and `includes` on
    * relation approvers.
@@ -254,6 +262,7 @@ type Acting =
       readonly kind: "self";
       readonly relations: readonly string[];
       readonly permissions: readonly string[];
+      readonly otherApprovers: number | undefined;
     }
   | {
       readonly kind: "delegated";
@@ -289,6 +298,11 @@ async function actingApprover(
 ): Promise<Acting> {
   const facts = await factsFor(request, subject, options);
   try {
+    const otherApprovers = await countOtherApprovers(
+      request,
+      subject,
+      options.approverDirectory,
+    );
     assertApprover(
       request,
       subject,
@@ -296,8 +310,9 @@ async function actingApprover(
       undefined,
       facts.relations,
       facts.permissions,
+      otherApprovers,
     );
-    return { kind: "self", ...facts };
+    return { kind: "self", ...facts, otherApprovers };
   } catch (error) {
     if (!isApprovalError(error) || error.code !== "approver-not-eligible") {
       throw error;
@@ -579,6 +594,8 @@ export function approvalsHandler(
         note: read.note,
         relations: acting.kind === "self" ? acting.relations : undefined,
         permissions: acting.kind === "self" ? acting.permissions : undefined,
+        otherApprovers:
+          acting.kind === "self" ? acting.otherApprovers : undefined,
         onBehalfOf:
           acting.kind === "delegated"
             ? {

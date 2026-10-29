@@ -1,8 +1,8 @@
+import type { Ignore } from "../core/ignores.ts";
 import type { CommandResult, Finding } from "../core/result.ts";
 import type { PermDockConfig } from "../types.ts";
 
-import { isRecord } from "../../core/compact.ts";
-import { configError } from "../core/errors.ts";
+import { parseIgnores, splitIgnored } from "../core/ignores.ts";
 import { DOCS_BASE } from "../core/manifest.ts";
 
 const VERIFY_DOCS = `${DOCS_BASE}/rls#verify`;
@@ -37,38 +37,14 @@ export function findingId(finding: RlsFinding): string {
 }
 
 /** An accepted finding: `rls.verify.ignore` entries, plus one per `--ignore` id. */
-export type VerifyIgnore = { readonly id: string; readonly reason: string };
+export type VerifyIgnore = Ignore;
 
 /** `rls.verify.ignore`, checked, then one entry per `--ignore` id. */
 export function verifyIgnores(
   config: PermDockConfig,
   flags: readonly string[] = [],
 ): readonly VerifyIgnore[] {
-  const entries: unknown = config.rls?.verify?.ignore ?? [];
-  if (!Array.isArray(entries)) {
-    throw configError(
-      "PermDock CLI: rls.verify.ignore must be a list of { id, reason }",
-    );
-  }
-  const out: VerifyIgnore[] = [];
-  for (const [index, entry] of entries.entries()) {
-    if (
-      !isRecord(entry) ||
-      typeof entry["id"] !== "string" ||
-      entry["id"] === "" ||
-      typeof entry["reason"] !== "string" ||
-      entry["reason"].trim() === ""
-    ) {
-      throw configError(
-        `PermDock CLI: rls.verify.ignore[${String(index)}] needs an id and a non-empty reason`,
-      );
-    }
-    out.push({ id: entry["id"], reason: entry["reason"] });
-  }
-  for (const id of flags) {
-    out.push({ id, reason: "--ignore" });
-  }
-  return out;
+  return parseIgnores(config.rls?.verify?.ignore, "rls.verify.ignore", flags);
 }
 
 export type VerifyReport = {
@@ -78,37 +54,23 @@ export type VerifyReport = {
   readonly stale: readonly VerifyIgnore[];
 };
 
-/**
- * Splits `findings` by `ignores`; an id listed twice counts once, with its
- * first reason.
- */
 function applyIgnores(
   findings: readonly RlsFinding[],
   ignores: readonly VerifyIgnore[],
 ): VerifyReport {
-  const reasons = new Map<string, string>();
-  for (const entry of ignores) {
-    if (!reasons.has(entry.id)) {
-      reasons.set(entry.id, entry.reason);
-    }
-  }
-  const matched = new Set<string>();
-  const kept: (RlsFinding & { readonly id: string })[] = [];
-  const ignored: (VerifyIgnore & { readonly message: string })[] = [];
-  for (const finding of findings) {
-    const id = findingId(finding);
-    const reason = reasons.get(id);
-    if (reason === undefined) {
-      kept.push({ ...finding, id });
-    } else {
-      matched.add(id);
-      ignored.push({ id, reason, message: finding.message });
-    }
-  }
-  const stale = [...reasons]
-    .filter(([id]) => !matched.has(id))
-    .map(([id, reason]) => ({ id, reason }));
-  return { findings: kept, ignored, stale };
+  const split = splitIgnored(findings, findingId, ignores);
+  return {
+    findings: split.kept.map((finding) => ({
+      ...finding,
+      id: findingId(finding),
+    })),
+    ignored: split.ignored.map((entry) => ({
+      id: entry.id,
+      reason: entry.reason,
+      message: entry.item.message,
+    })),
+    stale: split.stale,
+  };
 }
 
 function prefixOf(severity: Finding["severity"]): string {

@@ -12,6 +12,13 @@ const ctx: RlsSqlContext = {
 };
 
 describe("rls.approvals on an adopted table", () => {
+  it("tags the token column as an identifier so better-supabase does not report it as a plain secret", () => {
+    const sql = adoptedApprovalStoreSql(ctx, { table: "approvals" });
+    expect(sql).toContain(
+      `comment on column "public"."approvals"."token" is '@bsb identifier:`,
+    );
+  });
+
   it("keys the functions on the token column and reads every field from the body", () => {
     const sql = adoptedApprovalStoreSql(ctx, { table: "approvals" });
     expect(sql).toContain(

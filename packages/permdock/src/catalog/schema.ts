@@ -43,6 +43,11 @@ const approval = {
           description: "Written before 0.17; false reads as mode: confirm.",
           type: "boolean",
         },
+        fallback: {
+          description:
+            "confirm lets the request's principal approve while no other eligible approver exists.",
+          const: "confirm",
+        },
         staleOn: { const: "resource-change" },
         quorum: { type: "integer", minimum: 1 },
         ttl: seconds,

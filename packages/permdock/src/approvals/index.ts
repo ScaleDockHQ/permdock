@@ -90,6 +90,7 @@ export {
 export type { ApprovalCursorPosition } from "./page.ts";
 export { approverPermissions } from "./permissions.ts";
 export { approverRelations } from "./relations.ts";
+export type { ApproverDirectory } from "./directory.ts";
 export type { ApproverRelationsOptions } from "./relations.ts";
 export {
   applyApprovalVerdict,

@@ -3,6 +3,7 @@ import type { RelationGrantee } from "../core/grantee.ts";
 import type { AdapterId } from "../core/open-union.ts";
 import type {
   ApprovalCombine,
+  ApprovalFallback,
   ApprovalMode,
   ApprovalStage,
 } from "../core/policy-types.ts";
@@ -26,6 +27,11 @@ export type ApprovalApprovers = {
    * `'authorize'`.
    */
   readonly mode?: ApprovalMode;
+  /**
+   * `'confirm'` lets the request's principal approve it while no other eligible
+   * approver exists; see `ApprovalFallback`.
+   */
+  readonly fallback?: ApprovalFallback;
   /** Set when the approval no longer applies once the row's `version` changes. */
   readonly staleOn?: "resource-change";
   /**
@@ -169,6 +175,13 @@ export type ApprovalVerdict = {
    * Absent means none, so permission approvers match nobody.
    */
   readonly permissions?: readonly string[];
+  /**
+   * How many eligible approvers other than the request's principal and actor
+   * the `ApproverDirectory` lists; `0` lets `fallback: 'confirm'` apply.
+   * Server-side input, never from the request body. Absent means unknown, so
+   * the fallback does not apply.
+   */
+  readonly otherApprovers?: number;
   readonly vouched?: string;
   /**
    * Set when `by` is not an approver and acts for this principal under an
