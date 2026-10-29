@@ -145,6 +145,7 @@ import { permissions } from "@/permissions";
 | `revalidate`                                                                                                                                            | `'launch'` (default), `'focus'` (also on app foreground when `subscribeForeground` is set) or a number of seconds.                                                                                                                                                                                                                                                                                                                                                                                          |
 | `subscribeForeground`                                                                                                                                   | Optional `(listener) => unsubscribe` for `revalidate: 'focus'`. Pass `AppState.addEventListener('change', ...)` from `react-native` so the snapshot refreshes when the app returns to the foreground.                                                                                                                                                                                                                                                                                                       |
 | `refreshOn`                                                                                                                                             | Optional `RefreshTrigger[]`, such as `eventSourceRefresh(url)`, that refetch `snapshotUrl` on an event; see [refresh on events](/docs/concepts/ui#refresh-on-events).                                                                                                                                                                                                                                                                                                                                       |
+| `nativeRefresh`                                                                                                                                         | `nativeRefresh({ supabase, appState, netInfo?, powersync? })` returns a `RefreshTrigger` for `refreshOn` that follows role and tenant changes: session refresh, PowerSync reconnect, snapshot refresh ([role and tenant changes](#role-and-tenant-changes)).                                                                                                                                                                                                                                                |
 | `usePermission`, `usePermDock`, `Protected`                                                                                                             | Identical to `permdock/react`; `status` gains no new values, `stale` covers the persisted-but-revalidating case.                                                                                                                                                                                                                                                                                                                                                                                            |
 | `usePermissions`, `useFilter`, `useTenant`, `useMemberships`, `useRoles`, `useAssignableRoles`, `useAssignablePermissions`, `useApproval`, `useSubject` | Identical to `permdock/react` ([UI](/docs/concepts/ui)). `useTenant().switchTo` persists the chosen tenant next to the snapshot so the app reopens in the same organisation; a tenant already in the persisted snapshot (`tenants: 'all'`) switches locally and works offline; any other tenant refetches the snapshot with `?tenant=`, and a failed refetch (offline, non-2xx, invalid body) keeps the previous tenant and snapshot. Nothing is queued: call `switchTo` again when the connection returns. |
 
@@ -304,6 +305,57 @@ const source = powerSyncSource(db, {
   }),
 });
 ```
+
+## Role and tenant changes
+
+A role or tenant change on the server takes four steps to reach the device:
+
+1. The `authz:<uid>` message arrives.
+2. The app refreshes the Supabase session, so the token carries the new claims.
+3. The app reconnects PowerSync, because a stream that reads a token claim keeps the claims it connected with. [PD084](/docs/cli/doctor#pd084-powersync-stream-reads-a-token-claim) lists those streams.
+4. `store.refresh()` re-reads the rows.
+
+`nativeRefresh` runs these steps as a `refreshOn` trigger. The [Supabase token hook](/docs/adapters/supabase-hook) bumps `permdock_authz_version` and broadcasts `changed` on the user's private `authz:<uid>` topic.
+
+```tsx
+import { AppState } from "react-native";
+import NetInfo from "@react-native-community/netinfo";
+import {
+  appStateForeground,
+  nativeRefresh,
+  PermDockProvider,
+  type LocalSnapshotManifest,
+} from "permdock/react-native";
+import manifest from "./permdock-manifest.json";
+
+const refreshOn = [
+  nativeRefresh({
+    supabase,
+    appState: AppState,
+    netInfo: NetInfo,
+    powersync: { db, connector, manifest: manifest as LocalSnapshotManifest },
+  }),
+];
+
+<PermDockProvider
+  storage={storage}
+  source={source}
+  subjectId={userId}
+  subscribeForeground={appStateForeground(AppState)}
+  refreshOn={refreshOn}
+>
+  {children}
+</PermDockProvider>;
+```
+
+Each pass runs `auth.refreshSession()`, then `db.disconnect()` and `db.connect(connector)`, then the snapshot refresh. Passes run one at a time. Signals during a pass run one more pass, and a signal while NetInfo reports offline waits for the connection. A failed session refresh still refreshes the snapshot, and the next signal retries the session.
+
+The channel closes when the app moves to the background and rejoins on the return to the foreground. A message sent in between is lost, so the return runs a catch-up:
+
+- With `powersync.manifest` from `permdock powersync generate`, the device syncs its own `permdock_authz_version` row, and the catch-up runs a pass only when that version is above the token's `authz_ver`. The same check runs whenever the row syncs, which covers a message sent while the app was closed. `powerSyncSource` sets the synced version as `snapshot.authzVersion`.
+- Without it, every return to the foreground runs a full pass.
+
+`nativeRefresh` takes the supabase-js client, the `PowerSyncDatabase` and the connector structurally and never imports `@supabase/*` or `@powersync/*`. It reads `authz_ver` from the access token without verifying it; the value only decides whether to refresh.
 
 ## What it validates
 
