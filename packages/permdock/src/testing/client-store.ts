@@ -74,8 +74,13 @@ function leadSnapshot(): Snapshot {
     tenants: "all",
     memberships: [
       ...saasMemberships("gina"),
-      { tenant: "globex", roles: ["viewer"] },
-      { tenant: "globex", team: "team-a", roles: ["lead"] },
+      { scope: "tenant", id: "globex", roles: ["viewer"] },
+      {
+        within: { tenant: "globex" },
+        scope: "team",
+        id: "team-a",
+        roles: ["lead"],
+      },
     ],
   });
 }

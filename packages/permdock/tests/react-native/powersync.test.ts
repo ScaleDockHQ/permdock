@@ -351,7 +351,7 @@ describe(powerSyncSource, () => {
         grants: [{ permission: "job.update" }],
       },
     ];
-    const memberships = [{ tenant: "acme", roles: ["manager"] }];
+    const memberships = [{ scope: "tenant", id: "acme", roles: ["manager"] }];
     const server = getPermDockSync(
       tenantPolicy,
       { principal: { id: "u1", tenant: "acme", memberships }, context: {} },

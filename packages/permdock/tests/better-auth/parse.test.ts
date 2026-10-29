@@ -69,7 +69,7 @@ describe(parseMemberRows, () => {
         },
         "u1",
       ),
-    ).toStrictEqual([{ tenant: "acme", roles: ["admin"] }]);
+    ).toStrictEqual([{ scope: "tenant", id: "acme", roles: ["admin"] }]);
   });
 
   it("accepts a single row and rows without userId when allowed", () => {
@@ -86,8 +86,8 @@ describe(parseMemberRows, () => {
       parseMemberRows({ unknown: [] }, "u1"),
       parseMemberRows("rows", "u1"),
     ]).toStrictEqual([
-      [{ tenant: "acme", roles: ["owner"] }],
-      [{ tenant: "acme", roles: ["member"] }],
+      [{ scope: "tenant", id: "acme", roles: ["owner"] }],
+      [{ scope: "tenant", id: "acme", roles: ["member"] }],
       [],
       [],
     ]);
@@ -117,9 +117,21 @@ describe(parseTeamRows, () => {
         "u1",
       ),
     ).toStrictEqual([
-      { tenant: "acme", team: "t1", roles: ["lead"], via: "team:t1" },
-      { tenant: "globex", team: "t2", roles: ["member"], via: "team:t2" },
-      { team: "t3", roles: ["member"], via: "team:t3" },
+      {
+        within: { tenant: "acme" },
+        scope: "team",
+        id: "t1",
+        roles: ["lead"],
+        via: "team:t1",
+      },
+      {
+        within: { tenant: "globex" },
+        scope: "team",
+        id: "t2",
+        roles: ["member"],
+        via: "team:t2",
+      },
+      { scope: "team", id: "t3", roles: ["member"], via: "team:t3" },
     ]);
   });
 });

@@ -105,7 +105,7 @@ export function parseMemberRows(
     if (tenant === undefined || roles.length === 0) {
       continue;
     }
-    out.push(compact<Membership>({ tenant, roles }));
+    out.push(compact<Membership>({ scope: "tenant", id: tenant, roles }));
   }
   return out;
 }
@@ -139,7 +139,15 @@ export function parseTeamRows(
     if (team === undefined || roles.length === 0) {
       continue;
     }
-    out.push(compact<Membership>({ tenant, team, roles, via: `team:${team}` }));
+    out.push(
+      compact<Membership>({
+        within: tenant === undefined ? undefined : { tenant },
+        scope: "team",
+        id: team,
+        roles,
+        via: `team:${team}`,
+      }),
+    );
   }
   return out;
 }

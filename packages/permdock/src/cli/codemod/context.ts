@@ -28,6 +28,15 @@ export type RenameSet = {
   readonly wraps?: readonly OptionWrap[];
   readonly durations?: DurationKeys;
   readonly configMoves?: readonly ConfigMove[];
+  /** Object-literal shapes rewritten after the renames, per file. */
+  readonly literals?: (
+    file: string,
+    source: string,
+  ) => {
+    readonly source: string;
+    readonly changes: readonly CodemodChange[];
+    readonly followUps: readonly CodemodFollowUp[];
+  };
 };
 
 /** One rewritten span. */

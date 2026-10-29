@@ -183,7 +183,7 @@ export const supabaseClaimFixtures: Readonly<
       ...base,
       user_metadata: {
         user_role: "admin",
-        memberships: [{ tenant: "acme", roles: ["owner"] }],
+        memberships: [{ scope: "tenant", id: "acme", roles: ["owner"] }],
       },
     },
     expect: { id, roles: [], memberships: [] },
@@ -193,8 +193,8 @@ export const supabaseClaimFixtures: Readonly<
       ...base,
       tenant_id: "acme",
       memberships: [
-        { tenant: "acme", roles: ["admin"] },
-        { tenant: "globex", roles: ["viewer"] },
+        { scope: "tenant", id: "acme", roles: ["admin"] },
+        { scope: "tenant", id: "globex", roles: ["viewer"] },
       ],
     },
     expect: {
@@ -202,8 +202,8 @@ export const supabaseClaimFixtures: Readonly<
       roles: [],
       tenant: "acme",
       memberships: [
-        { tenant: "acme", roles: ["admin"] },
-        { tenant: "globex", roles: ["viewer"] },
+        { scope: "tenant", id: "acme", roles: ["admin"] },
+        { scope: "tenant", id: "globex", roles: ["viewer"] },
       ],
     },
   },
@@ -434,7 +434,7 @@ export const supabaseClaimVectors: SupabaseClaimVectors = {
 };
 
 /**
- * Suggested ceiling for the `memberships` claim in bytes of JSON: about 15
+ * Suggested ceiling for the `memberships` claim in bytes of JSON: about 12
  * UUID-keyed single-role memberships. `permdock supabase hook generate`
  * truncates at it by default.
  */

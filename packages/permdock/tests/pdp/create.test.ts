@@ -32,7 +32,8 @@ type User = {
   readonly id: string;
   readonly roles: readonly string[];
   readonly memberships?: readonly {
-    readonly tenant: string;
+    readonly scope: string;
+    readonly id: string;
     readonly roles: readonly string[];
   }[];
 };
@@ -557,7 +558,7 @@ describe("permdock/pdp getPermDockSync", () => {
       const permdock = getPermDockSync(policyWith([provider({ decide })]), {
         id: "u1",
         roles: [],
-        memberships: [{ tenant: "acme", roles: ["member"] }],
+        memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
       });
       const tenant = permdock.tenant("acme");
       expect(reasonOf(await tenant.decide(permissions.post.read, post))).toBe(

@@ -162,15 +162,7 @@ function checkMembership(item: unknown, path: Path, issues: Issues): void {
   if (!isStrings(roles) || roles.length === 0) {
     issue(issues, [...path, "roles"], "Expected a non-empty array of strings");
   }
-  for (const key of [
-    "scope",
-    "id",
-    "tenant",
-    "team",
-    "via",
-    "granted_by",
-    "reason",
-  ]) {
+  for (const key of ["scope", "id", "via", "granted_by", "reason"]) {
     optional(item, key, path, issues, isString, "a string");
   }
   optional(
@@ -233,11 +225,9 @@ function checkMembership(item: unknown, path: Path, issues: Issues): void {
   optional(item, "grants", path, issues, isRecord, "an object");
   const located =
     (own(item, "scope") !== undefined && own(item, "id") !== undefined) ||
-    own(item, "tenant") !== undefined ||
-    own(item, "team") !== undefined ||
     own(item, "on") !== undefined;
   if (!located) {
-    issue(issues, path, "Expected scope and id, tenant, team or on");
+    issue(issues, path, "Expected scope and id, or on");
   }
 }
 

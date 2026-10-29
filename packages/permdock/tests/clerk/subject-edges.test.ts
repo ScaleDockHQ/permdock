@@ -37,7 +37,7 @@ describe("subjectFromClerk claim parsing", () => {
       id: "user_1",
       tenant: "org_1",
       session: "sess_1",
-      memberships: [{ tenant: "org_1", roles: ["org:admin"] }],
+      memberships: [{ scope: "tenant", id: "org_1", roles: ["org:admin"] }],
       clerkPermissions: ["org:x:read"],
     });
   });
@@ -70,8 +70,8 @@ describe("subjectFromClerk claim parsing", () => {
       ]),
     ).toStrictEqual([
       ["u1", []],
-      ["u2", [{ tenant: "org_1", roles: ["org:member"] }]],
-      ["u3", [{ tenant: "org_2", roles: ["org:admin"] }]],
+      ["u2", [{ scope: "tenant", id: "org_1", roles: ["org:member"] }]],
+      ["u3", [{ scope: "tenant", id: "org_2", roles: ["org:admin"] }]],
     ]);
   });
 
@@ -107,7 +107,12 @@ describe("subjectFromClerk claim parsing", () => {
       plans: ["pro", "free"],
       roles: ["api-user", "plain"],
       memberships: [
-        { tenant: "org_1", roles: ["reporter"], entitlements: ["team"] },
+        {
+          scope: "tenant",
+          id: "org_1",
+          roles: ["reporter"],
+          entitlements: ["team"],
+        },
       ],
       sources: { reporter: "o", "api-user": "u" },
     });
@@ -227,8 +232,8 @@ describe("subjectFromClerk Backend memberships", () => {
     }).toStrictEqual({
       calls: [0],
       memberships: [
-        { tenant: "org_a", roles: ["org:member"] },
-        { tenant: "org_c", roles: ["org:admin"] },
+        { scope: "tenant", id: "org_a", roles: ["org:member"] },
+        { scope: "tenant", id: "org_c", roles: ["org:admin"] },
       ],
       missing: [],
       weird: [],

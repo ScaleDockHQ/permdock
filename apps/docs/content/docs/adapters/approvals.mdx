@@ -162,7 +162,7 @@ With PermDock Cloud as the store, the environment's [directory mode](/docs/adapt
 The request's tenant is `subject.principal.tenant` at the time it was created. An approver belongs to it when one of these holds:
 
 - the approver's `principal.tenant` is that tenant;
-- one of the approver's memberships sits at the first scope with that id: `{ tenant }` without `team` in the shorthand, or `{ scope, id }` without `within` with named scopes.
+- one of the approver's memberships sits at the first scope with that id: `{ scope, id }` without `within`.
 
 A membership at a nested scope does not count, even when its parent is the request's tenant. Holding `lead` on a team inside `org_1` does not make an approver part of `org_1`, because a team membership grants nothing at the organisation level ([scopes](/docs/concepts/scopes)). The same rule picks the tenants in the pending inbox.
 

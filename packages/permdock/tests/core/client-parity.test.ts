@@ -78,24 +78,26 @@ const globex: Row = { id: "g1", orgId: "globex", teamId: null, locked: false };
 const alice: Principal = {
   id: "alice",
   memberships: [
-    { tenant: "acme", roles: ["admin"] },
-    { tenant: "globex", roles: ["viewer"] },
+    { scope: "tenant", id: "acme", roles: ["admin"] },
+    { scope: "tenant", id: "globex", roles: ["viewer"] },
   ],
 };
 const erin: Principal = {
   id: "erin",
   memberships: [
-    { tenant: "acme", roles: ["admin"] },
-    { tenant: "globex", roles: ["admin"] },
+    { scope: "tenant", id: "acme", roles: ["admin"] },
+    { scope: "tenant", id: "globex", roles: ["admin"] },
   ],
 };
 const gina: Principal = {
   id: "gina",
-  memberships: [{ tenant: "acme", team: "t1", roles: ["lead"] }],
+  memberships: [
+    { within: { tenant: "acme" }, scope: "team", id: "t1", roles: ["lead"] },
+  ],
 };
 const dave: Principal = {
   id: "dave",
-  memberships: [{ tenant: "acme", roles: ["contractor"] }],
+  memberships: [{ scope: "tenant", id: "acme", roles: ["contractor"] }],
 };
 
 async function both(user: Principal, tenant: string) {

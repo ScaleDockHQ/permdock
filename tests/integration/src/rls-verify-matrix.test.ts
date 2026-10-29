@@ -77,7 +77,8 @@ type Subject = {
   readonly roles?: readonly string[];
   readonly tenant?: string;
   readonly memberships?: readonly {
-    readonly tenant: string;
+    readonly scope: string;
+    readonly id: string;
     readonly roles: readonly string[];
   }[];
 };
@@ -86,22 +87,22 @@ const SUBJECTS: Readonly<Record<string, Subject>> = {
   admin: {
     id: ADMIN,
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["admin"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["admin"] }],
   },
   member: {
     id: MEMBER,
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["member"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
   },
   viewer: {
     id: VIEWER,
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["viewer"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["viewer"] }],
   },
   outsider: {
     id: OUTSIDER,
     tenant: "globex",
-    memberships: [{ tenant: "globex", roles: ["member"] }],
+    memberships: [{ scope: "tenant", id: "globex", roles: ["member"] }],
   },
   auditor: { id: AUDITOR, roles: ["auditor"] },
 };

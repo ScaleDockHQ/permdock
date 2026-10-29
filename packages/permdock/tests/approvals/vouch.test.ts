@@ -132,7 +132,7 @@ describe(vouchApproval, () => {
           id: "u_outsider",
           roles: [],
           tenant: "o_1",
-          memberships: [{ tenant: "o_1", roles: ["member"] }],
+          memberships: [{ scope: "tenant", id: "o_1", roles: ["member"] }],
         },
         context: {},
       }),

@@ -201,7 +201,8 @@ describe(directoryMembershipSource, () => {
       await source.membershipsFor({ id: "00u1" }, { tenant: TENANT }),
     ).toStrictEqual([
       {
-        tenant: TENANT,
+        scope: "tenant",
+        id: TENANT,
         roles: ["editor"],
         via: "group:g_editors",
         managedBy: "idp",
@@ -341,7 +342,9 @@ describe("identity-provider memberships hold only assignable roles", () => {
       {
         tenant: TENANT,
         memberships: {
-          membershipsFor: () => [{ tenant: TENANT, roles: ["owner"] }],
+          membershipsFor: () => [
+            { scope: "tenant", id: TENANT, roles: ["owner"] },
+          ],
         },
       },
     );
@@ -465,7 +468,8 @@ describe(scimHandler, () => {
       await source.membershipsFor({ id: "00u1" }, { tenant: TENANT }),
     ).toStrictEqual([
       {
-        tenant: TENANT,
+        scope: "tenant",
+        id: TENANT,
         roles: ["editor"],
         via: `group:${String(group["id"])}`,
         managedBy: "idp",

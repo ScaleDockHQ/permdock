@@ -98,8 +98,8 @@ describe("Cloud-native directory mode", () => {
     const token = await cloudToken({
       tenant: "o_acme",
       memberships: [
-        { tenant: "o_acme", roles: ["editor"] },
-        { tenant: "o_globex", roles: ["viewer"] },
+        { scope: "tenant", id: "o_acme", roles: ["editor"] },
+        { scope: "tenant", id: "o_globex", roles: ["viewer"] },
       ],
       entitlements: ["pro"],
     });
@@ -112,7 +112,7 @@ describe("Cloud-native directory mode", () => {
   it("drops a role the policy never declared", async () => {
     const token = await cloudToken({
       tenant: "o_acme",
-      memberships: [{ tenant: "o_acme", roles: ["superadmin"] }],
+      memberships: [{ scope: "tenant", id: "o_acme", roles: ["superadmin"] }],
     });
     const permdock = getPermDockSync(policy, await subjectOf(token));
     expect(permdock.can(permissions.doc.read, acmeDoc)).toBe(false);
@@ -121,7 +121,7 @@ describe("Cloud-native directory mode", () => {
   it("never defaults a requested tenant without a membership", async () => {
     const token = await cloudToken({
       tenant: "o_initech",
-      memberships: [{ tenant: "o_acme", roles: ["editor"] }],
+      memberships: [{ scope: "tenant", id: "o_acme", roles: ["editor"] }],
     });
     const permdock = getPermDockSync(policy, await subjectOf(token));
     expect(permdock.subject.principal?.tenant).toBeUndefined();
@@ -131,7 +131,7 @@ describe("Cloud-native directory mode", () => {
     const token = await cloudToken(
       {
         tenant: "o_acme",
-        memberships: [{ tenant: "o_acme", roles: ["editor"] }],
+        memberships: [{ scope: "tenant", id: "o_acme", roles: ["editor"] }],
       },
       "https://other.example.com",
     );

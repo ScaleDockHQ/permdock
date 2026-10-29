@@ -115,7 +115,7 @@ describe("permdock/next", () => {
       subject: (() => ({
         principal: {
           ...memberUser,
-          memberships: [{ tenant: "acme", roles: ["member"] }],
+          memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
         },
         context: {},
       })) as unknown as () => typeof memberUser,

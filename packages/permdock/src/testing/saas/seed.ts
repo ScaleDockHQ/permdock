@@ -284,17 +284,22 @@ export function saasOrg(id: string): SaasOrg | undefined {
 
 function toMembership(member: SaasMember): Membership {
   const membership: {
-    tenant?: string;
-    team?: string;
+    scope?: string;
+    id?: string;
+    within?: Readonly<Record<string, string>>;
     on?: { readonly resource: string; readonly id: string };
     roles: string[];
     expiresAt?: number;
   } = { roles: [...member.roles] };
-  if (member.tenant !== undefined) {
-    membership.tenant = member.tenant;
-  }
   if (member.team !== undefined) {
-    membership.team = member.team;
+    membership.scope = "team";
+    membership.id = member.team;
+    if (member.tenant !== undefined) {
+      membership.within = { tenant: member.tenant };
+    }
+  } else if (member.tenant !== undefined) {
+    membership.scope = "tenant";
+    membership.id = member.tenant;
   }
   if (member.on !== undefined) {
     membership.on = { resource: member.on.resource, id: member.on.id };

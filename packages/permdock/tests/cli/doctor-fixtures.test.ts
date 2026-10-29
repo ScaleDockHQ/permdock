@@ -133,7 +133,13 @@ export const policy = definePolicy(permissions, {
       const fixture = {
         memberships: [
           { principal: "ok", scope: "tenant", id: "o1", roles: ["viewer"] },
-          { principal: "alias", tenant: "o1", team: "t1", roles: ["viewer"] },
+          {
+            principal: "alias",
+            scope: "team",
+            id: "t1",
+            within: { tenant: "o1" },
+            roles: ["viewer"],
+          },
           { principal: "orphan", scope: "team", id: "t1", roles: ["viewer"] },
           {
             principal: "unknown",

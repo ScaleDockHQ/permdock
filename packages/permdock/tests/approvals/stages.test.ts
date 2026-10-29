@@ -28,7 +28,7 @@ function member(id: string): Subject {
     principal: {
       id,
       roles: [],
-      memberships: [{ tenant: "o1", roles: ["member"] }],
+      memberships: [{ scope: "tenant", id: "o1", roles: ["member"] }],
     },
     context: {},
   };

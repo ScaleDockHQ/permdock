@@ -89,10 +89,6 @@ export type Membership = {
    * conditions or RLS, and never written into token claims.
    */
   readonly x?: AppData;
-  /** Input only: an instance of the first scope. */
-  readonly tenant?: string;
-  /** Input only: an instance of the second scope, inside `tenant`. */
-  readonly team?: string;
 };
 
 /**

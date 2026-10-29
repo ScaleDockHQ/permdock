@@ -134,13 +134,18 @@ type Subject = {
   readonly roles?: readonly string[];
   readonly tenant?: string;
   readonly memberships?: readonly {
-    readonly tenant: string;
+    readonly scope: string;
+    readonly id: string;
     readonly roles: readonly string[];
   }[];
 };
 
 function member(id: string, tenant: string, role: string): Subject {
-  return { id, tenant, memberships: [{ tenant, roles: [role] }] };
+  return {
+    id,
+    tenant,
+    memberships: [{ scope: "tenant", id: tenant, roles: [role] }],
+  };
 }
 
 const SUBJECTS: Readonly<Record<string, Subject>> = {

@@ -81,7 +81,7 @@ function tenantApprover(tenant: string): Subject {
     principal: {
       id: "u_9",
       roles: [],
-      memberships: [{ tenant, roles: ["admin"] }],
+      memberships: [{ scope: "tenant", id: tenant, roles: ["admin"] }],
     },
     context: {},
   };

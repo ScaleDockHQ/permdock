@@ -15,7 +15,7 @@ describe("scope helpers", () => {
   it("normalise a legacy tenant and team membership onto catalog scopes", () => {
     expect(
       normalizeMembership(
-        { tenant: "o_1", team: "p_1", roles: ["dev"] },
+        { within: { tenant: "o_1" }, scope: "team", id: "p_1", roles: ["dev"] },
         scopes,
       ),
     ).toStrictEqual({
@@ -28,7 +28,7 @@ describe("scope helpers", () => {
 
   it("use the implicit tenant and team pair without scopes", () => {
     expect(
-      normalizeMembership({ tenant: "o_1", roles: ["admin"] }),
+      normalizeMembership({ scope: "tenant", id: "o_1", roles: ["admin"] }),
     ).toStrictEqual({ scope: "tenant", id: "o_1", roles: ["admin"] });
   });
 

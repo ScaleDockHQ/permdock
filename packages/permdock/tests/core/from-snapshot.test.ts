@@ -297,7 +297,7 @@ describe("fromSnapshot instance surface", () => {
     expect(asOwner.can(docs.doc.update, row, { field: "secret" })).toBe(false);
 
     const moved = client.simulate({
-      memberships: [{ tenant: "t9", roles: ["member"] }],
+      memberships: [{ scope: "tenant", id: "t9", roles: ["member"] }],
       tenant: "t9",
     });
     expect(moved.subject.principal?.tenant).toBe("t9");

@@ -20,23 +20,6 @@ type ClientProviderOptions = Omit<
 export function renderClientProvider(
   options: ClientProviderOptions,
 ): ReactElement {
-  return (
-    <ClientProvider
-      {...compact({
-        snapshotPromise: options.snapshotPromise,
-        endpoint: options.endpoint,
-        snapshotUrl: options.snapshotUrl,
-        approvals: options.approvals,
-        tenant: options.tenant,
-        headers: options.headers,
-        maxAge: options.maxAge,
-        approvalInterval: options.approvalInterval,
-        suspend: options.suspend,
-        defaults: options.defaults,
-        messages: options.messages,
-      })}
-    >
-      {options.children}
-    </ClientProvider>
-  );
+  const { children, ...props } = options;
+  return <ClientProvider {...compact(props)}>{children}</ClientProvider>;
 }

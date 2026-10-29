@@ -101,7 +101,7 @@ describe(snapshotFor, () => {
 
     const lead = {
       id: "lee",
-      memberships: [{ tenant: "acme", roles: ["lead"] }],
+      memberships: [{ scope: "tenant", id: "acme", roles: ["lead"] }],
     };
     const customRoles = [
       { tenant: "acme", name: "lead", includes: ["admin"] },
@@ -123,7 +123,7 @@ describe(snapshotFor, () => {
     const demoted = fromSnapshot(
       snapshotFor(policy, alice, {
         tenant: "acme",
-        memberships: [{ tenant: "acme", roles: ["viewer"] }],
+        memberships: [{ scope: "tenant", id: "acme", roles: ["viewer"] }],
       }),
     );
     expect(demoted.can(permissions.member.invite)).toBe(false);
@@ -188,7 +188,7 @@ describe(mayAccess, () => {
     ).toBe(true);
     const custom = {
       id: "lee",
-      memberships: [{ tenant: "acme", roles: ["lead"] }],
+      memberships: [{ scope: "tenant", id: "acme", roles: ["lead"] }],
     };
     expect(
       mayAccess(policy, custom, permissions.billing.manage, { tenant: "acme" }),

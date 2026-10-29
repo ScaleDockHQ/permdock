@@ -62,8 +62,8 @@ describe(evaluateCondition, () => {
     const holder = {
       id: "u1",
       memberships: [
-        { tenant: "o1", roles: ["viewer"] },
-        { tenant: "o2", roles: ["viewer"] },
+        { scope: "tenant", id: "o1", roles: ["viewer"] },
+        { scope: "tenant", id: "o2", roles: ["viewer"] },
       ],
     };
     const row = { orgId: "o2" };
@@ -275,10 +275,20 @@ describe(evaluateCondition, () => {
         id: "u1",
         tenant: "o1",
         memberships: [
-          { tenant: "o1", roles: ["viewer"] },
-          { tenant: "o1", team: "t1", roles: ["lead"] },
+          { scope: "tenant", id: "o1", roles: ["viewer"] },
+          {
+            within: { tenant: "o1" },
+            scope: "team",
+            id: "t1",
+            roles: ["lead"],
+          },
           { on: { resource: "document", id: "d1" }, roles: ["editor"] },
-          { tenant: "old", roles: ["viewer"], expiresAt: now - 10 },
+          {
+            scope: "tenant",
+            id: "old",
+            roles: ["viewer"],
+            expiresAt: now - 10,
+          },
         ],
       },
     });

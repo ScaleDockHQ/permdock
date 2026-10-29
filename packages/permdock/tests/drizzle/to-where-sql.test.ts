@@ -47,8 +47,8 @@ const subject: Subject = {
     id: "u1",
     tenant: "o1",
     memberships: [
-      { tenant: "o1", roles: ["viewer"] },
-      { tenant: "o1", team: "t1", roles: ["lead"] },
+      { scope: "tenant", id: "o1", roles: ["viewer"] },
+      { within: { tenant: "o1" }, scope: "team", id: "t1", roles: ["lead"] },
       { on: { resource: "document", id: "d1" }, roles: ["editor"] },
     ],
   },

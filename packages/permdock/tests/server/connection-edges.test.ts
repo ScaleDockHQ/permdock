@@ -19,7 +19,12 @@ type State = {
   roles: string[];
   fail?: boolean;
   expiresAt?: number;
-  memberships?: { tenant: string; roles: string[]; expiresAt?: number }[];
+  memberships?: {
+    scope: string;
+    id: string;
+    roles: string[];
+    expiresAt?: number;
+  }[];
 };
 
 function kernelFor(
@@ -196,11 +201,11 @@ describe("connection edges", () => {
         id: "u1",
         roles: ["member"],
         memberships: [
-          { tenant: "o1", roles: ["member"], expiresAt: now + 20 },
-          { tenant: "o2", roles: ["member"], expiresAt: now + 5 },
-          { tenant: "o3", roles: ["member"], expiresAt: now + 50 },
-          { tenant: "o4", roles: ["member"], expiresAt: now - 5 },
-          { tenant: "o5", roles: ["member"] },
+          { scope: "tenant", id: "o1", roles: ["member"], expiresAt: now + 20 },
+          { scope: "tenant", id: "o2", roles: ["member"], expiresAt: now + 5 },
+          { scope: "tenant", id: "o3", roles: ["member"], expiresAt: now + 50 },
+          { scope: "tenant", id: "o4", roles: ["member"], expiresAt: now - 5 },
+          { scope: "tenant", id: "o5", roles: ["member"] },
         ],
       });
       const conn = await kernel.connection(request());

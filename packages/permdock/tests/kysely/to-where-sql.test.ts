@@ -96,7 +96,7 @@ const subject: Subject = {
     id: "u1",
     tenant: "o1",
     memberships: [
-      { tenant: "o1", roles: ["viewer"] },
+      { scope: "tenant", id: "o1", roles: ["viewer"] },
       { on: { resource: "document", id: "d1" }, roles: ["editor"] },
     ],
   },

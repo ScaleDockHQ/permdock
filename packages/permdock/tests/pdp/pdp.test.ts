@@ -269,7 +269,8 @@ describe("permdock/pdp", () => {
         readonly id: string;
         readonly roles: readonly string[];
         readonly memberships: readonly {
-          readonly tenant: string;
+          readonly scope: string;
+          readonly id: string;
           readonly roles: readonly string[];
         }[];
       }) => user,
@@ -292,8 +293,8 @@ describe("permdock/pdp", () => {
       id: "user-1",
       roles: ["member"],
       memberships: [
-        { tenant: "acme", roles: ["member"] },
-        { tenant: "globex", roles: ["member"] },
+        { scope: "tenant", id: "acme", roles: ["member"] },
+        { scope: "tenant", id: "globex", roles: ["member"] },
       ],
     });
     expect(await permdock.tenant("acme").can(permissions.post.read, post)).toBe(

@@ -26,14 +26,14 @@ const CLAIMS: Record<DevUser, Record<string, unknown>> = {
     role: "authenticated",
     user_role: "member",
     tenant_id: "o1",
-    memberships: [{ tenant: "o1", roles: ["member"] }],
+    memberships: [{ scope: "tenant", id: "o1", roles: ["member"] }],
   },
   admin: {
     sub: "u2",
     role: "authenticated",
     user_role: "admin",
     tenant_id: "o1",
-    memberships: [{ tenant: "o1", roles: ["admin"] }],
+    memberships: [{ scope: "tenant", id: "o1", roles: ["admin"] }],
   },
 };
 

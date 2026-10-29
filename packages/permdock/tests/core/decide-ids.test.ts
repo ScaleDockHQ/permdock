@@ -29,7 +29,10 @@ const policy = definePolicy(
   },
 );
 const subject: Subject = {
-  principal: { id: "u1", memberships: [{ tenant: "acme", roles: ["reader"] }] },
+  principal: {
+    id: "u1",
+    memberships: [{ scope: "tenant", id: "acme", roles: ["reader"] }],
+  },
   context: {},
 };
 const rows = [

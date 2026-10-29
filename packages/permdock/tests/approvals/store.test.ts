@@ -31,7 +31,7 @@ function subject(id: string, tenant?: string): Subject {
             id,
             roles: ["admin"],
             tenant,
-            memberships: [{ tenant, roles: ["admin"] }],
+            memberships: [{ scope: "tenant", id: tenant, roles: ["admin"] }],
           },
     context: {},
   };
@@ -378,7 +378,7 @@ describe("request and resume helpers", () => {
             id: "u_2",
             roles: ["member"],
             tenant: "o_1",
-            memberships: [{ tenant: "o_1", roles: ["member"] }],
+            memberships: [{ scope: "tenant", id: "o_1", roles: ["member"] }],
           },
           context: {},
         },

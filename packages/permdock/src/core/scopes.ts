@@ -204,10 +204,9 @@ export function scopeIdOf(
  * id is a tenant. Needs no scope list, for code that holds only a subject.
  */
 export function rootMembershipId(membership: Membership): string | undefined {
-  if (membership.scope !== undefined) {
-    return membership.within === undefined ? membership.id : undefined;
-  }
-  return membership.team === undefined ? membership.tenant : undefined;
+  return membership.scope !== undefined && membership.within === undefined
+    ? membership.id
+    : undefined;
 }
 
 /**
@@ -319,11 +318,13 @@ export function normalizeMembership(
     }
     extra.keep = Object.freeze([...raw["keep"]]);
   }
+  if (raw["tenant"] !== undefined || raw["team"] !== undefined) {
+    return undefined;
+  }
   const named = raw["scope"] !== undefined || raw["id"] !== undefined;
-  const legacy = raw["tenant"] !== undefined || raw["team"] !== undefined;
   const on = raw["on"];
   if (on !== undefined) {
-    if (named || legacy || on === null || typeof on !== "object") {
+    if (named || on === null || typeof on !== "object") {
       return undefined;
     }
     // SAFETY: on is a non-null object checked above; resource and id are checked below.
@@ -338,40 +339,23 @@ export function normalizeMembership(
       ...extra,
     });
   }
-  let scope: string | undefined;
-  let id: unknown;
+  if (!named) {
+    return undefined;
+  }
+  const scope = resolveScope(scopes, raw["scope"]);
   let within: Record<string, unknown> = {};
-  if (named) {
-    if (legacy) {
+  if (raw["within"] !== undefined) {
+    if (
+      raw["within"] === null ||
+      typeof raw["within"] !== "object" ||
+      Array.isArray(raw["within"])
+    ) {
       return undefined;
     }
-    scope = resolveScope(scopes, raw["scope"]);
-    id = raw["id"];
-    if (raw["within"] !== undefined) {
-      if (
-        raw["within"] === null ||
-        typeof raw["within"] !== "object" ||
-        Array.isArray(raw["within"])
-      ) {
-        return undefined;
-      }
-      // SAFETY: within is a non-null, non-array object checked above; its values stay unknown.
-      within = raw["within"] as Record<string, unknown>;
-    }
-  } else if (raw["team"] !== undefined) {
-    scope = resolveScope(scopes, "team");
-    id = raw["team"];
-    const parent = resolveScope(scopes, "tenant");
-    if (raw["tenant"] !== undefined && parent !== undefined) {
-      within = { [parent]: raw["tenant"] };
-    }
-  } else if (raw["tenant"] === undefined) {
-    return undefined;
-  } else {
-    scope = resolveScope(scopes, "tenant");
-    id = raw["tenant"];
+    // SAFETY: within is a non-null, non-array object checked above; its values stay unknown.
+    within = raw["within"] as Record<string, unknown>;
   }
-  const text = idText(id);
+  const text = idText(raw["id"]);
   if (scope === undefined || text === undefined) {
     return undefined;
   }
@@ -414,23 +398,6 @@ export function normalizeMemberships(
     }
   }
   return out;
-}
-
-/**
- * A subject's memberships in canonical form. Resolved subjects already are;
- * this accepts a hand-built subject passed straight to a condition evaluator or
- * compiler.
- */
-export function subjectMemberships(
-  memberships: readonly Membership[] | undefined,
-  scopes: readonly Scope[],
-): readonly Membership[] {
-  const list = memberships ?? [];
-  const legacy = list.some(
-    (membership) =>
-      membership.tenant !== undefined || membership.team !== undefined,
-  );
-  return legacy ? normalizeMemberships(list, scopes) : list;
 }
 
 /**

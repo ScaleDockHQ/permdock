@@ -345,7 +345,7 @@ describe(subjectFromJwt, () => {
     expect(subject.principal?.plans).toStrictEqual(["billing"]);
     expect(subject.principal?.tenant).toBe("o_1");
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "o_1", roles: ["lead"], via: "group:9f2c" },
+      { scope: "tenant", id: "o_1", roles: ["lead"], via: "group:9f2c" },
     ]);
     expect(subject.principal?.assurance).toStrictEqual({
       acr: "urn:example:acr:2",
@@ -831,13 +831,15 @@ describe("configuration and remaining causes", () => {
       sender: "none",
       claims: { kind: "workload", memberships: "tenants" },
       memberships: {
-        membershipsFor: () => [{ tenant: "o_2", roles: ["guest"] }],
+        membershipsFor: () => [
+          { scope: "tenant", id: "o_2", roles: ["guest"] },
+        ],
       },
     });
     expect(subject.principal?.kind).toBe("workload");
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "o_1", roles: ["owner"] },
-      { tenant: "o_2", roles: ["guest"] },
+      { scope: "tenant", id: "o_1", roles: ["owner"] },
+      { scope: "tenant", id: "o_2", roles: ["guest"] },
     ]);
   });
 
@@ -860,7 +862,7 @@ describe("configuration and remaining causes", () => {
       },
     });
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "o_1", roles: ["owner"] },
+      { scope: "tenant", id: "o_1", roles: ["owner"] },
     ]);
     expect(events).toStrictEqual([
       expect.objectContaining({

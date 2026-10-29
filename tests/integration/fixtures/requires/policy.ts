@@ -59,17 +59,29 @@ const uuid = (n: number): string =>
   `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
 export const users: readonly RequiresUser[] = [
-  { id: uuid(1), memberships: [{ tenant: "acme", roles: ["member"] }] },
-  { id: uuid(2), memberships: [{ tenant: "acme", roles: ["guest"] }] },
+  {
+    id: uuid(1),
+    memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
+  },
+  {
+    id: uuid(2),
+    memberships: [{ scope: "tenant", id: "acme", roles: ["guest"] }],
+  },
   {
     id: uuid(3),
     memberships: [
-      { tenant: "acme", roles: ["member", "blocked"] },
-      { tenant: "globex", roles: ["member"] },
+      { scope: "tenant", id: "acme", roles: ["member", "blocked"] },
+      { scope: "tenant", id: "globex", roles: ["member"] },
     ],
   },
-  { id: uuid(4), memberships: [{ tenant: "acme", roles: ["reader"] }] },
-  { id: uuid(5), memberships: [{ tenant: "globex", roles: ["member"] }] },
+  {
+    id: uuid(4),
+    memberships: [{ scope: "tenant", id: "acme", roles: ["reader"] }],
+  },
+  {
+    id: uuid(5),
+    memberships: [{ scope: "tenant", id: "globex", roles: ["member"] }],
+  },
   { id: uuid(6), memberships: [] },
 ];
 
@@ -120,7 +132,8 @@ ${users
   .flatMap((user) =>
     user.memberships.flatMap((membership) =>
       membership.roles.map(
-        (name) => `  ('${membership.tenant ?? ""}', '${user.id}', '${name}')`,
+        (name) =>
+          `  ('${membership.within?.["tenant"] ?? membership.id ?? ""}', '${user.id}', '${name}')`,
       ),
     ),
   )

@@ -9,7 +9,7 @@ const claims = {
   sub: "u1",
   user_role: "member",
   tenant_id: "o1",
-  memberships: [{ tenant: "o1", roles: ["member"] }],
+  memberships: [{ scope: "tenant", id: "o1", roles: ["member"] }],
 };
 
 function permdockForMember() {

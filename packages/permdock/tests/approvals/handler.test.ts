@@ -51,7 +51,7 @@ const viewer: Subject = {
   principal: {
     id: "u_1",
     roles: [],
-    memberships: [{ tenant: "o_1", roles: ["admin"] }],
+    memberships: [{ scope: "tenant", id: "o_1", roles: ["admin"] }],
   },
   context: {},
 };
@@ -204,7 +204,7 @@ describe("approvalsHandler inbox", () => {
         principal: {
           id: "u_9",
           roles: [],
-          memberships: [{ tenant: "o_acme", roles: ["admin"] }],
+          memberships: [{ scope: "tenant", id: "o_acme", roles: ["admin"] }],
         },
         context: {},
       }),

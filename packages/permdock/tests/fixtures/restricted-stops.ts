@@ -94,7 +94,7 @@ export const users: readonly RestrictedUser[] = [
   {
     id: uuid(4),
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["member"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
   },
   { id: uuid(5), memberships: [] },
   { id: uuid(6), memberships: [] },

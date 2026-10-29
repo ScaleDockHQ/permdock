@@ -113,7 +113,7 @@ describe("instance edges", () => {
     leaking.can(tree.post.read, { id: "p1", authorId: "u1", orgId: "o1" });
     expect(errors.length).toBeGreaterThan(0);
     const preview = permdock.simulate({
-      memberships: [{ tenant: "o1", roles: ["viewer"] }],
+      memberships: [{ scope: "tenant", id: "o1", roles: ["viewer"] }],
       tenant: "o1",
     });
     if (Array.isArray(preview)) {

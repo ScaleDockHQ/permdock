@@ -14,7 +14,6 @@ import {
   rootScope,
   scopeChain,
   scopeList,
-  subjectMemberships,
   tenantOf,
 } from "../core/scopes.ts";
 import { epochSeconds, INVALID_NOW } from "../core/time.ts";
@@ -353,12 +352,8 @@ function matchingMemberships(
   condition: Extract<Condition, { readonly op: "memberOf" }>,
   subject: Subject | undefined,
   now: number,
-  scopes: readonly Scope[],
 ): Membership[] {
-  const memberships = subjectMemberships(
-    subject?.principal?.memberships,
-    scopes,
-  );
+  const memberships = subject?.principal?.memberships ?? [];
   const wanted = new Set(condition.roles);
   return memberships.filter((membership) => {
     if (expiredAt(membership, now)) {
@@ -538,7 +533,7 @@ function compileMemberOf(
       scopes,
     );
   }
-  const matched = matchingMemberships(condition, options.subject, now, scopes);
+  const matched = matchingMemberships(condition, options.subject, now);
   const active = activeTenant(options.subject);
   if (scope !== undefined) {
     return inList(

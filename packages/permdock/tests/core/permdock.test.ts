@@ -376,7 +376,7 @@ describe(getPermDockSync, () => {
         principal: {
           id: "u4",
           roles: ["staff"],
-          memberships: [{ tenant: "o1", roles: ["staff"] }],
+          memberships: [{ scope: "tenant", id: "o1", roles: ["staff"] }],
         },
         context: {},
       },
@@ -471,7 +471,7 @@ describe(getPermDockSync, () => {
       scopes: { tenant: { key: "orgId" } },
       subject: () => ({
         id: "u1",
-        memberships: [{ tenant: "o1", roles: ["viewer"] }],
+        memberships: [{ scope: "tenant", id: "o1", roles: ["viewer"] }],
       }),
     });
     const permdock = getPermDockSync(

@@ -49,7 +49,11 @@ function approver(id: string, tenants: readonly string[]): Subject {
     principal: {
       id,
       roles: [],
-      memberships: tenants.map((tenant) => ({ tenant, roles: ["admin"] })),
+      memberships: tenants.map((tenant) => ({
+        scope: "tenant",
+        id: tenant,
+        roles: ["admin"],
+      })),
     },
     context: {},
   };
@@ -324,7 +328,7 @@ describe("self-approval", () => {
     principal: {
       id: "u_1",
       roles: ["member"],
-      memberships: [{ tenant: "o_1", roles: ["admin"] }],
+      memberships: [{ scope: "tenant", id: "o_1", roles: ["admin"] }],
     },
     context: {},
   } satisfies Subject;

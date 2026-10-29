@@ -24,7 +24,7 @@ describe("tenancy", () => {
     const principal = {
       id: "u1",
       memberships: normalizeMemberships(
-        [{ tenant: "o1", roles: ["viewer"] }],
+        [{ scope: "tenant", id: "o1", roles: ["viewer"] }],
         scopes,
       ),
     };
@@ -45,9 +45,14 @@ describe("tenancy", () => {
         tenant: "o1",
         memberships: normalizeMemberships(
           [
-            { tenant: "o1", roles: ["viewer"] },
-            { tenant: "o1", team: "t1", roles: ["lead"] },
-            { tenant: "o1", roles: ["stale"], expiresAt: 10 },
+            { scope: "tenant", id: "o1", roles: ["viewer"] },
+            {
+              within: { tenant: "o1" },
+              scope: "team",
+              id: "t1",
+              roles: ["lead"],
+            },
+            { scope: "tenant", id: "o1", roles: ["stale"], expiresAt: 10 },
           ],
           scopes,
         ),
@@ -253,7 +258,7 @@ describe("no-tenant denial", () => {
   const subject: Subject = {
     principal: {
       id: "u1",
-      memberships: [{ tenant: "acme", roles: ["admin"] }],
+      memberships: [{ scope: "tenant", id: "acme", roles: ["admin"] }],
     },
     context: {},
   };

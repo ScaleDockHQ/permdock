@@ -33,7 +33,7 @@ const billingManager: CustomRole = {
 };
 ```
 
-A member holds it like any role: `{ tenant: 'o_acme', roles: ['billing-manager'] }`. [Tenancy](/docs/concepts/tenancy) covers memberships and the `CustomRoleSource` interface.
+A member holds it like any role: `{ scope: 'tenant', id: 'o_acme', roles: ['billing-manager'] }`. [Tenancy](/docs/concepts/tenancy) covers memberships and the `CustomRoleSource` interface.
 
 ## The ceiling
 
@@ -60,7 +60,7 @@ const tier2: CustomRole = {
 
 ### Shared custom roles
 
-A custom role with `shared: true` and no `tenant`, `team` or `id` is a shared role: the platform defines it once and every tenant offers it, such as a "Billing contact" that staff maintain for all customers. `scope` names the scope it is held at and defaults to the first scope; `'global'` is not allowed, because a global role is already held everywhere. Its ceiling is the ceiling of that scope, as for a tenant custom role. A member holds it by name on a membership of that scope in any tenant: `{ tenant: 'o_acme', roles: ['billing-contact'] }`.
+A custom role with `shared: true` and no `tenant`, `team` or `id` is a shared role: the platform defines it once and every tenant offers it, such as a "Billing contact" that staff maintain for all customers. `scope` names the scope it is held at and defaults to the first scope; `'global'` is not allowed, because a global role is already held everywhere. Its ceiling is the ceiling of that scope, as for a tenant custom role. A member holds it by name on a membership of that scope in any tenant: `{ scope: 'tenant', id: 'o_acme', roles: ['billing-contact'] }`.
 
 ```ts
 const billingContact: CustomRole = {

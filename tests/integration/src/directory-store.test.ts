@@ -323,7 +323,8 @@ describe("scim generate on Supabase", () => {
       await source.membershipsFor({ id: "00u1" }, { tenant: "acme" }),
     ).toStrictEqual([
       {
-        tenant: "acme",
+        scope: "tenant",
+        id: "acme",
         roles: ["editor"],
         via: "group:g_editors",
         managedBy: "idp",

@@ -195,9 +195,9 @@ describe(compileWhere, () => {
       id: "u1",
       tenant: "o1",
       memberships: [
-        { tenant: "o1", roles: ["viewer"] },
-        { tenant: "o2", roles: ["viewer"] },
-        { tenant: "old", roles: ["viewer"], expiresAt: now - 10 },
+        { scope: "tenant", id: "o1", roles: ["viewer"] },
+        { scope: "tenant", id: "o2", roles: ["viewer"] },
+        { scope: "tenant", id: "old", roles: ["viewer"], expiresAt: now - 10 },
       ],
     });
     expect(
@@ -215,8 +215,8 @@ describe(compileWhere, () => {
     const noActive = sub({
       id: "u1",
       memberships: [
-        { tenant: "o1", roles: ["viewer"] },
-        { tenant: "o2", roles: ["viewer"] },
+        { scope: "tenant", id: "o1", roles: ["viewer"] },
+        { scope: "tenant", id: "o2", roles: ["viewer"] },
       ],
     });
     expect(
@@ -237,8 +237,8 @@ describe(compileWhere, () => {
       id: "u1",
       tenant: "o1",
       memberships: [
-        { tenant: "o1", team: "t1", roles: ["lead"] },
-        { tenant: "o2", team: "t2", roles: ["lead"] },
+        { within: { tenant: "o1" }, scope: "team", id: "t1", roles: ["lead"] },
+        { within: { tenant: "o2" }, scope: "team", id: "t2", roles: ["lead"] },
         { on: { resource: "document", id: "d1" }, roles: ["editor"] },
         { on: { resource: "folder", id: "f1" }, roles: ["editor"] },
       ],
@@ -468,7 +468,7 @@ describe(compileWhere, () => {
       memberships: [
         { roles: ["lead"] },
         { roles: ["editor"] },
-        { tenant: "o1", team: "t1", roles: ["lead"] },
+        { within: { tenant: "o1" }, scope: "team", id: "t1", roles: ["lead"] },
       ],
     });
     expect(
@@ -688,7 +688,7 @@ describe(compileWhere, () => {
       principal: {
         id: "u1",
         tenant: "o1",
-        memberships: [{ tenant: "o1", roles: [] }],
+        memberships: [{ scope: "tenant", id: "o1", roles: [] }],
       },
       context: {},
     };

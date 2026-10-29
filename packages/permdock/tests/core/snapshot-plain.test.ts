@@ -104,8 +104,8 @@ const ana: User = {
   id: "ana",
   roles: ["support"],
   memberships: [
-    { tenant: "acme", roles: ["owner", "member", "reader"] },
-    { tenant: "globex", roles: ["member", "blocked"] },
+    { scope: "tenant", id: "acme", roles: ["owner", "member", "reader"] },
+    { scope: "tenant", id: "globex", roles: ["member", "blocked"] },
   ],
 };
 

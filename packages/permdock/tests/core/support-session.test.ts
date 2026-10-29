@@ -234,7 +234,7 @@ describe(decideSupportSession, () => {
         id: "u_staff",
         kind: "user",
         tenant: "o_1",
-        memberships: [{ tenant: "o_1", roles: [] }],
+        memberships: [{ scope: "tenant", id: "o_1", roles: [] }],
       },
       context: {},
     });

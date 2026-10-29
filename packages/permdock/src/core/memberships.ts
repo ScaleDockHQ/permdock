@@ -16,8 +16,6 @@ function identity(membership: Membership): string {
     membership.id ?? null,
     within,
     membership.on ?? null,
-    membership.tenant ?? null,
-    membership.team ?? null,
     membership.via ?? null,
     membership.expiresAt ?? null,
     membership.grantedBy ?? null,

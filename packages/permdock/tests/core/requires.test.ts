@@ -96,7 +96,8 @@ async function readable(user: User): Promise<readonly string[]> {
 }
 
 const member = (tenant: string, ...roles: string[]): Membership => ({
-  tenant,
+  scope: "tenant",
+  id: tenant,
   roles,
 });
 
@@ -340,7 +341,7 @@ describe("requires and a delegated key's scopes", () => {
         principal: {
           id,
           tenant: "acme",
-          memberships: [{ tenant: "acme", roles: [...roles] }],
+          memberships: [{ scope: "tenant", id: "acme", roles: [...roles] }],
         },
         context: {},
         delegation: { scopes: [...scopes] },
@@ -371,7 +372,7 @@ describe("requires and a delegated key's scopes", () => {
         principal: {
           id: "ana",
           tenant: "acme",
-          memberships: [{ tenant: "acme", roles: ["member"] }],
+          memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
         },
         context: {},
         delegation: { scopes: ["drive:read"] },
@@ -393,7 +394,7 @@ describe("requires and a delegated key's scopes", () => {
         principal: {
           id: "ana",
           tenant: "acme",
-          memberships: [{ tenant: "acme", roles: ["member"] }],
+          memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
         },
         context: {},
         delegation: { scopes: ["drive:read", "file:read"] },
@@ -438,7 +439,7 @@ describe("requires and a delegated key's scopes", () => {
           principal: {
             id: "ana",
             tenant: "acme",
-            memberships: [{ tenant: "acme", roles: ["member"] }],
+            memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
           },
           context: {},
           delegation: { scopes: [...scopes] },
@@ -551,7 +552,7 @@ describe("requires and a key's scopes on a write", () => {
         principal: {
           id: "ana",
           tenant: "acme",
-          memberships: [{ tenant: "acme", roles: [...roles] }],
+          memberships: [{ scope: "tenant", id: "acme", roles: [...roles] }],
         },
         context: {},
         delegation: { scopes: [...scopes] },

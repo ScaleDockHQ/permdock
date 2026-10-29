@@ -21,7 +21,7 @@ const policy = definePolicy(permissions, {
       : {
           id: user.id,
           roles: ["viewer"],
-          memberships: [{ tenant: user.orgId, roles: [] }],
+          memberships: [{ scope: "tenant", id: user.orgId, roles: [] }],
         },
 });
 

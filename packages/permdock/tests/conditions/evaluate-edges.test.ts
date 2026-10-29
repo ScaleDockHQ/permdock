@@ -20,7 +20,7 @@ describe("evaluateCondition edges", () => {
       id: "u1",
       tenant: "o1",
       memberships: [
-        { tenant: "o1", team: "t1", roles: ["lead"] },
+        { within: { tenant: "o1" }, scope: "team", id: "t1", roles: ["lead"] },
         { on: { resource: "folder", id: "f1" }, roles: ["editor"] },
       ],
     };
@@ -215,7 +215,7 @@ describe("evaluateCondition edges", () => {
       id: "u1",
       tenant: "o1",
       memberships: [
-        { tenant: "o1", team: "t1", roles: ["lead"] },
+        { within: { tenant: "o1" }, scope: "team", id: "t1", roles: ["lead"] },
         { on: { resource: "folder", id: "f1" }, roles: ["editor"] },
       ],
     };

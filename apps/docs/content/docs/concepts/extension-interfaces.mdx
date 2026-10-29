@@ -359,7 +359,7 @@ const principals = memoryPrincipalSource({
     {
       id: "u_1",
       kind: "user",
-      memberships: [{ tenant: "acme", roles: ["admin"] }],
+      memberships: [{ scope: "tenant", id: "acme", roles: ["admin"] }],
     },
   ],
   identities: [

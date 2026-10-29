@@ -41,19 +41,19 @@ const users: readonly User[] = [
   {
     id: "u1",
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["admin"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["admin"] }],
   },
   {
     id: "u2",
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["member"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
   },
   { id: "u3", memberships: [] },
   { id: "u4", memberships: [] },
   {
     id: "u5",
     tenant: "other",
-    memberships: [{ tenant: "other", roles: ["member"] }],
+    memberships: [{ scope: "tenant", id: "other", roles: ["member"] }],
   },
 ];
 

@@ -92,7 +92,7 @@ describe("subjectFromBetterAuth edge cases", () => {
       noLister: noLister.principal?.memberships,
     }).toStrictEqual({
       queried: ["acme"],
-      listed: [{ tenant: "acme", roles: ["admin"] }],
+      listed: [{ scope: "tenant", id: "acme", roles: ["admin"] }],
       notArray: [],
       noLister: [],
     });

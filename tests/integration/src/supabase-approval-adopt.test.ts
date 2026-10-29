@@ -148,7 +148,7 @@ describe("supabase approval adopt", () => {
             id: "boss",
             roles: [],
             tenant: "acme",
-            memberships: [{ tenant: "acme", roles: ["admin"] }],
+            memberships: [{ scope: "tenant", id: "acme", roles: ["admin"] }],
           },
           context: {},
         },

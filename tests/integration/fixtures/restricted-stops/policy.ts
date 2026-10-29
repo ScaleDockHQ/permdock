@@ -97,7 +97,7 @@ export const users: readonly RestrictedUser[] = [
   {
     id: uuid(4),
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["member"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
   },
   { id: uuid(5), memberships: [] },
   { id: uuid(6), memberships: [] },
@@ -256,7 +256,8 @@ ${users
   .flatMap((user) =>
     user.memberships.flatMap((membership) =>
       membership.roles.map(
-        (name) => `  ('${membership.tenant ?? ""}', '${user.id}', '${name}')`,
+        (name) =>
+          `  ('${membership.within?.["tenant"] ?? membership.id ?? ""}', '${user.id}', '${name}')`,
       ),
     ),
   )

@@ -58,7 +58,7 @@ const adminClaims: SupabaseJwtClaims = {
 };
 
 const subjectOptions = {
-  claims: { roles: "user_role", tenant: "tenant_id" },
+  claims: { roles: "user_role", scope: "tenant", id: "tenant_id" },
   declared: ["member", "admin"],
 } as const;
 
@@ -209,8 +209,8 @@ describe("permdock/supabase/middleware", () => {
           claims: {
             ...memberClaims,
             memberships: [
-              { tenant: "o1", roles: ["member"] },
-              { tenant: "o2", roles: ["member"] },
+              { scope: "tenant", id: "o1", roles: ["member"] },
+              { scope: "tenant", id: "o2", roles: ["member"] },
             ],
           },
         }),

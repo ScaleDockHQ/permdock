@@ -104,17 +104,15 @@ describe(readWireApproval, () => {
     expect(
       readWireApproval({
         stages: [{ by: { kind: "authenticated" } }],
-        mode: "sequential",
-        distinct: false,
+        combine: "sequential",
+        mode: "confirm",
       }),
     ).toStrictEqual({
       stages: [{ by: { kind: "authenticated" } }],
       combine: "sequential",
       mode: "confirm",
     });
-    expect(readWireApproval({ by: "x", distinct: true })).toStrictEqual({
-      by: "x",
-    });
+    expect(readWireApproval({ by: "x" })).toStrictEqual({ by: "x" });
     const current = { combine: "all", mode: "confirm" } as const;
     expect(readWireApproval(current)).toBe(current);
     expect(readWireApproval("human")).toBe("human");
@@ -128,7 +126,7 @@ describe(readWireApproval, () => {
         { by: { kind: "user", id: "u_a" } },
         { by: { kind: "user", id: "u_b" } },
       ],
-      mode: "sequential",
+      combine: "sequential",
     } as unknown as NonNullable<ApprovalRequest["approvers"]>;
     await store.create(pending("pd1.legacy", legacy));
     await expect(

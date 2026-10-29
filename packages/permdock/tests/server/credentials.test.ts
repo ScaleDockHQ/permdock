@@ -82,7 +82,7 @@ const owner = {
   id: "u_1",
   kind: "user" as const,
   tenant: "o_1",
-  memberships: [{ tenant: "o_1", roles: ["developer"] }],
+  memberships: [{ scope: "tenant", id: "o_1", roles: ["developer"] }],
 };
 
 function permdockFor(subject: Subject) {
@@ -379,7 +379,7 @@ describe(subjectFromApiKey, () => {
       memberships: {
         membershipsFor: (principal) =>
           principal.id === "u_1"
-            ? [{ tenant: "o_1", roles: ["developer"] }]
+            ? [{ scope: "tenant", id: "o_1", roles: ["developer"] }]
             : [],
       },
     });
@@ -594,7 +594,7 @@ describe("subjectFromApiKey: a key over many permissions", () => {
           id: "u_1",
           kind: "user",
           tenant: "o_1",
-          memberships: [{ tenant: "o_1", roles: ["admin"] }],
+          memberships: [{ scope: "tenant", id: "o_1", roles: ["admin"] }],
         }),
       },
       onAuth: (event) => {
@@ -620,8 +620,8 @@ describe("a user key held to one tenant on a route of another", () => {
     kind: "user" as const,
     tenant: "o_1",
     memberships: [
-      { tenant: "o_1", roles: ["developer"] },
-      { tenant: "o_2", roles: ["developer"] },
+      { scope: "tenant", id: "o_1", roles: ["developer"] },
+      { scope: "tenant", id: "o_2", roles: ["developer"] },
     ],
   };
   const r2 = { id: "r_2", orgId: "o_2" };

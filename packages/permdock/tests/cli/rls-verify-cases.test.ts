@@ -144,7 +144,7 @@ export const policy = definePolicy(permissions, {
             subject: {
               id: "u1",
               tenant: "o1",
-              memberships: [{ tenant: "o1", roles: ["editor"] }],
+              memberships: [{ scope: "tenant", id: "o1", roles: ["editor"] }],
             },
             row: own,
             action: "post.publish",
@@ -190,7 +190,9 @@ export const policy = definePolicy(permissions, {
           subject: {
             id: "u1",
             tenant: "o1",
-            memberships: [{ tenant: "o1", roles: ["member", "editor"] }],
+            memberships: [
+              { scope: "tenant", id: "o1", roles: ["member", "editor"] },
+            ],
           },
           row: own,
           action: "post.publish",
