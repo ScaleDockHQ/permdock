@@ -550,6 +550,7 @@ export function tightenApproval(
   const seen = new Set<string>();
   let sequential = false;
   let authorize = false;
+  let fallback = true;
   let staleOn: ApprovalRequirement["staleOn"];
   let ttl: number | undefined;
   for (const [index, part] of parts.entries()) {
@@ -563,10 +564,14 @@ export function tightenApproval(
     }
     if (part === "human") {
       authorize = true;
+      fallback = false;
       continue;
     }
     sequential ||= part.combine === "sequential";
-    authorize ||= part.mode !== "confirm";
+    if (part.mode !== "confirm") {
+      authorize = true;
+      fallback &&= part.fallback === "confirm";
+    }
     staleOn ??= part.staleOn;
     ttl = shorter(ttl, part.ttl);
   }
@@ -574,6 +579,7 @@ export function tightenApproval(
     combine: sequential ? "sequential" : "all",
     stages,
     mode: authorize ? undefined : "confirm",
+    fallback: authorize && fallback ? "confirm" : undefined,
     staleOn,
     ttl,
     escalation:

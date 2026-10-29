@@ -388,6 +388,7 @@ export type {
   ActivationOption,
   ApprovalEscalation,
   ApprovalCombine,
+  ApprovalFallback,
   ApprovalMode,
   ApprovalOption,
   ApprovalRequirement,
