@@ -6,10 +6,10 @@ import type {
 import type { LocalSnapshotData } from "./local.ts";
 import type { RowPrincipal } from "./powersync-rows.ts";
 
-import { compact } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { isMembershipExpired } from "../core/tenancy.ts";
 import { buildLocalSnapshot } from "./local.ts";
-import { readRows, rowQuery, rowTables } from "./powersync-rows.ts";
+import { quoted, readRows, rowQuery, rowTables } from "./powersync-rows.ts";
 
 /** The `PowerSyncDatabase` methods `powerSyncSource` calls. */
 export type PowerSyncWatchable = {
@@ -70,12 +70,44 @@ export type PowerSyncSourceOptions<Q extends string> =
       readonly read?: undefined;
     };
 
+/** A `powerSyncSource`: a snapshot source that also reads the synced version. */
+export type PowerSyncSnapshotSource = SnapshotSource & {
+  /**
+   * The signed-in user's synced `authz_ver`, read from `manifest.rows.version`.
+   * `undefined` without `user`, without that table, or before its row syncs.
+   */
+  readonly authzVersion: () => Promise<number | undefined>;
+};
+
 type Plan = {
   readonly queries: Readonly<Record<string, PowerSyncQuery>>;
   readonly read: (
     rows: Readonly<Record<string, readonly unknown[]>>,
   ) => LocalSnapshotData;
 };
+
+/** The query over `permdock_authz_version` the manifest names, by user id. */
+export function authzVersionQuery(
+  version: NonNullable<NonNullable<LocalSnapshotManifest["rows"]>["version"]>,
+): string {
+  return `SELECT ${quoted(version.version)} AS version FROM ${quoted(version.table)} WHERE ${quoted(version.user)} = ?`;
+}
+
+/** The highest non-negative integer `version` among `rows`. */
+export function highestVersion(rows: readonly unknown[]): number | undefined {
+  let found: number | undefined;
+  for (const row of rows) {
+    const value = Number(isRecord(row) ? row["version"] : undefined);
+    if (
+      Number.isSafeInteger(value) &&
+      value >= 0 &&
+      (found === undefined || value > found)
+    ) {
+      found = value;
+    }
+  }
+  return found;
+}
 
 function planOf<Q extends string>(options: PowerSyncSourceOptions<Q>): Plan {
   if (!("user" in options)) {
@@ -113,8 +145,10 @@ function planOf<Q extends string>(options: PowerSyncSourceOptions<Q>): Plan {
 export function powerSyncSource<Q extends string>(
   db: PowerSyncWatchable,
   options: PowerSyncSourceOptions<Q>,
-): SnapshotSource {
+): PowerSyncSnapshotSource {
   const plan = planOf(options);
+  const version = options.manifest.rows?.version;
+  const user = "user" in options ? options.user : undefined;
   const queries = Object.entries(plan.queries);
   const rows = new Map<string, readonly unknown[]>();
   const dirty = new Set<string>();
@@ -190,6 +224,10 @@ export function powerSyncSource<Q extends string>(
   };
 
   return {
+    authzVersion: async () =>
+      version === undefined || user === undefined
+        ? undefined
+        : highestVersion(await db.getAll(authzVersionQuery(version), [user])),
     get: () => {
       pending ??= read().finally(() => {
         pending = undefined;
@@ -223,12 +261,12 @@ export function powerSyncSource<Q extends string>(
 export type PowerSyncSourceCache = {
   readonly source: <Q extends string>(
     options: PowerSyncSourceOptions<Q>,
-  ) => SnapshotSource;
+  ) => PowerSyncSnapshotSource;
 };
 
 type Entries = {
-  readonly rows: Map<string, SnapshotSource>;
-  readonly custom: WeakMap<object, WeakMap<object, SnapshotSource>>;
+  readonly rows: Map<string, PowerSyncSnapshotSource>;
+  readonly custom: WeakMap<object, WeakMap<object, PowerSyncSnapshotSource>>;
 };
 
 /**
@@ -246,7 +284,7 @@ export function powerSyncSourceCache(
   return Object.freeze({
     source: <Q extends string>(
       options: PowerSyncSourceOptions<Q>,
-    ): SnapshotSource => {
+    ): PowerSyncSnapshotSource => {
       let entries = byManifest.get(options.manifest);
       if (entries === undefined) {
         entries = { rows: new Map(), custom: new WeakMap() };

@@ -63,10 +63,10 @@ type Guard<TArgs extends readonly unknown[]> = {
   readonly data?: (...args: TArgs) => unknown;
 };
 
-export type McpToolConfig<
-  TInput extends StandardSchemaWithJSON | undefined = undefined,
-  TOutput extends StandardSchemaWithJSON | undefined = undefined,
-> = Guard<[args: InputOf<TInput>]> & {
+type ToolFields<
+  TInput extends StandardSchemaWithJSON | undefined,
+  TOutput extends StandardSchemaWithJSON | undefined,
+> = {
   readonly title?: string;
   readonly description?: string;
   readonly inputSchema?: TInput;
@@ -76,13 +76,54 @@ export type McpToolConfig<
   readonly scopeChallenge?: ScopeChallengeHandler;
   readonly oauthScopes?: readonly string[];
   readonly _meta?: Record<string, unknown>;
-  /**
-   * Decide again when the handler resolves, without consuming quota, and return
-   * the refusal instead of the result unless the call is still allowed. The
-   * re-check withholds the result; it cannot undo the work.
-   */
-  readonly longRunning?: boolean;
 };
+
+/**
+ * A tool's check: one permission or a list (all-of, or any-of with `anyOf`),
+ * over the row `data` loads or every row `rows` loads. `permission: null` makes
+ * the tool public: listed and called with no check.
+ */
+type ToolGuard<TArgs extends readonly unknown[]> =
+  | {
+      readonly permission: Permission | readonly Permission[];
+      /** One permission of the list is enough. */
+      readonly anyOf?: boolean;
+      /** Loads the row to decide on; `null` or a throw denies. */
+      readonly data?: (...args: TArgs) => unknown;
+      readonly rows?: undefined;
+      /**
+       * Decide again when the handler resolves, without consuming quota, and
+       * return the refusal instead of the result unless the call is still
+       * allowed. The re-check withholds the result; it cannot undo the work.
+       * One permission and no `rows` only.
+       */
+      readonly longRunning?: boolean;
+    }
+  | {
+      readonly permission: Permission | readonly Permission[];
+      readonly anyOf?: boolean;
+      readonly data?: undefined;
+      /**
+       * Loads every row the call touches; each must be granted. No rows, a
+       * non-array or a throw denies.
+       */
+      readonly rows: (
+        ...args: TArgs
+      ) => readonly unknown[] | Promise<readonly unknown[]>;
+      readonly longRunning?: undefined;
+    }
+  | {
+      readonly permission: null;
+      readonly anyOf?: undefined;
+      readonly data?: undefined;
+      readonly rows?: undefined;
+      readonly longRunning?: undefined;
+    };
+
+export type McpToolConfig<
+  TInput extends StandardSchemaWithJSON | undefined = undefined,
+  TOutput extends StandardSchemaWithJSON | undefined = undefined,
+> = ToolGuard<[args: InputOf<TInput>]> & ToolFields<TInput, TOutput>;
 
 export type McpResourceConfig<TArgs extends readonly unknown[]> = Guard<TArgs> &
   ResourceMetadata & {
@@ -157,12 +198,9 @@ export type GuardedMcpServer = Omit<
 export type McpProcedureToolConfig<
   TInput extends StandardSchemaWithJSON | undefined = undefined,
   TOutput extends StandardSchemaWithJSON | undefined = undefined,
-> = Omit<
-  McpToolConfig<TInput, TOutput>,
-  "permission" | "data" | "longRunning"
-> & {
-  /** Overrides `permissionFor(name)`. */
-  readonly permission?: Permission;
+> = ToolFields<TInput, TOutput> & {
+  /** Overrides `permissionFor(name)`; `null` makes the tool public. */
+  readonly permission?: Permission | readonly Permission[] | null;
 };
 
 /**
@@ -189,9 +227,12 @@ export type McpProcedureEnforcement = {
   readonly enforce: "procedure";
   /**
    * The permission of the tool `name`; `permissionOf(procedure)` from
-   * `permdock/orpc` reads it. `undefined` throws at registration.
+   * `permdock/orpc` reads it. A list lists the tool when one of its permissions
+   * is usable, `null` makes it public, and `undefined` throws at registration.
    */
-  readonly permissionFor: (name: string) => Permission | undefined;
+  readonly permissionFor: (
+    name: string,
+  ) => Permission | readonly Permission[] | null | undefined;
   readonly oauthScopesFor?: (name: string) => readonly string[] | undefined;
 };
 
@@ -254,6 +295,14 @@ export type McpPermDockOptions<TUser = unknown> = InstanceOptions & {
       ) => string | undefined | Promise<string | undefined>);
   /** Deny every call and list nothing when the transport carries no auth info. */
   readonly requireAuthInfo?: boolean;
+  /**
+   * A token carrying none of the policy's OAuth scopes and no
+   * `authorization_details`, such as a Supabase or Clerk session token.
+   * `'deny'` (the default) refuses it every guarded tool. `'subject'` decides
+   * it on the subject alone: no scope check and no delegation. A token with any
+   * of the policy's scopes is still narrowed by them.
+   */
+  readonly unscopedTokens?: "deny" | "subject";
   /**
    * This server's RFC 8707 resource identifier. A token whose
    * `authInfo.resource` is absent or different is refused with

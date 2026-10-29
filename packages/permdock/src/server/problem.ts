@@ -305,19 +305,18 @@ function validationOf(
 export function decisionProblem(
   decision: Exclude<Decision, { readonly outcome: "granted" }>,
   permission: Permission,
-  subject: Subject | undefined,
   options: Omit<DecisionProblemOptions, "credentials" | "scope"> = {},
 ): ProblemDetails {
   return (
     validationOf(decision, options.disclosure)?.toProblemDetails() ??
-    refusalDetails(decision, permission, subject, options)
+    refusalDetails(decision, permission, options)
   );
 }
 
+/** The `detail` names the permission and the denials, never the subject. */
 function refusalDetails(
   decision: Exclude<Decision, { readonly outcome: "granted" }>,
   permission: Permission,
-  subject: Subject | undefined,
   options: Omit<DecisionProblemOptions, "credentials" | "scope">,
 ): ProblemDetails {
   const details = problemDetails(
@@ -328,10 +327,10 @@ function refusalDetails(
           ? approvalMessage(permission.key, decision.reason, decision.token)
           : deniedMessage(
               permission.key,
-              subject?.principal?.id,
+              undefined,
               decision.denials,
               decision.alternatives.map((leaf) => leaf.key),
-              subject !== undefined,
+              false,
             ),
       instance: options.instance,
       permission: permission.key,
@@ -355,8 +354,8 @@ function refusalDetails(
 export function problemFromDecision(
   decision: Decision,
   permission: Permission,
-  /** Words the `detail`; without one the detail names no subject. */
-  subject: Subject | undefined,
+  /** @deprecated Ignored: the `detail` never names the subject. */
+  _subject: Subject | undefined,
   options: DecisionProblemOptions = {},
 ): Response {
   if (decision.outcome === "granted") {
@@ -373,7 +372,7 @@ export function problemFromDecision(
     );
   }
   return decisionResponse(
-    refusalDetails(decision, permission, subject, options),
+    refusalDetails(decision, permission, options),
     decision,
     compact({
       scope: options.scope ?? permission.scope,

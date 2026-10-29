@@ -114,7 +114,13 @@ function isColumn(value: unknown): boolean {
       (isRecord(through) &&
         isText(through["table"]) &&
         isText(through["id"]) &&
-        isText(through["column"]))) &&
+        isText(through["column"]) &&
+        (through["on"] === undefined ||
+          (isRecord(through["on"]) &&
+            Object.keys(through["on"]).length > 0 &&
+            Object.entries(through["on"]).every(
+              ([key, id]) => isText(key) && isText(id),
+            ))))) &&
     (map === undefined ||
       (isRecord(map) &&
         Object.values(map).every((key) => key === null || isText(key))))

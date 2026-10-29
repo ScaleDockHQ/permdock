@@ -122,6 +122,38 @@ describe("permdock/orpc typed errors", () => {
     });
   });
 
+  it("maps a null subject to UNAUTHORIZED when the contract declares typed errors", async () => {
+    const error = await rejection(
+      call(
+        router.posts.update,
+        { id: ownPost.id },
+        { context: { user: null } },
+      ),
+    );
+    expect(error).toBeInstanceOf(ORPCError);
+    expect(error).toMatchObject({
+      code: "UNAUTHORIZED",
+      data: { status: 401 },
+    });
+  });
+
+  it("names no subject in the detail of a denial", async () => {
+    const error = await rejection(
+      call(
+        router.posts.update,
+        { id: otherPost.id },
+        { context: { user: memberUser } },
+      ),
+    );
+    expect(error).toMatchObject({
+      data: {
+        detail: expect.stringMatching(
+          /^post\.update denied: member \(condition\)\./u,
+        ),
+      },
+    });
+  });
+
   it("keeps a plain ORPCError when the contract declares no FORBIDDEN", async () => {
     const error = await rejection(
       call(

@@ -17,6 +17,7 @@ import { CUSTOM_ROLES, customRolesOn } from "../sql/shared.ts";
 import { CUSTOM_ROLE, bare, fromTable, quotedTable } from "./names.ts";
 import {
   isFixed,
+  joinOn,
   ownRows,
   roleSources,
   scopeSourcesOf,
@@ -60,13 +61,12 @@ function roleKeyOf(
   if ("map" in role) {
     return undefined;
   }
-  const [pair] = Object.entries(role.on);
-  if (pair === undefined) {
+  if (Object.keys(role.on).length === 0) {
     return undefined;
   }
   const keys = bare(role.through, dialect);
   return {
-    join: ` INNER JOIN ${fromTable(role.through, dialect)} ON ${dialect.column(keys, pair[1])} = ${dialect.column(table, pair[0])}`,
+    join: ` INNER JOIN ${fromTable(role.through, dialect)} ON ${joinOn(role, keys, table, dialect)}`,
     roleKey: dialect.column(keys, role.column),
   };
 }
