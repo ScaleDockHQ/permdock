@@ -14,7 +14,7 @@ export const PROBLEM_EXAMPLES: Readonly<Record<ProblemType, ProblemDetails>> =
       title: "Permission denied",
       status: 403,
       detail:
-        "post.delete denied for subject u_123: member (condition). Alternatives: post.read, post.update.",
+        "post.delete denied: member (condition). Alternatives: post.read, post.update.",
       instance: "/posts/p_42",
       permission: "post.delete",
       scope: "post:delete",
@@ -49,7 +49,7 @@ export const PROBLEM_EXAMPLES: Readonly<Record<ProblemType, ProblemDetails>> =
       title: "Step-up required",
       status: 401,
       detail:
-        "post.delete denied for subject u_123: member (insufficient-user-authentication). Alternatives: post.read, post.update.",
+        "post.delete denied: member (insufficient-user-authentication). Alternatives: post.read, post.update.",
       permission: "post.delete",
       scope: "post:delete",
       resource: { type: "post" },
@@ -69,7 +69,7 @@ export const PROBLEM_EXAMPLES: Readonly<Record<ProblemType, ProblemDetails>> =
       title: "Plan upgrade required",
       status: 403,
       detail:
-        "post.delete denied for subject u_123: admin (not-entitled). Alternatives: post.read, post.update.",
+        "post.delete denied: admin (not-entitled). Alternatives: post.read, post.update.",
       permission: "post.delete",
       scope: "post:delete",
       resource: { type: "post" },
@@ -88,7 +88,7 @@ export const PROBLEM_EXAMPLES: Readonly<Record<ProblemType, ProblemDetails>> =
       title: "Rate limit exceeded",
       status: 429,
       detail:
-        "post.delete denied for subject u_123: member (limit). Alternatives: post.read, post.update.",
+        "post.delete denied: member (limit). Alternatives: post.read, post.update.",
       permission: "post.delete",
       scope: "post:delete",
       resource: { type: "post" },
@@ -106,7 +106,7 @@ export const PROBLEM_EXAMPLES: Readonly<Record<ProblemType, ProblemDetails>> =
       title: "Rate limit unavailable",
       status: 503,
       detail:
-        "post.delete denied for subject u_123: member (limit-unavailable). Alternatives: post.read, post.update.",
+        "post.delete denied: member (limit-unavailable). Alternatives: post.read, post.update.",
       permission: "post.delete",
       scope: "post:delete",
       resource: { type: "post" },

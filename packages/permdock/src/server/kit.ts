@@ -13,6 +13,7 @@ export {
 } from "../core/errors.ts";
 export { isPermission } from "../core/permission-registry.ts";
 export { attached, bindKernel, decorate, socketConnection } from "./bind.ts";
+export { permissionList } from "./decide-set.ts";
 export { fetchAdapter, guardedRoute, instanceRoute } from "./fetch-adapter.ts";
 export {
   fetchRequest,

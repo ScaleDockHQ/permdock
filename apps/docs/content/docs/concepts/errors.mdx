@@ -152,7 +152,7 @@ All `toProblemDetails()` results share the RFC 9457 members plus PermDock extens
   "type": "https://permdock.com/problems/denied",
   "title": "Permission denied",
   "status": 403,
-  "detail": "post.delete denied for subject u_1: member (condition). Alternatives: post.read, post.update.",
+  "detail": "post.delete denied: member (condition). Alternatives: post.read, post.update.",
   "instance": "/posts/42",
   "permission": "post.delete",
   "scope": "post:delete",
@@ -173,6 +173,8 @@ The `message` and `detail` strings are consumed by LLMs through MCP refusals and
 <permission> requires human approval (<reason>). Token: <token>.
 <permission>: invalid <resource> data at <path>: <message>[; ...].
 ```
+
+The `detail` of a denial drops `for subject <id>`: the subject id stays in the error `message` and the audit event, and never reaches the wire.
 
 Guidance the adapters and your own handlers should follow:
 

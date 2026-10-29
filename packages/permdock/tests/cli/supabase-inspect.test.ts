@@ -730,6 +730,85 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
       expect(elsewhere.stdout).toContain("PD039 schema permdock has no");
     });
 
+    it("follows the hook part of rls generate --split helpers,hook in inspect and PD039", async () => {
+      const OUT = "supabase/migrations/20260101000000_permdock_{part}.sql";
+      const HOOK = "supabase/migrations/20260101000000_permdock_hook.sql";
+      const MEMBERSHIPS = `memberships: { scopes: { organization: { table: 'memberships', user: 'user_id', role: 'role', columns: { organization: 'organization_id' } }, customer: { table: 'contacts', user: 'user_id', role: 'role', columns: { customer: 'customer_id', organization: 'organization_id' } } } }`;
+      const hookOf = async (cwd: string): Promise<unknown> => {
+        const inspect = await run(["supabase", "inspect", "--json"], { cwd });
+        // SAFETY: the --json manifest printed by `permdock supabase inspect` under test.
+        return (jsonData(inspect.stdout) as SupabaseHookManifest).hook.out;
+      };
+
+      const configured = await generate(
+        `{ memberships: [${SOURCES}] }`,
+        [],
+        `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, split: ['helpers', 'seeds', 'hook'], authorize: 'database', ${MEMBERSHIPS} }, doctor: { migrations: [] }`,
+      );
+      const split = await run(
+        ["rls", "generate", "--target", "sql", "--schemas", "migrations"],
+        { cwd: configured.cwd },
+      );
+      expect(split.stdout).toContain(
+        `wrote ${OUT.replace("{part}", "helpers")}`,
+      );
+      expect(existsSync(join(configured.cwd, HOOK))).toBe(true);
+      await expect(hookOf(configured.cwd)).resolves.toBe(HOOK);
+      const doctor = await run(["doctor", "--json", "--only", "PD039"], {
+        cwd: configured.cwd,
+      });
+      expect(doctor.stdout).not.toContain("has no");
+
+      const flagged = await generate(
+        `{ memberships: [${SOURCES}] }`,
+        [],
+        `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, authorize: 'database', ${MEMBERSHIPS} }`,
+      );
+      await expect(hookOf(flagged.cwd)).resolves.toBe(
+        "supabase/schemas/permdock/functions/custom_access_token_hook.sql",
+      );
+      await run(
+        [
+          "rls",
+          "generate",
+          "--target",
+          "sql",
+          "--split",
+          "helpers,seeds,hook",
+          "--schemas",
+          "migrations",
+        ],
+        { cwd: flagged.cwd },
+      );
+      await expect(hookOf(flagged.cwd)).resolves.toBe(HOOK);
+
+      const pgDelta = await generate(
+        `{ memberships: [${SOURCES}] }`,
+        [],
+        `{ dialect: 'supabase', authorize: 'database', ${MEMBERSHIPS} }, doctor: { migrations: ['supabase/migrations'] }`,
+      );
+      const declarative = await run(
+        [
+          "rls",
+          "generate",
+          "--target",
+          "sql",
+          "--split",
+          "helpers,seeds,hook",
+          "--seeds-out",
+          "supabase/migrations/20260101000000_permdock_seeds.sql",
+        ],
+        { cwd: pgDelta.cwd },
+      );
+      expect(declarative.stdout).toContain(
+        "wrote supabase/schemas/permdock/helpers.sql",
+      );
+      const pd039 = await run(["doctor", "--json", "--only", "PD039"], {
+        cwd: pgDelta.cwd,
+      });
+      expect(pd039.stdout).not.toContain("has no");
+    });
+
     it("doctor PD039 reports missing helpers, oversized extra claims and dropped memberships", async () => {
       const { cwd } = await generate(
         `{ memberships: [${SOURCES}], claims: { features: 'billing.feature_claims' } }`,
