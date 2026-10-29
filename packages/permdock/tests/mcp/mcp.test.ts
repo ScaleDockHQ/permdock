@@ -1065,3 +1065,220 @@ describe("actorKind", () => {
     expect(seen).toContainEqual({ client: "mcp-tester" });
   });
 });
+
+describe("permdock/mcp public tools, permission lists and rows", () => {
+  const ids = z.object({ ids: z.array(z.string()) });
+  const rowsOf = (args: { readonly ids: readonly string[] }) =>
+    args.ids.flatMap((id) =>
+      id === "p1" ? [ownPost] : id === "p2" ? [otherPost] : [],
+    );
+
+  function setServer(options: Parameters<typeof createPermDock>[1]) {
+    const server = new McpServer({ name: "posts", version: "1.0.0" });
+    const guarded = createPermDock(policy, options).protectServer(server);
+    guarded.registerTool("health", { permission: null }, () => ({
+      content: [{ type: "text", text: "ok" }],
+    }));
+    guarded.registerTool(
+      "update_many",
+      { permission: permissions.post.update, inputSchema: ids, rows: rowsOf },
+      ({ ids: touched }) => ({
+        content: [{ type: "text", text: `updated ${touched.join(",")}` }],
+      }),
+    );
+    guarded.registerTool(
+      "publish_or_update",
+      {
+        permission: [permissions.post.publish, permissions.post.update],
+        anyOf: true,
+        inputSchema: idInput,
+        data: byId,
+      },
+      ({ id }) => ({ content: [{ type: "text", text: `changed ${id}` }] }),
+    );
+    guarded.registerTool(
+      "publish_and_update",
+      {
+        permission: [permissions.post.publish, permissions.post.update],
+        inputSchema: idInput,
+        data: byId,
+      },
+      ({ id }) => ({ content: [{ type: "text", text: `changed ${id}` }] }),
+    );
+    return server;
+  }
+
+  it("lists and calls a public tool with no check", async () => {
+    const { client } = await connect(
+      setServer({ subject: () => null, requireAuthInfo: true }),
+      { authInfo: undefined },
+    );
+    expect(await names(client)).toStrictEqual(["health"]);
+    const result = await client.callTool({ name: "health", arguments: {} });
+    expect(text(result)).toBe("ok");
+  });
+
+  it("throws for a tool without permission and for a public tool with a loader", () => {
+    const server = new McpServer({ name: "posts", version: "1.0.0" });
+    const guarded = createPermDock(policy, {
+      subject: () => memberUser,
+    }).protectServer(server);
+    expect(() =>
+      // @ts-expect-error -- a guarded tool needs a permission
+      guarded.registerTool("bare", {}, () => ({ content: [] })),
+    ).toThrow(/has no permission/u);
+    expect(() =>
+      guarded.registerTool(
+        "loaded",
+        // @ts-expect-error -- a public tool loads nothing
+        { permission: null, data: () => ownPost },
+        () => ({ content: [] }),
+      ),
+    ).toThrow(/is public/u);
+    expect(() =>
+      guarded.registerTool(
+        "long",
+        // @ts-expect-error -- longRunning takes no rows
+        {
+          permission: permissions.post.update,
+          rows: () => [],
+          longRunning: true,
+        },
+        () => ({ content: [] }),
+      ),
+    ).toThrow(/longRunning/u);
+    expect(() =>
+      guarded.registerTool("empty", { permission: [] }, () => ({
+        content: [],
+      })),
+    ).toThrow(/empty permission list/u);
+  });
+
+  it("needs every row that rows loads", async () => {
+    const scopes = auth(["post:update", "post:publish"]);
+    const admin = await connect(setServer({ subject: () => adminUser }), {
+      authInfo: scopes,
+    });
+    const granted = await admin.client.callTool({
+      name: "update_many",
+      arguments: { ids: ["p1", "p2"] },
+    });
+    expect(text(granted)).toBe("updated p1,p2");
+    const none = await admin.client.callTool({
+      name: "update_many",
+      arguments: { ids: ["p404"] },
+    });
+    expect(none.isError).toBe(true);
+    expect(text(none)).toContain("found no rows");
+
+    const member = await connect(setServer({ subject: () => memberUser }), {
+      authInfo: scopes,
+    });
+    const denied = await member.client.callTool({
+      name: "update_many",
+      arguments: { ids: ["p1", "p2"] },
+    });
+    expect(denied.isError).toBe(true);
+    expect(denied.structuredContent).toMatchObject({
+      permission: "post.update",
+    });
+  });
+
+  it("grants anyOf on one permission and lists all-of only when every one is usable", async () => {
+    const { client } = await connect(setServer({ subject: () => memberUser }), {
+      authInfo: auth(["post:update"]),
+    });
+    expect(await names(client)).toStrictEqual([
+      "health",
+      "publish_or_update",
+      "update_many",
+    ]);
+    const granted = await client.callTool({
+      name: "publish_or_update",
+      arguments: { id: "p1" },
+    });
+    expect(text(granted)).toBe("changed p1");
+    const denied = await client.callTool({
+      name: "publish_and_update",
+      arguments: { id: "p1" },
+    });
+    expect(denied.isError).toBe(true);
+  });
+});
+
+describe("permdock/mcp unscopedTokens", () => {
+  const sessionToken = {
+    token: "t",
+    clientId: "",
+    scopes: ["openid", "email"],
+    extra: {},
+  };
+
+  it("refuses a token with none of the policy's scopes by default", async () => {
+    const { server } = postServer({ subject: () => memberUser });
+    const { client } = await connect(server, { authInfo: sessionToken });
+    expect(await names(client)).toStrictEqual([]);
+    const refused = await client.callTool({
+      name: "update_post",
+      arguments: { id: "p1" },
+    });
+    expect(refused.isError).toBe(true);
+  });
+
+  it("decides an unscoped token on the subject alone with 'subject'", async () => {
+    const { server } = postServer({
+      subject: () => memberUser,
+      unscopedTokens: "subject",
+    });
+    const { client } = await connect(server, { authInfo: sessionToken });
+    expect(await names(client)).toStrictEqual([
+      "delete_post",
+      "list_posts",
+      "update_post",
+    ]);
+    const granted = await client.callTool({
+      name: "update_post",
+      arguments: { id: "p1" },
+    });
+    expect(granted.isError).not.toBe(true);
+    const denied = await client.callTool({
+      name: "update_post",
+      arguments: { id: "p2" },
+    });
+    expect(denied.isError).toBe(true);
+  });
+
+  it("leaves an unscoped client token to the policy's delegations", async () => {
+    const { server } = postServer({
+      subject: () => memberUser,
+      unscopedTokens: "subject",
+    });
+    const { client } = await connect(server, {
+      authInfo: auth(["openid", "email"]),
+    });
+    expect(await names(client)).toStrictEqual([]);
+    const refused = await client.callTool({
+      name: "update_post",
+      arguments: { id: "p1" },
+    });
+    expect(refused.structuredContent).toMatchObject({
+      denials: [{ role: null, reason: "no-delegation" }],
+    });
+  });
+
+  it("still narrows a token that carries some of the policy's scopes", async () => {
+    const { server } = postServer({
+      subject: () => memberUser,
+      unscopedTokens: "subject",
+    });
+    const { client } = await connect(server, {
+      authInfo: auth(["openid", "post:list"]),
+    });
+    expect(await names(client)).toStrictEqual(["list_posts"]);
+    const refused = await client.callTool({
+      name: "update_post",
+      arguments: { id: "p1" },
+    });
+    expect(refused.isError).toBe(true);
+  });
+});
