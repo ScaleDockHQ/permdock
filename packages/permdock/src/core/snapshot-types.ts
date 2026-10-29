@@ -279,6 +279,15 @@ export type LocalSnapshotRows = {
     readonly permissions: string;
     readonly includes: string;
   };
+  /**
+   * The user's authorization version row (`permdock_authz_version`), the value
+   * the token hook stamps `authz_ver` from.
+   */
+  readonly version?: {
+    readonly table: string;
+    readonly user: string;
+    readonly version: string;
+  };
 };
 
 /**

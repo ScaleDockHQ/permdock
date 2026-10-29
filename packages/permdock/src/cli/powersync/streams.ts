@@ -39,6 +39,7 @@ import {
   streamOf,
 } from "./sources.ts";
 import { tableStreams } from "./tables.ts";
+import { VERSION_USER, authzVersionTable } from "./version.ts";
 
 /**
  * How a stream query names the signed-in user, its claims and row columns.
@@ -856,6 +857,15 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
         add(table, `SELECT * FROM ${from} WHERE ${tenant} IN (${ids})`);
       }
     }
+  }
+  const versionTable = authzVersionTable(ctx.config);
+  if (versionTable !== undefined) {
+    const table = bare(versionTable, dialect);
+    add(
+      table,
+      `SELECT * FROM ${fromTable(versionTable, dialect)} WHERE ${dialect.column(table, VERSION_USER)} = ${dialect.user}`,
+      VERSION_USER,
+    );
   }
   const out: SubjectStream[] = [];
   const names = new Set<string>();

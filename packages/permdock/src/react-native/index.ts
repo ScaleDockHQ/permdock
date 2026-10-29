@@ -51,6 +51,14 @@ export type {
   PowerSyncSourceOptions,
   PowerSyncWatchable,
 } from "./powersync.ts";
+export { nativeRefresh } from "./native-refresh.ts";
+export type {
+  NativeRefreshDatabase,
+  NativeRefreshOptions,
+  NativeRefreshPowerSync,
+  NativeRefreshSession,
+  NativeRefreshSupabase,
+} from "./native-refresh.ts";
 export { PermDockProvider } from "./provider.tsx";
 export { memorySnapshotStorage } from "./storage.ts";
 export { mmkvStorage, secureStoreStorage } from "./storage-adapters.ts";

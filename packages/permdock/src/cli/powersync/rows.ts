@@ -17,6 +17,7 @@ import { CUSTOM_ROLES, customRolesOn } from "../sql/shared.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
 import { bare } from "./names.ts";
 import { isFixed, roleSources, scopeSourcesOf } from "./sources.ts";
+import { VERSION_COLUMN, VERSION_USER, authzVersionTable } from "./version.ts";
 
 type Device = (table: string) => string;
 
@@ -131,7 +132,16 @@ export function localRows(
   const database = rls?.authorize === "database";
   const global =
     rls?.roles ?? (database ? { table: `${schema}.user_roles` } : undefined);
+  const versionTable = authzVersionTable(config);
   return compact<LocalSnapshotRows>({
+    version:
+      versionTable === undefined
+        ? undefined
+        : {
+            table: device(versionTable),
+            user: VERSION_USER,
+            version: VERSION_COLUMN,
+          },
     memberships,
     roles:
       global === undefined
