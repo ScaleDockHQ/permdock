@@ -188,6 +188,13 @@ export type {
   VersionQuery,
   WhereCompiler,
 } from "./core/interfaces.ts";
+export { instanceCache } from "./core/instance-cache.ts";
+export type {
+  InstanceCache,
+  InstanceCacheKey,
+  InstanceCacheOptions,
+  InstanceCacheStats,
+} from "./core/instance-cache.ts";
 export { memoryVersionCache } from "./core/version-cache.ts";
 export type {
   MemoryVersionCacheOptions,

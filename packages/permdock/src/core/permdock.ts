@@ -8,6 +8,7 @@ import type { PermissionCheck } from "./checks.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { AuthEvent, DecisionEvent } from "./event-types.ts";
 import type { HostedPolicies } from "./hosted.ts";
+import type { InstanceCache } from "./instance-cache.ts";
 import type { InstanceEnv } from "./instance-env.ts";
 import type {
   DecisionSink,
@@ -43,6 +44,7 @@ import type { Boundary } from "./validation.ts";
 import type { PlanTree, Role, RoleTree } from "./vocabulary.ts";
 
 import { withApp } from "./app.ts";
+import { cachedInstance } from "./cached-instance.ts";
 import { compact } from "./compact.ts";
 import { unknownLevelsFor } from "./custom-roles.ts";
 import { buildInstance } from "./instance.ts";
@@ -572,6 +574,12 @@ export type PermDockOptions = {
    * into `subject.context`; keys from `policy.context` win on a clash.
    */
   readonly context?: Readonly<Record<string, unknown>>;
+  /**
+   * Reuses the instance built for a subject at a known authorization version
+   * across requests, until the version moves or `maxAgeMs` passes: one
+   * `instanceCache()` at module scope. `getPermDockSync` ignores it.
+   */
+  readonly instances?: InstanceCache;
 };
 
 function instantiate(
@@ -724,8 +732,15 @@ export function getPermDock<
   user: TUser | Subject | null,
   options: PermDockOptions = {},
 ): Promise<PermDock<V>> {
+  const { instances, ...rest } = options;
   // Through `then`, so a mapper or source that throws rejects instead of throwing.
-  return Promise.resolve().then(() => create(policy, user, options));
+  return Promise.resolve().then(() =>
+    instances === undefined
+      ? create(policy, user, rest)
+      : cachedInstance(policy, user, rest, instances, (cached) =>
+          create(policy, user, cached),
+        ),
+  );
 }
 
 export { fromSnapshot } from "./from-snapshot.ts";

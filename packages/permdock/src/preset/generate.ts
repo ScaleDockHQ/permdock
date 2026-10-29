@@ -374,14 +374,17 @@ app.patch(
         return [
           owned(
             `${ctx.src}/server.ts`,
-            `import { getPermDock } from "permdock";
+            `import { getPermDock, instanceCache } from "permdock";
 
 import { app } from "./permdock";
 import { currentSubject } from "./session";
 
-/** The request-scoped decision object for the caller of \`request\`; create one per request. */
+/** Instances reused while a caller's authorization version holds; one per process. */
+const instances = instanceCache();
+
+/** The decision object for the caller of \`request\`. */
 export async function permdockFor(request: Request) {
-  return getPermDock(app, await currentSubject(request));
+  return getPermDock(app, await currentSubject(request), { instances });
 }
 `,
           ),

@@ -44,6 +44,14 @@ export type {
   BetterSupabaseMembershipRow,
   PrincipalFromMembershipsOptions,
 } from "./memberships.ts";
+export { permdockFor } from "./permdock-for.ts";
+export type {
+  PermDockFor,
+  PermDockForOptions,
+  PermDockForQuery,
+  PermDockForResult,
+  PermDockForInput,
+} from "./permdock-for.ts";
 export { principalSource } from "./principals.ts";
 export { roleOrderFromCatalog } from "./role-order.ts";
 export type { RoleOrderOptions } from "./role-order.ts";

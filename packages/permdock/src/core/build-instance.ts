@@ -37,7 +37,10 @@ export type BuildInstanceInput<
   readonly scope?: {
     readonly [K in keyof PermDockOptions]?: PermDockOptions[K] | undefined;
   };
-  /** Applied last; with `buildReportingInstance`, after the error channel. */
+  /**
+   * Applied last, on every call; with `buildReportingInstance`, after the error
+   * channel. A cached instance is stored unwrapped.
+   */
   readonly wrap?: ((permdock: PermDock<V>) => PermDock<V>) | undefined;
 };
 
