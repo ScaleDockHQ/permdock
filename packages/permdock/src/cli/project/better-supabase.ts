@@ -6,6 +6,7 @@ import type { PermDockConfig } from "../types.ts";
 import { isRecord } from "../../core/compact.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { filesOf } from "../shared/doctor-files.ts";
+import { workspaceDirs } from "../shared/workspace.ts";
 
 const CONFIG_FILES = [
   "better-supabase.config.ts",
@@ -14,14 +15,19 @@ const CONFIG_FILES = [
   "better-supabase.config.mjs",
 ] as const;
 
-/** The default export of the project's `better-supabase.config.*`, if it loads. */
+/**
+ * The default export of the nearest `better-supabase.config.*`, if it loads.
+ * The search starts in `from` (default `cwd`), the directory of
+ * `permdock.config.ts`, and goes up to the workspace root, so an app inside a
+ * monorepo finds the root's config.
+ */
 export async function betterSupabaseConfig(
-  input: Pick<DoctorInput, "cwd" | "files">,
+  input: Pick<DoctorInput, "cwd" | "files"> & { readonly from?: string },
 ): Promise<Record<string, unknown> | undefined> {
   const files = filesOf(input);
-  const path = CONFIG_FILES.map((name) => resolve(input.cwd, name)).find(
-    (file) => files.exists(file),
-  );
+  const path = workspaceDirs(files, input.from ?? input.cwd)
+    .flatMap((dir) => CONFIG_FILES.map((name) => resolve(dir, name)))
+    .find((file) => files.exists(file));
   if (path === undefined) {
     return undefined;
   }

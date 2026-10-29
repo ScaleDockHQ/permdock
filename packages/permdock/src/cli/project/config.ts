@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { dirname, relative, resolve } from "node:path";
 
 import type { PermDockConfig } from "../types.ts";
 import type { ConfigChecks, PermDockConfigInput } from "./config-checks.ts";
@@ -77,7 +77,7 @@ export async function readConfig(
     ...parsed,
     config: betterSupabaseDefaults(
       parsed.config,
-      await betterSupabaseConfig({ cwd }),
+      await betterSupabaseConfig({ cwd, from: dirname(path) }),
     ),
     file: path,
   };

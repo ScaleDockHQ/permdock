@@ -5,8 +5,8 @@ import type { InstanceOptions } from "../core/instance-options.ts";
 import type { Intent, MembershipSource } from "../core/interfaces.ts";
 import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { Policy } from "../core/policy-types.ts";
-import type { Subject } from "../core/subject.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { Principal, Subject } from "../core/subject.ts";
 import type { VersionCache } from "../core/version-cache.ts";
 import type { SupabaseSessionLike } from "../supabase/types.ts";
 import type {
@@ -59,12 +59,12 @@ export type PermDockForQuery = {
  * The third is the version cache better-supabase passes at runtime, which
  * replaces the `versions` option.
  */
-export type PermDockFor = {
+export type PermDockFor<V extends PolicyVocabulary = PolicyVocabulary> = {
   (
     source: PermDockForInput,
     query?: PermDockForQuery | string | null,
     versions?: VersionCache,
-  ): Promise<PermDock>;
+  ): Promise<PermDock<V>>;
   /**
    * The instance options every instance of `versions` (default the `versions`
    * option) is built with: the same object on every call, so an adapter that
@@ -74,24 +74,28 @@ export type PermDockFor = {
   readonly sources: (versions?: VersionCache) => InstanceOptions;
 };
 
-export type PermDockForOptions = {
-  readonly policy: Policy;
-  /** How the verified claims map to a subject. */
-  readonly subject?: BetterSupabaseSubjectOptions;
-  /**
-   * The membership source a stale token is re-read from, wrapped in
-   * `claimsFirst(source, { onStale: 'reread', versions })`.
-   */
-  readonly memberships?: MembershipSource | readonly MembershipSource[];
-  /** The version `claimsFirst` compares with `authz_ver`; default the source's. */
-  readonly version?: MembershipSource["version"];
-  /** The process-wide version cache (`createNext({ versions })`). */
-  readonly versions?: VersionCache;
-  /** The process-wide instance cache, shared with the app's other adapters. */
-  readonly instances?: InstanceCache;
-  /** Sources and sinks for each instance. */
-  readonly options?: Omit<PermDockOptions, "tenant" | "intent" | "version">;
-};
+export type PermDockForOptions<V extends PolicyVocabulary = PolicyVocabulary> =
+  {
+    readonly policy: Policy<unknown, Principal, V>;
+    /** How the verified claims map to a subject. */
+    readonly subject?: BetterSupabaseSubjectOptions;
+    /**
+     * The membership source a stale token is re-read from, wrapped in
+     * `claimsFirst(source, { onStale: 'reread', versions })`.
+     */
+    readonly memberships?: MembershipSource | readonly MembershipSource[];
+    /**
+     * The version `claimsFirst` compares with `authz_ver`; default the
+     * source's.
+     */
+    readonly version?: MembershipSource["version"];
+    /** The process-wide version cache (`createNext({ versions })`). */
+    readonly versions?: VersionCache;
+    /** The process-wide instance cache, shared with the app's other adapters. */
+    readonly instances?: InstanceCache;
+    /** Sources and sinks for each instance. */
+    readonly options?: Omit<PermDockOptions, "tenant" | "intent" | "version">;
+  };
 
 /** `permdockFor` with the version cache better-supabase passes at runtime. */
 export type PermDockResolver = {
@@ -252,7 +256,9 @@ export function resolverOf(
  * through `permdockFor.sources()`, to every other adapter's options, so they
  * share one instance per subject and version.
  */
-export function permdockFor(options: PermDockForOptions): PermDockFor {
+export function permdockFor<V extends PolicyVocabulary = PolicyVocabulary>(
+  options: PermDockForOptions<V>,
+): PermDockFor<V> {
   const resolve = permdockResolver(options);
   const call = (
     source: PermDockForInput,
@@ -266,7 +272,10 @@ export function permdockFor(options: PermDockForOptions): PermDockFor {
         : (query ?? {}),
       versions,
     );
-  return Object.freeze(Object.assign(call, { sources: resolve.sources }));
+  // SAFETY: the resolver builds each instance from options.policy, whose vocabulary is V.
+  return Object.freeze(
+    Object.assign(call, { sources: resolve.sources }),
+  ) as PermDockFor<V>;
 }
 
 /**
