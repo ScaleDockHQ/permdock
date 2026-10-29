@@ -1,19 +1,19 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 // oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the CLI rename table without a build
-import type { FlagRename } from "../packages/permdock/src/cli/core/renames.ts";
+import type { FlagRename } from "../packages/permdock/src/cli/codemod/cli-renames-0.5.ts";
 
-import {
-  RENAMES_0_5,
-  SIGNATURE_CHANGES_0_5,
-  // oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the codemod map without a build
-} from "../packages/permdock/src/cli/codemod/renames-0.5.ts";
 import {
   COMMAND_MOVES,
   DEFAULT_CHANGES,
   FLAG_RENAMES,
   // oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the CLI rename table without a build
-} from "../packages/permdock/src/cli/core/renames.ts";
+} from "../packages/permdock/src/cli/codemod/cli-renames-0.5.ts";
+import {
+  RENAMES_0_5,
+  SIGNATURE_CHANGES_0_5,
+  // oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the codemod map without a build
+} from "../packages/permdock/src/cli/codemod/renames-0.5.ts";
 
 export const RENAMED_HEADING = "## Renamed in 0.5.0";
 const FIX = "run node scripts/check-docs-drift.ts --write-renamed";
@@ -162,7 +162,7 @@ function renamedSection(): string {
       ]),
     ),
     "",
-    "The CLI changed these commands and flags. An old spelling exits `2` with `command_moved` or `flag_renamed` and the new one. `permdock codemod 0.5` rewrites them in `package.json` scripts, CI workflows and shell scripts, and lists them in Markdown:",
+    "The CLI changed these commands and flags. Since 0.17.0 an old spelling exits `2` as an unknown flag or command. `permdock codemod 0.5` rewrites them in `package.json` scripts, CI workflows and shell scripts, and lists them in Markdown:",
     "",
     markdownTable(["CLI before", "CLI after", "Commands"], cliRows()),
     "",

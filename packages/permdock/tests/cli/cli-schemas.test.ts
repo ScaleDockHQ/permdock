@@ -63,12 +63,12 @@ describe("schemas/cli-result-v1.json", () => {
     });
   });
 
-  it("validates a moved flag", async () => {
+  it("validates an unknown flag", async () => {
     const { stdout } = await run(["usage", "--strict", "--json"], {
       cwd: FIXTURE,
     });
     expect(expectResult(stdout)).toMatchObject({
-      error: { code: "flag_renamed" },
+      error: { code: "unknown_flag" },
     });
   });
 

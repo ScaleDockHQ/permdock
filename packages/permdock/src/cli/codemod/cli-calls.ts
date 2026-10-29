@@ -1,5 +1,5 @@
 import type { GroupEntry } from "../core/manifest.ts";
-import type { FlagRename } from "../core/renames.ts";
+import type { FlagRename } from "./cli-renames-0.5.ts";
 import type { CodemodChange, CodemodFollowUp } from "./context.ts";
 
 import { ROOT } from "../core/manifest.ts";
@@ -8,7 +8,7 @@ import {
   DEFAULT_CHANGES,
   flagRename,
   renameMessage,
-} from "../core/renames.ts";
+} from "./cli-renames-0.5.ts";
 
 export type CliCallResult = {
   readonly text: string;

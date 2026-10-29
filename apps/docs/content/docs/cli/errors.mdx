@@ -46,14 +46,6 @@ The command does not take the flag. The message suggests the closest flag it doe
 
 A flag or environment variable has a value the CLI does not accept, such as `--format xml`, `--agent=maybe` or `PERMDOCK_AGENT=sometimes`. `flag` names the option when there is one. Exit code 2.
 
-## `command_moved`
-
-The command moved. `replacement` holds the new command line, which runs as written. Exit code 2.
-
-## `flag_renamed`
-
-The flag was renamed. `flag` is the old spelling and `replacement` the new one. The [naming page](/docs/getting-started/naming) lists every rename. Exit code 2.
-
 ## `missing_value`
 
 A flag that reads a value got none, such as `--db-url-stdin` with empty stdin. `flag` names the option. Exit code 2.

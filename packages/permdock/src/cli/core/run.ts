@@ -13,7 +13,7 @@ import { dateAt } from "../../core/time.ts";
 import { readConfig, resolveCwd } from "../project/config.ts";
 import { beforeFirst } from "../shared/text.ts";
 import { agentMode } from "./agent.ts";
-import { flagSpellings, parseFlags, parseLeaf, suggestion } from "./args.ts";
+import { parseFlags, parseLeaf, suggestion } from "./args.ts";
 import {
   consentReasons,
   consentRequired,
@@ -40,7 +40,6 @@ import {
 import { progressReporter } from "./io.ts";
 import { resolve } from "./manifest.ts";
 import { dataOf, envelope, githubAnnotations, sarifLog } from "./output.ts";
-import { COMMAND_MOVES, flagRename, renameMessage } from "./renames.ts";
 import { createStyle } from "./style.ts";
 import { cliVersion } from "./version.ts";
 
@@ -178,14 +177,6 @@ function missingInputNext(
   ];
 }
 
-/** The `--flag` tokens before `--`, as typed without a value. */
-function typedFlags(argv: readonly string[]): readonly string[] {
-  const end = argv.indexOf("--");
-  return (end === -1 ? argv : argv.slice(0, end))
-    .filter((token) => token.startsWith("--"))
-    .map((token) => beforeFirst(token, "="));
-}
-
 export async function run(
   argv: readonly string[],
   options?: { readonly cwd?: string; readonly io?: CliIo },
@@ -286,15 +277,6 @@ export async function run(
       }
       return given;
     }
-    if (resolved.kind === "leaf") {
-      const rename = flagRename(command, "--format");
-      if (rename !== undefined) {
-        return cliProblem("usage", renameMessage(command, rename), command, {
-          code: "flag_renamed",
-          extensions: { flag: "--format", replacement: rename.to },
-        });
-      }
-    }
     return cliProblem(
       "usage",
       `--format '${given}' is not one of text, json, github, sarif.${suggestion(given, ["text", "json", "github", "sarif"])}`,
@@ -392,7 +374,7 @@ export async function run(
       );
       return done(0);
     }
-    return bareGroup(resolved.path, resolved.entry, rest);
+    return bareGroup(resolved.path, resolved.entry);
   }
 
   if (askedHelp) {
@@ -413,25 +395,8 @@ export async function run(
 
   return runLeaf(resolved.path, resolved.entry, resolved.rest);
 
-  function bareGroup(
-    path: readonly string[],
-    group: GroupEntry,
-    tokens: readonly string[],
-  ): RunResult {
+  function bareGroup(path: readonly string[], group: GroupEntry): RunResult {
     const name = path.join(" ");
-    const moved = COMMAND_MOVES.find((move) => move.from === name);
-    if (moved !== undefined && tokens.some((token) => token.startsWith("-"))) {
-      return fail(
-        new CliError(
-          "usage",
-          `permdock ${name} needs a command since 0.5.0: permdock ${moved.to}`,
-          {
-            code: "command_moved",
-            extensions: { replacement: `permdock ${moved.to}` },
-          },
-        ),
-      );
-    }
     const help =
       path.length === 0 ? rootHelp(false) : groupHelp(path, group, false);
     if (json) {
@@ -498,21 +463,6 @@ export async function run(
       leaf = await entry.load();
     } catch (error) {
       return fail(error);
-    }
-    const declared = new Set(flagSpellings(leaf.flags));
-    for (const flag of typedFlags(tokens)) {
-      const rename = declared.has(flag) ? undefined : flagRename(name, flag);
-      if (rename !== undefined) {
-        return fail(
-          new CliError("usage", renameMessage(name, rename), {
-            code: "flag_renamed",
-            extensions: {
-              flag,
-              ...(rename.to === undefined ? {} : { replacement: rename.to }),
-            },
-          }),
-        );
-      }
     }
     try {
       input = parseLeaf(name, tokens, leaf.flags, leaf.positionals);
