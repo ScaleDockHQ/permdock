@@ -17,6 +17,7 @@ import { scopeList } from "../../core/scopes.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
 import {
   driftOf,
+  partPath,
   pgDeltaPath,
   STDOUT,
   writeOutputFiles,
@@ -86,7 +87,32 @@ file differs.
 `;
 
 /**
- * `supabase.hook.out`, else pg-delta's per-schema path under pg-delta, else
+ * The hook part of `rls generate --split`: `rls.out` with `{part}` replaced by
+ * `hook`, when `rls.split` lists `hook`, or, without `rls.split`, when that
+ * file carries the hook marker.
+ */
+export function splitHookOut(
+  cwd: string,
+  config: PermDockConfig,
+): string | undefined {
+  const out = config.rls?.out;
+  if (out?.includes("{part}") !== true) {
+    return undefined;
+  }
+  const rel = partPath(out, "hook");
+  const split = config.rls?.split;
+  if (split !== undefined) {
+    return split.includes("hook") ? rel : undefined;
+  }
+  const path = resolve(cwd, rel);
+  return existsSync(path) && readFileSync(path, "utf8").includes(HOOK_MARKER)
+    ? rel
+    : undefined;
+}
+
+/**
+ * `supabase.hook.out`, else the hook part of `rls generate --split`, else
+ * pg-delta's per-schema path under pg-delta, else
  * `supabase/permdock-hook.sql`.
  */
 export function hookOut(
@@ -95,6 +121,13 @@ export function hookOut(
   schema?: string,
   flag?: SupabaseSchemas,
 ): string {
+  const split =
+    config.supabase?.hook?.out === undefined
+      ? splitHookOut(cwd, config)
+      : undefined;
+  if (split !== undefined) {
+    return split;
+  }
   const schemas = resolveSchemas(cwd, config, flag);
   return config.supabase?.hook?.out !== undefined || schemas.mode !== "pg-delta"
     ? defaultOut(config)
@@ -448,17 +481,18 @@ export async function runSupabase(input: {
     grantsLabel(input.grantsOut),
   );
   const { grants, manifest } = generated;
-  // The file is declarative only at pg-delta's own path; `--out` and `supabase.hook.out` name a migration.
-  const sql =
-    schemas.mode === "pg-delta" &&
-    typeof input.out !== "string" &&
-    input.config.supabase?.hook?.out === undefined
-      ? declarativeSql(generated.sql)
-      : generated.sql;
   const outRel =
     typeof input.out === "string"
       ? input.out
       : hookOut(input.cwd, input.config, input.schema, flag);
+  // The file is declarative only at pg-delta's own path; `--out`, `supabase.hook.out` and the split hook part name a migration.
+  const sql =
+    schemas.mode === "pg-delta" &&
+    typeof input.out !== "string" &&
+    input.config.supabase?.hook?.out === undefined &&
+    splitHookOut(input.cwd, input.config) === undefined
+      ? declarativeSql(generated.sql)
+      : generated.sql;
   const outPath = resolve(input.cwd, outRel);
   const hook = input.config.supabase?.hook;
   const grantsFile: readonly OutputFile[] =

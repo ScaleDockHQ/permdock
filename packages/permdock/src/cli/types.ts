@@ -200,6 +200,18 @@ export type RlsConfig = {
   readonly roleValues?: Readonly<Record<string, string>>;
   readonly gucPrefix?: string;
   readonly out?: string;
+  /**
+   * The parts `rls generate --split` writes when the flag is absent. The hook
+   * part also moves `supabase.hook.out`'s default, read by `supabase inspect`
+   * and doctor, to `out` with `{part}` replaced by `hook`.
+   */
+  readonly split?: readonly (
+    | "helpers"
+    | "seeds"
+    | "indexes"
+    | "policies"
+    | "hook"
+  )[];
   /** `--target drizzle`: where each policy's `.link()` finds its table. */
   readonly drizzle?: {
     /** Module exporting the tables, as imported from `out`. Default `./schema`. */

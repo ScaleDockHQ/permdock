@@ -7,10 +7,11 @@ import type { DoctorFinding } from "./shared/doctor-types.ts";
 import type { PermDockConfig } from "./types.ts";
 
 import { readMemberships } from "../supabase/subject.ts";
-import { partPath } from "./core/output-files.ts";
+import { partPath, pgDeltaPath } from "./core/output-files.ts";
 import { sqlFiles } from "./files.ts";
 import { pgConnector } from "./pg.ts";
 import { MIGRATION_DIRS } from "./shared/constants.ts";
+import { resolveSchemas } from "./supabase-schemas.ts";
 
 const HELPER_NAME =
   /^(?:permdock_has|permitted_[a-z][a-z0-9_]*_ids|member_[a-z][a-z0-9_]*_ids(?:_for)?)$/u;
@@ -44,24 +45,30 @@ function helpersDefined(sql: string, schema: string): ReadonlySet<string> {
 
 /**
  * SQL files that may hold the generated helpers: `rls.out` (else `rls.sql`; its
- * `helpers` part when it has `{part}`), the SQL files next to the hook, and the
- * migration folders, not the hook itself.
+ * `helpers` part when it has `{part}`), pg-delta's helpers part, the SQL files
+ * next to the hook, and the migration folders, not the hook itself.
  */
 function helperSources(
   cwd: string,
   config: PermDockConfig,
   hookOut: string,
+  helpersSchema: string,
 ): readonly string[] {
   const hook = resolve(cwd, hookOut);
   const files = new Set(
     sqlFiles(cwd, config.doctor?.migrations ?? MIGRATION_DIRS),
   );
-  const rlsOut = resolve(
-    cwd,
-    partPath(config.rls?.out ?? "rls.sql", "helpers"),
-  );
-  if (rlsOut.endsWith(".sql") && existsSync(rlsOut)) {
-    files.add(rlsOut);
+  const out = config.rls?.out ?? "rls.sql";
+  const schemas = resolveSchemas(cwd, config);
+  const candidates = [partPath(out, "helpers")];
+  if (schemas.mode === "pg-delta" && !out.includes("{part}")) {
+    candidates.push(pgDeltaPath(schemas.schemaDir, "helpers", helpersSchema));
+  }
+  for (const candidate of candidates) {
+    const path = resolve(cwd, candidate);
+    if (path.endsWith(".sql") && existsSync(path)) {
+      files.add(path);
+    }
   }
   const beside = dirname(hook);
   if (existsSync(beside)) {
@@ -81,7 +88,12 @@ export function missingHelpersInFiles(
   manifest: SupabaseHookManifest,
 ): readonly string[] {
   const found = new Set<string>();
-  for (const file of helperSources(cwd, config, manifest.hook.out)) {
+  for (const file of helperSources(
+    cwd,
+    config,
+    manifest.hook.out,
+    manifest.helpers.schema,
+  )) {
     for (const name of helpersDefined(
       readFileSync(file, "utf8"),
       manifest.helpers.schema,
