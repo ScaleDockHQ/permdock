@@ -93,7 +93,7 @@ describe(getPermDockSync, () => {
       roles: [
         role("clerk", [
           allow(filing.filing.pay, {
-            approval: { by: "admin", distinct: true },
+            approval: { by: "admin", mode: "authorize" },
           }),
         ]),
       ],
@@ -105,7 +105,6 @@ describe(getPermDockSync, () => {
     if (decision.outcome === "approval-required") {
       expect(decision.grant.approval).toStrictEqual({
         by: { kind: "role", role: "admin", scope: "global" },
-        distinct: true,
       });
     }
     expect(permdock.can(filing.filing.pay, undefined)).toBe(false);

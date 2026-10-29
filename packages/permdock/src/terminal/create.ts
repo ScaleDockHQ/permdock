@@ -62,7 +62,7 @@ function envOf(
 
 /**
  * The local y/N is the requester answering for themselves, so it stands in for
- * an approval only where the grant allows that (`distinct: false`) and no agent
+ * an approval only where the grant allows that (`mode: 'confirm'`) and no agent
  * is acting for the user.
  */
 function answersLocally(
@@ -72,7 +72,7 @@ function answersLocally(
   const approval = decision.grant.approval;
   return (
     typeof approval === "object" &&
-    approval.distinct === false &&
+    approval.mode === "confirm" &&
     subject.actor === undefined
   );
 }

@@ -22,7 +22,7 @@ export const permissions = definePermissions({
 });
 
 const managerThenApprover = {
-  mode: "sequential",
+  combine: "sequential",
   stages: [
     { by: relation(permissions.expense, "manager") },
     { by: relation(permissions.report, "approver", { through: ["report"] }) },

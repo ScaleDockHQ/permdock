@@ -98,10 +98,7 @@ export const saasPolicy: Policy<
           limit: { count: SAAS_API_KEY_LIMIT, per: 86_400 },
         }),
       ),
-      allow(p.apiKey.revokeAll, {
-        to: r.admin,
-        approval: { by: r.owner, distinct: true },
-      }),
+      allow(p.apiKey.revokeAll, { to: r.admin, approval: { by: r.owner } }),
       allow(p.apiKey.revokeAll, { to: r.owner }),
       ...each(admins, (to) =>
         allow(p.analytics.read, { to: [to, saasPlans.pro] }),

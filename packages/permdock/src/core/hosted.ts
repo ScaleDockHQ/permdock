@@ -3,6 +3,7 @@ import type { Grantee } from "./grantee.ts";
 import type { ApprovalRequirement, Grant, Policy } from "./policy-types.ts";
 
 import { normalizeWhere } from "../conditions/normalize.ts";
+import { readWireApproval } from "./approval-normalize.ts";
 import { compact, isRecord } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { allow, completeGrant, deny } from "./grant-builders.ts";
@@ -252,7 +253,7 @@ function approvalRank(
 ):
   | {
       readonly by?: string;
-      readonly distinct: boolean;
+      readonly authorize: boolean;
       readonly stale: boolean;
       readonly quorum: number;
       readonly ttl: number;
@@ -264,7 +265,7 @@ function approvalRank(
   }
   if (approval === "human") {
     return {
-      distinct: true,
+      authorize: true,
       stale: false,
       quorum: 1,
       ttl: Number.POSITIVE_INFINITY,
@@ -275,8 +276,8 @@ function approvalRank(
     by:
       approval.stages === undefined
         ? JSON.stringify(approval.by)
-        : JSON.stringify([approval.mode, approval.stages]),
-    distinct: approval.distinct !== false,
+        : JSON.stringify([approval.combine, approval.stages]),
+    authorize: approval.mode !== "confirm",
     stale: approval.staleOn === "resource-change",
     quorum: approval.quorum ?? 1,
     ttl: durationOf(approval.ttl) ?? Number.POSITIVE_INFINITY,
@@ -301,7 +302,7 @@ function approvalAtLeast(
     if (mine === undefined) {
       return false;
     }
-    if (theirs.distinct && !mine.distinct) {
+    if (theirs.authorize && !mine.authorize) {
       return false;
     }
     if (theirs.stale && !mine.stale) {
@@ -387,12 +388,17 @@ function approvalAcceptable(
   if (!isRecord(approval)) {
     return false;
   }
-  if (approval["mode"] !== undefined || approval["stages"] !== undefined) {
+  if (
+    approval["combine"] !== undefined ||
+    approval["stages"] !== undefined ||
+    approval["distinct"] !== undefined
+  ) {
     return false;
   }
   if (
-    approval["distinct"] !== undefined &&
-    typeof approval["distinct"] !== "boolean"
+    approval["mode"] !== undefined &&
+    approval["mode"] !== "confirm" &&
+    approval["mode"] !== "authorize"
   ) {
     return false;
   }
@@ -516,7 +522,8 @@ function buildGrant(
       return { ok: false, reason: "non-portable" };
     }
   }
-  if (!approvalAcceptable(policy, raw["approval"], permission.resource)) {
+  const approval = readWireApproval(raw["approval"]);
+  if (!approvalAcceptable(policy, approval, permission.resource)) {
     return { ok: false, reason: "invalid" };
   }
   if (
@@ -535,7 +542,7 @@ function buildGrant(
       raw["where"] === undefined ? undefined : normalizeWhere(raw["where"]),
     check:
       raw["check"] === undefined ? undefined : normalizeWhere(raw["check"]),
-    approval: raw["approval"] as Grant["approval"],
+    approval: approval as Grant["approval"],
     fields: raw["fields"] as readonly string[] | undefined,
   });
   let built: Grant;

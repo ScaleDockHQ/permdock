@@ -27,8 +27,8 @@ const deploys = definePermissions({
 const selfApproved = definePolicy(deploys, {
   roles: [
     role("operator", [
-      allow(deploys.environment.delete, { approval: { distinct: false } }),
-      allow(deploys.environment.update, { approval: { distinct: false } }),
+      allow(deploys.environment.delete, { approval: { mode: "confirm" } }),
+      allow(deploys.environment.update, { approval: { mode: "confirm" } }),
       allow(deploys.environment.deploy),
       allow(deploys.environment.read),
     ]),

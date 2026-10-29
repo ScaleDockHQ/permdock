@@ -247,7 +247,7 @@ describe("escalation in data and per stage", () => {
       },
     );
     expect(tightened).toMatchObject({
-      mode: "all",
+      combine: "all",
       escalation: { after: 86_400, to: { kind: "user", id: "ceo" } },
       stages: [
         { by: { kind: "role", role: "controller" } },
@@ -273,7 +273,7 @@ describe("escalation in data and per stage", () => {
           [
             allow(permissions.payment.send, {
               approval: {
-                mode: "all",
+                combine: "all",
                 stages: [
                   { by: "controller" },
                   {

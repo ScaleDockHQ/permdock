@@ -286,12 +286,12 @@ describe("doctor collect", () => {
   describe("PD024 self-approval", () => {
     it("names a policy-level grant without a role", async () => {
       const cwd = policyProject({
-        policy: `  grants: [allow(permissions.post.pay, { to: authenticated(), approval: { distinct: false } })],`,
+        policy: `  grants: [allow(permissions.post.pay, { to: authenticated(), approval: { mode: "confirm" } })],`,
       });
       expect(
         messages(await pd024({ cwd, config: { policy: "./src/policy.ts" } })),
       ).toStrictEqual([
-        "post.pay sets approval.distinct: false, so the requester can approve their own request",
+        "post.pay sets approval.mode: 'confirm', so the requester can approve their own request",
       ]);
     });
   });

@@ -457,7 +457,7 @@ describe("CentraKit adoption shapes", () => {
       resource: { type: "expenses", id: EXPENSE },
       subject: requester.subject,
     });
-    expect(request.approvers).toMatchObject({ mode: "sequential" });
+    expect(request.approvers).toMatchObject({ combine: "sequential" });
     const approve = async (who: string) => {
       const handler = approvalsHandler(store, {
         subject: () => ({ principal: staff(who, ["viewer"]), context: {} }),

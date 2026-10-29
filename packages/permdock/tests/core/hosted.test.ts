@@ -222,7 +222,7 @@ describe("hosted grants", () => {
         id: "g_self",
         permission: "invoice.delete",
         to: { kind: "role", role: "auditor", scope: "global" },
-        approval: { distinct: false },
+        approval: { mode: "confirm" },
       },
       {
         id: "g_human",
@@ -340,7 +340,7 @@ describe("hosted grants", () => {
         roles: [
           role("member", [
             allow(permissions.invoice.delete, {
-              approval: { mode: "sequential", stages: [{ by: "auditor" }] },
+              approval: { combine: "sequential", stages: [{ by: "auditor" }] },
             }),
           ]),
           role("auditor", []),
@@ -356,7 +356,7 @@ describe("hosted grants", () => {
           id: "g_stages",
           permission: "invoice.delete",
           to: auditor,
-          approval: { mode: "sequential", stages: [{ by: auditor }] },
+          approval: { combine: "sequential", stages: [{ by: auditor }] },
         },
         {
           id: "g_single",
@@ -766,8 +766,8 @@ describe("hosted grant validation", () => {
         grant("authenticated-by", {
           approval: { by: { kind: "authenticated" } },
         }),
-        grant("member-by", { approval: { by: toMember, distinct: true } }),
-        grant("no-by", { approval: { distinct: true } }),
+        grant("member-by", { approval: { by: toMember, mode: "authorize" } }),
+        grant("no-by", { approval: { mode: "authorize" } }),
         grant("fields", { fields: ["ownerId"] }),
         grant("check", { check: { op: "eq", field: "locked", value: false } }),
       ]),

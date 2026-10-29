@@ -259,7 +259,7 @@ describe("permdock/terminal", () => {
     const selfApproved = definePolicy(permissions, {
       roles: [
         role("member", [
-          allow(permissions.post.delete, { approval: { distinct: false } }),
+          allow(permissions.post.delete, { approval: { mode: "confirm" } }),
         ]),
       ],
       subject: (user: { readonly id: string } | null) =>

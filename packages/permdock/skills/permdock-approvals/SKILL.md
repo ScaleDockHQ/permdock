@@ -1,6 +1,6 @@
 ---
 name: permdock-approvals
-description: Requires human approval on PermDock grants, notifies approvers and resumes the approved call. Use when adding approval to a destructive or money-moving action (delete, publish, pay, refund, transfer), choosing approvers with approval by, user(), relation(), distinct, quorum, ttl, escalation or staleOn, ordering approvers with mode and stages, covering an approver with an ApprovalDelegation, loading approval rules as data with an ApprovalPolicySource, separating preparer and approver with exclusiveWith, labelling operations with risk and effects meta, mounting approvalsHandler with an ApprovalStore, sending approval emails (approvalEmail) or chat cards (approvalCard, approvalActions) from approvalPrompt, parking a background run on an ApprovalWaiter (pollingApprovalWaiter, workflowSdkWaiter), resuming with the PermDock-Approval header, mapping approval-required to an agent runtime, MCP elicitation or AG-UI interrupt, or fixing doctor PD017, PD018 or PD024.
+description: Requires human approval on PermDock grants, notifies approvers and resumes the approved call. Use when adding approval to a destructive or money-moving action (delete, publish, pay, refund, transfer), choosing approvers with approval by, user(), relation(), mode confirm or authorize, quorum, ttl, escalation or staleOn, ordering approvers with combine and stages, covering an approver with an ApprovalDelegation, loading approval rules as data with an ApprovalPolicySource, separating preparer and approver with exclusiveWith, labelling operations with risk and effects meta, mounting approvalsHandler with an ApprovalStore, sending approval emails (approvalEmail) or chat cards (approvalCard, approvalActions) from approvalPrompt, parking a background run on an ApprovalWaiter (pollingApprovalWaiter, workflowSdkWaiter), resuming with the PermDock-Approval header, mapping approval-required to an agent runtime, MCP elicitation or AG-UI interrupt, or fixing doctor PD017, PD018 or PD024.
 license: MIT
 metadata:
   author: ScaleDockHQ
@@ -25,7 +25,7 @@ metadata:
 
 ## Invariants
 
-1. The requester never approves by default. The actor is always refused. The principal is refused unless the grant sets `distinct: false`, and `requireDistinctApprover` on the handler refuses it even then. A delegate is held to the same rule, and so is the delegator. One hop, and `until` is required.
+1. The requester never approves by default. The actor is always refused. The principal is refused unless the grant sets `mode: "confirm"`, and `requireDistinctApprover` on the handler refuses it even then. A delegate is held to the same rule, and so is the delegator. One hop, and `until` is required.
 2. The approver comes from authentication on the approval surface, never from the request body, a tool argument or a link.
 3. One approval resumes one call. The token binds permission, resource, subject and actor, the resume re-runs `decide`, and `consume` spends the approval once.
 4. `can` returns `false` for `approval-required`. Only `decide`, `assert` and the adapters see the third outcome.
@@ -51,9 +51,9 @@ metadata:
    });
    ```
 
-   For sign-off in order, use `mode: 'sequential'` with `stages: [{ by, quorum? }]` (or `mode: 'all'` for any order); one person signs one stage. `user('u_cfo')` names one person, and `relation(permissions.expense, 'manager')` names whoever holds the relation on the row.
-   Add `distinct: false` only where the user confirms their own agent's call and no money, deletion or access change sits behind it.
-   ✓ `permdock doctor` reports no PD017 (sensitive verb without approval), and every PD024 (`distinct: false`) is deliberate.
+   For sign-off in order, use `combine: 'sequential'` with `stages: [{ by, quorum? }]` (or `combine: 'all'` for any order); one person signs one stage. `user('u_cfo')` names one person, and `relation(permissions.expense, 'manager')` names whoever holds the relation on the row.
+   Add `mode: "confirm"` only where the user confirms their own agent's call and no money, deletion or access change sits behind it.
+   ✓ `permdock doctor` reports no PD017 (sensitive verb without approval), and every PD024 (`mode: "confirm"`) is deliberate.
 
 2. **Bind content when it matters.** Declare `version: 'updatedAt'` (or a revision counter) on the `resource()` and add `staleOn: 'resource-change'` to the approval, so a changed row resumes as `stale-approval` and asks again.
    ✓ `definePolicy` accepts the grant (it throws when the resource has no `version` or the action is a collection action).
@@ -77,7 +77,7 @@ metadata:
 ## Verify before done
 
 - [ ] Every destructive or money-moving action an agent or a user can trigger has `approval`, or a `deny` on the same leaf.
-- [ ] Each `distinct: false` (PD024) is a deliberate self-confirmation with nothing irreversible behind it.
+- [ ] Each `mode: "confirm"` (PD024) is a deliberate self-confirmation with nothing irreversible behind it.
 - [ ] Roles that must not be held together set `exclusiveWith`, and PD018 is clean.
 - [ ] The store survives the deployment: no `memoryApprovalStore` on serverless or across replicas.
 - [ ] No resume token is read from model output or tool arguments, and each resume re-runs `decide`.

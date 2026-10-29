@@ -126,11 +126,11 @@ import { permissions } from './permissions.ts';
 export const policy = definePolicy(permissions, {
   roles: [
     role('member', [
-      allow(permissions.post.delete, { approval: { distinct: false } }),
+      allow(permissions.post.delete, { approval: { mode: "confirm" } }),
       allow(permissions.post.update, { approval: 'human' }),
     ]),
     role('admin', [
-      allow(permissions.post.delete, { approval: { by: 'admin', distinct: true } }),
+      allow(permissions.post.delete, { approval: { by: 'admin', mode: "authorize" } }),
     ]),
   ],
   subject: () => null,
@@ -161,7 +161,7 @@ export const policy = definePolicy(permissions, {
         expect.objectContaining({
           code: "PD024",
           message:
-            "post.delete (role member) sets approval.distinct: false, so the requester can approve their own request",
+            "post.delete (role member) sets approval.mode: 'confirm', so the requester can approve their own request",
         }),
       ]);
     });

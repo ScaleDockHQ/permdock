@@ -156,8 +156,8 @@ function optionFor(policy: Policy, key: string): HostedGrantOption | null {
       modes: ["human", "any"],
       fields: [
         "by",
-        "distinct",
         "escalation",
+        "mode",
         "quorum",
         ...(node?.version === undefined ? [] : ["staleOn"]),
         "ttl",

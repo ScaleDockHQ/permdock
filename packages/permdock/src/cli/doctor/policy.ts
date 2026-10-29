@@ -69,15 +69,15 @@ export async function pd024(
       grant.effect !== "allow" ||
       approval === undefined ||
       approval === "human" ||
-      approval.distinct !== false
+      approval.mode !== "confirm"
     ) {
       continue;
     }
     findings.push({
       code: "PD024",
       severity: "warning",
-      message: `${grant.permission.key}${grant.role === null ? "" : ` (role ${grant.role})`} sets approval.distinct: false, so the requester can approve their own request`,
-      fix: "remove distinct: false unless the requester confirming their own call (an agent asking its user) is the intent",
+      message: `${grant.permission.key}${grant.role === null ? "" : ` (role ${grant.role})`} sets approval.mode: 'confirm', so the requester can approve their own request`,
+      fix: "remove mode: 'confirm' unless the requester confirming their own call (an agent asking its user) is the intent",
     });
   }
   return findings;

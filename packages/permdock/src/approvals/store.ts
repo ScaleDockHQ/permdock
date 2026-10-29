@@ -13,6 +13,7 @@ import type {
   ApprovalVerdict,
 } from "./types.ts";
 
+import { readWireApproval } from "../core/approval-normalize.ts";
 import { flattenApprovers } from "../core/approvers.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
@@ -215,16 +216,28 @@ function assertSeparateApprover(
       "approver is the actor of this request",
     );
   }
-  const distinct =
-    requireDistinctApprover || request.approvers?.distinct !== false;
+  const authorize =
+    requireDistinctApprover ||
+    readWireApproval(request.approvers)?.mode !== "confirm";
   if (
-    distinct &&
+    authorize &&
     request.subject.principal !== null &&
     principal.id === request.subject.principal.id
   ) {
     throw new ApprovalError(
       "approver-is-principal",
       "approver is the principal of this request",
+    );
+  }
+  if (
+    (by.actor !== undefined && !isSystemSubject(by)) ||
+    by.delegation !== undefined ||
+    principal.kind === "service" ||
+    principal.kind === "workload"
+  ) {
+    throw new ApprovalError(
+      "approver-not-eligible",
+      "an approver must be a person acting for themselves, not an agent, a delegated token or a service",
     );
   }
   return principal;
@@ -281,7 +294,7 @@ export function assertApprover(
     );
   }
   assertNotRepeated(request, principal.id);
-  const approvers = request.approvers;
+  const approvers = readWireApproval(request.approvers);
   if (approvers === undefined) {
     return undefined;
   }
@@ -321,7 +334,8 @@ export function assertApprover(
   const open = stages.flatMap((stage, index) =>
     (counts[index] ?? 0) < (stage.quorum ?? 1) ? [index] : [],
   );
-  const candidates = approvers.mode === "sequential" ? open.slice(0, 1) : open;
+  const candidates =
+    approvers.combine === "sequential" ? open.slice(0, 1) : open;
   for (const index of candidates) {
     const stage = stages[index];
     if (
@@ -333,7 +347,7 @@ export function assertApprover(
   }
   throw new ApprovalError(
     "approver-not-eligible",
-    approvers.mode === "sequential"
+    approvers.combine === "sequential"
       ? "approver is not eligible for the current stage"
       : "approver is not eligible for an open stage",
   );

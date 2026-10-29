@@ -80,7 +80,7 @@ describe("the ApprovalPolicySource type", () => {
       outcome: "approval-required",
       grant: {
         approval: {
-          mode: "all",
+          combine: "all",
           stages: [{ by: { kind: "role", role: "finance", scope: "global" } }],
         },
       },
@@ -127,7 +127,7 @@ describe("the ApprovalPolicySource type", () => {
       outcome: "approval-required",
       grant: {
         approval: {
-          mode: "sequential",
+          combine: "sequential",
           stages: [
             { by: { kind: "relation", relation: "manager" } },
             { by: { kind: "relation", relation: "approver" } },
@@ -244,17 +244,17 @@ describe("the ApprovalPolicySource type", () => {
     ).toBe("granted");
   });
 
-  it("merges entries: one stage per distinct approver, the shortest ttl, distinct unless all opt out", async () => {
+  it("merges entries: one stage per distinct approver, the shortest ttl, authorize unless all confirm", async () => {
     const finance = {
       permission: "expense.read",
-      approval: { by: "finance", quorum: 2, distinct: false, ttl: 7200 },
+      approval: { by: "finance", quorum: 2, mode: "confirm", ttl: 7200 },
     } as const;
     const source = memoryApprovalPolicySource([
       finance,
       finance,
       {
         permission: "expense.read",
-        approval: { by: "auditor", distinct: false, ttl: 1800 },
+        approval: { by: "auditor", mode: "confirm", ttl: 1800 },
       },
     ]);
     const decision = await decide(source, permissions.expense.read, small);
@@ -262,7 +262,7 @@ describe("the ApprovalPolicySource type", () => {
       outcome: "approval-required",
       grant: {
         approval: {
-          mode: "all",
+          combine: "all",
           stages: [
             {
               by: { kind: "role", role: "finance", scope: "global" },
@@ -270,7 +270,7 @@ describe("the ApprovalPolicySource type", () => {
             },
             { by: { kind: "role", role: "auditor", scope: "global" } },
           ],
-          distinct: false,
+          mode: "confirm",
           ttl: 1800,
         },
       },
@@ -280,8 +280,8 @@ describe("the ApprovalPolicySource type", () => {
     ]);
     const paid = await decide(human, permissions.expense.pay, large);
     expect(paid.outcome).toBe("approval-required");
-    expect(paid).not.toHaveProperty("grant.approval.distinct");
-    expect(paid).toHaveProperty("grant.approval.mode", "sequential");
+    expect(paid).not.toHaveProperty("grant.approval.mode");
+    expect(paid).toHaveProperty("grant.approval.combine", "sequential");
     expect(paid).toHaveProperty("grant.approval.stages.length", 3);
   });
 

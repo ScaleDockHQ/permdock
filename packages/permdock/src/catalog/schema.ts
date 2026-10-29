@@ -25,7 +25,12 @@ const approval = {
       type: "object",
       properties: {
         by: {},
-        mode: { enum: ["any", "all", "sequential"] },
+        combine: { enum: ["any", "all", "sequential"] },
+        mode: {
+          description:
+            "confirm or authorize; a catalog written before 0.17 holds any, all or sequential here, read as combine.",
+          enum: ["confirm", "authorize", "any", "all", "sequential"],
+        },
         stages: {
           type: "array",
           items: {
@@ -34,7 +39,10 @@ const approval = {
             properties: { by: {}, quorum: { type: "integer", minimum: 1 } },
           },
         },
-        distinct: { type: "boolean" },
+        distinct: {
+          description: "Written before 0.17; false reads as mode: confirm.",
+          type: "boolean",
+        },
         staleOn: { const: "resource-change" },
         quorum: { type: "integer", minimum: 1 },
         ttl: seconds,

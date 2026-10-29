@@ -132,9 +132,9 @@ export async function requestApproval(
       ? undefined
       : compact<ApprovalApprovers>({
           by: approval.by,
-          mode: approval.mode,
+          combine: approval.combine,
           stages: approval.stages,
-          distinct: approval.distinct,
+          mode: approval.mode,
           staleOn: approval.staleOn,
           quorum: approval.quorum,
           escalation: approval.escalation,

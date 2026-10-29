@@ -53,12 +53,12 @@ group("approval modes and approver kinds", () => {
   it("normalises stages, user approvers and the mode", () => {
     expect(
       normalizeApproval({
-        mode: "all",
+        combine: "all",
         stages: [{ by: user("cfo") }, { by: "admin", quorum: 2 }],
         ttl: 86_400,
       }),
     ).toStrictEqual({
-      mode: "all",
+      combine: "all",
       stages: [
         { by: { kind: "user", id: "cfo" } },
         { by: { kind: "role", role: "admin", scope: "global" }, quorum: 2 },
@@ -74,19 +74,21 @@ group("approval modes and approver kinds", () => {
   });
 
   it.each([
-    [{ mode: "all" as const }, /at least one stage/u],
+    [{ combine: "all" as const }, /at least one stage/u],
     [
-      { mode: "sequential" as const, by: "admin", stages: [{ by: "a" }] },
+      { combine: "sequential" as const, by: "admin", stages: [{ by: "a" }] },
       /put by and quorum on each stage/u,
     ],
-    [{ stages: [{ by: "admin" }] }, /needs mode/u],
-    [{ mode: "all" as const, stages: [{ by: [] }] }, /names no approver/u],
+    [{ stages: [{ by: "admin" }] }, /needs combine/u],
+    [{ combine: "all" as const, stages: [{ by: [] }] }, /names no approver/u],
     [
-      { mode: "all" as const, stages: [{ by: "a", quorum: 0 }] },
+      { combine: "all" as const, stages: [{ by: "a", quorum: 0 }] },
       /stages\[0\]\.quorum/u,
     ],
     // SAFETY: deliberately invalid input to check the runtime guard.
-    [{ mode: "every" as never, stages: [{ by: "a" }] }, /'any', 'all'/u],
+    [{ combine: "every" as never, stages: [{ by: "a" }] }, /'any', 'all'/u],
+    // SAFETY: deliberately invalid input to check the runtime guard.
+    [{ mode: "every" as never }, /'confirm' or 'authorize'/u],
   ])("refuses %j", (approval, message) => {
     expect(() => normalizeApproval(approval)).toThrow(message);
   });
@@ -259,7 +261,7 @@ group("approval modes and approver kinds", () => {
       resource: { type: "expense", id: "e1" },
       subject: { principal: { id: "alice", roles: [] } },
       approvers: {
-        mode: "all",
+        combine: "all",
         stages: [{ by: user("cfo") }, { by: user("ceo") }],
       },
       detail: "",

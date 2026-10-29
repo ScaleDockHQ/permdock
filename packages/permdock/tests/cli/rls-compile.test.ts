@@ -232,7 +232,7 @@ describe("compileGrants approval grants", () => {
         role("clerk", [
           allow(tree.invoice.read),
           allow(tree.invoice.pay, { approval: "human" }),
-          allow(tree.invoice.void, { approval: { distinct: false } }),
+          allow(tree.invoice.void, { approval: { mode: "confirm" } }),
           allow(tree.invoice.close, {
             approval: { staleOn: "resource-change" },
           }),

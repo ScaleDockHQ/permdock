@@ -94,7 +94,7 @@ export const roles = defineRoles({
 });
 
 export const managerThenApprover = {
-  mode: "sequential",
+  combine: "sequential",
   stages: [
     { by: relation(permissions.expenses, "manager") },
     { by: relation(permissions.reports, "approver", { through: ["report"] }) },
