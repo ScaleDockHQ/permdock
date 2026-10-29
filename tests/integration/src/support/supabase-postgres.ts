@@ -7,7 +7,7 @@ import { GenericContainer, Wait } from "testcontainers";
  * it. From GHCR: anonymous public.ecr.aws pulls hit its rate and data limits on
  * GitHub runners.
  */
-const SUPABASE_POSTGRES_IMAGE = "ghcr.io/supabase/postgres:17.11.0.002";
+const SUPABASE_POSTGRES_IMAGE = "ghcr.io/supabase/postgres:17.11.0.006";
 
 const PASSWORD = "postgres";
 
