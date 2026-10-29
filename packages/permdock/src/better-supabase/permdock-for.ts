@@ -56,11 +56,23 @@ export type PermDockForQuery = {
  * The instance for a session, a `bsb.bootstrap()` result, a `bsb.getAccess()`
  * result or a subject. The second argument is a query or a tenant, so it also
  * serves as an approvals handler's or access-review handler's `permdockFor`.
+ * The third is the version cache better-supabase passes at runtime, which
+ * replaces the `versions` option.
  */
-export type PermDockFor = (
-  source: PermDockForInput,
-  query?: PermDockForQuery | string | null,
-) => Promise<PermDock>;
+export type PermDockFor = {
+  (
+    source: PermDockForInput,
+    query?: PermDockForQuery | string | null,
+    versions?: VersionCache,
+  ): Promise<PermDock>;
+  /**
+   * The instance options every instance of `versions` (default the `versions`
+   * option) is built with: the same object on every call, so an adapter that
+   * spreads it into its own options, such as oRPC's or MCP's `createPermDock`,
+   * shares the `claimsFirst` memberships and the `instances` entries.
+   */
+  readonly sources: (versions?: VersionCache) => InstanceOptions;
+};
 
 export type PermDockForOptions = {
   readonly policy: Policy;
@@ -82,11 +94,24 @@ export type PermDockForOptions = {
 };
 
 /** `permdockFor` with the version cache better-supabase passes at runtime. */
-export type PermDockResolver = (
-  source: PermDockForInput,
-  query: PermDockForQuery,
-  versions?: VersionCache,
-) => Promise<PermDock>;
+export type PermDockResolver = {
+  (
+    source: PermDockForInput,
+    query: PermDockForQuery,
+    versions?: VersionCache,
+  ): Promise<PermDock>;
+  readonly sources: (versions?: VersionCache) => InstanceOptions;
+};
+
+/** The options a `permdockFor` resolver already holds. */
+const RESOLVER_OWNS = [
+  "subject",
+  "memberships",
+  "version",
+  "versions",
+  "instances",
+  "options",
+] as const;
 
 function isResult(source: unknown): source is PermDockForResult {
   return (
@@ -162,7 +187,11 @@ export function permdockResolver(
     byCache.set(versions, created);
     return created;
   };
-  return async (source, query, runtimeVersions) => {
+  const resolve = async (
+    source: PermDockForInput,
+    query: PermDockForQuery,
+    runtimeVersions?: VersionCache,
+  ): Promise<PermDock> => {
     const result = isResult(source) ? source : undefined;
     const signedOut = result?.sessionActive === false;
     const user = subjectOf(source, result, signedOut, options.subject);
@@ -183,6 +212,35 @@ export function permdockResolver(
     });
     return permdock;
   };
+  const sources = (versions?: VersionCache): InstanceOptions =>
+    sourcesFor(versions ?? options.versions);
+  return Object.freeze(Object.assign(resolve, { sources }));
+}
+
+/**
+ * The resolver an adapter builds instances with: the app's `permdockFor`, or
+ * one built from the adapter's own options. `permdockFor` with any option it
+ * already holds throws a `TypeError`, since two sources of the same option
+ * would disagree.
+ */
+export function resolverOf(
+  options: PermDockForOptions & { readonly permdockFor?: PermDockFor },
+  adapter: string,
+): PermDockResolver {
+  const shared = options.permdockFor;
+  if (shared === undefined) return permdockResolver(options);
+  const clash = RESOLVER_OWNS.find((key) => options[key] !== undefined);
+  if (clash !== undefined) {
+    throw new TypeError(
+      `PermDock: ${adapter} takes ${clash} from permdockFor; pass it to permdockFor instead`,
+    );
+  }
+  const resolve = (
+    source: PermDockForInput,
+    query: PermDockForQuery,
+    versions?: VersionCache,
+  ): Promise<PermDock> => shared(source, query, versions);
+  return Object.freeze(Object.assign(resolve, { sources: shared.sources }));
 }
 
 /**
@@ -191,17 +249,26 @@ export function permdockResolver(
  * bsb.getAccess(...))`. A bootstrap or access result passes its `authzVersion`
  * as `version.known`, so the instance reads no version, and a `sessionActive:
  * false` bootstrap is anonymous. With `instances`, a subject at an unchanged
- * version reuses its instance across requests.
+ * version reuses its instance across requests. Pass the same resolver to
+ * `authorizer({ permdockFor })`, `authorizationHooks({ permdockFor })` and,
+ * through `permdockFor.sources()`, to every other adapter's options, so they
+ * share one instance per subject and version.
  */
 export function permdockFor(options: PermDockForOptions): PermDockFor {
   const resolve = permdockResolver(options);
-  return (source, query) =>
+  const call = (
+    source: PermDockForInput,
+    query?: PermDockForQuery | string | null,
+    versions?: VersionCache,
+  ): Promise<PermDock> =>
     resolve(
       source,
       typeof query === "string" || query === null
         ? { tenant: query }
         : (query ?? {}),
+      versions,
     );
+  return Object.freeze(Object.assign(call, { sources: resolve.sources }));
 }
 
 /**
@@ -211,7 +278,10 @@ export function permdockFor(options: PermDockForOptions): PermDockFor {
  * built denies them all.
  */
 export async function getPermissions<K extends string>(
-  resolve: PermDockFor,
+  resolve: (
+    source: PermDockForInput,
+    query?: PermDockForQuery | string | null,
+  ) => Promise<PermDock>,
   input: PermDockForInput,
   checks: Readonly<Record<K, PermissionCheck>>,
   query?: PermDockForQuery | string | null,

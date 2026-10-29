@@ -137,8 +137,15 @@ describe("the instance cache", () => {
       sources,
       scope: { intent: "write", version: { known: 4 } },
     });
+    const unstated = await buildInstance({
+      policy,
+      user: token(1),
+      sources,
+      scope: { version: { known: 4 } },
+    });
     expect(write.permdock).not.toBe(read.permdock);
     expect(again.permdock).toBe(write.permdock);
+    expect(unstated.permdock).toBe(write.permdock);
   });
 
   it("keys subjects, claims and sources apart, not the adapter", async () => {

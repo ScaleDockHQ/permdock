@@ -16,6 +16,7 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
 import type { ProviderApprovers } from "./approvers.ts";
+import type { PermDockFor } from "./permdock-for.ts";
 import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 import type { SubscriberPolicyEvent } from "./subscribers.ts";
 import type { SupportPolicyOptions } from "./support.ts";
@@ -29,7 +30,7 @@ import {
   listPermissions,
 } from "../core/permission-registry.ts";
 import { snapshotTag } from "../core/snapshot-cache.ts";
-import { permdockFor } from "./permdock-for.ts";
+import { resolverOf } from "./permdock-for.ts";
 import { subscriberPolicy } from "./subscribers.ts";
 import { supportPolicy } from "./support.ts";
 
@@ -42,6 +43,13 @@ const PERMISSION_CAP_CLAIM = "bsb_permission_cap";
 
 export type AuthorizationHooksOptions = {
   readonly policy: Policy;
+  /**
+   * The app's `permdockFor` resolver, shared with `authorizer({ permdockFor })`
+   * so a hook reuses the instances the checks built. It holds `subject`,
+   * `memberships`, `version`, `versions`, `instances` and `options`; passing
+   * one of those as well throws a `TypeError`.
+   */
+  readonly permdockFor?: PermDockFor;
   /**
    * The claims better-supabase mints for `userId` now, or `null` for a user
    * deleted, suspended or unknown: the same loader `principalSource` takes.
@@ -167,12 +175,15 @@ export function authorizationHooks(
   options: AuthorizationHooksOptions,
 ): AuthorizationHooks {
   const { policy } = options;
-  const resolve = permdockFor(options);
+  const resolve = resolverOf(options, "authorizationHooks");
   const instance = async (
     claims: Claims,
     tenant: string | null | undefined,
   ): Promise<PermDock | null> => {
-    const permdock = await resolve({ kind: "user", claims }, tenant);
+    const permdock = await resolve(
+      { kind: "user", claims },
+      { tenant: tenant ?? null },
+    );
     if (permdock.subject.principal === null) return null;
     return tenant === null ||
       tenant === undefined ||

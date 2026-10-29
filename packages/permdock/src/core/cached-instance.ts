@@ -13,7 +13,6 @@ type SubjectMapper = { readonly subject: (user: never) => Principal | null };
 /** Options that shape an instance by value; the rest by identity. */
 const DATA_KEYS: ReadonlySet<string> = new Set([
   "tenant",
-  "intent",
   "actor",
   "delegation",
   "session",
@@ -82,13 +81,13 @@ async function cacheKey(
   if (!isVersion(version)) {
     return undefined;
   }
-  const data: Record<string, unknown> = {};
+  const data: Record<string, unknown> = { intent };
   const owners: unknown[] = [policy];
   for (const name of Object.keys(options).toSorted()) {
     const value: unknown = Reflect.get(options, name);
     if (DATA_KEYS.has(name)) {
       data[name] = value;
-    } else if (name !== "version") {
+    } else if (name !== "version" && name !== "intent") {
       owners.push(value);
     }
   }

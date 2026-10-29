@@ -14,6 +14,7 @@ import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { VersionCache } from "../core/version-cache.ts";
+import type { PermDockFor } from "./permdock-for.ts";
 import type { BetterSupabaseOnError } from "./report.ts";
 import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 
@@ -22,7 +23,7 @@ import { parseApprovalHeader } from "../core/approval-header.ts";
 import { canonicalJson } from "../core/canonical-json.ts";
 import { isRecord } from "../core/compact.ts";
 import { isPermission } from "../core/permission-registry.ts";
-import { permdockResolver } from "./permdock-for.ts";
+import { resolverOf } from "./permdock-for.ts";
 import { deniedMessage, report } from "./report.ts";
 
 /**
@@ -38,6 +39,15 @@ export type AuthorizerOperation =
 
 export type AuthorizerOptions = {
   readonly policy: Policy;
+  /**
+   * The app's `permdockFor` resolver: `bsb.action`, `protectAction` and every
+   * adapter that spreads `permdockFor.sources()` then share one instance per
+   * subject and version. Each check calls it with better-supabase's runtime
+   * `versions`. It holds `subject`, `memberships`, `version`, `versions`,
+   * `instances` and `options`; passing one of those as well throws a
+   * `TypeError`.
+   */
+  readonly permdockFor?: PermDockFor;
   /**
    * How the verified claims map to a subject; the defaults of
    * `subjectFromBetterSupabase`.
@@ -203,7 +213,7 @@ export function authorizer(
       ? "read"
       : "write";
   };
-  const resolve = permdockResolver(options);
+  const resolve = resolverOf(options, "authorizer");
   const instanceFor = (
     claims: unknown,
     tenant: string | null,
