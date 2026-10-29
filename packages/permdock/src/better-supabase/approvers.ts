@@ -134,7 +134,7 @@ export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
     );
   }
   const otherwise = current
-    ? `${fn}(null::jsonb, ({tenant})::text, ({requester})::text, split_part({kind}, '.', 1)${passed})`
+    ? `${fn}(null::jsonb, ({tenant})::text, ({requester})::text, pg_catalog.split_part({kind}, '.', 1)${passed})`
     : "false";
   return {
     template:
