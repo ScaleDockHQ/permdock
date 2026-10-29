@@ -1184,14 +1184,14 @@ Every `permdock` run prints one envelope on stdout under `--json`, `--format jso
 
 ## Problem Details
 
-`application/problem+json` bodies from the HTTP adapters. See [errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details).
+`application/problem+json` bodies from the HTTP adapters. See [errors](/docs/concepts/errors) and [Problem Details](/docs/standards/problem-details). A `detail` never names the subject id; a client that parsed `for subject <id>` out of it reads the subject from its own session instead.
 
 ```json
 {
   "type": "https://permdock.com/problems/denied",
   "title": "Permission denied",
   "status": 403,
-  "detail": "post.delete denied for subject u_1: member (condition). Alternatives: post.read, post.update.",
+  "detail": "post.delete denied: member (condition). Alternatives: post.read, post.update.",
   "instance": "/posts/42",
   "permission": "post.delete",
   "scope": "post:delete",

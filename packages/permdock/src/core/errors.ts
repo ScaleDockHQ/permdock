@@ -86,7 +86,14 @@ export class PermDockDeniedError extends Error {
     return problemDetails(
       compact({
         decision: this.decision,
-        detail: this.message,
+        // The subject id stays in the error and the audit, never on the wire.
+        detail: deniedMessage(
+          this.permission,
+          undefined,
+          this.decision.denials,
+          this.decision.alternatives.map((leaf) => leaf.key),
+          false,
+        ),
         instance: options?.instance,
         permission: this.permission,
         scope: this.scope,

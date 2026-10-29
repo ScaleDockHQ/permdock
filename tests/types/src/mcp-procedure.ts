@@ -28,4 +28,5 @@ server.registerTool(
   () => ({ content: [] }),
 );
 
-export const found: Permission | undefined = permissionOf({});
+export const found: Permission | readonly Permission[] | undefined =
+  permissionOf({});

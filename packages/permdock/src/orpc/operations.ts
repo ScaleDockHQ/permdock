@@ -7,8 +7,11 @@ import type { Operation, OperationInput } from "../core/operations.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
-import type { StreamProtectOptions } from "../server/stream.ts";
-import type { OrpcMiddleware, OrpcMiddlewareOpts } from "./create.ts";
+import type {
+  OrpcMiddleware,
+  OrpcMiddlewareOpts,
+  OrpcProtectOptions,
+} from "./create.ts";
 
 export type OperationProcedureContext<
   TCtx extends object,
@@ -96,7 +99,7 @@ type RouterDeps<TCtx extends object, V extends PolicyVocabulary> = {
   readonly protect: (
     permission: Permission | null,
     data?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
-    protectOptions?: StreamProtectOptions,
+    protectOptions?: OrpcProtectOptions<TCtx>,
   ) => OrpcMiddleware<TCtx, unknown, V>;
 };
 
