@@ -980,7 +980,7 @@ describe(authorizationProvider, () => {
       expect(provider.functions.isApprover).toBe(
         "case {kind} " +
           `when 'invoice.send' then permdock.permdock_is_approver('{"kind":"permission","permission":"invoice.approve"}'::jsonb, ({tenant})::text, ({requester})::text, 'invoice', ({approvers})::jsonb) ` +
-          `else permdock.permdock_is_approver(null::jsonb, ({tenant})::text, ({requester})::text, split_part({kind}, '.', 1), ({approvers})::jsonb) end`,
+          `else permdock.permdock_is_approver(null::jsonb, ({tenant})::text, ({requester})::text, pg_catalog.split_part({kind}, '.', 1), ({approvers})::jsonb) end`,
       );
       expect(provider.requires).toContainEqual({
         function: "permdock.permdock_is_approver",
@@ -994,7 +994,7 @@ describe(authorizationProvider, () => {
           requestApprovers: true,
         }).functions.isApprover,
       ).toBe(
-        `permdock.permdock_is_approver(null::jsonb, ({tenant})::text, ({requester})::text, split_part({kind}, '.', 1), ({approvers})::jsonb)`,
+        `permdock.permdock_is_approver(null::jsonb, ({tenant})::text, ({requester})::text, pg_catalog.split_part({kind}, '.', 1), ({approvers})::jsonb)`,
       );
       const twoArgs = authorizationProvider({
         manifest,

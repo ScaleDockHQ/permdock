@@ -792,7 +792,7 @@ The approvals block names approvers in its policies: `users`, `manager: true` an
 authorizationProvider({ manifest, catalog, requestApprovers: true });
 ```
 
-- Every kind, including one `approvers` does not name, calls the five-argument form with `split_part({kind}, '.', 1)` as the resource. A step's `role` and `team` match nobody through a cover.
+- Every kind, including one `approvers` does not name, calls the five-argument form with `pg_catalog.split_part({kind}, '.', 1)` as the resource. A step's `role` and `team` match nobody through a cover.
 - The cover rules stay: an active window, the cover's `tenant` and `resources`, a delegate who is a member of the tenant, and a delegator who is not the requester. A cover outside its window or scope grants nothing.
 - Set `requestApprovers` only with a better-supabase release whose `isApprover` fills `{approvers}`. Without it the template has a placeholder better-supabase does not know.
 - `authorizationHooks({ approvers })` checks the kinds' approvers only. better-supabase requires both checks when the hook is set, so leave it out for kinds whose covers come from policy approvers.
