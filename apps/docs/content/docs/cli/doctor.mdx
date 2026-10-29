@@ -118,6 +118,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD080` | `postgrestSources` or `memoryVersionCache` is created inside a function body, so no read is shared                                                                                                                                                                                                         | warning         |
 | `PD081` | `instanceCache` is created inside a function body, so no instance is reused                                                                                                                                                                                                                                | warning         |
 | `PD082` | `supabase.hook` keeps `permdock_authz_version` while better-supabase's `blocks.sessions.authzVersions` keeps a second version table                                                                                                                                                                        | warning         |
+| `PD083` | `postgrestSources` is used and the migrations define `subject_for` but no `authz_version_for`, so every version read fails                                                                                                                                                                                 | error           |
 
 ### PD001: server-only imports in client entries
 
@@ -518,6 +519,16 @@ warning PD082  supabase.hook keeps permdock_authz_version and better-supabase's 
 ```
 
 Turn `blocks.sessions.authzVersions` off. PermDock's trigger broadcasts each bump as `{ user_id, version }` with event `changed` on `better_supabase:authz` and `authz:<uid>`, the topics better-supabase's `subscribeAuthzVersions` and `SessionProvider` read ([supabase hook](/docs/adapters/supabase-hook)). `--only supabase` (or `--only better-supabase`) runs PD082.
+
+### PD083: a hook file without authz_version_for
+
+`postgrestSources(client).memberships.version` calls only `authz_version_for(p_user)`. A hook file from before that function existed defines `subject_for` alone, so every version read throws and every `claimsFirst` check denies:
+
+```txt
+error PD083  src/lib/permdock.ts uses postgrestSources and supabase/migrations/0001_hook.sql defines subject_for but no authz_version_for, so every version read fails and claimsFirst denies
+```
+
+Run `permdock supabase hook generate`, with `supabase.hook.api` for the PostgREST wrappers, and apply the migration it writes ([PostgREST sources](/docs/adapters/supabase-hook)). `--only supabase` runs PD083.
 
 ## Side effects
 

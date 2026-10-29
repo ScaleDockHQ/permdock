@@ -206,7 +206,7 @@ describe(postgrestSources, () => {
     });
     expect(await canRead(4, "absent_version_for")).toStrictEqual({
       allowed: false,
-      calls: ["permdock.absent_version_for(u1)", "permdock.subject_for(u1)"],
+      calls: ["permdock.absent_version_for(u1)"],
     });
   });
 

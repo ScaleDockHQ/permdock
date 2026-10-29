@@ -327,12 +327,12 @@ function repeatedVersionReads(): (userId: string) => void {
  * `permdock supabase hook generate` writes, for a backend that reaches Postgres
  * only through PostgREST. `memberships.version` reads only the version, so
  * `claimsFirst` with `onStale: 'reread'` reads the full subject only for a
- * stale token; when the version function is missing it falls back to
- * `subject_for`. With `policy`, a token that claims a custom role has its
- * subject read in one `subject_for` call instead, and custom roles are read
- * only for a subject that holds one. It keeps no answers: create it once at
- * module scope, and `getPermDock` shares each read within one instance. Pass
- * `claimsFirst(…, { versions })` to share version reads across instances.
+ * stale token; a missing version function throws, and `permdock doctor` PD083
+ * reports it. With `policy`, a token that claims a custom role has its subject
+ * read in one `subject_for` call instead, and custom roles are read only for a
+ * subject that holds one. It keeps no answers: create it once at module scope,
+ * and `getPermDock` shares each read within one instance. Pass `claimsFirst(…,
+ * { versions })` to share version reads across instances.
  */
 export function postgrestSources(
   client: SupabaseRpcCaller,
@@ -431,9 +431,12 @@ export function postgrestSources(
         const result = await callRpc(client, schema, versionFn, {
           p_user: userId,
         });
-        return result.error === null
-          ? versionOf(result.data)
-          : (await record(userId, memo))?.authzVersion;
+        if (result.error !== null) {
+          throw new Error(
+            `PermDock: ${schema}.${versionFn} failed: ${result.error.message}`,
+          );
+        }
+        return versionOf(result.data);
       },
     );
   const live = async (

@@ -31,6 +31,7 @@ import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
 import { pd044, pd065 } from "./next.ts";
 import { pd080, pd081 } from "./per-request.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
+import { pd083 } from "./postgrest.ts";
 import { pd058 } from "./powersync.ts";
 import { pd005, pd006, pd009, pd012, pd022, pd028, pd040 } from "./project.ts";
 import {
@@ -174,6 +175,11 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     groups: ["supabase", "better-supabase"],
     when: (config) => config.supabase?.hook !== undefined,
     run: pd082,
+  },
+  {
+    code: "PD083",
+    groups: ["supabase"],
+    run: (project) => pd083(project.cwd, project.config, project.sources()),
   },
   {
     code: "PD005",
