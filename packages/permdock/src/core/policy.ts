@@ -56,10 +56,11 @@ export type {
   AnyOfApprover,
   Approver,
   ApproverInput,
+  ManagerApprover,
   PermissionApprover,
   UserApprover,
 } from "./approvers.ts";
-export { allOf, anyOf, holder, user } from "./approvers.ts";
+export { allOf, anyOf, holder, manager, user } from "./approvers.ts";
 
 export function indexPolicy(
   roles: readonly RoleBinding[],

@@ -156,6 +156,7 @@ export async function requestApproval(
       createdAt: now.toISOString(),
       expiresAt: isoAt(now.getTime() + ttl * 1000),
       status: "pending",
+      fingerprint: decision.fingerprint,
       x: meta.x,
     }),
   );
@@ -250,16 +251,26 @@ export async function inspectApproval(
   return { ok: true, request };
 }
 
-/** Inspects `token` and, when it is approved, consumes it so it resumes once. */
+/**
+ * Inspects `token` and, when it is approved, consumes it so it resumes once. A
+ * request opened under a `fingerprint` is consumed only under the same one.
+ */
 export async function consumeApproval(
   store: ApprovalStore,
   token: string,
   at?: Instant,
+  options: { readonly fingerprint?: string | undefined } = {},
 ): Promise<ApprovalInspectResult> {
   const now = { epochMilliseconds: dateAt(at).getTime() };
   const inspected = await inspectApproval(store, token, now);
   if (!inspected.ok) {
     return inspected;
+  }
+  if (
+    inspected.request.fingerprint !== undefined &&
+    inspected.request.fingerprint !== options.fingerprint
+  ) {
+    return { ok: false, cause: "approval-fingerprint-mismatch" };
   }
   if (typeof store.consume !== "function") {
     return { ok: false, cause: "approval-not-found" };
@@ -409,8 +420,16 @@ export async function resumeDecision(input: {
       ) {
         return approvalDenied("approval-mismatch");
       }
+      if (
+        request.fingerprint !== undefined &&
+        request.fingerprint !== decision.fingerprint
+      ) {
+        return approvalDenied("approval-fingerprint-mismatch");
+      }
       if (input.consume !== false) {
-        inspected = await consumeApproval(store, token, input.now);
+        inspected = await consumeApproval(store, token, input.now, {
+          fingerprint: decision.fingerprint,
+        });
       }
     }
   } catch {

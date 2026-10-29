@@ -1,4 +1,8 @@
-import type { Decision, MatchedGrant } from "../decision.ts";
+import type {
+  ApprovalRequiredDecision,
+  Decision,
+  MatchedGrant,
+} from "../decision.ts";
 import type { Grant } from "../policy-types.ts";
 import type { QuotaState } from "./quota.ts";
 import type { Allow, EvaluationState } from "./state.ts";
@@ -39,13 +43,14 @@ export function allowedDecision(
           resourceId,
           principal: subject.principal,
           actor: subject.actor,
-          fingerprint: policy.fingerprint,
+          source: policy.fingerprint,
           version,
           payload: tokenPayload(
             resourceId,
             next ?? current,
             state.options.args,
           ),
+          fingerprint: state.options.fingerprint,
         });
   const matched = compact<MatchedGrant>({
     ...matchedOf(allow.grant, permission.key, allow.breakGlass),
@@ -59,7 +64,13 @@ export function allowedDecision(
   return complete(
     state,
     requiresApproval(approval)
-      ? { outcome: "approval-required", grant: matched, reason: "human", token }
+      ? compact<ApprovalRequiredDecision>({
+          outcome: "approval-required",
+          grant: matched,
+          reason: "human",
+          token,
+          fingerprint: state.options.fingerprint,
+        })
       : {
           outcome: "granted",
           subject,

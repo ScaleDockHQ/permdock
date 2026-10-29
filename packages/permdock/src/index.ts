@@ -364,6 +364,7 @@ export {
   definePolicy,
   holder,
   isRoleName,
+  manager,
   requiresApproval,
   separationConflicts,
   user,
@@ -371,10 +372,12 @@ export {
 export { normalizeAssurance, role } from "./core/role-builder.ts";
 export { allow, deny } from "./core/grant-builders.ts";
 export { normalizeApproval } from "./core/approval-normalize.ts";
+export { approvalFingerprint } from "./core/token.ts";
 export type {
   AnyOfApprover,
   Approver,
   ApproverInput,
+  ManagerApprover,
   PermissionApprover,
   RoleNameOf,
   UserApprover,

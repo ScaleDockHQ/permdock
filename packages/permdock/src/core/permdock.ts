@@ -135,6 +135,13 @@ export type DecideOptions = {
    */
   readonly args?: unknown;
   /**
+   * The `approvalFingerprint` of the exact operation the call runs. An
+   * `approval-required` token binds it, the request records it, and resuming
+   * under another fingerprint denies with `approval-fingerprint-mismatch`.
+   * Never read when deciding.
+   */
+  readonly fingerprint?: string;
+  /**
    * The application's own data for the decision event (a request id, a route).
    * Plain JSON; a value that is not is dropped. Never read when deciding.
    */

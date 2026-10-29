@@ -1,14 +1,14 @@
 import type { RelatedCondition } from "../conditions/ast.ts";
-import type { Approver } from "../core/approvers.ts";
+import type { Approver, ManagerApprover } from "../core/approvers.ts";
 import type { RelationGrantee } from "../core/grantee.ts";
-import type { RelationSource } from "../core/interfaces.ts";
+import type { RelationHolder, RelationSource } from "../core/interfaces.ts";
 import type { PermissionTree, ResourceNode } from "../core/permission-types.ts";
 import type { RelationCache, RelationReader } from "../core/relations.ts";
 import type { Subject } from "../core/subject.ts";
 import type { Instant } from "../core/time.ts";
 import type { ApprovalRequest } from "./types.ts";
 
-import { approverLeaves } from "../core/approvers.ts";
+import { approverLeaves, approverManagerKey } from "../core/approvers.ts";
 import { getRegistry } from "../core/permission-registry.ts";
 import { resolveRelated } from "../core/relation-walk.ts";
 import { pendingRelations, relationReader } from "../core/relations.ts";
@@ -122,13 +122,116 @@ function depthOf(item: RelationGrantee): number {
   return item.depth ?? 0;
 }
 
+function inPeriod(holder: RelationHolder, now: number): boolean {
+  return (
+    (holder.startsAt === undefined || holder.startsAt <= now) &&
+    (holder.expiresAt === undefined || now < holder.expiresAt)
+  );
+}
+
 /**
- * The relation approvers of `request` that `subject` holds on its resource,
- * keyed by `approverRelationKey`, for `ApprovalVerdict.relations`. Reads go
- * through `relations` by the request's resource id; a request without an id, a
- * missing source or a read that fails holds nothing.
+ * Whether `approver` holds `manager` on the requester's `user` record, or on a
+ * manager's within `levels` steps. Group holders and a read that fails count as
+ * nobody.
+ */
+async function managesWithin(
+  source: RelationSource,
+  requester: string,
+  approver: string,
+  levels: number,
+  now: number,
+): Promise<boolean> {
+  const seen = new Set([requester]);
+  let frontier = [requester];
+  for (let level = 0; level < levels && frontier.length > 0; level += 1) {
+    let lists: readonly (readonly RelationHolder[])[];
+    try {
+      // oxlint-disable-next-line no-await-in-loop -- each level starts from the managers the previous one found
+      lists = await Promise.all(
+        frontier.map((id) =>
+          Promise.resolve(
+            source.related({ resource: "user", id, relation: "manager" }),
+          ),
+        ),
+      );
+    } catch {
+      return false;
+    }
+    const next: string[] = [];
+    for (const holder of lists.flat()) {
+      if (!("principal" in holder) || !inPeriod(holder, now)) {
+        continue;
+      }
+      const id = holder.principal.id;
+      if (id === approver) {
+        return true;
+      }
+      if (!seen.has(id)) {
+        seen.add(id);
+        next.push(id);
+      }
+    }
+    frontier = next;
+  }
+  return false;
+}
+
+/** The `manager()` approvers of `request` that `subject` satisfies. */
+async function managerFacts(
+  request: ApprovalRequest,
+  subject: Subject,
+  options: ApproverRelationsOptions,
+): Promise<readonly string[]> {
+  const approvers = request.approvers;
+  const requester = request.subject.principal?.id;
+  const source = options.relations;
+  if (
+    approvers === undefined ||
+    requester === undefined ||
+    source === undefined ||
+    subject.principal === null
+  ) {
+    return [];
+  }
+  const items = new Map<string, ManagerApprover>();
+  for (const item of requestApprovers(approvers)) {
+    if (item.kind === "manager") {
+      items.set(approverManagerKey(item), item);
+    }
+  }
+  const approver = subject.principal.id;
+  const now = dateAt(options.now).getTime() / 1000;
+  const entries = [...items];
+  const verdicts = await Promise.all(
+    entries.map(([, item]) =>
+      managesWithin(source, requester, approver, item.levels ?? 1, now),
+    ),
+  );
+  return entries.flatMap(([key], index) =>
+    verdicts[index] === true ? [key] : [],
+  );
+}
+
+/**
+ * The relation and `manager()` approvers of `request` that `subject` holds,
+ * keyed by `approverRelationKey` and `approverManagerKey`, for
+ * `ApprovalVerdict.relations`. Relation reads go through `relations` by the
+ * request's resource id, manager reads by the requester's principal id; a
+ * request without an id, a missing source or a read that fails holds nothing.
  */
 export async function approverRelations(
+  request: ApprovalRequest,
+  subject: Subject,
+  options: ApproverRelationsOptions,
+): Promise<readonly string[]> {
+  const [onRow, managers] = await Promise.all([
+    rowRelations(request, subject, options),
+    managerFacts(request, subject, options),
+  ]);
+  return [...onRow, ...managers];
+}
+
+async function rowRelations(
   request: ApprovalRequest,
   subject: Subject,
   options: ApproverRelationsOptions,

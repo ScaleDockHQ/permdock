@@ -24,13 +24,13 @@ describe(decisionToken, () => {
       resourceId: "p1",
       principal: { id: "u1", roles: ["member"] as const },
       actor: undefined,
-      fingerprint: "fp",
+      source: "fp",
     };
     const token = decisionToken(input);
     expect(token).toMatch(/^sha-256:[\w-]{43}$/u);
     expect(token).toBe(
       sha256Digest(
-        '{"actor":null,"fingerprint":"fp","key":"post.update","principal":{"id":"u1","issuer":null,"tenant":null},"resourceId":"p1"}',
+        '{"actor":null,"key":"post.update","principal":{"id":"u1","issuer":null,"tenant":null},"resourceId":"p1","source":"fp"}',
       ),
     );
     expect(decisionToken(input)).toBe(token);

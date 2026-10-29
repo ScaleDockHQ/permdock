@@ -15,8 +15,10 @@ import {
   approverLeaves,
   flattenApprovers,
   isAnyOfInput,
+  isManagerApprover,
   isPermissionApprover,
   isUserApprover,
+  manager,
   user,
 } from "./approvers.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
@@ -49,6 +51,9 @@ export function asApprover(
       kind: "permission" as const,
       permission: input.permission,
     });
+  }
+  if (isManagerApprover(input)) {
+    return manager(input.levels === undefined ? {} : { levels: input.levels });
   }
   if (isAnyOfInput(input)) {
     if (!Array.isArray(input.of) || input.of.length === 0) {

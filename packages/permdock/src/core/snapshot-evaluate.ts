@@ -488,17 +488,21 @@ export function evaluateSnapshot(
         resourceId,
         principal: subject.principal,
         actor: subject.actor,
-        fingerprint: `snapshot:${snapshot.issuedAt}`,
+        source: `snapshot:${snapshot.issuedAt}`,
         payload: tokenPayload(resourceId, next ?? current, options.args),
+        fingerprint: options.fingerprint,
       });
   const grant = matchedOf(matched);
   if (requiresApproval(matched.approval)) {
-    return done({
-      outcome: "approval-required",
-      grant,
-      reason: "human",
-      token,
-    });
+    return done(
+      compact<Decision>({
+        outcome: "approval-required",
+        grant,
+        reason: "human",
+        token,
+        fingerprint: options.fingerprint,
+      }),
+    );
   }
   return done(
     compact<Decision>({

@@ -1,7 +1,7 @@
 import type { Actor, Principal } from "./subject.ts";
 
 import { canonicalJson } from "./canonical-json.ts";
-import { sha256Digest } from "./sha256.ts";
+import { sha256, sha256Digest } from "./sha256.ts";
 
 /**
  * Only stable identity goes into the token, so refreshing a session (new roles,
@@ -39,6 +39,21 @@ export function versionOf(row: unknown, field: string): string | null {
     : null;
 }
 
+/**
+ * The hex SHA-256 of `value` as sorted-key JSON: the same string
+ * better-supabase's `approvalFingerprint` resolves to, returned synchronously.
+ * Pass the exact operation an approval covers (the subject, the action and its
+ * arguments) as `fingerprint` so an approval for one change cannot run
+ * another.
+ */
+export function approvalFingerprint(value: unknown): string {
+  let hex = "";
+  for (const byte of sha256(canonicalJson(value))) {
+    hex += byte.toString(16).padStart(2, "0");
+  }
+  return hex;
+}
+
 /** The digest that binds a token to the call's data when no row id does. */
 export function payloadDigest(data: unknown): string {
   return sha256Digest(canonicalJson(data));
@@ -63,19 +78,23 @@ export function tokenPayload(
 }
 
 /**
- * `version` is set only for an approval that goes stale on a resource change;
- * without it the payload, and so every other token, is unchanged. `payload` is
- * set when `resourceId` is `*` (a collection action or a row without an id), so
- * an approval covers the arguments it was given and no others.
+ * `source` names what decided: the policy fingerprint, `snapshot:<issuedAt>` or
+ * the PDP provider. `version` is set only for an approval that goes stale on a
+ * resource change; without it the payload, and so every other token, is
+ * unchanged. `payload` is set when `resourceId` is `*` (a collection action or
+ * a row without an id), so an approval covers the arguments it was given and no
+ * others. `fingerprint` is the caller's `approvalFingerprint` of the exact
+ * operation, bound only when given.
  */
 export function decisionToken(input: {
   readonly key: string;
   readonly resourceId: string;
   readonly principal: Principal | null;
   readonly actor: Actor | undefined;
-  readonly fingerprint: string;
+  readonly source: string;
   readonly version?: string | null | undefined;
   readonly payload?: string | undefined;
+  readonly fingerprint?: string | undefined;
 }): string {
   const payload = canonicalJson({
     key: input.key,
@@ -85,9 +104,12 @@ export function decisionToken(input: {
       input.actor === undefined
         ? null
         : { id: input.actor.id, kind: input.actor.kind },
-    fingerprint: input.fingerprint,
+    source: input.source,
     ...(input.version === undefined ? {} : { version: input.version }),
     ...(input.payload === undefined ? {} : { payload: input.payload }),
+    ...(input.fingerprint === undefined
+      ? {}
+      : { fingerprint: input.fingerprint }),
   });
   return sha256Digest(payload);
 }

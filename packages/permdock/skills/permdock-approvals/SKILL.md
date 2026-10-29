@@ -1,6 +1,6 @@
 ---
 name: permdock-approvals
-description: Requires human approval on PermDock grants, notifies approvers and resumes the approved call. Use when adding approval to a destructive or money-moving action (delete, publish, pay, refund, transfer), choosing approvers with approval by, user(), relation(), mode confirm or authorize, quorum, ttl, escalation or staleOn, ordering approvers with combine and stages, covering an approver with an ApprovalDelegation, loading approval rules as data with an ApprovalPolicySource, separating preparer and approver with exclusiveWith, labelling operations with risk and effects meta, mounting approvalsHandler with an ApprovalStore, sending approval emails (approvalEmail) or chat cards (approvalCard, approvalActions) from approvalPrompt, parking a background run on an ApprovalWaiter (pollingApprovalWaiter, workflowSdkWaiter), resuming with the PermDock-Approval header, mapping approval-required to an agent runtime, MCP elicitation or AG-UI interrupt, or fixing doctor PD017, PD018 or PD024.
+description: Requires human approval on PermDock grants, notifies approvers and resumes the approved call. Use when adding approval to a destructive or money-moving action (delete, publish, pay, refund, transfer), choosing approvers with approval by, user(), relation(), manager(), mode confirm or authorize, quorum, ttl, escalation, staleOn or approvalFingerprint, ordering approvers with combine and stages, covering an approver with an ApprovalDelegation, loading approval rules as data with an ApprovalPolicySource, separating preparer and approver with exclusiveWith, labelling operations with risk and effects meta, mounting approvalsHandler with an ApprovalStore, sending approval emails (approvalEmail) or chat cards (approvalCard, approvalActions) from approvalPrompt, parking a background run on an ApprovalWaiter (pollingApprovalWaiter, workflowSdkWaiter), resuming with the PermDock-Approval header, mapping approval-required to an agent runtime, MCP elicitation or AG-UI interrupt, or fixing doctor PD017, PD018 or PD024.
 license: MIT
 metadata:
   author: ScaleDockHQ
@@ -30,7 +30,7 @@ metadata:
 3. One approval resumes one call. The token binds permission, resource, subject and actor, the resume re-runs `decide`, and `consume` spends the approval once.
 4. `can` returns `false` for `approval-required`. Only `decide`, `assert` and the adapters see the third outcome.
 5. Quorum, ttl and escalation live on the grant, not in the store. A grant's `ttl` can shorten the store's window, never extend it.
-6. A `relation()` approver is matched only through facts the approvals handler reads from the app's `RelationSource` at verdict time, never from a request body.
+6. A `relation()` or `manager()` approver is matched only through facts the approvals handler reads from the app's `RelationSource` at verdict time, never from a request body.
 7. Approval rules kept as data only add stages. A source that fails to load denies every call an allow would grant.
 8. A link never approves. An email or chat prompt carries the request id, never the token, and links to the app's approval page where the approver signs in. Chat buttons carry the request id and are applied as the platform-verified clicking user.
 9. A wake carries no verdict. `waiter.wake(token)` only ends a wait; the run decides again through `resumeApproval`, which reads the store.
@@ -82,7 +82,7 @@ metadata:
 - [ ] The store survives the deployment: no `memoryApprovalStore` on serverless or across replicas.
 - [ ] No resume token is read from model output or tool arguments, and each resume re-runs `decide`.
 - [ ] A custom `ApprovalStore` passes `testApprovalStore` from `permdock/testing`.
-- [ ] Grants with `relation()` approvers have a handler with `relations`, and nothing fills `verdict.relations` from client input.
+- [ ] Grants with `relation()` or `manager()` approvers have a handler with `relations`, and nothing fills `verdict.relations` from client input.
 - [ ] No email, chat message or URL carries the approval token or an approve link; `approvalUrl` is https and opens a page behind sign-in.
 - [ ] Approval recipients are decided by `deliver` from server-loaded principals, never from the request body, and the requester is not among them.
 - [ ] Chat approve and reject clicks go through `approvalActions` (or `resolveAction`), never a handler that trusts the button value alone.

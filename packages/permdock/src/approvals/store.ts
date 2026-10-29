@@ -14,7 +14,7 @@ import type {
 } from "./types.ts";
 
 import { readWireApproval } from "../core/approval-normalize.ts";
-import { flattenApprovers } from "../core/approvers.ts";
+import { approverManagerKey, flattenApprovers } from "../core/approvers.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { matchGrantee } from "../core/grantee-match.ts";
@@ -101,6 +101,12 @@ export function matchesApprovers(
     }
     if (item.kind === "user") {
       if (subject.principal?.id !== item.id) {
+        return false;
+      }
+      continue;
+    }
+    if (item.kind === "manager") {
+      if (!facts.relations.has(approverManagerKey(item))) {
         return false;
       }
       continue;

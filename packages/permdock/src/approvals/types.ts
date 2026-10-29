@@ -139,6 +139,12 @@ export type ApprovalRequest = {
   readonly note?: string;
   readonly consumedAt?: string;
   /**
+   * The caller's `approvalFingerprint` of the exact operation, from the
+   * decision's `fingerprint`. Consuming or resuming under another one fails
+   * with `approval-fingerprint-mismatch`.
+   */
+  readonly fingerprint?: string;
+  /**
    * The application's own data, set when the request opens; plain JSON, never
    * read by a decision.
    */
@@ -253,7 +259,8 @@ export type ApprovalResumeFailureCause =
   | "approval-pending"
   | "approval-rejected"
   | "approval-expired"
-  | "approval-consumed";
+  | "approval-consumed"
+  | "approval-fingerprint-mismatch";
 
 export type ApprovalInspectResult =
   | { readonly ok: true; readonly request: ApprovalRequest }

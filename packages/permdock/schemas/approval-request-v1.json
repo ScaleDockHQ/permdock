@@ -102,6 +102,11 @@
     "consumedAt": {
       "$ref": "#/$defs/instant"
     },
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "The approvalFingerprint the request was opened under; a resume under another one is refused."
+    },
     "x": {
       "type": "object",
       "description": "The application's own data, set when the request opens: plain JSON, never read by a decision."

@@ -137,6 +137,7 @@ function matches(
         case "assurance":
         case "authenticated":
         case "inherit":
+        case "manager":
         case "plan":
         case "relation":
         case "role":

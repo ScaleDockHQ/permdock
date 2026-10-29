@@ -412,7 +412,7 @@ describe("approval token inputs", () => {
     key: "post.delete",
     resourceId: "42",
     actor: { id: "agent", kind: "mcp-client" },
-    fingerprint: "f",
+    source: "f",
   };
 
   it("survives a session refresh that changes roles or assurance", () => {

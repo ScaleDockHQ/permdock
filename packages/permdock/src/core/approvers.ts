@@ -18,6 +18,17 @@ export type PermissionApprover = {
 };
 
 /**
+ * The requester's manager, or anyone up the chain within `levels` (default 1),
+ * read from the `manager` relation on the requester's `user` record. Checked
+ * only through verdict facts (`ApprovalVerdict.relations`) that the handler
+ * reads from its `RelationSource`.
+ */
+export type ManagerApprover = {
+  readonly kind: "manager";
+  readonly levels?: number;
+};
+
+/**
  * An approver who matches at least one item; an item that is a list matches
  * when every entry does.
  */
@@ -29,19 +40,21 @@ export type AnyOfApprover = {
 /**
  * Who may approve: a subject-only grantee, a `relation()` the approver holds on
  * the requested row (checked when the verdict is given), `user(id)`,
- * `holder(permission)`, or `anyOf(...)`. A list (or `allOf(...)`) matches an
- * approver who satisfies every item.
+ * `holder(permission)`, `manager()`, or `anyOf(...)`. A list (or `allOf(...)`)
+ * matches an approver who satisfies every item.
  */
 export type Approver =
   | Grantee
   | UserApprover
   | PermissionApprover
+  | ManagerApprover
   | AnyOfApprover;
 
 export type ApproverInput =
   | GranteeInput
   | UserApprover
   | PermissionApprover
+  | ManagerApprover
   | { readonly kind: "any-of"; readonly of: readonly ApproverInput[] }
   | readonly ApproverInput[];
 
@@ -87,6 +100,43 @@ export function user(id: string): UserApprover {
     throw new Error("PermDock: user() needs a non-empty principal id");
   }
   return Object.freeze({ kind: "user" as const, id });
+}
+
+/** The most `manager({ levels })` walks up the chain. */
+export const MAX_MANAGER_LEVELS = 8;
+
+/**
+ * Approves when the approver manages the requester, directly or within `levels`
+ * steps up the chain (1 to `MAX_MANAGER_LEVELS`, default 1).
+ */
+export function manager(
+  options: { readonly levels?: number } = {},
+): ManagerApprover {
+  const levels = options.levels ?? 1;
+  if (!Number.isInteger(levels) || levels < 1 || levels > MAX_MANAGER_LEVELS) {
+    throw new Error(
+      `PermDock: manager() levels must be a whole number from 1 to ${MAX_MANAGER_LEVELS}, got ${String(options.levels)}`,
+    );
+  }
+  return Object.freeze(
+    levels === 1
+      ? { kind: "manager" as const }
+      : { kind: "manager" as const, levels },
+  );
+}
+
+export function isManagerApprover(value: unknown): value is ManagerApprover {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    "kind" in value &&
+    value.kind === "manager"
+  );
+}
+
+/** The key a verdict's `relations` lists a manager approver under. */
+export function approverManagerKey(item: ManagerApprover): string {
+  return JSON.stringify(["manager", item.levels ?? 1]);
 }
 
 export function isUserApprover(value: unknown): value is UserApprover {
