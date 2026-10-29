@@ -460,6 +460,38 @@ export type RlsConfig = {
 };
 
 /** `rls.approvals.managers`: one row per user and manager. */
+/** Column names of the table `rls.approvals.tenantPolicies` writes. */
+export type RlsApprovalPolicyColumns = {
+  readonly id?: string;
+  readonly tenant?: string;
+  readonly name?: string;
+  readonly body?: string;
+  readonly enabled?: string;
+  readonly createdAt?: string;
+};
+
+export type RlsApprovalPolicies = {
+  /** The permission key whose holders in a tenant edit its policies. */
+  readonly manage: string;
+  /**
+   * The table, as `table` or `schema.table`; the helper schema's
+   * `approval_policies` by default. It is created when missing.
+   */
+  readonly table?: string;
+  /**
+   * The function `tableApprovalPolicySource` reads, in the helper schema;
+   * `permdock_approval_policies_for` by default. Pass the same name as
+   * `function` to the source.
+   */
+  readonly function?: string;
+  readonly columns?: RlsApprovalPolicyColumns;
+  /**
+   * Where the `ApprovalPolicy` sits inside the body column, as object keys; the
+   * column itself by default. The constraint requires an `approval` key there.
+   */
+  readonly path?: readonly string[];
+};
+
 export type RlsApprovalManagers = {
   /** `table` or `schema.table`. */
   readonly table: string;
@@ -496,7 +528,7 @@ export type RlsApprovalsAdopt = {
    * tenant's rows; rows with `tenant` null are platform floors, written only by
    * the table owner. Off by default.
    */
-  readonly tenantPolicies?: { readonly manage: string };
+  readonly tenantPolicies?: RlsApprovalPolicies;
   /**
    * The app's table that names each user's manager, so `manager()` approvers
    * match in SQL: `permdock_manages` walks it and the four-argument

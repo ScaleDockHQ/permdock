@@ -403,6 +403,12 @@ function approvalAcceptable(
     return false;
   }
   if (
+    approval["fallback"] !== undefined &&
+    approval["fallback"] !== "confirm"
+  ) {
+    return false;
+  }
+  if (
     approval["staleOn"] !== undefined &&
     (approval["staleOn"] !== "resource-change" ||
       getResource(policy.permissions, permissionResource)?.version ===

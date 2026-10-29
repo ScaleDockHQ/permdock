@@ -189,6 +189,7 @@ function assertSeparateApprover(
   request: ApprovalRequest,
   by: Subject,
   requireDistinctApprover: boolean,
+  otherApprovers?: number,
 ): { readonly id: string } {
   const principal = by.principal;
   if (principal === null) {
@@ -222,9 +223,11 @@ function assertSeparateApprover(
       "approver is the actor of this request",
     );
   }
+  const wire = readWireApproval(request.approvers);
+  // The fallback applies only on a directory's answer of exactly zero others.
+  const alone = wire?.fallback === "confirm" && otherApprovers === 0;
   const authorize =
-    requireDistinctApprover ||
-    readWireApproval(request.approvers)?.mode !== "confirm";
+    requireDistinctApprover || (wire?.mode !== "confirm" && !alone);
   if (
     authorize &&
     request.subject.principal !== null &&
@@ -285,12 +288,14 @@ export function assertApprover(
   at?: Instant,
   relations: readonly string[] = [],
   permissions: readonly string[] = [],
+  otherApprovers?: number,
 ): number | undefined {
   const now = dateAt(at);
   const principal = assertSeparateApprover(
     request,
     by,
     requireDistinctApprover,
+    otherApprovers,
   );
   const tenant = request.subject.principal?.tenant;
   if (tenant !== undefined && !belongsToTenant(by, tenant)) {
@@ -406,6 +411,7 @@ export function applyApprovalVerdict(
       { epochMilliseconds: now.getTime() },
       verdict.relations,
       verdict.permissions,
+      verdict.otherApprovers,
     );
   } else {
     const delegate = assertSeparateApprover(request, verdict.by, false);

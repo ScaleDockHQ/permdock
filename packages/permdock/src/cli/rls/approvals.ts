@@ -44,6 +44,11 @@ const APPROVAL_STORE = {
   expire: "permdock_approval_expire",
   cancel: "permdock_approval_cancel",
   isApprover: IS_APPROVER,
+  /**
+   * The two-argument check `permdock_approves` falls back to for non-manager
+   * leaves.
+   */
+  isApproverBase: "permdock_is_approver_base",
 } as const;
 
 /** `body` as the row's filter columns hold it. */
@@ -269,8 +274,9 @@ ${serverOnly(fn(APPROVAL_STORE.cancel), "jsonb, text, text, text")}
 }
 
 /**
- * `permdock_is_approver(p_approvers jsonb, p_tenant text default null)`: true
- * when the signed-in user matches the serialised approvers of a request
+ * `permdock_is_approver(p_approvers jsonb, p_tenant text default null)`, or
+ * with `rls.approvals.managers` its base `permdock_is_approver_base`: true when
+ * the signed-in user matches the serialised approvers of a request
  * (`approvers.by`), for policies on the app's own approval views. A list needs
  * every item and `any-of` one of them; `user` compares the user id and
  * `holder(permission)` reads `permitted_<root>_ids_by_permission` in
@@ -278,8 +284,17 @@ ${serverOnly(fn(APPROVAL_STORE.cancel), "jsonb, text, text, text")}
  * other grantee approvers need facts the database does not hold for every
  * membership source, so they match nobody.
  */
-function isApproverSql(ctx: RlsSqlContext): string {
-  const fn = qualified(ctx, APPROVAL_STORE.isApprover);
+function isApproverSql(ctx: RlsSqlContext, managers = false): string {
+  // With managers, `permdock_is_approver` is the manager-aware three-argument
+  // form that `approvalManagersSql` writes; this is its base for other leaves.
+  const fn = qualified(
+    ctx,
+    managers ? APPROVAL_STORE.isApproverBase : APPROVAL_STORE.isApprover,
+  );
+  const exposure = managers
+    ? `revoke execute on function ${fn}(jsonb, text) from public, anon, authenticated;`
+    : `revoke execute on function ${fn}(jsonb, text) from public, anon;
+grant execute on function ${fn}(jsonb, text) to authenticated;`;
   const root = ctx.scopes[0]?.name;
   const inTenant =
     root === undefined
@@ -342,8 +357,7 @@ begin
   end case;
 end;
 $$;
-revoke execute on function ${fn}(jsonb, text) from public, anon;
-grant execute on function ${fn}(jsonb, text) to authenticated;
+${exposure}
 `;
 }
 
@@ -401,13 +415,14 @@ export function approvalsSql(
   }
   return (
     store +
-    isApproverSql(ctx) +
+    isApproverSql(ctx, managers !== undefined) +
     (managers === undefined
       ? ""
       : approvalManagersSql(
           ctx,
           managers,
           qualified(ctx, APPROVAL_STORE.isApprover),
+          qualified(ctx, APPROVAL_STORE.isApproverBase),
           delegations === true,
         )) +
     (delegations === true
@@ -852,6 +867,7 @@ end;
 $$;`;
   return `-- approval store adopted onto ${adopt.table}: ApprovalRequest bodies in ${adopt.body ?? "body"}, keyed by ${adopt.token ?? "token"}; supabaseApprovalStore calls the functions below
 alter table ${table} add column if not exists ${token} text;
+comment on column ${table}.${token} is '@bsb identifier: the approval token is a SHA-256 digest of the decision inputs, which the approval is bound to, not a secret';
 alter table ${table} add column if not exists ${body} jsonb;
 create unique index if not exists ${index("token")} on ${table} (${token});
 create index if not exists ${index("page")} on ${table} ((${body} ->> 'createdAt') collate "C", ${token} collate "C");

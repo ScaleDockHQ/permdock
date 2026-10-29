@@ -68,6 +68,14 @@ export type ApprovalCombine = "any" | "all" | "sequential";
  */
 export type ApprovalMode = "confirm" | "authorize";
 
+/**
+ * What an `'authorize'` approval does when nobody else can approve: `'confirm'`
+ * lets the request's principal approve it, but only while the handler's
+ * `approverDirectory` lists no other eligible approver. Without a directory, or
+ * when it answers `null`, the principal stays refused.
+ */
+export type ApprovalFallback = "confirm";
+
 export type ApprovalRequirement = {
   /** Set when `combine` is `'any'` (the default); absent under `stages`. */
   readonly by?: Approver | readonly Approver[];
@@ -77,6 +85,8 @@ export type ApprovalRequirement = {
   readonly stages?: readonly ApprovalStage[];
   /** Absent means `'authorize'`. */
   readonly mode?: ApprovalMode;
+  /** Absent means no fallback; see `ApprovalFallback`. */
+  readonly fallback?: ApprovalFallback;
   /** `'resource-change'` binds the approval to the row's `version` field. */
   readonly staleOn?: "resource-change";
   /**
@@ -115,6 +125,11 @@ export type ApprovalOption =
        * `'authorize'`.
        */
       readonly mode?: ApprovalMode;
+      /**
+       * `'confirm'` lets the request's principal approve it when no other
+       * eligible approver exists; see `ApprovalFallback`.
+       */
+      readonly fallback?: ApprovalFallback;
       /**
        * `'resource-change'`: the approval covers the row as it was when it was
        * requested. The resource must declare `version`; once that field

@@ -231,7 +231,7 @@ const permdock = await getPermDock(policy, user, {
 
 - The source is read once, when the instance is created, for the subject's tenants. Entries are plain JSON; `where` and `check` are portable conditions.
 - An entry matches an allowed call for its permission when its tenant is the decision's tenant (the matched membership's root scope, else the active tenant), its `actors` list contains the actor's kind, and its `where` and `check` hold.
-- The effective requirement combines the grant's own approval and every matching entry as stages: `sequential` when any part is sequential, `all` otherwise. Identical stages appear once. The grant's escalation is kept and still applies to every stage; an entry's `escalation` is attached to that entry's own stages only, so data can never let someone step in on the code's stages. The shortest `ttl` wins, and `mode` stays `authorize` unless every part sets `confirm`.
+- The effective requirement combines the grant's own approval and every matching entry as stages: `sequential` when any part is sequential, `all` otherwise. Identical stages appear once. The grant's escalation is kept and still applies to every stage; an entry's `escalation` is attached to that entry's own stages only, so data can never let someone step in on the code's stages. The shortest `ttl` wins, and `mode` stays `authorize` unless every part sets `confirm`. `fallback` stays `confirm` only when every part that authorizes sets it.
 - A call that ends up needing approval does not consume quota.
 - A source that throws, rejects or returns an entry that does not load makes every call an allow would grant deny with reason `approval` and detail `approval-policy-unavailable` (`APPROVAL_POLICY_UNAVAILABLE` from `permdock`, for an app that tells this denial apart). An entry naming a permission the policy does not declare applies to nothing.
 - `where` reads the row, so it is allowed only on an instance permission. On a collection permission (`invoice.create`) an entry with `where` does not load, because a collection action has no row and the entry could never match; use `check`, which reads the call's input (the proposed row).
@@ -252,6 +252,17 @@ export default {
   },
 };
 ```
+
+An app that already stores tenant policies names its own table, columns and body path:
+
+| Option     | Default                                                | Effect                                                               |
+| ---------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
+| `table`    | `approval_policies` in the helpers                     | `table` or `schema.table`; created when missing                      |
+| `function` | `permdock_approval_policies_for`                       | Name of the lookup function                                          |
+| `columns`  | `id`, `tenant`, `name`, `body`, `enabled`, `createdAt` | Column names; each is an identifier                                  |
+| `path`     | none                                                   | Path inside `body` where the policy sits, as an array of object keys |
+
+`tableApprovalPolicySource({ function })` reads a renamed function.
 
 ```ts
 import { approvalPolicies, getPermDock } from "permdock";
@@ -507,6 +518,8 @@ const store = supabaseApprovalStore(admin, {
 `onOpen` runs once per stored request, after the call that stored it, with the stored request; a repeated ask that finds the request still open does not run it again, so a notification or a record the app opens there is not duplicated. A throw fails the open, so the action does not run. Routing to a manager chain or a delegate is the app's: `approverRelations` and `approverPermissions` feed the facts `applyApprovalVerdict` checks, and `cancelApprovals` rejects the requests a newer one supersedes. The same conformance runner as the Drizzle recipe runs it against Postgres. Schedule `store.expire()` (a cron or `pg_cron`) to mark overdue requests expired.
 
 ### Adopting an existing approvals table
+
+The token column holds a SHA-256 digest of the decision inputs, which the approval is bound to; it is an identifier, not a secret. The generated DDL tags the column `@bsb identifier`, which better-supabase rule BS352 reads, so an adopter needs no baseline entry for it.
 
 An app that already keeps approvals in its own table points `rls.approvals` at it instead of getting `approval_requests`:
 
