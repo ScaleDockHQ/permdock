@@ -142,6 +142,50 @@ describe("powersync verify claims-change fixtures", () => {
     ).toStrictEqual(["claims change for u1: no stream named ghost"]);
   });
 
+  it("reads numeric ids and each row's organization, and skips rows without an id", async () => {
+    const mismatches: string[] = [];
+    await verifyClaimsChange({
+      policy,
+      config,
+      customRoles: [],
+      plan,
+      fixture: {
+        subject: { id: "u1", claims: { team_ids: ["A"] } },
+        after: { claims: { team_ids: ["B"] } },
+        expected: "changed",
+      },
+      root: "org_id",
+      query: async (_sql, values) =>
+        String(values[1]).includes('"B"')
+          ? [{ id: 2, team_id: "B", org_id: 7 }, "not a row"]
+          : [{ id: 1n, team_id: "A" }],
+      mismatches,
+    });
+    expect(mismatches).toStrictEqual([]);
+  });
+
+  it("checks only the row sets when the stream's action is not a permission", async () => {
+    const mismatches: string[] = [];
+    await verifyClaimsChange({
+      policy,
+      config: { ...config, powersync: { action: "archive" } },
+      customRoles: [],
+      plan,
+      fixture: {
+        subject: { id: "u1" },
+        after: { roles: ["lead"] },
+        stream: "job",
+        expected: "changed",
+      },
+      root: undefined,
+      query: query(),
+      mismatches,
+    });
+    expect(mismatches).toStrictEqual([
+      "claims change for u1: stream job syncs the same rows before and after the change",
+    ]);
+  });
+
   it("parses claims-change fixtures for powersync verify only", async () => {
     const fixture = {
       subject: { id: "u1", claims: { team_ids: ["A"] } },

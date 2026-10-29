@@ -317,6 +317,83 @@ describe(nativeRefresh, () => {
     off();
   });
 
+  it("ignores an unreadable token version and a session that ends", async () => {
+    const { client, log } = fakeSupabase({ version: 1, user: "u1" });
+    const versions = { value: 5 };
+    const db = fakeDb(log, versions);
+    const tokens = ["opaque", "e30.%%%.sig"];
+    const unreadable: NativeRefreshSupabase<Channel> = {
+      ...client,
+      auth: {
+        ...client.auth,
+        getSession: async () => ({
+          data: {
+            session: { access_token: tokens.shift() ?? "", user: { id: "u1" } },
+          },
+        }),
+      },
+    };
+    const off = nativeRefresh({
+      supabase: unreadable,
+      appState: fakeAppState(),
+      powersync: { db, connector: "connector", manifest },
+    })(() => {
+      log.push("refresh");
+    });
+    await settle();
+    db.change();
+    await settle();
+    expect(log).toStrictEqual([]);
+    off();
+
+    let reads = 0;
+    const ending: NativeRefreshSupabase<Channel> = {
+      ...client,
+      auth: {
+        ...client.auth,
+        getSession: async () => {
+          reads += 1;
+          return reads === 1
+            ? client.auth.getSession()
+            : { data: { session: null } };
+        },
+      },
+    };
+    const ended = nativeRefresh({
+      supabase: ending,
+      appState: fakeAppState(),
+      powersync: {
+        db: fakeDb(log, versions),
+        connector: "connector",
+        manifest,
+      },
+    })(() => {
+      log.push("refresh");
+    });
+    await settle();
+    expect(log).toStrictEqual([]);
+    ended();
+  });
+
+  it("joins no topic when reading the session throws", async () => {
+    const { client, channels } = fakeSupabase({ version: 1, user: "u1" });
+    const off = nativeRefresh({
+      supabase: {
+        ...client,
+        auth: {
+          ...client.auth,
+          getSession: async () => {
+            throw new Error("storage locked");
+          },
+        },
+      },
+      appState: fakeAppState(),
+    })(() => undefined);
+    await settle();
+    expect(channels).toStrictEqual([]);
+    off();
+  });
+
   it("still refreshes when the session refresh fails", async () => {
     const { client, channels, log } = fakeSupabase({ version: 1, user: "u1" });
     const failing: NativeRefreshSupabase<Channel> = {
