@@ -87,6 +87,12 @@ export type {
 export { supportPolicy } from "./support.ts";
 export type { PendingSupportSession, SupportPolicyOptions } from "./support.ts";
 export { handlerCan, hookCan } from "./workflow.ts";
+export { workflowResource } from "./workflow-resource.ts";
+export type {
+  WorkflowRecordRef,
+  WorkflowResourceResult,
+  WorkflowSubjectTypes,
+} from "./workflow-resource.ts";
 export type {
   HandlerCanOptions,
   HandlerPermDockSource,

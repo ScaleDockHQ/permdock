@@ -50,7 +50,7 @@
   "./supabase/client": 831,
   "./ssf": 72768,
   "./better-auth": 38228,
-  "./better-supabase": 199057,
+  "./better-supabase": 199472,
   "./clerk": 12769,
   "./convex": 114522,
   "./pdp": 120142,
@@ -62,7 +62,7 @@
   "./testing/fixtures": 22472,
   "./testing/saas": 159142,
   "./testing/saas/permissions": 149661,
-  "./cli": 776910,
+  "./cli": 778065,
   "./unplugin": 196977,
   "./next/plugin": 192550,
   "./next/client": 1437

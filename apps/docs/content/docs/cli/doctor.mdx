@@ -115,6 +115,8 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD077` | A config key or value names a scope, resource or action the policy does not declare, such as a Realtime topic `{organisation}` placeholder; or two of them give one SQL helper name                                                                                                                        | error           |
 | `PD078` | better-supabase's `blocks.permissions.activeTenant` writes the active tenant to another place than `supabase.hook.activeFrom` reads it                                                                                                                                                                     | warning         |
 | `PD079` | A permission key a configured better-supabase block checks is not in the catalog                                                                                                                                                                                                                           | warning         |
+| `PD080` | `postgrestSources` or `memoryVersionCache` is created inside a function body, so no read is shared                                                                                                                                                                                                         | warning         |
+| `PD081` | `instanceCache` is created inside a function body, so no instance is reused                                                                                                                                                                                                                                | warning         |
 | `PD082` | `supabase.hook` keeps `permdock_authz_version` while better-supabase's `blocks.sessions.authzVersions` keeps a second version table                                                                                                                                                                        | warning         |
 
 ### PD001: server-only imports in client entries
@@ -496,6 +498,16 @@ warning PD079  notifications.send (blocks.notifications.permissions.send) is not
 ```
 
 Declare the key in the policy and run `permdock collect`, or map the block action to a key the catalog lists. `--only catalog` (or `--only better-supabase`) runs PD079.
+
+### PD080 and PD081: sources and caches created per call
+
+`postgrestSources`, `memoryVersionCache` and `instanceCache` keep nothing worth having until a second call reuses them. Created inside a function, every request gets a fresh one: no version read is shared and no instance is reused. The check reads each call to one of them imported from `permdock` (named or through a namespace) and warns when it sits in a function, arrow function or method:
+
+```txt
+warning PD081  src/lib/access.ts:7 creates instanceCache() inside a function, so every call gets an empty cache and no instance is reused
+```
+
+Move the call to module scope and pass the same object to every adapter. A lazy singleton, `cache ??= instanceCache()`, passes. PD080 covers the sources and the version cache, PD081 the instance cache. `--only caching` runs both.
 
 ### PD082: two authorization version tables
 

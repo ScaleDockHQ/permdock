@@ -747,7 +747,8 @@
     "subscriberPolicy",
     "supportPolicy",
     "toolPolicy",
-    "topicPolicy"
+    "topicPolicy",
+    "workflowResource"
   ],
   "./clerk": ["clerkSubjectResolver", "subjectFromClerk"],
   "./convex": ["ConvexError", "createPermDock"],

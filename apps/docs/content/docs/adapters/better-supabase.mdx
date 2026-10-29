@@ -87,7 +87,7 @@ import {
 - `subjectFromShareLink(token, { shareLinks, links, ttl?, linkPolicy?, onAuth? })` resolves a better-supabase share-link token into a link subject ([Share links](#share-links)).
 - `toolPolicy({ permdock, data? })` returns the `authorize` and `visible` hooks of `createMcp` for tools whose `meta` is a permission ([MCP tools](#mcp-tools)).
 - `credentialGuard(provider, { permdock, use, revoke? })` wraps a `CredentialProvider` so PermDock decides each token use ([Credentials](#credentials)).
-- `hookCan(permdock)` and `handlerCan({ getPermDock })` return the `can` options of `authorizeHook` and `protectWebHandler` in `better-supabase/workflow-sdk` ([Workflows](#workflows)).
+- `hookCan(permdock)` and `handlerCan({ getPermDock })` return the `can` options of `authorizeHook` and `protectWebHandler` in `better-supabase/workflow-sdk`; `workflowResource(subject, types)` maps a run's `RecordRef` to the `resource` of `workflow.start` ([Workflows](#workflows)).
 - `supportPolicy({ policy, subject?, options?, writable?, approval?, approved? })` returns the `authorize` option of `supportSessions` ([Support sessions](#support-sessions)).
 - `subscriberPolicy({ policy, principals, events, row?, sender?, options? })` returns the per-subscriber check for an outbox, webhook or realtime fan-out ([Subscriber fan-out](#subscriber-fan-out)).
 - `principalSource({ claims, identities?, subject? })` returns a `PrincipalSource` over the claims better-supabase mints ([Principals](#principals)).
@@ -614,7 +614,23 @@ await authorizeHook(hook, {
 });
 ```
 
-A better-supabase workflow run belongs to a record: its `subject` is a `RecordRef`, stored as the `bsb.subject` attribute (`type/id`), and the workflow editor starts a run on one with `start(subject_type, subject_id)`. Pass the same record to PermDock's `start(id, { resource: subject })` so the run's permissions on that type hold on that row only ([bind a run to a record](/docs/concepts/automations#bind-a-run-to-a-record)).
+A better-supabase workflow run belongs to a record: its `subject` is a `RecordRef`, stored as the `bsb.subject` attribute (`type/id`), and the workflow editor starts a run on one with `start(subject_type, subject_id)`. `workflowResource(subject, types)` maps it to the `resource` PermDock's `start` takes, so the run's permissions on that type hold on that row only ([bind a run to a record](/docs/concepts/automations#bind-a-run-to-a-record)). `types` maps each `config.subjects` type to the PermDock resource name:
+
+```ts
+import { workflowResource } from "permdock/better-supabase";
+
+const target = workflowResource(run.subject, {
+  invoice: "invoice",
+  deal: "crm_deal",
+});
+if (!target.ok) return target.decision; // denied, reason "validation"
+await workflow.start("chase-invoice", {
+  caller: permdock,
+  resource: target.resource,
+});
+```
+
+A subject type `types` does not name (own keys only), a missing or empty id, or an id over 256 characters returns `{ ok: false, cause: "validation", decision }`; the run never starts on a record PermDock cannot name.
 
 `tests/better-supabase/workflow.test-d.ts` type-checks both against `better-supabase/workflow-sdk`.
 
