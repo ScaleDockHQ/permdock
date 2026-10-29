@@ -54,7 +54,7 @@ export const list = base
 | `openapi.spec(permission)`                       | The `openapi.security(permission)` fragment as the merge function `spec` takes, with mutable arrays so it type-checks against oRPC's `OperationObject`.                                                                                                                                                                                                                                                                                                                                                                                    |
 | `openapi.securitySchemes()`                      | Document-level `securitySchemes` (scopes from `listPermissions`, `oauth2MetadataUrl`, `deviceAuthorization`, `deprecated`) to pass to `OpenAPIGenerator`. Targets 3.2; 3.1 output uses the registered `x-oai-*` fallbacks and `x-permdock-oauth2MetadataUrl` (see [OpenAPI registries](/docs/standards/openapi-registry)).                                                                                                                                                                                                                 |
 | `operationsRouter(operations, routes, options?)` | One procedure per [`defineOperations`](/docs/concepts/operations) entry, guarded by the operation's permission and `data` loader ([operations router](#operations-router)).                                                                                                                                                                                                                                                                                                                                                                |
-| `permissionOf(procedure)`                        | The permission of the procedure's first `protect`, or `undefined`. It reads the procedure definition without deciding, for [MCP tools that call the procedure](/docs/adapters/mcp#tools-that-call-a-protected-procedure).                                                                                                                                                                                                                                                                                                                  |
+| `permissionOf(procedure)`                        | The permission, or the permission list, of the procedure's first `protect`, or `undefined`. It reads the procedure definition without deciding, for [MCP tools that call the procedure](/docs/adapters/mcp#tools-that-call-a-protected-procedure).                                                                                                                                                                                                                                                                                         |
 | `permdockHandler()`                              | Returns the Fetch handler `(request) => Promise<Response>` for the AuthZEN-shaped decision endpoint.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `request` option                                 | `(context) => Request \| null \| undefined`. The Web `Request` behind a context; defaults to `context.request` or `context.req`.                                                                                                                                                                                                                                                                                                                                                                                                           |
 
@@ -102,6 +102,36 @@ if (isDefinedError(error) && error.code === "FORBIDDEN") {
 ```
 
 `problemDetails` is a Standard Schema that also implements Standard JSON Schema (`draft-2020-12`, `draft-07`, `openapi-3.0`). It requires `type`, `title`, `status` (400 to 599) and `detail`, and passes extension members through. It imports nothing, so a contract package can use it.
+
+A `null` subject answers `UNAUTHORIZED` through the declared constructor too, so a contract that declares typed errors still tells an anonymous caller to authenticate.
+
+### Permission lists and many rows
+
+`protect` takes a list of permissions. By default the caller needs every one; with `anyOf: true` one is enough. `openapi.spec` and `openapi.security` take the same list and options: all-of writes one `security` requirement holding every scope, `anyOf` writes one requirement per permission.
+
+```ts
+// Either role may archive: editors publish, authors update their own post.
+protect(
+  [permissions.post.publish, permissions.post.update],
+  ({ input }) => loadPost(input.id),
+  { anyOf: true },
+);
+```
+
+The `rows` option loads many rows instead of one, and takes the place of `data`; passing both throws. Every row must be granted. A denial reports the first denied row, and `context.permdockData` holds the rows. No rows answers `NOT_FOUND`.
+
+```ts
+const archiveMany = os
+  .input(z.object({ ids: z.array(z.string()) }))
+  .use(
+    protect(permissions.post.update, undefined, {
+      rows: ({ input }) => loadPosts(input.ids),
+    }),
+  )
+  .handler(({ context }) => archive(context.permdockData));
+```
+
+An event iterator takes one permission and no `rows`; `protect` throws a `TypeError` otherwise.
 
 ### Operations router
 

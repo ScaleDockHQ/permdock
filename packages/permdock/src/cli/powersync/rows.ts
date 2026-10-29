@@ -22,13 +22,15 @@ import { VERSION_COLUMN, VERSION_USER, authzVersionTable } from "./version.ts";
 type Device = (table: string) => string;
 
 function throughColumn(through: RoleThrough, device: Device): LocalRowColumn {
-  const [pair] = Object.entries(through.on);
+  const pairs = Object.entries(through.on);
+  const [pair] = pairs;
   return {
     column: pair?.[0] ?? "",
     through: {
       table: device(through.through),
       id: pair?.[1] ?? "",
       column: through.column,
+      ...(pairs.length > 1 ? { on: { ...through.on } } : {}),
     },
   };
 }

@@ -232,7 +232,9 @@ export type LocalRowValue =
 /**
  * A column that holds a role key or user id: the value itself, the `column` of
  * the synced `through` table whose `id` it references, or a value each maps to
- * a role key (`null` for no role).
+ * a role key (`null` for no role). A composite reference lists every pair in
+ * `on` (row column to `through` column); a `through` row matches only when all
+ * of them do, and the row holds the value of every match.
  */
 export type LocalRowColumn =
   | { readonly column: string }
@@ -242,6 +244,7 @@ export type LocalRowColumn =
         readonly table: string;
         readonly id: string;
         readonly column: string;
+        readonly on?: Readonly<Record<string, string>>;
       };
     }
   | {

@@ -160,7 +160,7 @@ export type Protect<
   TArgs extends unknown[] = [],
 > = {
   <T = unknown>(
-    permission: Permission,
+    permission: Permission | readonly Permission[],
     data?: Loader<T>,
     protectOptions?: ProtectOptions,
   ): (request: Request, ...args: TArgs) => Promise<Guard<T, V>>;
@@ -170,7 +170,7 @@ export type Protect<
     protectOptions?: ProtectOptions,
   ): (request: Request, ...args: TArgs) => Promise<ScopeGuard<T, V>>;
   <T = unknown>(
-    permission: Permission | null,
+    permission: Permission | readonly Permission[] | null,
     data?: Loader<T>,
     protectOptions?: ProtectOptions,
   ): (
@@ -180,7 +180,14 @@ export type Protect<
 };
 
 export type OpenApiHooks = {
-  readonly security: (permission: Permission) => {
+  /**
+   * One requirement holding every permission's scope, or with `anyOf` one
+   * requirement per permission.
+   */
+  readonly security: (
+    permission: Permission | readonly Permission[],
+    options?: { readonly anyOf?: boolean },
+  ) => {
     readonly security: readonly Record<string, readonly string[]>[];
     readonly "x-permdock-permissions": readonly string[];
   };
@@ -204,6 +211,20 @@ export type ProtectOptions = {
   readonly field?: string;
   /** Adds the evaluation `trace` to the guard's decision. */
   readonly explain?: boolean;
+  /**
+   * With a list of permissions, one of them grants each row; without it, every
+   * permission must.
+   */
+  readonly anyOf?: boolean;
+  /**
+   * Loads the rows the route acts on, in place of `data`: every row must be
+   * granted, the guard's `data` is the list, and a denial reports the first
+   * refused row. No rows answers 404, as a `data` loader answering `null`
+   * does.
+   */
+  readonly rows?: (
+    request: Request,
+  ) => readonly unknown[] | Promise<readonly unknown[]>;
 };
 
 export type SnapshotQuery = {
@@ -245,7 +266,7 @@ export type ServerPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   // oxlint-disable-next-line typescript/method-signature-style -- bivariant in V
   protectOn<T = unknown>(
     instance: PermDock<V>,
-    permission: Permission | null,
+    permission: Permission | readonly Permission[] | null,
     data?: () => T | null | undefined | Promise<T | null | undefined>,
     protectOptions?: ProtectOptions,
     request?: Request,

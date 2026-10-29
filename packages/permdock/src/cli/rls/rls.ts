@@ -128,6 +128,20 @@ function asDialect(value: string | undefined): RlsDialect | undefined {
   return undefined;
 }
 
+/** `--split`, else `rls.split` for the SQL target. */
+function splitOf(
+  input: RlsRunInput,
+  target: RlsTarget,
+): { readonly split?: string } {
+  if (input.split !== undefined) {
+    return { split: input.split };
+  }
+  const configured = input.config.rls?.split;
+  return configured === undefined || target !== "sql"
+    ? {}
+    : { split: configured.join(",") };
+}
+
 function generateInput(
   input: RlsRunInput,
   target: RlsTarget,
@@ -164,7 +178,7 @@ function generateInput(
     capabilities: input.capabilities,
     ...(input.fields === undefined ? {} : { fields: input.fields }),
     revokeColumns: input.revokeColumns,
-    ...(input.split === undefined ? {} : { split: input.split }),
+    ...splitOf(input, target),
     ...(isSupabaseSchemas(input.schemas) ? { schemas: input.schemas } : {}),
     ...(input.grantsOut === undefined ? {} : { grantsOut: input.grantsOut }),
     ...(input.seedsOut === undefined ? {} : { seedsOut: input.seedsOut }),
