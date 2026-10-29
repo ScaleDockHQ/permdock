@@ -405,7 +405,7 @@ export const bsb = createNext(betterSupabase, {
 
 Here `sources` is the app's generated membership-source factory. `authorizer` wraps `memberships` in `claimsFirst(source, { onStale: "reread", version, versions })` with the cache better-supabase passes at runtime. For a server created without `versions`, set `versions` on `authorizer` too. A read check answers from the cache within `maxStaleMs`; a write check reads the version live ([Authorizer](#authorizer)). `postgrestSources(...).memberships` already has a version reader; pass a separate `version` only to override it.
 
-- `await bsb.evictSession(userId, { tags })` forgets the user's verified session and calls `versions.evict(userId)`, so the next PermDock instance reads the version live.
+- `await bsb.evictSession(userId, { tags })` forgets the user's verified session and calls `versions.evict(userId)`, so the next PermDock instance reads the version live. `authorizationHooks` sets `sessionTags(userId)` to `[snapshotTag(userId)]`, so it also clears the user's cached PermDock snapshots, as sign-out and `refreshSessionCache` do.
 - better-supabase passes `authorizer` a request-scope `memo`, and the checks of one scope share one PermDock instance per claims, tenant and intent. With `instances`, requests share it too.
 - `bsb.getClaims()` verifies the token once per request and returns a `SessionSnapshot`. `subjectFromBetterSupabase(snapshot)` maps it like the user session of its claims, with `iat` as `Subject.issuedAt` and `authz_ver` as `principal.authzVersion`. A snapshot whose `claims.sub` is not its `userId` maps to the anonymous subject.
 
@@ -441,6 +441,8 @@ async function QuotesIsland({ orgId }: { orgId: string }) {
 | `bsb.bootstrap()` result                | Its `session`; anonymous when `sessionActive` is `false` | `authzVersion` as `version.known`, no read          |
 | `bsb.getAccess()` result                | Its `session`, in its `tenant`                           | `authzVersion` as `version.known`, no read          |
 | `Subject`                               | As given                                                 | Through `versions`                                  |
+
+`getPermissions(permdock, input, { edit: [permissions.quote.update, quote] }, query?)` decides named checks on one instance and returns frozen `{ [name]: { allowed, outcome, reason? } }`, as `getPermissions` on `permdock/next` does. Inside another private scope that already sets its lifetime, add `cacheLife({ stale: Infinity })` so the inner call does not shorten it.
 
 The second argument is `{ tenant?, intent? }` or a tenant id, so the resolver also fills an approvals handler's `permdockFor` and an access-review handler's `permdockFor`. `intent` defaults to `read`. `authorizationHooks`, `supportPolicy` and `subscriberPolicy` take `instances` too and resolve through the same code.
 

@@ -28,6 +28,7 @@ import {
   findPermission,
   listPermissions,
 } from "../core/permission-registry.ts";
+import { snapshotTag } from "../core/snapshot-cache.ts";
 import { permdockFor } from "./permdock-for.ts";
 import { subscriberPolicy } from "./subscribers.ts";
 import { supportPolicy } from "./support.ts";
@@ -154,11 +155,12 @@ function matches(
  * authorization })`), decided by `policy`. Every hook builds the principal's
  * instance from the claims `claims` loads now, never from the request, and
  * fails closed: a throw, an unknown key and `approval-required` refuse.
- * `automation` and `delegation` are always set; `identities`, `delivery`,
- * `approverOf`, `support` and `tickets` only with the options they read.
- * `delegation.permissions` maps each scope to the keys whose `.scope` it is,
- * was renamed from, or that a policy `oauthScopes` entry covers, and reads no
- * `authorization_details`.
+ * `automation`, `delegation` and `sessionTags` (`snapshotTag(userId)`, so
+ * `evictSession` and sign-out clear PermDock snapshots) are always set;
+ * `identities`, `delivery`, `approverOf`, `support` and `tickets` only with the
+ * options they read. `delegation.permissions` maps each scope to the keys whose
+ * `.scope` it is, was renamed from, or that a policy `oauthScopes` entry
+ * covers, and reads no `authorization_details`.
  */
 export function authorizationHooks(
   options: AuthorizationHooksOptions,
@@ -307,6 +309,7 @@ export function authorizationHooks(
   return Object.freeze({
     apiVersion: 1,
     name: "PermDock",
+    sessionTags: (userId: string): readonly string[] => [snapshotTag(userId)],
     automation: Object.freeze(automation),
     delegation: Object.freeze(delegation),
     ...(approverOf === undefined ? {} : { approverOf }),

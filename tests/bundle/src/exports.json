@@ -299,6 +299,7 @@
     "cacheLifeFor",
     "createPermDock",
     "snapshotHeaders",
+    "snapshotKey",
     "snapshotTag"
   ],
   "./server": [
@@ -331,6 +332,7 @@
     "signRunTicket",
     "signSupportSession",
     "snapshotHeaders",
+    "snapshotKey",
     "snapshotTag",
     "subjectFromApiKey",
     "subjectFromRunTicket",
@@ -708,6 +710,7 @@
     "blockMembershipSource",
     "bucketPolicy",
     "credentialGuard",
+    "getPermissions",
     "handlerCan",
     "hookCan",
     "permdockFor",

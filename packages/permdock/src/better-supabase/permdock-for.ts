@@ -1,7 +1,10 @@
+import type { PermissionCheck, PermissionState } from "../core/checks.ts";
+import type { Decision } from "../core/decision.ts";
 import type { InstanceCache } from "../core/instance-cache.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { Intent, MembershipSource } from "../core/interfaces.ts";
 import type { PermDock, PermDockOptions } from "../core/permdock.ts";
+import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { Subject } from "../core/subject.ts";
 import type { VersionCache } from "../core/version-cache.ts";
@@ -13,7 +16,9 @@ import type {
 } from "./subject.ts";
 
 import { buildInstance } from "../core/build-instance.ts";
+import { permissionStates } from "../core/checks.ts";
 import { isRecord } from "../core/compact.ts";
+import { NO_GRANT } from "../core/decision.ts";
 import { claimsFirst } from "../core/memberships.ts";
 import { isSubject } from "../core/subject.ts";
 import { subjectFromBetterSupabase } from "./subject.ts";
@@ -197,4 +202,33 @@ export function permdockFor(options: PermDockForOptions): PermDockFor {
         ? { tenant: query }
         : (query ?? {}),
     );
+}
+
+/**
+ * One `{ allowed, outcome, reason? }` per named check for `input`, from one
+ * `permdockFor` instance: frozen plain JSON an island returns from `'use cache:
+ * private'`. A check that throws denies its entry; an instance that cannot be
+ * built denies them all.
+ */
+export async function getPermissions<K extends string>(
+  resolve: PermDockFor,
+  input: PermDockForInput,
+  checks: Readonly<Record<K, PermissionCheck>>,
+  query?: PermDockForQuery | string | null,
+): Promise<Readonly<Record<K, PermissionState>>> {
+  let permdock: PermDock | undefined;
+  try {
+    permdock = await resolve(input, query);
+  } catch {
+    permdock = undefined;
+  }
+  if (permdock === undefined) {
+    return permissionStates((): Decision => NO_GRANT, checks);
+  }
+  // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
+  const decide = permdock.decide as (
+    next: Permission,
+    row?: unknown,
+  ) => Decision;
+  return permissionStates(decide, checks);
 }

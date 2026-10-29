@@ -9,6 +9,15 @@
     "v": { "const": 1 },
     "issuedAt": { "$ref": "#/$defs/instant" },
     "expiresAt": { "$ref": "#/$defs/instant" },
+    "authzVersion": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The token's authz_ver the snapshot was built from."
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "The Auth session_id the snapshot was built for."
+    },
     "subject": {
       "type": "object",
       "required": ["principal", "context"],

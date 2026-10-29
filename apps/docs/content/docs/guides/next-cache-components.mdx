@@ -60,13 +60,13 @@ export async function loadSnapshot(org: string) {
     customRoles: view.customRoles,
     plans: [view.plan],
   });
-  cacheLife(cacheLifeFor(snapshot)); // 30 s floor for per-link prefetch, 300 s ceiling
+  cacheLife(cacheLifeFor(snapshot)); // 300 s: the App Shell keeps it
   cacheTag(snapshotTag(claims?.sub), `org:${org}`);
   return snapshot;
 }
 ```
 
-`snapshotFor` is synchronous and makes no network call. `cacheLifeFor` returns `{ stale }`: 300 seconds when the token lives longer, the remaining lifetime when it is shorter, and less than 30 seconds only when the token is about to expire. A `stale` of at least 30 seconds lets a `<Link prefetch={true}>` carry the snapshot. At least 300 seconds puts session content in the route's App Shell, but the App Shell never holds URL data such as `params`: a snapshot keyed on `[org]` arrives through the per-link prefetch, so links into an organisation use `prefetch={true}`.
+`snapshotFor` is synchronous and makes no network call. `cacheLifeFor` returns `{ stale: 300 }`: the proxy refreshes the session on every request, so the entry never outlives a token the browser still holds. `{ capToToken: true }` caps it at the token's remaining lifetime instead. A `stale` of at least 30 seconds lets a `<Link prefetch={true}>` carry the snapshot. At least 300 seconds puts session content in the route's App Shell, but the App Shell never holds URL data such as `params`: a snapshot keyed on `[org]` arrives through the per-link prefetch, so links into an organisation use `prefetch={true}`.
 
 ### Static shell: a synchronous layout
 
@@ -474,7 +474,7 @@ Run it against `next build && next start` with `experimental.exposeTestingApiInP
 - `updateTag` works only in Server Actions. Webhooks and other Route Handlers call `revalidateTag(tag, { expire: 0 })`, never `'max'`, which would serve the revoked grant once more.
 - Bust `snapshotTag(sub)` on every input to the snapshot: role, membership and custom-role writes, a revocation-counter bump in the token, and entitlement or billing webhooks.
 - `refresh()` and `updateTag` reach only the browser that acted; other members need a signal.
-- A `stale` below 30 seconds silently drops the snapshot from per-link prefetches. Below 300 seconds, session content that reads no `params` drops out of the App Shell. `cacheLifeFor` keeps the floor unless the token is about to expire.
+- A `stale` below 30 seconds silently drops the snapshot from per-link prefetches. Below 300 seconds, session content that reads no `params` drops out of the App Shell. `cacheLifeFor` returns 300 seconds unless `capToToken` is set and the token is about to expire.
 - Plan gates live in the snapshot and in Server Actions; the generated `authorize()` seeds ignore plans, so RLS does not enforce them.
 - Sign out with a document navigation (a plain `<form method="post">` to a Route Handler that clears the cookie and answers `303`), not a Server Action `redirect`. The App Router keeps visited routes as hidden trees in the page, so after a client-side sign-out the previous user's gated nav can stay in the DOM while the next user signs in.
 

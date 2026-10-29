@@ -68,6 +68,7 @@ export type {
 export {
   cacheLifeFor,
   snapshotHeaders,
+  snapshotKey,
   snapshotTag,
 } from "../core/snapshot-cache.ts";
 export type {

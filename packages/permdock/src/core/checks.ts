@@ -101,3 +101,48 @@ export async function decideAllAsync(
     ),
   );
 }
+
+/** One entry of `getPermissions`: plain JSON, safe across a cache boundary. */
+export type PermissionState = {
+  readonly allowed: boolean;
+  readonly outcome: Decision["outcome"];
+  /** The first denial's reason; absent unless `outcome` is `denied`. */
+  readonly reason?: string;
+};
+
+/**
+ * One frozen `PermissionState` per named check. A check that throws denies that
+ * entry with `validation` and leaves the others.
+ */
+export function permissionStates<K extends string>(
+  decide: DecideFn,
+  checks: Readonly<Record<K, PermissionCheck>>,
+  options?: DecideOptions,
+): Readonly<Record<K, PermissionState>> {
+  const states: Partial<Record<K, PermissionState>> = {};
+  for (const name of Object.keys(checks)) {
+    // SAFETY: Object.keys of a Record<K, …> lists its K keys.
+    const key = name as K;
+    let state: PermissionState;
+    try {
+      const [permission, data] = partsOf(checks[key]);
+      const decision = decide(permission, data, options);
+      const reason =
+        decision.outcome === "denied" ? decision.denials[0]?.reason : undefined;
+      state = Object.freeze({
+        allowed: decision.outcome === "granted",
+        outcome: decision.outcome,
+        ...(reason === undefined ? {} : { reason }),
+      });
+    } catch {
+      state = Object.freeze({
+        allowed: false,
+        outcome: "denied",
+        reason: "validation",
+      });
+    }
+    Object.defineProperty(states, key, { value: state, enumerable: true });
+  }
+  // SAFETY: the loop above set one state for every key of checks.
+  return Object.freeze(states) as Readonly<Record<K, PermissionState>>;
+}

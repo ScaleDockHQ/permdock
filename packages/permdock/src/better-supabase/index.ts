@@ -44,7 +44,7 @@ export type {
   BetterSupabaseMembershipRow,
   PrincipalFromMembershipsOptions,
 } from "./memberships.ts";
-export { permdockFor } from "./permdock-for.ts";
+export { getPermissions, permdockFor } from "./permdock-for.ts";
 export type {
   PermDockFor,
   PermDockForOptions,

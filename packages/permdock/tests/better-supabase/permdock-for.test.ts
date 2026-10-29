@@ -3,7 +3,11 @@ import { z } from "zod";
 
 import type { MembershipSource } from "../../src/core/interfaces.ts";
 
-import { permdockFor } from "../../src/better-supabase/index.ts";
+import {
+  authorizationHooks,
+  getPermissions,
+  permdockFor,
+} from "../../src/better-supabase/index.ts";
 import {
   allow,
   definePermissions,
@@ -99,5 +103,36 @@ describe("the permdockFor resolver", () => {
     db.state.version = 4;
     const third = await resolve({ kind: "user", claims }, { intent: "write" });
     expect(third).not.toBe(first);
+  });
+});
+
+describe(getPermissions, () => {
+  it("answers frozen states from one instance and denies all when it cannot build", async () => {
+    const resolve = permdockFor({ policy });
+    const states = await getPermissions(
+      resolve,
+      { kind: "user", claims },
+      { read: [permissions.quote.read, row] },
+    );
+    expect(states).toStrictEqual({
+      read: { allowed: true, outcome: "granted" },
+    });
+    const failing = await getPermissions(
+      () => Promise.reject(new Error("down")),
+      null,
+      { read: [permissions.quote.read, row] },
+    );
+    expect(failing.read).toStrictEqual({
+      allowed: false,
+      outcome: "denied",
+      reason: "no-grant",
+    });
+  });
+});
+
+describe(authorizationHooks, () => {
+  it("tags a user's sessions with the snapshot tag", () => {
+    const hooks = authorizationHooks({ policy, claims: () => null });
+    expect(hooks.sessionTags?.(USER)).toStrictEqual([`permdock:${USER}`]);
   });
 });

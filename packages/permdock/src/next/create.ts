@@ -5,6 +5,7 @@ import { cacheLife, cacheTag, io } from "next/cache.js";
 import { after } from "next/server.js";
 import { cache } from "react";
 
+import type { PermissionCheck, PermissionState } from "../core/checks.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionSink, Intent } from "../core/interfaces.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
@@ -25,6 +26,7 @@ import type {
 
 import { withApp } from "../core/app.ts";
 import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
+import { permissionStates } from "../core/checks.ts";
 import { compact } from "../core/compact.ts";
 import { NO_GRANT } from "../core/decision.ts";
 import { cacheLifeFor, snapshotTag } from "../core/snapshot-cache.ts";
@@ -202,6 +204,28 @@ export function createPermDock<
     }
   };
 
+  const getPermissions = async <K extends string>(
+    checks: Readonly<Record<K, PermissionCheck>>,
+    query?: GetPermDockQuery,
+  ): Promise<Readonly<Record<K, PermissionState>>> => {
+    let permdock: PermDock<V> | undefined;
+    try {
+      permdock = await getPermDock(query);
+    } catch (error) {
+      unstable_rethrow(error);
+    }
+    if (permdock === undefined) {
+      return permissionStates((): Decision => NO_GRANT, checks);
+    }
+    // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
+    const decide = permdock.decide as (
+      next: Permission,
+      row?: unknown,
+    ) => Decision;
+    return permissionStates(decide, checks);
+  };
+
+  let warnedShortLife = false;
   const getSnapshot = async (
     query: GetSnapshotQuery = {},
   ): Promise<Snapshot> => {
@@ -209,8 +233,21 @@ export function createPermDock<
     const snapshot = permdock.snapshot(
       compact({ include: query.include, tenants: query.tenants }),
     );
+    const life = cacheLifeFor(snapshot, query.cacheLife);
+    if (
+      life.stale < 300 &&
+      !warnedShortLife &&
+      // oxlint-disable-next-line no-process-env -- Next.js inlines NODE_ENV; the hint is development-only
+      process.env["NODE_ENV"] === "development"
+    ) {
+      warnedShortLife = true;
+      // oxlint-disable-next-line no-console -- one development hint per process for a short private lifetime
+      console.warn(
+        `PermDock: getSnapshot() caches for ${String(life.stale)} s; Next.js drops a private entry under 300 s from the App Shell prefetch.`,
+      );
+    }
     try {
-      cacheLife(cacheLifeFor(snapshot));
+      cacheLife(life);
       cacheTag(
         snapshotTag(permdock.subject.principal?.id),
         ...(query.tags ?? []),
@@ -288,6 +325,7 @@ export function createPermDock<
   return {
     getPermDock,
     getPermission,
+    getPermissions,
     getSnapshot,
     requirePermission,
     PermDockProvider,
