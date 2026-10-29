@@ -6,6 +6,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import type { ClaimsChangeFixture } from "../../src/cli/fixtures.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
+import { blockMembershipSource } from "../../src/better-supabase/block-memberships.ts";
 import { loadFixtures } from "../../src/cli/fixtures.ts";
 import { POSTGRES, powersyncPlan } from "../../src/cli/powersync/streams.ts";
 import { verifyClaimsChange } from "../../src/cli/powersync/verify-claims.ts";
@@ -15,6 +16,7 @@ import {
   definePermissions,
   definePolicy,
   resource,
+  role,
 } from "../../src/index.ts";
 
 const permissions = definePermissions({
@@ -211,5 +213,92 @@ describe("powersync verify claims-change fixtures", () => {
         'fixture 0 needs after (tenant, roles, memberships, claims) and expected "changed", without action or table',
       );
     }
+  });
+
+  describe("over a composite roles junction", () => {
+    const scoped = definePermissions({
+      job: resource({
+        id: "id",
+        actions: ["read"],
+        relations: {
+          organization: { field: "organization_id", memberOf: "organization" },
+        },
+      }),
+    });
+    const byOrganization = definePolicy(scoped, {
+      scopes: { organization: { key: "organization_id" } },
+      subject: () => null,
+      roles: [
+        role(
+          "owner",
+          [
+            allow(scoped.job.read, {
+              where: { team_id: { in: { ref: "principal.claims.team_ids" } } },
+            }),
+          ],
+          { on: "organization" },
+        ),
+      ],
+    });
+    const junction: PermDockConfig = {
+      policy: "policy.ts",
+      rls: {
+        tables: { job: "jobs" },
+        membershipSources: [blockMembershipSource({ roles: "many" })],
+      },
+      powersync: {},
+    };
+    const junctionPlan = powersyncPlan(byOrganization, junction, POSTGRES);
+    const owned = [
+      { id: "j1", team_id: "A", organization_id: "o1" },
+      { id: "j2", team_id: "B", organization_id: "o1" },
+    ];
+
+    async function junctionCheck(leak: boolean): Promise<readonly string[]> {
+      const mismatches: string[] = [];
+      await verifyClaimsChange({
+        policy: byOrganization,
+        config: junction,
+        customRoles: [],
+        plan: junctionPlan,
+        fixture: {
+          subject: {
+            id: "u1",
+            memberships: [
+              { scope: "organization", id: "o1", roles: ["owner"] },
+            ],
+            claims: { team_ids: ["A"] },
+          },
+          after: { claims: { team_ids: ["B"] } },
+          expected: "changed",
+        },
+        root: "organization_id",
+        query: async (_sql, values) => {
+          const rows = owned.filter((row) =>
+            String(values[1]).includes(`"${row.team_id}"`),
+          );
+          return leak && String(values[1]).includes('"B"')
+            ? [...rows, { id: "j9", team_id: "B", organization_id: "o2" }]
+            : rows;
+        },
+        mismatches,
+      });
+      return mismatches;
+    }
+
+    it("reads the claim through a stream joined on every pair of the junction", () => {
+      const stream = junctionPlan.streams.find((entry) => entry.name === "job");
+      expect(stream?.claims).toStrictEqual(["team_ids"]);
+      expect(stream?.queries.join("\n")).toContain(
+        "membership_roles.organization_id::text = memberships.organization_id::text AND membership_roles.user_id::text = memberships.user_id::text",
+      );
+    });
+
+    it("passes when the rows follow the claims and fails on another organization's row", async () => {
+      await expect(junctionCheck(false)).resolves.toStrictEqual([]);
+      await expect(junctionCheck(true)).resolves.toStrictEqual([
+        "claims change for u1: stream job syncs jobs row j9 after the change, which the policy denies",
+      ]);
+    });
   });
 });
