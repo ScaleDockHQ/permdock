@@ -17,6 +17,9 @@ export type ProviderApprovers = Readonly<Record<string, ApproverInput>>;
 /** `rls.approvals`' approver check, executable by `authenticated`. */
 export const IS_APPROVER = "permdock_is_approver";
 
+/** The manager walk `rls.approvals.managers` writes. */
+export const MANAGES = "permdock_manages";
+
 type IsApproverInput = {
   readonly approvers: ProviderApprovers;
   /** `rls.schema` as written in the manifest. */
@@ -30,6 +33,11 @@ type IsApproverInput = {
    * matches.
    */
   readonly covers?: boolean;
+  /**
+   * Whether the manifest lists `permdock_manages`, which
+   * `rls.approvals.managers` writes; `manager()` approvers then match.
+   */
+  readonly managers?: boolean;
   readonly tenantScope: string;
   readonly rootTenant: boolean;
   readonly catalog: CatalogDocument | undefined;
@@ -53,8 +61,9 @@ function resourceOf(kind: string): string {
 /**
  * better-supabase's `isApprover` template: one `case` over `{kind}` whose
  * branches call `permdock_is_approver` with the kind's approvers as JSON. A
- * kind with no branch is `false`. Only `user`, `holder` and `anyOf` approvers
- * match in SQL; other leaves are reported and match nobody.
+ * kind with no branch is `false`. Only `user`, `holder` and `anyOf` approvers,
+ * and `manager` with `rls.approvals.managers`, match in SQL; other leaves are
+ * reported and match nobody.
  */
 export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
   const problems: string[] = [];
@@ -77,11 +86,18 @@ export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
       continue;
     }
     const approvers = asApprover(given);
+    const managers = input.managers === true && input.covers === true;
     for (const leaf of approverLeaves(approvers)) {
       if (leaf.kind === "user") continue;
-      if (leaf.kind !== "permission") {
+      if (leaf.kind === "manager") {
+        if (!managers) {
+          problems.push(
+            `The ${kind} approvers name a manager approver, which ${IS_APPROVER} checks only with rls.approvals.managers, so it matches nobody. Set rls.approvals.managers, run \`permdock rls generate\`, then \`permdock supabase inspect --out\`.`,
+          );
+        }
+      } else if (leaf.kind !== "permission") {
         problems.push(
-          `The ${kind} approvers name a ${leaf.kind} approver, which ${IS_APPROVER} cannot check in SQL, so it matches nobody. Use user(), holder() or anyOf().`,
+          `The ${kind} approvers name a ${leaf.kind} approver, which ${IS_APPROVER} cannot check in SQL, so it matches nobody. Use user(), holder(), manager() or anyOf().`,
         );
       } else if (keys !== undefined && !keys.has(leaf.permission)) {
         problems.push(

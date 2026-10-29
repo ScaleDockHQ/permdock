@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { AuthorizationHooksOptions } from "../../src/better-supabase/index.ts";
-import type { Principal } from "../../src/index.ts";
+import type { Principal, RelationSource } from "../../src/index.ts";
 
 import { authorizationHooks } from "../../src/better-supabase/index.ts";
-import { holder, user } from "../../src/core/approvers.ts";
+import { anyOf, holder, manager, user } from "../../src/core/approvers.ts";
 import {
   allow,
   definePermissions,
@@ -263,6 +263,54 @@ describe(authorizationHooks, () => {
           { userId: LEAD, claims: defined(users[EDITOR]) },
           request,
         ),
+      ).toBe(false);
+    });
+  });
+
+  describe("approverOf with manager approvers", () => {
+    const managers: Record<string, string> = { [EDITOR]: LEAD, [LEAD]: VIEWER };
+    const relations: RelationSource = {
+      ancestors: () => ({ ancestors: [] }),
+      related: ({ resource: kind, id, relation }) => {
+        const boss = managers[id];
+        return kind === "user" && relation === "manager" && boss !== undefined
+          ? [{ principal: { id: boss } }]
+          : [];
+      },
+    };
+    const request = {
+      kind: "expense",
+      subject: "s1",
+      tenant: ORG,
+      requester: EDITOR,
+    };
+    const as = (userId: string) => ({ userId, claims: defined(users[userId]) });
+    const withManagers = (
+      approvers: NonNullable<AuthorizationHooksOptions["approvers"]>,
+    ) => authorizationHooks({ ...base, approvers, options: { relations } });
+
+    it("lets the requester's manager approve, within levels", async () => {
+      const direct = withManagers({ expense: manager() });
+      expect(await direct.approverOf?.(as(LEAD), request)).toBe(true);
+      expect(await direct.approverOf?.(as(VIEWER), request)).toBe(false);
+      const twoUp = withManagers({ expense: manager({ levels: 2 }) });
+      expect(await twoUp.approverOf?.(as(VIEWER), request)).toBe(true);
+      const mixed = withManagers({ expense: anyOf(user(VIEWER), manager()) });
+      expect(await mixed.approverOf?.(as(LEAD), request)).toBe(true);
+    });
+
+    it("matches nobody without a relation source, and never the requester", async () => {
+      const bare = authorizationHooks({
+        ...base,
+        approvers: { expense: manager() },
+      });
+      expect(await bare.approverOf?.(as(LEAD), request)).toBe(false);
+      const direct = withManagers({ expense: manager() });
+      expect(
+        await direct.approverOf?.(as(EDITOR), {
+          ...request,
+          requester: EDITOR,
+        }),
       ).toBe(false);
     });
   });

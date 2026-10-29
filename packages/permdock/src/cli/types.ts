@@ -447,6 +447,16 @@ export type RlsConfig = {
   readonly shims?: boolean | RlsShimsConfig;
 };
 
+/** `rls.approvals.managers`: one row per user and manager. */
+export type RlsApprovalManagers = {
+  /** `table` or `schema.table`. */
+  readonly table: string;
+  /** The column holding the user's id. */
+  readonly user: string;
+  /** The column holding the id of that user's manager. */
+  readonly manager: string;
+};
+
 /**
  * `rls.approvals` on a table the app already has: the store functions keep each
  * request's body in `body` and its token in `token` (both added when missing)
@@ -474,6 +484,12 @@ export type RlsApprovalsAdopt = {
    * the table owner. Off by default.
    */
   readonly tenantPolicies?: { readonly manage: string };
+  /**
+   * The app's table that names each user's manager, so `manager()` approvers
+   * match in SQL: `permdock_manages` walks it and the four-argument
+   * `permdock_is_approver` calls it. Off by default.
+   */
+  readonly managers?: RlsApprovalManagers;
   /** A text column unique per request. Default `token`. */
   readonly token?: string;
   /** A jsonb column holding the `ApprovalRequest`. Default `body`. */

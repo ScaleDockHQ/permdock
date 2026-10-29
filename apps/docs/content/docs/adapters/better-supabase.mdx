@@ -727,8 +727,38 @@ authorizationProvider({
 - `isApprover` is one `case` over the kind. Each branch calls `permdock_is_approver` with that kind's approvers and the request's tenant. A kind `approvers` does not name answers `false`.
 - better-supabase refuses the requester before it asks, so nobody approves their own request.
 - For tool calls and support sessions, `isApprover` replaces the module's default approver. Leave `'support-session'` out and only the service role can approve a support session.
-- `permdock_is_approver` checks `user()` by id and `holder()` through `permitted_<root scope>_ids_by_permission` in the tenant. A role, relation or other grantee approver matches nobody in SQL and is a problem. So is a `holder()` key the catalog lacks, and a tenant scope that is not the root scope.
+- `permdock_is_approver` checks `user()` by id and `holder()` through `permitted_<root scope>_ids_by_permission` in the tenant, and `manager()` with [`rls.approvals.managers`](#manager-approvers). A role, relation or other grantee approver matches nobody in SQL and is a problem, as is `manager()` without `rls.approvals.managers`. So is a `holder()` key the catalog lacks, and a tenant scope that is not the root scope.
 - With [`rls.approvals.delegations`](#approval-delegation), the manifest lists the four-argument `permdock_is_approver`, and each branch also passes better-supabase's `{requester}` and the kind's resource, so a delegate inside an active cover matches.
+
+### Manager approvers
+
+`manager({ levels? })` matches in SQL when `rls.approvals.managers` names the app's table of reporting lines:
+
+```ts title="permdock.config.ts"
+export default {
+  permissions: "./permissions.ts",
+  policy: "./policy.ts",
+  rls: {
+    dialect: "supabase",
+    approvals: {
+      managers: {
+        table: "public.reporting_lines",
+        user: "user_id",
+        manager: "manager_id",
+      },
+    },
+  },
+};
+```
+
+- `permdock rls generate` writes `permdock_manages(p_requester, p_levels)`, a recursive walk up `table` from the requester's row. It stops after `levels` steps, at most 8, and never revisits a user, so a cycle in the table ends the walk. No client role may execute it.
+- It also writes the four-argument `permdock_is_approver`, which decides `manager` leaves through `permdock_manages` and every other leaf as the two-argument form does. A `levels` outside 1 to 8 matches nobody. The requester never manages themselves into an approval, even when the table names them as their own manager.
+- The table must exist before the generated SQL runs, because `permdock_manages` is a SQL function whose body Postgres checks on create. Its rows are read as the function owner, so the table needs no policy for `authenticated`.
+- Rerun `permdock supabase inspect --out`. `authorizationProvider` sees `permdock_manages` in the manifest and passes `{requester}`.
+- With `delegations: true` as well, the caller's own check includes `manager()`; a cover passes `user()` and `holder()` leaves only, never a `manager()` leaf.
+- `authorizationHooks({ approvers })` decides `manager()` in process through the `relations` source in its `options` or its `permdockFor`, reading `manager` on the requester's `user` record as [`manager()`](/docs/security/approvals) does.
+
+`tests/integration/src/approval-managers.test.ts` runs the walk on Postgres: levels, a cycle, the requester, lists and covers.
 
 ## Approval delegation
 

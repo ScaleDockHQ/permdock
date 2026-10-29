@@ -78,7 +78,7 @@ allow(permissions.payment.send, {
 
 ### Manager approvers
 
-`manager({ levels? })` names the requester's manager, read as whoever holds `manager` on the requester's `user` record through the same `relations` source. `levels` (1 to 8, default 1) walks further up the chain: `manager({ levels: 2 })` also admits the manager's manager. The walk runs by the requester's principal id when the verdict is given, so a reorganisation between the ask and the answer applies. Group holders, a missing source and a read that fails match nobody. It is better-supabase's `approvers.manager`; `permdock_is_approver` cannot check it in SQL, so `permdock supabase` reports it and it matches nobody there.
+`manager({ levels? })` names the requester's manager, read as whoever holds `manager` on the requester's `user` record through the same `relations` source. `levels` (1 to 8, default 1) walks further up the chain: `manager({ levels: 2 })` also admits the manager's manager. The walk runs by the requester's principal id when the verdict is given, so a reorganisation between the ask and the answer applies. Group holders, a missing source and a read that fails match nobody. It is better-supabase's `approvers.manager`. `permdock_is_approver` checks it in SQL only with [`rls.approvals.managers`](/docs/adapters/better-supabase#manager-approvers), which walks the app's table of reporting lines; without it, `permdock supabase` reports it and it matches nobody there.
 
 ```ts
 allow(permissions.expense.submit, { approval: { by: manager({ levels: 2 }) } });

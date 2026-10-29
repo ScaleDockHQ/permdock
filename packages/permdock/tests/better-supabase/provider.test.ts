@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
 
 import { authorizationProvider } from "../../src/better-supabase/index.ts";
-import { anyOf, holder, user } from "../../src/core/approvers.ts";
+import { anyOf, holder, manager, user } from "../../src/core/approvers.ts";
 import { PermDockValidationError } from "../../src/core/validation-error.ts";
 import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures.ts";
 import { defined } from "../support/defined.ts";
@@ -914,6 +914,49 @@ describe(authorizationProvider, () => {
         args: "jsonb, text, text, text",
         role: "postgres",
       });
+    });
+
+    it("passes manager() approvers with rls.approvals.managers and reports them without", () => {
+      const fourArgs = {
+        name: "permdock_is_approver",
+        args: "p_approvers jsonb, p_tenant text, p_requester text, p_resource text",
+        returns: "boolean",
+        execute: ["authenticated"],
+      };
+      const withManagers = authorizationProvider({
+        manifest: withRls({
+          helpers: [
+            ...supabaseHookManifestFixture.rls.helpers,
+            fourArgs,
+            {
+              name: "permdock_manages",
+              args: "p_requester text, p_levels integer",
+              returns: "boolean",
+              execute: [],
+            },
+          ],
+        }),
+        catalog,
+        approvers: { "expense.submit": manager({ levels: 2 }) },
+      });
+      expect(withManagers.functions.isApprover).toBe(
+        "case {kind} " +
+          `when 'expense.submit' then permdock.permdock_is_approver('{"kind":"manager","levels":2}'::jsonb, ({tenant})::text, ({requester})::text, 'expense') ` +
+          "else false end",
+      );
+      expect(withManagers.problems).toBeUndefined();
+      const without = authorizationProvider({
+        manifest: withRls({
+          helpers: [...supabaseHookManifestFixture.rls.helpers, fourArgs],
+        }),
+        catalog,
+        approvers: { "expense.submit": manager() },
+      });
+      expect(without.problems).toStrictEqual([
+        expect.stringContaining(
+          "checks only with rls.approvals.managers, so it matches nobody",
+        ),
+      ]);
     });
 
     it("reports approvers SQL cannot check, empty kinds and no kinds", () => {
