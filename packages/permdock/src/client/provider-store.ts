@@ -51,6 +51,7 @@ type ProviderStoreOptions = Pick<
   AdapterStoreOptions,
   | "endpoint"
   | "snapshotUrl"
+  | "fetchSnapshot"
   | "approvals"
   | "maxAge"
   | "onSnapshot"
@@ -73,6 +74,7 @@ export function providerStore(
     compact({
       endpoint: options.endpoint,
       snapshotUrl: options.snapshotUrl,
+      fetchSnapshot: options.fetchSnapshot,
       approvals: options.approvals,
       tenant: options.tenant,
       maxAge: options.maxAge,

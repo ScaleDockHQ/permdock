@@ -8,7 +8,7 @@ import type {
   TenantSettings,
 } from "./interfaces.ts";
 import type { Snapshot } from "./snapshot-types.ts";
-import type { CustomRole, Membership } from "./subject.ts";
+import type { CustomRole, Membership, Subject } from "./subject.ts";
 
 export function memoryEntitlementSource(
   entries: Readonly<Record<string, readonly string[]>>,
@@ -60,6 +60,18 @@ export function memoryMembershipSource(
       return members;
     },
   });
+}
+
+/**
+ * The memberships `subject`'s principal carries, as a `MembershipSource` for
+ * `permdockFor` and `snapshotFor`. It answers for that principal only; any
+ * other principal has none.
+ */
+export function subjectMembershipSource(subject: Subject): MembershipSource {
+  const principal = subject.principal;
+  return memoryMembershipSource(
+    principal === null ? {} : { [principal.id]: principal.memberships ?? [] },
+  );
 }
 
 /** A snapshot held in memory; `set` replaces it and notifies every subscriber. */

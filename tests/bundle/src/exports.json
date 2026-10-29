@@ -162,6 +162,7 @@
     "snapshotFromClaims",
     "sqlFunction",
     "stripeEntitlementSource",
+    "subjectMembershipSource",
     "supportAccess",
     "supportSessionEvent",
     "toCloudEvent",

@@ -1,4 +1,9 @@
-import type { Permission, Policy, Snapshot } from "../index.ts";
+import type {
+  Permission,
+  Policy,
+  Snapshot,
+  SnapshotOptions,
+} from "../index.ts";
 
 import { getPermDock } from "../index.ts";
 
@@ -10,7 +15,7 @@ export async function snapshotFixture(
       | Permission
       | { readonly [key: string]: unknown }
     )[];
-    readonly tenants?: "all";
+    readonly tenants?: SnapshotOptions["tenants"];
     readonly tenant?: string;
     readonly simulated?: boolean;
   } = {},

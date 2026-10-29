@@ -35,6 +35,7 @@ export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
     compact({
       endpoint: props.endpoint,
       snapshotUrl: props.snapshotUrl,
+      fetchSnapshot: props.fetchSnapshot,
       approvals: props.approvals,
       tenant: props.tenant,
       maxAge: props.maxAge,

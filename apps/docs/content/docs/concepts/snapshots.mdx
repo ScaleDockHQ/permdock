@@ -17,6 +17,7 @@ const scoped = permdock.snapshot({
   include: [permissions.post, permissions.billing.plan],
 });
 const all = permdock.snapshot({ tenants: "all" }); // every membership, for a local tenant switcher
+const some = permdock.snapshot({ tenants: ["o_acme", "o_globex"] }); // only these, when the subject belongs to them
 const preview = permdock
   .simulate({ tenant: "o_globex", roles: ["viewer"] })
   .snapshot(); // simulated: true

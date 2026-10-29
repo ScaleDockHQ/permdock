@@ -9,6 +9,7 @@ import { createClientStore } from "./store.ts";
 export type AdapterStoreOptions = Pick<
   ClientStoreOptions,
   | "snapshotUrl"
+  | "fetchSnapshot"
   | "approvals"
   | "tenant"
   | "fetch"
@@ -79,6 +80,7 @@ export function adapterStore(
       endpoint: options.endpoint === false ? undefined : options.endpoint,
       onServerOnly: options.endpoint === false ? hintOnce() : undefined,
       snapshotUrl: options.snapshotUrl,
+      fetchSnapshot: options.fetchSnapshot,
       approvals: options.approvals,
       tenant: options.tenant,
       fetch: options.fetch,

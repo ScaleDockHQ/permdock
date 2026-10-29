@@ -30,7 +30,7 @@ import type { Permission, ResourceNode, RowOf } from "./permission-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type { PrincipalSource } from "./principal-source.ts";
 import type { Scope } from "./scopes.ts";
-import type { Snapshot } from "./snapshot-types.ts";
+import type { Snapshot, SnapshotTenants } from "./snapshot-types.ts";
 import type {
   Actor,
   CustomRole,
@@ -198,7 +198,7 @@ export type SnapshotOptions = {
     | Permission
     | { readonly [key: string]: unknown }
   )[];
-  readonly tenants?: "all";
+  readonly tenants?: SnapshotTenants;
   readonly signer?: TokenSigner;
   readonly audience?: string | readonly string[];
 };

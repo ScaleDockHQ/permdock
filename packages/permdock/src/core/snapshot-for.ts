@@ -1,7 +1,7 @@
 import type { AuthEvent } from "./event-types.ts";
 import type { SnapshotInclude } from "./instance-snapshot.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
-import type { Snapshot } from "./snapshot-types.ts";
+import type { Snapshot, SnapshotTenants } from "./snapshot-types.ts";
 import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
 import type { Instant } from "./time.ts";
 
@@ -29,7 +29,7 @@ export type SnapshotForOptions = {
   /** Plans of the active tenant; replaces `principal.plans`. */
   readonly plans?: readonly string[];
   readonly include?: SnapshotInclude;
-  readonly tenants?: "all";
+  readonly tenants?: SnapshotTenants;
   /** The instant for `issuedAt` and membership expiry. Defaults to the clock. */
   readonly now?: Instant;
 };
