@@ -74,6 +74,12 @@ function defer(task: Promise<unknown> | (() => unknown)): boolean {
 }
 
 /** Read through `globalThis` so the entry loads on runtimes without `process`. */
+function knownVersion(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+    ? value
+    : undefined;
+}
+
 function isDevelopment(): boolean {
   const proc: unknown = Reflect.get(globalThis, "process");
   if (typeof proc !== "object" || proc === null) {
@@ -171,8 +177,25 @@ export function createPermDock<
     readTenant(options.tenant),
   );
 
+  const resolveVersion = cache(async (): Promise<number | undefined> => {
+    const read = options.version;
+    if (read === undefined) {
+      return undefined;
+    }
+    try {
+      return knownVersion(await read());
+    } catch (error) {
+      unstable_rethrow(error);
+      return undefined;
+    }
+  });
+
   const instantiate = cache(
-    async (tenantKey: string, intent: Intent): Promise<PermDock<V>> => {
+    async (
+      tenantKey: string,
+      intent: Intent,
+      known: number | undefined,
+    ): Promise<PermDock<V>> => {
       const tenant = tenantKey === "" ? undefined : tenantKey;
       const user = await resolveSubject();
       // Decisions read the clock (membership and token expiry), so the instance
@@ -182,7 +205,12 @@ export function createPermDock<
         policy,
         user,
         sources: options,
-        scope: { tenant, sink, intent },
+        scope: {
+          tenant,
+          sink,
+          intent,
+          version: known === undefined ? undefined : { known },
+        },
         wrap: decorate,
       });
       return built.permdock;
@@ -193,7 +221,12 @@ export function createPermDock<
     query?: GetPermDockQuery,
   ): Promise<PermDock<V>> => {
     const tenant = query?.tenant ?? (await resolveFallbackTenant());
-    return instantiate(tenant ?? "", query?.intent ?? "read");
+    const intent = query?.intent ?? "read";
+    const known =
+      intent === "read"
+        ? (knownVersion(query?.version) ?? (await resolveVersion()))
+        : undefined;
+    return instantiate(tenant ?? "", intent, known);
   };
 
   const getPermission = async (
@@ -243,7 +276,9 @@ export function createPermDock<
   const getSnapshot = async (
     query: GetSnapshotQuery = {},
   ): Promise<Snapshot> => {
-    const permdock = await getPermDock(compact({ tenant: query.tenant }));
+    const permdock = await getPermDock(
+      compact({ tenant: query.tenant, version: query.version }),
+    );
     const snapshot = permdock.snapshot(
       compact({ include: query.include, tenants: query.tenants }),
     );
@@ -277,7 +312,11 @@ export function createPermDock<
     requirement: PermissionRequirementOptions = {},
   ): Promise<GrantedDecision> => {
     const permdock = await getPermDock(
-      compact({ tenant: requirement.tenant, intent: requirement.intent }),
+      compact({
+        tenant: requirement.tenant,
+        intent: requirement.intent,
+        version: requirement.version,
+      }),
     );
     // SAFETY: assert's instance and collection overloads share one implementation that takes either kind.
     const assert = permdock.assert as (
