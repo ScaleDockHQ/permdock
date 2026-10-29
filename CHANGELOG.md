@@ -2,6 +2,22 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.17.0 (2026-10-29)
+
+- Breaking: `permdock/better-supabase` now needs `better-supabase` 0.39.0 or later; run `better-supabase codemod 0.32` for its auth renames (`requireTenant`, `auth.tenant`, `bsb.claims()`, `bsb.evictSession()`). `authorizer` reads `context.intent`, validates `source: "input"` rows and `change` pairs, and resumes `PermDock-Approval` tokens with the new `store` option; `blockMembershipSource` takes `tables` from `blockTables(config)`; the token hook names `memberships_truncated` as its one `truncatedClaim`.
+- Breaking: permissions load once per authorization version. `getPermDock({ instances: instanceCache() })` and `permdockFor` reuse an instance until the version moves, and `VersionCache.seed` and `version: { known }` skip the version read. Run `permdock codemod 0.17` for the membership and approval literals; approval tokens issued before the upgrade no longer resume, because the token's policy input is now `source`.
+
+  | Old                                                                       | New                                                                                  |
+  | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+  | `{ tenant, roles }`, `{ tenant, team, roles }` memberships                | `{ scope: 'tenant', id, roles }`, `{ scope: 'team', id, within: { tenant }, roles }` |
+  | `approval: { mode: 'any' \| 'all' \| 'sequential' }`                      | `approval: { combine }`                                                              |
+  | `approval: { distinct: false }`                                           | `approval: { mode: 'confirm' }`; `'authorize'` is the default                        |
+  | `ApprovalMode` (the stage combinator)                                     | `ApprovalCombine`; `ApprovalMode` is `'confirm' \| 'authorize'`                      |
+  | `VersionCache.observe`                                                    | `VersionCache.seed(id, version, at?)`                                                |
+  | `cacheLifeFor(snapshot)` capped at the token's expiry                     | `{ stale: 300 }`; `cacheLifeFor(snapshot, { capToToken: true })`                     |
+  | `postgrestSources` version read falling back to `subject_for`             | Throws; doctor PD083 reports a hook file without `authz_version_for`                 |
+  | CLI flags and commands renamed in 0.5.0 (`flag_renamed`, `command_moved`) | `unknown_flag`, `unknown_command`; `permdock codemod 0.5` still rewrites them        |
+
 ## 0.16.0 (2026-10-27)
 
 - `rls.rowHelpers` now writes `permitted_<resource>_rows_for(p_user, p_permission, p_ids text[], p_claims jsonb default '{}')` beside the existing `_for` form, outside the `neon` dialect. It answers which of the candidate ids `p_user` may act on with the permission, the same answer `permitted_<resource>_rows(p_permission, p_ids)` gives when `p_user` is the caller, so a `security definer` function serving a request with no signed-in user, such as a share-link calendar feed, can check a few stored rows against the link creator's access without reading the whole table. Like the other `_for` helpers, `execute` is revoked from `public`, `anon` and `authenticated`. A call that passes claims as an untyped third argument now matches both forms; cast it (`'{...}'::jsonb`) or pass `p_claims` by name. Regenerate the RLS SQL to pick this up.
