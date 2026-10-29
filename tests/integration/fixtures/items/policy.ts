@@ -1,4 +1,4 @@
-import type { Condition, Principal } from "permdock";
+import type { Condition, Membership, Principal } from "permdock";
 import type { MembershipsMapping } from "permdock/drizzle";
 
 import {
@@ -311,15 +311,34 @@ export const itemMembers: readonly ItemMember[] = [
 
 export const itemUsers = ["alice", "bob", "user-2", "mallory"] as const;
 
+function toMembership(member: ItemMember): Membership {
+  const roles = [...member.roles];
+  const expiry =
+    member.expiresAt === undefined ? {} : { expiresAt: member.expiresAt };
+  if (member.on !== undefined) {
+    return { on: member.on, roles, ...expiry };
+  }
+  if (member.team !== undefined) {
+    return {
+      scope: "team",
+      id: member.team,
+      ...(member.tenant === undefined
+        ? {}
+        : { within: { tenant: member.tenant } }),
+      roles,
+      ...expiry,
+    };
+  }
+  return { scope: "tenant", id: member.tenant ?? "", roles, ...expiry };
+}
+
 export function itemPrincipal(user: string): Principal {
   return {
     id: user,
     roles: ["reader"],
     memberships: itemMembers
       .filter((member) => member.user === user)
-      .map(({ user: _user, ...membership }) =>
-        Object.assign(membership, { roles: [...membership.roles] }),
-      ),
+      .map(toMembership),
   };
 }
 
