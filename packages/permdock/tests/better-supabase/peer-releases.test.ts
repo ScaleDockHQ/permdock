@@ -174,7 +174,7 @@ async function failedChecks(
   }
 }
 
-describe("better-supabase 0.26 to 0.33", () => {
+describe("better-supabase 0.26 to 0.39", () => {
   it.each(providers)(
     "0.27: every template of %s passes the template tokenizer",
     async (_, options) => {
@@ -284,6 +284,22 @@ describe("better-supabase 0.26 to 0.33", () => {
     ];
     const hits = consumerFiles().flatMap(([file, source]) =>
       old
+        .filter((pattern) => pattern.test(source))
+        .map((pattern) => `${file}: ${pattern.source}`),
+    );
+    expect(hits).toStrictEqual([]);
+  });
+
+  it("0.37: no consumer file keeps a name 0.35 to 0.37 removed", () => {
+    const removed = [
+      /\bsessionStale\b/u,
+      /\bcontextFromSession\b/u,
+      /\bsupabaseFor\b/u,
+      /\bsessionPromise\b/u,
+      /\blife:\s*\{\s*(?:min|max)\b/u,
+    ];
+    const hits = consumerFiles().flatMap(([file, source]) =>
+      removed
         .filter((pattern) => pattern.test(source))
         .map((pattern) => `${file}: ${pattern.source}`),
     );

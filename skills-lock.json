@@ -89,7 +89,7 @@
       "source": "ScaleDockHQ/better-supabase",
       "sourceType": "github",
       "skillPath": "packages/better-supabase/skills/better-supabase-auth/SKILL.md",
-      "computedHash": "8abbff589bb15eb9944a30398a98ca707b3c4ee639f09927553a593c05559a3b"
+      "computedHash": "ab8d91bba7706b0d12f3f8be6ca8e50c3162b842c041e7d801e9dda45bf77739"
     },
     "better-supabase-testing": {
       "source": "ScaleDockHQ/better-supabase",
