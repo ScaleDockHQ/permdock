@@ -170,6 +170,26 @@ describe("permdock/orpc request discovery and failures", () => {
     });
   });
 
+  it("refuses to stream a result guarded by a permission list", async () => {
+    const { protect } = createPermDock<Ctx>(policy, {
+      subject: () => memberUser,
+    });
+    const feed = os
+      .$context<Ctx>()
+      .use(
+        protect(
+          [permissions.post.read, permissions.post.update],
+          () => ownPost,
+        ),
+      )
+      .handler(async function* () {
+        yield ownPost.id;
+      });
+    await expect(call(feed, undefined, { context: {} })).rejects.toThrow(
+      /revalidated against one permission/u,
+    );
+  });
+
   it("serves the snapshot on GET from the handler", async () => {
     const { permdockHandler } = createPermDock<Ctx>(policy, {
       subject: () => memberUser,

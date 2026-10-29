@@ -222,6 +222,41 @@ describe(readRows, () => {
     ).toBe(true);
   });
 
+  it("reads no role when the row lacks a column of the reference", () => {
+    const seat: LocalSnapshotRows = {
+      memberships: [
+        {
+          table: "memberships",
+          user: { column: "user_id" },
+          scope: { value: "organization" },
+          id: "organization_id",
+          roles: [
+            {
+              column: "organization_id",
+              through: {
+                table: "membership_roles",
+                id: "organization_id",
+                column: "role",
+                on: { organization_id: "organization_id", seat_id: "seat_id" },
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const synced = {
+      memberships: [{ organization_id: "o1", user_id: "u1" }],
+      membership_roles: [
+        { organization_id: "o1", seat_id: "s1", role: "owner" },
+      ],
+    };
+    const memberships =
+      readRows(seat, synced, { id: "u1" }).principal?.memberships ?? [];
+    expect(memberships.flatMap((membership) => membership.roles)).toStrictEqual(
+      [],
+    );
+  });
+
   it("reads nothing from tables the device has not synced", () => {
     const data = readRows(rows, {}, { id: "u1" });
     expect(data.principal?.memberships).toStrictEqual([]);

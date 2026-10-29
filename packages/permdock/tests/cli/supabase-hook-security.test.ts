@@ -7,7 +7,10 @@ import type { SqlClient } from "../../src/cli/pg.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import { runDoctor } from "../../src/cli/doctor/doctor.ts";
-import { supabaseHookSql } from "../../src/cli/supabase-hook/supabase-hook.ts";
+import {
+  hookOut,
+  supabaseHookSql,
+} from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { tableMembershipSource } from "../../src/supabase/index.ts";
 
 const scopes = [{ name: "organization", key: "organization_id" }];
@@ -48,6 +51,26 @@ describe("supabase.hook.security", () => {
     );
     expect(sql).not.toMatch(/grant select on .* to supabase_auth_admin/u);
     expect(sql).not.toContain("service_role");
+  });
+
+  it("revokes the claims and before functions a definer hook calls from the client roles", () => {
+    const { sql } = supabaseHookSql(scopes, {
+      policy: "p.ts",
+      supabase: {
+        hook: {
+          memberships,
+          security: "definer",
+          before: ["auth_checks.require_sso"],
+          claims: { features: "auth_checks.feature_claims" },
+        },
+      },
+    });
+    expect(sql).toContain(
+      `revoke all on function "auth_checks"."feature_claims"(uuid) from public, anon, authenticated;`,
+    );
+    expect(sql).toContain(
+      `revoke all on function "auth_checks"."require_sso"(jsonb) from public, anon, authenticated;`,
+    );
   });
 });
 
@@ -106,6 +129,39 @@ async function doctor(
   });
 }
 
+describe(hookOut, () => {
+  const OUT = "supabase/migrations/1_permdock_{part}.sql";
+
+  it("skips the split path when rls.split leaves out the hook", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "permdock-hook-out-"));
+    temps.push(cwd);
+    expect(
+      hookOut(
+        cwd,
+        { rls: { out: OUT, split: ["helpers"] } },
+        undefined,
+        "migrations",
+      ),
+    ).toBe("supabase/permdock-hook.sql");
+  });
+
+  it("prefers supabase.hook.out over the split path", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "permdock-hook-out-"));
+    temps.push(cwd);
+    expect(
+      hookOut(
+        cwd,
+        {
+          rls: { out: OUT, split: ["hook"] },
+          supabase: { hook: { memberships, out: "db/hook.sql" } },
+        },
+        undefined,
+        "migrations",
+      ),
+    ).toBe("db/hook.sql");
+  });
+});
+
 describe("PD085", () => {
   afterAll(() => {
     for (const dir of temps) {
@@ -153,7 +209,41 @@ describe("PD085", () => {
         message: expect.stringContaining(
           "permission denied for table memberships",
         ),
+        fix: expect.stringContaining("set supabase.hook.security"),
       },
     ]);
+  });
+
+  it("points a definer hook at the migration owner and its grants", async () => {
+    const target = project();
+    const result = await doctor(
+      {
+        ...target,
+        config: { supabase: { hook: { memberships, security: "definer" } } },
+      },
+      fakeDb("permission denied for schema permdock"),
+    );
+    expect(result.findings).toMatchObject([
+      { code: "PD085", fix: expect.stringContaining("as the owner") },
+    ]);
+  });
+
+  it.each([
+    ["an unreadable fixture", undefined],
+    ["a fixture that is not a list", { sub: "u1" }],
+    ["samples without a sub", [1, { sub: "" }]],
+  ])("calls the hook once for %s", async (_label, claims) => {
+    const db = fakeDb();
+    const target = project(claims);
+    await doctor(
+      {
+        ...target,
+        config: { ...target.config, doctor: { claims: "claims.json" } },
+      },
+      db,
+    );
+    expect(
+      db.calls.filter((call) => call.sql.startsWith("select")),
+    ).toHaveLength(1);
   });
 });

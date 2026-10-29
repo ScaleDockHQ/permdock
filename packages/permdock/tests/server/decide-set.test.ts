@@ -109,6 +109,13 @@ describe(decideSet, () => {
       ok: false,
     });
   });
+
+  it("throws for an empty permission list", async () => {
+    const { decide } = decider({});
+    await expect(decideSet([], [{}], false, decide)).rejects.toThrow(
+      /at least one permission/u,
+    );
+  });
 });
 
 describe(permissionList, () => {

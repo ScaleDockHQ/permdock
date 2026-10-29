@@ -1184,6 +1184,46 @@ describe("permdock/mcp public tools, permission lists and rows", () => {
     });
   });
 
+  it("refuses a call whose rows loader throws or answers no list", async () => {
+    const server = new McpServer({ name: "posts", version: "1.0.0" });
+    const guarded = createPermDock(policy, {
+      subject: () => adminUser,
+    }).protectServer(server);
+    const update = permissions.post.update;
+    guarded.registerTool(
+      "throws",
+      {
+        permission: update,
+        rows: () => {
+          throw new Error("db down");
+        },
+      },
+      () => ({ content: [{ type: "text", text: "ran" }] }),
+    );
+    guarded.registerTool(
+      "not_a_list",
+      // SAFETY: a loader that breaks its declared return type at runtime.
+      { permission: update, rows: () => ({}) as unknown as readonly unknown[] },
+      () => ({ content: [{ type: "text", text: "ran" }] }),
+    );
+    expect(() =>
+      guarded.registerTool(
+        "both",
+        // @ts-expect-error -- data and rows are exclusive
+        { permission: update, data: () => ownPost, rows: () => [] },
+        () => ({ content: [] }),
+      ),
+    ).toThrow(/both data and rows/u);
+    const { client } = await connect(server, {
+      authInfo: auth(["post:update"]),
+    });
+    for (const name of ["throws", "not_a_list"]) {
+      const result = await client.callTool({ name, arguments: {} });
+      expect(result.isError).toBe(true);
+      expect(text(result)).toContain("found no rows");
+    }
+  });
+
   it("grants anyOf on one permission and lists all-of only when every one is usable", async () => {
     const { client } = await connect(setServer({ subject: () => memberUser }), {
       authInfo: auth(["post:update"]),
