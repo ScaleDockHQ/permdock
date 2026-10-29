@@ -73,6 +73,20 @@ function defer(task: Promise<unknown> | (() => unknown)): boolean {
   }
 }
 
+/** Read through `globalThis` so the entry loads on runtimes without `process`. */
+function isDevelopment(): boolean {
+  const proc: unknown = Reflect.get(globalThis, "process");
+  if (typeof proc !== "object" || proc === null) {
+    return false;
+  }
+  const env: unknown = Reflect.get(proc, "env");
+  return (
+    typeof env === "object" &&
+    env !== null &&
+    Reflect.get(env, "NODE_ENV") === "development"
+  );
+}
+
 function ignore(): undefined {
   return undefined;
 }
@@ -234,12 +248,7 @@ export function createPermDock<
       compact({ include: query.include, tenants: query.tenants }),
     );
     const life = cacheLifeFor(snapshot, query.cacheLife);
-    if (
-      life.stale < 300 &&
-      !warnedShortLife &&
-      // oxlint-disable-next-line no-process-env -- Next.js inlines NODE_ENV; the hint is development-only
-      process.env["NODE_ENV"] === "development"
-    ) {
+    if (life.stale < 300 && !warnedShortLife && isDevelopment()) {
       warnedShortLife = true;
       // oxlint-disable-next-line no-console -- one development hint per process for a short private lifetime
       console.warn(
@@ -297,7 +306,7 @@ export function createPermDock<
   const PermDockProvider = (props: NextPermDockProviderProps): ReactElement => {
     // A rejection reaches the client store as `server-only`, or with
     // `suspend` the nearest error boundary; Next.js interrupts keep working.
-    const snapshotPromise: Promise<Snapshot | string | Promise<string>> =
+    const snapshotPromise: Promise<Snapshot | string> =
       props.snapshot ??
       getPermDock(
         props.tenant === undefined ? undefined : { tenant: props.tenant },
@@ -306,17 +315,17 @@ export function createPermDock<
           compact({ include: props.include, tenants: props.tenants }),
         ),
       );
-    return renderClientProvider(
-      compact({
-        snapshotPromise,
-        endpoint: props.endpoint ?? options.endpoint ?? "/api/permdock",
-        tenant: props.tenant,
-        suspend: props.suspend,
-        defaults: props.defaults,
-        messages: props.messages,
-        children: props.children,
-      }),
-    );
+    const {
+      snapshot: _snapshot,
+      include: _include,
+      tenants: _tenants,
+      ...rest
+    } = props;
+    return renderClientProvider({
+      ...rest,
+      snapshotPromise,
+      endpoint: props.endpoint ?? options.endpoint ?? "/api/permdock",
+    });
   };
 
   const permdockHandler = (): ReturnType<typeof evaluationsHandler> =>

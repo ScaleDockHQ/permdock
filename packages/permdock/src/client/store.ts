@@ -139,6 +139,11 @@ export type ClientStore = {
   /** The tenant the store currently answers for. */
   tenant: () => string | undefined;
   /**
+   * Runs more refresh triggers until the returned stop is called, folded and
+   * skipped like `refreshOn`.
+   */
+  refreshOn: (triggers: readonly RefreshTrigger[]) => () => void;
+  /**
    * Stops polls, drops in-flight results and persistence; the store keeps
    * answering from its last snapshot.
    */
@@ -694,6 +699,20 @@ export function createClientStore(options: ClientStoreOptions): ClientStore {
     },
     tenant(): string | undefined {
       return tenant;
+    },
+    refreshOn(extra: readonly RefreshTrigger[]): () => void {
+      if (server) {
+        return () => undefined;
+      }
+      const run = refreshTriggers(
+        extra,
+        () => {
+          cached.refresh().catch(() => undefined);
+        },
+        () => disposed || cleared,
+      );
+      run.start();
+      return run.stop;
     },
     dispose(): void {
       disposed = true;

@@ -17,6 +17,7 @@ import type { Snapshot } from "../core/snapshot-types.ts";
 import type { Subject } from "../core/subject.ts";
 import type { PermDockWrap } from "../core/wrap.ts";
 import type { OtelWrap } from "../otel/types.ts";
+import type { PermDockProviderProps } from "../react/types.ts";
 
 // oxlint-disable-next-line anti-slop/no-unknown-type-aliases -- public alias; the resolver parses it
 export type NextSubjectInput = unknown;
@@ -110,7 +111,26 @@ export type NextPermDockProviderProps = NextPermDockProviderDisplay &
       }
   );
 
-type NextPermDockProviderDisplay = {
+/**
+ * Function props of the React provider: a Server Component cannot pass them to
+ * the client, so `useRefreshOn` from `permdock/react` adds triggers instead.
+ */
+type ClientOnlyProp =
+  | "fetch"
+  | "verifier"
+  | "onSnapshot"
+  | "onClear"
+  | "refreshOn";
+
+type NextPermDockProviderDisplay = Omit<
+  PermDockProviderProps,
+  | "snapshot"
+  | "snapshotPromise"
+  | "children"
+  | "defaults"
+  | "messages"
+  | ClientOnlyProp
+> & {
   readonly children: ReactNode;
   readonly tenant?: string;
   /** Overrides the factory's `endpoint`; `false` is snapshot-only. */

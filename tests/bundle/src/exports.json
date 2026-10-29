@@ -241,8 +241,11 @@
     "PermDockProvider",
     "Protected",
     "approvalHeaders",
+    "authzChangeRefresh",
+    "broadcastChannelRefresh",
     "describe",
     "eventSourceRefresh",
+    "focusRefresh",
     "requiredPlans",
     "useApproval",
     "useAssignablePermissions",
@@ -255,15 +258,18 @@
     "usePermission",
     "usePermissions",
     "useProtectedAction",
+    "useRefreshOn",
     "useRoles",
     "useSubject",
-    "useTenant"
+    "useTenant",
+    "visibilityRefresh"
   ],
   "./react-native": [
     "PermDockProvider",
     "Protected",
     "appStateForeground",
     "approvalHeaders",
+    "authzChangeRefresh",
     "buildLocalSnapshot",
     "connectSource",
     "describe",
@@ -426,8 +432,11 @@
     "PermissionBoundary",
     "Protected",
     "approvalHeaders",
+    "authzChangeRefresh",
+    "broadcastChannelRefresh",
     "describe",
     "eventSourceRefresh",
+    "focusRefresh",
     "permdockPlugin",
     "requiredPlans",
     "useApproval",
@@ -444,7 +453,8 @@
     "useProtectedAction",
     "useRoles",
     "useSubject",
-    "useTenant"
+    "useTenant",
+    "visibilityRefresh"
   ],
   "./svelte": [
     "PermissionBoundary",
@@ -453,9 +463,12 @@
     "approvalHeaders",
     "assignable",
     "assignablePermissions",
+    "authzChangeRefresh",
+    "broadcastChannelRefresh",
     "describe",
     "eventSourceRefresh",
     "filtered",
+    "focusRefresh",
     "gate",
     "getDescribe",
     "getPermDock",
@@ -467,15 +480,19 @@
     "roles",
     "setPermDock",
     "subject",
-    "tenant"
+    "tenant",
+    "visibilityRefresh"
   ],
   "./solid": [
     "PermDockProvider",
     "PermissionBoundary",
     "Protected",
     "approvalHeaders",
+    "authzChangeRefresh",
+    "broadcastChannelRefresh",
     "describe",
     "eventSourceRefresh",
+    "focusRefresh",
     "requiredPlans",
     "useApproval",
     "useAssignablePermissions",
@@ -491,7 +508,8 @@
     "useProtectedAction",
     "useRoles",
     "useSubject",
-    "useTenant"
+    "useTenant",
+    "visibilityRefresh"
   ],
   "./agent": ["createPermDock"],
   "./ai-sdk": ["createPermDock"],
@@ -677,6 +695,7 @@
     "tableMembershipSource"
   ],
   "./supabase/middleware": ["createPermDock"],
+  "./supabase/client": ["supabaseRealtimeRefresh"],
   "./ssf": [
     "SSF_POLL_DELIVERY",
     "SSF_PUSH_DELIVERY",

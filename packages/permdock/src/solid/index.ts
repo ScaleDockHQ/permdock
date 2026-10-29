@@ -3,6 +3,10 @@ export {
   requiredPlans,
   approvalHeaders,
   eventSourceRefresh,
+  focusRefresh,
+  visibilityRefresh,
+  broadcastChannelRefresh,
+  authzChangeRefresh,
 } from "../client/kit.ts";
 export {
   useApproval,
@@ -46,6 +50,7 @@ export type {
   RolesOptions,
 } from "./types.ts";
 export type {
+  AuthzChangeRefresh,
   EventSourceRefreshOptions,
   RefreshTrigger,
 } from "../client/refresh-on.ts";

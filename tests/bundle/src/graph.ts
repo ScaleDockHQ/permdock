@@ -56,6 +56,7 @@ export const ENTRIES = {
   "./kysely": "kysely/index.js",
   "./supabase": "supabase/index.js",
   "./supabase/middleware": "supabase/middleware.js",
+  "./supabase/client": "supabase/client.js",
   "./ssf": "ssf/index.js",
   "./better-auth": "better-auth/index.js",
   "./better-supabase": "better-supabase/index.js",
@@ -174,6 +175,7 @@ export const CLIENT_ENTRIES = [
   "./solid",
   "./webmcp",
   "./next/client",
+  "./supabase/client",
 ] as const;
 
 // Built chunks import each other with a `.js` extension; a relative path
@@ -392,7 +394,9 @@ const SERVER_FOLDER = new RegExp(
 export function serverOnlyFiles(files: readonly string[]): readonly string[] {
   // The client half of a server adapter lives in the adapter's folder.
   const clientHalves = new Set(
-    [ENTRIES["./next/client"]].map((file) => join(DIST, file)),
+    [ENTRIES["./next/client"], ENTRIES["./supabase/client"]].map((file) =>
+      join(DIST, file),
+    ),
   );
   return files.filter(
     (file) => !clientHalves.has(file) && SERVER_FOLDER.test(file),

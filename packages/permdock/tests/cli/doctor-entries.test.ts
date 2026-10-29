@@ -20,6 +20,7 @@ const CLIENT_SAFE = new Set([
   "permdock/react",
   "permdock/react-native",
   "permdock/solid",
+  "permdock/supabase/client",
   "permdock/svelte",
   "permdock/vue",
   "permdock/webmcp",

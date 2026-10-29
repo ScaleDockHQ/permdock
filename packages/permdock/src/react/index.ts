@@ -5,6 +5,10 @@ export {
   requiredPlans,
   approvalHeaders,
   eventSourceRefresh,
+  focusRefresh,
+  visibilityRefresh,
+  broadcastChannelRefresh,
+  authzChangeRefresh,
 } from "../client/kit.ts";
 
 export {
@@ -18,6 +22,7 @@ export {
   usePermDock,
   usePermission,
   usePermissions,
+  useRefreshOn,
   useRoles,
   useSubject,
   useTenant,
@@ -45,6 +50,7 @@ export type {
   TenantView,
 } from "./types.ts";
 export type {
+  AuthzChangeRefresh,
   EventSourceRefreshOptions,
   RefreshTrigger,
 } from "../client/refresh-on.ts";

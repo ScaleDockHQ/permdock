@@ -1,5 +1,6 @@
-import { use, useMemo, useSyncExternalStore } from "react";
+import { use, useEffect, useMemo, useSyncExternalStore } from "react";
 
+import type { RefreshTrigger } from "../client/refresh-on.ts";
 import type { ClientStore } from "../client/store.ts";
 import type { GateMode, GateView } from "../client/types.ts";
 import type { Decision } from "../core/decision.ts";
@@ -59,6 +60,17 @@ export function usePermDock<
     () => store.get(),
     () => store.get(),
   ) as ClientPermDock<V>;
+}
+
+/**
+ * Adds refresh triggers to the nearest provider while the component is mounted.
+ * Use it where the provider's own `refreshOn` cannot be set, such as below
+ * `permdock/next`'s Server Component provider: functions cannot cross to the
+ * client. Keep `triggers` stable (module scope); a new array resubscribes.
+ */
+export function useRefreshOn(triggers: readonly RefreshTrigger[]): void {
+  const store = useStore();
+  useEffect(() => store.refreshOn(triggers), [store, triggers]);
 }
 
 // The hooks reach the store through `permdock`: the React Compiler keeps only

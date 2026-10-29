@@ -12,6 +12,7 @@ import {
 } from "../../src/approvals/index.ts";
 import { APPROVAL_HEADER } from "../../src/approvals/types.ts";
 import { PermDockApprovalRequiredError } from "../../src/core/errors.ts";
+import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { cacheLifeFor, createPermDock } from "../../src/next/index.ts";
 import { Protected } from "../../src/react/protected.tsx";
 import {
@@ -519,6 +520,29 @@ describe("permdock/next", () => {
       }),
     );
     expect(await new Response(prelude).text()).toContain("locked");
+  });
+
+  it("forwards the serialisable React provider props to the client provider", () => {
+    const { PermDockProvider } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const element = PermDockProvider({
+      snapshot: Promise.resolve(emptySnapshot()),
+      snapshotUrl: "/api/permdock/snapshot",
+      approvals: "/api/permdock/approvals",
+      maxAge: 60,
+      approvalInterval: 5000,
+      headers: { "x-app": "1" },
+      children: null,
+    });
+    expect(element.props).toMatchObject({
+      endpoint: "/api/permdock",
+      snapshotUrl: "/api/permdock/snapshot",
+      approvals: "/api/permdock/approvals",
+      maxAge: 60,
+      approvalInterval: 5000,
+      headers: { "x-app": "1" },
+    });
   });
 
   it("refuses to load in a browser", () => {

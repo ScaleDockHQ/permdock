@@ -243,6 +243,10 @@
       "types": "./dist/supabase/middleware.d.ts",
       "default": "./dist/supabase/middleware.js"
     },
+    "./supabase/client": {
+      "types": "./dist/supabase/client.d.ts",
+      "default": "./dist/supabase/client.js"
+    },
     "./ssf": {
       "types": "./dist/ssf/index.d.ts",
       "default": "./dist/ssf/index.js"

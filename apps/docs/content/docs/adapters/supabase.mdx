@@ -570,6 +570,26 @@ admin
 
 With better-supabase, the trigger broadcasts on `better_supabase:authz` instead: pass the same cache as `versions` and subscribe with `subscribeAuthzVersions` ([better-supabase](/docs/adapters/better-supabase#version-cache-and-session-snapshots)). A dropped broadcast costs nothing but staleness: the entry still expires after `maxStaleMs`. Next.js may bundle `instrumentation.ts` apart from route code, so a subscriber started there can evict from a second cache. Start it where the cache is created.
 
+### Refresh the browser snapshot
+
+`permdock/supabase/client` is client-safe and exports one trigger. `supabaseRealtimeRefresh(client, { userId })` joins the user's private `authz:<uid>` topic with a browser supabase-js client and refreshes the provider's snapshot on each version bump. The broadcast's `receivePolicy` lets each user join only their own topic. With better-supabase, use `authzChangeRefresh` on `SessionProvider` instead, which reuses its channel ([refresh on events](/docs/concepts/ui#refresh-on-events)).
+
+```tsx
+"use client";
+
+import { useState } from "react";
+import { useRefreshOn } from "permdock/react";
+import { supabaseRealtimeRefresh } from "permdock/supabase/client";
+
+export function RefreshPermissions({ userId }: { userId: string }): null {
+  const [triggers] = useState(() => [
+    supabaseRealtimeRefresh(supabase, { userId }),
+  ]);
+  useRefreshOn(triggers);
+  return null;
+}
+```
+
 ### Measure it
 
 `versions.stats()` returns `reads`, `shared`, `hits`, `evictions` and `size` since the process started. Read it before and after a render to count calls per request, or report it as a `Server-Timing` metric:
