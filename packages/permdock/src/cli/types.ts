@@ -466,6 +466,14 @@ export type RlsApprovalsAdopt = {
    * same rows for `approvalsHandler`. Off by default.
    */
   readonly delegations?: boolean;
+  /**
+   * Add `approval_policies`, the approval requirements a tenant keeps as data,
+   * and `permdock_approval_policies_for`, which `tableApprovalPolicySource`
+   * reads. A holder of the `manage` permission key in a tenant writes that
+   * tenant's rows; rows with `tenant` null are platform floors, written only by
+   * the table owner. Off by default.
+   */
+  readonly tenantPolicies?: { readonly manage: string };
   /** A text column unique per request. Default `token`. */
   readonly token?: string;
   /** A jsonb column holding the `ApprovalRequest`. Default `body`. */

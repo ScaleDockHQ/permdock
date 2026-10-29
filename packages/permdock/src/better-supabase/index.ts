@@ -1,4 +1,17 @@
 export { accessReviewApplier } from "./access-reviews.ts";
+export {
+  blockApprovalPolicySource,
+  blockApprovalStore,
+} from "./approvals-block.ts";
+export type {
+  BlockApprovalApprovers,
+  BlockInstant,
+  BlockApprovalPoliciesClient,
+  BlockApprovalPolicySourceOptions,
+  BlockApprovalRecord,
+  BlockApprovalsClient,
+  BlockApprovalTenantPolicy,
+} from "./approvals-block.ts";
 export type {
   AccessReviewApplierOptions,
   AccessReviewApplyFailure,

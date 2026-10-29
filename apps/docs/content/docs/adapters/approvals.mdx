@@ -240,6 +240,34 @@ const permdock = await getPermDock(policy, user, {
 
 `testApprovalPolicySource` in `permdock/testing` checks a source ([extension interfaces](/docs/concepts/extension-interfaces#conformance-runners)).
 
+### Tenant policies in Postgres
+
+`rls.approvals.tenantPolicies: { manage }` writes an `approval_policies` table and `permdock_approval_policies_for(p_tenants)`, and `tableApprovalPolicySource({ query })` from `permdock/supabase` reads them:
+
+```ts title="permdock.config.ts"
+export default {
+  rls: {
+    dialect: "supabase",
+    approvals: { tenantPolicies: { manage: "approvalPolicy.manage" } },
+  },
+};
+```
+
+```ts
+import { approvalPolicies, getPermDock } from "permdock";
+import { tableApprovalPolicySource } from "permdock/supabase";
+
+const permdock = await getPermDock(policy, user, {
+  approvalPolicies: approvalPolicies(tableApprovalPolicySource({ query })),
+});
+```
+
+- A row is `{ tenant, name, body, enabled }`, with `body` an `ApprovalPolicy` without `tenant`. The function sets `tenant` from the column.
+- A row with `tenant` null is a platform floor: it applies in every tenant, every member reads it, and only the table owner writes it, from a migration or the dashboard.
+- A member reads their tenants' rows. A holder of the `manage` permission key in a tenant inserts, updates and deletes that tenant's rows. With `rls.readOnlyActors`, an agent cannot write them.
+- `permdock_approval_policies_for` answers the enabled bodies of the given tenants and every floor, floors first. Only the owner executes it, so `query` runs on the server connection.
+- Tenant policies tighten through the same rules as any entry above: their stages are added after the code's, `authorize` wins over `confirm`, `confirm` needs every part to set it, and the shortest `ttl` wins. Check a body with `validateApprovalPolicy` before saving it; an invalid row denies every call an allow would grant until it is fixed.
+
 ## Request lifecycle
 
 1. An adapter calls `decide`; the outcome is `approval-required` with a deterministic `token`.

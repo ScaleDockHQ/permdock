@@ -11,6 +11,8 @@ export type {
 } from "./claims.ts";
 export type { ExchangeCapabilityOptions } from "./capability.ts";
 export { supabaseApprovalStore } from "./approval-store.ts";
+export { tableApprovalPolicySource } from "./approval-policies.ts";
+export type { TableApprovalPolicySourceOptions } from "./approval-policies.ts";
 export { tableApprovalDelegationSource } from "./approval-delegations.ts";
 export type { TableApprovalDelegationSourceOptions } from "./approval-delegations.ts";
 export type { SupabaseApprovalStoreOptions } from "./approval-store.ts";

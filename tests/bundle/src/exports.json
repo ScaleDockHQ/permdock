@@ -695,6 +695,7 @@
     "supabaseRls",
     "supabaseTenantClaim",
     "tableApprovalDelegationSource",
+    "tableApprovalPolicySource",
     "tableMembershipSource"
   ],
   "./supabase/middleware": ["createPermDock"],
@@ -729,6 +730,8 @@
     "authorizationHooks",
     "authorizationProvider",
     "authorizer",
+    "blockApprovalPolicySource",
+    "blockApprovalStore",
     "blockMembershipSource",
     "bucketPolicy",
     "credentialGuard",
