@@ -17,7 +17,10 @@ import { clientNameOf } from "../core/clients.ts";
 import { compact } from "../core/compact.ts";
 import { delegationFrom } from "../core/delegation-input.ts";
 import { instanceOptions } from "../core/instance-options.ts";
+import { scopesReaching } from "../core/oauth-scopes.ts";
+import { listPermissions } from "../core/permission-registry.ts";
 import { composeWraps } from "../core/wrap.ts";
+import { decidesOnSubject } from "./call-check.ts";
 import { tenantOf } from "./mcp-auth.ts";
 import { protectServer } from "./protect-server.ts";
 import { mcpActorKind } from "./subject.ts";
@@ -31,6 +34,11 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
   if (actorKind === undefined) {
     throw new TypeError("permdock/mcp: actorKind must be a non-empty string");
   }
+  const policyScopes: ReadonlySet<string> = new Set(
+    listPermissions(policy.permissions).flatMap((permission) =>
+      scopesReaching(policy, permission),
+    ),
+  );
   const kernel = createAgentKernel<McpCall, TUser>(
     // SAFETY: the kernel reads the principal only through the policy's own subject function.
     policy as Policy<TUser>,
@@ -53,7 +61,8 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
         if (options.delegation !== undefined) {
           return options.delegation(call.authInfo ?? {});
         }
-        return call.authInfo === undefined
+        return call.authInfo === undefined ||
+          decidesOnSubject(options, policyScopes, call.authInfo)
           ? undefined
           : delegationFrom(call.authInfo.scopes, call.authInfo.extra);
       },
@@ -75,6 +84,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
     // SAFETY: the checks read the policy's permissions and scopes, which do not depend on TUser.
     policy: policy as Policy,
     options,
+    policyScopes,
     kernel,
   };
 

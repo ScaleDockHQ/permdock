@@ -200,6 +200,18 @@ export type RlsConfig = {
   readonly roleValues?: Readonly<Record<string, string>>;
   readonly gucPrefix?: string;
   readonly out?: string;
+  /**
+   * The parts `rls generate --split` writes when the flag is absent. The hook
+   * part also moves `supabase.hook.out`'s default, read by `supabase inspect`
+   * and doctor, to `out` with `{part}` replaced by `hook`.
+   */
+  readonly split?: readonly (
+    | "helpers"
+    | "seeds"
+    | "indexes"
+    | "policies"
+    | "hook"
+  )[];
   /** `--target drizzle`: where each policy's `.link()` finds its table. */
   readonly drizzle?: {
     /** Module exporting the tables, as imported from `out`. Default `./schema`. */
@@ -922,6 +934,15 @@ export type SupabaseHookConfig = {
    * grants to it. Pass the same setting to `postgrestSources`.
    */
   readonly api?: { readonly schema?: string; readonly prefix?: string };
+  /**
+   * Whose rights the hook reads with. `'invoker'` (default) runs as
+   * `supabase_auth_admin`, so the hook grants it `select` and a read policy on
+   * every table it reads. `'definer'` runs as the owner of the migration
+   * (`postgres` on Supabase) and grants `supabase_auth_admin` only `execute`;
+   * the owner must be able to read every table. `permdock doctor
+   * --db-url-stdin` runs the hook as `supabase_auth_admin` either way (PD085).
+   */
+  readonly security?: "invoker" | "definer";
   /** The `jwt_expiry` the printed `config.toml` block sets. Default 900. */
   readonly jwtExpiry?: number;
   /** Suspended users get empty claims. Default `rls.suspension`. */

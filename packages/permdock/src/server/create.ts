@@ -39,6 +39,7 @@ import {
   buildReportingInstance,
   requestContext,
 } from "../core/request-context.ts";
+import { permissionList } from "./decide-set.ts";
 import { evaluationsHandler } from "./evaluations.ts";
 import { guardOn, routeScopes } from "./route-guard.ts";
 
@@ -201,7 +202,7 @@ export function createPermDock<
   };
 
   const protectRoute = <T = unknown>(
-    permission: Permission | null,
+    permission: Permission | readonly Permission[] | null,
     data?: Loader<T>,
     protectOptions: ProtectOptions = {},
   ): ((
@@ -248,10 +249,16 @@ export function createPermDock<
   const protect = protectRoute as Protect<V, [scope?: TenantScope]>;
 
   const openapi: OpenApiHooks = {
-    security: (permission: Permission) => ({
-      security: [{ oauth2: [permission.scope] }],
-      "x-permdock-permissions": [permission.key],
-    }),
+    security: (permission, securityOptions) => {
+      const list = permissionList(permission);
+      return {
+        security:
+          securityOptions?.anyOf === true
+            ? list.map((leaf) => ({ oauth2: [leaf.scope] }))
+            : [{ oauth2: list.map((leaf) => leaf.scope) }],
+        "x-permdock-permissions": list.map((leaf) => leaf.key),
+      };
+    },
     securitySchemes: () => {
       const scopes: Record<string, string> = {};
       for (const leaf of listPermissions(policy.permissions)) {

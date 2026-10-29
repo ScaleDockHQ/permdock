@@ -117,6 +117,48 @@ describe("synced authz_ver", () => {
     expect(await empty.get()).not.toHaveProperty("authzVersion");
   });
 
+  it("answers the user's synced version from authzVersion", async () => {
+    const rows = localRows(
+      policy,
+      config,
+      powersyncPlan(policy, config).devices,
+    );
+    const manifest = { ...localSnapshotManifest(policy), rows };
+    const queries: (readonly [string, unknown[] | undefined])[] = [];
+    const versions = [
+      { user_id: "u1", version: 9 },
+      { user_id: "u2", version: 40 },
+    ];
+    const watchable: PowerSyncWatchable = {
+      getAll: async (sql, parameters) => {
+        queries.push([sql, parameters]);
+        return versions.filter((row) => row.user_id === parameters?.[0]);
+      },
+      watch: () => undefined,
+    };
+    const source = powerSyncSource(watchable, { manifest, user: "u1" });
+    await expect(source.authzVersion()).resolves.toBe(9);
+    expect(queries).toStrictEqual([
+      [
+        'SELECT "version" AS version FROM "permdock_authz_version" WHERE "user_id" = ?',
+        ["u1"],
+      ],
+    ]);
+    versions.length = 0;
+    await expect(source.authzVersion()).resolves.toBeUndefined();
+    const custom = powerSyncSource(watchable, {
+      manifest,
+      queries: {},
+      read: () => ({ principal: null }),
+    });
+    await expect(custom.authzVersion()).resolves.toBeUndefined();
+    const unversioned = powerSyncSource(watchable, {
+      manifest: { ...manifest, rows: { memberships: rows.memberships } },
+      user: "u1",
+    });
+    await expect(unversioned.authzVersion()).resolves.toBeUndefined();
+  });
+
   it("ignores an authzVersion that is not a non-negative safe integer", () => {
     const manifest = localSnapshotManifest(policy);
     for (const authzVersion of [-1, 1.5, Number.NaN]) {

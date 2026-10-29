@@ -10,8 +10,8 @@ import type { RevocationFeed } from "../core/revocations.ts";
 import type { Principal } from "../core/subject.ts";
 import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
+import type { RpcProtectOptions } from "../server/rpc.ts";
 import type { OpenApiHooks } from "../server/server-types.ts";
-import type { StreamProtectOptions } from "../server/stream.ts";
 
 import {
   attached,
@@ -22,6 +22,7 @@ import {
   problemBody,
   rpcCode,
   isAsyncIterable,
+  permissionList,
   reloadAfter,
 } from "../server/kit.ts";
 
@@ -46,7 +47,10 @@ export type TrpcPermDockOptions<
 };
 
 export type TrpcOpenApiHooks = {
-  readonly security: (permission: Permission) => {
+  readonly security: (
+    permission: Permission | readonly Permission[],
+    options?: { readonly anyOf?: boolean },
+  ) => {
     readonly openapi: {
       readonly protect: true;
       readonly security: readonly Record<string, readonly string[]>[];
@@ -56,6 +60,14 @@ export type TrpcOpenApiHooks = {
   readonly securitySchemes: OpenApiHooks["securitySchemes"];
 };
 
+/**
+ * `protect`'s options: `anyOf` for a permission list, `rows` for the rows the
+ * procedure acts on, read from its opts.
+ */
+export type TrpcProtectOptions<TCtx = object> = RpcProtectOptions<
+  TrpcMiddlewareOpts<TCtx>
+>;
+
 export type TrpcPermDock<TCtx = object> = {
   /**
    * The `PermDock` for one procedure call, for code the middleware does not run
@@ -64,9 +76,9 @@ export type TrpcPermDock<TCtx = object> = {
   readonly getPermDock: (opts: TrpcMiddlewareOpts<TCtx>) => Promise<PermDock>;
   readonly middleware: () => TrpcMiddleware;
   readonly protect: (
-    permission: Permission | null,
+    permission: Permission | readonly Permission[] | null,
     data?: (opts: TrpcMiddlewareOpts<TCtx>) => unknown,
-    protectOptions?: StreamProtectOptions,
+    protectOptions?: TrpcProtectOptions<TCtx>,
   ) => TrpcMiddleware;
   /** A long-lived connection for the request behind `ctx`. */
   readonly connection: (
@@ -198,9 +210,9 @@ export function createPermDock<
   const guardSubscription = async (
     result: unknown,
     opts: TrpcMiddlewareOpts<TCtx>,
-    permission: Permission | null,
+    permission: Permission | readonly Permission[] | null,
     data: (() => unknown) | undefined,
-    protectOptions: StreamProtectOptions | undefined,
+    protectOptions: TrpcProtectOptions<TCtx> | undefined,
   ): Promise<unknown> => {
     // SAFETY: checked to be a non-null object first; ok is only compared and data only tested.
     if (
@@ -230,12 +242,15 @@ export function createPermDock<
   };
 
   const protect = (
-    permission: Permission | null,
+    permission: Permission | readonly Permission[] | null,
     data?: (opts: TrpcMiddlewareOpts<TCtx>) => unknown,
-    protectOptions?: StreamProtectOptions,
-  ): TrpcMiddleware =>
+    protectOptions?: TrpcProtectOptions<TCtx>,
+  ): TrpcMiddleware => {
+    if (permission !== null) {
+      permissionList(permission);
+    }
     // SAFETY: the function has tRPC's middleware call shape; its generics cannot be inferred from it.
-    (async (opts: TrpcMiddlewareOpts<TCtx>): Promise<unknown> => {
+    return (async (opts: TrpcMiddlewareOpts<TCtx>): Promise<unknown> => {
       const { request, guard } = await runGuard(
         permission,
         data,
@@ -261,6 +276,7 @@ export function createPermDock<
       }
       return throwTrpcError(guard.response);
     }) as TrpcMiddleware;
+  };
 
   const handler = (request: Request): Promise<Response> => {
     // SAFETY: the handler route runs outside tRPC, so its only context is the request as req.
@@ -276,8 +292,11 @@ export function createPermDock<
 
   const kernelOpenApi = kernel.openapi;
   const openapi: TrpcOpenApiHooks = {
-    security: (permission: Permission) => ({
-      openapi: { protect: true, ...kernelOpenApi.security(permission) },
+    security: (permission, securityOptions) => ({
+      openapi: {
+        protect: true,
+        ...kernelOpenApi.security(permission, securityOptions),
+      },
     }),
     securitySchemes: kernelOpenApi.securitySchemes,
   };

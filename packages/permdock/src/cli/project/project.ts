@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 
 import type { Policy } from "../../index.ts";
 import type { CollectOutcome } from "../collect.ts";
+import type { SqlConnect } from "../pg.ts";
 import type {
   DoctorFiles,
   DoctorInput,
@@ -32,6 +33,8 @@ export type PolicyLoad =
 export type Project = Required<DoctorInput> & {
   readonly now: Date;
   readonly io: CliIo;
+  /** The database `doctor --db-url-stdin` checks against; absent without one. */
+  readonly database?: { readonly url: string; readonly connect: SqlConnect };
   /** The files under `doctor.srcPath`, else `collect.srcPath`, read once. */
   readonly sources: () => readonly DoctorSource[];
   readonly policyLoad: () => Promise<PolicyLoad>;
@@ -43,6 +46,7 @@ export function loadProject(input: {
   readonly now: Date;
   readonly io: CliIo;
   readonly files?: DoctorFiles;
+  readonly database?: Project["database"];
 }): Project {
   const { cwd, config } = input;
   const files = input.files ?? nodeFiles;
@@ -65,6 +69,7 @@ export function loadProject(input: {
     files,
     now: input.now,
     io: input.io,
+    ...(input.database === undefined ? {} : { database: input.database }),
     sources: () => {
       sources ??= listSourceFiles(cwd, doctorSrcPath(config)).map((file) => ({
         file: rel(cwd, file),

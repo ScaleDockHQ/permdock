@@ -63,6 +63,7 @@ const RLS = {
   roleValues: OBJECT,
   gucPrefix: STRING,
   out: STRING,
+  split: ARRAY,
   drizzle: OBJECT,
   prisma: OBJECT,
   schema: STRING,

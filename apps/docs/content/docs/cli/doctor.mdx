@@ -12,6 +12,7 @@ permdock doctor                # all checks
 permdock doctor --json         # report with $schema, for agents
 permdock doctor --only imports,references
 permdock doctor --fix          # apply safe fixes (install skills, regenerate the catalog)
+printf %s "$DATABASE_URL" | permdock doctor --db-url-stdin   # also run the checks that query the database (PD085)
 ```
 
 Exit code `1` on any error, `0` otherwise; warnings only fail with `--fail-on warning`. A finding is an `error`, a `warning` or an `info` hint. `info` never fails the run, renders as `::notice` with `--format github` and as a SARIF `note`, and the summary counts it as a note.
@@ -120,6 +121,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD082` | `supabase.hook` keeps `permdock_authz_version` while better-supabase's `blocks.sessions.authzVersions` keeps a second version table                                                                                                                                                                        | warning         |
 | `PD083` | `postgrestSources` is used and the migrations define `subject_for` but no `authz_version_for`, so every version read fails                                                                                                                                                                                 | error           |
 | `PD084` | A synced PowerSync stream reads a token claim, so a role or tenant change needs a session refresh and a reconnect                                                                                                                                                                                          | warning         |
+| `PD085` | With `--db-url-stdin`, `custom_access_token_hook` raises when `supabase_auth_admin` calls it                                                                                                                                                                                                               | error           |
 
 ### PD001: server-only imports in client entries
 
@@ -305,7 +307,7 @@ The hook writes the active tenant to `rls.tenantClaim` (default `supabaseTenantC
 
 ### PD039: Supabase hook setup
 
-The hook writes claims that only the generated SQL helpers read. The check lists the helpers the policy's scopes need (`permdock_has`, `permitted_<scope>_ids` and `member_<scope>_ids` in `rls.schema`, plus `member_<scope>_ids_for` for each scope with a membership source) and warns on each one no SQL file defines: `rls.out` (else `rls.sql`; with a `{part}` placeholder, its `helpers` part), the SQL files in the hook file's folder, and the `doctor.migrations` folders, never the hook's own file. A project that writes the helpers with `rls generate --split` therefore passes when `rls.out` holds the same `{part}` path the command uses, or when the helpers part sits next to the hook. `permdock supabase hook generate` prints the same warning, and with `--db-url-stdin` looks in the database instead. When `doctor.claims` points at a JSON array of sample decoded tokens, the check also measures each `supabase.hook.claims` entry and warns when its largest sample is more bytes of JSON than the memberships budget: those claims sit outside the budget but still travel in the session cookie. It also lists each sample's `memberships` entries that `subjectFromSupabase` cannot read (the `membership-dropped` cause at runtime). `--only supabase` or `--only helpers` runs PD039.
+The hook writes claims that only the generated SQL helpers read. The check lists the helpers the policy's scopes need (`permdock_has`, `permitted_<scope>_ids` and `member_<scope>_ids` in `rls.schema`, plus `member_<scope>_ids_for` for each scope with a membership source) and warns on each one no SQL file defines: `rls.out` (else `rls.sql`; with a `{part}` placeholder, its `helpers` part), pg-delta's `<schema>/helpers.sql` when `rls.out` has no `{part}`, the SQL files in the hook file's folder, and the `doctor.migrations` folders, never the hook's own file. A project that writes the helpers with `rls generate --split` therefore passes when `rls.out` holds the same `{part}` path the command uses, under pg-delta's per-schema layout, or when the helpers part sits next to the hook. The hook's own file is the split `hook` part when `rls.split` lists `hook`, or when that part carries the hook marker. `permdock supabase hook generate` prints the same warning, and with `--db-url-stdin` looks in the database instead. When `doctor.claims` points at a JSON array of sample decoded tokens, the check also measures each `supabase.hook.claims` entry and warns when its largest sample is more bytes of JSON than the memberships budget: those claims sit outside the budget but still travel in the session cookie. It also lists each sample's `memberships` entries that `subjectFromSupabase` cannot read (the `membership-dropped` cause at runtime). `--only supabase` or `--only helpers` runs PD039.
 
 ### PD040: `auth.role()` in a migration
 
@@ -547,13 +549,29 @@ warning PD084  stream job reads token claims region, team_ids: PowerSync keeps t
 
 Pass [`nativeRefresh`](/docs/adapters/react-native#role-and-tenant-changes) to `refreshOn`: on each `authz:<uid>` message it refreshes the session, reconnects PowerSync and refreshes the snapshot. `permdock powersync generate` and `verify` print the same line, and the generated file names the streams in its header. `--only powersync` (or `--only react-native`) runs PD084.
 
+### PD085: the token hook fails as supabase_auth_admin
+
+GoTrue calls `custom_access_token_hook` as `supabase_auth_admin` at every sign-in and refresh, and a hook that raises blocks the sign-in. With `--db-url-stdin`, PD085 runs the hook the same way: `begin`, `set local role supabase_auth_admin`, `select <schema>.custom_access_token_hook($1::jsonb)`, `rollback`. It runs once for a user with no rows, and once per `doctor.claims` sample that has a `sub`. Each Postgres error is an error finding:
+
+```txt
+error PD085  permdock.custom_access_token_hook fails as supabase_auth_admin for a user with no rows (permission denied for table memberships), so that sign-in gets no token
+```
+
+The common cause is a migration that left out the grants and read policies the invoker hook needs on a table it reads. Apply the hook migration in full, or set `supabase.hook.security: "definer"` so the hook reads with its owner's rights ([Supabase token hook](/docs/adapters/supabase-hook)). Without `--db-url-stdin`, PD085 runs nothing. `--only supabase` (or `--only hook`) runs PD085.
+
+```bash
+printf %s "$DATABASE_URL" | permdock doctor --only PD085 --db-url-stdin
+```
+
 ## Side effects
 
 What each command may change; [side effects](/docs/cli#side-effects) explains each one.
 
-| Command           | Side effects |
-| ----------------- | ------------ |
-| `permdock doctor` | `files`      |
+| Command           | Side effects             |
+| ----------------- | ------------------------ |
+| `permdock doctor` | `files`, `database:read` |
+
+`database:read` applies only with `--db-url-stdin`: PD085 runs the token hook in a transaction it rolls back.
 
 ## Why
 
