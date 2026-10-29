@@ -150,10 +150,11 @@ better-supabase's `createOrpc` puts the verified `AuthState` on `context.auth` t
 import { os } from "@orpc/server";
 import { createOrpc, type OrpcRequestContext } from "better-supabase/orpc";
 import type { AuthState } from "better-supabase/server";
-import { claimsFirst, memoryVersionCache, type Permission } from "permdock";
+import { instanceCache, memoryVersionCache, type Permission } from "permdock";
 import { createPermDock } from "permdock/orpc";
 import {
   authorizer,
+  permdockFor,
   subjectFromBetterSupabase,
 } from "permdock/better-supabase";
 import { postgrestSources } from "permdock/supabase";
@@ -161,10 +162,16 @@ import { postgrestSources } from "permdock/supabase";
 // Once per process: a source or cache built per request keeps nothing.
 const sources = postgrestSources(admin, { api: {}, policy });
 const versions = memoryVersionCache({ maxStaleMs: 5_000 });
+const permdock = permdockFor({
+  policy,
+  memberships: sources.memberships,
+  versions,
+  instances: instanceCache(),
+});
 
 export const bsb = createOrpc(betterSupabase, {
   versions,
-  authorizer: authorizer({ policy, memberships: sources.memberships }),
+  authorizer: authorizer({ policy, permdockFor: permdock }),
 });
 
 const authed = os.$context<OrpcRequestContext>().use(bsb.middleware());
@@ -173,10 +180,7 @@ const { protect } = createPermDock<
 >(policy, {
   subject: ({ context }) =>
     subjectFromBetterSupabase(context.auth, { anonymousSignIns: "deny" }),
-  memberships: claimsFirst(sources.memberships, {
-    onStale: "reread",
-    versions,
-  }),
+  ...permdock.sources(versions),
 });
 
 const procedure = (permission: Permission) => authed.use(protect(permission));
@@ -200,14 +204,17 @@ const query = supabasePostgresQuery(postgres.admin);
 const memberships = blockMembershipSource({ query });
 const version = authzVersion({ query });
 
-export const bsb = createOrpc(betterSupabase, {
+const permdock = permdockFor({
+  policy,
+  memberships,
+  version,
   versions,
-  authorizer: authorizer({ policy, memberships, version }),
+  instances: instanceCache(),
 });
-// and in createPermDock: claimsFirst(memberships, { onStale: "reread", version, versions })
+// authorizer({ policy, permdockFor: permdock }) and ...permdock.sources(versions) as above
 ```
 
-`memberships` re-reads a token minted before the user's last membership change, so a removed member loses access before the token expires. `admin` is a secret-key client. Create `sources` and `versions` once at module scope and pass the same cache to `createOrpc` and `claimsFirst`: `bsb.evictSession` evicts it, and a `GET` procedure (intent `read`) answers the version from it within `maxStaleMs` ([version cache](/docs/adapters/better-supabase#version-cache-and-session-snapshots)).
+`permdockFor` wraps `memberships` in `claimsFirst`, which re-reads a token minted before the user's last membership change, so a removed member loses access before the token expires. `admin` is a secret-key client. Create `sources`, `versions` and the resolver once at module scope and pass the same cache to `createOrpc` and `sources`: `bsb.evictSession` evicts it, and a `GET` procedure (intent `read`) answers the version from it within `maxStaleMs` ([version cache](/docs/adapters/better-supabase#version-cache-and-session-snapshots)). The authorizer and `protect` then share one instance per user and version. On Vercel functions, where no Realtime subscription evicts the cache, follow [Vercel functions without subscribeAuthzVersions](/docs/adapters/better-supabase#vercel-functions-without-subscribeauthzversions).
 
 `protect` throws `FORBIDDEN` with PermDock's Problem Details as `data`, the same shape `bsb.unwrap` gives a `DbError`. `@orpc/server` must satisfy better-supabase's peer range (2.0.0-beta.40 or later). `permission` on `bsb.authed()` is decided by PermDock's [`authorizer`](/docs/adapters/better-supabase#authorizer).
 

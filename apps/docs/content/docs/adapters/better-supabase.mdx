@@ -78,8 +78,8 @@ import {
 - The provider leaves `portalSubjects` and `portalParties` unset: PermDock has no guest grants, so better-supabase's `guests` block decides which records and parties a guest reaches.
 - `scopes` carry each scope's `idType`: `uuid`, `text`, `bigint` or `integer`, with `int8`, `int` and `int4` normalised. Any other id type is a problem.
 - `requires` lists each helper with the role that must execute it; `memberships`, `suspension` and `roleSources` come from `rls`; `tokenHook` names the hook function, the claims it owns and the `grantsCommand` that restores the hook's grants for the manifest's `hook.schemas`: `permdock supabase hook generate && supabase db schema declarative sync -f permdock_hook` under pg-delta, the `--grants-out` command under migra. A manifest written without `supabase.hook` (`rls.authorize: 'database'`) has no `hook` section, so `tokenHook` is absent. A manifest that cannot fill a field is recorded in `problems`, which better-supabase's doctor reports, and an invalid manifest throws a `TypeError`.
-- `authorizer({ policy, subject?, operations?, memberships?, version?, versions?, instances?, intent?, store?, onError?, options? })` returns better-supabase's `Authorizer` (`apiVersion: 1`, `name: "PermDock"`) for its `authorizer` server option. It decides every `permission` a resource, action, route guard or MCP tool declares ([Authorizer](#authorizer)).
-- `permdockFor({ policy, subject?, memberships?, version?, versions?, instances?, options? })` returns one resolver, `(input, query?) => Promise<PermDock>`, for a `bsb.getClaims()` snapshot, a `bsb.bootstrap()` or `bsb.getAccess()` result, a session or a `Subject` ([One instance per version](#one-instance-per-version)).
+- `authorizer({ policy, permdockFor?, subject?, operations?, memberships?, version?, versions?, instances?, intent?, store?, onError?, options? })` returns better-supabase's `Authorizer` (`apiVersion: 1`, `name: "PermDock"`) for its `authorizer` server option. It decides every `permission` a resource, action, route guard or MCP tool declares ([Authorizer](#authorizer)).
+- `permdockFor({ policy, subject?, memberships?, version?, versions?, instances?, options? })` returns one resolver, `(input, query?, versions?) => Promise<PermDock>`, for a `bsb.getClaims()` snapshot, a `bsb.bootstrap()` or `bsb.getAccess()` result, a session or a `Subject`. Its `sources(versions?)` returns the frozen options to spread into `createPermDock` from `permdock/next`, `permdock/orpc` or `permdock/mcp` ([One instance per version](#one-instance-per-version)).
 - `bucketPolicy(access, options)` and `topicPolicy(access, options)` return the `access` policy for `defineBucket` and `defineTopic`. `access` maps the operations (`read`, `list`, `write`, `delete` for a bucket; `receive`, `send` for a topic) to permissions, and `options` is `{ manifest, catalog, scope, segment? }` or `{ policy, schema?, scope, segment? }`. With `policy`, the `definePolicy` result the app already imports, nothing is read at runtime: the scopes, the permissions with row conditions and the scopes each permission is granted at come from the definitions, and `schema` names the helper schema (`rls.schema`, default `permdock`). The checks below are the same either way. They call `permitted_<scope>_ids_by_permission` and `permdock_has_permission`, which check role and scope only and subtract denies, so a permission the catalog marks `rowConditions: true` (or a conditioned grant in `policy`), or does not grant at `scope`, throws. `scope: "platform"` checks a permission granted globally.
 - `apiKeyVerifier({ keys, manifest?, serviceRoles?, allPermissions? })` is a `CredentialVerifier` over better-supabase's `createApiKeys()`, for [`subjectFromApiKey`](/docs/concepts/credentials#using-a-key). A personal key is a `user` credential acting as its user, a tenant key a `service` credential holding `serviceRoles` in its tenant, and the key's scopes are the credential's permissions. `serviceRoles` defaults to the manifest's `rls.apiKeys.serviceRoles`. A rotated key in its grace period verifies, and its credential's `expiresAt` is the end of the grace period when that comes before the key's own expiry. An invalid, revoked, expired or rate-limited key, and a failed lookup, verify to `null`.
 - `apiKeyClaimOptions(manifest)` returns the `claim` and `tenantClaim` options of better-supabase's `apiKeyClaims()` and `apiKeyResolver()`, from the manifest's `rls.apiKeys`, so a key's token carries the scopes ceiling, tenant and roles the helpers read. It throws when the manifest has no `rls.apiKeys`.
@@ -93,7 +93,7 @@ import {
 - `principalSource({ claims, identities?, subject? })` returns a `PrincipalSource` over the claims better-supabase mints ([Principals](#principals)).
 - `principalFromMemberships(userId, rows, { scope?, tenant? })` builds a frozen `Principal` from rows of the `memberships` block's table (`BetterSupabaseMembershipRow`: `user_id`, `organization_id`, `role`, `disabled_at?`), for server code that reads the table instead of the token ([Server code](#server-code)).
 - `accessReviewApplier({ client, reviews, policy, demoteTo?, email?, permdockFor?, schema?, scope?, now? })` applies the revoked items of an [access review](/docs/concepts/access-reviews) through the organizations and invitations blocks, then marks each one applied ([Access reviews](#access-reviews)).
-- `authorizationHooks({ policy, claims, ... })` returns better-supabase's `AuthorizationHooks` for `createServer(betterSupabase, { authorization })` ([Authorization hooks](#authorization-hooks)).
+- `authorizationHooks({ policy, claims, permdockFor?, ... })` returns better-supabase's `AuthorizationHooks` for `createServer(betterSupabase, { authorization })` ([Authorization hooks](#authorization-hooks)).
 - `roleOrderFromCatalog(catalog, { scope?, owner? })` returns the catalog's role keys highest first, for the SSO block's `roleOrder` ([SSO role order](#sso-role-order)).
 
 ## Setup
@@ -413,19 +413,32 @@ Here `sources` is the app's generated membership-source factory. `authorizer` wr
 
 ### One instance per version
 
-`permdockFor` and an [`instanceCache`](/docs/concepts/extension-interfaces#instance-cache) at module scope give every island, action and authorizer check of a user the same instance while the user's authorization version holds. Pass the same `instances` to `authorizer` and to `createPermDock` from `permdock/next`:
+`permdockFor` and an [`instanceCache`](/docs/concepts/extension-interfaces#instance-cache) at module scope give every island, action and authorizer check of a user the same instance while the user's authorization version holds. Pass the resolver to `authorizer` and `authorizationHooks`, and spread `permdock.sources(versions)` into `createPermDock`:
 
 ```ts title="src/lib/permdock.ts"
 import { instanceCache, memoryVersionCache } from "permdock";
-import { authorizer, permdockFor } from "permdock/better-supabase";
+import {
+  authorizer,
+  permdockFor,
+  subjectFromBetterSupabase,
+} from "permdock/better-supabase";
+import { createPermDock } from "permdock/next";
 
 export const versions = memoryVersionCache({ maxStaleMs: 5_000 });
-export const instances = instanceCache();
-const sources = { policy, memberships, version, versions, instances };
-
-export const permdock = permdockFor(sources);
-export const authorize = authorizer(sources);
+export const permdock = permdockFor({
+  policy,
+  memberships,
+  versions,
+  instances: instanceCache(),
+});
+export const authorize = authorizer({ policy, permdockFor: permdock });
+export const { protectAction } = createPermDock(policy, {
+  subject: async () => subjectFromBetterSupabase(await bsb.getClaims()),
+  ...permdock.sources(versions),
+});
 ```
+
+The resolver holds `subject`, `memberships`, `version`, `versions`, `instances` and `options`. `authorizer` and `authorizationHooks` throw a `TypeError` when given one of those next to `permdockFor`, so the two cannot drift apart. `sources(versions)` answers the same frozen object for the same cache, and `authorizer` passes the cache better-supabase hands it at runtime, so a `bsb.action` check and a `protectAction` of the same user at the same version share one instance. `tests/better-supabase/sharing.test.ts` checks this for `protectAction`, `permdock/orpc` and `permdock/mcp`.
 
 ```tsx title="src/app/[orgSlug]/quotes/island.tsx"
 async function QuotesIsland({ orgId }: { orgId: string }) {
@@ -455,6 +468,37 @@ subscribeAuthzVersions({ client: admin, versions });
 ```
 
 `admin` is a secret-key client: no `realtime.messages` policy admits `better_supabase:authz`, so no user can join it. Subscribe in the module that creates `versions`. Leave better-supabase's `blocks.sessions.authzVersions` off: it keeps a second version table that never reaches the `authz_ver` claim PermDock writes, and doctor PD082 reports it. `tests/better-supabase/version-cache.test.ts` checks that `evictSession` and `subscribeAuthzVersions` evict a shared cache.
+
+### Vercel functions without subscribeAuthzVersions
+
+A Vercel function instance has no long-lived Realtime subscription, so no broadcast evicts its cache. Bound the staleness with `maxStaleMs` instead, and evict after the process's own writes:
+
+```ts title="src/server/permdock.ts"
+import { instanceCache, memoryVersionCache } from "permdock";
+import {
+  authorizationHooks,
+  authorizer,
+  permdockFor,
+} from "permdock/better-supabase";
+import { createServer } from "better-supabase/server";
+
+const versions = memoryVersionCache({ maxStaleMs: 5_000 });
+export const permdock = permdockFor({
+  policy,
+  memberships,
+  versions,
+  instances: instanceCache(),
+});
+export const server = createServer(bsb, {
+  versions,
+  authorizer: authorizer({ policy, permdockFor: permdock }),
+  authorization: authorizationHooks({ policy, claims, permdockFor: permdock }),
+});
+```
+
+Create all of it at module scope, so warm invocations of the same instance reuse the cache. A read check answers the version from the cache for up to `maxStaleMs`; a write check reads it live, so a removed member loses write access at once and read access within `maxStaleMs`. Pick `maxStaleMs` as the longest a revoked read may last.
+
+After a write that changes a user's roles or memberships, call `await server.evictSession(userId)` in the same function. It evicts the user from `versions`, so the next request in this instance reads the new version. Other instances still answer from their cache until `maxStaleMs` passes.
 
 ## Storage and Realtime
 
