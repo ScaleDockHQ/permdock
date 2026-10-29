@@ -2,7 +2,10 @@ import { defineMiddleware, pipeline } from "@supabase/middleware";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { SinkEvent } from "../../src/core/event-types.ts";
-import type { SupabaseJwtClaims } from "../../src/supabase/middleware.ts";
+import type {
+  FetchHandler,
+  SupabaseJwtClaims,
+} from "../../src/supabase/middleware.ts";
 import type { PermDockOf } from "../fixtures/vocabulary.ts";
 
 import {
@@ -359,6 +362,14 @@ describe("permdock/supabase/middleware", () => {
     });
     // @ts-expect-error: the evaluations handler needs jwtClaims upstream too.
     pipeline([], permdockHandler());
+    const handler = async (): Promise<Response> => new Response(null);
+    const unclaimed = withPermDock(undefined, handler);
+    // @ts-expect-error: without withClaims upstream, ctx stays required.
+    unclaimed satisfies FetchHandler;
+    withFixtureClaims(
+      { claims: null },
+      withPermDock(undefined, async () => new Response(null)),
+    ) satisfies FetchHandler;
     expect(true).toBe(true);
   });
 

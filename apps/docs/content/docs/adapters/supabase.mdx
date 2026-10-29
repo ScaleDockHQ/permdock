@@ -47,7 +47,7 @@ export default defineConfig({
 
 - `subjectFromSupabase(claims, options)` takes the verified claims from `getClaims()` (or `null`) and returns a subject whose principal is `{ id: sub, roles, tenant, memberships, assurance, claims }`: `id` is the `sub`; `roles` is derived from `claims.roles` (default `user_role`, top-level as the hook writes it or under `app_metadata`) and holds global roles; `tenant` comes from `claims.tenant` (default `supabaseTenantClaim`, `tenant_id`, hook-injected or under `app_metadata`; keep it equal to `rls.tenantClaim`, which `permdock doctor` PD038 checks); `memberships` comes from a hook-injected claim (`claims.memberships`, default `memberships`) of `{ scope, id, within?, roles, via?, expires_at? }` entries, where `expires_at` is a NumericDate in seconds (the [named scopes](/docs/concepts/scopes) form; `{ tenant, team? }` is still read) when the hook writes one, or from a `MembershipSource` over your tables when it does not; `issuer` is `iss`; `assurance.acr` is `aal`; `claims` exposes `app_metadata` values. The subject's `issuedAt` is `iat`. `user_metadata` is never read because it is user-writable. It never throws; malformed or `anon` claims yield the anonymous subject. Details in "Verified material" below.
 - `options.schema` (any Standard Schema, for example a Zod object) validates and types the custom claims before they reach `principal.claims`; an invalid claim set drops `claims` with a development warning, never the subject.
-- `postgrestSources(client, { schema?, fn?, membersFn?, versionFn?, policy? })` reads a stored user's roles, memberships, held custom roles and authorization version through supabase-js from the `subject_for(p_user)` function the hook file defines, for a backend with no `SqlQuery`: `memberships` for `claimsFirst` (with `version`, one `authz_version_for(p_user)` call, so a fresh token costs no full read, and `list`, the members of one instance from `members_of(p_scope, p_id)`, for `countHolders` and `whoCan`), `customRoles(principal)` and `subject(userId)`; with `policy`, custom roles are read only for a subject that holds one, and a token that claims one has its subject read in one `subject_for` call ([a stored user over PostgREST](/docs/adapters/supabase-hook#a-stored-user-over-postgrest)). It keeps no answers: create it once at module scope ([freshness and the version cache](#freshness-and-the-version-cache)).
+- `postgrestSources(client, { schema?, fn?, membersFn?, versionFn?, policy?, onSourceCall? })` reads a stored user's roles, memberships, held custom roles and authorization version through supabase-js from the `subject_for(p_user)` function the hook file defines, for a backend with no `SqlQuery`: `memberships` for `claimsFirst` (with `version`, one `authz_version_for(p_user)` call, so a fresh token costs no full read, and `list`, the members of one instance from `members_of(p_scope, p_id)`, for `countHolders` and `whoCan`), `customRoles(principal)` and `subject(userId)`; with `policy`, custom roles are read only for a subject that holds one, and a token that claims one has its subject read in one `subject_for` call ([a stored user over PostgREST](/docs/adapters/supabase-hook#a-stored-user-over-postgrest)). It keeps no answers: create it once at module scope ([freshness and the version cache](#freshness-and-the-version-cache)). `onSourceCall({ source, method, durationMs, cached })` runs after every function read, with `cached: true` when the instance's memo answered it; a hook that throws is ignored. With `NODE_ENV=development`, it warns once when one user's version is read twice within a second, the sign of a request that builds its instance more than once instead of sharing it through `instanceCache` and `permdockFor`.
 - `supabaseApprovalStore(client, { schema?, ttl?, beforeOpen?, onOpen? })` is an `ApprovalStore` over the table and functions `rls.approvals` generates ([a generated store](/docs/adapters/approvals#a-generated-store-for-postgres-and-supabase)).
 - Both take the client as a `SupabaseRpcCaller`: anything with `schema(name).rpc(fn, args)`, including a supabase-js client typed with a generated `Database` (`SupabaseClient<Database>`), whose `rpc` accepts only the functions that `Database` declares, so it passes without a cast or a second untyped client.
 - `supabaseRls({ realtime, storage })` adds policies for private Realtime channels and Storage buckets, so a channel such as `org:<id>:chat` or an object under `<id>/` follows the same permission as your tables ([Realtime and Storage](/docs/cli/rls#realtime-channels-and-storage-buckets)).
@@ -144,7 +144,7 @@ const evaluations = pipeline([withClaims()], permdockHandler());
 ```
 
 - `createPermDock(policy, options)` takes the same options as the HTTP adapters (`subject`, `tenant`, `memberships`, `customRoles`, `store`, `sink`, `limits`, `pdp`, `otel`, `webBotAuth`, and the rest of `InstanceOptions`) and returns `withPermDock`, `permdockHandler` and `openapi`. `subject(ctx, request)` receives the pipeline context; the documented body is `subjectFromSupabase(ctx.jwtClaims, …)`. `tenant` may be a string or `(ctx, request) => string | undefined`; a requested tenant without a matching membership yields no tenant ([tenancy](/docs/concepts/tenancy)). `context(ctx, request)`, `deniedResponse` and `wrap` behave as on the [server kernel](/docs/adapters/server-kernel#options).
-- `withPermDock()` declares `jwtClaims` as its prerequisite and contributes `ctx.permdock`, a frozen request-scoped `PermDock`. A pipeline that places it without an upstream contributor of `jwtClaims` (`withClaims`, `withRequiredClaims`, or `withSupabase`'s context) is a type error, not a runtime surprise.
+- `withPermDock()` declares `jwtClaims` as its prerequisite and contributes `ctx.permdock`, a frozen request-scoped `PermDock`. A pipeline that places it without an upstream contributor of `jwtClaims` (`withClaims`, `withRequiredClaims`, or `withSupabase`'s context) is a type error, not a runtime surprise. Nested, `withPermDock(config, handler) satisfies FetchHandler` fails until a `withClaims` wraps it; `permdock/supabase/middleware` re-exports `type FetchHandler` for that annotation.
 - `withPermDock({ protect, data, trusted, oauthScopes })` runs the kernel's `protect` before the handler (`data`'s result is validated unless `trusted: true` marks it as a row the server loaded): `data(ctx, request)` loads the row (a `null` is a `404`), a denial is a `403` Problem Details body with `permission`, `denials` and `alternatives`, an `approval-required` outcome is a `403` carrying `approval` and the `PermDock-Approval` resume header is honoured ([approvals](/docs/security/approvals)). A pass contributes `ctx.permdock` as above. `oauthScopes` narrows which coarse OAuth scopes reach the handler: a delegated token holding none of them gets a `403` with `WWW-Authenticate: Bearer error="insufficient_scope"`. Without `protect`, `withPermDock({ oauthScopes })` checks no permission: an anonymous caller gets a `401`, and a signed-in one passes when it is not a delegated token or holds one of the scopes ([server kernel](/docs/adapters/server-kernel)).
 - `permdockHandler()` returns a terminal handler for `POST` [AuthZEN evaluations](/docs/adapters/authzen) against the caller's own subject; the body's `subject` never overrides the verified claims.
 - `openapi` is the same hook set the HTTP adapters expose for [`permdock openapi emit`](/docs/cli/openapi).
@@ -305,7 +305,43 @@ export const { getPermDock, getPermission } = createPermDock(policy, {
 });
 ```
 
-Two rules carry over from the SSR package's own guidance. Use `getClaims()` (or `getUser()`), never `getSession()` alone: `getSession()` reads the cookie without contacting Auth or the JWKS, so its `access_token` is unverified material and must not become a subject. And keep the session refresh in the framework's middleware or `proxy` (the `updateSession` recipe from the SSR docs) separate from the PermDock factory: refreshing is authentication, upstream of PermDock ([authentication](/docs/concepts/authentication)). The browser client from `createBrowserClient` never builds a subject; the client `PermDock` comes from `permdock.snapshot()` through [`permdock/react`](/docs/adapters/react).
+Use `getClaims()`, never `getSession()`: `getSession()` reads the cookie without contacting Auth or the JWKS, so its `access_token` is unverified material and must not become a subject. The factory's `setAll` is empty because a Server Component cannot write cookies; the session refresh happens once, upstream, in Next.js 16's `proxy.ts`. Refreshing is authentication, upstream of PermDock ([authentication](/docs/concepts/authentication)).
+
+```ts title="proxy.ts"
+import { createServerClient } from "@supabase/ssr";
+import { type NextRequest, NextResponse } from "next/server";
+
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({ request });
+  const supabase = createServerClient(url, publishableKey, {
+    cookies: {
+      getAll: () => request.cookies.getAll(),
+      setAll: (cookiesToSet, headers) => {
+        for (const { name, value } of cookiesToSet) {
+          request.cookies.set(name, value);
+        }
+        response = NextResponse.next({ request });
+        for (const { name, value, options } of cookiesToSet) {
+          response.cookies.set(name, value, options);
+        }
+        for (const [key, value] of Object.entries(headers)) {
+          response.headers.set(key, value);
+        }
+      },
+    },
+  });
+  await supabase.auth.getClaims();
+  return response;
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|svg|webp)$).*)",
+  ],
+};
+```
+
+Return the `response` that `setAll` last built. It carries the refreshed cookies and the `Cache-Control: private, no-cache, no-store, must-revalidate, max-age=0`, `Expires: 0` and `Pragma: no-cache` headers `@supabase/ssr` 0.12 passes with the first cookie write, so a CDN never serves one user's session to another. Create a new server client per request: the headers arrive only once per client. Call `getClaims()` before any other work, so a refresh lands before the response is committed. The browser client from `createBrowserClient` never builds a subject; the client `PermDock` comes from `permdock.snapshot()` through [`permdock/react`](/docs/adapters/react).
 
 ## Verified material
 
@@ -438,7 +474,7 @@ Revocation reaches the ceiling through the user's grants, not through the delega
 `subjectFromSupabaseSession(session, options)` takes any verified session object shaped `{ kind, claims }` (`SupabaseSessionLike`), such as the session a session library builds from verified claims. It maps `kind: 'user'` through `subjectFromSupabase(session.claims, options)` and returns the anonymous subject for every other `kind` (`anon`, `service`, `invalid`, or anything unknown). PermDock imports nothing from the library that produced the session; the shape is the contract.
 
 ```ts
-const session = await getSession(); // verified locally against the project JWKS
+const session = await verifySession(); // a session library's verified session
 const subject = subjectFromSupabaseSession(session, {
   claims: { roles: "user_role" },
 });

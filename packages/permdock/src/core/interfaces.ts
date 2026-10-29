@@ -42,6 +42,17 @@ export type DecisionProvider = {
  */
 export type SourceMemo = <T>(key: string, read: () => T) => T;
 
+/**
+ * One read a source made, for an `onSourceCall` hook: `cached` is `true` when
+ * the instance's `SourceMemo` answered it without a query.
+ */
+export type SourceCall = {
+  readonly source: string;
+  readonly method: string;
+  readonly durationMs: number;
+  readonly cached: boolean;
+};
+
 /** What `getPermDock` passes to every source call besides its query. */
 export type SourceContext = {
   /** Absent when the source is called outside `getPermDock`. */

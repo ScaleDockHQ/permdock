@@ -175,6 +175,7 @@ export type {
   CustomRoleSourceFactory,
   SettingsSource,
   SnapshotSource,
+  SourceCall,
   SourceContext,
   SourceMemo,
   SubjectResolver,

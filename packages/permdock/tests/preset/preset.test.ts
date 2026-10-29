@@ -94,6 +94,24 @@ const STUBS: Readonly<Record<string, string>> = {
   readonly secretKey: string;
   readonly publishableKey: string;
 }): { authenticateRequest(request: Request): Promise<{ toAuth(): unknown }> };`,
+  "@supabase/ssr": `type Cookie = { readonly name: string; readonly value: string; readonly options: { readonly path?: string; readonly maxAge?: number; readonly httpOnly?: boolean } };
+export declare function createServerClient(
+  url: string,
+  key: string,
+  options: {
+    readonly cookies: {
+      readonly getAll: () => readonly { readonly name: string; readonly value: string }[];
+      readonly setAll: (cookies: readonly Cookie[], headers: Record<string, string>) => void;
+    };
+  },
+): {
+  readonly auth: {
+    getClaims(): Promise<
+      | { readonly data: { readonly claims: { readonly sub: string } }; readonly error: null }
+      | { readonly data: null; readonly error: Error }
+    >;
+  };
+};`,
   "@prisma/adapter-pg": `export declare class PrismaPg {
   constructor(options: { readonly connectionString: string });
 }`,
@@ -239,6 +257,22 @@ describe("preset codes", () => {
 });
 
 describe("generated presets", () => {
+  it("refresh a Next.js Supabase session in proxy.ts with the setAll cache headers", () => {
+    const files = generatePreset(
+      resolvePreset({ archetype: "b2b", framework: "next", auth: "supabase" }),
+    ).files;
+    const proxy = files.find((file) => file.path === "src/proxy.ts");
+    expect(proxy?.contents).toContain("await supabase.auth.getClaims();");
+    expect(proxy?.contents).toContain("response.headers.set(key, value)");
+    const session = files.find((file) => file.path === "src/session.ts");
+    expect(session?.contents).toContain("createServerClient");
+    expect(session?.contents).not.toContain("getSession");
+    const hono = generatePreset(
+      resolvePreset({ archetype: "b2b", framework: "hono", auth: "supabase" }),
+    ).files;
+    expect(hono.some((file) => file.path.endsWith("proxy.ts"))).toBe(false);
+  });
+
   it("type-check against the package source", () => {
     writeCases();
     const tsc = path.join(PACKAGE, "node_modules", ".bin", "tsc");

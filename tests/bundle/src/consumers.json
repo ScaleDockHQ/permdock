@@ -8,11 +8,11 @@
   "server createPermDock + webBotAuthVerifier": 43554,
   "hono createPermDock": 43177,
   "hono createPermDock + withOtel": 44707,
-  "express createPermDock": 43230,
+  "express createPermDock": 43232,
   "fastify createPermDock": 43040,
   "jwt subjectFromJwt": 9463,
   "mcp createPermDock": 42878,
   "ai-sdk createPermDock": 39826,
-  "supabase/middleware createPermDock": 43109,
+  "supabase/middleware createPermDock": 43111,
   "openapi securityFor + permissionsExtension + problemDetails": 862
 }

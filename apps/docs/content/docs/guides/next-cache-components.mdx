@@ -399,9 +399,9 @@ better-supabase is one such session source; its `AuthSession` union already has 
 
 ```ts
 // src/lib/access.ts
-import { cacheLife, cacheTag } from "next/cache";
+import { cacheTag } from "next/cache";
 import { snapshotFor } from "permdock";
-import { cacheLifeFor, snapshotTag } from "permdock/next";
+import { snapshotTag } from "permdock/next";
 import { subjectFromSupabaseSession } from "permdock/supabase";
 import { bsb } from "@/lib/supabase/server";
 import { policy } from "@/policy";
@@ -413,13 +413,11 @@ export async function loadSnapshot(orgId: string) {
   const subject = subjectFromSupabaseSession(session, {
     claims: { memberships: "memberships" },
   });
-  const snapshot = snapshotFor(policy, subject, { tenant: orgId });
-  cacheLife({ stale: cacheLifeFor(snapshot).stale });
-  return snapshot;
+  return snapshotFor(policy, subject, { tenant: orgId });
 }
 ```
 
-Next keeps the smallest `stale` set in one scope, so the entry lives no longer than either the token or the snapshot, and at 30 seconds or more a per-link prefetch carries it. The snapshot's tag and lifetime come after `bsb.cached()` because both depend on the session it returns. The same `bsb.cached()` hands out `sql`, typed repositories over direct Postgres that run as the caller, so RLS on `permitted_<scope>_ids()` decides the rows in another `'use cache: private'` function.
+`bsb.cached()` already sets the entry's lifetime, so the snapshot adds no `cacheLife` of its own: a second call would only repeat the 300-second cap. The snapshot's tag comes after `bsb.cached()` because it depends on the session it returns. The same `bsb.cached()` hands out `sql`, typed repositories over direct Postgres that run as the caller, so RLS on `permitted_<scope>_ids()` decides the rows in another `'use cache: private'` function.
 
 A role change drops both in the Server Action that made it:
 
@@ -442,6 +440,8 @@ The user's token still carries the old memberships until it is refreshed; the ho
 The private cache and the proxy both verify the session on every prefetch. With asymmetric keys (ES256 or RS256, published at the project's JWKS endpoint) that verification is local: a public key, no secret on the server, no request to Supabase Auth. With the legacy shared HS256 secret, every verifier holds the key that can mint tokens, and supabase-js `getClaims()` falls back to a network call to Auth. A network call inside `'use cache: private'` runs on every prefetch of every link, so enable asymmetric JWT signing keys before adopting this pattern.
 
 ## The proxy is a hint
+
+`proxy.ts` refreshes the session once per request with `getClaims()` and returns the response `setAll` built, with its `Cache-Control`, `Expires` and `Pragma` headers ([the recipe](/docs/adapters/supabase#with-supabasessr)). Every later read in the request, the private cache included, calls `getClaims()` against cookies that are already fresh, and never `getSession()`.
 
 `mayAccess(policy, claims, permission, { tenant })` in `proxy.ts` redirects only when the verified claims provably lack the page's permission. It answers `true` whenever custom roles, plans, missing memberships or row conditions could still grant access. Pages and Server Actions enforce regardless: a request that skips the proxy renders the page's forbidden state (`<Protected fallback>`) and gets a denied Server Action, never data. `requirePermission(permission, undefined, { tenant })` from `permdock/next` is the page-level alternative: it calls `forbidden()`, or `unauthorized()` for a signed-out user, when `experimental.authInterrupts` is on ([Next.js adapter](/docs/adapters/next)).
 
