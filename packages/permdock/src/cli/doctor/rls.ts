@@ -24,6 +24,7 @@ import {
   rowConditionMessage,
 } from "../sql/helper-calls.ts";
 import { graphSqlName } from "../sql/names.ts";
+import { CUSTOM_ROLES } from "../sql/shared.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
 import { tableNameOf, tableNames } from "../sql/tables.ts";
 import { policyOf } from "./inputs.ts";
@@ -514,6 +515,28 @@ export async function pd071(
     }));
 }
 
+const NAME_GUARD_TRIGGER = new RegExp(
+  String.raw`create\s+(?:or\s+replace\s+)?(?:constraint\s+)?trigger\s+"?${CUSTOM_ROLES.nameGuard}"?`,
+  "iu",
+);
+
+/**
+ * Whether a declarative schema file, migration or generated SQL file creates
+ * the `permdock_custom_role_name_guard` trigger.
+ */
+function hasNameGuard(input: DoctorInput): boolean {
+  const files = filesOf(input);
+  const out = input.config.rls?.out;
+  const entries = [
+    "supabase/schemas",
+    ...(input.config.doctor?.migrations ?? MIGRATION_DIRS),
+    ...(out === undefined ? [] : [out]),
+  ];
+  return sqlFiles(input.cwd, entries).some((file) =>
+    NAME_GUARD_TRIGGER.test(files.read(file)),
+  );
+}
+
 /**
  * PD072: a membership source reads role keys through the table of custom roles
  * (`rls.customRoleWrites.roles`), which tenants write.
@@ -524,17 +547,19 @@ export function pd072(input: DoctorInput): readonly DoctorFinding[] {
     return [];
   }
   const target = qualifySqlTable(roles.table);
-  const sources = membershipSourcesOf(input.config);
-  return sources
-    .filter((source) =>
-      source.sql.throughs.some((through) => through.table === target),
-    )
-    .map((source) => ({
-      code: "PD072",
-      severity: "warning" as const,
-      message: `the ${source.sql.table} membership source reads role keys through ${target}, whose tenant rows tenants write: a tenant row named like a declared role must not grant it`,
-      fix: `keep the permdock_custom_role_name_guard trigger on ${target} (rls generate emits it with customRoleWrites.roles) and generate with this config, so helpers read a tenant row named like a declared role as no role`,
-    }));
+  const sources = membershipSourcesOf(input.config).filter((source) =>
+    source.sql.throughs.some((through) => through.table === target),
+  );
+  if (sources.length === 0 || hasNameGuard(input)) {
+    return [];
+  }
+  return sources.map((source) => ({
+    code: "PD072",
+    target: `${target}:${source.sql.table}`,
+    severity: "warning" as const,
+    message: `the ${source.sql.table} membership source reads role keys through ${target}, whose tenant rows tenants write: a tenant row named like a declared role must not grant it`,
+    fix: `keep the permdock_custom_role_name_guard trigger on ${target} (rls generate emits it with customRoleWrites.roles) and generate with this config, so helpers read a tenant row named like a declared role as no role; doctor reads supabase/schemas, the migrations and rls.out for it`,
+  }));
 }
 
 /** PD073: a role's `for` lists kinds no membership source of its scope can hold. */

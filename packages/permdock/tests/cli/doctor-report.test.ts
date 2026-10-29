@@ -113,7 +113,7 @@ describe("doctor report", () => {
         `permdock doctor
 
   ⚠ PD011  src/a.ts reads tenant from an optional issuer claim
-           fix: compare the claim to onboarded tenants; do not default a tenant
+           fix: compare the claim to onboarded tenants; do not default a tenant [PD011:src/a.ts]
 
   0 errors, 1 warning
 `,
