@@ -959,6 +959,54 @@ describe(authorizationProvider, () => {
       ]);
     });
 
+    it("passes better-supabase's {approvers} with requestApprovers, for every kind", () => {
+      const covers = withRls({
+        helpers: [
+          ...supabaseHookManifestFixture.rls.helpers,
+          {
+            name: "permdock_is_approver",
+            args: "p_approvers jsonb, p_tenant text, p_requester text, p_resource text",
+            returns: "boolean",
+            execute: ["authenticated"],
+          },
+        ],
+      });
+      const provider = authorizationProvider({
+        manifest: covers,
+        catalog,
+        approvers: { "invoice.send": holder(approve) },
+        requestApprovers: true,
+      });
+      expect(provider.functions.isApprover).toBe(
+        "case {kind} " +
+          `when 'invoice.send' then permdock.permdock_is_approver('{"kind":"permission","permission":"invoice.approve"}'::jsonb, ({tenant})::text, ({requester})::text, 'invoice', ({approvers})::jsonb) ` +
+          `else permdock.permdock_is_approver(null::jsonb, ({tenant})::text, ({requester})::text, split_part({kind}, '.', 1), ({approvers})::jsonb) end`,
+      );
+      expect(provider.requires).toContainEqual({
+        function: "permdock.permdock_is_approver",
+        args: "jsonb, text, text, text, jsonb",
+        role: "postgres",
+      });
+      expect(
+        authorizationProvider({
+          manifest: covers,
+          catalog,
+          requestApprovers: true,
+        }).functions.isApprover,
+      ).toBe(
+        `permdock.permdock_is_approver(null::jsonb, ({tenant})::text, ({requester})::text, split_part({kind}, '.', 1), ({approvers})::jsonb)`,
+      );
+      const twoArgs = authorizationProvider({
+        manifest,
+        catalog,
+        requestApprovers: true,
+      });
+      expect(twoArgs.functions).not.toHaveProperty("isApprover");
+      expect(twoArgs.problems).toContainEqual(
+        expect.stringContaining("requestApprovers needs the five-argument"),
+      );
+    });
+
     it("reports approvers SQL cannot check, empty kinds and no kinds", () => {
       const provider = authorizationProvider({
         manifest,

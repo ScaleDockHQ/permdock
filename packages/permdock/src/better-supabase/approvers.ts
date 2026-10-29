@@ -38,6 +38,7 @@ type IsApproverInput = {
    * `rls.approvals.managers` writes; `manager()` approvers then match.
    */
   readonly managers?: boolean;
+  readonly requestApprovers?: boolean;
   readonly tenantScope: string;
   readonly rootTenant: boolean;
   readonly catalog: CatalogDocument | undefined;
@@ -61,8 +62,10 @@ function resourceOf(kind: string): string {
 /**
  * better-supabase's `isApprover` template: one `case` over `{kind}` whose
  * branches call `permdock_is_approver` with the kind's approvers as JSON. A
- * kind with no branch is `false`. Only `user`, `holder` and `anyOf` approvers,
- * and `manager` with `rls.approvals.managers`, match in SQL; other leaves are
+ * kind with no branch is `false`. With `requestApprovers`, every call is the
+ * five-argument form, which also gets better-supabase's `{approvers}`, the
+ * request's current approvers. Only `user`, `holder` and `anyOf` approvers, and
+ * `manager` with `rls.approvals.managers`, match in SQL; other leaves are
  * reported and match nobody.
  */
 export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
@@ -79,6 +82,15 @@ export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
     input.catalog === undefined
       ? undefined
       : new Set(input.catalog.permissions.map((permission) => permission.key));
+  const current = input.requestApprovers === true;
+  if (current && input.covers !== true) {
+    return {
+      problems: [
+        `requestApprovers needs the five-argument ${IS_APPROVER}, which \`permdock rls generate\` writes with rls.approvals.delegations or rls.approvals.managers. Set one, run it, then \`permdock supabase inspect --out\`.`,
+      ],
+    };
+  }
+  const passed = current ? ", ({approvers})::jsonb" : "";
   const branches: string[] = [];
   for (const [kind, given] of Object.entries(input.approvers)) {
     if (kind === "") {
@@ -108,11 +120,11 @@ export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
     const json = `${quoteSqlLiteral(JSON.stringify(approvers))}::jsonb`;
     branches.push(
       input.covers === true
-        ? `when ${quoteSqlLiteral(kind)} then ${fn}(${json}, ({tenant})::text, ({requester})::text, ${quoteSqlLiteral(resourceOf(kind))})`
+        ? `when ${quoteSqlLiteral(kind)} then ${fn}(${json}, ({tenant})::text, ({requester})::text, ${quoteSqlLiteral(resourceOf(kind))}${passed})`
         : `when ${quoteSqlLiteral(kind)} then ${fn}(${json}, ({tenant})::text)`,
     );
   }
-  if (branches.length === 0) {
+  if (branches.length === 0 && !current) {
     problems.push("approvers names no kind, so isApprover is not set.");
     return { problems };
   }
@@ -121,11 +133,21 @@ export function isApproverTemplate(input: IsApproverInput): IsApproverOutput {
       `The tenant scope "${input.tenantScope}" is not a root scope, and ${IS_APPROVER} checks holder() approvers at the root scope, so they match nobody.`,
     );
   }
+  const otherwise = current
+    ? `${fn}(null::jsonb, ({tenant})::text, ({requester})::text, split_part({kind}, '.', 1)${passed})`
+    : "false";
   return {
-    template: `case {kind} ${branches.join(" ")} else false end`,
+    template:
+      branches.length === 0
+        ? otherwise
+        : `case {kind} ${branches.join(" ")} else ${otherwise} end`,
     requires: {
       function: fn,
-      args: input.covers === true ? "jsonb, text, text, text" : "jsonb, text",
+      args: current
+        ? "jsonb, text, text, text, jsonb"
+        : input.covers === true
+          ? "jsonb, text, text, text"
+          : "jsonb, text",
       role: "postgres",
     },
     problems,
