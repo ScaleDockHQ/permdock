@@ -29,6 +29,28 @@ export async function permdockFor(request: Request) {
     ]);
   });
 
+  it("warn for a claimsFirst created per call, which defeats the instance cache", () => {
+    const text = `import { claimsFirst } from "permdock";
+
+const memberships = claimsFirst(source, { onStale: "reread", versions });
+
+export const options = () => ({
+  memberships: claimsFirst(source, { onStale: "reread", versions }),
+  instances,
+});
+`;
+    expect(pd080([src(text)])).toStrictEqual([
+      {
+        code: "PD080",
+        severity: "warning",
+        message:
+          "src/lib/access.ts:6 creates claimsFirst() inside a function, so every call passes a new memberships source, which the instance cache compares by identity, and no instance is reused",
+        fix: "create claimsFirst(...) once at module scope, or use permdockFor(...).sources(versions), and pass the same object to every adapter",
+      },
+    ]);
+    expect(pd081([src(text)])).toStrictEqual([]);
+  });
+
   it("pass module scope, a lazy ??= singleton and functions PermDock does not export", () => {
     const text = `import * as pd from "permdock";
 import { postgrestSources } from "permdock/supabase";

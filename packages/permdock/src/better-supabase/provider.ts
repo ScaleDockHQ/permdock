@@ -34,7 +34,7 @@ import {
   activeOrganizationFrom,
   activeTenantMismatch,
 } from "./active-tenant.ts";
-import { IS_APPROVER, isApproverTemplate } from "./approvers.ts";
+import { IS_APPROVER, MANAGES, isApproverTemplate } from "./approvers.ts";
 
 export type AuthorizationProviderOptions = {
   /**
@@ -729,6 +729,7 @@ export function authorizationProvider(
       schema: rls.schema,
       listed: helpers.has(IS_APPROVER),
       covers: /\bp_requester\b/u.test(helpers.get(IS_APPROVER)?.args ?? ""),
+      managers: helpers.has(MANAGES),
       tenantScope,
       rootTenant,
       catalog,

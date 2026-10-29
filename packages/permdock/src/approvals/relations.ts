@@ -176,32 +176,29 @@ async function managesWithin(
   return false;
 }
 
-/** The `manager()` approvers of `request` that `subject` satisfies. */
-async function managerFacts(
-  request: ApprovalRequest,
-  subject: Subject,
-  options: ApproverRelationsOptions,
+/**
+ * The `approverManagerKey`s of the `manager()` items in `items` that `approver`
+ * satisfies for `requester`. A requester never manages themselves into
+ * approving their own request.
+ */
+export async function managerKeys(
+  items: readonly Approver[],
+  requester: string,
+  approver: string,
+  options: Pick<ApproverRelationsOptions, "relations" | "now">,
 ): Promise<readonly string[]> {
-  const approvers = request.approvers;
-  const requester = request.subject.principal?.id;
   const source = options.relations;
-  if (
-    approvers === undefined ||
-    requester === undefined ||
-    source === undefined ||
-    subject.principal === null
-  ) {
+  if (source === undefined || requester === approver) {
     return [];
   }
-  const items = new Map<string, ManagerApprover>();
-  for (const item of requestApprovers(approvers)) {
+  const managers = new Map<string, ManagerApprover>();
+  for (const item of items) {
     if (item.kind === "manager") {
-      items.set(approverManagerKey(item), item);
+      managers.set(approverManagerKey(item), item);
     }
   }
-  const approver = subject.principal.id;
   const now = dateAt(options.now).getTime() / 1000;
-  const entries = [...items];
+  const entries = [...managers];
   const verdicts = await Promise.all(
     entries.map(([, item]) =>
       managesWithin(source, requester, approver, item.levels ?? 1, now),
@@ -209,6 +206,29 @@ async function managerFacts(
   );
   return entries.flatMap(([key], index) =>
     verdicts[index] === true ? [key] : [],
+  );
+}
+
+/** The `manager()` approvers of `request` that `subject` satisfies. */
+function managerFacts(
+  request: ApprovalRequest,
+  subject: Subject,
+  options: ApproverRelationsOptions,
+): Promise<readonly string[]> | readonly string[] {
+  const approvers = request.approvers;
+  const requester = request.subject.principal?.id;
+  if (
+    approvers === undefined ||
+    requester === undefined ||
+    subject.principal === null
+  ) {
+    return [];
+  }
+  return managerKeys(
+    requestApprovers(approvers),
+    requester,
+    subject.principal.id,
+    options,
   );
 }
 

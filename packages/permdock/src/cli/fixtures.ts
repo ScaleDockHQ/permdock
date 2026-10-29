@@ -38,7 +38,46 @@ export type FollowedRowFixture = Omit<
   "action" | "newRow" | "expected"
 > & { readonly table: string; readonly expected: "granted" | "denied" };
 
-export type PowerSyncFixture = RlsFixture | FollowedRowFixture;
+/**
+ * A role, tenant or claim change: `powersync verify` runs each stream that
+ * reads a changed claim with the claims before and after, and fails when the
+ * synced rows stay the same or the rows after include one the policy denies the
+ * changed subject. `stream` limits the check to one stream.
+ */
+export type ClaimsChangeFixture = {
+  readonly subject: RlsFixture["subject"];
+  readonly after: Omit<RlsFixture["subject"], "id">;
+  readonly stream?: string;
+  readonly expected: "changed";
+};
+
+export type PowerSyncFixture =
+  | RlsFixture
+  | FollowedRowFixture
+  | ClaimsChangeFixture;
+
+function checkChange(item: Record<string, unknown>, index: number): void {
+  const after = item["after"];
+  const bad =
+    !isRecord(after) ||
+    item["expected"] !== "changed" ||
+    item["action"] !== undefined ||
+    item["table"] !== undefined ||
+    (item["stream"] !== undefined &&
+      (typeof item["stream"] !== "string" || item["stream"].length === 0)) ||
+    (after["tenant"] !== undefined && typeof after["tenant"] !== "string") ||
+    (after["roles"] !== undefined &&
+      (!Array.isArray(after["roles"]) ||
+        !after["roles"].every((name) => typeof name === "string"))) ||
+    (after["memberships"] !== undefined &&
+      !Array.isArray(after["memberships"])) ||
+    (after["claims"] !== undefined && !isRecord(after["claims"]));
+  if (bad) {
+    throw configError(
+      `PermDock CLI: fixture ${index} needs after (tenant, roles, memberships, claims) and expected "changed", without action or table`,
+    );
+  }
+}
 
 function asFixtures(
   value: unknown,
@@ -55,14 +94,17 @@ function asFixtures(
     );
   }
   return list.map((item, index) => {
+    const change = followed && isRecord(item) && item["after"] !== undefined;
     if (
       !isRecord(item) ||
       !isRecord(item["subject"]) ||
-      item["row"] === undefined
+      (item["row"] === undefined && !change)
     ) {
       throw configError(`PermDock CLI: fixture ${index} needs subject and row`);
     }
-    if (followed && item["table"] !== undefined) {
+    if (change) {
+      checkChange(item, index);
+    } else if (followed && item["table"] !== undefined) {
       if (
         typeof item["table"] !== "string" ||
         item["table"].length === 0 ||
@@ -97,7 +139,7 @@ function asFixtures(
         `PermDock CLI: fixture ${index} subject.claims must be an object`,
       );
     }
-    // SAFETY: subject, row, action or table/expected, subject.id, memberships, tenant and claims were checked above.
+    // SAFETY: subject, row, action, table/expected or after/expected, subject.id, memberships, tenant and claims were checked above.
     return item as PowerSyncFixture;
   });
 }

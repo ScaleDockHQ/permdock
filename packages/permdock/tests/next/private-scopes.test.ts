@@ -114,3 +114,69 @@ describe("permdock/next in private cache scopes", () => {
     expect(result).toMatchObject({ ok: false, problem: { status: 403 } });
   });
 });
+
+describe("permdock/next with a known version", () => {
+  function known(source: MembershipSource, version: () => unknown) {
+    return createPermDock(policy, {
+      subject: () => token,
+      memberships: claimsFirst(source, {
+        onStale: "reread",
+        versions: memoryVersionCache({ maxStaleMs: 5000 }),
+      }),
+      // SAFETY: the tests pass values the option's type rules out, to pin how they are read.
+      version: version as () => number,
+    });
+  }
+
+  it("skips the version read for a read-intent instance", async () => {
+    const { state, source } = database();
+    const { getPermDock } = known(source, () => 3);
+    expect((await getPermDock()).can(permissions.post.list)).toBe(true);
+    expect(state.versionReads).toBe(0);
+  });
+
+  it("takes the query's version over the option's", async () => {
+    const { state, source } = database();
+    state.roles = [];
+    const { getPermDock } = known(source, () => 3);
+    expect((await getPermDock()).can(permissions.post.list)).toBe(true);
+    const fresh = await getPermDock({ version: 4 });
+    expect(fresh.can(permissions.post.list)).toBe(false);
+    expect(state.versionReads).toBe(0);
+  });
+
+  it("reads the version as usual when the reader throws or answers no version", async () => {
+    for (const reader of [
+      () => {
+        throw new Error("down");
+      },
+      () => -1,
+      () => null,
+    ]) {
+      const { state, source } = database();
+      const { getPermDock } = known(source, reader);
+      expect((await getPermDock()).can(permissions.post.list)).toBe(true);
+      expect(state.versionReads).toBe(1);
+    }
+  });
+
+  it("reads the version live for write intent and in protectAction", async () => {
+    const { state, source } = database();
+    const { getPermDock, protectAction } = known(source, () => 3);
+    state.version = 4;
+    state.roles = [];
+    expect(
+      (await getPermDock({ intent: "write", version: 3 })).can(
+        permissions.post.list,
+      ),
+    ).toBe(false);
+    expect(state.versionReads).toBe(1);
+    const rename = protectAction(permissions.post.update, {
+      input: z.object({ id: z.string() }),
+      data: () => ownPost,
+    })(() => "renamed");
+    const result = await rename({ id: "p1" });
+    expect(state.versionReads).toBe(2);
+    expect(result).toMatchObject({ ok: false, problem: { status: 403 } });
+  });
+});

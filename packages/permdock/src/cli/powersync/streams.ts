@@ -29,6 +29,7 @@ import { collectGrants, roleNames } from "../sql/grants.ts";
 import { CUSTOM_ROLES, customRolesOn } from "../sql/shared.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
 import { tableNames } from "../sql/tables.ts";
+import { claimRecorder, claimsIn } from "./claims.ts";
 import { customRoleItems } from "./levels.ts";
 import { CUSTOM_ROLE, bare, fromTable, ident, renames } from "./names.ts";
 import {
@@ -39,6 +40,7 @@ import {
   streamOf,
 } from "./sources.ts";
 import { tableStreams } from "./tables.ts";
+import { VERSION_USER, authzVersionTable } from "./version.ts";
 
 /**
  * How a stream query names the signed-in user, its claims and row columns.
@@ -85,6 +87,8 @@ export type PowerSyncStream = {
   readonly id: string;
   /** One query per way a subject may read a row; the stream syncs their union. */
   readonly queries: readonly string[];
+  /** The token claims the queries read; a change needs a PowerSync reconnect. */
+  readonly claims: readonly string[];
 };
 
 /**
@@ -857,6 +861,15 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
       }
     }
   }
+  const versionTable = authzVersionTable(ctx.config);
+  if (versionTable !== undefined) {
+    const table = bare(versionTable, dialect);
+    add(
+      table,
+      `SELECT * FROM ${fromTable(versionTable, dialect)} WHERE ${dialect.column(table, VERSION_USER)} = ${dialect.user}`,
+      VERSION_USER,
+    );
+  }
   const out: SubjectStream[] = [];
   const names = new Set<string>();
   for (const [table, entry] of tables) {
@@ -947,13 +960,14 @@ function planWith(
   dialect: StreamDialect,
 ): PowerSyncPlan {
   const scopes = scopeList(policy.scopes);
+  const recorder = claimRecorder(dialect);
   const grants = collectGrants(policy);
   const ctx: Ctx = {
     policy,
     config,
     scopes,
     kinds: ownershipRules(policy, scopes)?.kinds ?? {},
-    dialect,
+    dialect: recorder.dialect,
     sources: guardedSources(policy, config),
     grants,
     depth: 0,
@@ -1089,6 +1103,7 @@ function planWith(
         table,
         id,
         queries: [...queries],
+        claims: claimsIn([...queries], recorder.names, dialect),
       });
     }
   }

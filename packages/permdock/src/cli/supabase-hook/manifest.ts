@@ -20,6 +20,7 @@ import { qualifySqlTable } from "../../core/sql.ts";
 import { keptKeys } from "../../supabase/keep.ts";
 import { SUPABASE_MANIFEST_SCHEMA } from "../core/version.ts";
 import { API_KEY_ALLOWS, apiKeyFields } from "../rls/api-keys.ts";
+import { MANAGES } from "../rls/approval-managers.ts";
 import { IS_APPROVER } from "../rls/approvals.ts";
 import { guardedTables } from "../rls/assignments.ts";
 import { ASSIGNMENTS, OWNERSHIP } from "../rls/ownership-names.ts";
@@ -174,11 +175,23 @@ function trustedHelpers(
           helperEntry(
             IS_APPROVER,
             typeof config.rls.approvals === "object" &&
-              config.rls.approvals.delegations === true
+              (config.rls.approvals.delegations === true ||
+                config.rls.approvals.managers !== undefined)
               ? "p_approvers jsonb, p_tenant text, p_requester text, p_resource text"
               : "p_approvers jsonb, p_tenant text",
             "boolean",
             client,
+          ),
+        ]
+      : []),
+    ...(typeof config.rls?.approvals === "object" &&
+    config.rls.approvals.managers !== undefined
+      ? [
+          helperEntry(
+            MANAGES,
+            "p_requester text, p_levels integer",
+            "boolean",
+            [],
           ),
         ]
       : []),

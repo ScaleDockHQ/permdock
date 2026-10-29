@@ -8,7 +8,18 @@ import type { DoctorFinding, DoctorSource } from "../shared/doctor-types.ts";
 const SHARED_FACTORIES: Readonly<Record<string, "PD080" | "PD081">> = {
   postgrestSources: "PD080",
   memoryVersionCache: "PD080",
+  claimsFirst: "PD080",
   instanceCache: "PD081",
+};
+
+/** Factories whose cost differs from their code's message. */
+const FACTORY_MESSAGES: Readonly<
+  Record<string, { readonly what: string; readonly fix: string }>
+> = {
+  claimsFirst: {
+    what: "so every call passes a new memberships source, which the instance cache compares by identity, and no instance is reused",
+    fix: "create claimsFirst(...) once at module scope, or use permdockFor(...).sources(versions), and pass the same object to every adapter",
+  },
 };
 
 const MESSAGES: Readonly<
@@ -126,18 +137,22 @@ function findings(
         continue;
       }
       const line = source.text.slice(0, call.start).split("\n").length;
+      const { what, fix } = FACTORY_MESSAGES[factory] ?? MESSAGES[code];
       out.push({
         code,
         severity: "warning",
-        message: `${source.file}:${String(line)} creates ${factory}() inside a function, ${MESSAGES[code].what}`,
-        fix: MESSAGES[code].fix,
+        message: `${source.file}:${String(line)} creates ${factory}() inside a function, ${what}`,
+        fix,
       });
     }
   }
   return out;
 }
 
-/** PD080: `postgrestSources` or `memoryVersionCache` created per call. */
+/**
+ * PD080: `postgrestSources`, `memoryVersionCache` or `claimsFirst` created per
+ * call.
+ */
 export function pd080(
   sources: readonly DoctorSource[],
 ): readonly DoctorFinding[] {

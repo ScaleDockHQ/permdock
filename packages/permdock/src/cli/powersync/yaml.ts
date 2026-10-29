@@ -1,5 +1,7 @@
 import type { PowerSyncPlan } from "./streams.ts";
 
+import { RECONNECT_DOCS } from "./claims.ts";
+
 /**
  * A YAML scalar quoted as oxfmt and Prettier write it: single quotes around a
  * `"`, unless a backslash needs a double-quoted escape.
@@ -23,6 +25,19 @@ export function powersyncYaml(plan: PowerSyncPlan): string {
           "# Tables outside public must be in the powersync publication:",
           `# ${plan.publication}`,
         ]),
+    ...(plan.streams.some((stream) => stream.claims.length > 0)
+      ? [
+          "# Streams that read token claims keep the claims a connection started with:",
+          "# refresh the session and reconnect PowerSync after a role or tenant change.",
+          `# https://permdock.com${RECONNECT_DOCS}`,
+          ...plan.streams
+            .filter((stream) => stream.claims.length > 0)
+            .map(
+              (stream) =>
+                `#   ${stream.name} reads ${stream.claims.join(", ")}`,
+            ),
+        ]
+      : []),
     "config:",
     "  edition: 3",
     "",

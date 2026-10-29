@@ -11,6 +11,7 @@ import {
   quoteQualified,
 } from "../sql/quote.ts";
 import { subjectIdSql } from "../sql/subject.ts";
+import { APPROVES, approvalManagersSql } from "./approval-managers.ts";
 import { approvalPoliciesSql } from "./approval-policies.ts";
 import {
   PERMISSION_HELPERS,
@@ -344,9 +345,10 @@ grant execute on function ${fn}(jsonb, text) to authenticated;
 
 /**
  * Everything `rls.approvals` writes: the generated or adopted store, the
- * approver check, with `delegations: true` the covers, and with
- * `tenantPolicies` the tenant approval policies. With `actorMayWrite`, the
- * covers' write policies call `permdock_actor_may_write()`.
+ * approver check, with `managers` the manager walk, with `delegations: true`
+ * the covers, and with `tenantPolicies` the tenant approval policies. With
+ * `actorMayWrite`, the covers' write policies call
+ * `permdock_actor_may_write()`.
  */
 export function approvalsSql(
   ctx: RlsSqlContext,
@@ -360,7 +362,7 @@ export function approvalsSql(
   if (approvals === true) {
     return approvalStoreSql(ctx, jsonSchema) + isApproverSql(ctx);
   }
-  const { table, delegations, tenantPolicies } = approvals;
+  const { table, delegations, tenantPolicies, managers } = approvals;
   if (delegations !== undefined && typeof delegations !== "boolean") {
     throw new TypeError(
       "PermDock CLI: rls.approvals.delegations must be a boolean",
@@ -383,7 +385,17 @@ export function approvalsSql(
   return (
     store +
     isApproverSql(ctx) +
-    (delegations === true ? approvalDelegationsSql(ctx, actorMayWrite) : "") +
+    (managers === undefined
+      ? ""
+      : approvalManagersSql(
+          ctx,
+          managers,
+          qualified(ctx, APPROVAL_STORE.isApprover),
+          delegations === true,
+        )) +
+    (delegations === true
+      ? approvalDelegationsSql(ctx, actorMayWrite, managers !== undefined)
+      : "") +
     (tenantPolicies === undefined
       ? ""
       : approvalPoliciesSql(ctx, tenantPolicies, actorMayWrite))
@@ -402,15 +414,18 @@ const DELEGATIONS = {
 /**
  * `rls.approvals.delegations`: one table of out-of-office covers that a user
  * writes for themselves, and a four-argument `permdock_is_approver` that also
- * answers for a delegate inside an active cover. One hop: a cover is checked
- * against the delegator's own approver rights, never the delegator's covers. A
- * delegator who is the requester never counts. A `holder()` approver through a
- * cover needs `rls.mode: "database"`, where the `_for` helpers exist; in `jwt`
- * mode only `user()` approvers pass.
+ * answers for a delegate inside an active cover. With `managers`, the signed-in
+ * user's own check is `permdock_approves`, and a cover never passes on a
+ * `manager` leaf. One hop: a cover is checked against the delegator's own
+ * approver rights, never the delegator's covers. A delegator who is the
+ * requester never counts. A `holder()` approver through a cover needs
+ * `rls.mode: "database"`, where the `_for` helpers exist; in `jwt` mode only
+ * `user()` approvers pass.
  */
 export function approvalDelegationsSql(
   ctx: RlsSqlContext,
   actorMayWrite = false,
+  managers = false,
 ): string {
   const table = qualified(ctx, DELEGATIONS.table);
   const fn = qualified(ctx, APPROVAL_STORE.isApprover);
@@ -545,7 +560,7 @@ declare
   v_delegator ${user};
   v_user text := ${me};
 begin
-  if ${fn}(p_approvers, p_tenant) then
+  if ${managers ? `${qualified(ctx, APPROVES)}(p_approvers, p_tenant, p_requester)` : `${fn}(p_approvers, p_tenant)`} then
     return true;
   end if;
   if coalesce(v_user, '') = '' or coalesce(p_requester, '') = '' then

@@ -144,7 +144,7 @@ function isRows(value: unknown): boolean {
   if (!isRecord(value)) {
     return false;
   }
-  const { memberships, roles, customRoles } = value;
+  const { memberships, roles, customRoles, version } = value;
   return (
     Array.isArray(memberships) &&
     memberships.every(isMembershipRows) &&
@@ -158,7 +158,12 @@ function isRows(value: unknown): boolean {
     (customRoles === undefined ||
       (isRecord(customRoles) &&
         isText(customRoles["permissions"]) &&
-        isText(customRoles["includes"])))
+        isText(customRoles["includes"]))) &&
+    (version === undefined ||
+      (isRecord(version) &&
+        isText(version["table"]) &&
+        isText(version["user"]) &&
+        isText(version["version"])))
   );
 }
 

@@ -2,7 +2,11 @@ import { resolve } from "node:path";
 
 import type { Policy } from "../../index.ts";
 import type { CommandResult } from "../core/result.ts";
-import type { PowerSyncFixture } from "../fixtures.ts";
+import type {
+  FollowedRowFixture,
+  PowerSyncFixture,
+  RlsFixture,
+} from "../fixtures.ts";
 import type { SqlConnect } from "../pg.ts";
 import type { PermDockConfig } from "../types.ts";
 import type {
@@ -27,8 +31,10 @@ import { requirePolicy } from "../project/load.ts";
 import { canFixture } from "../rls/verify.ts";
 import { collectGrants } from "../sql/grants.ts";
 import { quoteIdent } from "../sql/quote.ts";
+import { claimWarnings } from "./claims.ts";
 import { localRows } from "./rows.ts";
 import { POSTGRES, powersyncPlan } from "./streams.ts";
+import { verifyClaimsChange } from "./verify-claims.ts";
 import { verifyFollowedRow } from "./verify-followed.ts";
 import { warnedFor } from "./verify-gaps.ts";
 import { powersyncYaml } from "./yaml.ts";
@@ -84,6 +90,8 @@ export function powersyncFiles(
 ): {
   readonly files: readonly PowerSyncFile[];
   readonly warnings: readonly string[];
+  /** PD084: one line per stream that reads a token claim. */
+  readonly claims: readonly string[];
   readonly publication?: string;
 } {
   const plan = powersyncPlan(policy, config);
@@ -108,6 +116,7 @@ export function powersyncFiles(
   return {
     files,
     warnings: plan.warnings,
+    claims: claimWarnings(plan.streams),
     ...(plan.publication === undefined
       ? {}
       : { publication: plan.publication }),
@@ -177,7 +186,7 @@ async function leaks(
 async function synced(
   query: (sql: string, values: unknown[]) => Promise<readonly unknown[]>,
   stream: PowerSyncStream,
-  fixture: PowerSyncFixture,
+  fixture: RlsFixture | FollowedRowFixture,
 ): Promise<boolean | undefined> {
   const value = rowValue(fixture.row, stream.id);
   if (value === undefined) {
@@ -237,6 +246,19 @@ async function verifyStreams(input: {
       }
     }
     for (const fixture of input.fixtures) {
+      if ("after" in fixture) {
+        await verifyClaimsChange({
+          policy: input.policy,
+          config: input.config,
+          customRoles: input.customRoles,
+          plan,
+          fixture,
+          root,
+          query,
+          mismatches,
+        });
+        continue;
+      }
       if ("table" in fixture) {
         await verifyFollowedRow({
           policy: input.policy,
@@ -416,6 +438,7 @@ export async function runPowerSync(input: {
               `add the tables outside public to the powersync publication: ${compiled.publication}`,
             ]),
         ...warnings,
+        ...compiled.claims.map((line) => `PD084: ${line}`),
       ].join("\n"),
     };
   }
@@ -423,7 +446,10 @@ export async function runPowerSync(input: {
     (file) =>
       `${file.path} ${file.missing ? "is missing" : "differs from the policy"}: run permdock powersync generate`,
   );
-  const notes: string[] = [...warnings];
+  const notes: string[] = [
+    ...warnings,
+    ...compiled.claims.map((line) => `PD084: ${line}`),
+  ];
   if (input.db !== undefined) {
     try {
       const fixturesPath =

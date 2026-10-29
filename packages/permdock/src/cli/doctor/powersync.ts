@@ -81,3 +81,34 @@ export async function pd058(
   }));
   return [...stale, ...gaps];
 }
+
+/**
+ * PD084: a synced stream reads a token claim. PowerSync keeps the claims a
+ * connection started with, so after a role or tenant change the device syncs by
+ * the old claims until the app refreshes the session and reconnects.
+ */
+export async function pd084(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
+  const { config } = input;
+  if (config.powersync === undefined || config.policy === undefined) {
+    return [];
+  }
+  const policy = await policyOf(input);
+  if (policy === undefined) {
+    return [];
+  }
+  let claims: readonly string[];
+  try {
+    ({ claims } = powersyncFiles(policy, config));
+  } catch {
+    // PD058 reports a policy that does not compile.
+    return [];
+  }
+  return claims.map((message): DoctorFinding => ({
+    code: "PD084",
+    severity: "warning",
+    message,
+    fix: "pass nativeRefresh from permdock/react-native to refreshOn, which refreshes the session and reconnects PowerSync on each authz:<uid> message",
+  }));
+}

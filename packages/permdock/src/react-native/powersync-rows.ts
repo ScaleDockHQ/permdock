@@ -28,7 +28,8 @@ function isColumns(
   return Array.isArray(roles);
 }
 
-function quoted(name: string): string {
+/** A SQLite identifier in double quotes. */
+export function quoted(name: string): string {
   return `"${name.replaceAll('"', '""')}"`;
 }
 
@@ -61,6 +62,9 @@ export function rowTables(rows: LocalSnapshotRows): readonly string[] {
   if (rows.customRoles !== undefined) {
     tables.add(rows.customRoles.permissions);
     tables.add(rows.customRoles.includes);
+  }
+  if (rows.version !== undefined) {
+    tables.add(rows.version.table);
   }
   return [...tables];
 }
@@ -253,8 +257,35 @@ function customRolesOf(
 }
 
 /**
- * The user's memberships, global roles and custom roles from the rows of the
- * tables `rows` names.
+ * The highest version on the user's rows of the version table. SQLite returns a
+ * `bigint` column as a number, or as text past 2^53.
+ */
+function versionOf(
+  table: LocalSnapshotRows["version"],
+  tables: Tables,
+  user: string,
+): number | undefined {
+  if (table === undefined) {
+    return undefined;
+  }
+  let found: number | undefined;
+  for (const row of rowsOf(tables, table.table)) {
+    const value = Number(text(row[table.version]));
+    if (
+      text(row[table.user]) === user &&
+      Number.isSafeInteger(value) &&
+      value >= 0 &&
+      (found === undefined || value > found)
+    ) {
+      found = value;
+    }
+  }
+  return found;
+}
+
+/**
+ * The user's memberships, global roles, custom roles and authorization version
+ * from the rows of the tables `rows` names.
  */
 export function readRows(
   rows: LocalSnapshotRows,
@@ -278,7 +309,9 @@ export function readRows(
             : [],
         );
   const custom = rows.customRoles;
+  const authzVersion = versionOf(rows.version, tables, user);
   return {
+    ...(authzVersion === undefined ? {} : { authzVersion }),
     principal: {
       id: user,
       roles: [...new Set(roles)].toSorted(),

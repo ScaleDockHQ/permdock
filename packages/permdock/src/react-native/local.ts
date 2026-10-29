@@ -53,6 +53,11 @@ export type LocalSnapshotData = {
   } | null;
   /** The tenant's custom roles, in the shape a `CustomRoleSource` returns. */
   readonly customRoles?: readonly CustomRole[];
+  /**
+   * The user's synced authorization version, set as `Snapshot.authzVersion`.
+   * Anything but a non-negative safe integer is ignored.
+   */
+  readonly authzVersion?: number;
 };
 
 export type LocalSnapshotOptions = {
@@ -438,6 +443,11 @@ export function buildLocalSnapshot(
             ],
       scopes: manifest.scopes,
       vocabulary: manifest.vocabulary,
+      authzVersion:
+        Number.isSafeInteger(data.authzVersion) &&
+        (data.authzVersion ?? -1) >= 0
+          ? data.authzVersion
+          : undefined,
     }),
   );
 }

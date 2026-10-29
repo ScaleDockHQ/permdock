@@ -43,6 +43,18 @@ export type NextPermDockOptions<TUser = NextSubjectInput> = InstanceOptions & {
    * those checks are denied with reason `server-only`.
    */
   readonly endpoint?: string | false;
+  /**
+   * The principal's authorization version this request already read, such as
+   * `bsb.bootstrap()`'s `authzVersion`. Called once per request; a read-intent
+   * instance takes it as `version: { known }` and skips the version read. A
+   * write-intent instance, `protectAction` included, reads the version live.
+   * Anything but a non-negative integer, or a throw, reads it as usual.
+   */
+  readonly version?: () =>
+    | number
+    | null
+    | undefined
+    | Promise<number | null | undefined>;
 };
 
 export type GetPermDockQuery = {
@@ -54,6 +66,11 @@ export type GetPermDockQuery = {
    * version live.
    */
   readonly intent?: Intent;
+  /**
+   * The known authorization version for this call, in place of the `version`
+   * option. Read intent only.
+   */
+  readonly version?: number;
 };
 
 export type GetSnapshotQuery = GetPermDockQuery & {

@@ -1,4 +1,5 @@
 import type { InstanceCache, InstanceCacheKey } from "./instance-cache.ts";
+import type { CustomRoleSourceFactory } from "./interfaces.ts";
 import type { PermDockOptions } from "./permdock.ts";
 import type { Principal } from "./subject.ts";
 
@@ -13,7 +14,6 @@ type SubjectMapper = { readonly subject: (user: never) => Principal | null };
 /** Options that shape an instance by value; the rest by identity. */
 const DATA_KEYS: ReadonlySet<string> = new Set([
   "tenant",
-  "intent",
   "actor",
   "delegation",
   "session",
@@ -82,13 +82,13 @@ async function cacheKey(
   if (!isVersion(version)) {
     return undefined;
   }
-  const data: Record<string, unknown> = {};
+  const data: Record<string, unknown> = { intent };
   const owners: unknown[] = [policy];
   for (const name of Object.keys(options).toSorted()) {
     const value: unknown = Reflect.get(options, name);
     if (DATA_KEYS.has(name)) {
       data[name] = value;
-    } else if (name !== "version") {
+    } else if (name !== "version" && name !== "intent") {
       owners.push(value);
     }
   }
@@ -105,6 +105,19 @@ async function cacheKey(
   };
 }
 
+function cachedFactory(
+  factory: CustomRoleSourceFactory,
+  instances: InstanceCache,
+): CustomRoleSourceFactory {
+  return (subject) => {
+    const source = factory(subject);
+    const principal = subject.principal?.id;
+    return source === undefined || principal === undefined
+      ? source
+      : instances.customRoles(source, { owner: factory, principal });
+  };
+}
+
 function cachedSources(
   options: PermDockOptions,
   instances: InstanceCache,
@@ -112,9 +125,14 @@ function cachedSources(
   const { customRoles, entitlements } = options;
   return {
     ...options,
-    ...(customRoles === undefined || typeof customRoles === "function"
+    ...(customRoles === undefined
       ? {}
-      : { customRoles: instances.customRoles(customRoles) }),
+      : {
+          customRoles:
+            typeof customRoles === "function"
+              ? cachedFactory(customRoles, instances)
+              : instances.customRoles(customRoles),
+        }),
     ...(entitlements === undefined
       ? {}
       : { entitlements: instances.entitlements(entitlements) }),
@@ -124,7 +142,8 @@ function cachedSources(
 /**
  * `create` through `instances`: a subject whose authorization version is known
  * gets the instance built for it at that version, with the cache's custom-role
- * and entitlement memos; any other subject gets a new one.
+ * and entitlement memos; a custom-role factory's answers are kept per factory
+ * and principal. Any other subject gets a new one.
  */
 export async function cachedInstance<T>(
   policy: SubjectMapper,

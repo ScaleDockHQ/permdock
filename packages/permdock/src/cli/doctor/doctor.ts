@@ -32,7 +32,7 @@ import { pd044, pd065 } from "./next.ts";
 import { pd080, pd081 } from "./per-request.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
 import { pd083 } from "./postgrest.ts";
-import { pd058 } from "./powersync.ts";
+import { pd058, pd084 } from "./powersync.ts";
 import { pd005, pd006, pd009, pd012, pd022, pd028, pd040 } from "./project.ts";
 import {
   pd016,
@@ -361,6 +361,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: (project) => pd066(project.cwd, project.config, project.files),
   },
   { code: "PD058", groups: ["powersync"], run: pd058 },
+  { code: "PD084", groups: ["powersync", "react-native"], run: pd084 },
   {
     code: "PD061",
     groups: ["rls", "suspension"],

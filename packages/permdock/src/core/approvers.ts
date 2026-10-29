@@ -103,7 +103,7 @@ export function user(id: string): UserApprover {
 }
 
 /** The most `manager({ levels })` walks up the chain. */
-const MAX_MANAGER_LEVELS = 8;
+export const MAX_MANAGER_LEVELS = 8;
 
 /**
  * Approves when the approver manages the requester, directly or within `levels`

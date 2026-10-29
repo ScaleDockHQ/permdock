@@ -16,20 +16,26 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
 import type { ProviderApprovers } from "./approvers.ts";
+import type { PermDockFor } from "./permdock-for.ts";
 import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 import type { SubscriberPolicyEvent } from "./subscribers.ts";
 import type { SupportPolicyOptions } from "./support.ts";
 
+import { managerKeys } from "../approvals/relations.ts";
 import { asApprover } from "../core/approval-normalize.ts";
-import { flattenApprovers } from "../core/approvers.ts";
-import { isRecord } from "../core/compact.ts";
+import {
+  approverLeaves,
+  approverManagerKey,
+  flattenApprovers,
+} from "../core/approvers.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { scopesReaching } from "../core/oauth-scopes.ts";
 import {
   findPermission,
   listPermissions,
 } from "../core/permission-registry.ts";
 import { snapshotTag } from "../core/snapshot-cache.ts";
-import { permdockFor } from "./permdock-for.ts";
+import { resolverOf } from "./permdock-for.ts";
 import { subscriberPolicy } from "./subscribers.ts";
 import { supportPolicy } from "./support.ts";
 
@@ -42,6 +48,13 @@ const PERMISSION_CAP_CLAIM = "bsb_permission_cap";
 
 export type AuthorizationHooksOptions = {
   readonly policy: Policy;
+  /**
+   * The app's `permdockFor` resolver, shared with `authorizer({ permdockFor })`
+   * so a hook reuses the instances the checks built. It holds `subject`,
+   * `memberships`, `version`, `versions`, `instances` and `options`; passing
+   * one of those as well throws a `TypeError`.
+   */
+  readonly permdockFor?: PermDockFor;
   /**
    * The claims better-supabase mints for `userId` now, or `null` for a user
    * deleted, suspended or unknown: the same loader `principalSource` takes.
@@ -113,13 +126,14 @@ function grants(permdock: PermDock, key: string): boolean {
 }
 
 /**
- * A list matches when every entry does, `anyOf` when one does; other leaves
- * match nobody, as in SQL.
+ * A list matches when every entry does, `anyOf` when one does; `manager` when
+ * its key is in `managed`; other leaves match nobody, as in SQL.
  */
 function matches(
   approvers: Approver | readonly Approver[],
   userId: string,
   permdock: PermDock,
+  managed: ReadonlySet<string>,
 ): boolean {
   const items = flattenApprovers(approvers);
   return (
@@ -131,13 +145,16 @@ function matches(
         case "permission":
           return grants(permdock, item.permission);
         case "any-of":
-          return item.of.some((entry) => matches(entry, userId, permdock));
+          return item.of.some((entry) =>
+            matches(entry, userId, permdock, managed),
+          );
+        case "manager":
+          return managed.has(approverManagerKey(item));
         case "actor":
         case "anyone":
         case "assurance":
         case "authenticated":
         case "inherit":
-        case "manager":
         case "plan":
         case "relation":
         case "role":
@@ -167,12 +184,15 @@ export function authorizationHooks(
   options: AuthorizationHooksOptions,
 ): AuthorizationHooks {
   const { policy } = options;
-  const resolve = permdockFor(options);
+  const resolve = resolverOf(options, "authorizationHooks");
   const instance = async (
     claims: Claims,
     tenant: string | null | undefined,
   ): Promise<PermDock | null> => {
-    const permdock = await resolve({ kind: "user", claims }, tenant);
+    const permdock = await resolve(
+      { kind: "user", claims },
+      { tenant: tenant ?? null },
+    );
     if (permdock.subject.principal === null) return null;
     return tenant === null ||
       tenant === undefined ||
@@ -266,10 +286,18 @@ export function authorizationHooks(
               return false;
             }
             const permdock = await instance(approver.claims, request.tenant);
-            return (
-              permdock !== null &&
-              matches(asApprover(given), approver.userId, permdock)
-            );
+            if (permdock === null) return false;
+            const wanted = asApprover(given);
+            const managed =
+              request.requester === undefined
+                ? []
+                : await managerKeys(
+                    approverLeaves(wanted),
+                    request.requester,
+                    approver.userId,
+                    compact({ relations: resolve.sources().relations }),
+                  );
+            return matches(wanted, approver.userId, permdock, new Set(managed));
           } catch {
             return false;
           }
