@@ -1,7 +1,7 @@
 import type { Leaf } from "../core/command.ts";
 
 import { defineLeaf } from "../core/command.ts";
-import { failOnFlag } from "../core/flags.ts";
+import { dbUrl, dbUrlFlags, failOnFlag } from "../core/flags.ts";
 import { ask, CANCELLED } from "../core/prompt.ts";
 
 export const doctor: Leaf = defineLeaf({
@@ -27,8 +27,10 @@ export const doctor: Leaf = defineLeaf({
       description: "Apply safe fixes: install skills, regenerate the catalog",
     },
     ...failOnFlag,
+    ...dbUrlFlags,
   },
   async run(ctx, { flags }) {
+    const db = await dbUrl(ctx, flags);
     let fix = flags.fix;
     if (fix && ctx.interactive && !ctx.yes) {
       const answer = await ask(
@@ -50,6 +52,7 @@ export const doctor: Leaf = defineLeaf({
       color: ctx.color,
       now: ctx.now,
       io: ctx.io,
+      ...(db === undefined ? {} : { db }),
     });
   },
 });

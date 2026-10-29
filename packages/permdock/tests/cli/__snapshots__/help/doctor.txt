@@ -6,6 +6,7 @@ Flags
   --only <code>              Check codes or groups to run (repeatable)
   --fix                      Apply safe fixes: install skills, regenerate the catalog
   --fail-on <error|warning>  Lowest finding severity that exits 1 (default error)
+  --db-url-stdin             Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
 
 Global flags
   --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
@@ -14,6 +15,7 @@ Examples
   permdock doctor
   permdock doctor --only imports,references
   permdock doctor --format github
+  permdock doctor --only PD085 --db-url-stdin
 
-Side effects  files
+Side effects  files, database:read
 Docs  https://permdock.com/docs/cli/doctor

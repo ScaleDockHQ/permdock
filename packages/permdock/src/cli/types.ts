@@ -890,6 +890,15 @@ export type SupabaseHookConfig = {
    * grants to it. Pass the same setting to `postgrestSources`.
    */
   readonly api?: { readonly schema?: string; readonly prefix?: string };
+  /**
+   * Whose rights the hook reads with. `'invoker'` (default) runs as
+   * `supabase_auth_admin`, so the hook grants it `select` and a read policy on
+   * every table it reads. `'definer'` runs as the owner of the migration
+   * (`postgres` on Supabase) and grants `supabase_auth_admin` only `execute`;
+   * the owner must be able to read every table. `permdock doctor
+   * --db-url-stdin` runs the hook as `supabase_auth_admin` either way (PD085).
+   */
+  readonly security?: "invoker" | "definer";
   /** The `jwt_expiry` the printed `config.toml` block sets. Default 900. */
   readonly jwtExpiry?: number;
   /** Suspended users get empty claims. Default `rls.suspension`. */
