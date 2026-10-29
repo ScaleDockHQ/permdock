@@ -45,9 +45,9 @@ export type ApiKeySessionOptions = {
 
 /**
  * The fields of better-supabase's `SessionSnapshot` a subject reads: one
- * verified token, from `bsb.getClaims()`, that `'use cache: private'` scopes
- * share. Its `issuedAt` and `authzVersion` come from the `iat` and `authz_ver`
- * claims.
+ * verified token, from `bsb.getClaims()` in Next.js, where `'use cache:
+ * private'` scopes share it, or from `server.snapshot(request)` elsewhere. Its
+ * `issuedAt` and `authzVersion` come from the `iat` and `authz_ver` claims.
  */
 export type SessionSnapshotLike = {
   readonly accessToken: string;
