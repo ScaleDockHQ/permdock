@@ -13,9 +13,9 @@ import type { Approver } from "../core/approvers.ts";
 import type { ApprovalOption } from "../core/policy-types.ts";
 
 import { parseApprovalRequest } from "../approvals/parse-request.ts";
+import { decisionTenant } from "../core/approval-state.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { rootMembershipId } from "../core/scopes.ts";
 import { isoAt } from "../core/time.ts";
 
 /** better-supabase's `AsyncResult`: awaiting it gives `{ ok, data, error }`. */
@@ -225,10 +225,7 @@ function matchesQuery(
     (query.actorId === undefined ||
       request.subject.actor?.id === query.actorId) &&
     (query.tenant === undefined ||
-      ((request.membership === undefined
-        ? undefined
-        : rootMembershipId(request.membership)) ??
-        request.subject.principal?.tenant) === query.tenant) &&
+      decisionTenant(request.subject, request.membership) === query.tenant) &&
     (query.session === undefined || request.subject.session === query.session)
   );
 }

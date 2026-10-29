@@ -68,12 +68,22 @@ function langOf(file: string): "js" | "jsx" | "ts" | "tsx" {
 }
 
 /**
- * The end of `property` plus the comma and whitespace after it, so removing the
- * span leaves the object well formed.
+ * The span of `property` with the comma after it, or the comma before it when
+ * it is the last property, so removing the span leaves the object well formed.
  */
-function withTrailingComma(source: string, property: ObjectProperty): number {
-  const match = /^\s*,\s*/u.exec(source.slice(property.end));
-  return property.end + (match?.[0].length ?? 0);
+function withComma(
+  source: string,
+  property: ObjectProperty,
+): { readonly start: number; readonly end: number } {
+  const after = /^\s*,\s*/u.exec(source.slice(property.end));
+  if (after !== null) {
+    return { start: property.start, end: property.end + after[0].length };
+  }
+  const before = /,\s*$/u.exec(source.slice(0, property.start));
+  return {
+    start: property.start - (before?.[0].length ?? 0),
+    end: property.end,
+  };
 }
 
 /**
@@ -181,11 +191,7 @@ export function rewriteLiterals017(
       });
       change(distinct.start, text(distinct), 'mode: "confirm"');
     } else if (literal.type === "Literal" && literal.value === true) {
-      edits.push({
-        start: distinct.start,
-        end: withTrailingComma(source, distinct),
-        text: "",
-      });
+      edits.push({ ...withComma(source, distinct), text: "" });
       change(
         distinct.start,
         text(distinct),

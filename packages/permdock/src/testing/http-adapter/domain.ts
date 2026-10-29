@@ -238,7 +238,8 @@ export function createDomain(): HttpScenarioDomain & Demotions {
     return {
       ...principal,
       memberships: (principal.memberships ?? []).filter((membership) => {
-        const tenant = rootMembershipId(membership);
+        const tenant =
+          membership.within?.["tenant"] ?? rootMembershipId(membership);
         return tenant === undefined || !demoted.has(demotionKey(sub, tenant));
       }),
     };

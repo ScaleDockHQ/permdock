@@ -13,7 +13,7 @@ export const APPROVAL_POLICY_UNAVAILABLE = "approval-policy-unavailable";
  * active tenant.
  */
 export function decisionTenant(
-  subject: Subject,
+  subject: Pick<Subject, "principal">,
   membership: Parameters<typeof rootMembershipId>[0] | undefined,
 ): string | undefined {
   return (

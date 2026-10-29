@@ -53,6 +53,32 @@ type M = ApprovalMode;
     ]);
   });
 
+  it("reads quoted keys, team-only and shorthand memberships in every file kind", () => {
+    const input = `const a = { "tenant": "acme", roles: [] };
+const b = { team: "t1", roles: [] };
+const c = { tenant, team: "t1", roles: [] };
+const d = { [key]: "acme", roles: [] };
+const e = { 1: "x", tenant: "acme", roles: [] };
+allow(p.pay, { approval: { by: role("cfo"), mode: modeOf(), distinct: true } });
+type N = ns.ApprovalMode;
+`;
+    const expected = `const a = { scope: "tenant", id: "acme", roles: [] };
+const b = { scope: "team", id: "t1", roles: [] };
+const c = { within: { tenant }, scope: "team", id: "t1", roles: [] };
+const d = { [key]: "acme", roles: [] };
+const e = { 1: "x", tenant: "acme", roles: [] };
+allow(p.pay, { approval: { by: role("cfo"), mode: modeOf() } });
+type N = ns.ApprovalMode;
+`;
+    const result = rewriteLiterals017("d.tsx", input);
+    expect(result.source).toBe(expected);
+    expect(result.followUps).toStrictEqual([]);
+    const plain = input.replace("type N = ns.ApprovalMode;\n", "");
+    for (const file of ["e.jsx", "f.js", "g.mts"]) {
+      expect(rewriteLiterals017(file, plain).changes).toHaveLength(5);
+    }
+  });
+
   it("leaves a file it cannot parse as it is", () => {
     const input = "const = {";
     expect(rewriteLiterals017("c.ts", input).source).toBe(input);
