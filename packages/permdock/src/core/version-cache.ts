@@ -28,14 +28,20 @@ export type VersionCache = {
   readonly maxStaleMs: number;
   /**
    * The current version of `principal`. With `live: false`, an entry at most
-   * `maxStaleMs` old answers, a read in flight is shared, and a token claim
-   * newer than the entry raises it; with `live: true`, `read` runs.
+   * `maxStaleMs` old answers and a read in flight is shared; with `live: true`,
+   * `read` runs.
    */
   current: (
     principal: VersionQuery,
     read: () => number | undefined | Promise<number | undefined>,
     options: { readonly live: boolean },
   ) => number | undefined | Promise<number | undefined>;
+  /**
+   * Stores a version read at `at` (default now): `bsb.bootstrap()`'s
+   * `authz_ver`, or a token claim dated by its `iat`. A seed never lowers a
+   * cached version, and one dated in the future is ignored.
+   */
+  seed: (principal: string, version: number, at?: Instant) => void;
   /** Drops `principal`'s entry, so the next instance reads the version. */
   evict: (principal: string) => void;
   stats: () => VersionCacheStats;
@@ -85,29 +91,6 @@ export function memoryVersionCache(
       }
     }
   };
-  const observe = (principal: VersionQuery, at: number): void => {
-    const claimed = principal.authzVersion;
-    if (typeof claimed !== "number") {
-      return;
-    }
-    const issued =
-      typeof principal.issuedAt === "number"
-        ? principal.issuedAt * 1000
-        : undefined;
-    const entry = entries.get(principal.id);
-    if (entry === undefined) {
-      if (issued !== undefined && issued <= at && at - issued <= maxStaleMs) {
-        store(principal.id, { version: claimed, at: issued });
-      }
-      return;
-    }
-    if (claimed > entry.version) {
-      store(principal.id, {
-        version: claimed,
-        at: issued === undefined ? entry.at : Math.max(entry.at, issued),
-      });
-    }
-  };
   const start = (
     id: string,
     read: () => number | undefined | Promise<number | undefined>,
@@ -148,7 +131,6 @@ export function memoryVersionCache(
       if (live) {
         return start(principal.id, read, at);
       }
-      observe(principal, at);
       const entry = entries.get(principal.id);
       if (entry !== undefined && at - entry.at <= maxStaleMs) {
         counts.hits += 1;
@@ -161,6 +143,29 @@ export function memoryVersionCache(
         return pending;
       }
       return start(principal.id, read, at);
+    },
+    seed(principal, version, at) {
+      if (!Number.isFinite(version)) {
+        return;
+      }
+      const current = now();
+      const dated = at === undefined ? current : nowMillis(at);
+      if (dated > current) {
+        return;
+      }
+      const entry = entries.get(principal);
+      if (entry === undefined) {
+        if (current - dated <= maxStaleMs) {
+          store(principal, { version, at: dated });
+        }
+        return;
+      }
+      if (
+        version > entry.version ||
+        (version === entry.version && dated > entry.at)
+      ) {
+        store(principal, { version, at: Math.max(entry.at, dated) });
+      }
     },
     evict(principal) {
       counts.evictions += 1;

@@ -4,6 +4,7 @@ import type { ExtraClaim } from "./claims.ts";
 import type { Parts } from "./parts.ts";
 
 import { rootScope } from "../../core/scopes.ts";
+import { AUTHZ_TOPIC } from "../../supabase/authz-topic.ts";
 import {
   AUTHZ_VERSION_TABLE,
   PERMDOCK_SCHEMA,
@@ -422,6 +423,13 @@ export function hookParts(
       "budget",
     ),
     version: hook.version !== false,
+    broadcast:
+      hook.version === false || hook.broadcast === false
+        ? undefined
+        : {
+            topic: hook.broadcast?.topic ?? AUTHZ_TOPIC,
+            receivePolicy: hook.broadcast?.receivePolicy ?? true,
+          },
     jwtExpiry: positiveInteger(hook.jwtExpiry ?? 900, "jwtExpiry"),
     tenantClaim,
     users: suspension?.users,

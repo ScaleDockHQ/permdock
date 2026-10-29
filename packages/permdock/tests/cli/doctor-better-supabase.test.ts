@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { pd078, pd079 } from "../../src/cli/doctor/better-supabase.ts";
+import { pd078, pd079, pd082 } from "../../src/cli/doctor/better-supabase.ts";
+import { betterSupabaseDefaults } from "../../src/cli/project/better-supabase.ts";
 import { loadConfig } from "../../src/cli/project/config.ts";
 import { supabaseHookSql } from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { tableMembershipSource } from "../../src/supabase/index.ts";
@@ -362,6 +363,65 @@ describe("doctor better-supabase", () => {
         },
       );
       expect(await pd079({ cwd: badCatalog, config })).toStrictEqual([]);
+    });
+  });
+
+  describe("PD082", () => {
+    it("warns when better-supabase's sessions block keeps a second version table", async () => {
+      const cwd = policyProject(
+        { policy: POLICY },
+        {
+          "better-supabase.config.mjs": betterSupabaseConfig({
+            sessions: { authzVersions: true },
+          }),
+        },
+      );
+      expect(await pd082({ cwd, config: hookConfig() })).toStrictEqual([
+        expect.objectContaining({ code: "PD082", severity: "warning" }),
+      ]);
+    });
+
+    it("reports nothing without the sessions option or without PermDock's version", async () => {
+      const off = policyProject(
+        { policy: POLICY },
+        {
+          "better-supabase.config.mjs": betterSupabaseConfig({ sessions: {} }),
+        },
+      );
+      expect(await pd082({ cwd: off, config: hookConfig() })).toStrictEqual([]);
+      const on = policyProject(
+        { policy: POLICY },
+        {
+          "better-supabase.config.mjs": betterSupabaseConfig({
+            sessions: { options: { authzVersions: true } },
+          }),
+        },
+      );
+      const hook = hookConfig();
+      const noVersion: PermDockConfig = {
+        ...hook,
+        supabase: {
+          hook: {
+            memberships: hook.supabase?.hook?.memberships ?? [],
+            version: false,
+          },
+        },
+      };
+      expect(await pd082({ cwd: on, config: noVersion })).toStrictEqual([]);
+    });
+  });
+
+  describe(betterSupabaseDefaults, () => {
+    it("broadcasts on better-supabase's topic and leaves the receive policy to its sessions block", () => {
+      const hook = hookConfig();
+      expect(
+        betterSupabaseDefaults(hook, { blocks: {} }).supabase?.hook?.broadcast,
+      ).toStrictEqual({ topic: "better_supabase:authz", receivePolicy: true });
+      expect(
+        betterSupabaseDefaults(hook, {
+          blocks: { sessions: { authzVersions: true } },
+        }).supabase?.hook?.broadcast,
+      ).toStrictEqual({ topic: "better_supabase:authz", receivePolicy: false });
     });
   });
 });

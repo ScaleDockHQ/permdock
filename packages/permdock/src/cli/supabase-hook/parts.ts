@@ -16,6 +16,10 @@ export type Parts = {
   readonly sources: readonly SqlMembershipSource[];
   readonly budget: number;
   readonly version: boolean;
+  /** The version bump broadcast; `undefined` sends nothing. */
+  readonly broadcast:
+    | { readonly topic: string; readonly receivePolicy: boolean }
+    | undefined;
   readonly jwtExpiry: number;
   readonly tenantClaim: string;
   readonly users: RlsActiveRow | undefined;

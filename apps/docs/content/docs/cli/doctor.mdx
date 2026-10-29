@@ -115,6 +115,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD077` | A config key or value names a scope, resource or action the policy does not declare, such as a Realtime topic `{organisation}` placeholder; or two of them give one SQL helper name                                                                                                                        | error           |
 | `PD078` | better-supabase's `blocks.permissions.activeTenant` writes the active tenant to another place than `supabase.hook.activeFrom` reads it                                                                                                                                                                     | warning         |
 | `PD079` | A permission key a configured better-supabase block checks is not in the catalog                                                                                                                                                                                                                           | warning         |
+| `PD082` | `supabase.hook` keeps `permdock_authz_version` while better-supabase's `blocks.sessions.authzVersions` keeps a second version table                                                                                                                                                                        | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -495,6 +496,16 @@ warning PD079  notifications.send (blocks.notifications.permissions.send) is not
 ```
 
 Declare the key in the policy and run `permdock collect`, or map the block action to a key the catalog lists. `--only catalog` (or `--only better-supabase`) runs PD079.
+
+### PD082: two authorization version tables
+
+better-supabase's `blocks.sessions.authzVersions` writes `better_supabase.user_authz_versions` with its own bump trigger, while PermDock's hook keeps `permdock_authz_version` and writes `authz_ver` from it. The two tables bump on different triggers, and only PermDock's reaches the claim:
+
+```txt
+warning PD082  supabase.hook keeps permdock_authz_version and better-supabase's blocks.sessions.authzVersions keeps user_authz_versions: two version tables bump on different triggers, and only PermDock's reaches the authz_ver claim
+```
+
+Turn `blocks.sessions.authzVersions` off. PermDock's trigger broadcasts each bump as `{ user_id, version }` with event `changed` on `better_supabase:authz` and `authz:<uid>`, the topics better-supabase's `subscribeAuthzVersions` and `SessionProvider` read ([supabase hook](/docs/adapters/supabase-hook)). `--only supabase` (or `--only better-supabase`) runs PD082.
 
 ## Side effects
 

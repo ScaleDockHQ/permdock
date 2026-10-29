@@ -188,6 +188,7 @@ function assemblePrincipal(
               compact({ id: principal.id, kind: principal.kind }),
               { memo },
             ) ?? [],
+      options.version?.known,
     );
     memberships = reread.memberships;
     stale = reread.stale;
@@ -487,6 +488,7 @@ function resolveAssembled(
       stale: assembled.stale,
       issuedAt: assembled.issuedAt,
       context: { memo, intent: options.intent ?? "write" },
+      known: options.version?.known,
     },
     auth,
   );

@@ -251,6 +251,95 @@ describe(memoryVersionCache, () => {
     expect(versions.stats().size).toBe(0);
   });
 
+  it("answers a read from a seeded version without calling the source", async () => {
+    const { state, source } = database({ version: 3, memberships: [member] });
+    const versions = memoryVersionCache({ maxStaleMs: 5000 });
+    const memberships = claimsFirst(source, { onStale: "reread", versions });
+    versions.seed("u1", 3);
+    const reader = await getPermDock(policy, token(3), {
+      memberships,
+      intent: "read",
+    });
+    expect(state.versionReads).toBe(0);
+    expect(reader.can(permissions.doc.read, row)).toBe(true);
+  });
+
+  it("never lowers a version and ignores a seed dated in the future", async () => {
+    const { now } = clock(START);
+    const versions = memoryVersionCache({ maxStaleMs: 5000, now });
+    const read = () => 1;
+    versions.seed("u1", 5);
+    versions.seed("u1", 2);
+    expect(await versions.current({ id: "u1" }, read, { live: false })).toBe(5);
+    versions.seed("u2", 7, { epochMilliseconds: START + 1000 });
+    expect(versions.stats().size).toBe(1);
+  });
+
+  it("rereads memberships for a token behind a seeded version", async () => {
+    const { state, source } = database({ version: 4, memberships: [] });
+    const versions = memoryVersionCache({ maxStaleMs: 5000 });
+    const memberships = claimsFirst(source, { onStale: "reread", versions });
+    versions.seed("u1", 4);
+    const reader = await getPermDock(policy, token(3), {
+      memberships,
+      intent: "read",
+    });
+    expect(state.versionReads).toBe(0);
+    expect(state.membershipReads).toBe(1);
+    expect(reader.can(permissions.doc.read, row)).toBe(false);
+  });
+});
+
+describe("version: { known }", () => {
+  it("skips the version read for a write and keeps a fresh token's claims", async () => {
+    const { state, source } = database({ version: 3, memberships: [] });
+    const memberships = claimsFirst(source, { onStale: "reread" });
+    const writer = await getPermDock(policy, token(3), {
+      memberships,
+      version: { known: 3 },
+    });
+    expect(state.versionReads).toBe(0);
+    expect(state.membershipReads).toBe(0);
+    expect(writer.can(permissions.doc.update, row)).toBe(true);
+  });
+
+  it("rereads a token behind the known version", async () => {
+    const { state, source } = database({ version: 4, memberships: [] });
+    const memberships = claimsFirst(source, { onStale: "reread" });
+    const writer = await getPermDock(policy, token(3), {
+      memberships,
+      version: { known: 4 },
+    });
+    expect(state.versionReads).toBe(0);
+    expect(state.membershipReads).toBe(1);
+    expect(writer.can(permissions.doc.update, row)).toBe(false);
+  });
+
+  it.each([Number.NaN, -1, 1.5])(
+    "reads the source when known is %s",
+    async (known) => {
+      const { state, source } = database({ version: 3, memberships: [member] });
+      const memberships = claimsFirst(source, { onStale: "reread" });
+      await getPermDock(policy, token(3), { memberships, version: { known } });
+      expect(state.versionReads).toBe(1);
+    },
+  );
+
+  it("judges fresh permissions against the known version", async () => {
+    const { state, source } = database({ version: 3, memberships: [member] });
+    const writer = await getPermDock(policy, token(3), {
+      memberships: claimsFirst(source),
+      version: { known: 4 },
+    });
+    expect(state.versionReads).toBe(0);
+    expect(writer.decide(permissions.doc.update, row)).toMatchObject({
+      outcome: "denied",
+      denials: [{ reason: "stale-credentials" }],
+    });
+  });
+});
+
+describe("memoryVersionCache bounds", () => {
   it("clamps maxStaleMs to a minute", () => {
     expect(memoryVersionCache({ maxStaleMs: 600_000 }).maxStaleMs).toBe(60_000);
     expect(memoryVersionCache({ maxStaleMs: -1 }).maxStaleMs).toBe(0);

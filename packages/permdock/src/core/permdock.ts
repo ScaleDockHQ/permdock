@@ -523,6 +523,12 @@ export type PermDockOptions = {
    * handlers, never for a mutation.
    */
   readonly intent?: Intent;
+  /**
+   * The principal's authorization version this request already read, such as
+   * `bsb.bootstrap()`'s `authz_ver`: the memberships source's `version` is not
+   * called. Anything but a non-negative integer is ignored.
+   */
+  readonly version?: { readonly known: number };
   readonly customRoles?: CustomRoleSource | CustomRoleSourceFactory;
   /**
    * Plans and seats from billing, merged into `principal.plans` for the active

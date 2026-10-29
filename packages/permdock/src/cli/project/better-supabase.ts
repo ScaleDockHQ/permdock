@@ -64,26 +64,54 @@ export function betterSupabaseTenantClaim(
   );
 }
 
-/** Resolve the hook default once for generation, inspection and doctor. */
+/** better-supabase's server topic for authorization version changes. */
+export const BETTER_SUPABASE_AUTHZ_TOPIC = "better_supabase:authz";
+
+/**
+ * Whether better-supabase's sessions block writes its own version table and the
+ * `authz:<uid>` receive policy (`blocks.sessions.authzVersions`).
+ */
+export function betterSupabaseAuthzVersions(
+  betterSupabase: Record<string, unknown>,
+): boolean {
+  const blocks = betterSupabase["blocks"];
+  const sessions = isRecord(blocks) ? blocks["sessions"] : undefined;
+  if (!isRecord(sessions)) return false;
+  const options = sessions["options"];
+  return (
+    sessions["authzVersions"] === true ||
+    (isRecord(options) && options["authzVersions"] === true)
+  );
+}
+
+/** Resolve the hook defaults once for generation, inspection and doctor. */
 export function betterSupabaseDefaults(
   config: PermDockConfig,
   betterSupabase: Record<string, unknown> | undefined,
 ): PermDockConfig {
   const hook = config.supabase?.hook;
-  if (
-    betterSupabase === undefined ||
-    hook === undefined ||
-    hook.activeFrom !== undefined
-  ) {
+  if (betterSupabase === undefined || hook === undefined) {
     return config;
   }
+  const broadcast =
+    hook.broadcast === false
+      ? false
+      : {
+          topic: hook.broadcast?.topic ?? BETTER_SUPABASE_AUTHZ_TOPIC,
+          receivePolicy:
+            hook.broadcast?.receivePolicy ??
+            !betterSupabaseAuthzVersions(betterSupabase),
+        };
   return {
     ...config,
     supabase: {
       ...config.supabase,
       hook: {
         ...hook,
-        activeFrom: `app_metadata.${betterSupabaseTenantClaim(config, betterSupabase)}`,
+        activeFrom:
+          hook.activeFrom ??
+          `app_metadata.${betterSupabaseTenantClaim(config, betterSupabase)}`,
+        broadcast,
       },
     },
   };

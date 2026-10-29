@@ -23,7 +23,7 @@ import {
 } from "../supabase-hook/supabase-hook.ts";
 import { pd039 } from "../supabase-setup.ts";
 import { pd064 } from "./assignments.ts";
-import { pd078, pd079 } from "./better-supabase.ts";
+import { pd078, pd079, pd082 } from "./better-supabase.ts";
 import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd077 } from "./config-names.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
@@ -158,6 +158,12 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: pd078,
   },
   { code: "PD079", groups: ["catalog", "better-supabase"], run: pd079 },
+  {
+    code: "PD082",
+    groups: ["supabase", "better-supabase"],
+    when: (config) => config.supabase?.hook !== undefined,
+    run: pd082,
+  },
   {
     code: "PD005",
     groups: ["skills"],

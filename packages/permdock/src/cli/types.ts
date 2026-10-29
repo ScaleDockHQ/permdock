@@ -844,6 +844,18 @@ export type SupabaseHookConfig = {
    */
   readonly version?: boolean;
   /**
+   * Broadcast every version bump as `{ user_id, version }` with event `changed`
+   * on `topic`, which no user may join, and on the user's own `authz:<uid>`.
+   * `topic` defaults to `better_supabase:authz` in a better-supabase project,
+   * else `permdock:authz`. `receivePolicy` writes the `realtime.messages`
+   * policy that lets a user receive `authz:<uid>`; it defaults to `true`, and
+   * to `false` when better-supabase's `sessions.authzVersions` writes the same
+   * policy. `false` sends nothing.
+   */
+  readonly broadcast?:
+    | false
+    | { readonly topic?: string; readonly receivePolicy?: boolean };
+  /**
    * Write PostgREST wrappers for `subject_for`, `members_of` and
    * `authz_version_for` into `schema` (default `public`), named
    * `<prefix>subject_for` and so on (default prefix `permdock_`), for a backend

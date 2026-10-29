@@ -421,44 +421,17 @@ async function QuotesIsland({ orgId }: { orgId: string }) {
 }
 ```
 
-Other processes learn of a role or membership change through `subscribeAuthzVersions`. A trigger on PermDock's version table sends the user id on a private topic:
+`bsb.bootstrap()` reads `authz_ver` with the app's bootstrap data once per request and seeds `versions` through `AuthzVersionCache.seed`, which PermDock's `VersionCache` implements. A later read in the same process skips the version call; pass the value as `version: { known }` to skip it in the request that read it.
 
-```sql
-create or replace function permdock.permdock_send_authz_version()
-returns trigger
-language plpgsql
-security definer
-set search_path = ''
-as $$
-begin
-  perform realtime.send(
-    jsonb_build_object('user_id', new.user_id),
-    'changed',
-    'authz-versions',
-    true
-  );
-  return null;
-end;
-$$;
-
-create trigger permdock_send_authz_version
-  after insert or update on permdock.permdock_authz_version
-  for each row execute function permdock.permdock_send_authz_version();
-```
+Other processes learn of a role or membership change from the version table's broadcast. In a better-supabase project, `permdock supabase hook generate` sends every bump as `{ user_id, version }` with event `changed` on `better_supabase:authz` and on the user's own `authz:<uid>`, so `subscribeAuthzVersions` and `SessionProvider` read it with their defaults:
 
 ```ts title="src/lib/supabase/server.ts"
 import { subscribeAuthzVersions } from "better-supabase/server";
 
-subscribeAuthzVersions({
-  client: admin,
-  topic: "authz-versions",
-  event: "changed",
-  userIdKey: "user_id",
-  versions,
-});
+subscribeAuthzVersions({ client: admin, versions });
 ```
 
-`admin` is a secret-key client; add no `realtime.messages` policy for `authz-versions`, so no user can join the topic. Subscribe in the module that creates `versions`. `tests/better-supabase/version-cache.test.ts` checks that `evictSession` and `subscribeAuthzVersions` evict a shared cache.
+`admin` is a secret-key client: no `realtime.messages` policy admits `better_supabase:authz`, so no user can join it. Subscribe in the module that creates `versions`. Leave better-supabase's `blocks.sessions.authzVersions` off: it keeps a second version table that never reaches the `authz_ver` claim PermDock writes, and doctor PD082 reports it. `tests/better-supabase/version-cache.test.ts` checks that `evictSession` and `subscribeAuthzVersions` evict a shared cache.
 
 ## Storage and Realtime
 

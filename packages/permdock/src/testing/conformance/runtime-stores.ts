@@ -171,6 +171,17 @@ export function testVersionCache(cache: VersionCache): void {
     expect(calls.count).toBe(1);
   });
 
+  it("answers a read from a seed and never lowers a seeded version", async () => {
+    const { calls, read } = counted(1);
+    const principal = { id: "u-version-seed" };
+    cache.seed(principal.id, 6);
+    cache.seed(principal.id, 5);
+    if (cache.maxStaleMs > 0) {
+      expect(await cache.current(principal, read, { live: false })).toBe(6);
+      expect(calls.count).toBe(0);
+    }
+  });
+
   it("reads again after evict", async () => {
     const { calls, read } = counted(3);
     const principal = { id: "u-version-evict" };

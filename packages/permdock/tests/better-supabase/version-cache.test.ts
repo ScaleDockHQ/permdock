@@ -1,11 +1,18 @@
 import type { AuthzVersionClient } from "better-supabase/server";
 
 import { defineSchema, defineSupabase } from "better-supabase";
-import { createServer, subscribeAuthzVersions } from "better-supabase/server";
+import {
+  AUTHZ_EVENT,
+  AUTHZ_TOPIC,
+  createServer,
+  subscribeAuthzVersions,
+} from "better-supabase/server";
 import { createTestSigner } from "better-supabase/testing";
 import { describe, expect, it } from "vitest";
 
+import { BETTER_SUPABASE_AUTHZ_TOPIC } from "../../src/cli/project/better-supabase.ts";
 import { memoryVersionCache } from "../../src/index.ts";
+import { AUTHZ_EVENT as PERMDOCK_AUTHZ_EVENT } from "../../src/supabase/index.ts";
 
 const USER = "22222222-2222-4222-8222-222222222222";
 const PROJECT_URL = "https://abcdefghijklmnopqrst.supabase.co";
@@ -20,8 +27,10 @@ async function warmCache() {
 /** A Realtime client whose one channel delivers `send`'s payloads. */
 function fakeRealtime() {
   const handlers: ((message: { payload?: unknown }) => void)[] = [];
+  const topics: string[] = [];
   const client: AuthzVersionClient = {
-    channel() {
+    channel(topic: string) {
+      topics.push(topic);
       const channel = {
         on(
           _type: string,
@@ -43,7 +52,7 @@ function fakeRealtime() {
   const send = (payload: unknown): void => {
     for (const handler of handlers) handler({ payload });
   };
-  return { client, send };
+  return { client, send, topics };
 }
 
 describe("one memoryVersionCache shared with better-supabase", () => {
@@ -75,18 +84,21 @@ describe("one memoryVersionCache shared with better-supabase", () => {
     expect(cache.stats()).toMatchObject({ size: 0, evictions: 1 });
   });
 
-  it("is evicted by subscribeAuthzVersions on a Realtime message", async () => {
+  it("names better-supabase's server topic and event", () => {
+    expect(BETTER_SUPABASE_AUTHZ_TOPIC).toBe(AUTHZ_TOPIC);
+    expect(PERMDOCK_AUTHZ_EVENT).toBe(AUTHZ_EVENT);
+  });
+
+  it("is evicted by subscribeAuthzVersions on the topic the generated trigger sends on", async () => {
     const cache = await warmCache();
     const realtime = fakeRealtime();
     const subscription = subscribeAuthzVersions({
       client: realtime.client,
-      topic: "authz-versions",
-      event: "changed",
-      userIdKey: "user_id",
       versions: cache,
     });
     await subscription.ready;
-    realtime.send({ user_id: USER });
+    expect(realtime.topics).toStrictEqual([BETTER_SUPABASE_AUTHZ_TOPIC]);
+    realtime.send({ user_id: USER, version: 2 });
     expect(cache.stats()).toMatchObject({ size: 0, evictions: 1 });
     await subscription.close();
   });

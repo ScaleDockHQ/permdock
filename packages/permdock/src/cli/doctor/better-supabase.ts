@@ -12,6 +12,7 @@ import { rootScope, scopeList } from "../../core/scopes.ts";
 import { catalogPath } from "../catalog-path.ts";
 import { rel } from "../files.ts";
 import {
+  betterSupabaseAuthzVersions,
   betterSupabaseConfig,
   betterSupabaseDefaults,
   betterSupabaseTenantClaim,
@@ -179,4 +180,31 @@ export async function pd079(
     message: `${key} (${[...new Set(uses)].join(", ")}) is not in ${catalog}, so no role holds it and better-supabase's SQL check denies it`,
     fix: `declare ${key} in the policy and run permdock collect, or map the block action to a key the catalog lists`,
   }));
+}
+
+/**
+ * PermDock's hook keeps `permdock_authz_version` and better-supabase's
+ * `sessions.authzVersions` keeps `user_authz_versions`: two tables bump on
+ * different triggers, and only one reaches the `authz_ver` claim.
+ */
+export async function pd082(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
+  const hook = input.config.supabase?.hook;
+  if (hook === undefined || hook.version === false) {
+    return [];
+  }
+  const config = await betterSupabaseConfig(input);
+  if (config === undefined || !betterSupabaseAuthzVersions(config)) {
+    return [];
+  }
+  return [
+    {
+      code: "PD082",
+      severity: "warning",
+      message:
+        "supabase.hook keeps permdock_authz_version and better-supabase's blocks.sessions.authzVersions keeps user_authz_versions: two version tables bump on different triggers, and only PermDock's reaches the authz_ver claim",
+      fix: "turn blocks.sessions.authzVersions off; PermDock's trigger broadcasts on better_supabase:authz and authz:<uid>, which better-supabase's subscribeAuthzVersions and SessionProvider read",
+    },
+  ];
 }

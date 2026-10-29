@@ -307,6 +307,7 @@ describe(authorizer, () => {
           live.push(options.live);
           return read();
         },
+        seed: () => undefined,
         evict: () => undefined,
         stats: () => ({ reads: 0, shared: 0, hits: 0, evictions: 0, size: 0 }),
       };

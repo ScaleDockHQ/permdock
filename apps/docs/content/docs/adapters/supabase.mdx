@@ -535,44 +535,32 @@ Every instance reads through the same cache, and its intent decides how:
 | `read`  | `getPermDock`, `getSnapshot`, `getPermission` and `PermDockProvider` in `permdock/next`; `GET`, `HEAD` and `OPTIONS` in every HTTP adapter          | the cached version when at most `maxStaleMs` old; concurrent misses share one call |
 | `write` | `protectAction`; `requirePermission(…, { intent: 'write' })`; every other HTTP method; `getPermDock` in `permdock` core, agents, workflows and jobs | always live; the answer refreshes the cache                                        |
 
-A token minted less than `maxStaleMs` ago needs no call at all: `subjectFromSupabase` maps `iat` to `Subject.issuedAt`, and the cache takes the token's `authz_ver` as the version at that time. A token whose `authz_ver` is greater than the cached version raises the entry. A failed read is cached nowhere and leaves the token's claims in place; a `fresh` permission then denies.
+A token minted less than `maxStaleMs` ago needs no call at all: `subjectFromSupabase` maps `iat` to `Subject.issuedAt`, and `claimsFirst` seeds the cache with the token's `authz_ver` dated at that time. A seed never lowers a cached version, so an older token rereads. A failed read is cached nowhere and leaves the token's claims in place; a `fresh` permission then denies.
+
+A version this request already read skips the call for every intent. `versions.seed(userId, version)` stores one for later requests, and `getPermDock(policy, user, { version: { known } })` uses it for this one:
+
+```ts
+const { authz_ver } = await bootstrap(supabase); // one read per request
+versions.seed(userId, authz_ver);
+const permdock = await getPermDock(policy, user, {
+  memberships,
+  version: { known: authz_ver },
+});
+```
 
 `maxStaleMs` is the one number to choose. It is clamped to 60 seconds and bounds how long a removed member keeps read access; a write is checked live. `maxEntries` bounds memory, and the least recently used principal goes first.
 
 ### Evict on change
 
-`versions.evict(userId)` drops one user's entry, so the next read instance reads live. Call it in the Server Action or Route Handler that changes a role in the same process. Other processes learn of the change through a broadcast from the version table:
-
-```sql
-create or replace function permdock.permdock_broadcast_authz_version()
-returns trigger
-language plpgsql
-security definer
-set search_path = ''
-as $$
-begin
-  perform realtime.send(
-    jsonb_build_object('user_id', new.user_id),
-    'authz_version',
-    'permdock:authz',
-    true
-  );
-  return null;
-end;
-$$;
-
-create trigger permdock_broadcast_authz_version
-  after insert or update on permdock.permdock_authz_version
-  for each row execute function permdock.permdock_broadcast_authz_version();
-```
-
-The last argument makes the topic private. Add no `realtime.messages` policy for `permdock:authz`, so only a secret-key client can join it. Subscribe from the module that owns the cache:
+`versions.evict(userId)` drops one user's entry, so the next read instance reads live. Call it in the Server Action or Route Handler that changes a role in the same process. Other processes learn of the change from the version table's broadcast, which `permdock supabase hook generate` writes: every bump sends `{ user_id, version }` with event `changed` on the server topic `permdock:authz` and on the user's own `authz:<uid>` ([supabase hook](/docs/adapters/supabase-hook#version-broadcast)). No `realtime.messages` policy admits `permdock:authz`, so only a secret-key client can join it. Subscribe from the module that owns the cache:
 
 ```ts
 // src/permdock/server.ts, after `versions`
+import { AUTHZ_EVENT, AUTHZ_TOPIC } from "permdock/supabase";
+
 admin
-  .channel("permdock:authz", { config: { private: true } })
-  .on("broadcast", { event: "authz_version" }, ({ payload }) => {
+  .channel(AUTHZ_TOPIC, { config: { private: true } })
+  .on("broadcast", { event: AUTHZ_EVENT }, ({ payload }) => {
     if (typeof payload?.user_id === "string") {
       versions.evict(payload.user_id);
     }
@@ -580,7 +568,7 @@ admin
   .subscribe();
 ```
 
-With better-supabase, pass the same cache as `versions` and subscribe with `subscribeAuthzVersions` instead ([better-supabase](/docs/adapters/better-supabase#version-cache-and-session-snapshots)). A dropped broadcast costs nothing but staleness: the entry still expires after `maxStaleMs`. Next.js may bundle `instrumentation.ts` apart from route code, so a subscriber started there can evict from a second cache. Start it where the cache is created.
+With better-supabase, the trigger broadcasts on `better_supabase:authz` instead: pass the same cache as `versions` and subscribe with `subscribeAuthzVersions` ([better-supabase](/docs/adapters/better-supabase#version-cache-and-session-snapshots)). A dropped broadcast costs nothing but staleness: the entry still expires after `maxStaleMs`. Next.js may bundle `instrumentation.ts` apart from route code, so a subscriber started there can evict from a second cache. Start it where the cache is created.
 
 ### Measure it
 
