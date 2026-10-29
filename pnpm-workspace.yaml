@@ -90,6 +90,7 @@ catalog:
   kysely: 0.29.7
   launch-editor: 2.14.2
   dompurify: 3.4.17
+  systeminformation: 5.33.17
   multer: 2.5.0
   fastify: 5.12.7
   beautiful-mermaid: 1.1.3
@@ -335,6 +336,8 @@ overrides:
   launch-editor: "catalog:"
   # GHSA-cg2g-xh64-v4q7 and GHSA-mrv2-3pqr-j5jr: dompurify <=3.4.16, through mermaid under @streamdown/mermaid in packages/ui.
   dompurify: "catalog:"
+  # GHSA-3f7j-7jwc-fxfj: systeminformation <5.33.16, through @dotenvx/dotenvx under shadcn.
+  systeminformation: "catalog:"
   # drizzle-orm also takes pg as an optional peer; @prisma/adapter-pg and @supabase/server pin an older patch.
   pg: "catalog:"
   # One React, React DOM and Next.js everywhere, so hooks and server components never see two copies.
