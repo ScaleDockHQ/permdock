@@ -4,12 +4,15 @@ import type {
   RealtimeRefreshChannel,
   RealtimeRefreshClient,
 } from "../supabase/client.ts";
-import type { PowerSyncWatchable } from "./powersync.ts";
+import type {
+  PowerSyncSnapshotSource,
+  PowerSyncWatchable,
+} from "./powersync.ts";
 import type { AppStateModule, NetInfoModule } from "./subscriptions.ts";
 
 import { isRecord } from "../core/compact.ts";
 import { AUTHZ_EVENT, authzUserTopic } from "../supabase/authz-topic.ts";
-import { quoted } from "./powersync-rows.ts";
+import { authzVersionQuery, highestVersion } from "./powersync.ts";
 import { appStateForeground, netInfoOnline } from "./subscriptions.ts";
 
 /** The part of a supabase-js session `nativeRefresh` reads. */
@@ -46,6 +49,12 @@ export type NativeRefreshPowerSync<K> = {
    * a message sent while the app was closed.
    */
   readonly manifest?: LocalSnapshotManifest;
+  /**
+   * The `powerSyncSource` the provider reads. Its `authzVersion()` answers the
+   * synced version for the foreground catch-up, in place of a query built from
+   * `manifest`.
+   */
+  readonly source?: Pick<PowerSyncSnapshotSource, "authzVersion">;
 };
 
 export type NativeRefreshOptions<
@@ -86,21 +95,6 @@ function tokenVersion(token: string): number | undefined {
   }
 }
 
-function highest(rows: readonly unknown[]): number | undefined {
-  let found: number | undefined;
-  for (const row of rows) {
-    const value = Number(isRecord(row) ? row["version"] : undefined);
-    if (
-      Number.isSafeInteger(value) &&
-      value >= 0 &&
-      (found === undefined || value > found)
-    ) {
-      found = value;
-    }
-  }
-  return found;
-}
-
 async function currentSession(
   supabase: Pick<NativeRefreshSupabase, "auth">,
 ): Promise<NativeRefreshSession | null> {
@@ -118,14 +112,15 @@ async function currentSession(
  * refreshes the snapshot. Passes run one at a time; signals during a pass fold
  * into one more. The channel closes in the background and rejoins on
  * foreground, where one catch-up pass runs: a version check with
- * `powersync.manifest`, else a full pass. It never imports `@supabase/*` or
- * `@powersync/*`.
+ * `powersync.source` or `powersync.manifest`, else a full pass. It never
+ * imports `@supabase/*` or `@powersync/*`.
  */
 export function nativeRefresh<C extends RealtimeRefreshChannel, K = unknown>(
   options: NativeRefreshOptions<C, K>,
 ): RefreshTrigger {
   const { supabase, powersync } = options;
   const versionRows = powersync?.manifest?.rows?.version;
+  const source = powersync?.source;
   return (refresh) => {
     let closed = false;
     let online = true;
@@ -174,12 +169,20 @@ export function nativeRefresh<C extends RealtimeRefreshChannel, K = unknown>(
     };
 
     const versionSql =
-      versionRows === undefined
+      versionRows === undefined ? undefined : authzVersionQuery(versionRows);
+    const catchUp = source !== undefined || versionSql !== undefined;
+
+    const syncedVersion = async (user: string): Promise<number | undefined> => {
+      if (source !== undefined) {
+        return source.authzVersion();
+      }
+      return versionSql === undefined || powersync === undefined
         ? undefined
-        : `SELECT ${quoted(versionRows.version)} AS version FROM ${quoted(versionRows.table)} WHERE ${quoted(versionRows.user)} = ?`;
+        : highestVersion(await powersync.db.getAll(versionSql, [user]));
+    };
 
     const checkVersion = async (): Promise<void> => {
-      if (versionSql === undefined || powersync === undefined) {
+      if (!catchUp) {
         return;
       }
       const current = await currentSession(supabase);
@@ -188,9 +191,7 @@ export function nativeRefresh<C extends RealtimeRefreshChannel, K = unknown>(
       }
       const token = tokenVersion(current.access_token);
       try {
-        const synced = highest(
-          await powersync.db.getAll(versionSql, [current.user.id]),
-        );
+        const synced = await syncedVersion(current.user.id);
         if (token !== undefined && synced !== undefined && synced > token) {
           signal();
         }
@@ -247,10 +248,10 @@ export function nativeRefresh<C extends RealtimeRefreshChannel, K = unknown>(
         return;
       }
       void join();
-      if (versionSql === undefined) {
-        signal();
-      } else {
+      if (catchUp) {
         void checkVersion();
+      } else {
+        signal();
       }
     });
     const offOnline =

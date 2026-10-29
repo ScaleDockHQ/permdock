@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { SqlMembershipSource } from "../../src/supabase/index.ts";
 
+import { blockMembershipSource } from "../../src/better-supabase/block-memberships.ts";
+import { localRows } from "../../src/cli/powersync/rows.ts";
 import { powersyncPlan } from "../../src/cli/powersync/streams.ts";
 import { powersyncYaml } from "../../src/cli/powersync/yaml.ts";
 import {
@@ -247,5 +249,71 @@ describe("powersync streams over membership sources", () => {
     expect(
       powersyncPlan(policy, configOf([assigned])).publication,
     ).toBeUndefined();
+  });
+});
+
+describe("powersync streams over a composite roles junction", () => {
+  const organizations = definePermissions({
+    job: resource(Row, {
+      id: "id",
+      actions: ["read"],
+      relations: {
+        organization: { field: "organization_id", memberOf: "organization" },
+      },
+    }),
+  });
+  const byOrganization = definePolicy(organizations, {
+    scopes: { organization: { key: "organization_id" } },
+    // SAFETY: stream generation never calls the subject mapper.
+    subject: (user: unknown) => user as never,
+    roles: [
+      role("owner", [allow(organizations.job.read)], { on: "organization" }),
+    ],
+  });
+  const plan = powersyncPlan(byOrganization, {
+    policy: "p.ts",
+    rls: {
+      tables: { job: "jobs" },
+      membershipSources: [blockMembershipSource({ roles: "many" })],
+    },
+  });
+
+  it("joins a resource stream on every pair of the junction", () => {
+    expect(plan.streams[0]?.queries).toStrictEqual([
+      `SELECT * FROM jobs WHERE jobs.organization_id IN (SELECT memberships.organization_id FROM "better_supabase"."memberships" AS memberships INNER JOIN "better_supabase"."membership_roles" AS membership_roles ON membership_roles.organization_id = memberships.organization_id AND membership_roles.user_id = memberships.user_id WHERE memberships.user_id = auth.user_id() AND memberships.disabled_at IS NULL AND membership_roles.role = 'owner')`,
+    ]);
+  });
+
+  it("syncs only the user's junction rows, keyed on an id built from the key", () => {
+    expect(
+      plan.subject.find((stream) => stream.table === "membership_roles"),
+    ).toStrictEqual({
+      name: "permdock_membership_roles",
+      table: "membership_roles",
+      user: "user_id",
+      queries: [
+        `SELECT membership_roles.organization_id, membership_roles.user_id, membership_roles.role, membership_roles.organization_id || ':' || membership_roles.user_id || ':' || membership_roles.role AS id FROM "better_supabase"."membership_roles" AS membership_roles WHERE membership_roles.organization_id IN (SELECT memberships.organization_id FROM "better_supabase"."memberships" AS memberships WHERE memberships.user_id = auth.user_id() AND memberships.disabled_at IS NULL) AND membership_roles.user_id = auth.user_id()`,
+      ],
+    });
+  });
+
+  it("hands the device every pair of the junction", () => {
+    const config: PermDockConfig = {
+      policy: "p.ts",
+      rls: { membershipSources: [blockMembershipSource({ roles: "many" })] },
+    };
+    expect(
+      localRows(byOrganization, config, plan.devices).memberships[0]?.roles,
+    ).toStrictEqual([
+      {
+        column: "organization_id",
+        through: {
+          table: "membership_roles",
+          id: "organization_id",
+          column: "role",
+          on: { organization_id: "organization_id", user_id: "user_id" },
+        },
+      },
+    ]);
   });
 });

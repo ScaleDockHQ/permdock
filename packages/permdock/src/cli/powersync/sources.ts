@@ -52,14 +52,83 @@ export function streamOf(
   return stream;
 }
 
-function pairOf(through: RoleThrough): readonly [string, string] {
-  const [pair] = Object.entries(through.on);
-  if (pair === undefined) {
+/**
+ * Every `on` pair of the reference: the referencing column, then the column of
+ * `through` it references. A composite key (`organization_id` and `user_id`)
+ * matches only when every pair does.
+ */
+function pairsOf(through: RoleThrough): readonly (readonly [string, string])[] {
+  const pairs = Object.entries(through.on);
+  if (pairs.length === 0) {
     throw new TypeError(
       `PermDock CLI: the reference to ${through.through} names no column`,
     );
   }
-  return pair;
+  return pairs;
+}
+
+/** The `ON` of a join from `table` to `keys`, the bare name of `through`. */
+export function joinOn(
+  through: RoleThrough,
+  keys: string,
+  table: string,
+  dialect: StreamDialect,
+): string {
+  return pairsOf(through)
+    .map(
+      ([ref, id]) =>
+        `${dialect.column(keys, id)} = ${dialect.column(table, ref)}`,
+    )
+    .join(" AND ");
+}
+
+/**
+ * The select list of a `through` row. PowerSync keys every synced row on an
+ * `id` column, so a composite reference selects its key columns and the value
+ * column with `id` built from them; a single reference keeps `*`.
+ */
+function throughSelect(
+  through: RoleThrough,
+  keys: string,
+  dialect: StreamDialect,
+): string {
+  const pairs = pairsOf(through);
+  if (pairs.length === 1) {
+    return "*";
+  }
+  const columns = [
+    ...new Set([...pairs.map(([, id]) => id), through.column]),
+  ].map((column) => dialect.column(keys, column));
+  return `${columns.join(", ")}, ${columns.join(` || ${dialect.literal(":")} || `)} AS id`;
+}
+
+/**
+ * The query of the `through` rows the user's own rows reference. A pair on the
+ * user column compares with the signed-in user, so a composite junction keyed
+ * on the tenant and the user syncs only the user's rows; `user` then names the
+ * junction's user column.
+ */
+export function throughRows(
+  through: RoleThrough,
+  own: OwnRows,
+  dialect: StreamDialect,
+  ownUser?: string,
+): { readonly table: string; readonly query: string; readonly user?: string } {
+  const keys = bare(through.through, dialect);
+  const pairs = pairsOf(through);
+  const user = pairs.find(([ref]) => ref === ownUser)?.[1];
+  const where = pairs.flatMap(([ref, id]) => {
+    const owned = `${dialect.column(keys, id)} IN (SELECT ${dialect.column(own.table, ref)} FROM ${own.from} WHERE ${own.where.join(" AND ")})`;
+    if (id !== user) {
+      return [owned];
+    }
+    const mine = `${dialect.column(keys, id)} = ${dialect.user}`;
+    return pairs.length === 1 ? [mine, owned] : [mine];
+  });
+  const query = `SELECT ${throughSelect(through, keys, dialect)} FROM ${fromTable(through.through, dialect)} WHERE ${where.join(" AND ")}`;
+  return user === undefined
+    ? { table: keys, query }
+    : { table: keys, query, user };
 }
 
 export function isFixed(
@@ -116,10 +185,9 @@ export function ownRows(
     };
   }
   const users = bare(stream.user.through, dialect);
-  const [ref, id] = pairOf(stream.user);
   return {
     table,
-    from: `${fromTable(stream.table, dialect)} INNER JOIN ${fromTable(stream.user.through, dialect)} ON ${dialect.column(users, id)} = ${dialect.column(table, ref)}`,
+    from: `${fromTable(stream.table, dialect)} INNER JOIN ${fromTable(stream.user.through, dialect)} ON ${joinOn(stream.user, users, table, dialect)}`,
     where: [
       `${dialect.column(users, stream.user.column)} = ${dialect.user}`,
       ...scoped,
@@ -155,7 +223,6 @@ function roleFilter(
     return values.length === 0 ? undefined : { join: "", where: anyOf(values) };
   }
   const keys = bare(source.through, dialect);
-  const [ref, id] = pairOf(source);
   const { guard } = stream;
   const guarded =
     guard !== undefined &&
@@ -173,7 +240,7 @@ function roleFilter(
         ]
       : [];
   return {
-    join: ` INNER JOIN ${fromTable(source.through, dialect)} ON ${dialect.column(keys, id)} = ${dialect.column(table, ref)}`,
+    join: ` INNER JOIN ${fromTable(source.through, dialect)} ON ${joinOn(source, keys, table, dialect)}`,
     where: [
       `${dialect.column(keys, source.column)} = ${dialect.literal(role)}`,
       ...guarded,
@@ -261,22 +328,19 @@ export function roleTableRows(
   stream: MembershipStream,
   dialect: StreamDialect,
   keep = false,
-): readonly { readonly table: string; readonly query: string }[] {
+): readonly {
+  readonly table: string;
+  readonly query: string;
+  readonly user?: string;
+}[] {
   if (isFixed(stream.roles)) {
     return [];
   }
   const own = ownRows(stream, dialect, undefined, keep);
-  return roleSources(stream.roles).flatMap((source) => {
-    if (typeof source === "string" || "map" in source) {
-      return [];
-    }
-    const keys = bare(source.through, dialect);
-    const [ref, id] = pairOf(source);
-    return [
-      {
-        table: keys,
-        query: `SELECT * FROM ${fromTable(source.through, dialect)} WHERE ${dialect.column(keys, id)} IN (SELECT ${dialect.column(own.table, ref)} FROM ${own.from} WHERE ${own.where.join(" AND ")})`,
-      },
-    ];
-  });
+  const user = typeof stream.user === "string" ? stream.user : undefined;
+  return roleSources(stream.roles).flatMap((source) =>
+    typeof source === "string" || "map" in source
+      ? []
+      : [throughRows(source, own, dialect, user)],
+  );
 }

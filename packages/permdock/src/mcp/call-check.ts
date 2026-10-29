@@ -10,12 +10,14 @@ import type { McpAuthInfo, McpOnError, McpPermDockOptions } from "./types.ts";
 
 import { refusalText } from "../agent/denied-text.ts";
 import { compact } from "../core/compact.ts";
+import { authorizationDetailsOf } from "../core/delegation-input.ts";
 import { actorMayCallTool } from "../core/delegation.ts";
 import {
   challengeScope,
   hasScope,
   scopesReaching,
 } from "../core/oauth-scopes.ts";
+import { decideAll } from "../server/decide-set.ts";
 import { bearerChallenge } from "../server/problem.ts";
 import {
   approvalTokenOf,
@@ -49,7 +51,10 @@ export type McpChecks = {
     | "stepUp"
     | "deniedText"
     | "tenant"
+    | "unscopedTokens"
   >;
+  /** Every scope that reaches one of the policy's permissions. */
+  readonly policyScopes: ReadonlySet<string>;
   readonly kernel: ReturnType<typeof createAgentKernel<McpCall>>;
   /** Receives an error a check threw; the refusal stays as PermDock built it. */
   readonly onError?: McpOnError;
@@ -75,6 +80,33 @@ function forThisServer(checks: McpChecks, authInfo: McpAuthInfo): boolean {
   );
 }
 
+/**
+ * Whether `unscopedTokens: 'subject'` lets the subject alone decide this token:
+ * it carries none of the policy's scopes and no `authorization_details`.
+ */
+export function decidesOnSubject(
+  options: Pick<McpChecks["options"], "unscopedTokens">,
+  policyScopes: ReadonlySet<string>,
+  authInfo: McpAuthInfo,
+): boolean {
+  return (
+    options.unscopedTokens === "subject" &&
+    authorizationDetailsOf(authInfo.extra) === undefined &&
+    !(authInfo.scopes ?? []).some((scope) => policyScopes.has(scope))
+  );
+}
+
+function scoped(
+  checks: McpChecks,
+  authInfo: McpAuthInfo,
+  reach: Reach,
+): boolean {
+  return (
+    hasScope(authInfo.scopes, reach.scopes) ||
+    decidesOnSubject(checks.options, checks.policyScopes, authInfo)
+  );
+}
+
 function reachable(
   checks: McpChecks,
   authInfo: McpAuthInfo | undefined,
@@ -82,8 +114,7 @@ function reachable(
 ): boolean {
   return authInfo === undefined
     ? checks.options.requireAuthInfo !== true
-    : forThisServer(checks, authInfo) &&
-        hasScope(authInfo.scopes, reach.scopes);
+    : forThisServer(checks, authInfo) && scoped(checks, authInfo, reach);
 }
 
 /**
@@ -110,7 +141,7 @@ function credentialRefusal(
       { error: "invalid_token" },
     );
   }
-  if (hasScope(authInfo.scopes, reach.scopes)) {
+  if (scoped(checks, authInfo, reach)) {
     return undefined;
   }
   const resourceMetadata = resourceMetadataOf(authInfo);
@@ -376,6 +407,18 @@ async function checkCall(
   };
 }
 
+/** What a guarded entry needs: every permission, or one with `anyOf`. */
+export type Access = {
+  readonly permissions: readonly Permission[];
+  readonly anyOf: boolean;
+};
+
+export function single(permission: Permission | undefined): Access | undefined {
+  return permission === undefined
+    ? undefined
+    : { permissions: [permission], anyOf: false };
+}
+
 /**
  * The keys a list shows: unguarded ones, and guarded ones the token reaches and
  * the subject may use. With `tools`, a guarded key is also a tool name an
@@ -384,7 +427,7 @@ async function checkCall(
 export async function visible(
   checks: McpChecks,
   context: Context,
-  permissionOf: (key: string) => Permission | undefined,
+  accessOf: (key: string) => Access | undefined,
   keys: readonly string[],
   declaredOf: (
     key: string,
@@ -393,20 +436,26 @@ export async function visible(
 ): Promise<ReadonlySet<string>> {
   const authInfo = context.http?.authInfo;
   const shown = new Set<string>();
-  const guarded: { readonly key: string; readonly permission: Permission }[] =
-    [];
+  const guarded: { readonly key: string; readonly access: Access }[] = [];
   for (const key of keys) {
-    const permission = permissionOf(key);
-    if (permission === undefined) {
+    const access = accessOf(key);
+    if (access === undefined) {
       shown.add(key);
-    } else if (
+      continue;
+    }
+    const reached = access.permissions.filter((permission) =>
       reachable(
         checks,
         authInfo,
         reachOf(checks.policy, permission, declaredOf(key)),
-      )
+      ),
+    );
+    if (
+      access.anyOf
+        ? reached.length > 0
+        : reached.length === access.permissions.length
     ) {
-      guarded.push({ key, permission });
+      guarded.push({ key, access: { ...access, permissions: reached } });
     }
   }
   if (guarded.length === 0) {
@@ -421,7 +470,7 @@ export async function visible(
       const tenant = await reportedTenant(checks.options.tenant, authInfo);
       for (const entry of guarded) {
         report(checks.onError, error, {
-          permission: entry.permission.key,
+          permission: entry.access.permissions[0]?.key ?? null,
           name: entry.key,
           tenant,
         });
@@ -430,9 +479,13 @@ export async function visible(
     return shown;
   }
   for (const entry of guarded) {
+    const usable = (permission: Permission): boolean =>
+      permdock.mayUse(permission);
     if (
       (!tools || actorMayCallTool(permdock.subject.actor, entry.key)) &&
-      permdock.mayUse(entry.permission)
+      (entry.access.anyOf
+        ? entry.access.permissions.some(usable)
+        : entry.access.permissions.every(usable))
     ) {
       shown.add(entry.key);
     }
@@ -511,4 +564,136 @@ export function guard(
     await extra.after?.(context);
     return result;
   };
+}
+
+const FROM_DATA = Symbol("permdock.mcp.data");
+
+export type SetLoaders = {
+  readonly data?: ((...args: unknown[]) => unknown) | undefined;
+  readonly rows?: ((...args: unknown[]) => unknown) | undefined;
+};
+
+/**
+ * `handler` behind a check of every permission in `access` (or one, with
+ * `anyOf`) over the row `data` loads or every row `rows` loads. Credentials are
+ * checked before `rows` runs; a refusal goes to `onRefusal`.
+ */
+export function guardSet(
+  checks: McpChecks,
+  access: Access,
+  loaders: SetLoaders,
+  handler: Handler,
+  dataArgs: (params: readonly unknown[]) => readonly unknown[],
+  onRefusal: (refusal: Refusal) => unknown,
+  extra: GuardExtra & {
+    readonly declared?: readonly [string, ...string[]] | undefined;
+  } = {},
+): Handler {
+  const { permissions, anyOf } = access;
+  const [lead] = permissions;
+  if (lead === undefined) {
+    throw new TypeError("permdock/mcp: a guarded tool needs a permission");
+  }
+  const reachFor = (permission: Permission): Reach =>
+    reachOf(checks.policy, permission, extra.declared);
+  return async (...params: unknown[]): Promise<unknown> => {
+    const raw = params.at(-1);
+    const context = contextOf(raw);
+    const authInfo = context.http?.authInfo;
+    const args = dataArgs(params);
+    const tool = extra.tool?.();
+    const name = extra.name?.() ?? tool ?? lead.key;
+    const refusals = permissions.map((permission) =>
+      credentialRefusal(checks, permission, reachFor(permission), authInfo),
+    );
+    const blocked = anyOf
+      ? refusals.every((refusal) => refusal !== undefined)
+      : refusals.some((refusal) => refusal !== undefined);
+    let result: unknown;
+    const rows = blocked
+      ? []
+      : await loadRows(checks, loaders, args, authInfo, lead, name);
+    const refusal = blocked
+      ? refusals.find((entry) => entry !== undefined)
+      : rows.length === 0
+        ? plainRefusal(lead, `Denied: ${lead.key} found no rows.`, {})
+        : await setRefusal(access, rows, (permission, row) =>
+            checkCall(
+              checks,
+              permission,
+              reachFor(permission),
+              args,
+              row === FROM_DATA
+                ? loaders.data === undefined
+                  ? undefined
+                  : (): unknown => loaders.data?.(...args)
+                : (): unknown => row,
+              context,
+              raw,
+              extra.capabilities,
+              undefined,
+              tool,
+              name,
+            ),
+          );
+    if (refusal === undefined) {
+      result = await handler(...params);
+    } else {
+      result = onRefusal(refusal);
+    }
+    await extra.after?.(context);
+    return result;
+  };
+}
+
+function isRowList(value: unknown): value is readonly unknown[] {
+  return Array.isArray(value);
+}
+
+async function loadRows(
+  checks: McpChecks,
+  loaders: SetLoaders,
+  args: readonly unknown[],
+  authInfo: McpAuthInfo | undefined,
+  lead: Permission,
+  name: string,
+): Promise<readonly unknown[]> {
+  if (loaders.rows === undefined) {
+    return [FROM_DATA];
+  }
+  try {
+    const rows: unknown = await loaders.rows(...args);
+    return isRowList(rows) ? rows : [];
+  } catch (error) {
+    await flush(checks, authInfo, [error], lead.key, name);
+    return [];
+  }
+}
+
+async function setRefusal(
+  access: Access,
+  rows: readonly unknown[],
+  check: (permission: Permission, row: unknown) => Promise<Checked>,
+): Promise<Refusal | undefined> {
+  const outcome = await decideAll(
+    access.permissions,
+    rows,
+    access.anyOf,
+    async (permission, batch) => {
+      const results: Checked[] = [];
+      for (const row of batch) {
+        // Rows decide in order, so a limit is consumed once per granted row.
+        // oxlint-disable-next-line eslint/no-await-in-loop
+        results.push(await check(permission, row));
+      }
+      return results;
+    },
+    (checked) => checked.ok,
+  );
+  if (outcome.ok) {
+    return undefined;
+  }
+  return outcome.result === undefined || outcome.result.ok
+    ? plainRefusal(outcome.permission, `Denied: ${outcome.permission.key}.`, {})
+    : outcome.result.refusal;
 }

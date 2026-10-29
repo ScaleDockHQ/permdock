@@ -626,6 +626,20 @@ export function RefreshPermissions({ userId }: { userId: string }): null {
 }
 ```
 
+The trigger is the only owner of the channel it opens: it removes that channel when the provider stops it, so do not subscribe to `authz:<uid>` elsewhere with the same client. An app that already listens on the topic passes its channel as `channel`. The trigger then binds the `changed` event to it, and never subscribes or removes it.
+
+On React Native, pass `foreground: appStateForeground(AppState)` from `permdock/react-native`. The trigger removes its channel when the app goes to the background and joins again on the return, then calls `refresh()` once for the bumps it missed. With `channel`, only the `refresh()` runs.
+
+```ts
+import { AppState } from "react-native";
+import { appStateForeground } from "permdock/react-native";
+
+const trigger = supabaseRealtimeRefresh(supabase, {
+  userId,
+  foreground: appStateForeground(AppState),
+});
+```
+
 ### Measure it
 
 `versions.stats()` returns `reads`, `shared`, `hits`, `evictions` and `size` since the process started. Read it before and after a render to count calls per request, or report it as a `Server-Timing` metric:

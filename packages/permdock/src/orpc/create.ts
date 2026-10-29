@@ -11,8 +11,8 @@ import type { Principal } from "../core/subject.ts";
 import type { ServerAdapterOptions } from "../server/bind.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type { TenantScope } from "../server/create.ts";
+import type { RpcProtectOptions } from "../server/rpc.ts";
 import type { OpenApiHooks } from "../server/server-types.ts";
-import type { StreamProtectOptions } from "../server/stream.ts";
 import type { OperationsRouterOf } from "./operations.ts";
 
 import {
@@ -26,6 +26,7 @@ import {
   problemBody,
   rpcCode,
   isAsyncIterable,
+  permissionList,
   reloadAfter,
 } from "../server/kit.ts";
 import { operationsRouterOf } from "./operations.ts";
@@ -67,25 +68,30 @@ export type OrpcPermDockOptions<
   readonly revocations?: RevocationFeed;
 };
 
+/**
+ * `protect`'s options: `anyOf` for a permission list, `rows` for the rows the
+ * procedure acts on, read from its opts.
+ */
+export type OrpcProtectOptions<TCtx extends object = object> =
+  RpcProtectOptions<OrpcMiddlewareOpts<TCtx>>;
+
 export type OrpcOpenApiHooks<
   TCtx extends object = object,
   V extends PolicyVocabulary = PolicyVocabulary,
 > = {
   readonly protect: (
-    permission: Permission | null,
+    permission: Permission | readonly Permission[] | null,
     data?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
-    protectOptions?: StreamProtectOptions,
+    protectOptions?: OrpcProtectOptions<TCtx>,
   ) => OrpcMiddleware<TCtx, unknown, V>;
-  readonly security: (permission: Permission) => {
-    readonly security: readonly Record<string, readonly string[]>[];
-    readonly "x-permdock-permissions": readonly string[];
-  };
+  readonly security: OpenApiHooks["security"];
   /**
    * `security` as the merge function oRPC 2's `openapi({ spec })` takes, with
    * mutable arrays so it type-checks against oRPC's `OperationObject`.
    */
   readonly spec: (
-    permission: Permission,
+    permission: Permission | readonly Permission[],
+    options?: { readonly anyOf?: boolean },
   ) => <TSpec extends object>(current: TSpec) => TSpec & OrpcSecuritySpec;
   readonly securitySchemes: OpenApiHooks["securitySchemes"];
 };
@@ -108,9 +114,9 @@ export type OrpcPermDock<
   ) => Promise<PermDock<V>>;
   readonly middleware: () => OrpcMiddleware<TCtx, unknown, V>;
   readonly protect: (
-    permission: Permission | null,
+    permission: Permission | readonly Permission[] | null,
     data?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
-    protectOptions?: StreamProtectOptions,
+    protectOptions?: OrpcProtectOptions<TCtx>,
   ) => OrpcMiddleware<TCtx, unknown, V>;
   /** A long-lived connection for the request behind `context`. */
   readonly connection: (
@@ -206,10 +212,11 @@ function mapDownstream<T>(
 const PERMISSION = Symbol.for("permdock.orpc.permission");
 
 function tagged<T extends object>(
-  permission: Permission | null,
+  permission: Permission | readonly Permission[] | null,
   middleware: T,
 ): T {
   if (permission !== null) {
+    permissionList(permission);
     Object.defineProperty(middleware, PERMISSION, { value: permission });
   }
   return middleware;
@@ -223,19 +230,25 @@ function readOwn(value: unknown, key: PropertyKey): unknown {
     : undefined;
 }
 
+function isPermissionList(value: unknown): value is readonly Permission[] {
+  return Array.isArray(value) && value.length > 0 && value.every(isPermission);
+}
+
 /**
- * The permission the procedure's first `protect` decides, or `undefined` when
- * no `protect` is attached. Reads the procedure definition only and never
- * decides.
+ * The permission, or the list, the procedure's first `protect` decides, or
+ * `undefined` when no `protect` is attached. Reads the procedure definition
+ * only and never decides.
  */
-export function permissionOf(procedure: unknown): Permission | undefined {
+export function permissionOf(
+  procedure: unknown,
+): Permission | readonly Permission[] | undefined {
   const ordered = readOwn(readOwn(procedure, "~orpc"), "orderedMiddlewares");
   if (!Array.isArray(ordered)) {
     return undefined;
   }
   for (const entry of ordered) {
     const permission = readOwn(readOwn(entry, "middleware"), PERMISSION);
-    if (isPermission(permission)) {
+    if (isPermission(permission) || isPermissionList(permission)) {
       return permission;
     }
   }
@@ -340,9 +353,9 @@ export function createPermDock<
   const guardOutput = async (
     result: unknown,
     opts: OrpcMiddlewareOpts<TCtx>,
-    permission: Permission | null,
+    permission: Permission | readonly Permission[] | null,
     data: (() => unknown) | undefined,
-    protectOptions: StreamProtectOptions | undefined,
+    protectOptions: OrpcProtectOptions<TCtx> | undefined,
     errors: ErrorConstructors,
   ): Promise<unknown> => {
     const output =
@@ -370,9 +383,9 @@ export function createPermDock<
   };
 
   const protect = (
-    permission: Permission | null,
+    permission: Permission | readonly Permission[] | null,
     data?: (opts: OrpcMiddlewareOpts<TCtx>) => unknown,
-    protectOptions?: StreamProtectOptions,
+    protectOptions?: OrpcProtectOptions<TCtx>,
   ): OrpcMiddleware<TCtx, unknown, V> =>
     tagged(
       permission,
@@ -435,8 +448,8 @@ export function createPermDock<
   const openapi: OrpcOpenApiHooks<TCtx, V> = {
     protect,
     security: kernelOpenApi.security,
-    spec: (permission) => {
-      const fragment = kernelOpenApi.security(permission);
+    spec: (permission, specOptions) => {
+      const fragment = kernelOpenApi.security(permission, specOptions);
       return (current) => ({
         ...current,
         security: fragment.security.map((requirement) =>

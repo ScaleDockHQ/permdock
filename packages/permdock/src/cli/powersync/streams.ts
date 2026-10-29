@@ -33,11 +33,13 @@ import { claimRecorder, claimsIn } from "./claims.ts";
 import { customRoleItems } from "./levels.ts";
 import { CUSTOM_ROLE, bare, fromTable, ident, renames } from "./names.ts";
 import {
+  joinOn,
   ownRows,
   roleTableRows,
   scopeSourcesOf,
   sourceIn,
   streamOf,
+  throughRows,
 } from "./sources.ts";
 import { tableStreams } from "./tables.ts";
 import { VERSION_USER, authzVersionTable } from "./version.ts";
@@ -546,11 +548,9 @@ function membershipIn(
         `${left} IN (SELECT ${ctx.dialect.column(name, idColumn)} FROM ${fromTable(table.table, ctx.dialect)} WHERE ${[...filters, `${ctx.dialect.column(name, source.column)} IN (${values.join(", ")})`].join(" AND ")})`,
       ];
     }
-    const [pair] = Object.entries(source.on);
     const keys = bare(source.through, ctx.dialect);
-    const [ref, id] = pair ?? ["", ""];
     return [
-      `${left} IN (SELECT ${ctx.dialect.column(name, idColumn)} FROM ${fromTable(table.table, ctx.dialect)} INNER JOIN ${fromTable(source.through, ctx.dialect)} ON ${ctx.dialect.column(keys, id)} = ${ctx.dialect.column(name, ref)} WHERE ${[...filters, `${ctx.dialect.column(keys, source.column)} IN (${list})`].join(" AND ")})`,
+      `${left} IN (SELECT ${ctx.dialect.column(name, idColumn)} FROM ${fromTable(table.table, ctx.dialect)} INNER JOIN ${fromTable(source.through, ctx.dialect)} ON ${joinOn(source, keys, name, ctx.dialect)} WHERE ${[...filters, `${ctx.dialect.column(keys, source.column)} IN (${list})`].join(" AND ")})`,
     ];
   });
 }
@@ -795,17 +795,17 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
         : "";
     const mine = `${dialect.column(name, user)} = ${dialect.user}${active}`;
     add(name, `SELECT * FROM ${fromTable(table, dialect)} WHERE ${mine}`, user);
+    const rows = {
+      table: name,
+      from: fromTable(table, dialect),
+      where: [mine],
+    };
     for (const through of roleThroughs(role)) {
-      const keys = bare(through.through, dialect);
-      const [pair] = Object.entries(through.on);
-      if (pair === undefined) {
+      if (Object.keys(through.on).length === 0) {
         continue;
       }
-      const [ref, id] = pair;
-      add(
-        keys,
-        `SELECT * FROM ${fromTable(through.through, dialect)} WHERE ${dialect.column(keys, id)} IN (SELECT ${dialect.column(name, ref)} FROM ${fromTable(table, dialect)} WHERE ${mine})`,
-      );
+      const keys = throughRows(through, rows, dialect, user);
+      add(keys.table, keys.query, keys.user);
     }
   };
   const memberships = rls?.memberships;
@@ -834,7 +834,7 @@ function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
       );
     }
     for (const keys of roleTableRows(stream, dialect, keep)) {
-      add(keys.table, keys.query);
+      add(keys.table, keys.query, keys.user);
     }
   }
   const schema = rls?.schema ?? PERMDOCK_SCHEMA;

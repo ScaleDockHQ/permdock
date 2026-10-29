@@ -146,7 +146,7 @@ export function hookSql(parts: Parts): string {
   return `${create}create or replace function ${fn}(event jsonb)
 returns jsonb
 language plpgsql
-stable
+stable${parts.hook.security === "definer" ? "\nsecurity definer" : ""}
 set search_path = ''
 as $$
 declare
@@ -202,6 +202,12 @@ $$;`;
 export function grantsSql(parts: Parts): string {
   const schema = quoteIdent(parts.schema);
   const fn = `${schema}.custom_access_token_hook`;
+  if (parts.hook.security === "definer") {
+    return `-- supabase_auth_admin: execute only; the hook reads with its owner's rights
+revoke execute on function ${fn}(jsonb) from authenticated, anon, public;
+grant usage on schema ${schema} to supabase_auth_admin;
+grant execute on function ${fn}(jsonb) to supabase_auth_admin;${extraRevokesSql(parts.extra, parts.before)}`;
+  }
   return [
     `-- supabase_auth_admin: the grants and read policies the hook needs
 grant usage on schema ${schema} to supabase_auth_admin;
@@ -214,6 +220,26 @@ revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extra
   ]
     .filter((chunk) => chunk !== "")
     .join("\n");
+}
+
+/**
+ * A definer hook calls `hook.claims` and `hook.before` functions as its owner,
+ * so they need no grant; they are still revoked from the client roles.
+ */
+function extraRevokesSql(
+  extra: readonly ExtraClaim[],
+  before: readonly string[],
+): string {
+  return [
+    ...extra.map(
+      (entry) =>
+        `\nrevoke all on function ${quoteTable(entry.fn)}(uuid) from public, anon, authenticated;`,
+    ),
+    ...before.map(
+      (fn) =>
+        `\nrevoke all on function ${quoteTable(fn)}(jsonb) from public, anon, authenticated;`,
+    ),
+  ].join("");
 }
 
 function extraGrantsSql(extra: readonly ExtraClaim[]): string {

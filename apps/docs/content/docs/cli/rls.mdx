@@ -837,7 +837,18 @@ Supabase's [declarative schemas](https://supabase.com/docs/guides/local-developm
 | `policies` | `enable row level security`, the table grants and every `create policy`                                                                                                                                                                        |
 | `hook`     | The token hook from `permdock supabase hook generate`; needs `supabase.hook`                                                                                                                                                                   |
 
-Give the parts in any order and any subset; they are written as `helpers`, `seeds`, `indexes`, `policies`, `hook`. Without the `indexes` part, each index is printed as an `index suggestion` warning instead. The part names its indexes `permdock_<table>_<columns>_idx`.
+Give the parts in any order and any subset; they are written as `helpers`, `seeds`, `indexes`, `policies`, `hook`. `rls.split` in `permdock.config.ts` takes the same parts as an array and applies to `--target sql` when `--split` is absent:
+
+```ts
+export default {
+  rls: {
+    out: "supabase/migrations/20260101000000_permdock_{part}.sql",
+    split: ["helpers", "seeds", "hook"],
+  },
+};
+```
+
+With `hook` in `rls.split` and `{part}` in `rls.out`, `supabase inspect`, `supabase hook generate` and doctor read the hook at the `hook` part, unless `supabase.hook.out` is set. Without `rls.split`, they use the `hook` part when that file carries the `-- permdock:hook v1` marker. Without the `indexes` part, each index is printed as an `index suggestion` warning instead. The part names its indexes `permdock_<table>_<columns>_idx`.
 
 An index is suggested only for a column a generated policy or helper looks rows up by: a scope key, a condition field compared with the subject, a claim or a membership (`ownerId: principal.id`, `memberOf`), and a membership table's user column followed by its scope column. A condition that compares with a constant (`status: 'sent'`), a negation, a range and an array `contains` get no index: they filter rows the scope key already found. With `--db-url-stdin`, `generate` reads the database's columns and indexes and leaves out an index that an existing one already leads with (an index on `(organization_id, created_at)` serves `(organization_id)`), so an index the project already has under another name is not created twice. A target on a table or column the database does not have is left out with a `no index suggested on ...` warning. Partial and expression indexes do not count as covering. Without `--db-url-stdin`, nothing is read and every target is written; drop a line the project already has, or leave the part out and keep the indexes in your own schema files. Because `--db-url-stdin` makes the `indexes` part depend on the database it reads, run `--check` with the same `--db-url-stdin` or without it on both sides.
 

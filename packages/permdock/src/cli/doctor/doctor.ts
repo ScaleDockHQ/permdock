@@ -1,5 +1,6 @@
 import type { CommandResult } from "../core/result.ts";
 import type { Style } from "../core/style.ts";
+import type { SqlConnect } from "../pg.ts";
 import type { Project } from "../project/project.ts";
 import type {
   DoctorFinding,
@@ -18,6 +19,7 @@ import { findingOf } from "../core/output.ts";
 import { createStyle } from "../core/style.ts";
 import { DOCTOR_REPORT_SCHEMA } from "../core/version.ts";
 import { listSourceFiles, rel } from "../files.ts";
+import { pgConnector } from "../pg.ts";
 import { loadProject } from "../project/project.ts";
 import { runSkillsInstall } from "../skills.ts";
 import { pd045, pd074 } from "../supabase-config.ts";
@@ -34,6 +36,7 @@ import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd077 } from "./config-names.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
 import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
+import { pd085 } from "./hook-role.ts";
 import { pd044, pd065 } from "./next.ts";
 import { pd080, pd081 } from "./per-request.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
@@ -370,6 +373,12 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     when: (config) => config.rls?.migrate?.tables !== undefined,
     run: (project) => pd066(project.cwd, project.config, project.files),
   },
+  {
+    code: "PD085",
+    groups: ["supabase", "hook"],
+    when: (config) => config.supabase?.hook !== undefined,
+    run: pd085,
+  },
   { code: "PD058", groups: ["powersync"], run: pd058 },
   { code: "PD084", groups: ["powersync", "react-native"], run: pd084 },
   {
@@ -399,6 +408,9 @@ export async function runDoctor(input: {
   readonly color: boolean;
   readonly now: Date;
   readonly io: CliIo;
+  /** From `--db-url-stdin`: the checks that run SQL connect to it. */
+  readonly db?: string;
+  readonly connect?: SqlConnect;
 }): Promise<CommandResult> {
   const wanted = new Set(input.only.map((item) => item.toLowerCase()));
   const unknown = unknownOnly(wanted);
@@ -419,7 +431,17 @@ export async function runDoctor(input: {
     });
     fixed.push(`catalog: ${collected.message.trim()}`);
   }
-  const project = loadProject(input);
+  const project = loadProject({
+    ...input,
+    ...(input.db === undefined
+      ? {}
+      : {
+          database: {
+            url: input.db,
+            connect: input.connect ?? pgConnector("permdock doctor", input.cwd),
+          },
+        }),
+  });
   const selected = (check: DoctorCheck): boolean =>
     wanted.size === 0 ||
     wanted.has(check.code.toLowerCase()) ||

@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { RefreshTrigger } from "../../src/client/refresh-on.ts";
 import type { Snapshot } from "../../src/core/snapshot-types.ts";
-import type { RealtimeRefreshChannel } from "../../src/supabase/client.ts";
+import type {
+  RealtimeRefreshChannel,
+  RealtimeRefreshClient,
+} from "../../src/supabase/client.ts";
 
 import {
   authzChangeRefresh,
@@ -204,5 +207,104 @@ describe(supabaseRealtimeRefresh, () => {
     expect(refresh).toHaveBeenCalledOnce();
     off();
     expect(client.removeChannel).toHaveBeenCalledWith(channel);
+  });
+
+  function fakeRealtime(): {
+    readonly client: RealtimeRefreshClient & {
+      readonly removeChannel: ReturnType<
+        typeof vi.fn<(removed: RealtimeRefreshChannel) => unknown>
+      >;
+    };
+    readonly opened: RealtimeRefreshChannel[];
+    readonly send: () => void;
+  } {
+    const handlers: (() => void)[] = [];
+    const opened: RealtimeRefreshChannel[] = [];
+    const channelOf = (): RealtimeRefreshChannel => ({
+      on: (_type, _filter, callback) => {
+        handlers.push(() => {
+          callback({ payload: { user_id: "u1", version: 2 } });
+        });
+        return undefined;
+      },
+      subscribe: () => undefined,
+    });
+    return {
+      client: {
+        channel: () => {
+          const channel = channelOf();
+          opened.push(channel);
+          return channel;
+        },
+        removeChannel: vi.fn<(removed: RealtimeRefreshChannel) => unknown>(),
+      },
+      opened,
+      send: () => {
+        for (const handler of handlers) {
+          handler();
+        }
+      },
+    };
+  }
+
+  it("binds an app-owned channel and never subscribes or removes it", () => {
+    const realtime = fakeRealtime();
+    const channel = {
+      on: vi.fn<RealtimeRefreshChannel["on"]>(() => undefined),
+      subscribe: vi.fn<() => unknown>(),
+    };
+    const refresh = vi.fn<() => void>();
+    const off = supabaseRealtimeRefresh(realtime.client, {
+      userId: "u1",
+      channel,
+    })(refresh);
+    expect(realtime.opened).toHaveLength(0);
+    expect(channel.on).toHaveBeenCalledWith(
+      "broadcast",
+      { event: "changed" },
+      expect.any(Function),
+    );
+    const callback = channel.on.mock.calls[0]?.[2];
+    callback?.({});
+    expect(refresh).toHaveBeenCalledOnce();
+    off();
+    callback?.({});
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(channel.subscribe).not.toHaveBeenCalled();
+    expect(realtime.client.removeChannel).not.toHaveBeenCalled();
+  });
+
+  it("leaves its channel in the background and rejoins with one refresh on the return", () => {
+    const realtime = fakeRealtime();
+    let listener: ((active?: boolean) => void) | undefined;
+    const offForeground = vi.fn<() => void>();
+    const refresh = vi.fn<() => void>();
+    const off = supabaseRealtimeRefresh(realtime.client, {
+      userId: "u1",
+      foreground: (next) => {
+        listener = next;
+        return offForeground;
+      },
+    })(refresh);
+    expect(realtime.opened).toHaveLength(1);
+    listener?.(false);
+    expect(realtime.client.removeChannel).toHaveBeenCalledWith(
+      realtime.opened[0],
+    );
+    expect(refresh).not.toHaveBeenCalled();
+    listener?.(true);
+    expect(realtime.opened).toHaveLength(2);
+    expect(refresh).toHaveBeenCalledOnce();
+    listener?.();
+    expect(realtime.opened).toHaveLength(2);
+    expect(refresh).toHaveBeenCalledTimes(2);
+    off();
+    expect(offForeground).toHaveBeenCalledOnce();
+    expect(realtime.client.removeChannel).toHaveBeenLastCalledWith(
+      realtime.opened[1],
+    );
+    realtime.send();
+    listener?.(true);
+    expect(refresh).toHaveBeenCalledTimes(2);
   });
 });

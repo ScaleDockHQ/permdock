@@ -142,7 +142,7 @@ alter publication powersync add table permdock.custom_role_includes, permdock.cu
 - `permdock_<memberships table>`: the user's membership rows (`<user> = auth.user_id()`) for each table in `rls.memberships`.
 - `permdock_<source table>`: the user's rows of each membership source of a scope `rls.memberships` does not map, and of the table its `user` reads through.
 - `permdock_<global roles table>`: the user's global-role rows from `rls.roles`, else `permdock.user_roles` in `database` mode.
-- `permdock_<roles table>`: the rows of each `through` roles table that one of the user's membership or global-role rows references.
+- `permdock_<roles table>`: the rows of each `through` roles table that one of the user's membership or global-role rows references. A `through` with several `on` columns, such as better-supabase's `membership_roles` (`roles: "many"`), matches on all of them, and the pair on the user column compares with `auth.user_id()`. Such a stream selects the key columns, the value column and an `id` built as `<key> || ':' || … || <value>`, because PowerSync keys every row on `id`.
 - With `rls.customRoles` in `database` mode, the custom role tables, limited to rows with no tenant and rows of the user's tenants: the root scope's `rls.memberships` table, else each of its membership sources.
 - `permdock_authz_version`: the user's own version row (`user_id = auth.user_id()`) when `supabase.hook` keeps `permdock_authz_version` (`hook.version` is not `false`). [`nativeRefresh`](/docs/adapters/react-native#role-and-tenant-changes) compares it with the token's `authz_ver`.
 

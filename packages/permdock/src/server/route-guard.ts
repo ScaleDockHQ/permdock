@@ -17,6 +17,7 @@ import { compact } from "../core/compact.ts";
 import { LOAD_FAILED } from "../core/decision.ts";
 import { challengeScope } from "../core/oauth-scopes.ts";
 import { resourceRef } from "../core/resource-ref.ts";
+import { decideSet, permissionList } from "./decide-set.ts";
 import { applyApprovalResume } from "./evaluations.ts";
 import { hasCredentials } from "./http.ts";
 import {
@@ -104,16 +105,38 @@ async function refused(
   }
 }
 
+/** `protectOptions.rows` bound to the request, or `undefined` without it. */
+function rowsLoader(
+  protectOptions: ProtectOptions,
+  load: unknown,
+  request: Request | undefined,
+): (() => readonly unknown[] | Promise<readonly unknown[]>) | undefined {
+  const { rows } = protectOptions;
+  if (rows === undefined) {
+    return undefined;
+  }
+  if (load !== undefined) {
+    throw new TypeError("PermDock: protect takes data or rows, not both");
+  }
+  if (request === undefined) {
+    throw new TypeError("PermDock: protect rows needs the request");
+  }
+  return () => rows(request);
+}
+
 export async function guardOn<T, V extends PolicyVocabulary>(
   deps: RouteGuardDeps,
   instance: PermDock<V>,
   remote: PdpPermDock | undefined,
   report: Report,
   request: Request | undefined,
-  permission: Permission | null,
+  permission: Permission | readonly Permission[] | null,
   load: (() => ReturnType<Loader<T>>) | undefined,
   protectOptions: ProtectOptions,
 ): Promise<Guard<T, V> | ScopeGuard<T, V>> {
+  const permissions = permission === null ? null : permissionList(permission);
+  const lead = permissions?.[0] ?? null;
+  const loadRows = rowsLoader(protectOptions, load, request);
   const declared = routeScopes(
     protectOptions.oauthScopes ??
       (request === undefined
@@ -156,33 +179,48 @@ export async function guardOn<T, V extends PolicyVocabulary>(
   ) {
     return refused(
       deps.options.deniedResponse,
-      scopeProblem(permission, instance.subject, credentials, declared[0]),
+      scopeProblem(lead, instance.subject, credentials, declared[0]),
       NOT_DELEGATED,
       request,
       report,
     );
   }
   let data: T | undefined;
-  if (load !== undefined) {
-    let loaded: T | null | undefined;
+  let rows: readonly unknown[] | undefined;
+  const loader = loadRows ?? load;
+  if (loader !== undefined) {
+    let loaded: unknown;
     try {
-      loaded = await load();
+      loaded = await loader();
     } catch (error) {
       report(error);
       return refused(
         deps.options.deniedResponse,
-        loadFailedProblem(permission),
+        loadFailedProblem(lead),
         LOAD_FAILED,
         request,
         report,
       );
     }
-    if (loaded === null || loaded === undefined) {
+    if (
+      loaded === null ||
+      loaded === undefined ||
+      (loadRows !== undefined &&
+        (!Array.isArray(loaded) || loaded.length === 0))
+    ) {
       return { ok: false, response: notFoundProblem() };
     }
-    data = loaded;
+    if (loadRows === undefined) {
+      // SAFETY: loaded is the data loader's non-null result, typed T.
+      data = loaded as T;
+    } else {
+      // SAFETY: Array.isArray checked loaded above; the rows stay unknown.
+      rows = loaded as readonly unknown[];
+      // SAFETY: with rows, the guard's data is the loaded list.
+      data = rows as T;
+    }
   }
-  if (permission === null) {
+  if (permissions === null || lead === null) {
     // SAFETY: T is the data loader's result type; data is undefined only when no loader was passed.
     return { ok: true, permdock: instance, data: data as T };
   }
@@ -195,32 +233,85 @@ export async function guardOn<T, V extends PolicyVocabulary>(
       ? { trusted: true }
       : { trusted: false, boundary: "http-body" as const }),
   });
-  // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
-  const raw =
-    remote === undefined
-      ? (
-          instance.decide as (
-            next: Permission,
-            row?: unknown,
-            options?: DecideOptions,
-          ) => Decision
-        )(permission, data, decideOptions)
-      : await remote
-          .decide(permission, data, decideOptions)
-          .catch((): Decision => ({
-            outcome: "denied",
-            denials: [{ role: null, reason: "pdp-unavailable" }],
-            alternatives: [],
-          }));
-  const decision = await applyApprovalResume(
-    raw,
-    permission,
-    instance,
-    deps.options.store,
-    request,
-    resourceRef(permission, data),
-    deps.adapter,
-  );
+  const decideOne = async (
+    next: Permission,
+    row: unknown,
+  ): Promise<Decision> => {
+    // SAFETY: decide's generics only tie the row type to the permission; it accepts any row.
+    const raw =
+      remote === undefined
+        ? (
+            instance.decide as (
+              next: Permission,
+              row?: unknown,
+              options?: DecideOptions,
+            ) => Decision
+          )(next, row, decideOptions)
+        : await remote
+            .decide(next, row, decideOptions)
+            .catch((): Decision => ({
+              outcome: "denied",
+              denials: [{ role: null, reason: "pdp-unavailable" }],
+              alternatives: [],
+            }));
+    return applyApprovalResume(
+      raw,
+      next,
+      instance,
+      deps.options.store,
+      request,
+      resourceRef(next, row),
+      deps.adapter,
+    );
+  };
+  const decideRows = (
+    next: Permission,
+    batch: readonly unknown[],
+  ): Promise<readonly Decision[]> => {
+    if (remote !== undefined) {
+      return Promise.all(batch.map((row) => decideOne(next, row)));
+    }
+    // SAFETY: decideEach's generics only tie the row type to the permission; it accepts any row.
+    const each = instance.decideEach as (
+      next: Permission,
+      rows: readonly unknown[],
+      options?: DecideOptions,
+    ) => readonly Decision[];
+    return Promise.all(
+      each(next, batch, decideOptions).map((raw, index) =>
+        applyApprovalResume(
+          raw,
+          next,
+          instance,
+          deps.options.store,
+          request,
+          resourceRef(next, batch[index]),
+          deps.adapter,
+        ),
+      ),
+    );
+  };
+  let decision: Decision;
+  let refusedPermission = lead;
+  let refusedRow: unknown = data;
+  if (rows === undefined && permissions.length === 1) {
+    decision = await decideOne(lead, data);
+  } else {
+    const set = await decideSet(
+      permissions,
+      rows ?? [data],
+      protectOptions.anyOf === true,
+      rows === undefined
+        ? (next, batch): Promise<readonly Decision[]> =>
+            Promise.all(batch.map((row) => decideOne(next, row)))
+        : decideRows,
+    );
+    decision = set.decision;
+    if (!set.ok) {
+      refusedPermission = set.permission;
+      refusedRow = set.row;
+    }
+  }
   if (decision.outcome === "granted") {
     // SAFETY: T is the data loader's result type; data is undefined only when no loader was passed.
     return { ok: true, permdock: instance, decision, data: data as T };
@@ -229,16 +320,16 @@ export async function guardOn<T, V extends PolicyVocabulary>(
     deps.options.deniedResponse,
     problemFromDecision(
       decision,
-      permission,
+      refusedPermission,
       instance.subject,
       compact({
         approval: deps.options.approval,
         credentials,
-        scope: declared?.[0] ?? challengeScope(deps.policy, permission),
+        scope: declared?.[0] ?? challengeScope(deps.policy, refusedPermission),
         disclosure:
-          data === undefined
+          refusedRow === undefined
             ? undefined
-            : deps.policy.resources.get(permission.resource)?.disclosure,
+            : deps.policy.resources.get(refusedPermission.resource)?.disclosure,
       }),
     ),
     decision,
