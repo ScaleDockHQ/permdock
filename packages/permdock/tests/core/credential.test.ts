@@ -80,7 +80,8 @@ function person(
     id,
     kind: "user",
     tenant,
-    memberships: roles.length === 0 ? [] : [{ tenant, roles }],
+    memberships:
+      roles.length === 0 ? [] : [{ scope: "tenant", id: tenant, roles }],
   };
 }
 
@@ -293,7 +294,9 @@ describe(credentialSubject, () => {
       id: "ci",
       kind: "service",
       tenant: "o_1",
-      memberships: [{ tenant: "o_1", roles: ["developer"], via: "credential" }],
+      memberships: [
+        { scope: "tenant", id: "o_1", roles: ["developer"], via: "credential" },
+      ],
     });
     expect(subject.expiresAt).toBe(NOW_SECONDS + DAY);
     const permdock = permdockFor(subject);
@@ -569,8 +572,8 @@ describe(decideCredential, () => {
         kind: "user",
         tenant: "o_1",
         memberships: [
-          { tenant: "o_1", roles: ["owner"] },
-          { tenant: "o_2", roles: ["owner"] },
+          { scope: "tenant", id: "o_1", roles: ["owner"] },
+          { scope: "tenant", id: "o_2", roles: ["owner"] },
         ],
       },
       context: {},
@@ -743,8 +746,8 @@ describe("a user key held to one tenant", () => {
     kind: "user",
     tenant: "o_1",
     memberships: [
-      { tenant: "o_1", roles: ["developer"] },
-      { tenant: "o_2", roles: ["developer"] },
+      { scope: "tenant", id: "o_1", roles: ["developer"] },
+      { scope: "tenant", id: "o_2", roles: ["developer"] },
     ],
   };
   const heldKey: Credential = { ...userKey, tenant: "o_2" };

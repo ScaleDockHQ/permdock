@@ -48,7 +48,8 @@ const plans = definePlans({ free: {}, pro: {} });
 export type SaasUser = {
   readonly id: string;
   readonly memberships?: readonly {
-    readonly tenant: string;
+    readonly scope: string;
+    readonly id: string;
     readonly roles: readonly string[];
   }[];
 };
@@ -106,14 +107,14 @@ export const policy = definePolicy(
 export const alice: SaasUser = {
   id: "alice",
   memberships: [
-    { tenant: "acme", roles: ["admin"] },
-    { tenant: "globex", roles: ["viewer"] },
+    { scope: "tenant", id: "acme", roles: ["admin"] },
+    { scope: "tenant", id: "globex", roles: ["viewer"] },
   ],
 };
 
 export const bob: SaasUser = {
   id: "bob",
-  memberships: [{ tenant: "acme", roles: ["member"] }],
+  memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
 };
 
 export const ownProject = {

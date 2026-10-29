@@ -89,10 +89,6 @@ export type Membership = {
    * conditions or RLS, and never written into token claims.
    */
   readonly x?: AppData;
-  /** Input only: an instance of the first scope. */
-  readonly tenant?: string;
-  /** Input only: an instance of the second scope, inside `tenant`. */
-  readonly team?: string;
 };
 
 /**
@@ -308,6 +304,16 @@ export function isActor(value: unknown): value is Actor {
   // SAFETY: value is a non-null, non-array object checked above; both fields stay unknown.
   const record = value as { readonly id?: unknown; readonly kind?: unknown };
   return typeof record.id === "string" && typeof record.kind === "string";
+}
+
+/**
+ * A membership of the first scope itself (the only scope without a parent): its
+ * id is a tenant. Needs no scope list, for code that holds only a subject.
+ */
+export function rootMembershipId(membership: Membership): string | undefined {
+  return membership.scope !== undefined && membership.within === undefined
+    ? membership.id
+    : undefined;
 }
 
 export function anonymousSubject<TPrincipal extends Principal = Principal>(

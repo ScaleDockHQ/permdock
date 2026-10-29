@@ -1,7 +1,7 @@
 /**
- * The CLI names 0.5.0 changed, in one table. `run()` turns an old spelling into
- * a `flag_renamed` or `command_moved` problem, the codemod rewrites scripts and
- * workflows from it, and the docs Naming page lists it.
+ * The CLI names 0.5.0 changed, in one table. `permdock codemod 0.5` rewrites
+ * scripts and workflows from it, and the docs Naming page lists it; the CLI
+ * itself answers an old spelling as an unknown flag or command.
  */
 
 /** A flag a leaf no longer takes, and what replaces it. */
@@ -156,7 +156,6 @@ export const DEFAULT_CHANGES: readonly DefaultChange[] = [
     add: "--dry-run",
   },
 ];
-
 /** The rename that matches `flag` (as typed, before any `=`) on `command`. */
 export function flagRename(
   command: string,

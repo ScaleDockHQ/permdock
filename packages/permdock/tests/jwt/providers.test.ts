@@ -124,7 +124,11 @@ describe("subjectFromJwt with an injected verifier", () => {
           throw new Error("db down");
         },
       },
-      { membershipsFor: async () => [{ tenant: "acme", roles: ["admin"] }] },
+      {
+        membershipsFor: async () => [
+          { scope: "tenant", id: "acme", roles: ["admin"] },
+        ],
+      },
     ];
     const results = [];
     for (const memberships of sources) {
@@ -137,7 +141,7 @@ describe("subjectFromJwt with an injected verifier", () => {
     expect(results).toStrictEqual([
       undefined,
       undefined,
-      [{ tenant: "acme", roles: ["admin"] }],
+      [{ scope: "tenant", id: "acme", roles: ["admin"] }],
     ]);
   });
 

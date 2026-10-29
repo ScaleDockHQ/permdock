@@ -34,7 +34,7 @@ const deploys = definePermissions({ environment: resource(crud()) });
 const ops = definePolicy(deploys, {
   roles: [
     role("operator", [
-      allow(deploys.environment.delete, { approval: { distinct: false } }),
+      allow(deploys.environment.delete, { approval: { mode: "confirm" } }),
     ]),
   ],
   subject: (user: { readonly id: string }) => ({

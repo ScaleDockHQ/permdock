@@ -112,6 +112,7 @@ export {
 } from "./conformance/credentials.ts";
 export {
   testDecisionSink,
+  testInstanceCache,
   testLimitStore,
   testPolicySource,
   testSnapshotSource,

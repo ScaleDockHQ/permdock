@@ -1,4 +1,17 @@
 export { accessReviewApplier } from "./access-reviews.ts";
+export {
+  blockApprovalPolicySource,
+  blockApprovalStore,
+} from "./approvals-block.ts";
+export type {
+  BlockApprovalApprovers,
+  BlockInstant,
+  BlockApprovalPoliciesClient,
+  BlockApprovalPolicySourceOptions,
+  BlockApprovalRecord,
+  BlockApprovalsClient,
+  BlockApprovalTenantPolicy,
+} from "./approvals-block.ts";
 export type {
   AccessReviewApplierOptions,
   AccessReviewApplyFailure,
@@ -44,6 +57,14 @@ export type {
   BetterSupabaseMembershipRow,
   PrincipalFromMembershipsOptions,
 } from "./memberships.ts";
+export { getPermissions, permdockFor } from "./permdock-for.ts";
+export type {
+  PermDockFor,
+  PermDockForOptions,
+  PermDockForQuery,
+  PermDockForResult,
+  PermDockForInput,
+} from "./permdock-for.ts";
 export { principalSource } from "./principals.ts";
 export { roleOrderFromCatalog } from "./role-order.ts";
 export type { RoleOrderOptions } from "./role-order.ts";
@@ -66,6 +87,12 @@ export type {
 export { supportPolicy } from "./support.ts";
 export type { PendingSupportSession, SupportPolicyOptions } from "./support.ts";
 export { handlerCan, hookCan } from "./workflow.ts";
+export { workflowResource } from "./workflow-resource.ts";
+export type {
+  WorkflowRecordRef,
+  WorkflowResourceResult,
+  WorkflowSubjectTypes,
+} from "./workflow-resource.ts";
 export type {
   HandlerCanOptions,
   HandlerPermDockSource,

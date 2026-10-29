@@ -309,7 +309,9 @@ export function createPermDock<
           id: current.principal,
           kind: "service" as const,
           tenant: current.tenant,
-          memberships: [{ tenant: current.tenant, roles: current.roles ?? [] }],
+          memberships: [
+            { scope: "tenant", id: current.tenant, roles: current.roles ?? [] },
+          ],
         });
       },
     };

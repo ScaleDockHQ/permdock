@@ -64,7 +64,7 @@ const base = {
       meta: {},
       usages: [{ file: "src/a.ts", line: 3, call: "assert" }],
       rowConditions: true,
-      approvals: ["human", { distinct: true, staleOn: "resource-change" }],
+      approvals: ["human", { mode: "authorize", staleOn: "resource-change" }],
     },
     {
       key: "post.create",

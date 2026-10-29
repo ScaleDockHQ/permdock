@@ -22,7 +22,7 @@ const withClaims = defineMiddleware<
 >({ key: "jwtClaims", run: () => async () => ({ jwtClaims: memberClaims }) });
 
 const subjectOptions = {
-  claims: { roles: "user_role", tenant: "tenant_id" },
+  claims: { roles: "user_role", scope: "tenant", id: "tenant_id" },
   declared: ["member", "admin"],
 } as const;
 

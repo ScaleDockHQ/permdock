@@ -356,7 +356,7 @@ describe("rls verify db", () => {
             subject: {
               id: "u1",
               tenant: "o1",
-              memberships: [{ tenant: "o1", roles: ["reader"] }],
+              memberships: [{ scope: "tenant", id: "o1", roles: ["reader"] }],
             },
             row: own,
             action: "post.read",
@@ -396,7 +396,7 @@ describe("rls verify db", () => {
             subject: {
               id: "u1",
               tenant: "o1",
-              memberships: [{ tenant: "o1", roles: ["reader"] }],
+              memberships: [{ scope: "tenant", id: "o1", roles: ["reader"] }],
             },
             row: own,
             action: "post.read",

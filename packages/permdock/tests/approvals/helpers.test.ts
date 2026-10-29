@@ -52,7 +52,7 @@ const approver: Subject = {
   principal: {
     id: "u_9",
     roles: [],
-    memberships: [{ tenant: "o_1", roles: ["admin"] }],
+    memberships: [{ scope: "tenant", id: "o_1", roles: ["admin"] }],
   },
   context: {},
 };

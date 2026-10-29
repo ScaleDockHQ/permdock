@@ -444,8 +444,8 @@ catalogs:
       specifier: 3.0.1
       version: 3.0.1
     better-supabase:
-      specifier: 0.33.0
-      version: 0.33.0
+      specifier: 0.39.0
+      version: 0.39.0
     botid:
       specifier: 1.5.11
       version: 1.5.11
@@ -734,6 +734,7 @@ overrides:
   kysely: 0.29.7
   launch-editor: 2.14.2
   dompurify: 3.4.17
+  systeminformation: 5.33.17
   pg: 8.23.1
   next: 16.4.2
   react: 19.3.1
@@ -1717,7 +1718,7 @@ importers:
     dependencies:
       better-supabase:
         specifier: 'catalog:'
-        version: 0.33.0(103e95192045d25e549b087c87ef7c7c)
+        version: 0.39.0(103e95192045d25e549b087c87ef7c7c)
       jose:
         specifier: 'catalog:'
         version: 6.2.12
@@ -2715,10 +2716,10 @@ importers:
         version: 1.0.0
       better-supabase:
         specifier: 'catalog:'
-        version: 0.33.0(24d015a0ce0fce40776c2d3f17c409e9)
+        version: 0.39.0(24d015a0ce0fce40776c2d3f17c409e9)
       better-supabase-floor:
-        specifier: npm:better-supabase@0.33.0
-        version: better-supabase@0.33.0(24d015a0ce0fce40776c2d3f17c409e9)
+        specifier: npm:better-supabase@0.39.0
+        version: better-supabase@0.39.0(24d015a0ce0fce40776c2d3f17c409e9)
       chat:
         specifier: 'catalog:'
         version: 4.42.0(ai@7.0.143(zod@4.6.7))(supports-color@11.0.0)(workflow@5.2.2(@aws-sdk/credential-provider-web-identity@3.972.49)(@nestjs/common@12.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@11.0.0))(@nestjs/core@12.1.3)(@opentelemetry/api@1.9.1)(@swc/cli@0.8.1(@swc/core@1.15.3(@swc/helpers@0.5.23))(chokidar@5.0.0)(supports-color@11.0.0))(@swc/core@1.15.3(@swc/helpers@0.5.23))(@swc/helpers@0.5.23)(magicast@0.5.5)(next@16.4.2(@babel/core@8.0.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(supports-color@11.0.0)(typescript@7.0.2)(ws@8.22.0))(zod@4.6.7)
@@ -3039,7 +3040,7 @@ importers:
         version: 7.0.143(zod@4.6.7)
       better-supabase:
         specifier: 'catalog:'
-        version: 0.33.0(a0c043cb557238d883182ca3fbc37e5d)
+        version: 0.39.0(a0c043cb557238d883182ca3fbc37e5d)
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.5-5935859(@electric-sql/pglite@0.5.10)(@opentelemetry/api@1.9.1)(@sinclair/typebox@0.34.52)(@types/pg@8.23.1)(arktype@2.2.8)(mysql2@3.24.5(@types/node@26.6.5))(pg@8.23.1)(postgres@3.4.7)(valibot@1.5.0(typescript@7.0.2))(zod@4.6.7)
@@ -9576,6 +9577,11 @@ packages:
 
   ajv-formats@2.1.1:
     resolution: {integrity: sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA==}
+    peerDependencies:
+      ajv: ^8.0.0
+    peerDependenciesMeta:
+      ajv:
+        optional: true
 
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
@@ -9926,8 +9932,8 @@ packages:
   better-result@3.0.1:
     resolution: {integrity: sha512-rnCeqEXkKPHmz5MO5ZroPRDyHe4YvlNPyy7qj8cVcWs/GnvSvC3086G74/220W+wWcIWlXgzvcjskFV0A4blUQ==}
 
-  better-supabase@0.33.0:
-    resolution: {integrity: sha512-iMu6DB25Rn5i5b7lQ1U27flaw8zZlt67qr1StPeLUT0mzpPHycqHSZZOThPOHt1tIkTPIEgc6utCg/V9HMI1CQ==}
+  better-supabase@0.39.0:
+    resolution: {integrity: sha512-70D6o61Py61Q7lIC/f7JBSbN39bWJ+MaCaOp6tecnaMlVa645qOdu3w6f1wzRLyktCeA1h3tI/DLB0pKKubo9A==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -16259,8 +16265,8 @@ packages:
     resolution: {integrity: sha512-0OJWD12D7XX3KUg1DYkMaTTjSTo2k/mhIYI3HlBlceXSMcJhW/1qO735fPKS5prcyjvn57Ub151vvASYXpQrEw==}
     engines: {node: '>=18'}
 
-  systeminformation@5.33.10:
-    resolution: {integrity: sha512-/NXbMVASt2UbSVgmWto4aBTIAeuYY7zOELpZybmNxqpsrbo5uYHpuEPf5nkyrPng0uG5YOb+Yv6s0FyKY4mDQg==}
+  systeminformation@5.33.17:
+    resolution: {integrity: sha512-rHj5RG1XHWNSZrwr6hJqxlu3Lq/srdyFEKcLTRCwwXd38qL8fZ/jDyoBKWpYBrb8w9KjgQJnHFQybYYHP353rg==}
     engines: {node: '>=10.0.0'}
     os: [darwin, linux, win32, freebsd, openbsd, netbsd, sunos, android]
     hasBin: true
@@ -18792,7 +18798,7 @@ snapshots:
       object-treeify: 1.1.33
       open: 8.4.2
       picomatch: 4.0.7
-      systeminformation: 5.33.10
+      systeminformation: 5.33.17
       undici: 7.30.1
       which: 4.0.0
       yocto-spinner: 1.2.2
@@ -25519,8 +25525,8 @@ snapshots:
       '@ai-sdk/provider-utils': 5.0.62(zod@4.6.7)
       zod: 4.6.7
 
-  ajv-formats@2.1.1:
-    dependencies:
+  ajv-formats@2.1.1(ajv@8.20.0):
+    optionalDependencies:
       ajv: 8.20.0
 
   ajv-formats@3.0.1(ajv@8.20.0):
@@ -26033,7 +26039,7 @@ snapshots:
 
   better-result@3.0.1: {}
 
-  better-supabase@0.33.0(103e95192045d25e549b087c87ef7c7c):
+  better-supabase@0.39.0(103e95192045d25e549b087c87ef7c7c):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -26083,7 +26089,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  better-supabase@0.33.0(24d015a0ce0fce40776c2d3f17c409e9):
+  better-supabase@0.39.0(24d015a0ce0fce40776c2d3f17c409e9):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -26133,7 +26139,7 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  better-supabase@0.33.0(a0c043cb557238d883182ca3fbc37e5d):
+  better-supabase@0.39.0(a0c043cb557238d883182ca3fbc37e5d):
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@supabase/middleware': 1.0.0(typescript@7.0.2)
@@ -26707,7 +26713,7 @@ snapshots:
   conf@10.2.0:
     dependencies:
       ajv: 8.20.0
-      ajv-formats: 2.1.1
+      ajv-formats: 2.1.1(ajv@8.20.0)
       atomically: 1.7.0
       debounce-fn: 4.0.0
       dot-prop: 6.0.1
@@ -34238,7 +34244,7 @@ snapshots:
 
   system-architecture@1.0.0: {}
 
-  systeminformation@5.33.10: {}
+  systeminformation@5.33.17: {}
 
   tagged-tag@1.0.0: {}
 

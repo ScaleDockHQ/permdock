@@ -8,6 +8,7 @@ import type {
 
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { Decision } from "../core/decision.ts";
+import type { InstanceCache } from "../core/instance-cache.ts";
 import type { Intent, MembershipSource } from "../core/interfaces.ts";
 import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
@@ -18,12 +19,11 @@ import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 
 import { resumeDecision } from "../approvals/helpers.ts";
 import { parseApprovalHeader } from "../core/approval-header.ts";
+import { canonicalJson } from "../core/canonical-json.ts";
 import { isRecord } from "../core/compact.ts";
-import { claimsFirst } from "../core/memberships.ts";
-import { getPermDock } from "../core/permdock.ts";
 import { isPermission } from "../core/permission-registry.ts";
+import { permdockResolver } from "./permdock-for.ts";
 import { deniedMessage, report } from "./report.ts";
-import { subjectFromBetterSupabase } from "./subject.ts";
 
 /**
  * The table operations better-supabase's `permissions: true` resolves through
@@ -86,6 +86,11 @@ export type AuthorizerOptions = {
    * consumes it. Without a store, `approval-required` is returned as is.
    */
   readonly store?: ApprovalStore;
+  /**
+   * Shares instances across requests while the caller's authorization version
+   * is unchanged: the `instanceCache()` the app's other adapters use.
+   */
+  readonly instances?: InstanceCache;
   /** Receives every error a check threw; the check still denies. */
   readonly onError?: BetterSupabaseOnError;
   /**
@@ -198,46 +203,36 @@ export function authorizer(
       ? "read"
       : "write";
   };
-  const membershipsFor = (
-    runtime: AuthorizerRuntime<VersionCache> | undefined,
-  ): Pick<PermDockOptions, "memberships"> => {
-    if (options.memberships === undefined) return {};
-    const versions = runtime?.versions ?? options.versions;
-    return {
-      memberships: claimsFirst(options.memberships, {
-        onStale: "reread",
-        ...(options.version === undefined ? {} : { version: options.version }),
-        ...(versions === undefined ? {} : { versions }),
-      }),
-    };
-  };
-  const instanceFor = async (
-    claims: unknown,
-    tenant: string | null,
-    intent: Intent,
-    runtime: AuthorizerRuntime<VersionCache> | undefined,
-  ): Promise<PermDock> => {
-    const session =
-      claims === undefined ? null : { kind: "user" as const, claims };
-    const base = await getPermDock(
-      options.policy,
-      subjectFromBetterSupabase(session, options.subject),
-      { ...options.options, ...membershipsFor(runtime), intent },
-    );
-    return tenant === null ? base : base.tenant(tenant);
-  };
-  const scoped = (
+  const resolve = permdockResolver(options);
+  const instanceFor = (
     claims: unknown,
     tenant: string | null,
     intent: Intent,
     runtime: AuthorizerRuntime<VersionCache> | undefined,
   ): Promise<PermDock> =>
-    runtime?.memo === undefined
-      ? instanceFor(claims, tenant, intent, runtime)
-      : runtime.memo.once(
-          `permdock:authorizer:${JSON.stringify([claims ?? null, tenant, intent])}`,
-          () => instanceFor(claims, tenant, intent, runtime),
-        );
+    resolve(
+      claims === undefined ? null : { kind: "user", claims },
+      { tenant, intent },
+      runtime?.versions,
+    );
+  const scoped = (
+    claims: unknown,
+    tenant: string | null,
+    intent: Intent,
+    runtime: AuthorizerRuntime<VersionCache> | undefined,
+    batch?: Map<string, Promise<PermDock>>,
+  ): Promise<PermDock> => {
+    const key = `permdock:authorizer:${canonicalJson([claims ?? null, tenant, intent])}`;
+    const build = (): Promise<PermDock> =>
+      instanceFor(claims, tenant, intent, runtime);
+    if (runtime?.memo !== undefined) return runtime.memo.once(key, build);
+    if (batch === undefined) return build();
+    const known = batch.get(key);
+    if (known !== undefined) return known;
+    const created = build();
+    batch.set(key, created);
+    return created;
+  };
   const decideWith = async (
     permdock: PermDock,
     request: AuthorizationRequest<Permission>,
@@ -323,28 +318,17 @@ export function authorizer(
       requests: readonly AuthorizationRequest<Permission>[],
       runtime?: AuthorizerRuntime<VersionCache>,
     ): Promise<readonly AuthorizationOutcome[]> {
-      // A batch is one caller's rows, so one instance serves every request
-      // that carries the same claims object, tenant and intent.
-      const cache = new Map<unknown, Map<string, Promise<PermDock>>>();
+      const batch = new Map<string, Promise<PermDock>>();
       const shared = (
         request: AuthorizationRequest<Permission>,
-      ): Promise<PermDock> => {
-        const claims = claimsOf(request);
-        const tenant = tenantOf(request);
-        const intent = intentOf(request, true);
-        let byKey = cache.get(claims);
-        if (byKey === undefined) {
-          byKey = new Map();
-          cache.set(claims, byKey);
-        }
-        const key = JSON.stringify([tenant, intent]);
-        let instance = byKey.get(key);
-        if (instance === undefined) {
-          instance = scoped(claims, tenant, intent, runtime);
-          byKey.set(key, instance);
-        }
-        return instance;
-      };
+      ): Promise<PermDock> =>
+        scoped(
+          claimsOf(request),
+          tenantOf(request),
+          intentOf(request, true),
+          runtime,
+          batch,
+        );
       return Promise.all(
         requests.map(async (request) => {
           try {

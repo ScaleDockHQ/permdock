@@ -418,7 +418,8 @@ export function credentialSubject(
     });
   } else {
     const membership = compact<Membership>({
-      tenant: credential.tenant,
+      scope: "tenant",
+      id: credential.tenant,
       roles: credential.roles ?? [],
       via: "credential",
     });

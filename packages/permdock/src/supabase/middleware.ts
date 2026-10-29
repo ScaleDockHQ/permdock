@@ -2,6 +2,8 @@ import type { Middleware } from "@supabase/middleware";
 
 import { defineMiddleware } from "@supabase/middleware";
 
+export type { FetchHandler } from "@supabase/middleware";
+
 import type { Credential } from "../core/credential.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock } from "../core/permdock.ts";

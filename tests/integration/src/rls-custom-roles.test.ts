@@ -71,8 +71,9 @@ const CUSTOM_ROLES: readonly CustomRole[] = [
 ];
 
 type Membership = {
-  readonly tenant: string;
-  readonly team?: string;
+  readonly scope: string;
+  readonly id: string;
+  readonly within?: Readonly<Record<string, string>>;
   readonly roles: readonly string[];
 };
 
@@ -86,47 +87,61 @@ const SUBJECTS: Readonly<Record<string, Subject>> = {
   plus: {
     id: PLUS,
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["editor-plus"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["editor-plus"] }],
   },
   writer: {
     id: WRITER,
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["writer"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["writer"] }],
   },
   grabby: {
     id: GRABBY,
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["grabby"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["grabby"] }],
   },
   reviewer: {
     id: REVIEWER,
     tenant: "acme",
-    memberships: [{ tenant: "acme", team: "t1", roles: ["reviewer"] }],
+    memberships: [
+      {
+        within: { tenant: "acme" },
+        scope: "team",
+        id: "t1",
+        roles: ["reviewer"],
+      },
+    ],
   },
   globex: {
     id: GLOBEX,
     tenant: "globex",
-    memberships: [{ tenant: "globex", roles: ["writer"] }],
+    memberships: [{ scope: "tenant", id: "globex", roles: ["writer"] }],
   },
   shadow: {
     id: SHADOW,
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["viewer"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["viewer"] }],
   },
   sharedAcme: {
     id: SHARED_ACME,
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["reader"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["reader"] }],
   },
   sharedGlobex: {
     id: SHARED_GLOBEX,
     tenant: "globex",
-    memberships: [{ tenant: "globex", roles: ["reader"] }],
+    memberships: [{ scope: "tenant", id: "globex", roles: ["reader"] }],
   },
   boardViewer: {
     id: BOARD_VIEWER,
     tenant: "acme",
-    memberships: [{ tenant: "acme", team: "t2", roles: ["board-viewer"] }],
+    memberships: [
+      {
+        within: { tenant: "acme" },
+        scope: "team",
+        id: "t2",
+        roles: ["board-viewer"],
+      },
+    ],
   },
 };
 

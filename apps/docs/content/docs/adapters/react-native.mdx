@@ -193,7 +193,7 @@ const source = localSnapshot({
     principal: {
       id: userId,
       tenant: organizationId,
-      memberships: await readMemberships(userId), // [{ tenant: 'acme', roles: ['admin'] }]
+      memberships: await readMemberships(userId), // [{ scope: 'tenant', id: 'acme', roles: ['admin'] }]
       attributes: { claims: { team_ids: teamIds } },
     },
     customRoles: await readCustomRoles(organizationId),

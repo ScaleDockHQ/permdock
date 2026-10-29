@@ -21,15 +21,12 @@ function errorOf(stdout: string): unknown {
 }
 
 describe("run: groups", () => {
-  it("names the subcommand a moved group's flags belong to", async () => {
+  it("asks for a subcommand when a group gets only flags", async () => {
     const result = await run(["openapi", "--check", "--json"], {
       cwd: FIXTURE,
     });
     expect(result.code).toBe(2);
-    expect(errorOf(result.stdout)).toMatchObject({
-      code: "command_moved",
-      replacement: "permdock openapi emit",
-    });
+    expect(errorOf(result.stdout)).toMatchObject({ code: "usage" });
   });
 
   it("lists a bare group's subcommands as choices under --json", async () => {
@@ -103,11 +100,9 @@ describe("run: the root", () => {
 });
 
 describe("run: flags", () => {
-  it("says a removed flag is gone, with no replacement", async () => {
+  it("answers a flag removed before 0.10 as an unknown flag", async () => {
     const result = await run(["scan", "--legacy", "--json"], { cwd: FIXTURE });
-    const error = errorOf(result.stdout);
-    expect(error).toMatchObject({ code: "flag_renamed", flag: "--legacy" });
-    expect(error).not.toHaveProperty("replacement");
+    expect(errorOf(result.stdout)).toMatchObject({ code: "unknown_flag" });
   });
 
   it("refuses --json with another --format", async () => {

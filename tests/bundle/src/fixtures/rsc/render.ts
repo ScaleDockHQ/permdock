@@ -67,7 +67,8 @@ const plans = definePlans({ pro: { meta: { title: "Pro" } } });
 type TenantUser = {
   readonly id: string;
   readonly memberships: readonly {
-    readonly tenant: string;
+    readonly scope: string;
+    readonly id: string;
     readonly roles: readonly string[];
   }[];
 };
@@ -147,8 +148,8 @@ async function main(mode: string | undefined): Promise<object> {
       {
         id: "u1",
         memberships: [
-          { tenant: "acme", roles: ["owner"] },
-          { tenant: "globex", roles: ["member"] },
+          { scope: "tenant", id: "acme", roles: ["owner"] },
+          { scope: "tenant", id: "globex", roles: ["member"] },
         ],
       },
       { tenants: "all" },

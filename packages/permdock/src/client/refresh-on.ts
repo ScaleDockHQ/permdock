@@ -75,6 +75,107 @@ export function eventSourceRefresh(
   };
 }
 
+type ListenerTarget = {
+  readonly addEventListener: (type: string, listener: () => void) => void;
+  readonly removeEventListener: (type: string, listener: () => void) => void;
+};
+
+function isListenerTarget(value: unknown): value is ListenerTarget {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof Reflect.get(value, "addEventListener") === "function" &&
+    typeof Reflect.get(value, "removeEventListener") === "function"
+  );
+}
+
+function listen(
+  target: unknown,
+  type: string,
+  listener: () => void,
+): () => void {
+  if (!isListenerTarget(target)) {
+    return () => undefined;
+  }
+  target.addEventListener(type, listener);
+  return () => {
+    target.removeEventListener(type, listener);
+  };
+}
+
+/** A `refreshOn` trigger on window `focus`. Without a window it never fires. */
+export function focusRefresh(): RefreshTrigger {
+  return (refresh) =>
+    listen(Reflect.get(globalThis, "window"), "focus", refresh);
+}
+
+/**
+ * A `refreshOn` trigger on `visibilitychange` to visible, when a background tab
+ * comes back. Without a `document` it never fires.
+ */
+export function visibilityRefresh(): RefreshTrigger {
+  return (refresh) => {
+    const doc: unknown = Reflect.get(globalThis, "document");
+    return listen(doc, "visibilitychange", () => {
+      if (
+        typeof doc === "object" &&
+        doc !== null &&
+        Reflect.get(doc, "visibilityState") === "visible"
+      ) {
+        refresh();
+      }
+    });
+  };
+}
+
+/**
+ * A `refreshOn` trigger on every message to the `BroadcastChannel` `name`, so
+ * one tab that learns of a change refreshes the others. Without a global
+ * `BroadcastChannel` it never fires.
+ */
+export function broadcastChannelRefresh(name: string): RefreshTrigger {
+  return (refresh) => {
+    if (typeof globalThis.BroadcastChannel !== "function") {
+      return () => undefined;
+    }
+    const channel = new globalThis.BroadcastChannel(name);
+    channel.addEventListener("message", refresh);
+    return () => {
+      channel.close();
+    };
+  };
+}
+
+export type AuthzChangeRefresh = {
+  /** Pass to `refreshOn`. */
+  readonly trigger: RefreshTrigger;
+  /** Pass to better-supabase's `<SessionProvider onAuthzChange>`. */
+  readonly notify: () => void;
+};
+
+/**
+ * A `refreshOn` trigger that fires on `notify()`. better-supabase's
+ * `SessionProvider` already listens on the user's `authz:<uid>` topic and
+ * shares changes across tabs, so `onAuthzChange={notify}` refreshes the
+ * snapshot without a second Realtime channel.
+ */
+export function authzChangeRefresh(): AuthzChangeRefresh {
+  const listeners = new Set<() => void>();
+  return Object.freeze({
+    trigger: (refresh: () => void) => {
+      listeners.add(refresh);
+      return () => {
+        listeners.delete(refresh);
+      };
+    },
+    notify: () => {
+      for (const listener of listeners) {
+        listener();
+      }
+    },
+  });
+}
+
 /**
  * Runs `triggers` while `start()` holds, folding calls within 250 ms into one
  * `refresh`. `skip()` answering `true` drops a call: after `clear()` or

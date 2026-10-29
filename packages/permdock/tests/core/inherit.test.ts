@@ -121,7 +121,7 @@ describe("inherit(): a permission held through a link to another row", () => {
       await visible({
         id: "ana",
         tenant: "acme",
-        memberships: [{ tenant: "acme", roles: ["member"] }],
+        memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
       }),
     ).toStrictEqual(["n1", "n2"]);
     expect(await visible({ id: "vera" })).toStrictEqual(["n2"]);
@@ -133,7 +133,7 @@ describe("inherit(): a permission held through a link to another row", () => {
       await visible({
         id: "vera",
         tenant: "acme",
-        memberships: [{ tenant: "acme", roles: ["blocked"] }],
+        memberships: [{ scope: "tenant", id: "acme", roles: ["blocked"] }],
       }),
     ).toStrictEqual([]);
   });
@@ -225,7 +225,7 @@ describe("inherit(): a permission held through a link to another row", () => {
       {
         id: "ana",
         tenant: "acme",
-        memberships: [{ tenant: "acme", roles: ["member"] }],
+        memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
       },
       { relations },
     );

@@ -12,6 +12,7 @@ import {
 } from "../../src/approvals/index.ts";
 import { APPROVAL_HEADER } from "../../src/approvals/types.ts";
 import { PermDockApprovalRequiredError } from "../../src/core/errors.ts";
+import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { cacheLifeFor, createPermDock } from "../../src/next/index.ts";
 import { Protected } from "../../src/react/protected.tsx";
 import {
@@ -80,6 +81,7 @@ describe("permdock/next", () => {
         "PermDockProvider",
         "getPermDock",
         "getPermission",
+        "getPermissions",
         "getSnapshot",
         "permdockHandler",
         "protectAction",
@@ -113,7 +115,7 @@ describe("permdock/next", () => {
       subject: (() => ({
         principal: {
           ...memberUser,
-          memberships: [{ tenant: "acme", roles: ["member"] }],
+          memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
         },
         context: {},
       })) as unknown as () => typeof memberUser,
@@ -143,6 +145,43 @@ describe("permdock/next", () => {
     expect(denied.allowed).toBe(false);
     expect(denied.status).toBe("ready");
     expect(denied.decision.outcome).toBe("denied");
+  });
+
+  it("returns getPermissions as frozen JSON and denies a throwing entry only", async () => {
+    const { getPermissions } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const states = await getPermissions({
+      edit: [permissions.post.update, ownPost],
+      other: [permissions.post.update, otherPost],
+      broken: [
+        permissions.post.update,
+        {
+          get id(): never {
+            throw new Error("boom");
+          },
+        },
+      ],
+    });
+    expect(Object.isFrozen(states)).toBe(true);
+    expect(states.edit).toStrictEqual({ allowed: true, outcome: "granted" });
+    expect(states.other.allowed).toBe(false);
+    expect(states.other.outcome).toBe("denied");
+    expect(states.broken.allowed).toBe(false);
+    expect(JSON.parse(JSON.stringify(states))).toStrictEqual(states);
+  });
+
+  it("denies every getPermissions entry when the instance cannot be built", async () => {
+    const { getPermissions } = createPermDock(policy, {
+      subject: () => memberUser,
+      wrap: () => {
+        throw new Error("wrap failed");
+      },
+    });
+    const states = await getPermissions({
+      edit: [permissions.post.update, ownPost],
+    });
+    expect(states.edit.allowed).toBe(false);
   });
 
   it("runs the factory onDenied after a per-call handler is omitted", async () => {
@@ -496,6 +535,29 @@ describe("permdock/next", () => {
     expect(await new Response(prelude).text()).toContain("locked");
   });
 
+  it("forwards the serialisable React provider props to the client provider", () => {
+    const { PermDockProvider } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const element = PermDockProvider({
+      snapshot: Promise.resolve(emptySnapshot()),
+      snapshotUrl: "/api/permdock/snapshot",
+      approvals: "/api/permdock/approvals",
+      maxAge: 60,
+      approvalInterval: 5000,
+      headers: { "x-app": "1" },
+      children: null,
+    });
+    expect(element.props).toMatchObject({
+      endpoint: "/api/permdock",
+      snapshotUrl: "/api/permdock/snapshot",
+      approvals: "/api/permdock/approvals",
+      maxAge: 60,
+      approvalInterval: 5000,
+      headers: { "x-app": "1" },
+    });
+  });
+
   it("refuses to load in a browser", () => {
     vi.stubGlobal("document", {});
     try {
@@ -687,11 +749,21 @@ describe("permdock/next", () => {
 });
 
 describe(cacheLifeFor, () => {
+  const cap = { capToToken: true } as const;
+
+  it("ignores expiresAt without capToToken", () => {
+    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 1010 })).toStrictEqual({
+      stale: 300,
+    });
+  });
+
   it("reads the clock without issuedAt or now", () => {
     vi.useFakeTimers();
     try {
       vi.setSystemTime(1_000_000);
-      expect(cacheLifeFor({ expiresAt: 1060 })).toStrictEqual({ stale: 60 });
+      expect(cacheLifeFor({ expiresAt: 1060 }, cap)).toStrictEqual({
+        stale: 60,
+      });
     } finally {
       vi.useRealTimers();
     }
@@ -699,29 +771,33 @@ describe(cacheLifeFor, () => {
 
   it("uses max for values that never expire", () => {
     expect(cacheLifeFor(null)).toStrictEqual({ stale: 300 });
-    expect(cacheLifeFor({ issuedAt: 100 })).toStrictEqual({ stale: 300 });
-    expect(cacheLifeFor({ expiresAt: null }, { max: 600 })).toStrictEqual({
-      stale: 600,
-    });
+    expect(cacheLifeFor({ issuedAt: 100 }, cap)).toStrictEqual({ stale: 300 });
+    expect(
+      cacheLifeFor({ expiresAt: null }, { ...cap, max: 600 }),
+    ).toStrictEqual({ stale: 600 });
   });
 
-  it("never serves past expiresAt and reads the clock from issuedAt", () => {
-    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 1120 })).toStrictEqual({
-      stale: 120,
-    });
-    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 5000 })).toStrictEqual({
-      stale: 300,
-    });
-    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 1010 })).toStrictEqual({
-      stale: 10,
-    });
-    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 900 })).toStrictEqual({
-      stale: 0,
-    });
+  it("never serves past expiresAt with capToToken and reads the clock from issuedAt", () => {
+    expect(
+      cacheLifeFor({ issuedAt: 1000, expiresAt: 1120 }, cap),
+    ).toStrictEqual({ stale: 120 });
+    expect(
+      cacheLifeFor({ issuedAt: 1000, expiresAt: 5000 }, cap),
+    ).toStrictEqual({ stale: 300 });
+    expect(
+      cacheLifeFor({ issuedAt: 1000, expiresAt: 1010 }, cap),
+    ).toStrictEqual({ stale: 10 });
+    expect(cacheLifeFor({ issuedAt: 1000, expiresAt: 900 }, cap)).toStrictEqual(
+      { stale: 0 },
+    );
     expect(
       cacheLifeFor(
         { expiresAt: 1100 },
-        { now: Temporal.Instant.fromEpochMilliseconds(1_000_000), min: 60 },
+        {
+          ...cap,
+          now: Temporal.Instant.fromEpochMilliseconds(1_000_000),
+          min: 60,
+        },
       ),
     ).toStrictEqual({ stale: 100 });
   });

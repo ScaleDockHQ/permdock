@@ -131,6 +131,11 @@ function labelApprover(approver: Approver): string {
   if (approver.kind === "permission") {
     return `a holder of ${approver.permission}`;
   }
+  if (approver.kind === "manager") {
+    return approver.levels === undefined
+      ? "the requester's manager"
+      : `a manager up to ${approver.levels} levels above the requester`;
+  }
   if (approver.kind === "any-of") {
     const groups = approver.of.map((entry) =>
       flattenApprovers(entry).map(labelApprover).join(" and "),

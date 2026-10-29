@@ -73,7 +73,7 @@ const subject: Subject = {
   principal: {
     id: "u1",
     tenant: "o1",
-    memberships: [{ tenant: "o1", roles: ["viewer"] }],
+    memberships: [{ scope: "tenant", id: "o1", roles: ["viewer"] }],
   },
   context: {},
 };

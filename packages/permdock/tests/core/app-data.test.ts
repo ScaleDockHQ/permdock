@@ -130,7 +130,9 @@ describe("role and plan x", () => {
         subject: (user: { id: string } | null) =>
           user && {
             id: user.id,
-            memberships: [{ tenant: "o_1", roles: ["editor", "reviewer"] }],
+            memberships: [
+              { scope: "tenant", id: "o_1", roles: ["editor", "reviewer"] },
+            ],
           },
       },
     );
@@ -233,7 +235,9 @@ describe("membership x", () => {
       subject: (user: { id: string; x: AppData } | null) =>
         user && {
           id: user.id,
-          memberships: [{ tenant: "o_1", roles: ["viewer"], x: user.x }],
+          memberships: [
+            { scope: "tenant", id: "o_1", roles: ["viewer"], x: user.x },
+          ],
         },
       x: { membership: z.object({ department: z.string() }) },
     });

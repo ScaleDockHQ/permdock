@@ -134,11 +134,12 @@ describe(subjectFromBetterAuth, () => {
     expect(subject.session).toBe("sess-1");
     expect(subject.expiresAt).toBe(1_767_225_600);
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "o_acme", roles: ["member", "billing-admin"] },
-      { tenant: "o_other", roles: ["admin"] },
+      { scope: "tenant", id: "o_acme", roles: ["member", "billing-admin"] },
+      { scope: "tenant", id: "o_other", roles: ["admin"] },
       {
-        tenant: "o_acme",
-        team: "t_design",
+        within: { tenant: "o_acme" },
+        scope: "team",
+        id: "t_design",
         roles: ["lead"],
         via: "team:t_design",
       },
@@ -160,10 +161,11 @@ describe(subjectFromBetterAuth, () => {
       memberships: "active",
     });
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "o_acme", roles: ["member", "billing-admin"] },
+      { scope: "tenant", id: "o_acme", roles: ["member", "billing-admin"] },
       {
-        tenant: "o_acme",
-        team: "t_design",
+        within: { tenant: "o_acme" },
+        scope: "team",
+        id: "t_design",
         roles: ["lead"],
         via: "team:t_design",
       },
@@ -190,8 +192,8 @@ describe(subjectFromBetterAuth, () => {
       },
     );
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "o_acme", roles: ["member"] },
-      { tenant: "o_globex", roles: ["admin"] },
+      { scope: "tenant", id: "o_acme", roles: ["member"] },
+      { scope: "tenant", id: "o_globex", roles: ["admin"] },
     ]);
     expect(calls).toContainEqual(
       expect.objectContaining({
@@ -236,8 +238,8 @@ describe(subjectFromBetterAuth, () => {
       },
     );
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "o_acme", roles: ["member"] },
-      { tenant: "o_globex", roles: ["admin"] },
+      { scope: "tenant", id: "o_acme", roles: ["member"] },
+      { scope: "tenant", id: "o_globex", roles: ["admin"] },
     ]);
     expect(queries).toStrictEqual([
       {
@@ -266,8 +268,8 @@ describe(subjectFromBetterAuth, () => {
       },
     );
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "o_acme", roles: ["member"] },
-      { tenant: "o_globex", roles: ["admin"] },
+      { scope: "tenant", id: "o_acme", roles: ["member"] },
+      { scope: "tenant", id: "o_globex", roles: ["admin"] },
     ]);
   });
 
@@ -285,7 +287,7 @@ describe(subjectFromBetterAuth, () => {
       },
     );
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "o_acme", roles: ["member"] },
+      { scope: "tenant", id: "o_acme", roles: ["member"] },
     ]);
   });
 
@@ -329,7 +331,7 @@ describe(subjectFromBetterAuth, () => {
       },
     );
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "o_globex", roles: ["admin"] },
+      { scope: "tenant", id: "o_globex", roles: ["admin"] },
     ]);
   });
 

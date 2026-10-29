@@ -162,8 +162,8 @@ const sources = readdirSync(SOURCE)
   }));
 
 describe("better-supabase peer floor", () => {
-  it("declares a 0.33 floor", () => {
-    expect(peerFloor()).toBe("0.33.0");
+  it("declares a 0.39 floor", () => {
+    expect(peerFloor()).toBe("0.39.0");
   });
 
   it("takes the slot types from better-supabase/contract", () => {

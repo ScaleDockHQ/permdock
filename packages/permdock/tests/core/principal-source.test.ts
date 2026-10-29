@@ -16,7 +16,7 @@ import { testPrincipalSource } from "../../src/testing/conformance/principals.ts
 const alice = {
   id: "u_alice",
   kind: "user" as const,
-  memberships: [{ tenant: "acme", roles: ["admin"] }],
+  memberships: [{ scope: "tenant", id: "acme", roles: ["admin"] }],
 };
 const carol = {
   id: "c_carol",

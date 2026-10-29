@@ -276,7 +276,7 @@ describe(resolveCustomRole, () => {
 describe("custom roles in decisions", () => {
   it("inherits the declared condition of an included role", async () => {
     const permdock = await permdockFor(
-      [{ tenant: "acme", roles: ["writer"] }],
+      [{ scope: "tenant", id: "acme", roles: ["writer"] }],
       [{ tenant: "acme", name: "writer", includes: ["editor"] }],
     );
     expect(permdock.can(permissions.post.update, ownPost)).toBe(true);
@@ -285,7 +285,7 @@ describe("custom roles in decisions", () => {
 
   it("an own allow reaches every ceiling grant of the permission", async () => {
     const permdock = await permdockFor(
-      [{ tenant: "acme", roles: ["moderator"] }],
+      [{ scope: "tenant", id: "acme", roles: ["moderator"] }],
       [
         {
           tenant: "acme",
@@ -303,7 +303,7 @@ describe("custom roles in decisions", () => {
 
   it("keeps the declared deny of the role a grant comes from", async () => {
     const permdock = await permdockFor(
-      [{ tenant: "acme", roles: ["refunds"] }],
+      [{ scope: "tenant", id: "acme", roles: ["refunds"] }],
       [
         {
           tenant: "acme",
@@ -323,7 +323,7 @@ describe("custom roles in decisions", () => {
 
   it("an own deny removes the permission, including from includes", async () => {
     const permdock = await permdockFor(
-      [{ tenant: "acme", roles: ["clerk"] }],
+      [{ scope: "tenant", id: "acme", roles: ["clerk"] }],
       [
         {
           tenant: "acme",
@@ -355,8 +355,8 @@ describe("custom roles in decisions", () => {
       },
     ];
     const memberships: Membership[] = [
-      { tenant: "acme", roles: ["payer", "viewer"] },
-      { tenant: "globex", roles: ["payer"] },
+      { scope: "tenant", id: "acme", roles: ["payer", "viewer"] },
+      { scope: "tenant", id: "globex", roles: ["payer"] },
     ];
     const acme = await permdockFor(memberships, custom);
     expect(acme.decide(permissions.invoice.pay, invoice).outcome).toBe(
@@ -372,7 +372,14 @@ describe("custom roles in decisions", () => {
 
   it("scopes a team custom role to its team", async () => {
     const permdock = await permdockFor(
-      [{ tenant: "acme", team: "t1", roles: ["reviewer"] }],
+      [
+        {
+          within: { tenant: "acme" },
+          scope: "team",
+          id: "t1",
+          roles: ["reviewer"],
+        },
+      ],
       [
         {
           tenant: "acme",
@@ -415,10 +422,16 @@ describe("the ceiling", () => {
     const everyAssignable = await permdockFor(
       [
         {
-          tenant: "acme",
+          scope: "tenant",
+          id: "acme",
           roles: ["admin", "billing", "editor", "viewer", "steward"],
         },
-        { tenant: "acme", team: "t1", roles: ["lead"] },
+        {
+          within: { tenant: "acme" },
+          scope: "team",
+          id: "t1",
+          roles: ["lead"],
+        },
       ],
       [],
     );
@@ -441,8 +454,9 @@ describe("the ceiling", () => {
       const permdock = await permdockFor(
         [
           {
-            tenant: "acme",
-            ...(team === undefined ? {} : { team }),
+            ...(team === undefined
+              ? { scope: "tenant", id: "acme" }
+              : { scope: "team", id: team, within: { tenant: "acme" } }),
             roles: [custom.name],
           },
         ],
@@ -466,7 +480,7 @@ describe("the ceiling", () => {
 describe("assignable roles and permissions", () => {
   it("intersects the ceiling with what the subject holds", async () => {
     const permdock = await permdockFor(
-      [{ tenant: "acme", roles: ["editor"] }],
+      [{ scope: "tenant", id: "acme", roles: ["editor"] }],
       [],
     );
     expect(
@@ -479,7 +493,7 @@ describe("assignable roles and permissions", () => {
 
   it("counts custom-role grants as held", async () => {
     const permdock = await permdockFor(
-      [{ tenant: "acme", roles: ["reader"] }],
+      [{ scope: "tenant", id: "acme", roles: ["reader"] }],
       [
         {
           tenant: "acme",
@@ -496,7 +510,7 @@ describe("assignable roles and permissions", () => {
 
   it("manageRoles on a role lifts the intersection", async () => {
     const permdock = await permdockFor(
-      [{ tenant: "acme", roles: ["steward"] }],
+      [{ scope: "tenant", id: "acme", roles: ["steward"] }],
       [],
     );
     expect(permdock.assignableRoles().map((leaf) => leaf.key)).toStrictEqual([
@@ -522,7 +536,7 @@ describe("assignable roles and permissions", () => {
 
   it("a granted manageRoles permission lifts the intersection", async () => {
     const permdock = await permdockFor(
-      [{ tenant: "acme", roles: ["owner"] }],
+      [{ scope: "tenant", id: "acme", roles: ["owner"] }],
       [],
     );
     expect(permdock.assignablePermissions()).toHaveLength(7);
@@ -540,8 +554,8 @@ describe("assignable roles and permissions", () => {
     const permdock = await getPermDock(
       policy,
       subjectIn([
-        { tenant: "acme", roles: ["steward"] },
-        { tenant: "globex", roles: ["steward"] },
+        { scope: "tenant", id: "acme", roles: ["steward"] },
+        { scope: "tenant", id: "globex", roles: ["steward"] },
       ]),
       { tenant: "acme", customRoles: source },
     );
@@ -567,7 +581,7 @@ describe("assignable roles and permissions", () => {
     const auth: unknown[] = [];
     const permdock = getPermDockSync(
       policy,
-      subjectIn([{ tenant: "acme", roles: ["steward"] }]),
+      subjectIn([{ scope: "tenant", id: "acme", roles: ["steward"] }]),
       {
         tenant: "acme",
         customRoles: {
@@ -592,7 +606,7 @@ describe("assignable roles and permissions", () => {
     const auth: unknown[] = [];
     const permdock = getPermDockSync(
       policy,
-      subjectIn([{ tenant: "acme", roles: ["steward"] }]),
+      subjectIn([{ scope: "tenant", id: "acme", roles: ["steward"] }]),
       {
         tenant: "acme",
         customRoles: {
@@ -653,7 +667,7 @@ describe("assigning custom roles", () => {
 
   it("offers a custom role whose every permission the subject may hand out", async () => {
     const editor = await permdockFor(
-      [{ tenant: "acme", roles: ["editor"] }],
+      [{ scope: "tenant", id: "acme", roles: ["editor"] }],
       all,
     );
     expect(editor.assignableRoles().map((leaf) => leaf.key)).toStrictEqual([
@@ -677,7 +691,7 @@ describe("assigning custom roles", () => {
 
   it("lets a manageRoles holder assign any custom role of the tenant, without holder counts", async () => {
     const steward = await permdockFor(
-      [{ tenant: "acme", roles: ["steward"] }],
+      [{ scope: "tenant", id: "acme", roles: ["steward"] }],
       all,
     );
     expect(
@@ -699,7 +713,7 @@ describe("assigning custom roles", () => {
 
   it("holds a custom role at its own scope and pinned instance", async () => {
     const steward = await permdockFor(
-      [{ tenant: "acme", roles: ["steward"] }],
+      [{ scope: "tenant", id: "acme", roles: ["steward"] }],
       all,
     );
     const onTeam = (id: string) => ({
@@ -720,8 +734,8 @@ describe("assigning custom roles", () => {
   it("finds a custom role only in the instance's tenant", async () => {
     const steward = await permdockFor(
       [
-        { tenant: "acme", roles: ["steward"] },
-        { tenant: "globex", roles: ["steward"] },
+        { scope: "tenant", id: "acme", roles: ["steward"] },
+        { scope: "tenant", id: "globex", roles: ["steward"] },
       ],
       all,
     );
@@ -740,7 +754,7 @@ describe("assigning custom roles", () => {
   it("follows CustomRoleSource.assignable through the permissions it leaves", async () => {
     const steward = getPermDockSync(
       policy,
-      subjectIn([{ tenant: "acme", roles: ["steward"] }]),
+      subjectIn([{ scope: "tenant", id: "acme", roles: ["steward"] }]),
       {
         tenant: "acme",
         customRoles: {
@@ -770,7 +784,7 @@ describe("assigning custom roles", () => {
     const inert = [voider, blank, denier];
     for (const held of ["steward", "editor"]) {
       const actor = await permdockFor(
-        [{ tenant: "acme", roles: [held] }],
+        [{ scope: "tenant", id: "acme", roles: [held] }],
         [...all, ...inert],
       );
       const offered = actor.assignableRoles().map((leaf) => leaf.key);
@@ -791,7 +805,7 @@ describe("assigning custom roles", () => {
       expect(offered).toContain("post-reader");
     }
     const outsider = await permdockFor(
-      [{ tenant: "acme", roles: ["lead"] }],
+      [{ scope: "tenant", id: "acme", roles: ["lead"] }],
       inert,
     );
     expect(
@@ -805,7 +819,7 @@ describe("assigning custom roles", () => {
 
   it("answers the same from a snapshot", async () => {
     const editor = await permdockFor(
-      [{ tenant: "acme", roles: ["editor"] }],
+      [{ scope: "tenant", id: "acme", roles: ["editor"] }],
       all,
     );
     const snapshot = editor.snapshot();
@@ -883,8 +897,13 @@ describe("snapshot parity", () => {
     it(`decide and fromSnapshot agree: ${fixture.name}`, async () => {
       const membership: Membership =
         fixture.custom.team === undefined
-          ? { tenant: "acme", roles: ["c"] }
-          : { tenant: "acme", team: fixture.custom.team, roles: ["c"] };
+          ? { scope: "tenant", id: "acme", roles: ["c"] }
+          : {
+              within: { tenant: "acme" },
+              scope: "team",
+              id: fixture.custom.team,
+              roles: ["c"],
+            };
       const server = await permdockFor([membership], [fixture.custom]);
       const snapshot = server.snapshot();
       if (snapshot instanceof Promise) {
@@ -916,7 +935,7 @@ describe("snapshot parity", () => {
 
   it("include trims custom grants and assignable permissions", async () => {
     const server = await permdockFor(
-      [{ tenant: "acme", roles: ["steward", "c"] }],
+      [{ scope: "tenant", id: "acme", roles: ["steward", "c"] }],
       [{ tenant: "acme", name: "c", grants: [{ permission: "invoice.read" }] }],
     );
     const snapshot = server.snapshot({ include: [permissions.post] });
@@ -954,7 +973,7 @@ describe("a custom role grant with an undeclared level", () => {
     const auth: unknown[] = [];
     const permdock = getPermDockSync(
       policy,
-      subjectIn([{ tenant: "acme", roles: ["all-reader"] }]),
+      subjectIn([{ scope: "tenant", id: "acme", roles: ["all-reader"] }]),
       { tenant: "acme", customRoles: memoryCustomRoleSource([leveled]) },
     );
     permdock.on("auth", (event) => {

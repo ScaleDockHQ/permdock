@@ -66,6 +66,7 @@ export type {
   IdempotentCall,
   IdempotentResponse,
 } from "./idempotency.ts";
+export { approvalFingerprint } from "../core/token.ts";
 export {
   cancelApprovals,
   consumeApproval,

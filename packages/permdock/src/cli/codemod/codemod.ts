@@ -22,6 +22,7 @@ import {
   PROP_RENAMES_0_5,
   TEMPLATE_HINTS_0_5,
 } from "./shapes-0.5.ts";
+import { rewriteLiterals017 } from "./shapes-0.17.ts";
 import { transformSource } from "./transform.ts";
 
 export const CODEMOD_0_5: RenameSet = Object.freeze({
@@ -42,10 +43,17 @@ export const CODEMOD_0_8: RenameSet = Object.freeze({
   configMoves: CONFIG_MOVES_0_8,
 });
 
+export const CODEMOD_0_17: RenameSet = Object.freeze({
+  renames: [],
+  signatures: [],
+  literals: rewriteLiterals017,
+});
+
 /** Each codemod version and the rename map it applies. */
 const CODEMODS: Readonly<Record<string, RenameSet>> = Object.freeze({
   "0.5": CODEMOD_0_5,
   "0.8": CODEMOD_0_8,
+  "0.17": CODEMOD_0_17,
 });
 
 export function codemodVersions(): readonly string[] {
@@ -155,7 +163,11 @@ export function codemod(options: CodemodOptions): CodemodReport {
     }
     const name = rel(options.cwd, file);
     const result = isCodeFile(file)
-      ? withConfigMoves(file, transformSource(file, source, set), set)
+      ? withConfigMoves(
+          file,
+          withLiterals(file, transformSource(file, source, set), set),
+          set,
+        )
       : cliResult(file, source);
     if (result.error !== undefined) {
       followUps.push({
@@ -193,6 +205,22 @@ export function codemod(options: CodemodOptions): CodemodReport {
     scanned: files.length,
     files: changed,
     followUps,
+  };
+}
+
+function withLiterals(
+  file: string,
+  result: ReturnType<typeof transformSource>,
+  set: RenameSet,
+): ReturnType<typeof transformSource> {
+  if (result.error !== undefined || set.literals === undefined) {
+    return result;
+  }
+  const rewritten = set.literals(file, result.source);
+  return {
+    source: rewritten.source,
+    changes: [...result.changes, ...rewritten.changes],
+    followUps: [...result.followUps, ...rewritten.followUps],
   };
 }
 

@@ -78,8 +78,8 @@ describe("jwt authorization claims", () => {
       );
       expect(subject.principal?.tenant).toBe("o_acme");
       expect(subject.principal?.memberships).toStrictEqual([
-        { tenant: "o_acme", roles: ["lead"], via: "group:9f2c" },
-        { tenant: "o_acme", roles: [], via: "group:1b7e" },
+        { scope: "tenant", id: "o_acme", roles: ["lead"], via: "group:9f2c" },
+        { scope: "tenant", id: "o_acme", roles: [], via: "group:1b7e" },
       ]);
     });
 
@@ -97,7 +97,7 @@ describe("jwt authorization claims", () => {
         { claims: { tenant: "org_id" }, groupRoles: { Design: ["lead"] } },
       );
       expect(subject.principal?.memberships).toStrictEqual([
-        { tenant: "o_acme", roles: [], via: "group:9f2c" },
+        { scope: "tenant", id: "o_acme", roles: [], via: "group:9f2c" },
       ]);
     });
 
@@ -141,8 +141,8 @@ describe("jwt authorization claims", () => {
         { claims: { memberships: "tenants" } },
       );
       expect(subject.principal?.memberships).toStrictEqual([
-        { tenant: "T1", roles: ["admin"] },
-        { tenant: "T2", roles: ["viewer"] },
+        { scope: "tenant", id: "T1", roles: ["admin"] },
+        { scope: "tenant", id: "T2", roles: ["viewer"] },
       ]);
     });
 
@@ -160,8 +160,8 @@ describe("jwt authorization claims", () => {
         { claims: { memberships: "urn:zitadel:iam:org:project:roles" } },
       );
       expect(subject.principal?.memberships).toStrictEqual([
-        { tenant: "2486", roles: ["admin", "viewer"] },
-        { tenant: "9001", roles: ["viewer"] },
+        { scope: "tenant", id: "2486", roles: ["admin", "viewer"] },
+        { scope: "tenant", id: "9001", roles: ["viewer"] },
       ]);
     });
 
@@ -172,7 +172,7 @@ describe("jwt authorization claims", () => {
       );
       expect(
         subject.principal?.memberships?.some(
-          (membership) => membership.tenant === "__proto__",
+          (membership) => membership.id === "__proto__",
         ) ?? false,
       ).toBe(false);
     });

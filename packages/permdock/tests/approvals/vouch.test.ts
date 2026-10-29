@@ -96,7 +96,7 @@ describe(vouchApproval, () => {
     const loose = memoryApprovalStore();
     void loose.create(
       request({
-        approvers: { by: user("u_cfo"), quorum: 2, distinct: false },
+        approvers: { by: user("u_cfo"), quorum: 2, mode: "confirm" },
         approvals: [{ by: "u_finance", at: new Date().toISOString() }],
       }),
     );
@@ -132,7 +132,7 @@ describe(vouchApproval, () => {
           id: "u_outsider",
           roles: [],
           tenant: "o_1",
-          memberships: [{ tenant: "o_1", roles: ["member"] }],
+          memberships: [{ scope: "tenant", id: "o_1", roles: ["member"] }],
         },
         context: {},
       }),

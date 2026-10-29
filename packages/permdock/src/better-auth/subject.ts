@@ -7,7 +7,7 @@ import type {
 
 import { compact, isReadonlyArray, isRecord } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { anonymousSubject } from "../core/subject.ts";
+import { anonymousSubject, rootMembershipId } from "../core/subject.ts";
 import { validateRecord } from "../core/thenable.ts";
 import {
   asRoles,
@@ -143,7 +143,7 @@ function memberIn(
           headers,
         }),
         userId,
-      ).filter((item) => item.tenant === organizationId),
+      ).filter((item) => rootMembershipId(item) === organizationId),
     [],
   );
 }
@@ -189,8 +189,8 @@ async function loadMemberships(
     );
   }
   if (options.memberships === "active" && tenant !== undefined) {
-    members = members.filter((item) => item.tenant === tenant);
-    teams = teams.filter((item) => item.tenant === tenant);
+    members = members.filter((item) => rootMembershipId(item) === tenant);
+    teams = teams.filter((item) => item.within?.["tenant"] === tenant);
   }
   return [...members, ...teams];
 }

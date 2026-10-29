@@ -11,6 +11,7 @@ import {
   quoteQualified,
 } from "../sql/quote.ts";
 import { subjectIdSql } from "../sql/subject.ts";
+import { approvalPoliciesSql } from "./approval-policies.ts";
 import {
   PERMISSION_HELPERS,
   checkName,
@@ -343,9 +344,9 @@ grant execute on function ${fn}(jsonb, text) to authenticated;
 
 /**
  * Everything `rls.approvals` writes: the generated or adopted store, the
- * approver check and, with `delegations: true`, the covers. With
- * `actorMayWrite`, the covers' write policies call
- * `permdock_actor_may_write()`.
+ * approver check, with `delegations: true` the covers, and with
+ * `tenantPolicies` the tenant approval policies. With `actorMayWrite`, the
+ * covers' write policies call `permdock_actor_may_write()`.
  */
 export function approvalsSql(
   ctx: RlsSqlContext,
@@ -359,7 +360,7 @@ export function approvalsSql(
   if (approvals === true) {
     return approvalStoreSql(ctx, jsonSchema) + isApproverSql(ctx);
   }
-  const { table, delegations } = approvals;
+  const { table, delegations, tenantPolicies } = approvals;
   if (delegations !== undefined && typeof delegations !== "boolean") {
     throw new TypeError(
       "PermDock CLI: rls.approvals.delegations must be a boolean",
@@ -382,7 +383,10 @@ export function approvalsSql(
   return (
     store +
     isApproverSql(ctx) +
-    (delegations === true ? approvalDelegationsSql(ctx, actorMayWrite) : "")
+    (delegations === true ? approvalDelegationsSql(ctx, actorMayWrite) : "") +
+    (tenantPolicies === undefined
+      ? ""
+      : approvalPoliciesSql(ctx, tenantPolicies, actorMayWrite))
   );
 }
 

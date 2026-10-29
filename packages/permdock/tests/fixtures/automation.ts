@@ -98,7 +98,10 @@ export function person(
     id,
     kind: "user",
     tenant,
-    memberships: roleNames.length === 0 ? [] : [{ tenant, roles: roleNames }],
+    memberships:
+      roleNames.length === 0
+        ? []
+        : [{ scope: "tenant", id: tenant, roles: roleNames }],
   };
 }
 

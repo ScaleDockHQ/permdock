@@ -42,7 +42,7 @@ describe("cache", () => {
       const first = await subject({ sub: "u1", sid: "s1" });
       await subject({ sub: "u1", sid: "s2" });
       expect(first.principal?.memberships).toStrictEqual([
-        { tenant: "org_a", roles: ["org:member"] },
+        { scope: "tenant", id: "org_a", roles: ["org:member"] },
       ]);
       expect(calls()).toBe(1);
       await subject({ sub: "u2", sid: "s3" });

@@ -24,19 +24,19 @@ export const users: readonly FileUser[] = [
   {
     id: uuid(1),
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["admin"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["admin"] }],
   },
   {
     id: uuid(2),
     tenant: "acme",
-    memberships: [{ tenant: "acme", roles: ["member"] }],
+    memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
   },
   { id: uuid(3), memberships: [] },
   { id: uuid(4), memberships: [] },
   {
     id: uuid(5),
     tenant: "other",
-    memberships: [{ tenant: "other", roles: ["member"] }],
+    memberships: [{ scope: "tenant", id: "other", roles: ["member"] }],
   },
 ];
 
@@ -93,7 +93,8 @@ ${users
   .flatMap((user) =>
     user.memberships.flatMap((membership) =>
       membership.roles.map(
-        (name) => `  ('${membership.tenant ?? ""}', '${user.id}', '${name}')`,
+        (name) =>
+          `  ('${membership.within?.["tenant"] ?? membership.id ?? ""}', '${user.id}', '${name}')`,
       ),
     ),
   )

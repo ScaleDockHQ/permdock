@@ -70,9 +70,18 @@ const uuid = (n: number): string =>
   `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
 export const users: readonly KeysUser[] = [
-  { id: uuid(1), memberships: [{ tenant: "acme", roles: ["member"] }] },
-  { id: uuid(2), memberships: [{ tenant: "acme", roles: ["member"] }] },
-  { id: uuid(3), memberships: [{ tenant: "acme", roles: ["member"] }] },
+  {
+    id: uuid(1),
+    memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
+  },
+  {
+    id: uuid(2),
+    memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
+  },
+  {
+    id: uuid(3),
+    memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
+  },
   { id: uuid(4), memberships: [] },
 ];
 
@@ -118,7 +127,8 @@ ${users
   .flatMap((user) =>
     user.memberships.flatMap((membership) =>
       membership.roles.map(
-        (name) => `  ('${membership.tenant ?? ""}', '${user.id}', '${name}')`,
+        (name) =>
+          `  ('${membership.within?.["tenant"] ?? membership.id ?? ""}', '${user.id}', '${name}')`,
       ),
     ),
   )

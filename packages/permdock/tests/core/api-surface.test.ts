@@ -88,7 +88,7 @@ describe("typed vocabulary", () => {
         subject: () => ({
           id: "u1",
           roles: ["owner"],
-          memberships: [{ tenant: "acme", roles: ["owner"] }],
+          memberships: [{ scope: "tenant", id: "acme", roles: ["owner"] }],
         }),
         grants: [allow(permissions.post.read, { to: roles.owner })],
       },
@@ -134,7 +134,7 @@ describe("grantee selectors", () => {
           id: user.id,
           tenant: "acme",
           ...(user.plans === undefined ? {} : { plans: user.plans }),
-          memberships: [{ tenant: "acme", roles: ["member"] }],
+          memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
           assurance: { acr: "mfa", amr: ["otp"], authTime: 1_700_000_000 },
         }),
         grants: [
@@ -185,7 +185,7 @@ describe("grantee selectors", () => {
         subject: () => ({
           id: "u1",
           tenant: "acme",
-          memberships: [{ tenant: "acme", roles: ["member"] }],
+          memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
         }),
         roles: [role(roles.member, [allow(permissions.post.read)])],
       },
@@ -225,7 +225,7 @@ describe("principal refs and snapshots", () => {
         scopes: { tenant: { key: "orgId" } },
         subject: () => ({
           id: "u1",
-          memberships: [{ tenant: "acme", roles: ["owner"] }],
+          memberships: [{ scope: "tenant", id: "acme", roles: ["owner"] }],
         }),
         grants: [allow(permissions.post.read, { to: roles.owner })],
       },

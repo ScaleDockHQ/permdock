@@ -56,7 +56,7 @@ function owner(): Subject {
       id: "u_1",
       kind: "user",
       tenant: "o_1",
-      memberships: [{ tenant: "o_1", roles: ["owner"] }],
+      memberships: [{ scope: "tenant", id: "o_1", roles: ["owner"] }],
     },
     context: {},
   };
@@ -197,7 +197,7 @@ describe("feed credentials", () => {
         id: "u_2",
         kind: "user",
         tenant: "o_1",
-        memberships: [{ tenant: "o_1", roles: ["guest"] }],
+        memberships: [{ scope: "tenant", id: "o_1", roles: ["guest"] }],
       },
       context: {},
     };

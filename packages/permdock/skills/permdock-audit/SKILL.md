@@ -44,7 +44,7 @@ Read the app's `permissions.ts`, `policy.ts`, factory file and every adapter gua
    ✓ Every policy and custom store has its runner, or a finding.
 6. **ASI02 and ASI03.** Map the inventory onto [OWASP Agentic](https://permdock.com/docs/security/owasp-agentic); for the threat list itself, defer to the `owasp-agentic` spec skill (`npx skills add ScaleDockHQ/scaledock-skills --skill owasp-agentic`).
    - **ASI02** (tool misuse): unmapped tools, a collection permission on a row handler, a destructive tool without `approval`, capability lists that include denied tools.
-   - **ASI03** (identity and privilege abuse): a model-supplied subject or actor, an actor used as approver, `distinct: false` on a sensitive action, a resume token not bound to permission, resource, subject and actor, API keys stored in plain text or created outside `decideCredential`, keys without expiry (PD029), and a `memberships` source applied to service-key subjects.
+   - **ASI03** (identity and privilege abuse): a model-supplied subject or actor, an actor used as approver, `mode: "confirm"` on a sensitive action, a resume token not bound to permission, resource, subject and actor, API keys stored in plain text or created outside `decideCredential`, keys without expiry (PD029), and a `memberships` source applied to service-key subjects.
      ✓ Each agent adapter in the app has an ASI02 line and an ASI03 line.
 7. **Pull request review**, when the scope is one PR. Review only what the diff changes:
    - Run `permdock collect --check` and `permdock usage --json` on both sides and compare. New leaves with no grant, grants for leaves nobody checks, and new `undeclared` or `outsideInclude` findings are comments.

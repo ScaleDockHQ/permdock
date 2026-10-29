@@ -3,6 +3,7 @@ import type { GranteeInput } from "./grantee.ts";
 import type { ResourceNode } from "./permission-types.ts";
 import type {
   ApprovalEscalation,
+  ApprovalCombine,
   ApprovalMode,
   ApprovalOption,
   ApprovalRequirement,
@@ -14,8 +15,10 @@ import {
   approverLeaves,
   flattenApprovers,
   isAnyOfInput,
+  isManagerApprover,
   isPermissionApprover,
   isUserApprover,
+  manager,
   user,
 } from "./approvers.ts";
 import { compact, isReadonlyArray } from "./compact.ts";
@@ -48,6 +51,9 @@ export function asApprover(
       kind: "permission" as const,
       permission: input.permission,
     });
+  }
+  if (isManagerApprover(input)) {
+    return manager(input.levels === undefined ? {} : { levels: input.levels });
   }
   if (isAnyOfInput(input)) {
     if (!Array.isArray(input.of) || input.of.length === 0) {
@@ -104,12 +110,13 @@ export function normalizeApproval(
     assertDuration(approval.ttl, `approval.ttl on '${label}'`);
   }
   const escalation = normalizeEscalation(approval.escalation, label);
-  const mode = approval.mode ?? "any";
-  if (mode !== "any") {
+  const mode = approvalMode(approval.mode, label);
+  const combine = approval.combine ?? "any";
+  if (combine !== "any") {
     return compact<ApprovalRequirement>({
+      combine,
+      stages: normalizeStages(approval, combine, label),
       mode,
-      stages: normalizeStages(approval, mode, label),
-      distinct: approval.distinct,
       staleOn: approval.staleOn,
       ttl: approval.ttl,
       escalation,
@@ -117,13 +124,13 @@ export function normalizeApproval(
   }
   if (approval.stages !== undefined) {
     throw new Error(
-      `PermDock: approval.stages on '${label}' needs mode: 'all' or 'sequential'`,
+      `PermDock: approval.stages on '${label}' needs combine: 'all' or 'sequential'`,
     );
   }
   const by = approval.by === undefined ? undefined : asApprover(approval.by);
   if (
     by === undefined &&
-    approval.distinct === undefined &&
+    mode === undefined &&
     approval.staleOn === undefined &&
     approval.quorum === undefined &&
     approval.ttl === undefined &&
@@ -133,7 +140,7 @@ export function normalizeApproval(
   }
   return compact<ApprovalRequirement>({
     by: by ?? authenticated(),
-    distinct: approval.distinct,
+    mode,
     staleOn: approval.staleOn,
     quorum: approval.quorum,
     ttl: approval.ttl,
@@ -153,25 +160,79 @@ function assertQuorum(
   }
 }
 
+const LEGACY_COMBINE: ReadonlySet<unknown> = new Set([
+  "any",
+  "all",
+  "sequential",
+]);
+
+/**
+ * An approval as a v1 record holds it. Records written before 0.17 carry the
+ * combinator in `mode` and `distinct: false` for `'confirm'`; both read as the
+ * current names.
+ */
+export function readWireApproval<T>(value: T): T {
+  if (typeof value !== "object" || value === null) {
+    return value;
+  }
+  const mode: unknown = Reflect.get(value, "mode");
+  const distinct: unknown = Reflect.get(value, "distinct");
+  if (!LEGACY_COMBINE.has(mode) && typeof distinct !== "boolean") {
+    return value;
+  }
+  const next: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (key !== "mode" && !(key === "distinct" && typeof item === "boolean")) {
+      next[key] = item;
+    }
+  }
+  if (LEGACY_COMBINE.has(mode)) {
+    next["combine"] = mode;
+  } else if (mode !== undefined) {
+    next["mode"] = mode;
+  }
+  if (distinct === false) {
+    next["mode"] = "confirm";
+  }
+  // SAFETY: only the legacy keys were renamed; every other field of T is copied unchanged.
+  return Object.freeze(next) as T;
+}
+
+/** `'authorize'` is the default, so it is stored as absent. */
+function approvalMode(
+  mode: ApprovalMode | undefined,
+  label: string,
+): "confirm" | undefined {
+  if (mode === undefined || mode === "authorize") {
+    return undefined;
+  }
+  if (mode !== "confirm") {
+    throw new Error(
+      `PermDock: approval.mode on '${label}' must be 'confirm' or 'authorize', got '${String(mode)}'`,
+    );
+  }
+  return mode;
+}
+
 function normalizeStages(
   approval: Exclude<ApprovalOption, "human">,
-  mode: ApprovalMode,
+  combine: ApprovalCombine,
   label: string,
 ): readonly ApprovalStage[] {
-  if (mode !== "all" && mode !== "sequential") {
+  if (combine !== "all" && combine !== "sequential") {
     throw new Error(
-      `PermDock: approval.mode on '${label}' must be 'any', 'all' or 'sequential', got '${mode}'`,
+      `PermDock: approval.combine on '${label}' must be 'any', 'all' or 'sequential', got '${combine}'`,
     );
   }
   if (approval.by !== undefined || approval.quorum !== undefined) {
     throw new Error(
-      `PermDock: approval on '${label}' sets mode '${mode}': put by and quorum on each stage`,
+      `PermDock: approval on '${label}' sets combine '${combine}': put by and quorum on each stage`,
     );
   }
   const stages = approval.stages ?? [];
   if (stages.length === 0) {
     throw new Error(
-      `PermDock: approval mode '${mode}' on '${label}' needs at least one stage`,
+      `PermDock: approval combine '${combine}' on '${label}' needs at least one stage`,
     );
   }
   return stages.map((stage, index) => {

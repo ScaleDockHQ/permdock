@@ -54,7 +54,7 @@ Keep the keys the app already uses. A key renamed on day one is a migration for 
 - **Colliding resource names.** A platform `billing` and an organisation `billing` keep their keys under two groups, and `name` gives one of them a distinct resource name for tables, relations and AuthZEN ([resource names](/docs/concepts/permissions#resource-names)).
 - **Application metadata.** Risk levels, undo windows and UI hints go in `meta.x`, which PermDock carries to the catalog and snapshots and never reads.
 - **Platform roles.** Operator roles such as support tiers are declared global roles. Tiers an operator defines at runtime are [platform custom roles](/docs/concepts/custom-roles#platform-custom-roles), capped by the global roles marked `assignable`.
-- **Approval rules kept as data.** Thresholds an organisation configures, such as "payments over 1000 need finance", come from an `ApprovalPolicySource` instead of code ([approval policies as data](/docs/adapters/approvals#approval-policies-as-data)). Two-step sign-off is `mode: 'sequential'` with `stages`, and "the expense's manager" is a `relation()` approver ([approval security](/docs/security/approvals#stages)).
+- **Approval rules kept as data.** Thresholds an organisation configures, such as "payments over 1000 need finance", come from an `ApprovalPolicySource` instead of code ([approval policies as data](/docs/adapters/approvals#approval-policies-as-data)). Two-step sign-off is `combine: 'sequential'` with `stages`, and "the expense's manager" is a `relation()` approver ([approval security](/docs/security/approvals#stages)).
 
 `permdock rls import` reads the existing policies into a generated `definePermissions` module when the database is the better starting point ([import](/docs/cli/rls#import)).
 

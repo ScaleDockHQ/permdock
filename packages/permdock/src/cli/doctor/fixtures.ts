@@ -285,7 +285,7 @@ export async function pd025(
     findings.push({
       code: "PD025",
       severity: "warning",
-      message: `membership ${membership.principal ?? String(index)} grants nothing: its scope is not one of ${names}, a parent id is missing from within, or it mixes shapes`,
+      message: `membership ${membership.principal ?? String(index)} grants nothing: its scope is not one of ${names}, a parent id is missing from within, it mixes shapes, or it uses the { tenant, team } form 0.17.0 removed (permdock codemod 0.17 rewrites it)`,
       fix: "use { scope, id, within: { <parent>: id }, roles } with a declared scope, or { on: { resource, id }, roles }",
     });
   }

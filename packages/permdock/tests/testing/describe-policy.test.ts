@@ -279,22 +279,22 @@ describePolicy(orgPolicy, {
       id: "u2",
       plans: ["pro"],
       memberships: [
-        { tenant: "o1", roles: ["admin"] },
-        { tenant: "o2", roles: ["member"] },
+        { scope: "tenant", id: "o1", roles: ["admin"] },
+        { scope: "tenant", id: "o2", roles: ["member"] },
       ],
     },
     adminElsewhere: {
       id: "u3",
       plans: ["pro"],
       memberships: [
-        { tenant: "o1", roles: ["member"] },
-        { tenant: "o2", roles: ["admin"] },
+        { scope: "tenant", id: "o1", roles: ["member"] },
+        { scope: "tenant", id: "o2", roles: ["admin"] },
       ],
     },
     stranger: {
       id: "u4",
       plans: ["pro"],
-      memberships: [{ tenant: "o2", roles: ["admin"] }],
+      memberships: [{ scope: "tenant", id: "o2", roles: ["admin"] }],
     },
   },
   fixtures: { ownPost: { ...ownPost, authorId: "u3" }, otherPost },
@@ -329,12 +329,12 @@ describePolicy(orgPolicy, {
     exactCase: {
       id: "u2",
       plans: [],
-      memberships: [{ tenant: "Org_A", roles: ["admin"] }],
+      memberships: [{ scope: "tenant", id: "Org_A", roles: ["admin"] }],
     },
     lowerCase: {
       id: "u3",
       plans: [],
-      memberships: [{ tenant: "org_a", roles: ["admin"] }],
+      memberships: [{ scope: "tenant", id: "org_a", roles: ["admin"] }],
     },
   },
   fixtures: { mixedCasePost: { ...otherPost, orgId: "Org_A" } },
@@ -524,10 +524,12 @@ describe("conformance runners", () => {
   );
 
   testMembershipSource(
-    { membershipsFor: () => [{ tenant: "o1", roles: ["viewer"] }] },
+    {
+      membershipsFor: () => [{ scope: "tenant", id: "o1", roles: ["viewer"] }],
+    },
     {
       principals: [{ id: "alice" }],
-      expect: { alice: [{ tenant: "o1", roles: ["viewer"] }] },
+      expect: { alice: [{ scope: "tenant", id: "o1", roles: ["viewer"] }] },
     },
   );
 

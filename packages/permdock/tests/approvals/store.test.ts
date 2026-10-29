@@ -31,7 +31,7 @@ function subject(id: string, tenant?: string): Subject {
             id,
             roles: ["admin"],
             tenant,
-            memberships: [{ tenant, roles: ["admin"] }],
+            memberships: [{ scope: "tenant", id: tenant, roles: ["admin"] }],
           },
     context: {},
   };
@@ -319,7 +319,7 @@ describe("request and resume helpers", () => {
           permission: "filing.pay",
           approval: {
             by: { kind: "role", role: "admin", scope: "tenant" },
-            distinct: true,
+            mode: "authorize",
           },
         },
         reason: "human",
@@ -341,7 +341,7 @@ describe("request and resume helpers", () => {
     expect(recorded.v).toBe(1);
     expect(recorded.approvers).toStrictEqual({
       by: { kind: "role", role: "admin", scope: "tenant" },
-      distinct: true,
+      mode: "authorize",
     });
     expect(recorded.subject.session).toBe("sid-1");
     expect(recorded.detail).toBe("filing.pay requires approval from admin.");
@@ -366,7 +366,7 @@ describe("request and resume helpers", () => {
       pending({
         approvers: {
           by: { kind: "role", role: "admin", scope: "tenant" },
-          distinct: true,
+          mode: "authorize",
         },
       }),
     );
@@ -378,7 +378,7 @@ describe("request and resume helpers", () => {
             id: "u_2",
             roles: ["member"],
             tenant: "o_1",
-            memberships: [{ tenant: "o_1", roles: ["member"] }],
+            memberships: [{ scope: "tenant", id: "o_1", roles: ["member"] }],
           },
           context: {},
         },
@@ -397,7 +397,7 @@ describe("request and resume helpers", () => {
       pending({
         approvers: {
           by: { kind: "relation", resource: "post", relation: "owner" },
-          distinct: true,
+          mode: "authorize",
         },
       }),
     );

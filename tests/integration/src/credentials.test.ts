@@ -74,7 +74,8 @@ const memberships: MembershipSource = {
       [principal.id],
     );
     return result.rows.map((row) => ({
-      tenant: row.org_id,
+      scope: "tenant",
+      id: row.org_id,
       roles: [row.role],
     }));
   },

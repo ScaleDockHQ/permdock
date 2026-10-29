@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 
 // `<Link prefetch={true}>`: the prefetch carries the quote and its gated
 // actions, because `quoteAccess` is `'use cache: private'` with a `stale` of
-// at least 30 s from `cacheLifeFor`.
+// 300 s from `cacheLifeFor`.
 test("a quote link arrives with the quote and its actions", async ({
   page,
 }) => {

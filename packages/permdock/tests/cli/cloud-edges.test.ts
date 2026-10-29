@@ -392,7 +392,7 @@ describe("cloud edges", () => {
     it("points --environment at --project", async () => {
       const result = await push({}, ["--project", "a", "--environment", "b"]);
       expect(result.code).toBe(2);
-      expect(result.stderr).toContain("--environment is --project");
+      expect(result.stderr).toContain("unknown flag '--environment'");
     });
   });
 

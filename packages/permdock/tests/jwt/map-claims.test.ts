@@ -224,15 +224,25 @@ describe("mapClaimsToSubject memberships", () => {
   it("reads tenant and org_id entries with a team", () => {
     expect(
       memberships([
-        { tenant: "acme", roles: ["admin"], team: "eng" },
+        {
+          within: { tenant: "acme" },
+          roles: ["admin"],
+          scope: "team",
+          id: "eng",
+        },
         { org_id: "globex", roles: "member" },
         { org_id: 7 },
         "ignored",
         null,
       ]),
     ).toStrictEqual([
-      { tenant: "acme", roles: ["admin"], team: "eng" },
-      { tenant: "globex", roles: ["member"] },
+      {
+        within: { tenant: "acme" },
+        roles: ["admin"],
+        scope: "team",
+        id: "eng",
+      },
+      { scope: "tenant", id: "globex", roles: ["member"] },
     ]);
   });
 
@@ -245,9 +255,9 @@ describe("mapClaimsToSubject memberships", () => {
         skipped: "x",
       }),
     ).toStrictEqual([
-      { tenant: "acme", roles: ["admin"] },
-      { tenant: "globex", roles: ["viewer"] },
-      { tenant: "initech", roles: [] },
+      { scope: "tenant", id: "acme", roles: ["admin"] },
+      { scope: "tenant", id: "globex", roles: ["viewer"] },
+      { scope: "tenant", id: "initech", roles: [] },
     ]);
     expect(
       memberships({
@@ -255,8 +265,8 @@ describe("mapClaimsToSubject memberships", () => {
         viewer: { "org-1": "acme.test" },
       }),
     ).toStrictEqual([
-      { tenant: "org-1", roles: ["admin", "viewer"] },
-      { tenant: "org-2", roles: ["admin"] },
+      { scope: "tenant", id: "org-1", roles: ["admin", "viewer"] },
+      { scope: "tenant", id: "org-2", roles: ["admin"] },
     ]);
   });
 
@@ -264,8 +274,8 @@ describe("mapClaimsToSubject memberships", () => {
     expect(
       memberships(JSON.parse('{"admin":{"__proto__":"x"},"empty":{}}')),
     ).toStrictEqual([
-      { tenant: "admin", roles: [] },
-      { tenant: "empty", roles: [] },
+      { scope: "tenant", id: "admin", roles: [] },
+      { scope: "tenant", id: "empty", roles: [] },
     ]);
   });
 
@@ -278,8 +288,8 @@ describe("mapClaimsToSubject memberships", () => {
       principalOf({ org: "acme", groups: ["eng", "ops"] }, options)
         ?.memberships,
     ).toStrictEqual([
-      { tenant: "acme", roles: ["editor"], via: "group:eng" },
-      { tenant: "acme", roles: [], via: "group:ops" },
+      { scope: "tenant", id: "acme", roles: ["editor"], via: "group:eng" },
+      { scope: "tenant", id: "acme", roles: [], via: "group:ops" },
     ]);
     expect(
       principalOf({ org: 1, groups: ["eng"] }, options)?.memberships,

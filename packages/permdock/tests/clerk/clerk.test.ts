@@ -57,7 +57,8 @@ describe(subjectFromClerk, () => {
     expect(subject.principal?.tenant).toBe("org_1");
     expect(subject.principal?.memberships).toStrictEqual([
       {
-        tenant: "org_1",
+        scope: "tenant",
+        id: "org_1",
         roles: ["org:admin", "org:invoices:create", "reporting"],
         entitlements: ["pro"],
       },
@@ -93,8 +94,13 @@ describe(subjectFromClerk, () => {
       },
     });
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "org_1", roles: ["org:admin"], entitlements: ["pro"] },
-      { tenant: "org_2", roles: ["org:member"] },
+      {
+        scope: "tenant",
+        id: "org_1",
+        roles: ["org:admin"],
+        entitlements: ["pro"],
+      },
+      { scope: "tenant", id: "org_2", roles: ["org:member"] },
     ]);
   });
 
@@ -113,7 +119,7 @@ describe(subjectFromClerk, () => {
     expect(subject.principal?.tenant).toBe("org_9");
     expect(subject.principal?.roles).toStrictEqual(["reviewer"]);
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "org_9", roles: ["org:member"] },
+      { scope: "tenant", id: "org_9", roles: ["org:member"] },
     ]);
   });
 
@@ -143,7 +149,11 @@ describe(subjectFromClerk, () => {
       "org:reports:manage",
     ]);
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "org_7", roles: ["org:admin", "org:invoices:create"] },
+      {
+        scope: "tenant",
+        id: "org_7",
+        roles: ["org:admin", "org:invoices:create"],
+      },
     ]);
     expect(subject.principal?.claims).toBeUndefined();
   });
@@ -176,7 +186,7 @@ describe(subjectFromClerk, () => {
       { userId: "user_1", limit: 100, offset: 100 },
       { userId: "user_1", limit: 100, offset: 200 },
     ]);
-    const tenants = subject.principal?.memberships?.map((item) => item.tenant);
+    const tenants = subject.principal?.memberships?.map((item) => item.id);
     expect(tenants).toHaveLength(249);
     expect(tenants).not.toContain("org_249");
   });
@@ -203,7 +213,7 @@ describe(subjectFromClerk, () => {
       declared: ["org:member"],
     });
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "org_1", roles: [], entitlements: ["pro"] },
+      { scope: "tenant", id: "org_1", roles: [], entitlements: ["pro"] },
     ]);
   });
 
@@ -219,7 +229,12 @@ describe(subjectFromClerk, () => {
       },
     });
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "org_1", roles: ["org:admin"], entitlements: ["pro"] },
+      {
+        scope: "tenant",
+        id: "org_1",
+        roles: ["org:admin"],
+        entitlements: ["pro"],
+      },
     ]);
   });
 
@@ -259,7 +274,8 @@ describe(subjectFromClerk, () => {
     expect(subject.principal?.plans).toBeUndefined();
     expect(subject.principal?.roles ?? []).not.toContain("reporting");
     expect(subject.principal?.memberships?.[0]).toStrictEqual({
-      tenant: "org_1",
+      scope: "tenant",
+      id: "org_1",
       roles: ["org:member", "reporting"],
       entitlements: ["pro"],
     });

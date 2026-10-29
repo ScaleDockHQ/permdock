@@ -137,9 +137,6 @@ function asMembership(item: unknown): Membership | undefined {
         ),
       )
     : undefined;
-  const tenant =
-    typeof item["tenant"] === "string" ? item["tenant"] : undefined;
-  const team = typeof item["team"] === "string" ? item["team"] : undefined;
   const onRecord = isRecord(item["on"]) ? item["on"] : undefined;
   const on =
     onRecord !== undefined &&
@@ -147,12 +144,7 @@ function asMembership(item: unknown): Membership | undefined {
     typeof onRecord["id"] === "string"
       ? { resource: onRecord["resource"], id: onRecord["id"] }
       : undefined;
-  if (
-    (scope === undefined || id === undefined) &&
-    tenant === undefined &&
-    team === undefined &&
-    on === undefined
-  ) {
+  if ((scope === undefined || id === undefined) && on === undefined) {
     return undefined;
   }
   const keep = item["keep"];
@@ -168,8 +160,6 @@ function asMembership(item: unknown): Membership | undefined {
     scope,
     id,
     within,
-    tenant,
-    team,
     on,
     via: typeof item["via"] === "string" ? item["via"] : undefined,
     expiresAt:

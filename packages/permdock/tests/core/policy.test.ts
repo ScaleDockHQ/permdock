@@ -114,21 +114,18 @@ describe("policy", () => {
 
   it("normalises approval.by and treats any defined approval as required", () => {
     expect(normalizeApproval("human")).toBe("human");
-    expect(normalizeApproval({ distinct: true })).toStrictEqual({
-      by: { kind: "authenticated" },
-      distinct: true,
-    });
+    expect(normalizeApproval({ mode: "authorize" })).toBe("human");
     expect(normalizeApproval({})).toBe("human");
-    expect(normalizeApproval({ distinct: false })).toStrictEqual({
+    expect(normalizeApproval({ mode: "confirm" })).toStrictEqual({
       by: { kind: "authenticated" },
-      distinct: false,
+      mode: "confirm",
     });
-    expect(normalizeApproval({ by: "admin", distinct: false })).toStrictEqual({
+    expect(normalizeApproval({ by: "admin", mode: "confirm" })).toStrictEqual({
       by: { kind: "role", role: "admin", scope: "global" },
-      distinct: false,
+      mode: "confirm",
     });
     const grant = allow(permissions.org.delete, {
-      approval: { by: ["admin", assurance({ amr: "mfa" })], distinct: true },
+      approval: { by: ["admin", assurance({ amr: "mfa" })], mode: "authorize" },
     });
     const single = Array.isArray(grant) ? grant[0] : grant;
     expect(requiresApproval(single?.approval)).toBe(true);
@@ -137,7 +134,6 @@ describe("policy", () => {
         { kind: "role", role: "admin", scope: "global" },
         { kind: "assurance", amr: ["mfa"] },
       ],
-      distinct: true,
     });
   });
 

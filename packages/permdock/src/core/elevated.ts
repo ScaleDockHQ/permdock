@@ -412,7 +412,7 @@ export function activateFor(
         : `${scope}:${input.id}@${canonicalJson(within)}`,
     principal,
     actor: subject.actor,
-    fingerprint: policy.fingerprint,
+    source: policy.fingerprint,
   });
   if (activation.approval !== undefined) {
     return freezeDeep({

@@ -1,6 +1,7 @@
 import type { RoleKeys } from "../../supabase/roles.ts";
 import type { Parts } from "./parts.ts";
 
+import { AUTHZ_EVENT } from "../../supabase/authz-topic.ts";
 import { AUTHZ_VERSION_TABLE } from "../../supabase/sources.ts";
 import { tableKey } from "../sql/deciding-columns.ts";
 import { quoteIdent, quoteLiteral, quoteQualified } from "../sql/quote.ts";
@@ -77,7 +78,66 @@ begin
 end;
 $$;
 revoke execute on function ${bump}() from public, anon, authenticated;
-${triggers}${memberUsersVersionSql(parts, bumpFor)}${roleKeysVersionSql(parts, versionTable)}`;
+${triggers}${broadcastSql(parts, versionTable)}${memberUsersVersionSql(parts, bumpFor)}${roleKeysVersionSql(parts, versionTable)}`;
+}
+
+/**
+ * Every version row written is sent as `{ user_id, version }` on the server
+ * topic and on the user's `authz:<uid>`, in the shape better-supabase's
+ * `subscribeAuthzVersions` and `SessionProvider` read.
+ */
+function broadcastSql(parts: Parts, versionTable: string): string {
+  const broadcast = parts.broadcast;
+  if (broadcast === undefined) {
+    return "";
+  }
+  const send = `${quoteIdent(parts.schema)}.permdock_broadcast_authz_version`;
+  const payload =
+    "jsonb_build_object('user_id', new.user_id, 'version', new.version)";
+  const event = quoteLiteral(AUTHZ_EVENT);
+  const receive = broadcast.receivePolicy
+    ? `
+
+-- each user receives their own authz:<uid> topic, and no user may join the server topic
+do $$
+begin
+  if to_regclass('realtime.messages') is not null and not exists (
+    select 1 from pg_policies
+    where schemaname = 'realtime' and tablename = 'messages'
+      and policyname = 'permdock_authz_version_receive'
+  ) then
+    create policy permdock_authz_version_receive on realtime.messages
+      for select to authenticated
+      using (
+        realtime.messages.extension = 'broadcast'
+        and (select realtime.topic()) = 'authz:' || (select auth.uid())::text
+      );
+  end if;
+end;
+$$;`
+    : "";
+  return `
+
+-- sends every version bump on the server topic and on the user's authz:<uid>
+create or replace function ${send}()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if to_regprocedure('realtime.send(jsonb, text, text, boolean)') is not null then
+    perform realtime.send(${payload}, ${event}, ${quoteLiteral(broadcast.topic)}, true);
+    perform realtime.send(${payload}, ${event}, 'authz:' || new.user_id::text, true);
+  end if;
+  return null;
+end;
+$$;
+revoke execute on function ${send}() from public, anon, authenticated;
+drop trigger if exists permdock_authz_version_broadcast on ${versionTable};
+create trigger permdock_authz_version_broadcast
+  after insert or update on ${versionTable}
+  for each row execute function ${send}();${receive}`;
 }
 
 function signedUp(user: string): string {

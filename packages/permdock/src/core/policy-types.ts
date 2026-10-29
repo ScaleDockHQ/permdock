@@ -59,17 +59,24 @@ export type ApprovalStage = {
  * order. `'sequential'`: stages complete in order; an approver signs only the
  * first incomplete stage. An approver signs once per request.
  */
-export type ApprovalMode = "any" | "all" | "sequential";
+export type ApprovalCombine = "any" | "all" | "sequential";
+
+/**
+ * `'authorize'` (the default): someone other than the request's principal
+ * approves. `'confirm'`: the principal may approve their own request. Neither
+ * is met by an approver acting through an agent or a delegated token.
+ */
+export type ApprovalMode = "confirm" | "authorize";
 
 export type ApprovalRequirement = {
-  /** Set when `mode` is `'any'` (the default); absent under `stages`. */
+  /** Set when `combine` is `'any'` (the default); absent under `stages`. */
   readonly by?: Approver | readonly Approver[];
   /** Absent means `'any'`. */
-  readonly mode?: ApprovalMode;
-  /** Set when `mode` is `'all'` or `'sequential'`. */
+  readonly combine?: ApprovalCombine;
+  /** Set when `combine` is `'all'` or `'sequential'`. */
   readonly stages?: readonly ApprovalStage[];
-  /** `false` lets the request's principal approve it; absent means `true`. */
-  readonly distinct?: boolean;
+  /** Absent means `'authorize'`. */
+  readonly mode?: ApprovalMode;
   /** `'resource-change'` binds the approval to the row's `version` field. */
   readonly staleOn?: "resource-change";
   /**
@@ -93,7 +100,7 @@ export type ApprovalOption =
        * `'all'` or `'sequential'` with `stages`; absent means `'any'` with
        * `by`.
        */
-      readonly mode?: ApprovalMode;
+      readonly combine?: ApprovalCombine;
       readonly stages?: readonly {
         readonly by: ApproverInput;
         readonly quorum?: number;
@@ -103,8 +110,11 @@ export type ApprovalOption =
           readonly to: ApproverInput;
         };
       }[];
-      /** `false` lets the request's principal approve it; absent means `true`. */
-      readonly distinct?: boolean;
+      /**
+       * `'confirm'` lets the request's principal approve it; absent means
+       * `'authorize'`.
+       */
+      readonly mode?: ApprovalMode;
       /**
        * `'resource-change'`: the approval covers the row as it was when it was
        * requested. The resource must declare `version`; once that field

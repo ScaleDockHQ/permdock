@@ -1,7 +1,11 @@
 import type { AppData } from "../core/app-data.ts";
 import type { RelationGrantee } from "../core/grantee.ts";
 import type { AdapterId } from "../core/open-union.ts";
-import type { ApprovalMode, ApprovalStage } from "../core/policy-types.ts";
+import type {
+  ApprovalCombine,
+  ApprovalMode,
+  ApprovalStage,
+} from "../core/policy-types.ts";
 import type { Approver } from "../core/policy.ts";
 import type { Membership, Subject } from "../core/subject.ts";
 import type { Instant } from "../core/time.ts";
@@ -12,13 +16,16 @@ import { durationOf } from "../core/time.ts";
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 
 export type ApprovalApprovers = {
-  /** Under `mode: 'any'` (the default). */
+  /** Under `combine: 'any'` (the default). */
   readonly by?: Approver | readonly Approver[];
-  readonly mode?: ApprovalMode;
-  /** Under `mode: 'all'` or `'sequential'`. */
+  readonly combine?: ApprovalCombine;
+  /** Under `combine: 'all'` or `'sequential'`. */
   readonly stages?: readonly ApprovalStage[];
-  /** `false` lets the request's principal approve it; absent means `true`. */
-  readonly distinct?: boolean;
+  /**
+   * `'confirm'` lets the request's principal approve it; absent means
+   * `'authorize'`.
+   */
+  readonly mode?: ApprovalMode;
   /** Set when the approval no longer applies once the row's `version` changes. */
   readonly staleOn?: "resource-change";
   /**
@@ -131,6 +138,12 @@ export type ApprovalRequest = {
   readonly vouched?: string;
   readonly note?: string;
   readonly consumedAt?: string;
+  /**
+   * The caller's `approvalFingerprint` of the exact operation, from the
+   * decision's `fingerprint`. Consuming or resuming under another one fails
+   * with `approval-fingerprint-mismatch`.
+   */
+  readonly fingerprint?: string;
   /**
    * The application's own data, set when the request opens; plain JSON, never
    * read by a decision.
@@ -246,7 +259,8 @@ export type ApprovalResumeFailureCause =
   | "approval-pending"
   | "approval-rejected"
   | "approval-expired"
-  | "approval-consumed";
+  | "approval-consumed"
+  | "approval-fingerprint-mismatch";
 
 export type ApprovalInspectResult =
   | { readonly ok: true; readonly request: ApprovalRequest }

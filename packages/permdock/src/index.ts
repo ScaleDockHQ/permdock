@@ -175,6 +175,7 @@ export type {
   CustomRoleSourceFactory,
   SettingsSource,
   SnapshotSource,
+  SourceCall,
   SourceContext,
   SourceMemo,
   SubjectResolver,
@@ -188,6 +189,13 @@ export type {
   VersionQuery,
   WhereCompiler,
 } from "./core/interfaces.ts";
+export { instanceCache } from "./core/instance-cache.ts";
+export type {
+  InstanceCache,
+  InstanceCacheKey,
+  InstanceCacheOptions,
+  InstanceCacheStats,
+} from "./core/instance-cache.ts";
 export { memoryVersionCache } from "./core/version-cache.ts";
 export type {
   MemoryVersionCacheOptions,
@@ -271,7 +279,7 @@ export type {
   ValidateCustomRoleOptions,
 } from "./core/custom-roles.ts";
 export type { InstanceOptions } from "./core/instance-options.ts";
-export type { PermissionCheck } from "./core/checks.ts";
+export type { PermissionCheck, PermissionState } from "./core/checks.ts";
 export { snapshotFor } from "./core/snapshot-for.ts";
 export type { SnapshotForOptions } from "./core/snapshot-for.ts";
 export type {
@@ -357,6 +365,7 @@ export {
   definePolicy,
   holder,
   isRoleName,
+  manager,
   requiresApproval,
   separationConflicts,
   user,
@@ -364,10 +373,12 @@ export {
 export { normalizeAssurance, role } from "./core/role-builder.ts";
 export { allow, deny } from "./core/grant-builders.ts";
 export { normalizeApproval } from "./core/approval-normalize.ts";
+export { approvalFingerprint } from "./core/token.ts";
 export type {
   AnyOfApprover,
   Approver,
   ApproverInput,
+  ManagerApprover,
   PermissionApprover,
   RoleNameOf,
   UserApprover,
@@ -375,6 +386,7 @@ export type {
 export type {
   ActivationOption,
   ApprovalEscalation,
+  ApprovalCombine,
   ApprovalMode,
   ApprovalOption,
   ApprovalRequirement,

@@ -5,6 +5,7 @@ import { cacheLife, cacheTag, io } from "next/cache.js";
 import { after } from "next/server.js";
 import { cache } from "react";
 
+import type { PermissionCheck, PermissionState } from "../core/checks.ts";
 import type { Decision } from "../core/decision.ts";
 import type { DecisionSink, Intent } from "../core/interfaces.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
@@ -25,6 +26,7 @@ import type {
 
 import { withApp } from "../core/app.ts";
 import { buildInstance, resolveOrNull } from "../core/build-instance.ts";
+import { permissionStates } from "../core/checks.ts";
 import { compact } from "../core/compact.ts";
 import { NO_GRANT } from "../core/decision.ts";
 import { cacheLifeFor, snapshotTag } from "../core/snapshot-cache.ts";
@@ -69,6 +71,20 @@ function defer(task: Promise<unknown> | (() => unknown)): boolean {
   } catch {
     return false;
   }
+}
+
+/** Read through `globalThis` so the entry loads on runtimes without `process`. */
+function isDevelopment(): boolean {
+  const proc: unknown = Reflect.get(globalThis, "process");
+  if (typeof proc !== "object" || proc === null) {
+    return false;
+  }
+  const env: unknown = Reflect.get(proc, "env");
+  return (
+    typeof env === "object" &&
+    env !== null &&
+    Reflect.get(env, "NODE_ENV") === "development"
+  );
 }
 
 function ignore(): undefined {
@@ -202,6 +218,28 @@ export function createPermDock<
     }
   };
 
+  const getPermissions = async <K extends string>(
+    checks: Readonly<Record<K, PermissionCheck>>,
+    query?: GetPermDockQuery,
+  ): Promise<Readonly<Record<K, PermissionState>>> => {
+    let permdock: PermDock<V> | undefined;
+    try {
+      permdock = await getPermDock(query);
+    } catch (error) {
+      unstable_rethrow(error);
+    }
+    if (permdock === undefined) {
+      return permissionStates((): Decision => NO_GRANT, checks);
+    }
+    // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
+    const decide = permdock.decide as (
+      next: Permission,
+      row?: unknown,
+    ) => Decision;
+    return permissionStates(decide, checks);
+  };
+
+  let warnedShortLife = false;
   const getSnapshot = async (
     query: GetSnapshotQuery = {},
   ): Promise<Snapshot> => {
@@ -209,8 +247,16 @@ export function createPermDock<
     const snapshot = permdock.snapshot(
       compact({ include: query.include, tenants: query.tenants }),
     );
+    const life = cacheLifeFor(snapshot, query.cacheLife);
+    if (life.stale < 300 && !warnedShortLife && isDevelopment()) {
+      warnedShortLife = true;
+      // oxlint-disable-next-line no-console -- one development hint per process for a short private lifetime
+      console.warn(
+        `PermDock: getSnapshot() caches for ${String(life.stale)} s; Next.js drops a private entry under 300 s from the App Shell prefetch.`,
+      );
+    }
     try {
-      cacheLife(cacheLifeFor(snapshot));
+      cacheLife(life);
       cacheTag(
         snapshotTag(permdock.subject.principal?.id),
         ...(query.tags ?? []),
@@ -260,7 +306,7 @@ export function createPermDock<
   const PermDockProvider = (props: NextPermDockProviderProps): ReactElement => {
     // A rejection reaches the client store as `server-only`, or with
     // `suspend` the nearest error boundary; Next.js interrupts keep working.
-    const snapshotPromise: Promise<Snapshot | string | Promise<string>> =
+    const snapshotPromise: Promise<Snapshot | string> =
       props.snapshot ??
       getPermDock(
         props.tenant === undefined ? undefined : { tenant: props.tenant },
@@ -269,17 +315,17 @@ export function createPermDock<
           compact({ include: props.include, tenants: props.tenants }),
         ),
       );
-    return renderClientProvider(
-      compact({
-        snapshotPromise,
-        endpoint: props.endpoint ?? options.endpoint ?? "/api/permdock",
-        tenant: props.tenant,
-        suspend: props.suspend,
-        defaults: props.defaults,
-        messages: props.messages,
-        children: props.children,
-      }),
-    );
+    const {
+      snapshot: _snapshot,
+      include: _include,
+      tenants: _tenants,
+      ...rest
+    } = props;
+    return renderClientProvider({
+      ...rest,
+      snapshotPromise,
+      endpoint: props.endpoint ?? options.endpoint ?? "/api/permdock",
+    });
   };
 
   const permdockHandler = (): ReturnType<typeof evaluationsHandler> =>
@@ -288,6 +334,7 @@ export function createPermDock<
   return {
     getPermDock,
     getPermission,
+    getPermissions,
     getSnapshot,
     requirePermission,
     PermDockProvider,

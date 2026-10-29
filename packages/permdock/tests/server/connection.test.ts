@@ -17,7 +17,12 @@ type Session = {
   id: string | null;
   session?: string;
   expiresAt?: number;
-  memberships?: { tenant: string; roles: string[]; expiresAt: number }[];
+  memberships?: {
+    scope: string;
+    id: string;
+    roles: string[];
+    expiresAt: number;
+  }[];
 };
 
 function setup(state: Session, extra: { revalidate?: number } = {}) {
@@ -204,7 +209,9 @@ describe("connection", () => {
       const membership = setup({
         id: "u1",
         roles: ["member"],
-        memberships: [{ tenant: "o1", roles: ["member"], expiresAt: now + 5 }],
+        memberships: [
+          { scope: "tenant", id: "o1", roles: ["member"], expiresAt: now + 5 },
+        ],
       });
       await membership.open();
       expect(membership.reads()).toBe(1);

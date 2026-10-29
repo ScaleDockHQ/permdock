@@ -62,6 +62,12 @@ export const APPROVAL_REQUEST_SCHEMA: JsonSchemaNode = {
     vouched: { type: "string" },
     note: { type: "string" },
     consumedAt: { $ref: "#/$defs/instant" },
+    fingerprint: {
+      type: "string",
+      pattern: "^[0-9a-f]{64}$",
+      description:
+        "The approvalFingerprint the request was opened under; a resume under another one is refused.",
+    },
     x: {
       type: "object",
       description:

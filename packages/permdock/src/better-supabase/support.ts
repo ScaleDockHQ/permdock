@@ -3,6 +3,7 @@ import type {
   SupportAuthorizeInput,
 } from "better-supabase/contract";
 
+import type { InstanceCache } from "../core/instance-cache.ts";
 import type { PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
@@ -14,10 +15,9 @@ import type {
 import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 
 import { canonicalJson } from "../core/canonical-json.ts";
-import { getPermDock } from "../core/permdock.ts";
 import { sha256Digest } from "../core/sha256.ts";
 import { decideSupportSession } from "../core/support-session.ts";
-import { subjectFromBetterSupabase } from "./subject.ts";
+import { permdockFor } from "./permdock-for.ts";
 
 /**
  * A start `decideSupportSession` holds for approval: the session it would start
@@ -43,6 +43,11 @@ export type SupportPolicyOptions = {
     PermDockOptions,
     "tenant" | "actor" | "delegation" | "session" | "expiresAt"
   >;
+  /**
+   * The process-wide instance cache: an instance is reused while the subject's
+   * authorization version is unchanged.
+   */
+  readonly instances?: InstanceCache;
   /**
    * The session's permissions when a start asks for `readOnly: false`. Without
    * it such a start is refused; a read-only start gets every `readOnlyHint`
@@ -94,16 +99,10 @@ function requestId(input: SupportAuthorizeInput): string {
  * is `false`.
  */
 export function supportPolicy(options: SupportPolicyOptions): SupportAuthorize {
+  const resolve = permdockFor(options);
   return async (input) => {
     try {
-      const base = await getPermDock(
-        options.policy,
-        subjectFromBetterSupabase(
-          { kind: "user", claims: input.admin.claims },
-          options.subject,
-        ),
-        options.options,
-      );
+      const base = await resolve({ kind: "user", claims: input.admin.claims });
       if (base.subject.principal?.id !== input.admin.user.id) return false;
       if (!input.readOnly && options.writable === undefined) return false;
       const permdock =

@@ -12,13 +12,13 @@ const clerk = role("clerk", [
   allow(permissions.filing.pay, {
     approval: {
       by: [roles.admin, assurance({ amr: ["mfa"] })],
-      distinct: true,
+      mode: "authorize",
     },
   }),
 ]);
 ```
 
-`approval: 'human'` marks a grant that any authenticated person other than the requester may resolve: neither the actor nor the principal can approve. `{ by }` names the eligible approvers with the same grantee selectors as `to` (`role`, `assurance`, `authenticated`, `relation()`, an array as intersection), plus `user(id)` for one named person, and refuses the principal and the actor the same way. `distinct` defaults to `true`; `{ distinct: false }` lets the principal approve their own request (a user confirming their own agent's call), and `permdock doctor` PD024 lists every grant that sets it. The actor is refused either way.
+`approval: 'human'` marks a grant that any authenticated person other than the requester may resolve: neither the actor nor the principal can approve. `{ by }` names the eligible approvers with the same grantee selectors as `to` (`role`, `assurance`, `authenticated`, `relation()`, an array as intersection), plus `user(id)` for one named person, and refuses the principal and the actor the same way. `mode` defaults to `authorize`; `{ mode: "confirm" }` lets the principal approve their own request (a user confirming their own agent's call), and `permdock doctor` PD024 lists every grant that sets it. The actor is refused either way. Under either mode the approver is a person acting for themselves: a subject with an `actor`, a `delegation`, or a `service` or `workload` principal is refused with `approver-not-eligible`.
 
 Three more fields shape the request the grant produces:
 
@@ -46,7 +46,7 @@ allow(permissions.payout.release, {
 ```ts
 allow(permissions.expense.pay, {
   approval: {
-    mode: "sequential",
+    combine: "sequential",
     stages: [
       { by: relation(permissions.expense, "manager") }, // the expense's manager first
       { by: relation(permissions.report, "approver", { through: ["report"] }) }, // then the report's approver
@@ -76,6 +76,14 @@ allow(permissions.payment.send, {
 
 `relation(resource, name)` in `by`, a stage or `escalation.to` names whoever holds that relation on the requested row, such as the manager on an expense. It is checked when the verdict is given, by the request's resource id, so a manager who changes between the ask and the answer is the one who may approve. `definePolicy` refuses a relation approver on a collection permission, on a resource other than the permission's own or the end of its `through` links, on an undeclared relation, and in an activation approval. The approvals handler reads the relation through its `relations` source ([approvals adapter](/docs/adapters/approvals#relation-approvers)); without one, a relation approver matches nobody.
 
+### Manager approvers
+
+`manager({ levels? })` names the requester's manager, read as whoever holds `manager` on the requester's `user` record through the same `relations` source. `levels` (1 to 8, default 1) walks further up the chain: `manager({ levels: 2 })` also admits the manager's manager. The walk runs by the requester's principal id when the verdict is given, so a reorganisation between the ask and the answer applies. Group holders, a missing source and a read that fails match nobody. It is better-supabase's `approvers.manager`; `permdock_is_approver` cannot check it in SQL, so `permdock supabase` reports it and it matches nobody there.
+
+```ts
+allow(permissions.expense.submit, { approval: { by: manager({ levels: 2 }) } });
+```
+
 When the grant matches, `decide` returns:
 
 ```ts
@@ -98,6 +106,23 @@ Properties:
 - Includes a digest of the call's arguments when the caller passes them as `decide(permission, data, { args })`. Every agent adapter and `permdock/mcp` pass the tool arguments, with or without a `data` loader and for a row as well as a collection, so an approved `send_email({ to: 'boss@corp' })` does not cover `send_email({ to: 'attacker@evil' })`. The arguments replace the data digest, since a loader reads the row from them.
 - Does not include a timestamp; expiry lives on the `ApprovalRequest` record in the store, not in the token.
 - Includes the row's `version` field only for a grant with `approval: { staleOn: 'resource-change' }` (below).
+- Includes the caller's `fingerprint` when the call passes `decide(permission, data, { fingerprint })`, and binds nothing extra without it.
+
+The token input that names what decided is `source`: the policy fingerprint, `snapshot:<issuedAt>` for a snapshot decision, or the PDP provider. Before 0.17 it was hashed as `fingerprint`, so approvals outstanding at the upgrade no longer resume and the call asks again.
+
+### Operation fingerprints
+
+`approvalFingerprint(value)` from `permdock` and `permdock/approvals` is the hex SHA-256 of `value` as sorted-key JSON. It returns the same string as better-supabase's `approvalFingerprint` from `better-supabase/blocks/approvals`, synchronously. Pass the exact operation an approval covers as `fingerprint`:
+
+```ts
+const fingerprint = approvalFingerprint({ invoice: id, amount, to });
+const decision = permdock.decide(permissions.invoice.pay, invoice, {
+  fingerprint,
+});
+```
+
+The decision's token binds it, `decision.fingerprint` carries it, and the request it opens records it as `fingerprint`. `resumeDecision` refuses a stored request whose `fingerprint` differs from the decision's with detail `approval-fingerprint-mismatch`, and `consumeApproval(store, token, at, { fingerprint })` answers the same cause. A request without a fingerprint resumes as before.
+
 - Carries no secret material and reveals nothing beyond what the caller already knows.
 
 On resume, the adapter recomputes the token from the actual call being made and compares it with the approved token. A mismatch is `denied` with a reason of kind `approval`. A signed `vnd.permdock.approval+jwt` never replaces this comparison: it proves who resolved the request, the token proves what was approved.
@@ -125,13 +150,13 @@ allow(permissions.invoice.pay, {
 
 Between the ask and the answer, the pending approval is an `ApprovalRequest` record in an `ApprovalStore`; the API is on the [approvals adapter](/docs/adapters/approvals) and the record shape on [wire formats](/docs/concepts/wire-formats#approval-request). An adapter without a `store` denies every resume (Eve and the OpenAI Agents SDK adapter default to `memoryApprovalStore()`). Rules the store and the adapters hold:
 
-- The approver comes from authentication, never from the resume request, and is never the request's actor: an agent cannot approve its own call. Nor is it the request's principal, unless the grant sets `distinct: false`; `requireDistinctApprover` on the handler refuses the principal even then. A delegate is held to the same distinctness, and so is the delegator they approve for. The handler resolves the delegator's subject server-side; the signature records the delegate as `by` and the delegator as `onBehalfOf`. One hop. A link or a feed cannot approve.
+- The approver comes from authentication, never from the resume request, and is never the request's actor: an agent cannot approve its own call. Nor is it the request's principal, unless the grant sets `mode: "confirm"`; `requireDistinctApprover` on the handler refuses the principal even then. A delegate is held to the same distinctness, and so is the delegator they approve for. The handler resolves the delegator's subject server-side; the signature records the delegate as `by` and the delegator as `onBehalfOf`. One hop. A link or a feed cannot approve.
 - Only `pending` becomes `approved` or `rejected`; `expired` is terminal. A resume against anything but `approved` is `denied`.
 - An approval is spent once. A resume that enforces the call (`protect`, agent tool execution, MCP) calls the store's atomic `consume`, which sets `consumedAt`; a second resume is `denied` with detail `approval-consumed`. A store without `consume` cannot resume. The decision endpoint only inspects, so a UI check does not spend the approval.
 - `create` is idempotent per token: a pending, approved or rejected record is kept until it expires, so a consumed or rejected call cannot be asked again before `expiresAt`. A store replaces a record only when its `status` is `expired` or its `expiresAt` has passed; nothing returns to `pending`.
 - A request with a tenant is resolvable only by an approver with a membership in that tenant.
 - A `quorum` counts principals, not clicks: the same approver is refused a second time, so one person can never satisfy a quorum of two, whatever role they hold.
-- A verdict the application vouches for (`vouchApproval`, `verdict.vouched`) skips the eligibility checks of `approvers`, the tenant membership and the quorum, because the application's own rules decided them, and resolves the request at once. It still refuses an unauthenticated approver, the actor, the principal unless `distinct: false`, a repeated approver and a request that is not pending or has expired, and the request records the rule's name. Only server code can set it: `approvalsHandler` never reads it from a body.
+- A verdict the application vouches for (`vouchApproval`, `verdict.vouched`) skips the eligibility checks of `approvers`, the tenant membership and the quorum, because the application's own rules decided them, and resolves the request at once. It still refuses an unauthenticated approver, the actor, the principal unless `mode: "confirm"`, a repeated approver and a request that is not pending or has expired, and the request records the rule's name. Only server code can set it: `approvalsHandler` never reads it from a body.
 - `expiresAt` is the shorter of the store's window and the grant's `ttl`; the escalation window opens at `createdAt` plus `escalation.after` and the store checks it at resolve time, so an approver who was not eligible when the request was created can become eligible without any write.
 - A `simulate()` plan produces one request per `approval-required` step; approving the plan approves each token, and each step is still re-checked at execution.
 - The ask, the answer and the resumed decision are three `on('decision')` records sharing `token`.
@@ -154,7 +179,7 @@ Applications that need approvals to survive a restart implement the interface ov
 | OpenAI Agents SDK                                                     | `needsApproval` returns `true`; the run returns `interruptions` and a serialisable `RunState`                                                                                                                                                         | `resolveInterruptions` applies the store's verdict with `state.approve` / `state.reject`; the token is recomputed before `execute` ([OpenAI adapter](/docs/adapters/openai))          |
 | MCP                                                                   | An MRTR `input_required` result with a URL-mode `elicitation/create` request to `approval.at` and the token as `requestState`, when the client takes URL elicitations; otherwise a structured tool result (`isError`) carrying the reason and `token` | A reviewer resolves the request in the store; the retried call re-runs `decide`, compares and consumes                                                                                |
 | HTTP adapters                                                         | `403` Problem Details with `type` `.../approval-required`, `permission`, `token`                                                                                                                                                                      | Client retries the same request with a `PermDock-Approval: <token>` header; the kernel requires an `approved` record, re-runs `decide` and compares                                   |
-| Terminal (`permdock/terminal`)                                        | A y/N prompt only for a grant with `distinct: false` and no actor; otherwise the request is recorded in `store` and the CLI exits `75` (`77` with no `store`)                                                                                         | The rerun recomputes `token` and consumes the approved record once ([terminal adapter](/docs/adapters/terminal))                                                                      |
+| Terminal (`permdock/terminal`)                                        | A y/N prompt only for a grant with `mode: "confirm"` and no actor; otherwise the request is recorded in `store` and the CLI exits `75` (`77` with no `store`)                                                                                         | The rerun recomputes `token` and consumes the approved record once ([terminal adapter](/docs/adapters/terminal))                                                                      |
 | A2A                                                                   | Skill returns a structured "approval required" result with `token`                                                                                                                                                                                    | The task enters `input-required`; the caller retries with the token                                                                                                                   |
 | WebMCP                                                                | Tool handler returns a structured refusal with `token`; page renders its own approval UI                                                                                                                                                              | Page re-invokes the guarded route with the token                                                                                                                                      |
 | React / Next.js UI                                                    | `usePermission` reports `allowed: false`; `decide` on the server shows `approval-required` for rendering an approval button                                                                                                                           | Server action re-checks with the token                                                                                                                                                |
@@ -193,7 +218,7 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 - It does not grant a permission the subject lacks. Approval sits on top of a matching grant.
 - It does not outlive its request. Each call needs its own approval, which is consumed on use; the record expires at `expiresAt`, and a `simulate()` plan is approved step by step with no plan-level token.
 - It is not remembered. A rejection applies to one call; the next call asks again, and the OpenAI SDK's `alwaysReject` is never set.
-- It does not decide who may approve beyond the grant and the actor rule. `approval.by`, `approval.mode`, `approval.stages`, `approval.distinct`, `approval.quorum` and `approval.escalation` on the grant, tightened by any matching [approval policy entries](/docs/adapters/approvals#approval-policies-as-data), are copied to the `ApprovalRequest` as `approvers` and enforced by `ApprovalStore.resolve` and `approvalsHandler`. Adapter `approvers` lists (Eve, OpenAI, Chat SDK) are an extra restriction; both must pass. `requireDistinctApprover` on the handler is an application-wide floor: with it on, `distinct: false` on a grant no longer lets the principal approve.
+- It does not decide who may approve beyond the grant and the actor rule. `approval.by`, `approval.mode`, `approval.stages`, `approval.combine`, `approval.quorum` and `approval.escalation` on the grant, tightened by any matching [approval policy entries](/docs/adapters/approvals#approval-policies-as-data), are copied to the `ApprovalRequest` as `approvers` and enforced by `ApprovalStore.resolve` and `approvalsHandler`. Adapter `approvers` lists (Eve, OpenAI, Chat SDK) are an extra restriction; both must pass. `requireDistinctApprover` on the handler is an application-wide floor: with it on, `mode: "confirm"` on a grant no longer lets the principal approve.
 - It is never given by a link alone. An emailed or chat link carries only the token and opens a page where the approver authenticates; the verdict goes through `approvalsHandler` with that session's subject. A link that approves without a session would make possession of the message the approver's identity ([approvals](/docs/adapters/approvals)).
 
 ## Why
@@ -204,7 +229,7 @@ The second `decide` matters: the policy, the resource and the subject are re-eva
 - **Relation approvers are checked at the verdict, outside the store.** `relation()` answers "does this subject relate to this row", which needs a relation reader at resolve time; the store has none and stays synchronous. The approvals handler asks its `RelationSource` which relation approvers the approver satisfies for the request's resource id and passes those facts to `resolve` as `verdict.relations`. A store never derives them, so without the facts a relation approver matches nobody. Reading at the verdict, not at the ask, means the current holder approves: a manager who left the team the day before cannot approve.
 - **Stages are ordered sets, not a workflow engine.** Two-step sign-off (a line manager, then finance) is common enough to live on the grant, where `permdock diff` and a policy review see it. `sequential` refuses a later stage until the earlier one is complete, so finance never signs something the manager has not seen. Branching, parallel paths with different outcomes and delegation of a stage are left to the application.
 - **Quorum, ttl and escalation are grant fields, not store configuration.** How many people must agree, how long an ask may wait and who may step in when nobody answers are statements about the action, the same as who may approve, so they live next to `by` on the grant, appear in the catalog and in `permdock diff`, and travel with the request as `approvers`. A store setting would apply to every permission at once and would be invisible to a policy review. The request records each approval as `{ by, at }` rather than a counter so an audit can see who agreed, and the quorum counts distinct principals because a quorum one person can satisfy alone is a single approval with extra clicks. Escalation only widens the approver set, because a workflow where the fallback approver replaces the first set would let anyone wait out the timer to pick their approver. Recurring windows and per-approver weights are left out: both are approval workflow design, which an application or PermDock Cloud builds on these primitives.
-- **Four eyes is the default, not an option.** A user who can approve their own request turns an approval into a confirmation dialog: the person who wants the refund is the person who says yes. So the principal is refused unless the grant opts out. Where a confirmation is what the product wants (the user approving their own agent's call in a chat), `approval: { distinct: false }` says so on the grant and PD024 keeps the list visible in review. Separation between the agent and its user was already guaranteed by the actor rule; this closes the one between the user and themselves.
+- **Four eyes is the default, not an option.** A user who can approve their own request turns an approval into a confirmation dialog: the person who wants the refund is the person who says yes. So the principal is refused unless the grant opts out. Where a confirmation is what the product wants (the user approving their own agent's call in a chat), `approval: { mode: "confirm" }` says so on the grant and PD024 keeps the list visible in review. Separation between the agent and its user was already guaranteed by the actor rule; this closes the one between the user and themselves.
 
 ## Elevated access
 

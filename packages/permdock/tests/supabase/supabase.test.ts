@@ -36,7 +36,7 @@ describe(subjectFromSupabase, () => {
       exp: 1_700_000_000,
       user_role: "member",
       tenant_id: "org-1",
-      memberships: [{ tenant: "org-1", roles: ["admin"] }],
+      memberships: [{ scope: "tenant", id: "org-1", roles: ["admin"] }],
       app_metadata: { plan: "pro" },
       user_metadata: { role: "superadmin", tenant_id: "evil" },
     });
@@ -44,7 +44,7 @@ describe(subjectFromSupabase, () => {
     expect(subject.principal?.roles).toStrictEqual(["member"]);
     expect(subject.principal?.tenant).toBe("org-1");
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "org-1", roles: ["admin"] },
+      { scope: "tenant", id: "org-1", roles: ["admin"] },
     ]);
     expect(subject.principal?.assurance).toStrictEqual({ acr: "aal2" });
     expect(subject.session).toBe("sess-1");
@@ -57,13 +57,28 @@ describe(subjectFromSupabase, () => {
       sub: "user-6",
       role: "authenticated",
       memberships: [
-        { tenant: "org-1", roles: ["nurse"], member: { group: "night" } },
-        { tenant: "org-2", roles: ["nurse"], member: { group: "" } },
+        {
+          scope: "tenant",
+          id: "org-1",
+          roles: ["nurse"],
+          member: { group: "night" },
+        },
+        {
+          scope: "tenant",
+          id: "org-2",
+          roles: ["nurse"],
+          member: { group: "" },
+        },
       ],
     });
     expect(subject.principal?.memberships).toStrictEqual([
-      { tenant: "org-1", roles: ["nurse"], member: { group: "night" } },
-      { tenant: "org-2", roles: ["nurse"] },
+      {
+        scope: "tenant",
+        id: "org-1",
+        roles: ["nurse"],
+        member: { group: "night" },
+      },
+      { scope: "tenant", id: "org-2", roles: ["nurse"] },
     ]);
   });
 
@@ -73,12 +88,17 @@ describe(subjectFromSupabase, () => {
         sub: "user-6",
         role: "authenticated",
         memberships: [
-          { tenant: "org-1", roles: ["owner"], keep: ["org.restore"] },
-          { tenant: "org-2", roles: ["owner"], keep: [7] },
+          {
+            scope: "tenant",
+            id: "org-1",
+            roles: ["owner"],
+            keep: ["org.restore"],
+          },
+          { scope: "tenant", id: "org-2", roles: ["owner"], keep: [7] },
         ],
       }).principal?.memberships,
     ).toStrictEqual([
-      { tenant: "org-1", roles: ["owner"], keep: ["org.restore"] },
+      { scope: "tenant", id: "org-1", roles: ["owner"], keep: ["org.restore"] },
     ]);
   });
 
@@ -189,7 +209,7 @@ describe(subjectFromSupabase, () => {
         memberships: [
           { scope: "tenant", id: "org-1", roles: ["admin"] },
           { org_id: "org-2", role: "admin" },
-          { tenant: "org-3", roles: [] },
+          { scope: "tenant", id: "org-3", roles: [] },
         ],
       },
       {

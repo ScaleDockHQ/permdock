@@ -364,13 +364,7 @@ function holdsScope(
   if (expiredAt(membership, now)) {
     return false;
   }
-  if (membership.scope === scope && sameId(membership.id, id)) {
-    return true;
-  }
-  return (
-    (scope === "tenant" && sameId(membership.tenant, id)) ||
-    (scope === "team" && sameId(membership.team, id))
-  );
+  return membership.scope === scope && sameId(membership.id, id);
 }
 
 /**

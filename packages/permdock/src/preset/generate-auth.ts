@@ -63,11 +63,77 @@ export async function currentUser(${param}): Promise<User | null> {
 `;
 }
 
+function supabaseCookieSession(): string {
+  return `import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import { subjectFromSupabase } from "permdock/supabase";
+
+/**
+ * The subject the Supabase session cookie proves, verified with getClaims();
+ * anonymous without one. proxy.ts refreshes the session before this runs, so
+ * setAll has nothing to write.
+ */
+export async function currentSubject() {
+  const store = await cookies();
+  const supabase = createServerClient(
+    ${env("SUPABASE_URL")} ?? "",
+    ${env("SUPABASE_PUBLISHABLE_KEY")} ?? "",
+    { cookies: { getAll: () => store.getAll(), setAll: () => undefined } },
+  );
+  const { data, error } = await supabase.auth.getClaims();
+  return subjectFromSupabase(error ? null : (data?.claims ?? null));
+}
+`;
+}
+
+/**
+ * Next.js 16's `proxy.ts`: refreshes the Supabase session once per request and
+ * returns the response `setAll` built, with the cache headers `@supabase/ssr`
+ * passes so a CDN never stores a session cookie.
+ */
+function supabaseProxy(): string {
+  return `import { createServerClient } from "@supabase/ssr";
+import { type NextRequest, NextResponse } from "next/server";
+
+/** Refreshes the Supabase session; authorization happens in the pages. */
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({ request });
+  const supabase = createServerClient(
+    ${env("SUPABASE_URL")} ?? "",
+    ${env("SUPABASE_PUBLISHABLE_KEY")} ?? "",
+    {
+      cookies: {
+        getAll: () => request.cookies.getAll(),
+        setAll: (cookiesToSet, headers) => {
+          for (const { name, value } of cookiesToSet) {
+            request.cookies.set(name, value);
+          }
+          response = NextResponse.next({ request });
+          for (const { name, value, options } of cookiesToSet) {
+            response.cookies.set(name, value, options);
+          }
+          for (const [key, value] of Object.entries(headers)) {
+            response.headers.set(key, value);
+          }
+        },
+      },
+    },
+  );
+  await supabase.auth.getClaims();
+  return response;
+}
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};
+`;
+}
+
 function supabaseSession(ctx: Context): string {
+  if (!sessionCall(ctx).takesRequest) {
+    return supabaseCookieSession();
+  }
   const h = headersOf(ctx);
-  const browser = sessionCall(ctx).takesRequest
-    ? ""
-    : "\n * A browser session keeps the token in cookies: read it there with\n * createServerClient from @supabase/ssr.";
   return moduleText(
     [
       `import { createClient } from "@supabase/supabase-js";`,
@@ -76,7 +142,7 @@ function supabaseSession(ctx: Context): string {
     ],
     `/**
  * The subject the Supabase access token in the Authorization header proves;
- * anonymous without a valid one.${browser}
+ * anonymous without a valid one.
  */
 export async function currentSubject(${h.param}) {
   const requestHeaders = ${h.read};
@@ -187,7 +253,12 @@ export function sessionFiles(ctx: Context): GeneratedFile[] {
     case "custom":
       return [ownedFile(at("session.ts"), customSession(ctx))];
     case "supabase":
-      return [ownedFile(at("session.ts"), supabaseSession(ctx))];
+      return [
+        ownedFile(at("session.ts"), supabaseSession(ctx)),
+        ...(sessionCall(ctx).takesRequest
+          ? []
+          : [ownedFile(at("proxy.ts"), supabaseProxy())]),
+      ];
     case "better-auth":
       return [
         ownedFile(at("auth.ts"), betterAuthFile()),
@@ -209,7 +280,9 @@ export function authDependencies(ctx: Context): string[] {
     case "custom":
       return [];
     case "supabase":
-      return ["@supabase/supabase-js"];
+      return sessionCall(ctx).takesRequest
+        ? ["@supabase/supabase-js"]
+        : ["@supabase/ssr", "@supabase/supabase-js"];
     case "better-auth":
       return ["better-auth"];
     case "clerk":

@@ -68,7 +68,7 @@ describe("permdock/openapi", () => {
           allow(tree.invoice.read),
           allow(tree.invoice.pay, { approval: "human" }),
           allow(tree.invoice.void, { approval: { by: authenticated() } }),
-          allow(tree.invoice.refund, { approval: { distinct: false } }),
+          allow(tree.invoice.refund, { approval: { mode: "confirm" } }),
           allow(tree.invoice.close, {
             approval: { staleOn: "resource-change" },
           }),

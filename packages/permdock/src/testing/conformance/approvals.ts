@@ -81,7 +81,7 @@ function tenantApprover(tenant: string): Subject {
     principal: {
       id: "u_9",
       roles: [],
-      memberships: [{ tenant, roles: ["admin"] }],
+      memberships: [{ scope: "tenant", id: tenant, roles: ["admin"] }],
     },
     context: {},
   };
@@ -235,7 +235,7 @@ export function testApprovalStore(
     ).rejects.toThrow(/eligible|not pending|not found/u);
   });
 
-  it("refuses the principal as approver unless the grant sets distinct: false", async () => {
+  it("refuses the principal as approver unless the grant sets mode: confirm", async () => {
     const principal: Subject = {
       principal: { id: "u_1", roles: ["admin"] },
       context: {},
@@ -243,7 +243,7 @@ export function testApprovalStore(
     const shapes = [
       ["self-human", undefined],
       ["self-by", { by: admin }],
-      ["self-distinct", { by: admin, distinct: true }],
+      ["self-authorize", { by: admin, mode: "authorize" }],
     ] as const;
     for (const [token, approvers] of shapes) {
       await store.create(
@@ -260,7 +260,7 @@ export function testApprovalStore(
     }
     await store.create({
       ...sampleApproval("self-optout"),
-      approvers: { by: admin, distinct: false },
+      approvers: { by: admin, mode: "confirm" },
     });
     const resolved = await store.resolve("self-optout", {
       status: "approved",
@@ -375,7 +375,7 @@ export function testApprovalStore(
     await store.create({
       ...sampleApproval("stages-token"),
       approvers: {
-        mode: "sequential",
+        combine: "sequential",
         stages: [{ by: { kind: "user", id: "u_10" } }, { by: admin }],
       },
     });

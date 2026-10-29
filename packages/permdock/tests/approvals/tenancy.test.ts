@@ -33,8 +33,13 @@ describe("approver tenancy", () => {
           roles: [],
           tenant: "o_0",
           memberships: [
-            { tenant: "o_1", roles: ["admin"] },
-            { tenant: "o_2", team: "t_1", roles: ["lead"] },
+            { scope: "tenant", id: "o_1", roles: ["admin"] },
+            {
+              within: { tenant: "o_2" },
+              scope: "team",
+              id: "t_1",
+              roles: ["lead"],
+            },
             { scope: "org", id: "o_3", roles: ["admin"] },
             {
               scope: "team",
@@ -61,7 +66,7 @@ describe("approver tenancy", () => {
 
   it("refuses an approver whose only membership is a team in the tenant", () => {
     const nested: readonly Membership[] = [
-      { tenant: "o_1", team: "t_1", roles: ["lead"] },
+      { within: { tenant: "o_1" }, scope: "team", id: "t_1", roles: ["lead"] },
       { scope: "team", id: "t_1", within: { org: "o_1" }, roles: ["lead"] },
     ];
     for (const membership of nested) {

@@ -12,10 +12,17 @@ const scopes = [
 ];
 
 describe("scope helpers", () => {
-  it("normalise a legacy tenant and team membership onto catalog scopes", () => {
+  it("drop the { tenant, team } shape removed in 0.17.0", () => {
+    // SAFETY: the removed shape is no longer a Membership; readers get it from untyped input.
+    const legacy = { tenant: "o_1", team: "p_1", roles: ["dev"] } as never;
+    expect(normalizeMembership(legacy, scopes)).toBeUndefined();
+    expect(normalizeMembership(legacy)).toBeUndefined();
+  });
+
+  it("resolve the tenant and team aliases onto catalog scopes", () => {
     expect(
       normalizeMembership(
-        { tenant: "o_1", team: "p_1", roles: ["dev"] },
+        { within: { tenant: "o_1" }, scope: "team", id: "p_1", roles: ["dev"] },
         scopes,
       ),
     ).toStrictEqual({
@@ -28,7 +35,7 @@ describe("scope helpers", () => {
 
   it("use the implicit tenant and team pair without scopes", () => {
     expect(
-      normalizeMembership({ tenant: "o_1", roles: ["admin"] }),
+      normalizeMembership({ scope: "tenant", id: "o_1", roles: ["admin"] }),
     ).toStrictEqual({ scope: "tenant", id: "o_1", roles: ["admin"] });
   });
 

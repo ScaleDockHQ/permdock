@@ -98,7 +98,8 @@ export function directoryMembershipSource(
           group.roles ?? groupRolesFor(options.groupRoles, group.id);
         memberships.push(
           compact<Membership>({
-            tenant,
+            scope: "tenant",
+            id: tenant,
             roles: allowedRoles(
               mapped,
               options.assignable,

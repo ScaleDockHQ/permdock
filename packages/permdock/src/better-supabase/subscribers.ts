@@ -1,11 +1,12 @@
+import type { InstanceCache } from "../core/instance-cache.ts";
 import type { PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
 
-import { getPermDock } from "../core/permdock.ts";
 import { loadPrincipal } from "../core/principal-source.ts";
 import { subscribersFor } from "../delivery/audience.ts";
+import { permdockFor } from "./permdock-for.ts";
 
 /** The fields of better-supabase's `OutboxEvent` the policy reads. */
 export type SubscriberPolicyEvent = {
@@ -42,6 +43,11 @@ export type SubscriberPolicyOptions<
     PermDockOptions,
     "tenant" | "actor" | "delegation" | "session" | "expiresAt" | "principals"
   >;
+  /**
+   * The process-wide instance cache: an instance is reused while the subject's
+   * authorization version is unchanged.
+   */
+  readonly instances?: InstanceCache;
 };
 
 function permissionFor(
@@ -76,6 +82,13 @@ export function subscriberPolicy<
   event: E,
   subscribers: readonly S[],
 ) => Promise<S[]> {
+  const resolve = permdockFor({
+    policy: options.policy,
+    options: { ...options.options, principals: options.principals },
+    ...(options.instances === undefined
+      ? {}
+      : { instances: options.instances }),
+  });
   return async (event, subscribers) => {
     try {
       const permission = permissionFor(options.events, event.type);
@@ -91,10 +104,9 @@ export function subscriberPolicy<
       }
       const sender = await loadPrincipal(options.principals, senderId, tenant);
       if (sender === null) return [];
-      const permdock = await getPermDock(
-        options.policy,
+      const permdock = await resolve(
         { principal: sender, context: {} },
-        { ...options.options, principals: options.principals, tenant },
+        tenant,
       );
       if (permdock.subject.principal?.tenant !== tenant) return [];
       return await subscribersFor(

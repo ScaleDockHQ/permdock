@@ -35,8 +35,8 @@ const permdock = await getPermDock(
 //   tenant: activeOrganizationId,
 //   roles: ['support'],                              // user.role from the admin plugin: global
 //   memberships: [
-//     { tenant: 'o_acme', roles: ['member', 'billing-admin'] },                 // member.role; 'billing-admin' is dynamic
-//     { tenant: 'o_acme', team: 't_design', roles: ['lead'], via: 'team:t_design' },  // teamMember rows
+//     { scope: 'tenant', id: 'o_acme', roles: ['member', 'billing-admin'] },  // member.role; 'billing-admin' is dynamic
+//     { scope: 'team', id: 't_design', within: { tenant: 'o_acme' }, roles: ['lead'], via: 'team:t_design' },  // teamMember rows
 //   ],
 //   email,
 // }

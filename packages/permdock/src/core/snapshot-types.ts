@@ -77,6 +77,13 @@ export type Snapshot = {
    * still cover.
    */
   readonly delegated?: readonly string[];
+  /**
+   * The token's authorization version (`authz_ver`) the snapshot was built
+   * from. A client compares it with the version in a refresh signal.
+   */
+  readonly authzVersion?: number;
+  /** The Auth session (`session_id`) the snapshot was built for. */
+  readonly sessionId?: string;
 };
 
 /**

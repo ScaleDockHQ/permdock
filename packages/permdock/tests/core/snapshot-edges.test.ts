@@ -14,7 +14,7 @@ describe("snapshot edges", () => {
         scopes: { tenant: { key: "orgId" } },
         subject: () => ({
           id: "u1",
-          memberships: [{ tenant: "o1", roles: ["viewer"] }],
+          memberships: [{ scope: "tenant", id: "o1", roles: ["viewer"] }],
         }),
       }),
       { id: "u1" },
@@ -46,7 +46,14 @@ describe("snapshot edges", () => {
       },
       subject: () => ({
         id: "u1",
-        memberships: [{ tenant: "o1", team: "t1", roles: ["lead"] }],
+        memberships: [
+          {
+            within: { tenant: "o1" },
+            scope: "team",
+            id: "t1",
+            roles: ["lead"],
+          },
+        ],
       }),
     });
     const teamPermdock = getPermDockSync(

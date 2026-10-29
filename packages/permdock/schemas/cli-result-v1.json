@@ -64,8 +64,6 @@
             "unknown_command",
             "unknown_flag",
             "invalid_value",
-            "command_moved",
-            "flag_renamed",
             "missing_value",
             "config_not_found",
             "config_invalid",

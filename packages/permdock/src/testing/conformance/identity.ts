@@ -68,13 +68,9 @@ export function testMembershipSource(
         memberships = [];
       }
       for (const membership of memberships) {
-        const named = membership.scope !== undefined;
-        const legacy =
-          membership.tenant !== undefined || membership.team !== undefined;
-        const shapes = [named, legacy, membership.on !== undefined].filter(
-          Boolean,
-        );
-        expect(shapes.length).toBe(1);
+        expect(
+          (membership.scope === undefined) !== (membership.on === undefined),
+        ).toBe(true);
         expect(Array.isArray(membership.roles)).toBe(true);
         if (options.policy !== undefined) {
           expect(
@@ -263,7 +259,8 @@ export function testDirectoryStore(
       await source.membershipsFor({ id: "00u1" }, { tenant: home }),
     ).toStrictEqual([
       {
-        tenant: home,
+        scope: "tenant",
+        id: home,
         roles: ["editor"],
         via: `group:${group.id}`,
         managedBy: "idp",

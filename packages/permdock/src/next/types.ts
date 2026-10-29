@@ -3,6 +3,7 @@ import type { ReactElement, ReactNode } from "react";
 
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { ActionResult, ProtectedAction } from "../core/action-result.ts";
+import type { PermissionCheck, PermissionState } from "../core/checks.ts";
 import type { Decision, DenialReason } from "../core/decision.ts";
 import type { DescribeMessages } from "../core/describe.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
@@ -11,10 +12,12 @@ import type { PermDock } from "../core/permdock.ts";
 import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
+import type { CacheLifeForOptions } from "../core/snapshot-cache.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
 import type { Subject } from "../core/subject.ts";
 import type { PermDockWrap } from "../core/wrap.ts";
 import type { OtelWrap } from "../otel/types.ts";
+import type { PermDockProviderProps } from "../react/types.ts";
 
 // oxlint-disable-next-line anti-slop/no-unknown-type-aliases -- public alias; the resolver parses it
 export type NextSubjectInput = unknown;
@@ -64,6 +67,11 @@ export type GetSnapshotQuery = GetPermDockQuery & {
    * tag.
    */
   readonly tags?: readonly string[];
+  /**
+   * `cacheLifeFor` options; `{ capToToken: true }` caps the entry at the
+   * token's expiry. Default 300 seconds.
+   */
+  readonly cacheLife?: CacheLifeForOptions;
 };
 
 export type PermissionRequirementOptions = GetPermDockQuery & {
@@ -103,7 +111,26 @@ export type NextPermDockProviderProps = NextPermDockProviderDisplay &
       }
   );
 
-type NextPermDockProviderDisplay = {
+/**
+ * Function props of the React provider: a Server Component cannot pass them to
+ * the client, so `useRefreshOn` from `permdock/react` adds triggers instead.
+ */
+type ClientOnlyProp =
+  | "fetch"
+  | "verifier"
+  | "onSnapshot"
+  | "onClear"
+  | "refreshOn";
+
+type NextPermDockProviderDisplay = Omit<
+  PermDockProviderProps,
+  | "snapshot"
+  | "snapshotPromise"
+  | "children"
+  | "defaults"
+  | "messages"
+  | ClientOnlyProp
+> & {
   readonly children: ReactNode;
   readonly tenant?: string;
   /** Overrides the factory's `endpoint`; `false` is snapshot-only. */
@@ -193,9 +220,20 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     ): Promise<ServerPermissionState>;
   };
   /**
+   * One `{ allowed, outcome, reason? }` per named check, from one instance:
+   * frozen plain JSON an island can return from `'use cache: private'`. A check
+   * that throws denies its entry; an instance that cannot be built denies them
+   * all.
+   */
+  readonly getPermissions: <K extends string>(
+    checks: Readonly<Record<K, PermissionCheck>>,
+    query?: GetPermDockQuery,
+  ) => Promise<Readonly<Record<K, PermissionState>>>;
+  /**
    * The session's snapshot for a `'use cache: private'` function the app owns:
-   * calls `cacheLife(cacheLifeFor(snapshot))` and `cacheTag(snapshotTag(sub),
-   * ...tags)` in that scope, and throws outside one.
+   * calls `cacheLife(cacheLifeFor(snapshot, query.cacheLife))` and
+   * `cacheTag(snapshotTag(sub), ...tags)` in that scope, and throws outside
+   * one.
    */
   readonly getSnapshot: (query?: GetSnapshotQuery) => Promise<Snapshot>;
   /**

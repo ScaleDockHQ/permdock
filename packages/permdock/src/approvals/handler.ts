@@ -42,7 +42,7 @@ export type ApprovalsHandlerOptions = {
     request: Request,
   ) => Subject | null | undefined | Promise<Subject | null | undefined>;
   /**
-   * Refuse the principal even on grants that set `approval: { distinct: false
+   * Refuse the principal even on grants that set `approval: { mode: "confirm"
    * }`.
    */
   readonly requireDistinctApprover?: boolean;

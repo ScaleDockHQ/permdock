@@ -138,9 +138,13 @@ function saasScenarios(): OrmParityScenario<Principal | null>[] {
     const tenants = [
       undefined,
       ...new Set(
-        saasMembershipsOf(user).flatMap((membership) =>
-          membership.tenant === undefined ? [] : [membership.tenant],
-        ),
+        saasMembershipsOf(user).flatMap((membership) => {
+          const tenant =
+            membership.scope === "tenant"
+              ? membership.id
+              : membership.within?.["tenant"];
+          return tenant === undefined ? [] : [tenant];
+        }),
       ),
       "globex",
     ];

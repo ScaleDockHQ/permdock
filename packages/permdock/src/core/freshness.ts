@@ -13,7 +13,7 @@ import { isThenable } from "./thenable.ts";
 
 type Freshness = "fresh" | "reread" | "unknown";
 
-function versionQuery(
+export function versionQuery(
   principal: Principal,
   issuedAt: number | undefined,
 ): VersionQuery {
@@ -24,6 +24,18 @@ function versionQuery(
     authzVersion: principal.authzVersion,
     issuedAt,
   });
+}
+
+/** `known` when it is a version, otherwise the source's answer. */
+function currentVersion(
+  source: MembershipSource,
+  query: VersionQuery,
+  context: VersionContext,
+  known: number | undefined,
+): number | undefined | Promise<number | undefined> {
+  return known !== undefined && Number.isSafeInteger(known) && known >= 0
+    ? known
+    : source.version?.(query, context);
 }
 
 function threw(source: MembershipSource, auth: AuthEvent[]): void {
@@ -47,6 +59,7 @@ export function rereadStale(
   read: () => readonly Membership[] | Promise<readonly Membership[]>,
   auth: AuthEvent[],
   readRoles?: () => readonly string[] | Promise<readonly string[]>,
+  known?: number,
 ): {
   readonly memberships: readonly Membership[] | Promise<readonly Membership[]>;
   readonly stale: boolean | Promise<boolean>;
@@ -64,9 +77,11 @@ export function rereadStale(
   };
   let freshness: Freshness | Promise<Freshness>;
   try {
-    const current = source.version?.(
+    const current = currentVersion(
+      source,
       versionQuery(principal, issuedAt),
       context,
+      known,
     );
     freshness = isThenable(current)
       ? Promise.resolve(current).then(judge, unknown)
@@ -125,6 +140,7 @@ export function staleness(
     readonly stale: boolean | Promise<boolean> | undefined;
     readonly issuedAt: number | undefined;
     readonly context: VersionContext;
+    readonly known?: number | undefined;
   },
   auth: AuthEvent[],
 ): boolean | Promise<boolean> {
@@ -141,9 +157,11 @@ export function staleness(
   const compare = (current: number | undefined): boolean =>
     current === undefined || claimed < current;
   try {
-    const current = source.version(
+    const current = currentVersion(
+      source,
       versionQuery(principal, given.issuedAt),
       given.context,
+      given.known,
     );
     return isThenable(current)
       ? Promise.resolve(current).then(compare, () => {

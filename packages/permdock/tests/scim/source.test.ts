@@ -51,12 +51,19 @@ describe("directoryMembershipSource conformance", async () => {
       expect: {
         "ext-1": [
           {
-            tenant: TENANT,
+            scope: "tenant",
+            id: TENANT,
             roles: ["editor"],
             via: "group:g_mapped",
             managedBy: "idp",
           },
-          { tenant: TENANT, roles: [], via: "group:g_none", managedBy: "idp" },
+          {
+            scope: "tenant",
+            id: TENANT,
+            roles: [],
+            via: "group:g_none",
+            managedBy: "idp",
+          },
         ],
         nobody: [],
       },
@@ -88,12 +95,19 @@ describe(directoryMembershipSource, () => {
       await source.membershipsFor({ id: "ext-1" }, { tenant: TENANT }),
     ).toStrictEqual([
       {
-        tenant: TENANT,
+        scope: "tenant",
+        id: TENANT,
         roles: ["editor"],
         via: "group:g_mapped",
         managedBy: "idp",
       },
-      { tenant: TENANT, roles: [], via: "group:g_none", managedBy: "idp" },
+      {
+        scope: "tenant",
+        id: TENANT,
+        roles: [],
+        via: "group:g_none",
+        managedBy: "idp",
+      },
     ]);
   });
 

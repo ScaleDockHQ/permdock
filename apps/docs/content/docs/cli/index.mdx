@@ -36,7 +36,7 @@ Every command takes these, before or after its own flags.
 | `--help`, `-h`          | Print the command's flags, examples, side effects and docs page                                                                            |
 | `--version`, `-v`       | Print the version                                                                                                                          |
 
-An unknown flag or command exits `2` with the nearest match. A flag or command renamed in 0.5.0 exits `2` with its new spelling (`flag_renamed`, `command_moved`), and [`permdock codemod 0.5`](/docs/cli/codemod#cli-calls) rewrites scripts and workflows that use the old one.
+An unknown flag or command exits `2` with the nearest match. A spelling from before 0.5.0 is unknown too; [`permdock codemod 0.5`](/docs/cli/codemod#cli-calls) rewrites scripts and workflows that use one.
 
 ```ts
 // permdock.config.ts

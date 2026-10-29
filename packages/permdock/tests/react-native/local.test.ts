@@ -172,38 +172,57 @@ const claims = { team_ids: ["t1"] };
 const ann: Principal = {
   id: "ann",
   memberships: [
-    { tenant: "acme", roles: ["admin"] },
-    { tenant: "globex", roles: ["member"] },
+    { scope: "tenant", id: "acme", roles: ["admin"] },
+    { scope: "tenant", id: "globex", roles: ["member"] },
   ],
 };
 const mo: Principal = {
   id: "mo",
-  memberships: [{ tenant: "acme", roles: ["member"] }],
+  memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
 };
 
 const users: readonly Principal[] = [
   ann,
   mo,
-  { id: "lee", memberships: [{ tenant: "acme", team: "t1", roles: ["lead"] }] },
+  {
+    id: "lee",
+    memberships: [
+      { within: { tenant: "acme" }, scope: "team", id: "t1", roles: ["lead"] },
+    ],
+  },
   {
     id: "dee",
-    memberships: [{ tenant: "acme", roles: ["dispatcher", "pinned"] }],
+    memberships: [
+      { scope: "tenant", id: "acme", roles: ["dispatcher", "pinned"] },
+    ],
   },
   {
     id: "aud",
-    memberships: [{ tenant: "acme", roles: ["auditor", "reader"] }],
+    memberships: [
+      { scope: "tenant", id: "acme", roles: ["auditor", "reader"] },
+    ],
   },
   {
     id: "odd",
-    memberships: [{ tenant: "acme", roles: ["odd", "mixed", "lost"] }],
+    memberships: [
+      { scope: "tenant", id: "acme", roles: ["odd", "mixed", "lost"] },
+    ],
   },
-  { id: "sq", memberships: [{ tenant: "acme", team: "t1", roles: ["squad"] }] },
+  {
+    id: "sq",
+    memberships: [
+      { within: { tenant: "acme" }, scope: "team", id: "t1", roles: ["squad"] },
+    ],
+  },
   { id: "sup", roles: ["support", "platform"], memberships: [] },
   {
     id: "ed",
     memberships: [{ on: { resource: "folder", id: "f1" }, roles: ["editor"] }],
   },
-  { id: "ghost", memberships: [{ tenant: "acme", roles: ["stranger"] }] },
+  {
+    id: "ghost",
+    memberships: [{ scope: "tenant", id: "acme", roles: ["stranger"] }],
+  },
 ];
 
 const rows = [
@@ -529,7 +548,7 @@ describe(localSnapshot, () => {
       ]) {
         const user: Principal = {
           id: "u1",
-          memberships: [{ tenant: "acme", roles: held }],
+          memberships: [{ scope: "tenant", id: "acme", roles: held }],
         };
         const server = parseSnapshot(
           JSON.stringify(

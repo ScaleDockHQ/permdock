@@ -93,7 +93,7 @@ describe(getPermDockSync, () => {
       roles: [
         role("clerk", [
           allow(filing.filing.pay, {
-            approval: { by: "admin", distinct: true },
+            approval: { by: "admin", mode: "authorize" },
           }),
         ]),
       ],
@@ -105,7 +105,6 @@ describe(getPermDockSync, () => {
     if (decision.outcome === "approval-required") {
       expect(decision.grant.approval).toStrictEqual({
         by: { kind: "role", role: "admin", scope: "global" },
-        distinct: true,
       });
     }
     expect(permdock.can(filing.filing.pay, undefined)).toBe(false);
@@ -377,7 +376,7 @@ describe(getPermDockSync, () => {
         principal: {
           id: "u4",
           roles: ["staff"],
-          memberships: [{ tenant: "o1", roles: ["staff"] }],
+          memberships: [{ scope: "tenant", id: "o1", roles: ["staff"] }],
         },
         context: {},
       },
@@ -472,7 +471,7 @@ describe(getPermDockSync, () => {
       scopes: { tenant: { key: "orgId" } },
       subject: () => ({
         id: "u1",
-        memberships: [{ tenant: "o1", roles: ["viewer"] }],
+        memberships: [{ scope: "tenant", id: "o1", roles: ["viewer"] }],
       }),
     });
     const permdock = getPermDockSync(

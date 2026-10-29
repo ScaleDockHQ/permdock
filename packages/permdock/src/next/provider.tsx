@@ -8,27 +8,18 @@ import { compact } from "../core/compact.ts";
 // Component renders it as a client reference and passes the snapshot across.
 import { PermDockProvider as ClientProvider } from "../react/provider-client.js";
 
-export function renderClientProvider(options: {
+type ClientProviderOptions = Omit<
+  NextPermDockProviderProps,
+  "snapshot" | "include" | "tenants" | "children"
+> & {
   readonly snapshotPromise: PromiseLike<Snapshot | string>;
   readonly endpoint: string | false;
-  readonly tenant?: string;
-  readonly suspend?: boolean;
-  readonly defaults?: NextPermDockProviderProps["defaults"];
-  readonly messages?: NextPermDockProviderProps["messages"];
   readonly children: ReactNode;
-}): ReactElement {
-  return (
-    <ClientProvider
-      {...compact({
-        snapshotPromise: options.snapshotPromise,
-        endpoint: options.endpoint,
-        tenant: options.tenant,
-        suspend: options.suspend,
-        defaults: options.defaults,
-        messages: options.messages,
-      })}
-    >
-      {options.children}
-    </ClientProvider>
-  );
+};
+
+export function renderClientProvider(
+  options: ClientProviderOptions,
+): ReactElement {
+  const { children, ...props } = options;
+  return <ClientProvider {...compact(props)}>{children}</ClientProvider>;
 }

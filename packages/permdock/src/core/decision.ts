@@ -217,6 +217,11 @@ export type ApprovalRequiredDecision = {
   readonly grant: MatchedGrant;
   readonly reason: "human";
   readonly token: string;
+  /**
+   * The `fingerprint` the call passed, bound into `token`; the request it opens
+   * records it, and a resume under another fingerprint is refused.
+   */
+  readonly fingerprint?: string;
   /** Present only with `explain: true`. */
   readonly trace?: Trace;
 };

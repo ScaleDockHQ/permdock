@@ -59,7 +59,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD021` | The policy lists `hostable` permissions but `PERMDOCK_CLOUD_URL` or `PERMDOCK_CLOUD_KEY` is unset                                                                                                                                                                                                          | warning         |
 | `PD022` | A SQL migration creates a view without `security_invoker`, so it reads past row level security                                                                                                                                                                                                             | warning         |
 | `PD023` | A custom role in the `doctor.memberships` fixture names a permission or include its ceiling drops                                                                                                                                                                                                          | warning         |
-| `PD024` | An `allow` sets `approval: { distinct: false }`, so the requester can approve their own request                                                                                                                                                                                                            | warning         |
+| `PD024` | An `allow` sets `approval: { mode: "confirm" }`, so the requester can approve their own request                                                                                                                                                                                                            | warning         |
 | `PD025` | A membership in the `doctor.memberships` fixture grants nothing under the policy's named scopes                                                                                                                                                                                                            | warning         |
 | `PD026` | No role on a scope sets `min`, so every instance of it can lose its last manager                                                                                                                                                                                                                           | warning         |
 | `PD027` | Under an `rls` config, a grant's `where` or `check` reads `context.*`, which RLS cannot evaluate                                                                                                                                                                                                           | warning         |
@@ -115,6 +115,10 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD077` | A config key or value names a scope, resource or action the policy does not declare, such as a Realtime topic `{organisation}` placeholder; or two of them give one SQL helper name                                                                                                                        | error           |
 | `PD078` | better-supabase's `blocks.permissions.activeTenant` writes the active tenant to another place than `supabase.hook.activeFrom` reads it                                                                                                                                                                     | warning         |
 | `PD079` | A permission key a configured better-supabase block checks is not in the catalog                                                                                                                                                                                                                           | warning         |
+| `PD080` | `postgrestSources` or `memoryVersionCache` is created inside a function body, so no read is shared                                                                                                                                                                                                         | warning         |
+| `PD081` | `instanceCache` is created inside a function body, so no instance is reused                                                                                                                                                                                                                                | warning         |
+| `PD082` | `supabase.hook` keeps `permdock_authz_version` while better-supabase's `blocks.sessions.authzVersions` keeps a second version table                                                                                                                                                                        | warning         |
+| `PD083` | `postgrestSources` is used and the migrations define `subject_for` but no `authz_version_for`, so every version read fails                                                                                                                                                                                 | error           |
 
 ### PD001: server-only imports in client entries
 
@@ -240,7 +244,7 @@ When `doctor.memberships` points at a JSON fixture with a `customRoles` array, t
 
 ### PD024: approvals the requester can give
 
-Every approval refuses the request's principal as approver, so a user cannot approve their own request. `approval: { distinct: false }` lifts that for one grant, which is right when the product wants a user to confirm their own agent's call and wrong everywhere else. The check loads the policy and warns once per `allow` that sets it, naming the permission and the role, so each opt-out is a visible decision in review. `requireDistinctApprover` on `approvalsHandler` overrides every opt-out at runtime ([approval security](/docs/security/approvals)). `--only self-approval` runs this check.
+Every approval refuses the request's principal as approver, so a user cannot approve their own request. `approval: { mode: "confirm" }` lifts that for one grant, which is right when the product wants a user to confirm their own agent's call and wrong everywhere else. The check loads the policy and warns once per `allow` that sets it, naming the permission and the role, so each opt-out is a visible decision in review. `requireDistinctApprover` on `approvalsHandler` overrides every opt-out at runtime ([approval security](/docs/security/approvals)). `--only self-approval` runs this check.
 
 ### PD025: memberships the named scopes drop
 
@@ -495,6 +499,36 @@ warning PD079  notifications.send (blocks.notifications.permissions.send) is not
 ```
 
 Declare the key in the policy and run `permdock collect`, or map the block action to a key the catalog lists. `--only catalog` (or `--only better-supabase`) runs PD079.
+
+### PD080 and PD081: sources and caches created per call
+
+`postgrestSources`, `memoryVersionCache` and `instanceCache` keep nothing worth having until a second call reuses them. Created inside a function, every request gets a fresh one: no version read is shared and no instance is reused. The check reads each call to one of them imported from `permdock` (named or through a namespace) and warns when it sits in a function, arrow function or method:
+
+```txt
+warning PD081  src/lib/access.ts:7 creates instanceCache() inside a function, so every call gets an empty cache and no instance is reused
+```
+
+Move the call to module scope and pass the same object to every adapter. A lazy singleton, `cache ??= instanceCache()`, passes. PD080 covers the sources and the version cache, PD081 the instance cache. `--only caching` runs both.
+
+### PD082: two authorization version tables
+
+better-supabase's `blocks.sessions.authzVersions` writes `better_supabase.user_authz_versions` with its own bump trigger, while PermDock's hook keeps `permdock_authz_version` and writes `authz_ver` from it. The two tables bump on different triggers, and only PermDock's reaches the claim:
+
+```txt
+warning PD082  supabase.hook keeps permdock_authz_version and better-supabase's blocks.sessions.authzVersions keeps user_authz_versions: two version tables bump on different triggers, and only PermDock's reaches the authz_ver claim
+```
+
+Turn `blocks.sessions.authzVersions` off. PermDock's trigger broadcasts each bump as `{ user_id, version }` with event `changed` on `better_supabase:authz` and `authz:<uid>`, the topics better-supabase's `subscribeAuthzVersions` and `SessionProvider` read ([supabase hook](/docs/adapters/supabase-hook)). `--only supabase` (or `--only better-supabase`) runs PD082.
+
+### PD083: a hook file without authz_version_for
+
+`postgrestSources(client).memberships.version` calls only `authz_version_for(p_user)`. A hook file from before that function existed defines `subject_for` alone, so every version read throws and every `claimsFirst` check denies:
+
+```txt
+error PD083  src/lib/permdock.ts uses postgrestSources and supabase/migrations/0001_hook.sql defines subject_for but no authz_version_for, so every version read fails and claimsFirst denies
+```
+
+Run `permdock supabase hook generate`, with `supabase.hook.api` for the PostgREST wrappers, and apply the migration it writes ([PostgREST sources](/docs/adapters/supabase-hook)). `--only supabase` runs PD083.
 
 ## Side effects
 

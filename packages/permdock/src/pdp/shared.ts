@@ -60,7 +60,7 @@ export function granted(
       resourceId: resourceIdOf(data),
       principal,
       actor: subject.actor,
-      fingerprint: provider,
+      source: provider,
     }),
   };
 }

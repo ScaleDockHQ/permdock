@@ -34,7 +34,7 @@ export const policy = definePolicy(permissions, {
       const subject = {
         id: "user-1",
         tenant: "org-1",
-        memberships: [{ tenant: "org-1", roles: ["reader"] }],
+        memberships: [{ scope: "tenant", id: "org-1", roles: ["reader"] }],
       };
       const row = {
         id: "p1",
@@ -91,7 +91,9 @@ export const policy = definePolicy(permissions, {
                 id: "user-1",
                 roles: ["member"],
                 tenant: "org-1",
-                memberships: [{ tenant: "org-1", roles: ["member"] }],
+                memberships: [
+                  { scope: "tenant", id: "org-1", roles: ["member"] },
+                ],
               },
               row: {
                 id: "p1",
@@ -107,7 +109,9 @@ export const policy = definePolicy(permissions, {
                 id: "user-2",
                 roles: ["member"],
                 tenant: "org-1",
-                memberships: [{ tenant: "org-1", roles: ["member"] }],
+                memberships: [
+                  { scope: "tenant", id: "org-1", roles: ["member"] },
+                ],
               },
               row: {
                 id: "p1",
@@ -141,7 +145,9 @@ export const policy = definePolicy(permissions, {
               id: "user-1",
               roles: ["member"],
               tenant: "org-1",
-              memberships: [{ tenant: "org-1", roles: ["member"] }],
+              memberships: [
+                { scope: "tenant", id: "org-1", roles: ["member"] },
+              ],
             },
             row: {
               id: "p1",
@@ -183,7 +189,9 @@ export const policy = definePolicy(permissions, {
               id: "user-2",
               roles: ["member"],
               tenant: "org-1",
-              memberships: [{ tenant: "org-1", roles: ["member"] }],
+              memberships: [
+                { scope: "tenant", id: "org-1", roles: ["member"] },
+              ],
             },
             row: {
               id: "p1",

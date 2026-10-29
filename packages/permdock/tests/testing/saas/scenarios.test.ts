@@ -229,8 +229,8 @@ describe("saas tokens", () => {
     });
     expect(payload.sub).toBe("alice");
     expect(payload["memberships"]).toStrictEqual([
-      { tenant: "acme", roles: ["admin"] },
-      { tenant: "globex", roles: ["viewer"] },
+      { scope: "tenant", id: "acme", roles: ["admin"] },
+      { scope: "tenant", id: "globex", roles: ["viewer"] },
     ]);
     const bare = await signSaasToken("bob", { memberships: false });
     expect(bare.split(".")).toHaveLength(3);

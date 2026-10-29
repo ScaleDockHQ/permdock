@@ -27,7 +27,7 @@ const memberships: Record<string, Membership[]> = {
   alice: [{ scope: "organization", id: "o1", roles: ["admin"] }],
   bob: [
     { scope: "organization", id: "o1", roles: ["viewer"] },
-    { tenant: "o2", roles: ["member"] },
+    { scope: "tenant", id: "o2", roles: ["member"] },
   ],
 };
 

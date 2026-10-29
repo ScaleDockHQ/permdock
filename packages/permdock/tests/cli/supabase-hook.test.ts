@@ -12,6 +12,30 @@ describe("supabase hook", () => {
   afterEach(removeHookProjects);
 
   describe("permdock supabase hook generate", () => {
+    it("broadcasts every version bump on the server topic and on authz:<uid>", async () => {
+      const { code, sql } = await generate(`{ memberships: [${SOURCES}] }`);
+      expect(code).toBe(0);
+      expect(sql).toContain(
+        "perform realtime.send(jsonb_build_object('user_id', new.user_id, 'version', new.version), 'changed', 'permdock:authz', true);",
+      );
+      expect(sql).toContain("'changed', 'authz:' || new.user_id::text, true);");
+      expect(sql).toContain(
+        "create policy permdock_authz_version_receive on realtime.messages",
+      );
+    });
+
+    it("sends on a configured topic without the receive policy, or not at all", async () => {
+      const topic = await generate(
+        `{ memberships: [${SOURCES}], broadcast: { topic: 'better_supabase:authz', receivePolicy: false } }`,
+      );
+      expect(topic.sql).toContain("'changed', 'better_supabase:authz', true);");
+      expect(topic.sql).not.toContain("permdock_authz_version_receive");
+      const off = await generate(
+        `{ memberships: [${SOURCES}], broadcast: false }`,
+      );
+      expect(off.sql).not.toContain("realtime.send");
+    });
+
     it("emits the hook, the grants, the version table and the config.toml block", async () => {
       const { code, output, sql } = await generate(
         `{ memberships: [${SOURCES}], attrs: { table: 'profiles', columns: ['locale', 'timezone', 'app_metadata.plan'] } }`,

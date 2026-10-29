@@ -745,7 +745,7 @@ describe("the codemod module", () => {
       };
       expect(problem.type).toBe("https://permdock.com/docs/cli/errors#usage");
       expect(problem.detail).toBe(
-        "unknown codemod version '0.4'. Supported: 0.5, 0.8.",
+        "unknown codemod version '0.4'. Supported: 0.5, 0.8, 0.17.",
       );
       expect(() =>
         codemod({
@@ -756,7 +756,7 @@ describe("the codemod module", () => {
           json: true,
         }),
       ).toThrow(
-        "codemod needs a version: permdock codemod <version>. Supported: 0.5, 0.8.",
+        "codemod needs a version: permdock codemod <version>. Supported: 0.5, 0.8, 0.17.",
       );
     });
 

@@ -506,8 +506,8 @@ function shorter(
 /**
  * `code` with every matching entry added as further stages: the result needs
  * all of them (`'sequential'` when any part is ordered), keeps the code's
- * escalation, the shortest `ttl`, and `distinct` unless every part opts out.
- * Without a matching entry, `code` unchanged.
+ * escalation, the shortest `ttl`, and `'authorize'` unless every part is
+ * `'confirm'`. Without a matching entry, `code` unchanged.
  */
 export function tightenApproval(
   code: Grant["approval"],
@@ -549,7 +549,7 @@ export function tightenApproval(
   const stages: ApprovalStage[] = [];
   const seen = new Set<string>();
   let sequential = false;
-  let distinct = false;
+  let authorize = false;
   let staleOn: ApprovalRequirement["staleOn"];
   let ttl: number | undefined;
   for (const [index, part] of parts.entries()) {
@@ -562,18 +562,18 @@ export function tightenApproval(
       }
     }
     if (part === "human") {
-      distinct = true;
+      authorize = true;
       continue;
     }
-    sequential ||= part.mode === "sequential";
-    distinct ||= part.distinct !== false;
+    sequential ||= part.combine === "sequential";
+    authorize ||= part.mode !== "confirm";
     staleOn ??= part.staleOn;
     ttl = shorter(ttl, part.ttl);
   }
   return compact<ApprovalRequirement>({
-    mode: sequential ? "sequential" : "all",
+    combine: sequential ? "sequential" : "all",
     stages,
-    distinct: distinct ? undefined : false,
+    mode: authorize ? undefined : "confirm",
     staleOn,
     ttl,
     escalation:

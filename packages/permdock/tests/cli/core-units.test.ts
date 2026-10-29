@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 
+import { renameMessage } from "../../src/cli/codemod/cli-renames-0.5.ts";
 import { didYouMean, parseFlags } from "../../src/cli/core/args.ts";
 import { defineLeaf } from "../../src/cli/core/command.ts";
 import { candidates } from "../../src/cli/core/completion.ts";
@@ -17,7 +18,6 @@ import {
   githubAnnotations,
   sarifLog,
 } from "../../src/cli/core/output.ts";
-import { renameMessage } from "../../src/cli/core/renames.ts";
 import { run } from "../../src/cli/core/run.ts";
 import { trapSignals } from "../../src/cli/core/signals.ts";
 import { createStyle } from "../../src/cli/core/style.ts";
@@ -361,13 +361,13 @@ describe("core units", () => {
       });
     });
 
-    it("names the renamed --format of a leaf and refuses an unknown one", async () => {
+    it("refuses a --format value no output format has", async () => {
       const renamed = await run(
         ["rls", "verify", "--format", "pgtap", "--json"],
         { cwd: FIXTURE },
       );
       expect(JSON.parse(renamed.stdout)).toMatchObject({
-        error: { code: "flag_renamed" },
+        error: { code: "invalid_value" },
       });
       const unknown = await run(["doctor", "--format", "xml", "--json"], {
         cwd: FIXTURE,

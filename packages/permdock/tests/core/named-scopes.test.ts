@@ -390,8 +390,14 @@ describe("named scopes: no implicit cascade", () => {
       id: "u_alias",
       tenant: "T",
       memberships: [
-        { tenant: "T", team: "A", roles: ["contact"], via: "contact" },
-        { tenant: "T", roles: ["viewer"], via: "staff" },
+        {
+          within: { tenant: "T" },
+          scope: "team",
+          id: "A",
+          roles: ["contact"],
+          via: "contact",
+        },
+        { scope: "tenant", id: "T", roles: ["viewer"], via: "staff" },
       ],
     });
     expect(permdock.memberships()).toStrictEqual([

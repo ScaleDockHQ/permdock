@@ -55,15 +55,16 @@ const policy = definePolicy(
 const multiOrgClaims = {
   ...supabaseClaimFixtures.multiOrg.claims,
   memberships: [
-    { tenant: "acme", roles: ["orgAdmin"] },
-    { tenant: "globex", roles: ["viewer"] },
+    { scope: "tenant", id: "acme", roles: ["orgAdmin"] },
+    { scope: "tenant", id: "globex", roles: ["viewer"] },
   ],
 };
 
 function memberships(count: number): string {
   return JSON.stringify(
     Array.from({ length: count }, (_, index) => ({
-      tenant: `8f14e45f-ceea-467a-9575-3c7e4a1b${String(index).padStart(4, "0")}`,
+      scope: "tenant",
+      id: `8f14e45f-ceea-467a-9575-3c7e4a1b${String(index).padStart(4, "0")}`,
       roles: ["admin"],
     })),
   );
@@ -137,10 +138,10 @@ describe("Supabase RBAC hook claims", () => {
   });
 
   it("documents the memberships claim budget", () => {
-    expect(memberships(15).length).toBeLessThanOrEqual(
+    expect(memberships(12).length).toBeLessThanOrEqual(
       supabaseMembershipsBudget,
     );
-    expect(memberships(16).length).toBeGreaterThan(supabaseMembershipsBudget);
+    expect(memberships(13).length).toBeGreaterThan(supabaseMembershipsBudget);
   });
 });
 

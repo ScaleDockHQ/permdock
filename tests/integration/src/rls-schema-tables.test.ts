@@ -59,12 +59,12 @@ insert into app.task values
 const member = {
   id: MEMBER,
   tenant: "acme",
-  memberships: [{ tenant: "acme", roles: ["member"] }],
+  memberships: [{ scope: "tenant", id: "acme", roles: ["member"] }],
 };
 const outsider = {
   id: OUTSIDER,
   tenant: "globex",
-  memberships: [{ tenant: "globex", roles: ["member"] }],
+  memberships: [{ scope: "tenant", id: "globex", roles: ["member"] }],
 };
 
 const FIXTURES = [

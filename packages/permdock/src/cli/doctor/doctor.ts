@@ -23,13 +23,15 @@ import {
 } from "../supabase-hook/supabase-hook.ts";
 import { pd039 } from "../supabase-setup.ts";
 import { pd064 } from "./assignments.ts";
-import { pd078, pd079 } from "./better-supabase.ts";
+import { pd078, pd079, pd082 } from "./better-supabase.ts";
 import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd077 } from "./config-names.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
 import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
 import { pd044, pd065 } from "./next.ts";
+import { pd080, pd081 } from "./per-request.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
+import { pd083 } from "./postgrest.ts";
 import { pd058 } from "./powersync.ts";
 import { pd005, pd006, pd009, pd012, pd022, pd028, pd040 } from "./project.ts";
 import {
@@ -158,6 +160,27 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: pd078,
   },
   { code: "PD079", groups: ["catalog", "better-supabase"], run: pd079 },
+  {
+    code: "PD080",
+    groups: ["caching"],
+    run: (project) => pd080(project.sources()),
+  },
+  {
+    code: "PD081",
+    groups: ["caching"],
+    run: (project) => pd081(project.sources()),
+  },
+  {
+    code: "PD082",
+    groups: ["supabase", "better-supabase"],
+    when: (config) => config.supabase?.hook !== undefined,
+    run: pd082,
+  },
+  {
+    code: "PD083",
+    groups: ["supabase"],
+    run: (project) => pd083(project.cwd, project.config, project.sources()),
+  },
   {
     code: "PD005",
     groups: ["skills"],

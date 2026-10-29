@@ -47,7 +47,7 @@ const policy = definePolicy(permissions, {
     role("member", [
       allow(permissions.post.delete, { approval: "human" }),
       allow(permissions.post.archive, {
-        approval: { by: ["member"], distinct: false },
+        approval: { by: ["member"], mode: "confirm" },
       }),
       allow(permissions.post.purge, {
         approval: { by: ["member"], quorum: 2 },
@@ -243,7 +243,7 @@ describe("11 service role and approvals", () => {
       ).resolves.toMatchObject({ status: "approved" });
     });
 
-    it("lets the principal approve only when the grant sets distinct: false", async () => {
+    it("lets the principal approve only when the grant sets mode: 'confirm'", async () => {
       const store = memoryApprovalStore();
       const permdock = getPermDockSync(policy, alice);
       const decision = pending(permdock.decide(permissions.post.archive, p1));

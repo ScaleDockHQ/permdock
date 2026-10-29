@@ -60,13 +60,13 @@ export async function loadSnapshot(org: string) {
     customRoles: view.customRoles,
     plans: [view.plan],
   });
-  cacheLife(cacheLifeFor(snapshot)); // 30 s floor for per-link prefetch, 300 s ceiling
+  cacheLife(cacheLifeFor(snapshot)); // 300 s: the App Shell keeps it
   cacheTag(snapshotTag(claims?.sub), `org:${org}`);
   return snapshot;
 }
 ```
 
-`snapshotFor` is synchronous and makes no network call. `cacheLifeFor` returns `{ stale }`: 300 seconds when the token lives longer, the remaining lifetime when it is shorter, and less than 30 seconds only when the token is about to expire. A `stale` of at least 30 seconds lets a `<Link prefetch={true}>` carry the snapshot. At least 300 seconds puts session content in the route's App Shell, but the App Shell never holds URL data such as `params`: a snapshot keyed on `[org]` arrives through the per-link prefetch, so links into an organisation use `prefetch={true}`.
+`snapshotFor` is synchronous and makes no network call. `cacheLifeFor` returns `{ stale: 300 }`: the proxy refreshes the session on every request, so the entry never outlives a token the browser still holds. `{ capToToken: true }` caps it at the token's remaining lifetime instead. A `stale` of at least 30 seconds lets a `<Link prefetch={true}>` carry the snapshot. At least 300 seconds puts session content in the route's App Shell, but the App Shell never holds URL data such as `params`: a snapshot keyed on `[org]` arrives through the per-link prefetch, so links into an organisation use `prefetch={true}`.
 
 ### Static shell: a synchronous layout
 
@@ -399,9 +399,9 @@ better-supabase is one such session source; its `AuthSession` union already has 
 
 ```ts
 // src/lib/access.ts
-import { cacheLife, cacheTag } from "next/cache";
+import { cacheTag } from "next/cache";
 import { snapshotFor } from "permdock";
-import { cacheLifeFor, snapshotTag } from "permdock/next";
+import { snapshotTag } from "permdock/next";
 import { subjectFromSupabaseSession } from "permdock/supabase";
 import { bsb } from "@/lib/supabase/server";
 import { policy } from "@/policy";
@@ -413,13 +413,11 @@ export async function loadSnapshot(orgId: string) {
   const subject = subjectFromSupabaseSession(session, {
     claims: { memberships: "memberships" },
   });
-  const snapshot = snapshotFor(policy, subject, { tenant: orgId });
-  cacheLife({ stale: cacheLifeFor(snapshot).stale });
-  return snapshot;
+  return snapshotFor(policy, subject, { tenant: orgId });
 }
 ```
 
-Next keeps the smallest `stale` set in one scope, so the entry lives no longer than either the token or the snapshot, and at 30 seconds or more a per-link prefetch carries it. The snapshot's tag and lifetime come after `bsb.cached()` because both depend on the session it returns. The same `bsb.cached()` hands out `sql`, typed repositories over direct Postgres that run as the caller, so RLS on `permitted_<scope>_ids()` decides the rows in another `'use cache: private'` function.
+`bsb.cached()` already sets the entry's lifetime, so the snapshot adds no `cacheLife` of its own: a second call would only repeat the 300-second cap. The snapshot's tag comes after `bsb.cached()` because it depends on the session it returns. The same `bsb.cached()` hands out `sql`, typed repositories over direct Postgres that run as the caller, so RLS on `permitted_<scope>_ids()` decides the rows in another `'use cache: private'` function.
 
 A role change drops both in the Server Action that made it:
 
@@ -442,6 +440,8 @@ The user's token still carries the old memberships until it is refreshed; the ho
 The private cache and the proxy both verify the session on every prefetch. With asymmetric keys (ES256 or RS256, published at the project's JWKS endpoint) that verification is local: a public key, no secret on the server, no request to Supabase Auth. With the legacy shared HS256 secret, every verifier holds the key that can mint tokens, and supabase-js `getClaims()` falls back to a network call to Auth. A network call inside `'use cache: private'` runs on every prefetch of every link, so enable asymmetric JWT signing keys before adopting this pattern.
 
 ## The proxy is a hint
+
+`proxy.ts` refreshes the session once per request with `getClaims()` and returns the response `setAll` built, with its `Cache-Control`, `Expires` and `Pragma` headers ([the recipe](/docs/adapters/supabase#with-supabasessr)). Every later read in the request, the private cache included, calls `getClaims()` against cookies that are already fresh, and never `getSession()`.
 
 `mayAccess(policy, claims, permission, { tenant })` in `proxy.ts` redirects only when the verified claims provably lack the page's permission. It answers `true` whenever custom roles, plans, missing memberships or row conditions could still grant access. Pages and Server Actions enforce regardless: a request that skips the proxy renders the page's forbidden state (`<Protected fallback>`) and gets a denied Server Action, never data. `requirePermission(permission, undefined, { tenant })` from `permdock/next` is the page-level alternative: it calls `forbidden()`, or `unauthorized()` for a signed-out user, when `experimental.authInterrupts` is on ([Next.js adapter](/docs/adapters/next)).
 
@@ -474,7 +474,7 @@ Run it against `next build && next start` with `experimental.exposeTestingApiInP
 - `updateTag` works only in Server Actions. Webhooks and other Route Handlers call `revalidateTag(tag, { expire: 0 })`, never `'max'`, which would serve the revoked grant once more.
 - Bust `snapshotTag(sub)` on every input to the snapshot: role, membership and custom-role writes, a revocation-counter bump in the token, and entitlement or billing webhooks.
 - `refresh()` and `updateTag` reach only the browser that acted; other members need a signal.
-- A `stale` below 30 seconds silently drops the snapshot from per-link prefetches. Below 300 seconds, session content that reads no `params` drops out of the App Shell. `cacheLifeFor` keeps the floor unless the token is about to expire.
+- A `stale` below 30 seconds silently drops the snapshot from per-link prefetches. Below 300 seconds, session content that reads no `params` drops out of the App Shell. `cacheLifeFor` returns 300 seconds unless `capToToken` is set and the token is about to expire.
 - Plan gates live in the snapshot and in Server Actions; the generated `authorize()` seeds ignore plans, so RLS does not enforce them.
 - Sign out with a document navigation (a plain `<form method="post">` to a Route Handler that clears the cookie and answers `303`), not a Server Action `redirect`. The App Router keeps visited routes as hidden trees in the page, so after a client-side sign-out the previous user's gated nav can stay in the DOM while the next user signs in.
 

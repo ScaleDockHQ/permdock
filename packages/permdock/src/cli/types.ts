@@ -466,6 +466,14 @@ export type RlsApprovalsAdopt = {
    * same rows for `approvalsHandler`. Off by default.
    */
   readonly delegations?: boolean;
+  /**
+   * Add `approval_policies`, the approval requirements a tenant keeps as data,
+   * and `permdock_approval_policies_for`, which `tableApprovalPolicySource`
+   * reads. A holder of the `manage` permission key in a tenant writes that
+   * tenant's rows; rows with `tenant` null are platform floors, written only by
+   * the table owner. Off by default.
+   */
+  readonly tenantPolicies?: { readonly manage: string };
   /** A text column unique per request. Default `token`. */
   readonly token?: string;
   /** A jsonb column holding the `ApprovalRequest`. Default `body`. */
@@ -843,6 +851,18 @@ export type SupabaseHookConfig = {
    * `true`.
    */
   readonly version?: boolean;
+  /**
+   * Broadcast every version bump as `{ user_id, version }` with event `changed`
+   * on `topic`, which no user may join, and on the user's own `authz:<uid>`.
+   * `topic` defaults to `better_supabase:authz` in a better-supabase project,
+   * else `permdock:authz`. `receivePolicy` writes the `realtime.messages`
+   * policy that lets a user receive `authz:<uid>`; it defaults to `true`, and
+   * to `false` when better-supabase's `sessions.authzVersions` writes the same
+   * policy. `false` sends nothing.
+   */
+  readonly broadcast?:
+    | false
+    | { readonly topic?: string; readonly receivePolicy?: boolean };
   /**
    * Write PostgREST wrappers for `subject_for`, `members_of` and
    * `authz_version_for` into `schema` (default `public`), named

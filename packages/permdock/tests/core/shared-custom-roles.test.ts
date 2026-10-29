@@ -83,7 +83,8 @@ function memberOf(
   ...entries: readonly (readonly [string, readonly string[]])[]
 ): Subject {
   const memberships: Membership[] = entries.map(([tenant, held]) => ({
-    tenant,
+    scope: "tenant",
+    id: tenant,
     roles: held,
   }));
   return { principal: { id: "u1", memberships }, context: {} };
@@ -330,8 +331,8 @@ describe("shared custom roles", () => {
   it("ride the membership in the jwt claim", () => {
     const claim = membershipsClaim(
       [
-        { tenant: "acme", roles: ["viewer"] },
-        { tenant: "globex", roles: ["editor"] },
+        { scope: "tenant", id: "acme", roles: ["viewer"] },
+        { scope: "tenant", id: "globex", roles: ["editor"] },
       ],
       [viewer, tenantViewer],
       scopeList(policy.scopes),

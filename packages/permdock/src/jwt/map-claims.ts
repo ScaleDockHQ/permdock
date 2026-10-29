@@ -203,7 +203,8 @@ function membershipsFromGroups(
   }
   return groups.map((group) =>
     compact<Membership>({
-      tenant,
+      scope: "tenant",
+      id: tenant,
       roles: groupRoles?.[group] ?? [],
       via: `group:${group}`,
     }),
@@ -278,14 +279,18 @@ function membershipsFromClaim(value: unknown): Membership[] {
     typeof record["tenant"] === "string" ||
     typeof record["org_id"] === "string"
   ) {
+    const tenant =
+      typeof record["tenant"] === "string"
+        ? record["tenant"]
+        : String(record["org_id"]);
+    const located =
+      typeof record["team"] === "string"
+        ? { scope: "team", id: record["team"], within: { tenant } }
+        : { scope: "tenant", id: tenant };
     return [
       compact<Membership>({
-        tenant:
-          typeof record["tenant"] === "string"
-            ? record["tenant"]
-            : String(record["org_id"]),
+        ...located,
         roles: asStringArray(record["roles"]),
-        team: typeof record["team"] === "string" ? record["team"] : undefined,
         ...claimExtras(record),
       }),
     ];
@@ -294,7 +299,13 @@ function membershipsFromClaim(value: unknown): Membership[] {
   const byOrganisation = new Map<string, string[]>();
   for (const [tenant, entry] of Object.entries(record)) {
     if (Array.isArray(entry)) {
-      out.push(compact<Membership>({ tenant, roles: asStringArray(entry) }));
+      out.push(
+        compact<Membership>({
+          scope: "tenant",
+          id: tenant,
+          roles: asStringArray(entry),
+        }),
+      );
       continue;
     }
     if (entry !== null && typeof entry === "object") {
@@ -310,14 +321,15 @@ function membershipsFromClaim(value: unknown): Membership[] {
       }
       out.push(
         compact<Membership>({
-          tenant,
+          scope: "tenant",
+          id: tenant,
           roles: asStringArray(nested["roles"] ?? nested),
         }),
       );
     }
   }
   for (const [tenant, roles] of byOrganisation) {
-    out.push({ tenant, roles });
+    out.push({ scope: "tenant", id: tenant, roles });
   }
   return out;
 }

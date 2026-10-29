@@ -24,8 +24,13 @@ describe("membership and role source edges", () => {
       subject: () => ({
         id: "u1",
         memberships: [
-          { tenant: "o1", roles: ["viewer"] },
-          { tenant: "o1", team: "t1", roles: ["lead"] },
+          { scope: "tenant", id: "o1", roles: ["viewer"] },
+          {
+            within: { tenant: "o1" },
+            scope: "team",
+            id: "t1",
+            roles: ["lead"],
+          },
           { on: { resource: "org", id: "o1" }, roles: ["owner"] },
           {
             tenant: "o1",
@@ -136,7 +141,7 @@ describe("membership and role source edges", () => {
         principal: {
           id: "u1",
           roles: ["member"],
-          memberships: [{ tenant: "o1", roles: ["member"] }],
+          memberships: [{ scope: "tenant", id: "o1", roles: ["member"] }],
         },
         context: {},
       },
@@ -174,7 +179,7 @@ describe("membership and role source edges", () => {
         principal: {
           id: "u1",
           roles: ["member"],
-          memberships: [{ tenant: "o1", roles: ["member"] }],
+          memberships: [{ scope: "tenant", id: "o1", roles: ["member"] }],
         },
         context: {},
       },

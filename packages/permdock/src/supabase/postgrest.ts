@@ -3,6 +3,7 @@ import type {
   CustomRoleSource,
   MemberEntry,
   MembershipSource,
+  SourceCall,
   SourceMemo,
 } from "../core/interfaces.ts";
 import type { Policy } from "../core/policy-types.ts";
@@ -15,6 +16,7 @@ import type {
 } from "../core/subject.ts";
 
 import { compact, isRecord } from "../core/compact.ts";
+import { nowMillis } from "../core/time.ts";
 import { HOOK_API_SCHEMA, hookApiNames, PERMDOCK_SCHEMA } from "./sources.ts";
 import { readMemberships } from "./subject.ts";
 
@@ -86,6 +88,11 @@ export type PostgrestSourcesOptions = {
    * token claims a custom role, which the custom roles need anyway.
    */
   readonly policy?: Policy;
+  /**
+   * Called after every function read with its duration and whether the
+   * instance's memo answered it. A hook that throws is ignored.
+   */
+  readonly onSourceCall?: (call: SourceCall) => void;
 };
 
 /** One user as `subject_for(p_user)` returns it. */
@@ -260,12 +267,58 @@ export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
   });
 }
 
-function once<T>(
-  memo: SourceMemo | undefined,
-  key: string,
-  read: () => Promise<T>,
-): Promise<T> {
-  return memo === undefined ? read() : memo(key, read);
+/**
+ * Uncached version reads of one principal closer together than this count as
+ * one request reading the version more than once.
+ */
+const REPEAT_WINDOW_MS = 1000;
+const REPEAT_TRACKED = 1000;
+
+/** Read through `globalThis` so the entry loads on runtimes without `process`. */
+function isDevelopment(): boolean {
+  const proc: unknown = Reflect.get(globalThis, "process");
+  if (typeof proc !== "object" || proc === null) {
+    return false;
+  }
+  const env: unknown = Reflect.get(proc, "env");
+  return (
+    typeof env === "object" &&
+    env !== null &&
+    Reflect.get(env, "NODE_ENV") === "development"
+  );
+}
+
+/**
+ * In development, warns once when one principal's version is read twice within
+ * `REPEAT_WINDOW_MS`: a request that builds its instance more than once instead
+ * of sharing it through `instanceCache` or `permdockFor`.
+ */
+function repeatedVersionReads(): (userId: string) => void {
+  if (!isDevelopment()) {
+    return () => undefined;
+  }
+  const last = new Map<string, number>();
+  let warned = false;
+  return (userId) => {
+    if (warned) {
+      return;
+    }
+    const at = nowMillis();
+    const previous = last.get(userId);
+    if (previous !== undefined && at - previous < REPEAT_WINDOW_MS) {
+      warned = true;
+      last.clear();
+      // oxlint-disable-next-line no-console -- one development hint per sources object for a repeated version read
+      console.warn(
+        "PermDock: the authorization version of one user was read more than once within a second. Share one instance per request through instanceCache and permdockFor, or pass version: { known }.",
+      );
+      return;
+    }
+    if (last.size >= REPEAT_TRACKED) {
+      last.clear();
+    }
+    last.set(userId, at);
+  };
 }
 
 /**
@@ -274,12 +327,12 @@ function once<T>(
  * `permdock supabase hook generate` writes, for a backend that reaches Postgres
  * only through PostgREST. `memberships.version` reads only the version, so
  * `claimsFirst` with `onStale: 'reread'` reads the full subject only for a
- * stale token; when the version function is missing it falls back to
- * `subject_for`. With `policy`, a token that claims a custom role has its
- * subject read in one `subject_for` call instead, and custom roles are read
- * only for a subject that holds one. It keeps no answers: create it once at
- * module scope, and `getPermDock` shares each read within one instance. Pass
- * `claimsFirst(…, { versions })` to share version reads across instances.
+ * stale token; a missing version function throws, and `permdock doctor` PD083
+ * reports it. With `policy`, a token that claims a custom role has its subject
+ * read in one `subject_for` call instead, and custom roles are read only for a
+ * subject that holds one. It keeps no answers: create it once at module scope,
+ * and `getPermDock` shares each read within one instance. Pass `claimsFirst(…,
+ * { versions })` to share version reads across instances.
  */
 export function postgrestSources(
   client: SupabaseRpcCaller,
@@ -301,7 +354,38 @@ export function postgrestSources(
   const onlyDeclared = (held: readonly string[] | undefined): boolean =>
     declared !== undefined &&
     held?.every((name) => declared.has(name)) === true;
-  const list = async (query: {
+  const hook = options.onSourceCall;
+  const noteVersionRead = repeatedVersionReads();
+  const once = <T>(
+    memo: SourceMemo | undefined,
+    method: string,
+    key: string,
+    read: () => Promise<T>,
+  ): Promise<T> => {
+    let ran = false;
+    const started = performance.now();
+    const run = (): Promise<T> => {
+      ran = true;
+      return read();
+    };
+    const answer = memo === undefined ? run() : memo(key, run);
+    if (hook === undefined) {
+      return answer;
+    }
+    return answer.finally(() => {
+      try {
+        hook({
+          source: "postgrest",
+          method,
+          durationMs: performance.now() - started,
+          cached: !ran,
+        });
+      } catch {
+        // A failing observer never changes the read.
+      }
+    });
+  };
+  const members = async (query: {
     readonly scope: string;
     readonly id: string;
   }): Promise<MemberEntry[]> => {
@@ -316,11 +400,16 @@ export function postgrestSources(
     }
     return readMemberEntries(result.data);
   };
+  const list = (query: {
+    readonly scope: string;
+    readonly id: string;
+  }): Promise<MemberEntry[]> =>
+    once(undefined, `${schema}.${membersFn}`, "", () => members(query));
   const record = (
     userId: string,
     memo?: SourceMemo,
   ): Promise<SubjectRecord | undefined> =>
-    once(memo, `${schema}.${fn}:${userId}`, async () => {
+    once(memo, `${schema}.${fn}`, `${schema}.${fn}:${userId}`, async () => {
       const result = await callRpc(client, schema, fn, { p_user: userId });
       if (result.error !== null) {
         throw new Error(
@@ -333,14 +422,23 @@ export function postgrestSources(
     userId: string,
     memo?: SourceMemo,
   ): Promise<number | undefined> =>
-    once(memo, `${schema}.${versionFn}:${userId}`, async () => {
-      const result = await callRpc(client, schema, versionFn, {
-        p_user: userId,
-      });
-      return result.error === null
-        ? versionOf(result.data)
-        : (await record(userId, memo))?.authzVersion;
-    });
+    once(
+      memo,
+      `${schema}.${versionFn}`,
+      `${schema}.${versionFn}:${userId}`,
+      async () => {
+        noteVersionRead(userId);
+        const result = await callRpc(client, schema, versionFn, {
+          p_user: userId,
+        });
+        if (result.error !== null) {
+          throw new Error(
+            `PermDock: ${schema}.${versionFn} failed: ${result.error.message}`,
+          );
+        }
+        return versionOf(result.data);
+      },
+    );
   const live = async (
     userId: string,
     memo?: SourceMemo,

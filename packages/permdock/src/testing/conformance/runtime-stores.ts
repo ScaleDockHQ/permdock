@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 
 import type {
   DecisionSink,
+  InstanceCache,
   LimitStore,
   Policy,
   PolicyDocument,
@@ -171,6 +172,17 @@ export function testVersionCache(cache: VersionCache): void {
     expect(calls.count).toBe(1);
   });
 
+  it("answers a read from a seed and never lowers a seeded version", async () => {
+    const { calls, read } = counted(1);
+    const principal = { id: "u-version-seed" };
+    cache.seed(principal.id, 6);
+    cache.seed(principal.id, 5);
+    if (cache.maxStaleMs > 0) {
+      expect(await cache.current(principal, read, { live: false })).toBe(6);
+      expect(calls.count).toBe(0);
+    }
+  });
+
   it("reads again after evict", async () => {
     const { calls, read } = counted(3);
     const principal = { id: "u-version-evict" };
@@ -179,5 +191,65 @@ export function testVersionCache(cache: VersionCache): void {
     await cache.current(principal, read, { live: false });
     expect(calls.count).toBe(2);
     expect(cache.stats().reads).toBeGreaterThanOrEqual(2);
+  });
+}
+
+/**
+ * The `InstanceCache` contract: one build per key while it lives, a shared
+ * build in flight, no stored rejection, and `evict` dropping a principal's
+ * entries.
+ */
+export function testInstanceCache(cache: InstanceCache): void {
+  const key = (principal: string, version = 1) =>
+    ({ principal, version, intent: "read", parts: {} }) as const;
+  const counted = () => {
+    const calls = { count: 0 };
+    const build = async (): Promise<{ readonly n: number }> => {
+      calls.count += 1;
+      return { n: calls.count };
+    };
+    return { calls, build };
+  };
+
+  it("builds once per key and keys versions apart", async () => {
+    const { calls, build } = counted();
+    const first = await cache.instance(key("u-instance-key"), [], build);
+    const again = await cache.instance(key("u-instance-key"), [], build);
+    const next = await cache.instance(key("u-instance-key", 2), [], build);
+    if (cache.maxAgeMs > 0) {
+      expect(again).toBe(first);
+      expect(calls.count).toBe(2);
+    }
+    expect(next).not.toBe(first);
+  });
+
+  it("shares one build between concurrent calls", async () => {
+    const { calls, build } = counted();
+    const built = await Promise.all(
+      Array.from({ length: 5 }, async () =>
+        cache.instance(key("u-instance-shared"), [], build),
+      ),
+    );
+    expect(new Set(built).size).toBe(1);
+    expect(calls.count).toBe(1);
+  });
+
+  it("stores no rejected build", async () => {
+    await expect(
+      cache.instance(key("u-instance-failed"), [], () =>
+        Promise.reject(new Error("down")),
+      ),
+    ).rejects.toThrow("down");
+    const { calls, build } = counted();
+    await cache.instance(key("u-instance-failed"), [], build);
+    expect(calls.count).toBe(1);
+  });
+
+  it("builds again after evict", async () => {
+    const { calls, build } = counted();
+    await cache.instance(key("u-instance-evict"), [], build);
+    cache.evict("u-instance-evict");
+    await cache.instance(key("u-instance-evict"), [], build);
+    expect(calls.count).toBe(2);
   });
 }

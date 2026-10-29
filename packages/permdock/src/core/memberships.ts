@@ -4,7 +4,7 @@ import type { VersionCache } from "./version-cache.ts";
 
 import { byCodePoint } from "./compare.ts";
 import { isThenable } from "./thenable.ts";
-import { nowSeconds } from "./time.ts";
+import { instantAt, nowSeconds } from "./time.ts";
 
 /** Two memberships are the same row when everything but `roles` matches. */
 function identity(membership: Membership): string {
@@ -16,8 +16,6 @@ function identity(membership: Membership): string {
     membership.id ?? null,
     within,
     membership.on ?? null,
-    membership.tenant ?? null,
-    membership.team ?? null,
     membership.via ?? null,
     membership.expiresAt ?? null,
     membership.grantedBy ?? null,
@@ -180,8 +178,9 @@ export function asMembershipSource(
  * latest membership change is stale for the policy's `fresh` permissions, or
  * with `onStale: 'reread'` has its memberships read from `source` instead. With
  * `versions`, an instance with intent `read` takes the version from that
- * process-wide cache, so concurrent instances share one read and a token issued
- * within its `maxStaleMs` needs none; intent `write` always reads.
+ * process-wide cache, so concurrent instances share one read; a token's
+ * `authz_ver` seeds it dated by `iat`, so a token issued within its
+ * `maxStaleMs` needs none. Intent `write` always reads.
  */
 export function claimsFirst(
   source: MembershipSource | readonly MembershipSource[],
@@ -199,10 +198,19 @@ export function claimsFirst(
       ? undefined
       : versions === undefined
         ? (principal, context) => read(principal, context)
-        : (principal, context) =>
-            versions.current(principal, () => read(principal, context), {
-              live: context?.intent !== "read",
+        : (principal, context) => {
+            const live = context?.intent !== "read";
+            if (!live && typeof principal.authzVersion === "number") {
+              versions.seed(
+                principal.id,
+                principal.authzVersion,
+                instantAt(principal.issuedAt ?? 0),
+              );
+            }
+            return versions.current(principal, () => read(principal, context), {
+              live,
             });
+          };
   return {
     membershipsFor: (principal, query) =>
       inner.membershipsFor(principal, query),

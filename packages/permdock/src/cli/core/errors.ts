@@ -34,8 +34,6 @@ export type ProblemCode =
   | "unknown_command"
   | "unknown_flag"
   | "invalid_value"
-  | "command_moved"
-  | "flag_renamed"
   | "missing_value"
   | "config_not_found"
   | "config_invalid"
@@ -60,8 +58,6 @@ const CODES: {
   unknown_command: ["Unknown command", 2],
   unknown_flag: ["Unknown flag", 2],
   invalid_value: ["Invalid value", 2],
-  command_moved: ["Command moved", 2],
-  flag_renamed: ["Flag renamed", 2],
   missing_value: ["Missing value", 2],
   config_not_found: ["Config file not found", 2],
   config_invalid: ["Invalid config", 2],

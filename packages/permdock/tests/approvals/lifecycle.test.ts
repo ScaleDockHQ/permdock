@@ -49,7 +49,11 @@ function approver(id: string, tenants: readonly string[]): Subject {
     principal: {
       id,
       roles: [],
-      memberships: tenants.map((tenant) => ({ tenant, roles: ["admin"] })),
+      memberships: tenants.map((tenant) => ({
+        scope: "tenant",
+        id: tenant,
+        roles: ["admin"],
+      })),
     },
     context: {},
   };
@@ -283,7 +287,7 @@ describe("approval tenancy", () => {
     void store.create(pending("pd1.own", "o_1"));
     void store.create(
       pending("pd1.optout", "o_1", {
-        approvers: { by: { kind: "authenticated" }, distinct: false },
+        approvers: { by: { kind: "authenticated" }, mode: "confirm" },
       }),
     );
     void store.create(
@@ -324,7 +328,7 @@ describe("self-approval", () => {
     principal: {
       id: "u_1",
       roles: ["member"],
-      memberships: [{ tenant: "o_1", roles: ["admin"] }],
+      memberships: [{ scope: "tenant", id: "o_1", roles: ["admin"] }],
     },
     context: {},
   } satisfies Subject;
@@ -332,8 +336,11 @@ describe("self-approval", () => {
     ["human", undefined],
     ["by", { by: { kind: "role", role: "admin", scope: "global" } }],
     [
-      "by with distinct: true",
-      { by: { kind: "role", role: "admin", scope: "global" }, distinct: true },
+      "by with mode: authorize",
+      {
+        by: { kind: "role", role: "admin", scope: "global" },
+        mode: "authorize",
+      },
     ],
   ] as const;
 
@@ -371,13 +378,13 @@ describe("self-approval", () => {
     });
   }
 
-  it("lets the principal approve when the grant sets distinct: false", async () => {
+  it("lets the principal approve when the grant sets mode: confirm", async () => {
     const store = memoryApprovalStore();
     void store.create(
       pending("pd1.optout", "o_1", {
         approvers: {
           by: { kind: "role", role: "admin", scope: "global" },
-          distinct: false,
+          mode: "confirm",
         },
       }),
     );
@@ -386,11 +393,11 @@ describe("self-approval", () => {
     ).resolves.toMatchObject({ status: "approved", resolvedBy: "u_1" });
   });
 
-  it("keeps requireDistinctApprover as a floor over distinct: false", async () => {
+  it("keeps requireDistinctApprover as a floor over mode: confirm", async () => {
     const store = memoryApprovalStore();
     void store.create(
       pending("pd1.floor", "o_1", {
-        approvers: { by: { kind: "authenticated" }, distinct: false },
+        approvers: { by: { kind: "authenticated" }, mode: "confirm" },
       }),
     );
     await expect(
@@ -409,7 +416,7 @@ describe("approval token inputs", () => {
     key: "post.delete",
     resourceId: "42",
     actor: { id: "agent", kind: "mcp-client" },
-    fingerprint: "f",
+    source: "f",
   };
 
   it("survives a session refresh that changes roles or assurance", () => {

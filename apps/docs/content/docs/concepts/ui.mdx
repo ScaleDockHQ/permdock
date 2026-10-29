@@ -286,25 +286,55 @@ const refreshOn = [eventSourceRefresh("/api/permdock/events")];
 </PermDockProvider>;
 ```
 
-Define the list outside the component: the provider reads it when it builds its store. A Supabase Realtime channel on the membership table is a trigger too, and needs nothing from PermDock:
+Define the list outside the component: the provider reads it when it builds its store. The other triggers:
+
+| Trigger                                       | Fires                                                                | Entries                                         |
+| --------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------- |
+| `focusRefresh()`                              | on window `focus`                                                    | every UI adapter except `permdock/react-native` |
+| `visibilityRefresh()`                         | when the document turns visible                                      | every UI adapter except `permdock/react-native` |
+| `broadcastChannelRefresh(name)`               | on each message to the `BroadcastChannel` `name`, from any other tab | every UI adapter except `permdock/react-native` |
+| `authzChangeRefresh()`                        | on `notify()`; returns `{ trigger, notify }`                         | every UI adapter                                |
+| `supabaseRealtimeRefresh(client, { userId })` | on a version bump on the user's private `authz:<uid>` Realtime topic | `permdock/supabase/client`                      |
+
+With better-supabase, pass `notify` to `SessionProvider`. It already listens on `authz:<uid>`, refreshes the token and tells the other tabs, so no second Realtime channel opens:
+
+```tsx
+"use client";
+
+import { SessionProvider } from "better-supabase/react";
+import { authzChangeRefresh, focusRefresh, useRefreshOn } from "permdock/react";
+
+const authz = authzChangeRefresh();
+const triggers = [authz.trigger, focusRefresh()];
+
+function RefreshPermissions(): null {
+  useRefreshOn(triggers);
+  return null;
+}
+
+export function Providers({ children, session, client }) {
+  return (
+    <SessionProvider
+      session={session}
+      client={client}
+      onAuthzChange={authz.notify}
+    >
+      <RefreshPermissions />
+      {children}
+    </SessionProvider>
+  );
+}
+```
+
+Without better-supabase, `supabaseRealtimeRefresh` joins the same private topic. The generated version trigger sends on it when `supabase.hook.broadcast` is set, and its `receivePolicy` lets each user join only their own `authz:<uid>` ([Supabase](/docs/adapters/supabase)):
 
 ```ts
-import type { RefreshTrigger } from "permdock/react";
+import { supabaseRealtimeRefresh } from "permdock/supabase/client";
 
-const memberships: RefreshTrigger = (refresh) => {
-  const channel = supabase
-    .channel("permdock-memberships")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "memberships" },
-      refresh,
-    )
-    .subscribe();
-  return () => {
-    void supabase.removeChannel(channel);
-  };
-};
+const refreshOn = [supabaseRealtimeRefresh(supabase, { userId })];
 ```
+
+`useRefreshOn(triggers)` from `permdock/react` adds triggers to the nearest provider while the component is mounted, folded and skipped like `refreshOn`. Use it below `permdock/next`'s `PermDockProvider`: a Server Component cannot pass functions to the client, so that provider forwards every React provider prop except `refreshOn`, `onSnapshot`, `onClear`, `fetch` and `verifier`. Keep the array at module scope; a new array resubscribes.
 
 ## Status handling
 

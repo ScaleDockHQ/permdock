@@ -153,7 +153,7 @@ describe("subjectFromBetterSupabase with apiKey sessions", () => {
     expect(subject.principal).toMatchObject({
       id: key.keyId,
       kind: "service",
-      memberships: [{ tenant: ORG, roles: ["integration"] }],
+      memberships: [{ scope: "tenant", id: ORG, roles: ["integration"] }],
     });
     expect(
       subjectFromBetterSupabase(key, {

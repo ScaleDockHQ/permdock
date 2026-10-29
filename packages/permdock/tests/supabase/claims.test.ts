@@ -40,10 +40,13 @@ const invalid: readonly (readonly [string, unknown])[] = [
   ["user_role number", { sub, user_role: 1 }],
   ["roles string", { sub, roles: "admin" }],
   ["memberships object", { sub, memberships: {} }],
-  ["membership without roles", { sub, memberships: [{ tenant: "acme" }] }],
+  [
+    "membership without roles",
+    { sub, memberships: [{ scope: "tenant", id: "acme" }] },
+  ],
   [
     "membership empty roles",
-    { sub, memberships: [{ tenant: "acme", roles: [] }] },
+    { sub, memberships: [{ scope: "tenant", id: "acme", roles: [] }] },
   ],
   ["membership unlocated", { sub, memberships: [{ roles: ["admin"] }] }],
   [
@@ -52,7 +55,12 @@ const invalid: readonly (readonly [string, unknown])[] = [
   ],
   [
     "membership within number",
-    { sub, memberships: [{ tenant: "t", roles: ["a"], within: { org: 1 } }] },
+    {
+      sub,
+      memberships: [
+        { scope: "tenant", id: "t", roles: ["a"], within: { org: 1 } },
+      ],
+    },
   ],
   [
     "membership on without id",
@@ -60,15 +68,28 @@ const invalid: readonly (readonly [string, unknown])[] = [
   ],
   [
     "membership managed_by",
-    { sub, memberships: [{ tenant: "t", roles: ["a"], managed_by: "scim" }] },
+    {
+      sub,
+      memberships: [
+        { scope: "tenant", id: "t", roles: ["a"], managed_by: "scim" },
+      ],
+    },
   ],
   [
     "membership expires_at string",
-    { sub, memberships: [{ tenant: "t", roles: ["a"], expires_at: "1" }] },
+    {
+      sub,
+      memberships: [
+        { scope: "tenant", id: "t", roles: ["a"], expires_at: "1" },
+      ],
+    },
   ],
   [
     "membership grants array",
-    { sub, memberships: [{ tenant: "t", roles: ["a"], grants: [] }] },
+    {
+      sub,
+      memberships: [{ scope: "tenant", id: "t", roles: ["a"], grants: [] }],
+    },
   ],
   ["memberships_truncated string", { sub, memberships_truncated: "true" }],
   ["tenant_id number", { sub, tenant_id: 1 }],
@@ -114,13 +135,18 @@ const invalid: readonly (readonly [string, unknown])[] = [
   ],
   [
     "membership member without group",
-    { sub, memberships: [{ tenant: "t", roles: ["a"], member: {} }] },
+    {
+      sub,
+      memberships: [{ scope: "tenant", id: "t", roles: ["a"], member: {} }],
+    },
   ],
   [
     "membership member empty group",
     {
       sub,
-      memberships: [{ tenant: "t", roles: ["a"], member: { group: "" } }],
+      memberships: [
+        { scope: "tenant", id: "t", roles: ["a"], member: { group: "" } },
+      ],
     },
   ],
   ["app_metadata array", { sub, app_metadata: [] }],
@@ -160,13 +186,17 @@ describe("supabaseClaims()", () => {
   it("accepts the member group a membership source fills, as the JSON Schema does", () => {
     const kept = {
       sub,
-      memberships: [{ tenant: "t", roles: ["a"], keep: ["org.restore"] }],
+      memberships: [
+        { scope: "tenant", id: "t", roles: ["a"], keep: ["org.restore"] },
+      ],
     };
     expect(validate(schema, kept)).toStrictEqual({ value: kept });
     expect(ajv(kept)).toBe(true);
     const claims = {
       sub,
-      memberships: [{ tenant: "t", roles: ["a"], member: { group: "night" } }],
+      memberships: [
+        { scope: "tenant", id: "t", roles: ["a"], member: { group: "night" } },
+      ],
     };
     expect(validate(schema, claims)).toStrictEqual({ value: claims });
     expect(ajv(claims)).toBe(true);
@@ -181,8 +211,8 @@ describe("supabaseClaims()", () => {
     const result = validate(schema, {
       sub,
       memberships: [
-        { tenant: "t", roles: ["a"] },
-        { tenant: "t", roles: [1] },
+        { scope: "tenant", id: "t", roles: ["a"] },
+        { scope: "tenant", id: "t", roles: [1] },
       ],
     });
     expect(result.issues?.[0]?.path).toStrictEqual(["memberships", 1, "roles"]);

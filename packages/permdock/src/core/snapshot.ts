@@ -236,6 +236,8 @@ export function buildSnapshot(input: {
         input.subject.expiresAt === undefined
           ? undefined
           : rfc3339(input.subject.expiresAt),
+      authzVersion: principal?.authzVersion,
+      sessionId: input.subject.session,
       scopes: input.scopes,
       ids: Object.keys(ids).length === 0 ? undefined : ids,
       assignable: assignable.length > 0 ? assignable : undefined,
@@ -345,6 +347,19 @@ export function parseSnapshot(json: unknown): Snapshot {
     (record["expiresAt"] !== undefined && !isRfc3339(record["expiresAt"]))
   ) {
     throw new Error("PermDock: snapshot times must be RFC 3339");
+  }
+  const authzVersion = record["authzVersion"];
+  if (
+    (authzVersion !== undefined &&
+      (typeof authzVersion !== "number" ||
+        !Number.isSafeInteger(authzVersion) ||
+        authzVersion < 0)) ||
+    (record["sessionId"] !== undefined &&
+      typeof record["sessionId"] !== "string")
+  ) {
+    throw new Error(
+      "PermDock: snapshot authzVersion must be a non-negative integer and sessionId a string",
+    );
   }
   // SAFETY: only the version, times and unsafe keys are checked; the other fields are not validated here.
   return freezeDeep(value) as Snapshot;

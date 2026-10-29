@@ -2,7 +2,10 @@
 
 export { describe, requiredPlans } from "../core/describe.ts";
 export { approvalHeaders } from "../client/headers.ts";
-export { eventSourceRefresh } from "../client/refresh-on.ts";
+export {
+  authzChangeRefresh,
+  eventSourceRefresh,
+} from "../client/refresh-on.ts";
 export {
   useApproval,
   useAssignablePermissions,
@@ -71,6 +74,7 @@ export type {
   SubscribeOnline,
 } from "./types.ts";
 export type {
+  AuthzChangeRefresh,
   EventSourceRefreshOptions,
   RefreshTrigger,
 } from "../client/refresh-on.ts";

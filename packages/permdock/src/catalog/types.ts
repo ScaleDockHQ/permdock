@@ -61,12 +61,12 @@ export type CatalogApproval =
   | "human"
   | {
       readonly by?: unknown;
-      readonly mode?: "any" | "all" | "sequential";
+      readonly combine?: "any" | "all" | "sequential";
       readonly stages?: readonly {
         readonly by: unknown;
         readonly quorum?: number;
       }[];
-      readonly distinct?: boolean;
+      readonly mode?: "confirm" | "authorize";
       readonly staleOn?: "resource-change";
       readonly quorum?: number;
       /** Seconds. */

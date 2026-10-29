@@ -27,6 +27,7 @@ import type {
 } from "./types.ts";
 
 import { normalizeWhere } from "../conditions/normalize.ts";
+import { readWireApproval } from "../core/approval-normalize.ts";
 import { compact } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { isPortableCondition } from "../core/hosted.ts";
@@ -233,7 +234,7 @@ function buildGrant(tree: PermissionTree, raw: PushedGrant): Grant {
         `grant '${raw.permission}' check`,
         raw.portable !== false,
       ),
-      approval: raw.approval,
+      approval: readWireApproval(raw.approval),
       portable: raw.portable !== false,
       limit: raw.limit,
       fields: raw.fields,

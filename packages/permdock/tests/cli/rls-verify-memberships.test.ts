@@ -86,7 +86,7 @@ describe(fixtureMembershipSql, () => {
     const rows = fixtureMembershipSql(
       config,
       scopes,
-      fixture([{ tenant: "o1", roles: ["a"] }, ...member]),
+      fixture([{ scope: "tenant", id: "o1", roles: ["a"] }, ...member]),
       [],
     );
     expect(rows).toStrictEqual([

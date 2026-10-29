@@ -11,7 +11,7 @@ import type {
 import { readClaim } from "../core/claims-map.ts";
 import { compact, isRecord, omitKeys } from "../core/compact.ts";
 import { freezeDeep } from "../core/freeze.ts";
-import { anonymousSubject } from "../core/subject.ts";
+import { anonymousSubject, rootMembershipId } from "../core/subject.ts";
 import { validateRecord } from "../core/thenable.ts";
 import { ttlCache, ttlMs } from "../pdp/shared.ts";
 
@@ -288,7 +288,7 @@ function membershipRow(item: unknown, userId: string): Membership | undefined {
   if (tenant === undefined || roles.length === 0) {
     return undefined;
   }
-  return compact<Membership>({ tenant, roles });
+  return compact<Membership>({ scope: "tenant", id: tenant, roles });
 }
 
 type LoadMemberships = (
@@ -408,7 +408,8 @@ async function fromClerk(
       (membershipRoles.length > 0 || plans.org.length > 0)
         ? [
             compact<Membership>({
-              tenant: mapped.tenant,
+              scope: "tenant",
+              id: mapped.tenant,
               roles: membershipRoles,
               entitlements: plans.org.length === 0 ? undefined : plans.org,
             }),
@@ -418,14 +419,15 @@ async function fromClerk(
       options.memberships === "all"
         ? ((await loadMemberships(options.backend, mapped.id)) ?? [])
         : [];
-    const seen = new Set(sessionMembership.map((item) => item.tenant));
+    const seen = new Set(sessionMembership.map(rootMembershipId));
     const memberships = [
       ...sessionMembership,
       ...loaded.filter((item) => {
-        if (seen.has(item.tenant)) {
+        const tenant = rootMembershipId(item);
+        if (seen.has(tenant)) {
           return false;
         }
-        seen.add(item.tenant);
+        seen.add(tenant);
         return true;
       }),
     ];

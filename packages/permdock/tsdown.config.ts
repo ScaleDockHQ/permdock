@@ -141,6 +141,7 @@ export default defineConfig({
     "src/kysely/index.ts",
     "src/supabase/index.ts",
     "src/supabase/middleware.ts",
+    "src/supabase/client.ts",
     "src/ssf/index.ts",
     "src/better-auth/index.ts",
     "src/better-supabase/index.ts",

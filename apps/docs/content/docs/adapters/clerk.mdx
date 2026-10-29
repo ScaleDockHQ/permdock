@@ -25,7 +25,7 @@ export const { getPermDock, getPermission, PermDockProvider, permdockHandler } =
 //   id: userId,
 //   tenant: orgId,                                              // the active organization
 //   roles: [],                                                  // global roles only through options.claims.roles
-//   memberships: [{ tenant: orgId, roles: ['org:admin'] }],     // the active organization's membership
+//   memberships: [{ scope: 'tenant', id: orgId, roles: ['org:admin'] }],     // the active organization's membership
 //   clerkPermissions: ['org:invoices:create'],
 //   claims: { ...sessionClaims },
 // }

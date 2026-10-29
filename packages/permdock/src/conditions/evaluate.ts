@@ -11,12 +11,7 @@ import { isReadonlyArray } from "../core/compact.ts";
 import { expiredAt } from "../core/expiry.ts";
 import { sameId } from "../core/ids.ts";
 import { ownGet } from "../core/paths.ts";
-import {
-  resolveScope,
-  scopeList,
-  subjectMemberships,
-  tenantOf,
-} from "../core/scopes.ts";
+import { resolveScope, scopeList, tenantOf } from "../core/scopes.ts";
 import { epochSeconds } from "../core/time.ts";
 import { isConditionDate, isConditionRef, parentHop } from "./ast.ts";
 import { isoInstant } from "./instant.ts";
@@ -171,10 +166,7 @@ function evaluateMemberOf(
   if (rowValue === undefined || rowValue === null) {
     return false;
   }
-  const memberships = subjectMemberships(
-    subject.principal?.memberships,
-    scopes,
-  );
+  const memberships = subject.principal?.memberships ?? [];
   const wanted = new Set(condition.roles);
   const active =
     subject.principal?.tenant === "" ? undefined : subject.principal?.tenant;

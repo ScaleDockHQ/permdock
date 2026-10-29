@@ -117,14 +117,16 @@ document loads (and on `paths`), clears the cookies and redirects with
 A proxy or middleware with its own Supabase client calls
 `sessionStatus(request, { url, publishableKey })` from `better-supabase/ssr`
 (`"ended"` on a 401 or 403 from Auth; treat `"unknown"` as active) and
-`clearSessionCookies(request, response, { url })` before redirecting.
+`await clearSessionCookies(request, response, { url })` before redirecting.
 An app with httpOnly session cookies and no browser Supabase client watches
 an open page with `export const GET = sessionStatusRoute(bsb)` (from
 `better-supabase/server`) and `useSessionWatch({ redirect: "/login" })` (from
 `better-supabase/next/client`): it checks on focus, visibility and an
 interval, reloads on `ended`, `banned` or `signed_out`, refreshes the router
 on `claims_changed` (the claims fingerprint, support target included, moved)
-and tells the other tabs over a `BroadcastChannel`.
+and tells the other tabs over a `BroadcastChannel`. The route reads the
+verified claims only; pass `sessionStatusRoute(bsb, { verifySession: true })`
+so it asks Auth and can report `ended` or `banned`.
 
 Done when the irreversible action returns `SESSION_REVOKED` for a signed-out
 session in a test.
@@ -156,14 +158,41 @@ membership lasts until the next refresh. When that window matters:
   `useSessionChange`'s `refreshToken`, below).
 - In Next.js, drop the user's cached views with
   `bsb.evictSession(userId, { tags })`.
+- To show the change on pages that are already open, turn on
+  `blocks.sessions.options.authzVersions` and render `<SessionProvider>` with
+  `client` (a browser Supabase client). A bump of the user's version
+  broadcasts on the private `authz:<uid>` topic; the visible tab refreshes the
+  token and calls `onAuthzChange`. There, call your `"use server"` re-export
+  of `bsb.refreshSessionCache()` and `router.refresh()`. Servers that keep a
+  version cache subscribe with `subscribeAuthzVersions`, which defaults to
+  what `authzVersions` sends.
 
 ## Next.js caching
 
 - Per-user data goes through `bsb.cached()` inside your own
   `'use cache: private'` function. It tags the entry `bsb:session:<user id>`
-  and caps its lifetime at the token's.
-- `bsb.cached({ tags, life: { stale } })` adds tags and caps the stale time
-  further, for example for a permission snapshot.
+  and sets `stale` to 300 seconds, so the entry rides in the App Shell; the
+  proxy refreshes every request, so the token no longer caps it.
+  `life: { capToToken: true }` brings the cap back.
+- `bsb.cached({ tags, life: { stale } })` adds tags and shortens the stale
+  time, for example for a permission snapshot. Don't call `cacheLife` with a
+  session-derived stale time; `sessionStale` is gone.
+- For a page whose islands all need the session and some data, read them in
+  one query: name an app function in `blocks.sessions.options.bootstrap` and
+  call `bsb.bootstrap({ rpc, tenant, redirect })` in each island. It checks
+  `session_active()`, returns the token's authorization version, the tenant
+  and the data, and runs once per request for the same arguments. With it,
+  `bsb.proxy(request, { verifySession: "bootstrap" })` skips the proxy's
+  Auth call.
+- `bsb.getAccess(boot)` gives `context`, `session`, `tenant`,
+  `authzVersion` and `can(permission)` from a bootstrap result or a
+  `SessionSnapshot` without verifying the token again.
+- Data that is fine to share across devices or instances goes through
+  `bsb.remote(fn)` and `"use cache: remote"`, with `bsb.cached({ scope:
+  "remote", key })` or `bsb.bootstrap({ scope: "remote", key })` inside.
+  The key holds the user, Auth session, tenant and authorization version,
+  never the token. Outside Vercel, set `cacheHandlers.remote` (doctor
+  BS608).
 - `bsb.cached({ tables: ["customers"] })` tags the entry by table, so an
   action that writes the table drops it without a hand-written tag.
 - `bsb.evictSession(userId)` reaches the server caches and the caller's
@@ -185,12 +214,12 @@ membership lasts until the next refresh. When that window matters:
 - For a tenant from the route params, call `bsb.cached({ tenant })` and take
   the tenant as an argument of the `'use cache: private'` function, so it is
   part of the cache key. Outside a cache, use `bsb.context({ tenant })`.
-- In the proxy, set `bsb.proxy(request, { protect, onExpiredPrefetch: "render" })`
-  instead of returning early for `{ kind: "none", reason: "expired" }` in
-  `protect`. A prefetch never refreshes, so without it the prefetch caches a
-  redirect to sign-in.
+- The proxy refreshes every request it matches, prefetches included, and
+  parallel requests share one refresh, so `protect` doesn't need a special
+  case for `{ kind: "none", reason: "expired" }`.
 - Keep layouts synchronous: pass the `bsb.claims()` promise to
-  `<SessionProvider>` and read it with `useSession()`.
+  `<SessionProvider session={...}>` and read it with `useSession()`. The
+  provider holds the session in a store; `sessionPromise` is the 0.34 name.
 
 ## Authorization providers
 
@@ -204,6 +233,9 @@ before touching the hook, claims, tenant or entitlements.
 
 - Don't refresh sessions outside the proxy, and don't verify tokens by
   calling the Auth server.
+- Don't write session cookies yourself: `@supabase/ssr` writes them in the
+  proxy, and `writeSession` and `refreshSession` are gone. Await
+  `clearSessionCookies`.
 - Don't use `bsb.admin()` or the service role for a user's request.
 - Don't downgrade an `invalid` caller to `anon`.
 - Don't build 401 or 403 JSON by hand; return the `DbError` or use `allow`
@@ -217,5 +249,7 @@ https://bettersupabase.com/docs/auth.md,
 https://bettersupabase.com/docs/frameworks/next.md (bearer callers),
 https://bettersupabase.com/docs/frameworks/next-auth.md (sign-in and sign-out),
 https://bettersupabase.com/docs/auth/account-deletion.md,
-https://bettersupabase.com/docs/frameworks/next-cache-components.md and
+https://bettersupabase.com/docs/frameworks/next-cache-components.md,
+https://bettersupabase.com/docs/frameworks/next-islands.md,
+https://bettersupabase.com/docs/migration/0.35-to-0.37.md and
 https://bettersupabase.com/docs/extending/authorization-providers.md.

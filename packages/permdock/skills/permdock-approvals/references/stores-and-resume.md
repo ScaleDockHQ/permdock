@@ -15,7 +15,7 @@ export const { protect } = createPermDock(policy, { subject, store });
 // Routes for approvers: GET /pending, GET /mine, GET /:id, GET /:id/signature, POST /:id/approve, POST /:id/reject
 const handler = approvalsHandler(store, {
   subject: (request) => approverFromSession(request), // the approver, from real authentication
-  requireDistinctApprover: false, // true refuses the principal even where a grant sets distinct: false
+  requireDistinctApprover: false, // true refuses the principal even where a grant sets mode: "confirm"
   relations, // RelationSource: needed when a grant uses relation() approvers
   permissions, // the permission tree, for relation approvers reached through links
 });
@@ -73,7 +73,7 @@ A gate in your own code resumes the same way with `resumeDecision` from `permdoc
 
 Over HTTP, the client retries the same request with the `PermDock-Approval: <token>` header. In React, `approvalHeaders(token)` builds that header and `useApproval(decision)` requests and polls an approval from the UI.
 
-A bad resume is denied with detail `approval-not-found`, `approval-pending`, `approval-rejected`, `approval-expired`, `approval-consumed` or `approval-mismatch`; a changed row is `stale-approval`. `approvalsHandler` answers `403` for an ineligible approver (`approver-not-eligible`, the actor, or the principal without `distinct: false`) and `409` for a repeated one (`approver-repeated`).
+A bad resume is denied with detail `approval-not-found`, `approval-pending`, `approval-rejected`, `approval-expired`, `approval-consumed` or `approval-mismatch`; a changed row is `stale-approval`. `approvalsHandler` answers `403` for an ineligible approver (`approver-not-eligible`, the actor, or the principal without `mode: "confirm"`) and `409` for a repeated one (`approver-repeated`).
 
 ## Delegation
 
@@ -106,4 +106,8 @@ Send the prompt with `approvalPrompt` and `permdock/delivery`: `approvalEmail` f
 
 ## Approvers
 
-`by` takes roles, `user(id)`, `relation()`, `holder(permission)` and `anyOf(...)`. A list is all-of; use `anyOf(user(id), holder(permissions.x.approve))` for "this person or anyone who holds the permission". `holder()` needs `approvalsHandler(store, { permdockFor: (approver, request) => createPermDock(policy, approver, { customRoles }) })`, so custom roles count. Stages may carry their own `escalation`.
+`by` takes roles, `user(id)`, `relation()`, `manager({ levels? })` (whoever holds `manager` on the requester's `user` record, up to `levels` steps), `holder(permission)` and `anyOf(...)`. A list is all-of; use `anyOf(user(id), holder(permissions.x.approve))` for "this person or anyone who holds the permission". `holder()` needs `approvalsHandler(store, { permdockFor: (approver, request) => createPermDock(policy, approver, { customRoles }) })`, so custom roles count. Stages may carry their own `escalation`.
+
+## Operation fingerprints
+
+Bind an approval to the exact operation with `fingerprint`: `permdock.decide(permission, row, { fingerprint: approvalFingerprint({ id, amount, to }) })`. The token and the stored request carry it, and a resume or `consumeApproval(store, token, at, { fingerprint })` under another one fails with `approval-fingerprint-mismatch`. `approvalFingerprint` returns the same hex string as better-supabase's, synchronously.

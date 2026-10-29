@@ -12,6 +12,13 @@ export type CacheLifeForOptions = {
   readonly min?: number;
   /** Upper bound in seconds. Next.js keeps a per-session App Shell entry from 300. */
   readonly max?: number;
+  /**
+   * Cap the lifetime at the seconds the token has left, as `bsb.cached()` does.
+   * Off by default: a proxy that refreshes the session on every request keeps
+   * the token ahead of the entry. `snapshotHeaders` turns it on, since an HTTP
+   * cache sees no refresh.
+   */
+  readonly capToToken?: boolean;
   /** Defaults to the snapshot's `issuedAt`, then the clock. */
   readonly now?: Instant;
 };
@@ -24,10 +31,10 @@ function epochSeconds(
 }
 
 /**
- * `{ stale }` in seconds: `max` when the value never expires, otherwise the
- * seconds left, clamped to `[min, max]`. A value with less than `min` seconds
- * left gets its real remainder, so Next.js leaves it out of prefetches and an
- * HTTP cache does not serve it past `expiresAt`.
+ * `{ stale }` in seconds: `max` (default 300). With `capToToken`, the seconds
+ * the value has left, clamped to `[min, max]`; a value with less than `min`
+ * seconds left gets its real remainder, so Next.js leaves it out of prefetches
+ * and an HTTP cache does not serve it past `expiresAt`.
  */
 export function cacheLifeFor(
   value: {
@@ -40,7 +47,8 @@ export function cacheLifeFor(
 ): { readonly stale: number } {
   const min = options.min ?? 30;
   const max = Math.max(options.max ?? 300, min);
-  const expiresAt = epochSeconds(value?.expiresAt);
+  const expiresAt =
+    options.capToToken === true ? epochSeconds(value?.expiresAt) : undefined;
   if (expiresAt === undefined) {
     return { stale: max };
   }
@@ -55,6 +63,21 @@ export function cacheLifeFor(
     return { stale: Math.max(0, remaining) };
   }
   return { stale: Math.min(max, remaining) };
+}
+
+/**
+ * The key of one subject's snapshot in a server cache:
+ * `<sub>:<authzVersion>:<tenant>`, with `anon` for no subject and an empty part
+ * for a missing version or tenant. It carries no claims, so a refreshed token
+ * at the same version keeps the key.
+ */
+export function snapshotKey(snapshot: Snapshot): string {
+  const principal = snapshot.subject.principal;
+  return [
+    principal?.id ?? "anon",
+    snapshot.authzVersion ?? "",
+    principal?.tenant ?? "",
+  ].join(":");
 }
 
 /**
@@ -100,7 +123,7 @@ export function snapshotHeaders(
   }
   const { tags, ...life } = options;
   return {
-    "Cache-Control": `private, max-age=${cacheLifeFor(snapshot, life).stale}`,
+    "Cache-Control": `private, max-age=${cacheLifeFor(snapshot, { capToToken: true, ...life }).stale}`,
     Vary: "Authorization, Cookie",
     ETag: `"${payloadDigest(content)}"`,
     "Cache-Tag": [

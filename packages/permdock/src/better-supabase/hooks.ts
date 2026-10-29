@@ -10,6 +10,7 @@ import type {
 } from "better-supabase/server";
 
 import type { Approver } from "../core/approvers.ts";
+import type { InstanceCache } from "../core/instance-cache.ts";
 import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy } from "../core/policy-types.ts";
@@ -23,12 +24,12 @@ import { asApprover } from "../core/approval-normalize.ts";
 import { flattenApprovers } from "../core/approvers.ts";
 import { isRecord } from "../core/compact.ts";
 import { scopesReaching } from "../core/oauth-scopes.ts";
-import { getPermDock } from "../core/permdock.ts";
 import {
   findPermission,
   listPermissions,
 } from "../core/permission-registry.ts";
-import { subjectFromBetterSupabase } from "./subject.ts";
+import { snapshotTag } from "../core/snapshot-cache.ts";
+import { permdockFor } from "./permdock-for.ts";
 import { subscriberPolicy } from "./subscribers.ts";
 import { supportPolicy } from "./support.ts";
 
@@ -54,6 +55,11 @@ export type AuthorizationHooksOptions = {
    * `subjectFromBetterSupabase`.
    */
   readonly subject?: Omit<BetterSupabaseSubjectOptions, "apiKeys">;
+  /**
+   * The process-wide instance cache: an instance is reused while the subject's
+   * authorization version is unchanged.
+   */
+  readonly instances?: InstanceCache;
   /** Sources for every instance the hooks build. */
   readonly options?: Omit<
     PermDockOptions,
@@ -131,6 +137,7 @@ function matches(
         case "assurance":
         case "authenticated":
         case "inherit":
+        case "manager":
         case "plan":
         case "relation":
         case "role":
@@ -149,32 +156,27 @@ function matches(
  * authorization })`), decided by `policy`. Every hook builds the principal's
  * instance from the claims `claims` loads now, never from the request, and
  * fails closed: a throw, an unknown key and `approval-required` refuse.
- * `automation` and `delegation` are always set; `identities`, `delivery`,
- * `approverOf`, `support` and `tickets` only with the options they read.
- * `delegation.permissions` maps each scope to the keys whose `.scope` it is,
- * was renamed from, or that a policy `oauthScopes` entry covers, and reads no
- * `authorization_details`.
+ * `automation`, `delegation` and `sessionTags` (`snapshotTag(userId)`, so
+ * `evictSession` and sign-out clear PermDock snapshots) are always set;
+ * `identities`, `delivery`, `approverOf`, `support` and `tickets` only with the
+ * options they read. `delegation.permissions` maps each scope to the keys whose
+ * `.scope` it is, was renamed from, or that a policy `oauthScopes` entry
+ * covers, and reads no `authorization_details`.
  */
 export function authorizationHooks(
   options: AuthorizationHooksOptions,
 ): AuthorizationHooks {
   const { policy } = options;
+  const resolve = permdockFor(options);
   const instance = async (
     claims: Claims,
     tenant: string | null | undefined,
   ): Promise<PermDock | null> => {
-    const subject = subjectFromBetterSupabase(
-      { kind: "user", claims },
-      options.subject,
-    );
-    if (subject.principal === null) return null;
-    const permdock = await getPermDock(policy, subject, {
-      ...options.options,
-      ...(tenant === null || tenant === undefined ? {} : { tenant }),
-    });
+    const permdock = await resolve({ kind: "user", claims }, tenant);
+    if (permdock.subject.principal === null) return null;
     return tenant === null ||
       tenant === undefined ||
-      permdock.subject.principal?.tenant === tenant
+      permdock.subject.principal.tenant === tenant
       ? permdock
       : null;
   };
@@ -308,6 +310,7 @@ export function authorizationHooks(
   return Object.freeze({
     apiVersion: 1,
     name: "PermDock",
+    sessionTags: (userId: string): readonly string[] => [snapshotTag(userId)],
     automation: Object.freeze(automation),
     delegation: Object.freeze(delegation),
     ...(approverOf === undefined ? {} : { approverOf }),
