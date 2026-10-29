@@ -535,7 +535,9 @@ export function generateSql(
   if (
     jsonSchema !== undefined &&
     jsonSchema !== false &&
-    (rls?.approvals === undefined || rls.approvals === false)
+    (rls?.approvals === undefined ||
+      rls.approvals === false ||
+      (typeof rls.approvals === "object" && rls.approvals.store === false))
   ) {
     warnings.push(
       "rls.jsonSchema constrains the approval store's body, which needs rls.approvals: true; nothing else is jsonb",

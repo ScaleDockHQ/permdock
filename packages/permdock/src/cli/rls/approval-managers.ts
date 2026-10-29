@@ -15,6 +15,8 @@ export const MANAGES = "permdock_manages";
  */
 export const APPROVES = "permdock_approves";
 
+export const MANAGES_FOR = "permdock_manages_for";
+
 function named(value: unknown): value is string {
   return typeof value === "string" && value !== "";
 }
@@ -58,6 +60,7 @@ export function approvalManagersSql(
   const user = quoteIdent(managers.user);
   const boss = quoteIdent(managers.manager);
   const manages = qualified(ctx, MANAGES);
+  const managesFor = qualified(ctx, MANAGES_FOR);
   const approves = qualified(ctx, APPROVES);
   const me = `${subjectIdSql(ctx)}::text`;
   const entry = delegations
@@ -77,8 +80,8 @@ revoke execute on function ${isApprover}(jsonb, text, text, text) from public, a
 grant execute on function ${isApprover}(jsonb, text, text, text) to authenticated;
 `;
   return `
--- approval managers: whether the signed-in user manages p_requester within p_levels steps of ${managers.table}
-create or replace function ${manages}(p_requester text, p_levels integer)
+-- approval managers: whether p_user manages p_requester within p_levels steps of ${managers.table}
+create or replace function ${managesFor}(p_user text, p_requester text, p_levels integer)
 returns boolean
 language sql
 stable
@@ -100,11 +103,24 @@ as $$
   )
   select coalesce(
     p_requester <> ''
+      and p_user <> ''
       and p_levels between 1 and ${String(MAX_MANAGER_LEVELS)}
-      and ${me} <> p_requester
-      and exists (select 1 from chain c where c.id = ${me}),
+      and p_user <> p_requester
+      and exists (select 1 from chain c where c.id = p_user),
     false
   )
+$$;
+revoke execute on function ${managesFor}(text, text, integer) from public, anon, authenticated;
+
+-- approval managers: whether the signed-in user manages p_requester within p_levels steps of ${managers.table}
+create or replace function ${manages}(p_requester text, p_levels integer)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select ${managesFor}(${me}, p_requester, p_levels)
 $$;
 revoke execute on function ${manages}(text, integer) from public, anon, authenticated;
 

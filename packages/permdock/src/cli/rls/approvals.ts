@@ -11,7 +11,11 @@ import {
   quoteQualified,
 } from "../sql/quote.ts";
 import { subjectIdSql } from "../sql/subject.ts";
-import { APPROVES, approvalManagersSql } from "./approval-managers.ts";
+import {
+  APPROVES,
+  MANAGES_FOR,
+  approvalManagersSql,
+} from "./approval-managers.ts";
 import { approvalPoliciesSql } from "./approval-policies.ts";
 import {
   PERMISSION_HELPERS,
@@ -368,8 +372,21 @@ export function approvalsSql(
       "PermDock CLI: rls.approvals.delegations must be a boolean",
     );
   }
+  if (approvals.store !== undefined && typeof approvals.store !== "boolean") {
+    throw new TypeError("PermDock CLI: rls.approvals.store must be a boolean");
+  }
   let store: string;
-  if (table === undefined) {
+  if (approvals.store === false) {
+    const adopted = (
+      ["table", "token", "body", "open", "schema", "mirror"] as const
+    ).find((key) => approvals[key] !== undefined);
+    if (adopted !== undefined) {
+      throw configError(
+        `PermDock CLI: rls.approvals.${adopted} configures the approval store, which rls.approvals.store: false leaves out`,
+      );
+    }
+    store = "";
+  } else if (table === undefined) {
     const adoptOnly = (
       ["token", "body", "open", "schema", "mirror"] as const
     ).find((key) => approvals[key] !== undefined);
@@ -396,6 +413,9 @@ export function approvalsSql(
     (delegations === true
       ? approvalDelegationsSql(ctx, actorMayWrite, managers !== undefined)
       : "") +
+    (delegations === true || managers !== undefined
+      ? requestApproversSql(ctx)
+      : "") +
     (tenantPolicies === undefined
       ? ""
       : approvalPoliciesSql(ctx, tenantPolicies, actorMayWrite))
@@ -415,12 +435,12 @@ const DELEGATIONS = {
  * `rls.approvals.delegations`: one table of out-of-office covers that a user
  * writes for themselves, and a four-argument `permdock_is_approver` that also
  * answers for a delegate inside an active cover. With `managers`, the signed-in
- * user's own check is `permdock_approves`, and a cover never passes on a
- * `manager` leaf. One hop: a cover is checked against the delegator's own
- * approver rights, never the delegator's covers. A delegator who is the
- * requester never counts. A `holder()` approver through a cover needs
- * `rls.mode: "database"`, where the `_for` helpers exist; in `jwt` mode only
- * `user()` approvers pass.
+ * user's own check is `permdock_approves`, and a cover passes on a `manager`
+ * leaf when the delegator manages the requester. One hop: a cover is checked
+ * against the delegator's own approver rights, never the delegator's covers. A
+ * delegator who is the requester never counts. A `holder()` approver through a
+ * cover needs `rls.mode: "database"`, where the `_for` helpers exist; in `jwt`
+ * mode only `user()` approvers pass.
  */
 export function approvalDelegationsSql(
   ctx: RlsSqlContext,
@@ -455,6 +475,15 @@ export function approvalDelegationsSql(
     quoteIdent(`${DELEGATIONS.table}_${name}`);
   const writable = actorMayWrite
     ? ` and (select ${qualified(ctx, ACTOR_MAY_WRITE)}())`
+    : "";
+  const managerCase = managers
+    ? `
+    when 'manager' then
+      v_levels := coalesce(p_approvers -> 'levels', '1'::jsonb);
+      if jsonb_typeof(v_levels) <> 'number' or v_levels::text !~ '^[0-9]{1,2}$' then
+        return false;
+      end if;
+      return coalesce(${qualified(ctx, MANAGES_FOR)}(p_delegator::text, p_requester, v_levels::text::integer), false);`
     : "";
   const mine = `delegator::text = ${me}${writable}`;
   const own = `${mine} and (tenant is null or ${member("tenant")})`;
@@ -496,7 +525,7 @@ create policy ${policy("delete")} on ${table}
   using (${mine});
 
 -- approval delegations: whether a delegator's own rights match approvers.by; only permdock_is_approver calls it
-create or replace function ${covers}(p_delegator ${user}, p_approvers jsonb, p_tenant text)
+create or replace function ${covers}(p_delegator ${user}, p_approvers jsonb, p_tenant text, p_requester text)
 returns boolean
 language plpgsql
 stable
@@ -504,7 +533,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_item jsonb;
+  v_item jsonb;${managers ? "\n  v_levels jsonb;" : ""}
 begin
   if p_delegator is null or p_approvers is null then
     return false;
@@ -514,7 +543,7 @@ begin
       return false;
     end if;
     for v_item in select value from jsonb_array_elements(p_approvers) loop
-      if not ${covers}(p_delegator, v_item, p_tenant) then
+      if not ${covers}(p_delegator, v_item, p_tenant, p_requester) then
         return false;
       end if;
     end loop;
@@ -530,13 +559,13 @@ begin
       if p_tenant is null then
         return ${holderGlobal};
       end if;
-      return ${holderTenant};
+      return ${holderTenant};${managerCase}
     when 'any-of' then
       if jsonb_typeof(p_approvers -> 'of') <> 'array' then
         return false;
       end if;
       for v_item in select value from jsonb_array_elements(p_approvers -> 'of') loop
-        if ${covers}(p_delegator, v_item, p_tenant) then
+        if ${covers}(p_delegator, v_item, p_tenant, p_requester) then
           return true;
         end if;
       end loop;
@@ -546,7 +575,7 @@ begin
   end case;
 end;
 $$;
-revoke execute on function ${covers}(${user}, jsonb, text) from public, anon, authenticated;
+revoke execute on function ${covers}(${user}, jsonb, text, text) from public, anon, authenticated;
 
 -- approvers with covers: the signed-in user, or a delegate inside an active cover of a delegator who is not the requester
 create or replace function ${fn}(p_approvers jsonb, p_tenant text, p_requester text, p_resource text)
@@ -581,7 +610,7 @@ begin
       and d.permissions is null
       and (d.resources is null or p_resource = any (d.resources))
   loop
-    if ${covers}(v_delegator, p_approvers, p_tenant) then
+    if ${covers}(v_delegator, p_approvers, p_tenant, p_requester) then
       return true;
     end if;
   end loop;
@@ -590,6 +619,46 @@ end;
 $$;
 revoke execute on function ${fn}(jsonb, text, text, text) from public, anon;
 grant execute on function ${fn}(jsonb, text, text, text) to authenticated;
+`;
+}
+
+function requestApproversSql(ctx: RlsSqlContext): string {
+  const fn = qualified(ctx, APPROVAL_STORE.isApprover);
+  return `
+-- approvers with the current step: the four-argument check over p_approvers and the step's users, manager and permission
+create or replace function ${fn}(p_approvers jsonb, p_tenant text, p_requester text, p_resource text, p_request_approvers jsonb)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select ${fn}(
+    jsonb_build_object(
+      'kind', 'any-of',
+      'of',
+      case when p_approvers is null then '[]'::jsonb else jsonb_build_array(p_approvers) end
+        || case
+          when jsonb_typeof(p_request_approvers -> 'users') = 'array' then coalesce(
+            (select jsonb_agg(jsonb_build_object('kind', 'user', 'id', u.id)) from jsonb_array_elements_text(p_request_approvers -> 'users') u(id)),
+            '[]'::jsonb
+          )
+          else '[]'::jsonb
+        end
+        || case when p_request_approvers -> 'manager' = 'true'::jsonb then '[{"kind": "manager"}]'::jsonb else '[]'::jsonb end
+        || case
+          when jsonb_typeof(p_request_approvers -> 'permission') = 'string'
+            then jsonb_build_array(jsonb_build_object('kind', 'permission', 'permission', p_request_approvers ->> 'permission'))
+          else '[]'::jsonb
+        end
+    ),
+    p_tenant,
+    p_requester,
+    p_resource
+  )
+$$;
+revoke execute on function ${fn}(jsonb, text, text, text, jsonb) from public, anon;
+grant execute on function ${fn}(jsonb, text, text, text, jsonb) to authenticated;
 `;
 }
 

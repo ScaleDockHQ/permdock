@@ -120,6 +120,52 @@ describe("approval delegations", () => {
       expect(await isApprover(COVER, lead, "o1", "")).toBe(false);
     });
 
+    async function forStep(
+      user: string,
+      step: unknown,
+      tenant: string,
+      requester: string,
+      resource = "job",
+    ): Promise<boolean> {
+      const target = started();
+      return target.as(
+        {
+          role: "authenticated",
+          settings: { "request.jwt.claims": JSON.stringify(member(user)) },
+        },
+        async () => {
+          const result = await target.tester.query<{ readonly ok: boolean }>(
+            "select permdock.permdock_is_approver(null, $2, $3, $4, $1::jsonb) as ok",
+            [JSON.stringify(step), tenant, requester, resource],
+          );
+          return result.rows[0]?.ok === true;
+        },
+      );
+    }
+
+    it("checks covers against the users of a block step", async () => {
+      const step = { users: [LEAD], required: 1 };
+      expect(await forStep(LEAD, step, "o1", REQUESTER)).toBe(true);
+      expect(await forStep(COVER, step, "o1", REQUESTER)).toBe(true);
+      expect(
+        await forStep(COVER, { users: [REQUESTER] }, "o1", REQUESTER),
+      ).toBe(false);
+      expect(await forStep(COVER, null, "o1", REQUESTER)).toBe(false);
+    });
+
+    it("refuses a step cover outside its window, tenant or resources, or for the requester's delegator", async () => {
+      const step = { users: [LEAD] };
+      expect(await forStep(SECOND, step, "o1", REQUESTER)).toBe(false);
+      expect(await forStep(COVER, step, "o2", REQUESTER)).toBe(false);
+      expect(await forStep(COVER, step, "o1", REQUESTER, "invoice")).toBe(
+        false,
+      );
+      expect(await forStep(COVER, step, "o1", LEAD)).toBe(false);
+      expect(await forStep(COVER, { manager: true }, "o1", REQUESTER)).toBe(
+        false,
+      );
+    });
+
     it("keeps the two-argument check free of covers", async () => {
       const target = started();
       const ok = await target.as(

@@ -35,7 +35,7 @@ describe("rls.approvals.delegations", () => {
     expect(sql).toContain("and d.delegator::text <> p_requester");
     expect(sql).toContain("and d.permissions is null");
     expect(sql).toContain(
-      'revoke execute on function "permdock".permdock_cover_approves(uuid, jsonb, text) from public, anon, authenticated;',
+      'revoke execute on function "permdock".permdock_cover_approves(uuid, jsonb, text, text) from public, anon, authenticated;',
     );
   });
 
@@ -93,5 +93,43 @@ describe("rls.approvals.delegations", () => {
     expect(() =>
       approvalsSql(ctx, JSON.parse('{"delegations":"yes"}'), false),
     ).toThrow("rls.approvals.delegations must be a boolean");
+  });
+
+  it("writes covers and the approver check without a store", () => {
+    const sql = approvalsSql(ctx, { store: false, delegations: true }, false);
+    expect(sql).not.toContain("approval_requests");
+    expect(sql).not.toContain("permdock_approval_open");
+    expect(sql).toContain(
+      'create table if not exists "permdock".approval_delegations',
+    );
+    expect(sql).toContain(
+      'create or replace function "permdock".permdock_is_approver(p_approvers jsonb, p_tenant text default null)',
+    );
+    expect(approvalsSql(ctx, { store: false }, false)).toContain(
+      "permdock_is_approver(p_approvers jsonb, p_tenant text default null)",
+    );
+    expect(() =>
+      approvalsSql(ctx, { store: false, table: "approvals" }, false),
+    ).toThrow("rls.approvals.table configures the approval store");
+    expect(() =>
+      approvalsSql(ctx, JSON.parse('{"store":"no"}'), false),
+    ).toThrow("rls.approvals.store must be a boolean");
+  });
+
+  it("writes the five-argument check over the current step with covers or managers", () => {
+    const signature =
+      'create or replace function "permdock".permdock_is_approver(p_approvers jsonb, p_tenant text, p_requester text, p_resource text, p_request_approvers jsonb)';
+    const sql = approvalsSql(ctx, { delegations: true }, false);
+    expect(sql).toContain(signature);
+    expect(sql).toContain(
+      "jsonb_array_elements_text(p_request_approvers -> 'users')",
+    );
+    expect(sql).toContain(
+      "case when p_request_approvers -> 'manager' = 'true'::jsonb then '[{\"kind\": \"manager\"}]'::jsonb",
+    );
+    expect(sql).toContain(
+      'grant execute on function "permdock".permdock_is_approver(jsonb, text, text, text, jsonb) to authenticated;',
+    );
+    expect(approvalsSql(ctx, true, false)).not.toContain("p_request_approvers");
   });
 });

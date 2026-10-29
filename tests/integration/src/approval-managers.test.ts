@@ -18,6 +18,7 @@ const CHIEF = "00000000-0000-4000-8000-000000000004";
 const LOOP_A = "00000000-0000-4000-8000-000000000005";
 const LOOP_B = "00000000-0000-4000-8000-000000000006";
 const COVER = "00000000-0000-4000-8000-000000000007";
+const LATE = "00000000-0000-4000-8000-000000000008";
 
 const SETUP = `
 create role authenticated nologin;
@@ -75,8 +76,10 @@ describe("approval managers", () => {
     }
     await started().admin.query(
       `insert into permdock.approval_delegations (id, delegator, delegate, tenant, resources, "from", "until") values
-      ('lead-away', $1, $2, 'o1', null, now() - interval '1 day', now() + interval '1 day')`,
-      [LEAD, COVER],
+      ('lead-away', $1, $2, 'o1', null, now() - interval '1 day', now() + interval '1 day'),
+      ('lead-was-away', $1, $3, 'o1', null, now() - interval '3 days', now() - interval '1 day'),
+      ('lead-away-elsewhere', $1, $3, 'o2', null, now() - interval '1 day', now() + interval '1 day')`,
+      [LEAD, COVER, LATE],
     );
   }, 120_000);
 
@@ -154,11 +157,44 @@ describe("approval managers", () => {
     ).toBe(true);
   });
 
-  it("keeps covers for user approvers and never lets one pass a manager leaf", async () => {
+  it("lets a cover pass a manager leaf only for the delegator's reports, in its window and tenant", async () => {
     expect(await isApprover(COVER, { kind: "user", id: LEAD }, REQUESTER)).toBe(
       true,
     );
-    expect(await isApprover(COVER, direct, REQUESTER)).toBe(false);
+    expect(await isApprover(COVER, direct, REQUESTER)).toBe(true);
+    expect(await isApprover(COVER, direct, LOOP_A)).toBe(false);
+    expect(await isApprover(COVER, direct, LEAD)).toBe(false);
+    expect(await isApprover(LATE, direct, REQUESTER)).toBe(false);
+  });
+
+  async function forStep(
+    user: string,
+    step: unknown,
+    requester: string,
+  ): Promise<boolean> {
+    const target = started();
+    return target.as(
+      {
+        role: "authenticated",
+        settings: { "request.jwt.claims": JSON.stringify(member(user)) },
+      },
+      async () => {
+        const result = await target.tester.query<{ readonly ok: boolean }>(
+          "select permdock.permdock_is_approver(null, 'o1', $2, 'job', $1::jsonb) as ok",
+          [JSON.stringify(step), requester],
+        );
+        return result.rows[0]?.ok === true;
+      },
+    );
+  }
+
+  it("checks covers against a block step's manager and users", async () => {
+    expect(await forStep(COVER, { manager: true }, REQUESTER)).toBe(true);
+    expect(await forStep(COVER, { users: [LEAD] }, LOOP_A)).toBe(true);
+    expect(await forStep(COVER, { users: [HEAD] }, REQUESTER)).toBe(false);
+    expect(await forStep(COVER, { manager: true }, LOOP_A)).toBe(false);
+    expect(await forStep(LATE, { manager: true }, REQUESTER)).toBe(false);
+    expect(await forStep(LEAD, { manager: true }, REQUESTER)).toBe(true);
   });
 
   it("keeps the manager walk away from client roles", async () => {
