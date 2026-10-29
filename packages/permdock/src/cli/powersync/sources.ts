@@ -57,9 +57,7 @@ export function streamOf(
  * `through` it references. A composite key (`organization_id` and `user_id`)
  * matches only when every pair does.
  */
-export function pairsOf(
-  through: RoleThrough,
-): readonly (readonly [string, string])[] {
+function pairsOf(through: RoleThrough): readonly (readonly [string, string])[] {
   const pairs = Object.entries(through.on);
   if (pairs.length === 0) {
     throw new TypeError(
@@ -89,7 +87,7 @@ export function joinOn(
  * `id` column, so a composite reference selects its key columns and the value
  * column with `id` built from them; a single reference keeps `*`.
  */
-export function throughSelect(
+function throughSelect(
   through: RoleThrough,
   keys: string,
   dialect: StreamDialect,

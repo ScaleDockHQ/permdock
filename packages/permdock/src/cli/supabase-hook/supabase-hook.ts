@@ -91,10 +91,7 @@ file differs.
  * `hook`, when `rls.split` lists `hook`, or, without `rls.split`, when that
  * file carries the hook marker.
  */
-export function splitHookOut(
-  cwd: string,
-  config: PermDockConfig,
-): string | undefined {
+function splitHookOut(cwd: string, config: PermDockConfig): string | undefined {
   const out = config.rls?.out;
   if (out?.includes("{part}") !== true) {
     return undefined;
