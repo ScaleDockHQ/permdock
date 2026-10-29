@@ -33,7 +33,13 @@ describe("rls.approvals.managers", () => {
     expect(sql).toContain("where c.depth < least(p_levels, 8)");
     expect(sql).toContain('and not (m."manager_id"::text = any (c.path))');
     expect(sql).toContain("and p_levels between 1 and 8");
-    expect(sql).toMatch(/and \(select .+\)::text <> p_requester/u);
+    expect(sql).toContain("and p_user <> p_requester");
+    expect(sql).toMatch(
+      /select "permdock"\.permdock_manages_for\(\(select .+\)::text, p_requester, p_levels\)/u,
+    );
+    expect(sql).toContain(
+      'revoke execute on function "permdock".permdock_manages_for(text, text, integer) from public, anon, authenticated;',
+    );
     expect(sql).toContain(
       'revoke execute on function "permdock".permdock_manages(text, integer) from public, anon, authenticated;',
     );
@@ -57,6 +63,16 @@ describe("rls.approvals.managers", () => {
     );
     expect(approvalsSql(ctx, { delegations: true }, false)).not.toContain(
       "permdock_approves",
+    );
+  });
+
+  it("lets a cover pass on a manager leaf when the delegator manages the requester", () => {
+    const sql = approvalsSql(ctx, { managers, delegations: true }, false);
+    expect(sql).toContain(
+      'return coalesce("permdock".permdock_manages_for(p_delegator::text, p_requester, v_levels::text::integer), false);',
+    );
+    expect(approvalsSql(ctx, { delegations: true }, false)).not.toContain(
+      "permdock_manages_for",
     );
   });
 

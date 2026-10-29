@@ -10,7 +10,9 @@ export type {
   BlockApprovalPolicySourceOptions,
   BlockApprovalRecord,
   BlockApprovalsClient,
+  BlockApprovalStoreOptions,
   BlockApprovalTenantPolicy,
+  BlockDecide,
 } from "./approvals-block.ts";
 export type {
   AccessReviewApplierOptions,

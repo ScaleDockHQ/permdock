@@ -464,6 +464,7 @@ export type RlsApprovalManagers = {
  * app's own columns on each write, converted to their types.
  */
 export type RlsApprovalsAdopt = {
+  readonly store?: boolean;
   /**
    * `table` or `schema.table`. Without it the store is the generated
    * `approval_requests`.

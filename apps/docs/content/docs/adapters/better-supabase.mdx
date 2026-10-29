@@ -729,6 +729,7 @@ authorizationProvider({
 - For tool calls and support sessions, `isApprover` replaces the module's default approver. Leave `'support-session'` out and only the service role can approve a support session.
 - `permdock_is_approver` checks `user()` by id and `holder()` through `permitted_<root scope>_ids_by_permission` in the tenant, and `manager()` with [`rls.approvals.managers`](#manager-approvers). A role, relation or other grantee approver matches nobody in SQL and is a problem, as is `manager()` without `rls.approvals.managers`. So is a `holder()` key the catalog lacks, and a tenant scope that is not the root scope.
 - With [`rls.approvals.delegations`](#approval-delegation), the manifest lists the four-argument `permdock_is_approver`, and each branch also passes better-supabase's `{requester}` and the kind's resource, so a delegate inside an active cover matches.
+- `requestApprovers: true` also passes better-supabase's `{approvers}`, the approvers of the request's current step, to the five-argument `permdock_is_approver`, and a kind `approvers` does not name calls it too ([covers for policy approvers](#covers-for-policy-approvers)). It needs `rls.approvals.delegations` or `rls.approvals.managers`, and a better-supabase release that fills `{approvers}`.
 
 ### Manager approvers
 
@@ -755,7 +756,7 @@ export default {
 - It also writes the four-argument `permdock_is_approver`, which decides `manager` leaves through `permdock_manages` and every other leaf as the two-argument form does. A `levels` outside 1 to 8 matches nobody. The requester never manages themselves into an approval, even when the table names them as their own manager.
 - The table must exist before the generated SQL runs, because `permdock_manages` is a SQL function whose body Postgres checks on create. Its rows are read as the function owner, so the table needs no policy for `authenticated`.
 - Rerun `permdock supabase inspect --out`. `authorizationProvider` sees `permdock_manages` in the manifest and passes `{requester}`.
-- With `delegations: true` as well, the caller's own check includes `manager()`; a cover passes `user()` and `holder()` leaves only, never a `manager()` leaf.
+- With `delegations: true` as well, the caller's own check includes `manager()`, and a cover passes a `manager()` leaf when the delegator manages the requester within `levels`, through `permdock_manages_for(p_user, p_requester, p_levels)`. No client role may execute it.
 - `authorizationHooks({ approvers })` decides `manager()` in process through the `relations` source in its `options` or its `permdockFor`, reading `manager` on the requester's `user` record as [`manager()`](/docs/security/approvals) does.
 
 `tests/integration/src/approval-managers.test.ts` runs the walk on Postgres: levels, a cycle, the requester, lists and covers.
@@ -781,10 +782,24 @@ export default {
 - Rerun `permdock supabase inspect --out`. `authorizationProvider` sees the four-argument helper in the manifest and passes `{requester}`, which better-supabase fills for the approvals block, AI tool calls and support sessions.
 - `tableApprovalDelegationSource({ query })` from `permdock/supabase` reads the same rows as `approvalDelegations` for [`approvalsHandler`](/docs/adapters/approvals#delegation), so an approval decided in process and one decided in SQL follow the same covers.
 - A cover is checked against the delegator's own rights, one hop: the delegator's covers are never followed. A `holder()` approver through a cover needs `rls.authorize: "database"`, where `permdock_has_permission_for` and `permitted_<scope>_ids_by_permission_for` exist. In `jwt` mode only `user()` approvers pass through a cover. A cover with `permissions` set matches only in `approvalsHandler`, because the SQL check has the request kind but not its permission.
+- `rls.approvals: { store: false, delegations: true }` writes the covers and the approver checks without PermDock's approval store, for an app whose requests live in the approvals block. `store: false` with `table` or another option of an adopted store is refused.
+
+### Covers for policy approvers
+
+The approvals block names approvers in its policies: `users`, `manager: true` and a `permission`. `permdock rls generate` with `delegations` or `managers` also writes a five-argument `permdock_is_approver(p_approvers, p_tenant, p_requester, p_resource, p_request_approvers)`, where `p_request_approvers` is the block step's `approvers` object. It runs the four-argument check over `p_approvers` and the step's `users`, `manager` and `permission`, so a cover reaches a user a policy names and the requester's manager, whether or not they hold a permission:
+
+```ts title="better-supabase.config.ts"
+authorizationProvider({ manifest, catalog, requestApprovers: true });
+```
+
+- Every kind, including one `approvers` does not name, calls the five-argument form with `split_part({kind}, '.', 1)` as the resource. A step's `role` and `team` match nobody through a cover.
+- The cover rules stay: an active window, the cover's `tenant` and `resources`, a delegate who is a member of the tenant, and a delegator who is not the requester. A cover outside its window or scope grants nothing.
+- Set `requestApprovers` only with a better-supabase release whose `isApprover` fills `{approvers}`. Without it the template has a placeholder better-supabase does not know.
+- `authorizationHooks({ approvers })` checks the kinds' approvers only. better-supabase requires both checks when the hook is set, so leave it out for kinds whose covers come from policy approvers.
 
 ### The approvals block
 
-`blockApprovalStore(approvals)` and `blockApprovalPolicySource(approvals)` take `createApprovals(...)` from `better-supabase/blocks/approvals`, so PermDock asks for approval where the block holds the requests and the tenant policies:
+`blockApprovalStore(approvals, options?)` and `blockApprovalPolicySource(approvals, options?)` take `createApprovals(...)` from `better-supabase/blocks/approvals`, so PermDock asks for approval where the block holds the requests and the tenant and platform policies:
 
 ```ts
 import { approvalPolicies } from "permdock";
@@ -793,15 +808,26 @@ import {
   blockApprovalStore,
 } from "permdock/better-supabase";
 
-const store = blockApprovalStore(approvals);
+const store = blockApprovalStore(approvals, { tenantless: true });
 const permdock = await getPermDock(policy, user, {
-  approvalPolicies: approvalPolicies(blockApprovalPolicySource(approvals)),
+  approvalPolicies: approvalPolicies(
+    blockApprovalPolicySource(approvals, {
+      platform: true,
+      permissions,
+      effects: { "money-movement": ["spend"] },
+    }),
+  ),
 });
 ```
 
-- `blockApprovalStore` files each `approval-required` decision as a block `request` on the resource, under the permission's action, with the PermDock request in `payload.permdock` and its `fingerprint`. Approvers decide through the block's `approve` and `reject`, so `resolve` throws and `approvalsHandler` is not used with it. `consume` calls the block's `consume`, which refuses a second use and another fingerprint. `get`, `getById` and `list` read the block's latest 2,000 requests in its tenant; a `cancelled` request reads as `rejected`.
-- `blockApprovalPolicySource` reads `listPolicies` and maps each enabled tenant policy to an `ApprovalPolicy` on `<subjectType>.<action>`. Steps become sequential stages whose approvers are any of the step's `permission` (`holder`), `role` (held in `roleScope`, default `tenant`), `users` and `manager` (`manager()`); `required` is the stage quorum. `confirm` with `selfApproval` becomes `mode: "confirm"`, and `expiresIn` in seconds, minutes, hours, days or weeks becomes `ttl`.
-- `conditions` are not read, so a conditional block policy requires approval on every call for its action: stricter, never looser. A step with only a `team` approver, another interval format or a failed read makes the source fail, and every call an allow would grant denies.
+- `blockApprovalStore` files each `approval-required` decision as a block `request` on the resource, under the permission's action, with the PermDock request in `payload.permdock` and its `fingerprint`. `consume` calls the block's `consume`, which refuses a second use and another fingerprint. `get`, `getById` and `list` read the block's latest 2,000 requests in its tenant; a `cancelled` request reads as `rejected`.
+- With `tenantless: true`, a request whose subject has no tenant is filed with `request(..., { tenantless: true })`, and `get`, `getById` and `list` also read the latest 2,000 requests without one. The resource's type must be in the block's `options.tenantless`.
+- `resolve` checks the verdict against the PermDock request as any store does, then calls the block's `approve` or `reject` with `decidedBy` set to the approver, so `approvalsHandler` works over a service-role client and the block records the user who decided. The block still refuses the requester. A client without `approve` and `reject` makes `resolve` throw.
+- `blockApprovalPolicySource` reads `listPolicies`, and with `platform: true` also `listPolicies({ platform: true })`, and maps each enabled policy to `ApprovalPolicy` entries. A tenant policy keeps its tenant; a platform policy has none, so it applies in every tenant and to requests without one. The client must be allowed to list platform policies, or the source fails.
+- Steps become sequential stages whose approvers are any of the step's `permission` (`holder`), `role` (held in `roleScope`, default `tenant`), `users` and `manager` (`manager()`); `required` is the stage quorum, and `required: "all"` over `users` alone needs each of them. `confirm` with `selfApproval` becomes `mode: "confirm"`, and `expiresIn` in seconds, minutes, hours, days or weeks becomes `ttl`.
+- `conditions` become a `check` over the call's input, or the row without one. Each rule reads one top-level field; `is`, `is_not`, `eq`, `neq`, `is_any_of` and `is_none_of` match a number and its text alike, as the block does, and `gt`, `gte`, `lt`, `lte`, `between`, `not_between`, `contains`, `not_contains`, `has_any_of`, `has_all_of`, `has_none_of`, `empty` and `not_empty` map to their PermDock forms. A tree with a nested path, a date or another operator is dropped, so the policy applies to every call: stricter, never looser.
+- A policy on `<subjectType>.<action>` keys that permission and ignores its `effect`, so it applies to every call of the permission. A `*` subject type or action with an effect PermDock knows (a PermDock operation effect, or one `effects` maps) matches every operation call with that effect. Without one, `*` expands over `permissions`: a key matches by the part before and after its last dot. A `*` policy that can do neither makes the source fail.
+- A step with only a `team` approver, `required: "all"` over anything but `users`, another interval format or a failed read makes the source fail, and every call an allow would grant denies.
 - `approvalFingerprint` from `permdock` returns the same string as the block's, so a fingerprint computed on either side matches.
 
 better-supabase's approvals block keeps its own `delegate_approval` for apps without an authorization provider. With PermDock installed, don't configure covers there too: the provider's `isApprover` decides who may approve, so a cover written only in better-supabase is not consulted.

@@ -65,6 +65,7 @@ export type AuthorizationProviderOptions = {
    * `permdock_is_approver` from `rls.approvals`.
    */
   readonly approvers?: ProviderApprovers;
+  readonly requestApprovers?: boolean;
   /**
    * better-supabase's `blocks.permissions.activeTenant`. When the token hook
    * reads the active tenant from another place than better-supabase writes it,
@@ -723,9 +724,10 @@ export function authorizationProvider(
       ? options.approvers
       : { "ai-tool": holder(approver), ...options.approvers };
   let isApprover: string | undefined;
-  if (approvers !== undefined) {
+  if (approvers !== undefined || options.requestApprovers === true) {
     const built = isApproverTemplate({
-      approvers,
+      approvers: approvers ?? {},
+      requestApprovers: options.requestApprovers === true,
       schema: rls.schema,
       listed: helpers.has(IS_APPROVER),
       covers: /\bp_requester\b/u.test(helpers.get(IS_APPROVER)?.args ?? ""),

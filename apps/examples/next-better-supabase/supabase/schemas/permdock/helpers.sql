@@ -2959,7 +2959,7 @@ create policy "approval_delegations_delete" on "permdock".approval_delegations
   using (delegator::text = (select "permdock".permdock_user_id())::text and (select "permdock".permdock_actor_may_write()));
 
 -- approval delegations: whether a delegator's own rights match approvers.by; only permdock_is_approver calls it
-create or replace function "permdock".permdock_cover_approves(p_delegator uuid, p_approvers jsonb, p_tenant text)
+create or replace function "permdock".permdock_cover_approves(p_delegator uuid, p_approvers jsonb, p_tenant text, p_requester text)
 returns boolean
 language plpgsql
 stable
@@ -2977,7 +2977,7 @@ begin
       return false;
     end if;
     for v_item in select value from jsonb_array_elements(p_approvers) loop
-      if not "permdock".permdock_cover_approves(p_delegator, v_item, p_tenant) then
+      if not "permdock".permdock_cover_approves(p_delegator, v_item, p_tenant, p_requester) then
         return false;
       end if;
     end loop;
@@ -3003,7 +3003,7 @@ begin
         return false;
       end if;
       for v_item in select value from jsonb_array_elements(p_approvers -> 'of') loop
-        if "permdock".permdock_cover_approves(p_delegator, v_item, p_tenant) then
+        if "permdock".permdock_cover_approves(p_delegator, v_item, p_tenant, p_requester) then
           return true;
         end if;
       end loop;
@@ -3013,7 +3013,7 @@ begin
   end case;
 end;
 $$;
-revoke execute on function "permdock".permdock_cover_approves(uuid, jsonb, text) from public, anon, authenticated;
+revoke execute on function "permdock".permdock_cover_approves(uuid, jsonb, text, text) from public, anon, authenticated;
 
 -- approvers with covers: the signed-in user, or a delegate inside an active cover of a delegator who is not the requester
 create or replace function "permdock".permdock_is_approver(p_approvers jsonb, p_tenant text, p_requester text, p_resource text)
@@ -3048,7 +3048,7 @@ begin
       and d.permissions is null
       and (d.resources is null or p_resource = any (d.resources))
   loop
-    if "permdock".permdock_cover_approves(v_delegator, p_approvers, p_tenant) then
+    if "permdock".permdock_cover_approves(v_delegator, p_approvers, p_tenant, p_requester) then
       return true;
     end if;
   end loop;
@@ -3057,6 +3057,41 @@ end;
 $$;
 revoke execute on function "permdock".permdock_is_approver(jsonb, text, text, text) from public, anon;
 grant execute on function "permdock".permdock_is_approver(jsonb, text, text, text) to authenticated;
+
+-- approvers with the current step: the four-argument check over p_approvers and the step's users, manager and permission
+create or replace function "permdock".permdock_is_approver(p_approvers jsonb, p_tenant text, p_requester text, p_resource text, p_request_approvers jsonb)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select "permdock".permdock_is_approver(
+    jsonb_build_object(
+      'kind', 'any-of',
+      'of',
+      case when p_approvers is null then '[]'::jsonb else jsonb_build_array(p_approvers) end
+        || case
+          when jsonb_typeof(p_request_approvers -> 'users') = 'array' then coalesce(
+            (select jsonb_agg(jsonb_build_object('kind', 'user', 'id', u.id)) from jsonb_array_elements_text(p_request_approvers -> 'users') u(id)),
+            '[]'::jsonb
+          )
+          else '[]'::jsonb
+        end
+        || case when p_request_approvers -> 'manager' = 'true'::jsonb then '[{"kind": "manager"}]'::jsonb else '[]'::jsonb end
+        || case
+          when jsonb_typeof(p_request_approvers -> 'permission') = 'string'
+            then jsonb_build_array(jsonb_build_object('kind', 'permission', 'permission', p_request_approvers ->> 'permission'))
+          else '[]'::jsonb
+        end
+    ),
+    p_tenant,
+    p_requester,
+    p_resource
+  )
+$$;
+revoke execute on function "permdock".permdock_is_approver(jsonb, text, text, text, jsonb) from public, anon;
+grant execute on function "permdock".permdock_is_approver(jsonb, text, text, text, jsonb) to authenticated;
 
 -- organization: holder counts (min / max) over the membership sources, checked at commit
 create or replace function "permdock".permdock_holders_organization()
