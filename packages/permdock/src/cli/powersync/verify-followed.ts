@@ -99,7 +99,7 @@ export async function verifyFollowedRow(input: {
     );
   }
   const holds = await input.synced(
-    { ...stream, resource: fixture.table, id: "id" },
+    { ...stream, resource: fixture.table, id: "id", claims: [] },
     fixture,
   );
   if (holds === undefined) {

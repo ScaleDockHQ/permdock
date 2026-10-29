@@ -119,6 +119,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD081` | `instanceCache` is created inside a function body, so no instance is reused                                                                                                                                                                                                                                | warning         |
 | `PD082` | `supabase.hook` keeps `permdock_authz_version` while better-supabase's `blocks.sessions.authzVersions` keeps a second version table                                                                                                                                                                        | warning         |
 | `PD083` | `postgrestSources` is used and the migrations define `subject_for` but no `authz_version_for`, so every version read fails                                                                                                                                                                                 | error           |
+| `PD084` | A synced PowerSync stream reads a token claim, so a role or tenant change needs a session refresh and a reconnect                                                                                                                                                                                          | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -529,6 +530,16 @@ error PD083  src/lib/permdock.ts uses postgrestSources and supabase/migrations/0
 ```
 
 Run `permdock supabase hook generate`, with `supabase.hook.api` for the PostgREST wrappers, and apply the migration it writes ([PostgREST sources](/docs/adapters/supabase-hook)). `--only supabase` runs PD083.
+
+### PD084: PowerSync stream reads a token claim
+
+PowerSync keeps the claims a connection started with. A stream whose query reads `auth.parameter(...)`, from a grant condition on `principal.claims.<name>`, keeps syncing by the old claims after a role or tenant change until the app refreshes the Supabase session and reconnects:
+
+```txt
+warning PD084  stream job reads token claims region, team_ids: PowerSync keeps the claims it connected with, so refresh the session and reconnect after a role or tenant change (/docs/adapters/react-native#role-and-tenant-changes)
+```
+
+Pass [`nativeRefresh`](/docs/adapters/react-native#role-and-tenant-changes) to `refreshOn`: on each `authz:<uid>` message it refreshes the session, reconnects PowerSync and refreshes the snapshot. `permdock powersync generate` and `verify` print the same line, and the generated file names the streams in its header. `--only powersync` (or `--only react-native`) runs PD084.
 
 ## Side effects
 

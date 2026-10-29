@@ -144,6 +144,7 @@ alter publication powersync add table permdock.custom_role_includes, permdock.cu
 - `permdock_<global roles table>`: the user's global-role rows from `rls.roles`, else `permdock.user_roles` in `database` mode.
 - `permdock_<roles table>`: the rows of each `through` roles table that one of the user's membership or global-role rows references.
 - With `rls.customRoles` in `database` mode, the custom role tables, limited to rows with no tenant and rows of the user's tenants: the root scope's `rls.memberships` table, else each of its membership sources.
+- `permdock_authz_version`: the user's own version row (`user_id = auth.user_id()`) when `supabase.hook` keeps `permdock_authz_version` (`hook.version` is not `false`). [`nativeRefresh`](/docs/adapters/react-native#role-and-tenant-changes) compares it with the token's `authz_ver`.
 
 A table outside `public` is read as `"<schema>"."<table>" AS <name>`, since Sync Streams need the schema in double quotes. The device table is `<name>`: the table's own name, or `<schema>_<table>` when another synced table has the same name. Every synced table outside `public` must be in the `powersync` publication; `generate` prints the `alter publication` statement and writes it as a comment at the top of the file.
 
@@ -230,6 +231,8 @@ With a database, `verify` also reads `pg_publication_tables`: each synced table 
 `verify` passes a fixture's `subject.claims` to `auth.parameter()` and fails when a `permdock_*` stream syncs another user's rows. It compares the `powersync.manifest` file as JSON.
 
 [`permdock doctor`](/docs/cli/doctor) reports PD058 when `sync-config.yaml` or the manifest is stale or missing, when the config does not compile to Sync Streams, and for each membership source of a synced scope that has no stream form.
+
+A stream that reads a token claim keeps the claims its connection started with, so a role or tenant change reaches it only after the app refreshes the session and reconnects. `generate` and `verify` print a `PD084` line per such stream, the generated file names them in its header, and [`permdock doctor`](/docs/cli/doctor#pd084-powersync-stream-reads-a-token-claim) reports PD084. [`nativeRefresh`](/docs/adapters/react-native#role-and-tenant-changes) does the refresh and the reconnect.
 
 ## Side effects
 

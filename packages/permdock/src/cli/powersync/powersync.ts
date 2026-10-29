@@ -27,6 +27,7 @@ import { requirePolicy } from "../project/load.ts";
 import { canFixture } from "../rls/verify.ts";
 import { collectGrants } from "../sql/grants.ts";
 import { quoteIdent } from "../sql/quote.ts";
+import { claimWarnings } from "./claims.ts";
 import { localRows } from "./rows.ts";
 import { POSTGRES, powersyncPlan } from "./streams.ts";
 import { verifyFollowedRow } from "./verify-followed.ts";
@@ -84,6 +85,8 @@ export function powersyncFiles(
 ): {
   readonly files: readonly PowerSyncFile[];
   readonly warnings: readonly string[];
+  /** PD084: one line per stream that reads a token claim. */
+  readonly claims: readonly string[];
   readonly publication?: string;
 } {
   const plan = powersyncPlan(policy, config);
@@ -108,6 +111,7 @@ export function powersyncFiles(
   return {
     files,
     warnings: plan.warnings,
+    claims: claimWarnings(plan.streams),
     ...(plan.publication === undefined
       ? {}
       : { publication: plan.publication }),
@@ -416,6 +420,7 @@ export async function runPowerSync(input: {
               `add the tables outside public to the powersync publication: ${compiled.publication}`,
             ]),
         ...warnings,
+        ...compiled.claims.map((line) => `PD084: ${line}`),
       ].join("\n"),
     };
   }
@@ -423,7 +428,10 @@ export async function runPowerSync(input: {
     (file) =>
       `${file.path} ${file.missing ? "is missing" : "differs from the policy"}: run permdock powersync generate`,
   );
-  const notes: string[] = [...warnings];
+  const notes: string[] = [
+    ...warnings,
+    ...compiled.claims.map((line) => `PD084: ${line}`),
+  ];
   if (input.db !== undefined) {
     try {
       const fixturesPath =
