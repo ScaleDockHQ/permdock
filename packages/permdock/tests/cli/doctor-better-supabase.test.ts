@@ -1,3 +1,4 @@
+import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
@@ -100,6 +101,39 @@ describe("doctor better-supabase", () => {
       );
     },
   );
+
+  it("finds the config in a parent directory up to the workspace root", async () => {
+    const root = policyProject(
+      {},
+      {
+        "pnpm-workspace.yaml": "packages:\n  - apps/*\n",
+        "better-supabase.config.mjs":
+          'export default { auth: { tenant: { claim: "org_id" } } };',
+        "apps/web/permdock.config.mjs": `export default ${JSON.stringify(hookConfig())};`,
+      },
+    );
+    const loaded = await loadConfig(path.join(root, "apps/web"));
+    expect(loaded.supabase?.hook?.activeFrom).toBe("app_metadata.org_id");
+    expect(loaded.supabase?.hook?.broadcast).toMatchObject({
+      topic: "better_supabase:authz",
+    });
+  });
+
+  it("prefers the nearest config and stops at the workspace root", async () => {
+    const root = policyProject(
+      {},
+      {
+        "pnpm-workspace.yaml": "packages:\n  - apps/*\n",
+        "better-supabase.config.mjs":
+          'export default { claims: { tenant: "root_claim" } };',
+        "apps/web/better-supabase.config.mjs":
+          'export default { claims: { tenant: "app_claim" } };',
+        "apps/web/permdock.config.mjs": `export default ${JSON.stringify(hookConfig())};`,
+      },
+    );
+    const loaded = await loadConfig(path.join(root, "apps/web"));
+    expect(loaded.supabase?.hook?.activeFrom).toBe("app_metadata.app_claim");
+  });
 
   it("preserves an explicit source in detected projects", async () => {
     const cwd = policyProject(

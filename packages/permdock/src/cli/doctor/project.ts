@@ -8,52 +8,9 @@ import { rel, sqlFiles } from "../files.ts";
 import { FIELD_VIEWS } from "../rls/fields.ts";
 import { MIGRATION_DIRS } from "../shared/constants.ts";
 import { nodeFiles, readJson } from "../shared/doctor-files.ts";
+import { workspaceDirs } from "../shared/workspace.ts";
 import { membershipColumns, tableKey } from "../sql/deciding-columns.ts";
 import { sqlStatements } from "../sql/statements.ts";
-
-/**
- * The directories from `cwd` up to the workspace root: the first one with a
- * `pnpm-workspace.yaml`, a `package.json` that declares `workspaces`, or a
- * `.git`. Skills are often installed once at a monorepo's root.
- */
-function workspaceDirs(files: DoctorFiles, cwd: string): readonly string[] {
-  const dirs: string[] = [];
-  let dir = resolve(cwd);
-  for (;;) {
-    dirs.push(dir);
-    if (isWorkspaceRoot(files, dir)) {
-      return dirs;
-    }
-    const parent = dirname(dir);
-    if (parent === dir) {
-      return [resolve(cwd)];
-    }
-    dir = parent;
-  }
-}
-
-function isWorkspaceRoot(files: DoctorFiles, dir: string): boolean {
-  if (
-    files.exists(join(dir, "pnpm-workspace.yaml")) ||
-    files.exists(join(dir, ".git"))
-  ) {
-    return true;
-  }
-  const manifest = join(dir, "package.json");
-  if (!files.exists(manifest)) {
-    return false;
-  }
-  try {
-    const parsed: unknown = readJson(files, manifest);
-    return (
-      parsed !== null &&
-      typeof parsed === "object" &&
-      Object.hasOwn(parsed, "workspaces")
-    );
-  } catch {
-    return false;
-  }
-}
 
 /**
  * Whether `dir` holds a skills lock: PermDock's own, or the `skills` CLI's
