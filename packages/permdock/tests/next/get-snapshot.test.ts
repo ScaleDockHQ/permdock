@@ -40,6 +40,37 @@ describe("get snapshot", () => {
       expect(cacheTag).toHaveBeenCalledWith("permdock:anon");
     });
 
+    it("warns once in development about a lifetime under 300 s", async () => {
+      vi.stubEnv("NODE_ENV", "development");
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const { getSnapshot } = createPermDock(policy, {
+          subject: () => memberUser,
+        });
+        await getSnapshot({ cacheLife: { max: 60 } });
+        await getSnapshot({ cacheLife: { max: 60 } });
+        expect(cacheLife).toHaveBeenCalledWith({ stale: 60 });
+        expect(warn).toHaveBeenCalledOnce();
+        expect(warn.mock.calls[0]?.[0]).toContain("caches for 60 s");
+      } finally {
+        warn.mockRestore();
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it("stays quiet about a short lifetime outside development", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const { getSnapshot } = createPermDock(policy, {
+          subject: () => memberUser,
+        });
+        await getSnapshot({ cacheLife: { max: 60 } });
+        expect(warn).not.toHaveBeenCalled();
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
     it("names the missing cache scope", async () => {
       vi.mocked(cacheLife).mockImplementation(() => {
         throw new Error(

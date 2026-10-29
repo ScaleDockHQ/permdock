@@ -8,6 +8,7 @@ import type {
 import type { Membership, Principal, Subject } from "../../src/core/subject.ts";
 
 import { buildInstance } from "../../src/core/build-instance.ts";
+import { cachedInstance } from "../../src/core/cached-instance.ts";
 import {
   allow,
   claimsFirst,
@@ -279,6 +280,135 @@ describe("the instance cache", () => {
     instances.evict("u1");
     await cachedEntitlements.entitlementsFor({ id: "u1" }, {});
     expect(entitlementReads).toBe(3);
+  });
+
+  it("keeps assignable, global and shared roles, without the memo", async () => {
+    const instances = instanceCache();
+    const reads: string[] = [];
+    const roles: CustomRoleSource = {
+      name: "db",
+      rolesFor: () => [],
+      assignable(tenant) {
+        reads.push(`assignable:${tenant}`);
+        return ["editor"];
+      },
+      globalRoles() {
+        reads.push("global");
+        return [];
+      },
+      sharedRoles() {
+        reads.push("shared");
+        return [];
+      },
+    };
+    const cached = instances.customRoles(roles);
+    expect(cached.name).toBe("db");
+    const memo = <T>(_key: string, read: () => T): T => read();
+    for (let round = 0; round < 2; round += 1) {
+      expect(await cached.assignable?.("T")).toStrictEqual(["editor"]);
+      await cached.globalRoles?.({ held: [], memo });
+      await cached.sharedRoles?.();
+      await cached.rolesFor("T");
+    }
+    expect(reads).toStrictEqual(["assignable:T", "global", "shared"]);
+    expect(instances.customRoles({ rolesFor: () => [] })).not.toHaveProperty(
+      "assignable",
+    );
+  });
+
+  it("drops the least recently used entry past maxEntries", async () => {
+    const instances = instanceCache({ maxEntries: 1 });
+    const key = {
+      principal: "u1",
+      version: 1,
+      intent: "read",
+      parts: {},
+    } as const;
+    let builds = 0;
+    const build = async () => {
+      builds += 1;
+      return builds;
+    };
+    await instances.instance(key, [], build);
+    await instances.instance({ ...key, principal: "u2" }, [], build);
+    expect(instances.stats().size).toBe(1);
+    expect(await instances.instance(key, [], build)).toBe(3);
+  });
+
+  it("stores nothing with maxAgeMs 0", async () => {
+    const instances = instanceCache({ maxAgeMs: 0 });
+    let reads = 0;
+    const cached = instances.entitlements({
+      entitlementsFor: () => {
+        reads += 1;
+        return [];
+      },
+    });
+    await cached.entitlementsFor({ id: "u1" }, { tenant: "T" });
+    await cached.entitlementsFor({ id: "u1" }, { tenant: "T" });
+    expect(reads).toBe(2);
+    expect(instances.stats().size).toBe(0);
+  });
+});
+
+describe(cachedInstance, () => {
+  const known = { version: { known: 1 } };
+
+  it("builds uncached when the subject is unknown or its mapper throws", async () => {
+    const instances = instanceCache();
+    const throwing = {
+      subject: (): Principal | null => {
+        throw new Error("bad user");
+      },
+    };
+    const create = () => ({});
+    await cachedInstance(policy, null, known, instances, create);
+    await cachedInstance(
+      policy,
+      { principal: null, context: {} },
+      known,
+      instances,
+      create,
+    );
+    await cachedInstance(throwing, { id: "u1" }, known, instances, create);
+    expect(instances.stats().size).toBe(0);
+  });
+
+  it("reads the version from the membership source, and builds uncached when it throws", async () => {
+    const instances = instanceCache();
+    const db = database(3);
+    const create = () => ({});
+    const first = await cachedInstance(
+      policy,
+      { id: "u1", roles: [] },
+      { memberships: db.source },
+      instances,
+      create,
+    );
+    const second = await cachedInstance(
+      policy,
+      { id: "u1", roles: [] },
+      { memberships: db.source },
+      instances,
+      create,
+    );
+    expect(second).toBe(first);
+    expect(db.state.versionReads).toBe(2);
+
+    const failing: MembershipSource = {
+      membershipsFor: () => [],
+      version: () => {
+        throw new Error("down");
+      },
+    };
+    await cachedInstance(
+      policy,
+      { id: "u2", roles: [] },
+      { memberships: failing },
+      instances,
+      create,
+    );
+    expect(instances.stats().size).toBe(1);
   });
 });
 

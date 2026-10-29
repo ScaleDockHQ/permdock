@@ -171,6 +171,19 @@ describe("permdock/next", () => {
     expect(JSON.parse(JSON.stringify(states))).toStrictEqual(states);
   });
 
+  it("denies every getPermissions entry when the instance cannot be built", async () => {
+    const { getPermissions } = createPermDock(policy, {
+      subject: () => memberUser,
+      wrap: () => {
+        throw new Error("wrap failed");
+      },
+    });
+    const states = await getPermissions({
+      edit: [permissions.post.update, ownPost],
+    });
+    expect(states.edit.allowed).toBe(false);
+  });
+
   it("runs the factory onDenied after a per-call handler is omitted", async () => {
     const { seen, getPermDock } = recordingMember(
       (decision) => decision.outcome,

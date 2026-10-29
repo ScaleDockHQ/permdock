@@ -253,6 +253,22 @@ describe(blockApprovalPolicySource, () => {
     );
   });
 
+  it("throws when listPolicies fails or answers no list", async () => {
+    const failing = blockApprovalPolicySource({
+      listPolicies: async () => ({ ok: false, error: new Error("down") }),
+    });
+    await expect(
+      failing.approvalPoliciesFor({ tenants: ["o1"] }),
+    ).rejects.toThrow("the approvals block's listPolicies failed");
+    const empty = blockApprovalPolicySource({
+      // SAFETY: a block that breaks its contract; the source must reject it.
+      listPolicies: async () => ({ ok: true, data: null as never }),
+    });
+    await expect(
+      empty.approvalPoliciesFor({ tenants: ["o1"] }),
+    ).rejects.toThrow("listPolicies answered no list");
+  });
+
   it("lets the principal confirm only when the policy is confirm with selfApproval", async () => {
     const one = { ...twoSteps, steps: [], expiresIn: undefined };
     const [confirm] = await policySource([

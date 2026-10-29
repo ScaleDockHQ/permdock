@@ -47,6 +47,26 @@ export function shared() {
     expect(pd081([src(text)])).toStrictEqual([]);
   });
 
+  it("skip type imports and other calls, and follow a quoted import name", () => {
+    const text = `import { type instanceCache as cacheType, "instanceCache" as quoted } from "permdock";
+import * as pd from "permdock";
+
+export function handler(other: Other) {
+  let count = 0;
+  count += 1;
+  cacheType();
+  other.instanceCache();
+  pd.helper();
+  pd["instanceCache"]();
+  return quoted();
+}
+`;
+    expect(pd081([src(text)])).toMatchObject([{ code: "PD081" }]);
+    expect(
+      pd081([src("export function f() { return instanceCache(); }")]),
+    ).toStrictEqual([]);
+  });
+
   it("follow a namespace import into an arrow function", () => {
     const text = `import * as pd from "permdock";
 
