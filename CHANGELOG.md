@@ -2,6 +2,18 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.18.0 (2026-10-29)
+
+- Out-of-office covers now reach the approvers of a request's current step. `permdock rls generate` with `rls.approvals.delegations` or `rls.approvals.managers` writes a five-argument `permdock_is_approver(p_approvers, p_tenant, p_requester, p_resource, p_request_approvers)` that also checks the approvals block step's `users`, `manager` and `permission`, and `authorizationProvider({ requestApprovers: true })` passes better-supabase's `{approvers}` to it for every kind. Set it only with a better-supabase release that fills `{approvers}`. With `managers` and `delegations`, a cover now passes a `manager()` leaf when the delegator manages the requester; before, a cover never passed one. `rls.approvals: { store: false, delegations: true }` writes the covers and approver checks without the approval store.
+
+  `blockApprovalStore(approvals, { tenantless })` files a request without a tenant tenantless and reads those requests, and `resolve` now calls the block's `approve` or `reject` with `decidedBy` instead of throwing, so `approvalsHandler` works over the block. `blockApprovalPolicySource(approvals, { platform, permissions, effects })` reads platform policies, turns `conditions` into a `check` (before, a conditional policy applied to every call), matches `*` subject types and actions through an effect or the permission tree (before, such a policy applied to nothing), and takes `required: "all"` over users. `BlockApprovalTenantPolicy.organizationId` is `string | null` and a step's `required` is `number | "all"`, as in better-supabase 0.41.
+
+  Rerun `permdock rls generate` and migrate: `permdock_cover_approves` takes the requester as a fourth argument, and `permdock_manages` calls the new `permdock_manages_for`.
+
+- React Native and servers outside Next.js now load permissions once per authorization version. `nativeRefresh` from `permdock/react-native` refreshes the session, PowerSync and the snapshot when the user's `authz:<uid>` channel fires, and `permdock powersync generate` streams the user's `authz_ver` row so `powerSyncSource` sets `snapshot.authzVersion`. `powersync generate` and `verify` report streams that read token claims as PD084, and a claims-change fixture checks those streams' row sets.
+
+  `authorizer` and `authorizationHooks` take `permdockFor`, and `permdockFor(...).sources(versions)` lets oRPC, MCP and `permdock/next` share its instances. `createPermDock({ version })` and `getPermDock({ version })` in `permdock/next` take a known authorization version for read-intent instances. `instanceCache()` caches a custom-role factory's answers per factory and principal. `permdock doctor` reports a `claimsFirst` created per call as PD080. `rls.approvals.managers` makes `manager()` approvers match in SQL and in `authorizationHooks`.
+
 ## 0.17.0 (2026-10-29)
 
 - Breaking: `permdock/better-supabase` now needs `better-supabase` 0.39.0 or later; run `better-supabase codemod 0.32` for its auth renames (`requireTenant`, `auth.tenant`, `bsb.claims()`, `bsb.evictSession()`). `authorizer` reads `context.intent`, validates `source: "input"` rows and `change` pairs, and resumes `PermDock-Approval` tokens with the new `store` option; `blockMembershipSource` takes `tables` from `blockTables(config)`; the token hook names `memberships_truncated` as its one `truncatedClaim`.
