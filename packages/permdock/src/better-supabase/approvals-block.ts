@@ -72,7 +72,7 @@ export type BlockApprovalTenantPolicy = {
 
 /**
  * The calls `blockApprovalStore` makes on `createApprovals(...)` from
- * `better-supabase/blocks/approvals` (0.35 or later).
+ * `better-supabase/blocks/approvals`.
  */
 export type BlockApprovalsClient<I extends BlockInstant> = {
   readonly request: (
