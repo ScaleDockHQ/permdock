@@ -1,13 +1,13 @@
 import { setTimeout } from "node:timers/promises";
 import { Client } from "pg";
-import { GenericContainer, Wait } from "testcontainers";
+import { GenericContainer, PullPolicy, Wait } from "testcontainers";
 
 /**
  * The Postgres image the Supabase CLI runs; supautils and pg_jsonschema ship in
  * it. From GHCR: anonymous public.ecr.aws pulls hit its rate and data limits on
  * GitHub runners.
  */
-const SUPABASE_POSTGRES_IMAGE = "ghcr.io/supabase/postgres:17.11.0.006";
+const SUPABASE_POSTGRES_IMAGE = "ghcr.io/supabase/postgres:17.11.0.002";
 
 const PASSWORD = "postgres";
 
@@ -73,6 +73,7 @@ async function connect(
 /** One throwaway `supabase/postgres` per suite. */
 export async function startSupabasePostgres(): Promise<SupabasePostgres> {
   const container = await new GenericContainer(SUPABASE_POSTGRES_IMAGE)
+    .withPullPolicy(PullPolicy.alwaysPull())
     .withEnvironment({ POSTGRES_PASSWORD: PASSWORD })
     .withExposedPorts(5432)
     .withWaitStrategy(
