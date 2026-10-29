@@ -226,6 +226,18 @@ For a non-resource table in `powersync.tables`, use `{ subject, table, row, expe
 
 `verify` checks the union of the table's own-user rule and its `follow` rules. A follow rule must match every configured `match` field; its parent must exist in the database and pass the resource's configured action in `can()`, with the parent's organization active. Missing parents and mismatched kinds grant no access. The expected outcome must agree with that access, and the table stream must sync exactly the granted fixture rows. Unknown or omitted table streams and rows without `id` fail verification. Parent checks have the same no-relation-source limit as resource checks. Fixture validation lives in the CLI loader; there is no separate fixture JSON Schema under the package's `schemas/` directory.
 
+For a role, tenant or claim change, use `{ subject, after, stream?, expected: "changed" }`. `after` holds the subject's new `tenant`, `roles`, `memberships` or `claims`. `verify` runs each stream that reads a changed claim, or only `stream`, once with the claims before and once with the claims after. It fails when the two row sets are equal, and when a row synced after the change is one the policy denies the changed subject. A fixture where no stream reads a changed claim fails too.
+
+```json
+[
+  {
+    "subject": { "id": "u1", "claims": { "team_ids": ["A"] } },
+    "after": { "claims": { "team_ids": ["B"] } },
+    "expected": "changed"
+  }
+]
+```
+
 With a database, `verify` also reads `pg_publication_tables`: each synced table outside `public` that the `powersync` publication leaves out is a PD058 mismatch. A database with no `powersync` publication is a note.
 
 `verify` passes a fixture's `subject.claims` to `auth.parameter()` and fails when a `permdock_*` stream syncs another user's rows. It compares the `powersync.manifest` file as JSON.
