@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { RlsCustomRoleTable } from "../../src/cli/types.ts";
@@ -122,5 +125,45 @@ describe("PD072", () => {
     expect(
       pd072({ cwd: ".", config: config({ ...table, table: "x" }) }),
     ).toStrictEqual([]);
+  });
+
+  describe("with the guard in the project's SQL", () => {
+    const dirs: string[] = [];
+    afterEach(() => {
+      for (const dir of dirs.splice(0)) {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+
+    function projectWith(file: string, sql: string): string {
+      const cwd = mkdtempSync(join(tmpdir(), "pd072-"));
+      dirs.push(cwd);
+      mkdirSync(join(cwd, file, ".."), { recursive: true });
+      writeFileSync(join(cwd, file), sql);
+      return cwd;
+    }
+
+    it("stays silent when a declarative schema file creates the trigger", () => {
+      const cwd = projectWith(
+        "supabase/schemas/helpers.sql",
+        'create trigger "permdock_custom_role_name_guard" before insert on app_roles for each row execute function g();',
+      );
+      expect(pd072({ cwd, config: config(table) })).toStrictEqual([]);
+    });
+
+    it("stays silent when a migration creates the trigger", () => {
+      const cwd = projectWith(
+        "supabase/migrations/20260101000000_guard.sql",
+        "create or replace trigger permdock_custom_role_name_guard before insert on app_roles for each row execute function g();",
+      );
+      expect(pd072({ cwd, config: config(table) })).toStrictEqual([]);
+    });
+
+    it("warns when the SQL files hold no such trigger", () => {
+      const cwd = projectWith("supabase/schemas/other.sql", "select 1;");
+      expect(
+        pd072({ cwd, config: config(table) }).map((item) => item.code),
+      ).toStrictEqual(["PD072"]);
+    });
   });
 });

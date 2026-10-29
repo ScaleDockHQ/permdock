@@ -43,6 +43,7 @@ export const options = () => ({
       {
         code: "PD080",
         severity: "warning",
+        target: "src/lib/access.ts:6",
         message:
           "src/lib/access.ts:6 creates claimsFirst() inside a function, so every call passes a new memberships source, which the instance cache compares by identity, and no instance is reused",
         fix: "create claimsFirst(...) once at module scope, or use permdockFor(...).sources(versions), and pass the same object to every adapter",
@@ -95,5 +96,37 @@ export function handler(other: Other) {
 export const handler = () => pd.instanceCache();
 `;
     expect(pd081([src(text)])).toHaveLength(1);
+  });
+});
+
+describe("PD080 exemptions", () => {
+  const head = `import { claimsFirst } from "permdock";\n`;
+
+  it("accepts ||=, an if (!x) guard and a cache helper named in doctor.cacheHelpers", () => {
+    const text = `${head}
+let a;
+let b;
+export function one() {
+  a ||= claimsFirst(source, {});
+  if (!b) b = claimsFirst(source, {});
+  if (!b) {
+    b = claimsFirst(source, {});
+  }
+  return once(() => claimsFirst(source, {}));
+}
+`;
+    expect(pd080([src(text)])).toHaveLength(1);
+    expect(pd080([src(text)], ["once"])).toStrictEqual([]);
+  });
+
+  it("still warns on an if (!x) guard that assigns another name", () => {
+    const text = `${head}
+let a;
+let b;
+export function one() {
+  if (!a) b = claimsFirst(source, {});
+}
+`;
+    expect(pd080([src(text)])).toHaveLength(1);
   });
 });

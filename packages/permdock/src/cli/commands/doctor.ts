@@ -22,6 +22,12 @@ export const doctor: Leaf = defineLeaf({
         ];
       },
     },
+    ignore: {
+      type: "string",
+      repeatable: true,
+      description: "Finding ids to accept for this run, as code:target",
+      valueHint: "id",
+    },
     fix: {
       type: "boolean",
       description: "Apply safe fixes: install skills, regenerate the catalog",
@@ -44,6 +50,7 @@ export const doctor: Leaf = defineLeaf({
       cwd: ctx.cwd,
       config: ctx.config,
       only: flags.only,
+      ignore: flags.ignore,
       json: ctx.json,
       fix,
       strict: flags["fail-on"] === "warning",

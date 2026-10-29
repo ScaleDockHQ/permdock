@@ -10,6 +10,18 @@ export type DoctorFinding = {
   readonly severity: DoctorSeverity;
   readonly message: string;
   readonly fix: string;
+  /**
+   * What the finding is about, stable across runs: a permission key, a
+   * `file:line`, a table. `runDoctor` derives it from the message when a check
+   * sets none; the finding's id is `<code>:<target>`.
+   */
+  readonly target?: string;
+};
+
+/** A finding as `runDoctor` reports it. */
+export type ReportedFinding = DoctorFinding & {
+  readonly target: string;
+  readonly id: string;
 };
 
 export type DoctorSource = { readonly file: string; readonly text: string };

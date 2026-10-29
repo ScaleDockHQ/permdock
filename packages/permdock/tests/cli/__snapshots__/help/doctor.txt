@@ -4,6 +4,7 @@ Usage  permdock doctor [flags]
 
 Flags
   --only <code>              Check codes or groups to run (repeatable)
+  --ignore <id>              Finding ids to accept for this run, as code:target (repeatable)
   --fix                      Apply safe fixes: install skills, regenerate the catalog
   --fail-on <error|warning>  Lowest finding severity that exits 1 (default error)
 

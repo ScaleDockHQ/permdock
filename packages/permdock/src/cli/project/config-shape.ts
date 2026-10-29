@@ -122,6 +122,9 @@ const DOCTOR = {
   claims: STRING,
   srcPath: ARRAY,
   sharedTables: ARRAY,
+  cacheHelpers: ARRAY,
+  ignore: ARRAY,
+  waivers: ARRAY,
 } as const satisfies Record<keyof DoctorConfig, KeyShape>;
 
 const GEN = {
