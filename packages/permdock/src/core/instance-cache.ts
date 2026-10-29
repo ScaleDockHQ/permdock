@@ -53,13 +53,30 @@ export type InstanceCache = {
     owners: readonly unknown[],
     build: () => Promise<T>,
   ) => Promise<T>;
-  /** `source` with every answer kept for `maxAgeMs`, keyed by its arguments. */
-  customRoles: (source: CustomRoleSource) => CustomRoleSource;
+  /**
+   * `source` with every answer kept for `maxAgeMs`, keyed by its arguments.
+   * With `of`, the answers are keyed by `of.owner` and `of.principal` instead
+   * of `source`, so the new source a `CustomRoleSourceFactory` returns per
+   * subject reuses them, and `evict(of.principal)` drops them.
+   */
+  customRoles: (
+    source: CustomRoleSource,
+    of?: CustomRoleOwner,
+  ) => CustomRoleSource;
   /** `source` with every answer kept for `maxAgeMs`, per principal and tenant. */
   entitlements: (source: EntitlementSource) => EntitlementSource;
-  /** Drops `principal`'s instances and entitlements. */
+  /**
+   * Drops `principal`'s instances, entitlements and the answers of custom-role
+   * sources cached for it.
+   */
   evict: (principal: string) => void;
   stats: () => InstanceCacheStats;
+};
+
+/** The factory and principal a per-subject custom-role source belongs to. */
+export type CustomRoleOwner = {
+  readonly owner: object;
+  readonly principal: string;
 };
 
 export type InstanceCacheOptions = {
@@ -215,15 +232,22 @@ export function instanceCache(
       ])}`;
       return Promise.resolve(through(id, key.principal, build));
     },
-    customRoles(source: CustomRoleSource): CustomRoleSource {
-      const sourceId = ownerId(source);
+    customRoles(
+      source: CustomRoleSource,
+      of?: CustomRoleOwner,
+    ): CustomRoleSource {
+      const sourceId =
+        of === undefined
+          ? String(ownerId(source))
+          : `${String(ownerId(of.owner))}:${canonicalJson(of.principal)}`;
+      const principal = of?.principal;
       const { globalRoles, sharedRoles, assignable } = source;
       return Object.freeze({
         ...(source.name === undefined ? {} : { name: source.name }),
         rolesFor: (tenant, context) =>
           through(
             roleKey(`${sourceId}:rolesFor`, [tenant, withoutMemo(context)]),
-            undefined,
+            principal,
             () => source.rolesFor(tenant, context),
           ),
         ...(assignable === undefined
@@ -232,7 +256,7 @@ export function instanceCache(
               assignable: (tenant: string) =>
                 through(
                   roleKey(`${sourceId}:assignable`, [tenant]),
-                  undefined,
+                  principal,
                   () => assignable.call(source, tenant),
                 ),
             }),
@@ -242,7 +266,7 @@ export function instanceCache(
               globalRoles: (context?: Parameters<typeof globalRoles>[0]) =>
                 through(
                   roleKey(`${sourceId}:globalRoles`, [withoutMemo(context)]),
-                  undefined,
+                  principal,
                   () => globalRoles.call(source, context),
                 ),
             }),
@@ -252,7 +276,7 @@ export function instanceCache(
               sharedRoles: (context?: Parameters<typeof sharedRoles>[0]) =>
                 through(
                   roleKey(`${sourceId}:sharedRoles`, [withoutMemo(context)]),
-                  undefined,
+                  principal,
                   () => sharedRoles.call(source, context),
                 ),
             }),

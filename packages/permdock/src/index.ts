@@ -191,6 +191,7 @@ export type {
 } from "./core/interfaces.ts";
 export { instanceCache } from "./core/instance-cache.ts";
 export type {
+  CustomRoleOwner,
   InstanceCache,
   InstanceCacheKey,
   InstanceCacheOptions,

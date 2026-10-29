@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import type { CustomRoleSourceFactory } from "../../src/core/interfaces.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
+import { buildInstance } from "../../src/core/build-instance.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
+import { instanceCache } from "../../src/index.ts";
 import { createPermDock as createServerPermDock } from "../../src/server/index.ts";
 import { customRoles, permissions, policy } from "../fixtures/named-scopes.ts";
 
@@ -91,5 +93,90 @@ describe("customRoles as a factory of the subject", () => {
     const permdock = getPermDockSync(policy, staff("u1"));
     const derived = await permdock.derive({ customRoles: perUser });
     expect(derived.can(permissions.asset.read, asset)).toBe(true);
+  });
+});
+
+describe("a custom-role factory behind an instance cache", () => {
+  function counted() {
+    const reads: string[] = [];
+    const factory: CustomRoleSourceFactory = (subject) => {
+      const source = perUser(subject);
+      return source === undefined
+        ? undefined
+        : {
+            rolesFor: (tenant, context) => {
+              reads.push(subject.principal?.id ?? "");
+              return source.rolesFor(tenant, context);
+            },
+          };
+    };
+    return { reads, factory };
+  }
+
+  async function check(
+    sources: Parameters<typeof buildInstance>[0]["sources"],
+    id: string,
+    version: number,
+  ): Promise<boolean> {
+    const { permdock } = await buildInstance({
+      policy,
+      user: staff(id),
+      sources,
+      scope: { version: { known: version } },
+    });
+    return permdock.can(permissions.asset.read, asset);
+  }
+
+  it("keeps a subject's answers and never shares them with another subject", async () => {
+    const { reads, factory } = counted();
+    const sources = { customRoles: factory, instances: instanceCache() };
+    expect(await check(sources, "u1", 1)).toBe(true);
+    expect(await check(sources, "u1", 2)).toBe(true);
+    expect(reads).toStrictEqual(["u1"]);
+    expect(await check(sources, "u2", 1)).toBe(false);
+    expect(reads).toStrictEqual(["u1", "u2"]);
+  });
+
+  it("drops a subject's answers on evict and after maxAgeMs", async () => {
+    const { reads, factory } = counted();
+    const time = { ms: 0 };
+    const instances = instanceCache({ maxAgeMs: 1000, now: () => time.ms });
+    const sources = { customRoles: factory, instances };
+    await check(sources, "u1", 1);
+    instances.evict("u1");
+    await check(sources, "u1", 2);
+    expect(reads).toStrictEqual(["u1", "u1"]);
+    time.ms = 2000;
+    await check(sources, "u1", 3);
+    expect(reads).toStrictEqual(["u1", "u1", "u1"]);
+  });
+
+  it("reports a throwing factory each time and caches nothing for it", async () => {
+    let calls = 0;
+    const sources = {
+      customRoles: (): undefined => {
+        calls += 1;
+        throw new Error("no store");
+      },
+      instances: instanceCache(),
+    };
+    for (const version of [1, 2]) {
+      const { permdock } = await buildInstance({
+        policy,
+        user: staff("u1"),
+        sources,
+        scope: { version: { known: version } },
+      });
+      const events: unknown[] = [];
+      permdock.on("auth", (event) => {
+        events.push(event);
+      });
+      expect(permdock.can(permissions.asset.read, asset)).toBe(false);
+      expect(events).toContainEqual({
+        reason: "source-threw",
+        source: "customRoles",
+      });
+    }
+    expect(calls).toBe(2);
   });
 });
