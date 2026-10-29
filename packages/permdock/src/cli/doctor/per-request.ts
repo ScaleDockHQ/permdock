@@ -44,9 +44,14 @@ type Call = { readonly call: CallExpression; readonly factory: string };
 /**
  * The calls to `postgrestSources`, `memoryVersionCache` and `instanceCache`
  * imported from PermDock that sit inside a function body, except the right side
- * of a `??=`, which builds the object once.
+ * of a `??=` or `||=`, the assignment guarded by `if (!x)` on the same name,
+ * and the arguments of a call to a cache helper named in `doctor.cacheHelpers`:
+ * each builds the object once.
  */
-function callsInFunctions(source: DoctorSource): readonly Call[] {
+function callsInFunctions(
+  source: DoctorSource,
+  cacheHelpers: ReadonlySet<string>,
+): readonly Call[] {
   const { program } = parseSync(source.file, source.text);
   const names = new Map<string, string>();
   const namespaces = new Set<string>();
@@ -91,15 +96,54 @@ function callsInFunctions(source: DoctorSource): readonly Call[] {
     ArrowFunctionExpression: enter,
     "ArrowFunctionExpression:exit": exit,
     AssignmentExpression(node) {
-      if (node.operator === "??=") {
+      if (node.operator === "??=" || node.operator === "||=") {
         lazy.push({ start: node.right.start, end: node.right.end });
       }
     },
+    IfStatement(node) {
+      const { test } = node;
+      if (
+        test.type !== "UnaryExpression" ||
+        test.operator !== "!" ||
+        test.argument.type !== "Identifier"
+      ) {
+        return;
+      }
+      const guarded = test.argument.name;
+      const body =
+        node.consequent.type === "BlockStatement"
+          ? node.consequent.body
+          : [node.consequent];
+      for (const statement of body) {
+        if (
+          statement.type === "ExpressionStatement" &&
+          statement.expression.type === "AssignmentExpression" &&
+          statement.expression.operator === "=" &&
+          statement.expression.left.type === "Identifier" &&
+          statement.expression.left.name === guarded
+        ) {
+          const { right } = statement.expression;
+          lazy.push({ start: right.start, end: right.end });
+        }
+      }
+    },
     CallExpression(node) {
+      const { callee } = node;
+      const helper =
+        callee.type === "Identifier"
+          ? callee.name
+          : callee.type === "MemberExpression" &&
+              callee.property.type === "Identifier"
+            ? callee.property.name
+            : undefined;
+      if (helper !== undefined && cacheHelpers.has(helper)) {
+        for (const argument of node.arguments) {
+          lazy.push({ start: argument.start, end: argument.end });
+        }
+      }
       if (depth === 0) {
         return;
       }
-      const { callee } = node;
       let factory: string | undefined;
       if (callee.type === "Identifier") {
         factory = names.get(callee.name);
@@ -126,13 +170,14 @@ function callsInFunctions(source: DoctorSource): readonly Call[] {
 function findings(
   sources: readonly DoctorSource[],
   code: "PD080" | "PD081",
+  cacheHelpers: ReadonlySet<string>,
 ): readonly DoctorFinding[] {
   const out: DoctorFinding[] = [];
   for (const source of sources) {
     if (!source.text.includes("permdock")) {
       continue;
     }
-    for (const { call, factory } of callsInFunctions(source)) {
+    for (const { call, factory } of callsInFunctions(source, cacheHelpers)) {
       if (SHARED_FACTORIES[factory] !== code) {
         continue;
       }
@@ -141,6 +186,7 @@ function findings(
       out.push({
         code,
         severity: "warning",
+        target: `${source.file}:${String(line)}`,
         message: `${source.file}:${String(line)} creates ${factory}() inside a function, ${what}`,
         fix,
       });
@@ -155,13 +201,15 @@ function findings(
  */
 export function pd080(
   sources: readonly DoctorSource[],
+  cacheHelpers: readonly string[] = [],
 ): readonly DoctorFinding[] {
-  return findings(sources, "PD080");
+  return findings(sources, "PD080", new Set(cacheHelpers));
 }
 
 /** PD081: `instanceCache` created per call. */
 export function pd081(
   sources: readonly DoctorSource[],
+  cacheHelpers: readonly string[] = [],
 ): readonly DoctorFinding[] {
-  return findings(sources, "PD081");
+  return findings(sources, "PD081", new Set(cacheHelpers));
 }

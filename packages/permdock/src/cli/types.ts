@@ -971,6 +971,25 @@ export type DoctorConfig = {
    * them.
    */
   readonly sharedTables?: readonly string[];
+  /**
+   * Functions that build an object once and keep it; PD080 and PD081 skip a
+   * factory call passed to one of them, as in `once(() => claimsFirst(...))`.
+   */
+  readonly cacheHelpers?: readonly string[];
+  /**
+   * Findings accepted on purpose, by `<code>:<target>` id (printed after each
+   * finding). An entry that matches no finding is reported as stale.
+   */
+  readonly ignore?: readonly { readonly id: string; readonly reason: string }[];
+  /** PD017 findings accepted for one permission key. */
+  readonly waivers?: readonly DoctorWaiver[];
+};
+
+export type DoctorWaiver = {
+  readonly code: "PD017";
+  /** The permission key the sensitive allow is for. */
+  readonly key: string;
+  readonly reason: string;
 };
 
 export type PermDockConfig = {

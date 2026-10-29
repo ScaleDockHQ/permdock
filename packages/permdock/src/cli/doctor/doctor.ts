@@ -2,8 +2,13 @@ import type { CommandResult } from "../core/result.ts";
 import type { Style } from "../core/style.ts";
 import type { SqlConnect } from "../pg.ts";
 import type { Project } from "../project/project.ts";
-import type { DoctorFinding, DoctorSeverity } from "../shared/doctor-types.ts";
+import type {
+  DoctorFinding,
+  DoctorSeverity,
+  ReportedFinding,
+} from "../shared/doctor-types.ts";
 import type { CliIo, PermDockConfig } from "../types.ts";
+import type { IgnoredFinding } from "./baseline.ts";
 
 import { scopeList } from "../../core/scopes.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
@@ -25,6 +30,7 @@ import {
 } from "../supabase-hook/supabase-hook.ts";
 import { pd039 } from "../supabase-setup.ts";
 import { pd064 } from "./assignments.ts";
+import { applyDoctorIgnores, reported } from "./baseline.ts";
 import { pd078, pd079, pd082 } from "./better-supabase.ts";
 import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd077 } from "./config-names.ts";
@@ -103,7 +109,9 @@ export type DoctorReport = {
   readonly $schema: typeof DOCTOR_REPORT_SCHEMA;
   /** What `--fix` changed before the checks ran; empty without `--fix`. */
   readonly fixed: readonly string[];
-  readonly findings: readonly DoctorFinding[];
+  readonly findings: readonly ReportedFinding[];
+  /** Findings `doctor.ignore` or `--ignore` accepted, with their reasons. */
+  readonly ignored: readonly IgnoredFinding[];
   readonly errors: number;
   readonly warnings: number;
 };
@@ -166,12 +174,14 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   {
     code: "PD080",
     groups: ["caching"],
-    run: (project) => pd080(project.sources()),
+    run: (project) =>
+      pd080(project.sources(), project.config.doctor?.cacheHelpers),
   },
   {
     code: "PD081",
     groups: ["caching"],
-    run: (project) => pd081(project.sources()),
+    run: (project) =>
+      pd081(project.sources(), project.config.doctor?.cacheHelpers),
   },
   {
     code: "PD082",
@@ -391,6 +401,7 @@ export async function runDoctor(input: {
   readonly cwd: string;
   readonly config: PermDockConfig;
   readonly only: readonly string[];
+  readonly ignore?: readonly string[];
   readonly json: boolean;
   readonly fix: boolean;
   readonly strict: boolean;
@@ -436,15 +447,20 @@ export async function runDoctor(input: {
     wanted.has(check.code.toLowerCase()) ||
     check.groups.some((group) => wanted.has(group));
 
-  const findings: DoctorFinding[] = [];
+  const collected: DoctorFinding[] = [];
   for (const check of DOCTOR_CHECKS) {
     if (check.when !== undefined && !check.when(input.config)) {
       continue;
     }
     if (selected(check)) {
-      findings.push(...(await check.run(project)));
+      collected.push(...(await check.run(project)));
     }
   }
+  const { findings, ignored } = applyDoctorIgnores(
+    collected.map(reported),
+    input.config,
+    input.ignore ?? [],
+  );
 
   const errors = findings.filter((item) => item.severity === "error").length;
   const warnings = findings.filter(
@@ -454,6 +470,7 @@ export async function runDoctor(input: {
     $schema: DOCTOR_REPORT_SCHEMA,
     fixed,
     findings,
+    ignored,
     errors,
     warnings,
   };
@@ -482,6 +499,7 @@ async function pd059(project: Project): Promise<readonly DoctorFinding[]> {
     {
       code: "PD059",
       severity: "error",
+      target: load.path,
       message: `policy module ${load.path} did not load (${load.message}), so doctor skipped every check that reads the policy`,
       fix: "fix the module so it exports policy from definePolicy, or point policy in permdock.config.ts at the module that does",
     },
@@ -497,6 +515,7 @@ async function pd060(project: Project): Promise<readonly DoctorFinding[]> {
   return (collected.scan?.unparsed ?? []).map((item) => ({
     code: "PD060",
     severity: "warning" as const,
+    target: `${item.file}:${String(item.line)}`,
     message: `${item.file}:${String(item.line)} does not parse (${item.message}), so the catalog and usage report miss the permissions it references`,
     fix: "fix the syntax error, or exclude the file from collect.srcPath",
   }));
@@ -537,7 +556,12 @@ function formatDoctor(report: DoctorReport, color: boolean): string {
     lines.push(
       `  ${mark} ${style.paint("bold", finding.code)}  ${finding.message}`,
     );
-    lines.push(`           ${style.paint("dim", `fix: ${finding.fix}`)}`);
+    lines.push(
+      `           ${style.paint("dim", `fix: ${finding.fix} [${finding.id}]`)}`,
+    );
+  }
+  for (const item of report.ignored) {
+    lines.push(`  ${style.paint("dim", `ignored ${item.id}: ${item.reason}`)}`);
   }
   if (report.findings.length === 0) {
     lines.push("  no findings");

@@ -1,9 +1,38 @@
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 
+import { isRecord } from "../../core/compact.ts";
 import { resolveScope, scopeList } from "../../core/scopes.ts";
+import { configError } from "../core/errors.ts";
 import { DEFAULT_SENSITIVE_ACTIONS } from "../shared/constants.ts";
 import { supabaseConfig } from "../supabase-config.ts";
 import { membershipsFixture, policyOf } from "./inputs.ts";
+
+type Waiver = { readonly key: string; readonly reason: string };
+
+/** `doctor.waivers`, checked; PD017 is the only code a waiver names. */
+function waiversOf(input: DoctorInput): readonly Waiver[] {
+  const entries: unknown = input.config.doctor?.waivers ?? [];
+  if (!Array.isArray(entries)) {
+    throw configError(
+      "PermDock CLI: doctor.waivers must be a list of { code, key, reason }",
+    );
+  }
+  return entries.map((entry: unknown, index) => {
+    if (
+      !isRecord(entry) ||
+      entry["code"] !== "PD017" ||
+      typeof entry["key"] !== "string" ||
+      entry["key"] === "" ||
+      typeof entry["reason"] !== "string" ||
+      entry["reason"].trim() === ""
+    ) {
+      throw configError(
+        `PermDock CLI: doctor.waivers[${String(index)}] needs code "PD017", a permission key and a non-empty reason`,
+      );
+    }
+    return { key: entry["key"], reason: entry["reason"] };
+  });
+}
 
 export async function pd017(
   input: DoctorInput,
@@ -23,6 +52,9 @@ export async function pd017(
       .filter((grant) => grant.effect === "deny")
       .map((grant) => grant.permission.key),
   );
+  const waivers = waiversOf(input);
+  const waived = new Set(waivers.map((waiver) => waiver.key));
+  const matched = new Set<string>();
   const findings: DoctorFinding[] = [];
   const seen = new Set<string>();
   for (const grant of policy.grants) {
@@ -42,12 +74,28 @@ export async function pd017(
       continue;
     }
     seen.add(grant.permission.key);
+    if (waived.has(grant.permission.key)) {
+      matched.add(grant.permission.key);
+      continue;
+    }
     findings.push({
       code: "PD017",
       severity: "warning",
+      target: grant.permission.key,
       message: `${grant.permission.key} is a sensitive verb without approval`,
-      fix: "add approval: { by } on the allow, or a deny on the same leaf",
+      fix: "add approval: { by } on the allow, or a deny on the same leaf, or waive it in doctor.waivers with a reason",
     });
+  }
+  for (const waiver of waivers) {
+    if (!matched.has(waiver.key)) {
+      findings.push({
+        code: "PD017",
+        severity: "warning",
+        target: `waiver:${waiver.key}`,
+        message: `doctor.waivers entry for ${waiver.key} matches no sensitive allow without approval`,
+        fix: "remove the entry from doctor.waivers",
+      });
+    }
   }
   return findings;
 }
@@ -76,6 +124,7 @@ export async function pd024(
     findings.push({
       code: "PD024",
       severity: "warning",
+      target: `${grant.permission.key}${grant.role === null ? "" : `@${grant.role}`}`,
       message: `${grant.permission.key}${grant.role === null ? "" : ` (role ${grant.role})`} sets approval.mode: 'confirm', so the requester can approve their own request`,
       fix: "remove mode: 'confirm' unless the requester confirming their own call (an agent asking its user) is the intent",
     });
