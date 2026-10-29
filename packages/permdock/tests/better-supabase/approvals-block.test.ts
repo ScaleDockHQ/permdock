@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ApprovalRequest } from "../../src/approvals/types.ts";
 import type {
+  BlockApprovalPolicySourceOptions,
   BlockApprovalRecord,
   BlockApprovalsClient,
   BlockApprovalTenantPolicy,
@@ -37,16 +38,45 @@ const ok = <T>(data: T) =>
 /** An in-memory approvals block: the calls the bridge makes and a decide hook. */
 function fakeBlock(): BlockApprovalsClient<Instant> & {
   readonly records: BlockApprovalRecord<Instant>[];
+  readonly tenantless: Set<string>;
+  readonly deciders: (string | undefined)[];
   decide: (id: string, status: "approved" | "rejected") => void;
 } {
   const records: BlockApprovalRecord<Instant>[] = [];
+  const tenantless = new Set<string>();
+  const deciders: (string | undefined)[] = [];
+  const decided =
+    (status: "approved" | "rejected") =>
+    (id: string, _comment?: string, options?: { decidedBy?: string }) => {
+      deciders.push(options?.decidedBy);
+      const index = records.findIndex((record) => record.id === id);
+      const record = records[index];
+      if (record === undefined) {
+        throw new Error(`no block record ${id}`);
+      }
+      const next = {
+        ...record,
+        status,
+        decidedAt: instant("2026-10-28T09:45:00.000Z"),
+      };
+      records[index] = next;
+      return ok(next);
+    };
   let clock = Date.parse("2026-10-28T09:00:00Z");
   return {
     records,
+    tenantless,
+    deciders,
+    approve: decided("approved"),
+    reject: decided("rejected"),
     request(subject, input) {
       clock += 1000;
+      const id = `b${records.length + 1}`;
+      if (input.tenantless === true) {
+        tenantless.add(id);
+      }
       const record: BlockApprovalRecord<Instant> = {
-        id: `b${records.length + 1}`,
+        id,
         status: "pending",
         payload: input.payload ?? {},
         ...(input.fingerprint === undefined
@@ -59,12 +89,15 @@ function fakeBlock(): BlockApprovalsClient<Instant> & {
       return ok(record);
     },
     list(options = {}) {
+      const scoped = records.filter(
+        (record) => tenantless.has(record.id) === (options.tenantless === true),
+      );
       const start =
         options.before === undefined
           ? 0
-          : records.findIndex((record) => record.createdAt === options.before) +
+          : scoped.findIndex((record) => record.createdAt === options.before) +
             1;
-      return ok(records.slice(start, start + (options.pageSize ?? 50)));
+      return ok(scoped.slice(start, start + (options.pageSize ?? 50)));
     },
     consume(id, fingerprint) {
       const index = records.findIndex((record) => record.id === id);
@@ -104,6 +137,15 @@ function fakeBlock(): BlockApprovalsClient<Instant> & {
 const alice: Subject = {
   principal: {
     id: "alice",
+    tenant: "o1",
+    memberships: [{ scope: "tenant", id: "o1", roles: ["member"] }],
+  },
+  context: {},
+};
+
+const bob: Subject = {
+  principal: {
+    id: "bob",
     tenant: "o1",
     memberships: [{ scope: "tenant", id: "o1", roles: ["member"] }],
   },
@@ -189,20 +231,104 @@ describe(blockApprovalStore, () => {
     ).toHaveLength(1);
   });
 
-  it("refuses resolve, since approvers decide through the block", () => {
-    const store = blockApprovalStore(fakeBlock());
-    expect(() => store.resolve("t", { status: "approved", by: alice })).toThrow(
-      /decided through the approvals block/u,
-    );
+  it("decides through the block's approve and reject as the approver", async () => {
+    const block = fakeBlock();
+    const store = blockApprovalStore(block);
+    const request = await openRequest(store);
+    await expect(
+      store.resolve(request.token, { status: "approved", by: alice }),
+    ).rejects.toThrow(/principal/u);
+    expect(block.deciders).toStrictEqual([]);
+    const approved = await store.resolve(request.token, {
+      status: "approved",
+      by: bob,
+    });
+    expect(approved).toMatchObject({
+      status: "approved",
+      resolvedAt: "2026-10-28T09:45:00.000Z",
+    });
+    expect(block.deciders).toStrictEqual(["bob"]);
+    await expect(
+      store.resolve("pd1.unknown", { status: "rejected", by: bob }),
+    ).rejects.toThrow("approval was not found");
+    const second = await openRequest(store, approvalFingerprint("second"));
+    expect(
+      await store.resolve(second.token, { status: "rejected", by: bob }),
+    ).toMatchObject({ status: "rejected" });
+    const third = await openRequest(store, approvalFingerprint("third"));
+    const stripped = blockApprovalStore({
+      ...block,
+      approve: (id) => {
+        const record = block.records.find((item) => item.id === id);
+        if (record === undefined) {
+          throw new Error(`no block record ${id}`);
+        }
+        return ok({ ...record, status: "approved" as const, payload: {} });
+      },
+    });
+    await expect(
+      stripped.resolve(third.token, { status: "approved", by: bob }),
+    ).rejects.toThrow("approval was not found");
+  });
+
+  it("files a request without a tenant tenantless and reads it back", async () => {
+    const opened = await openRequest(blockApprovalStore(fakeBlock()));
+    const { membership: _membership, ...rest } = opened;
+    const request: ApprovalRequest = {
+      ...rest,
+      id: "personal",
+      token: "pd1.personal",
+      subject: { ...opened.subject, principal: { id: "alice", roles: [] } },
+    };
+    const block = fakeBlock();
+    await blockApprovalStore(block, { tenantless: true }).create(request);
+    expect(block.tenantless).toStrictEqual(new Set(["b1"]));
+    expect(await blockApprovalStore(block).get(request.token)).toBeNull();
+    const store = blockApprovalStore(block, { tenantless: true });
+    expect(await store.get(request.token)).toMatchObject({ id: request.id });
+    expect((await store.list({})).items).toHaveLength(1);
+    const inTenant = fakeBlock();
+    await openRequest(blockApprovalStore(inTenant, { tenantless: true }));
+    expect(inTenant.tenantless.size).toBe(0);
+  });
+
+  it("refuses resolve without the block's approve and reject", async () => {
+    const { approve: _approve, reject: _reject, ...block } = fakeBlock();
+    const store = blockApprovalStore(block);
+    await expect(
+      store.resolve("t", { status: "approved", by: alice }),
+    ).rejects.toThrow(/approve and reject on the client/u);
   });
 });
 
-function policySource(entries: readonly unknown[]) {
-  return blockApprovalPolicySource({
-    listPolicies: () =>
-      // SAFETY: the tests feed malformed entries on purpose.
-      ok(entries as readonly BlockApprovalTenantPolicy[]),
+function policySource(
+  entries: readonly unknown[],
+  options: BlockApprovalPolicySourceOptions = {},
+  platformEntries: readonly unknown[] = [],
+) {
+  return blockApprovalPolicySource(
+    {
+      listPolicies: (list = {}) =>
+        // SAFETY: the tests feed malformed entries on purpose.
+        ok(
+          (list.platform === true
+            ? platformEntries
+            : entries) as readonly BlockApprovalTenantPolicy[],
+        ),
+    },
+    options,
+  );
+}
+
+async function outcomes(
+  source: ReturnType<typeof policySource>,
+): Promise<readonly string[]> {
+  const permdock = await getPermDock(policy, alice, {
+    approvalPolicies: approvalPolicies(source),
   });
+  return rows.expense.map(
+    (row) => permdock.decide(permissions.expense.read, row).outcome,
+  );
 }
 
 const twoSteps: BlockApprovalTenantPolicy = {
@@ -306,5 +432,279 @@ describe(blockApprovalPolicySource, () => {
       outcome: "denied",
       denials: [{ reason: "approval" }],
     });
+  });
+
+  const amountOver = (operator: string, value: unknown) => ({
+    ...twoSteps,
+    conditions: {
+      id: "root",
+      type: "group",
+      combinator: "and",
+      rules: [{ id: "r", type: "rule", path: ["amount"], operator, value }],
+    },
+  });
+
+  it("applies a policy only where its payload conditions match", async () => {
+    expect(
+      await outcomes(policySource([amountOver("gt", 1000)])),
+    ).toStrictEqual(["approval-required", "granted"]);
+    expect(
+      await outcomes(policySource([amountOver("gt", "1000")])),
+    ).toStrictEqual(["approval-required", "granted"]);
+    expect(
+      await outcomes(policySource([amountOver("between", [0, 100])])),
+    ).toStrictEqual(["granted", "approval-required"]);
+    expect(
+      await outcomes(policySource([amountOver("is_any_of", ["10"])])),
+    ).toStrictEqual(["granted", "approval-required"]);
+  });
+
+  it.each([
+    ["an operator PermDock has no form for", amountOver("matches", "5.*")],
+    ["a date", amountOver("is_before", { date: "2026-01-01" })],
+    [
+      "a nested path",
+      {
+        ...amountOver("gt", 1000),
+        conditions: {
+          id: "root",
+          type: "group",
+          combinator: "and",
+          rules: [
+            {
+              id: "r",
+              type: "rule",
+              path: ["totals", "amount"],
+              operator: "gt",
+              value: 1000,
+            },
+          ],
+        },
+      },
+    ],
+  ])("applies a policy everywhere on %s, never less", async (_label, entry) => {
+    expect(await outcomes(policySource([entry]))).toStrictEqual([
+      "approval-required",
+      "approval-required",
+    ]);
+  });
+
+  it("reads platform policies for every tenant only with platform", async () => {
+    const platform = { ...twoSteps, organizationId: null };
+    expect(await outcomes(policySource([], {}, [platform]))).toStrictEqual([
+      "granted",
+      "granted",
+    ]);
+    expect(
+      await outcomes(policySource([], { platform: true }, [platform])),
+    ).toStrictEqual(["approval-required", "approval-required"]);
+    const [entry] = await policySource([], { platform: true }, [
+      platform,
+    ]).approvalPoliciesFor({ tenants: [] });
+    expect(entry).not.toHaveProperty("tenant");
+  });
+
+  it("expands * over the permission tree and matches effects on operations", async () => {
+    const every = { ...twoSteps, subjectType: "*", action: "read" };
+    expect(
+      await policySource([every], { permissions }).approvalPoliciesFor({
+        tenants: ["o1"],
+      }),
+    ).toStrictEqual([
+      expect.objectContaining({ permission: "report.read" }),
+      expect.objectContaining({ permission: "expense.read" }),
+    ]);
+    expect(await outcomes(policySource([every]))).toStrictEqual([
+      "denied",
+      "denied",
+    ]);
+    const moving = { ...every, action: "*", effect: "money-movement" };
+    expect(
+      await policySource([moving], {
+        effects: { "money-movement": ["spend"] },
+      }).approvalPoliciesFor({ tenants: ["o1"] }),
+    ).toStrictEqual([
+      expect.objectContaining({ effects: ["spend"], tenant: "o1" }),
+    ]);
+    const [spend] = await policySource([
+      { ...moving, effect: "spend" },
+    ]).approvalPoliciesFor({ tenants: ["o1"] });
+    expect(spend).not.toHaveProperty("permission");
+    const [concrete] = await policySource([
+      { ...twoSteps, effect: "spend" },
+    ]).approvalPoliciesFor({ tenants: ["o1"] });
+    expect(concrete).toMatchObject({ permission: "expense.read" });
+    expect(concrete).not.toHaveProperty("effects");
+  });
+
+  it("needs every listed user for required all, and fails closed otherwise", async () => {
+    const [all] = await policySource([
+      {
+        ...twoSteps,
+        steps: [{ approvers: { users: ["a", "b"] }, required: "all" }],
+      },
+    ]).approvalPoliciesFor({ tenants: ["o1"] });
+    expect(all?.approval).toMatchObject({ stages: [{ quorum: 2 }] });
+    expect(
+      await outcomes(
+        policySource([
+          {
+            ...twoSteps,
+            steps: [{ approvers: { permission: "x" }, required: "all" }],
+          },
+        ]),
+      ),
+    ).toStrictEqual(["denied", "denied"]);
+  });
+
+  const checkOf = async (entry: unknown) => {
+    const [mapped] = await policySource([entry]).approvalPoliciesFor({
+      tenants: ["o1"],
+    });
+    return mapped?.check;
+  };
+  const field = "amount";
+
+  it.each([
+    ["is", "a", { op: "or", conditions: [{ op: "eq", field, value: "a" }] }],
+    [
+      "eq",
+      5,
+      {
+        op: "or",
+        conditions: [
+          { op: "eq", field, value: 5 },
+          { op: "eq", field, value: "5" },
+        ],
+      },
+    ],
+    [
+      "is_not",
+      true,
+      { op: "and", conditions: [{ op: "ne", field, value: true }] },
+    ],
+    ["neq", "x", { op: "and", conditions: [{ op: "ne", field, value: "x" }] }],
+    ["lte", 3, { op: "lte", field, value: 3 }],
+    [
+      "not_between",
+      ["1", 2],
+      {
+        op: "not",
+        condition: {
+          op: "and",
+          conditions: [
+            { op: "gte", field, value: 1 },
+            { op: "lte", field, value: 2 },
+          ],
+        },
+      },
+    ],
+    ["is_none_of", ["a"], { op: "notIn", field, value: ["a"] }],
+    ["contains", "ab", { op: "contains", field, value: "ab" }],
+    [
+      "not_contains",
+      "ab",
+      { op: "not", condition: { op: "contains", field, value: "ab" } },
+    ],
+    [
+      "has_any_of",
+      ["a", "b"],
+      {
+        op: "or",
+        conditions: [
+          { op: "contains", field, value: "a" },
+          { op: "contains", field, value: "b" },
+        ],
+      },
+    ],
+    [
+      "has_all_of",
+      ["a"],
+      { op: "and", conditions: [{ op: "contains", field, value: "a" }] },
+    ],
+    [
+      "has_none_of",
+      ["a"],
+      {
+        op: "not",
+        condition: {
+          op: "or",
+          conditions: [{ op: "contains", field, value: "a" }],
+        },
+      },
+    ],
+    ["empty", undefined, { op: "isNull", field, value: true }],
+    ["not_empty", undefined, { op: "isNull", field, value: false }],
+  ])("maps the %s operator", async (operator, value, expected) => {
+    expect(await checkOf(amountOver(operator, value))).toStrictEqual({
+      op: "and",
+      conditions: [expected],
+    });
+  });
+
+  it.each([
+    ["is", { a: 1 }],
+    ["is_not", null],
+    ["gt", "many"],
+    ["between", [1]],
+    ["between", "1..2"],
+    ["is_any_of", []],
+    ["contains", 1],
+    ["not_contains", 1],
+    ["has_any_of", "a"],
+  ])("drops %s with the value %j", async (operator, value) => {
+    expect(await checkOf(amountOver(operator, value))).toBeUndefined();
+  });
+
+  it("combines groups, negation and unfinished rules as the block does", async () => {
+    const rule = (operator: string, negated?: boolean) => ({
+      id: operator,
+      type: "rule",
+      path: ["amount"],
+      operator,
+      value: 1,
+      ...(negated === undefined ? {} : { negated }),
+    });
+    const tree = (combinator: string, rules: readonly unknown[]) => ({
+      ...twoSteps,
+      conditions: { id: "root", type: "group", combinator, rules },
+    });
+    expect(await checkOf(tree("or", [rule("gt"), rule("")]))).toBeUndefined();
+    expect(await checkOf(tree("and", [rule("")]))).toBeUndefined();
+    expect(await checkOf(tree("and", [rule("", true)]))).toBeUndefined();
+    expect(
+      await checkOf(tree("and", [rule("gt", true), rule("")])),
+    ).toStrictEqual({
+      op: "and",
+      conditions: [
+        { op: "not", condition: { op: "gt", field: "amount", value: 1 } },
+      ],
+    });
+    expect(
+      await checkOf(tree("or", [tree("and", [rule("lt")]).conditions])),
+    ).toStrictEqual({
+      op: "or",
+      conditions: [
+        { op: "and", conditions: [{ op: "lt", field: "amount", value: 1 }] },
+      ],
+    });
+    for (const broken of [
+      tree("xor", []),
+      tree("and", ["rule"]),
+      tree("and", [{ type: "rule", path: ["amount"], operator: 1 }]),
+      { ...twoSteps, conditions: { type: "other" } },
+    ]) {
+      expect(await checkOf(broken)).toBeUndefined();
+    }
+    expect(await checkOf({ ...twoSteps, conditions: null })).toBeUndefined();
+  });
+
+  it("reads an effect mapped to nothing as no effect", async () => {
+    const entry = { ...twoSteps, action: "*", effect: "audit" };
+    await expect(
+      policySource([entry], { effects: { audit: [] } }).approvalPoliciesFor({
+        tenants: ["o1"],
+      }),
+    ).rejects.toThrow("needs blockApprovalPolicySource's permissions");
   });
 });
