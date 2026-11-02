@@ -200,6 +200,98 @@ describe("conditionFromAst functions", () => {
     });
     expect(unmapped).toStrictEqual(["other"]);
   });
+
+  it("reads a set function call as sqlFunction with set", async () => {
+    const { mapped } = await condition(
+      `"id" in (select app.job_permitted('read', auth.uid()))`,
+      { functions: { job_permitted: { twin } } },
+    );
+    expect(mapped).toStrictEqual({
+      op: "sqlFunction",
+      name: "app.job_permitted",
+      args: ["read", PRINCIPAL],
+      set: { column: "id" },
+      twin,
+    });
+    expect(
+      (
+        await condition('"id" = any (select app.job_permitted())', {
+          functions: { "app.job_permitted": { twin } },
+        })
+      ).mapped,
+    ).toStrictEqual({
+      op: "sqlFunction",
+      name: "app.job_permitted",
+      args: [],
+      set: { column: "id" },
+      twin,
+    });
+  });
+
+  it.each([
+    `"id" = (select app.job_permitted('read'))`,
+    `"id" in (select app.job_permitted() from file)`,
+    `"id" in (select app.job_permitted(), app.other())`,
+    `"id" in (select app.job_permitted('read') where true)`,
+    `"id" in (select app.job_permitted('read') group by 1)`,
+    `"id" in (select app.job_permitted('read') having true)`,
+    `"id" in (with x as (select 1) select app.job_permitted('read'))`,
+    `"id" in (select app.job_permitted('read') union all select app.job_permitted('read'))`,
+  ])("keeps the non-set shape %s opaque", async (sql) => {
+    const { mapped, unmapped } = await condition(sql, {
+      functions: { job_permitted: { twin } },
+    });
+    expect(mapped).toMatchObject({ op: "opaque" });
+    expect(unmapped).toStrictEqual([]);
+  });
+
+  it("keeps a set call with non-array args opaque", async () => {
+    nextParse(
+      legacyWhere({
+        SubLink: {
+          subLinkType: "ANY_SUBLINK",
+          testexpr: col("id"),
+          subselect: {
+            SelectStmt: {
+              targetList: [
+                {
+                  ResTarget: {
+                    val: {
+                      FuncCall: {
+                        funcname: [str("app"), str("job_permitted")],
+                        args: "bad",
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      }),
+    );
+    const { mapped } = await condition("ignored", {
+      functions: { job_permitted: { twin } },
+    });
+    expect(mapped).toMatchObject({ op: "opaque" });
+  });
+
+  it("keeps a correlated set call and an unmapped one opaque", async () => {
+    const correlated = await condition(
+      `"id" in (select app.job_permitted("id"))`,
+      { functions: { job_permitted: { twin } } },
+    );
+    expect(correlated.mapped).toStrictEqual({
+      op: "opaque",
+      sql: `"id" in (select app.job_permitted("id"))`,
+      fingerprint: expect.any(String),
+    });
+    expect(correlated.unmapped).toStrictEqual([]);
+    const unmapped = await condition(`"id" in (select other('read'))`, {
+      functions: { job_permitted: { twin } },
+    });
+    expect(unmapped.unmapped).toStrictEqual(["other"]);
+  });
 });
 
 describe("conditionFromAst memberships and helpers", () => {

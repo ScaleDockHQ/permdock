@@ -1,5 +1,6 @@
 import type { Condition, SqlFunctionArg } from "./ast.ts";
 
+import { isRecord } from "../core/compact.ts";
 import { assertSafeKey } from "../core/paths.ts";
 import { isSqlFunctionField } from "./ast.ts";
 
@@ -25,6 +26,33 @@ export function assertSqlFunctionName(name: string): void {
 export function assertSqlFunctionArg(arg: SqlFunctionArg): void {
   if (isSqlFunctionField(arg)) {
     assertSafeKey(arg.field, "sqlFunction argument field");
+  }
+}
+
+/**
+ * The set form's column: a plain SQL identifier, because the generator quotes
+ * it as one column name rather than walking a dotted path.
+ */
+export function assertSqlFunctionSet(
+  value: unknown,
+): asserts value is { readonly column: string } {
+  if (!isRecord(value)) {
+    throw new TypeError(
+      "PermDock: sqlFunction set must be { column: '<column>' }",
+    );
+  }
+  const keys = Object.keys(value);
+  const column = value["column"];
+  if (keys.length !== 1 || keys[0] !== "column" || typeof column !== "string") {
+    throw new TypeError(
+      "PermDock: sqlFunction set must be { column: '<column>' }",
+    );
+  }
+  assertSafeKey(column, "sqlFunction set column");
+  if (!IDENT.test(column)) {
+    throw new Error(
+      `PermDock: sqlFunction set column '${column}' is not a SQL identifier`,
+    );
   }
 }
 

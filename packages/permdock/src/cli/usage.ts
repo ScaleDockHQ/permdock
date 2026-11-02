@@ -321,15 +321,21 @@ function conditionFields(
       break;
     }
     case "sqlFunction": {
-      for (const arg of condition.args) {
-        if (
-          arg !== null &&
-          typeof arg === "object" &&
-          !Array.isArray(arg) &&
-          "field" in arg
-        ) {
-          add(arg.field);
+      if (condition.set === undefined) {
+        for (const arg of condition.args) {
+          if (
+            arg !== null &&
+            typeof arg === "object" &&
+            !Array.isArray(arg) &&
+            "field" in arg
+          ) {
+            add(arg.field);
+          }
         }
+      } else {
+        // The set form calls the function once per statement, so a row-field
+        // arg is never read; only the compared column is.
+        add(condition.set.column);
       }
       conditionFields(condition.twin, out);
       break;

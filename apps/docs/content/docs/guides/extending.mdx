@@ -106,7 +106,7 @@ Return only values the server derived: a verified session field, a geo lookup yo
 Logic PermDock does not model goes in code you own, behind a fixed contract:
 
 - A closure grant, `allow(p, (row, ctx) => …)`, runs any synchronous check in process; it is non-portable, so snapshots send it to the decision endpoint ([policies](/docs/concepts/policies#closures)).
-- `sqlFunction` names a database function with a portable twin, for a rule that must hold in RLS too ([conditions](/docs/concepts/conditions)).
+- `sqlFunction` names a database function with a portable twin, for a rule that must hold in RLS too; `set: { column }` calls a set-returning helper once per statement ([conditions](/docs/concepts/conditions)).
 - A `DecisionProvider` delegates chosen permissions to a remote PDP, OpenFGA or SpiceDB ([PDP](/docs/adapters/pdp)).
 - The [extension interfaces](/docs/concepts/extension-interfaces) cover subjects, memberships, roles, relations, stores and sinks, each with a conformance runner.
 

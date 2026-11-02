@@ -112,6 +112,10 @@ export const policy = {
       permission: read, effect: 'allow', role: null,
       where: { op: 'sqlFunction', name: 'f', args: [{ field: 'w6' }, 'literal', null, [1]], twin: { op: 'gt', field: 'w7', value: 1 } },
     },
+    {
+      permission: read, effect: 'allow', role: null,
+      where: { op: 'sqlFunction', name: 'g', args: [{ field: 'w10' }, 'literal'], set: { column: 'w11' }, twin: { op: 'gt', field: 'w12', value: 1 } },
+    },
     { permission: read, effect: 'allow', role: null, where: { op: 'related', resource: 'post', relation: 'r', field: 'w8', depth: 0, restricted: 'w9' } },
     { permission: read, effect: 'allow', role: null, where: { op: 'related', resource: 'post', relation: 'r', field: 'id', depth: 0 } },
     { permission: read, effect: 'allow', role: null, where: { op: 'opaque', sql: 'x', fingerprint: 'y' } },
@@ -142,6 +146,8 @@ export const policy = {
           ["role 'member'", "w5"],
           ["policy grant", "w6"],
           ["policy grant", "w7"],
+          ["policy grant", "w11"],
+          ["policy grant", "w12"],
           ["policy grant", "w8"],
           ["policy grant", "w9"],
         ].map(([who, field]) => [

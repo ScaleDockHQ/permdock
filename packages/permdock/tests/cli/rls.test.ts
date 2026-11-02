@@ -682,5 +682,64 @@ export const policy = definePolicy(permissions, {
         '"authorId" = (select "permdock".permdock_user_id())',
       );
     });
+
+    it("emits a sqlFunction set as an in-subquery and inlines its twin", async () => {
+      const cwd = miniAppCopy();
+      writeFileSync(
+        join(cwd, "src/set-policy.ts"),
+        `import { allow, definePolicy, principal, role, sqlFunction } from 'permdock';
+import { permissions } from './permissions.ts';
+
+const member = role('member', [
+  allow(permissions.post.read, {
+    where: sqlFunction('job_permitted', {
+      args: ['read', { field: 'id' }],
+      set: { column: 'id' },
+      twin: { authorId: principal.id },
+    }),
+  }),
+]);
+
+export const policy = definePolicy(permissions, {
+  roles: [member],
+  subject: () => null,
+});
+`,
+      );
+      writeFileSync(
+        join(cwd, "permdock.config.ts"),
+        `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/set-policy.ts',
+};
+`,
+      );
+      const generated = await run(
+        ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
+        { cwd },
+      );
+      expect(generated.code).toBe(0);
+      const sql = readFileSync(join(cwd, "rls.sql"), "utf8");
+      expect(sql).toContain(`"id" in (select "job_permitted"('read'))`);
+      expect(sql).not.toContain('"job_permitted"("id")');
+      const inlined = await run(
+        [
+          "rls",
+          "generate",
+          "--target",
+          "sql",
+          "--inline-functions",
+          "--out",
+          "inline.sql",
+        ],
+        { cwd },
+      );
+      expect(inlined.code).toBe(0);
+      const inlineSql = readFileSync(join(cwd, "inline.sql"), "utf8");
+      expect(inlineSql).toContain(
+        '"authorId" = (select "permdock".permdock_user_id())',
+      );
+      expect(inlineSql).not.toContain('in (select "job_permitted"');
+    });
   });
 });

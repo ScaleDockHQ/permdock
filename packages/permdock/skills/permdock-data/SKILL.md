@@ -45,7 +45,7 @@ The same portable conditions decide `can()` in memory, narrow list queries throu
 
 - [ ] No closure only compares fields a portable operator covers (`eq`, `in`, `memberOf`, `sqlFunction`, …); rewrite those as JSON conditions.
 - [ ] An owner-equals-principal `where` on a resource with a matching relation uses `relation()` instead.
-- [ ] No `opaque` RLS grant wraps a named helper; use `sqlFunction` with a twin and map it in `rls.functions`.
+- [ ] No `opaque` RLS grant wraps a named helper; use `sqlFunction` with a twin and map it in `rls.functions`. A set-returning helper uses `set: { column }` and a declared resource column (PD086).
 - [ ] No condition the database must enforce reads `context.*` (PD027); on Supabase, `supabase.hook.attrs` lists only server-owned values (PD028).
 - [ ] Graph declarations are walked by a grant (PD031) and nameable in SQL (PD032).
 - [ ] Every list endpoint has an `testOrmParity` run, every RLS table an `testRlsParity` or `rls verify --db-url-stdin` run, and a custom `RelationSource` passes `testRelationSource`.

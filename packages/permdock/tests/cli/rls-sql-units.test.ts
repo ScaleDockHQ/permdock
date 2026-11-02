@@ -468,6 +468,30 @@ describe("compileConditionSql values and refs", () => {
       `"owner" = (select "permdock".permdock_user_id())`,
     );
   });
+
+  it("writes a sqlFunction set as an in-subquery without row fields", () => {
+    const call: Condition = {
+      op: "sqlFunction",
+      name: "app.job_ok",
+      args: [{ field: "id" }, { ref: "principal.id" }, "x"],
+      set: { column: "id" },
+      twin: { op: "eq", field: "owner", value: { ref: "principal.id" } },
+    };
+    expect(sql(call)).toBe(
+      `"id" in (select "app"."job_ok"((select "permdock".permdock_user_id()), 'x'))`,
+    );
+    expect(sql(call, { inlineFunctions: true })).toBe(
+      `"owner" = (select "permdock".permdock_user_id())`,
+    );
+    const noArgs: Condition = {
+      op: "sqlFunction",
+      name: "file_ids_for",
+      args: [],
+      set: { column: "id" },
+      twin: { op: "eq", field: "owner", value: { ref: "principal.id" } },
+    };
+    expect(sql(noArgs)).toBe(`"id" in (select "file_ids_for"())`);
+  });
 });
 
 describe("compileConditionSql memberOf", () => {

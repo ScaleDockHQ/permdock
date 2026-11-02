@@ -73,6 +73,20 @@ describe(compileWhere, () => {
       field: "authorId",
       value: "u1",
     });
+    expect(
+      compileWhere(
+        sqlFunction("job_permitted", {
+          args: ["read"],
+          set: { column: "id" },
+          twin: { op: "eq", field: "authorId", value: "u1" },
+        }),
+      ),
+    ).toStrictEqual({
+      kind: "compare",
+      op: "eq",
+      field: "authorId",
+      value: "u1",
+    });
   });
 
   it("resolves subject refs and dates, and fails closed on empty in", () => {

@@ -57,6 +57,7 @@ import {
   pd073,
   pd075,
   pd076,
+  pd086,
 } from "./rls.ts";
 import { pd054 } from "./seeds.ts";
 import {
@@ -381,6 +382,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   },
   { code: "PD058", groups: ["powersync"], run: pd058 },
   { code: "PD084", groups: ["powersync", "react-native"], run: pd084 },
+  { code: "PD086", groups: ["rls"], run: pd086 },
   {
     code: "PD061",
     groups: ["rls", "suspension"],

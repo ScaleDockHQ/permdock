@@ -45,6 +45,178 @@ export const policy = definePolicy(permissions, {
       expect(findingCodes(result.stdout)).toContain("PD016");
     });
 
+    it("PD086 flags a set column the resource does not declare and dropped row args", async () => {
+      const cwd = miniAppCopy();
+      writeFileSync(
+        join(cwd, "src/set-policy.ts"),
+        `import { allow, definePolicy, principal, role, sqlFunction } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('member', [
+      allow(permissions.post.read, {
+        where: sqlFunction('job_permitted', {
+          args: ['read', { field: 'id' }],
+          set: { column: 'nope' },
+          twin: { authorId: principal.id },
+        }),
+      }),
+    ]),
+  ],
+  subject: () => null,
+});
+`,
+      );
+      writeFileSync(
+        join(cwd, "permdock.config.ts"),
+        `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/set-policy.ts',
+  rls: { dialect: 'supabase' },
+  collect: { srcPath: ['./src'] },
+};
+`,
+      );
+      const result = await run(["doctor", "--json", "--only", "PD086"], {
+        cwd,
+      });
+      // SAFETY: the --json report printed by `permdock doctor` under test.
+      const report = jsonData(result.stdout) as {
+        readonly findings: readonly {
+          readonly code: string;
+          readonly severity: string;
+          readonly message: string;
+        }[];
+      };
+      expect(report.findings).toStrictEqual([
+        expect.objectContaining({
+          code: "PD086",
+          severity: "error",
+          message: expect.stringContaining("does not declare"),
+        }),
+        expect.objectContaining({
+          code: "PD086",
+          severity: "warning",
+          message: expect.stringContaining("drops"),
+        }),
+      ]);
+    });
+
+    it("PD086 stays silent for a declared set column with no row args", async () => {
+      const cwd = miniAppCopy();
+      writeFileSync(
+        join(cwd, "src/set-policy.ts"),
+        `import { allow, definePolicy, principal, role, sqlFunction } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('member', [
+      allow(permissions.post.read, {
+        where: sqlFunction('job_permitted', {
+          args: ['read'],
+          set: { column: 'id' },
+          twin: { authorId: principal.id },
+        }),
+      }),
+    ]),
+  ],
+  subject: () => null,
+});
+`,
+      );
+      writeFileSync(
+        join(cwd, "permdock.config.ts"),
+        `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/set-policy.ts',
+  rls: { dialect: 'supabase' },
+  collect: { srcPath: ['./src'] },
+};
+`,
+      );
+      const result = await run(["doctor", "--json", "--only", "PD086"], {
+        cwd,
+      });
+      expect(findingCodes(result.stdout)).toStrictEqual([]);
+    });
+
+    it("PD086 walks set variants through and, or and not", async () => {
+      const cwd = miniAppCopy();
+      writeFileSync(
+        join(cwd, "src/set-policy.ts"),
+        `import { allow, definePolicy, principal, role, sqlFunction } from 'permdock';
+import { permissions } from './permissions.ts';
+
+export const policy = definePolicy(permissions, {
+  roles: [
+    role('member', [
+      allow(permissions.post.read, {
+        where: {
+          and: [
+            sqlFunction('plain', { twin: { authorId: principal.id } }),
+            {
+              not: sqlFunction('job_permitted', {
+                args: ['read', { field: 'id' }],
+                set: { column: 'id' },
+                twin: { authorId: principal.id },
+              }),
+            },
+            {
+              or: [
+                sqlFunction('other', {
+                  args: ['read'],
+                  set: { column: 'nope' },
+                  twin: { authorId: principal.id },
+                }),
+                { title: 'x' },
+              ],
+            },
+          ],
+        },
+      }),
+    ]),
+  ],
+  subject: () => null,
+});
+`,
+      );
+      writeFileSync(
+        join(cwd, "permdock.config.ts"),
+        `export default {
+  permissions: './src/permissions.ts',
+  policy: './src/set-policy.ts',
+  rls: { dialect: 'supabase' },
+  collect: { srcPath: ['./src'] },
+};
+`,
+      );
+      const result = await run(["doctor", "--json", "--only", "PD086"], {
+        cwd,
+      });
+      // SAFETY: the --json report printed by `permdock doctor` under test.
+      const report = jsonData(result.stdout) as {
+        readonly findings: readonly {
+          readonly code: string;
+          readonly severity: string;
+          readonly message: string;
+        }[];
+      };
+      expect(report.findings).toStrictEqual([
+        expect.objectContaining({
+          code: "PD086",
+          severity: "warning",
+          message: expect.stringContaining("drops"),
+        }),
+        expect.objectContaining({
+          code: "PD086",
+          severity: "error",
+          message: expect.stringContaining("does not declare"),
+        }),
+      ]);
+    });
+
     it("PD027 names grants that read request context under an rls config", async () => {
       const cwd = miniAppCopy();
       writeFileSync(

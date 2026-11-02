@@ -266,6 +266,20 @@ describe(evaluateCondition, () => {
         now,
       ),
     ).toBe(false);
+    const set = sqlFunction("job_permitted", {
+      args: ["read"],
+      set: { column: "id" },
+      twin: { or: [{ scope: "public" }, { authorId: principal.id }] },
+    });
+    expect(evaluateCondition(set, data, sub({}), now)).toBe(true);
+    expect(
+      evaluateCondition(
+        set,
+        { scope: "private", authorId: "u9" },
+        sub({}),
+        now,
+      ),
+    ).toBe(false);
   });
 
   it("matches memberOf over frozen memberships honouring expiry", () => {

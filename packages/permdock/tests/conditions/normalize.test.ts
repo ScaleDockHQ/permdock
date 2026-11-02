@@ -94,6 +94,56 @@ describe(normalizeWhere, () => {
         twin: { not: { scope: "private" } },
       }).twin.op,
     ).toBe("not");
+    const set = sqlFunction("job_permitted", {
+      args: ["read"],
+      set: { column: "id" },
+      twin: { scope: "public" },
+    });
+    expect(set).toMatchObject({
+      op: "sqlFunction",
+      set: { column: "id" },
+      twin: { op: "eq", field: "scope", value: "public" },
+    });
+    expect(Object.isFrozen(set.set)).toBe(true);
+    expect(
+      normalizeWhere({
+        op: "sqlFunction",
+        name: "job_permitted",
+        args: ["read"],
+        set: { column: "id" },
+        twin: { scope: "public" },
+      }),
+    ).toMatchObject({ op: "sqlFunction", set: { column: "id" } });
+    expect(() =>
+      sqlFunction("job_permitted", {
+        set: { column: "a.b" },
+        twin: { scope: "public" },
+      }),
+    ).toThrow(/SQL identifier/u);
+    expect(() =>
+      normalizeWhere({
+        op: "sqlFunction",
+        name: "job_permitted",
+        set: null,
+        twin: { scope: "public" },
+      }),
+    ).toThrow(/must be \{ column/u);
+    expect(() =>
+      normalizeWhere({
+        op: "sqlFunction",
+        name: "job_permitted",
+        set: { column: 1 },
+        twin: { scope: "public" },
+      }),
+    ).toThrow(/must be \{ column/u);
+    expect(() =>
+      normalizeWhere({
+        op: "sqlFunction",
+        name: "job_permitted",
+        set: { column: "id", extra: true },
+        twin: { scope: "public" },
+      }),
+    ).toThrow(/must be \{ column/u);
     const node = sqlFunction("job_permitted", {
       args: [{ field: "id" }],
       twin: { or: [{ scope: "public" }, { authorId: principal.id }] },
