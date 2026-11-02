@@ -1,5 +1,11 @@
 # permdock
 
+## 0.20.0
+
+### Minor Changes
+
+- [#260](https://github.com/ScaleDockHQ/permdock/pull/260) [`55adb55`](https://github.com/ScaleDockHQ/permdock/commit/55adb556055585ae1cc0351a935c50108a5a6b3a) Thanks [@mick340](https://github.com/mick340)! - Add the `sqlFunction` set variant: `sqlFunction(name, { args, set: { column }, twin })` renders `"<column>" in (select <name>(<args without row fields>))`, so a set-returning helper runs once per statement instead of once per row. The in-memory evaluator, `filter`, `where`, snapshots and `--inline-functions` still use the twin. `rls import` reads `col in (select fn(...))` and `col = any (select fn(...))` back as the same form, and doctor `PD086` checks the set column and warns when row-field args would be dropped.
+
 ## 0.19.0
 
 ### Minor Changes
