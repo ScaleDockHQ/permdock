@@ -147,6 +147,12 @@ export type SqlFunctionCondition = {
   readonly op: "sqlFunction";
   readonly name: string;
   readonly args: readonly SqlFunctionArg[];
+  /**
+   * The set form: the row's `column` must be one of the ids the function
+   * returns, called once per statement as `"column" in (select name(args))`.
+   * Row-field args are not passed to the function.
+   */
+  readonly set?: { readonly column: string };
   readonly twin: Condition;
 };
 

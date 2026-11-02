@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import type { Policy } from "../../index.ts";
+import type { Condition, Policy, SqlFunctionCondition } from "../../index.ts";
 import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { RlsActions } from "../types.ts";
@@ -8,7 +8,11 @@ import type { RlsActions } from "../types.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
 import { scopeList } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
-import { hasConditionOp, listPermissions } from "../../index.ts";
+import {
+  hasConditionOp,
+  isSqlFunctionField,
+  listPermissions,
+} from "../../index.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
 import { sqlFiles } from "../files.ts";
 import { graphPlan } from "../rls/graph.ts";
@@ -592,6 +596,98 @@ export async function pd073(
     message: `role ${item.role} is for ${item.for.join(", ")}, but its membership sources hold ${item.sources.join(", ")}: no membership can hold it`,
     fix: `set via on one of those sources to ${item.for.join(" or ")}, or change for on role ${item.role}`,
   }));
+}
+
+/**
+ * Every `sqlFunction` set variant in `condition`, through `and`, `or` and
+ * `not`.
+ */
+function sqlFunctionSets(
+  condition: Condition | undefined,
+): readonly SqlFunctionCondition[] {
+  if (condition === undefined) {
+    return [];
+  }
+  if (condition.op === "sqlFunction") {
+    return [
+      ...(condition.set === undefined ? [] : [condition]),
+      ...sqlFunctionSets(condition.twin),
+    ];
+  }
+  if (condition.op === "and" || condition.op === "or") {
+    return condition.conditions.flatMap(sqlFunctionSets);
+  }
+  if (condition.op === "not") {
+    return sqlFunctionSets(condition.condition);
+  }
+  return [];
+}
+
+/**
+ * PD086: a `sqlFunction` set variant names a column the resource does not
+ * declare, or passes row-field args the set form drops because the function is
+ * called once per statement.
+ */
+export async function pd086(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
+  if (input.config.rls === undefined || input.config.policy === undefined) {
+    return [];
+  }
+  const policy = await policyOf(input);
+  if (policy === undefined) {
+    return [];
+  }
+  const findings: DoctorFinding[] = [];
+  for (const grant of policy.grants) {
+    const node = policy.resources.get(grant.permission.resource);
+    const schema = node === undefined ? null : jsonSchemaOf(node);
+    // SAFETY: schema was checked to be a non-null object; properties stays unknown.
+    const properties =
+      schema !== null && typeof schema === "object"
+        ? (schema as { readonly properties?: unknown }).properties
+        : undefined;
+    const columns =
+      properties !== null && typeof properties === "object"
+        ? new Set(Object.keys(properties))
+        : undefined;
+    for (const [kind, condition] of [
+      ["where", grant.where],
+      ["check", grant.check],
+    ] as const) {
+      for (const fn of sqlFunctionSets(condition)) {
+        const column = fn.set?.column;
+        if (
+          column !== undefined &&
+          columns !== undefined &&
+          !columns.has(column)
+        ) {
+          findings.push({
+            code: "PD086",
+            target: `${grant.permission.key}:${kind}`,
+            severity: "error",
+            message: `sqlFunction ${fn.name} set compares ${grant.permission.resource}.${column}, which the resource does not declare`,
+            fix: `set column to one of ${[...columns].toSorted().join(", ")} or add ${column} to the resource schema`,
+          });
+        }
+        const dropped = fn.args.filter(isSqlFunctionField);
+        if (dropped.length > 0) {
+          findings.push({
+            code: "PD086",
+            target: `${grant.permission.key}:${kind}`,
+            severity: "warning",
+            message: `sqlFunction ${fn.name} set passes row fields (${dropped
+              .map((arg) => arg.field)
+              .join(
+                ", ",
+              )}), which the set form drops: the function is called once per statement`,
+            fix: "pass only the function's own arguments, or drop set to call it per row",
+          });
+        }
+      }
+    }
+  }
+  return findings;
 }
 
 /**

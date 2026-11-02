@@ -42,8 +42,11 @@ export function indexedFields(condition: Condition | undefined): string[] {
     case "eq":
     case "in":
       return isConditionRef(condition.value) ? plainField(condition.field) : [];
-    case "not":
     case "sqlFunction":
+      return condition.set === undefined
+        ? []
+        : plainField(condition.set.column);
+    case "not":
     case "opaque":
     case "related":
     case "ne":

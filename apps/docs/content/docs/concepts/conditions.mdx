@@ -36,7 +36,7 @@ An object literal is an implicit `and` over its fields. A field value is either 
 | `contains`                      | array column contains value, or string contains substring (typed by the field)                                                                                                                                                                                           | `@>` or `LIKE`; RLS: `value = any(column)` or `LIKE`                                                                                     |
 | `and`, `or`, `not`              | compound                                                                                                                                                                                                                                                                 | `AND`, `OR`, `NOT`                                                                                                                       |
 | `memberOf`                      | the row's scope field names an instance of a named scope (or a resource) where the subject holds one of the listed roles, through a membership of exactly that scope; emitted by scoped role declarations, not written by hand                                           | `=` on the active tenant claim, or `EXISTS (select 1 from <membership table> ...)`                                                       |
-| `sqlFunction`                   | a named Postgres function plus a portable `twin` the evaluator, `filter`, `where` and snapshots run                                                                                                                                                                      | `name(args)` (`--inline-functions` emits the twin instead)                                                                               |
+| `sqlFunction`                   | a named Postgres function plus a portable `twin` the evaluator, `filter`, `where` and snapshots run; with `set`, a set-returning function called once per statement                                                                                                      | `name(args)`, or `"column" in (select name(args without row fields))` for `set` (`--inline-functions` emits the twin instead)            |
 | `related`                       | the subject holds a relation on the object the row's field names, or on one of its ancestors within `depth` parent hops; emitted by `relation(..., { through: 'parent' })` and edge-table relations, not written by hand ([relationships](/docs/concepts/relationships)) | `field in (select descendant from permdock_closure where ... and ancestor = any (array(select permitted_<resource>_ids('<relation>'))))` |
 
 That is the whole list. It is deliberately the subset that round-trips to Postgres RLS ([research](/docs/standards/postgres-rls)); anything richer belongs in `context` or a closure. `memberOf` is the one node the evaluator adds for [scoped roles](/docs/concepts/tenancy): `role('viewer', grants, { on: 'tenant' })` wraps each grant's condition in `memberOf(tenant, roles: ['viewer'])`, so a tenant-scoped grant compiles, snapshots and filters like any other condition. `sqlFunction` is the node for SQL-authority policies whose database helper is the source of truth:
@@ -59,6 +59,25 @@ allow(permissions.job.read, {
   }),
 });
 ```
+
+A set-returning helper uses `set` instead of a row-field argument. The function is called once per statement, and the row's column must be one of the ids it returns:
+
+```ts
+allow(permissions.job.read, {
+  where: sqlFunction("job_ids_for", {
+    args: ["read"],
+    set: { column: "id" },
+    twin: {
+      or: [
+        { scope: "public" },
+        { op: "memberOf", scope: "team", field: "teamId", roles: [] },
+      ],
+    },
+  }),
+});
+```
+
+`rls generate` writes `"id" in (select "job_ids_for"('read'))`; row-field args are not passed to the function, so `args` holds only the helper's own arguments. `--inline-functions` emits the twin instead, and the evaluator, `filter`, `where` and snapshots always use the twin. The helper must be `stable` or `immutable`, so Postgres plans it as a hashed SubPlan (or an InitPlan) rather than running it per row. `rls import` reads `col in (select fn(...))` and `col = any (select fn(...))` with no `FROM` or `WHERE` back as the same set form.
 
 ### Subject references
 
@@ -243,3 +262,4 @@ An opaque condition keeps the SQL verbatim so `rls generate` can emit it back un
 ## Why
 
 - **A deny on an update pair applies when either row matches.** Reading `where` and `check` with an allow's AND made `deny(invoice.update, { where: { locked: true } })` apply only when the invoice was locked before and after the write, so unlocking it, or locking it with other edits in the same write, got past the deny. Postgres has always checked a `RESTRICTIVE` policy's `USING` on the old row and its `WITH CHECK` on the new one, so the generated RLS refused both; the in-process and snapshot evaluators now agree with it. Allows keep AND: a grant to edit your own post must hold before and after, or the write could reassign it.
+- **A set-returning helper is one SubPlan, not one call per row.** `sqlFunction`'s `set` form compiles to `"column" in (select name(args without row fields))`; the call is uncorrelated, so Postgres runs it once per statement, while the twin keeps the in-memory, snapshot and `--inline-functions` semantics. Row-field args are dropped rather than passed, and PD086 warns when they are supplied, because a correlated call would defeat the plan.

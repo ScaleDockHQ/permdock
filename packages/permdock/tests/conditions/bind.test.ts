@@ -84,6 +84,17 @@ describe(bindConditionRefs, () => {
       args: [{ field: "orgId" }, "u1"],
       twin: { op: "eq", field: "ownerId", value: "u1" },
     });
+    const setFn = sqlFunction("is_member", {
+      args: [principal.id],
+      set: { column: "orgId" },
+      twin: { ownerId: principal.id },
+    });
+    expect(bindConditionRefs(setFn, subject)).toMatchObject({
+      op: "sqlFunction",
+      args: ["u1"],
+      set: { column: "orgId" },
+      twin: { op: "eq", field: "ownerId", value: "u1" },
+    });
     const kept: Condition = { op: "isNull", field: "deletedAt", value: true };
     expect(bindConditionRefs(kept, subject)).toBe(kept);
     const either = bindConditionRefs(

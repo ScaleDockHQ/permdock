@@ -10,6 +10,7 @@ import {
   assertPortableTwin,
   assertSqlFunctionArg,
   assertSqlFunctionName,
+  assertSqlFunctionSet,
 } from "./sql-function-assert.ts";
 
 const FIELD_OPS: ReadonlySet<string> = new Set([
@@ -123,6 +124,7 @@ function collapse(condition: Condition): Condition {
       op: "sqlFunction",
       name: condition.name,
       args: condition.args,
+      ...(condition.set === undefined ? {} : { set: condition.set }),
       twin: collapse(condition.twin),
     });
   }
@@ -183,12 +185,16 @@ function fieldCondition(field: string, raw: unknown): Condition {
 function normalizeSqlFunction(input: {
   readonly name: string;
   readonly args?: readonly SqlFunctionArg[];
+  readonly set?: unknown;
   readonly twin: unknown;
 }): Condition {
   assertSqlFunctionName(input.name);
   const args = input.args ?? [];
   for (const arg of args) {
     assertSqlFunctionArg(arg);
+  }
+  if (input.set !== undefined) {
+    assertSqlFunctionSet(input.set);
   }
   if (isCondition(input.twin) && input.twin.op === "sqlFunction") {
     throw new Error("PermDock: sqlFunction twin must not nest sqlFunction");
@@ -201,6 +207,7 @@ function normalizeSqlFunction(input: {
     op: "sqlFunction" as const,
     name: input.name,
     args,
+    ...(input.set === undefined ? {} : { set: input.set }),
     twin,
   });
 }

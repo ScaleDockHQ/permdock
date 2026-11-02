@@ -543,6 +543,14 @@ export function compileConditionSql(
       if (ctx.inlineFunctions === true) {
         return compileConditionSql(condition.twin, ctx);
       }
+      if (condition.set !== undefined) {
+        return `${quoteIdent(condition.set.column)} in (select ${quoteTable(
+          condition.name,
+        )}(${condition.args
+          .filter((arg): arg is ConditionValue => !isSqlFunctionField(arg))
+          .map((arg) => sqlValue(arg, ctx))
+          .join(", ")}))`;
+      }
       return `${quoteTable(condition.name)}(${condition.args
         .map((arg) =>
           isSqlFunctionField(arg) ? quoteIdent(arg.field) : sqlValue(arg, ctx),

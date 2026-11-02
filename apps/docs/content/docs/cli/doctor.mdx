@@ -137,6 +137,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD083` | `postgrestSources` is used and the migrations define `subject_for` but no `authz_version_for`, so every version read fails                                                                                                                                                                                 | error           |
 | `PD084` | A synced PowerSync stream reads a token claim, so a role or tenant change needs a session refresh and a reconnect                                                                                                                                                                                          | warning         |
 | `PD085` | With `--db-url-stdin`, `custom_access_token_hook` raises when `supabase_auth_admin` calls it                                                                                                                                                                                                               | error           |
+| `PD086` | A `sqlFunction` set variant names a column the resource does not declare (error), or passes row-field args the set form drops (warning)                                                                                                                                                                    | error / warning |
 
 ### PD001: server-only imports in client entries
 
@@ -579,6 +580,17 @@ The common cause is a migration that left out the grants and read policies the i
 ```bash
 printf %s "$DATABASE_URL" | permdock doctor --only PD085 --db-url-stdin
 ```
+
+### PD086: a sqlFunction set variant names a missing column or drops row args
+
+A `sqlFunction` with `set` calls the set-returning helper once per statement as `"column" in (select name(args without row fields))`. PD086 checks every set variant under an `rls` config:
+
+```txt
+error PD086  post.read (role member): sqlFunction job_permitted set compares post.nope, which the resource does not declare
+warning PD086  post.read (role member): sqlFunction job_permitted set passes row fields (id), which the set form drops: the function is called once per statement
+```
+
+The error means the generated policy would name a column the table does not have, or that the resource schema does not expose; fix `set.column` or add the column to the schema. The warning means the function will not receive the row fields: pass only the function's own arguments, or drop `set` to call the helper per row. When the resource has no JSON Schema, PD086 skips the column check but still warns about dropped row-field args. `--only rls` runs PD086.
 
 ## Side effects
 

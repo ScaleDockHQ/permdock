@@ -1,5 +1,5 @@
 {
-  "core definePolicy + getPermDockSync": 41619,
+  "core definePolicy + getPermDockSync": 41719,
   "react PermDockProvider + usePermission": 19786,
   "react-native PermDockProvider + usePermission": 21048,
   "react-native PermDockProvider + localSnapshot": 23162,

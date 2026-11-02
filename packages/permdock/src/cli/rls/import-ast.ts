@@ -9,6 +9,7 @@ import type {
 } from "../types.ts";
 import type { HelperScope, RolePermission } from "./helpers.ts";
 
+import { isSqlFunctionField } from "../../conditions/ast.ts";
 import { quoteSqlLiteral } from "../../core/sql.ts";
 import { HELPERS } from "../sql/shared.ts";
 import { SESSION_LIVE_HELPER } from "../sql/subject.ts";
@@ -175,6 +176,61 @@ function memberCall(
     (Array.isArray(args) && args.length > 0)
     ? undefined
     : { scope, column };
+}
+
+/**
+ * `col in (select fn(args))` or `col = any (select fn(args))`: a set-returning
+ * function called once per statement, with no FROM or WHERE and no row-field
+ * args. The outer column is the row field the set must contain.
+ */
+function setFunctionCall(
+  value: unknown,
+):
+  | {
+      readonly name: string;
+      readonly column: string;
+      readonly args: readonly SqlFunctionArg[];
+    }
+  | undefined {
+  const sub = asNode(asNode(unwrap(value))?.["SubLink"]);
+  const kind = sub?.["subLinkType"];
+  if (sub === undefined || (kind !== "ANY_SUBLINK" && kind !== 2)) {
+    return undefined;
+  }
+  const select = asNode(asNode(sub["subselect"])?.["SelectStmt"]);
+  if (
+    select === undefined ||
+    select["fromClause"] !== undefined ||
+    select["whereClause"] !== undefined ||
+    select["groupClause"] !== undefined ||
+    select["havingClause"] !== undefined ||
+    select["withClause"] !== undefined ||
+    select["valuesLists"] !== undefined
+  ) {
+    return undefined;
+  }
+  const targets = select["targetList"];
+  if (!Array.isArray(targets) || targets.length !== 1) {
+    return undefined;
+  }
+  const call = asNode(asNode(targets[0])?.["ResTarget"])?.["val"];
+  const node = asNode(unwrap(call));
+  const name = funcName(node);
+  const column = columnName(sub["testexpr"]);
+  const rawArgs = asNode(node?.["FuncCall"])?.["args"];
+  const argNodes =
+    rawArgs === undefined ? [] : Array.isArray(rawArgs) ? rawArgs : undefined;
+  if (name === undefined || column === undefined || argNodes === undefined) {
+    return undefined;
+  }
+  const args = argNodes
+    .map((arg) => argFromNode(arg))
+    .filter((item): item is SqlFunctionArg => item !== undefined);
+  // A correlated argument means the function runs per row, not once.
+  if (args.length !== argNodes.length || args.some(isSqlFunctionField)) {
+    return undefined;
+  }
+  return { name, column, args };
 }
 
 function rolesFor(
@@ -403,6 +459,22 @@ function mapNode(value: unknown, ctx: MapContext): Condition | undefined {
     }
     joins.push(table);
     return undefined;
+  }
+  const set = setFunctionCall(node);
+  if (set !== undefined) {
+    const mapping = functionLookupName(set.name, functions);
+    if (mapping === undefined) {
+      unmapped.push(set.name);
+      return undefined;
+    }
+    // SAFETY: twin comes from the project's own rls.functions config, which documents it as a Condition.
+    return {
+      op: "sqlFunction",
+      name: set.name,
+      args: set.args,
+      set: { column: set.column },
+      twin: mapping.twin as Condition,
+    };
   }
   const name = funcName(node);
   if (name !== undefined && !isAuthUid(node) && name !== "current_setting") {
