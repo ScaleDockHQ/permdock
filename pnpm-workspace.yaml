@@ -7,16 +7,16 @@ packages:
   - tests/types/*
 
 catalog:
-  "@ai-sdk/react": 4.0.147
-  "@anthropic-ai/claude-agent-sdk": 0.3.303
-  "@modelcontextprotocol/client": 2.3.1
-  "@modelcontextprotocol/server": 2.3.1
-  "@openai/agents": 0.20.0
-  "@nestjs/common": 12.1.3
-  "@nestjs/core": 12.1.3
-  "@nestjs/platform-express": 12.1.3
-  "@nestjs/platform-fastify": 12.1.3
-  "@fastify/multipart": 10.1.4
+  "@ai-sdk/react": 4.0.158
+  "@anthropic-ai/claude-agent-sdk": 0.3.311
+  "@modelcontextprotocol/client": 2.4.0
+  "@modelcontextprotocol/server": 2.4.0
+  "@openai/agents": 0.21.0
+  "@nestjs/common": 12.2.0
+  "@nestjs/core": 12.2.0
+  "@nestjs/platform-express": 12.2.0
+  "@nestjs/platform-fastify": 12.2.0
+  "@fastify/multipart": 10.1.6
   "@hono/node-server": 2.1.5
   "@arethetypeswrong/cli": 0.18.5
   "@expo/log-box": 57.0.4
@@ -25,10 +25,10 @@ catalog:
   "@sveltejs/vite-plugin-svelte": 7.3.1
   "@vitejs/plugin-react": 6.1.2
   "@vitejs/plugin-vue": 6.0.10
-  ai: 7.0.143
+  ai: 7.0.154
   "@changesets/cli": 3.0.3
   "@types/mdast": 4.0.4
-  "@sentry/nextjs": 11.8.0
+  "@sentry/nextjs": 11.9.0
   "@t3-oss/env-nextjs": 0.13.11
   "@vercel/analytics": 2.0.1
   "@vercel/speed-insights": 2.0.0
@@ -43,12 +43,12 @@ catalog:
   "@commitlint/cli": 21.2.4
   "@commitlint/config-conventional": 21.2.4
   "@commitlint/types": 21.2.3
-  "@orpc/server": 2.0.0-beta.44
-  "@orpc/client": 2.0.0-beta.44
-  "@orpc/contract": 2.0.0-beta.44
-  "@orpc/openapi": 2.0.0-beta.44
+  "@orpc/server": 2.0.0-beta.46
+  "@orpc/client": 2.0.0-beta.46
+  "@orpc/contract": 2.0.0-beta.46
+  "@orpc/openapi": 2.0.0-beta.46
   vue: 3.5.44
-  svelte: 5.57.2
+  svelte: 5.57.3
   "solid-js": 1.9.17
   "@base-ui/react": 1.9.0
   "@standard-schema/spec": 1.1.0
@@ -73,13 +73,13 @@ catalog:
   deno: 2.9.6
   elysia: 1.4.30
   esbuild: 0.28.2
-  drizzle-orm: 1.0.0-rc.5-5935859
+  drizzle-orm: 1.0.0-rc.5
   "@electric-sql/pglite": 0.5.10
   "@electric-sql/pglite-socket": 0.2.13
   "@prisma/adapter-pg": 7.10.1
   "@prisma/client": 7.10.1
   prisma: 7.10.0
-  eve: 0.80.1
+  eve: 0.83.3
   expo: 57.0.26
   expo-constants: 57.0.20
   expo-linking: 57.0.11
@@ -100,24 +100,24 @@ catalog:
   fumadocs-mdx: 15.4.7
   fumadocs-typescript: 5.5.2
   fumadocs-ui: npm:@fumadocs/base-ui@16.17.3
-  hono: 4.13.13
-  jose: 6.2.12
-  knip: 6.42.0
+  hono: 4.13.14
+  jose: 6.2.13
+  knip: 6.43.0
   lefthook: 2.2.1
-  lucide-react: 1.59.0
+  lucide-react: 1.61.0
   miniflare: 4.20260730.0
-  next: 16.4.2
+  next: 16.4.3
   next-themes: 0.4.6
   ajv: 8.20.0
-  oxc-parser: 0.154.0
-  eslint-plugin-turbo: 2.11.9
+  oxc-parser: 0.155.0
+  eslint-plugin-turbo: 2.11.10
   oxlint-plugin-react-doctor: 0.9.18
   "@shadcn/lint": 0.2.3
   oxfmt: 0.74.0
   oxlint: 1.89.0
-  oxlint-tsgolint: 7.0.2004
+  oxlint-tsgolint: 7.0.2005
   ultracite: 8.1.0
-  pgsql-parser: 18.2.12
+  pgsql-parser: 18.3.1
   pg: 8.23.1
   postcss: 8.5.31
   publint: 0.3.25
@@ -137,34 +137,34 @@ catalog:
   react-native-safe-area-context: 5.10.1
   react-native-screens: 4.30.0
   react-native-web: 0.21.4
-  react-native-worklets: 0.13.0
+  react-native-worklets: 0.13.1
   tailwindcss: 4.3.3
   testcontainers: 12.2.1
-  tsdown: 0.23.1
-  turbo: 2.11.9
+  tsdown: 0.23.2
+  turbo: 2.11.10
   tw-animate-css: 1.4.0
   typescript: 7.0.2
-  unplugin: 3.4.0
+  unplugin: 3.5.0
   yaml: 2.9.1
-  vite: 8.3.4
+  vite: 8.3.5
   vite-plugin-solid: 2.11.14
   vitest: 5.0.5
   zod: 4.6.7
-  motion: 14.3.0
+  motion: 14.6.0
   sonner: 2.0.8
   "@streamdown/cjk": 1.0.4
   "@streamdown/code": 2.0.0
   "@streamdown/math": 1.0.3
   "@streamdown/mermaid": 1.0.3
-  streamdown: 2.7.0
+  streamdown: 2.7.1
   use-stick-to-bottom: 1.1.6
-  "@ai-sdk/otel": 1.0.143
+  "@ai-sdk/otel": 1.0.154
   dotenv-cli: 11.0.0
-  portless: 0.15.8
+  portless: 0.15.12
   better-supabase: 0.39.0
   better-result: 3.0.1
   "@supabase/postgrest-typegen": 0.6.0
-  supabase: 2.121.0
+  supabase: 2.122.0
   server-only: 0.0.1
   # The root pins debug's optional supports-color peer so every importer shares one @nestjs/common and @nestjs/core variant.
   supports-color: 11.0.0
@@ -183,22 +183,22 @@ catalog:
   "@supabase/pg-topo": 1.0.0-alpha.8
   "@openfeature/server-sdk": 1.23.0
   "@supabase-labs/middleware-openfeature": 0.2.0
-  "@next/playwright": 16.4.2
+  "@next/playwright": 16.4.3
   "@playwright/test": 1.64.1
   babel-plugin-react-compiler: 1.0.0
-  "@babel/core": 8.0.7
-  chat: 4.42.0
+  "@babel/core": 8.0.9
+  chat: 4.43.0
   resend: 6.34.1
-  workflow: 5.2.2
-  "@solidjs/start": 2.0.6
+  workflow: 5.2.3
+  "@solidjs/start": 2.1.0
   "@sveltejs/kit": 3.1.0
-  "@tanstack/react-start": 1.169.3
-  astro: 7.4.0
-  h3: 2.0.5
+  "@tanstack/react-start": 1.169.4
+  astro: 7.4.2
+  h3: 2.0.8
   "@solidjs/router": 1.0.0
-  "@tanstack/react-router": 1.170.45
-  "@chat-adapter/slack": 4.42.0
-  "@chat-adapter/state-memory": 4.42.0
+  "@tanstack/react-router": 1.170.46
+  "@chat-adapter/slack": 4.43.0
+  "@chat-adapter/state-memory": 4.43.0
 
 catalogs:
   ts59:
@@ -217,7 +217,7 @@ catalogs:
     better-supabase: ">=0.39.0"
     chat: ">=4"
     "@modelcontextprotocol/server": ">=2"
-    "@napi-rs/keyring": ">=1"
+    "@napi-rs/keyring": ">=2"
     "@nestjs/common": ">=11"
     "@nestjs/core": ">=11"
     "@nestjs/platform-express": ">=11"
