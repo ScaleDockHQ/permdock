@@ -107,7 +107,7 @@ grant execute on function "permdock".permdock_has(text) to authenticated;
 create or replace function "permdock".permitted_tenant_ids(p_grant text)
 returns setof uuid
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$

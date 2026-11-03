@@ -225,7 +225,7 @@ grant execute on function "permdock".permdock_capability_ids(text, text, text) t
 create or replace function "permdock".permitted_organization_ids(p_grant text)
 returns setof uuid
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$
@@ -353,7 +353,7 @@ revoke execute on function "permdock".member_organization_ids_for(uuid) from pub
 create or replace function "permdock".permitted_customer_ids(p_grant text)
 returns setof uuid
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$
@@ -617,7 +617,7 @@ revoke execute on function "permdock".permitted_customer_ids_for(uuid, text) fro
 create or replace function "permdock".permdock_custom_role_beyond(p_tenant uuid, p_scope text, p_scope_id text, p_allow text[], p_deny text[], p_include text[])
 returns setof text
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$
@@ -688,7 +688,7 @@ revoke execute on function "permdock".permdock_custom_role_shape(uuid, text, tex
 create or replace function "permdock".permdock_custom_role_guard(p_tenant uuid, p_scope text, p_scope_id text, p_role text)
 returns void
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$

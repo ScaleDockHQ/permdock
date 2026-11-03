@@ -33,7 +33,13 @@ import { customRoleNameGuardSql } from "./custom-role-guard.ts";
 import { customRoleWritesSql } from "./custom-role-writes.ts";
 import { customRolesSql, roleReadersSql } from "./custom-roles.ts";
 import { globalRolesSql } from "./global-roles.ts";
-import { functionBody, hasBody, scopedBody, sqlBody } from "./helper-bodies.ts";
+import {
+  functionBody,
+  hasBody,
+  memoizes,
+  scopedBody,
+  sqlBody,
+} from "./helper-bodies.ts";
 import {
   memberForFunction,
   memberFunction,
@@ -476,12 +482,7 @@ function memoBody(
   type: string,
   body: Body,
 ): Body {
-  if (
-    ctx.authorize !== "database" ||
-    ctx.dialect !== "supabase" ||
-    ctx.grantSet === true ||
-    ctx.subjectId !== undefined
-  ) {
+  if (!memoizes(ctx)) {
     return body;
   }
   return { ...body, memo: { type, scope, user: subjectIdSql(ctx) } };

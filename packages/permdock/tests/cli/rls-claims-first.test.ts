@@ -125,6 +125,7 @@ describe("claims first helpers", () => {
   it("memoizes the ids for the rest of the statement", () => {
     const body = fnBody(helpers(), "permitted_org_ids");
     expect(body).toContain("language plpgsql");
+    expect(body).toContain("language plpgsql\nvolatile\nsecurity definer");
     expect(body).toContain("v_ids uuid[];");
     expect(body).toContain(
       "v_key text := 'permdock.m.k' || md5(concat_ws('|',",
@@ -142,6 +143,23 @@ describe("claims first helpers", () => {
       "perform set_config(v_key, to_jsonb(v_ids)::text, true);",
     );
     expect(body).toContain("return query select unnest(v_ids);");
+  });
+
+  it("marks the custom-role write guards volatile when the helpers memoize", () => {
+    const sql = helpers({
+      customRoles: {
+        declared: ["admin"],
+        assignable: ["admin"],
+        permissions: ["post.read"],
+        manage: ["post.read"],
+      },
+    });
+    expect(fnBody(sql, "permdock_custom_role_beyond")).toContain(
+      "language plpgsql\nvolatile\nsecurity definer",
+    );
+    expect(fnBody(sql, "permdock_custom_role_guard")).toContain(
+      "language plpgsql\nvolatile\nsecurity definer",
+    );
   });
 
   it("does not memoize the _for helpers", () => {

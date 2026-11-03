@@ -609,6 +609,15 @@ export type Body = {
   };
 };
 
+export function memoizes(ctx: RlsSqlContext): boolean {
+  return (
+    ctx.authorize === "database" &&
+    ctx.dialect === "supabase" &&
+    ctx.grantSet !== true &&
+    ctx.subjectId === undefined
+  );
+}
+
 export function sqlBody(sql: string): Body {
   return { sql, vars: [] };
 }
@@ -648,7 +657,7 @@ export function functionBody(body: Body): string {
       `v_ids ${body.memo.type}[];`,
     ];
     return `language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$
