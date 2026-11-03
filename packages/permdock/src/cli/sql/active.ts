@@ -141,6 +141,84 @@ export function activeRowSql(row: RlsActiveRow, id: string): string {
   return `coalesce(${id} in (select s.${quoteIdent(row.id)} from ${table} s${where}), false)`;
 }
 
+export type ActiveChecks = {
+  readonly joins: readonly string[];
+  readonly filters: readonly string[];
+};
+
+function activeJoin(row: RlsActiveRow, id: string, alias: string): string {
+  const table = quoteTable(qualifySqlTable(row.table));
+  const parts = [`${alias}.${quoteIdent(row.id)} = ${id}`];
+  if (row.disabledAt !== undefined) {
+    parts.push(`${alias}.${quoteIdent(row.disabledAt)} is null`);
+  }
+  if (row.status !== undefined) {
+    const values = (row.active ?? []).map(quoteLiteral).join(", ");
+    parts.push(
+      `${alias}.${quoteIdent(row.status)}::text = any(array[${values}]::text[])`,
+    );
+  }
+  return `join ${table} ${alias} on ${parts.join(" and ")}`;
+}
+
+export function activeUserChecks(
+  ctx: RlsSqlContext,
+  user: string,
+  alias: string,
+  indent: string,
+): ActiveChecks {
+  const row = ctx.suspension?.users;
+  return row === undefined
+    ? { joins: [], filters: [] }
+    : { joins: [`${indent}${activeJoin(row, user, alias)}`], filters: [] };
+}
+
+export function activeInstanceChecks(
+  ctx: RlsSqlContext,
+  scope: string,
+  idOf: (name: string) => string | undefined,
+  aliasOf: (name: string) => string,
+  indent: string,
+  permission: CheckedPermission | undefined = ctx.permission === undefined
+    ? undefined
+    : { key: ctx.permission },
+): ActiveChecks {
+  const joins: string[] = [];
+  const filters: string[] = [];
+  for (const name of scopeChain(ctx.scopes, scope)) {
+    const row = ctx.suspension?.scopes?.[name];
+    if (row === undefined) {
+      continue;
+    }
+    const id = idOf(name);
+    if (id === undefined) {
+      throw configError(
+        `PermDock CLI: rls.suspension.scopes.${name} needs the ${name} id on ${scope} memberships: add columns.${name} to the ${scope} memberships table`,
+      );
+    }
+    const keep = keptKeys(row);
+    if (
+      permission !== undefined &&
+      "key" in permission &&
+      keep.includes(permission.key)
+    ) {
+      continue;
+    }
+    const cast = `(${id})::${scopeTypeOf(ctx, name)}`;
+    if (keep.length === 0) {
+      joins.push(`${indent}${activeJoin(row, cast, aliasOf(name))}`);
+      continue;
+    }
+    const active = activeRowSql(row, cast);
+    filters.push(
+      permission !== undefined && "sql" in permission
+        ? `(${active} or ${permission.sql} = any(array[${keep.map(quoteLiteral).join(", ")}]::text[]))`
+        : active,
+    );
+  }
+  return { joins, filters };
+}
+
 /** The active-user check for `user`; empty without `rls.suspension.users`. */
 export function activeUserSql(
   ctx: RlsSqlContext,
