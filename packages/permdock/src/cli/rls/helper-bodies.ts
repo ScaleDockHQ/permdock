@@ -644,7 +644,7 @@ export function functionBody(body: Body): string {
       statement_timestamp()::text,
       md5(coalesce((select auth.jwt())::text, ''))
     ));`,
-      `v_memo text := current_setting(v_key, true);`,
+      `v_memo text := nullif(current_setting(v_key, true), '');`,
       `v_ids ${body.memo.type}[];`,
     ];
     return `language plpgsql

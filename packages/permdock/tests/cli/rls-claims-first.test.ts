@@ -135,7 +135,9 @@ describe("claims first helpers", () => {
     expect(body).toContain("coalesce((select auth.jwt()) ->> 'authz_ver', '')");
     expect(body).toContain("statement_timestamp()::text");
     expect(body).toContain("md5(coalesce((select auth.jwt())::text, ''))");
-    expect(body).toContain("v_memo text := current_setting(v_key, true);");
+    expect(body).toContain(
+      "v_memo text := nullif(current_setting(v_key, true), '');",
+    );
     expect(body).toContain(
       "perform set_config(v_key, to_jsonb(v_ids)::text, true);",
     );
@@ -490,7 +492,7 @@ describe("claims first helper branches", () => {
       helpers({ claimsFirst: true, tenants: "all" }),
       "permitted_org_ids",
     );
-    expect(body).not.toContain("nullif(");
+    expect(body).not.toContain("->> 'tenant_id'");
   });
 
   it("joins the active user and filters a kept instance in the claim branch", () => {

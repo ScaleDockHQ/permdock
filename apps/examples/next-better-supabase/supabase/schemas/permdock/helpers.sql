@@ -231,8 +231,22 @@ set search_path = ''
 as $$
 declare
   v_user_0 "public"."organization_memberships"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user text := (select "permdock".permdock_user_id())::text;
+  v_key text := 'permdock.m.k' || md5(concat_ws('|',
+      v_user,
+      p_grant,
+      'organization',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    ));
+  v_memo text := nullif(current_setting(v_key, true), '');
+  v_ids uuid[];
 begin
-  return query
+  if v_memo is not null then
+    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb)::uuid);
+  else
+    v_ids := array(
   select (ms.id)::uuid
   from (
     select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
@@ -271,7 +285,11 @@ begin
       array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
       array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
       'organization'
-    ));
+    ))
+    );
+    perform set_config(v_key, to_jsonb(v_ids)::text, true);
+  end if;
+  return query select unnest(v_ids);
 end;
 $$;
 revoke execute on function "permdock".permitted_organization_ids(text) from public, anon;
@@ -341,8 +359,22 @@ set search_path = ''
 as $$
 declare
   v_user_0 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
+  v_user text := (select "permdock".permdock_user_id())::text;
+  v_key text := 'permdock.m.k' || md5(concat_ws('|',
+      v_user,
+      p_grant,
+      'customer',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    ));
+  v_memo text := nullif(current_setting(v_key, true), '');
+  v_ids uuid[];
 begin
-  return query
+  if v_memo is not null then
+    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb)::uuid);
+  else
+    v_ids := array(
   select (ms.id)::uuid
   from (
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
@@ -381,7 +413,11 @@ begin
       array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
       array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
       'customer'
-    ));
+    ))
+    );
+    perform set_config(v_key, to_jsonb(v_ids)::text, true);
+  end if;
+  return query select unnest(v_ids);
 end;
 $$;
 revoke execute on function "permdock".permitted_customer_ids(text) from public, anon;
