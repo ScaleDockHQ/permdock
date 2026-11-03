@@ -9,7 +9,7 @@ import { subjectClaimJsonSql, subjectClaimSql } from "../sql/subject.ts";
 
 export const TOKEN_SCOPE_ALLOWS = "permdock_token_scope_allows";
 
-export const TOKEN_SCOPE_MAP = "permdock_token_scope_map";
+const TOKEN_SCOPE_MAP = "permdock_token_scope_map";
 
 /**
  * `rls.tokenScopes` as the SQL generator needs it, or `undefined` when it is
