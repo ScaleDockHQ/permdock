@@ -9,6 +9,8 @@ import { subjectClaimJsonSql, subjectClaimSql } from "../sql/subject.ts";
 
 export const TOKEN_SCOPE_ALLOWS = "permdock_token_scope_allows";
 
+export const TOKEN_SCOPE_MAP = "permdock_token_scope_map";
+
 /**
  * `rls.tokenScopes` as the SQL generator needs it, or `undefined` when it is
  * off.
@@ -63,13 +65,24 @@ export function tokenScopeAllowsSql(
   anonExecute: boolean,
 ): string {
   const fn = qualified(ctx, TOKEN_SCOPE_ALLOWS);
+  const map = qualified(ctx, TOKEN_SCOPE_MAP);
   const act = subjectClaimJsonSql(ctx, "act");
   const grants = anonExecute
     ? `revoke execute on function ${fn}(text) from public;
 grant execute on function ${fn}(text) to anon, authenticated;`
     : `revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;`;
-  return `-- Token scopes: a delegated token holds only the permissions its scope claim maps to; denies always apply, and a token without client_id or an agent act is not limited
+  return `create or replace function ${map}()
+returns jsonb
+language sql
+immutable
+set search_path = ''
+as $$
+  select ${quoteLiteral(JSON.stringify(plan.scopes))}::jsonb
+$$;
+revoke execute on function ${map}() from public, anon, authenticated;
+
+-- Token scopes: a delegated token holds only the permissions its scope claim maps to; denies always apply, and a token without client_id or an agent act is not limited
 create or replace function ${fn}(p_grant text)
 returns boolean
 language sql
@@ -91,7 +104,7 @@ as $$
       select 1
       from ${tokenScopeRows(ctx)}
       where s.scope <> ''
-        and coalesce(${quoteLiteral(JSON.stringify(plan.scopes))}::jsonb -> s.scope, '[]'::jsonb)
+        and coalesce(${map}() -> s.scope, '[]'::jsonb)
           ? split_part(split_part(p_grant, '#', 1), '@', 1)
     )
   end
