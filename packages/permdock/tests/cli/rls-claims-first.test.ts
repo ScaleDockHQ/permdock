@@ -128,21 +128,64 @@ describe("claims first helpers", () => {
     expect(body).toContain("language plpgsql\nvolatile\nsecurity definer");
     expect(body).toContain("v_ids uuid[];");
     expect(body).toContain(
-      "v_key text := 'permdock.m.k' || md5(concat_ws('|',",
+      "v_key text := 'permdock.m.' || 'org' || '.k' || md5(p_grant);",
     );
+    expect(body).toContain("v_disc text := md5(concat_ws('|',");
     expect(body).toContain("v_user,");
-    expect(body).toContain("p_grant,");
-    expect(body).toContain("'org',");
     expect(body).toContain("coalesce((select auth.jwt()) ->> 'authz_ver', '')");
+    expect(body).toContain(
+      "coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')",
+    );
     expect(body).toContain("statement_timestamp()::text");
     expect(body).toContain("md5(coalesce((select auth.jwt())::text, ''))");
     expect(body).toContain(
       "v_memo text := nullif(current_setting(v_key, true), '');",
     );
     expect(body).toContain(
-      "perform set_config(v_key, to_jsonb(v_ids)::text, true);",
+      "if v_memo is not null and (v_memo::jsonb ->> 'k') = v_disc then",
+    );
+    expect(body).toContain(
+      "perform set_config(v_key, jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text, true);",
     );
     expect(body).toContain("return query select unnest(v_ids);");
+  });
+
+  it("bumps the memo generation on permission, custom-role and suspension writes", () => {
+    const sql = helpers({
+      customRoles: {
+        declared: ["admin"],
+        assignable: ["admin"],
+        permissions: ["post.read"],
+        manage: ["post.read"],
+      },
+      suspension: {
+        users: { table: "profiles", id: "user_id", disabledAt: "disabled_at" },
+        scopes: {
+          org: { table: "organizations", id: "id", disabledAt: "disabled_at" },
+        },
+      },
+    });
+    expect(sql).toContain(
+      'create or replace function "permdock".permdock_bump_memo_generation()',
+    );
+    expect(sql).toContain(
+      'create or replace function "permdock".permdock_memo_generation()',
+    );
+    expect(sql).toContain(
+      'create trigger "permdock_memo_generation"\n  after insert or update or delete on "permdock"."role_permissions"',
+    );
+    expect(sql).toContain(
+      'after insert or update or delete on "permdock"."custom_role_permissions"',
+    );
+    expect(sql).toContain(
+      'after insert or update or delete on "permdock"."custom_role_includes"',
+    );
+    expect(sql).toContain(
+      'after insert or update of "disabled_at" or delete on "public"."profiles"',
+    );
+    expect(sql).toContain(
+      'after insert or update of "disabled_at" or delete on "public"."organizations"',
+    );
   });
 
   it("marks the custom-role write guards volatile when the helpers memoize", () => {
