@@ -95,7 +95,6 @@ Run `pnpm exec portless list` first and reuse a running PermDock route. The Port
 - Read the installed docs (`node_modules/next/dist/docs`, `turbo/docs`, the package README) before configuring Next.js, Turborepo or Fumadocs.
 - Never lower `minimumReleaseAge`. Pin versions from `pnpm view` at run time.
 - Secrets never go in git or `NEXT_PUBLIC_*`. Never set `AI_GATEWAY_API_KEY` or a provider key: the AI Gateway uses Vercel OIDC.
-- Every `as T` has a `// SAFETY:` comment; prefer a type guard or a schema parse.
 - Fix the code, not the test.
 
 ## Invariants
@@ -136,6 +135,7 @@ Records in `docs/decisions`:
 - 0026 no commit header length limit; 0027 7-day Dependabot cooldown; 0052 Ultracite kept-off rules
 - 0029 no Turbopack CI cache; 0030 `Vary` only on Markdown
 - 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock`; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038-0041, 0046-0048, 0050-0051, 0053-0054 better-supabase pins and floor; 0042 `oxc-parser`, `jiti` as deps; 0044 lint rules kept off; 0045 open peer ranges; 0049 hook gate
+- 0055 `turbo.json` `global` block
 
 ## Pre-release pins
 
