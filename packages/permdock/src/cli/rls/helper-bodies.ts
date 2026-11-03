@@ -645,11 +645,11 @@ export function functionBody(body: Body): string {
     const declare = [
       ...body.vars,
       `v_user text := ${body.memo.user}::text;`,
-      `v_key text := 'permdock.m.k' || md5(concat_ws('|',
+      `v_key text := 'permdock.m.' || ${quoteLiteral(body.memo.scope)} || '.k' || md5(p_grant);`,
+      `v_disc text := md5(concat_ws('|',
       v_user,
-      p_grant,
-      ${quoteLiteral(body.memo.scope)},
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
       statement_timestamp()::text,
       md5(coalesce((select auth.jwt())::text, ''))
     ));`,
@@ -664,13 +664,13 @@ as $$
 declare
 ${declare.map((line) => `  ${line}`).join("\n")}
 begin
-  if v_memo is not null then
-    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb)::${body.memo.type});
+  if v_memo is not null and (v_memo::jsonb ->> 'k') = v_disc then
+    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb -> 'ids')::${body.memo.type});
   else
     v_ids := array(
 ${body.sql}
     );
-    perform set_config(v_key, to_jsonb(v_ids)::text, true);
+    perform set_config(v_key, jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text, true);
   end if;
   return query select unnest(v_ids);
 end;

@@ -46,6 +46,7 @@ import {
   memberOfFunction,
   memberRolesFunction,
 } from "./helper-members.ts";
+import { memoGenerationSql } from "./memo-generation.ts";
 import { tokenScopeAllowsCall, tokenScopeAllowsSql } from "./token-scopes.ts";
 
 /** `'global'` or a scope name. */
@@ -406,6 +407,10 @@ revoke all on table ${ur} from anon, authenticated, public;`);
   const custom = customRolesSql(ctx);
   if (custom !== "") {
     chunks.push(custom);
+  }
+  const memoGeneration = memoGenerationSql(ctx);
+  if (memoGeneration !== "") {
+    chunks.push(memoGeneration);
   }
   const anon = options.anonExecute === true;
   const keys = ctx.apiKeys;
