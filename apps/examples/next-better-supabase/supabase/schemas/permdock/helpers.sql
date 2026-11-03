@@ -169,6 +169,45 @@ as $$
 $$;
 revoke execute on function "permdock".permdock_is_shared_role(text, text) from public, anon, authenticated;
 
+-- a permission, custom-role or suspension write changes permitted ids inside the statement
+create or replace function "permdock".permdock_bump_memo_generation()
+returns void
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  select set_config(
+    'permdock.m.gen',
+    (coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')::int + 1)::text,
+    true
+  )
+$$;
+revoke execute on function "permdock".permdock_bump_memo_generation() from public, anon, authenticated;
+
+create or replace function "permdock".permdock_memo_generation()
+returns trigger
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+begin
+  perform "permdock".permdock_bump_memo_generation();
+  return null;
+end;
+$$;
+revoke execute on function "permdock".permdock_memo_generation() from public, anon, authenticated;
+create or replace trigger "permdock_memo_generation"
+  after insert or update or delete on "permdock"."role_permissions"
+  for each row execute function "permdock".permdock_memo_generation();
+create or replace trigger "permdock_memo_generation"
+  after insert or update or delete on "permdock"."custom_role_permissions"
+  for each row execute function "permdock".permdock_memo_generation();
+create or replace trigger "permdock_memo_generation"
+  after insert or update or delete on "permdock"."custom_role_includes"
+  for each row execute function "permdock".permdock_memo_generation();
+
 create or replace function "permdock".permdock_has(p_grant text)
 returns boolean
 language sql
@@ -232,19 +271,19 @@ as $$
 declare
   v_user_0 "public"."organization_memberships"."user_id"%type := (select "permdock".permdock_user_id());
   v_user text := (select "permdock".permdock_user_id())::text;
-  v_key text := 'permdock.m.k' || md5(concat_ws('|',
+  v_key text := 'permdock.m.' || 'organization' || '.k' || md5(p_grant);
+  v_disc text := md5(concat_ws('|',
       v_user,
-      p_grant,
-      'organization',
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
       statement_timestamp()::text,
       md5(coalesce((select auth.jwt())::text, ''))
     ));
   v_memo text := nullif(current_setting(v_key, true), '');
   v_ids uuid[];
 begin
-  if v_memo is not null then
-    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb)::uuid);
+  if v_memo is not null and (v_memo::jsonb ->> 'k') = v_disc then
+    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb -> 'ids')::uuid);
   else
     v_ids := array(
   select (ms.id)::uuid
@@ -287,7 +326,7 @@ begin
       'organization'
     ))
     );
-    perform set_config(v_key, to_jsonb(v_ids)::text, true);
+    perform set_config(v_key, jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text, true);
   end if;
   return query select unnest(v_ids);
 end;
@@ -360,19 +399,19 @@ as $$
 declare
   v_user_0 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
   v_user text := (select "permdock".permdock_user_id())::text;
-  v_key text := 'permdock.m.k' || md5(concat_ws('|',
+  v_key text := 'permdock.m.' || 'customer' || '.k' || md5(p_grant);
+  v_disc text := md5(concat_ws('|',
       v_user,
-      p_grant,
-      'customer',
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
       statement_timestamp()::text,
       md5(coalesce((select auth.jwt())::text, ''))
     ));
   v_memo text := nullif(current_setting(v_key, true), '');
   v_ids uuid[];
 begin
-  if v_memo is not null then
-    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb)::uuid);
+  if v_memo is not null and (v_memo::jsonb ->> 'k') = v_disc then
+    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb -> 'ids')::uuid);
   else
     v_ids := array(
   select (ms.id)::uuid
@@ -415,7 +454,7 @@ begin
       'customer'
     ))
     );
-    perform set_config(v_key, to_jsonb(v_ids)::text, true);
+    perform set_config(v_key, jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text, true);
   end if;
   return query select unnest(v_ids);
 end;
