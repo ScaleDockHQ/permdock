@@ -99,6 +99,12 @@ describe("better-supabase SQL against a deny of the same permission", () => {
     lite = new PGlite();
     await lite.exec(SETUP);
     await lite.exec(readFileSync(out, "utf8"));
+    await lite.exec(`
+create table permdock.permdock_authz_version (
+  user_id uuid primary key references auth.users on delete cascade,
+  version bigint not null default 0
+);
+`);
     await lite.exec(SEED);
   }, 120_000);
 
