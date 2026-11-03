@@ -75,7 +75,7 @@ describe("RLS memo settings on Postgres", () => {
       throw new Error("PermDock: Postgres did not start");
     }
     const key = await db.admin.query<{ readonly key: string }>(
-      "select 'permdock.m.tenant.k' || md5('job.read') as key",
+      "select 'permdock.m.tenant.k' || (hashtext('job.read') & 1023)::text as key",
     );
     const name = key.rows[0]?.key;
     if (name === undefined) {

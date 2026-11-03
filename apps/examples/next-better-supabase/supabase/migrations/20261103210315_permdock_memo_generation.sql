@@ -55,9 +55,10 @@ CREATE OR REPLACE FUNCTION permdock.permitted_customer_ids (
 declare
   v_user_0 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
   v_user text := (select "permdock".permdock_user_id())::text;
-  v_key text := 'permdock.m.' || 'customer' || '.k' || md5(p_grant);
+  v_key text := 'permdock.m.' || 'customer' || '.k' || (hashtext(p_grant) & 1023)::text;
   v_disc text := md5(concat_ws('|',
       v_user,
+      p_grant,
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
       coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
       statement_timestamp()::text,
@@ -127,9 +128,10 @@ CREATE OR REPLACE FUNCTION permdock.permitted_organization_ids (
 declare
   v_user_0 "public"."organization_memberships"."user_id"%type := (select "permdock".permdock_user_id());
   v_user text := (select "permdock".permdock_user_id())::text;
-  v_key text := 'permdock.m.' || 'organization' || '.k' || md5(p_grant);
+  v_key text := 'permdock.m.' || 'organization' || '.k' || (hashtext(p_grant) & 1023)::text;
   v_disc text := md5(concat_ws('|',
       v_user,
+      p_grant,
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
       coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
       statement_timestamp()::text,
@@ -190,17 +192,42 @@ $function$;
 
 CREATE TRIGGER permdock_memo_generation
   AFTER INSERT OR DELETE OR UPDATE ON permdock.custom_role_includes
-  FOR EACH ROW
+  FOR EACH STATEMENT
   EXECUTE FUNCTION permdock.permdock_memo_generation();
 
 CREATE TRIGGER permdock_memo_generation
   AFTER INSERT OR DELETE OR UPDATE ON permdock.custom_role_permissions
-  FOR EACH ROW
+  FOR EACH STATEMENT
   EXECUTE FUNCTION permdock.permdock_memo_generation();
 
 CREATE TRIGGER permdock_memo_generation
   AFTER INSERT OR DELETE OR UPDATE ON permdock.role_permissions
-  FOR EACH ROW
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION permdock.permdock_memo_generation();
+
+CREATE TRIGGER permdock_memo_generation
+  AFTER INSERT OR DELETE OR UPDATE OF key, organization_id ON public.roles
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION permdock.permdock_memo_generation();
+
+CREATE TRIGGER permdock_memo_generation_truncate
+  AFTER TRUNCATE ON permdock.custom_role_includes
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION permdock.permdock_memo_generation();
+
+CREATE TRIGGER permdock_memo_generation_truncate
+  AFTER TRUNCATE ON permdock.custom_role_permissions
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION permdock.permdock_memo_generation();
+
+CREATE TRIGGER permdock_memo_generation_truncate
+  AFTER TRUNCATE ON permdock.role_permissions
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION permdock.permdock_memo_generation();
+
+CREATE TRIGGER permdock_memo_generation_truncate
+  AFTER TRUNCATE ON public.roles
+  FOR EACH STATEMENT
   EXECUTE FUNCTION permdock.permdock_memo_generation();
 
 REVOKE ALL ON FUNCTION "permdock"."permdock_bump_memo_generation"() FROM PUBLIC;

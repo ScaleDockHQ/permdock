@@ -200,13 +200,28 @@ $$;
 revoke execute on function "permdock".permdock_memo_generation() from public, anon, authenticated;
 create or replace trigger "permdock_memo_generation"
   after insert or update or delete on "permdock"."role_permissions"
-  for each row execute function "permdock".permdock_memo_generation();
+  for each statement execute function "permdock".permdock_memo_generation();
+create or replace trigger "permdock_memo_generation_truncate"
+  after truncate on "permdock"."role_permissions"
+  for each statement execute function "permdock".permdock_memo_generation();
 create or replace trigger "permdock_memo_generation"
   after insert or update or delete on "permdock"."custom_role_permissions"
-  for each row execute function "permdock".permdock_memo_generation();
+  for each statement execute function "permdock".permdock_memo_generation();
+create or replace trigger "permdock_memo_generation_truncate"
+  after truncate on "permdock"."custom_role_permissions"
+  for each statement execute function "permdock".permdock_memo_generation();
 create or replace trigger "permdock_memo_generation"
   after insert or update or delete on "permdock"."custom_role_includes"
-  for each row execute function "permdock".permdock_memo_generation();
+  for each statement execute function "permdock".permdock_memo_generation();
+create or replace trigger "permdock_memo_generation_truncate"
+  after truncate on "permdock"."custom_role_includes"
+  for each statement execute function "permdock".permdock_memo_generation();
+create or replace trigger "permdock_memo_generation"
+  after insert or update of "key", "organization_id" or delete on "public"."roles"
+  for each statement execute function "permdock".permdock_memo_generation();
+create or replace trigger "permdock_memo_generation_truncate"
+  after truncate on "public"."roles"
+  for each statement execute function "permdock".permdock_memo_generation();
 
 create or replace function "permdock".permdock_has(p_grant text)
 returns boolean
@@ -271,9 +286,10 @@ as $$
 declare
   v_user_0 "public"."organization_memberships"."user_id"%type := (select "permdock".permdock_user_id());
   v_user text := (select "permdock".permdock_user_id())::text;
-  v_key text := 'permdock.m.' || 'organization' || '.k' || md5(p_grant);
+  v_key text := 'permdock.m.' || 'organization' || '.k' || (hashtext(p_grant) & 1023)::text;
   v_disc text := md5(concat_ws('|',
       v_user,
+      p_grant,
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
       coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
       statement_timestamp()::text,
@@ -399,9 +415,10 @@ as $$
 declare
   v_user_0 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
   v_user text := (select "permdock".permdock_user_id())::text;
-  v_key text := 'permdock.m.' || 'customer' || '.k' || md5(p_grant);
+  v_key text := 'permdock.m.' || 'customer' || '.k' || (hashtext(p_grant) & 1023)::text;
   v_disc text := md5(concat_ws('|',
       v_user,
+      p_grant,
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
       coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
       statement_timestamp()::text,

@@ -71,6 +71,14 @@ export function memoGenerationSql(ctx: RlsSqlContext): string {
   if (ctx.customRoles !== undefined) {
     add(targets, `${schema}.${CUSTOM_ROLES.permissions}`);
     add(targets, `${schema}.${CUSTOM_ROLES.includes}`);
+    const roles = ctx.customRoles.table;
+    if (roles !== undefined) {
+      add(targets, roles.table, [
+        roles.key,
+        ...(roles.tenant === undefined ? [] : [roles.tenant]),
+        ...(roles.scope === undefined ? [] : [roles.scope]),
+      ]);
+    }
   }
   suspensionTargets(targets, ctx.suspension?.users);
   for (const row of Object.values(ctx.suspension?.scopes ?? {})) {
@@ -88,7 +96,11 @@ export function memoGenerationSql(ctx: RlsSqlContext): string {
       return `drop trigger if exists ${quoteIdent(TRIGGER)} on ${target};
 create trigger ${quoteIdent(TRIGGER)}
   after insert or ${update} or delete on ${target}
-  for each row execute function ${trigger}();`;
+  for each statement execute function ${trigger}();
+drop trigger if exists ${quoteIdent(`${TRIGGER}_truncate`)} on ${target};
+create trigger ${quoteIdent(`${TRIGGER}_truncate`)}
+  after truncate on ${target}
+  for each statement execute function ${trigger}();`;
     })
     .join("\n");
   return `-- a permission, custom-role or suspension write changes permitted ids inside the statement

@@ -645,9 +645,10 @@ export function functionBody(body: Body): string {
     const declare = [
       ...body.vars,
       `v_user text := ${body.memo.user}::text;`,
-      `v_key text := 'permdock.m.' || ${quoteLiteral(body.memo.scope)} || '.k' || md5(p_grant);`,
+      `v_key text := 'permdock.m.' || ${quoteLiteral(body.memo.scope)} || '.k' || (hashtext(p_grant) & 1023)::text;`,
       `v_disc text := md5(concat_ws('|',
       v_user,
+      p_grant,
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
       coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
       statement_timestamp()::text,

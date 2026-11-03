@@ -117,7 +117,11 @@ revoke execute on function "permdock".permdock_memo_generation() from public, an
 drop trigger if exists "permdock_memo_generation" on "permdock"."role_permissions";
 create trigger "permdock_memo_generation"
   after insert or update or delete on "permdock"."role_permissions"
-  for each row execute function "permdock".permdock_memo_generation();
+  for each statement execute function "permdock".permdock_memo_generation();
+drop trigger if exists "permdock_memo_generation_truncate" on "permdock"."role_permissions";
+create trigger "permdock_memo_generation_truncate"
+  after truncate on "permdock"."role_permissions"
+  for each statement execute function "permdock".permdock_memo_generation();
 
 create or replace function "permdock".permdock_has(p_grant text)
 returns boolean
@@ -147,9 +151,10 @@ set search_path = ''
 as $$
 declare
   v_user text := (select "permdock".permdock_user_id())::text;
-  v_key text := 'permdock.m.' || 'tenant' || '.k' || md5(p_grant);
+  v_key text := 'permdock.m.' || 'tenant' || '.k' || (hashtext(p_grant) & 1023)::text;
   v_disc text := md5(concat_ws('|',
       v_user,
+      p_grant,
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
       coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
       statement_timestamp()::text,

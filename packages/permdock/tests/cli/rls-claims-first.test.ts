@@ -128,10 +128,11 @@ describe("claims first helpers", () => {
     expect(body).toContain("language plpgsql\nvolatile\nsecurity definer");
     expect(body).toContain("v_ids uuid[];");
     expect(body).toContain(
-      "v_key text := 'permdock.m.' || 'org' || '.k' || md5(p_grant);",
+      "v_key text := 'permdock.m.' || 'org' || '.k' || (hashtext(p_grant) & 1023)::text;",
     );
     expect(body).toContain("v_disc text := md5(concat_ws('|',");
     expect(body).toContain("v_user,");
+    expect(body).toContain("p_grant,");
     expect(body).toContain("coalesce((select auth.jwt()) ->> 'authz_ver', '')");
     expect(body).toContain(
       "coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')",
@@ -157,6 +158,7 @@ describe("claims first helpers", () => {
         assignable: ["admin"],
         permissions: ["post.read"],
         manage: ["post.read"],
+        table: { table: "roles", key: "name", tenant: "organization_id" },
       },
       suspension: {
         users: { table: "profiles", id: "user_id", disabledAt: "disabled_at" },
@@ -185,6 +187,15 @@ describe("claims first helpers", () => {
     );
     expect(sql).toContain(
       'after insert or update of "disabled_at" or delete on "public"."organizations"',
+    );
+    expect(sql).toContain(
+      'after insert or update of "name", "organization_id" or delete on "public"."roles"',
+    );
+    expect(sql).not.toContain(
+      'for each row execute function "permdock".permdock_memo_generation()',
+    );
+    expect(sql).toContain(
+      'create trigger "permdock_memo_generation_truncate"\n  after truncate on "permdock"."role_permissions"\n  for each statement',
     );
   });
 

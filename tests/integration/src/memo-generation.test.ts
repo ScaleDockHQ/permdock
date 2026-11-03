@@ -55,10 +55,11 @@ begin
     true
   );
   perform set_config(
-    'permdock.m.tenant.k' || md5(p_grant),
+    'permdock.m.tenant.k' || (hashtext(p_grant) & 1023)::text,
     jsonb_build_object(
       'k', md5(concat_ws('|',
         (select permdock.permdock_user_id())::text,
+        p_grant,
         coalesce((select auth.jwt()) ->> 'authz_ver', ''),
         coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
         statement_timestamp()::text,
@@ -121,6 +122,23 @@ begin
   update permdock.role_permissions
   set grant_key = 'job.none'
   where role = 'admin' and grant_key = p_grant and scope = 'tenant';
+  second := array(select permdock.permitted_tenant_ids(p_grant));
+  return next;
+end;
+$$;
+
+create function public.cycle_truncate(p_user uuid, p_grant text)
+returns table (first text[], second text[])
+language plpgsql
+as $$
+begin
+  perform set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', p_user, 'role', 'authenticated')::text,
+    true
+  );
+  first := array(select permdock.permitted_tenant_ids(p_grant));
+  truncate permdock.role_permissions;
   second := array(select permdock.permitted_tenant_ids(p_grant));
   return next;
 end;
@@ -269,6 +287,20 @@ describe("RLS memo generation against Postgres", () => {
         readonly first: string[];
         readonly second: string[];
       }>("select * from public.cycle_permission($1::uuid, $2)", [
+        ADMIN,
+        "job.read",
+      ]);
+      expect(result.rows[0]?.first).toStrictEqual(["acme"]);
+      expect(result.rows[0]?.second).toStrictEqual([]);
+    });
+  });
+
+  it("sees a truncated permission map in the same statement", async () => {
+    await rolledBack(async (tx) => {
+      const result = await tx.query<{
+        readonly first: string[];
+        readonly second: string[];
+      }>("select * from public.cycle_truncate($1::uuid, $2)", [
         ADMIN,
         "job.read",
       ]);
