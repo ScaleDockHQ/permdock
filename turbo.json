@@ -33,11 +33,7 @@
       "VERCEL",
       "VERCEL_*"
     ],
-    "inputs": [
-      "packages/typescript-config/*.json",
-      "oxlint.config.ts",
-      "pnpm-workspace.yaml"
-    ]
+    "inputs": ["packages/typescript-config/*.json"]
   },
   "boundaries": {
     "tags": {
@@ -109,15 +105,33 @@
     },
     "typecheck": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "!**/*.md", "!**/*.mdx"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/oxlint.config.ts",
+        "$TURBO_ROOT$/packages/permdock/package.json",
+        "!**/*.md",
+        "!**/*.mdx",
+        {
+          "mode": "dependencyOutputs",
+          "from": ["^build"],
+          "globs": ["dist/**/*.d.ts"]
+        }
+      ]
     },
     "lint": {
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/turbo.json",
+        "$TURBO_ROOT$/oxlint.config.ts",
+        "$TURBO_ROOT$/packages/permdock/package.json",
         "!**/*.md",
-        "!**/*.mdx"
+        "!**/*.mdx",
+        {
+          "mode": "dependencyOutputs",
+          "from": ["^build"],
+          "globs": ["dist/**/*.d.ts"]
+        }
       ]
     },
     "//#lint:root": {
