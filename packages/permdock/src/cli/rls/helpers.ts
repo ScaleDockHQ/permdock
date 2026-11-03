@@ -466,15 +466,25 @@ revoke all on table ${ur} from anon, authenticated, public;`);
   if (globalRoles !== "") {
     chunks.push(globalRoles);
   }
-  const readers = roleReadersSql(
-    ctx,
-    options.permissions,
-    options.trustedReaders,
-  );
-  if (readers !== "") {
-    chunks.push(readers);
-  }
+  chunks.push(roleReadersSql(ctx, options.permissions, options.trustedReaders));
   return `${chunks.join("\n\n")}\n`;
+}
+
+function memoBody(
+  ctx: RlsSqlContext,
+  scope: string,
+  type: string,
+  body: Body,
+): Body {
+  if (
+    ctx.authorize !== "database" ||
+    ctx.dialect !== "supabase" ||
+    ctx.grantSet === true ||
+    ctx.subjectId !== undefined
+  ) {
+    return body;
+  }
+  return { ...body, memo: { type, scope, user: subjectIdSql(ctx) } };
 }
 
 export function grantBodies(ctx: RlsSqlContext): {
@@ -510,23 +520,26 @@ ${hasBody(ctx)}
     ids: (scope) => {
       const type = scopeTypeOf(ctx, scope);
       const body = scopedBody(ctx, scope, type);
-      if (allows === undefined) {
-        return body;
-      }
       const sql =
-        keys !== undefined && scope === rootName(ctx)
-          ? `${body.sql}\n  union\n${serviceKeyIdsSql(ctx, keys, scope, type)}`
-          : body.sql;
-      return {
-        sql: set
-          ? `  select ids.id, ids.grant_key
+        allows === undefined
+          ? body.sql
+          : keys !== undefined && scope === rootName(ctx)
+            ? `${body.sql}\n  union\n${serviceKeyIdsSql(ctx, keys, scope, type)}`
+            : body.sql;
+      const wrapped =
+        allows === undefined
+          ? { sql, vars: body.vars }
+          : {
+              sql: set
+                ? `  select ids.id, ids.grant_key
   from (
 ${sql}
   ) ids(id, grant_key)
   where ${allows}`
-          : ceilingIdsSql(sql, allows),
-        vars: body.vars,
-      };
+                : ceilingIdsSql(sql, allows),
+              vars: body.vars,
+            };
+      return memoBody(ctx, scope, type, wrapped);
     },
   };
 }

@@ -599,7 +599,15 @@ function sourceUser(index: number): string {
  * source, holding `user` as that source's user column type so each `select`
  * compares the column uncast and its index applies.
  */
-export type Body = { readonly sql: string; readonly vars: readonly string[] };
+export type Body = {
+  readonly sql: string;
+  readonly vars: readonly string[];
+  readonly memo?: {
+    readonly type: string;
+    readonly scope: string;
+    readonly user: string;
+  };
+};
 
 export function sqlBody(sql: string): Body {
   return { sql, vars: [] };
@@ -624,6 +632,41 @@ export function sourcesBodyOf(
  * variables.
  */
 export function functionBody(body: Body): string {
+  if (body.memo !== undefined) {
+    const declare = [
+      ...body.vars,
+      `v_user text := ${body.memo.user}::text;`,
+      `v_key text := 'permdock.m.k' || md5(concat_ws('|',
+      v_user,
+      p_grant,
+      ${quoteLiteral(body.memo.scope)},
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    ));`,
+      `v_memo text := current_setting(v_key, true);`,
+      `v_ids ${body.memo.type}[];`,
+    ];
+    return `language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+${declare.map((line) => `  ${line}`).join("\n")}
+begin
+  if v_memo is not null then
+    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb)::${body.memo.type});
+  else
+    v_ids := array(
+${body.sql}
+    );
+    perform set_config(v_key, to_jsonb(v_ids)::text, true);
+  end if;
+  return query select unnest(v_ids);
+end;
+$$;`;
+  }
   if (body.vars.length === 0) {
     return `language sql
 stable

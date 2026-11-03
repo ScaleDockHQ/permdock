@@ -106,11 +106,28 @@ grant execute on function "permdock".permdock_has(text) to authenticated;
 
 create or replace function "permdock".permitted_tenant_ids(p_grant text)
 returns setof uuid
-language sql
+language plpgsql
 stable
 security definer
 set search_path = ''
 as $$
+declare
+  v_user text := (select "permdock".permdock_user_id())::text;
+  v_key text := 'permdock.m.k' || md5(concat_ws('|',
+      v_user,
+      p_grant,
+      'tenant',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    ));
+  v_memo text := current_setting(v_key, true);
+  v_ids uuid[];
+begin
+  if v_memo is not null then
+    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb)::uuid);
+  else
+    v_ids := array(
   select m."organization_id"::uuid
   from "public"."organization_members" m
   join "permdock".role_permissions rp on rp.role = m."role"::text
@@ -118,6 +135,11 @@ as $$
     and rp.grant_key = p_grant
     and rp.scope = 'tenant'
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+    );
+    perform set_config(v_key, to_jsonb(v_ids)::text, true);
+  end if;
+  return query select unnest(v_ids);
+end;
 $$;
 revoke execute on function "permdock".permitted_tenant_ids(text) from public, anon;
 grant execute on function "permdock".permitted_tenant_ids(text) to authenticated;

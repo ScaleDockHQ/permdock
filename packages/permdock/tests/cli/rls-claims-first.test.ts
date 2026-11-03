@@ -122,21 +122,51 @@ describe("claims first helpers", () => {
     );
   });
 
-  it("does not claim-read the _for helpers", () => {
+  it("memoizes the ids for the rest of the statement", () => {
+    const body = fnBody(helpers(), "permitted_org_ids");
+    expect(body).toContain("language plpgsql");
+    expect(body).toContain("v_ids uuid[];");
+    expect(body).toContain(
+      "v_key text := 'permdock.m.k' || md5(concat_ws('|',",
+    );
+    expect(body).toContain("v_user,");
+    expect(body).toContain("p_grant,");
+    expect(body).toContain("'org',");
+    expect(body).toContain("coalesce((select auth.jwt()) ->> 'authz_ver', '')");
+    expect(body).toContain("statement_timestamp()::text");
+    expect(body).toContain("md5(coalesce((select auth.jwt())::text, ''))");
+    expect(body).toContain("v_memo text := current_setting(v_key, true);");
+    expect(body).toContain(
+      "perform set_config(v_key, to_jsonb(v_ids)::text, true);",
+    );
+    expect(body).toContain("return query select unnest(v_ids);");
+  });
+
+  it("does not memoize the _for helpers", () => {
     const forBody = grantBodies(forUserContext(ctx({ claimsFirst: true }))).ids(
       "org",
     );
+    expect(forBody.memo).toBeUndefined();
     expect(forBody.sql).not.toContain("permdock_token_current");
     expect(forBody.sql).toContain("= p_user");
   });
 
-  it("does not claim-read the set helpers", () => {
+  it("does not memoize or claim-read the set helpers", () => {
     const setBody = grantBodies({
       ...ctx({ claimsFirst: true }),
       grantSet: true,
     }).ids("org");
+    expect(setBody.memo).toBeUndefined();
     expect(setBody.sql).not.toContain("permdock_token_current");
     expect(setBody.sql).toContain("rp.grant_key");
+  });
+
+  it("memoizes a plain database helper with its user, scope and type", () => {
+    expect(grantBodies(ctx()).ids("org").memo).toStrictEqual({
+      type: "uuid",
+      scope: "org",
+      user: '(select "permdock".permdock_user_id())',
+    });
   });
 });
 
