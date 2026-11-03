@@ -1,6 +1,7 @@
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { Body } from "./helper-bodies.ts";
 
+import { AUTHZ_VERSION_TABLE } from "../../supabase/sources.ts";
 import { configError } from "../core/errors.ts";
 import { scopeTypeOf } from "../sql/columns.ts";
 import {
@@ -17,7 +18,7 @@ import {
   quoteQualified,
 } from "../sql/quote.ts";
 import { HELPERS, rootName } from "../sql/shared.ts";
-import { keyTenantSql, userIdHelperSql } from "../sql/subject.ts";
+import { keyTenantSql, subjectIdSql, userIdHelperSql } from "../sql/subject.ts";
 import {
   apiKeyAllowsCall,
   apiKeyAllowsSql,
@@ -130,6 +131,34 @@ as $$
     nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub',
     ''
   )::uuid
+$$;
+${grants}`;
+}
+
+function tokenCurrentSql(ctx: RlsSqlContext, anonExecute: boolean): string {
+  const fn = qualified(ctx, HELPERS.tokenCurrent);
+  const version = qualified(ctx, AUTHZ_VERSION_TABLE);
+  const grants = anonExecute
+    ? `revoke execute on function ${fn}() from public;
+grant execute on function ${fn}() to anon, authenticated;`
+    : `revoke execute on function ${fn}() from public, anon;
+grant execute on function ${fn}() to authenticated;`;
+  return `create or replace function ${fn}()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  return coalesce((
+    select to_jsonb(v.version) = ((select auth.jwt()) -> 'authz_ver')
+      and coalesce((select auth.jwt()) -> 'memberships_truncated', 'false'::jsonb) <> 'true'::jsonb
+      and jsonb_typeof((select auth.jwt()) -> 'memberships') = 'array'
+    from ${version} v
+    where v.user_id = ${subjectIdSql(ctx)}
+  ), false);
+end;
 $$;
 ${grants}`;
 }
@@ -332,6 +361,9 @@ export function helpersSql(
   if (ctx.dialect === "supabase") {
     chunks.push(userIdSql(ctx, options.anonExecute === true));
   }
+  if (ctx.claimsFirst === true) {
+    chunks.push(tokenCurrentSql(ctx, options.anonExecute === true));
+  }
   if (ctx.seeds === "view") {
     chunks.push(seedViewSql(ctx, rows));
   } else {
@@ -500,6 +532,11 @@ ${sql}
 }
 
 export function forUserContext(ctx: RlsSqlContext): RlsSqlContext {
-  const { apiKeys: _apiKeys, tokenScopes: _tokenScopes, ...unkeyed } = ctx;
+  const {
+    apiKeys: _apiKeys,
+    tokenScopes: _tokenScopes,
+    claimsFirst: _claimsFirst,
+    ...unkeyed
+  } = ctx;
   return { ...unkeyed, subjectId: "p_user", tenants: "all" };
 }

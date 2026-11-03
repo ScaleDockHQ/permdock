@@ -19,7 +19,13 @@ import {
   quoteLiteral,
   quoteQualified,
 } from "../sql/quote.ts";
-import { CUSTOM_ROLES, allowEntry, rootName, signedIn } from "../sql/shared.ts";
+import {
+  CUSTOM_ROLES,
+  HELPERS,
+  allowEntry,
+  rootName,
+  signedIn,
+} from "../sql/shared.ts";
 import {
   globalKindFilterSql,
   keyTenantSql,
@@ -296,6 +302,7 @@ function tableBranch(
   branch: "declared" | "custom",
   set: boolean,
   declared: readonly string[],
+  stale?: boolean,
 ): string {
   const grant =
     branch === "custom" && set
@@ -306,6 +313,10 @@ function tableBranch(
   const checks = tableFilters(ctx, scope, table, tenantColumn, grant);
   const role = memberRoleOf(table, "m", "  ");
   const kind = kindFilterSql(ctx, role.sql, memberVia(table));
+  const gate =
+    stale === true
+      ? [`    and not (select ${qualified(ctx, HELPERS.tokenCurrent)}())`]
+      : [];
   const custom = ctx.customRoles;
   const lines = [
     branch === "declared"
@@ -328,6 +339,7 @@ function tableBranch(
         ]
       : []),
     checks.owner,
+    ...gate,
     ...(branch === "declared"
       ? [
           ...(set ? [] : ["    and rp.grant_key = p_grant"]),
@@ -380,19 +392,38 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
   const { table, column, tenantColumn } = mapped;
   const set = ctx.grantSet === true;
   const custom = ctx.customRoles;
-  const branches: string[] = [
-    tableBranch(
-      ctx,
-      scope,
-      type,
-      table,
-      column,
-      tenantColumn,
-      "declared",
-      set,
-      [],
-    ),
-  ];
+  const branches: string[] = [];
+  if (ctx.claimsFirst === true && !set) {
+    branches.push(claimDeclaredBody(ctx, scope, type));
+    branches.push(
+      tableBranch(
+        ctx,
+        scope,
+        type,
+        table,
+        column,
+        tenantColumn,
+        "declared",
+        set,
+        [],
+        true,
+      ),
+    );
+  } else {
+    branches.push(
+      tableBranch(
+        ctx,
+        scope,
+        type,
+        table,
+        column,
+        tenantColumn,
+        "declared",
+        set,
+        [],
+      ),
+    );
+  }
   if (custom !== undefined) {
     branches.push(
       tableBranch(
@@ -417,6 +448,51 @@ export function claimTenant(ctx: RlsSqlContext, scope: string): string {
   return scope === root
     ? `m ->> 'id'`
     : `m -> 'within' ->> ${quoteLiteral(root)}`;
+}
+
+function claimDeclaredBody(
+  ctx: RlsSqlContext,
+  scope: string,
+  type: string,
+): string {
+  const grant = "p_grant";
+  const narrow = narrowsTo(ctx, scope)
+    ? `\n    and (${activeTenant(ctx)} is null or ${claimTenant(ctx, scope)} = ${activeTenant(ctx)})`
+    : "";
+  const user = activeUserChecks(ctx, subjectIdSql(ctx), "act_user", "  ");
+  const instances = activeInstanceChecks(
+    ctx,
+    scope,
+    (name) =>
+      name === scope ? `m ->> 'id'` : `m -> 'within' ->> ${quoteLiteral(name)}`,
+    (name) => `act_${name}`,
+    "  ",
+    grantPermissionSql(grant),
+  );
+  const filters = [
+    `    and (select ${qualified(ctx, HELPERS.tokenCurrent)}())`,
+    `    and m ->> 'scope' = ${quoteLiteral(scope)}`,
+    `    and m ->> 'id' is not null${narrow}${keyTenantLine(ctx, scope, claimTenant(ctx, scope))}`,
+    `    and case jsonb_typeof(m -> 'expires_at')
+      when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
+      else true
+    end`,
+    ...claimKeptLines(ctx, "    ", grantPermissionSql(grant)),
+    ...instances.filters.map((part) => `    and ${part}`),
+  ];
+  const kind = kindFilterSql(ctx, "r.role", "m ->> 'via'");
+  return [
+    `  select (m ->> 'id')::${type}`,
+    `  from ${membershipRows(ctx)}`,
+    ...user.joins,
+    ...instances.joins,
+    `  join ${qualified(ctx, "role_permissions")} rp on rp.role = r.role`,
+    `  where ${signedIn(ctx)}`,
+    `    and rp.grant_key = p_grant`,
+    `    and rp.scope = ${quoteLiteral(scope)}`,
+    ...(kind === undefined ? [] : [`    and ${kind}`]),
+    ...filters,
+  ].join("\n");
 }
 
 function claimBody(ctx: RlsSqlContext, scope: string, type: string): string {

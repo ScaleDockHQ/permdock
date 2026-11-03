@@ -1,8 +1,20 @@
+import type { Scope } from "../../core/scopes.ts";
 import type { Policy } from "../../index.ts";
+import type {
+  SupabaseManifestMembership,
+  SupabaseManifestRole,
+  SupabaseManifestValue,
+} from "../../supabase/manifest.ts";
+import type { SqlMembershipSource } from "../../supabase/sources.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { ResolvedNames } from "../sql/resolve-names.ts";
-import type { RlsMemberships } from "../types.ts";
-import type { RlsMigrateConfig } from "../types.ts";
+import type {
+  RlsMembershipTable,
+  RlsMemberships,
+  RlsMigrateConfig,
+  RoleMap,
+  RoleThrough,
+} from "../types.ts";
 import type {
   GenerateOptions,
   Refusal,
@@ -10,8 +22,10 @@ import type {
 } from "./generate-options.ts";
 import type { RbacAuthorizeMode } from "./rbac.ts";
 
+import { scopeColumn, scopeMembershipTable } from "../../conditions/compile.ts";
 import { renamedKeys } from "../../core/permission-registry.ts";
-import { resolveScope, scopeList } from "../../core/scopes.ts";
+import { resolveScope, scopeChain, scopeList } from "../../core/scopes.ts";
+import { qualifySqlTable } from "../../core/sql.ts";
 import { listPermissions } from "../../index.ts";
 import { supabaseTenantClaim } from "../../supabase/budget.ts";
 import { PERMDOCK_SCHEMA } from "../../supabase/sources.ts";
@@ -47,6 +61,170 @@ function roleMemberScopesOf(migrate: RlsMigrateConfig | undefined): {
     ),
   ].toSorted();
   return scopes.length === 0 ? {} : { roleMemberScopes: scopes };
+}
+
+function sameMap(
+  left: Readonly<Record<string, string | null>>,
+  right: Readonly<Record<string, string | null>>,
+): boolean {
+  const keys = Object.keys(left);
+  return (
+    keys.length === Object.keys(right).length &&
+    keys.every((key) => left[key] === right[key])
+  );
+}
+
+function sameRoleOne(
+  mapped: string | RoleMap | RoleThrough,
+  source: SupabaseManifestRole,
+): boolean {
+  if (!("column" in source)) {
+    return false;
+  }
+  if (typeof mapped === "string") {
+    return (
+      source.column === mapped && !("through" in source) && !("map" in source)
+    );
+  }
+  if ("map" in mapped) {
+    return (
+      source.column === mapped.column &&
+      "map" in source &&
+      sameMap(source.map, mapped.map)
+    );
+  }
+  const [ref, id] = Object.entries(mapped.on)[0] ?? [];
+  if (ref === undefined || id === undefined || !("through" in source)) {
+    return false;
+  }
+  return (
+    source.column === ref &&
+    qualifySqlTable(source.through.table) === qualifySqlTable(mapped.through) &&
+    source.through.id === id &&
+    source.through.column === mapped.column &&
+    source.through.on === undefined
+  );
+}
+
+function isRoleList(
+  role: RlsMembershipTable["role"],
+): role is readonly (string | RoleMap | RoleThrough)[] {
+  return Array.isArray(role);
+}
+
+function isManifestRoleList(
+  role: SupabaseManifestMembership["role"],
+): role is readonly SupabaseManifestRole[] {
+  return Array.isArray(role);
+}
+
+function sameRole(
+  mapped: RlsMembershipTable["role"],
+  source: SupabaseManifestMembership["role"],
+): boolean {
+  if (isRoleList(mapped)) {
+    return (
+      isManifestRoleList(source) &&
+      source.length === mapped.length &&
+      mapped.every((role, index) => {
+        const item = source[index];
+        return item !== undefined && sameRoleOne(role, item);
+      })
+    );
+  }
+  return isManifestRoleList(source) ? false : sameRoleOne(mapped, source);
+}
+
+function sameVia(
+  mapped: RlsMembershipTable["via"],
+  source: SupabaseManifestValue | undefined,
+): boolean {
+  if (mapped === undefined) {
+    return source === undefined;
+  }
+  if (source === undefined || typeof mapped === "string") {
+    return false;
+  }
+  return "value" in source && source.value === mapped.value;
+}
+
+function sameSource(
+  table: RlsMembershipTable,
+  scope: string,
+  scopes: readonly Scope[],
+  source: SqlMembershipSource,
+): boolean {
+  const manifest = source.sql.manifest;
+  const column = scopeColumn(table, scopes, scope);
+  if (column === undefined) {
+    return false;
+  }
+  if (
+    qualifySqlTable(manifest.table) !== qualifySqlTable(table.table) ||
+    manifest.user.column !== table.user ||
+    "through" in manifest.user ||
+    manifest.id.column !== column ||
+    !("value" in manifest.scope) ||
+    manifest.scope.value !== scope ||
+    manifest.disabledAt?.column !== table.disabledAt ||
+    manifest.expiresAt?.column !== table.expiresAt ||
+    !sameVia(table.via, manifest.via) ||
+    source.sql.stream?.guard !== undefined
+  ) {
+    return false;
+  }
+  for (const name of scopeChain(scopes, scope)) {
+    if (name === scope) {
+      continue;
+    }
+    const held = scopeColumn(table, scopes, name);
+    const within = manifest.within;
+    const sourceColumn =
+      within !== undefined && "columns" in within
+        ? within.columns[name]
+        : undefined;
+    if (held !== sourceColumn) {
+      return false;
+    }
+  }
+  return sameRole(table.role, manifest.role);
+}
+
+function claimsFirstFor(
+  input: RlsGenerateInput,
+  authorize: RbacAuthorizeMode,
+  scopes: readonly Scope[],
+  memberships: RlsMemberships | undefined,
+): true | undefined {
+  const hook = input.config.supabase?.hook;
+  if (
+    input.dialect !== "supabase" ||
+    authorize !== "database" ||
+    hook === undefined ||
+    hook.version === false ||
+    hook.suspension !== undefined ||
+    hook.schema !== undefined
+  ) {
+    return undefined;
+  }
+  let mapped = false;
+  for (const scope of scopes) {
+    const table = scopeMembershipTable(memberships, scopes, scope.name);
+    if (table === undefined) {
+      continue;
+    }
+    mapped = true;
+    const source = hook.memberships.find(
+      (item) => item.sql.scope === scope.name,
+    );
+    if (
+      source === undefined ||
+      !sameSource(table, scope.name, scopes, source)
+    ) {
+      return undefined;
+    }
+  }
+  return mapped ? true : undefined;
 }
 
 export type GenerateContext = {
@@ -171,6 +349,7 @@ export function buildContext(
   );
   const sources = authorize === "database" ? memberSources : undefined;
   const scopes = scopeList(policy.scopes);
+  const claimsFirst = claimsFirstFor(input, authorize, scopes, memberships);
   const suspension = checkSuspension(rls?.suspension, scopes);
   const hookRoles = input.config.supabase?.hook?.roles;
   const roles = rls?.roles ?? (hookRoles === false ? undefined : hookRoles);
@@ -239,6 +418,7 @@ export function buildContext(
     inlineFunctions: input.inlineFunctions || rls?.inlineFunctions === true,
     schema,
     authorize,
+    ...(claimsFirst === undefined ? {} : { claimsFirst }),
     roleClaim: rls?.roleClaim ?? "user_role",
     tenantType: input.tenantType ?? firstScopeType(rls?.scopeTypes, scopes),
     ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
