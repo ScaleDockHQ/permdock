@@ -67,6 +67,7 @@ export type RlsSqlContext = {
    */
   readonly tenants?: "all";
   readonly grantSet?: true;
+  readonly claimsFirst?: true;
   readonly gucPrefix: string;
   /** `rls.actions`: verb to SQL command overrides. */
   readonly actions?: RlsActions;

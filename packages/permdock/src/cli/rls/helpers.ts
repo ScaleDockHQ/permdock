@@ -1,6 +1,7 @@
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { Body } from "./helper-bodies.ts";
 
+import { AUTHZ_VERSION_TABLE } from "../../supabase/sources.ts";
 import { configError } from "../core/errors.ts";
 import { scopeTypeOf } from "../sql/columns.ts";
 import {
@@ -17,7 +18,7 @@ import {
   quoteQualified,
 } from "../sql/quote.ts";
 import { HELPERS, rootName } from "../sql/shared.ts";
-import { keyTenantSql, userIdHelperSql } from "../sql/subject.ts";
+import { keyTenantSql, subjectIdSql, userIdHelperSql } from "../sql/subject.ts";
 import {
   apiKeyAllowsCall,
   apiKeyAllowsSql,
@@ -32,13 +33,20 @@ import { customRoleNameGuardSql } from "./custom-role-guard.ts";
 import { customRoleWritesSql } from "./custom-role-writes.ts";
 import { customRolesSql, roleReadersSql } from "./custom-roles.ts";
 import { globalRolesSql } from "./global-roles.ts";
-import { functionBody, hasBody, scopedBody, sqlBody } from "./helper-bodies.ts";
+import {
+  functionBody,
+  hasBody,
+  memoizes,
+  scopedBody,
+  sqlBody,
+} from "./helper-bodies.ts";
 import {
   memberForFunction,
   memberFunction,
   memberOfFunction,
   memberRolesFunction,
 } from "./helper-members.ts";
+import { memoGenerationSql } from "./memo-generation.ts";
 import { tokenScopeAllowsCall, tokenScopeAllowsSql } from "./token-scopes.ts";
 
 /** `'global'` or a scope name. */
@@ -130,6 +138,34 @@ as $$
     nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub',
     ''
   )::uuid
+$$;
+${grants}`;
+}
+
+function tokenCurrentSql(ctx: RlsSqlContext, anonExecute: boolean): string {
+  const fn = qualified(ctx, HELPERS.tokenCurrent);
+  const version = qualified(ctx, AUTHZ_VERSION_TABLE);
+  const grants = anonExecute
+    ? `revoke execute on function ${fn}() from public;
+grant execute on function ${fn}() to anon, authenticated;`
+    : `revoke execute on function ${fn}() from public, anon;
+grant execute on function ${fn}() to authenticated;`;
+  return `create or replace function ${fn}()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  return coalesce((
+    select to_jsonb(v.version) = ((select auth.jwt()) -> 'authz_ver')
+      and coalesce((select auth.jwt()) -> 'memberships_truncated', 'false'::jsonb) <> 'true'::jsonb
+      and jsonb_typeof((select auth.jwt()) -> 'memberships') = 'array'
+    from ${version} v
+    where v.user_id = ${subjectIdSql(ctx)}
+  ), false);
+end;
 $$;
 ${grants}`;
 }
@@ -332,6 +368,9 @@ export function helpersSql(
   if (ctx.dialect === "supabase") {
     chunks.push(userIdSql(ctx, options.anonExecute === true));
   }
+  if (ctx.claimsFirst === true) {
+    chunks.push(tokenCurrentSql(ctx, options.anonExecute === true));
+  }
   if (ctx.seeds === "view") {
     chunks.push(seedViewSql(ctx, rows));
   } else {
@@ -368,6 +407,10 @@ revoke all on table ${ur} from anon, authenticated, public;`);
   const custom = customRolesSql(ctx);
   if (custom !== "") {
     chunks.push(custom);
+  }
+  const memoGeneration = memoGenerationSql(ctx);
+  if (memoGeneration !== "") {
+    chunks.push(memoGeneration);
   }
   const anon = options.anonExecute === true;
   const keys = ctx.apiKeys;
@@ -434,15 +477,20 @@ revoke all on table ${ur} from anon, authenticated, public;`);
   if (globalRoles !== "") {
     chunks.push(globalRoles);
   }
-  const readers = roleReadersSql(
-    ctx,
-    options.permissions,
-    options.trustedReaders,
-  );
-  if (readers !== "") {
-    chunks.push(readers);
-  }
+  chunks.push(roleReadersSql(ctx, options.permissions, options.trustedReaders));
   return `${chunks.join("\n\n")}\n`;
+}
+
+function memoBody(
+  ctx: RlsSqlContext,
+  scope: string,
+  type: string,
+  body: Body,
+): Body {
+  if (!memoizes(ctx)) {
+    return body;
+  }
+  return { ...body, memo: { type, scope, user: subjectIdSql(ctx) } };
 }
 
 export function grantBodies(ctx: RlsSqlContext): {
@@ -478,28 +526,36 @@ ${hasBody(ctx)}
     ids: (scope) => {
       const type = scopeTypeOf(ctx, scope);
       const body = scopedBody(ctx, scope, type);
-      if (allows === undefined) {
-        return body;
-      }
       const sql =
-        keys !== undefined && scope === rootName(ctx)
-          ? `${body.sql}\n  union\n${serviceKeyIdsSql(ctx, keys, scope, type)}`
-          : body.sql;
-      return {
-        sql: set
-          ? `  select ids.id, ids.grant_key
+        allows === undefined
+          ? body.sql
+          : keys !== undefined && scope === rootName(ctx)
+            ? `${body.sql}\n  union\n${serviceKeyIdsSql(ctx, keys, scope, type)}`
+            : body.sql;
+      const wrapped =
+        allows === undefined
+          ? { sql, vars: body.vars }
+          : {
+              sql: set
+                ? `  select ids.id, ids.grant_key
   from (
 ${sql}
   ) ids(id, grant_key)
   where ${allows}`
-          : ceilingIdsSql(sql, allows),
-        vars: body.vars,
-      };
+                : ceilingIdsSql(sql, allows),
+              vars: body.vars,
+            };
+      return memoBody(ctx, scope, type, wrapped);
     },
   };
 }
 
 export function forUserContext(ctx: RlsSqlContext): RlsSqlContext {
-  const { apiKeys: _apiKeys, tokenScopes: _tokenScopes, ...unkeyed } = ctx;
+  const {
+    apiKeys: _apiKeys,
+    tokenScopes: _tokenScopes,
+    claimsFirst: _claimsFirst,
+    ...unkeyed
+  } = ctx;
   return { ...unkeyed, subjectId: "p_user", tenants: "all" };
 }

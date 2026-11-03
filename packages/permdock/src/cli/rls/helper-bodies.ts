@@ -1,10 +1,13 @@
 import type { SqlMembershipSource } from "../../supabase/sources.ts";
 import type { CheckedPermission, RlsSqlContext } from "../sql/context.ts";
+import type { RlsMembershipTable } from "../types.ts";
 
 import { scopeColumn } from "../../conditions/compile.ts";
 import { sqlTextArray } from "../../core/sql.ts";
 import {
+  activeInstanceChecks,
   activeMembershipSql,
+  activeUserChecks,
   disabledKeep,
   grantPermissionSql,
   keptRowSql,
@@ -16,7 +19,13 @@ import {
   quoteLiteral,
   quoteQualified,
 } from "../sql/quote.ts";
-import { CUSTOM_ROLES, allowEntry, rootName, signedIn } from "../sql/shared.ts";
+import {
+  CUSTOM_ROLES,
+  HELPERS,
+  allowEntry,
+  rootName,
+  signedIn,
+} from "../sql/shared.ts";
 import {
   globalKindFilterSql,
   keyTenantSql,
@@ -221,6 +230,160 @@ function customKeysSql(
     ))`;
 }
 
+type TableFilters = {
+  readonly owner: string;
+  readonly joins: readonly string[];
+  readonly filters: readonly string[];
+};
+
+function tableFilters(
+  ctx: RlsSqlContext,
+  scope: string,
+  table: RlsMembershipTable,
+  tenantColumn: string | undefined,
+  grant: string,
+): TableFilters {
+  const filters: string[] = [];
+  if (table.expiresAt !== undefined) {
+    const expires = memberColumn(table.expiresAt);
+    filters.push(`    and (${expires} is null or ${expires} > now())`);
+  }
+  filters.push(
+    ...activeMembershipSql(
+      ctx,
+      disabledColumn(table),
+      grantPermissionSql(grant),
+    ).map((part) => `    and ${part}`),
+  );
+  if (tenantColumn !== undefined && ctx.tenants !== "all") {
+    filters.push(
+      `    and (${activeTenant(ctx)} is null or ${memberColumn(tenantColumn)}::text = ${activeTenant(ctx)})`,
+    );
+  }
+  const keyed = keyTenantSql(
+    ctx,
+    tenantColumn === undefined ? undefined : memberColumn(tenantColumn),
+  );
+  if (keyed !== undefined) {
+    filters.push(`    and ${keyed}`);
+  }
+  const user = activeUserChecks(
+    ctx,
+    memberColumn(table.user),
+    "act_user",
+    "  ",
+  );
+  const instances = activeInstanceChecks(
+    ctx,
+    scope,
+    (name) => {
+      const held = scopeColumn(table, ctx.scopes, name);
+      return held === undefined ? undefined : memberColumn(held);
+    },
+    (name) => `act_${name}`,
+    "  ",
+    grantPermissionSql(grant),
+  );
+  filters.push(...instances.filters.map((part) => `    and ${part}`));
+  return {
+    owner: `  where ${memberColumn(table.user)} = ${subjectIdSql(ctx)}`,
+    joins: [...user.joins, ...instances.joins],
+    filters,
+  };
+}
+
+function tableBranch(
+  ctx: RlsSqlContext,
+  scope: string,
+  type: string,
+  table: RlsMembershipTable,
+  column: string,
+  tenantColumn: string | undefined,
+  branch: "declared" | "custom",
+  set: boolean,
+  declared: readonly string[],
+  stale?: boolean,
+): string {
+  const grant =
+    branch === "custom" && set
+      ? "ck.grant_key"
+      : set
+        ? "rp.grant_key"
+        : "p_grant";
+  const checks = tableFilters(ctx, scope, table, tenantColumn, grant);
+  const role = memberRoleOf(table, "m", "  ");
+  const kind = kindFilterSql(ctx, role.sql, memberVia(table));
+  const gate =
+    stale === true
+      ? [`    and not (select ${qualified(ctx, HELPERS.tokenCurrent)}())`]
+      : [];
+  const custom = ctx.customRoles;
+  const lines = [
+    branch === "declared"
+      ? `  select${role.lateral ? " distinct" : ""} ${memberColumn(column)}::${type}${set ? ", rp.grant_key" : ""}`
+      : `  select ${memberColumn(column)}::${type}${set ? ", ck.grant_key" : ""}`,
+    `  from ${quoteQualified(table.table)} m${role.join}`,
+    ...checks.joins,
+    ...(branch === "custom" && set && custom !== undefined
+      ? [
+          customKeysJoin(
+            ctx,
+            scope,
+            ...customEntries(ctx, scope, column, tenantColumn, role.sql),
+          ),
+        ]
+      : []),
+    ...(branch === "declared"
+      ? [
+          `  join ${qualified(ctx, "role_permissions")} rp on rp.role = ${role.sql}`,
+        ]
+      : []),
+    checks.owner,
+    ...gate,
+    ...(branch === "declared"
+      ? [
+          ...(set ? [] : ["    and rp.grant_key = p_grant"]),
+          `    and rp.scope = ${quoteLiteral(scope)}`,
+          ...(kind === undefined ? [] : [`    and ${kind}`]),
+        ]
+      : [`    and not (${role.sql} = any(${sqlTextArray(declared)}))`]),
+    ...checks.filters,
+    ...(branch === "custom" && !set && custom !== undefined
+      ? [
+          customKeysSql(
+            ctx,
+            scope,
+            ...customEntries(ctx, scope, column, tenantColumn, role.sql),
+          ),
+        ]
+      : []),
+  ];
+  return lines.join("\n");
+}
+
+function customEntries(
+  ctx: RlsSqlContext,
+  scope: string,
+  column: string,
+  tenantColumn: string | undefined,
+  roleSql: string,
+): readonly [string, string, string] {
+  const tenantOf = tenantColumn ?? column;
+  const match = [
+    customTenantMatch(ctx, `${memberColumn(tenantOf)}::text`, scope, roleSql),
+    `c.scope = ${quoteLiteral(scope)}`,
+    `(c.scope_id is null or c.scope_id = ${memberColumn(column)}::text)`,
+    `c.role = ${roleSql}`,
+  ].join(" and ");
+  const rows = (source: string, value: string, extra: string): string =>
+    `array(select c.${value} from ${qualified(ctx, source)} c where ${match}${extra})`;
+  return [
+    rows(CUSTOM_ROLES.permissions, allowEntry(ctx), " and c.effect = 'allow'"),
+    rows(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'deny'"),
+    rows(CUSTOM_ROLES.includes, "include_role", ""),
+  ];
+}
+
 function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
   const mapped = scopeTable(ctx, scope);
   if (mapped === undefined) {
@@ -228,101 +391,55 @@ function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
   }
   const { table, column, tenantColumn } = mapped;
   const set = ctx.grantSet === true;
-  const filtersFor = (grant: string): string[] => {
-    const filters = [
-      `  where ${memberColumn(table.user)} = ${subjectIdSql(ctx)}`,
-    ];
-    if (table.expiresAt !== undefined) {
-      const expires = memberColumn(table.expiresAt);
-      filters.push(`    and (${expires} is null or ${expires} > now())`);
-    }
-    filters.push(
-      ...activeMembershipSql(
-        ctx,
-        disabledColumn(table),
-        grantPermissionSql(grant),
-      ).map((part) => `    and ${part}`),
-    );
-    if (tenantColumn !== undefined && ctx.tenants !== "all") {
-      filters.push(
-        `    and (${activeTenant(ctx)} is null or ${memberColumn(tenantColumn)}::text = ${activeTenant(ctx)})`,
-      );
-    }
-    const keyed = keyTenantSql(
-      ctx,
-      tenantColumn === undefined ? undefined : memberColumn(tenantColumn),
-    );
-    if (keyed !== undefined) {
-      filters.push(`    and ${keyed}`);
-    }
-    filters.push(
-      ...userActive(ctx, "    "),
-      ...instancesActive(
+  const custom = ctx.customRoles;
+  const branches: string[] = [];
+  if (ctx.claimsFirst === true && !set) {
+    branches.push(claimDeclaredBody(ctx, scope, type));
+    branches.push(
+      tableBranch(
         ctx,
         scope,
-        (name) => {
-          const held = scopeColumn(table, ctx.scopes, name);
-          return held === undefined ? undefined : memberColumn(held);
-        },
-        "    ",
-        grantPermissionSql(grant),
+        type,
+        table,
+        column,
+        tenantColumn,
+        "declared",
+        set,
+        [],
+        true,
       ),
     );
-    return filters;
-  };
-  const filters = filtersFor(set ? "rp.grant_key" : "p_grant");
-  const [owner, ...rest] = filters;
-  const role = memberRoleOf(table, "m", "  ");
-  const kind = kindFilterSql(ctx, role.sql, memberVia(table));
-  const lines = [
-    `  select${role.lateral ? " distinct" : ""} ${memberColumn(column)}::${type}${set ? ", rp.grant_key" : ""}`,
-    `  from ${quoteQualified(table.table)} m${role.join}`,
-    `  join ${qualified(ctx, "role_permissions")} rp on rp.role = ${role.sql}`,
-    owner ?? "",
-    ...(set ? [] : ["    and rp.grant_key = p_grant"]),
-    `    and rp.scope = ${quoteLiteral(scope)}`,
-    ...(kind === undefined ? [] : [`    and ${kind}`]),
-    ...rest,
-  ];
-  const custom = ctx.customRoles;
-  if (custom === undefined) {
-    return lines.join("\n");
+  } else {
+    branches.push(
+      tableBranch(
+        ctx,
+        scope,
+        type,
+        table,
+        column,
+        tenantColumn,
+        "declared",
+        set,
+        [],
+      ),
+    );
   }
-  // A custom role belongs to a tenant (or is shared by all), is held at one scope, and may be pinned to one instance of it.
-  const tenantOf = tenantColumn ?? column;
-  const match = [
-    customTenantMatch(ctx, `${memberColumn(tenantOf)}::text`, scope, role.sql),
-    `c.scope = ${quoteLiteral(scope)}`,
-    `(c.scope_id is null or c.scope_id = ${memberColumn(column)}::text)`,
-    `c.role = ${role.sql}`,
-  ].join(" and ");
-  const rows = (source: string, value: string, extra: string): string =>
-    `array(select c.${value} from ${qualified(ctx, source)} c where ${match}${extra})`;
-  const entries = [
-    rows(CUSTOM_ROLES.permissions, allowEntry(ctx), " and c.effect = 'allow'"),
-    rows(CUSTOM_ROLES.permissions, "permission", " and c.effect = 'deny'"),
-    rows(CUSTOM_ROLES.includes, "include_role", ""),
-  ] as const;
-  if (set) {
-    return [
-      ...lines,
-      "  union",
-      `  select ${memberColumn(column)}::${type}, ck.grant_key`,
-      `  from ${quoteQualified(table.table)} m${role.join}`,
-      customKeysJoin(ctx, scope, ...entries),
-      ...filtersFor("ck.grant_key"),
-      `    and not (${role.sql} = any(${sqlTextArray(custom.declared)}))`,
-    ].join("\n");
+  if (custom !== undefined) {
+    branches.push(
+      tableBranch(
+        ctx,
+        scope,
+        type,
+        table,
+        column,
+        tenantColumn,
+        "custom",
+        set,
+        custom.declared,
+      ),
+    );
   }
-  return [
-    ...lines,
-    "  union",
-    `  select ${memberColumn(column)}::${type}`,
-    `  from ${quoteQualified(table.table)} m${role.join}`,
-    ...filters,
-    `    and not (${role.sql} = any(${sqlTextArray(custom.declared)}))`,
-    customKeysSql(ctx, scope, ...entries),
-  ].join("\n");
+  return branches.join("\n  union\n");
 }
 
 /** The membership's instance of the first scope, from the canonical claim. */
@@ -331,6 +448,51 @@ export function claimTenant(ctx: RlsSqlContext, scope: string): string {
   return scope === root
     ? `m ->> 'id'`
     : `m -> 'within' ->> ${quoteLiteral(root)}`;
+}
+
+function claimDeclaredBody(
+  ctx: RlsSqlContext,
+  scope: string,
+  type: string,
+): string {
+  const grant = "p_grant";
+  const narrow = narrowsTo(ctx, scope)
+    ? `\n    and (${activeTenant(ctx)} is null or ${claimTenant(ctx, scope)} = ${activeTenant(ctx)})`
+    : "";
+  const user = activeUserChecks(ctx, subjectIdSql(ctx), "act_user", "  ");
+  const instances = activeInstanceChecks(
+    ctx,
+    scope,
+    (name) =>
+      name === scope ? `m ->> 'id'` : `m -> 'within' ->> ${quoteLiteral(name)}`,
+    (name) => `act_${name}`,
+    "  ",
+    grantPermissionSql(grant),
+  );
+  const filters = [
+    `    and (select ${qualified(ctx, HELPERS.tokenCurrent)}())`,
+    `    and m ->> 'scope' = ${quoteLiteral(scope)}`,
+    `    and m ->> 'id' is not null${narrow}${keyTenantLine(ctx, scope, claimTenant(ctx, scope))}`,
+    `    and case jsonb_typeof(m -> 'expires_at')
+      when 'number' then (m ->> 'expires_at')::numeric > extract(epoch from now())
+      else true
+    end`,
+    ...claimKeptLines(ctx, "    ", grantPermissionSql(grant)),
+    ...instances.filters.map((part) => `    and ${part}`),
+  ];
+  const kind = kindFilterSql(ctx, "r.role", "m ->> 'via'");
+  return [
+    `  select (m ->> 'id')::${type}`,
+    `  from ${membershipRows(ctx)}`,
+    ...user.joins,
+    ...instances.joins,
+    `  join ${qualified(ctx, "role_permissions")} rp on rp.role = r.role`,
+    `  where ${signedIn(ctx)}`,
+    `    and rp.grant_key = p_grant`,
+    `    and rp.scope = ${quoteLiteral(scope)}`,
+    ...(kind === undefined ? [] : [`    and ${kind}`]),
+    ...filters,
+  ].join("\n");
 }
 
 function claimBody(ctx: RlsSqlContext, scope: string, type: string): string {
@@ -437,7 +599,24 @@ function sourceUser(index: number): string {
  * source, holding `user` as that source's user column type so each `select`
  * compares the column uncast and its index applies.
  */
-export type Body = { readonly sql: string; readonly vars: readonly string[] };
+export type Body = {
+  readonly sql: string;
+  readonly vars: readonly string[];
+  readonly memo?: {
+    readonly type: string;
+    readonly scope: string;
+    readonly user: string;
+  };
+};
+
+export function memoizes(ctx: RlsSqlContext): boolean {
+  return (
+    ctx.authorize === "database" &&
+    ctx.dialect === "supabase" &&
+    ctx.grantSet !== true &&
+    ctx.subjectId === undefined
+  );
+}
 
 export function sqlBody(sql: string): Body {
   return { sql, vars: [] };
@@ -462,6 +641,42 @@ export function sourcesBodyOf(
  * variables.
  */
 export function functionBody(body: Body): string {
+  if (body.memo !== undefined) {
+    const declare = [
+      ...body.vars,
+      `v_user text := ${body.memo.user}::text;`,
+      `v_key text := 'permdock.m.' || ${quoteLiteral(body.memo.scope)} || '.k' || (hashtext(p_grant) & 1023)::text;`,
+      `v_disc text := md5(concat_ws('|',
+      v_user,
+      p_grant,
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    ));`,
+      `v_memo text := nullif(current_setting(v_key, true), '');`,
+      `v_ids ${body.memo.type}[];`,
+    ];
+    return `language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+${declare.map((line) => `  ${line}`).join("\n")}
+begin
+  if v_memo is not null and (v_memo::jsonb ->> 'k') = v_disc then
+    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb -> 'ids')::${body.memo.type});
+  else
+    v_ids := array(
+${body.sql}
+    );
+    perform set_config(v_key, jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text, true);
+  end if;
+  return query select unnest(v_ids);
+end;
+$$;`;
+  }
   if (body.vars.length === 0) {
     return `language sql
 stable

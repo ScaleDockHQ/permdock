@@ -319,7 +319,7 @@ describe("helpersSql database mode", () => {
       ownership: { kinds: { admin: ["staff"] }, assigns: [], counted: [] },
     });
     const org = fnBody(sql, "permitted_org_ids");
-    expect(org).not.toContain("coalesce");
+    expect(org).not.toContain("coalesce(m.");
     expect(org).not.toContain('m."via"');
     const contact = fnBody(
       helpers({

@@ -62,6 +62,15 @@ describe("rls token scopes", () => {
       expect(sql).toContain(
         'create or replace function "permdock".permdock_token_scope_allows(p_grant text)',
       );
+      expect(sql).toContain(
+        'create or replace function "permdock".permdock_token_scope_map()\nreturns jsonb\nlanguage sql\nimmutable',
+      );
+      expect(sql).toContain(
+        'revoke execute on function "permdock".permdock_token_scope_map() from public, anon, authenticated;',
+      );
+      expect(sql).toContain(
+        `coalesce("permdock".permdock_token_scope_map() -> s.scope, '[]'::jsonb)`,
+      );
       expect(sql).toContain(`"posts:write":["post.read","post.update"]`);
       expect(sql).toContain(`"post:delete":["post.delete"]`);
       expect(sql).toContain(

@@ -101,12 +101,14 @@ describe("rls suspension", () => {
         'coalesce((select "permdock".permdock_user_id()) in (select s."id" from "public"."profiles" s where s."disabled_at" is null), false)';
       expect(helper(sql, "permdock_has")).toContain(user);
       const customer = helper(sql, "permitted_customer_ids");
-      expect(customer).toContain(user);
       expect(customer).toContain(
-        `coalesce((m."customer_id")::text in (select s."id" from "public"."customers" s where s."status"::text = any(array['active', 'prospect']::text[])), false)`,
+        'join "public"."profiles" act_user on act_user."id" = m."user_id" and act_user."disabled_at" is null',
       );
       expect(customer).toContain(
-        'coalesce((m."organization_id")::text in (select s."id" from "public"."organizations" s where s."disabled_at" is null), false)',
+        `join "public"."customers" act_customer on act_customer."id" = (m."customer_id")::text and act_customer."status"::text = any(array['active', 'prospect']::text[])`,
+      );
+      expect(customer).toContain(
+        'join "public"."organizations" act_organization on act_organization."id" = (m."organization_id")::text and act_organization."disabled_at" is null',
       );
       expect(helper(sql, "permitted_organization_ids")).not.toContain(
         '"customers"',

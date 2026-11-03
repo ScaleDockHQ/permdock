@@ -57,7 +57,12 @@ as $$
   insert into ${versionTable} as v (user_id, version)
   select distinct u, 1 from unnest(p_users) u
   where u is not null and exists (select 1 from auth.users au where au.id = u)
-  on conflict (user_id) do update set version = v.version + 1
+  on conflict (user_id) do update set version = v.version + 1;
+  select set_config(
+    'permdock.m.gen',
+    (coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')::int + 1)::text,
+    true
+  )
 $$;
 revoke execute on function ${bumpFor}(uuid[]) from public, anon, authenticated;
 
