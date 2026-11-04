@@ -2,45 +2,18 @@
 
 import {
   type Events,
-  type GeneratedBlocks,
 } from "better-supabase/blocks";
+import { blockConfig } from "./blocks.config.ts";
 import type { AuditEvents } from "better-supabase/blocks/audit";
 import type { ShareLinksEvents } from "better-supabase/blocks/share-links";
 import { permissionsBlock as permissionsBlockInstance } from "better-supabase/blocks/permissions";
 import { auditBlock as auditBlockInstance } from "better-supabase/blocks/audit";
 import { shareLinksBlock as shareLinksBlockInstance } from "better-supabase/blocks/share-links";
 
-/**
- * The installed blocks' settings from the `blocks` config, for
- * `defineBlocks(blockConfig, { ... })`: each block's schema, API schema
- * and the options its SQL and TypeScript halves share.
- */
-export const blockConfig = {
-  permissions: {
-    schema: "better_supabase",
-    options: {},
-  },
-  audit: {
-    schema: "better_supabase",
-    options: {},
-  },
-  pgtap: {
-    schema: "better_supabase",
-    options: {},
-  },
-  "share-links": {
-    schema: "better_supabase",
-    options: {},
-  },
-  memberships: {
-    schema: "better_supabase",
-    options: {},
-  },
-  "updated-at": {
-    schema: "better_supabase",
-    options: {},
-  },
-} as const satisfies GeneratedBlocks;
+/** Re-exported for server code; client code imports `blocks.config.ts`. */
+export { blockConfig };
+/** The permission keys, re-exported from `blocks.config.ts`. @public */
+export { permissions, type PermissionKey } from "./blocks.config.ts";
 
 /**
  * Every installed block instance with a client, under its key, for
@@ -53,30 +26,6 @@ export const blocks = {
   audit: auditBlockInstance,
   "share-links": shareLinksBlockInstance,
 } as const;
-
-/**
- * The permission keys the installed blocks, subjects and app tables check,
- * by owner and action.
- * @public
- */
-export const permissions = {
-  audit: {
-    view: "audit.read",
-    viewAll: "audit.read",
-    revert: "audit.revert",
-  },
-  "share-links": {
-    create: "quotes.update",
-    read: "quotes.read",
-  },
-} as const;
-
-/**
- * Every permission key, for `defineAuthorizer<PermissionKey>()` and
- * the `permission` of actions and routes.
- * @public
- */
-export type PermissionKey = "audit.read" | "audit.revert" | "quotes.read" | "quotes.update";
 
 /** Every installed block's events: type to data. @public */
 export type BlockEvents = AuditEvents & ShareLinksEvents;

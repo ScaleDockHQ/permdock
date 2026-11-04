@@ -31,7 +31,7 @@ export default defineConfig({
     "apps/marketing/components/examples/**",
     "tests/integration/src/support/prisma/**",
     "apps/examples/prisma/src/generated/**",
-    "apps/examples/next-better-supabase/src/lib/supabase/{generated.*,blocks.generated.ts,database.types.ts}",
+    "apps/examples/next-better-supabase/src/lib/supabase/{generated.*,blocks.generated.ts,blocks.config.ts,database.types.ts}",
     "apps/examples/next-better-supabase/src/generated/**",
   ],
   sortImports: {

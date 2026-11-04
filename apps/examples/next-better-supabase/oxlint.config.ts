@@ -13,6 +13,6 @@ export default defineConfig({
   extends: [core, react, playwright, example],
   ignorePatterns: [
     ...ignorePatterns,
-    "src/lib/supabase/{generated.*,blocks.generated.ts,database.types.ts}",
+    "src/lib/supabase/{generated.*,blocks.generated.ts,blocks.config.ts,database.types.ts}",
   ],
 });
