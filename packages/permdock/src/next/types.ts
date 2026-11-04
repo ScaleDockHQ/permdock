@@ -117,6 +117,7 @@ export type NextPermDockProviderProps = NextPermDockProviderDisplay &
         readonly snapshot: Promise<Snapshot>;
         readonly include?: never;
         readonly tenants?: never;
+        readonly omitAssignable?: never;
       }
     | {
         /** Without `snapshot`, the provider builds one outside any cache. */
