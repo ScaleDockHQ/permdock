@@ -1,8 +1,8 @@
 import type { CallExpression } from "oxc-parser";
 
-import { Visitor, parseSync } from "oxc-parser";
-
 import type { DoctorFinding, DoctorSource } from "../shared/doctor-types.ts";
+
+import { createVisitor, parseSync } from "../core/optional.ts";
 
 /** Factories whose answers or entries only pay off when one is shared. */
 const SHARED_FACTORIES: Readonly<Record<string, "PD080" | "PD081">> = {
@@ -64,7 +64,7 @@ function callsInFunctions(
   const exit = (): void => {
     depth -= 1;
   };
-  new Visitor({
+  createVisitor({
     ImportDeclaration(node) {
       if (
         node.importKind === "type" ||

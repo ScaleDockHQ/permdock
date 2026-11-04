@@ -44,15 +44,23 @@ describe("invariant 12: runtime entries depend on @standard-schema/spec only", (
     }
   });
 
-  it("declares only @standard-schema/spec and the two CLI packages that cannot be inlined", () => {
+  it("declares only @standard-schema/spec, and jiti and oxc-parser as optional peers", () => {
     // SAFETY: dist/../package.json is the built package's own manifest
     const manifest = JSON.parse(
       readFileSync(join(DIST, "..", "package.json"), "utf8"),
-    ) as { readonly dependencies: Readonly<Record<string, string>> };
-    expect(Object.keys(manifest.dependencies).toSorted()).toStrictEqual([
+    ) as {
+      readonly dependencies: Readonly<Record<string, string>>;
+      readonly peerDependencies: Readonly<Record<string, string>>;
+      readonly peerDependenciesMeta: Readonly<
+        Record<string, { readonly optional?: boolean }>
+      >;
+    };
+    expect(Object.keys(manifest.dependencies)).toStrictEqual([
       "@standard-schema/spec",
-      "jiti",
-      "oxc-parser",
     ]);
+    for (const name of ["jiti", "oxc-parser"]) {
+      expect(manifest.peerDependencies[name]).toBeTypeOf("string");
+      expect(manifest.peerDependenciesMeta[name]?.optional).toBe(true);
+    }
   });
 });

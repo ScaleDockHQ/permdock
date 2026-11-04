@@ -329,9 +329,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
   "dependencies": {
-    "@standard-schema/spec": "catalog:",
-    "jiti": "catalog:",
-    "oxc-parser": "catalog:"
+    "@standard-schema/spec": "catalog:"
   },
   "devDependencies": {
     "@anthropic-ai/claude-agent-sdk": "catalog:",
@@ -379,9 +377,11 @@
     "h3": "catalog:",
     "happy-dom": "catalog:",
     "hono": "catalog:",
+    "jiti": "catalog:",
     "jose": "catalog:",
     "kysely": "catalog:",
     "next": "catalog:",
+    "oxc-parser": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "package-manager-detector": "catalog:",
@@ -433,9 +433,11 @@
     "fastify": "catalog:peers",
     "h3": "catalog:peers",
     "hono": "catalog:peers",
+    "jiti": "catalog:peers",
     "jose": "catalog:peers",
     "kysely": "catalog:peers",
     "next": "catalog:peers",
+    "oxc-parser": "catalog:peers",
     "pg": "catalog:peers",
     "pgsql-parser": "catalog:peers",
     "react": "catalog:peers",
@@ -525,6 +527,9 @@
     "hono": {
       "optional": true
     },
+    "jiti": {
+      "optional": true
+    },
     "jose": {
       "optional": true
     },
@@ -532,6 +537,9 @@
       "optional": true
     },
     "next": {
+      "optional": true
+    },
+    "oxc-parser": {
       "optional": true
     },
     "pg": {

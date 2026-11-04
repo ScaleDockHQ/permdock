@@ -38,6 +38,7 @@ import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
 import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
 import { pd085 } from "./hook-role.ts";
 import { pd044, pd065 } from "./next.ts";
+import { pd092 } from "./lockfile.ts";
 import { pd091, pd091Applies } from "./openapi.ts";
 import { pd080, pd081 } from "./per-request.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
@@ -397,6 +398,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: pd064,
   },
   { code: "PD091", groups: ["openapi"], when: pd091Applies, run: pd091 },
+  { code: "PD092", groups: ["project"], run: pd092 },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
   { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },
 ];

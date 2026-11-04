@@ -169,8 +169,8 @@ export default defineConfig({
   // Only the pure-JS CLI helpers may be inlined, into the CLI chunks, so an app
   // that imports a runtime entry installs none of them. `oxc-parser` loads
   // native binaries and `jiti` loads its Babel bundle by a path relative to
-  // its own file, so both stay dependencies (decision 0042); the other CLI
-  // packages are optional peers.
+  // its own file, so neither can be inlined; both are optional peers that
+  // `src/cli/core/optional.ts` loads on first use (decision 0057).
   deps: {
     // With `onlyBundle` set, builtins are no longer external by default.
     neverBundle: [/^#next\//u, /^node:/u],
