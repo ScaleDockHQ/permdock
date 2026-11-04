@@ -544,6 +544,52 @@ describe(authorizationProvider, () => {
     });
   });
 
+  describe("platformRoles and personas", () => {
+    const platform = (role: object) =>
+      withRls({
+        roles: {
+          table: "public.platform_roles",
+          user: { column: "user_id" },
+          role,
+        } as never,
+      });
+
+    it("fills platformRoles only on request, with an optional roles table", () => {
+      const manifest = platform({
+        column: "role",
+        through: { table: "public.roles", id: "id", column: "key" },
+      });
+      expect(
+        authorizationProvider({ manifest }) as { platformRoles?: unknown },
+      ).not.toHaveProperty("platformRoles");
+      const provider = authorizationProvider({
+        manifest,
+        platformRoles: true,
+      }) as { platformRoles?: unknown };
+      expect(provider.platformRoles).toStrictEqual({
+        table: "public.platform_roles",
+        user: "user_id",
+        role: "role",
+        through: { table: "public.roles", id: "id", column: "key" },
+      });
+    });
+
+    it("leaves platformRoles out for a role list, and carries personas", () => {
+      const persona = {
+        name: "editor",
+        setup: "select 1",
+        permissions: ["post.update"],
+      };
+      const provider = authorizationProvider({
+        manifest: platform({ value: ["admin"] }),
+        platformRoles: true,
+        personas: [persona],
+      }) as { platformRoles?: unknown; personas?: unknown };
+      expect(provider).not.toHaveProperty("platformRoles");
+      expect(provider.personas).toStrictEqual([persona]);
+    });
+  });
+
   it("maps role sources, suspension rows and assignment helpers", () => {
     const helper = (name: string, args: string) => ({
       name,
