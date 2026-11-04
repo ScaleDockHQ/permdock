@@ -1,5 +1,15 @@
 # permdock
 
+## 0.24.0
+
+### Minor Changes
+
+- [#285](https://github.com/ScaleDockHQ/permdock/pull/285) [`7c81419`](https://github.com/ScaleDockHQ/permdock/commit/7c81419411e036ee9886aacdcd251139a8f06c8d) Thanks [@martijn00](https://github.com/martijn00)! - Breaking: `permdock/better-supabase` requires better-supabase 0.53.0 or later (`>=0.53.0`). The approvals and share-link bridges call the object-input block clients, and a policy step with `escalateAfter` throws. Upgrade better-supabase, run `better-supabase codemod 0.53` and `upgrade`, then update permdock.
+
+### Patch Changes
+
+- [#288](https://github.com/ScaleDockHQ/permdock/pull/288) [`3bd7823`](https://github.com/ScaleDockHQ/permdock/commit/3bd7823821c9bc4111508a00ca960765ab13a1af) Thanks [@mick340](https://github.com/mick340)! - `permdock/react` ships the snapshot evaluator in its entry again, so a provider with a synchronous `snapshot` answers every check on the first render and in a server render, as before 0.23.0: in 0.23.0, `usePermission(permission, data)`, `useDecision`, `useGate`, `usePermDock`, `useFilter` and `<Protected>` with row data suspended while the evaluator chunk loaded, even without `suspend`. `permdock/next` renders this provider. The on-demand evaluator moves to the new opt-in entry `permdock/react/lazy`, with the same exports: its hooks suspend until the chunk arrives and need a Suspense boundary. `saas client react` measures 21,184 B gzip; `permdock/react/lazy` measures 14,690 B initial and 21,708 B in total. The lazy entry's hooks also no longer throw React's conditional `use()` error when hydration retries after the chunk lands.
+
 ## 0.23.0
 
 ### Minor Changes
