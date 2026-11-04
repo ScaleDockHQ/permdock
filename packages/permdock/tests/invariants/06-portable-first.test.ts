@@ -5,7 +5,7 @@ import type { Subject } from "../../src/core/subject.ts";
 
 import { compileConditionSql } from "../../src/cli/sql/conditions.ts";
 import { compileWhere } from "../../src/conditions/compile.ts";
-import { evaluateCondition } from "../../src/conditions/evaluate.ts";
+import { evaluateCondition } from "../../src/conditions/condition-evaluate.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { PermDockValidationError } from "../../src/index.ts";
 

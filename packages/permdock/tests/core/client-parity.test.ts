@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Principal } from "../../src/core/subject.ts";
 
-import { evaluateCondition } from "../../src/conditions/evaluate.ts";
+import { evaluateCondition } from "../../src/conditions/condition-evaluate.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
 import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";

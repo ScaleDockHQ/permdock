@@ -6,7 +6,7 @@ import type { Grant, Policy } from "./policy-types.ts";
 import type { RelatedVerdict, RelationReader } from "./relations.ts";
 import type { Subject } from "./subject.ts";
 
-import { evaluateCondition } from "../conditions/evaluate.ts";
+import { evaluateCondition } from "../conditions/condition-evaluate.ts";
 import { compact } from "./compact.ts";
 import { resolveRelated } from "./relation-walk.ts";
 import { isThenable } from "./thenable.ts";

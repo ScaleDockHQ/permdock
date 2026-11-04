@@ -4,7 +4,7 @@ import { quoteIdent, quoteLiteral, quoteQualified } from "../sql/quote.ts";
 import { entriesSql, typedSourceUsers } from "./memberships.ts";
 
 export const MEMBERSHIP_ENTRIES_FOR = "membership_entries_for";
-export const GLOBAL_ROLES_FOR = "global_roles_for";
+const GLOBAL_ROLES_FOR = "global_roles_for";
 
 function qualified(parts: Parts, name: string): string {
   return `${quoteIdent(parts.schema)}.${name}`;
