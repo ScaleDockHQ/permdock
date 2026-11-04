@@ -141,12 +141,30 @@ create trigger "permdock_memo_generation_truncate"
 
 create or replace function "permdock".permdock_has(p_grant text)
 returns boolean
-language sql
-stable
+language plpgsql
+volatile
 security definer
 cost 1000
 set search_path = ''
 as $$
+declare
+  v_user text := (select "permdock".permdock_user_id())::text;
+  v_key text := 'permdock.m.' || 'global' || '.k' || (hashtext(p_grant) & 1023)::text;
+  v_disc text := md5(concat_ws('|',
+      v_user,
+      p_grant,
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    ));
+  v_memo text := nullif(current_setting(v_key, true), '');
+  v_has boolean;
+begin
+  if v_memo is not null and (v_memo::jsonb ->> 'k') = v_disc then
+    return (v_memo::jsonb ->> 'v')::boolean;
+  end if;
+  v_has := (
   select exists (
     select 1
     from "permdock".user_roles ur
@@ -155,6 +173,10 @@ as $$
       and rp.grant_key = p_grant
       and rp.scope = 'global'
   )
+  );
+  perform set_config(v_key, jsonb_build_object('k', v_disc, 'v', v_has)::text, true);
+  return v_has;
+end;
 $$;
 revoke execute on function "permdock".permdock_has(text) from public, anon;
 grant execute on function "permdock".permdock_has(text) to authenticated;

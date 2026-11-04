@@ -528,16 +528,21 @@ export function grantBodies(ctx: RlsSqlContext): {
     keys === undefined ? "" : ` and ${keyTenantSql(ctx, undefined) ?? "true"}`;
   const hasAllows = ceiling(set ? "g.grant_key" : "p_grant");
   return {
-    has: sqlBody(
-      hasAllows === undefined
-        ? hasBody(ctx)
-        : set
-          ? `  select g.grant_key
+    has: memoBody(
+      ctx,
+      "global",
+      "boolean",
+      sqlBody(
+        hasAllows === undefined
+          ? hasBody(ctx)
+          : set
+            ? `  select g.grant_key
   from (
 ${hasBody(ctx)}
   ) g(grant_key)
   where ${hasAllows}${keyTenant}`
-          : ceilingHasSql(hasBody(ctx), `${hasAllows}${keyTenant}`),
+            : ceilingHasSql(hasBody(ctx), `${hasAllows}${keyTenant}`),
+      ),
     ),
     ids: (scope) => {
       const type = scopeTypeOf(ctx, scope);

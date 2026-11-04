@@ -56,12 +56,13 @@ describe("helpers for a named user", () => {
       'revoke execute on function "permdock".permdock_has_for(uuid, text) from public, anon, authenticated;',
     );
     expect(has).not.toMatch(/grant execute/u);
-    expect(body(has)).toBe(
+    expect(has).toContain("language sql\nstable");
+    expect(
       body(fn(sql, "permdock_has")).replaceAll(
         '(select "permdock".permdock_user_id())',
         "p_user",
       ),
-    );
+    ).toContain(`  v_has := (\n${body(has).slice("as $$\n".length)}  );`);
     const ids = fn(sql, "permitted_organization_ids_for");
     expect(ids).toContain(
       "permitted_organization_ids_for(p_user uuid, p_grant text)\nreturns setof text",
