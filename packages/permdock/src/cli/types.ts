@@ -190,6 +190,13 @@ export type RlsConfig = {
    * it.
    */
   readonly scopeTypes?: Readonly<Record<string, string>>;
+  /**
+   * Postgres type of each resource's id in the `rls.rowHelpers` helpers
+   * (`permitted_<resource>_rows` returns `setof <type>` and its `p_ids` takes
+   * `<type>[]`), by resource name; `"*"` sets the default. Without it: `uuid`
+   * on Supabase, `text` elsewhere.
+   */
+  readonly idTypes?: Readonly<Record<string, string>>;
   readonly roleClaim?: string;
   /**
    * Role values the existing SQL compares against (a string literal or an enum

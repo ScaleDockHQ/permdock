@@ -69,6 +69,7 @@ const RLS = {
   verify: OBJECT,
   tenantClaim: STRING,
   scopeTypes: OBJECT,
+  idTypes: OBJECT,
   roleClaim: STRING,
   roleValues: OBJECT,
   gucPrefix: STRING,

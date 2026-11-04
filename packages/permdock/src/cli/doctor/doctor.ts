@@ -89,6 +89,8 @@ import {
   pd066,
   pd062,
   pd063,
+  pd088,
+  pd089,
 } from "./sql.ts";
 import { pd061 } from "./suspension.ts";
 
@@ -106,6 +108,8 @@ const SQL_CHECKS = [
   ["PD053", pd053],
   ["PD062", pd062],
   ["PD063", pd063],
+  ["PD088", pd088],
+  ["PD089", pd089],
 ] as const;
 
 export type DoctorReport = {

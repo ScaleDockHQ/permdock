@@ -16,6 +16,8 @@ import {
   pd053,
   pd062,
   pd063,
+  pd088,
+  pd089,
 } from "../../src/cli/doctor/sql.ts";
 import { sqlStatements } from "../../src/cli/sql/statements.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
@@ -266,6 +268,53 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
       expect(
         pd063(cwd, { doctor: { migrations: ["migrations"] } }),
       ).toStrictEqual([]);
+    });
+  });
+
+  describe("PD088 text cast on a row helper", () => {
+    it("reports a cast on the column and on the call, outside functions", () => {
+      const cwd = migration(
+        [
+          `create policy a on doc using (id::text in (select "permdock".permitted_doc_rows('doc.read')));`,
+          `create policy b on doc using (id in (select "permdock".permitted_doc_rows('doc.read')::text));`,
+          `create policy c on doc using ("permdock".permitted_doc_row(id::text, 'doc.read'));`,
+          `create policy d on doc using (id in (select "permdock".permitted_doc_rows('doc.read')));`,
+          `create function f() returns void language sql as $$ select id::text in (select permitted_doc_rows('x')) $$;`,
+        ].join("\n"),
+      );
+      expect(
+        messages(pd088(cwd, { rls: { dialect: "supabase" } })),
+      ).toStrictEqual([
+        `${MIGRATION}:1 casts to text around a permitted_*_rows or permitted_*_row call`,
+        `${MIGRATION}:2 casts to text around a permitted_*_rows or permitted_*_row call`,
+        `${MIGRATION}:3 casts to text around a permitted_*_rows or permitted_*_row call`,
+      ]);
+    });
+
+    it("skips text ids", () => {
+      const cwd = migration(
+        `create policy a on doc using (id::text in (select permitted_doc_rows('doc.read')));`,
+      );
+      expect(pd088(cwd, { rls: { dialect: "neon" } })).toStrictEqual([]);
+      expect(pd088(cwd, { rls: { idTypes: { "*": "text" } } })).toStrictEqual(
+        [],
+      );
+    });
+  });
+
+  describe("PD089 one id against the row set", () => {
+    it("reports a bound id and not a column", () => {
+      const cwd = migration(
+        [
+          `create policy a on doc using ($1 in (select permitted_doc_rows('doc.read')));`,
+          `create policy b on doc using (new.doc_id in (select "permdock".permitted_doc_rows('doc.read')));`,
+          `create policy c on doc using (id in (select permitted_doc_rows('doc.read')));`,
+        ].join("\n"),
+      );
+      expect(messages(pd089(cwd, config))).toStrictEqual([
+        `${MIGRATION}:1 tests one id against the whole permitted_*_rows set`,
+        `${MIGRATION}:2 tests one id against the whole permitted_*_rows set`,
+      ]);
     });
   });
 

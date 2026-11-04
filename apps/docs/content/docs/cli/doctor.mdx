@@ -141,6 +141,8 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD091` | An operation under `openapi.tenantPaths` that `openapi.operations` declares no entry for, or a declared entry that matches no operation of an `openapi.doc` document                                                                                                                                       | error           |
 | `PD092` | `pnpm-lock.yaml` lists `permdock` more than once with different peer sets, so one app can load two copies of its stores and caches                                                                                                                                                                         | warning         |
 | `PD087` | The hook broadcasts on another topic than better-supabase listens on, or better-supabase is a dependency whose config file is not found                                                                                                                                                                    |
+| `PD088` | A statement casts to `text` around a `permitted_*_rows` or `permitted_*_row` call; the helpers use the resource id type                                                                                                                                                                                    | warning         |
+| `PD089` | A statement tests one known id against `permitted_*_rows`; `permitted_*_row(id, permission)` evaluates that row only                                                                                                                                                                                       | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -625,6 +627,14 @@ warning PD087  better-supabase is a dependency but its config file was not found
 ```
 
 Set `betterSupabase.config` in `permdock.config.ts` to the config file, or remove the pinned topic. With only the dependency found, the hook takes better-supabase's topic and leaves `activeFrom` and the receive policy at their defaults.
+
+### PD088: text cast on a row helper
+
+The row helpers `permitted_<resource>_rows` and `permitted_<resource>_row` return and take the resource's id type: `uuid` on the `supabase` dialect, `text` on `neon`, and whatever `rls.idTypes` sets. A `::text` cast around a call, or on the column compared to its result, defeats the index on the id column and fails against a `uuid` helper. The check reports each such statement in the migration folders, outside function bodies. It does not run on the `neon` dialect or with `rls.idTypes: { '*': 'text' }`. Compare the column to the helper's own type, set `rls.idTypes` for a column that is not `uuid`, and run `permdock rls generate`. `--only sql` (or `--only supabase`) runs PD088.
+
+### PD089: one id tested against the whole row set
+
+`$1 in (select permitted_doc_rows('doc.read'))`, with a bound parameter, `new.<column>` or `old.<column>` on the left, builds the permitted set to test one id. The `permitted_<resource>_row(id, permission)` overload evaluates that row alone. `--only sql` (or `--only supabase`) runs PD089.
 
 ## Side effects
 

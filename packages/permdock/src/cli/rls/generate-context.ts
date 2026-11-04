@@ -422,6 +422,7 @@ export function buildContext(
     roleClaim: rls?.roleClaim ?? "user_role",
     tenantType: input.tenantType ?? firstScopeType(rls?.scopeTypes, scopes),
     ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
+    ...(rls?.idTypes === undefined ? {} : { idTypes: rls.idTypes }),
     ...(memberships === undefined ? {} : { memberships }),
     ...(sources === undefined || sources.length === 0 ? {} : { sources }),
     ...(memberSources === undefined || memberSources.length === 0

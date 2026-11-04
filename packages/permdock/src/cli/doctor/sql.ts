@@ -706,3 +706,80 @@ export function pd066(
           };
     });
 }
+
+const ROWS_HELPER = String.raw`(?:"[^"]+"\.|\w+\.)?"?permitted_\w+_rows"?`;
+const TEXT_CAST_ON_ROWS = new RegExp(
+  String.raw`::\s*text\s+in\s*\(\s*select\s+${ROWS_HELPER}\s*\(|${ROWS_HELPER}\s*\([^()]*(?:\([^()]*\)[^()]*)*\)\s*::\s*text\b|(?:"[^"]+"\.|\w+\.)?"?permitted_\w+_row"?\s*\(\s*[^,()]+::\s*text\s*,`,
+  "iu",
+);
+const KNOWN_ID_IN_ROWS = new RegExp(
+  String.raw`(?:\$\d+|\bp_\w+|\b(?:new|old)\.\w+)(?:\s*::\s*\w+)?\s+in\s*\(\s*select\s+${ROWS_HELPER}\s*\(`,
+  "iu",
+);
+
+function firstLine(statement: SqlStatement, index: number): number {
+  return statement.line + statement.text.slice(0, index).split("\n").length - 1;
+}
+
+function rowHelperStatements(
+  cwd: string,
+  config: PermDockConfig,
+  files: DoctorFiles,
+): readonly SqlStatement[] {
+  return migrationStatements(files, cwd, config).filter(
+    (statement) => !CREATE_FUNCTION.test(statement.text),
+  );
+}
+
+/**
+ * PD088: a `::text` cast on a row-helper call. The helpers return the
+ * resource's id type, so the cast defeats the index on the id column and fails
+ * against a `uuid` helper.
+ */
+export function pd088(
+  cwd: string,
+  config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
+): readonly DoctorFinding[] {
+  if (config.rls?.dialect === "neon" || config.rls?.idTypes?.["*"] === "text") {
+    return [];
+  }
+  return rowHelperStatements(cwd, config, files).flatMap((statement) => {
+    const match = TEXT_CAST_ON_ROWS.exec(statement.text);
+    return match === null
+      ? []
+      : [
+          {
+            code: "PD088",
+            severity: "warning" as const,
+            message: `${statement.file}:${String(firstLine(statement, match.index))} casts to text around a permitted_*_rows or permitted_*_row call`,
+            fix: "compare the id column to the helper's own type (uuid by default) and set rls.idTypes when the column is not uuid, then run permdock rls generate",
+          },
+        ];
+  });
+}
+
+/**
+ * PD089: `<known id> in (select permitted_*_rows(...))`. The `_rows` helper
+ * lists every permitted row; for one id the `permitted_*_row(id, permission)`
+ * overload checks that row alone.
+ */
+export function pd089(
+  cwd: string,
+  config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
+): readonly DoctorFinding[] {
+  return rowHelperStatements(cwd, config, files).flatMap((statement) => {
+    const match = KNOWN_ID_IN_ROWS.exec(statement.text);
+    return match === null
+      ? []
+      : [
+          {
+            code: "PD089",
+            severity: "warning" as const,
+            message: `${statement.file}:${String(firstLine(statement, match.index))} tests one id against the whole permitted_*_rows set`,
+            fix: "call permitted_<resource>_row(id, permission), which evaluates that row only",
+          },
+        ];
+  });
+}
