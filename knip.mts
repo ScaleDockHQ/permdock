@@ -53,6 +53,7 @@ const config: KnipConfig = {
         "permdock.config.ts",
         "better-supabase.config.ts",
         "scripts/*.ts",
+        "scripts/explain-bench/*.ts",
         "src/**/*.{ts,tsx}",
       ],
     },
