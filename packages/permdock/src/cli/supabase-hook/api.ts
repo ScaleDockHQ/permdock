@@ -16,10 +16,12 @@ import {
   quoteTable,
 } from "../sql/quote.ts";
 import { customRolesOn } from "../sql/shared.ts";
+import { USER_ID_HELPER } from "../sql/subject.ts";
 import { MEMBERSHIP_ENTRIES_FOR, heldSql } from "./entries.ts";
 import { typedUsers } from "./memberships.ts";
 
 const SUBJECT_FOR = "subject_for";
+const PERMDOCK_SUBJECT = "permdock_subject";
 
 /**
  * `subject_for(p_user uuid) returns jsonb`: what the hook would put in a token
@@ -105,6 +107,36 @@ ${roles}
 end;
 $$;
 revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
+}
+
+/**
+ * `<helpers schema>.permdock_subject() returns jsonb`: `subject_for` for the
+ * signed-in user, `null` for an anonymous or suspended one. A client role may
+ * execute it because it names no user: `bootstrap` calls it so one round trip
+ * returns the subject the authorizer would otherwise read again.
+ */
+export function permdockSubjectSql(parts: Parts): string {
+  const helpers = quoteIdent(parts.helpers.schema);
+  const fn = `${helpers}.${PERMDOCK_SUBJECT}`;
+  return `-- the signed-in user's subject_for record, for a bootstrap that seeds the authorizer; null when anonymous or suspended
+create or replace function ${fn}()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  subject jsonb := ${quoteIdent(parts.schema)}.${SUBJECT_FOR}((select ${helpers}.${USER_ID_HELPER}()));
+begin
+  if subject is null or (subject ->> 'active') is distinct from 'true' then
+    return null;
+  end if;
+  return subject;
+end;
+$$;
+revoke execute on function ${fn}() from public, anon, authenticated;
+grant execute on function ${fn}() to authenticated;`;
 }
 
 /**
