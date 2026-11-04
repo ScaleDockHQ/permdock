@@ -46,6 +46,11 @@ export type {
   TraceSkipReason,
 } from "./core/decision.ts";
 export type { WireDecision, WireDenial } from "./core/wire-denial.ts";
+export { accessOutcome } from "./core/access-outcome.ts";
+export type { AccessOutcome } from "./core/access-outcome.ts";
+export { isGlobalPermission } from "./core/granted-permissions.ts";
+export type { GrantedPermissionsOptions } from "./core/granted-permissions.ts";
+export type { MembershipFilter } from "./core/membership-filter.ts";
 export {
   PermDockApprovalRequiredError,
   PermDockDeniedError,

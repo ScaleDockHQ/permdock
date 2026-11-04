@@ -417,6 +417,7 @@ function wrap<V extends PolicyVocabulary>(
     memberships: permdock.memberships.bind(permdock),
     tenants: permdock.tenants.bind(permdock),
     heldRoles: permdock.heldRoles.bind(permdock),
+    grantedPermissions: permdock.grantedPermissions.bind(permdock),
     audiences: permdock.audiences.bind(permdock),
     assignableRoles: permdock.assignableRoles.bind(permdock),
     assignablePermissions: permdock.assignablePermissions.bind(permdock),
