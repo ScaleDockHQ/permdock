@@ -1,3 +1,5 @@
+import type { Metafile } from "esbuild";
+
 import { build } from "esbuild";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,6 +26,8 @@ const CONSUMERS = {
   "mcp createPermDock": `export { createPermDock } from 'permdock/mcp';`,
   "ai-sdk createPermDock": `export { createPermDock } from 'permdock/ai-sdk';`,
   "supabase/middleware createPermDock": `export { createPermDock } from 'permdock/supabase/middleware';`,
+  "saas client react": `export { PermDockProvider, Protected, usePermission } from 'permdock/react';`,
+  "saas server better-supabase + next": `export { authorizer, blockMembershipSource, subjectFromBetterSupabase, subjectFromShareLink } from 'permdock/better-supabase'; export { authzVersion, exchangeCapability, junctionMembershipSource, supabaseClaims, supabasePostgresQuery } from 'permdock/supabase'; export { createPermDock, snapshotTag } from 'permdock/next'; export { actor, allow, claimsFirst, defineOperations, definePermissions, definePolicy, defineRoles, emptySnapshot, getPermDockSync, memoryVersionCache, resource, role } from 'permdock';`,
   "openapi securityFor + permissionsExtension + problemDetails": `export { permissionsExtension, problemDetails, securityFor } from 'permdock/openapi';`,
 } as const;
 
@@ -31,10 +35,16 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 
 /**
  * The minified, tree-shaken output files a consumer's bundler emits for
- * `source`.
+ * `source`, with the esbuild metafile.
  */
-async function bundled(source: string): Promise<readonly Uint8Array[]> {
+export async function bundleWithMeta(
+  source: string,
+): Promise<{
+  readonly files: readonly Uint8Array[];
+  readonly metafile: Metafile;
+}> {
   const result = await build({
+    metafile: true,
     stdin: { contents: source, resolveDir: HERE, loader: "js" },
     bundle: true,
     write: false,
@@ -59,11 +69,18 @@ async function bundled(source: string): Promise<readonly Uint8Array[]> {
       },
     ],
   });
-  return result.outputFiles.map((file) => file.contents);
+  return {
+    files: result.outputFiles.map((file) => file.contents),
+    metafile: result.metafile,
+  };
+}
+
+export function consumerSource(name: string): string | undefined {
+  return Object.entries(CONSUMERS).find(([key]) => key === name)?.[1];
 }
 
 async function bundledGzip(source: string): Promise<number> {
-  const files = await bundled(source);
+  const { files } = await bundleWithMeta(source);
   return files.reduce(
     (total, contents) => total + gzipSync(contents, { level: 9 }).length,
     0,

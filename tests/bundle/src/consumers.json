@@ -14,5 +14,7 @@
   "mcp createPermDock": 47040,
   "ai-sdk createPermDock": 42589,
   "supabase/middleware createPermDock": 46696,
+  "saas client react": 20231,
+  "saas server better-supabase + next": 78174,
   "openapi securityFor + permissionsExtension + problemDetails": 862
 }
