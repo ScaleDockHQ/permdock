@@ -6,7 +6,8 @@ import type {
 import type { InstanceCache } from "../core/instance-cache.ts";
 import type { PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { Policy } from "../core/policy-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { Principal } from "../core/subject.ts";
 import type {
   SupportSession,
   SupportSessionDecision,
@@ -28,8 +29,10 @@ export type PendingSupportSession = {
   readonly session: SupportSession;
 };
 
-export type SupportPolicyOptions = {
-  readonly policy: Policy;
+export type SupportPolicyOptions<
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = {
+  readonly policy: Policy<unknown, Principal, V>;
   /**
    * How the admin's verified claims map to a subject; the defaults of
    * `subjectFromBetterSupabase`.
@@ -98,7 +101,9 @@ function requestId(input: SupportAuthorizeInput): string {
  * distinct approver for its token. `readOnly: false` needs `writable`. A throw
  * is `false`.
  */
-export function supportPolicy(options: SupportPolicyOptions): SupportAuthorize {
+export function supportPolicy<V extends PolicyVocabulary = PolicyVocabulary>(
+  options: SupportPolicyOptions<V>,
+): SupportAuthorize {
   const resolve = permdockFor(options);
   return async (input) => {
     try {

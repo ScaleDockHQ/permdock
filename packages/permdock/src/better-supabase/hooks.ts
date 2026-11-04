@@ -13,8 +13,9 @@ import type { Approver } from "../core/approvers.ts";
 import type { InstanceCache } from "../core/instance-cache.ts";
 import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { Policy } from "../core/policy-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
+import type { Principal } from "../core/subject.ts";
 import type { ProviderApprovers } from "./approvers.ts";
 import type { PermDockFor } from "./permdock-for.ts";
 import type { BetterSupabaseSubjectOptions } from "./subject.ts";
@@ -46,15 +47,17 @@ type RequestContext = NonNullable<Awaited<ReturnType<TicketSubject>>>;
 /** better-supabase's claim that caps a context to the permission keys it lists. */
 const PERMISSION_CAP_CLAIM = "bsb_permission_cap";
 
-export type AuthorizationHooksOptions = {
-  readonly policy: Policy;
+export type AuthorizationHooksOptions<
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = {
+  readonly policy: Policy<unknown, Principal, V>;
   /**
    * The app's `permdockFor` resolver, shared with `authorizer({ permdockFor })`
    * so a hook reuses the instances the checks built. It holds `subject`,
    * `memberships`, `version`, `versions`, `instances` and `options`; passing
    * one of those as well throws a `TypeError`.
    */
-  readonly permdockFor?: PermDockFor;
+  readonly permdockFor?: PermDockFor<V>;
   /**
    * The claims better-supabase mints for `userId` now, or `null` for a user
    * deleted, suspended or unknown: the same loader `principalSource` takes.
@@ -102,7 +105,7 @@ export type AuthorizationHooksOptions = {
    */
   readonly approvers?: ProviderApprovers;
   /** `supportPolicy`'s options without `policy`; sets `support.authorize`. */
-  readonly support?: Omit<SupportPolicyOptions, "policy">;
+  readonly support?: Omit<SupportPolicyOptions<V>, "policy">;
   /**
    * The user and tenant a run ticket stands for, looked up in the app's store;
    * `null` refuses the ticket. Sets `tickets.subject`, which loads the user's
@@ -180,15 +183,15 @@ function matches(
  * `.scope` it is, was renamed from, or that a policy `oauthScopes` entry
  * covers, and reads no `authorization_details`.
  */
-export function authorizationHooks(
-  options: AuthorizationHooksOptions,
-): AuthorizationHooks {
+export function authorizationHooks<
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(options: AuthorizationHooksOptions<V>): AuthorizationHooks {
   const { policy } = options;
   const resolve = resolverOf(options, "authorizationHooks");
   const instance = async (
     claims: Claims,
     tenant: string | null | undefined,
-  ): Promise<PermDock | null> => {
+  ): Promise<PermDock<V> | null> => {
     const permdock = await resolve(
       { kind: "user", claims },
       { tenant: tenant ?? null },

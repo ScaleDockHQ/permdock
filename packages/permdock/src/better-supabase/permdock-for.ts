@@ -98,12 +98,12 @@ export type PermDockForOptions<V extends PolicyVocabulary = PolicyVocabulary> =
   };
 
 /** `permdockFor` with the version cache better-supabase passes at runtime. */
-export type PermDockResolver = {
+export type PermDockResolver<V extends PolicyVocabulary = PolicyVocabulary> = {
   (
     source: PermDockForInput,
     query: PermDockForQuery,
     versions?: VersionCache,
-  ): Promise<PermDock>;
+  ): Promise<PermDock<V>>;
   readonly sources: (versions?: VersionCache) => InstanceOptions;
 };
 
@@ -158,7 +158,9 @@ function subjectOf(
  * object per version cache, so every instance of one subject at one version
  * shares an `instances` entry.
  */
-function permdockResolver(options: PermDockForOptions): PermDockResolver {
+function permdockResolver<V extends PolicyVocabulary>(
+  options: PermDockForOptions<V>,
+): PermDockResolver<V> {
   const byCache = new WeakMap<VersionCache, InstanceOptions>();
   let uncached: InstanceOptions | undefined;
   const sourcesOf = (versions: VersionCache | undefined): InstanceOptions => ({
@@ -193,7 +195,7 @@ function permdockResolver(options: PermDockForOptions): PermDockResolver {
     source: PermDockForInput,
     query: PermDockForQuery,
     runtimeVersions?: VersionCache,
-  ): Promise<PermDock> => {
+  ): Promise<PermDock<V>> => {
     const result = isResult(source) ? source : undefined;
     const signedOut = result?.sessionActive === false;
     const user = subjectOf(source, result, signedOut, options.subject);
@@ -225,10 +227,10 @@ function permdockResolver(options: PermDockForOptions): PermDockResolver {
  * already holds throws a `TypeError`, since two sources of the same option
  * would disagree.
  */
-export function resolverOf(
-  options: PermDockForOptions & { readonly permdockFor?: PermDockFor },
+export function resolverOf<V extends PolicyVocabulary>(
+  options: PermDockForOptions<V> & { readonly permdockFor?: PermDockFor<V> },
   adapter: string,
-): PermDockResolver {
+): PermDockResolver<V> {
   const shared = options.permdockFor;
   if (shared === undefined) return permdockResolver(options);
   const clash = RESOLVER_OWNS.find((key) => options[key] !== undefined);
@@ -241,7 +243,7 @@ export function resolverOf(
     source: PermDockForInput,
     query: PermDockForQuery,
     versions?: VersionCache,
-  ): Promise<PermDock> => shared(source, query, versions);
+  ): Promise<PermDock<V>> => shared(source, query, versions);
   return Object.freeze(Object.assign(resolve, { sources: shared.sources }));
 }
 
@@ -264,7 +266,7 @@ export function permdockFor<V extends PolicyVocabulary = PolicyVocabulary>(
     source: PermDockForInput,
     query?: PermDockForQuery | string | null,
     versions?: VersionCache,
-  ): Promise<PermDock> =>
+  ): Promise<PermDock<V>> =>
     resolve(
       source,
       typeof query === "string" || query === null
@@ -272,10 +274,7 @@ export function permdockFor<V extends PolicyVocabulary = PolicyVocabulary>(
         : (query ?? {}),
       versions,
     );
-  // SAFETY: the resolver builds each instance from options.policy, whose vocabulary is V.
-  return Object.freeze(
-    Object.assign(call, { sources: resolve.sources }),
-  ) as PermDockFor<V>;
+  return Object.freeze(Object.assign(call, { sources: resolve.sources }));
 }
 
 /**
