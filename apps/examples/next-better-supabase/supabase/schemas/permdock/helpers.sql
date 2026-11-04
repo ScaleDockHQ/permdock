@@ -246,6 +246,7 @@ returns boolean
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select exists (
@@ -299,6 +300,7 @@ returns setof uuid
 language plpgsql
 volatile
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare
@@ -373,6 +375,7 @@ returns setof uuid
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare
@@ -401,6 +404,7 @@ returns setof uuid
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare
@@ -428,6 +432,7 @@ returns setof uuid
 language plpgsql
 volatile
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare
@@ -502,6 +507,7 @@ returns setof uuid
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare
@@ -530,6 +536,7 @@ returns setof uuid
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare
@@ -558,6 +565,7 @@ returns boolean
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select exists (
@@ -588,6 +596,7 @@ returns setof uuid
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare
@@ -640,6 +649,7 @@ returns setof uuid
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare
@@ -1723,6 +1733,7 @@ returns boolean
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select exists (select 1 from "permdock".grant_keys(p_permission, 'global') g(grant_key) where "permdock".permdock_has(g.grant_key))
@@ -1736,6 +1747,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select a.id
@@ -1755,6 +1767,7 @@ returns setof text
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 set jit = off
 as $$
@@ -1859,6 +1872,7 @@ returns setof text
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 set jit = off
 as $$
@@ -1966,6 +1980,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select a.id
@@ -1994,6 +2009,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select a.id
@@ -2013,6 +2029,7 @@ returns setof text
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 set jit = off
 as $$
@@ -2111,6 +2128,7 @@ returns setof text
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 set jit = off
 as $$
@@ -2212,6 +2230,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select a.id
@@ -2241,6 +2260,7 @@ returns boolean
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select exists (select 1 from "permdock".grant_keys(p_permission, 'global') g(grant_key) where "permdock".permdock_has_for(p_user, g.grant_key))
@@ -2253,6 +2273,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select a.id
@@ -2270,6 +2291,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select a.id
@@ -2297,6 +2319,7 @@ returns setof text
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 set jit = off
 as $$
@@ -2398,6 +2421,7 @@ returns setof text
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 set jit = off
 as $$
@@ -2501,6 +2525,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select a.id
@@ -2518,6 +2543,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select a.id
@@ -2545,6 +2571,7 @@ returns setof text
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 set jit = off
 as $$
@@ -2640,6 +2667,7 @@ returns setof text
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 set jit = off
 as $$

@@ -256,6 +256,7 @@ returns boolean
 language plpgsql
 volatile
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare

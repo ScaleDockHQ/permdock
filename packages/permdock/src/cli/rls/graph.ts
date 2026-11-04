@@ -252,6 +252,7 @@ returns setof text
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
 ${arms.join("\n  union\n")}
@@ -281,6 +282,7 @@ returns setof text
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select t.${quoteIdent(node.id)}::text from ${quoteQualified(tableFor(node.name, tables))} t
@@ -479,6 +481,7 @@ returns setof text
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   ${body}

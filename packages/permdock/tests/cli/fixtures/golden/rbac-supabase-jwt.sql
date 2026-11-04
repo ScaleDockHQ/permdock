@@ -90,6 +90,8 @@ returns boolean
 language sql
 stable
 security definer
+cost 1000
+parallel safe
 set search_path = ''
 as $$
   select coalesce((select "app".permdock_user_id())::text, '') <> '' and exists (
@@ -114,6 +116,8 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
+parallel safe
 set search_path = ''
 as $$
   select (m ->> 'id')::uuid
@@ -143,6 +147,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select distinct (m ->> 'id')::uuid
@@ -167,6 +172,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select distinct m."organization_id"::uuid
@@ -265,6 +271,8 @@ returns boolean
 language sql
 stable
 security definer
+cost 1000
+parallel safe
 set search_path = ''
 as $$
   select exists (select 1 from "app".grant_keys(p_permission, 'global') g(grant_key) where "app".permdock_has(g.grant_key))
@@ -278,6 +286,8 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
+parallel safe
 set search_path = ''
 as $$
   select a.id
@@ -297,6 +307,8 @@ returns setof text
 language sql
 stable
 security definer
+cost 1000
+parallel safe
 set search_path = ''
 set jit = off
 as $$
@@ -372,6 +384,8 @@ returns setof text
 language sql
 stable
 security definer
+cost 1000
+parallel safe
 set search_path = ''
 set jit = off
 as $$
@@ -450,6 +464,8 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
+parallel safe
 set search_path = ''
 as $$
   select a.id

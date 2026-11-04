@@ -164,10 +164,12 @@ describe("permitted_<resource>_rows", () => {
     const text = generate("supabase", ["doc"], {}, { "*": "text" }).sql;
     expect(text).toContain("p_ids text[]");
     expect(text).not.toContain("uuid[]");
-    const bigint = generate("supabase", ["doc"], {}, {
-      "*": "text",
-      doc: "bigint",
-    }).sql;
+    const bigint = generate(
+      "supabase",
+      ["doc"],
+      {},
+      { "*": "text", doc: "bigint" },
+    ).sql;
     expect(bigint).toContain(
       "p_permission text, p_ids bigint[])\nreturns setof bigint",
     );
@@ -239,7 +241,7 @@ describe("permitted_<resource>_row memo", () => {
   it("reads the row-independent helper calls from one memo per statement", () => {
     const body = rowBody(memoized());
     expect(body).toContain(
-      "returns boolean\nlanguage plpgsql\nvolatile\nsecurity definer\nset search_path = ''",
+      "returns boolean\nlanguage plpgsql\nvolatile\nsecurity definer\ncost 1000\nset search_path = ''",
     );
     expect(body).toContain(
       "v_permdock_key text := 'permdock.m.' || 'doc' || '.r' || (hashtext(p_permission) & 1023)::text;",

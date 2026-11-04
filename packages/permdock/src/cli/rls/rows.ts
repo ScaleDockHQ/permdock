@@ -18,6 +18,7 @@ import {
   quoteLiteral,
   quoteQualified,
 } from "../sql/quote.ts";
+import { memoizes } from "./helper-bodies.ts";
 import { permittedByPermissionHelper } from "./permission-keys.ts";
 import { orSql } from "./policies.ts";
 import { memoRowSql, memoRowTriggersSql } from "./row-memo.ts";
@@ -203,6 +204,15 @@ export function inheritTargets(policy: Policy): readonly string[] {
   return [...out].toSorted();
 }
 
+/**
+ * `cost 1000`, so the planner runs a helper after the cheap filters, and
+ * `parallel safe` unless the scope helpers it calls keep a `set_config` memo,
+ * which a parallel worker cannot write.
+ */
+function plannerOf(ctx: RlsSqlContext): string {
+  return `cost 1000${memoizes(ctx) ? "" : "\nparallel safe"}`;
+}
+
 export const CANDIDATES = "permdock_candidates";
 
 function stubSql(ctx: RlsSqlContext, resource: string): string {
@@ -246,6 +256,7 @@ returns boolean
 language sql
 stable
 security definer
+${plannerOf(ctx)}
 set search_path = ''
 as $$
   with ${CANDIDATES} as (select (p_row).*)
@@ -261,7 +272,11 @@ function armsOf(
   tenantFirst?: (key: string) => string | undefined,
 ): readonly RowArm[] {
   return [...branches.keys()].toSorted().flatMap((key) => {
-    const sql = permissionCase(key, branches.get(key) ?? [], tenantFirst?.(key));
+    const sql = permissionCase(
+      key,
+      branches.get(key) ?? [],
+      tenantFirst?.(key),
+    );
     return sql === undefined ? [] : [{ key, sql }];
   });
 }
@@ -284,6 +299,7 @@ returns boolean
 language sql
 stable
 security definer
+${plannerOf(ctx)}
 set search_path = ''
 as $$
   with ${CANDIDATES} as materialized (select * from ${table} where ${id} = p_id)
@@ -317,6 +333,7 @@ returns setof ${idType}
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare
@@ -422,6 +439,7 @@ returns setof ${idType}
 language sql
 stable
 security definer
+${plannerOf(ctx)}
 set search_path = ''
 as $$
   select ${quoteIdent(node.id)}::${idType} from ${table}

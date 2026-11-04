@@ -4,6 +4,7 @@ export default {
   rls: {
     dialect: "supabase",
     scopeTypes: { tenant: "text" },
+    idTypes: { "*": "text" },
     authorize: "database",
     helpersOnly: true,
     rowHelpers: ["doc"],

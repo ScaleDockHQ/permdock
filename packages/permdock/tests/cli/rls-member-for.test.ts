@@ -54,7 +54,7 @@ describe("member_<scope>_ids_for", () => {
     const sql = helpers({ ...base, memberSources: sources });
     const organization = fn(sql, "member_organization_ids_for");
     expect(organization).toContain(
-      "member_organization_ids_for(p_user uuid)\nreturns setof text\nlanguage plpgsql\nstable\nsecurity definer\nset search_path = ''",
+      "member_organization_ids_for(p_user uuid)\nreturns setof text\nlanguage plpgsql\nstable\nsecurity definer\ncost 1000\nset search_path = ''",
     );
     expect(organization).toContain('"public"."memberships"');
     expect(organization).toContain(
@@ -170,7 +170,7 @@ describe("member_<scope>_ids_of", () => {
     });
     const team = fn(sql, "member_team_ids_of");
     expect(team).toContain(
-      "member_team_ids_of(p_user uuid)\nreturns setof text\nlanguage sql\nstable\nsecurity definer\nset search_path = ''",
+      "member_team_ids_of(p_user uuid)\nreturns setof text\nlanguage sql\nstable\nsecurity definer\ncost 1000\nset search_path = ''",
     );
     expect(team).toContain(
       'from "permdock".member_team_ids_for(p_user) as m(id)\n  where p_user = (select "permdock".permdock_user_id())',

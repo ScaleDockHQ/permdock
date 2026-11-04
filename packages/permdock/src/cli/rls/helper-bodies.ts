@@ -651,7 +651,8 @@ export function memoDiscriminatorSql(user: string, key: string): string {
  * `language sql`, or `plpgsql` returning the query when the body declares
  * variables.
  */
-export function functionBody(body: Body): string {
+export function functionBody(body: Body, parallelSafe = false): string {
+  const planner = `cost 1000${parallelSafe ? "\nparallel safe" : ""}`;
   if (body.memo !== undefined) {
     const declare = [
       ...body.vars,
@@ -664,6 +665,7 @@ export function functionBody(body: Body): string {
     return `language plpgsql
 volatile
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare
@@ -685,6 +687,7 @@ $$;`;
     return `language sql
 stable
 security definer
+${planner}
 set search_path = ''
 as $$
 ${body.sql}
@@ -693,6 +696,7 @@ $$;`;
   return `language plpgsql
 stable
 security definer
+${planner}
 set search_path = ''
 as $$
 declare
