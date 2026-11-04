@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table.tsx";
 
-import { getStaff } from "../../../lib/access.ts";
+import { visibleStaff } from "../../../lib/access.ts";
 import { people } from "../../../lib/store.ts";
 import { RoleButton } from "./role-button.tsx";
 
@@ -76,7 +76,7 @@ export async function Staff(props: {
   readonly params: Promise<{ readonly org: string }>;
 }) {
   const { org } = await props.params;
-  const loaded = await getStaff(org);
+  const loaded = await visibleStaff(org);
   return (
     <Card className="py-0">
       <Table data-testid="members">

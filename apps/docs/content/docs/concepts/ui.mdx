@@ -13,7 +13,7 @@ Two honest ways to show a denied action:
 
 | Pattern                | Use when                                                                                    | Build with                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Hidden                 | The user should not know the action exists (admin menus, other tenants' data)               | `<Protected>` with no `denied`                                  |
+| Hidden                 | The user should not know the action exists (admin menus, a settings link)                   | `<Protected>` with no `denied`                                  |
 | Disabled with a reason | The user may learn what would unlock it (upgrade the plan, ask an admin, wait for approval) | `usePermission` plus `describe(decision)` on a disabled control |
 
 `<Protected>` hides. It does not grow a `disabled` mode: a disabled control needs a reason, a tooltip and an accessible name, and those are the component library's job. PermDock gives the reason:

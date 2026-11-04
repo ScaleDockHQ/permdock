@@ -443,7 +443,7 @@ The private cache and the proxy both verify the session on every prefetch. With 
 
 `proxy.ts` refreshes the session once per request with `getClaims()` and returns the response `setAll` built, with its `Cache-Control`, `Expires` and `Pragma` headers ([the recipe](/docs/adapters/supabase#with-supabasessr)). Every later read in the request, the private cache included, calls `getClaims()` against cookies that are already fresh, and never `getSession()`.
 
-`mayAccess(policy, claims, permission, { tenant })` in `proxy.ts` redirects only when the verified claims provably lack the page's permission. It answers `true` whenever custom roles, plans, missing memberships or row conditions could still grant access. Pages and Server Actions enforce regardless: a request that skips the proxy renders the page's forbidden state (`<Protected fallback>`) and gets a denied Server Action, never data. `requirePermission(permission, undefined, { tenant })` from `permdock/next` is the page-level alternative: it calls `forbidden()`, or `unauthorized()` for a signed-out user, when `experimental.authInterrupts` is on ([Next.js adapter](/docs/adapters/next)).
+`mayAccess(policy, claims, permission, { tenant })` in `proxy.ts` redirects only when the verified claims provably lack the page's permission. It answers `true` whenever custom roles, plans, missing memberships or row conditions could still grant access. Pages and Server Actions enforce regardless: a request that skips the proxy meets `requirePermission` in the page, a loader that returns only the rows the subject may read, and a denied Server Action. `requirePermission(permission, undefined, { tenant })` from `permdock/next` is the page-level alternative: it calls `forbidden()`, or `unauthorized()` for a signed-out user, when `experimental.authInterrupts` is on ([Next.js adapter](/docs/adapters/next)).
 
 ## Testing it
 
@@ -476,6 +476,7 @@ Run it against `next build && next start` with `experimental.exposeTestingApiInP
 - `refresh()` and `updateTag` reach only the browser that acted; other members need a signal.
 - A `stale` below 30 seconds silently drops the snapshot from per-link prefetches. Below 300 seconds, session content that reads no `params` drops out of the App Shell. `cacheLifeFor` returns 300 seconds unless `capToToken` is set and the token is about to expire.
 - Plan gates live in the snapshot and in Server Actions; the generated `authorize()` seeds ignore plans, so RLS does not enforce them.
+- A client `<Protected>` around a Server Component does not keep that component's output out of the RSC Payload. Filter the rows in the loader ([where a check runs](/docs/adapters/next#where-a-check-runs)).
 - Sign out with a document navigation (a plain `<form method="post">` to a Route Handler that clears the cookie and answers `303`), not a Server Action `redirect`. The App Router keeps visited routes as hidden trees in the page, so after a client-side sign-out the previous user's gated nav can stay in the DOM while the next user signs in.
 
 ## Related

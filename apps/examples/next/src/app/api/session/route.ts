@@ -30,8 +30,10 @@ export async function POST(request: Request): Promise<Response> {
     jar.delete(SESSION_COOKIE);
     return new Response(null, { status: 303, headers: { location: "/" } });
   }
+  // A deployment also sets `secure: true`; the e2e rig serves http://127.0.0.1.
   jar.set(SESSION_COOKIE, sessionValue(person.id), {
     httpOnly: true,
+    maxAge: 7 * 24 * 60 * 60,
     sameSite: "lax",
     path: "/",
   });
