@@ -119,6 +119,7 @@ export type SupabaseManifestResourceNames = {
   /** With `rls.rowHelpers` naming the resource. */
   readonly rows?: string;
   readonly row?: string;
+  readonly idType?: string;
   /** With `rls.fields` and a mapped table. */
   readonly visible?: string;
   readonly visibleFields?: string;

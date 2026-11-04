@@ -513,7 +513,8 @@ function rowTemplatesOf(
   problems: string[],
 ): Partial<Record<RowTemplate, string>> {
   const rows = Object.values(manifest.names?.resources ?? {}).flatMap(
-    (names) => (names.rows === undefined ? [] : [names.rows]),
+    ({ rows: helper, idType }) =>
+      helper === undefined ? [] : [{ helper, idType }],
   );
   if (rows.length === 0) {
     problems.push(
@@ -521,22 +522,28 @@ function rowTemplatesOf(
     );
     return {};
   }
-  for (const name of rows) {
+  const types = new Set(rows.map((row) => row.idType ?? "uuid"));
+  const [only] = types;
+  const idType = types.size === 1 ? only : undefined;
+  for (const { helper } of rows) {
     requires.push(
       {
-        function: `${schema}.${sqlIdent(name)}`,
-        args: "text, text[]",
+        function: `${schema}.${sqlIdent(helper)}`,
+        args: idType === undefined ? "text" : `text, ${idType}[]`,
         role: "authenticated",
       },
       {
-        function: `${schema}.${sqlIdent(`${name}_for`)}`,
+        function: `${schema}.${sqlIdent(`${helper}_for`)}`,
         args: "uuid, text, jsonb",
         role: "postgres",
       },
     );
   }
   return {
-    rowsWith: `${schema}.permitted_{resource}_rows({permission}, {ids})`,
+    rowsWith:
+      idType === undefined
+        ? `${schema}.permitted_{resource}_rows({permission})`
+        : `${schema}.permitted_{resource}_rows({permission}, ({ids})::${idType}[])`,
     rowsWithFor: `${schema}.permitted_{resource}_rows_for({user}, {permission})`,
   };
 }

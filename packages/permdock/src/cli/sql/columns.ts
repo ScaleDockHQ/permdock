@@ -128,7 +128,10 @@ export function scopeTypeOf(ctx: RlsSqlContext, name: string): string {
  * resource, then its `"*"` default, then `uuid` on Supabase and `text`
  * elsewhere.
  */
-export function idTypeOf(ctx: RlsSqlContext, resource: string): string {
+export function idTypeOf(
+  ctx: Pick<RlsSqlContext, "dialect" | "idTypes">,
+  resource: string,
+): string {
   const types = ctx.idTypes;
   const named =
     types !== undefined && Object.hasOwn(types, resource)

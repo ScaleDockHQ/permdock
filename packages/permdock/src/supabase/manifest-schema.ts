@@ -278,6 +278,13 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
           type: "object",
           additionalProperties: {
             type: "object",
+            properties: {
+              idType: {
+                description:
+                  "The id type the rls.rowHelpers pair rows and row take and return, with rows. Absent from a manifest written before 0.22.1, read as uuid.",
+                type: "string",
+              },
+            },
             additionalProperties: { type: "string" },
           },
         },
