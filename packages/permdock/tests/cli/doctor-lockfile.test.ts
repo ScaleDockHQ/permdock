@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { pd092 } from "../../src/cli/doctor/lockfile.ts";
@@ -42,5 +43,42 @@ snapshots:
       ),
     ).toStrictEqual([]);
     expect(run(undefined)).toStrictEqual([]);
+  });
+
+  it("names a variant without peers and finds the lockfile in a parent directory", () => {
+    const root = project({
+      "pnpm-lock.yaml":
+        "snapshots:\n  'permdock@0.21.0':\n    dependencies: {}\n  permdock@0.21.0(react@19.1.0):\n    dependencies: {}\n",
+      "apps/web/package.json": "{}",
+    });
+    const findings = pd092(
+      loadProject({
+        cwd: join(root, "apps/web"),
+        config: {},
+        now: NOW,
+        io: quietIo,
+      }),
+    );
+    expect(findings.map((finding) => finding.message)).toStrictEqual([
+      "pnpm-lock.yaml resolves permdock@0.21.0 2 times: (no peers) and (react@19.1.0)",
+    ]);
+  });
+
+  it("stops looking after eight levels", () => {
+    const root = project({
+      "pnpm-lock.yaml":
+        "snapshots:\n  permdock@0.21.0:\n    dependencies: {}\n  permdock@0.21.0(a@1):\n    dependencies: {}\n",
+      "a/b/c/d/e/f/g/h/i/package.json": "{}",
+    });
+    expect(
+      pd092(
+        loadProject({
+          cwd: join(root, "a/b/c/d/e/f/g/h/i"),
+          config: {},
+          now: NOW,
+          io: quietIo,
+        }),
+      ),
+    ).toStrictEqual([]);
   });
 });

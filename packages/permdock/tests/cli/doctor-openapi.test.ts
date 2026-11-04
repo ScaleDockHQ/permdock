@@ -79,4 +79,68 @@ export const other = { entries: () => [] };
     });
     expect(broken[0]?.message).toContain("is not valid JSON");
   });
+
+  it("is quiet without operations or tenantPaths and skips a document that is not on disk", async () => {
+    expect(
+      await run({ openapi: { tenantPaths: ["/orgs/{org}"] } }),
+    ).toStrictEqual([]);
+    expect(
+      await run({ openapi: { operations: "src/operations.ts#operations" } }),
+    ).toStrictEqual([]);
+    expect(
+      await run({
+        openapi: {
+          operations: "src/operations.ts#operations",
+          tenantPaths: ["/orgs/{org}"],
+          doc: ["absent.json"],
+        },
+      }),
+    ).toStrictEqual([]);
+  });
+
+  it("reports an operations module that does not load, and strips base from the fix", async () => {
+    const [unloaded] = await run({
+      openapi: {
+        operations: "src/missing.ts#operations",
+        tenantPaths: ["/orgs/{org}"],
+      },
+    });
+    expect(unloaded?.message).toContain(
+      "openapi.operations 'src/missing.ts#operations' does not load",
+    );
+    const based = await run({
+      openapi: {
+        operations: "src/operations.ts#operations",
+        tenantPaths: ["/api/orgs/{org}"],
+        base: "/api",
+        doc: ["openapi.json"],
+      },
+    });
+    expect(Array.isArray(based)).toBe(true);
+  });
+
+  it("defaults the export to operations, and applies only with a non-empty doc list", async () => {
+    expect(
+      await run({
+        openapi: {
+          operations: "src/operations.ts",
+          tenantPaths: ["/orgs/{org}"],
+        },
+      }),
+    ).toStrictEqual([]);
+    for (const doc of [undefined, []] as const) {
+      expect(
+        pd091Applies({
+          openapi: {
+            operations: "src/operations.ts",
+            tenantPaths: ["/orgs/{org}"],
+            ...(doc === undefined ? {} : { doc }),
+          },
+        }),
+      ).toBe(false);
+    }
+    expect(pd091Applies({ openapi: { operations: "src/operations.ts" } })).toBe(
+      false,
+    );
+  });
 });

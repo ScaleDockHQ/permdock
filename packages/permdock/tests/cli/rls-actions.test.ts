@@ -18,6 +18,7 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
+import { policy as scoped } from "../fixtures/named-scopes.ts";
 
 const permissions = definePermissions({
   quote: resource({
@@ -186,5 +187,53 @@ describe("rls.actions", () => {
     expect(warnings).toContain(
       "skipped anyone/quote.send: action 'send' has no SQL command (rls.actions) and only role grants are seeded",
     );
+  });
+});
+
+describe("tableless resources", () => {
+  it("seeds role grants and skips a direct grant with a warning", () => {
+    const warnings: string[] = [];
+    const compiled = compileGrants(
+      policy,
+      { ...base, tableless: new Set(["quote"]) },
+      undefined,
+      warnings,
+      false,
+    );
+    expect(compiled.branches).toStrictEqual([]);
+    expect(warnings).toStrictEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          "rls.tables.quote is false or a tableOf, so the resource writes no policies of its own",
+        ),
+      ]),
+    );
+    expect(
+      compiled.rolePermissions.some((row) => row.grantKey === "quote.view"),
+    ).toBe(true);
+  });
+});
+
+describe("rls.tables via scope", () => {
+  const via = {
+    helper: "permitted_customer_ids",
+    key: "customer_id",
+    scope: "customer",
+    table: "public.customers",
+    column: "id",
+    id: "id",
+    type: "uuid",
+  } as const;
+
+  it("rejects a role granted at another scope than the via reaches", () => {
+    expect(() =>
+      compileGrants(
+        scoped,
+        { ...base, scopes: scopeList(scoped.scopes), vias: { quote: via } },
+        undefined,
+        [],
+        false,
+      ),
+    ).toThrow(/via reaches customer; map the scope with via\.scope/u);
   });
 });

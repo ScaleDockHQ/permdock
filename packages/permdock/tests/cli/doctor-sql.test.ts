@@ -335,6 +335,23 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
     });
   });
 
+  describe("PD090 policy commands", () => {
+    it("treats a policy for all or without a command as every write, and skips other statements", () => {
+      const cwd = migration(
+        [
+          `select 1;`,
+          `create policy "public_quotes_delete_read_only_actors" on "public"."quotes" as restrictive for delete to authenticated using ((select permdock_actor_may_write()));`,
+          `create policy quotes_all on public.quotes for all to authenticated using ((select permdock_actor_may_write()));`,
+          `create policy quotes_any on public.quotes using ((select permdock_actor_may_write()));`,
+        ].join("\n"),
+      );
+      expect(messages(pd090(cwd, config))).toStrictEqual([
+        `${MIGRATION}:3 policy quotes_all on public.quotes repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
+        `${MIGRATION}:4 policy quotes_any on public.quotes repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
+      ]);
+    });
+  });
+
   describe("the generated RLS", () => {
     it("passes every SQL check", () => {
       const golden = readFileSync(

@@ -587,6 +587,19 @@ describe("doctor better-supabase", () => {
       ).toBe(1);
     });
 
+    it("reports nothing when the hook turns version reads off", async () => {
+      const files = workspace({
+        "/repo/apps/web/package.json": dependency("better-supabase"),
+      });
+      expect(
+        await pd087({
+          cwd: "/repo/apps/web",
+          files,
+          config: { supabase: { hook: { memberships: [], version: false } } },
+        }),
+      ).toStrictEqual([]);
+    });
+
     it("applies better-supabase's topic when only the dependency is found", () => {
       expect(
         betterSupabaseDefaults(hookConfig(), undefined, true).supabase?.hook,
@@ -602,6 +615,25 @@ describe("doctor better-supabase", () => {
       expect(betterSupabaseDefaults(hookConfig(), undefined)).toStrictEqual(
         hookConfig(),
       );
+    });
+
+    it("reports nothing when the config is found and the topic is better-supabase's", async () => {
+      const cwd = policyProject(
+        { policy: POLICY },
+        {
+          "bs.config.mjs": betterSupabaseConfig({}),
+          "package.json": dependency("better-supabase"),
+        },
+      );
+      expect(
+        await pd087({
+          cwd,
+          config: {
+            ...hookConfig(),
+            betterSupabase: { config: "bs.config.mjs" },
+          },
+        }),
+      ).toStrictEqual([]);
     });
 
     it("reads the config from betterSupabase.config", async () => {

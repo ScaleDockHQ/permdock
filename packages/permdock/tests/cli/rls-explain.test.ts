@@ -123,6 +123,14 @@ describe("runRls explain with options", () => {
     expect(report.triggers).toStrictEqual(expect.any(Array));
   });
 
+  it("accepts rls.idTypes", async () => {
+    const report = await explained({
+      dialect: "supabase",
+      idTypes: { "*": "text" },
+    });
+    expect(report.schema).toBe("permdock");
+  });
+
   it("lists the resources a rowHelpers array names", async () => {
     const report = await explained({
       dialect: "supabase",
@@ -151,5 +159,31 @@ describe("runRls explain with options", () => {
       customRoleWrites: { roles: { table: "app_roles", key: "key" } },
     });
     expect(report.customRoles?.holds).toStrictEqual(["global"]);
+  });
+});
+
+describe("runRls explain with inferred actions", () => {
+  it("lists a compound action under the default verb it starts with", async () => {
+    const result = await runRls(
+      input({
+        policy: new URL("../fixtures/inferred-actions.ts", import.meta.url)
+          .pathname,
+        rls: { dialect: "supabase" },
+      }),
+    );
+    expect(result.code).toBe(0);
+    const report: RlsExplain = JSON.parse(result.output);
+    expect(report.inferredActions).toStrictEqual([
+      {
+        action: "listArchived",
+        command: "select",
+        permissions: ["ticket.listArchived"],
+      },
+      {
+        action: "updateStatus",
+        command: "update",
+        permissions: ["ticket.updateStatus"],
+      },
+    ]);
   });
 });

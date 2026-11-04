@@ -43,4 +43,20 @@ describe("rls.tables tableOf", () => {
       );
     }
   });
+
+  it("names the owner's resource when the owner's own entry is not a table", () => {
+    expect(tableNameOf({ tableOf: "file" }, "fileNode", { file: false })).toBe(
+      "file",
+    );
+    expect(tableNameOf({ tableOf: "file" }, "fileNode")).toBe("file");
+    expect(
+      tableNameOf({ tableOf: "file" }, "fileNode", { file: "public.files" }),
+    ).toBe("public.files");
+    expect(tableNameOf({ tableOf: "b" }, "a", { b: { tableOf: "c" } })).toBe(
+      "b",
+    );
+    expect(tableNames(undefined)).toBeUndefined();
+    expect(() => checkSharedTables(undefined)).not.toThrow();
+    expect(() => checkSharedTables({ a: "public.a", b: false })).not.toThrow();
+  });
 });

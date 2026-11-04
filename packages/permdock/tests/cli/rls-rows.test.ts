@@ -80,6 +80,10 @@ function generate(
 }
 
 describe("permitted_<resource>_rows", () => {
+  it("writes nothing for an empty resource list", () => {
+    expect(generate("supabase", []).sql).toBe("");
+  });
+
   it("cases each permission over its allows and denies, actions without a SQL command included", () => {
     const { sql, warnings } = generate("supabase", ["doc", "note"]);
     expect(generate("supabase").sql).toContain("permitted_note_rows");

@@ -312,6 +312,57 @@ describe("inherit() in generated RLS", () => {
     expect(branch?.roles).toStrictEqual(["authenticated"]);
   });
 
+  it("types the candidate ids by rls.idTypes", () => {
+    const using = (
+      extra: Record<string, unknown>,
+      candidates?: string,
+    ): string | undefined =>
+      compileGrants(
+        policy,
+        {
+          dialect: "supabase" as const,
+          scopes: scopeList(policy.scopes),
+          tenantClaim: "tenant_id",
+          gucPrefix: "app",
+          graph: { resources: policy.resources, closures: {} },
+          ...(candidates === undefined ? {} : { candidates }),
+          ...extra,
+        },
+        undefined,
+        [],
+        false,
+      ).branches.find((item) => item.permissionKey === "node.read")?.using;
+    expect(using({ idTypes: { "*": "text" } })).toContain(
+      `"permdock".permitted_drive_rows('drive.read')`,
+    );
+    expect(
+      using({ idTypes: { drive: "bigint" } }, "permdock_candidates"),
+    ).toContain(`select "driveId"::bigint from permdock_candidates`);
+  });
+
+  it("types the parent link column by rls.idTypes", () => {
+    const compiled = compileGrants(
+      policy,
+      {
+        dialect: "supabase" as const,
+        scopes: scopeList(policy.scopes),
+        tenantClaim: "tenant_id",
+        gucPrefix: "app",
+        graph: { resources: policy.resources, closures: {} },
+        columnTypes: { folderId: "bigint", driveId: "text" },
+        idTypes: { "*": "bigint" },
+      },
+      undefined,
+      [],
+      false,
+    );
+    const using = (key: string): string =>
+      compiled.branches.find((item) => item.permissionKey === key)?.using ?? "";
+    expect(using("node.delete")).toContain(
+      `"folderId"::bigint in (select "permdock".permitted_folder_rows('folder.read'))`,
+    );
+  });
+
   it("narrows the target's row helper to the ids the candidate rows point at", () => {
     const compiled = compileGrants(
       policy,
