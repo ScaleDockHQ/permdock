@@ -18,6 +18,7 @@ import {
   pd063,
   pd088,
   pd089,
+  pd090,
 } from "../../src/cli/doctor/sql.ts";
 import { sqlStatements } from "../../src/cli/sql/statements.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
@@ -314,6 +315,22 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
       expect(messages(pd089(cwd, config))).toStrictEqual([
         `${MIGRATION}:1 tests one id against the whole permitted_*_rows set`,
         `${MIGRATION}:2 tests one id against the whole permitted_*_rows set`,
+      ]);
+    });
+  });
+
+  describe("PD090 repeated actor guard", () => {
+    it("reports a hand-written policy that calls the guard where the generated one applies", () => {
+      const cwd = migration(
+        [
+          `create policy "public_quotes_update_read_only_actors" on "public"."quotes" as restrictive for update to authenticated using ((select permdock_actor_may_write()));`,
+          `create policy quotes_write on public.quotes for update to authenticated using ((select permdock_actor_may_write()) and true);`,
+          `create policy quotes_insert on public.quotes for insert to authenticated with check ((select permdock_actor_may_write()));`,
+          `create policy quotes_plain on public.quotes for update to authenticated using (true);`,
+        ].join("\n"),
+      );
+      expect(messages(pd090(cwd, config))).toStrictEqual([
+        `${MIGRATION}:2 policy quotes_write on public.quotes repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
       ]);
     });
   });

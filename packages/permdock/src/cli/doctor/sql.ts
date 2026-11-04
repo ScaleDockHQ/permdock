@@ -783,3 +783,73 @@ export function pd089(
         ];
   });
 }
+
+const POLICY_COMMAND = /\bfor\s+(all|select|insert|update|delete)\b/iu;
+const ACTOR_GUARD_CALL = /\bpermdock_actor_may_write\s*\(/iu;
+const WRITE_COMMANDS = ["insert", "update", "delete"] as const;
+
+type PolicyStatement = SqlStatement & {
+  readonly name: string;
+  readonly table: string;
+  readonly commands: readonly string[];
+  readonly guarded: boolean;
+};
+
+function policyStatements(
+  statements: readonly SqlStatement[],
+): readonly PolicyStatement[] {
+  return statements.flatMap((statement) => {
+    const match = CREATE_POLICY.exec(header(statement.text));
+    if (match === null) {
+      return [];
+    }
+    const command = POLICY_COMMAND.exec(group(match, 3))?.[1]?.toLowerCase();
+    return [
+      {
+        ...statement,
+        name: unquote(group(match, 1)),
+        table: tableKey(group(match, 2)),
+        commands:
+          command === undefined || command === "all"
+            ? WRITE_COMMANDS
+            : [command],
+        guarded: ACTOR_GUARD_CALL.test(statement.text),
+      },
+    ];
+  });
+}
+
+/**
+ * PD090: a hand-written policy calls `permdock_actor_may_write()` on a table
+ * and command where `permdock rls generate` already writes a restrictive
+ * `*_read_only_actors` policy, so the guard runs twice.
+ */
+export function pd090(
+  cwd: string,
+  config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
+): readonly DoctorFinding[] {
+  const policies = policyStatements(migrationStatements(files, cwd, config));
+  const generated = new Set(
+    policies
+      .filter((policy) => policy.name.endsWith("_read_only_actors"))
+      .flatMap((policy) =>
+        policy.commands.map((command) => `${policy.table}:${command}`),
+      ),
+  );
+  return policies
+    .filter((policy) => !policy.name.endsWith("_read_only_actors"))
+    .filter(
+      (policy) =>
+        policy.guarded &&
+        policy.commands.some((command) =>
+          generated.has(`${policy.table}:${command}`),
+        ),
+    )
+    .map((policy) => ({
+      code: "PD090",
+      severity: "warning" as const,
+      message: `${policy.file}:${String(policy.line)} policy ${policy.name} on ${policy.table} repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
+      fix: "remove the permdock_actor_may_write() call from the hand-written policy; the restrictive policy applies to it already",
+    }));
+}

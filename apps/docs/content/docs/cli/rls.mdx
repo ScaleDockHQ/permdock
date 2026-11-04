@@ -384,7 +384,7 @@ create policy "quotes_update_read_only_actors"
 
 `generate` also writes `permdock_actor_may_write()`, executable by `authenticated`, which is `false` for exactly the tokens these policies refuse.
 
-`--helpers-only` still writes the `{table}_{op}_read_only_actors` policies, for each table `rls.tables` names and each write command the grants reach. A restrictive policy only narrows the hand-written permissive ones and grants nothing. Each one sits in a `do` block that skips a table that does not exist yet, in the output or the `helpers` part; `--helpers-only` writes no grants and no `enable row level security` for them. For a resource `rls.tables` does not name, `generate` warns and names its table. Each hand-written write policy on that table calls the function instead, either in its own expressions or in one restrictive policy per command:
+`--helpers-only` still writes the `{table}_{op}_read_only_actors` policies, for each table `rls.tables` names and each write command the grants reach. A restrictive policy only narrows the hand-written permissive ones and grants nothing. Each one is a plain `create policy`, in the output or the `helpers` part, so the tables must exist when it runs: apply the helpers after the migrations that create them; `--helpers-only` writes no grants and no `enable row level security` for them. For a resource `rls.tables` does not name, `generate` warns and names its table. Each hand-written write policy on that table calls the function instead, either in its own expressions or in one restrictive policy per command:
 
 ```sql
 create policy "job_update_actor" on "public"."job" as restrictive for update to authenticated
