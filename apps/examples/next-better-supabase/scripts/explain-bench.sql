@@ -124,3 +124,22 @@ as $$
 $$;
 grant execute on function public.explain_ten_tables() to authenticated;
 grant select on all tables in schema public to authenticated;
+
+-- better-supabase's memo functions (src/sql/memo.ts), for builds that predate their release; `rls.memo: 'better-supabase'` calls them.
+create or replace function better_supabase.memo_get(key text)
+returns text
+language sql
+volatile
+set search_path = ''
+as $$
+  select nullif(pg_catalog.current_setting('better_supabase.memo.' || key, true), '')
+$$;
+
+create or replace function better_supabase.memo_set(key text, value text)
+returns text
+language sql
+volatile
+set search_path = ''
+as $$
+  select pg_catalog.set_config('better_supabase.memo.' || key, value, true)
+$$;

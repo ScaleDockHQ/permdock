@@ -246,6 +246,14 @@ describe("permitted_<resource>_row memo", () => {
     expect(rowBody(memoized())).toContain("perform set_config(v_permdock_key,");
   });
 
+  it("costs every row helper and marks only the memo-free ones parallel safe", () => {
+    const plain = generate("supabase", ["doc"]).sql;
+    expect(plain.match(/cost 1000\nparallel safe/gu)?.length).toBe(3);
+    const memo = memoized();
+    expect(memo).toContain("cost 1000");
+    expect(memo).not.toContain("parallel safe");
+  });
+
   it("keeps the sql form when the helpers do not memoize", () => {
     expect(rowBody(generate("supabase", ["doc"]).sql)).toContain(
       "returns boolean\nlanguage sql\nstable",
