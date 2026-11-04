@@ -853,3 +853,31 @@ export function pd090(
       fix: "remove the permdock_actor_may_write() call from the hand-written policy; the restrictive policy applies to it already",
     }));
 }
+
+const OWN_SUBJECT_FUNCTION =
+  /\bcreate\s+(?:or\s+replace\s+)?function\s+(?:"?\w+"?\.)?"?own_subject"?\s*\(/iu;
+
+/**
+ * PD093: a migration defines an `own_subject()` function. The hook migration
+ * writes `permdock_subject()`, which better-supabase's `functions.subject`
+ * names, so a bootstrap seeds the same subject without a second copy.
+ */
+export function pd093(
+  cwd: string,
+  config: PermDockConfig,
+  files: DoctorFiles = nodeFiles,
+): readonly DoctorFinding[] {
+  return migrationStatements(files, cwd, config).flatMap((statement) => {
+    const match = OWN_SUBJECT_FUNCTION.exec(statement.text);
+    return match === null
+      ? []
+      : [
+          {
+            code: "PD093",
+            severity: "warning" as const,
+            message: `${statement.file}:${String(firstLine(statement, match.index))} defines own_subject(), which permdock_subject() from the hook migration already is`,
+            fix: "set subject: true on authorizationProvider and drop the function; better-supabase's bootstrap calls permdock_subject()",
+          },
+        ];
+  });
+}

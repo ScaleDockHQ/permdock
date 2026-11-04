@@ -21,7 +21,7 @@ import { MEMBERSHIP_ENTRIES_FOR, heldSql } from "./entries.ts";
 import { typedUsers } from "./memberships.ts";
 
 const SUBJECT_FOR = "subject_for";
-const PERMDOCK_SUBJECT = "permdock_subject";
+export const PERMDOCK_SUBJECT = "permdock_subject";
 
 /**
  * `subject_for(p_user uuid) returns jsonb`: what the hook would put in a token

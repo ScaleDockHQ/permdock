@@ -519,6 +519,76 @@ describe(authorizationProvider, () => {
     ]);
   });
 
+  it("names the own-subject helper and the disabled-at column", () => {
+    const provider = authorizationProvider({
+      subject: true,
+      manifest: withRls({
+        memberships: [
+          {
+            table: "public.memberships",
+            user: { column: "user_id" },
+            scope: { value: "tenant" },
+            id: { column: "tenant_id" },
+            role: { column: "role_id" },
+            disabledAt: { column: "disabled_at" },
+            columns: ["user_id", "role_id"],
+          },
+        ],
+      }),
+    });
+    expect(provider.functions).toMatchObject({
+      subject: "permdock.permdock_subject()",
+    });
+    expect(provider.memberships?.[0]).toMatchObject({
+      disabledAt: "disabled_at",
+    });
+  });
+
+  describe("platformRoles and personas", () => {
+    const platform = (
+      role: NonNullable<SupabaseHookManifest["rls"]["roles"]>["role"],
+    ) =>
+      withRls({
+        roles: {
+          table: "public.platform_roles",
+          user: { column: "user_id" },
+          role,
+        },
+      });
+
+    it("fills platformRoles only on request, with an optional roles table", () => {
+      const manifest = platform({
+        column: "role",
+        through: { table: "public.roles", id: "id", column: "key" },
+      });
+      expect(authorizationProvider({ manifest })).not.toHaveProperty(
+        "platformRoles",
+      );
+      const provider = authorizationProvider({ manifest, platformRoles: true });
+      expect(Reflect.get(provider, "platformRoles")).toStrictEqual({
+        table: "public.platform_roles",
+        user: "user_id",
+        role: "role",
+        through: { table: "public.roles", id: "id", column: "key" },
+      });
+    });
+
+    it("leaves platformRoles out for a role list, and carries personas", () => {
+      const persona = {
+        name: "editor",
+        setup: "select 1",
+        permissions: ["post.update"],
+      };
+      const provider = authorizationProvider({
+        manifest: platform({ value: ["admin"] }),
+        platformRoles: true,
+        personas: [persona],
+      });
+      expect(provider).not.toHaveProperty("platformRoles");
+      expect(Reflect.get(provider, "personas")).toStrictEqual([persona]);
+    });
+  });
+
   it("maps role sources, suspension rows and assignment helpers", () => {
     const helper = (name: string, args: string) => ({
       name,

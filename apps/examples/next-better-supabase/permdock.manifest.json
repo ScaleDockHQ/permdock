@@ -182,6 +182,12 @@
         "execute": ["authenticated"]
       },
       {
+        "name": "permdock_subject",
+        "args": "",
+        "returns": "jsonb",
+        "execute": ["authenticated"]
+      },
+      {
         "name": "permdock_actor_may_write",
         "args": "",
         "returns": "boolean",

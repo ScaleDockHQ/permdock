@@ -144,6 +144,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD088` | A statement casts to `text` around a `permitted_*_rows` or `permitted_*_row` call; the helpers use the resource id type                                                                                                                                                                                    | warning         |
 | `PD089` | A statement tests one known id against `permitted_*_rows`; `permitted_*_row(id, permission)` evaluates that row only                                                                                                                                                                                       | warning         |
 | `PD090` | A hand-written policy calls `permdock_actor_may_write()` where the generated `*_read_only_actors` policy already applies                                                                                                                                                                                   | warning         |
+| `PD093` | A migration defines `own_subject()`, which `permdock_subject()` from the hook migration already is                                                                                                                                                                                                         |
 
 ### PD001: server-only imports in client entries
 
@@ -644,6 +645,10 @@ The row helpers `permitted_<resource>_rows` and `permitted_<resource>_row` retur
 ### PD090: repeated read-only actor guard
 
 `permdock rls generate` writes a restrictive `<table>_<command>_read_only_actors` policy per write command with `rls.readOnlyActors`. A hand-written policy on the same table and command that also calls `permdock_actor_may_write()` runs the guard twice. The check reads the migration folders and warns once per such policy. Remove the call from the hand-written policy. `--only sql` (or `--only supabase`) runs PD090.
+
+### PD093: hand-written own_subject
+
+The hook migration writes `permdock_subject()`, the signed-in user's subject. With `subject: true` on `authorizationProvider`, better-supabase's bootstrap calls it through `functions.subject`, so an app needs no `own_subject()` of its own. The check reads the migration folders and warns once per `create function own_subject`. `--only sql` runs PD093.
 
 ## Side effects
 

@@ -374,7 +374,7 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
     helperName: {
       type: "string",
       pattern:
-        "^(permdock_has(_for)?|permitted_[a-z][a-z0-9_]*_(ids|permission_keys)(_for)?|permitted_[a-z][a-z0-9_]*_users|member_[a-z][a-z0-9_]*_ids(_for|_of)?|permdock_can_assign(_any|_custom_role)?(_for)?|permdock_api_key_allows|permdock_token_scope_allows|permdock_actor_may_write|permdock_is_approver|permdock_manages|permdock_user_id)$",
+        "^(permdock_has(_for)?|permitted_[a-z][a-z0-9_]*_(ids|permission_keys)(_for)?|permitted_[a-z][a-z0-9_]*_users|member_[a-z][a-z0-9_]*_ids(_for|_of)?|permdock_can_assign(_any|_custom_role)?(_for)?|permdock_api_key_allows|permdock_token_scope_allows|permdock_actor_may_write|permdock_is_approver|permdock_manages|permdock_user_id|permdock_subject)$",
     },
     column: {
       type: "object",
