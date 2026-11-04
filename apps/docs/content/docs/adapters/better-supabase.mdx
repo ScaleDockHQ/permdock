@@ -438,6 +438,8 @@ export const { protectAction } = createPermDock(policy, {
 });
 ```
 
+A better-supabase app guards its own actions with `bsb.action` and `authorizer`, which read the version and subject better-supabase already holds. `protectAction` is the wrapper for an app that has no `bsb.action`, or that wants Problem Details results with `args`, `after` and `result` ([Server Actions](/docs/adapters/next#server-actions)); both read one shared instance when they use the same `permdockFor`.
+
 The resolver holds `subject`, `memberships`, `version`, `versions`, `instances` and `options`. `authorizer` and `authorizationHooks` throw a `TypeError` when given one of those next to `permdockFor`, so the two cannot drift apart. `sources(versions)` answers the same frozen object for the same cache, and `authorizer` passes the cache better-supabase hands it at runtime, so a `bsb.action` check and a `protectAction` of the same user at the same version share one instance. `tests/better-supabase/sharing.test.ts` checks this for `protectAction`, `permdock/orpc` and `permdock/mcp`.
 
 ```tsx title="src/app/[orgSlug]/quotes/island.tsx"
