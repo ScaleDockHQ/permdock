@@ -58,7 +58,7 @@ function suspensionTargets(
 
 const IDENT = String.raw`(?:"(?:[^"]|"")+"|[A-Za-z_][A-Za-z0-9_$]*)`;
 const READ = new RegExp(
-  String.raw`\b(?:from|join)\s+(${IDENT})\.(${IDENT})(?![\w$]|\s*[.(])`,
+  String.raw`(?<!\bdistinct\s+)(?<!\bextract\s*\([^()]*)\b(?:from|join)\s+(${IDENT})\.(${IDENT})(?![\w$]|\s*[.(])`,
   "gu",
 );
 const SYSTEM = new Set(["auth", "pg_catalog", "information_schema"]);

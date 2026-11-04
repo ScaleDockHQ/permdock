@@ -150,6 +150,14 @@ describe("row memo triggers", () => {
     ).toStrictEqual(["public.a", "public.b", 'we"ird.t']);
   });
 
+  it("skips alias columns after is distinct from and extract from", () => {
+    expect(
+      readTables(
+        `select 1 from public.members m where m.tenant_id is not distinct from m.scope_id and extract(epoch from m.expires_at) > 0 and c.a is distinct from v.b`,
+      ),
+    ).toStrictEqual(["public.members"]);
+  });
+
   it("bumps on relation tables the scope memo does not cover", () => {
     const sql = memoRowTriggersSql(ctx, policy, undefined);
     expect(sql).toContain(
