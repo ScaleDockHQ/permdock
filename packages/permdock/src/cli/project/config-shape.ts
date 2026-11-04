@@ -92,6 +92,7 @@ const RLS = {
   roles: OBJECT,
   actions: OBJECT,
   helpersOnly: BOOLEAN,
+  memo: STRING,
   rowHelpers: BOOLEAN_OR_ARRAY,
   seeds: STRING,
   treeValues: OBJECT,

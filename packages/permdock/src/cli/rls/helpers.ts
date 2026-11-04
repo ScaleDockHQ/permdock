@@ -490,7 +490,15 @@ function memoBody(
   if (!memoizes(ctx)) {
     return body;
   }
-  return { ...body, memo: { type, scope, user: subjectIdSql(ctx) } };
+  return {
+    ...body,
+    memo: {
+      type,
+      scope,
+      user: subjectIdSql(ctx),
+      ...(ctx.memo === undefined ? {} : { api: ctx.memo }),
+    },
+  };
 }
 
 export function memoReadsSql(ctx: RlsSqlContext): string {

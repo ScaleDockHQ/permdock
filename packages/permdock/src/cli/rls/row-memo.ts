@@ -12,7 +12,12 @@ import { HELPERS } from "../sql/shared.ts";
 import { subjectIdSql, USER_ID_HELPER } from "../sql/subject.ts";
 import { API_KEY_ALLOWS } from "./api-keys.ts";
 import { graphIdsSql, graphPlan } from "./graph.ts";
-import { memoDiscriminatorSql, memoizes } from "./helper-bodies.ts";
+import {
+  memoDiscriminatorSql,
+  memoReadSql,
+  memoWriteSql,
+  memoizes,
+} from "./helper-bodies.ts";
 import { memoReadsSql } from "./helpers.ts";
 import { memoReadTriggersSql } from "./memo-generation.ts";
 import {
@@ -262,7 +267,7 @@ as $$
 declare
   v_permdock_key text := 'permdock.m.' || ${quoteLiteral(resource)} || '.r' || (hashtext(p_permission) & 1023)::text;
   v_permdock_disc text := ${memoDiscriminatorSql(`${subjectIdSql(ctx)}::text`, "p_permission")};
-  v_permdock_memo jsonb := nullif(current_setting(v_permdock_key, true), '')::jsonb;
+  v_permdock_memo jsonb := ${memoReadSql(ctx.memo, "v_permdock_key")}::jsonb;
   ${TERMS} jsonb;
 begin
   if v_permdock_memo is not null and (v_permdock_memo ->> 'k') = v_permdock_disc then
@@ -272,7 +277,7 @@ begin
 ${computed.join("\n")}
       else '{}'::jsonb
     end;
-    perform set_config(v_permdock_key, jsonb_build_object('k', v_permdock_disc, 'v', ${TERMS})::text, true);
+    perform ${memoWriteSql(ctx.memo, "v_permdock_key", `jsonb_build_object('k', v_permdock_disc, 'v', ${TERMS})::text`)};
   end if;
   return exists (
     with ${candidates} as (select (p_row).*)

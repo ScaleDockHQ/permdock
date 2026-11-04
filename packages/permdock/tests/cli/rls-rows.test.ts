@@ -226,6 +226,28 @@ describe("permitted_<resource>_row memo", () => {
   const memoized = (): string =>
     generate("supabase", ["doc"], { authorize: "database" }).sql;
 
+  it("calls better_supabase.memo_get and memo_set under rls.memo 'better-supabase'", () => {
+    const body = (sql: string): string => {
+      const start = sql.indexOf('"permdock".permitted_doc_row(p_row');
+      return sql.slice(start, sql.indexOf("$$;", start));
+    };
+    const shared = body(
+      generate("supabase", ["doc"], {
+        authorize: "database",
+        memo: "better-supabase",
+      }).sql,
+    );
+    expect(shared).toContain(
+      "v_permdock_memo jsonb := better_supabase.memo_get(v_permdock_key)::jsonb;",
+    );
+    expect(shared).toContain(
+      "perform better_supabase.memo_set(v_permdock_key,",
+    );
+    expect(shared).toContain("'permdock.m.' || 'doc' || '.r'");
+    expect(shared).not.toContain("set_config(");
+    expect(body(memoized())).toContain("perform set_config(v_permdock_key,");
+  });
+
   function rowBody(sql: string): string {
     const start = sql.indexOf('"permdock".permitted_doc_row(p_row');
     return sql.slice(start, sql.indexOf("$$;", start));

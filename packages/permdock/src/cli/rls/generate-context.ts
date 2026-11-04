@@ -429,6 +429,9 @@ export function buildContext(
     tenantType: input.tenantType ?? firstScopeType(rls?.scopeTypes, scopes),
     ...(rls?.scopeTypes === undefined ? {} : { scopeTypes: rls.scopeTypes }),
     ...(rls?.idTypes === undefined ? {} : { idTypes: rls.idTypes }),
+    ...(rls?.memo === "better-supabase"
+      ? { memo: "better-supabase" as const }
+      : {}),
     ...(memberships === undefined ? {} : { memberships }),
     ...(sources === undefined || sources.length === 0 ? {} : { sources }),
     ...(memberSources === undefined || memberSources.length === 0
