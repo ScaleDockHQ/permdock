@@ -63,7 +63,7 @@
   "./testing/fixtures": 22727,
   "./testing/saas": 160958,
   "./testing/saas/permissions": 149986,
-  "./cli": 812274,
+  "./cli": 812346,
   "./unplugin": 71403,
   "./next/plugin": 71512,
   "./next/client": 1437
