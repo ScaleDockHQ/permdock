@@ -52,6 +52,7 @@ import {
   subjectForSql,
 } from "./api.ts";
 import { attrsGuardSql } from "./claims.ts";
+import { globalRolesSql, membershipEntriesSql } from "./entries.ts";
 import {
   databaseManifestOf,
   defaultOut,
@@ -228,6 +229,8 @@ export function supabaseHookSql(
 -- supabase/config.toml:
 ${toml}${grantsOut === undefined ? "" : `\n-- what supabase db diff drops from this part is in ${grantsOut}`}`,
     attrsGuardSql(parts.attrs),
+    globalRolesSql(parts),
+    membershipEntriesSql(parts),
     hookSql(parts),
     versionSql(parts),
     subjectForSql(parts, config),

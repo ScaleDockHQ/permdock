@@ -247,3 +247,54 @@ describe("PD085", () => {
     ).toHaveLength(1);
   });
 });
+
+describe("one membership function", () => {
+  it("reads the entries through membership_entries_for in the hook and subject_for", () => {
+    const sql = hookOf();
+    const create = sql.match(
+      /create or replace function "permdock"\.membership_entries_for/gu,
+    );
+    expect(create).toHaveLength(1);
+    expect(sql).toContain(`from "permdock".membership_entries_for(uid)`);
+    expect(sql.match(/'managed_by', s\.managed_by/gu)).toHaveLength(2);
+  });
+
+  it("reads the global roles through global_roles_for once", () => {
+    const sql = hookOf();
+    expect(sql.match(/into held/gu)).toHaveLength(1);
+    expect(sql.match(/"permdock"\.global_roles_for\(uid\)/gu)).toHaveLength(2);
+  });
+
+  it("revokes both readers from the client roles and grants an invoker hook execute", () => {
+    const { sql } = supabaseHookSql(scopes, {
+      policy: "p.ts",
+      supabase: { hook: { memberships } },
+    });
+    for (const fn of ["membership_entries_for", "global_roles_for"]) {
+      expect(sql).toContain(
+        `revoke execute on function "permdock".${fn}(uuid) from public, anon, authenticated;`,
+      );
+      expect(sql).toContain(
+        `grant execute on function "permdock".${fn}(uuid) to supabase_auth_admin;`,
+      );
+    }
+  });
+
+  it("grants a definer hook no reader execute and keeps the revokes", () => {
+    const sql = hookOf("definer");
+    expect(sql).not.toContain(
+      `grant execute on function "permdock".membership_entries_for`,
+    );
+    expect(sql).toContain(
+      `revoke execute on function "permdock".membership_entries_for(uuid) from public, anon, authenticated;`,
+    );
+  });
+
+  it("leaves global_roles_for out with roles: false", () => {
+    const { sql } = supabaseHookSql(scopes, {
+      policy: "p.ts",
+      supabase: { hook: { memberships, roles: false } },
+    });
+    expect(sql).not.toContain("global_roles_for");
+  });
+});
