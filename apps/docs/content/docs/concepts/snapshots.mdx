@@ -18,12 +18,13 @@ const scoped = permdock.snapshot({
 });
 const all = permdock.snapshot({ tenants: "all" }); // every membership, for a local tenant switcher
 const some = permdock.snapshot({ tenants: ["o_acme", "o_globex"] }); // only these, when the subject belongs to them
+const lean = permdock.snapshot({ tenants: "all", omitAssignable: true }); // no assignable roles or permissions
 const preview = permdock
   .simulate({ tenant: "o_globex", roles: ["viewer"] })
   .snapshot(); // simulated: true
 ```
 
-`snapshot` is synchronous and pure (asynchronous only when a `signer` is passed, see below). It includes only what the current subject's roles and memberships grant, so a member's snapshot never reveals admin grants. By default it is scoped to the active tenant: a member of ten organisations ships the grants of the one this request is about, plus global grants. `tenants: 'all'` includes every membership so the client can switch tenants without a round trip; it stays opt-in, with no membership-count threshold ([snapshots](/docs/concepts/snapshots), [tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui)). Full grants with normalised conditions ship; `include` is the size lever. `parseSnapshot(json)` is the public reader.
+`snapshot` is synchronous and pure (asynchronous only when a `signer` is passed, see below). It includes only what the current subject's roles and memberships grant, so a member's snapshot never reveals admin grants. By default it is scoped to the active tenant: a member of ten organisations ships the grants of the one this request is about, plus global grants. `tenants: 'all'` includes every membership so the client can switch tenants without a round trip; it stays opt-in, with no membership-count threshold ([snapshots](/docs/concepts/snapshots), [tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui)). Full grants with normalised conditions ship; `include` is the size lever. `omitAssignable: true` leaves out `assignable`, which repeats the roles and permissions the subject may hand out for every tenant; use it when the client never offers role or custom-role choices. `parseSnapshot(json)` is the public reader.
 
 ### Without an instance: `snapshotFor`
 

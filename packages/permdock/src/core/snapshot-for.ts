@@ -30,6 +30,7 @@ export type SnapshotForOptions = {
   readonly plans?: readonly string[];
   readonly include?: SnapshotInclude;
   readonly tenants?: SnapshotTenants;
+  readonly omitAssignable?: boolean;
   /** The instant for `issuedAt` and membership expiry. Defaults to the clock. */
   readonly now?: Instant;
 };
@@ -117,6 +118,7 @@ export function snapshotFor<
       assignable,
       include: options.include,
       tenants: options.tenants,
+      omitAssignable: options.omitAssignable,
       now: options.now === undefined ? undefined : nowSeconds(options.now),
     }),
   );

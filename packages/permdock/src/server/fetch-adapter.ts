@@ -237,7 +237,11 @@ export function fetchAdapter<
         : { tenant: query.tenant },
     );
     return instance.snapshot(
-      compact({ include: query.include, tenants: query.tenants }),
+      compact({
+        include: query.include,
+        tenants: query.tenants,
+        omitAssignable: query.omitAssignable,
+      }),
     );
   };
 

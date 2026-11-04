@@ -190,7 +190,11 @@ export function createPermDock<
       query.tenant === undefined ? undefined : { tenant: query.tenant },
     );
     return instance.snapshot(
-      compact({ include: query.include, tenants: query.tenants }),
+      compact({
+        include: query.include,
+        tenants: query.tenants,
+        omitAssignable: query.omitAssignable,
+      }),
     );
   };
 
