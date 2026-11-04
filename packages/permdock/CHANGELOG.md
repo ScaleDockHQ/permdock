@@ -1,5 +1,11 @@
 # permdock
 
+## 0.21.0
+
+### Minor Changes
+
+- [#270](https://github.com/ScaleDockHQ/permdock/pull/270) [`7a4b77d`](https://github.com/ScaleDockHQ/permdock/commit/7a4b77d12afac73060faae9eac5ed4da4f5aa894) Thanks [@mick340](https://github.com/mick340)! - Add `omitAssignable` to `permdock.snapshot`, `snapshotFor`, `getSnapshot` and the Next.js provider. It leaves `assignable` out of the snapshot, which repeats every assignable role and permission per tenant and made a `tenants: "all"` snapshot for a member of ten organisations about 270 KB larger. Checks are unchanged; `assignableRoles` and `assignablePermissions` return nothing on a snapshot built this way.
+
 ## 0.20.1
 
 ### Patch Changes
