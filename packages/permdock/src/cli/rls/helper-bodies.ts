@@ -636,6 +636,17 @@ export function sourcesBodyOf(
   };
 }
 
+export function memoDiscriminatorSql(user: string, key: string): string {
+  return `md5(concat_ws('|',
+      ${user},
+      ${key},
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    ))`;
+}
+
 /**
  * `language sql`, or `plpgsql` returning the query when the body declares
  * variables.
@@ -646,14 +657,7 @@ export function functionBody(body: Body): string {
       ...body.vars,
       `v_user text := ${body.memo.user}::text;`,
       `v_key text := 'permdock.m.' || ${quoteLiteral(body.memo.scope)} || '.k' || (hashtext(p_grant) & 1023)::text;`,
-      `v_disc text := md5(concat_ws('|',
-      v_user,
-      p_grant,
-      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
-      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
-      statement_timestamp()::text,
-      md5(coalesce((select auth.jwt())::text, ''))
-    ));`,
+      `v_disc text := ${memoDiscriminatorSql("v_user", "p_grant")};`,
       `v_memo text := nullif(current_setting(v_key, true), '');`,
       `v_ids ${body.memo.type}[];`,
     ];

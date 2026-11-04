@@ -14,6 +14,7 @@ import {
   definePermissions,
   definePolicy,
   deny,
+  inherit,
   principal,
   relation,
   resource,
@@ -59,9 +60,10 @@ function context(dialect: RlsSqlContext["dialect"]): RlsSqlContext {
 function generate(
   dialect: RlsSqlContext["dialect"],
   select: true | readonly string[] = true,
+  extra: Partial<RlsSqlContext> = {},
 ): { readonly sql: string; readonly warnings: readonly string[] } {
   const warnings: string[] = [];
-  const ctx = context(dialect);
+  const ctx = { ...context(dialect), ...extra };
   const compiled = compileGrants(policy, ctx, undefined, warnings, false, true);
   const sql = rowHelpersSql(
     ctx,
@@ -171,6 +173,114 @@ describe("permitted_<resource>_rows", () => {
     expect(() => rowsHelper("odd-name")).toThrow(/cannot name a helper/u);
     expect(() => rowsHelper(`r${"x".repeat(50)}`)).toThrow(/at most 45 bytes/u);
     expect(rowsHelper("chatThread")).toBe("permitted_chat_thread_rows");
+  });
+});
+
+describe("permitted_<resource>_row memo", () => {
+  const memoized = (): string =>
+    generate("supabase", ["doc"], { authorize: "database" }).sql;
+
+  function rowBody(sql: string): string {
+    const start = sql.indexOf('"permdock".permitted_doc_row(p_row');
+    return sql.slice(start, sql.indexOf("$$;", start));
+  }
+
+  it("keeps the sql form when the helpers do not memoize", () => {
+    expect(rowBody(generate("supabase", ["doc"]).sql)).toContain(
+      "returns boolean\nlanguage sql\nstable",
+    );
+    expect(rowBody(generate("guc", ["doc"]).sql)).not.toContain("permdock.m.");
+  });
+
+  it("reads the row-independent helper calls from one memo per statement", () => {
+    const body = rowBody(memoized());
+    expect(body).toContain(
+      "returns boolean\nlanguage plpgsql\nvolatile\nsecurity definer\nset search_path = ''",
+    );
+    expect(body).toContain(
+      "v_permdock_key text := 'permdock.m.' || 'doc' || '.r' || (hashtext(p_permission) & 1023)::text;",
+    );
+    expect(body).toContain(
+      '(select "permdock".permdock_user_id())::text,\n      p_permission,',
+    );
+    expect(body).toContain("statement_timestamp()::text");
+    expect(body).toContain(
+      "coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')",
+    );
+    expect(body).toContain(
+      `when 'doc.read' then jsonb_build_object('t2', to_jsonb(array(select "permdock".permitted_tenant_ids('doc.read#1'))), 't3', to_jsonb(array(select "permdock".permitted_tenant_ids('doc.read#2'))))`,
+    );
+    expect(body).toContain(
+      `when 'doc.archive' then jsonb_build_object('t0', to_jsonb((select "permdock".permdock_user_id())))`,
+    );
+    expect(body).toContain(
+      `when 'doc.read' then coalesce(("orgId" in (select pdm.v::uuid from pg_catalog.jsonb_array_elements_text(v_permdock_terms -> 't2') pdm(v))), false) and (("orgId" in (select pdm.v::uuid from pg_catalog.jsonb_array_elements_text(v_permdock_terms -> 't3') pdm(v))) and ("locked" = true)) is not true`,
+    );
+    expect(body).toContain(
+      `when 'doc.archive' then coalesce(("ownerId" = ((v_permdock_terms ->> 't0')::uuid)), false)`,
+    );
+    expect(body).toContain(
+      "perform set_config(v_permdock_key, jsonb_build_object('k', v_permdock_disc, 'v', v_permdock_terms)::text, true);",
+    );
+    expect(body).toContain(
+      "return exists (\n    with permdock_candidates as (select (p_row).*)",
+    );
+    expect(memoized()).toContain(
+      'grant execute on function "permdock".permitted_doc_row("app"."documents", text) to authenticated;',
+    );
+  });
+
+  it("leaves row-dependent and unknown helper calls in place", () => {
+    const linked = definePermissions({
+      space: resource({
+        actions: ["read"],
+        relations: { org: { field: "orgId", memberOf: "tenant" } },
+      }),
+      item: resource({
+        actions: ["read"],
+        links: { space: { field: "spaceId", resource: "space" } },
+      }),
+    });
+    const linkedPolicy = definePolicy(linked, {
+      scopes: { tenant: { key: "orgId" } },
+      roles: [role("member", [allow(linked.space.read)], { on: "tenant" })],
+      grants: [
+        allow(linked.item.read, {
+          to: inherit(linked.space.read, { through: ["space"] }),
+        }),
+      ],
+      subject: () => null,
+    });
+    const ctx: RlsSqlContext = {
+      ...context("supabase"),
+      authorize: "database",
+      graph: { closures: {}, resources: linkedPolicy.resources },
+    };
+    const compiled = compileGrants(
+      linkedPolicy,
+      { ...ctx, candidates: "permdock_candidates" },
+      undefined,
+      [],
+      false,
+      true,
+    );
+    const sql = rowHelpersSql(
+      ctx,
+      linkedPolicy,
+      [...compiled.branches, ...compiled.actionBranches],
+      ["item", "space"],
+      undefined,
+      [],
+    );
+    const item = sql.slice(sql.indexOf('"permdock".permitted_item_row(p_row'));
+    expect(item.slice(0, item.indexOf("$$;"))).toContain("language sql");
+    expect(item).toContain(
+      `"permdock".permitted_space_rows('space.read', array(select "spaceId"::text from permdock_candidates))`,
+    );
+    const space = sql.slice(
+      sql.indexOf('"permdock".permitted_space_row(p_row'),
+    );
+    expect(space.slice(0, space.indexOf("$$;"))).toContain("language plpgsql");
   });
 });
 

@@ -85,7 +85,7 @@ where (role, grant_key, scope) not in (values
   ('member', 'post.update#2', 'tenant')
 );
 
--- a permission, custom-role or suspension write changes permitted ids inside the statement
+-- a permission, custom-role, suspension or membership write changes permitted ids inside the statement
 create or replace function "permdock".permdock_bump_memo_generation()
 returns void
 language sql
@@ -121,6 +121,22 @@ create trigger "permdock_memo_generation"
 drop trigger if exists "permdock_memo_generation_truncate" on "permdock"."role_permissions";
 create trigger "permdock_memo_generation_truncate"
   after truncate on "permdock"."role_permissions"
+  for each statement execute function "permdock".permdock_memo_generation();
+drop trigger if exists "permdock_memo_generation" on "permdock"."user_roles";
+create trigger "permdock_memo_generation"
+  after insert or update or delete on "permdock"."user_roles"
+  for each statement execute function "permdock".permdock_memo_generation();
+drop trigger if exists "permdock_memo_generation_truncate" on "permdock"."user_roles";
+create trigger "permdock_memo_generation_truncate"
+  after truncate on "permdock"."user_roles"
+  for each statement execute function "permdock".permdock_memo_generation();
+drop trigger if exists "permdock_memo_generation" on "public"."organization_members";
+create trigger "permdock_memo_generation"
+  after insert or update or delete on "public"."organization_members"
+  for each statement execute function "permdock".permdock_memo_generation();
+drop trigger if exists "permdock_memo_generation_truncate" on "public"."organization_members";
+create trigger "permdock_memo_generation_truncate"
+  after truncate on "public"."organization_members"
   for each statement execute function "permdock".permdock_memo_generation();
 
 create or replace function "permdock".permdock_has(p_grant text)

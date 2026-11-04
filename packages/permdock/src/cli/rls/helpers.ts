@@ -408,7 +408,7 @@ revoke all on table ${ur} from anon, authenticated, public;`);
   if (custom !== "") {
     chunks.push(custom);
   }
-  const memoGeneration = memoGenerationSql(ctx);
+  const memoGeneration = memoGenerationSql(ctx, memoReadsSql(ctx));
   if (memoGeneration !== "") {
     chunks.push(memoGeneration);
   }
@@ -491,6 +491,14 @@ function memoBody(
     return body;
   }
   return { ...body, memo: { type, scope, user: subjectIdSql(ctx) } };
+}
+
+export function memoReadsSql(ctx: RlsSqlContext): string {
+  const bodies = grantBodies(ctx);
+  return [
+    bodies.has.sql,
+    ...ctx.scopes.map((scope) => bodies.ids(scope.name).sql),
+  ].join("\n");
 }
 
 export function grantBodies(ctx: RlsSqlContext): {

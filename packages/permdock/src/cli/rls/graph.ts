@@ -530,6 +530,17 @@ function dependencyOrder(plan: GraphPlan): readonly GraphResource[] {
   return out;
 }
 
+export function graphIdsSql(
+  ctx: RlsSqlContext,
+  plan: GraphPlan,
+  tables: Readonly<Record<string, string>> | undefined,
+): string {
+  return dependencyOrder(plan)
+    .filter((entry) => entry.relations.size > 0 || entry.closure !== undefined)
+    .map((entry) => permittedSql(ctx, plan, entry, tables))
+    .join("\n");
+}
+
 /**
  * The graph preamble: `permitted_<resource>_ids` for every resource a graph
  * grant reads, and the closure table with its triggers for every self-parented

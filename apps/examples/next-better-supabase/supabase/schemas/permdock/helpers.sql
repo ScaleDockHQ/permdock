@@ -169,7 +169,7 @@ as $$
 $$;
 revoke execute on function "permdock".permdock_is_shared_role(text, text) from public, anon, authenticated;
 
--- a permission, custom-role or suspension write changes permitted ids inside the statement
+-- a permission, custom-role, suspension or membership write changes permitted ids inside the statement
 create or replace function "permdock".permdock_bump_memo_generation()
 returns void
 language sql
@@ -221,6 +221,24 @@ create or replace trigger "permdock_memo_generation"
   for each statement execute function "permdock".permdock_memo_generation();
 create or replace trigger "permdock_memo_generation_truncate"
   after truncate on "public"."roles"
+  for each statement execute function "permdock".permdock_memo_generation();
+create or replace trigger "permdock_memo_generation"
+  after insert or update or delete on "permdock"."user_roles"
+  for each statement execute function "permdock".permdock_memo_generation();
+create or replace trigger "permdock_memo_generation_truncate"
+  after truncate on "permdock"."user_roles"
+  for each statement execute function "permdock".permdock_memo_generation();
+create or replace trigger "permdock_memo_generation"
+  after insert or update or delete on "public"."organization_memberships"
+  for each statement execute function "permdock".permdock_memo_generation();
+create or replace trigger "permdock_memo_generation_truncate"
+  after truncate on "public"."organization_memberships"
+  for each statement execute function "permdock".permdock_memo_generation();
+create or replace trigger "permdock_memo_generation"
+  after insert or update or delete on "public"."contacts"
+  for each statement execute function "permdock".permdock_memo_generation();
+create or replace trigger "permdock_memo_generation_truncate"
+  after truncate on "public"."contacts"
   for each statement execute function "permdock".permdock_memo_generation();
 
 create or replace function "permdock".permdock_has(p_grant text)

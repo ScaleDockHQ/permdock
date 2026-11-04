@@ -1,6 +1,7 @@
 import type { Policy, ResourceNode } from "../../index.ts";
 import type { CompiledBranch } from "../sql/compile.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
+import type { RowArm } from "./row-memo.ts";
 
 import { flattenGrantee } from "../../core/grantee.ts";
 import { listPermissions } from "../../core/permission-registry.ts";
@@ -16,6 +17,7 @@ import {
   quoteQualified,
 } from "../sql/quote.ts";
 import { orSql } from "./policies.ts";
+import { memoRowSql, memoRowTriggersSql } from "./row-memo.ts";
 
 /**
  * `permitted_<resource>_rows(p_permission)`: the resource's row ids the subject
@@ -216,12 +218,23 @@ $$;`,
 
 function rowSql(
   ctx: RlsSqlContext,
-  rows: string,
+  policy: Policy,
+  node: ResourceNode,
   table: string,
-  where: string,
+  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string {
-  const fn = qualified(ctx, rows.replace(/_rows$/u, "_row"));
-  return `create or replace function ${fn}(p_row ${table}, p_permission text)
+  const fn = qualified(ctx, rowsHelper(node.name).replace(/_rows$/u, "_row"));
+  const body =
+    memoRowSql(
+      ctx,
+      policy,
+      fn,
+      table,
+      graphSqlName(node.name) ?? node.name,
+      armsOf(branches),
+      CANDIDATES,
+    ) ??
+    `create or replace function ${fn}(p_row ${table}, p_permission text)
 returns boolean
 language sql
 stable
@@ -229,19 +242,26 @@ security definer
 set search_path = ''
 as $$
   with ${CANDIDATES} as (select (p_row).*)
-  select exists (select 1 from ${CANDIDATES} where ${where})
-$$;
+  select exists (select 1 from ${CANDIDATES} where ${whereOf(branches)})
+$$;`;
+  return `${body}
 revoke execute on function ${fn}(${table}, text) from public, anon;
 grant execute on function ${fn}(${table}, text) to authenticated;`;
+}
+
+function armsOf(
+  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
+): readonly RowArm[] {
+  return [...branches.keys()].toSorted().flatMap((key) => {
+    const sql = permissionCase(key, branches.get(key) ?? []);
+    return sql === undefined ? [] : [{ key, sql }];
+  });
 }
 
 function whereOf(
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string {
-  const cases = [...branches.keys()].toSorted().flatMap((key) => {
-    const sql = permissionCase(key, branches.get(key) ?? []);
-    return sql === undefined ? [] : [sql];
-  });
+  const cases = armsOf(branches).map((arm) => arm.sql);
   return cases.length === 0
     ? "false"
     : `case p_permission\n${cases.join("\n")}\n    else false\n  end`;
@@ -295,6 +315,7 @@ grant execute on function ${fn}(text, text[]) to authenticated;`;
 
 function resourceSql(
   ctx: RlsSqlContext,
+  policy: Policy,
   node: ResourceNode,
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
   narrowed: ReadonlyMap<string, readonly CompiledBranch[]>,
@@ -319,7 +340,7 @@ $$;
 revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;
 ${candidatesSql(fn, table, quoteIdent(node.id), near)}
-${rowSql(ctx, name, table, near)}`;
+${rowSql(ctx, policy, node, table, narrowed)}`;
   if (ctx.dialect === "neon") {
     return rows;
   }
@@ -376,11 +397,19 @@ export function rowHelpersSql(
     chunks.push(
       resourceSql(
         ctx,
+        policy,
         node,
         rowBranchesOf(branches, name),
         rowBranchesOf(narrowed, name),
         tables,
       ),
+    );
+  }
+  const triggers =
+    names.length === 0 ? "" : memoRowTriggersSql(ctx, policy, tables);
+  if (triggers !== "") {
+    chunks.push(
+      `-- a relation write changes what the row helpers' memo holds inside the statement\n${triggers}`,
     );
   }
   if (chunks.length > 0 && ctx.dialect === "neon") {
