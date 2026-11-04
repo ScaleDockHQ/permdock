@@ -113,6 +113,9 @@ Every key PermDock reads, with the kinds of value it accepts. The command page o
 | `gen.kinds`               | an array               | [gen](/docs/cli/gen)                                                           |
 | `gen.fieldMeta`           | a boolean              | [gen](/docs/cli/gen)                                                           |
 | `openapi.doc`             | an array               | [openapi](/docs/cli/openapi)                                                   |
+| `openapi.operations`      | a string               | [doctor](/docs/cli/doctor#pd091-a-tenant-operation-has-no-permission)          |
+| `openapi.tenantPaths`     | an array               | [doctor](/docs/cli/doctor#pd091-a-tenant-operation-has-no-permission)          |
+| `openapi.base`            | a string               | [doctor](/docs/cli/doctor#pd091-a-tenant-operation-has-no-permission)          |
 | `rls.tables`              | an object              | [rls](/docs/cli/rls)                                                           |
 | `rls.dialect`             | a string               | [rls](/docs/cli/rls)                                                           |
 | `rls.memberships`         | an object              | [rls](/docs/cli/rls)                                                           |
@@ -148,6 +151,7 @@ Every key PermDock reads, with the kinds of value it accepts. The command page o
 | `rls.actions`             | an object              | [rls](/docs/cli/rls)                                                           |
 | `rls.helpersOnly`         | a boolean              | [rls](/docs/cli/rls)                                                           |
 | `rls.rowHelpers`          | a boolean or an array  | [rls](/docs/cli/rls)                                                           |
+| `rls.idTypes`             | an object              | [row helpers](/docs/adapters/rls#id-types-and-the-tenant-prefilter)            |
 | `rls.seeds`               | a string               | [rls](/docs/cli/rls)                                                           |
 | `rls.treeValues`          | an object              | [rls](/docs/cli/rls)                                                           |
 | `rls.trustedReaders`      | an array               | [rls](/docs/cli/rls)                                                           |
@@ -165,6 +169,7 @@ Every key PermDock reads, with the kinds of value it accepts. The command page o
 | `rls.tokenScopes`         | a boolean              | [rls](/docs/cli/rls)                                                           |
 | `rls.realtime`            | an object              | [rls](/docs/cli/rls)                                                           |
 | `rls.storage`             | an object              | [rls](/docs/cli/rls)                                                           |
+| `betterSupabase.config`   | a string               | [supabase](/docs/cli/supabase)                                                 |
 | `supabase.hook`           | an object              | [supabase](/docs/cli/supabase)                                                 |
 | `supabase.schemas`        | a string               | [supabase](/docs/cli/supabase)                                                 |
 | `powersync.out`           | a string               | [powersync](/docs/cli/powersync)                                               |
@@ -179,7 +184,6 @@ Every key PermDock reads, with the kinds of value it accepts. The command page o
 | `doctor.migrations`       | an array               | [doctor](/docs/cli/doctor)                                                     |
 | `doctor.claims`           | a string               | [doctor](/docs/cli/doctor)                                                     |
 | `doctor.srcPath`          | an array               | [doctor](/docs/cli/doctor)                                                     |
-| `doctor.sharedTables`     | an array               | [doctor](/docs/cli/doctor)                                                     |
 | `doctor.cacheHelpers`     | an array               | [doctor](/docs/cli/doctor#pd080-and-pd081-sources-and-caches-created-per-call) |
 | `doctor.ignore`           | an array               | [doctor](/docs/cli/doctor#ignore-a-finding)                                    |
 | `doctor.waivers`          | an array               | [doctor](/docs/cli/doctor#pd017-sensitive-verbs-without-approval)              |

@@ -1,4 +1,3 @@
-import { createJiti } from "jiti";
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -6,6 +5,7 @@ import type { Permission, PermissionTree, Policy } from "../../index.ts";
 
 import { listPermissions } from "../../index.ts";
 import { CliError, describeError } from "../core/errors.ts";
+import { jiti } from "../core/optional.ts";
 
 /** A project module the CLI cannot use: the project's to fix, so a usage error. */
 function invalidModule(message: string, cause?: unknown): CliError {
@@ -48,14 +48,14 @@ export type LoadOptions = {
 };
 
 function importWithJiti(abs: string, fresh: boolean): Promise<unknown> {
-  const jiti = createJiti(import.meta.url, {
+  const loader = jiti().createJiti(import.meta.url, {
     interopDefault: false,
     jsx: true,
     tsconfigPaths: dirname(abs),
     moduleCache: !fresh,
     fsCache: !fresh,
   });
-  return jiti.import(abs);
+  return loader.import(abs);
 }
 
 /**

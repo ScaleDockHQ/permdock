@@ -6,7 +6,7 @@ import type { Subject } from "../../src/core/subject.ts";
 
 import { run } from "../../src/cli/core/run.ts";
 import { conditionFromAst } from "../../src/cli/rls/import-ast.ts";
-import { evaluateCondition } from "../../src/conditions/evaluate.ts";
+import { evaluateCondition } from "../../src/conditions/condition-evaluate.ts";
 import { normalizeWhere } from "../../src/conditions/normalize.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";

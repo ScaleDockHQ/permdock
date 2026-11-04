@@ -36,6 +36,11 @@ function namedIn(config: PermDockConfig): readonly Named[] {
   return [
     ...named("rls.tables", "resource", keysOf(rls?.tables)),
     ...named("rls.scopeTypes", "scope", keysOf(rls?.scopeTypes)),
+    ...named(
+      "rls.idTypes",
+      "resource",
+      keysOf(rls?.idTypes).filter((name) => name !== "*"),
+    ),
     ...named("rls.actions", "action", keysOf(rls?.actions)),
     ...named(
       "rls.memberships.scopes",

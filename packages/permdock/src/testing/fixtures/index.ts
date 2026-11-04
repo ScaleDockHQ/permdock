@@ -19,3 +19,10 @@ export const betterSupabaseCatalog: CatalogDocument = parseCatalog(catalog);
  */
 export const betterSupabaseManifest: SupabaseManifest =
   parseSupabaseManifest(manifest);
+
+export { postgrestFixture } from "./postgrest.ts";
+export type {
+  PostgrestFixture,
+  PostgrestFixtureCall,
+  PostgrestFixtureOptions,
+} from "./postgrest.ts";

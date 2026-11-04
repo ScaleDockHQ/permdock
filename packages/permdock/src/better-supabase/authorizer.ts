@@ -12,7 +12,8 @@ import type { InstanceCache } from "../core/instance-cache.ts";
 import type { Intent, MembershipSource } from "../core/interfaces.ts";
 import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { Policy } from "../core/policy-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { Principal } from "../core/subject.ts";
 import type { VersionCache } from "../core/version-cache.ts";
 import type { PermDockFor } from "./permdock-for.ts";
 import type { BetterSupabaseOnError } from "./report.ts";
@@ -37,8 +38,8 @@ export type AuthorizerOperation =
   | "update"
   | "delete";
 
-export type AuthorizerOptions = {
-  readonly policy: Policy;
+export type AuthorizerOptions<V extends PolicyVocabulary = PolicyVocabulary> = {
+  readonly policy: Policy<unknown, Principal, V>;
   /**
    * The app's `permdockFor` resolver: `bsb.action`, `protectAction` and every
    * adapter that spreads `permdockFor.sources()` then share one instance per
@@ -47,7 +48,7 @@ export type AuthorizerOptions = {
    * `instances` and `options`; passing one of those as well throws a
    * `TypeError`.
    */
-  readonly permdockFor?: PermDockFor;
+  readonly permdockFor?: PermDockFor<V>;
   /**
    * How the verified claims map to a subject; the defaults of
    * `subjectFromBetterSupabase`.
@@ -196,8 +197,8 @@ const keyOf = (request: AuthorizationRequest<Permission>): string | null =>
  * throw denies. With better-supabase's runtime `memo`, the checks of one
  * request scope share an instance per claims, tenant and intent.
  */
-export function authorizer(
-  options: AuthorizerOptions,
+export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
+  options: AuthorizerOptions<V>,
 ): Authorizer<Permission, VersionCache> {
   const { operations, store } = options;
   const intentOf = (
@@ -219,7 +220,7 @@ export function authorizer(
     tenant: string | null,
     intent: Intent,
     runtime: AuthorizerRuntime<VersionCache> | undefined,
-  ): Promise<PermDock> =>
+  ): Promise<PermDock<V>> =>
     resolve(
       claims === undefined ? null : { kind: "user", claims },
       { tenant, intent },
@@ -230,10 +231,10 @@ export function authorizer(
     tenant: string | null,
     intent: Intent,
     runtime: AuthorizerRuntime<VersionCache> | undefined,
-    batch?: Map<string, Promise<PermDock>>,
-  ): Promise<PermDock> => {
+    batch?: Map<string, Promise<PermDock<V>>>,
+  ): Promise<PermDock<V>> => {
     const key = `permdock:authorizer:${canonicalJson([claims ?? null, tenant, intent])}`;
-    const build = (): Promise<PermDock> =>
+    const build = (): Promise<PermDock<V>> =>
       instanceFor(claims, tenant, intent, runtime);
     if (runtime?.memo !== undefined) return runtime.memo.once(key, build);
     if (batch === undefined) return build();
@@ -244,7 +245,7 @@ export function authorizer(
     return created;
   };
   const decideWith = async (
-    permdock: PermDock,
+    permdock: PermDock<V>,
     request: AuthorizationRequest<Permission>,
     consume: boolean,
   ): Promise<AuthorizationOutcome> => {
@@ -328,10 +329,10 @@ export function authorizer(
       requests: readonly AuthorizationRequest<Permission>[],
       runtime?: AuthorizerRuntime<VersionCache>,
     ): Promise<readonly AuthorizationOutcome[]> {
-      const batch = new Map<string, Promise<PermDock>>();
+      const batch = new Map<string, Promise<PermDock<V>>>();
       const shared = (
         request: AuthorizationRequest<Permission>,
-      ): Promise<PermDock> =>
+      ): Promise<PermDock<V>> =>
         scoped(
           claimsOf(request),
           tenantOf(request),

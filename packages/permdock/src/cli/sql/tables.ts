@@ -11,11 +11,21 @@ import { permittedIdsHelper } from "./names.ts";
 export function tableNameOf(
   entry: RlsTable | undefined,
   resource: string,
+  tables?: Readonly<Record<string, RlsTable>>,
 ): string {
   if (entry === undefined || entry === false) {
     return resource;
   }
-  return typeof entry === "string" ? entry : (entry.table ?? resource);
+  if (typeof entry === "string") {
+    return entry;
+  }
+  if ("tableOf" in entry) {
+    const owner = tables?.[entry.tableOf];
+    return typeof owner === "object" && "tableOf" in owner
+      ? entry.tableOf
+      : tableNameOf(owner, entry.tableOf);
+  }
+  return entry.table ?? resource;
 }
 
 /**
@@ -30,19 +40,52 @@ export function tableNames(
     : Object.fromEntries(
         Object.entries(tables)
           .filter(([, entry]) => entry !== false)
-          .map(([resource, entry]) => [resource, tableNameOf(entry, resource)]),
+          .map(([resource, entry]) => [
+            resource,
+            tableNameOf(entry, resource, tables),
+          ]),
       );
 }
 
-/** The resources `rls.tables` marks `false`: no table, so no policies. */
+/**
+ * The resources `rls.tables` marks `false` or `{ tableOf }`: no policies of
+ * their own, their grants only seeded.
+ */
 export function tablelessResources(
   tables: Readonly<Record<string, RlsTable>> | undefined,
 ): ReadonlySet<string> {
   return new Set(
     Object.entries(tables ?? {})
-      .filter(([, entry]) => entry === false)
+      .filter(
+        ([, entry]) =>
+          entry === false || (typeof entry === "object" && "tableOf" in entry),
+      )
       .map(([resource]) => resource),
   );
+}
+
+/**
+ * Rejects a `{ tableOf }` entry that names its own resource, a `false` entry or
+ * another `{ tableOf }` entry: the owner must have a table of its own.
+ */
+export function checkSharedTables(
+  tables: Readonly<Record<string, RlsTable>> | undefined,
+): void {
+  for (const [resource, entry] of Object.entries(tables ?? {})) {
+    if (typeof entry === "string" || entry === false || !("tableOf" in entry)) {
+      continue;
+    }
+    const owner = tables?.[entry.tableOf];
+    if (
+      entry.tableOf === resource ||
+      owner === false ||
+      (typeof owner === "object" && "tableOf" in owner)
+    ) {
+      throw configError(
+        `PermDock CLI: rls.tables.${resource}.tableOf names ${entry.tableOf}, which must be another resource with a table of its own`,
+      );
+    }
+  }
 }
 
 /** An `rls.tables` `via` entry with its defaults filled in. */
@@ -78,7 +121,7 @@ export function resolveVias(
 ): Readonly<Record<string, ResolvedVia>> | undefined {
   const out: Record<string, ResolvedVia> = {};
   for (const [resource, entry] of Object.entries(tables ?? {})) {
-    if (typeof entry === "string" || entry === false) {
+    if (typeof entry === "string" || entry === false || "tableOf" in entry) {
       continue;
     }
     const { via } = entry;

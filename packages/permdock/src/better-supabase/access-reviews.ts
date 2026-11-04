@@ -5,7 +5,8 @@ import type {
 } from "../approvals/access-reviews/types.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { Policy } from "../core/policy-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { Principal } from "../core/subject.ts";
 import type { Instant } from "../core/time.ts";
 import type { SupabaseRpcCaller } from "../supabase/postgrest.ts";
 
@@ -16,7 +17,9 @@ import { findPermission } from "../core/permission-registry.ts";
 import { dateAt } from "../core/time.ts";
 import { callRpc } from "../supabase/postgrest.ts";
 
-export type AccessReviewApplierOptions = {
+export type AccessReviewApplierOptions<
+  V extends PolicyVocabulary = PolicyVocabulary,
+> = {
   /**
    * A supabase-js client that may call the organizations and invitations block
    * functions. Pass the reviewer's client so the block's own permission and
@@ -28,7 +31,7 @@ export type AccessReviewApplierOptions = {
    * Decides whether a fallback role or an invitation's role grants the reviewed
    * permission.
    */
-  readonly policy: Policy;
+  readonly policy: Policy<unknown, Principal, V>;
   /**
    * The role a revoked member moves to with `update_member_role`: one role, or
    * a map from the roles in the item's `via` to their fallback. A fallback that
@@ -50,7 +53,7 @@ export type AccessReviewApplierOptions = {
   readonly permdockFor?: (
     principalId: string,
     tenant: string,
-  ) => PermDock | Promise<PermDock>;
+  ) => PermDock<V> | Promise<PermDock<V>>;
   /**
    * The schema of the block functions; better-supabase's default is
    * `better_supabase`.
@@ -169,8 +172,10 @@ function invitationsOf(
  * error leaves the item unapplied in `failed`, and one item's failure never
  * stops the others. Throws `review-not-found` for an unknown review.
  */
-export function accessReviewApplier(
-  options: AccessReviewApplierOptions,
+export function accessReviewApplier<
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  options: AccessReviewApplierOptions<V>,
 ): (reviewId: string) => Promise<AccessReviewApplyResult> {
   const schema = options.schema ?? "better_supabase";
   const scope = options.scope ?? options.policy.scopes[0]?.name ?? "tenant";

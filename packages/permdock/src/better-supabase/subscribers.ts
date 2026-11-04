@@ -1,8 +1,9 @@
 import type { InstanceCache } from "../core/instance-cache.ts";
 import type { PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { Policy } from "../core/policy-types.ts";
+import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { PrincipalSource } from "../core/principal-source.ts";
+import type { Principal } from "../core/subject.ts";
 
 import { loadPrincipal } from "../core/principal-source.ts";
 import { subscribersFor } from "../delivery/audience.ts";
@@ -18,8 +19,9 @@ export type SubscriberPolicyEvent = {
 
 export type SubscriberPolicyOptions<
   E extends SubscriberPolicyEvent = SubscriberPolicyEvent,
+  V extends PolicyVocabulary = PolicyVocabulary,
 > = {
-  readonly policy: Policy;
+  readonly policy: Policy<unknown, Principal, V>;
   /** Loads the sender and every subscriber's principal. */
   readonly principals: PrincipalSource;
   /**
@@ -76,8 +78,9 @@ function permissionFor(
  */
 export function subscriberPolicy<
   E extends SubscriberPolicyEvent = SubscriberPolicyEvent,
+  V extends PolicyVocabulary = PolicyVocabulary,
 >(
-  options: SubscriberPolicyOptions<E>,
+  options: SubscriberPolicyOptions<E, V>,
 ): <S extends { readonly principal: string }>(
   event: E,
   subscribers: readonly S[],

@@ -18,7 +18,7 @@ import {
   activeMembershipSql,
   activeUserSql,
 } from "./active.ts";
-import { sqlType } from "./columns.ts";
+import { idTypeOf, sqlType } from "./columns.ts";
 import { CLAIM } from "./context.ts";
 import {
   CLOSURE,
@@ -678,10 +678,13 @@ function candidateIds(
   ctx: RlsSqlContext,
   field: string,
   wrap: (ids: string) => string,
+  type = "text",
 ): string {
   return ctx.candidates === undefined
     ? ""
-    : wrap(`array(select ${quoteIdent(field)}::text from ${ctx.candidates})`);
+    : wrap(
+        `array(select ${quoteIdent(field)}::${type} from ${ctx.candidates})`,
+      );
 }
 
 const idsArgument = (ids: string): string => `, ${ids}`;
@@ -701,15 +704,21 @@ function compileRelatedSql(
     return compileHoppedSql(condition, ctx);
   }
   const type = ctx.columnTypes?.[condition.field];
+  const rowsType =
+    condition.permission === undefined
+      ? "text"
+      : idTypeOf(ctx, condition.resource);
   const cast = type === undefined || type === "text" ? "" : `::${type}`;
   const column =
     type === undefined
-      ? `${quoteIdent(condition.field)}::text`
+      ? `${quoteIdent(condition.field)}::${rowsType}`
       : quoteIdent(condition.field);
   const helper =
     condition.permission === undefined
       ? `${qualified(ctx, graphHelper(condition.resource))}(${quoteLiteral(condition.relation)})`
-      : `${qualified(ctx, inheritedRowsHelper(condition.resource))}(${quoteLiteral(condition.permission)}${condition.depth === 0 ? candidateIds(ctx, condition.field, idsArgument) : ""})`;
+      : `${qualified(ctx, inheritedRowsHelper(condition.resource))}(${quoteLiteral(condition.permission)}${condition.depth === 0 ? candidateIds(ctx, condition.field, idsArgument, rowsType) : ""})`;
+  const closureIds =
+    rowsType === "text" ? helper : `p.id::text from ${helper} as p(id)`;
   const cap = ctx.graph?.closures[condition.resource];
   let inner: string;
   if (condition.depth > 0 && cap !== undefined) {
@@ -720,12 +729,13 @@ function compileRelatedSql(
       condition.field,
       (ids) => ` and descendant = any (${ids})`,
     );
-    inner = `select descendant${cast} from ${qualified(ctx, CLOSURE.table)} where resource = ${quoteLiteral(condition.resource)}${depth}${narrowed} and ancestor = any (array(select ${helper}))`;
+    inner = `select descendant${cast} from ${qualified(ctx, CLOSURE.table)} where resource = ${quoteLiteral(condition.resource)}${depth}${narrowed} and ancestor = any (array(select ${closureIds}))`;
   } else {
+    const same = type ?? rowsType;
     inner =
-      cast === ""
+      cast === "" && same === rowsType
         ? `select ${helper}`
-        : `select p.id${cast} from ${helper} as p(id)`;
+        : `select p.id${cast === "" ? `::${type ?? "text"}` : cast} from ${helper} as p(id)`;
   }
   const reach = `${column} in (${inner})`;
   if (condition.parent === true && condition.restricted !== undefined) {
@@ -764,7 +774,7 @@ function compileHoppedSql(
       ],
       permitted: (resource, permission) => [
         {
-          text: `select ${schema}.${inheritedRowsHelper(resource)}(${quoteLiteral(permission)}${condition.hops?.length === 1 ? candidateIds(ctx, condition.field, idsArgument) : ""})`,
+          text: `select p.id::text from ${schema}.${inheritedRowsHelper(resource)}(${quoteLiteral(permission)}${condition.hops?.length === 1 ? candidateIds(ctx, condition.field, idsArgument, idTypeOf(ctx, resource)) : ""}) as p(id)`,
         },
       ],
       restrictedRows: (resource) => [

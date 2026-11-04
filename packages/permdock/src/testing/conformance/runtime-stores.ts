@@ -8,6 +8,8 @@ import type {
   PolicyDocument,
   PolicySource,
   SnapshotSource,
+  SubjectCache,
+  SubjectRecord,
   VersionCache,
 } from "../../index.ts";
 
@@ -191,6 +193,64 @@ export function testVersionCache(cache: VersionCache): void {
     await cache.current(principal, read, { live: false });
     expect(calls.count).toBe(2);
     expect(cache.stats().reads).toBeGreaterThanOrEqual(2);
+  });
+}
+
+/**
+ * The `SubjectCache` contract: a record answers only at the version it was
+ * stored at, a lower version never replaces a higher one, a read at a newer
+ * version drops the record, and `evict` removes it.
+ */
+export function testSubjectCache(cache: SubjectCache): void {
+  const recordAt = (id: string, authzVersion?: number): SubjectRecord => ({
+    id,
+    active: true,
+    roles: ["staff"],
+    memberships: [],
+    customRoles: [],
+    ...(authzVersion === undefined ? {} : { authzVersion }),
+  });
+
+  it("answers null for an unknown principal", async () => {
+    expect(await cache.record("u-subject-unknown", 1)).toBeNull();
+    expect(await cache.record("u-subject-unknown", undefined)).toBeNull();
+  });
+
+  it("answers a seeded record at its own version only", async () => {
+    const seeded = recordAt("u-subject-seed", 4);
+    await cache.seed(seeded);
+    expect(await cache.record("u-subject-seed", 4)).toStrictEqual(seeded);
+    expect(await cache.record("u-subject-seed", 3)).toBeNull();
+    expect(await cache.record("u-subject-seed", 4)).toStrictEqual(seeded);
+  });
+
+  it("drops a record when a newer version is asked for", async () => {
+    await cache.seed(recordAt("u-subject-newer", 2));
+    expect(await cache.record("u-subject-newer", 3)).toBeNull();
+    expect(await cache.record("u-subject-newer", 2)).toBeNull();
+  });
+
+  it("refuses a record below the cached version", async () => {
+    const current = recordAt("u-subject-lower", 6);
+    await cache.seed(current);
+    await cache.seed(recordAt("u-subject-lower", 5));
+    await cache.seed(recordAt("u-subject-lower"));
+    expect(await cache.record("u-subject-lower", 6)).toStrictEqual(current);
+    expect(await cache.record("u-subject-lower", 5)).toBeNull();
+  });
+
+  it("replaces a record with a newer one", async () => {
+    await cache.seed(recordAt("u-subject-replace", 1));
+    const next = { ...recordAt("u-subject-replace", 2), roles: ["admin"] };
+    await cache.seed(next);
+    expect(await cache.record("u-subject-replace", 2)).toStrictEqual(next);
+    expect(await cache.record("u-subject-replace", 1)).toBeNull();
+  });
+
+  it("forgets a record after evict", async () => {
+    await cache.seed(recordAt("u-subject-evict", 2));
+    await cache.evict("u-subject-evict");
+    expect(await cache.record("u-subject-evict", 2)).toBeNull();
   });
 }
 

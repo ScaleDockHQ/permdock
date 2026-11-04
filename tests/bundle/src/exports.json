@@ -23,6 +23,7 @@
     "RESERVED_CLOUD_EVENT_TYPES",
     "SINK_EVENT_SCHEMAS",
     "accessEvent",
+    "accessOutcome",
     "accessToOcsf",
     "activate",
     "actor",
@@ -58,7 +59,6 @@
     "decideCredential",
     "decideRoleChange",
     "decideSupportSession",
-    "defineApp",
     "defineOperations",
     "definePermissions",
     "definePlans",
@@ -86,6 +86,7 @@
     "isConditionRef",
     "isExternallyManaged",
     "isFeedId",
+    "isGlobalPermission",
     "isOperationRisk",
     "isPermission",
     "isPlan",
@@ -115,6 +116,7 @@
     "memoryRevocationFeed",
     "memorySettingsSource",
     "memorySnapshotSource",
+    "memorySubjectCache",
     "memoryVersionCache",
     "mergeHostedGrants",
     "mergePermissions",
@@ -175,6 +177,7 @@
     "wrapPermDock",
     "writable"
   ],
+  "./app": ["definePermDock"],
   "./approvals": [
     "APPROVAL_HEADER",
     "APPROVAL_REQUEST_SCHEMA",
@@ -546,10 +549,12 @@
   "./openapi": [
     "DRAFT_PINS",
     "GNAP_RESERVED",
+    "OPERATION_SKIP_CAUSES",
     "PROFILE_NAMES",
     "catalogOf",
     "createPermDock",
     "openapiVersion",
+    "operationCoverage",
     "operationPermissions",
     "operationPermissionsFromOpenApi",
     "permissionsExtension",
@@ -841,6 +846,7 @@
     "testLegacyParity",
     "testLimitStore",
     "testMembershipSource",
+    "testOperationCoverage",
     "testOrmParity",
     "testPolicySource",
     "testPrincipalSource",
@@ -853,6 +859,7 @@
     "testSnapshotSource",
     "testSnapshotStorage",
     "testSsfStreamStore",
+    "testSubjectCache",
     "testSubjectResolver",
     "testSupportSessionSource",
     "testTokenSigner",
@@ -861,7 +868,11 @@
     "testWhereCompiler"
   ],
   "./testing/core": ["policyMatrix", "testOrmParity", "testRlsParity"],
-  "./testing/fixtures": ["betterSupabaseCatalog", "betterSupabaseManifest"],
+  "./testing/fixtures": [
+    "betterSupabaseCatalog",
+    "betterSupabaseManifest",
+    "postgrestFixture"
+  ],
   "./testing/saas": [
     "SAAS_API_KEY_LIMIT",
     "SAAS_EXPIRED_AT",

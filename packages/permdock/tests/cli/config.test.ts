@@ -216,6 +216,7 @@ export default { permissions };
         Exclude<keyof PermDockConfig, "permissions" | "policy" | "operations">
       >();
       expect(Object.keys(CONFIG_SHAPE).toSorted()).toStrictEqual([
+        "betterSupabase",
         "catalog",
         "collect",
         "doctor",

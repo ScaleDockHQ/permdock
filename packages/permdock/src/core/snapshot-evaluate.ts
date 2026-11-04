@@ -12,7 +12,7 @@ import type { Scope } from "./scopes.ts";
 import type { Snapshot, SnapshotGrant } from "./snapshot-types.ts";
 import type { Subject } from "./subject.ts";
 
-import { evaluateCondition } from "../conditions/evaluate.ts";
+import { evaluateCondition } from "../conditions/condition-evaluate.ts";
 import { requiresApproval } from "./approval-required.ts";
 import { compact } from "./compact.ts";
 import { coveredByDelegation, readOnlyActorRefuses } from "./delegation.ts";

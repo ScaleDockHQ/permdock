@@ -1006,3 +1006,14 @@ describe("createClientStore approval edge cases", () => {
     stop();
   });
 });
+
+describe("createClientStore across copies", () => {
+  it("keeps its store on a registered symbol another copy of permdock can read", () => {
+    const store = createClientStore({
+      snapshot: signedIn("u1"),
+      server: false,
+      fetch: () => Promise.resolve(json({})),
+    });
+    expect(Reflect.get(store.get(), Symbol.for("permdock.store"))).toBe(store);
+  });
+});

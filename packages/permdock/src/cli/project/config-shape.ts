@@ -41,8 +41,18 @@ const CATALOG = { out: STRING } as const satisfies Record<
   KeyShape
 >;
 
-const OPENAPI = { doc: ARRAY } as const satisfies Record<
+const OPENAPI = {
+  doc: ARRAY,
+  operations: STRING,
+  tenantPaths: ARRAY,
+  base: STRING,
+} as const satisfies Record<
   keyof NonNullable<PermDockConfig["openapi"]>,
+  KeyShape
+>;
+
+const BETTER_SUPABASE = { config: STRING } as const satisfies Record<
+  keyof NonNullable<PermDockConfig["betterSupabase"]>,
   KeyShape
 >;
 
@@ -59,6 +69,7 @@ const RLS = {
   verify: OBJECT,
   tenantClaim: STRING,
   scopeTypes: OBJECT,
+  idTypes: OBJECT,
   roleClaim: STRING,
   roleValues: OBJECT,
   gucPrefix: STRING,
@@ -122,7 +133,6 @@ const DOCTOR = {
   migrations: ARRAY,
   claims: STRING,
   srcPath: ARRAY,
-  sharedTables: ARRAY,
   cacheHelpers: ARRAY,
   ignore: ARRAY,
   waivers: ARRAY,
@@ -152,6 +162,7 @@ export const CONFIG_SHAPE: Readonly<
   collect: COLLECT,
   catalog: CATALOG,
   openapi: OPENAPI,
+  betterSupabase: BETTER_SUPABASE,
   rls: RLS,
   supabase: SUPABASE,
   powersync: POWERSYNC,

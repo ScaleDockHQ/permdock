@@ -124,6 +124,20 @@ export function scopeTypeOf(ctx: RlsSqlContext, name: string): string {
 }
 
 /**
+ * Postgres type of a resource's id in the row helpers: `rls.idTypes` by
+ * resource, then its `"*"` default, then `uuid` on Supabase and `text`
+ * elsewhere.
+ */
+export function idTypeOf(ctx: RlsSqlContext, resource: string): string {
+  const types = ctx.idTypes;
+  const named =
+    types !== undefined && Object.hasOwn(types, resource)
+      ? types[resource]
+      : types?.["*"];
+  return sqlType(named ?? (ctx.dialect === "supabase" ? "uuid" : "text"));
+}
+
+/**
  * The tenant type `rls.scopeTypes` gives the first scope, else `uuid`: the type
  * the tenant claim and the custom-role tenant arguments are cast to.
  */

@@ -12,7 +12,7 @@ const SRC = path.join(import.meta.dirname, "..", "..", "src");
 const ALLOWED: Readonly<Record<string, string>> = {
   "core/time.ts": "the one clock and conversion module",
   "conditions/compile.ts": "ORM parameters bind a Date as a timestamp",
-  "conditions/evaluate.ts": "row values from an ORM arrive as Date",
+  "conditions/condition-evaluate.ts": "row values from an ORM arrive as Date",
   "workflow-sdk/index.ts": "the Workflow SDK sleep takes a Date deadline",
 };
 

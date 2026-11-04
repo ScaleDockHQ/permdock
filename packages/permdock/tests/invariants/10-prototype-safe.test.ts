@@ -6,7 +6,7 @@ import type { Condition } from "../../src/conditions/ast.ts";
 import type { Subject } from "../../src/core/subject.ts";
 import type { ownPost } from "../fixtures/quick-start.ts";
 
-import { evaluateCondition } from "../../src/conditions/evaluate.ts";
+import { evaluateCondition } from "../../src/conditions/condition-evaluate.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { allow, getPermDockSync, principal } from "../../src/index.ts";
 import { adminUser, permissions, policy } from "../fixtures/quick-start.ts";

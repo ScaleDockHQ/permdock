@@ -46,6 +46,11 @@ export type {
   TraceSkipReason,
 } from "./core/decision.ts";
 export type { WireDecision, WireDenial } from "./core/wire-denial.ts";
+export { accessOutcome } from "./core/access-outcome.ts";
+export type { AccessOutcome } from "./core/access-outcome.ts";
+export { isGlobalPermission } from "./core/granted-permissions.ts";
+export type { GrantedPermissionsOptions } from "./core/granted-permissions.ts";
+export type { MembershipFilter } from "./core/membership-filter.ts";
 export {
   PermDockApprovalRequiredError,
   PermDockDeniedError,
@@ -198,6 +203,12 @@ export type {
   InstanceCacheOptions,
   InstanceCacheStats,
 } from "./core/instance-cache.ts";
+export { memorySubjectCache } from "./core/subject-cache.ts";
+export type {
+  MemorySubjectCacheOptions,
+  SubjectCache,
+  SubjectRecord,
+} from "./core/subject-cache.ts";
 export { memoryVersionCache } from "./core/version-cache.ts";
 export type {
   MemoryVersionCacheOptions,
@@ -248,8 +259,6 @@ export {
   getPermDockSync,
   parseSnapshot,
 } from "./core/permdock.ts";
-export { defineApp } from "./app/define-app.ts";
-export type { AppOptions, AppProfile } from "./core/app.ts";
 export { wrapPermDock } from "./core/wrap.ts";
 export { shadowMode } from "./core/shadow.ts";
 export type {

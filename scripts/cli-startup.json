@@ -1,11 +1,11 @@
 {
   "recordedMs": {
-    "version": 24,
-    "help": 36,
-    "catalog --help": 28,
-    "doctor --help": 31,
-    "rls generate --help": 27,
-    "cloud push --help": 27
+    "version": 22,
+    "help": 28,
+    "catalog --help": 26,
+    "doctor --help": 28,
+    "rls generate --help": 28,
+    "cloud push --help": 28
   },
   "maxMs": {
     "version": 150,

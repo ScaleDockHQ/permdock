@@ -82,7 +82,7 @@ describe("membership sources with a user through a profile table", () => {
   it("reads the user from the profile table and lets supabase_auth_admin read it", () => {
     const { sql, manifest } = supabaseHookSql(scopes, config);
     expect(sql).toContain(
-      'v_user_1 "public"."contact_profiles"."user_id"%type := uid;',
+      'v_user_1 "public"."contact_profiles"."user_id"%type := p_user;',
     );
     expect(sql).toMatch(
       /from "public"\."customer_contacts" m\n\s+join "public"\."contact_profiles" mu on mu\."id" = m\."contact_profile_id"\n\s+where mu\."user_id" = v_user_1/u,

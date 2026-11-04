@@ -294,6 +294,7 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. One import 
 | Decision plane     | `permdock/authzen` · `permdock/approvals` · `permdock/workflow` · `permdock/workflow-sdk` · `permdock/cloud` · `permdock/scim` · `permdock/ssf` · `permdock/openapi` · `permdock/otel` · `permdock/pdp` |
 | Data               | `permdock/drizzle` · `permdock/prisma` · `permdock/kysely` · `permdock rls` · `permdock powersync`                                                                                                      |
 | Auth and providers | `permdock/jwt` · `permdock/supabase` · `permdock/supabase/middleware` · `permdock/better-supabase` · `permdock/better-auth` · `permdock/clerk` · `permdock/convex`                                      |
+| App                | `permdock/app`                                                                                                                                                                                          |
 | Build              | `permdock/next/plugin` · `permdock/unplugin`                                                                                                                                                            |
 | Testing            | `permdock/testing`                                                                                                                                                                                      |
 

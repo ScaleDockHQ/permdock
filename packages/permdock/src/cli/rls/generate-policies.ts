@@ -43,14 +43,14 @@ export type GeneratedPolicies = {
   readonly guardedTables?: string;
   /**
    * With `helpersOnly` and `rls.readOnlyActors`: the restrictive read-only
-   * actor policies on the tables `rls.tables` names, each guarded by its table,
-   * for the helpers output.
+   * actor policies on the tables `rls.tables` names, as plain DDL, for the
+   * helpers output.
    */
   readonly actorGuards?: string;
 };
 
 const ACTOR_GUARDS_HEADER =
-  "-- rls.readOnlyActors with --helpers-only: restrictive policies on the write commands, which narrow the hand-written policies and grant nothing. A table that does not exist yet is skipped.";
+  "-- rls.readOnlyActors with --helpers-only: restrictive policies on the write commands, which narrow the hand-written policies and grant nothing. Apply this after the migrations that create the tables.";
 
 const SERVICE_TABLES_HEADER =
   "-- Supabase Realtime and Storage: rls.realtime and rls.storage. RLS on both tables is Supabase's.";
@@ -268,7 +268,7 @@ export function generatePolicies(
       : {
           actorGuards: [
             ACTOR_GUARDS_HEADER,
-            ...actorGuards.map(guardedPolicySql),
+            ...actorGuards.map((item) => policySql(item)),
           ].join("\n"),
         }),
   };

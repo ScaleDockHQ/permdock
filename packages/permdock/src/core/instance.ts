@@ -2,7 +2,9 @@ import type { Assignable } from "./assignable.ts";
 import type { Decision, ExplainedDecision, TraceSkip } from "./decision.ts";
 import type { AuthEvent } from "./event-types.ts";
 import type { EvalEnv } from "./events.ts";
+import type { GrantedPermissionsOptions } from "./granted-permissions.ts";
 import type { InstanceEnv } from "./instance-env.ts";
+import type { MembershipFilter } from "./membership-filter.ts";
 import type {
   DecideIdsOptions,
   DecideOptions,
@@ -31,11 +33,13 @@ import { evaluate } from "./evaluate/index.ts";
 import { emitSafe, emptyListeners, finish } from "./events.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
+import { grantedPermissionsOf } from "./granted-permissions.ts";
 import { heldRoleNames, roleLeaf } from "./held-roles.ts";
 import { deriveEnv } from "./instance-env.ts";
 import { snapshotOf } from "./instance-snapshot.ts";
 import { attachInternals } from "./internals.ts";
 import { mayUse, permittedIds } from "./may-use.ts";
+import { filterMemberships } from "./membership-filter.ts";
 import { getResource, listPermissions } from "./permission-registry.ts";
 import { pendingRelations, relationReader } from "./relations.ts";
 import { audiencesOf } from "./role-rank.ts";
@@ -571,8 +575,24 @@ export function buildInstance(
     team(id: string): PermDock {
       return buildInstance(policy, subject, { ...envBase, relationCache }, id);
     },
-    memberships(): readonly Membership[] {
-      return subject.principal?.memberships ?? [];
+    memberships(filter?: MembershipFilter): readonly Membership[] {
+      return filterMemberships(subject.principal?.memberships ?? [], filter);
+    },
+    grantedPermissions(
+      options?: GrantedPermissionsOptions,
+    ): readonly Permission[] {
+      return grantedPermissionsOf(
+        policy,
+        snapshotOf(policy, subject, {
+          customRoles: envBase.customRoles,
+          customGrants,
+          omitAssignable: true,
+          ...(envBase.simulated === undefined
+            ? {}
+            : { simulated: envBase.simulated }),
+        }),
+        options,
+      );
     },
     tenants(): readonly string[] {
       return tenantsOf(subject.principal, scopeList(policy.scopes));

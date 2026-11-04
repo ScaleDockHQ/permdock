@@ -310,13 +310,13 @@ describe("rls generate cases", () => {
       });
       expect(outcome.code).toBe(0);
       expect(outcome.text).toContain(
-        `coalesce("spaceId"::text in (select "permdock".permitted_space_rows('space.read')), false)`,
+        `coalesce("spaceId"::text in (select p.id::text from "permdock".permitted_space_rows('space.read') as p(id)), false)`,
       );
       expect(outcome.text).toContain(
-        `"permdock".permitted_space_rows('space.read', array(select "spaceId"::text from permdock_candidates))`,
+        `"permdock".permitted_space_rows('space.read', array(select "spaceId"::uuid from permdock_candidates)) as p(id)`,
       );
       expect(outcome.text).toContain(
-        '"permdock".permitted_item_rows(p_permission text, p_ids text[])',
+        '"permdock".permitted_item_rows(p_permission text, p_ids uuid[])',
       );
     });
 

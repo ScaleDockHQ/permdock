@@ -1,4 +1,5 @@
 import type { Decision, ExplainedDecision } from "./decision.ts";
+import type { MembershipFilter } from "./membership-filter.ts";
 import type {
   DecideOptions,
   PermDock,
@@ -22,6 +23,7 @@ import {
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
 import { mayUse, permittedIds } from "./may-use.ts";
+import { filterMemberships } from "./membership-filter.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { rowIdOf } from "./row-pair.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
@@ -275,8 +277,11 @@ export function fromSnapshot(
         compact({ tenant: options.tenant, team: id }),
       );
     },
-    memberships() {
-      return subject.principal?.memberships ?? [];
+    memberships(filter?: MembershipFilter) {
+      return filterMemberships(subject.principal?.memberships ?? [], filter);
+    },
+    grantedPermissions() {
+      return [];
     },
     tenants() {
       return snapshot.tenants;

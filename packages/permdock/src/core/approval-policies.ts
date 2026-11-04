@@ -12,7 +12,7 @@ import type {
 import type { Scope } from "./scopes.ts";
 import type { Subject } from "./subject.ts";
 
-import { evaluateCondition } from "../conditions/evaluate.ts";
+import { evaluateCondition } from "../conditions/condition-evaluate.ts";
 import { normalizeWhere } from "../conditions/normalize.ts";
 import {
   assertApprovalRelations,
