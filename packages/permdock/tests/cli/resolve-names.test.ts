@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
+import type { PermDockConfig } from "../../src/cli/types.ts";
+
 import { resolveNames } from "../../src/cli/sql/resolve-names.ts";
 import {
   allow,
@@ -40,6 +42,18 @@ function policyWith(scopes: Record<string, { key: string; within?: string }>) {
 }
 
 describe(resolveNames, () => {
+  it("records the id type the row helpers take", () => {
+    const policy = policyWith({ organization: { key: "orgId" } });
+    const idType = (rls: NonNullable<PermDockConfig["rls"]>): unknown =>
+      resolveNames(policy, { rls: { rowHelpers: ["doc"], ...rls } }).resources[
+        "doc"
+      ]?.idType;
+    expect(idType({})).toBe("uuid");
+    expect(idType({ dialect: "neon" })).toBe("text");
+    expect(idType({ idTypes: { "*": "text", doc: "bigint" } })).toBe("bigint");
+    expect(idType({ idTypes: { "*": "text" } })).toBe("text");
+  });
+
   it("names every scope and graph resource helper, frozen", () => {
     const names = resolveNames(
       policyWith({
@@ -81,6 +95,7 @@ describe(resolveNames, () => {
           table: "public.docs",
           rows: "permitted_doc_rows",
           row: "permitted_doc_row",
+          idType: "uuid",
           visible: "public.docs_visible",
           visibleFields: "docs_visible_fields",
           mask: "docs_mask",

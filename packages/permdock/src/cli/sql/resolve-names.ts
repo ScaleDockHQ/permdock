@@ -15,6 +15,7 @@ import { configError } from "../core/errors.ts";
 import { FIELD_VIEWS } from "../rls/fields.ts";
 import { graphPlan } from "../rls/graph.ts";
 import { permittedUsersHelper } from "../rls/permission-holders.ts";
+import { idTypeOf } from "./columns.ts";
 import {
   graphHelper,
   graphSqlName,
@@ -80,6 +81,7 @@ function resourceNames(
     readonly table: string | undefined;
     readonly graph: boolean;
     readonly rows: boolean;
+    readonly idType: string;
     readonly fields: boolean;
   },
 ): SupabaseManifestResourceNames {
@@ -94,7 +96,11 @@ function resourceNames(
         }
       : {}),
     ...(input.rows && sql !== undefined
-      ? { rows: inheritedRowsHelper(resource), row: `permitted_${sql}_row` }
+      ? {
+          rows: inheritedRowsHelper(resource),
+          row: `permitted_${sql}_row`,
+          idType: input.idType,
+        }
       : {}),
     ...(input.fields && table !== undefined
       ? {
@@ -137,7 +143,12 @@ function checkNames(names: ResolvedNames): void {
     }
   }
   for (const [resource, helpers] of Object.entries(names.resources)) {
-    const { table: _table, visible: _visible, ...functions } = helpers;
+    const {
+      table: _table,
+      visible: _visible,
+      idType: _idType,
+      ...functions
+    } = helpers;
     for (const name of Object.values(functions)) {
       claim(name, `resource '${resource}'`);
     }
@@ -186,6 +197,13 @@ export function resolveNames(
           table: tables[resource],
           graph: graph.has(resource),
           rows: rows.has(resource),
+          idType: idTypeOf(
+            {
+              dialect: rls?.dialect ?? "supabase",
+              ...(rls?.idTypes === undefined ? {} : { idTypes: rls.idTypes }),
+            },
+            resource,
+          ),
           fields: rls?.fields !== undefined,
         });
         return Object.keys(entry).length === 0 ? [] : [[resource, entry]];

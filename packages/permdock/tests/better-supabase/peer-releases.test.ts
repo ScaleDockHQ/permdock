@@ -91,7 +91,9 @@ const everyTemplate: SupabaseHookManifest = {
     gucPrefix: "permdock",
     claims: { tenant: "tenant_id", role: "role" },
     scopes: {},
-    resources: { fileNode: { rows: "permitted_file_node_rows" } },
+    resources: {
+      fileNode: { rows: "permitted_file_node_rows", idType: "uuid" },
+    },
   },
   rls: {
     ...supabaseHookManifestFixture.rls,

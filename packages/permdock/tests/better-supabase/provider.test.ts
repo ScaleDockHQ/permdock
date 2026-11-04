@@ -1264,43 +1264,114 @@ describe(authorizationProvider, () => {
   });
 
   describe("rowHelpers", () => {
-    const withRows: SupabaseHookManifest = {
+    const withRows = (
+      resources: Record<string, { rows: string; idType?: string }>,
+    ): SupabaseHookManifest => ({
       ...supabaseHookManifestFixture,
       names: {
         schema: "permdock",
         gucPrefix: "permdock",
         claims: { tenant: "tenant_id", role: "role" },
         scopes: {},
-        resources: { fileNode: { rows: "permitted_file_node_rows" } },
+        resources,
       },
-    };
+    });
 
-    it("fills rowsWith from the row helpers only when asked", () => {
-      expect(
-        authorizationProvider({ manifest: withRows, catalog: emptyCatalog })
-          .functions,
-      ).not.toHaveProperty("rowsWith");
-
-      const provider = authorizationProvider({
-        manifest: withRows,
+    const rowsOf = (manifest: SupabaseHookManifest) =>
+      authorizationProvider({
+        manifest,
         catalog: emptyCatalog,
         rowHelpers: true,
       });
 
+    it("fills rowsWith from the row helpers only when asked", () => {
+      expect(
+        authorizationProvider({
+          manifest: withRows({
+            fileNode: { rows: "permitted_file_node_rows", idType: "uuid" },
+          }),
+          catalog: emptyCatalog,
+        }).functions,
+      ).not.toHaveProperty("rowsWith");
+
+      const provider = rowsOf(
+        withRows({
+          fileNode: { rows: "permitted_file_node_rows", idType: "uuid" },
+        }),
+      );
+
       expect(provider.functions).toMatchObject({
-        rowsWith: "permdock.permitted_{resource}_rows({permission}, {ids})",
+        rowsWith:
+          "permdock.permitted_{resource}_rows({permission}, ({ids})::uuid[])",
         rowsWithFor:
           "permdock.permitted_{resource}_rows_for({user}, {permission})",
       });
       expect(provider.requires).toContainEqual({
         function: "permdock.permitted_file_node_rows",
-        args: "text, text[]",
+        args: "text, uuid[]",
         role: "authenticated",
       });
       expect(provider.requires).toContainEqual({
         function: "permdock.permitted_file_node_rows_for",
         args: "uuid, text, jsonb",
         role: "postgres",
+      });
+    });
+
+    it("casts the candidate ids to a text or configured id type", () => {
+      expect(
+        rowsOf(
+          withRows({
+            fileNode: { rows: "permitted_file_node_rows", idType: "text" },
+          }),
+        ).functions.rowsWith,
+      ).toBe(
+        "permdock.permitted_{resource}_rows({permission}, ({ids})::text[])",
+      );
+      const ledger = rowsOf(
+        withRows({
+          ledger: { rows: "permitted_ledger_rows", idType: "bigint" },
+          entry: { rows: "permitted_entry_rows", idType: "bigint" },
+        }),
+      );
+      expect(ledger.functions.rowsWith).toBe(
+        "permdock.permitted_{resource}_rows({permission}, ({ids})::bigint[])",
+      );
+      expect(ledger.requires).toContainEqual({
+        function: "permdock.permitted_entry_rows",
+        args: "text, bigint[]",
+        role: "authenticated",
+      });
+    });
+
+    it("reads a manifest without idType as uuid", () => {
+      const legacy = rowsOf(
+        withRows({ fileNode: { rows: "permitted_file_node_rows" } }),
+      );
+      expect(legacy.functions.rowsWith).toBe(
+        "permdock.permitted_{resource}_rows({permission}, ({ids})::uuid[])",
+      );
+      expect(legacy.requires).toContainEqual({
+        function: "permdock.permitted_file_node_rows",
+        args: "text, uuid[]",
+        role: "authenticated",
+      });
+    });
+
+    it("reads every row without candidates when the id types differ", () => {
+      const provider = rowsOf(
+        withRows({
+          ledger: { rows: "permitted_ledger_rows", idType: "bigint" },
+          fileNode: { rows: "permitted_file_node_rows" },
+        }),
+      );
+      expect(provider.functions.rowsWith).toBe(
+        "permdock.permitted_{resource}_rows({permission})",
+      );
+      expect(provider.requires).toContainEqual({
+        function: "permdock.permitted_file_node_rows",
+        args: "text",
+        role: "authenticated",
       });
     });
 
