@@ -56,15 +56,32 @@ function suspensionTargets(
   add(targets, row.table, columns);
 }
 
-/**
- * The triggers that invalidate the memo when a write changes permitted ids
- * without changing a membership: the permission map, a custom role's grants and
- * a suspended user or scope. The hook's version triggers call the same bump.
- */
-export function memoGenerationSql(ctx: RlsSqlContext): string {
-  if (!memoizes(ctx)) {
-    return "";
+const IDENT = String.raw`(?:"(?:[^"]|"")+"|[A-Za-z_][A-Za-z0-9_$]*)`;
+const READ = new RegExp(
+  String.raw`(?<!\bdistinct\s+)(?<!\bextract\s*\([^()]*)\b(?:from|join)\s+(${IDENT})\.(${IDENT})(?![\w$]|\s*[.(])`,
+  "gu",
+);
+const SYSTEM = new Set(["auth", "pg_catalog", "information_schema"]);
+
+function unquote(name: string): string {
+  return name.startsWith('"') ? name.slice(1, -1).replaceAll('""', '"') : name;
+}
+
+export function readTables(sql: string): readonly string[] {
+  const out = new Set<string>();
+  for (const [, schema = "", table = ""] of sql.matchAll(READ)) {
+    const name = unquote(schema);
+    if (!SYSTEM.has(name)) {
+      out.add(`${name}.${unquote(table)}`);
+    }
   }
+  return [...out];
+}
+
+function memoTargets(
+  ctx: RlsSqlContext,
+  reads: string,
+): ReadonlyMap<string, Target> {
   const schema = helperSchema(ctx);
   const targets = new Map<string, Target>();
   add(targets, `${schema}.role_permissions`);
@@ -84,9 +101,17 @@ export function memoGenerationSql(ctx: RlsSqlContext): string {
   for (const row of Object.values(ctx.suspension?.scopes ?? {})) {
     suspensionTargets(targets, row);
   }
-  const bump = qualified(ctx, BUMP);
+  for (const table of readTables(reads)) {
+    if (!targets.has(qualifySqlTable(table))) {
+      add(targets, table);
+    }
+  }
+  return targets;
+}
+
+function triggersSql(ctx: RlsSqlContext, targets: Iterable<Target>): string {
   const trigger = qualified(ctx, TRIGGER);
-  const triggers = [...targets.values()]
+  return [...targets]
     .map(({ table, columns }) => {
       const target = quoteTable(qualifySqlTable(table));
       const update =
@@ -103,7 +128,22 @@ create trigger ${quoteIdent(`${TRIGGER}_truncate`)}
   for each statement execute function ${trigger}();`;
     })
     .join("\n");
-  return `-- a permission, custom-role or suspension write changes permitted ids inside the statement
+}
+
+/**
+ * The triggers that invalidate the memo when a write changes permitted ids
+ * inside the statement: the permission map, a custom role's grants, a suspended
+ * user or scope, and every table `reads` (the memoized helper bodies) selects
+ * from, such as the membership sources and the global roles. The hook's version
+ * triggers call the same bump.
+ */
+export function memoGenerationSql(ctx: RlsSqlContext, reads = ""): string {
+  if (!memoizes(ctx)) {
+    return "";
+  }
+  const bump = qualified(ctx, BUMP);
+  const trigger = qualified(ctx, TRIGGER);
+  return `-- a permission, custom-role, suspension or membership write changes permitted ids inside the statement
 create or replace function ${bump}()
 returns void
 language sql
@@ -132,5 +172,20 @@ begin
 end;
 $$;
 revoke execute on function ${trigger}() from public, anon, authenticated;
-${triggers}`;
+${triggersSql(ctx, memoTargets(ctx, reads).values())}`;
+}
+
+export function memoReadTriggersSql(
+  ctx: RlsSqlContext,
+  reads: string,
+  covered: string,
+): string {
+  const done = memoTargets(ctx, covered);
+  const targets = new Map<string, Target>();
+  for (const table of readTables(reads)) {
+    if (!done.has(qualifySqlTable(table))) {
+      add(targets, table);
+    }
+  }
+  return targets.size === 0 ? "" : triggersSql(ctx, targets.values());
 }

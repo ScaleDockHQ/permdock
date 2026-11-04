@@ -6,7 +6,7 @@ import type { SqlConnect } from "./pg.ts";
 import type { DoctorFinding } from "./shared/doctor-types.ts";
 import type { PermDockConfig } from "./types.ts";
 
-import { readMemberships } from "../supabase/subject.ts";
+import { readMemberships } from "../core/read-memberships.ts";
 import { partPath, pgDeltaPath } from "./core/output-files.ts";
 import { sqlFiles } from "./files.ts";
 import { pgConnector } from "./pg.ts";

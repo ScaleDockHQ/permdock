@@ -1,6 +1,7 @@
 import type { Policy, ResourceNode } from "../../index.ts";
 import type { CompiledBranch } from "../sql/compile.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
+import type { RowArm } from "./row-memo.ts";
 
 import { flattenGrantee } from "../../core/grantee.ts";
 import { listPermissions } from "../../core/permission-registry.ts";
@@ -17,8 +18,10 @@ import {
   quoteLiteral,
   quoteQualified,
 } from "../sql/quote.ts";
+import { memoizes } from "./helper-bodies.ts";
 import { permittedByPermissionHelper } from "./permission-keys.ts";
 import { orSql } from "./policies.ts";
+import { memoRowSql, memoRowTriggersSql } from "./row-memo.ts";
 
 /**
  * `permitted_<resource>_rows(p_permission)`: the resource's row ids the subject
@@ -201,6 +204,15 @@ export function inheritTargets(policy: Policy): readonly string[] {
   return [...out].toSorted();
 }
 
+/**
+ * `cost 1000`, so the planner runs a helper after the cheap filters, and
+ * `parallel safe` unless the scope helpers it calls keep a `set_config` memo,
+ * which a parallel worker cannot write.
+ */
+function plannerOf(ctx: RlsSqlContext): string {
+  return `cost 1000${memoizes(ctx) ? "" : "\nparallel safe"}`;
+}
+
 export const CANDIDATES = "permdock_candidates";
 
 function stubSql(ctx: RlsSqlContext, resource: string): string {
@@ -223,23 +235,45 @@ $$;`,
 
 function rowSql(
   ctx: RlsSqlContext,
-  rows: string,
+  policy: Policy,
+  node: ResourceNode,
   table: string,
-  where: string,
+  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string {
-  const fn = qualified(ctx, rows.replace(/_rows$/u, "_row"));
-  return `create or replace function ${fn}(p_row ${table}, p_permission text)
+  const fn = qualified(ctx, rowsHelper(node.name).replace(/_rows$/u, "_row"));
+  const body =
+    memoRowSql(
+      ctx,
+      policy,
+      fn,
+      `p_row ${table}`,
+      graphSqlName(node.name) ?? node.name,
+      armsOf(branches),
+      `${CANDIDATES} as (select (p_row).*)`,
+    ) ??
+    `create or replace function ${fn}(p_row ${table}, p_permission text)
 returns boolean
 language sql
 stable
 security definer
+${plannerOf(ctx)}
 set search_path = ''
 as $$
   with ${CANDIDATES} as (select (p_row).*)
-  select exists (select 1 from ${CANDIDATES} where ${where})
-$$;
+  select exists (select 1 from ${CANDIDATES} where ${whereOf(branches)})
+$$;`;
+  return `${body}
 revoke execute on function ${fn}(${table}, text) from public, anon;
 grant execute on function ${fn}(${table}, text) to authenticated;`;
+}
+
+function armsOf(
+  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
+): readonly RowArm[] {
+  return [...branches.keys()].toSorted().flatMap((key) => {
+    const sql = permissionCase(key, branches.get(key) ?? [], undefined);
+    return sql === undefined ? [] : [{ key, sql }];
+  });
 }
 
 /**
@@ -248,23 +282,37 @@ grant execute on function ${fn}(${table}, text) to authenticated;`;
  */
 function rowByIdSql(
   ctx: RlsSqlContext,
-  rows: string,
+  policy: Policy,
+  node: ResourceNode,
   table: string,
-  id: string,
   idType: string,
-  where: string,
+  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string {
-  const fn = qualified(ctx, rows.replace(/_rows$/u, "_row"));
-  return `create or replace function ${fn}(p_id ${idType}, p_permission text)
+  const fn = qualified(ctx, rowsHelper(node.name).replace(/_rows$/u, "_row"));
+  const id = quoteIdent(node.id);
+  const source = `${CANDIDATES} as materialized (select * from ${table} where ${id} = p_id)`;
+  const body =
+    memoRowSql(
+      ctx,
+      policy,
+      fn,
+      `p_id ${idType}`,
+      graphSqlName(node.name) ?? node.name,
+      armsOf(branches),
+      source,
+    ) ??
+    `create or replace function ${fn}(p_id ${idType}, p_permission text)
 returns boolean
 language sql
 stable
 security definer
+${plannerOf(ctx)}
 set search_path = ''
 as $$
-  with ${CANDIDATES} as materialized (select * from ${table} where ${id} = p_id)
-  select exists (select 1 from ${CANDIDATES} where ${where})
-$$;
+  with ${source}
+  select exists (select 1 from ${CANDIDATES} where ${whereOf(branches)})
+$$;`;
+  return `${body}
 revoke execute on function ${fn}(${idType}, text) from public, anon;
 grant execute on function ${fn}(${idType}, text) to authenticated;`;
 }
@@ -300,6 +348,7 @@ returns setof ${idType}
 language plpgsql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare
@@ -387,11 +436,11 @@ function tenantFirstOf(
 
 function resourceSql(
   ctx: RlsSqlContext,
+  policy: Policy,
   node: ResourceNode,
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
   narrowed: ReadonlyMap<string, readonly CompiledBranch[]>,
   tables: Readonly<Record<string, string>> | undefined,
-  policy: Policy,
 ): string {
   const name = rowsHelper(node.name);
   const fn = qualified(ctx, name);
@@ -405,6 +454,7 @@ returns setof ${idType}
 language sql
 stable
 security definer
+${plannerOf(ctx)}
 set search_path = ''
 as $$
   select ${quoteIdent(node.id)}::${idType} from ${table}
@@ -413,8 +463,8 @@ $$;
 revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;
 ${candidatesSql(fn, table, quoteIdent(node.id), idType, near)}
-${rowSql(ctx, name, table, near)}
-${rowByIdSql(ctx, name, table, quoteIdent(node.id), idType, near)}`;
+${rowSql(ctx, policy, node, table, narrowed)}
+${rowByIdSql(ctx, policy, node, table, idType, narrowed)}`;
   if (ctx.dialect === "neon") {
     return rows;
   }
@@ -471,12 +521,19 @@ export function rowHelpersSql(
     chunks.push(
       resourceSql(
         ctx,
+        policy,
         node,
         rowBranchesOf(branches, name),
         rowBranchesOf(narrowed, name),
         tables,
-        policy,
       ),
+    );
+  }
+  const triggers =
+    names.length === 0 ? "" : memoRowTriggersSql(ctx, policy, tables);
+  if (triggers !== "") {
+    chunks.push(
+      `-- a relation write changes what the row helpers' memo holds inside the statement\n${triggers}`,
     );
   }
   if (chunks.length > 0 && ctx.dialect === "neon") {

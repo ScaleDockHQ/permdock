@@ -737,6 +737,7 @@
     "authorizationHooks",
     "authorizationProvider",
     "authorizer",
+    "betterSupabaseVersionCache",
     "blockApprovalPolicySource",
     "blockApprovalStore",
     "blockMembershipSource",
@@ -745,6 +746,7 @@
     "getPermissions",
     "handlerCan",
     "hookCan",
+    "isBetterSupabaseVersionCache",
     "permdockFor",
     "principalFromMemberships",
     "principalSource",
@@ -865,6 +867,7 @@
     "testTokenSigner",
     "testTokenVerifier",
     "testVersionCache",
+    "testVersionStore",
     "testWhereCompiler"
   ],
   "./testing/core": ["policyMatrix", "testOrmParity", "testRlsParity"],

@@ -40,7 +40,14 @@ export type DecisionProvider = {
  * once at module scope uses it so the reads of one instance share a single
  * query and no answer outlives the instance.
  */
-export type SourceMemo = <T>(key: string, read: () => T) => T;
+export type SourceMemo = (<T>(key: string, read: () => T) => T) & {
+  /**
+   * The authorization version the instance was told it already holds
+   * (`version.known`). A source that caches records by version answers from it
+   * without reading the version.
+   */
+  readonly version?: number;
+};
 
 /**
  * One read a source made, for an `onSourceCall` hook: `cached` is `true` when

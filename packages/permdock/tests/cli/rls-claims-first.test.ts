@@ -199,6 +199,20 @@ describe("claims first helpers", () => {
     );
   });
 
+  it("bumps the memo generation on membership writes the helpers read", () => {
+    const sql = helpers();
+    expect(sql).toContain(
+      'create trigger "permdock_memo_generation"\n  after insert or update or delete on "public"."org_members"\n  for each statement',
+    );
+    expect(sql).toContain(
+      'create trigger "permdock_memo_generation_truncate"\n  after truncate on "public"."org_members"',
+    );
+    expect(sql).not.toMatch(/permdock_memo_generation" on "auth"\./u);
+    expect(
+      helpersSql(ctx({ authorize: "jwt" }), [], { userRoles: false }),
+    ).not.toContain("permdock_memo_generation");
+  });
+
   it("marks the custom-role write guards volatile when the helpers memoize", () => {
     const sql = helpers({
       customRoles: {

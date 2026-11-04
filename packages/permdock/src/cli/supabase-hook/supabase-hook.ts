@@ -49,6 +49,7 @@ import {
   authzVersionForSql,
   membersOfSql,
   apiWrappersSql,
+  permdockSubjectSql,
   subjectForSql,
 } from "./api.ts";
 import { attrsGuardSql } from "./claims.ts";
@@ -236,6 +237,7 @@ ${toml}${grantsOut === undefined ? "" : `\n-- what supabase db diff drops from t
     hookSql(parts),
     versionSql(parts),
     subjectForSql(parts, config),
+    permdockSubjectSql(parts),
     authzVersionForSql(parts),
     membersOfSql(parts),
     teamIdsOfSql(parts),

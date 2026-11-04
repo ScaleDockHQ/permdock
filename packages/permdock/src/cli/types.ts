@@ -438,6 +438,14 @@ export type RlsConfig = {
    */
   readonly helpersOnly?: boolean;
   /**
+   * Where the transaction-local helper memos live. `'permdock'` (default) reads
+   * and writes `permdock.m.*` with `current_setting` and `set_config`.
+   * `'better-supabase'` calls `better_supabase.memo_get` and `memo_set`, so the
+   * memo shares better-supabase's one mechanism; the keys stay `permdock.m.*`.
+   * Needs the `better_supabase` schema (better-supabase 0.52 or later).
+   */
+  readonly memo?: "permdock" | "better-supabase";
+  /**
    * Emit `permitted_<resource>_rows(p_permission)`, its `_for` form,
    * `permitted_<resource>_rows(p_permission, p_ids)` limited to candidate ids
    * and the row-valued `permitted_<resource>_row(p_row, p_permission)` for

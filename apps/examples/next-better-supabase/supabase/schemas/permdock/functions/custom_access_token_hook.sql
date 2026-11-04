@@ -327,6 +327,26 @@ end;
 $$;
 revoke execute on function "permdock".subject_for(uuid) from public, anon, authenticated;
 
+-- the signed-in user's subject_for record, for a bootstrap that seeds the authorizer; null when anonymous or suspended
+create or replace function "permdock".permdock_subject()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  subject jsonb := "permdock".subject_for((select "permdock".permdock_user_id()));
+begin
+  if subject is null or (subject ->> 'active') is distinct from 'true' then
+    return null;
+  end if;
+  return subject;
+end;
+$$;
+revoke execute on function "permdock".permdock_subject() from public, anon, authenticated;
+grant execute on function "permdock".permdock_subject() to authenticated;
+
 -- the authorization version subject_for reports for p_user, for a cheap freshness check; no client role may execute it
 create or replace function "permdock".authz_version_for(p_user uuid)
 returns bigint

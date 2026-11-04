@@ -185,7 +185,7 @@ grant execute on function ${fn}(text) to anon, authenticated;`
 grant execute on function ${fn}(text) to authenticated;`;
   return `create or replace function ${fn}(p_grant text)
 returns ${returns}
-${functionBody(body)}
+${functionBody(body, !memoizes(ctx))}
 ${grants}`;
 }
 
@@ -209,7 +209,7 @@ function forUserSql(ctx: RlsSqlContext): string {
     const qualifiedName = qualified(ctx, name);
     return `create or replace function ${qualifiedName}(p_user ${type}, p_grant text)
 returns ${returns}
-${functionBody(body)}
+${functionBody(body, !memoizes(ctx))}
 revoke execute on function ${qualifiedName}(${type}, text) from public, anon, authenticated;`;
   };
   return [
@@ -408,7 +408,7 @@ revoke all on table ${ur} from anon, authenticated, public;`);
   if (custom !== "") {
     chunks.push(custom);
   }
-  const memoGeneration = memoGenerationSql(ctx);
+  const memoGeneration = memoGenerationSql(ctx, memoReadsSql(ctx));
   if (memoGeneration !== "") {
     chunks.push(memoGeneration);
   }
@@ -490,7 +490,23 @@ function memoBody(
   if (!memoizes(ctx)) {
     return body;
   }
-  return { ...body, memo: { type, scope, user: subjectIdSql(ctx) } };
+  return {
+    ...body,
+    memo: {
+      type,
+      scope,
+      user: subjectIdSql(ctx),
+      ...(ctx.memo === undefined ? {} : { api: ctx.memo }),
+    },
+  };
+}
+
+export function memoReadsSql(ctx: RlsSqlContext): string {
+  const bodies = grantBodies(ctx);
+  return [
+    bodies.has.sql,
+    ...ctx.scopes.map((scope) => bodies.ids(scope.name).sql),
+  ].join("\n");
 }
 
 export function grantBodies(ctx: RlsSqlContext): {

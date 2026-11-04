@@ -606,6 +606,7 @@ export type Body = {
     readonly type: string;
     readonly scope: string;
     readonly user: string;
+    readonly api?: "better-supabase";
   };
 };
 
@@ -636,30 +637,57 @@ export function sourcesBodyOf(
   };
 }
 
+/** SQL reading the memo at `key`: a text value, or null when unset. */
+export function memoReadSql(
+  api: "better-supabase" | undefined,
+  key: string,
+): string {
+  return api === "better-supabase"
+    ? `better_supabase.memo_get(${key})`
+    : `nullif(current_setting(${key}, true), '')`;
+}
+
+/** SQL writing `value` to the memo at `key`. */
+export function memoWriteSql(
+  api: "better-supabase" | undefined,
+  key: string,
+  value: string,
+): string {
+  return api === "better-supabase"
+    ? `better_supabase.memo_set(${key}, ${value})`
+    : `set_config(${key}, ${value}, true)`;
+}
+
+export function memoDiscriminatorSql(user: string, key: string): string {
+  return `md5(concat_ws('|',
+      ${user},
+      ${key},
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    ))`;
+}
+
 /**
  * `language sql`, or `plpgsql` returning the query when the body declares
  * variables.
  */
-export function functionBody(body: Body): string {
+export function functionBody(body: Body, parallelSafe = false): string {
+  const planner = `cost 1000${parallelSafe ? "\nparallel safe" : ""}`;
   if (body.memo !== undefined) {
     const declare = [
       ...body.vars,
       `v_user text := ${body.memo.user}::text;`,
       `v_key text := 'permdock.m.' || ${quoteLiteral(body.memo.scope)} || '.k' || (hashtext(p_grant) & 1023)::text;`,
-      `v_disc text := md5(concat_ws('|',
-      v_user,
-      p_grant,
-      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
-      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
-      statement_timestamp()::text,
-      md5(coalesce((select auth.jwt())::text, ''))
-    ));`,
-      `v_memo text := nullif(current_setting(v_key, true), '');`,
+      `v_disc text := ${memoDiscriminatorSql("v_user", "p_grant")};`,
+      `v_memo text := ${memoReadSql(body.memo.api, "v_key")};`,
       `v_ids ${body.memo.type}[];`,
     ];
     return `language plpgsql
 volatile
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare
@@ -671,7 +699,7 @@ begin
     v_ids := array(
 ${body.sql}
     );
-    perform set_config(v_key, jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text, true);
+    perform ${memoWriteSql(body.memo.api, "v_key", "jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text")};
   end if;
   return query select unnest(v_ids);
 end;
@@ -681,6 +709,7 @@ $$;`;
     return `language sql
 stable
 security definer
+${planner}
 set search_path = ''
 as $$
 ${body.sql}
@@ -689,6 +718,7 @@ $$;`;
   return `language plpgsql
 stable
 security definer
+${planner}
 set search_path = ''
 as $$
 declare

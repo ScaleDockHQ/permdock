@@ -102,6 +102,11 @@ export type RlsSqlContext = {
    * alias; overrides `tenantType`.
    */
   readonly scopeTypes?: Readonly<Record<string, string>>;
+  /**
+   * `rls.memo: 'better-supabase'`: the helper memos call
+   * `better_supabase.memo_get` and `memo_set`.
+   */
+  readonly memo?: "better-supabase";
   /** `rls.idTypes`: the id type of the row helpers, by resource and `"*"`. */
   readonly idTypes?: Readonly<Record<string, string>>;
   /**

@@ -10,7 +10,7 @@ import { scopeTypeOf } from "../sql/columns.ts";
 import { permittedForHelper, permittedIdsHelper } from "../sql/names.ts";
 import { qualified, quoteIdent, quoteLiteral } from "../sql/quote.ts";
 import { HELPERS } from "../sql/shared.ts";
-import { functionBody } from "./helper-bodies.ts";
+import { functionBody, memoizes } from "./helper-bodies.ts";
 import { forUserContext, grantBodies } from "./helpers.ts";
 
 /**
@@ -117,17 +117,19 @@ grant execute on function ${fn}(${args}) to anon, authenticated;`
 grant execute on function ${fn}(${args}) to authenticated;`;
 }
 
-function definer(
+function definerSql(
   fn: string,
   params: string,
   returns: string,
   sql: string,
+  parallelSafe: boolean,
 ): string {
   return `create or replace function ${fn}(${params})
 returns ${returns}
 language sql
 stable
 security definer
+cost 1000${parallelSafe ? "\nparallel safe" : ""}
 set search_path = ''
 as $$
 ${sql}
@@ -143,10 +145,11 @@ function keysFunction(
   params: string,
   body: Body,
   access: string,
+  parallelSafe: boolean,
 ): string {
   return `create or replace function ${fn}(${params})
 returns setof text
-${functionBody(body).replace("set search_path = ''", "set search_path = ''\nset jit = off")}
+${functionBody(body, parallelSafe).replace("set search_path = ''", "set search_path = ''\nset jit = off")}
 ${access}`;
 }
 
@@ -170,6 +173,13 @@ export function permissionHelpersSql(
   renamed: Readonly<Record<string, string>>,
   anonExecute: boolean,
 ): string {
+  const parallel = !memoizes(ctx);
+  const definer = (
+    fn: string,
+    params: string,
+    returns: string,
+    sql: string,
+  ): string => definerSql(fn, params, returns, sql, parallel);
   const keys = qualified(ctx, PERMISSION_HELPERS.grantKeys);
   const allowKeys = (scope: string): string =>
     `${keys}(p_permission, ${quoteLiteral(scope)}) g(grant_key)`;
@@ -302,12 +312,14 @@ ${keysFunction(
   `p_id ${type}`,
   keysBody(scope.name, caller, false),
   grantsSql(keysFn, type, anonExecute),
+  parallel,
 )}
 ${keysFunction(
   keysFn,
   `p_id ${type}, p_keys text[]`,
   keysBody(scope.name, caller, true),
   grantsSql(keysFn, `${type}, text[]`, anonExecute),
+  parallel,
 )}`);
     chunks.push(`-- with p_conditioned true, also the instances a conditioned allow reaches, minus only unconditional denies: the caller applies the row condition
 ${definer(
@@ -375,12 +387,15 @@ revoke execute on function ${fn}(${user}, text, boolean) from public, anon, auth
       `p_user ${user}, p_id ${type}`,
       keysBody(scope.name, named, false),
       `revoke execute on function ${keysFor}(${user}, ${type}) from public, anon, authenticated;`,
+
+      parallel,
     )}
 ${keysFunction(
   keysFor,
   `p_user ${user}, p_id ${type}, p_keys text[]`,
   keysBody(scope.name, named, true),
   `revoke execute on function ${keysFor}(${user}, ${type}, text[]) from public, anon, authenticated;`,
+  parallel,
 )}`);
   }
   return `${chunks.join("\n\n")}\n`;

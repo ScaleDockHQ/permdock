@@ -8,7 +8,7 @@ import { canonicalJson } from "./canonical-json.ts";
 import { isThenable } from "./thenable.ts";
 
 const MAX_AGE_CEILING_MS = 60_000;
-const DEFAULT_MAX_AGE_MS = 5000;
+const DEFAULT_MAX_AGE_MS = 30_000;
 const DEFAULT_MAX_ENTRIES = 10_000;
 
 export type InstanceCacheStats = {
@@ -84,7 +84,7 @@ export type InstanceCacheOptions = {
   readonly maxEntries?: number;
   /**
    * Milliseconds an entry is reused: the longest a custom-role or entitlement
-   * change waits to reach an instance. Default 5,000; clamped to 0 to 60,000.
+   * change waits to reach an instance. Default 30,000; clamped to 0 to 60,000.
    */
   readonly maxAgeMs?: number;
   /** Epoch milliseconds. */

@@ -28,7 +28,7 @@ export const issuer = `${env.supabaseUrl}/auth/v1`;
  */
 const query = supabasePostgresQuery(postgres.admin);
 export const memberships = sources({ query });
-export const versions = memoryVersionCache({ maxStaleMs: 5_000 });
+export const versions = memoryVersionCache();
 const version = authzVersion({ query });
 
 /**

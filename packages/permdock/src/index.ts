@@ -214,6 +214,7 @@ export type {
   MemoryVersionCacheOptions,
   VersionCache,
   VersionCacheStats,
+  VersionStore,
 } from "./core/version-cache.ts";
 export type {
   LocalCustomRoleTable,

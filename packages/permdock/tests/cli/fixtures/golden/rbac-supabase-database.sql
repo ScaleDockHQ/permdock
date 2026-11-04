@@ -85,7 +85,7 @@ where (role, grant_key, scope) not in (values
   ('member', 'post.update#2', 'tenant')
 );
 
--- a permission, custom-role or suspension write changes permitted ids inside the statement
+-- a permission, custom-role, suspension or membership write changes permitted ids inside the statement
 create or replace function "permdock".permdock_bump_memo_generation()
 returns void
 language sql
@@ -122,12 +122,29 @@ drop trigger if exists "permdock_memo_generation_truncate" on "permdock"."role_p
 create trigger "permdock_memo_generation_truncate"
   after truncate on "permdock"."role_permissions"
   for each statement execute function "permdock".permdock_memo_generation();
+drop trigger if exists "permdock_memo_generation" on "permdock"."user_roles";
+create trigger "permdock_memo_generation"
+  after insert or update or delete on "permdock"."user_roles"
+  for each statement execute function "permdock".permdock_memo_generation();
+drop trigger if exists "permdock_memo_generation_truncate" on "permdock"."user_roles";
+create trigger "permdock_memo_generation_truncate"
+  after truncate on "permdock"."user_roles"
+  for each statement execute function "permdock".permdock_memo_generation();
+drop trigger if exists "permdock_memo_generation" on "public"."organization_members";
+create trigger "permdock_memo_generation"
+  after insert or update or delete on "public"."organization_members"
+  for each statement execute function "permdock".permdock_memo_generation();
+drop trigger if exists "permdock_memo_generation_truncate" on "public"."organization_members";
+create trigger "permdock_memo_generation_truncate"
+  after truncate on "public"."organization_members"
+  for each statement execute function "permdock".permdock_memo_generation();
 
 create or replace function "permdock".permdock_has(p_grant text)
 returns boolean
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select exists (
@@ -147,6 +164,7 @@ returns setof uuid
 language plpgsql
 volatile
 security definer
+cost 1000
 set search_path = ''
 as $$
 declare
@@ -188,6 +206,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select distinct m."organization_id"::uuid
@@ -203,6 +222,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select distinct m."organization_id"::uuid
@@ -218,6 +238,7 @@ returns boolean
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select exists (
@@ -236,6 +257,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select m."organization_id"::uuid
@@ -336,6 +358,7 @@ returns boolean
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select exists (select 1 from "permdock".grant_keys(p_permission, 'global') g(grant_key) where "permdock".permdock_has(g.grant_key))
@@ -349,6 +372,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select a.id
@@ -368,6 +392,7 @@ returns setof text
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 set jit = off
 as $$
@@ -426,6 +451,7 @@ returns setof text
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 set jit = off
 as $$
@@ -487,6 +513,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select a.id
@@ -516,6 +543,7 @@ returns boolean
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select exists (select 1 from "permdock".grant_keys(p_permission, 'global') g(grant_key) where "permdock".permdock_has_for(p_user, g.grant_key))
@@ -528,6 +556,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select a.id
@@ -545,6 +574,7 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 as $$
   select a.id
@@ -572,6 +602,7 @@ returns setof text
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 set jit = off
 as $$
@@ -628,6 +659,7 @@ returns setof text
 language sql
 stable
 security definer
+cost 1000
 set search_path = ''
 set jit = off
 as $$
