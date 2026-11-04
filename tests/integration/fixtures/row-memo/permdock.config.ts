@@ -8,6 +8,7 @@ export default {
     authorize: "database",
     helpersOnly: true,
     rowHelpers: ["doc"],
+    idTypes: { doc: "text" },
     memberships: {
       scopes: {
         tenant: {

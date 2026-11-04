@@ -246,10 +246,10 @@ function rowSql(
       ctx,
       policy,
       fn,
-      table,
+      `p_row ${table}`,
       graphSqlName(node.name) ?? node.name,
       armsOf(branches),
-      CANDIDATES,
+      `${CANDIDATES} as (select (p_row).*)`,
     ) ??
     `create or replace function ${fn}(p_row ${table}, p_permission text)
 returns boolean
@@ -269,14 +269,9 @@ grant execute on function ${fn}(${table}, text) to authenticated;`;
 
 function armsOf(
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
-  tenantFirst?: (key: string) => string | undefined,
 ): readonly RowArm[] {
   return [...branches.keys()].toSorted().flatMap((key) => {
-    const sql = permissionCase(
-      key,
-      branches.get(key) ?? [],
-      tenantFirst?.(key),
-    );
+    const sql = permissionCase(key, branches.get(key) ?? [], undefined);
     return sql === undefined ? [] : [{ key, sql }];
   });
 }
@@ -287,14 +282,26 @@ function armsOf(
  */
 function rowByIdSql(
   ctx: RlsSqlContext,
-  rows: string,
+  policy: Policy,
+  node: ResourceNode,
   table: string,
-  id: string,
   idType: string,
-  where: string,
+  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string {
-  const fn = qualified(ctx, rows.replace(/_rows$/u, "_row"));
-  return `create or replace function ${fn}(p_id ${idType}, p_permission text)
+  const fn = qualified(ctx, rowsHelper(node.name).replace(/_rows$/u, "_row"));
+  const id = quoteIdent(node.id);
+  const source = `${CANDIDATES} as materialized (select * from ${table} where ${id} = p_id)`;
+  const body =
+    memoRowSql(
+      ctx,
+      policy,
+      fn,
+      `p_id ${idType}`,
+      graphSqlName(node.name) ?? node.name,
+      armsOf(branches),
+      source,
+    ) ??
+    `create or replace function ${fn}(p_id ${idType}, p_permission text)
 returns boolean
 language sql
 stable
@@ -302,9 +309,10 @@ security definer
 ${plannerOf(ctx)}
 set search_path = ''
 as $$
-  with ${CANDIDATES} as materialized (select * from ${table} where ${id} = p_id)
-  select exists (select 1 from ${CANDIDATES} where ${where})
-$$;
+  with ${source}
+  select exists (select 1 from ${CANDIDATES} where ${whereOf(branches)})
+$$;`;
+  return `${body}
 revoke execute on function ${fn}(${idType}, text) from public, anon;
 grant execute on function ${fn}(${idType}, text) to authenticated;`;
 }
@@ -313,7 +321,14 @@ function whereOf(
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
   tenantFirst?: (key: string) => string | undefined,
 ): string {
-  const cases = armsOf(branches, tenantFirst).map((arm) => arm.sql);
+  const cases = [...branches.keys()].toSorted().flatMap((key) => {
+    const sql = permissionCase(
+      key,
+      branches.get(key) ?? [],
+      tenantFirst?.(key),
+    );
+    return sql === undefined ? [] : [sql];
+  });
   return cases.length === 0
     ? "false"
     : `case p_permission\n${cases.join("\n")}\n    else false\n  end`;
@@ -449,7 +464,7 @@ revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;
 ${candidatesSql(fn, table, quoteIdent(node.id), idType, near)}
 ${rowSql(ctx, policy, node, table, narrowed)}
-${rowByIdSql(ctx, name, table, quoteIdent(node.id), idType, near)}`;
+${rowByIdSql(ctx, policy, node, table, idType, narrowed)}`;
   if (ctx.dialect === "neon") {
     return rows;
   }

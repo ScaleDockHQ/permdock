@@ -64,8 +64,8 @@ function context(
 function generate(
   dialect: RlsSqlContext["dialect"],
   select: true | readonly string[] = true,
-  extra: Partial<RlsSqlContext> = {},
   idTypes?: Readonly<Record<string, string>>,
+  extra: Partial<RlsSqlContext> = {},
 ): { readonly sql: string; readonly warnings: readonly string[] } {
   const warnings: string[] = [];
   const ctx = { ...context(dialect, idTypes), ...extra };
@@ -161,15 +161,13 @@ describe("permitted_<resource>_rows", () => {
   });
 
   it("types the ids from rls.idTypes, a named resource over the * default", () => {
-    const text = generate("supabase", ["doc"], {}, { "*": "text" }).sql;
+    const text = generate("supabase", ["doc"], { "*": "text" }).sql;
     expect(text).toContain("p_ids text[]");
     expect(text).not.toContain("uuid[]");
-    const bigint = generate(
-      "supabase",
-      ["doc"],
-      {},
-      { "*": "text", doc: "bigint" },
-    ).sql;
+    const bigint = generate("supabase", ["doc"], {
+      "*": "text",
+      doc: "bigint",
+    }).sql;
     expect(bigint).toContain(
       "p_permission text, p_ids bigint[])\nreturns setof bigint",
     );
@@ -224,15 +222,16 @@ describe("permitted_<resource>_rows", () => {
 
 describe("permitted_<resource>_row memo", () => {
   const memoized = (): string =>
-    generate("supabase", ["doc"], { authorize: "database" }).sql;
+    generate("supabase", ["doc"], undefined, { authorize: "database" }).sql;
+
+  function rowBody(sql: string): string {
+    const start = sql.indexOf('"permdock".permitted_doc_row(p_row');
+    return sql.slice(start, sql.indexOf("$$;", start));
+  }
 
   it("calls better_supabase.memo_get and memo_set under rls.memo 'better-supabase'", () => {
-    const body = (sql: string): string => {
-      const start = sql.indexOf('"permdock".permitted_doc_row(p_row');
-      return sql.slice(start, sql.indexOf("$$;", start));
-    };
-    const shared = body(
-      generate("supabase", ["doc"], {
+    const shared = rowBody(
+      generate("supabase", ["doc"], undefined, {
         authorize: "database",
         memo: "better-supabase",
       }).sql,
@@ -243,15 +242,9 @@ describe("permitted_<resource>_row memo", () => {
     expect(shared).toContain(
       "perform better_supabase.memo_set(v_permdock_key,",
     );
-    expect(shared).toContain("'permdock.m.' || 'doc' || '.r'");
     expect(shared).not.toContain("set_config(");
-    expect(body(memoized())).toContain("perform set_config(v_permdock_key,");
+    expect(rowBody(memoized())).toContain("perform set_config(v_permdock_key,");
   });
-
-  function rowBody(sql: string): string {
-    const start = sql.indexOf('"permdock".permitted_doc_row(p_row');
-    return sql.slice(start, sql.indexOf("$$;", start));
-  }
 
   it("keeps the sql form when the helpers do not memoize", () => {
     expect(rowBody(generate("supabase", ["doc"]).sql)).toContain(

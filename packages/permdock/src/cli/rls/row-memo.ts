@@ -27,6 +27,7 @@ import {
 import { TOKEN_SCOPE_ALLOWS } from "./token-scopes.ts";
 
 const TERMS = "v_permdock_terms";
+const CANDIDATES = "permdock_candidates";
 const PAIRS = 50;
 
 type Call = {
@@ -232,7 +233,7 @@ export function memoRowSql(
   ctx: RlsSqlContext,
   policy: Policy,
   fn: string,
-  table: string,
+  params: string,
   resource: string,
   arms: readonly RowArm[],
   candidates: string,
@@ -256,7 +257,7 @@ export function memoRowSql(
         `      when ${quoteLiteral(arm.key)} then ${computeSql(arm.used)}`,
     );
   const where = `case p_permission\n${rewritten.map((arm) => arm.sql).join("\n")}\n    else false\n  end`;
-  return `create or replace function ${fn}(p_row ${table}, p_permission text)
+  return `create or replace function ${fn}(${params}, p_permission text)
 returns boolean
 language plpgsql
 volatile
@@ -280,8 +281,8 @@ ${computed.join("\n")}
     perform ${memoWriteSql(ctx.memo, "v_permdock_key", `jsonb_build_object('k', v_permdock_disc, 'v', ${TERMS})::text`)};
   end if;
   return exists (
-    with ${candidates} as (select (p_row).*)
-    select 1 from ${candidates} where ${where}
+    with ${candidates}
+    select 1 from ${CANDIDATES} where ${where}
   );
 end;
 $$;`;
