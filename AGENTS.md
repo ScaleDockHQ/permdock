@@ -138,7 +138,7 @@ Records in `docs/decisions`:
 - 0055 `turbo.json` `global` block
 - 0056 `permdock/app` and `definePermDock`
 - 0057 `oxc-parser`, `jiti` as optional CLI peers
-- 0058 `permdock/react/lite`
+- 0058 React evaluator split
 
 ## Pre-release pins
 

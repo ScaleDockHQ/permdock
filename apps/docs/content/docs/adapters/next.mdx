@@ -206,7 +206,7 @@ A capability token in the URL (`?token=`) is URL data: a `<Link prefetch={true}>
 
 ### Ship less client JavaScript
 
-`getPermission` and `requirePermission` resolve in a Server Component and send no PermDock code to the browser. A page that only gates server-side needs no `PermDockProvider`. For client components that ask type-level questions, pass `granted={permdock.grantedPermissions()}` to the provider of `permdock/react/lite` (282 B gzip instead of 20,263 B). Keep `PermDockProvider` from this adapter for row-level checks and tenant switching ([client weight](/docs/concepts/ui#client-weight)).
+`getPermission` and `requirePermission` resolve in a Server Component and send no PermDock code to the browser. A page that only gates server-side needs no `PermDockProvider`. Client components that ask type-level questions through `usePermission(permission)` need only the snapshot table; the evaluator chunk loads when a component needs a `Decision` or row data ([client weight](/docs/concepts/ui#client-weight)).
 
 ### Why an explicit factory file and not a Next plugin
 
