@@ -307,7 +307,7 @@ describe("inherit() in generated RLS", () => {
       (item) => item.permissionKey === "node.read",
     );
     expect(branch?.using).toBe(
-      `(coalesce("driveId"::text in (select "permdock".permitted_drive_rows('drive.read')), false) and "restricted" is not true)`,
+      `(coalesce("driveId"::text in (select p.id::text from "permdock".permitted_drive_rows('drive.read') as p(id)), false) and "restricted" is not true)`,
     );
     expect(branch?.roles).toStrictEqual(["authenticated"]);
   });
@@ -330,10 +330,10 @@ describe("inherit() in generated RLS", () => {
     const using = (key: string): string | undefined =>
       compiled.branches.find((item) => item.permissionKey === key)?.using;
     expect(using("node.read")).toBe(
-      `(coalesce("driveId"::text in (select "permdock".permitted_drive_rows('drive.read', array(select "driveId"::text from permdock_candidates))), false) and "restricted" is not true)`,
+      `(coalesce("driveId"::text in (select p.id::text from "permdock".permitted_drive_rows('drive.read', array(select "driveId"::uuid from permdock_candidates)) as p(id)), false) and "restricted" is not true)`,
     );
     expect(using("node.delete")).toContain(
-      `"folderId"::text in (select "permdock".permitted_folder_rows('folder.read', array(select "folderId"::text from permdock_candidates)))`,
+      `"folderId"::uuid in (select "permdock".permitted_folder_rows('folder.read', array(select "folderId"::uuid from permdock_candidates)))`,
     );
   });
 
@@ -355,13 +355,13 @@ describe("inherit() in generated RLS", () => {
       undefined,
       [],
     );
-    const stub = sql.indexOf("select null::text where false");
+    const stub = sql.indexOf("select null::uuid where false");
     const driveHelper = sql.indexOf(
       '"permdock".permitted_drive_rows(p_permission text)',
     );
     expect(
       sql.indexOf(
-        '"permdock".permitted_drive_rows(p_permission text, p_ids text[])',
+        '"permdock".permitted_drive_rows(p_permission text, p_ids uuid[])',
       ),
     ).toBeLessThan(sql.indexOf("when 'node.read' then"));
     expect(stub).toBeGreaterThan(-1);

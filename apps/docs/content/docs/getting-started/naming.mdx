@@ -16,7 +16,7 @@ The rest follows from that rule:
 - A context or prop type puts the adapter first (`ExpressPermDockRequest`, `HonoPermDockEnv`) and spells out `Context`.
 - Signed outputs are `vnd.permdock.<format>+jwt` and CloudEvents types are `com.permdock.<family>`.
 
-[Renamed in 0.17.0](#renamed-in-0170) and [Renamed in 0.5.0](#renamed-in-050) list every name these rules changed; `permdock codemod 0.17` and `permdock codemod 0.5` apply them.
+[Renamed in 0.22.0](#renamed-in-0220), [Renamed in 0.17.0](#renamed-in-0170) and [Renamed in 0.5.0](#renamed-in-050) list every name these rules changed; `permdock codemod 0.17` and `permdock codemod 0.5` apply them.
 
 ## The core names
 
@@ -606,6 +606,15 @@ PermDock's subject vocabulary is TypeScript, camelCase and typed; the specificat
 - The server factory lives in `src/permdock/server.ts` in every example. The definition is `src/permissions.ts`; the policy is `src/policy.ts`; generated definitions are `src/permissions.generated.ts`.
 - Example apps are `apps/examples/<adapter>`; the docs page is `/docs/adapters/<adapter>`; the source folder is `packages/permdock/src/<adapter>`. The same short name is used in all three.
 - Errors are `PermDockDeniedError`, `PermDockApprovalRequiredError`, `PermDockValidationError` and `PermDockRevokedError`. Any other error class is a domain error with an `is<Name>` guard: `ApprovalError` and `isApprovalError`, `AccessReviewError` and `isAccessReviewError`, `DirectoryUniquenessError` and `isDirectoryUniquenessError`, `DirectoryNotFoundError` and `isDirectoryNotFoundError`, `CloudAuthError` and `isCloudAuthError`, plus `InvalidSignatureError`. Every guard matches by `name` and `code`, so an error from another copy of the module still maps. Problem Details `type` URIs end in `/denied`, `/approval-required` and `/validation`. The first two carry `digest` (React's name for the property that survives the Server Component boundary): `PERMDOCK_DENIED;<permission>` and `PERMDOCK_APPROVAL_REQUIRED;<permission>;<token>`, read with `parsePermDockDigest`.
+
+## Renamed in 0.22.0
+
+`permdock codemod 0.5` lists the `defineApp` call sites; `doctor.sharedTables` has no codemod, since only the reader knows which resource owns the table.
+
+| Old                                          | New                                                                                          |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `defineApp(policy, options)` from `permdock` | `definePermDock(policy, options)` from `permdock/app`                                        |
+| `doctor.sharedTables` (config key, removed)  | `rls.tables.<resource>: { tableOf: '<owner>' }`; doctor `PD075` skips a resource that has it |
 
 ## Renamed in 0.17.0
 
