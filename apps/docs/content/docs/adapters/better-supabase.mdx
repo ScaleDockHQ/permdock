@@ -327,7 +327,7 @@ The adapter maps the request this way:
 
 `memberships` supplies live rows when token memberships are stale or truncated. `version` reads the current authorization version; it defaults to the source's own `version` method. A generated SQL membership source does not necessarily read the version stored by the token hook: pass `authzVersion({ query })` from `permdock/supabase` when the hook's `authz_ver` is the freshness contract. `version` is the reader function, `authz_ver` is the token claim, and `principal.authzVersion` is the verified claim mapped onto the subject.
 
-`versions` is the cache of those version reads, not a membership source. better-supabase's runtime cache takes precedence over this fallback option. It caches reads only within `maxStaleMs`; a write check reads the version live. Without `memberships`, the authorizer does not install `claimsFirst`, and `version` and `versions` do not add freshness checks on their own.
+`versions` is the cache of those version reads, not a membership source. better-supabase's runtime cache takes precedence over this fallback option. It caches reads only within `maxStaleMs`, which defaults to 30,000 for `memoryVersionCache` and `instanceCache` (the ceiling stays 60,000); `memoryVersionCache({ shared })` takes a `VersionStore` (`get`, `set`, `delete`) so instances share what one read, and `betterSupabaseVersionCache(cache)` from `permdock/better-supabase` wraps better-supabase's `createVersionCache` as a PermDock `VersionCache`. `authorizer` and `permdockFor` accept either shape; a write check reads the version live. Without `memberships`, the authorizer does not install `claimsFirst`, and `version` and `versions` do not add freshness checks on their own.
 
 Each check builds its instance with an [`intent`](/docs/adapters/supabase#freshness-and-the-version-cache), the first row that applies:
 
@@ -408,6 +408,10 @@ Here `sources` is the app's generated membership-source factory. `authorizer` wr
 - `await bsb.evictSession(userId, { tags })` forgets the user's verified session and calls `versions.evict(userId)`, so the next PermDock instance reads the version live. `authorizationHooks` sets `sessionTags(userId)` to `[snapshotTag(userId)]`, so it also clears the user's cached PermDock snapshots, as sign-out and `refreshSessionCache` do.
 - better-supabase passes `authorizer` a request-scope `memo`, and the checks of one scope share one PermDock instance per claims, tenant and intent. With `instances`, requests share it too.
 - `bsb.getClaims()` verifies the token once per request and returns a `SessionSnapshot`. `subjectFromBetterSupabase(snapshot)` maps it like the user session of its claims, with `iat` as `Subject.issuedAt` and `authz_ver` as `principal.authzVersion`. A snapshot whose `claims.sub` is not its `userId` maps to the anonymous subject.
+
+### Bootstrap seed
+
+When better-supabase passes `runtime.seed` (`{ userId, version, subject }`), the authorizer uses it only if `userId` equals the token's `sub`. It then seeds the subjects cache with the subject and passes `version: { known }`, so the instance reads no `subject_for`. A seed for another user is ignored, and so is one whose version differs from the live one. `PermDockForResult.subject` carries the record out of a bootstrap result. Supply the subject with `<helpers schema>.permdock_subject()` ([hook](/docs/adapters/supabase-hook)).
 
 `bsb.bootstrap()` reads `authz_ver` with the app's bootstrap data once per request and seeds `versions` through `AuthzVersionCache.seed`, which PermDock's `VersionCache` implements. A later read in the same process skips the version call, and `permdockFor` passes a bootstrap's version as `version: { known }`, so the request that read it skips it too.
 
