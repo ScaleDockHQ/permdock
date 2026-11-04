@@ -2,6 +2,10 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.21.0 (2026-11-04)
+
+- Add `omitAssignable` to `permdock.snapshot`, `snapshotFor`, `getSnapshot` and the Next.js provider. It leaves `assignable` out of the snapshot, which repeats every assignable role and permission per tenant and made a `tenants: "all"` snapshot for a member of ten organisations about 270 KB larger. Checks are unchanged; `assignableRoles` and `assignablePermissions` return nothing on a snapshot built this way.
+
 ## 0.20.1 (2026-11-03)
 
 - `permdock rls generate` emits cheaper helpers. A helper reads the memberships already in the token when the token's `authz_ver` matches the stored version, and falls back to the membership tables otherwise, so a stale token never grants more than the tables. The token scope map is an immutable function the planner evaluates once. Suspension checks fold into the membership joins instead of running as correlated subselects. On Supabase with database authorization, permitted ids are memoized in transaction-local settings under at most 1024 keys per scope, and the stored value carries a discriminator for the grant, user, token version, memo generation and statement. A helper reuses the value only while the discriminator matches, so the key set stays bounded on a pooled backend and a permission, custom-role, role rename or suspension write, including `TRUNCATE`, recomputes inside the same statement. The invalidation triggers run once per statement. The memoized helpers are volatile because the memo write is volatile. Behaviour and grants are unchanged.
