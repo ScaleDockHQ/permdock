@@ -1,5 +1,4 @@
 import type { Decision, ExplainedDecision } from "./decision.ts";
-import type { MembershipFilter } from "./membership-filter.ts";
 import type {
   DecideOptions,
   PermDock,
@@ -7,7 +6,7 @@ import type {
   SnapshotOptions,
 } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
-import type { Snapshot, SnapshotAssignable } from "./snapshot-types.ts";
+import type { Snapshot } from "./snapshot-types.ts";
 import type { Membership } from "./subject.ts";
 import type { Role } from "./vocabulary.ts";
 
@@ -23,14 +22,13 @@ import {
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
 import { mayUse, permittedIds } from "./may-use.ts";
-import { filterMemberships } from "./membership-filter.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { rowIdOf } from "./row-pair.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
 import { evaluateSnapshot, whereFromSnapshot } from "./snapshot-evaluate.ts";
+import { snapshotReads } from "./snapshot-reads.ts";
 import { signSnapshot } from "./snapshot-sign.ts";
-import { heldRoleNames, subjectFromSnapshot } from "./snapshot-subject.ts";
-import { findRole, listRoles, synthesiseRole } from "./vocabulary.ts";
+import { subjectFromSnapshot } from "./snapshot-subject.ts";
 
 function resourceRef(
   snapshot: Snapshot,
@@ -44,16 +42,6 @@ function resourceRef(
   return id === undefined || id === "*"
     ? { type: permission.resource }
     : { type: permission.resource, id };
-}
-
-function assignableEntry(
-  snapshot: Snapshot,
-  tenant: string | undefined,
-): SnapshotAssignable | undefined {
-  if (tenant === undefined) {
-    return undefined;
-  }
-  return snapshot.assignable?.find((entry) => entry.tenant === tenant);
 }
 
 export function fromSnapshot(
@@ -151,6 +139,7 @@ export function fromSnapshot(
     }) as ExplainedDecision) as PermDock["explain"];
 
   const instance: PermDock = {
+    ...snapshotReads(snapshot, subject),
     can,
     decide,
     canAll: (checks, decideOptions) => canAllWith(can, checks, decideOptions),
@@ -232,8 +221,10 @@ export function fromSnapshot(
       const previewRoles = preview.roles?.map((item) =>
         typeof item === "string" ? item : item.key,
       );
+      // The table answers for the real subject.
+      const { typeLevel: _real, ...rest } = snapshot;
       const next: Snapshot = freezeDeep({
-        ...snapshot,
+        ...rest,
         simulated: true as const,
         subject: {
           ...snapshot.subject,
@@ -277,48 +268,8 @@ export function fromSnapshot(
         compact({ tenant: options.tenant, team: id }),
       );
     },
-    memberships(filter?: MembershipFilter) {
-      return filterMemberships(subject.principal?.memberships ?? [], filter);
-    },
     grantedPermissions() {
       return [];
-    },
-    tenants() {
-      return snapshot.tenants;
-    },
-    heldRoles(query?: {
-      readonly tenant?: string;
-      readonly scope?: string;
-      readonly id?: string;
-    }) {
-      const names = heldRoleNames(
-        subject,
-        query?.tenant ?? subject.principal?.tenant,
-        scopeList(snapshot.scopes),
-        compact({ scope: query?.scope, id: query?.id, rank: snapshot.roles }),
-      );
-      const tree = snapshot.vocabulary?.roles;
-      return names.map((name) => findRole(tree, name) ?? synthesiseRole(name));
-    },
-    audiences() {
-      const tenant = subject.principal?.tenant;
-      if (tenant === snapshot.subject.principal?.tenant) {
-        return snapshot.audiences ?? [];
-      }
-      const tree = snapshot.vocabulary?.roles;
-      const out: string[] = [];
-      for (const name of heldRoleNames(
-        subject,
-        tenant,
-        scopeList(snapshot.scopes),
-        { rank: snapshot.roles },
-      )) {
-        const audience = findRole(tree, name)?.meta.audience;
-        if (typeof audience === "string" && !out.includes(audience)) {
-          out.push(audience);
-        }
-      }
-      return out;
     },
     prefetchRelations() {
       // A snapshot carries no graph: graph grants go to the decision endpoint.
@@ -334,70 +285,9 @@ export function fromSnapshot(
       // A snapshot carries its grants already resolved: no source applies to it.
       return Promise.resolve(instance);
     },
-    assignableRoles(query?: {
-      readonly tenant?: string;
-      readonly scope?: "global";
-    }) {
-      if (query?.scope === "global") {
-        return [];
-      }
-      const tenant = query?.tenant ?? subject.principal?.tenant;
-      const tree = snapshot.vocabulary?.roles;
-      if (snapshot.assignable !== undefined) {
-        const entry = assignableEntry(snapshot, tenant);
-        return (entry?.roles ?? []).map(
-          (name) =>
-            findRole(tree, name) ?? synthesiseRole(name, { assignable: true }),
-        );
-      }
-      const names = new Set(
-        heldRoleNames(subject, tenant, scopeList(snapshot.scopes)),
-      );
-      return listRoles(tree).filter(
-        (leaf) => leaf.assignable && names.has(leaf.key),
-      );
-    },
-    assignablePermissions(query?: {
-      readonly tenant?: string;
-      readonly scope?: "global";
-    }) {
-      if (query?.scope === "global") {
-        return [];
-      }
-      const tenant = query?.tenant ?? subject.principal?.tenant;
-      return assignableEntry(snapshot, tenant)?.permissions ?? [];
-    },
-    assignableLevels(
-      permission: Permission,
-      query?: { readonly tenant?: string; readonly scope?: "global" },
-    ) {
-      if (query?.scope === "global") {
-        return [];
-      }
-      const levels = assignableEntry(
-        snapshot,
-        query?.tenant ?? subject.principal?.tenant,
-      )?.levels;
-      if (levels === undefined || !Object.hasOwn(levels, permission.key)) {
-        return [];
-      }
-      const names = levels[permission.key];
-      return Array.isArray(names)
-        ? names.filter((name): name is string => typeof name === "string")
-        : [];
-    },
     subject,
   };
   return Object.freeze(instance);
 }
 
-export function emptySnapshot(): Snapshot {
-  return freezeDeep({
-    v: 1 as const,
-    issuedAt: "1970-01-01T00:00:00.000Z",
-    subject: { principal: null, context: {} },
-    roles: [],
-    grants: [],
-    tenants: [],
-  });
-}
+export { emptySnapshot } from "./snapshot-empty.ts";

@@ -257,6 +257,7 @@
     "useApproval",
     "useAssignablePermissions",
     "useAssignableRoles",
+    "useDecision",
     "useDescribe",
     "useFilter",
     "useGate",

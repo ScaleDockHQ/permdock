@@ -95,6 +95,8 @@ import { PermDockProvider, Protected, usePermission } from "permdock/react";
 
 `permissions.ts` may be imported on the client. `policy.ts` may not.
 
+To ship less client JavaScript, check in a Server Component with `getPermission` (no provider). `permdock/react` answers `usePermission(permission)` and `<Protected permission>` from the snapshot's `typeLevel` table; the evaluator loads as a separate chunk when a hook needs a `Decision` or row data (`usePermission(permission, data)`, `useDecision`, `useGate`, `usePermDock`). Those hooks suspend, so wrap them in `<Suspense>`.
+
 ## AuthZEN — `permdock/authzen`
 
 ```ts

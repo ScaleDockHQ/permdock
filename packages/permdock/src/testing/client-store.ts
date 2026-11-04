@@ -48,7 +48,7 @@ export type ClientStoreFactoryOptions = {
 
 export type ClientStoreFactory = (
   options: ClientStoreFactoryOptions,
-) => ClientStoreHandle;
+) => ClientStoreHandle | Promise<ClientStoreHandle>;
 
 type Call = {
   readonly url: string;
@@ -187,7 +187,7 @@ export function testClientStore(
   describe(`client store: ${name}`, () => {
     it("switches to a tenant the snapshot carries without a request", async () => {
       const net = recorder(unreachable);
-      const store = createStore({
+      const store = await createStore({
         snapshot: snapshotOf("erin", "acme", "all"),
         snapshotUrl: "/api/snapshot",
         tenant: "acme",
@@ -208,7 +208,7 @@ export function testClientStore(
           ? json({ error: "down" }, 503)
           : json(snapshotOf("erin", "globex")),
       );
-      const store = createStore({
+      const store = await createStore({
         snapshot: snapshotOf("erin", "acme"),
         snapshotUrl: "/api/snapshot?v=1",
         tenant: "acme",
@@ -232,7 +232,7 @@ export function testClientStore(
     it("reports pending while a refresh is in flight", async () => {
       const gate = deferred();
       const net = recorder(() => gate.promise);
-      const store = createStore({
+      const store = await createStore({
         snapshot: snapshotOf("erin", "acme"),
         snapshotUrl: "/api/snapshot",
         tenant: "acme",
@@ -248,7 +248,7 @@ export function testClientStore(
     it("drops a refresh that resolves after logout", async () => {
       const gate = deferred();
       const net = recorder(() => gate.promise);
-      const store = createStore({
+      const store = await createStore({
         snapshot: snapshotOf("erin", "acme"),
         snapshotUrl: "/api/snapshot",
         tenant: "acme",
@@ -267,7 +267,7 @@ export function testClientStore(
     it("drops a refresh for the previous user after a replace", async () => {
       const gate = deferred();
       const net = recorder(() => gate.promise);
-      const store = createStore({
+      const store = await createStore({
         snapshot: snapshotOf("erin", "acme"),
         snapshotUrl: "/api/snapshot",
         tenant: "acme",
@@ -283,9 +283,9 @@ export function testClientStore(
       expect(store.get().can(p.project.update, globexProject)).toBe(false);
     });
 
-    it("marks an expired snapshot stale until a fresh one replaces it", () => {
+    it("marks an expired snapshot stale until a fresh one replaces it", async () => {
       const net = recorder(unreachable);
-      const store = createStore({
+      const store = await createStore({
         snapshot: {
           ...snapshotOf("erin", "acme"),
           expiresAt: "1970-01-01T00:00:01.000Z",
@@ -302,7 +302,7 @@ export function testClientStore(
     it("boots a signed snapshot through the verifier", async () => {
       const token = "header.seed.signature";
       const net = recorder(unreachable);
-      const store = createStore({
+      const store = await createStore({
         snapshot: token,
         tenant: "acme",
         fetch: net.fetch,
@@ -316,7 +316,7 @@ export function testClientStore(
 
     it("rejects a signed snapshot the verifier refuses", async () => {
       const net = recorder(unreachable);
-      const store = createStore({
+      const store = await createStore({
         snapshot: "header.forged.signature",
         tenant: "acme",
         fetch: net.fetch,
@@ -331,7 +331,7 @@ export function testClientStore(
       const seed = "header.seed.signature";
       const next = "header.next.signature";
       const net = recorder(() => json(next));
-      const store = createStore({
+      const store = await createStore({
         snapshot: seed,
         snapshotUrl: "/api/snapshot",
         tenant: "acme",
@@ -361,7 +361,7 @@ export function testClientStore(
           })),
         });
       });
-      const store = createStore({
+      const store = await createStore({
         snapshot: leadSnapshot(),
         endpoint: "/api/permdock",
         tenant: "acme",
@@ -395,7 +395,7 @@ export function testClientStore(
           })),
         });
       });
-      const store = createStore({
+      const store = await createStore({
         snapshot: snapshotOf("gina", "acme"),
         endpoint: "/api/permdock",
         tenant: "acme",
@@ -412,7 +412,7 @@ export function testClientStore(
 
     it("answers a row edited in place once the task that read it ends", async () => {
       const net = recorder(unreachable);
-      const store = createStore({
+      const store = await createStore({
         snapshot: snapshotOf("bob", "acme"),
         tenant: "acme",
         fetch: net.fetch,
@@ -425,9 +425,9 @@ export function testClientStore(
       expect(store.get().can(p.project.update, row)).toBe(false);
     });
 
-    it("answers a check on a row that throws as denied, without throwing", () => {
+    it("answers a check on a row that throws as denied, without throwing", async () => {
       const net = recorder(unreachable);
-      const store = createStore({
+      const store = await createStore({
         snapshot: snapshotOf("bob", "acme"),
         tenant: "acme",
         fetch: net.fetch,
@@ -444,12 +444,12 @@ export function testClientStore(
       expect(store.get().can(p.project.update, hostile)).toBe(false);
     });
 
-    it("notifies every subscriber of a logout when one of them throws", () => {
+    it("notifies every subscriber of a logout when one of them throws", async () => {
       const reported = vi.fn<(error: unknown) => void>();
       vi.stubGlobal("reportError", reported);
       try {
         const net = recorder(unreachable);
-        const store = createStore({
+        const store = await createStore({
           snapshot: snapshotOf("bob", "acme"),
           tenant: "acme",
           fetch: net.fetch,
@@ -472,9 +472,9 @@ export function testClientStore(
       }
     });
 
-    it("does not notify subscribers synchronously from a status read", () => {
+    it("does not notify subscribers synchronously from a status read", async () => {
       const net = recorder(() => json({ evaluations: [] }));
-      const store = createStore({
+      const store = await createStore({
         snapshot: snapshotOf("gina", "acme"),
         endpoint: "/api/permdock",
         tenant: "acme",

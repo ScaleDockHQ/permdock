@@ -204,6 +204,10 @@ Root parameters are readable only in Server Components: in a Server Action or Ro
 
 A capability token in the URL (`?token=`) is URL data: a `<Link prefetch={true}>` resolves it in the prefetch, so every such link costs a server render, and a shared `'use cache'` scope must never read it, because its output would be served to everyone. Verify the token inside `'use cache: private'` or at request time, and link to token pages with the default prefetch.
 
+### Ship less client JavaScript
+
+`getPermission` and `requirePermission` resolve in a Server Component and send no PermDock code to the browser. A page that only gates server-side needs no `PermDockProvider`. Client components that ask type-level questions through `usePermission(permission)` need only the snapshot table; the evaluator chunk loads when a component needs a `Decision` or row data ([client weight](/docs/concepts/ui#client-weight)).
+
 ### Why an explicit factory file and not a Next plugin
 
 The `next.config.ts` plugin (`createPermDockPlugin`) exists only as a build hook for `permdock collect`; it never wires runtime API. Runtime wiring lives in `src/permdock/server.ts` because:

@@ -336,6 +336,36 @@ const refreshOn = [supabaseRealtimeRefresh(supabase, { userId })];
 
 `useRefreshOn(triggers)` from `permdock/react` adds triggers to the nearest provider while the component is mounted, folded and skipped like `refreshOn`. Use it below `permdock/next`'s `PermDockProvider`: a Server Component cannot pass functions to the client, so that provider forwards every React provider prop except `refreshOn`, `onSnapshot`, `onClear`, `fetch` and `verifier`. Keep the array at module scope; a new array resubscribes.
 
+## Client weight
+
+`permdock/react` splits itself, so there is nothing to choose. The server writes a `typeLevel` table into the snapshot ([wire formats](/docs/concepts/wire-formats#snapshot)). `usePermission(permission)` and `<Protected permission>` answer from that table and return `{ allowed, status, outcome }`. The evaluator loads as a separate chunk only when a hook needs a `Decision` or row data. `tests/bundle` measures the initial download of `PermDockProvider`, `Protected` and `usePermission` at 14,637 B gzip (20,263 B before the split); the evaluator chunk adds about 7.0 KB when it loads.
+
+| Call                                                                                          | Needs the evaluator |
+| --------------------------------------------------------------------------------------------- | ------------------- |
+| `usePermission(permission)`, `<Protected permission>`                                         | No                  |
+| `usePermission(permission, data)`, `useDecision`, `useGate`, `usePermDock`, function children | Yes                 |
+
+A call that needs the evaluator suspends until the chunk arrives, so wrap those subtrees in `<Suspense>`. `renderToString` cannot render them; use streaming or prerendering. The table is absent when a grant has `validity` or a membership has `expiresAt`; the evaluator then loads on first use.
+
+To ship no PermDock code at all, check on the server.
+
+### Check on the server
+
+A Server Component resolves the check and renders the result, so the page needs no provider and no PermDock code in the browser:
+
+```tsx
+// app/[orgSlug]/quotes/page.tsx (Server Component)
+import { getPermission } from "@/permdock/server";
+import { permissions } from "@/permissions";
+
+export default async function Page() {
+  const create = await getPermission(permissions.quote.create);
+  return create.allowed ? <NewQuoteButton /> : null;
+}
+```
+
+Use this wherever the data and the decision are both available during the render: page sections, gated routes, buttons that sit in a server-rendered list. Pass the boolean to a client component as a prop when it needs to disable a control. Keep `PermDockProvider` for the subtrees that check rows the user edits in the browser, switch tenant, or react to a refresh. A provider also works per subtree: wrap only the interactive island, not the root layout.
+
 ## Status handling
 
 Every hook returns `status` from the same vocabulary (`ready`, `pending`, `stale`, `server-only`) and `allowed` is always a boolean ([snapshots](/docs/concepts/snapshots)). Rules that keep the UI honest: never block navigation on `pending`; render the last answer on `stale`; treat `server-only` as denied; and never flash a denied state for a portable grant (the React example asserts this in a browser-mode test).

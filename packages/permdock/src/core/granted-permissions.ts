@@ -1,11 +1,13 @@
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
 import type { Snapshot, SnapshotGrant } from "./snapshot-types.ts";
+import type { Subject } from "./subject.ts";
 
-import { fromSnapshot } from "./from-snapshot.ts";
 import { flattenGrantee } from "./grantee.ts";
 import { findPermission } from "./permission-registry.ts";
 import { scopeList } from "./scopes.ts";
+import { evaluateSnapshot } from "./snapshot-evaluate.ts";
+import { subjectFromSnapshot } from "./snapshot-subject.ts";
 
 /** What `permdock.grantedPermissions()` lists permissions for. */
 export type GrantedPermissionsOptions = {
@@ -81,22 +83,39 @@ export function grantedPermissionsOf(
       .map((entry) => entry.permission),
   );
   const team = teamOf(policy, options);
-  const scoped = fromSnapshot(
-    { ...snapshot, grants },
-    {
-      ...(options.tenant === undefined ? {} : { tenant: options.tenant }),
-      ...(team === undefined ? {} : { team }),
-    },
-  );
+  const scoped = { ...snapshot, grants };
+  const subject = subjectFromSnapshot(scoped, options.tenant);
   const listed: Permission[] = [];
   for (const key of keys) {
     const permission = findPermission(policy.permissions, key);
-    // SAFETY: a rowless check takes any leaf; the overloads only differ in the row a kind needs.
-    if (permission !== undefined && scoped.can(permission as never)) {
+    if (
+      permission !== undefined &&
+      grantsOutright(scoped, subject, permission, team)
+    ) {
       listed.push(permission);
     }
   }
   return listed;
+}
+
+/**
+ * `can()` never throws: an evaluation error means the permission is not
+ * granted.
+ */
+function grantsOutright(
+  snapshot: Snapshot,
+  subject: Subject,
+  permission: Permission,
+  team: string | undefined,
+): boolean {
+  try {
+    return (
+      evaluateSnapshot(snapshot, subject, permission, undefined, team, {}, true)
+        .outcome === "granted"
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** `id` names the second scope's instance when `scope` is that scope. */

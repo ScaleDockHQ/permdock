@@ -23,6 +23,7 @@ import {
 } from "./snapshot-grants.ts";
 import { buildSnapshot } from "./snapshot.ts";
 import { nowSeconds, partitionsOf, scopeField } from "./tenancy.ts";
+import { typeLevelOf } from "./type-level.ts";
 
 export type SnapshotInclude = readonly (
   | Permission
@@ -65,7 +66,7 @@ export function snapshotOf(
     new Set(roles),
     now,
   );
-  return buildSnapshot(
+  const built = buildSnapshot(
     compact<Parameters<typeof buildSnapshot>[0]>({
       subject,
       roles,
@@ -110,7 +111,7 @@ export function snapshotOf(
       assignable:
         options.omitAssignable === true
           ? undefined
-          : (tenant: string) => {
+          : (tenant: string): SnapshotAssignable => {
               const found = assignableIn(
                 policy,
                 subject,
@@ -132,6 +133,8 @@ export function snapshotOf(
             },
     }),
   );
+  const typeLevel = typeLevelOf(policy, built);
+  return typeLevel === undefined ? built : freezeDeep({ ...built, typeLevel });
 }
 
 /**

@@ -6,6 +6,7 @@
   "scripts": {
     "lint": "oxlint --disable-nested-config --type-aware",
     "size": "vitest run",
+    "size:why": "node src/why.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

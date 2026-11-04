@@ -62,13 +62,17 @@ describe("hooks", () => {
     host = undefined;
   });
 
-  function mount(node: ReactNode): HTMLElement {
+  async function mount(node: ReactNode): Promise<HTMLElement> {
     host = document.createElement("div");
     document.body.append(host);
     const created = createRoot(host);
     root = created;
-    act(() => {
+    await act(async () => {
       created.render(node);
+      // The evaluator loads in a chunk of its own; let it settle.
+      await new Promise((resolve) => {
+        setTimeout(resolve, 30);
+      });
     });
     return host;
   }
@@ -116,13 +120,13 @@ describe("hooks", () => {
           publish.reason.kind,
         ].join(":");
       }
-      const view = mount(withStore(store, createElement(Probe)));
+      const view = await mount(withStore(store, createElement(Probe)));
       expect(view.textContent).toBe("false:true:false:true:denied");
     });
   });
 
   describe("permdock/react hooks on the client", () => {
-    it("throw outside a provider", () => {
+    it("throw outside a provider", async () => {
       const errors = vi
         .spyOn(console, "error")
         .mockImplementation(() => undefined);
@@ -131,7 +135,7 @@ describe("hooks", () => {
         return "never";
       }
       try {
-        expect(() => mount(createElement(Orphan))).toThrow(
+        await expect(mount(createElement(Orphan))).rejects.toThrow(
           /hooks require <PermDockProvider>/u,
         );
       } finally {
@@ -163,7 +167,7 @@ describe("hooks", () => {
           permdock.subject.principal?.id ?? "anonymous",
         ].join(":");
       }
-      const view = mount(withStore(store, createElement(Probe)));
+      const view = await mount(withStore(store, createElement(Probe)));
       expect(view.textContent).toBe("false:0:false:false:object:anonymous");
       const snapshot = await memberSnapshot();
       act(() => {
@@ -198,7 +202,7 @@ describe("hooks", () => {
           keys(useAssignableRoles()),
         ].join(":");
       }
-      const view = mount(withStore(store, createElement(Probe)));
+      const view = await mount(withStore(store, createElement(Probe)));
       expect(view.textContent).toBe(
         "acme:acme,globex:admin:viewer::admin,member,viewer",
       );
@@ -227,7 +231,7 @@ describe("hooks", () => {
         }
         return `${approval.state}:${approval.token ?? "none"}`;
       }
-      const view = mount(
+      const view = await mount(
         withStore(
           store,
           createElement("div", null, [
@@ -248,10 +252,10 @@ describe("hooks", () => {
     });
   });
 
-  describe("permdock/react <Protected> on the client", () => {
+  describe("permdock/react <Protected> on the client", async () => {
     it("renders children and fallback functions with the decision", async () => {
       const snapshot = await memberSnapshot();
-      const view = mount(
+      const view = await mount(
         createElement(PermDockProvider, {
           snapshot,
           children: [
@@ -287,7 +291,7 @@ describe("hooks", () => {
         throw new TypeError("expected JSON snapshot");
       }
       const globexProject = { ...ownProject, id: "g1", orgId: "globex" };
-      const view = mount(
+      const view = await mount(
         createElement(PermDockProvider, {
           snapshot,
           tenant: "globex",
@@ -326,7 +330,7 @@ describe("hooks", () => {
           resolve = done;
         }),
       );
-      const view = mount(
+      const view = await mount(
         withStore(
           store,
           createElement(
@@ -355,7 +359,7 @@ describe("hooks", () => {
     });
   });
 
-  describe("permdock/react provider with snapshotPromise", () => {
+  describe("permdock/react provider with snapshotPromise", async () => {
     function Status(): string {
       const { allowed, status } = usePermission(
         permissions.post.update,
@@ -394,7 +398,7 @@ describe("hooks", () => {
     it("renders pending without suspending, then updates when it resolves", async () => {
       const snapshot = await memberSnapshot();
       const pending = deferred();
-      const view = mount(
+      const view = await mount(
         createElement(
           Suspense,
           { fallback: "suspended" },
@@ -425,7 +429,7 @@ describe("hooks", () => {
         status: "fulfilled",
         value: snapshot,
       });
-      const view = mount(
+      const view = await mount(
         provide({ snapshotPromise: settled }, createElement(Status)),
       );
       expect(view.textContent).toBe("true:ready");
@@ -433,7 +437,7 @@ describe("hooks", () => {
 
     it("fails closed when the snapshotPromise rejects", async () => {
       const pending = deferred();
-      const view = mount(
+      const view = await mount(
         provide({ snapshotPromise: pending.promise }, createElement(Status)),
       );
       expect(view.textContent).toBe("false:pending");
@@ -450,7 +454,7 @@ describe("hooks", () => {
       const next = deferred();
       const tree = (promise: Promise<Snapshot>): ReactElement =>
         provide({ snapshotPromise: promise }, createElement(Status));
-      const view = mount(tree(first.promise));
+      const view = await mount(tree(first.promise));
       await act(async () => {
         first.resolve(snapshot);
         await Promise.resolve();
@@ -519,7 +523,7 @@ describe("hooks", () => {
         ),
       };
       try {
-        const view = mount(
+        const view = await mount(
           createElement(PermDockProvider, {
             snapshot: closure,
             endpoint: false,
@@ -548,7 +552,7 @@ describe("hooks", () => {
       }
     });
 
-    it("starts empty without a snapshot", () => {
+    it("starts empty without a snapshot", async () => {
       const props = {
         children: createElement(Protected, {
           permission: permissions.post.read,
@@ -558,7 +562,7 @@ describe("hooks", () => {
         }),
       };
       // SAFETY: a JavaScript caller can omit both snapshot props; the provider must still render.
-      const view = mount(
+      const view = await mount(
         createElement(
           PermDockProvider,
           props as unknown as Parameters<typeof PermDockProvider>[0],
