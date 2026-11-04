@@ -345,8 +345,8 @@ describe("doctor better-supabase", () => {
           "better-supabase.config.mjs": betterSupabaseConfig({
             audit: {
               permissions: {
-                view: "audit.view",
-                viewAll: "audit.view",
+                read: "audit.view",
+                readAll: "audit.view",
                 revert: "audit.revert",
               },
             },
@@ -358,7 +358,7 @@ describe("doctor better-supabase", () => {
         expect.objectContaining({ code: "PD079", severity: "warning" }),
       ]);
       expect(findings[0]?.message).toBe(
-        "audit.view (blocks.audit.permissions.view, blocks.audit.permissions.viewAll) is not in permissions.catalog.json, so no role holds it and better-supabase's SQL check denies it",
+        "audit.view (blocks.audit.permissions.read, blocks.audit.permissions.readAll) is not in permissions.catalog.json, so no role holds it and better-supabase's SQL check denies it",
       );
     });
 
@@ -370,8 +370,8 @@ describe("doctor better-supabase", () => {
           "better-supabase.config.mjs": betterSupabaseConfig({
             audit: {
               permissions: {
-                view: "audit.read",
-                viewAll: "audit.read",
+                read: "audit.read",
+                readAll: "audit.read",
                 revert: "audit.revert",
               },
             },
