@@ -938,5 +938,6 @@
   ],
   "./unplugin": ["createPermDockUnplugin"],
   "./next/plugin": ["createPermDockPlugin"],
-  "./next/client": ["PermissionBoundary", "usePermissionBoundary"]
+  "./next/client": ["PermissionBoundary", "usePermissionBoundary"],
+  "./react/lite": ["PermDockProvider", "Protected", "usePermission"]
 }

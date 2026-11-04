@@ -62,3 +62,4 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0054](./0054-better-supabase-0-39-0-floor-and-release-age.md)    | better-supabase 0.39.0 is the peer floor and catalog pin, and skips the release age                    |
 | [0056](./0056-define-permdock-entry.md)                           | `permdock/app` is a server-only entry and `definePermDock` replaces `defineApp`                        |
 | [0057](./0057-optional-cli-peers.md)                              | `oxc-parser` and `jiti` are optional peers of the CLI, loaded on first use                             |
+| [0058](./0058-react-lite-entry.md)                                | `permdock/react/lite` is a client entry that evaluates nothing                                         |

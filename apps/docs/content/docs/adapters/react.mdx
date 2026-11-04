@@ -66,6 +66,12 @@ const { principal, actor, simulated } = useSubject()
 
 `status` values: `ready` (answered from the snapshot or a cached endpoint answer), `pending` (endpoint request in flight), `stale` (a previous answer is shown while a revalidation runs), `server-only` (the grant depends on a closure or async context and no endpoint is configured; `allowed` is `false` and the denial reason is `server-only`). With `endpoint={false}` the provider never fetches and logs one `console.info` naming the first permission that turned into a `server-only` denial, so a snapshot-only app sees which check needs the server.
 
+## Lite client
+
+`permdock/react/lite` exports `PermDockProvider`, `usePermission` and `Protected` for apps whose client components only ask type-level questions. The provider takes `granted`, the list `permdock.grantedPermissions()` returns; a permission is allowed when its `key` is in the list. The entry imports React and types, measures 282 B gzip against 20,263 B for `permdock/react`, and is described under [client weight](/docs/concepts/ui#client-weight).
+
+Why: a navigation menu or a hidden button needs a yes or no that the server already computed. Shipping the evaluator for it moves the same decision to the browser at 20 KB. The lite client keeps the server the only place a decision is made (invariant 13 and 1): an unknown permission, a missing provider and a row-level check are all denied, and `usePermission` has no `data` parameter so a row-level check does not type-check. See [decision 0058](https://github.com/ScaleDockHQ/permdock/blob/main/docs/decisions/0058-react-lite-entry.md).
+
 ## Request lifecycle
 
 1. The server creates a request-scoped `PermDock`, calls `snapshot()` (optionally scoped with `include`) and passes the JSON to `PermDockProvider`. In Next.js this is done by the `PermDockProvider` from `permdock/next`; in Vite apps the snapshot arrives from your own session endpoint.

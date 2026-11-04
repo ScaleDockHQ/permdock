@@ -284,7 +284,7 @@ Any Standard Schema validator: Zod, Valibot, ArkType, Effect Schema. One import 
 
 | Group              | Entries                                                                                                                                                                                                 |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| UI                 | `permdock/react` · `permdock/react-native` · `permdock/vue` · `permdock/svelte` · `permdock/solid`                                                                                                      |
+| UI                 | `permdock/react` · `permdock/react/lite` · `permdock/react-native` · `permdock/vue` · `permdock/svelte` · `permdock/solid`                                                                              |
 | Full-stack         | `permdock/next` · `permdock/sveltekit` · `permdock/astro` · `permdock/solid-start` · `permdock/tanstack-start`                                                                                          |
 | HTTP               | `permdock/server` · `permdock/hono` · `permdock/h3` · `permdock/express` · `permdock/fastify` · `permdock/elysia` · `permdock/nest` · `permdock/node`                                                   |
 | Terminal           | `permdock/terminal` for your own CLI (not the `permdock` binary)                                                                                                                                        |

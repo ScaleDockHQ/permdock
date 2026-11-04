@@ -13,6 +13,7 @@ import { gzipSync } from "node:zlib";
 const CONSUMERS = {
   "core definePolicy + getPermDockSync": `import { getPermDockSync, definePermissions, definePolicy } from 'permdock'; export { getPermDockSync, definePermissions, definePolicy };`,
   "react PermDockProvider + usePermission": `export { PermDockProvider, usePermission } from 'permdock/react';`,
+  "react/lite PermDockProvider + usePermission + Protected": `export { PermDockProvider, Protected, usePermission } from 'permdock/react/lite';`,
   "react-native PermDockProvider + usePermission": `export { PermDockProvider, usePermission } from 'permdock/react-native';`,
   "react-native PermDockProvider + localSnapshot": `export { PermDockProvider, localSnapshot, usePermission } from 'permdock/react-native';`,
   "next createPermDock": `export { createPermDock } from 'permdock/next';`,
