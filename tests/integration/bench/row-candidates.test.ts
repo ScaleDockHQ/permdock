@@ -136,10 +136,10 @@ describe("permitted_<resource>_rows narrowed to candidate ids, and the row-value
       [ARCHIVIST, "item.read"],
     ] as const) {
       const want = await permitted(user, key);
-      for (const extra of [[], ["not-a-uuid", null]]) {
+      for (const extra of [[], [null]]) {
         const got = await ids(
           user,
-          "select id from permdock.permitted_item_rows($1, $2::text[]) id",
+          "select id from permdock.permitted_item_rows($1, $2::uuid[]) id",
           [key, [...CANDIDATES, ...extra]],
         );
         if (JSON.stringify(got) !== JSON.stringify(want)) {
@@ -154,7 +154,7 @@ describe("permitted_<resource>_rows narrowed to candidate ids, and the row-value
     expect(
       await ids(
         MEMBER,
-        "select id from permdock.permitted_item_rows('item.read', array[]::text[]) id union all select id from permdock.permitted_item_rows('item.read', null) id",
+        "select id from permdock.permitted_item_rows('item.read', array[]::uuid[]) id union all select id from permdock.permitted_item_rows('item.read', null) id",
       ),
     ).toStrictEqual([]);
   });
@@ -184,7 +184,7 @@ describe("permitted_<resource>_rows narrowed to candidate ids, and the row-value
     expect(full.space.seq).toBeGreaterThan(0);
     const narrowed = await scansOf(
       MEMBER,
-      "select count(*) from permdock.permitted_item_rows('item.read', $1::text[])",
+      "select count(*) from permdock.permitted_item_rows('item.read', $1::uuid[])",
       [CANDIDATES],
     );
     expect(narrowed.item.seq).toBe(0);

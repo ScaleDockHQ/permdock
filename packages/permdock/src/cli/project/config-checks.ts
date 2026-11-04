@@ -76,6 +76,10 @@ type RlsChecks<C, P> = {
     KeysAt<At<C, "rls">, "scopeTypes">,
     ScopeNameOf<P>
   >;
+  readonly idTypes?: Only<
+    KeysAt<At<C, "rls">, "idTypes">,
+    ResourceNameOf<P> | "*"
+  >;
   readonly actions?: Only<KeysAt<At<C, "rls">, "actions">, ActionNameOf<P>>;
   readonly memberships?: {
     readonly scopes?: Only<

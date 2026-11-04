@@ -31,13 +31,15 @@ import {
 import { pd039 } from "../supabase-setup.ts";
 import { pd064 } from "./assignments.ts";
 import { applyDoctorIgnores, reported } from "./baseline.ts";
-import { pd078, pd079, pd082 } from "./better-supabase.ts";
+import { pd078, pd079, pd082, pd087 } from "./better-supabase.ts";
 import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd077 } from "./config-names.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
 import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
 import { pd085 } from "./hook-role.ts";
+import { pd092 } from "./lockfile.ts";
 import { pd044, pd065 } from "./next.ts";
+import { pd091, pd091Applies } from "./openapi.ts";
 import { pd080, pd081 } from "./per-request.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
 import { pd083 } from "./postgrest.ts";
@@ -87,6 +89,9 @@ import {
   pd066,
   pd062,
   pd063,
+  pd088,
+  pd089,
+  pd090,
 } from "./sql.ts";
 import { pd061 } from "./suspension.ts";
 
@@ -104,6 +109,9 @@ const SQL_CHECKS = [
   ["PD053", pd053],
   ["PD062", pd062],
   ["PD063", pd063],
+  ["PD088", pd088],
+  ["PD089", pd089],
+  ["PD090", pd090],
 ] as const;
 
 export type DoctorReport = {
@@ -189,6 +197,12 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     groups: ["supabase", "better-supabase"],
     when: (config) => config.supabase?.hook !== undefined,
     run: pd082,
+  },
+  {
+    code: "PD087",
+    groups: ["supabase", "better-supabase"],
+    when: (config) => config.supabase?.hook !== undefined,
+    run: pd087,
   },
   {
     code: "PD083",
@@ -395,6 +409,8 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     when: (config) => config.rls?.assignments !== undefined,
     run: pd064,
   },
+  { code: "PD091", groups: ["openapi"], when: pd091Applies, run: pd091 },
+  { code: "PD092", groups: ["project"], run: pd092 },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
   { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },
 ];

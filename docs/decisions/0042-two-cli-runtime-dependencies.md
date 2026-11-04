@@ -1,6 +1,6 @@
 # 0042. The CLI inlines its dependencies except `oxc-parser` and `jiti`
 
-- Status: accepted
+- Status: superseded by [0057](./0057-optional-cli-peers.md)
 - Date: 2026-10-21
 
 ## Context

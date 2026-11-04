@@ -16,6 +16,9 @@ import {
   pd053,
   pd062,
   pd063,
+  pd088,
+  pd089,
+  pd090,
 } from "../../src/cli/doctor/sql.ts";
 import { sqlStatements } from "../../src/cli/sql/statements.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
@@ -266,6 +269,86 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
       expect(
         pd063(cwd, { doctor: { migrations: ["migrations"] } }),
       ).toStrictEqual([]);
+    });
+  });
+
+  describe("PD088 text cast on a row helper", () => {
+    it("reports a cast on the column and on the call, outside functions", () => {
+      const cwd = migration(
+        [
+          `create policy a on doc using (id::text in (select "permdock".permitted_doc_rows('doc.read')));`,
+          `create policy b on doc using (id in (select "permdock".permitted_doc_rows('doc.read')::text));`,
+          `create policy c on doc using ("permdock".permitted_doc_row(id::text, 'doc.read'));`,
+          `create policy d on doc using (id in (select "permdock".permitted_doc_rows('doc.read')));`,
+          `create function f() returns void language sql as $$ select id::text in (select permitted_doc_rows('x')) $$;`,
+        ].join("\n"),
+      );
+      expect(
+        messages(pd088(cwd, { rls: { dialect: "supabase" } })),
+      ).toStrictEqual([
+        `${MIGRATION}:1 casts to text around a permitted_*_rows or permitted_*_row call`,
+        `${MIGRATION}:2 casts to text around a permitted_*_rows or permitted_*_row call`,
+        `${MIGRATION}:3 casts to text around a permitted_*_rows or permitted_*_row call`,
+      ]);
+    });
+
+    it("skips text ids", () => {
+      const cwd = migration(
+        `create policy a on doc using (id::text in (select permitted_doc_rows('doc.read')));`,
+      );
+      expect(pd088(cwd, { rls: { dialect: "neon" } })).toStrictEqual([]);
+      expect(pd088(cwd, { rls: { idTypes: { "*": "text" } } })).toStrictEqual(
+        [],
+      );
+    });
+  });
+
+  describe("PD089 one id against the row set", () => {
+    it("reports a bound id and not a column", () => {
+      const cwd = migration(
+        [
+          `create policy a on doc using ($1 in (select permitted_doc_rows('doc.read')));`,
+          `create policy b on doc using (new.doc_id in (select "permdock".permitted_doc_rows('doc.read')));`,
+          `create policy c on doc using (id in (select permitted_doc_rows('doc.read')));`,
+        ].join("\n"),
+      );
+      expect(messages(pd089(cwd, config))).toStrictEqual([
+        `${MIGRATION}:1 tests one id against the whole permitted_*_rows set`,
+        `${MIGRATION}:2 tests one id against the whole permitted_*_rows set`,
+      ]);
+    });
+  });
+
+  describe("PD090 repeated actor guard", () => {
+    it("reports a hand-written policy that calls the guard where the generated one applies", () => {
+      const cwd = migration(
+        [
+          `create policy "public_quotes_update_read_only_actors" on "public"."quotes" as restrictive for update to authenticated using ((select permdock_actor_may_write()));`,
+          `create policy quotes_write on public.quotes for update to authenticated using ((select permdock_actor_may_write()) and true);`,
+          `create policy quotes_insert on public.quotes for insert to authenticated with check ((select permdock_actor_may_write()));`,
+          `create policy quotes_plain on public.quotes for update to authenticated using (true);`,
+        ].join("\n"),
+      );
+      expect(messages(pd090(cwd, config))).toStrictEqual([
+        `${MIGRATION}:2 policy quotes_write on public.quotes repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
+      ]);
+    });
+  });
+
+  describe("PD090 policy commands", () => {
+    it("treats a policy for all or without a command as every write, and skips other statements", () => {
+      const cwd = migration(
+        [
+          `select 1;`,
+          `create policy "public_quotes_delete_read_only_actors" on "public"."quotes" as restrictive for delete to authenticated using ((select permdock_actor_may_write()));`,
+          `create policy quotes_all on public.quotes for all to authenticated using ((select permdock_actor_may_write()));`,
+          `create policy quotes_any on public.quotes using ((select permdock_actor_may_write()));`,
+        ].join("\n"),
+      );
+      expect(messages(pd090(cwd, config))).toStrictEqual([
+        `${MIGRATION}:3 policy quotes_all on public.quotes repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
+        `${MIGRATION}:4 policy quotes_any on public.quotes repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
+      ]);
     });
   });
 

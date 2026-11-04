@@ -3,7 +3,7 @@ import { expect, it } from "vitest";
 import type { Condition } from "../../conditions/ast.ts";
 import type { Subject, WhereCompiler } from "../../index.ts";
 
-import { evaluateCondition } from "../../conditions/evaluate.ts";
+import { evaluateCondition } from "../../conditions/condition-evaluate.ts";
 
 type WhereRow = Readonly<Record<string, unknown>>;
 

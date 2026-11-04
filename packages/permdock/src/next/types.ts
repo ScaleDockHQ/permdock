@@ -180,22 +180,43 @@ export type PermDockHandler = {
   readonly GET: (request: Request) => Promise<Response>;
 };
 
-export type ProtectActionOptions<TInput, TRow> = {
+/** The schemas of the leading arguments, one per argument, in call order. */
+export type ProtectActionArgSchemas<TArgs extends readonly unknown[]> = {
+  readonly [K in keyof TArgs]: StandardSchemaV1<unknown, TArgs[K]>;
+};
+
+export type ProtectActionOptions<
+  TInput,
+  TRow,
+  TArgs extends readonly unknown[] = readonly [],
+> = {
   /** Validates the action's argument before anything else runs. */
   readonly input: StandardSchemaV1<unknown, TInput>;
+  /**
+   * Validates the arguments before `input`, one schema per argument. The action
+   * is then called as `(...args, input, { approval }?)`.
+   */
+  readonly args?: ProtectActionArgSchemas<TArgs>;
   /** The row to decide on; `null` or `undefined` answers `404`. */
   readonly data?: (
     input: TInput,
+    args: TArgs,
   ) => TRow | null | undefined | Promise<TRow | null | undefined>;
   /** The tenant to build the instance for; default the factory's `tenant`. */
-  readonly tenant?: (input: TInput) => string | undefined;
+  readonly tenant?: (input: TInput, args: TArgs) => string | undefined;
 };
 
-export type ProtectedActionContext<TRow, V extends PolicyVocabulary> = {
+export type ProtectedActionContext<
+  TRow,
+  V extends PolicyVocabulary,
+  TArgs extends readonly unknown[] = readonly [],
+> = {
   readonly permdock: PermDock<V>;
   readonly decision: Extract<Decision, { readonly outcome: "granted" }>;
   /** The loaded row; `undefined` without a `data` loader. */
   readonly data: TRow;
+  /** The validated leading arguments; empty without `args`. */
+  readonly args: TArgs;
 };
 
 export type ProtectedActionHandler<
@@ -203,22 +224,58 @@ export type ProtectedActionHandler<
   TRow,
   TResult,
   V extends PolicyVocabulary,
+  TArgs extends readonly unknown[] = readonly [],
 > = (
   input: TInput,
-  context: ProtectedActionContext<TRow, V>,
+  context: ProtectedActionContext<TRow, V, TArgs>,
 ) => TResult | Promise<TResult>;
 
 export type { ActionResult, ProtectedAction };
 
+/** `(...args, input, { approval }?)`; `args` is empty without the option. */
+export type ProtectedActionWithArgs<TArgs extends readonly unknown[], T> = (
+  ...call: [
+    ...{ readonly [K in keyof TArgs]: unknown },
+    unknown,
+    { readonly approval?: string }?,
+  ]
+) => Promise<ActionResult<T>>;
+
 export type ProtectAction<V extends PolicyVocabulary> = <
   TInput,
   TRow = undefined,
+  const TArgs extends readonly unknown[] = readonly [],
 >(
   permission: Permission,
-  options: ProtectActionOptions<TInput, TRow>,
-) => <TResult>(
-  handler: ProtectedActionHandler<TInput, TRow, TResult, V>,
-) => ProtectedAction<Awaited<TResult>>;
+  options: ProtectActionOptions<TInput, TRow, TArgs>,
+) => <TResult, TMapped = Awaited<TResult>>(
+  handler: ProtectedActionHandler<TInput, TRow, TResult, V, TArgs>,
+  hooks?: ProtectActionHooks<TRow, V, TArgs, Awaited<TResult>, TMapped>,
+) => ProtectedActionWithArgs<TArgs, TMapped>;
+
+/**
+ * `after` runs once the handler returned, with the granted decision; a throw
+ * answers `500`. `result` maps the handler's result to the returned value. Both
+ * take the handler's result type, so they sit beside the handler.
+ */
+export type ProtectActionHooks<
+  TRow,
+  V extends PolicyVocabulary,
+  TArgs extends readonly unknown[],
+  TResult,
+  TMapped,
+> = {
+  readonly after?: (
+    decision: Extract<Decision, { readonly outcome: "granted" }>,
+    context: ProtectedActionContext<TRow, V, TArgs> & {
+      readonly result: TResult;
+    },
+  ) => void | Promise<void>;
+  readonly result?: (
+    result: TResult,
+    context: ProtectedActionContext<TRow, V, TArgs>,
+  ) => TMapped | Promise<TMapped>;
+};
 
 export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly getPermDock: (query?: GetPermDockQuery) => Promise<PermDock<V>>;

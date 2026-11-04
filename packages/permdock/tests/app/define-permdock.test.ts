@@ -1,0 +1,97 @@
+import { describe, expect, it } from "vitest";
+
+import { definePermDock } from "../../src/app/index.ts";
+import { permdockFor } from "../../src/better-supabase/index.ts";
+import { appOf } from "../../src/core/app.ts";
+import {
+  allow,
+  definePermissions,
+  definePolicy,
+  instanceCache,
+  memorySubjectCache,
+  memoryVersionCache,
+  resource,
+  role,
+} from "../../src/index.ts";
+
+const permissions = definePermissions({
+  post: resource({ actions: ["read"] }),
+});
+const policy = definePolicy(permissions, {
+  roles: [role("member", [allow(permissions.post.read)])],
+  subject: (user: { id: string; roles: string[] } | null) => user,
+});
+
+describe(definePermDock, () => {
+  it("is a policy that carries getPermDock, fromClaims, fromApiKey, sources and evict", async () => {
+    const app = definePermDock(policy);
+    expect(app.fingerprint).toBe(policy.fingerprint);
+    expect(appOf(app)?.profile).toBe("prod");
+    const permdock = await app.getPermDock({ id: "u1", roles: ["member"] });
+    expect(permdock.can(permissions.post.read, { id: "p1" })).toBe(true);
+    expect(Object.keys(app)).not.toContain("getPermDock");
+  });
+
+  it("maps verified claims through the claims option", async () => {
+    const app = definePermDock(policy, {
+      claims: { id: "user.id", roles: "user.roles" },
+    });
+    const granted = await app.fromClaims({
+      user: { id: "u1", roles: ["member"] },
+    });
+    expect(granted.can(permissions.post.read, { id: "p1" })).toBe(true);
+    const anonymous = await app.fromClaims({ user: { roles: ["member"] } });
+    expect(anonymous.subject.principal).toBeNull();
+    expect(anonymous.can(permissions.post.read, { id: "p1" })).toBe(false);
+  });
+
+  it("resolves an API key through credentials and answers anonymous for an unknown one", async () => {
+    const app = definePermDock(policy, {
+      credentials: { verifier: { verify: () => null } },
+    });
+    const permdock = await app.fromApiKey("pdk_nope_nope");
+    expect(permdock.subject.principal).toBeNull();
+    await expect(definePermDock(policy).fromApiKey("k")).rejects.toThrow(
+      /credentials/u,
+    );
+  });
+
+  it("evicts a principal from the instance, version and subject caches", async () => {
+    const instances = instanceCache();
+    const versions = memoryVersionCache({ maxStaleMs: 1000 });
+    const subjects = memorySubjectCache();
+    versions.seed("u1", 3);
+    await subjects.seed({
+      id: "u1",
+      active: true,
+      roles: [],
+      memberships: [],
+      customRoles: [],
+      authzVersion: 3,
+    });
+    const app = definePermDock(policy, { instances, versions, subjects });
+    await app.evict("u1");
+    expect(await subjects.record("u1", 3)).toBeNull();
+    expect(versions.stats().evictions).toBe(1);
+    expect(instances.stats().evictions).toBe(1);
+  });
+
+  it("shares one sources object per version cache", () => {
+    const versions = memoryVersionCache({ maxStaleMs: 1000 });
+    const app = definePermDock(policy, { versions });
+    expect(app.sources()).toBe(app.sources(versions));
+    expect(app.sources(memoryVersionCache({ maxStaleMs: 1000 }))).not.toBe(
+      app.sources(),
+    );
+  });
+
+  it("feeds permdockFor the definition's caches and sources", async () => {
+    const instances = instanceCache();
+    const app = definePermDock(policy, { instances });
+    const resolve = permdockFor({ policy: app });
+    expect(resolve.sources().instances).toBe(instances);
+    const subject = { principal: { id: "u1", roles: ["member"] }, context: {} };
+    const permdock = await resolve(subject);
+    expect(permdock.subject.principal?.id).toBe("u1");
+  });
+});

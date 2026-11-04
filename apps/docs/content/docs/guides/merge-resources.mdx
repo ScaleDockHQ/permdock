@@ -60,7 +60,7 @@ The role grant `allow(permissions.file.read)` on an organisation role still reac
 
 ## Steps
 
-1. **Move the relations.** Copy the per-row resource's relations, `parent` and `restricted` onto the surviving resource, then delete the per-row resource. One resource has one table and one `id` column; a pair that needs two is two resources by definition, so list its table in `doctor.sharedTables` instead.
+1. **Move the relations.** Copy the per-row resource's relations, `parent` and `restricted` onto the surviving resource, then delete the per-row resource. One resource has one table and one `id` column; a pair that needs two is two resources by definition, so declare the second with `rls.tables.<resource>: { tableOf: "<owner>" }`.
 2. **Decide each verb.** Use the table below. Every removed key gets a `renamed` entry that names its survivor.
 3. **Rename the keys.** `definePermissions(tree, { renamed })` keeps stored custom roles, OAuth scopes in their `:` form, AuthZEN actions and hosted grants resolving ([renamed keys](/docs/concepts/permissions#renamed-keys)). `rls generate` seeds `role_permissions` under the former keys too, and `permdock diff` reports each one as `renamed`, which is not breaking.
 4. **Rewrite references.** Change `permissions.fileNode.read` to `permissions.file.read`. The removed leaf no longer exists, so the type checker lists every site; `permdock codemod` covers only release renames.

@@ -6,14 +6,14 @@ import type {
   ObjectProperty,
 } from "oxc-parser";
 
-import { createJiti } from "jiti";
 import { existsSync, realpathSync } from "node:fs";
 import { isBuiltin } from "node:module";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { Visitor, parseSync } from "oxc-parser";
 
 import type { DoctorFinding, DoctorSource } from "../shared/doctor-types.ts";
+
+import { createVisitor, jiti, parseSync } from "../core/optional.ts";
 
 /**
  * Entries a client file must not import; `tests/cli/doctor-entries.test.ts`
@@ -23,6 +23,7 @@ export const SERVER_SPECIFIERS = [
   "permdock/a2a",
   "permdock/agent",
   "permdock/ai-sdk",
+  "permdock/app",
   "permdock/approvals",
   "permdock/astro",
   "permdock/authzen",
@@ -183,14 +184,14 @@ function realFile(path: string): string {
 export function resolverFor(
   file: string,
 ): (specifier: string) => string | undefined {
-  const jiti = createJiti(file, { tsconfigPaths: dirname(file) });
+  const resolver = jiti().createJiti(file, { tsconfigPaths: dirname(file) });
   const parentURL = pathToFileURL(file);
   return (specifier) => {
     if (specifier === "" || isBuiltin(specifier)) {
       return undefined;
     }
     try {
-      const url = jiti.esmResolve(specifier, { parentURL, try: true });
+      const url = resolver.esmResolve(specifier, { parentURL, try: true });
       const path =
         url?.startsWith("file:") === true ? fileURLToPath(url) : undefined;
       return path !== undefined && existsSync(path)
@@ -435,7 +436,7 @@ function permdockOptionObjects(
   const namespaces = new Set<string>();
   const constants = new Map<string, ObjectExpression>();
   const calls: CallExpression[] = [];
-  new Visitor({
+  createVisitor({
     ImportDeclaration(node) {
       if (
         node.importKind === "type" ||

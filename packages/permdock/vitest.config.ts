@@ -124,10 +124,10 @@ export default defineConfig({
           branches: 95,
         },
         "src/conditions/**": {
-          statements: 96,
+          statements: 97,
           lines: 96,
           functions: 100,
-          branches: 95,
+          branches: 96,
         },
         "src/cli/**": {
           statements: 98,

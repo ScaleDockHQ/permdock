@@ -183,7 +183,7 @@ Optional, off by default: `docsHints: { badges: true }` adds `x-badges: [{ name:
 
 ### One declaration for REST and MCP
 
-An API that serves the same operations as REST routes and as MCP tools declares each operation's permission once. `operationPermissions(operations, { base? })` takes `"METHOD /path/{param}"` keys, the OpenAPI path templates, mapped to a permission or to `{ permission, operationId }`, and answers `forRequest(method, path)` for the HTTP gate (a literal segment wins over a `{param}`; a `HEAD` request matches the `GET` entry of its path when no `HEAD` entry matches, because frameworks such as Next.js serve `HEAD` with the `GET` handler; an undeclared operation is `undefined`, which a gate denies) and `forOperation(id)` for `permdock/mcp`'s `permissionFor` when tool names are operation ids. An entry may also set `oauthScopes`, the coarse OAuth scopes that reach the operation when two operations share a permission but need different scopes, or set only `oauthScopes` (`{ oauthScopes: ['api:chat'] }`) for a route that checks no permission and is guarded with `protect(null)`, whose `forRequest` is `undefined`; `oauthScopesForRequest(method, path)` answers them for the REST gate (pass the object as `operations` to `permdock/server`, or the scopes as `protect`'s `oauthScopes` in another adapter) and `oauthScopesForOperation(id)` for `permdock/mcp`'s `oauthScopesFor`. `operationPermissionsFromOpenApi(document, permissions, { base? })` builds the same object from the `x-permdock-permissions` a description already carries, keeping each operation that names exactly one known permission:
+An API that serves the same operations as REST routes and as MCP tools declares each operation's permission once. `operationPermissions(operations, { base? })` takes `"METHOD /path/{param}"` keys, the OpenAPI path templates, mapped to a permission or to `{ permission, operationId }`, and answers `forRequest(method, path)` for the HTTP gate (a literal segment wins over a `{param}`; a `HEAD` request matches the `GET` entry of its path when no `HEAD` entry matches, because frameworks such as Next.js serve `HEAD` with the `GET` handler; an undeclared operation is `undefined`, which a gate denies) and `forOperation(id)` for `permdock/mcp`'s `permissionFor` when tool names are operation ids. An entry may also set `oauthScopes`, the coarse OAuth scopes that reach the operation when two operations share a permission but need different scopes, or set only `oauthScopes` (`{ oauthScopes: ['api:chat'] }`) for a route that checks no permission and is guarded with `protect(null)`, whose `forRequest` is `undefined`; `oauthScopesForRequest(method, path)` answers them for the REST gate (pass the object as `operations` to `permdock/server`, or the scopes as `protect`'s `oauthScopes` in another adapter) and `oauthScopesForOperation(id)` for `permdock/mcp`'s `oauthScopesFor`. `operationPermissionsFromOpenApi(document, permissions, { base?, onSkip? })` builds the same object from the `x-permdock-permissions` a description already carries, keeping each operation that names exactly one known permission. `onSkip(operation, cause)` hears each operation it leaves out, with `cause` one of `no-permission`, `several-permissions`, `unknown-permission` or `invalid-extension`; log them or throw in a build step. `entries()` lists the declared operations as `{ method, path, permission?, operationId?, oauthScopes? }` in declaration order:
 
 ```ts
 import { operationPermissions } from "permdock/openapi";
@@ -216,6 +216,23 @@ protectServer(server, {
   oauthScopesFor: operations.oauthScopesForOperation,
 });
 ```
+
+### Operation coverage
+
+A route added without an entry in `operationPermissions` is denied by the gate, which a test run over only the declared routes never notices. `testOperationCoverage(operations, document, { tenantPaths, base? })` from `permdock/testing` compares the declaration with the OpenAPI document of the API: every operation under a `tenantPaths` template needs an entry, and every entry needs an operation. A `{param}` matches any parameter name, and `base` is the prefix the document's paths carry and the keys do not.
+
+```ts
+import { testOperationCoverage } from "permdock/testing";
+
+testOperationCoverage(operations, openapiDocument, {
+  tenantPaths: ["/orgs/{orgId}"],
+  base: "/api/v1",
+});
+```
+
+`permdock doctor` runs the same check as PD091 when `openapi.operations` (`"<module>#<export>"`, the export defaults to `operations`), `openapi.tenantPaths` and `openapi.doc` are set ([config](/docs/cli/config), [doctor](/docs/cli/doctor#pd091-a-tenant-operation-has-no-permission)). Operations outside `tenantPaths` may stay undeclared, such as a health check.
+
+To emit `x-permdock-permissions` from the route source, put the permission key in the route's JSDoc and have the description generator copy it into the operation. Most generators (`@hono/zod-openapi`, `tsoa`, `swagger-jsdoc`) read an `x-` field from the JSDoc or the route config. `operationPermissionsFromOpenApi` then reads the generated document, and `onSkip` lists the routes whose comment names no permission.
 
 ### OpenAPI-to-MCP bridges
 

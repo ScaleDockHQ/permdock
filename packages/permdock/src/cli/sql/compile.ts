@@ -179,9 +179,36 @@ function levelReachOf(
 }
 
 /**
+ * The first word of a camelCase, snake_case or kebab-case compound that is one
+ * of the six default verbs: `updateStatus` and `list_archived`. The prefix list
+ * is closed; any other verb needs an `rls.actions` entry.
+ */
+const VERB_PREFIX = /^(read|list|get|create|update|delete)(?=[A-Z0-9_-])/u;
+
+/**
+ * The SQL command a compound action name implies through its default-verb
+ * prefix, or `undefined` for an exact verb, a configured action or any other
+ * name.
+ */
+export function inferredCommand(
+  action: string,
+  actions?: RlsActions,
+): SqlCommand | undefined {
+  if (
+    (actions !== undefined && Object.hasOwn(actions, action)) ||
+    defaultSqlCommand(action) !== undefined
+  ) {
+    return undefined;
+  }
+  const verb = VERB_PREFIX.exec(action)?.[1];
+  return verb === undefined ? undefined : defaultSqlCommand(verb);
+}
+
+/**
  * The SQL command `action` compiles to: `rls.actions` first, then the six
- * default verbs. Any other verb is `undefined`, as `'none'` is: no policy, and
- * its grants are still seeded.
+ * default verbs, then a compound whose prefix is one of them ({@link
+ * inferredCommand}). Any other verb is `undefined`, as `'none'` is: no policy,
+ * and its grants are still seeded.
  */
 export function commandFor(
   action: string,
@@ -191,7 +218,7 @@ export function commandFor(
     const configured = actions[action];
     return configured === "none" ? undefined : configured;
   }
-  return defaultSqlCommand(action);
+  return defaultSqlCommand(action) ?? inferredCommand(action, actions);
 }
 
 export function tableFor(
@@ -379,7 +406,7 @@ function prepare(
   if (command === undefined) {
     if (tableless && item.access.kind !== "role") {
       warnings.push(
-        `skipped ${label}/${grant.permission.key}: rls.tables.${grant.permission.resource} is false, so the resource has no table, and only role grants are seeded`,
+        `skipped ${label}/${grant.permission.key}: rls.tables.${grant.permission.resource} is false or a tableOf, so the resource writes no policies of its own, and only role grants are seeded`,
       );
       return undefined;
     }

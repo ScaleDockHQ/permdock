@@ -13,7 +13,9 @@ describe("supabase hook", () => {
 
   describe("permdock supabase hook generate", () => {
     it("broadcasts every version bump on the server topic and on authz:<uid>", async () => {
-      const { code, sql } = await generate(`{ memberships: [${SOURCES}] }`);
+      const { code, sql } = await generate(
+        `{ memberships: [${SOURCES}], broadcast: { topic: 'permdock:authz' } }`,
+      );
       expect(code).toBe(0);
       expect(sql).toContain(
         "perform realtime.send(jsonb_build_object('user_id', new.user_id, 'version', new.version), 'changed', 'permdock:authz', true);",
@@ -22,6 +24,11 @@ describe("supabase hook", () => {
       expect(sql).toContain(
         "create policy permdock_authz_version_receive on realtime.messages",
       );
+    });
+
+    it("defaults to better-supabase's topic when the project depends on it", async () => {
+      const { sql } = await generate(`{ memberships: [${SOURCES}] }`);
+      expect(sql).toContain("'changed', 'better_supabase:authz', true);");
     });
 
     it("sends on a configured topic without the receive policy, or not at all", async () => {
@@ -46,7 +53,14 @@ describe("supabase hook", () => {
         'uri = "pg-functions://postgres/permdock/custom_access_token_hook"',
       );
       expect(sql).toContain(
-        'create schema if not exists "permdock";\nrevoke all on schema "permdock" from public;\n\ncreate or replace function "permdock".custom_access_token_hook(event jsonb)',
+        'create schema if not exists "permdock";\nrevoke all on schema "permdock" from public;',
+      );
+      expect(
+        sql.indexOf('create schema if not exists "permdock"'),
+      ).toBeLessThan(
+        sql.indexOf(
+          'create or replace function "permdock".membership_entries_for',
+        ),
       );
       expect(sql).toContain(
         `claims -> 'app_metadata' ->> 'active_organization'`,
@@ -272,7 +286,7 @@ describe("supabase hook", () => {
       expect(code).toBe(0);
       expect(
         sql.match(/'entitlements', s\.seats, 'keep', s\.keep/gu),
-      ).toHaveLength(3);
+      ).toHaveLength(2);
       expect(sql).toContain("null::jsonb as keep");
       const manifest: SupabaseHookManifest = jsonData(
         (await run(["supabase", "inspect", "--json"], { cwd })).stdout,

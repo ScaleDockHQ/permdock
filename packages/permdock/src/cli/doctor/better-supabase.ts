@@ -9,17 +9,32 @@ import { activeTenantMismatch } from "../../better-supabase/active-tenant.ts";
 import { parseCatalog } from "../../catalog/parse.ts";
 import { isRecord } from "../../core/compact.ts";
 import { rootScope, scopeList } from "../../core/scopes.ts";
+import { AUTHZ_TOPIC } from "../../supabase/authz-topic.ts";
 import { catalogPath } from "../catalog-path.ts";
 import { rel } from "../files.ts";
 import {
+  BETTER_SUPABASE_AUTHZ_TOPIC,
   betterSupabaseAuthzVersions,
   betterSupabaseConfig,
   betterSupabaseDefaults,
+  betterSupabaseInstalled,
   betterSupabaseTenantClaim,
 } from "../project/better-supabase.ts";
 import { filesOf } from "../shared/doctor-files.ts";
 import { activeSource } from "../supabase-hook/memberships.ts";
 import { policyOf } from "./inputs.ts";
+
+function lookupOf(
+  input: DoctorInput,
+): Parameters<typeof betterSupabaseConfig>[0] {
+  return {
+    cwd: input.cwd,
+    ...(input.files === undefined ? {} : { files: input.files }),
+    ...(input.config.betterSupabase?.config === undefined
+      ? {}
+      : { path: input.config.betterSupabase.config }),
+  };
+}
 
 function activeTenantOf(
   config: Record<string, unknown>,
@@ -52,7 +67,7 @@ export async function pd078(
   if (hook === undefined) {
     return [];
   }
-  const config = await betterSupabaseConfig(input);
+  const config = await betterSupabaseConfig(lookupOf(input));
   if (config === undefined) {
     return [];
   }
@@ -143,7 +158,7 @@ function isKeyLister(
 export async function pd079(
   input: DoctorInput,
 ): Promise<readonly DoctorFinding[]> {
-  const config = await betterSupabaseConfig(input);
+  const config = await betterSupabaseConfig(lookupOf(input));
   const blocks = config?.["blocks"];
   if (!isRecord(blocks)) {
     return [];
@@ -194,7 +209,7 @@ export async function pd082(
   if (hook === undefined || hook.version === false) {
     return [];
   }
-  const config = await betterSupabaseConfig(input);
+  const config = await betterSupabaseConfig(lookupOf(input));
   if (config === undefined || !betterSupabaseAuthzVersions(config)) {
     return [];
   }
@@ -207,4 +222,47 @@ export async function pd082(
       fix: "turn blocks.sessions.authzVersions off; PermDock's trigger broadcasts on better_supabase:authz and authz:<uid>, which better-supabase's subscribeAuthzVersions and SessionProvider read",
     },
   ];
+}
+
+/**
+ * The hook broadcasts a version bump on another topic than better-supabase
+ * subscribes to, or better-supabase is a dependency while its config is not
+ * found, so the hook cannot read its tenant claim and sessions block.
+ */
+export async function pd087(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
+  const hook = input.config.supabase?.hook;
+  if (hook === undefined || hook.version === false) {
+    return [];
+  }
+  const config = await betterSupabaseConfig(lookupOf(input));
+  const installed = config !== undefined || betterSupabaseInstalled(input);
+  if (!installed) {
+    return [];
+  }
+  const findings: DoctorFinding[] = [];
+  const resolved = betterSupabaseDefaults(input.config, config, installed)
+    .supabase?.hook?.broadcast;
+  if (resolved !== false) {
+    const topic = resolved?.topic ?? AUTHZ_TOPIC;
+    if (topic !== BETTER_SUPABASE_AUTHZ_TOPIC) {
+      findings.push({
+        code: "PD087",
+        severity: "warning",
+        message: `supabase.hook broadcasts authorization version changes on ${topic}, and better-supabase's subscribeAuthzVersions and SessionProvider listen on ${BETTER_SUPABASE_AUTHZ_TOPIC}: a role change never reaches a signed-in client`,
+        fix: `remove supabase.hook.broadcast.topic, or set it to ${BETTER_SUPABASE_AUTHZ_TOPIC}, then run permdock supabase hook generate`,
+      });
+    }
+  }
+  if (config === undefined) {
+    findings.push({
+      code: "PD087",
+      severity: "warning",
+      message:
+        "better-supabase is a dependency but its config file was not found from permdock.config.ts up to the workspace root, so supabase.hook cannot read its tenant claim or sessions block",
+      fix: "set betterSupabase.config in permdock.config.ts to the better-supabase.config.* path",
+    });
+  }
+  return findings;
 }

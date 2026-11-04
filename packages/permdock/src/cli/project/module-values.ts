@@ -1,12 +1,12 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
-import { parseSync } from "oxc-parser";
 
 import type { ModuleKey } from "./config-shape.ts";
 import type { LoadOptions } from "./load.ts";
 
 import { listPermissions } from "../../index.ts";
 import { configError } from "../core/errors.ts";
+import { parseSync } from "../core/optional.ts";
 import { MODULE_KEYS, isModuleKey } from "./config-shape.ts";
 import { asPermissionTree, loadModule, pickNamed } from "./load.ts";
 

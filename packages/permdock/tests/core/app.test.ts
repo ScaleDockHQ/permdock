@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { createPermDock as createAgentPermDock } from "../../src/ai-sdk/index.ts";
+import { definePermDock } from "../../src/app/index.ts";
 import { memoryApprovalStore } from "../../src/approvals/index.ts";
 import { appOf } from "../../src/core/app.ts";
 import {
   allow,
   getPermDockSync,
-  defineApp,
   definePermissions,
   definePolicy,
   memoryDecisionSink,
@@ -41,10 +41,10 @@ const withLimit = definePolicy(permissions, {
   subject,
 });
 
-describe(defineApp, () => {
+describe(definePermDock, () => {
   it("returns a policy that core and adapters read the app definition from", async () => {
     const sink = memoryDecisionSink();
-    const app = defineApp(plain, { sink });
+    const app = definePermDock(plain, { sink });
     expect(app.fingerprint).toBe(plain.fingerprint);
     expect(appOf(app)?.profile).toBe("prod");
     const permdock = getPermDockSync(app, member);
@@ -56,7 +56,7 @@ describe(defineApp, () => {
     const appSink = memoryDecisionSink();
     const callSink = memoryDecisionSink();
     const permdock = getPermDockSync(
-      defineApp(plain, { sink: appSink }),
+      definePermDock(plain, { sink: appSink }),
       member,
       { sink: callSink },
     );
@@ -66,24 +66,24 @@ describe(defineApp, () => {
   });
 
   it("throws under prod when a grant needs a store or limits the app lacks", () => {
-    expect(() => defineApp(withApproval)).toThrow(/needs a store/u);
-    expect(() => defineApp(withLimit)).toThrow(/needs limits/u);
+    expect(() => definePermDock(withApproval)).toThrow(/needs a store/u);
+    expect(() => definePermDock(withLimit)).toThrow(/needs limits/u);
     expect(() =>
-      defineApp(withApproval, { store: memoryApprovalStore() }),
+      definePermDock(withApproval, { store: memoryApprovalStore() }),
     ).not.toThrow();
     expect(() =>
-      defineApp(withLimit, { limits: limits(memoryLimitStore()) }),
+      definePermDock(withLimit, { limits: limits(memoryLimitStore()) }),
     ).not.toThrow();
   });
 
   it("fills in memory limits and one shared memory store under dev", async () => {
-    const limited = defineApp(withLimit, { profile: "dev" });
+    const limited = definePermDock(withLimit, { profile: "dev" });
     const permdock = getPermDockSync(limited, member);
     expect(permdock.decide(permissions.post.create).outcome).toBe("granted");
     expect(permdock.decide(permissions.post.create).outcome).toBe("denied");
     expect(appOf(limited)?.store).toBeDefined();
 
-    const approvals = defineApp(withApproval, { profile: "dev" });
+    const approvals = definePermDock(withApproval, { profile: "dev" });
     const agent = createAgentPermDock(approvals, {
       subject: () => member,
       operations: { delete_post: { permission: permissions.post.delete } },

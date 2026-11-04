@@ -4,7 +4,7 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 import { scanSources } from "../../src/cli/scan.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 
-vi.mock(import("oxc-parser"), async (importOriginal) => {
+vi.mock(import("../../src/cli/core/optional.ts"), async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...actual,

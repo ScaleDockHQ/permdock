@@ -6,6 +6,7 @@ import type { Intent, MembershipSource } from "../core/interfaces.ts";
 import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { SubjectCache } from "../core/subject-cache.ts";
 import type { Principal, Subject } from "../core/subject.ts";
 import type { VersionCache } from "../core/version-cache.ts";
 import type { SupabaseSessionLike } from "../supabase/types.ts";
@@ -15,12 +16,14 @@ import type {
   SessionSnapshotLike,
 } from "./subject.ts";
 
+import { appOf } from "../core/app.ts";
 import { buildInstance } from "../core/build-instance.ts";
 import { permissionStates } from "../core/checks.ts";
-import { isRecord } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { NO_GRANT } from "../core/decision.ts";
-import { claimsFirst } from "../core/memberships.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 import { isSubject } from "../core/subject.ts";
+import { versionSources } from "../core/version-sources.ts";
 import { subjectFromBetterSupabase } from "./subject.ts";
 
 /**
@@ -93,17 +96,23 @@ export type PermDockForOptions<V extends PolicyVocabulary = PolicyVocabulary> =
     readonly versions?: VersionCache;
     /** The process-wide instance cache, shared with the app's other adapters. */
     readonly instances?: InstanceCache;
+    /**
+     * The `subjects` cache of the app's `postgrestSources`. A call that knows
+     * the user's authorization version (a `bootstrap` or `getAccess` result)
+     * tells it that version, which drops a record older than it.
+     */
+    readonly subjects?: SubjectCache;
     /** Sources and sinks for each instance. */
     readonly options?: Omit<PermDockOptions, "tenant" | "intent" | "version">;
   };
 
 /** `permdockFor` with the version cache better-supabase passes at runtime. */
-export type PermDockResolver = {
+export type PermDockResolver<V extends PolicyVocabulary = PolicyVocabulary> = {
   (
     source: PermDockForInput,
     query: PermDockForQuery,
     versions?: VersionCache,
-  ): Promise<PermDock>;
+  ): Promise<PermDock<V>>;
   readonly sources: (versions?: VersionCache) => InstanceOptions;
 };
 
@@ -114,6 +123,7 @@ const RESOLVER_OWNS = [
   "version",
   "versions",
   "instances",
+  "subjects",
   "options",
 ] as const;
 
@@ -154,52 +164,66 @@ function subjectOf(
 }
 
 /**
+ * `options` with the `definePermDock` definition of its policy under it:
+ * `memberships`, `instances`, `versions` and `subjects` by key, and the other
+ * sources and `settings` inside `options.options`. A plain policy changes
+ * nothing.
+ */
+function withDefinition<V extends PolicyVocabulary>(
+  options: PermDockForOptions<V>,
+): PermDockForOptions<V> {
+  const app = appOf(options.policy);
+  if (app === undefined) return options;
+  const { memberships, instances, ...sources } = instanceOptions(app);
+  return {
+    ...options,
+    ...compact({
+      memberships: options.memberships ?? memberships,
+      instances: options.instances ?? instances,
+      versions: options.versions ?? app.versions,
+      subjects: options.subjects ?? app.subjects,
+    }),
+    options: {
+      ...sources,
+      ...compact({ settings: app.settings }),
+      ...options.options,
+    },
+  };
+}
+
+/**
  * The resolver behind `permdockFor`, the authorizer and the hooks: one sources
  * object per version cache, so every instance of one subject at one version
  * shares an `instances` entry.
  */
-function permdockResolver(options: PermDockForOptions): PermDockResolver {
-  const byCache = new WeakMap<VersionCache, InstanceOptions>();
-  let uncached: InstanceOptions | undefined;
-  const sourcesOf = (versions: VersionCache | undefined): InstanceOptions => ({
-    ...options.options,
-    ...(options.instances === undefined
-      ? {}
-      : { instances: options.instances }),
-    ...(options.memberships === undefined
-      ? {}
-      : {
-          memberships: claimsFirst(options.memberships, {
-            onStale: "reread",
-            ...(options.version === undefined
-              ? {}
-              : { version: options.version }),
-            ...(versions === undefined ? {} : { versions }),
-          }),
-        }),
-  });
-  const sourcesFor = (versions: VersionCache | undefined): InstanceOptions => {
-    if (versions === undefined) {
-      uncached ??= sourcesOf(undefined);
-      return uncached;
-    }
-    const known = byCache.get(versions);
-    if (known !== undefined) return known;
-    const created = sourcesOf(versions);
-    byCache.set(versions, created);
-    return created;
-  };
+function permdockResolver<V extends PolicyVocabulary>(
+  given: PermDockForOptions<V>,
+): PermDockResolver<V> {
+  const options = withDefinition(given);
+  const sourcesFor = versionSources(options);
   const resolve = async (
     source: PermDockForInput,
     query: PermDockForQuery,
     runtimeVersions?: VersionCache,
-  ): Promise<PermDock> => {
+  ): Promise<PermDock<V>> => {
     const result = isResult(source) ? source : undefined;
     const signedOut = result?.sessionActive === false;
     const user = subjectOf(source, result, signedOut, options.subject);
     const tenant = query.tenant ?? result?.tenant ?? undefined;
     const known = signedOut ? undefined : knownVersion(result?.authzVersion);
-    const sources = sourcesFor(runtimeVersions ?? options.versions);
+    const sources = sourcesFor(runtimeVersions);
+    const id = user.principal?.id;
+    if (
+      options.subjects !== undefined &&
+      id !== undefined &&
+      known !== undefined
+    ) {
+      try {
+        await options.subjects.record(id, known);
+      } catch {
+        // A cache that fails answers nothing; the source reads the record itself.
+      }
+    }
     const { permdock } = await buildInstance({
       policy: options.policy,
       user,
@@ -214,9 +238,7 @@ function permdockResolver(options: PermDockForOptions): PermDockResolver {
     });
     return permdock;
   };
-  const sources = (versions?: VersionCache): InstanceOptions =>
-    sourcesFor(versions ?? options.versions);
-  return Object.freeze(Object.assign(resolve, { sources }));
+  return Object.freeze(Object.assign(resolve, { sources: sourcesFor }));
 }
 
 /**
@@ -225,10 +247,10 @@ function permdockResolver(options: PermDockForOptions): PermDockResolver {
  * already holds throws a `TypeError`, since two sources of the same option
  * would disagree.
  */
-export function resolverOf(
-  options: PermDockForOptions & { readonly permdockFor?: PermDockFor },
+export function resolverOf<V extends PolicyVocabulary>(
+  options: PermDockForOptions<V> & { readonly permdockFor?: PermDockFor<V> },
   adapter: string,
-): PermDockResolver {
+): PermDockResolver<V> {
   const shared = options.permdockFor;
   if (shared === undefined) return permdockResolver(options);
   const clash = RESOLVER_OWNS.find((key) => options[key] !== undefined);
@@ -241,7 +263,7 @@ export function resolverOf(
     source: PermDockForInput,
     query: PermDockForQuery,
     versions?: VersionCache,
-  ): Promise<PermDock> => shared(source, query, versions);
+  ): Promise<PermDock<V>> => shared(source, query, versions);
   return Object.freeze(Object.assign(resolve, { sources: shared.sources }));
 }
 
@@ -264,7 +286,7 @@ export function permdockFor<V extends PolicyVocabulary = PolicyVocabulary>(
     source: PermDockForInput,
     query?: PermDockForQuery | string | null,
     versions?: VersionCache,
-  ): Promise<PermDock> =>
+  ): Promise<PermDock<V>> =>
     resolve(
       source,
       typeof query === "string" || query === null
@@ -272,10 +294,7 @@ export function permdockFor<V extends PolicyVocabulary = PolicyVocabulary>(
         : (query ?? {}),
       versions,
     );
-  // SAFETY: the resolver builds each instance from options.policy, whose vocabulary is V.
-  return Object.freeze(
-    Object.assign(call, { sources: resolve.sources }),
-  ) as PermDockFor<V>;
+  return Object.freeze(Object.assign(call, { sources: resolve.sources }));
 }
 
 /**

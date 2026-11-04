@@ -31,6 +31,13 @@ describe(describeExplain, () => {
       holds: ["tenant", "shared", "global"],
     },
     rowHelpers: [{ resource: "post", permissions: ["post.read"] }],
+    inferredActions: [
+      {
+        action: "updateStatus",
+        command: "update",
+        permissions: ["post.updateStatus"],
+      },
+    ],
     triggers: [{ name: "t1", table: "public.roles", reason: "why" }],
   };
 
@@ -45,6 +52,9 @@ describe(describeExplain, () => {
       "custom roles: public.roles (key key, tenant org, shared shared, skip builtin); holds tenant, shared, global roles",
     );
     expect(text).toContain("  post: post.read");
+    expect(text).toContain(
+      "inferred actions (set rls.actions to change):\n  updateStatus -> update: post.updateStatus",
+    );
     expect(text).toContain("  t1 on public.roles (why)");
   });
 
@@ -54,10 +64,12 @@ describe(describeExplain, () => {
       membershipSources: [],
       customRoles: { table: "r", key: "k", holds: ["global"] },
       rowHelpers: [],
+      inferredActions: [],
       triggers: [],
     });
     expect(text).not.toContain("membership sources:");
     expect(text).not.toContain("row helpers:");
+    expect(text).not.toContain("inferred actions");
     expect(text).not.toContain("generated triggers:");
     expect(text).toContain("custom roles: r (key k); holds global roles");
   });
@@ -111,6 +123,14 @@ describe("runRls explain with options", () => {
     expect(report.triggers).toStrictEqual(expect.any(Array));
   });
 
+  it("accepts rls.idTypes", async () => {
+    const report = await explained({
+      dialect: "supabase",
+      idTypes: { "*": "text" },
+    });
+    expect(report.schema).toBe("permdock");
+  });
+
   it("lists the resources a rowHelpers array names", async () => {
     const report = await explained({
       dialect: "supabase",
@@ -139,5 +159,31 @@ describe("runRls explain with options", () => {
       customRoleWrites: { roles: { table: "app_roles", key: "key" } },
     });
     expect(report.customRoles?.holds).toStrictEqual(["global"]);
+  });
+});
+
+describe("runRls explain with inferred actions", () => {
+  it("lists a compound action under the default verb it starts with", async () => {
+    const result = await runRls(
+      input({
+        policy: new URL("../fixtures/inferred-actions.ts", import.meta.url)
+          .pathname,
+        rls: { dialect: "supabase" },
+      }),
+    );
+    expect(result.code).toBe(0);
+    const report: RlsExplain = JSON.parse(result.output);
+    expect(report.inferredActions).toStrictEqual([
+      {
+        action: "listArchived",
+        command: "select",
+        permissions: ["ticket.listArchived"],
+      },
+      {
+        action: "updateStatus",
+        command: "update",
+        permissions: ["ticket.updateStatus"],
+      },
+    ]);
   });
 });
