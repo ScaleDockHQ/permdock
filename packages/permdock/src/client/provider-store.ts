@@ -1,10 +1,11 @@
 import type { TokenVerifier } from "../core/interfaces.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
+import type { ClientStore } from "./store-core.ts";
 import type { AdapterStoreOptions } from "./store-options.ts";
-import type { ClientStore } from "./store.ts";
 
 import { compact } from "../core/compact.ts";
-import { emptySnapshot } from "../core/from-snapshot.ts";
+import { emptySnapshot } from "../core/snapshot-empty.ts";
+import { eagerEvaluator } from "./evaluator-eager.ts";
 import { isPromiseLike } from "./source.ts";
 import { adapterStore } from "./store-options.ts";
 
@@ -85,6 +86,7 @@ export function providerStore(
       ...liveOptions(read),
     }),
     promised || snapshot === undefined ? emptySnapshot() : snapshot,
+    eagerEvaluator,
   );
   if (promised) {
     store.follow(snapshot);

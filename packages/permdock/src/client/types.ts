@@ -18,6 +18,17 @@ export type PermissionState = {
   readonly decision: Decision;
 };
 
+/**
+ * What a check with no row answers from the snapshot alone: no `Decision`, so a
+ * client renders it without the evaluator. `useDecision` returns the
+ * `PermissionState` that carries one.
+ */
+export type PermissionOutcome = {
+  readonly allowed: boolean;
+  readonly status: ClientStatus;
+  readonly outcome: Decision["outcome"];
+};
+
 export type PermissionSet = {
   readonly granted: readonly Permission[];
   get: (permission: Permission) => PermissionState | undefined;

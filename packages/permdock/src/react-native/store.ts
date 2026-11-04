@@ -7,10 +7,11 @@ import type {
   SubscribeForeground,
 } from "./types.ts";
 
+import { eagerEvaluator } from "../client/evaluator-eager.ts";
 import { isJws } from "../client/source.ts";
 import { adapterStore } from "../client/store-options.ts";
 import { compact } from "../core/compact.ts";
-import { emptySnapshot } from "../core/from-snapshot.ts";
+import { emptySnapshot } from "../core/snapshot-empty.ts";
 import { parseSnapshot } from "../core/snapshot.ts";
 import {
   clearStorage,
@@ -165,6 +166,7 @@ export function nativeStore(options: NativeStoreOptions): ClientStore {
       refreshOn: options.refreshOn,
     }),
     snapshot,
+    eagerEvaluator,
     {
       server: false,
       stale: revalidates && (fromStorage !== undefined || waiting),

@@ -1,9 +1,13 @@
 import type { Permission } from "../core/permission-types.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
-import type { ClientStore, ClientStoreOptions } from "./store.ts";
+import type {
+  ClientStore,
+  ClientStoreOptions,
+  Evaluator,
+} from "./store-core.ts";
 
 import { compact } from "../core/compact.ts";
-import { createClientStore } from "./store.ts";
+import { createStore } from "./store-core.ts";
 
 /** The provider options every UI adapter forwards to its client store. */
 export type AdapterStoreOptions = Pick<
@@ -72,9 +76,10 @@ function both<A extends readonly unknown[]>(
 export function adapterStore(
   options: AdapterStoreOptions,
   snapshot: Snapshot | string,
+  evaluator: Evaluator,
   native?: NativeStoreHooks,
 ): ClientStore {
-  return createClientStore(
+  return createStore(
     compact({
       snapshot,
       endpoint: options.endpoint === false ? undefined : options.endpoint,
@@ -96,5 +101,6 @@ export function adapterStore(
       approvalInterval: options.approvalInterval,
       refreshOn: options.refreshOn,
     }),
+    evaluator,
   );
 }

@@ -90,6 +90,21 @@ export type Snapshot = {
   readonly authzVersion?: number;
   /** The Auth session (`session_id`) the snapshot was built for. */
   readonly sessionId?: string;
+  /**
+   * What a check with no row, team or field answers in the active tenant, so a
+   * client renders `usePermission(permission)` without loading its evaluator.
+   * Every key not listed is denied. Absent when an answer depends on the clock
+   * (a grant `validity`, a membership `expiresAt`) or on the server alone.
+   */
+  readonly typeLevel?: SnapshotTypeLevel;
+};
+
+/** The permission keys a rowless check grants or sends to an approver. */
+export type SnapshotTypeLevel = {
+  readonly granted: readonly string[];
+  readonly approval?: readonly string[];
+  /** Keys whose rowless answer needs the evaluations endpoint. */
+  readonly endpoint?: readonly string[];
 };
 
 /**

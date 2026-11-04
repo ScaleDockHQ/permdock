@@ -16,8 +16,9 @@ export {
   visibilityRefresh,
 } from "./refresh-on.ts";
 export { isPromiseLike } from "./source.ts";
+export { lazyEvaluator } from "./evaluator-lazy.ts";
 export { adapterStore } from "./store-options.ts";
-export { storeOf } from "./store.ts";
+export { storeOf } from "./store-core.ts";
 export {
   approvalHandle,
   describeWith,
@@ -34,4 +35,4 @@ export {
 } from "./views.ts";
 export { compact } from "../core/compact.ts";
 export { describe, requiredPlans } from "../core/describe.ts";
-export { emptySnapshot } from "../core/from-snapshot.ts";
+export { emptySnapshot } from "../core/snapshot-empty.ts";
