@@ -81,7 +81,54 @@ export type AuthorizationProviderOptions = {
    * rows the caller holds a permission on.
    */
   readonly rowHelpers?: boolean;
+  /**
+   * Users better-supabase's access matrix signs in as, one pgTAP file each
+   * (`providerPersonaTests`). `setup` creates the memberships and roles with
+   * `{user}` and `{tenant}`; `permissions` are the keys the persona holds in
+   * the tenant, and every other `sqlComplete` key is asserted denied.
+   */
+  readonly personas?: readonly ProviderPersona[];
+  /**
+   * Names `permdock_subject()` as `functions.subject`, so a bootstrap seeds the
+   * provider subject. Needs a better-supabase release that knows the field (see
+   * the compatibility table); older conformance kits reject it.
+   */
+  readonly subject?: boolean;
 };
+
+/** One `personas` entry of better-supabase's `AuthorizationProvider`. */
+export type ProviderPersona = {
+  readonly name: string;
+  readonly setup: string;
+  readonly claims?: Readonly<Record<string, unknown>>;
+  readonly permissions: readonly string[];
+};
+
+/**
+ * The `AuthorizationProvider` fields added after better-supabase 0.39.0. They
+ * are plain data, so an older better-supabase ignores them.
+ */
+type ProviderExtras = {
+  readonly platformRoles?: {
+    readonly table: string;
+    readonly user: string;
+    readonly role: string;
+    readonly through?: {
+      readonly table: string;
+      readonly id: string;
+      readonly column: string;
+    };
+    readonly canAssign?: string;
+    readonly canAssignFor?: string;
+  };
+  readonly personas?: readonly ProviderPersona[];
+};
+
+/**
+ * `subject_for` for the signed-in user, from the hook (`supabase hook
+ * generate`).
+ */
+const OWN_SUBJECT = "permdock_subject";
 
 type DisabledRow = NonNullable<
   NonNullable<AuthorizationProvider["suspension"]>["user"]
@@ -316,6 +363,9 @@ function membershipOf(
         ? { column: source.scope.column }
         : { value: scope },
     idColumn: source.id.column,
+    ...(source.disabledAt === undefined
+      ? {}
+      : { disabledAt: source.disabledAt.column }),
     ...rolesTableOf(source),
   };
 }
@@ -377,6 +427,51 @@ function disabledRow(row: SupabaseManifestActiveRow): DisabledRow {
     ...(row.status === undefined || row.active === undefined
       ? {}
       : { status: row.status, active: row.active }),
+  };
+}
+
+/**
+ * `rls.roles` as better-supabase's `platformRoles`: the global-roles table with
+ * its roles table, and the assignment helpers that answer without a tenant.
+ */
+function platformRolesOf(
+  manifest: SupabaseManifest,
+  schema: string,
+  scope: string,
+  assignAny: boolean,
+): ProviderExtras["platformRoles"] {
+  const roles = manifest.rls.roles;
+
+  if (
+    roles === undefined ||
+    isRoleList(roles.role) ||
+    !("column" in roles.role)
+  ) {
+    return undefined;
+  }
+
+  const through = "through" in roles.role ? roles.role.through : undefined;
+  const literal = quoteSqlLiteral(scope);
+
+  return {
+    table: roles.table,
+    user: roles.user.column,
+    role: roles.role.column,
+    ...(through === undefined || through.on !== undefined
+      ? {}
+      : {
+          through: {
+            table: through.table,
+            id: through.id,
+            column: through.column,
+          },
+        }),
+    ...(assignAny
+      ? {
+          canAssign: `${schema}.${ASSIGN_ANY.canAssign.helper}({role}, null::uuid, ${literal}, null::text)`,
+          canAssignFor: `${schema}.${ASSIGN_ANY.canAssignFor.helper}({user}, {role}, null::uuid, ${literal}, null::text)`,
+        }
+      : {}),
   };
 }
 
@@ -793,7 +888,17 @@ export function authorizationProvider(
     options.rowHelpers === true
       ? rowTemplatesOf(schema, manifest, requires, problems)
       : {};
-  const functions: AuthorizationFunctions = {
+  const ownSubject =
+    options.subject === true && helpers.has(OWN_SUBJECT)
+      ? `${schema}.${sqlIdent(OWN_SUBJECT)}()`
+      : undefined;
+  if (ownSubject !== undefined) {
+    requires.push({
+      function: `${schema}.${sqlIdent(OWN_SUBJECT)}`,
+      role: "authenticated",
+    });
+  }
+  const functions: AuthorizationFunctions & { subject?: string } = {
     ...rowTemplates,
     ...optional,
     idsWith: `${schema}.${TEMPLATES.idsWith.sql}`,
@@ -803,6 +908,19 @@ export function authorizationProvider(
     ...(actorMayWrite === undefined ? {} : { actorMayWrite }),
     ...(isApprover === undefined ? {} : { isApprover }),
     ...(permitted === undefined ? {} : { permitted }),
+    ...(ownSubject === undefined ? {} : { subject: ownSubject }),
+  };
+  const platformRoles = platformRolesOf(
+    manifest,
+    schema,
+    tenantScope,
+    assignAny && listed("canAssign", tenantScope),
+  );
+  const extras: ProviderExtras = {
+    ...(platformRoles === undefined ? {} : { platformRoles }),
+    ...(options.personas === undefined || options.personas.length === 0
+      ? {}
+      : { personas: options.personas }),
   };
   const operations = catalog === undefined ? {} : operationsOf(catalog);
   const delegated = delegatedScopes(catalog);
@@ -842,6 +960,7 @@ export function authorizationProvider(
         }
       : {}),
     ...(roleSources.length > 0 ? { roleSources } : {}),
+    ...extras,
     ...(Object.keys(operations).length > 0 ? { operations } : {}),
     ...(Object.keys(delegated).length > 0
       ? { delegation: { scopes: delegated } }

@@ -19,6 +19,7 @@ import {
   pd088,
   pd089,
   pd090,
+  pd093,
 } from "../../src/cli/doctor/sql.ts";
 import { sqlStatements } from "../../src/cli/sql/statements.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
@@ -331,6 +332,21 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
       );
       expect(messages(pd090(cwd, config))).toStrictEqual([
         `${MIGRATION}:2 policy quotes_write on public.quotes repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
+      ]);
+    });
+  });
+
+  describe("PD093 own_subject", () => {
+    it("reports a migration that defines own_subject()", () => {
+      const cwd = migration(
+        [
+          `select 1;`,
+          `create or replace function public.own_subject() returns jsonb language sql as $$ select null::jsonb $$;`,
+          `create function public.permdock_subject() returns jsonb language sql as $$ select null::jsonb $$;`,
+        ].join("\n"),
+      );
+      expect(messages(pd093(cwd, config))).toStrictEqual([
+        `${MIGRATION}:2 defines own_subject(), which permdock_subject() from the hook migration already is`,
       ]);
     });
   });

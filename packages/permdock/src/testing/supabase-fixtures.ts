@@ -530,6 +530,12 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
         returns: "uuid",
         execute: ["authenticated"],
       },
+      {
+        name: "permdock_subject",
+        args: "",
+        returns: "jsonb",
+        execute: ["authenticated"],
+      },
     ],
     memberships: [
       {

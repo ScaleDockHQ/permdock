@@ -519,6 +519,31 @@ describe(authorizationProvider, () => {
     ]);
   });
 
+  it("names the own-subject helper and the disabled-at column", () => {
+    const provider = authorizationProvider({
+      subject: true,
+      manifest: withRls({
+        memberships: [
+          {
+            table: "public.memberships",
+            user: { column: "user_id" },
+            scope: { value: "tenant" },
+            id: { column: "tenant_id" },
+            role: { column: "role_id" },
+            disabledAt: { column: "disabled_at" },
+            columns: ["user_id", "role_id"],
+          },
+        ],
+      }),
+    });
+    expect(provider.functions).toMatchObject({
+      subject: "permdock.permdock_subject()",
+    });
+    expect(provider.memberships?.[0]).toMatchObject({
+      disabledAt: "disabled_at",
+    });
+  });
+
   it("maps role sources, suspension rows and assignment helpers", () => {
     const helper = (name: string, args: string) => ({
       name,

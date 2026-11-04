@@ -1094,6 +1094,19 @@ The arguments apply to every listed table, so `user_roles`, which has no `tenant
 
 `bucketPolicy` and `topicPolicy` decide in better-supabase's Storage and Realtime policies through the provider's helpers, for buckets and topics defined with `defineBucket` and `defineTopic`. PermDock's own `rls.storage` and `rls.realtime` write the policies on `storage.objects` and `realtime.messages` from `permdock rls generate` instead. Pick one per bucket or topic: both on the same one write two policies that Postgres combines with `or`.
 
+## Compatibility
+
+Each `permdock` release fills the provider fields that its better-supabase peer knows. A field is ignored by an older better-supabase, except `functions.subject`, which the conformance kit of a release without it rejects, so it is opt-in.
+
+| Provider option or field   | `permdock`   | better-supabase | Notes                                                                                       |
+| -------------------------- | ------------ | --------------- | ------------------------------------------------------------------------------------------- |
+| `memberships[].disabledAt` | next release | next release    | Filled from the membership source's `disabledAt` column.                                    |
+| `platformRoles`            | next release | next release    | Filled from `rls.roles` when the manifest lists `permdock_can_assign_any`.                  |
+| `personas`                 | next release | next release    | Pass `personas` to `authorizationProvider`; `accessMatrixTests` writes one pgTAP file each. |
+| `functions.subject`        | next release | next release    | Opt in with `subject: true`; names `permdock_subject()`.                                    |
+
+Pin both packages to the pair a release lists, and update the table in the same pull request as a provider change.
+
 ## Sessions and actors
 
 - better-supabase's `verifySession(sql, auth)` checks that a token's session is still in `auth.sessions`. Call it before a sensitive action and pass the result as `liveSession` ([live sessions](/docs/adapters/supabase#live-sessions)).
