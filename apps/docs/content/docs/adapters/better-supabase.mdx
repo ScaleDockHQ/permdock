@@ -93,7 +93,7 @@ import {
 - `principalSource({ claims, identities?, subject? })` returns a `PrincipalSource` over the claims better-supabase mints ([Principals](#principals)).
 - `principalFromMemberships(userId, rows, { scope?, tenant? })` builds a frozen `Principal` from rows of the `memberships` block's table (`BetterSupabaseMembershipRow`: `user_id`, `organization_id`, `role`, `disabled_at?`), for server code that reads the table instead of the token ([Server code](#server-code)).
 - `accessReviewApplier({ client, reviews, policy, demoteTo?, email?, permdockFor?, schema?, scope?, now? })` applies the revoked items of an [access review](/docs/concepts/access-reviews) through the organizations and invitations blocks, then marks each one applied ([Access reviews](#access-reviews)).
-- `authorizationHooks({ policy, claims, permdockFor?, ... })` returns better-supabase's `AuthorizationHooks` for `createServer(betterSupabase, { authorization })` ([Authorization hooks](#authorization-hooks)).
+- `authorizationHooks({ policy, claims?, permdockFor?, ... })` returns better-supabase's `AuthorizationHooks` for `createServer(betterSupabase, { authorization })` ([Authorization hooks](#authorization-hooks)).
 - `roleOrderFromCatalog(catalog, { scope?, owner? })` returns the catalog's role keys highest first, for the SSO block's `roleOrder` ([SSO role order](#sso-role-order)).
 
 ## Setup
@@ -991,6 +991,8 @@ export const server = createServer(betterSupabase, {
   }),
 });
 ```
+
+`claims` is optional. Without it the hooks hold `apiVersion`, `name`, `sessionTags`, `delegation` and `approverOf`, but no `automation` or `tickets`, because both load a user's claims. `service`, `support` and `tickets` need `claims`; passing one without it is a type error.
 
 - `automation.mayPublish` lets a user publish an automation only with every key it uses granted to them in its tenant. `automation.runAs` loads the publisher's current claims, or `service(tenant)` for an organization-owned automation, checks every key again, and adds the automation's keys as `bsb_permission_cap`. A deleted or suspended publisher, a key they lost and a missing `service` run as no one.
 - `delegation.permissions` maps a token's OAuth scopes to the keys whose `.scope` they are or were renamed from, and to the keys a policy `oauthScopes` entry covers. It reads no `authorization_details`.

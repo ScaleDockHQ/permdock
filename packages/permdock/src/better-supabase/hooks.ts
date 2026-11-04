@@ -47,9 +47,7 @@ type RequestContext = NonNullable<Awaited<ReturnType<TicketSubject>>>;
 /** better-supabase's claim that caps a context to the permission keys it lists. */
 const PERMISSION_CAP_CLAIM = "bsb_permission_cap";
 
-export type AuthorizationHooksOptions<
-  V extends PolicyVocabulary = PolicyVocabulary,
-> = {
+type AuthorizationHooksBase<V extends PolicyVocabulary> = {
   readonly policy: Policy<unknown, Principal, V>;
   /**
    * The app's `permdockFor` resolver, shared with `authorizer({ permdockFor })`
@@ -58,14 +56,6 @@ export type AuthorizationHooksOptions<
    * one of those as well throws a `TypeError`.
    */
   readonly permdockFor?: PermDockFor<V>;
-  /**
-   * The claims better-supabase mints for `userId` now, or `null` for a user
-   * deleted, suspended or unknown: the same loader `principalSource` takes.
-   */
-  readonly claims: (
-    userId: string,
-    options: { readonly tenant?: string },
-  ) => Maybe<Claims>;
   /**
    * How the claims map to a subject; the defaults of
    * `subjectFromBetterSupabase`.
@@ -81,12 +71,6 @@ export type AuthorizationHooksOptions<
     PermDockOptions,
     "tenant" | "actor" | "delegation" | "session" | "expiresAt"
   >;
-  /**
-   * The claims an organization-owned automation runs as in `tenant`, such as
-   * its default service principal's. Without it such an automation runs as no
-   * one.
-   */
-  readonly service?: (tenant: string | null) => Maybe<Claims>;
   /**
    * The `principalSource` for `identities` and `delivery`; without it neither
    * hook is set.
@@ -104,6 +88,25 @@ export type AuthorizationHooksOptions<
    * `approverOf`.
    */
   readonly approvers?: ProviderApprovers;
+};
+
+/** The options that read claims; each needs `claims`. */
+type ClaimsHooks<V extends PolicyVocabulary> = {
+  /**
+   * The claims better-supabase mints for `userId` now, or `null` for a user
+   * deleted, suspended or unknown: the same loader `principalSource` takes.
+   * Without it the hooks have no `automation`.
+   */
+  readonly claims: (
+    userId: string,
+    options: { readonly tenant?: string },
+  ) => Maybe<Claims>;
+  /**
+   * The claims an organization-owned automation runs as in `tenant`, such as
+   * its default service principal's. Without it such an automation runs as no
+   * one.
+   */
+  readonly service?: (tenant: string | null) => Maybe<Claims>;
   /** `supportPolicy`'s options without `policy`; sets `support.authorize`. */
   readonly support?: Omit<SupportPolicyOptions<V>, "policy">;
   /**
@@ -115,6 +118,22 @@ export type AuthorizationHooksOptions<
     ticket: string,
   ) => Maybe<{ readonly userId: string; readonly tenant?: string }>;
 };
+
+/**
+ * With `claims` the hooks set `automation`, `support` and `tickets`; without it
+ * only `sessionTags`, `delegation`, `approverOf`, `identities` and `delivery`,
+ * and passing `service`, `support` or `tickets` is a type error.
+ */
+export type AuthorizationHooksOptions<
+  V extends PolicyVocabulary = PolicyVocabulary,
+> =
+  | (AuthorizationHooksBase<V> & ClaimsHooks<V>)
+  | (AuthorizationHooksBase<V> & {
+      readonly claims?: undefined;
+      readonly service?: undefined;
+      readonly support?: undefined;
+      readonly tickets?: undefined;
+    });
 
 /**
  * Whether `permdock` is granted `key` with no row; an unknown key and
@@ -176,12 +195,12 @@ function matches(
  * authorization })`), decided by `policy`. Every hook builds the principal's
  * instance from the claims `claims` loads now, never from the request, and
  * fails closed: a throw, an unknown key and `approval-required` refuse.
- * `automation`, `delegation` and `sessionTags` (`snapshotTag(userId)`, so
- * `evictSession` and sign-out clear PermDock snapshots) are always set;
- * `identities`, `delivery`, `approverOf`, `support` and `tickets` only with the
- * options they read. `delegation.permissions` maps each scope to the keys whose
- * `.scope` it is, was renamed from, or that a policy `oauthScopes` entry
- * covers, and reads no `authorization_details`.
+ * `delegation` and `sessionTags` (`snapshotTag(userId)`, so `evictSession` and
+ * sign-out clear PermDock snapshots) are always set; `automation`, `support`
+ * and `tickets` only with `claims`; `identities`, `delivery` and `approverOf`
+ * only with the options they read. `delegation.permissions` maps each scope to
+ * the keys whose `.scope` it is, was renamed from, or that a policy
+ * `oauthScopes` entry covers, and reads no `authorization_details`.
  */
 export function authorizationHooks<
   V extends PolicyVocabulary = PolicyVocabulary,
@@ -213,11 +232,13 @@ export function authorizationHooks<
       automation.permissions.every((key) => grants(permdock, key))
     );
   };
+  const loadClaims = options.claims;
   const claimsOf = async (
     userId: string,
     tenant: string | null | undefined,
   ): Promise<Claims | null> => {
-    const claims = await options.claims(
+    if (loadClaims === undefined) return null;
+    const claims = await loadClaims(
       userId,
       tenant === null || tenant === undefined ? {} : { tenant },
     );
@@ -342,7 +363,9 @@ export function authorizationHooks<
     apiVersion: 1,
     name: "PermDock",
     sessionTags: (userId: string): readonly string[] => [snapshotTag(userId)],
-    automation: Object.freeze(automation),
+    ...(loadClaims === undefined
+      ? {}
+      : { automation: Object.freeze(automation) }),
     delegation: Object.freeze(delegation),
     ...(approverOf === undefined ? {} : { approverOf }),
     ...(identities === undefined
@@ -351,14 +374,14 @@ export function authorizationHooks<
     ...(fanOut === undefined
       ? {}
       : { delivery: Object.freeze({ subscribers: fanOut, audience: fanOut }) }),
-    ...(support === undefined
+    ...(loadClaims === undefined || support === undefined
       ? {}
       : {
           support: Object.freeze({
             authorize: supportPolicy({ ...support, policy }),
           }),
         }),
-    ...(tickets === undefined
+    ...(loadClaims === undefined || tickets === undefined
       ? {}
       : {
           tickets: Object.freeze({
