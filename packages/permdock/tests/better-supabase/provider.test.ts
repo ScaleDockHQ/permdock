@@ -545,13 +545,15 @@ describe(authorizationProvider, () => {
   });
 
   describe("platformRoles and personas", () => {
-    const platform = (role: object) =>
+    const platform = (
+      role: NonNullable<SupabaseHookManifest["rls"]["roles"]>["role"],
+    ) =>
       withRls({
         roles: {
           table: "public.platform_roles",
           user: { column: "user_id" },
           role,
-        } as never,
+        },
       });
 
     it("fills platformRoles only on request, with an optional roles table", () => {
@@ -559,14 +561,11 @@ describe(authorizationProvider, () => {
         column: "role",
         through: { table: "public.roles", id: "id", column: "key" },
       });
-      expect(
-        authorizationProvider({ manifest }) as { platformRoles?: unknown },
-      ).not.toHaveProperty("platformRoles");
-      const provider = authorizationProvider({
-        manifest,
-        platformRoles: true,
-      }) as { platformRoles?: unknown };
-      expect(provider.platformRoles).toStrictEqual({
+      expect(authorizationProvider({ manifest })).not.toHaveProperty(
+        "platformRoles",
+      );
+      const provider = authorizationProvider({ manifest, platformRoles: true });
+      expect(Reflect.get(provider, "platformRoles")).toStrictEqual({
         table: "public.platform_roles",
         user: "user_id",
         role: "role",
@@ -584,9 +583,9 @@ describe(authorizationProvider, () => {
         manifest: platform({ value: ["admin"] }),
         platformRoles: true,
         personas: [persona],
-      }) as { platformRoles?: unknown; personas?: unknown };
+      });
       expect(provider).not.toHaveProperty("platformRoles");
-      expect(provider.personas).toStrictEqual([persona]);
+      expect(Reflect.get(provider, "personas")).toStrictEqual([persona]);
     });
   });
 
