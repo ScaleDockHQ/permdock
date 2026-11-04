@@ -68,7 +68,7 @@ const { principal, actor, simulated } = useSubject()
 
 ## Lazy evaluator
 
-`permdock/react` loads the snapshot evaluator as a separate chunk. `usePermission(permission)` and `<Protected permission>` answer from the snapshot's `typeLevel` table and return `{ allowed, status, outcome }`; `usePermission(permission, data)`, `useDecision`, `useGate` and `usePermDock` suspend until the chunk arrives. The initial download measures 14,637 B gzip against 20,263 B before the split ([client weight](/docs/concepts/ui#client-weight), [decision 0058](https://github.com/ScaleDockHQ/permdock/blob/main/docs/decisions/0058-react-evaluator-split.md)).
+`permdock/react` ships the snapshot evaluator in its entry: with a synchronous `snapshot`, every hook and `<Protected>` answers on the first render and in a server render, and only `suspend` with a `snapshotPromise` suspends. `permdock/react/lazy` has the same exports and loads the evaluator as a separate chunk: `usePermission(permission)` and `<Protected permission>` answer from the snapshot's `typeLevel` table, and `usePermission(permission, data)`, `useDecision`, `useGate`, `usePermDock` and `useFilter` suspend until the chunk arrives, so they need a `<Suspense>` boundary. The initial download measures 14,690 B gzip on `permdock/react/lazy` against 21,184 B on `permdock/react` ([client weight](/docs/concepts/ui#client-weight), [decision 0058](https://github.com/ScaleDockHQ/permdock/blob/main/docs/decisions/0058-react-evaluator-split.md)).
 
 Why: a menu or a hidden button needs a yes or no that the server computed, and shipping the evaluator for it costs 6 KB. A permission missing from the table is denied (invariant 1), and the table is absent when an answer depends on the clock, so the evaluator decides.
 

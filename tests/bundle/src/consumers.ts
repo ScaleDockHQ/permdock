@@ -13,6 +13,7 @@ import { gzipSync } from "node:zlib";
 const CONSUMERS = {
   "core definePolicy + getPermDockSync": `import { getPermDockSync, definePermissions, definePolicy } from 'permdock'; export { getPermDockSync, definePermissions, definePolicy };`,
   "react PermDockProvider + usePermission": `export { PermDockProvider, usePermission } from 'permdock/react';`,
+  "react/lazy PermDockProvider + usePermission": `export { PermDockProvider, usePermission } from 'permdock/react/lazy';`,
   "react-native PermDockProvider + usePermission": `export { PermDockProvider, usePermission } from 'permdock/react-native';`,
   "react-native PermDockProvider + localSnapshot": `export { PermDockProvider, localSnapshot, usePermission } from 'permdock/react-native';`,
   "next createPermDock": `export { createPermDock } from 'permdock/next';`,
@@ -27,6 +28,7 @@ const CONSUMERS = {
   "ai-sdk createPermDock": `export { createPermDock } from 'permdock/ai-sdk';`,
   "supabase/middleware createPermDock": `export { createPermDock } from 'permdock/supabase/middleware';`,
   "saas client react": `export { PermDockProvider, Protected, usePermission } from 'permdock/react';`,
+  "saas client react/lazy": `export { PermDockProvider, Protected, usePermission } from 'permdock/react/lazy';`,
   "saas server better-supabase + next": `export { authorizer, blockMembershipSource, subjectFromBetterSupabase, subjectFromShareLink } from 'permdock/better-supabase'; export { authzVersion, exchangeCapability, junctionMembershipSource, supabaseClaims, supabasePostgresQuery } from 'permdock/supabase'; export { createPermDock, snapshotTag } from 'permdock/next'; export { actor, allow, claimsFirst, defineOperations, definePermissions, definePolicy, defineRoles, emptySnapshot, getPermDockSync, memoryVersionCache, resource, role } from 'permdock';`,
   "openapi securityFor + permissionsExtension + problemDetails": `export { permissionsExtension, problemDetails, securityFor } from 'permdock/openapi';`,
 } as const;
@@ -82,8 +84,8 @@ export async function bundleWithMeta(
  * measured too.
  */
 const SPLIT = [
-  "react PermDockProvider + usePermission",
-  "saas client react",
+  "react/lazy PermDockProvider + usePermission",
+  "saas client react/lazy",
 ] as const;
 
 /**

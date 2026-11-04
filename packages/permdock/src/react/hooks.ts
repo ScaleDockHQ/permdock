@@ -65,11 +65,15 @@ export function useSnapshotPermDock(): ClientPermDock {
   );
 }
 
+const loaded: PromiseLike<void> = Object.assign(Promise.resolve(), {
+  status: "fulfilled",
+  value: undefined,
+});
+
 /** Suspends the nearest boundary until the store's evaluator has loaded. */
 function useEvaluator(store: ClientStore, needed = true): void {
-  const loading = needed ? store.loading() : undefined;
-  if (loading !== undefined) {
-    use(loading);
+  if (needed) {
+    use(store.loading() ?? loaded);
   }
 }
 

@@ -16,6 +16,7 @@ export {
   visibilityRefresh,
 } from "./refresh-on.ts";
 export { isPromiseLike } from "./source.ts";
+export { eagerEvaluator } from "./evaluator-eager.ts";
 export { lazyEvaluator } from "./evaluator-lazy.ts";
 export { adapterStore } from "./store-options.ts";
 export { storeOf } from "./store-core.ts";

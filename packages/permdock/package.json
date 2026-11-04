@@ -62,6 +62,10 @@
       "types": "./dist/react/index.d.ts",
       "default": "./dist/react/index.js"
     },
+    "./react/lazy": {
+      "types": "./dist/react/lazy.d.ts",
+      "default": "./dist/react/lazy.js"
+    },
     "./react-native": {
       "types": "./dist/react-native/index.d.ts",
       "default": "./dist/react-native/index.js"
