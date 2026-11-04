@@ -138,6 +138,8 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD084` | A synced PowerSync stream reads a token claim, so a role or tenant change needs a session refresh and a reconnect                                                                                                                                                                                          | warning         |
 | `PD085` | With `--db-url-stdin`, `custom_access_token_hook` raises when `supabase_auth_admin` calls it                                                                                                                                                                                                               | error           |
 | `PD086` | A `sqlFunction` set variant names a column the resource does not declare (error), or passes row-field args the set form drops (warning)                                                                                                                                                                    | error / warning |
+| `PD091` | An operation under `openapi.tenantPaths` that `openapi.operations` declares no entry for, or a declared entry that matches no operation of an `openapi.doc` document                                                                                                                                       | error           |
+| `PD092` | `pnpm-lock.yaml` lists `permdock` more than once with different peer sets, so one app can load two copies of its stores and caches                                                                                                                                                                         | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -591,6 +593,37 @@ warning PD086  post.read (role member): sqlFunction job_permitted set passes row
 ```
 
 The error means the generated policy would name a column the table does not have, or that the resource schema does not expose; fix `set.column` or add the column to the schema. The warning means the function will not receive the row fields: pass only the function's own arguments, or drop `set` to call the helper per row. When the resource has no JSON Schema, PD086 skips the column check but still warns about dropped row-field args. `--only rls` runs PD086.
+
+### PD091: a tenant operation has no permission
+
+A route that `operationPermissions` does not list is denied by the HTTP gate. PD091 compares the `openapi.operations` declaration with each `openapi.doc` document, with the function `testOperationCoverage` runs:
+
+```txt
+error PD091  openapi.json: POST /api/orgs/{orgId}/posts is under a tenant path and has no entry in src/operations.ts#operations, so the gate denies it
+error PD091  openapi.json: src/operations.ts#operations declares GET /orgs/{org}/old, which the document does not contain
+```
+
+Set `openapi.operations` to `"<module>#<export>"`, `openapi.tenantPaths` to the path templates that act on a tenant (`["/orgs/{orgId}"]`, a `{param}` matching any name) and `openapi.base` to the prefix the document's paths carry and the keys do not. Declare the missing operation or remove the stale entry. An operation outside `tenantPaths` may stay undeclared. The check is skipped unless all of `openapi.operations`, `openapi.tenantPaths` and `openapi.doc` are set. `--only openapi` runs PD091.
+
+### PD092: two peer variants of permdock
+
+pnpm installs one copy of `permdock` per distinct set of resolved peers, so an app whose workspace packages pin different `react`, `zod` or `next` versions gets two copies. Module-level state does not cross copies except through `Symbol.for` brands, so a client store, a cache or an instance created from one copy is not the other copy's. PD092 reads `pnpm-lock.yaml` and lists each `permdock@<version>(…)` key beyond the first with the peers that differ:
+
+```txt
+warning PD092  pnpm-lock.yaml resolves permdock@0.21.0 twice: (react@19.1.0) and (react@19.2.0)
+```
+
+Align the peer versions across workspace packages, or add a `pnpm.overrides` entry for the peer. `--only project` runs PD092.
+
+### PD087: the hook and better-supabase disagree on the broadcast topic or the config
+
+`supabase.hook` broadcasts each authorization version bump on `better_supabase:authz` when better-supabase is installed, and better-supabase's `subscribeAuthzVersions` and `SessionProvider` listen on that topic. PD087 warns when `supabase.hook.broadcast.topic` pins another topic, and when better-supabase is a dependency of the nearest `package.json` or a workspace package while its `better-supabase.config.*` is not found from `permdock.config.ts` up to the workspace root:
+
+```txt
+warning PD087  better-supabase is a dependency but its config file was not found from permdock.config.ts up to the workspace root, so supabase.hook cannot read its tenant claim or sessions block
+```
+
+Set `betterSupabase.config` in `permdock.config.ts` to the config file, or remove the pinned topic. With only the dependency found, the hook takes better-supabase's topic and leaves `activeFrom` and the receive policy at their defaults.
 
 ## Side effects
 

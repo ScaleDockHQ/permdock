@@ -23,6 +23,7 @@ export type {
   RlsQueryResult,
 } from "./core.ts";
 export { testClientParity } from "./client-parity.ts";
+export { testOperationCoverage } from "./operation-coverage.ts";
 export { testLegacyParity } from "./legacy-parity.ts";
 export type { LegacyParityCase } from "./legacy-parity.ts";
 export type { ClientParityCase, ClientParityOptions } from "./client-parity.ts";

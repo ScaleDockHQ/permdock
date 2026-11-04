@@ -41,7 +41,12 @@ const CATALOG = { out: STRING } as const satisfies Record<
   KeyShape
 >;
 
-const OPENAPI = { doc: ARRAY } as const satisfies Record<
+const OPENAPI = {
+  doc: ARRAY,
+  operations: STRING,
+  tenantPaths: ARRAY,
+  base: STRING,
+} as const satisfies Record<
   keyof NonNullable<PermDockConfig["openapi"]>,
   KeyShape
 >;

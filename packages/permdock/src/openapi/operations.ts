@@ -3,7 +3,7 @@ import type { Permission, PermissionTree } from "../core/permission-types.ts";
 import { isRecord } from "../core/compact.ts";
 import { findPermission, isPermission } from "../core/permission-registry.ts";
 
-const METHODS: ReadonlySet<string> = new Set([
+export const HTTP_METHODS: ReadonlySet<string> = new Set([
   "GET",
   "PUT",
   "POST",
@@ -57,10 +57,49 @@ export type OperationPermissions = {
     path: string,
   ) => readonly string[] | undefined;
   oauthScopesForOperation: (id: string) => readonly string[] | undefined;
+  /**
+   * Every declared operation in declaration order, with the key's method
+   * upper-cased and its path template as written. `testOperationCoverage` and
+   * `permdock doctor` (PD091) compare it with an OpenAPI document.
+   */
+  entries: () => readonly OperationDeclaration[];
 };
+
+/** One declared operation as `OperationPermissions.entries()` lists it. */
+export type OperationDeclaration = {
+  readonly method: string;
+  readonly path: string;
+  readonly permission?: Permission;
+  readonly operationId?: string;
+  readonly oauthScopes?: readonly string[];
+};
+
+/** An OpenAPI operation `operationPermissionsFromOpenApi` read. */
+export type OpenApiOperationRef = {
+  readonly method: string;
+  readonly path: string;
+  readonly operationId?: string;
+};
+
+/** Why `operationPermissionsFromOpenApi` left an operation out. */
+export type OperationSkipCause =
+  | "no-permission"
+  | "several-permissions"
+  | "unknown-permission"
+  | "invalid-extension";
+
+/** Every skip cause, for a table or an exhaustive switch. */
+export const OPERATION_SKIP_CAUSES: readonly OperationSkipCause[] = [
+  "no-permission",
+  "several-permissions",
+  "unknown-permission",
+  "invalid-extension",
+];
 
 type Route = {
   readonly method: string;
+  readonly path: string;
+  readonly operationId?: string;
   readonly segments: readonly string[];
   readonly permission: Permission | undefined;
   readonly oauthScopes?: readonly string[];
@@ -135,7 +174,7 @@ export function operationPermissions(
     const space = key.indexOf(" ");
     const method = key.slice(0, space).toUpperCase();
     const path = key.slice(space + 1).trim();
-    if (space <= 0 || !METHODS.has(method) || !path.startsWith("/")) {
+    if (space <= 0 || !HTTP_METHODS.has(method) || !path.startsWith("/")) {
       throw new TypeError(
         `PermDock: operation '${key}' must be a method and a path, such as 'GET /customers/{id}'`,
       );
@@ -153,6 +192,10 @@ export function operationPermissions(
     }
     const route: Route = {
       method,
+      path,
+      ...(isEntryObject(entry) && entry.operationId !== undefined
+        ? { operationId: entry.operationId }
+        : {}),
       segments: segmentsOf(path),
       permission: isEntryObject(entry) ? entry.permission : entry,
       ...(oauthScopes === undefined ? {} : { oauthScopes }),
@@ -203,6 +246,21 @@ export function operationPermissions(
     oauthScopesForOperation(id) {
       return byId.get(id)?.oauthScopes;
     },
+    entries() {
+      return routes.map((route) => ({
+        method: route.method,
+        path: route.path,
+        ...(route.permission === undefined
+          ? {}
+          : { permission: route.permission }),
+        ...(route.operationId === undefined
+          ? {}
+          : { operationId: route.operationId }),
+        ...(route.oauthScopes === undefined
+          ? {}
+          : { oauthScopes: route.oauthScopes }),
+      }));
+    },
   };
 }
 
@@ -210,12 +268,19 @@ export function operationPermissions(
  * The operation permissions an OpenAPI document declares: every operation whose
  * `x-permdock-permissions` names exactly one permission of `tree`, keyed by its
  * method, path and `operationId`. An operation naming none, several or an
- * unknown key is left out, so a gate denies it.
+ * unknown key is left out, so a gate denies it; `onSkip` hears each one with
+ * its cause.
  */
 export function operationPermissionsFromOpenApi(
   document: unknown,
   tree: PermissionTree,
-  options: { readonly base?: string } = {},
+  options: {
+    readonly base?: string;
+    readonly onSkip?: (
+      operation: OpenApiOperationRef,
+      cause: OperationSkipCause,
+    ) => void;
+  } = {},
 ): OperationPermissions {
   const operations: Record<string, OperationEntry> = {};
   const paths =
@@ -225,27 +290,48 @@ export function operationPermissionsFromOpenApi(
       continue;
     }
     for (const [method, operation] of Object.entries(item)) {
-      if (!METHODS.has(method.toUpperCase()) || !isRecord(operation)) {
-        continue;
-      }
-      const keys = operation["x-permdock-permissions"];
-      if (
-        !Array.isArray(keys) ||
-        keys.length !== 1 ||
-        typeof keys[0] !== "string"
-      ) {
-        continue;
-      }
-      const permission = findPermission(tree, keys[0]);
-      if (permission === undefined) {
+      if (!HTTP_METHODS.has(method.toUpperCase()) || !isRecord(operation)) {
         continue;
       }
       const operationId = operation["operationId"];
-      operations[`${method.toUpperCase()} ${path}`] =
+      const ref: OpenApiOperationRef = {
+        method: method.toUpperCase(),
+        path,
+        ...(typeof operationId === "string" ? { operationId } : {}),
+      };
+      const keys = operation["x-permdock-permissions"];
+      if (keys === undefined) {
+        options.onSkip?.(ref, "no-permission");
+        continue;
+      }
+      if (
+        !Array.isArray(keys) ||
+        !keys.every((key) => typeof key === "string")
+      ) {
+        options.onSkip?.(ref, "invalid-extension");
+        continue;
+      }
+      const [key] = keys;
+      if (key === undefined || keys.length !== 1) {
+        options.onSkip?.(
+          ref,
+          key === undefined ? "no-permission" : "several-permissions",
+        );
+        continue;
+      }
+      const permission = findPermission(tree, key);
+      if (permission === undefined) {
+        options.onSkip?.(ref, "unknown-permission");
+        continue;
+      }
+      operations[`${ref.method} ${path}`] =
         typeof operationId === "string"
           ? { permission, operationId }
           : permission;
     }
   }
-  return operationPermissions(operations, options);
+  return operationPermissions(
+    operations,
+    options.base === undefined ? {} : { base: options.base },
+  );
 }

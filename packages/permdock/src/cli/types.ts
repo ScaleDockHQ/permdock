@@ -1034,7 +1034,19 @@ export type PermDockConfig = {
   readonly operations?: string;
   readonly collect?: CollectConfig;
   readonly catalog?: CatalogConfig;
-  readonly openapi?: { readonly doc?: readonly string[] };
+  readonly openapi?: {
+    readonly doc?: readonly string[];
+    /**
+     * `"<module>#<export>"` of an `operationPermissions(...)` result (the
+     * export defaults to `operations`); `permdock doctor` checks it against
+     * `doc` (PD091).
+     */
+    readonly operations?: string;
+    /** Path templates whose operations need an entry, such as `/orgs/{orgId}`. */
+    readonly tenantPaths?: readonly string[];
+    /** A prefix the documents' paths carry and the `operations` keys do not. */
+    readonly base?: string;
+  };
   readonly rls?: RlsConfig;
   readonly supabase?: SupabaseConfig;
   readonly powersync?: PowerSyncConfig;
