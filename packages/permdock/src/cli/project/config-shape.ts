@@ -51,6 +51,11 @@ const OPENAPI = {
   KeyShape
 >;
 
+const BETTER_SUPABASE = { config: STRING } as const satisfies Record<
+  keyof NonNullable<PermDockConfig["betterSupabase"]>,
+  KeyShape
+>;
+
 const RLS = {
   tables: OBJECT,
   dialect: STRING,
@@ -157,6 +162,7 @@ export const CONFIG_SHAPE: Readonly<
   collect: COLLECT,
   catalog: CATALOG,
   openapi: OPENAPI,
+  betterSupabase: BETTER_SUPABASE,
   rls: RLS,
   supabase: SUPABASE,
   powersync: POWERSYNC,

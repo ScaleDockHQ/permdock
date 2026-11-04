@@ -13,7 +13,9 @@ describe("supabase hook", () => {
 
   describe("permdock supabase hook generate", () => {
     it("broadcasts every version bump on the server topic and on authz:<uid>", async () => {
-      const { code, sql } = await generate(`{ memberships: [${SOURCES}] }`);
+      const { code, sql } = await generate(
+        `{ memberships: [${SOURCES}], broadcast: { topic: 'permdock:authz' } }`,
+      );
       expect(code).toBe(0);
       expect(sql).toContain(
         "perform realtime.send(jsonb_build_object('user_id', new.user_id, 'version', new.version), 'changed', 'permdock:authz', true);",
@@ -22,6 +24,11 @@ describe("supabase hook", () => {
       expect(sql).toContain(
         "create policy permdock_authz_version_receive on realtime.messages",
       );
+    });
+
+    it("defaults to better-supabase's topic when the project depends on it", async () => {
+      const { sql } = await generate(`{ memberships: [${SOURCES}] }`);
+      expect(sql).toContain("'changed', 'better_supabase:authz', true);");
     });
 
     it("sends on a configured topic without the receive policy, or not at all", async () => {

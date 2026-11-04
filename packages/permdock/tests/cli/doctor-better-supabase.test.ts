@@ -1,10 +1,19 @@
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { DoctorFiles } from "../../src/cli/shared/doctor-types.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { pd078, pd079, pd082 } from "../../src/cli/doctor/better-supabase.ts";
-import { betterSupabaseDefaults } from "../../src/cli/project/better-supabase.ts";
+import {
+  pd078,
+  pd079,
+  pd082,
+  pd087,
+} from "../../src/cli/doctor/better-supabase.ts";
+import {
+  betterSupabaseDefaults,
+  betterSupabaseInstalled,
+} from "../../src/cli/project/better-supabase.ts";
 import { loadConfig } from "../../src/cli/project/config.ts";
 import { supabaseHookSql } from "../../src/cli/supabase-hook/supabase-hook.ts";
 import { tableMembershipSource } from "../../src/supabase/index.ts";
@@ -456,6 +465,161 @@ describe("doctor better-supabase", () => {
           blocks: { sessions: { authzVersions: true } },
         }).supabase?.hook?.broadcast,
       ).toStrictEqual({ topic: "better_supabase:authz", receivePolicy: false });
+    });
+  });
+
+  describe("detection through package.json", () => {
+    function memoryFiles(
+      entries: Readonly<Record<string, string>>,
+    ): DoctorFiles {
+      const paths = Object.keys(entries);
+      const dirs = new Set<string>();
+      for (const file of paths) {
+        let dir = path.dirname(file);
+        while (dir !== path.dirname(dir)) {
+          dirs.add(dir);
+          dir = path.dirname(dir);
+        }
+      }
+      return {
+        exists: (file) => file in entries || dirs.has(file),
+        read: (file) => {
+          const text = entries[file];
+          if (text === undefined) throw new Error(`no file ${file}`);
+          return text;
+        },
+        list: (dir) =>
+          paths
+            .filter((file) => path.dirname(file) === dir)
+            .map((file) => path.basename(file))
+            .concat(
+              [...dirs]
+                .filter((entry) => path.dirname(entry) === dir)
+                .map((entry) => path.basename(entry)),
+            ),
+        isDirectory: (dir) => dirs.has(dir),
+      };
+    }
+
+    const dependency = (name: string): string =>
+      JSON.stringify({ devDependencies: { [name]: "^1.0.0" } });
+    const workspace = (pkg: Record<string, string>): DoctorFiles =>
+      memoryFiles({
+        "/repo/pnpm-workspace.yaml": "packages:\n  - apps/*\n  - packages/*\n",
+        "/repo/package.json": "{}",
+        "/repo/apps/web/package.json": "{}",
+        ...pkg,
+      });
+
+    it("finds a dependency in the nearest package.json or a workspace package", () => {
+      const own = workspace({
+        "/repo/apps/web/package.json": dependency("better-supabase"),
+      });
+      expect(
+        betterSupabaseInstalled({ cwd: "/repo/apps/web", files: own }),
+      ).toBe(true);
+      const sibling = workspace({
+        "/repo/packages/server/package.json": dependency("better-supabase"),
+      });
+      expect(
+        betterSupabaseInstalled({ cwd: "/repo/apps/web", files: sibling }),
+      ).toBe(true);
+      const none = workspace({
+        "/repo/packages/server/package.json": dependency("zod"),
+      });
+      expect(
+        betterSupabaseInstalled({ cwd: "/repo/apps/web", files: none }),
+      ).toBe(false);
+    });
+
+    it("warns when better-supabase is a dependency and its config is not found", async () => {
+      const files = workspace({
+        "/repo/packages/server/package.json": dependency("better-supabase"),
+      });
+      const found = await pd087({
+        cwd: "/repo/apps/web",
+        files,
+        config: hookConfig(),
+      });
+      expect(found).toStrictEqual([
+        expect.objectContaining({
+          code: "PD087",
+          fix: expect.stringContaining("betterSupabase.config"),
+        }),
+      ]);
+    });
+
+    it("warns when the hook pins another topic than better-supabase's", async () => {
+      const files = workspace({
+        "/repo/apps/web/package.json": dependency("better-supabase"),
+      });
+      const config: PermDockConfig = {
+        supabase: {
+          hook: { memberships: [], broadcast: { topic: "permdock:authz" } },
+        },
+      };
+      const found = await pd087({ cwd: "/repo/apps/web", files, config });
+      expect(found.map(({ message }) => message)).toStrictEqual([
+        expect.stringContaining("better_supabase:authz"),
+        expect.stringContaining("config file was not found"),
+      ]);
+    });
+
+    it("reports nothing without better-supabase, without a hook version or with broadcast off", async () => {
+      const files = workspace({});
+      expect(
+        await pd087({ cwd: "/repo/apps/web", files, config: hookConfig() }),
+      ).toStrictEqual([]);
+      const installed = workspace({
+        "/repo/apps/web/package.json": dependency("better-supabase"),
+      });
+      const quiet: PermDockConfig = {
+        supabase: { hook: { memberships: [], broadcast: false } },
+      };
+      expect(
+        (
+          await pd087({
+            cwd: "/repo/apps/web",
+            files: installed,
+            config: quiet,
+          })
+        ).length,
+      ).toBe(1);
+    });
+
+    it("applies better-supabase's topic when only the dependency is found", () => {
+      expect(
+        betterSupabaseDefaults(hookConfig(), undefined, true).supabase?.hook,
+      ).toStrictEqual(
+        expect.objectContaining({
+          broadcast: { topic: "better_supabase:authz", receivePolicy: true },
+        }),
+      );
+      expect(
+        betterSupabaseDefaults(hookConfig(), undefined, true).supabase?.hook
+          ?.activeFrom,
+      ).toBeUndefined();
+      expect(betterSupabaseDefaults(hookConfig(), undefined)).toStrictEqual(
+        hookConfig(),
+      );
+    });
+
+    it("reads the config from betterSupabase.config", async () => {
+      const cwd = policyProject(
+        { policy: POLICY },
+        {
+          "elsewhere/bs.config.mjs": betterSupabaseConfig({
+            sessions: { authzVersions: true },
+          }),
+        },
+      );
+      const config = {
+        ...hookConfig(),
+        betterSupabase: { config: "elsewhere/bs.config.mjs" },
+      };
+      expect(await pd082({ cwd, config })).toStrictEqual([
+        expect.objectContaining({ code: "PD082" }),
+      ]);
     });
   });
 });

@@ -1048,6 +1048,11 @@ export type PermDockConfig = {
     readonly base?: string;
   };
   readonly rls?: RlsConfig;
+  /**
+   * Where better-supabase's config lives, when it is not found from
+   * `permdock.config.ts` up to the workspace root.
+   */
+  readonly betterSupabase?: { readonly config?: string };
   readonly supabase?: SupabaseConfig;
   readonly powersync?: PowerSyncConfig;
   readonly doctor?: DoctorConfig;

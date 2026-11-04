@@ -31,14 +31,14 @@ import {
 import { pd039 } from "../supabase-setup.ts";
 import { pd064 } from "./assignments.ts";
 import { applyDoctorIgnores, reported } from "./baseline.ts";
-import { pd078, pd079, pd082 } from "./better-supabase.ts";
+import { pd078, pd079, pd082, pd087 } from "./better-supabase.ts";
 import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd077 } from "./config-names.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
 import { pd018, pd023, pd025, pd029, pd055 } from "./fixtures.ts";
 import { pd085 } from "./hook-role.ts";
-import { pd044, pd065 } from "./next.ts";
 import { pd092 } from "./lockfile.ts";
+import { pd044, pd065 } from "./next.ts";
 import { pd091, pd091Applies } from "./openapi.ts";
 import { pd080, pd081 } from "./per-request.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
@@ -191,6 +191,12 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     groups: ["supabase", "better-supabase"],
     when: (config) => config.supabase?.hook !== undefined,
     run: pd082,
+  },
+  {
+    code: "PD087",
+    groups: ["supabase", "better-supabase"],
+    when: (config) => config.supabase?.hook !== undefined,
+    run: pd087,
   },
   {
     code: "PD083",
