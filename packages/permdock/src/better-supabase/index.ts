@@ -100,6 +100,15 @@ export type {
   HandlerPermDockSource,
   HookCanOptions,
 } from "./workflow.ts";
+export {
+  betterSupabaseVersionCache,
+  isBetterSupabaseVersionCache,
+} from "./version-cache.ts";
+export type {
+  AnyVersionCache,
+  BetterSupabaseVersionCache,
+  BetterSupabaseVersionCacheOptions,
+} from "./version-cache.ts";
 export { subjectFromBetterSupabase } from "./subject.ts";
 export type {
   ApiKeySession,

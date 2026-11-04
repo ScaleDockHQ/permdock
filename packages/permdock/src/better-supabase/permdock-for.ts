@@ -8,13 +8,13 @@ import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { SubjectCache } from "../core/subject-cache.ts";
 import type { Principal, Subject } from "../core/subject.ts";
-import type { VersionCache } from "../core/version-cache.ts";
 import type { SupabaseSessionLike } from "../supabase/types.ts";
 import type {
   ApiKeySession,
   BetterSupabaseSubjectOptions,
   SessionSnapshotLike,
 } from "./subject.ts";
+import type { AnyVersionCache } from "./version-cache.ts";
 
 import { appOf } from "../core/app.ts";
 import { buildInstance } from "../core/build-instance.ts";
@@ -25,6 +25,7 @@ import { instanceOptions } from "../core/instance-options.ts";
 import { isSubject } from "../core/subject.ts";
 import { versionSources } from "../core/version-sources.ts";
 import { subjectFromBetterSupabase } from "./subject.ts";
+import { versionCacheOf } from "./version-cache.ts";
 
 /**
  * What `bsb.bootstrap()` and `bsb.getAccess()` return: a session with the
@@ -66,7 +67,7 @@ export type PermDockFor<V extends PolicyVocabulary = PolicyVocabulary> = {
   (
     source: PermDockForInput,
     query?: PermDockForQuery | string | null,
-    versions?: VersionCache,
+    versions?: AnyVersionCache,
   ): Promise<PermDock<V>>;
   /**
    * The instance options every instance of `versions` (default the `versions`
@@ -74,7 +75,7 @@ export type PermDockFor<V extends PolicyVocabulary = PolicyVocabulary> = {
    * spreads it into its own options, such as oRPC's or MCP's `createPermDock`,
    * shares the `claimsFirst` memberships and the `instances` entries.
    */
-  readonly sources: (versions?: VersionCache) => InstanceOptions;
+  readonly sources: (versions?: AnyVersionCache) => InstanceOptions;
 };
 
 export type PermDockForOptions<V extends PolicyVocabulary = PolicyVocabulary> =
@@ -93,7 +94,7 @@ export type PermDockForOptions<V extends PolicyVocabulary = PolicyVocabulary> =
      */
     readonly version?: MembershipSource["version"];
     /** The process-wide version cache (`createNext({ versions })`). */
-    readonly versions?: VersionCache;
+    readonly versions?: AnyVersionCache;
     /** The process-wide instance cache, shared with the app's other adapters. */
     readonly instances?: InstanceCache;
     /**
@@ -111,9 +112,9 @@ export type PermDockResolver<V extends PolicyVocabulary = PolicyVocabulary> = {
   (
     source: PermDockForInput,
     query: PermDockForQuery,
-    versions?: VersionCache,
+    versions?: AnyVersionCache,
   ): Promise<PermDock<V>>;
-  readonly sources: (versions?: VersionCache) => InstanceOptions;
+  readonly sources: (versions?: AnyVersionCache) => InstanceOptions;
 };
 
 /** The options a `permdockFor` resolver already holds. */
@@ -199,12 +200,19 @@ function withDefinition<V extends PolicyVocabulary>(
 function permdockResolver<V extends PolicyVocabulary>(
   given: PermDockForOptions<V>,
 ): PermDockResolver<V> {
-  const options = withDefinition(given);
-  const sourcesFor = versionSources(options);
+  const { versions: anyVersions, ...definition } = withDefinition(given);
+  const cache = versionCacheOf(anyVersions);
+  const options = {
+    ...definition,
+    ...(cache === undefined ? {} : { versions: cache }),
+  };
+  const versionSourcesFor = versionSources(options);
+  const sourcesFor = (versions?: AnyVersionCache): InstanceOptions =>
+    versionSourcesFor(versionCacheOf(versions));
   const resolve = async (
     source: PermDockForInput,
     query: PermDockForQuery,
-    runtimeVersions?: VersionCache,
+    runtimeVersions?: AnyVersionCache,
   ): Promise<PermDock<V>> => {
     const result = isResult(source) ? source : undefined;
     const signedOut = result?.sessionActive === false;
@@ -262,7 +270,7 @@ export function resolverOf<V extends PolicyVocabulary>(
   const resolve = (
     source: PermDockForInput,
     query: PermDockForQuery,
-    versions?: VersionCache,
+    versions?: AnyVersionCache,
   ): Promise<PermDock<V>> => shared(source, query, versions);
   return Object.freeze(Object.assign(resolve, { sources: shared.sources }));
 }
@@ -285,7 +293,7 @@ export function permdockFor<V extends PolicyVocabulary = PolicyVocabulary>(
   const call = (
     source: PermDockForInput,
     query?: PermDockForQuery | string | null,
-    versions?: VersionCache,
+    versions?: AnyVersionCache,
   ): Promise<PermDock<V>> =>
     resolve(
       source,

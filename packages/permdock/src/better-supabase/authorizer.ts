@@ -14,10 +14,10 @@ import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal } from "../core/subject.ts";
-import type { VersionCache } from "../core/version-cache.ts";
 import type { PermDockFor } from "./permdock-for.ts";
 import type { BetterSupabaseOnError } from "./report.ts";
 import type { BetterSupabaseSubjectOptions } from "./subject.ts";
+import type { AnyVersionCache } from "./version-cache.ts";
 
 import { resumeDecision } from "../approvals/helpers.ts";
 import { parseApprovalHeader } from "../core/approval-header.ts";
@@ -81,7 +81,7 @@ export type AuthorizerOptions<V extends PolicyVocabulary = PolicyVocabulary> = {
    * The version cache for `memberships` when better-supabase passes none (a
    * server created without `versions`).
    */
-  readonly versions?: VersionCache;
+  readonly versions?: AnyVersionCache;
   /**
    * The intent of one check. By default better-supabase's `context.intent`;
    * without it a batch (`evaluations`, list and row filtering) and an action
@@ -199,7 +199,7 @@ const keyOf = (request: AuthorizationRequest<Permission>): string | null =>
  */
 export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
   options: AuthorizerOptions<V>,
-): Authorizer<Permission, VersionCache> {
+): Authorizer<Permission, AnyVersionCache> {
   const { operations, store } = options;
   const intentOf = (
     request: AuthorizationRequest<Permission>,
@@ -219,7 +219,7 @@ export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
     claims: unknown,
     tenant: string | null,
     intent: Intent,
-    runtime: AuthorizerRuntime<VersionCache> | undefined,
+    runtime: AuthorizerRuntime<AnyVersionCache> | undefined,
   ): Promise<PermDock<V>> =>
     resolve(
       claims === undefined ? null : { kind: "user", claims },
@@ -230,7 +230,7 @@ export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
     claims: unknown,
     tenant: string | null,
     intent: Intent,
-    runtime: AuthorizerRuntime<VersionCache> | undefined,
+    runtime: AuthorizerRuntime<AnyVersionCache> | undefined,
     batch?: Map<string, Promise<PermDock<V>>>,
   ): Promise<PermDock<V>> => {
     const key = `permdock:authorizer:${canonicalJson([claims ?? null, tenant, intent])}`;
@@ -308,7 +308,7 @@ export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
         }),
     async evaluate(
       request: AuthorizationRequest<Permission>,
-      runtime?: AuthorizerRuntime<VersionCache>,
+      runtime?: AuthorizerRuntime<AnyVersionCache>,
     ): Promise<AuthorizationOutcome> {
       try {
         return await decideWith(
@@ -327,7 +327,7 @@ export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
     },
     evaluations(
       requests: readonly AuthorizationRequest<Permission>[],
-      runtime?: AuthorizerRuntime<VersionCache>,
+      runtime?: AuthorizerRuntime<AnyVersionCache>,
     ): Promise<readonly AuthorizationOutcome[]> {
       const batch = new Map<string, Promise<PermDock<V>>>();
       const shared = (
@@ -350,5 +350,5 @@ export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
         }),
       );
     },
-  } satisfies Authorizer<Permission, VersionCache>);
+  } satisfies Authorizer<Permission, AnyVersionCache>);
 }
