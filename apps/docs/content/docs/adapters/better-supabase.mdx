@@ -5,7 +5,7 @@ description: The permdock/better-supabase entry fills better-supabase's authoriz
 
 `permdock/better-supabase` connects PermDock to [better-supabase](https://bettersupabase.com/docs/extending/authorization-providers). better-supabase verifies tokens, builds sessions and owns the data layer; PermDock owns roles, permissions, the claim contract and the one token hook. better-supabase never imports PermDock: it reads a versioned `AuthorizationProvider` object from its config, and this entry builds that object and the other values its slots take from the files PermDock already generates.
 
-The entry needs `better-supabase` 0.39 or later as a peer (`>=0.39.0`). The range has no upper bound: CI tests 0.39.0 on every pull request, and a daily job tests the newest release. Coming from 0.31 or earlier, run `better-supabase codemod 0.32` for the auth renames (`requireTenant`, `auth.tenant`, `bsb.claims()`, `bsb.evictSession()`).
+The entry needs `better-supabase` 0.53 or later as a peer (`>=0.53.0`). The range has no upper bound: CI tests 0.53.0 on every pull request, and a daily job tests the newest release. Coming from 0.31 or earlier, run `better-supabase codemod 0.32` for the auth renames (`requireTenant`, `auth.tenant`, `bsb.claims()`, `bsb.evictSession()`). Coming from 0.52 or earlier, run `better-supabase codemod 0.53`, then `gen` and `upgrade`; block clients take one object per call since 0.47.
 
 Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
 
@@ -1120,7 +1120,7 @@ Pin both packages to the pair a release lists, and update the table in the same 
 
 ## Example app
 
-`apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. It runs on better-supabase 0.39.0.
+`apps/examples/next-better-supabase`: better-supabase on Next.js 16.3 with Cache Components. It runs on better-supabase 0.53.0.
 
 - `better-supabase.config.ts` passes `authorizationProvider` the example's `permdock.manifest.json` and `permissions.catalog.json`, sets `blocks.permissions.model: "provider"`, and sets `canAssign` to `false` because its membership tables are service-only.
 - `src/lib/supabase/server.ts` passes `authorizer({ policy, memberships, version, intent })` and the shared `versions` cache to `createNext`. `memberships` comes from the generated source factory, `version` is `authzVersion({ query })`, and `intent` makes a `read`, `list` or `view` permission `read` and every other check `write`. `src/app/api/staff/route.ts` guards `GET /api/staff` with `permission: permissions.staff.list`.
