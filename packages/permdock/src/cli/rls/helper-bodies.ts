@@ -682,8 +682,29 @@ export function functionBody(body: Body, parallelSafe = false): string {
       `v_key text := 'permdock.m.' || ${quoteLiteral(body.memo.scope)} || '.k' || (hashtext(p_grant) & 1023)::text;`,
       `v_disc text := ${memoDiscriminatorSql("v_user", "p_grant")};`,
       `v_memo text := ${memoReadSql(body.memo.api, "v_key")};`,
-      `v_ids ${body.memo.type}[];`,
     ];
+    if (body.memo.type === "boolean") {
+      return `language plpgsql
+volatile
+security definer
+cost 1000
+set search_path = ''
+as $$
+declare
+${[...declare, "v_has boolean;"].map((line) => `  ${line}`).join("\n")}
+begin
+  if v_memo is not null and (v_memo::jsonb ->> 'k') = v_disc then
+    return (v_memo::jsonb ->> 'v')::boolean;
+  end if;
+  v_has := (
+${body.sql}
+  );
+  perform ${memoWriteSql(body.memo.api, "v_key", "jsonb_build_object('k', v_disc, 'v', v_has)::text")};
+  return v_has;
+end;
+$$;`;
+    }
+    declare.push(`v_ids ${body.memo.type}[];`);
     return `language plpgsql
 volatile
 security definer
