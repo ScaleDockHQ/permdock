@@ -1,10 +1,10 @@
 import type { ObjectExpression, ObjectProperty, ParseResult } from "oxc-parser";
 
-import { Visitor, parseSync } from "oxc-parser";
-
 import type { Edit } from "./ast.ts";
 import type { CodemodChange, CodemodFollowUp } from "./context.ts";
 
+import { CliError } from "../core/errors.ts";
+import { createVisitor, parseSync } from "../core/optional.ts";
 import { applyEdits, lineIndex, position } from "./ast.ts";
 
 const COMBINATORS: ReadonlySet<string> = new Set(["any", "all", "sequential"]);
@@ -110,7 +110,10 @@ export function rewriteLiterals017(
       lang: langOf(file),
       sourceType: "module",
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof CliError) {
+      throw error;
+    }
     return { source, changes: [], followUps: [] };
   }
   if (parsed.errors.length > 0) {
@@ -206,7 +209,7 @@ export function rewriteLiterals017(
       });
     }
   };
-  new Visitor({
+  createVisitor({
     ObjectExpression(node) {
       const props = keyed(node);
       membership(node, props);

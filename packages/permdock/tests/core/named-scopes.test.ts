@@ -5,7 +5,7 @@ import type { Permission } from "../../src/core/permission-types.ts";
 import type { Membership, Principal } from "../../src/core/subject.ts";
 
 import { pushedPolicy } from "../../src/cli/cloud/push.ts";
-import { evaluateCondition } from "../../src/conditions/evaluate.ts";
+import { evaluateCondition } from "../../src/conditions/condition-evaluate.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow } from "../../src/core/grant-builders.ts";
 import { memoryCustomRoleSource } from "../../src/core/memory-sources.ts";

@@ -2613,12 +2613,6 @@ importers:
       '@standard-schema/spec':
         specifier: 'catalog:'
         version: 1.1.0
-      jiti:
-        specifier: 'catalog:'
-        version: 2.7.0
-      oxc-parser:
-        specifier: 'catalog:'
-        version: 0.154.0
     devDependencies:
       '@anthropic-ai/claude-agent-sdk':
         specifier: 'catalog:'
@@ -2755,6 +2749,9 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.13.13
+      jiti:
+        specifier: 'catalog:'
+        version: 2.7.0
       jose:
         specifier: 'catalog:'
         version: 6.2.12
@@ -2764,6 +2761,9 @@ importers:
       next:
         specifier: 16.4.2
         version: 16.4.2(@babel/core@8.0.7)(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@26.6.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      oxc-parser:
+        specifier: 'catalog:'
+        version: 0.154.0
       oxlint:
         specifier: 'catalog:'
         version: 1.89.0(oxlint-tsgolint@7.0.2004)

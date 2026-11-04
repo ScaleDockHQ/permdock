@@ -10,6 +10,7 @@ import { CliError } from "../core/errors.ts";
 import {
   betterSupabaseConfig,
   betterSupabaseDefaults,
+  betterSupabaseInstalled,
 } from "./better-supabase.ts";
 import { parseConfig } from "./config-schema.ts";
 import { MODULE_KEYS } from "./config-shape.ts";
@@ -73,11 +74,19 @@ export async function readConfig(
       : raw,
     display,
   );
+  const lookup = {
+    cwd,
+    from: dirname(path),
+    ...(parsed.config.betterSupabase?.config === undefined
+      ? {}
+      : { path: parsed.config.betterSupabase.config }),
+  };
   return {
     ...parsed,
     config: betterSupabaseDefaults(
       parsed.config,
-      await betterSupabaseConfig({ cwd, from: dirname(path) }),
+      await betterSupabaseConfig(lookup),
+      betterSupabaseInstalled(lookup),
     ),
     file: path,
   };

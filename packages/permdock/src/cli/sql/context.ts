@@ -102,6 +102,8 @@ export type RlsSqlContext = {
    * alias; overrides `tenantType`.
    */
   readonly scopeTypes?: Readonly<Record<string, string>>;
+  /** `rls.idTypes`: the id type of the row helpers, by resource and `"*"`. */
+  readonly idTypes?: Readonly<Record<string, string>>;
   /**
    * Set when custom roles compile: the helpers also resolve tenant-defined
    * roles, bounded by the ceiling of `assignable` declared roles.

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Subject } from "../../src/core/subject.ts";
 
-import { evaluateCondition } from "../../src/conditions/evaluate.ts";
+import { evaluateCondition } from "../../src/conditions/condition-evaluate.ts";
 import { normalizeWhere } from "../../src/conditions/normalize.ts";
 import { opaque } from "../../src/conditions/opaque.ts";
 import { principal } from "../../src/conditions/refs.ts";

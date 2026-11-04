@@ -6,8 +6,10 @@ import type { RowArm } from "./row-memo.ts";
 import { flattenGrantee } from "../../core/grantee.ts";
 import { listPermissions } from "../../core/permission-registry.ts";
 import { policyLevels } from "../../core/policy.ts";
+import { resolveScope, rootScope } from "../../core/scopes.ts";
 import { configError } from "../core/errors.ts";
 import { branchClauses } from "../sql/clauses.ts";
+import { idTypeOf } from "../sql/columns.ts";
 import { tableFor } from "../sql/compile.ts";
 import { graphSqlName } from "../sql/names.ts";
 import {
@@ -16,6 +18,7 @@ import {
   quoteLiteral,
   quoteQualified,
 } from "../sql/quote.ts";
+import { permittedByPermissionHelper } from "./permission-keys.ts";
 import { orSql } from "./policies.ts";
 import { memoRowSql, memoRowTriggersSql } from "./row-memo.ts";
 
@@ -118,6 +121,7 @@ function usingOf(branches: readonly CompiledBranch[]): string | undefined {
 function permissionCase(
   key: string,
   branches: readonly CompiledBranch[],
+  tenantFirst: string | undefined,
 ): string | undefined {
   const allow = usingOf(branches.filter((branch) => branch.effect === "allow"));
   if (allow === undefined) {
@@ -125,7 +129,8 @@ function permissionCase(
   }
   const deny = usingOf(branches.filter((branch) => branch.effect === "deny"));
   const granted = `coalesce((${allow}), false)`;
-  return `    when ${quoteLiteral(key)} then ${deny === undefined ? granted : `${granted} and (${deny}) is not true`}`;
+  const first = tenantFirst === undefined ? "" : `${tenantFirst} and `;
+  return `    when ${quoteLiteral(key)} then ${first}${deny === undefined ? granted : `${granted} and (${deny}) is not true`}`;
 }
 
 function forUserSql(
@@ -133,12 +138,13 @@ function forUserSql(
   fn: string,
   helper: string,
   ids: boolean,
+  idType: string,
 ): string {
   const user = ctx.dialect === "supabase" ? "uuid" : "text";
-  const signature = `${user}, text, ${ids ? "text[], " : ""}jsonb`;
+  const signature = `${user}, text, ${ids ? `${idType}[], ` : ""}jsonb`;
   const call = `${helper}(p_permission${ids ? ", p_ids" : ""})`;
-  const head = `create or replace function ${fn}(p_user ${user}, p_permission text, ${ids ? "p_ids text[], " : ""}p_claims jsonb default '{}')
-returns setof text
+  const head = `create or replace function ${fn}(p_user ${user}, p_permission text, ${ids ? `p_ids ${idType}[], ` : ""}p_claims jsonb default '{}')
+returns setof ${idType}
 language plpgsql
 volatile
 security definer
@@ -201,16 +207,17 @@ export const CANDIDATES = "permdock_candidates";
 
 function stubSql(ctx: RlsSqlContext, resource: string): string {
   const fn = qualified(ctx, rowsHelper(resource));
-  return ["p_permission text", "p_permission text, p_ids text[]"]
+  const type = idTypeOf(ctx, resource);
+  return ["p_permission text", `p_permission text, p_ids ${type}[]`]
     .map(
       (parameters) => `create or replace function ${fn}(${parameters})
-returns setof text
+returns setof ${type}
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select null::text where false
+  select null::${type} where false
 $$;`,
     )
     .join("\n");
@@ -229,10 +236,10 @@ function rowSql(
       ctx,
       policy,
       fn,
-      table,
+      `p_row ${table}`,
       graphSqlName(node.name) ?? node.name,
       armsOf(branches),
-      CANDIDATES,
+      `${CANDIDATES} as (select (p_row).*)`,
     ) ??
     `create or replace function ${fn}(p_row ${table}, p_permission text)
 returns boolean
@@ -253,15 +260,63 @@ function armsOf(
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): readonly RowArm[] {
   return [...branches.keys()].toSorted().flatMap((key) => {
-    const sql = permissionCase(key, branches.get(key) ?? []);
+    const sql = permissionCase(key, branches.get(key) ?? [], undefined);
     return sql === undefined ? [] : [{ key, sql }];
   });
 }
 
-function whereOf(
+/**
+ * `permitted_<resource>_row(p_id <type>, p_permission)`: the per-id form, which
+ * reads the one row by its key so a caller holding an id never builds a row.
+ */
+function rowByIdSql(
+  ctx: RlsSqlContext,
+  policy: Policy,
+  node: ResourceNode,
+  table: string,
+  idType: string,
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string {
-  const cases = armsOf(branches).map((arm) => arm.sql);
+  const fn = qualified(ctx, rowsHelper(node.name).replace(/_rows$/u, "_row"));
+  const id = quoteIdent(node.id);
+  const source = `${CANDIDATES} as materialized (select * from ${table} where ${id} = p_id)`;
+  const body =
+    memoRowSql(
+      ctx,
+      policy,
+      fn,
+      `p_id ${idType}`,
+      graphSqlName(node.name) ?? node.name,
+      armsOf(branches),
+      source,
+    ) ??
+    `create or replace function ${fn}(p_id ${idType}, p_permission text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with ${source}
+  select exists (select 1 from ${CANDIDATES} where ${whereOf(branches)})
+$$;`;
+  return `${body}
+revoke execute on function ${fn}(${idType}, text) from public, anon;
+grant execute on function ${fn}(${idType}, text) to authenticated;`;
+}
+
+function whereOf(
+  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
+  tenantFirst?: (key: string) => string | undefined,
+): string {
+  const cases = [...branches.keys()].toSorted().flatMap((key) => {
+    const sql = permissionCase(
+      key,
+      branches.get(key) ?? [],
+      tenantFirst?.(key),
+    );
+    return sql === undefined ? [] : [sql];
+  });
   return cases.length === 0
     ? "false"
     : `case p_permission\n${cases.join("\n")}\n    else false\n  end`;
@@ -271,12 +326,13 @@ function candidatesSql(
   fn: string,
   table: string,
   id: string,
+  idType: string,
   where: string,
 ): string {
   const assign = (indent: string): string =>
     `${indent}v_row.${id} := v_id;\n${indent}v_rows := pg_catalog.array_append(v_rows, v_row);`;
-  return `create or replace function ${fn}(p_permission text, p_ids text[])
-returns setof text
+  return `create or replace function ${fn}(p_permission text, p_ids ${idType}[])
+returns setof ${idType}
 language plpgsql
 stable
 security definer
@@ -285,7 +341,7 @@ as $$
 declare
   v_row ${table};
   v_rows ${table}[] := '{}';
-  v_id text;
+  v_id ${idType};
 begin
   begin
     foreach v_id in array coalesce(p_ids, '{}') loop
@@ -305,12 +361,64 @@ ${assign("        ")}
   with ${CANDIDATES} as materialized (
     select * from ${table} where ${id} = any (array(select (r).${id} from pg_catalog.unnest(v_rows) r))
   )
-  select ${id}::text from ${CANDIDATES}
+  select ${id}::${idType} from ${CANDIDATES}
   where ${where};
 end
 $$;
-revoke execute on function ${fn}(text, text[]) from public, anon;
-grant execute on function ${fn}(text, text[]) to authenticated;`;
+revoke execute on function ${fn}(text, ${idType}[]) from public, anon;
+grant execute on function ${fn}(text, ${idType}[]) to authenticated;`;
+}
+
+/**
+ * For a key whose every allow is a role held at the root scope, the check that
+ * the row's tenant column is among the tenants where the caller holds the key.
+ * It sits first in the key's branch and its subquery does not depend on the
+ * row, so Postgres runs it once and the index on the column applies.
+ * `undefined` when the resource has no tenant column (a relation `memberOf` the
+ * root scope) or an allow reaches the key through a global role, a sub-scope or
+ * instance role, a relation, a link or an `anyone` grantee.
+ */
+function tenantFirstOf(
+  ctx: RlsSqlContext,
+  policy: Policy,
+  node: ResourceNode,
+): ((key: string) => string | undefined) | undefined {
+  const root = rootScope(ctx.scopes);
+  if (
+    root === undefined ||
+    ctx.customRoles !== undefined ||
+    [...policyLevels(policy, node.name)].length > 0
+  ) {
+    return undefined;
+  }
+  const column = Object.values(node.relations).find(
+    (relation) =>
+      "field" in relation &&
+      relation.memberOf !== undefined &&
+      resolveScope(ctx.scopes, relation.memberOf) === root,
+  );
+  if (column === undefined || !("field" in column)) {
+    return undefined;
+  }
+  const check = `${quoteIdent(column.field)} in (select ${qualified(ctx, permittedByPermissionHelper(root))}(p_permission, true))`;
+  return (key) => {
+    const allows = policy.grants.filter(
+      (grant) => grant.effect === "allow" && grant.permission.key === key,
+    );
+    const bound =
+      allows.length > 0 &&
+      allows.every(
+        (grant) =>
+          flattenGrantee(grant.to).length > 0 &&
+          flattenGrantee(grant.to).every(
+            (item) =>
+              item.kind === "role" &&
+              typeof item.scope === "string" &&
+              resolveScope(ctx.scopes, item.scope) === root,
+          ),
+      );
+    return bound ? check : undefined;
+  };
 }
 
 function resourceSql(
@@ -324,30 +432,32 @@ function resourceSql(
   const name = rowsHelper(node.name);
   const fn = qualified(ctx, name);
   const table = quoteQualified(tableFor(node.name, tables));
-  const where = whereOf(branches);
+  const idType = idTypeOf(ctx, node.name);
+  const where = whereOf(branches, tenantFirstOf(ctx, policy, node));
   const near = whereOf(narrowed);
   const rows = `-- ${node.name}: ids of the rows the caller may act on with p_permission, as the table's policies decide it
 create or replace function ${fn}(p_permission text)
-returns setof text
+returns setof ${idType}
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select ${quoteIdent(node.id)}::text from ${table}
+  select ${quoteIdent(node.id)}::${idType} from ${table}
   where ${where}
 $$;
 revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;
-${candidatesSql(fn, table, quoteIdent(node.id), near)}
-${rowSql(ctx, policy, node, table, narrowed)}`;
+${candidatesSql(fn, table, quoteIdent(node.id), idType, near)}
+${rowSql(ctx, policy, node, table, narrowed)}
+${rowByIdSql(ctx, policy, node, table, idType, narrowed)}`;
   if (ctx.dialect === "neon") {
     return rows;
   }
   return `${rows}
 -- the same rows for a user the caller names, with claims it supplies; no client role may execute it
-${forUserSql(ctx, qualified(ctx, `${name}_for`), fn, false)}
-${forUserSql(ctx, qualified(ctx, `${name}_for`), fn, true)}`;
+${forUserSql(ctx, qualified(ctx, `${name}_for`), fn, false, idType)}
+${forUserSql(ctx, qualified(ctx, `${name}_for`), fn, true, idType)}`;
 }
 
 /**

@@ -52,6 +52,7 @@ import {
   subjectForSql,
 } from "./api.ts";
 import { attrsGuardSql } from "./claims.ts";
+import { globalRolesSql, membershipEntriesSql } from "./entries.ts";
 import {
   databaseManifestOf,
   defaultOut,
@@ -64,6 +65,7 @@ import {
   hookParts,
   hookSql,
   managedSql,
+  schemaSql,
 } from "./sql.ts";
 import { teamIdsOfSql } from "./teams.ts";
 import { versionSql } from "./version.ts";
@@ -227,7 +229,10 @@ export function supabaseHookSql(
 -- custom_access_token_hook(jsonb): memberships go active ${parts.root} first and stop at the budget
 -- supabase/config.toml:
 ${toml}${grantsOut === undefined ? "" : `\n-- what supabase db diff drops from this part is in ${grantsOut}`}`,
+    schemaSql(parts),
     attrsGuardSql(parts.attrs),
+    globalRolesSql(parts),
+    membershipEntriesSql(parts),
     hookSql(parts),
     versionSql(parts),
     subjectForSql(parts, config),

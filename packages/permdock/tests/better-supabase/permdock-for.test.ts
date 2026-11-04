@@ -13,6 +13,7 @@ import {
   definePermissions,
   definePolicy,
   instanceCache,
+  memorySubjectCache,
   resource,
   role,
 } from "../../src/index.ts";
@@ -134,5 +135,41 @@ describe(authorizationHooks, () => {
   it("tags a user's sessions with the snapshot tag", () => {
     const hooks = authorizationHooks({ policy, claims: () => null });
     expect(hooks.sessionTags?.(USER)).toStrictEqual([`permdock:${USER}`]);
+  });
+});
+
+describe("permdockFor with subjects", () => {
+  it("tells the cache a known version, which drops an older record", async () => {
+    const subjects = memorySubjectCache();
+    await subjects.seed({
+      id: USER,
+      active: true,
+      roles: [],
+      memberships: [],
+      customRoles: [],
+      authzVersion: 2,
+    });
+    const resolve = permdockFor({ policy, subjects });
+    await resolve({
+      session: { kind: "user", claims },
+      tenant: ORG,
+      authzVersion: 3,
+      sessionActive: true,
+    });
+    expect(await subjects.record(USER, 2)).toBeNull();
+  });
+
+  it("keeps the cache a resolver owns out of an adapter's own options", () => {
+    const subjects = memorySubjectCache();
+    const resolve = permdockFor({ policy, subjects });
+    expect(() =>
+      // SAFETY: the options type omits subjects on purpose; the call checks the runtime refusal.
+      authorizationHooks({
+        policy,
+        claims: () => null,
+        permdockFor: resolve,
+        subjects,
+      } as never),
+    ).toThrow(/subjects/u);
   });
 });

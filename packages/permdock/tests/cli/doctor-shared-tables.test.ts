@@ -28,12 +28,10 @@ export const permissions = definePermissions({
 
   const config = (
     tables: Readonly<Record<string, RlsTable>>,
-    sharedTables?: readonly string[],
   ): PermDockConfig => ({
     permissions: "src/permissions.ts",
     policy: "src/policy.ts",
     rls: { dialect: "supabase", tables },
-    ...(sharedTables === undefined ? {} : { doctor: { sharedTables } }),
   });
 
   describe("PD075", () => {
@@ -54,14 +52,14 @@ export const permissions = definePermissions({
           severity: "warning",
           message:
             "rls.tables maps chat and thread to public.chat_threads, so the same rows carry two sets of keys and helpers",
-          fix: "merge them into one resource (https://permdock.com/docs/guides/merge-resources), or list public.chat_threads in doctor.sharedTables when the resources cover disjoint rows",
+          fix: "merge them into one resource (https://permdock.com/docs/guides/merge-resources), or declare one with rls.tables.<resource>: { tableOf: '<owner>' } so only the owner writes public.chat_threads policies",
         },
         {
           code: "PD075",
           severity: "warning",
           message:
             "rls.tables maps file and fileNode to public.file_nodes, so the same rows carry two sets of keys and helpers",
-          fix: "merge them into one resource (https://permdock.com/docs/guides/merge-resources), or list public.file_nodes in doctor.sharedTables when the resources cover disjoint rows",
+          fix: "merge them into one resource (https://permdock.com/docs/guides/merge-resources), or declare one with rls.tables.<resource>: { tableOf: '<owner>' } so only the owner writes public.file_nodes policies",
         },
       ]);
     });
@@ -82,13 +80,11 @@ export const permissions = definePermissions({
       ]);
     });
 
-    it("skips a table listed in doctor.sharedTables", async () => {
+    it("skips a resource declared with tableOf", async () => {
       expect(
         await pd075({
           cwd: files(),
-          config: config({ file: "file_nodes", fileNode: "file_nodes" }, [
-            "public.file_nodes",
-          ]),
+          config: config({ file: "file_nodes", fileNode: { tableOf: "file" } }),
         }),
       ).toStrictEqual([]);
     });

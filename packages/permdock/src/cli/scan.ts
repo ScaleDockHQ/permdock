@@ -1,7 +1,6 @@
 import type { Program, VisitorObject } from "oxc-parser";
 
 import { readFileSync } from "node:fs";
-import { Visitor, parseSync, visitorKeys } from "oxc-parser";
 
 import type {
   CatalogUsage,
@@ -11,7 +10,8 @@ import type {
   UnparsedSource,
 } from "./types.ts";
 
-import { describeError } from "./core/errors.ts";
+import { CliError, describeError } from "./core/errors.ts";
+import { createVisitor, parseSync, visitorKeyTypes } from "./core/optional.ts";
 import { rel } from "./files.ts";
 
 /**
@@ -117,6 +117,9 @@ export function scanSources(
       }
       parsed.push({ file, source, program: result.program });
     } catch (error) {
+      if (error instanceof CliError) {
+        throw error;
+      }
       unparsed.push({ file: fileRel, line: 1, message: describeError(error) });
     }
   }
@@ -708,7 +711,7 @@ function walk(
 ): void {
   const stack: Estree[] = [];
   const handlers: Record<string, (node: Estree) => void> = {};
-  for (const type of Object.keys(visitorKeys)) {
+  for (const type of visitorKeyTypes()) {
     handlers[type] = (node) => {
       visit(node, stack.at(-1), stack);
       stack.push(node);
@@ -717,6 +720,6 @@ function walk(
       stack.pop();
     };
   }
-  // SAFETY: one handler per type in visitorKeys; Estree is an all-optional view of every Oxc node.
-  new Visitor(handlers as VisitorObject).visit(program);
+  // SAFETY: one handler per type in the visitor keys; Estree is an all-optional view of every Oxc node.
+  createVisitor(handlers as VisitorObject).visit(program);
 }

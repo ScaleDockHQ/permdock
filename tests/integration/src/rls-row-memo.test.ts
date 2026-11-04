@@ -152,6 +152,17 @@ describe("permitted_<resource>_row memo against Postgres", () => {
       )
     ).rows.map((row) => row.id);
 
+  const idAnswers = async (
+    tx: PGlite,
+    permission: string,
+  ): Promise<readonly string[]> =>
+    (
+      await tx.query<{ readonly id: string }>(
+        "select d.id from public.doc d where permdock.permitted_doc_row(d.id, $1) order by d.id",
+        [permission],
+      )
+    ).rows.map((row) => row.id);
+
   const setAnswers = async (
     tx: PGlite,
     permission: string,
@@ -179,9 +190,9 @@ describe("permitted_<resource>_row memo against Postgres", () => {
     for (const user of USERS) {
       for (const permission of PERMISSIONS) {
         await rolledBack(user, async (tx) => {
-          expect(await rowAnswers(tx, permission)).toStrictEqual(
-            await setAnswers(tx, permission),
-          );
+          const expected = await setAnswers(tx, permission);
+          expect(await rowAnswers(tx, permission)).toStrictEqual(expected);
+          expect(await idAnswers(tx, permission)).toStrictEqual(expected);
         });
       }
     }

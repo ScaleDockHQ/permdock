@@ -1,6 +1,6 @@
 import type { VisitorObject } from "oxc-parser";
 
-import { Visitor, visitorKeys } from "oxc-parser";
+import { createVisitor, visitorKeyTypes } from "../core/optional.ts";
 
 /**
  * An all-optional view of an Oxc ESTree node; Oxc sets `start` and `end` on
@@ -330,7 +330,7 @@ export function walk(
 ): void {
   const stack: Estree[] = [];
   const handlers: Record<string, (node: Estree) => void> = {};
-  for (const type of Object.keys(visitorKeys)) {
+  for (const type of visitorKeyTypes()) {
     handlers[type] = (node) => {
       visit(node, stack.at(-1), stack);
       stack.push(node);
@@ -339,6 +339,6 @@ export function walk(
       stack.pop();
     };
   }
-  // SAFETY: one handler per type in visitorKeys; Estree is an all-optional view of every Oxc node, and `program` is the parse result.
-  new Visitor(handlers as VisitorObject).visit(program as never);
+  // SAFETY: one handler per type in the visitor keys; Estree is an all-optional view of every Oxc node, and `program` is the parse result.
+  createVisitor(handlers as VisitorObject).visit(program as never);
 }

@@ -215,9 +215,9 @@ export const demoUser: User = { ${demo.join(", ")} };
 }
 
 function appFile(ctx: Context): string {
-  const valueImports = new Set<string>(["defineApp"]);
+  const valueImports = new Set<string>();
   const lines: string[] = [];
-  const preamble: string[] = [];
+  const preamble: string[] = [`import { definePermDock } from "permdock/app";`];
   const services = ctx.preset.services;
   const cloudServices = services.length > 0;
   if (cloudServices) {
@@ -274,15 +274,18 @@ function appFile(ctx: Context): string {
   lines.unshift(...backend.options);
   const sources =
     backend.preamble.length === 0 ? "" : `\n${backend.preamble.join("\n")}\n`;
-  return `import { ${[...valueImports].toSorted().join(", ")} } from "permdock";
-${preamble.length === 0 ? "" : `${preamble.join("\n")}\n`}
+  const core =
+    valueImports.size === 0
+      ? ""
+      : `import { ${[...valueImports].toSorted().join(", ")} } from "permdock";\n`;
+  return `${core}${preamble.length === 0 ? "" : `${preamble.join("\n")}\n`}
 import { policy } from "./policy";
 ${cloudLine}${sources}
 /**
  * The app definition every adapter reads. Your own code: change sources,
  * features and services here; the rules stay in the permdock package.
  */
-export const app = defineApp(policy, {
+export const app = definePermDock(policy, {
   profile: ${env("NODE_ENV")} === "production" ? "prod" : "dev",
 ${lines.join("\n")}${lines.length === 0 ? "" : "\n"}});
 `;

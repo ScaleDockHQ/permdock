@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluateCondition } from "../../src/conditions/evaluate.ts";
+import { evaluateCondition } from "../../src/conditions/condition-evaluate.ts";
 import { normalizeWhere } from "../../src/conditions/normalize.ts";
 import { context } from "../../src/conditions/refs.ts";
 import { nowSeconds } from "../../src/core/tenancy.ts";

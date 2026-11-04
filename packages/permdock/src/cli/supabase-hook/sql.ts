@@ -33,10 +33,15 @@ import {
   validateSql,
 } from "./claims.ts";
 import {
+  MEMBERSHIP_ENTRIES_FOR,
+  entriesGrantsSql,
+  entryTenantSql,
+  heldSql,
+} from "./entries.ts";
+import {
   activeFromSql,
   activeSource,
   checkSources,
-  entriesSql,
   memberForPlan,
   positiveInteger,
   typedUsers,
@@ -44,17 +49,18 @@ import {
 
 const MANAGED_TRIGGER = "permdock_protect_managed";
 
+export function schemaSql(parts: Parts): string {
+  if (parts.schema === "public") {
+    return "";
+  }
+  const schema = quoteIdent(parts.schema);
+  return `create schema if not exists ${schema};\nrevoke all on schema ${schema} from public;`;
+}
+
 export function hookSql(parts: Parts): string {
   const schema = quoteIdent(parts.schema);
   const fn = `${schema}.custom_access_token_hook`;
-  const rows = parts.roles;
-  const roles =
-    rows === undefined
-      ? `  held := '[]'::jsonb;`
-      : `  select coalesce(jsonb_agg(distinct ${rows.roleSql} order by ${rows.roleSql}) filter (where ${rows.roleSql} is not null), '[]'::jsonb)
-    into held
-    from ${rows.from}
-    where ${rows.userSql} = v_roles_user;`;
+  const roles = heldSql(parts, "uid");
   const plan = parts.attrs;
   const tableMembershipSource =
     plan === undefined || plan.columns.length === 0 || plan.table === undefined
@@ -139,11 +145,7 @@ export function hookSql(parts: Parts): string {
   if team_ids <> '[]'::jsonb then
     claims := jsonb_set(claims, '{team_ids}', team_ids);
   end if;`;
-  const create =
-    parts.schema === "public"
-      ? ""
-      : `create schema if not exists ${schema};\nrevoke all on schema ${schema} from public;\n\n`;
-  return `${create}create or replace function ${fn}(event jsonb)
+  return `create or replace function ${fn}(event jsonb)
 returns jsonb
 language plpgsql
 stable${parts.hook.security === "definer" ? "\nsecurity definer" : ""}
@@ -171,11 +173,12 @@ ${roles}
   end if;
   active := ${parts.active.sql};${attrs}
   for item in
-    select x.entry, x.tenant is not distinct from active as current
+    select x.entry, x.root_id is not distinct from active as current
     from (
-${entriesSql(parts).replaceAll(/^/gmu, "      ")}
+      select e.ord, e.entry, ${entryTenantSql(parts, "e")} as root_id
+      from ${quoteIdent(parts.schema)}.${MEMBERSHIP_ENTRIES_FOR}(uid) e
     ) x
-    order by (x.tenant is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
+    order by (x.root_id is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
   loop
     if octet_length((kept || jsonb_build_array(item.entry))::text) + used > budget then
       truncated := true;
@@ -212,7 +215,7 @@ grant execute on function ${fn}(jsonb) to supabase_auth_admin;${extraRevokesSql(
     `-- supabase_auth_admin: the grants and read policies the hook needs
 grant usage on schema ${schema} to supabase_auth_admin;
 grant execute on function ${fn}(jsonb) to supabase_auth_admin;
-revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}${beforeGrantsSql(parts.before, parts.extra)}${memberForGrantsSql(parts)}${validateGrantsSql(parts)}`,
+revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}${beforeGrantsSql(parts.before, parts.extra)}${entriesGrantsSql(parts)}${memberForGrantsSql(parts)}${validateGrantsSql(parts)}`,
     readsSql(parts),
     parts.version
       ? authAdminRead(`${parts.schema}.${AUTHZ_VERSION_TABLE}`, "version")

@@ -127,14 +127,17 @@ export type RlsTableVia = {
 };
 
 /**
- * A resource's table: its `schema.table`, an object that adds `via`, or `false`
- * for a resource with no table (a console permission), which gets no policies
- * while its role grants are still seeded.
+ * A resource's table: its `schema.table`, an object that adds `via`, `false`
+ * for a resource with no table (a console permission), or `{ tableOf }` for a
+ * resource stored in another resource's table. `false` and `{ tableOf }` get no
+ * policies while their role grants are still seeded; the owner resource writes
+ * the table's policies.
  */
 export type RlsTable =
   | string
   | false
-  | { readonly table?: string; readonly via: RlsTableVia };
+  | { readonly table?: string; readonly via: RlsTableVia }
+  | { readonly tableOf: string };
 
 export type RlsConfig = {
   /**
@@ -190,6 +193,13 @@ export type RlsConfig = {
    * it.
    */
   readonly scopeTypes?: Readonly<Record<string, string>>;
+  /**
+   * Postgres type of each resource's id in the `rls.rowHelpers` helpers
+   * (`permitted_<resource>_rows` returns `setof <type>` and its `p_ids` takes
+   * `<type>[]`), by resource name; `"*"` sets the default. Without it: `uuid`
+   * on Supabase, `text` elsewhere.
+   */
+  readonly idTypes?: Readonly<Record<string, string>>;
   readonly roleClaim?: string;
   /**
    * Role values the existing SQL compares against (a string literal or an enum
@@ -999,11 +1009,6 @@ export type DoctorConfig = {
    */
   readonly claims?: string;
   /**
-   * Tables two resources map to on purpose, over disjoint rows; PD075 skips
-   * them.
-   */
-  readonly sharedTables?: readonly string[];
-  /**
    * Functions that build an object once and keep it; PD080 and PD081 skip a
    * factory call passed to one of them, as in `once(() => claimsFirst(...))`.
    */
@@ -1034,8 +1039,25 @@ export type PermDockConfig = {
   readonly operations?: string;
   readonly collect?: CollectConfig;
   readonly catalog?: CatalogConfig;
-  readonly openapi?: { readonly doc?: readonly string[] };
+  readonly openapi?: {
+    readonly doc?: readonly string[];
+    /**
+     * `"<module>#<export>"` of an `operationPermissions(...)` result (the
+     * export defaults to `operations`); `permdock doctor` checks it against
+     * `doc` (PD091).
+     */
+    readonly operations?: string;
+    /** Path templates whose operations need an entry, such as `/orgs/{orgId}`. */
+    readonly tenantPaths?: readonly string[];
+    /** A prefix the documents' paths carry and the `operations` keys do not. */
+    readonly base?: string;
+  };
   readonly rls?: RlsConfig;
+  /**
+   * Where better-supabase's config lives, when it is not found from
+   * `permdock.config.ts` up to the workspace root.
+   */
+  readonly betterSupabase?: { readonly config?: string };
   readonly supabase?: SupabaseConfig;
   readonly powersync?: PowerSyncConfig;
   readonly doctor?: DoctorConfig;

@@ -65,10 +65,10 @@ function memo(...arms: ReturnType<typeof arm>[]): string | undefined {
     ctx,
     policy,
     '"permdock".permitted_doc_row',
-    '"public"."doc"',
+    'p_row "public"."doc"',
     "doc",
     arms,
-    "permdock_candidates",
+    "permdock_candidates as (select (p_row).*)",
   );
 }
 

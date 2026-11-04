@@ -28,7 +28,7 @@ A new rule gets `description`, `globs` and `alwaysApply` (Cursor) frontmatter, p
 
 ## Status
 
-`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver per the Versioning section of `roadmap.mdx`: a breaking change to a name, default or wire format carries a changeset that says so, and a breaking wire-format change bumps that format's major. Every wire format is `v1` (snapshot `v: 1`, approval request `v: 1`, `catalog-v1.json` with `version: 1`). Node.js 24, pnpm 12.14.0 (`devEngines` refuses others), TypeScript 7.
+`permdock` is on npm; `packages/permdock/package.json` holds the version. Releases follow semver per `roadmap.mdx` Versioning: a breaking change to a name, default or wire format carries a changeset that says so; a breaking wire-format change bumps that format's major. Every wire format is `v1` (snapshot `v: 1`, approval request `v: 1`, `catalog-v1.json` with `version: 1`). Node.js 24, pnpm 12.14.0 (`devEngines` refuses others), TypeScript 7.
 
 ## Repo layout
 
@@ -134,14 +134,16 @@ Records in `docs/decisions`:
 - 0022 a `Status:` line; 0023 fence titles optional; 0024 root changelog first; 0025 `vercel.json`
 - 0026 no commit header length limit; 0027 7-day Dependabot cooldown; 0052 Ultracite kept-off rules
 - 0029 no Turbopack CI cache; 0030 `Vary` only on Markdown
-- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock`; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038-0041, 0046-0048, 0050-0051, 0053-0054 better-supabase pins and floor; 0042 `oxc-parser`, `jiti` as deps; 0044 lint rules kept off; 0045 open peer ranges; 0049 hook gate
+- 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock`; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038-0041, 0046-0048, 0050-0051, 0053-0054 better-supabase pins and floor; 0044 lint rules kept off; 0045 open peer ranges; 0049 hook gate
 - 0055 `turbo.json` `global` block
+- 0056 `permdock/app` and `definePermDock`
+- 0057 `oxc-parser`, `jiti` as optional CLI peers
 
 ## Pre-release pins
 
 - `@orpc/server`, `@orpc/client`, `@orpc/contract`, `@orpc/openapi` 2.0.0-beta.42: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
 - `drizzle-orm` 1.0.0-rc.5-5935859: the release candidate the standard asks for; the peer also accepts 0.40.
-- `@supabase/pg-delta` 1.0.0-alpha.60, `pg-topo` 1.0.0-alpha.8: Declarative Schemas 2.0 for `tests/integration` and `db diff`; no stable release.
+- `@supabase/pg-delta` 1.0.0-alpha.60, `pg-topo` 1.0.0-alpha.8: Declarative Schemas 2.0 for `tests/integration` and `db diff`.
 - Prisma 8 and Expo SDK 58 stay on 7.10.0 and SDK 57 until their blockers clear (0018).
 
 ## Turbo agent guidance

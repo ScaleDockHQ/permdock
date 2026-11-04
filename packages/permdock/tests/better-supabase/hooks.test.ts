@@ -78,13 +78,13 @@ const principal = (id: string, kind: "user" | "contact"): Principal => ({
   memberships: [{ scope: "organization", id: ORG, roles: ["viewer"] }],
 });
 
-const base: AuthorizationHooksOptions = {
+const base = {
   policy,
-  claims: (userId) => users[userId] ?? null,
-};
+  claims: (userId: string) => users[userId] ?? null,
+} satisfies AuthorizationHooksOptions;
 const hooks = authorizationHooks({
   ...base,
-  service: (tenant) =>
+  service: (tenant: string | null) =>
     tenant === ORG ? claimsFor("service-account", "editor") : null,
   principals: memoryPrincipalSource({
     principals: [principal(VIEWER, "user"), principal("c1", "contact")],
@@ -102,7 +102,7 @@ const hooks = authorizationHooks({
   events: { "doc.updated": doc.read },
   approvers: { tool: holder(doc.approve), deploy: user(EDITOR) },
   support: {},
-  tickets: (ticket) =>
+  tickets: (ticket: string) =>
     ticket === "t-editor"
       ? { userId: EDITOR, tenant: ORG }
       : ticket === "t-gone"
@@ -338,5 +338,34 @@ describe(authorizationHooks, () => {
     });
     expect(await defined(hooks.tickets).subject("t-gone")).toBeNull();
     expect(await defined(hooks.tickets).subject("t-unknown")).toBeNull();
+  });
+
+  describe("without claims", () => {
+    const bare = authorizationHooks({
+      policy,
+      approvers: { deploy: user(EDITOR) },
+    });
+
+    it("sets no automation, support or tickets", async () => {
+      expect(bare).not.toHaveProperty("automation");
+      expect(bare).not.toHaveProperty("tickets");
+      expect(bare).not.toHaveProperty("support");
+      expect(bare.apiVersion).toBe(1);
+      expect(bare.name).toBe("PermDock");
+      expect(bare.sessionTags?.(EDITOR)).toHaveLength(1);
+      expect(
+        bare.delegation?.permissions({ userId: EDITOR, scopes: ["doc.read"] }),
+      ).toBeDefined();
+      await expect(testAuthorizationHooks(bare)).resolves.toBeDefined();
+    });
+
+    it("rejects service, support and tickets at the type level", () => {
+      // @ts-expect-error tickets read claims
+      authorizationHooks({ policy, tickets: () => null });
+      // @ts-expect-error support reads claims
+      authorizationHooks({ policy, support: {} });
+      // @ts-expect-error service reads claims
+      authorizationHooks({ policy, service: () => null });
+    });
   });
 });

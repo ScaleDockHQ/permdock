@@ -25,7 +25,7 @@ npm and yarn work the same way; the repository itself uses pnpm workspaces.
 - Node.js 24 or later for servers and the CLI. The package declares `engines.node: ">=24"`. Browser and React Native bundles are produced from the same ESM entry points and do not depend on Node.
 - TypeScript 7. PermDock is written in and built with TypeScript 7, and the public API avoids template-literal unions so TypeScript 7 stays fast: permissions are typed object references, not string unions. The type tests in `tests/types` also check the public types under TypeScript 5.9 and 6, so an app that has not moved yet keeps compiling.
 - ESM only. There is no CommonJS build. Your `tsconfig.json` needs a `moduleResolution` that understands package `exports` (`bundler`, `node16` or `nodenext`) so subpath imports such as `permdock/react` resolve.
-- Runtime entries depend on `@standard-schema/spec` only, and it is types only. The package's other dependencies (`oxc-parser`, `jiti`, `smol-toml`, `package-manager-detector`, `@clack/prompts`, `diff`, `fastest-levenshtein`) belong to the CLI and no runtime entry loads them.
+- Runtime entries depend on `@standard-schema/spec` only, and it is types only. The CLI bundles `smol-toml`, `package-manager-detector`, `@clack/prompts`, `diff` and `fastest-levenshtein`, and loads `oxc-parser` and `jiti` as optional peers: `permdock doctor`, `scan`, `collect` and `codemod` need `oxc-parser`, and a policy module Node cannot import natively needs `jiti`. The error names the package and the install line.
 
 ## Runtimes
 
@@ -119,7 +119,7 @@ Core runs in browsers, React Native, edge functions, serverless functions, MCP s
 - No serialiser. Conditions and snapshots are plain JSON with tagged ISO date strings, one format that works in Postgres, snapshots and catalogs, so there is no `superjson`.
 - No telemetry. OpenTelemetry lives in `permdock/otel` behind a type-only `Tracer` interface rather than as a required peer.
 - ESM only. The target runtimes are ESM, and a dual CommonJS build would double the test matrix and bring the dual-package hazard.
-- Tooling never reaches a runtime entry: the CLI and the test runners ship in the same package, but no runtime entry imports them. The one CLI dependency, `oxc-parser` (about 3.5 MB installed with one platform binding), is what `collect`, `doctor` and the build hooks need; `yaml` and `ajv` are bundled into the lazily loaded OpenAPI command chunks, and the Postgres parser, `pg`, `unplugin` and Vitest are optional peers.
+- Tooling never reaches a runtime entry: the CLI and the test runners ship in the same package, but no runtime entry imports them. `oxc-parser` (about 3.5 MB installed with one platform binding), which `collect`, `doctor` and the build hooks need, and `jiti` are optional peers; `yaml` and `ajv` are bundled into the lazily loaded OpenAPI command chunks, and the Postgres parser, `pg`, `unplugin` and Vitest are optional peers.
 
 There is no size cap chosen in advance. `tests/bundle` measures the min+gzip size of every entry, and the measured size is the regression baseline: a test compares every entry against the recorded baseline, so a size change fails CI until the baseline is updated in the same PR, where review sees it. Core stays small because of the rules above, not because of a number picked from a competitor's bundle, so features such as the condition AST or the `Decision` shape are never cut to meet a guess.
 

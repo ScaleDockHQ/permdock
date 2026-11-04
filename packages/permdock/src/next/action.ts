@@ -1,6 +1,7 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 import type { ApprovalStore } from "../approvals/types.ts";
+import type { ActionResult } from "../core/action-result.ts";
 import type { Decision } from "../core/decision.ts";
 import type { ProblemDetails } from "../core/errors.ts";
 import type { Intent } from "../core/interfaces.ts";
@@ -8,10 +9,9 @@ import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type {
-  ActionResult,
   ProtectAction,
+  ProtectActionHooks,
   ProtectActionOptions,
-  ProtectedAction,
   ProtectedActionHandler,
 } from "./types.ts";
 
@@ -83,33 +83,88 @@ function invalidInput(
   );
 }
 
+/** Prefixes each issue path with the argument's position. */
+function argIssues(
+  index: number,
+  issues: readonly StandardSchemaV1.Issue[],
+): readonly StandardSchemaV1.Issue[] {
+  return issues.map((issue) => ({
+    message: issue.message,
+    path: [index, ...(issue.path ?? [])],
+  }));
+}
+
+async function parseArgs(
+  schemas: readonly StandardSchemaV1[],
+  values: readonly unknown[],
+): Promise<
+  | { readonly value: readonly unknown[] }
+  | { readonly issues: readonly StandardSchemaV1.Issue[] }
+> {
+  const results = await Promise.all(
+    schemas.map((schema, index) => parseInput(schema, values[index])),
+  );
+  const parsed: unknown[] = [];
+  for (const [index, result] of results.entries()) {
+    if (result.issues !== undefined) {
+      return { issues: plainIssues(argIssues(index, result.issues)) };
+    }
+    parsed.push(result.value);
+  }
+  return { value: parsed };
+}
+
+type AnyHooks = ProtectActionHooks<
+  unknown,
+  PolicyVocabulary,
+  readonly unknown[],
+  unknown,
+  unknown
+>;
+
 /**
- * `protectAction(permission, { input, data?, tenant? })(handler)`: validates
- * the input, loads the row, decides, then runs the handler. Every refusal,
- * including a throw, is a Problem Details result; nothing but Next.js
- * interrupts leaves as an exception.
+ * `protectAction(permission, { input, args?, data?, tenant? })(handler,
+ * hooks?)`: validates the arguments and the input, loads the row, decides, then
+ * runs the handler. Every refusal, including a throw, is a Problem Details
+ * result; nothing but Next.js interrupts leaves as an exception.
  */
 export function protectActionOf<V extends PolicyVocabulary>(
   deps: ActionDeps<V>,
 ): ProtectAction<V> {
-  return <TInput, TRow = undefined>(
-    permission: Permission,
-    options: ProtectActionOptions<TInput, TRow>,
-  ) =>
-    <TResult>(
-      handler: ProtectedActionHandler<TInput, TRow, TResult, V>,
-    ): ProtectedAction<Awaited<TResult>> =>
-    async (value, call) => {
-      const parsed = await parseInput(options.input, value);
+  // SAFETY: the implementation is untyped over TArgs; ProtectAction restores the generics for callers.
+  const protect =
+    (
+      permission: Permission,
+      options: ProtectActionOptions<unknown, unknown, readonly unknown[]>,
+    ) =>
+    (
+      handler: ProtectedActionHandler<
+        unknown,
+        unknown,
+        unknown,
+        V,
+        readonly unknown[]
+      >,
+      hooks?: AnyHooks,
+    ) =>
+    async (...call: unknown[]): Promise<ActionResult<unknown>> => {
+      const schemas = options.args ?? [];
+      const parsedArgs = await parseArgs(schemas, call);
+      if ("issues" in parsedArgs) {
+        return invalidInput(permission, parsedArgs.issues);
+      }
+      const args = Object.freeze(parsedArgs.value);
+      const parsed = await parseInput(options.input, call[schemas.length]);
       if (parsed.issues !== undefined) {
         return invalidInput(permission, parsed.issues);
       }
       const input = parsed.value;
+      const approval = approvalOf(call[schemas.length + 1]);
       let permdock: PermDock<V>;
-      let data: TRow | undefined;
+      let data: unknown;
       try {
         permdock = await deps.getPermDock(
-          compact({ tenant: options.tenant?.(input), intent: "write" }),
+          compact({ tenant: options.tenant?.(input, args), intent: "write" }),
         );
       } catch (error) {
         deps.rethrow(error);
@@ -117,7 +172,7 @@ export function protectActionOf<V extends PolicyVocabulary>(
       }
       if (options.data !== undefined) {
         try {
-          data = (await options.data(input)) ?? undefined;
+          data = (await options.data(input, args)) ?? undefined;
         } catch (error) {
           deps.rethrow(error);
           return refused(decisionProblem(LOAD_FAILED, permission));
@@ -143,7 +198,7 @@ export function protectActionOf<V extends PolicyVocabulary>(
         store: deps.store,
         resource: resourceRef(permission, data),
         adapter: "next",
-        token: call?.approval,
+        token: approval,
       });
       if (decision.outcome !== "granted") {
         return refused(
@@ -159,14 +214,15 @@ export function protectActionOf<V extends PolicyVocabulary>(
           ),
         );
       }
+      const context = { permdock, decision, data, args };
       try {
-        const result = await handler(input, {
-          permdock,
-          decision,
-          // SAFETY: TRow is the loader's row type; data is undefined only when no loader was passed.
-          data: data as TRow,
-        });
-        return { ok: true, value: result };
+        const result = await handler(input, context);
+        await hooks?.after?.(decision, { ...context, result });
+        const value =
+          hooks?.result === undefined
+            ? result
+            : await hooks.result(result, context);
+        return { ok: true, value };
       } catch (error) {
         deps.rethrow(error);
         return refused(
@@ -174,4 +230,13 @@ export function protectActionOf<V extends PolicyVocabulary>(
         );
       }
     };
+  // SAFETY: see above.
+  return protect as unknown as ProtectAction<V>;
+}
+
+function approvalOf(call: unknown): string | undefined {
+  if (typeof call !== "object" || call === null || !("approval" in call)) {
+    return undefined;
+  }
+  return typeof call.approval === "string" ? call.approval : undefined;
 }

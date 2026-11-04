@@ -114,7 +114,8 @@ function refKey(ref: Permission | { readonly [key: string]: unknown }): string {
 }
 
 const CURRENT = Symbol.for("permdock.current");
-const STORE = Symbol("permdock.store");
+// Registered, not private: two installs of `permdock` (peer variants) must read the same store off one instance.
+const STORE = Symbol.for("permdock.store");
 
 export type ClientStore = {
   get: () => ClientPermDock;

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import type { OperationSkipCause } from "../../src/openapi/index.ts";
+
 import {
+  operationCoverage,
   operationPermissions,
   operationPermissionsFromOpenApi,
 } from "../../src/openapi/index.ts";
@@ -166,5 +169,90 @@ describe(operationPermissions, () => {
     expect(
       operationPermissionsFromOpenApi(null, permissions).forOperation("x"),
     ).toBeUndefined();
+  });
+});
+
+describe("operation coverage", () => {
+  const document = {
+    paths: {
+      "/api/orgs/{orgId}/posts": {
+        get: { "x-permdock-permissions": ["post.list"] },
+        post: {},
+      },
+      "/api/orgs/{orgId}/posts/{postId}": { get: {}, delete: {} },
+      "/api/health": { get: {} },
+    },
+  };
+  const operations = operationPermissions({
+    "GET /orgs/{org}/posts": permissions.post.list,
+    "GET /orgs/{org}/posts/{id}": permissions.post.read,
+    "GET /orgs/{org}/gone": permissions.post.read,
+  });
+
+  it("lists the declared operations in order", () => {
+    expect(
+      operations.entries().map((entry) => `${entry.method} ${entry.path}`),
+    ).toStrictEqual([
+      "GET /orgs/{org}/posts",
+      "GET /orgs/{org}/posts/{id}",
+      "GET /orgs/{org}/gone",
+    ]);
+    expect(operations.entries()[0]?.permission?.key).toBe("post.list");
+  });
+
+  it("reports tenant-path operations without an entry and entries without an operation", () => {
+    expect(
+      operationCoverage(operations, document, {
+        tenantPaths: ["/orgs/{id}"],
+        base: "/api",
+      }),
+    ).toStrictEqual({
+      undeclared: [
+        "POST /api/orgs/{orgId}/posts",
+        "DELETE /api/orgs/{orgId}/posts/{postId}",
+      ],
+      stale: ["GET /orgs/{org}/gone"],
+    });
+  });
+
+  it("ignores operations outside the tenant paths", () => {
+    expect(
+      operationCoverage(operations, document, {
+        tenantPaths: ["/teams"],
+        base: "/api",
+      }).undeclared,
+    ).toStrictEqual([]);
+  });
+
+  it("tells onSkip why each operation was left out", () => {
+    const skipped: string[] = [];
+    operationPermissionsFromOpenApi(
+      {
+        paths: {
+          "/a": {
+            get: {},
+            post: { "x-permdock-permissions": ["post.read", "post.list"] },
+            put: { "x-permdock-permissions": ["nope.read"] },
+            patch: { "x-permdock-permissions": "post.read" },
+            delete: { operationId: "del", "x-permdock-permissions": [] },
+          },
+        },
+      },
+      permissions,
+      {
+        onSkip: (operation, cause: OperationSkipCause) => {
+          skipped.push(
+            `${operation.method} ${operation.path} ${operation.operationId ?? "-"} ${cause}`,
+          );
+        },
+      },
+    );
+    expect(skipped).toStrictEqual([
+      "GET /a - no-permission",
+      "POST /a - several-permissions",
+      "PUT /a - unknown-permission",
+      "PATCH /a - invalid-extension",
+      "DELETE /a del no-permission",
+    ]);
   });
 });

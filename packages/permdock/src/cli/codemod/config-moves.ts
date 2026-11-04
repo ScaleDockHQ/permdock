@@ -1,9 +1,9 @@
 import { basename } from "node:path";
-import { parseSync } from "oxc-parser";
 
 import type { Edit, Estree } from "./ast.ts";
 import type { CodemodChange, CodemodFollowUp } from "./context.ts";
 
+import { parseSync } from "../core/optional.ts";
 import {
   applyEdits,
   child,

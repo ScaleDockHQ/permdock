@@ -24,12 +24,12 @@ npx permdock preset decode <code>
 
 `init` keeps every file that exists unless `--force` is passed, installs nothing and calls no network. It prints the `npm install` line, the `npx shadcn add` line for the recipes and the docs pages to read. Run what it prints, then `permdock doctor`.
 
-What `init` writes is the app's own code: `src/permissions.ts`, `src/policy.ts`, `src/permdock.ts` (`defineApp` with a `profile` from `NODE_ENV`), `src/session.ts`, `src/data.ts`, the framework file and `permdock.config.ts` ([what each choice writes](https://permdock.com/docs/cli/init#generated-files)). With `--auth custom` the session returns `null` until it is wired, so every check denies; a provider's session calls its `subjectFrom*`. With `--backend memory` the loaders return demo rows: replace them, and do not add rules to them.
+What `init` writes is the app's own code: `src/permissions.ts`, `src/policy.ts`, `src/permdock.ts` (`definePermDock` with a `profile` from `NODE_ENV`), `src/session.ts`, `src/data.ts`, the framework file and `permdock.config.ts` ([what each choice writes](https://permdock.com/docs/cli/init#generated-files)). With `--auth custom` the session returns `null` until it is wired, so every check denies; a provider's session calls its `subjectFrom*`. With `--backend memory` the loaders return demo rows: replace them, and do not add rules to them.
 
 ### Who owns what
 
 - The `permdock` package owns every rule: evaluation, role ceilings, approval binding, limits, token checks. `npm update` reaches it.
-- The app owns declarations (`definePermissions`, `definePolicy` data, `defineApp` options) and presentation (recipes).
+- The app owns declarations (`definePermissions`, `definePolicy` data, `definePermDock` options) and presentation (recipes).
 - Never copy evaluation logic out of the package into the app, and never change a recipe so it decides on its own; it renders what `useGate` returns.
 
 `profile: "prod"` throws at startup when a store or limits a feature needs are missing ([apps and profiles](https://permdock.com/docs/concepts/apps)). Do not switch the profile to silence it; pass the store.

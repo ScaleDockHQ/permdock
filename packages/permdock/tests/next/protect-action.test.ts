@@ -233,4 +233,83 @@ describe("protectAction", () => {
       value: "p1",
     });
   });
+
+  it("validates leading args, passes them to the loader and the handler", async () => {
+    const { protectAction } = createPermDock(policy, {
+      subject: () => memberUser,
+    });
+    const seen: unknown[] = [];
+    const rename = protectAction(permissions.post.update, {
+      args: [z.string().min(1)],
+      input: z.object({ title: z.string() }),
+      data: (_input, [id]) => POSTS.get(id),
+      tenant: (_input, [id]) => {
+        seen.push(id);
+        return undefined;
+      },
+    })((input, { data, args }) => `${args[0]}:${data.id}:${input.title}`);
+    await expect(rename("p1", { title: "Launch" })).resolves.toStrictEqual({
+      ok: true,
+      value: "p1:p1:Launch",
+    });
+    expect(seen).toStrictEqual(["p1"]);
+    const invalid = await rename("", { title: "Launch" });
+    expect(invalid).toMatchObject({
+      ok: false,
+      problem: { status: 400, issues: [{ path: [0] }] },
+    });
+    await expect(rename("p2", { title: "x" })).resolves.toMatchObject({
+      ok: false,
+      problem: { status: 403 },
+    });
+  });
+
+  it("resumes an approval after leading args", async () => {
+    const store = memoryApprovalStore();
+    const { protectAction } = createPermDock(policy, {
+      subject: () => memberUser,
+      store,
+    });
+    const remove = protectAction(permissions.post.delete, {
+      args: [z.string()],
+      input: z.object({ id: z.string() }),
+      data: ({ id }) => POSTS.get(id),
+    })(({ id }) => id);
+    const pending = await remove("org", { id: "p1" });
+    const token = pending.ok ? undefined : pending.problem.token;
+    expect(token).toBeTypeOf("string");
+    if (typeof token !== "string") {
+      return;
+    }
+    await resolveApproval(store, token, {
+      status: "approved",
+      by: { principal: { id: "u9", roles: ["admin"] }, context: {} },
+    });
+    await expect(
+      remove("org", { id: "p1" }, { approval: token }),
+    ).resolves.toStrictEqual({ ok: true, value: "p1" });
+  });
+
+  it("runs after with the result, then maps the result", async () => {
+    const events: string[] = [];
+    const rename = guarded()(({ title }) => title.length, {
+      after: (decision, { result }) => {
+        events.push(`${decision.outcome}:${result}`);
+      },
+      result: (length) => ({ length }),
+    });
+    await expect(rename({ id: "p1", title: "Launch" })).resolves.toStrictEqual({
+      ok: true,
+      value: { length: 6 },
+    });
+    expect(events).toStrictEqual(["granted:6"]);
+    const failing = guarded()(() => 1, {
+      after: () => {
+        throw new Error("audit down");
+      },
+    });
+    await expect(failing({ id: "p1", title: "Launch" })).resolves.toMatchObject(
+      { ok: false, problem: { status: 500 } },
+    );
+  });
 });

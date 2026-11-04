@@ -165,21 +165,25 @@ export function activeFromSql(
 }
 
 /**
- * One variable per user-keyed table the hook reads, holding `uid` (a uuid, as
- * Supabase Auth issues) as that column's type, so each lookup compares the
- * column uncast and its index applies.
+ * One variable per user-keyed table `membership_entries_for` reads, holding the
+ * user (a uuid, as Supabase Auth issues) as that column's type, so each lookup
+ * compares the column uncast and its index applies.
+ */
+export function typedSourceUsers(parts: Parts): string {
+  return parts.sources
+    .map(
+      (source, index) =>
+        `\n  v_user_${String(index)} ${source.sql.userType} := p_user;`,
+    )
+    .join("");
+}
+
+/**
+ * The remaining user-keyed variables of the hook: the attribute row and the
+ * active-tenant row, each as its column's type.
  */
 export function typedUsers(parts: Parts): string {
   const vars = [
-    ...parts.sources.map(
-      (source, index) =>
-        `v_user_${String(index)} ${source.sql.userType} := uid;`,
-    ),
-    ...(parts.roles === undefined
-      ? []
-      : [
-          `v_roles_user ${quoteQualified(parts.roles.table)}.${quoteIdent(parts.roles.user)}%type := uid;`,
-        ]),
     ...(parts.attrs?.table === undefined || parts.attrs.columns.length === 0
       ? []
       : [

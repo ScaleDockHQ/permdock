@@ -237,6 +237,7 @@ export async function verifyAgainstDatabase(input: {
       const table = tableNameOf(
         input.config.rls?.tables?.[permission.resource],
         permission.resource,
+        input.config.rls?.tables,
       );
       await query("begin");
       try {

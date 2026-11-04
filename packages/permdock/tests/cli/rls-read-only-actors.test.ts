@@ -189,16 +189,14 @@ grant execute on function "permdock".permdock_actor_may_write() to authenticated
       expect(output).not.toContain("public.quotes, name");
       const sql = readFileSync(path.join(cwd, "rls.sql"), "utf8");
       expect(sql).toContain(
-        `do $permdock$
-begin
-  if to_regclass('public.quotes') is not null then
-    drop policy if exists "public_quotes_update_read_only_actors" on "public"."quotes";
-    create policy "public_quotes_update_read_only_actors"
-      on "public"."quotes"
-      as restrictive
-      for update
-      to authenticated`,
+        `drop policy if exists "public_quotes_update_read_only_actors" on "public"."quotes";
+create policy "public_quotes_update_read_only_actors"
+  on "public"."quotes"
+  as restrictive
+  for update
+  to authenticated`,
       );
+      expect(sql).not.toContain("to_regclass('public.quotes')");
       expect(sql).toContain('"public_quotes_delete_read_only_actors"');
       expect(sql).not.toMatch(/on "public"\."(asset|invoices)"/u);
       expect(sql).not.toMatch(/as permissive/u);

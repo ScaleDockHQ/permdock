@@ -338,6 +338,7 @@ export function emitPgtap(input: {
     const table = tableNameOf(
       input.config.rls?.tables?.[permission.resource],
       permission.resource,
+      input.config.rls?.tables,
     );
     const statement = inlineStatement(
       statementFor(fixture, permission.action, table),

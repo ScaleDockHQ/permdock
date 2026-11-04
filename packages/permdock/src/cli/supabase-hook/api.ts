@@ -16,7 +16,8 @@ import {
   quoteTable,
 } from "../sql/quote.ts";
 import { customRolesOn } from "../sql/shared.ts";
-import { entriesSql, typedUsers } from "./memberships.ts";
+import { MEMBERSHIP_ENTRIES_FOR, heldSql } from "./entries.ts";
+import { typedUsers } from "./memberships.ts";
 
 const SUBJECT_FOR = "subject_for";
 
@@ -31,14 +32,7 @@ const SUBJECT_FOR = "subject_for";
 export function subjectForSql(parts: Parts, config: PermDockConfig): string {
   const schema = quoteIdent(parts.schema);
   const fn = `${schema}.${SUBJECT_FOR}`;
-  const rows = parts.roles;
-  const roles =
-    rows === undefined
-      ? `  held := '[]'::jsonb;`
-      : `  select coalesce(jsonb_agg(distinct ${rows.roleSql} order by ${rows.roleSql}) filter (where ${rows.roleSql} is not null), '[]'::jsonb)
-    into held
-    from ${rows.from}
-    where ${rows.userSql} = v_roles_user;`;
+  const roles = heldSql(parts, "uid");
   const suspended =
     parts.users === undefined
       ? ""
@@ -98,9 +92,7 @@ begin
 ${roles}
   select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text), '[]'::jsonb)
     into memberships
-    from (
-${entriesSql(parts).replaceAll(/^/gmu, "      ")}
-    ) x;${custom}${version}${teams}${extra}
+    from ${schema}.${MEMBERSHIP_ENTRIES_FOR}(uid) x;${custom}${version}${teams}${extra}
   return jsonb_strip_nulls(jsonb_build_object(
     'claims', case when claims = '{}'::jsonb then null else claims end,
     'id', uid::text,

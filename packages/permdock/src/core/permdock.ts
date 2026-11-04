@@ -7,6 +7,7 @@ import type {
 import type { PermissionCheck } from "./checks.ts";
 import type { Decision, ExplainedDecision } from "./decision.ts";
 import type { AuthEvent, DecisionEvent } from "./event-types.ts";
+import type { GrantedPermissionsOptions } from "./granted-permissions.ts";
 import type { HostedPolicies } from "./hosted.ts";
 import type { InstanceCache } from "./instance-cache.ts";
 import type { InstanceEnv } from "./instance-env.ts";
@@ -24,6 +25,7 @@ import type {
 } from "./interfaces.ts";
 import type { Limits } from "./limits.ts";
 import type { PermittedIdsOptions } from "./may-use.ts";
+import type { MembershipFilter } from "./membership-filter.ts";
 import type { AdapterId } from "./open-union.ts";
 import type { Operation } from "./operations.ts";
 import type { Permission, ResourceNode, RowOf } from "./permission-types.ts";
@@ -431,7 +433,11 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   ) => () => void;
   readonly tenant: (id: string) => PermDock<V>;
   readonly team: (id: string) => PermDock<V>;
-  readonly memberships: () => readonly Membership[];
+  /**
+   * The subject's memberships, narrowed by `via` (an open `MembershipVia`, so
+   * `"staff"` matches) and by `scope`.
+   */
+  readonly memberships: (filter?: MembershipFilter) => readonly Membership[];
   readonly tenants: () => readonly string[];
   /**
    * Roles held in a tenant (the active one by default), or only on the
@@ -443,6 +449,15 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     readonly scope?: string;
     readonly id?: string;
   }) => readonly Role[];
+  /**
+   * Every permission a type-level check grants in a tenant (the active one by
+   * default), optionally on one `scope` instance: a listing to render with in
+   * one pass over the snapshot's grants, never a decision. A snapshot-built
+   * instance lists nothing.
+   */
+  readonly grantedPermissions: (
+    options?: GrantedPermissionsOptions,
+  ) => readonly Permission[];
   /**
    * The distinct `meta.audience` values of the roles held in the active tenant,
    * in rank order.

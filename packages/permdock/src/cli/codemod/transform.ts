@@ -1,5 +1,3 @@
-import { parseSync } from "oxc-parser";
-
 import type { Edit, Estree } from "./ast.ts";
 import type {
   CodemodChange,
@@ -10,6 +8,7 @@ import type {
 } from "./context.ts";
 import type { Rename } from "./renames-0.5.ts";
 
+import { parseSync } from "../core/optional.ts";
 import {
   applyEdits,
   lineIndex,

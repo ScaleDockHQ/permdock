@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { commandFor, compileGrants } from "../../src/cli/sql/compile.ts";
+import {
+  commandFor,
+  compileGrants,
+  inferredCommand,
+} from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,
@@ -14,6 +18,7 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
+import { policy as scoped } from "../fixtures/named-scopes.ts";
 
 const permissions = definePermissions({
   quote: resource({
@@ -65,6 +70,36 @@ describe(commandFor, () => {
     expect(commandFor("view", { view: "select" })).toBe("select");
     expect(commandFor("read", { read: "none" })).toBeUndefined();
     expect(commandFor("toString", {})).toBeUndefined();
+  });
+});
+
+describe("inferred actions", () => {
+  it("maps a compound whose first word is a default verb", () => {
+    expect(commandFor("updateStatus")).toBe("update");
+    expect(commandFor("listArchived")).toBe("select");
+    expect(commandFor("create_draft")).toBe("insert");
+    expect(commandFor("delete-all")).toBe("delete");
+    expect(commandFor("getOrCreate2")).toBe("select");
+  });
+
+  it("keeps any other verb, a word that only starts with a verb and a configured action out", () => {
+    expect(commandFor("approveInvoice")).toBeUndefined();
+    expect(commandFor("updater")).toBeUndefined();
+    expect(commandFor("readonly")).toBeUndefined();
+    expect(
+      commandFor("updateStatus", { updateStatus: "none" }),
+    ).toBeUndefined();
+    expect(commandFor("updateStatus", { updateStatus: "delete" })).toBe(
+      "delete",
+    );
+  });
+
+  it("names a command as inferred only when nothing else gave it", () => {
+    expect(inferredCommand("update")).toBeUndefined();
+    expect(inferredCommand("updateStatus")).toBe("update");
+    expect(
+      inferredCommand("updateStatus", { updateStatus: "update" }),
+    ).toBeUndefined();
   });
 });
 
@@ -152,5 +187,53 @@ describe("rls.actions", () => {
     expect(warnings).toContain(
       "skipped anyone/quote.send: action 'send' has no SQL command (rls.actions) and only role grants are seeded",
     );
+  });
+});
+
+describe("tableless resources", () => {
+  it("seeds role grants and skips a direct grant with a warning", () => {
+    const warnings: string[] = [];
+    const compiled = compileGrants(
+      policy,
+      { ...base, tableless: new Set(["quote"]) },
+      undefined,
+      warnings,
+      false,
+    );
+    expect(compiled.branches).toStrictEqual([]);
+    expect(warnings).toStrictEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          "rls.tables.quote is false or a tableOf, so the resource writes no policies of its own",
+        ),
+      ]),
+    );
+    expect(
+      compiled.rolePermissions.some((row) => row.grantKey === "quote.view"),
+    ).toBe(true);
+  });
+});
+
+describe("rls.tables via scope", () => {
+  const via = {
+    helper: "permitted_customer_ids",
+    key: "customer_id",
+    scope: "customer",
+    table: "public.customers",
+    column: "id",
+    id: "id",
+    type: "uuid",
+  } as const;
+
+  it("rejects a role granted at another scope than the via reaches", () => {
+    expect(() =>
+      compileGrants(
+        scoped,
+        { ...base, scopes: scopeList(scoped.scopes), vias: { quote: via } },
+        undefined,
+        [],
+        false,
+      ),
+    ).toThrow(/via reaches customer; map the scope with via\.scope/u);
   });
 });
