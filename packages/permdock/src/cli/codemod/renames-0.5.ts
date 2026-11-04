@@ -544,6 +544,12 @@ export const SIGNATURE_CHANGES_0_5: readonly SignatureChange[] = Object.freeze([
     after: "permdock.permittedIds(permission, scope)",
   },
   {
+    name: "defineApp",
+    entries: ["permdock"],
+    before: "defineApp(policy, options)",
+    after: "definePermDock(policy, options), imported from permdock/app",
+  },
+  {
     name: "mayUse",
     entries: ["permdock"],
     before: "mayUse(permdock, permission)",

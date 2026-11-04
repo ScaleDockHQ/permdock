@@ -89,6 +89,7 @@ export default defineConfig({
   treeshake: { moduleSideEffects: [{ external: false, sideEffects: false }] },
   entry: [
     "src/index.ts",
+    "src/app/index.ts",
     "src/approvals/index.ts",
     "src/jwt/index.ts",
     "src/react/index.ts",

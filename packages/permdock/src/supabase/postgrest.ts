@@ -15,6 +15,7 @@ import type {
   Subject,
 } from "../core/subject.ts";
 
+import { withApp } from "../core/app.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { nowMillis } from "../core/time.ts";
 import { HOOK_API_SCHEMA, hookApiNames, PERMDOCK_SCHEMA } from "./sources.ts";
@@ -329,8 +330,10 @@ function repeatedVersionReads(): (userId: string) => void {
  */
 export function postgrestSources(
   client: SupabaseRpcCaller,
-  options: PostgrestSourcesOptions = {},
+  given: PostgrestSourcesOptions = {},
 ): PostgrestSources {
+  const options =
+    given.policy === undefined ? given : withApp(given.policy, given);
   const api = options.api;
   const names = api === undefined ? undefined : hookApiNames(api.prefix);
   const schema =

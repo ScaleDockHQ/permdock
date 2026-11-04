@@ -136,6 +136,7 @@ Records in `docs/decisions`:
 - 0029 no Turbopack CI cache; 0030 `Vary` only on Markdown
 - 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock`; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038-0041, 0046-0048, 0050-0051, 0053-0054 better-supabase pins and floor; 0044 lint rules kept off; 0045 open peer ranges; 0049 hook gate
 - 0055 `turbo.json` `global` block
+- 0056 `permdock/app` and `definePermDock`
 - 0057 `oxc-parser`, `jiti` as optional CLI peers
 
 ## Pre-release pins

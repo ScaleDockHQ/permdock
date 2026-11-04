@@ -16,12 +16,14 @@ import type {
   SessionSnapshotLike,
 } from "./subject.ts";
 
+import { appOf } from "../core/app.ts";
 import { buildInstance } from "../core/build-instance.ts";
 import { permissionStates } from "../core/checks.ts";
-import { isRecord } from "../core/compact.ts";
+import { compact, isRecord } from "../core/compact.ts";
 import { NO_GRANT } from "../core/decision.ts";
-import { claimsFirst } from "../core/memberships.ts";
+import { instanceOptions } from "../core/instance-options.ts";
 import { isSubject } from "../core/subject.ts";
+import { versionSources } from "../core/version-sources.ts";
 import { subjectFromBetterSupabase } from "./subject.ts";
 
 /**
@@ -162,43 +164,43 @@ function subjectOf(
 }
 
 /**
+ * `options` with the `definePermDock` definition of its policy under it:
+ * `memberships`, `instances`, `versions` and `subjects` by key, and the other
+ * sources and `settings` inside `options.options`. A plain policy changes
+ * nothing.
+ */
+function withDefinition<V extends PolicyVocabulary>(
+  options: PermDockForOptions<V>,
+): PermDockForOptions<V> {
+  const app = appOf(options.policy);
+  if (app === undefined) return options;
+  const { memberships, instances, ...sources } = instanceOptions(app);
+  return {
+    ...options,
+    ...compact({
+      memberships: options.memberships ?? memberships,
+      instances: options.instances ?? instances,
+      versions: options.versions ?? app.versions,
+      subjects: options.subjects ?? app.subjects,
+    }),
+    options: {
+      ...sources,
+      ...compact({ settings: app.settings }),
+      ...options.options,
+    },
+  };
+}
+
+/**
  * The resolver behind `permdockFor`, the authorizer and the hooks: one sources
  * object per version cache, so every instance of one subject at one version
  * shares an `instances` entry.
  */
 function permdockResolver<V extends PolicyVocabulary>(
-  options: PermDockForOptions<V>,
+  given: PermDockForOptions<V>,
 ): PermDockResolver<V> {
-  const byCache = new WeakMap<VersionCache, InstanceOptions>();
-  let uncached: InstanceOptions | undefined;
-  const sourcesOf = (versions: VersionCache | undefined): InstanceOptions => ({
-    ...options.options,
-    ...(options.instances === undefined
-      ? {}
-      : { instances: options.instances }),
-    ...(options.memberships === undefined
-      ? {}
-      : {
-          memberships: claimsFirst(options.memberships, {
-            onStale: "reread",
-            ...(options.version === undefined
-              ? {}
-              : { version: options.version }),
-            ...(versions === undefined ? {} : { versions }),
-          }),
-        }),
-  });
-  const sourcesFor = (versions: VersionCache | undefined): InstanceOptions => {
-    if (versions === undefined) {
-      uncached ??= sourcesOf(undefined);
-      return uncached;
-    }
-    const known = byCache.get(versions);
-    if (known !== undefined) return known;
-    const created = sourcesOf(versions);
-    byCache.set(versions, created);
-    return created;
-  };
+  const options = withDefinition(given);
+  const sourcesFor = versionSources(options);
   const resolve = async (
     source: PermDockForInput,
     query: PermDockForQuery,
@@ -209,7 +211,7 @@ function permdockResolver<V extends PolicyVocabulary>(
     const user = subjectOf(source, result, signedOut, options.subject);
     const tenant = query.tenant ?? result?.tenant ?? undefined;
     const known = signedOut ? undefined : knownVersion(result?.authzVersion);
-    const sources = sourcesFor(runtimeVersions ?? options.versions);
+    const sources = sourcesFor(runtimeVersions);
     const id = user.principal?.id;
     if (
       options.subjects !== undefined &&
@@ -236,9 +238,7 @@ function permdockResolver<V extends PolicyVocabulary>(
     });
     return permdock;
   };
-  const sources = (versions?: VersionCache): InstanceOptions =>
-    sourcesFor(versions ?? options.versions);
-  return Object.freeze(Object.assign(resolve, { sources }));
+  return Object.freeze(Object.assign(resolve, { sources: sourcesFor }));
 }
 
 /**

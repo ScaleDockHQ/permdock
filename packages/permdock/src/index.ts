@@ -259,8 +259,6 @@ export {
   getPermDockSync,
   parseSnapshot,
 } from "./core/permdock.ts";
-export { defineApp } from "./app/define-app.ts";
-export type { AppOptions, AppProfile } from "./core/app.ts";
 export { wrapPermDock } from "./core/wrap.ts";
 export { shadowMode } from "./core/shadow.ts";
 export type {

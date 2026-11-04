@@ -23,6 +23,7 @@ export const SERVER_SPECIFIERS = [
   "permdock/a2a",
   "permdock/agent",
   "permdock/ai-sdk",
+  "permdock/app",
   "permdock/approvals",
   "permdock/astro",
   "permdock/authzen",

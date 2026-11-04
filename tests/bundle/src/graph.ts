@@ -9,6 +9,7 @@ export const DIST = join(
 
 export const ENTRIES = {
   ".": "index.js",
+  "./app": "app/index.js",
   "./approvals": "approvals/index.js",
   "./jwt": "jwt/index.js",
   "./react": "react/index.js",
@@ -331,6 +332,7 @@ export const SERVER_FOLDERS = [
   "a2a",
   "agent",
   "ai-sdk",
+  "app",
   "approvals",
   "astro",
   "authzen",

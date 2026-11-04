@@ -46,6 +46,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./app": {
+      "types": "./dist/app/index.d.ts",
+      "default": "./dist/app/index.js"
+    },
     "./approvals": {
       "types": "./dist/approvals/index.d.ts",
       "default": "./dist/approvals/index.js"
