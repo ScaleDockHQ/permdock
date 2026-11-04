@@ -53,7 +53,14 @@ describe("supabase hook", () => {
         'uri = "pg-functions://postgres/permdock/custom_access_token_hook"',
       );
       expect(sql).toContain(
-        'create schema if not exists "permdock";\nrevoke all on schema "permdock" from public;\n\ncreate or replace function "permdock".custom_access_token_hook(event jsonb)',
+        'create schema if not exists "permdock";\nrevoke all on schema "permdock" from public;',
+      );
+      expect(
+        sql.indexOf('create schema if not exists "permdock"'),
+      ).toBeLessThan(
+        sql.indexOf(
+          'create or replace function "permdock".membership_entries_for',
+        ),
       );
       expect(sql).toContain(
         `claims -> 'app_metadata' ->> 'active_organization'`,

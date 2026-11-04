@@ -49,6 +49,14 @@ import {
 
 const MANAGED_TRIGGER = "permdock_protect_managed";
 
+export function schemaSql(parts: Parts): string {
+  if (parts.schema === "public") {
+    return "";
+  }
+  const schema = quoteIdent(parts.schema);
+  return `create schema if not exists ${schema};\nrevoke all on schema ${schema} from public;`;
+}
+
 export function hookSql(parts: Parts): string {
   const schema = quoteIdent(parts.schema);
   const fn = `${schema}.custom_access_token_hook`;
@@ -137,11 +145,7 @@ export function hookSql(parts: Parts): string {
   if team_ids <> '[]'::jsonb then
     claims := jsonb_set(claims, '{team_ids}', team_ids);
   end if;`;
-  const create =
-    parts.schema === "public"
-      ? ""
-      : `create schema if not exists ${schema};\nrevoke all on schema ${schema} from public;\n\n`;
-  return `${create}create or replace function ${fn}(event jsonb)
+  return `create or replace function ${fn}(event jsonb)
 returns jsonb
 language plpgsql
 stable${parts.hook.security === "definer" ? "\nsecurity definer" : ""}

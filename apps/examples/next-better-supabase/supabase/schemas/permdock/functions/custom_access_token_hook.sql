@@ -8,6 +8,9 @@
 --   enabled = true
 --   uri = "pg-functions://postgres/permdock/custom_access_token_hook"
 
+create schema if not exists "permdock";
+revoke all on schema "permdock" from public;
+
 -- the global roles of p_user as a json array; no client role may execute it
 create or replace function "permdock".global_roles_for(p_user uuid)
 returns jsonb
@@ -78,9 +81,6 @@ begin
 end;
 $$;
 revoke execute on function "permdock".membership_entries_for(uuid) from public, anon, authenticated;
-
-create schema if not exists "permdock";
-revoke all on schema "permdock" from public;
 
 create or replace function "permdock".custom_access_token_hook(event jsonb)
 returns jsonb
