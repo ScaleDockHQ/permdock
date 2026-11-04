@@ -231,6 +231,7 @@ describe("react-server build", () => {
   it('marks every React client entry with "use client"', () => {
     for (const entry of [
       "./react",
+      "./react/lazy",
       "./react-native",
       "./next/client",
     ] as const) {
