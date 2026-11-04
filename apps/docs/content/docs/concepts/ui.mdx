@@ -338,14 +338,16 @@ const refreshOn = [supabaseRealtimeRefresh(supabase, { userId })];
 
 ## Client weight
 
-`permdock/react` splits itself, so there is nothing to choose. The server writes a `typeLevel` table into the snapshot ([wire formats](/docs/concepts/wire-formats#snapshot)). `usePermission(permission)` and `<Protected permission>` answer from that table and return `{ allowed, status, outcome }`. The evaluator loads as a separate chunk only when a hook needs a `Decision` or row data. `tests/bundle` measures the initial download of `PermDockProvider`, `Protected` and `usePermission` at 14,637 B gzip (20,263 B before the split); the evaluator chunk adds about 7.0 KB when it loads.
+`permdock/react` ships the snapshot evaluator in its entry, so a provider with a synchronous `snapshot` answers every check on the first render and in a server render: `tests/bundle` measures `PermDockProvider`, `Protected` and `usePermission` at 21,184 B gzip.
 
-| Call                                                                                          | Needs the evaluator |
-| --------------------------------------------------------------------------------------------- | ------------------- |
-| `usePermission(permission)`, `<Protected permission>`                                         | No                  |
-| `usePermission(permission, data)`, `useDecision`, `useGate`, `usePermDock`, function children | Yes                 |
+`permdock/react/lazy` has the same exports and loads the evaluator as a separate chunk. The server writes a `typeLevel` table into the snapshot ([wire formats](/docs/concepts/wire-formats#snapshot)); `usePermission(permission)` and `<Protected permission>` answer from that table and return `{ allowed, status, outcome }`, and the chunk loads only when a hook needs a `Decision` or row data. The initial download measures 14,690 B gzip, and the chunk adds about 7.0 KB when it loads. Choose it for pages that gate nothing client-side in the shell.
 
-A call that needs the evaluator suspends until the chunk arrives, so wrap those subtrees in `<Suspense>`. `renderToString` cannot render them; use streaming or prerendering. The table is absent when a grant has `validity` or a membership has `expiresAt`; the evaluator then loads on first use.
+| Call on `permdock/react/lazy`                                                                              | Needs the evaluator |
+| ---------------------------------------------------------------------------------------------------------- | ------------------- |
+| `usePermission(permission)`, `<Protected permission>`                                                      | No                  |
+| `usePermission(permission, data)`, `useDecision`, `useGate`, `usePermDock`, `useFilter`, function children | Yes                 |
+
+On `permdock/react/lazy`, a call that needs the evaluator suspends until the chunk arrives and never renders a stand-in answer, so wrap those subtrees in `<Suspense>`. `renderToString` cannot render them; use streaming or prerendering. The table is absent when a grant has `validity` or a membership has `expiresAt`; the evaluator then loads on first use.
 
 To ship no PermDock code at all, check on the server.
 

@@ -13,6 +13,7 @@ export const ENTRIES = {
   "./approvals": "approvals/index.js",
   "./jwt": "jwt/index.js",
   "./react": "react/index.js",
+  "./react/lazy": "react/lazy.js",
   "./react-native": "react-native/index.js",
   "./next": "next/index.js",
   "./server": "server/index.js",
@@ -170,6 +171,7 @@ export const WINTERTC_ENTRIES =
   );
 export const CLIENT_ENTRIES = [
   "./react",
+  "./react/lazy",
   "./react-native",
   "./vue",
   "./svelte",
