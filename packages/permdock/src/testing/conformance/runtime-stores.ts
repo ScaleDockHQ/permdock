@@ -11,6 +11,7 @@ import type {
   SubjectCache,
   SubjectRecord,
   VersionCache,
+  VersionStore,
 } from "../../index.ts";
 
 import { isoNow } from "../../core/time.ts";
@@ -126,6 +127,23 @@ export function testPolicySource(
       }
     });
   }
+}
+
+export function testVersionStore(store: VersionStore): void {
+  it("answers what it stored and nothing for an unknown id", async () => {
+    expect(await store.get("u-store-unknown")).toBeUndefined();
+    await store.set("u-store-set", 7);
+    expect(await store.get("u-store-set")).toBe(7);
+  });
+
+  it("overwrites a version and forgets a deleted id", async () => {
+    await store.set("u-store-delete", 1);
+    await store.set("u-store-delete", 2);
+    expect(await store.get("u-store-delete")).toBe(2);
+    await store.delete("u-store-delete");
+    expect(await store.get("u-store-delete")).toBeUndefined();
+    await store.delete("u-store-delete");
+  });
 }
 
 export function testVersionCache(cache: VersionCache): void {

@@ -17,7 +17,8 @@ export { tableApprovalDelegationSource } from "./approval-delegations.ts";
 export type { TableApprovalDelegationSourceOptions } from "./approval-delegations.ts";
 export type { SupabaseApprovalStoreOptions } from "./approval-store.ts";
 export { authorizeSql, supabaseRls } from "./rls.ts";
-export { postgrestSources, readSubjectRecord } from "./postgrest.ts";
+export { readSubjectRecord } from "../core/subject-cache.ts";
+export { postgrestSources } from "./postgrest.ts";
 export type {
   PostgrestSources,
   PostgrestSourcesOptions,

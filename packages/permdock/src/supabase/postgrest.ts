@@ -8,18 +8,14 @@ import type {
 } from "../core/interfaces.ts";
 import type { Policy } from "../core/policy-types.ts";
 import type { SubjectCache, SubjectRecord } from "../core/subject-cache.ts";
-import type {
-  CustomRole,
-  CustomRoleGrant,
-  Principal,
-  Subject,
-} from "../core/subject.ts";
+import type { CustomRole, Principal, Subject } from "../core/subject.ts";
 
 import { withApp } from "../core/app.ts";
 import { compact, isRecord } from "../core/compact.ts";
+import { readMemberships } from "../core/read-memberships.ts";
+import { readSubjectRecord } from "../core/subject-cache.ts";
 import { nowMillis } from "../core/time.ts";
 import { HOOK_API_SCHEMA, hookApiNames, PERMDOCK_SCHEMA } from "./sources.ts";
-import { readMemberships } from "./subject.ts";
 
 /**
  * What a supabase-js `rpc` call resolves to: `data` or an `error` with a
@@ -139,65 +135,6 @@ export type PostgrestSources = {
   record: (userId: string) => Promise<SubjectRecord | undefined>;
 };
 
-function strings(value: unknown): readonly string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string")
-    : [];
-}
-
-function grantOf(value: unknown): CustomRoleGrant | undefined {
-  if (!isRecord(value) || typeof value["permission"] !== "string") {
-    return undefined;
-  }
-  return compact<CustomRoleGrant>({
-    permission: value["permission"],
-    effect: value["effect"] === "deny" ? "deny" : "allow",
-    level: typeof value["level"] === "string" ? value["level"] : undefined,
-  });
-}
-
-function customRoleOf(value: unknown): CustomRole | undefined {
-  if (!isRecord(value) || typeof value["name"] !== "string") {
-    return undefined;
-  }
-  const grants = Array.isArray(value["grants"])
-    ? value["grants"].flatMap((item) => {
-        const grant = grantOf(item);
-        return grant === undefined ? [] : [grant];
-      })
-    : [];
-  const includes = strings(value["includes"]);
-  const body = {
-    name: value["name"],
-    grants,
-    ...(includes.length === 0 ? {} : { includes }),
-  };
-  if (value["scope"] === "global") {
-    return value["tenant"] === undefined && value["shared"] === undefined
-      ? { ...body, scope: "global" }
-      : undefined;
-  }
-  if (value["shared"] === true) {
-    return value["tenant"] === undefined && value["id"] === undefined
-      ? compact<CustomRole>({
-          ...body,
-          shared: true,
-          scope:
-            typeof value["scope"] === "string" ? value["scope"] : undefined,
-        })
-      : undefined;
-  }
-  if (typeof value["tenant"] !== "string") {
-    return undefined;
-  }
-  return compact<CustomRole>({
-    ...body,
-    tenant: value["tenant"],
-    scope: typeof value["scope"] === "string" ? value["scope"] : undefined,
-    id: typeof value["id"] === "string" ? value["id"] : undefined,
-  });
-}
-
 function readMemberEntries(value: unknown): MemberEntry[] {
   if (!Array.isArray(value)) {
     return [];
@@ -219,46 +156,6 @@ function versionOf(value: unknown): number | undefined {
   return typeof version === "number" && Number.isFinite(version)
     ? version
     : undefined;
-}
-
-/**
- * Reads `subject_for`'s JSON; anything it cannot read is left out, and a
- * malformed record is no record.
- */
-export function readSubjectRecord(value: unknown): SubjectRecord | undefined {
-  if (!isRecord(value) || typeof value["id"] !== "string") {
-    return undefined;
-  }
-  if (value["active"] !== true) {
-    return {
-      id: value["id"],
-      active: false,
-      roles: [],
-      memberships: [],
-      customRoles: [],
-    };
-  }
-  const version = value["authzVersion"];
-  return compact<SubjectRecord>({
-    id: value["id"],
-    active: true,
-    roles: strings(value["roles"]),
-    memberships: readMemberships(value["memberships"]).memberships,
-    customRoles: Array.isArray(value["customRoles"])
-      ? value["customRoles"].flatMap((item) => {
-          const role = customRoleOf(item);
-          return role === undefined ? [] : [role];
-        })
-      : [],
-    authzVersion:
-      typeof version === "number" && Number.isFinite(version)
-        ? version
-        : undefined,
-    claims:
-      isRecord(value["claims"]) && Object.keys(value["claims"]).length > 0
-        ? value["claims"]
-        : undefined,
-  });
 }
 
 /**
@@ -414,7 +311,9 @@ export function postgrestSources(
     once(memo, `${schema}.${fn}`, `${schema}.${fn}:${userId}`, async () => {
       const cached = await subjects?.record(
         userId,
-        memo === undefined ? undefined : resolved.get(memo)?.get(userId),
+        memo === undefined
+          ? undefined
+          : (resolved.get(memo)?.get(userId) ?? memo.version),
       );
       if (cached !== null && cached !== undefined) {
         return cached;

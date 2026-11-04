@@ -22,6 +22,7 @@ import { permissionStates } from "../core/checks.ts";
 import { compact, isRecord } from "../core/compact.ts";
 import { NO_GRANT } from "../core/decision.ts";
 import { instanceOptions } from "../core/instance-options.ts";
+import { readSubjectRecord } from "../core/subject-cache.ts";
 import { isSubject } from "../core/subject.ts";
 import { versionSources } from "../core/version-sources.ts";
 import { subjectFromBetterSupabase } from "./subject.ts";
@@ -37,6 +38,12 @@ export type PermDockForResult = {
   readonly authzVersion: number | null;
   /** `bsb.bootstrap()`'s `session_active()`; `false` is signed out. */
   readonly sessionActive?: boolean;
+  /**
+   * The `permdock_subject()` record the bootstrap read in the same round trip.
+   * It seeds `subjects` when its user is the session's and its `authzVersion`
+   * is `authzVersion`, so the instance reads no `subject_for`.
+   */
+  readonly subject?: unknown;
 };
 
 /** Who an instance is for. */
@@ -228,6 +235,17 @@ function permdockResolver<V extends PolicyVocabulary>(
     ) {
       try {
         await options.subjects.record(id, known);
+        const record =
+          result?.subject === undefined
+            ? undefined
+            : readSubjectRecord(result.subject);
+        if (
+          record?.active === true &&
+          record.id === id &&
+          record.authzVersion === known
+        ) {
+          await options.subjects.seed(record);
+        }
       } catch {
         // A cache that fails answers nothing; the source reads the record itself.
       }

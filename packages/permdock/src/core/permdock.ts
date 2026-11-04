@@ -708,7 +708,7 @@ function create<
 ): PermDock<V> | Promise<PermDock<V>> {
   const options = withApp(policy, given);
   const auth: AuthEvent[] = [];
-  const memo = sourceMemo();
+  const memo = sourceMemo(options.version?.known);
   const subject = resolveSubject(policy, user, options, auth, memo);
   if (isThenable(subject)) {
     // SAFETY: instantiate builds the instance from this policy, whose vocabulary type is V.

@@ -867,6 +867,7 @@
     "testTokenSigner",
     "testTokenVerifier",
     "testVersionCache",
+    "testVersionStore",
     "testWhereCompiler"
   ],
   "./testing/core": ["policyMatrix", "testOrmParity", "testRlsParity"],

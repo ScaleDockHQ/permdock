@@ -180,6 +180,28 @@ function claimsOf(request: AuthorizationRequest<Permission>): unknown {
   return isRecord(claims) ? claims : undefined;
 }
 
+/**
+ * What a bootstrap read for this user, from better-supabase's runtime `seed`:
+ * used only when it names the claims' user and carries a version.
+ */
+function seedOf(
+  runtime: unknown,
+  claims: unknown,
+): { readonly version: number; readonly subject: unknown } | undefined {
+  if (!isRecord(runtime) || !isRecord(runtime["seed"]) || !isRecord(claims)) {
+    return undefined;
+  }
+  const { userId, version, subject } = runtime["seed"];
+  return typeof userId === "string" &&
+    userId !== "" &&
+    userId === claims["sub"] &&
+    typeof version === "number" &&
+    Number.isSafeInteger(version) &&
+    version >= 0
+    ? { version, subject }
+    : undefined;
+}
+
 const tenantOf = (request: AuthorizationRequest<Permission>): string | null => {
   const { tenant } = request.context;
   return typeof tenant === "string" ? tenant : null;
@@ -220,12 +242,23 @@ export function authorizer<V extends PolicyVocabulary = PolicyVocabulary>(
     tenant: string | null,
     intent: Intent,
     runtime: AuthorizerRuntime<AnyVersionCache> | undefined,
-  ): Promise<PermDock<V>> =>
-    resolve(
-      claims === undefined ? null : { kind: "user", claims },
+  ): Promise<PermDock<V>> => {
+    const seed = seedOf(runtime, claims);
+    return resolve(
+      claims === undefined
+        ? null
+        : seed === undefined
+          ? { kind: "user", claims }
+          : {
+              session: { kind: "user", claims },
+              tenant,
+              authzVersion: seed.version,
+              subject: seed.subject,
+            },
       { tenant, intent },
       runtime?.versions,
     );
+  };
   const scoped = (
     claims: unknown,
     tenant: string | null,

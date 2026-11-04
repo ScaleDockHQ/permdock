@@ -27,6 +27,8 @@ const MEMO_CACHES: Readonly<Record<string, string>> = {
   [path.join("cli", "project", "package-root.ts")]:
     "the permdock package directory",
   [path.join("cli", "openapi", "schema.ts")]: "compiled JSON Schema validators",
+  [path.join("better-supabase", "version-cache.ts")]:
+    "one adapter per better-supabase cache, keyed weakly by the caller's cache",
 };
 
 function moduleState(file: string): string[] {

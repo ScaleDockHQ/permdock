@@ -119,6 +119,7 @@ export {
   testSnapshotSource,
   testSubjectCache,
   testVersionCache,
+  testVersionStore,
 } from "./conformance/runtime-stores.ts";
 export {
   testDecisionProvider,
