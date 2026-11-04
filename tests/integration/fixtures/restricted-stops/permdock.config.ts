@@ -3,6 +3,7 @@ export default {
   policy: "./policy.ts",
   rls: {
     dialect: "supabase",
+    idTypes: { "*": "text" },
     scopeTypes: { tenant: "text" },
     authorize: "database",
     rowHelpers: ["node", "item", "entry"],
