@@ -60,6 +60,7 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0052](./0052-ultracite-presets-and-kept-off-rules.md)            | Ultracite `core` and `anti-slop` only, house presets in the root config, kept-off rules with counts    |
 | [0053](./0053-better-supabase-0-33-0-floor-and-release-age.md)    | better-supabase 0.33.0 is the peer floor and catalog pin, and skips the release age                    |
 | [0054](./0054-better-supabase-0-39-0-floor-and-release-age.md)    | better-supabase 0.39.0 is the peer floor and catalog pin, and skips the release age                    |
+| [0059](./0059-better-supabase-0-53-0-floor-and-release-age.md)    | better-supabase 0.53.0 is the peer floor and catalog pin, and skips the release age                    |
 | [0056](./0056-define-permdock-entry.md)                           | `permdock/app` is a server-only entry and `definePermDock` replaces `defineApp`                        |
 | [0057](./0057-optional-cli-peers.md)                              | `oxc-parser` and `jiti` are optional peers of the CLI, loaded on first use                             |
 | [0058](./0058-react-evaluator-split.md)                           | `permdock/react` loads its evaluator on demand                                                         |

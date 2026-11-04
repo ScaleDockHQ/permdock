@@ -53,8 +53,8 @@ export default defineConfig({
     "updated-at": {},
     audit: {
       permissions: {
-        view: "audit.read",
-        viewAll: "audit.read",
+        read: "audit.read",
+        readAll: "audit.read",
         revert: "audit.revert",
       },
     },
@@ -73,7 +73,10 @@ export default defineConfig({
     doctor: {
       // staff and quotes are read-only to clients: the API roles hold no write
       // privilege on them, so a missing insert, update or delete policy denies nothing extra.
-      ignore: ["BS107"],
+      // BS243: the generated permdock.* helpers embed the compiled policy as a literal.
+      // BS601: `@chat-adapter/catalog` 4.42 and `@workflow/world` 5.0 are transitive and
+      // inside the release-age window of the ranges 0.53 asks for.
+      ignore: ["BS107", "BS243", "BS601"],
     },
   },
 });

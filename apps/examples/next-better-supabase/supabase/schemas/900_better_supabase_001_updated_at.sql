@@ -1,6 +1,6 @@
 -- better-supabase module: updated-at
 -- @bsb-block updated-at@1 managed
--- @bsb-hash sha256:53f575db312352fbd1464134b5b995547aa2518234ffe141ec5f13262f9ff012
+-- @bsb-hash sha256:850861a74b49fc1d9140d42e6e659e08a9c153eee79999ecc8904d34aaa0fc6a
 -- Keeps an updated_at column current on every update.
 -- Managed by `better-supabase add`; re-running it rewrites this file unless it was edited by hand.
 -- Change it through `blocks` in better-supabase.config.ts and the module's SQL hooks.
@@ -58,6 +58,24 @@ begin
 end;
 $$;
 revoke execute on function better_supabase.replace_equivalent_triggers(regclass, text, text, boolean) from public, anon, authenticated;
+
+create or replace function better_supabase.memo_get(key text)
+returns text
+language sql
+volatile
+set search_path = ''
+as $$
+  select nullif(pg_catalog.current_setting('better_supabase.memo.' || key, true), '')
+$$;
+
+create or replace function better_supabase.memo_set(key text, value text)
+returns text
+language sql
+volatile
+set search_path = ''
+as $$
+  select pg_catalog.set_config('better_supabase.memo.' || key, value, true)
+$$;
 
 drop function if exists better_supabase.track_updated_at(regclass, text);
 

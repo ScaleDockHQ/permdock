@@ -176,7 +176,7 @@ async function failedChecks(
   }
 }
 
-describe("better-supabase 0.26 to 0.39", () => {
+describe("better-supabase 0.26 to 0.53", () => {
   it.each(providers)(
     "0.27: every template of %s passes the template tokenizer",
     async (_, options) => {
@@ -186,18 +186,16 @@ describe("better-supabase 0.26 to 0.39", () => {
     },
   );
 
-  it("0.33: the conformance kit passes except where rowsWith calls a {resource} helper", async () => {
+  it("0.33: the conformance kit passes for the fixture, the example and the combined provider", async () => {
     expect(await failedChecks(authorizationProvider(fixture))).toStrictEqual(
       [],
     );
     expect(await failedChecks(authorizationProvider(example))).toStrictEqual(
       [],
     );
-    // The kit fills only {scope} before matching calls to requires, so it reads
-    // permitted_{resource}_rows literally; requires lists each concrete helper.
-    expect(await failedChecks(authorizationProvider(combined))).toStrictEqual([
-      "requires every function the templates call",
-    ]);
+    expect(await failedChecks(authorizationProvider(combined))).toStrictEqual(
+      [],
+    );
   });
 
   it("0.27: the combined provider fills every template PermDock writes", () => {
