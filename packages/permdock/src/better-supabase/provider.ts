@@ -94,6 +94,11 @@ export type AuthorizationProviderOptions = {
    * the compatibility table); older conformance kits reject it.
    */
   readonly subject?: boolean;
+  /**
+   * Fills `platformRoles` from `rls.roles`. Needs a better-supabase release
+   * whose config schema knows the field; older ones reject it.
+   */
+  readonly platformRoles?: boolean;
 };
 
 /** One `personas` entry of better-supabase's `AuthorizationProvider`. */
@@ -910,12 +915,15 @@ export function authorizationProvider(
     ...(permitted === undefined ? {} : { permitted }),
     ...(ownSubject === undefined ? {} : { subject: ownSubject }),
   };
-  const platformRoles = platformRolesOf(
-    manifest,
-    schema,
-    tenantScope,
-    assignAny && listed("canAssign", tenantScope),
-  );
+  const platformRoles =
+    options.platformRoles === true
+      ? platformRolesOf(
+          manifest,
+          schema,
+          tenantScope,
+          assignAny && listed("canAssign", tenantScope),
+        )
+      : undefined;
   const extras: ProviderExtras = {
     ...(platformRoles === undefined ? {} : { platformRoles }),
     ...(options.personas === undefined || options.personas.length === 0

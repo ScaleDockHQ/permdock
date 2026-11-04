@@ -1098,12 +1098,12 @@ The arguments apply to every listed table, so `user_roles`, which has no `tenant
 
 Each `permdock` release fills the provider fields that its better-supabase peer knows. A field is ignored by an older better-supabase, except `functions.subject`, which the conformance kit of a release without it rejects, so it is opt-in.
 
-| Provider option or field   | `permdock`   | better-supabase | Notes                                                                                       |
-| -------------------------- | ------------ | --------------- | ------------------------------------------------------------------------------------------- |
-| `memberships[].disabledAt` | next release | next release    | Filled from the membership source's `disabledAt` column.                                    |
-| `platformRoles`            | next release | next release    | Filled from `rls.roles` when the manifest lists `permdock_can_assign_any`.                  |
-| `personas`                 | next release | next release    | Pass `personas` to `authorizationProvider`; `accessMatrixTests` writes one pgTAP file each. |
-| `functions.subject`        | next release | next release    | Opt in with `subject: true`; names `permdock_subject()`.                                    |
+| Provider option or field   | `permdock`   | better-supabase | Notes                                                                                                         |
+| -------------------------- | ------------ | --------------- | ------------------------------------------------------------------------------------------------------------- |
+| `memberships[].disabledAt` | next release | next release    | Filled from the membership source's `disabledAt` column.                                                      |
+| `platformRoles`            | next release | next release    | Opt in with `platformRoles: true`; filled from `rls.roles` when the manifest lists `permdock_can_assign_any`. |
+| `personas`                 | next release | next release    | Pass `personas` to `authorizationProvider`; `accessMatrixTests` writes one pgTAP file each.                   |
+| `functions.subject`        | next release | next release    | Opt in with `subject: true`; names `permdock_subject()`.                                                      |
 
 Pin both packages to the pair a release lists, and update the table in the same pull request as a provider change.
 
