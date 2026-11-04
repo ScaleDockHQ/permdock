@@ -2,6 +2,11 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.24.0 (2026-11-04)
+
+- Breaking: `permdock/better-supabase` requires better-supabase 0.53.0 or later (`>=0.53.0`). The approvals and share-link bridges call the object-input block clients, and a policy step with `escalateAfter` throws. Upgrade better-supabase, run `better-supabase codemod 0.53` and `upgrade`, then update permdock.
+- `permdock/react` ships the snapshot evaluator in its entry again, so a provider with a synchronous `snapshot` answers every check on the first render and in a server render, as before 0.23.0: in 0.23.0, `usePermission(permission, data)`, `useDecision`, `useGate`, `usePermDock`, `useFilter` and `<Protected>` with row data suspended while the evaluator chunk loaded, even without `suspend`. `permdock/next` renders this provider. The on-demand evaluator moves to the new opt-in entry `permdock/react/lazy`, with the same exports: its hooks suspend until the chunk arrives and need a Suspense boundary. `saas client react` measures 21,184 B gzip; `permdock/react/lazy` measures 14,690 B initial and 21,708 B in total. The lazy entry's hooks also no longer throw React's conditional `use()` error when hydration retries after the chunk lands.
+
 ## 0.23.0 (2026-11-04)
 
 - On the `supabase` dialect in `database` mode, `permdock_has(p_grant)` memoizes its answer per statement in `permdock.m.global.k<bucket>`, keyed and invalidated like `permitted_<scope>_ids`. A policy site and every `permdock_has_permission` grant key now read the memo, so the global role and custom role lookup runs once per grant key per statement instead of once per call. The function becomes `volatile` `plpgsql`; `permdock_has_for` is unchanged. Regenerate the helpers and add the changed function to a migration.
