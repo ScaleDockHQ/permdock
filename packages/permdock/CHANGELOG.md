@@ -1,5 +1,19 @@
 # permdock
 
+## 0.23.0
+
+### Minor Changes
+
+- [#279](https://github.com/ScaleDockHQ/permdock/pull/279) [`d182b7f`](https://github.com/ScaleDockHQ/permdock/commit/d182b7ff2d459718b30def6e7a96d764093e8055) Thanks [@martijn00](https://github.com/martijn00)! - `authorizationProvider` fills better-supabase's `memberships[].disabledAt` and `platformRoles`, takes `personas` and the opt-in `subject: true` and `platformRoles: true`, and the hook manifest lists `permdock_subject()`. `permdock doctor` reports a hand-written `own_subject()` as PD093.
+
+- [#278](https://github.com/ScaleDockHQ/permdock/pull/278) [`6809047`](https://github.com/ScaleDockHQ/permdock/commit/68090475464f8312c83029c8ce1d740f5436323a) Thanks [@martijn00](https://github.com/martijn00)! - `permdock/react` loads its evaluator on demand: the initial download of `PermDockProvider` + `usePermission` drops from 20,263 B to 14,637 B gzip. Breaking: `usePermission(permission)` without `data` returns `{ allowed, status, outcome }` and no `decision`; use the new `useDecision(permission, data?)` for a `Decision`. `usePermission(permission, data)`, `useDecision`, `useGate` and `usePermDock` suspend while the evaluator chunk loads. `snapshot()` adds an optional `typeLevel` field (`{ granted, approval?, endpoint? }`), and server entries that call it grow by 0.1 to 1.8 KB gzip.
+
+### Patch Changes
+
+- [#278](https://github.com/ScaleDockHQ/permdock/pull/278) [`611b5b5`](https://github.com/ScaleDockHQ/permdock/commit/611b5b59b2b30571b13e6665b64a5761d8fbca0e) Thanks [@martijn00](https://github.com/martijn00)! - `permdock.grantedPermissions()` evaluates the snapshot grants directly instead of building a snapshot instance, so a server bundle that never calls `fromSnapshot` no longer ships it. `permdock/server` drops 1.3 KB gzipped and `permdock` 1.3 KB.
+
+- [#280](https://github.com/ScaleDockHQ/permdock/pull/280) [`28e2b93`](https://github.com/ScaleDockHQ/permdock/commit/28e2b935f40556f65640831b3e515656a0a4c64b) Thanks [@mick340](https://github.com/mick340)! - On the `supabase` dialect in `database` mode, `permdock_has(p_grant)` memoizes its answer per statement in `permdock.m.global.k<bucket>`, keyed and invalidated like `permitted_<scope>_ids`. A policy site and every `permdock_has_permission` grant key now read the memo, so the global role and custom role lookup runs once per grant key per statement instead of once per call. The function becomes `volatile` `plpgsql`; `permdock_has_for` is unchanged. Regenerate the helpers and add the changed function to a migration.
+
 ## 0.22.1
 
 ### Patch Changes
