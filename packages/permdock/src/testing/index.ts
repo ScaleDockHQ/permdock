@@ -117,6 +117,7 @@ export {
   testLimitStore,
   testPolicySource,
   testSnapshotSource,
+  testSubjectCache,
   testVersionCache,
 } from "./conformance/runtime-stores.ts";
 export {

@@ -7,10 +7,10 @@ import type {
   SourceMemo,
 } from "../core/interfaces.ts";
 import type { Policy } from "../core/policy-types.ts";
+import type { SubjectCache, SubjectRecord } from "../core/subject-cache.ts";
 import type {
   CustomRole,
   CustomRoleGrant,
-  Membership,
   Principal,
   Subject,
 } from "../core/subject.ts";
@@ -93,23 +93,16 @@ export type PostgrestSourcesOptions = {
    * instance's memo answered it. A hook that throws is ignored.
    */
   readonly onSourceCall?: (call: SourceCall) => void;
+  /**
+   * Subject records shared across instances. `record()` reads it before
+   * `subject_for`, at the authorization version the instance resolved, and
+   * seeds it with every record it reads. Without it every instance reads
+   * `subject_for` itself.
+   */
+  readonly subjects?: SubjectCache;
 };
 
-/** One user as `subject_for(p_user)` returns it. */
-export type SubjectRecord = {
-  readonly id: string;
-  /** `false` for a suspended user, who holds no roles or memberships. */
-  readonly active: boolean;
-  readonly roles: readonly string[];
-  readonly memberships: readonly Membership[];
-  readonly customRoles: readonly CustomRole[];
-  readonly authzVersion?: number;
-  /**
-   * The token claims the hook adds besides the memberships: `team_ids` and each
-   * `supabase.hook.claims` entry.
-   */
-  readonly claims?: Readonly<Record<string, unknown>>;
-};
+export type { SubjectRecord };
 
 export type PostgrestSources = {
   /**
@@ -355,6 +348,12 @@ export function postgrestSources(
     declared !== undefined &&
     held?.every((name) => declared.has(name)) === true;
   const hook = options.onSourceCall;
+  const subjects = options.subjects;
+  /**
+   * The version each instance (its memo) read, which a cached record must
+   * match.
+   */
+  const resolved = new WeakMap<SourceMemo, Map<string, number>>();
   const noteVersionRead = repeatedVersionReads();
   const once = <T>(
     memo: SourceMemo | undefined,
@@ -410,13 +409,24 @@ export function postgrestSources(
     memo?: SourceMemo,
   ): Promise<SubjectRecord | undefined> =>
     once(memo, `${schema}.${fn}`, `${schema}.${fn}:${userId}`, async () => {
+      const cached = await subjects?.record(
+        userId,
+        memo === undefined ? undefined : resolved.get(memo)?.get(userId),
+      );
+      if (cached !== null && cached !== undefined) {
+        return cached;
+      }
       const result = await callRpc(client, schema, fn, { p_user: userId });
       if (result.error !== null) {
         throw new Error(
           `PermDock: ${schema}.${fn} failed: ${result.error.message}`,
         );
       }
-      return readSubjectRecord(result.data);
+      const read = readSubjectRecord(result.data);
+      if (read !== undefined) {
+        await subjects?.seed(read);
+      }
+      return read;
     });
   const version = (
     userId: string,
@@ -436,7 +446,13 @@ export function postgrestSources(
             `PermDock: ${schema}.${versionFn} failed: ${result.error.message}`,
           );
         }
-        return versionOf(result.data);
+        const current = versionOf(result.data);
+        if (memo !== undefined && current !== undefined) {
+          const versions = resolved.get(memo) ?? new Map<string, number>();
+          versions.set(userId, current);
+          resolved.set(memo, versions);
+        }
+        return current;
       },
     );
   const live = async (

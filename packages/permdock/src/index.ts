@@ -203,6 +203,12 @@ export type {
   InstanceCacheOptions,
   InstanceCacheStats,
 } from "./core/instance-cache.ts";
+export { memorySubjectCache } from "./core/subject-cache.ts";
+export type {
+  MemorySubjectCacheOptions,
+  SubjectCache,
+  SubjectRecord,
+} from "./core/subject-cache.ts";
 export { memoryVersionCache } from "./core/version-cache.ts";
 export type {
   MemoryVersionCacheOptions,

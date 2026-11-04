@@ -6,6 +6,7 @@ import type { Intent, MembershipSource } from "../core/interfaces.ts";
 import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
+import type { SubjectCache } from "../core/subject-cache.ts";
 import type { Principal, Subject } from "../core/subject.ts";
 import type { VersionCache } from "../core/version-cache.ts";
 import type { SupabaseSessionLike } from "../supabase/types.ts";
@@ -93,6 +94,12 @@ export type PermDockForOptions<V extends PolicyVocabulary = PolicyVocabulary> =
     readonly versions?: VersionCache;
     /** The process-wide instance cache, shared with the app's other adapters. */
     readonly instances?: InstanceCache;
+    /**
+     * The `subjects` cache of the app's `postgrestSources`. A call that knows
+     * the user's authorization version (a `bootstrap` or `getAccess` result)
+     * tells it that version, which drops a record older than it.
+     */
+    readonly subjects?: SubjectCache;
     /** Sources and sinks for each instance. */
     readonly options?: Omit<PermDockOptions, "tenant" | "intent" | "version">;
   };
@@ -114,6 +121,7 @@ const RESOLVER_OWNS = [
   "version",
   "versions",
   "instances",
+  "subjects",
   "options",
 ] as const;
 
@@ -202,6 +210,18 @@ function permdockResolver<V extends PolicyVocabulary>(
     const tenant = query.tenant ?? result?.tenant ?? undefined;
     const known = signedOut ? undefined : knownVersion(result?.authzVersion);
     const sources = sourcesFor(runtimeVersions ?? options.versions);
+    const id = user.principal?.id;
+    if (
+      options.subjects !== undefined &&
+      id !== undefined &&
+      known !== undefined
+    ) {
+      try {
+        await options.subjects.record(id, known);
+      } catch {
+        // A cache that fails answers nothing; the source reads the record itself.
+      }
+    }
     const { permdock } = await buildInstance({
       policy: options.policy,
       user,
