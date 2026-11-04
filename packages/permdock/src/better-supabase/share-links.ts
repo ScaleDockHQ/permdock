@@ -34,9 +34,9 @@ export type ShareLinkRow = {
 
 /** better-supabase's `ShareLinks`, or anything with its `resolve`. */
 export type ShareLinkResolver = {
-  resolve: (
-    token: string,
-  ) => PromiseLike<
+  resolve: (input: {
+    readonly token: string;
+  }) => PromiseLike<
     | { readonly ok: true; readonly data: ShareLinkRow | null }
     | { readonly ok: false }
   >;
@@ -176,7 +176,7 @@ export async function subjectFromShareLink(
   let row: ShareLinkRow;
   let subject: ShareLinkSubject;
   try {
-    const resolved = await options.shareLinks.resolve(token);
+    const resolved = await options.shareLinks.resolve({ token });
     if (!resolved.ok) {
       return deny("source-threw", "resolve-failed");
     }

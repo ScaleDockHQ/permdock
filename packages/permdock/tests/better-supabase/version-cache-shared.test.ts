@@ -1,6 +1,6 @@
+import { createVersionCache } from "better-supabase/server";
 import { describe, expect, it } from "vitest";
 
-import type { BetterSupabaseVersionCache } from "../../src/better-supabase/index.ts";
 import type { VersionStore } from "../../src/index.ts";
 
 import {
@@ -21,26 +21,6 @@ import {
 
 const USER = "22222222-2222-4222-8222-222222222222";
 const READ = { live: false } as const;
-
-/**
- * The behaviour of better-supabase's `createVersionCache` (0.52 and later; the
- * floor release has none): `seed` keeps the higher version, `evict` forgets
- * it.
- */
-function createVersionCache(_options: {
-  readonly maxStaleMs: number;
-}): BetterSupabaseVersionCache {
-  const versions = new Map<string, number>();
-  return {
-    get: (userId) => Promise.resolve(versions.get(userId)),
-    seed: (userId, version) => {
-      versions.set(userId, Math.max(version, versions.get(userId) ?? version));
-    },
-    evict: (userId) => {
-      versions.delete(userId);
-    },
-  };
-}
 
 function mapStore(): VersionStore & { readonly data: Map<string, number> } {
   const data = new Map<string, number>();

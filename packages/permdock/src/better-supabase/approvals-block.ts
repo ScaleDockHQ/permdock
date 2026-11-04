@@ -76,7 +76,14 @@ export type BlockApprovalTenantPolicy = {
   readonly mode: "confirm" | "authorize";
   readonly steps: readonly {
     readonly approvers: BlockApprovalApprovers;
-    readonly required: number | "all";
+    readonly required: number;
+    /** Every holder decides; `required` is 0 then. */
+    readonly all?: boolean;
+    /**
+     * An interval after which `escalateTo` may decide; PermDock has no
+     * counterpart.
+     */
+    readonly escalateAfter?: string;
   }[];
   readonly selfApproval: boolean;
   readonly expiresIn?: string;
@@ -88,35 +95,35 @@ export type BlockApprovalTenantPolicy = {
  * `better-supabase/blocks/approvals`.
  */
 export type BlockApprovalsClient<I extends BlockInstant> = {
-  readonly request: (
-    subject: { readonly type: string; readonly id: string },
-    input: {
+  readonly request: (args: {
+    readonly subject: { readonly type: string; readonly id: string };
+    readonly input: {
       readonly action: string;
       readonly reason?: string;
       readonly payload?: Readonly<Record<string, unknown>>;
       readonly fingerprint?: string;
       readonly tenantless?: boolean;
-    },
-  ) => BlockResult<BlockApprovalRecord<I>>;
+    };
+  }) => BlockResult<BlockApprovalRecord<I>>;
   readonly list: (options?: {
     readonly status?: BlockStatus | null;
     readonly pageSize?: number;
     readonly before?: I;
     readonly tenantless?: boolean;
   }) => BlockResult<readonly BlockApprovalRecord<I>[]>;
-  readonly consume: (
-    id: string,
-    fingerprint?: string,
-  ) => BlockResult<BlockApprovalRecord<I>>;
+  readonly consume: (args: {
+    readonly id: string;
+    readonly fingerprint?: string;
+  }) => BlockResult<BlockApprovalRecord<I>>;
   readonly approve?: BlockDecide<I>;
   readonly reject?: BlockDecide<I>;
 };
 
-export type BlockDecide<I extends BlockInstant> = (
-  id: string,
-  comment?: string,
-  options?: { readonly decidedBy?: string },
-) => BlockResult<BlockApprovalRecord<I>>;
+export type BlockDecide<I extends BlockInstant> = (args: {
+  readonly id: string;
+  readonly comment?: string;
+  readonly decidedBy?: string;
+}) => BlockResult<BlockApprovalRecord<I>>;
 
 /** The call `blockApprovalPolicySource` makes on the approvals block. */
 export type BlockApprovalPoliciesClient = {
@@ -300,12 +307,12 @@ export function blockApprovalStore<I extends BlockInstant>(
     name: "better-supabase-approvals",
     async create(request: ApprovalRequest): Promise<void> {
       await unwrap(
-        approvals.request(
-          {
+        approvals.request({
+          subject: {
             type: request.resource.type,
             id: request.resource.id ?? request.id,
           },
-          compact({
+          input: compact({
             action: actionOf(request.permission),
             reason: request.detail,
             payload: { permdock: request },
@@ -316,7 +323,7 @@ export function blockApprovalStore<I extends BlockInstant>(
                 ? true
                 : undefined,
           }),
-        ),
+        }),
         "request",
       );
     },
@@ -345,7 +352,13 @@ export function blockApprovalStore<I extends BlockInstant>(
       applyApprovalVerdict(found.request, verdict);
       const by = verdict.by.principal?.id;
       const decided = await unwrap(
-        decide(found.record.id, verdict.note, compact({ decidedBy: by })),
+        decide(
+          compact({
+            id: found.record.id,
+            comment: verdict.note,
+            decidedBy: by,
+          }),
+        ),
         verdict.status === "approved" ? "approve" : "reject",
       );
       const next = requestOf(decided);
@@ -379,8 +392,10 @@ export function blockApprovalStore<I extends BlockInstant>(
         return null;
       }
       const consumed = await approvals.consume(
-        found.record.id,
-        found.request.fingerprint,
+        compact({
+          id: found.record.id,
+          fingerprint: found.request.fingerprint,
+        }),
       );
       return consumed.ok ? requestOf(consumed.data) : null;
     },
@@ -441,7 +456,12 @@ function stageApprovers(
 }
 
 function quorumOf(step: BlockApprovalTenantPolicy["steps"][number]): number {
-  if (step.required !== "all") {
+  if (step.escalateAfter !== undefined) {
+    throw new TypeError(
+      "PermDock: an approval policy step with escalateAfter is not supported; escalation is decided by the block",
+    );
+  }
+  if (step.all !== true) {
     return step.required;
   }
   const { users = [], permission, role, team, manager } = step.approvers;
@@ -453,7 +473,7 @@ function quorumOf(step: BlockApprovalTenantPolicy["steps"][number]): number {
     manager === true
   ) {
     throw new TypeError(
-      'PermDock: an approval policy step with required "all" needs users and no other approvers, since the block counts other holders when a request is filed',
+      "PermDock: an approval policy step with `all` needs users and no other approvers, since the block counts other holders when a request is filed",
     );
   }
   return users.length;

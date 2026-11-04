@@ -2,6 +2,7 @@ import type {
   AuthorizationRequest,
   AuthorizerRuntime,
 } from "better-supabase/contract";
+import type { AuthzSubjectSeed } from "better-supabase/server";
 
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -72,7 +73,7 @@ const request = (): AuthorizationRequest<Permission> => ({
 
 function setup(): {
   readonly calls: string[];
-  readonly check: (seed?: unknown) => Promise<string>;
+  readonly check: (seed?: AuthzSubjectSeed) => Promise<string>;
 } {
   const calls: string[] = [];
   const client: SupabaseRpcClient = {
@@ -96,13 +97,13 @@ function setup(): {
   return {
     calls,
     check: async (seed) => {
-      // better-supabase 0.52 adds `seed` to the runtime; the floor release's type has none.
-      const withSeed = {
-        versions: { get: () => undefined, evict: () => undefined },
-        seed,
-      };
       const runtime: AuthorizerRuntime<AnyVersionCache> | undefined =
-        seed === undefined ? undefined : withSeed;
+        seed === undefined
+          ? undefined
+          : {
+              versions: { get: () => undefined, evict: () => undefined },
+              seed,
+            };
       const outcome = await checked.evaluate(request(), runtime);
       return outcome.outcome;
     },

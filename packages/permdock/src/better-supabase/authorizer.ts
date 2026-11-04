@@ -5,6 +5,7 @@ import type {
   Authorizer,
   AuthorizerRuntime,
 } from "better-supabase/contract";
+import type { AuthzSubjectSeed } from "better-supabase/server";
 
 import type { ApprovalStore } from "../approvals/types.ts";
 import type { Decision } from "../core/decision.ts";
@@ -185,20 +186,21 @@ function claimsOf(request: AuthorizationRequest<Permission>): unknown {
  * used only when it names the claims' user and carries a version.
  */
 function seedOf(
-  runtime: unknown,
+  runtime: AuthorizerRuntime<AnyVersionCache> | undefined,
   claims: unknown,
-): { readonly version: number; readonly subject: unknown } | undefined {
-  if (!isRecord(runtime) || !isRecord(runtime["seed"]) || !isRecord(claims)) {
+): AuthzSubjectSeed | undefined {
+  const seed = runtime?.seed;
+  if (seed === undefined || !isRecord(claims)) {
     return undefined;
   }
-  const { userId, version, subject } = runtime["seed"];
+  const { userId, version } = seed;
   return typeof userId === "string" &&
     userId !== "" &&
     userId === claims["sub"] &&
     typeof version === "number" &&
     Number.isSafeInteger(version) &&
     version >= 0
-    ? { version, subject }
+    ? seed
     : undefined;
 }
 

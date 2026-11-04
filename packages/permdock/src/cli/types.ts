@@ -442,7 +442,7 @@ export type RlsConfig = {
    * and writes `permdock.m.*` with `current_setting` and `set_config`.
    * `'better-supabase'` calls `better_supabase.memo_get` and `memo_set`, so the
    * memo shares better-supabase's one mechanism; the keys stay `permdock.m.*`.
-   * Needs the `better_supabase` schema (better-supabase 0.52 or later).
+   * Needs the `better_supabase` schema.
    */
   readonly memo?: "permdock" | "better-supabase";
   /**

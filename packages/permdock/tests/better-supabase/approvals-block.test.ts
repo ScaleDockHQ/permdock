@@ -47,8 +47,15 @@ function fakeBlock(): BlockApprovalsClient<Instant> & {
   const deciders: (string | undefined)[] = [];
   const decided =
     (status: "approved" | "rejected") =>
-    (id: string, _comment?: string, options?: { decidedBy?: string }) => {
-      deciders.push(options?.decidedBy);
+    ({
+      id,
+      decidedBy,
+    }: {
+      id: string;
+      comment?: string;
+      decidedBy?: string;
+    }) => {
+      deciders.push(decidedBy);
       const index = records.findIndex((record) => record.id === id);
       const record = records[index];
       if (record === undefined) {
@@ -69,7 +76,7 @@ function fakeBlock(): BlockApprovalsClient<Instant> & {
     deciders,
     approve: decided("approved"),
     reject: decided("rejected"),
-    request(subject, input) {
+    request({ subject, input }) {
       clock += 1000;
       const id = `b${records.length + 1}`;
       if (input.tenantless === true) {
@@ -99,7 +106,7 @@ function fakeBlock(): BlockApprovalsClient<Instant> & {
             1;
       return ok(scoped.slice(start, start + (options.pageSize ?? 50)));
     },
-    consume(id, fingerprint) {
+    consume({ id, fingerprint }) {
       const index = records.findIndex((record) => record.id === id);
       const record = records[index];
       if (
@@ -258,7 +265,7 @@ describe(blockApprovalStore, () => {
     const third = await openRequest(store, approvalFingerprint("third"));
     const stripped = blockApprovalStore({
       ...block,
-      approve: (id) => {
+      approve: ({ id }) => {
         const record = block.records.find((item) => item.id === id);
         if (record === undefined) {
           throw new Error(`no block record ${id}`);
@@ -377,6 +384,20 @@ describe(blockApprovalPolicySource, () => {
         },
       ],
     );
+  });
+
+  it("rejects a step with escalateAfter", async () => {
+    const source = policySource([
+      {
+        ...twoSteps,
+        steps: [
+          { approvers: { manager: true }, required: 1, escalateAfter: "1 day" },
+        ],
+      },
+    ]);
+    await expect(
+      source.approvalPoliciesFor({ tenants: ["o1"] }),
+    ).rejects.toThrow(/escalateAfter/u);
   });
 
   it("throws when listPolicies fails or answers no list", async () => {
@@ -541,7 +562,7 @@ describe(blockApprovalPolicySource, () => {
     const [all] = await policySource([
       {
         ...twoSteps,
-        steps: [{ approvers: { users: ["a", "b"] }, required: "all" }],
+        steps: [{ approvers: { users: ["a", "b"] }, required: 0, all: true }],
       },
     ]).approvalPoliciesFor({ tenants: ["o1"] });
     expect(all?.approval).toMatchObject({ stages: [{ quorum: 2 }] });
@@ -550,7 +571,7 @@ describe(blockApprovalPolicySource, () => {
         policySource([
           {
             ...twoSteps,
-            steps: [{ approvers: { permission: "x" }, required: "all" }],
+            steps: [{ approvers: { permission: "x" }, required: 0, all: true }],
           },
         ]),
       ),

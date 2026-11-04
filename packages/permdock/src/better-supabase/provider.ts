@@ -90,14 +90,10 @@ export type AuthorizationProviderOptions = {
   readonly personas?: readonly ProviderPersona[];
   /**
    * Names `permdock_subject()` as `functions.subject`, so a bootstrap seeds the
-   * provider subject. Needs a better-supabase release that knows the field (see
-   * the compatibility table); older conformance kits reject it.
+   * provider subject.
    */
   readonly subject?: boolean;
-  /**
-   * Fills `platformRoles` from `rls.roles`. Needs a better-supabase release
-   * whose config schema knows the field; older ones reject it.
-   */
+  /** Fills `platformRoles` from `rls.roles`. */
   readonly platformRoles?: boolean;
 };
 
@@ -153,6 +149,7 @@ type Template = Exclude<
   | "permitted"
   | "portalSubjects"
   | "portalParties"
+  | "subject"
   | RowTemplate
 >;
 
