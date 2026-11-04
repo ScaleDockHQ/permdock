@@ -8,6 +8,7 @@ import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
 import { listPermissions } from "../../src/core/permission-registry.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
+import { typeLevelOf } from "../../src/core/type-level.ts";
 import { allow, definePolicy, role } from "../../src/index.ts";
 import {
   adminUser,
@@ -57,6 +58,23 @@ function expectParity(
 }
 
 describe("snapshot typeLevel", () => {
+  it("skips a grant whose permission the policy does not declare", () => {
+    const snapshot = snapshotFrom(
+      getPermDockSync(saas, alice, { tenant: "acme" }).snapshot(),
+    );
+    const [first] = snapshot.grants;
+    expect(first).toBeDefined();
+    const foreign: Snapshot = {
+      ...snapshot,
+      grants:
+        first === undefined
+          ? []
+          : [...snapshot.grants, { ...first, permission: "ghost.read" }],
+    };
+    const table = typeLevelOf(saas, foreign);
+    expect(table?.granted).not.toContain("ghost.read");
+  });
+
   it("answers every rowless check as the evaluator does, for the saas policy", () => {
     const permissions = listPermissions(saas.permissions);
     for (const [user, tenant] of [

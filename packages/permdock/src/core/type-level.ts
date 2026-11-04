@@ -32,6 +32,7 @@ function rowless(snapshot: Snapshot, permission: Permission): Decision | null {
       {},
     );
   } catch {
+    /* v8 ignore next */
     return null;
   }
 }
@@ -79,6 +80,7 @@ export function typeLevelOf(
           endpoint.push(key);
         }
         break;
+      /* v8 ignore next 4 */
       default: {
         const exhausted: never = decision;
         return exhausted;
