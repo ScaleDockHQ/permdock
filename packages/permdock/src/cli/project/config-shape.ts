@@ -133,7 +133,6 @@ const DOCTOR = {
   migrations: ARRAY,
   claims: STRING,
   srcPath: ARRAY,
-  sharedTables: ARRAY,
   cacheHelpers: ARRAY,
   ignore: ARRAY,
   waivers: ARRAY,

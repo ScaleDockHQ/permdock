@@ -692,8 +692,8 @@ export async function pd086(
 
 /**
  * PD075: two resources that `rls.tables` maps to one table, each with its own
- * keys and helpers for the same rows. `doctor.sharedTables` lists tables split
- * on purpose (two resources over disjoint rows).
+ * keys and helpers for the same rows. A resource declared `{ tableOf }` is the
+ * intended way to share a table and is not counted.
  */
 export async function pd075(
   input: DoctorInput,
@@ -706,18 +706,17 @@ export async function pd075(
   if (policy === undefined) {
     return [];
   }
-  const allowed = new Set(
-    (input.config.doctor?.sharedTables ?? []).map(qualifySqlTable),
-  );
   const byTable = new Map<string, Set<string>>();
   for (const leaf of listPermissions(policy.vocabulary.permissions)) {
-    const table = qualifySqlTable(
-      tableNameOf(rls.tables?.[leaf.resource], leaf.resource),
-    );
+    const entry = rls.tables?.[leaf.resource];
+    if (typeof entry === "object" && "tableOf" in entry) {
+      continue;
+    }
+    const table = qualifySqlTable(tableNameOf(entry, leaf.resource));
     byTable.set(table, (byTable.get(table) ?? new Set()).add(leaf.resource));
   }
   return [...byTable.entries()]
-    .filter(([table, resources]) => resources.size > 1 && !allowed.has(table))
+    .filter(([, resources]) => resources.size > 1)
     .toSorted(byKey)
     .map(([table, resources]) => {
       const names = [...resources].toSorted();
@@ -725,7 +724,7 @@ export async function pd075(
         code: "PD075",
         severity: "warning" as const,
         message: `rls.tables maps ${names.join(" and ")} to ${table}, so the same rows carry two sets of keys and helpers`,
-        fix: `merge them into one resource (https://permdock.com/docs/guides/merge-resources), or list ${table} in doctor.sharedTables when the resources cover disjoint rows`,
+        fix: `merge them into one resource (https://permdock.com/docs/guides/merge-resources), or declare one with rls.tables.<resource>: { tableOf: '<owner>' } so only the owner writes ${table} policies`,
       };
     });
 }

@@ -127,14 +127,17 @@ export type RlsTableVia = {
 };
 
 /**
- * A resource's table: its `schema.table`, an object that adds `via`, or `false`
- * for a resource with no table (a console permission), which gets no policies
- * while its role grants are still seeded.
+ * A resource's table: its `schema.table`, an object that adds `via`, `false`
+ * for a resource with no table (a console permission), or `{ tableOf }` for a
+ * resource stored in another resource's table. `false` and `{ tableOf }` get no
+ * policies while their role grants are still seeded; the owner resource writes
+ * the table's policies.
  */
 export type RlsTable =
   | string
   | false
-  | { readonly table?: string; readonly via: RlsTableVia };
+  | { readonly table?: string; readonly via: RlsTableVia }
+  | { readonly tableOf: string };
 
 export type RlsConfig = {
   /**
@@ -1005,11 +1008,6 @@ export type DoctorConfig = {
    * `supabase.hook.claims` entry in it.
    */
   readonly claims?: string;
-  /**
-   * Tables two resources map to on purpose, over disjoint rows; PD075 skips
-   * them.
-   */
-  readonly sharedTables?: readonly string[];
   /**
    * Functions that build an object once and keep it; PD080 and PD081 skip a
    * factory call passed to one of them, as in `once(() => claimsFirst(...))`.

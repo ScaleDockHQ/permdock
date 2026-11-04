@@ -4,6 +4,7 @@ import type { TableBinding } from "./bindings.ts";
 import type { GeneratedPolicies } from "./generate-policies.ts";
 import type { GeneratedTrigger } from "./trigger-notes.ts";
 
+import { inferredCommand } from "../sql/compile.ts";
 import { tableNames } from "../sql/tables.ts";
 import { tableBindings } from "./bindings.ts";
 import { generatedTriggers } from "./trigger-notes.ts";
@@ -52,6 +53,15 @@ export type RlsExplain = {
   readonly rowHelpers: readonly {
     readonly resource: string;
     /** The permission keys the helper decides for the resource's rows. */
+    readonly permissions: readonly string[];
+  }[];
+  /**
+   * Actions that compile to a SQL command through a default-verb prefix, not an
+   * `rls.actions` entry or an exact verb.
+   */
+  readonly inferredActions: readonly {
+    readonly action: string;
+    readonly command: string;
     readonly permissions: readonly string[];
   }[];
   readonly triggers: readonly GeneratedTrigger[];
@@ -152,8 +162,36 @@ export function explainRls(input: ExplainInput): RlsExplain {
         ),
       ].toSorted(),
     })),
+    inferredActions: inferredActions(generated, rls?.actions),
     triggers: generatedTriggers(input.text),
   };
+}
+
+function inferredActions(
+  generated: GeneratedPolicies,
+  actions: NonNullable<PermDockConfig["rls"]>["actions"],
+): RlsExplain["inferredActions"] {
+  const found = new Map<string, { command: string; keys: Set<string> }>();
+  for (const branch of generated.compiled.branches) {
+    if (branch.resource === undefined) {
+      continue;
+    }
+    const base = branch.permissionKey.split("@")[0] ?? branch.permissionKey;
+    const action = base.slice(branch.resource.length + 1);
+    const command = inferredCommand(action, actions);
+    if (command !== undefined) {
+      const entry = found.get(action) ?? { command, keys: new Set<string>() };
+      entry.keys.add(base);
+      found.set(action, entry);
+    }
+  }
+  return [...found.entries()]
+    .toSorted(([a], [b]) => (a < b ? -1 : 1))
+    .map(([action, { command, keys }]) => ({
+      action,
+      command,
+      permissions: [...keys].toSorted(),
+    }));
 }
 
 /** The text report of `explain`. */
@@ -194,6 +232,14 @@ export function describeExplain(explain: RlsExplain): string {
     lines.push("", "row helpers:");
     for (const helper of explain.rowHelpers) {
       lines.push(`  ${helper.resource}: ${helper.permissions.join(", ")}`);
+    }
+  }
+  if (explain.inferredActions.length > 0) {
+    lines.push("", "inferred actions (set rls.actions to change):");
+    for (const item of explain.inferredActions) {
+      lines.push(
+        `  ${item.action} -> ${item.command}: ${item.permissions.join(", ")}`,
+      );
     }
   }
   if (explain.triggers.length > 0) {

@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { commandFor, compileGrants } from "../../src/cli/sql/compile.ts";
+import {
+  commandFor,
+  compileGrants,
+  inferredCommand,
+} from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
   allow,
@@ -65,6 +69,36 @@ describe(commandFor, () => {
     expect(commandFor("view", { view: "select" })).toBe("select");
     expect(commandFor("read", { read: "none" })).toBeUndefined();
     expect(commandFor("toString", {})).toBeUndefined();
+  });
+});
+
+describe("inferred actions", () => {
+  it("maps a compound whose first word is a default verb", () => {
+    expect(commandFor("updateStatus")).toBe("update");
+    expect(commandFor("listArchived")).toBe("select");
+    expect(commandFor("create_draft")).toBe("insert");
+    expect(commandFor("delete-all")).toBe("delete");
+    expect(commandFor("getOrCreate2")).toBe("select");
+  });
+
+  it("keeps any other verb, a word that only starts with a verb and a configured action out", () => {
+    expect(commandFor("approveInvoice")).toBeUndefined();
+    expect(commandFor("updater")).toBeUndefined();
+    expect(commandFor("readonly")).toBeUndefined();
+    expect(
+      commandFor("updateStatus", { updateStatus: "none" }),
+    ).toBeUndefined();
+    expect(commandFor("updateStatus", { updateStatus: "delete" })).toBe(
+      "delete",
+    );
+  });
+
+  it("names a command as inferred only when nothing else gave it", () => {
+    expect(inferredCommand("update")).toBeUndefined();
+    expect(inferredCommand("updateStatus")).toBe("update");
+    expect(
+      inferredCommand("updateStatus", { updateStatus: "update" }),
+    ).toBeUndefined();
   });
 });
 

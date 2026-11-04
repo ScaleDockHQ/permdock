@@ -126,7 +126,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD072` | A membership source reads role keys through `rls.customRoleWrites.roles`, whose tenant rows tenants write, so a tenant row named like a declared role could grant it                                                                                                                                       | warning         |
 | `PD073` | A role's `for` lists kinds that no membership source of its scope can hold                                                                                                                                                                                                                                 | error           |
 | `PD074` | `supabase.hook` is set, but `supabase/config.toml` does not enable `[auth.hook.custom_access_token]` or names another function                                                                                                                                                                             | warning         |
-| `PD075` | Two resources that `rls.tables` maps to one table, so the same rows carry two sets of keys and helpers; `doctor.sharedTables` lists tables split on purpose                                                                                                                                                | warning         |
+| `PD075` | Two resources that `rls.tables` maps to one table, so the same rows carry two sets of keys and helpers; a resource declared `tableOf` is not counted                                                                                                                                                       | warning         |
 | `PD076` | `rls.actions` entries set to `'none'` on a verb that compiles to `'none'` anyway, or entries for a verb no permission uses                                                                                                                                                                                 | info            |
 | `PD077` | A config key or value names a scope, resource or action the policy does not declare, such as a Realtime topic `{organisation}` placeholder; or two of them give one SQL helper name                                                                                                                        | error           |
 | `PD078` | better-supabase's `blocks.permissions.activeTenant` writes the active tenant to another place than `supabase.hook.activeFrom` reads it                                                                                                                                                                     | warning         |
@@ -475,10 +475,14 @@ A role declared with `for: ['employee']` can only be held through a membership w
 
 ### PD075: two resources on one table
 
-Two resources that `rls.tables` maps to the same table give the same rows two sets of permission keys (`file.read` and `fileNode.read`), two row helpers and two catalog entries, and a check of the wrong key denies or grants a different set of rows. One resource can carry both the organisation-wide role grant (a `memberOf` relation) and the per-row relation grants, so the check names both resources and the table and points to [merging resources](/docs/guides/merge-resources). A `via` entry counts through its `table`. When the two resources cover disjoint rows of one table on purpose, list the table in `doctor.sharedTables`:
+Two resources that `rls.tables` maps to the same table give the same rows two sets of permission keys (`file.read` and `fileNode.read`), two row helpers and two catalog entries, and a check of the wrong key denies or grants a different set of rows. One resource can carry both the organisation-wide role grant (a `memberOf` relation) and the per-row relation grants, so the check names both resources and the table and points to [merging resources](/docs/guides/merge-resources). A `via` entry counts through its `table`. When two resources share a table on purpose, declare the second one with `tableOf`; the owner resource writes the table's policies and the check skips the declared resource:
 
 ```ts title="permdock.config.ts"
-export default defineConfig({ doctor: { sharedTables: ["public.documents"] } });
+export default defineConfig({
+  rls: {
+    tables: { document: "public.documents", draft: { tableOf: "document" } },
+  },
+});
 ```
 
 `--only rls` runs PD075.

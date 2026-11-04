@@ -37,7 +37,12 @@ import { assignableRoles, roleNames } from "../sql/grants.ts";
 import { resolveNames } from "../sql/resolve-names.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
-import { resolveVias, tableNames, tablelessResources } from "../sql/tables.ts";
+import {
+  checkSharedTables,
+  resolveVias,
+  tableNames,
+  tablelessResources,
+} from "../sql/tables.ts";
 import { apiKeysPlan } from "./api-keys.ts";
 import { customRoleSyncSql } from "./custom-role-sync.ts";
 import { closureDepths, graphPlan } from "./graph.ts";
@@ -400,6 +405,7 @@ export function buildContext(
   const tokenScopes = tokenScopesPlan(tokenScopesSetting, policy);
   let vias: ReturnType<typeof resolveVias>;
   try {
+    checkSharedTables(rls?.tables);
     vias = resolveVias(rls?.tables, scopes, input.dialect);
   } catch (cause) {
     return { refusal: describeError(cause) };
