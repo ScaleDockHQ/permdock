@@ -43,6 +43,7 @@ export function snapshotOf(
     readonly assignable?: ReadonlyMap<string, readonly string[]>;
     readonly include?: SnapshotInclude;
     readonly tenants?: SnapshotTenants;
+    readonly omitAssignable?: boolean;
     readonly simulated?: boolean;
     readonly now?: number;
   },
@@ -106,24 +107,29 @@ export function snapshotOf(
       scopes: snapshotScopes(policy),
       idOf: (name: string) => getResource(policy.permissions, name)?.id,
       delegated,
-      assignable: (tenant: string) => {
-        const found = assignableIn(
-          policy,
-          subject,
-          options.customRoles,
-          customGrants,
-          tenant,
-          options.assignable?.get(tenant),
-          now,
-        );
-        return compact<SnapshotAssignable>({
-          tenant,
-          roles: found.roles.map((leaf) => leaf.key),
-          permissions: found.permissions,
-          levels:
-            Object.keys(found.levels).length === 0 ? undefined : found.levels,
-        });
-      },
+      assignable:
+        options.omitAssignable === true
+          ? undefined
+          : (tenant: string) => {
+              const found = assignableIn(
+                policy,
+                subject,
+                options.customRoles,
+                customGrants,
+                tenant,
+                options.assignable?.get(tenant),
+                now,
+              );
+              return compact<SnapshotAssignable>({
+                tenant,
+                roles: found.roles.map((leaf) => leaf.key),
+                permissions: found.permissions,
+                levels:
+                  Object.keys(found.levels).length === 0
+                    ? undefined
+                    : found.levels,
+              });
+            },
     }),
   );
 }

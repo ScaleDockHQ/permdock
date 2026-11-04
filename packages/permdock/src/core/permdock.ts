@@ -199,6 +199,11 @@ export type SnapshotOptions = {
     | { readonly [key: string]: unknown }
   )[];
   readonly tenants?: SnapshotTenants;
+  /**
+   * Leaves `assignable` out of the snapshot, for a client that never offers
+   * roles or custom-role permissions to hand out.
+   */
+  readonly omitAssignable?: boolean;
   readonly signer?: TokenSigner;
   readonly audience?: string | readonly string[];
 };

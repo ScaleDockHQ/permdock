@@ -79,6 +79,7 @@ export type GetSnapshotQuery = GetPermDockQuery & {
     | { readonly [key: string]: unknown }
   )[];
   readonly tenants?: SnapshotTenants;
+  readonly omitAssignable?: boolean;
   /**
    * Tags added next to `snapshotTag(sub)`, such as the app's own organisation
    * tag.
@@ -116,6 +117,7 @@ export type NextPermDockProviderProps = NextPermDockProviderDisplay &
         readonly snapshot: Promise<Snapshot>;
         readonly include?: never;
         readonly tenants?: never;
+        readonly omitAssignable?: never;
       }
     | {
         /** Without `snapshot`, the provider builds one outside any cache. */
@@ -125,6 +127,7 @@ export type NextPermDockProviderProps = NextPermDockProviderDisplay &
           | { readonly [key: string]: unknown }
         )[];
         readonly tenants?: SnapshotTenants;
+        readonly omitAssignable?: boolean;
       }
   );
 

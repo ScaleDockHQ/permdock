@@ -502,6 +502,7 @@ export function buildInstance(
           assignable: envBase.assignable,
           include: options?.include,
           tenants: options?.tenants,
+          omitAssignable: options?.omitAssignable,
           simulated: envBase.simulated,
         }),
       );

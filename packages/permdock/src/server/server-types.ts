@@ -235,6 +235,7 @@ export type SnapshotQuery = {
   readonly tenant?: string;
   readonly include?: SnapshotOptions["include"];
   readonly tenants?: SnapshotTenants;
+  readonly omitAssignable?: SnapshotOptions["omitAssignable"];
 };
 
 /**

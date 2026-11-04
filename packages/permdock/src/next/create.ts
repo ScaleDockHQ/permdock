@@ -280,7 +280,11 @@ export function createPermDock<
       compact({ tenant: query.tenant, version: query.version }),
     );
     const snapshot = permdock.snapshot(
-      compact({ include: query.include, tenants: query.tenants }),
+      compact({
+        include: query.include,
+        tenants: query.tenants,
+        omitAssignable: query.omitAssignable,
+      }),
     );
     const life = cacheLifeFor(snapshot, query.cacheLife);
     if (life.stale < 300 && !warnedShortLife && isDevelopment()) {
@@ -351,7 +355,11 @@ export function createPermDock<
         props.tenant === undefined ? undefined : { tenant: props.tenant },
       ).then((permdock) =>
         permdock.snapshot(
-          compact({ include: props.include, tenants: props.tenants }),
+          compact({
+            include: props.include,
+            tenants: props.tenants,
+            omitAssignable: props.omitAssignable,
+          }),
         ),
       );
     const {
