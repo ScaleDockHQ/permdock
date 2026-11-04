@@ -93,7 +93,6 @@ export default defineConfig({
     "src/approvals/index.ts",
     "src/jwt/index.ts",
     "src/react/index.ts",
-    "src/react/lite.tsx",
     "src/react/provider-client.ts",
     "src/react-native/index.ts",
     "src/next/index.ts",

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { renderToStaticMarkup, renderToString } from "react-dom/server";
+import { renderToString } from "react-dom/server";
 import { prerender } from "react-dom/static";
 import { describe, expect, it, vi } from "vitest";
 
@@ -29,6 +29,7 @@ import {
   policy,
 } from "../fixtures/quick-start.ts";
 import { alice, policy as saasPolicy } from "../fixtures/saas.ts";
+import { renderSettled } from "./render.ts";
 
 async function memberSnapshot() {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
@@ -68,7 +69,7 @@ describe(useAssignablePermissions, () => {
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
-    const html = renderToStaticMarkup(
+    const html = await renderSettled(
       <PermDockProvider snapshot={snapshot}>
         <AssignableProbe />
       </PermDockProvider>,
@@ -83,10 +84,10 @@ describe(useAssignablePermissions, () => {
   });
 });
 
-describe("permdock/react", () => {
+describe("permdock/react", async () => {
   it("renders portable grants from the snapshot without flashing deny", async () => {
     const snapshot = await memberSnapshot();
-    const html = renderToStaticMarkup(
+    const html = await renderSettled(
       <PermDockProvider snapshot={snapshot}>
         <Protected
           permission={permissions.post.update}
@@ -108,8 +109,8 @@ describe("permdock/react", () => {
     expect(html).toContain("locked");
   });
 
-  it("renders pending for another tenant while the snapshot is on its way", () => {
-    const html = renderToStaticMarkup(
+  it("renders pending for another tenant while the snapshot is on its way", async () => {
+    const html = await renderSettled(
       <PermDockProvider
         snapshotPromise={Promise.withResolvers<never>().promise}
       >
@@ -129,7 +130,7 @@ describe("permdock/react", () => {
 
   it("exposes snapshot introspection through hooks", async () => {
     const snapshot = await memberSnapshot();
-    const html = renderToStaticMarkup(
+    const html = await renderSettled(
       <PermDockProvider snapshot={snapshot}>
         <span>
           <Probe />
@@ -191,7 +192,7 @@ describe("permdock/react", () => {
         ? `${state.status}:${state.decision.denials.map((denial) => denial.reason).join(",")}`
         : state.status;
     }
-    const html = renderToStaticMarkup(
+    const html = await renderSettled(
       <PermDockProvider snapshot={closure} endpoint={false} fetch={fetch}>
         <Reason />
         <Reason />
@@ -328,7 +329,7 @@ describe("permdock/react", () => {
       );
       return `${allowed}:${status}:${usePermDock().status()}`;
     }
-    const shell = renderToString(
+    const shell = await renderSettled(
       <PermDockProvider snapshotPromise={never}>
         <nav>static nav</nav>
         <Status />
@@ -369,7 +370,7 @@ describe("permdock/react", () => {
       );
       return `${allowed}:${status}:${usePermDock().status()}`;
     }
-    const html = renderToString(
+    const html = await renderSettled(
       <PermDockProvider snapshotPromise={settled}>
         <Status />
       </PermDockProvider>,

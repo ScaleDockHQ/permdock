@@ -14,6 +14,7 @@ import type {
   ApprovalHandle,
   ClientPermDock,
   FilterResult,
+  PermissionOutcome,
   PermissionSet,
   PermissionState,
   SubjectView,
@@ -50,16 +51,39 @@ function useStore(): ClientStore {
   return store;
 }
 
-export function usePermDock<
-  V extends PolicyVocabulary = PolicyVocabulary,
->(): ClientPermDock<V> {
+/**
+ * The store's current instance without the evaluator: memberships, tenants,
+ * roles and the subject read from the snapshot, every check denies until
+ * `usePermDock` loads the evaluator.
+ */
+export function useSnapshotPermDock(): ClientPermDock {
   const store = useStore();
-  // SAFETY: V only types the vocabulary; the store holds the instance for the provider's policy.
   return useSyncExternalStore(
     (listener) => store.subscribe(listener),
     () => store.get(),
     () => store.serverGet(),
-  ) as ClientPermDock<V>;
+  );
+}
+
+/** Suspends the nearest boundary until the store's evaluator has loaded. */
+function useEvaluator(store: ClientStore, needed = true): void {
+  const loading = needed ? store.loading() : undefined;
+  if (loading !== undefined) {
+    use(loading);
+  }
+}
+
+/**
+ * The instance with every check. It loads the evaluator on first use and
+ * suspends the nearest boundary while it does.
+ */
+export function usePermDock<
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(): ClientPermDock<V> {
+  const permdock = useSnapshotPermDock();
+  useEvaluator(storeOf(permdock));
+  // SAFETY: V only types the vocabulary; the store holds the instance for the provider's policy.
+  return permdock as ClientPermDock<V>;
 }
 
 /**
@@ -76,15 +100,54 @@ export function useRefreshOn(triggers: readonly RefreshTrigger[]): void {
 // The hooks reach the store through `permdock`: the React Compiler keeps only
 // the dependencies a memoised callback reads, and `permdock` is the one that
 // changes when the store does.
+export function usePermission(permission: Permission): PermissionOutcome;
 export function usePermission<D>(
   permission: Permission,
-  data?: UncheckedData<D>,
+  data: UncheckedData<D>,
 ): PermissionState;
 export function usePermission<P extends Permission>(
   permission: P,
-  data?: RowData<P>,
+  data: RowData<P>,
 ): PermissionState;
 export function usePermission(
+  permission: Permission,
+  data?: unknown,
+): PermissionOutcome | PermissionState {
+  const permdock = useSnapshotPermDock();
+  const store = storeOf(permdock);
+  useEvaluator(
+    store,
+    data !== undefined || store.quick(permission) === undefined,
+  );
+  // The compiler keeps only the dependencies the callback reads: `permdock` is the one that changes when the store does.
+  return useMemo(() => {
+    const current = storeOf(permdock);
+    if (data !== undefined) {
+      return current.permissionState(permission, data);
+    }
+    const quick = current.quick(permission);
+    if (quick !== undefined) {
+      return quick;
+    }
+    const { allowed, status, decision } = current.permissionState(permission);
+    return { allowed, status, outcome: decision.outcome };
+  }, [permdock, permission, data]);
+}
+
+/**
+ * The check with its `Decision`: denial reasons, alternatives and the approval
+ * token. Loads the evaluator on first use; `usePermission(permission)` does
+ * not.
+ */
+export function useDecision<D>(
+  permission: Permission,
+  data?: UncheckedData<D>,
+): PermissionState;
+export function useDecision<P extends Permission>(
+  permission: P,
+  data?: RowData<P>,
+): PermissionState;
+export function useDecision(
   permission: Permission,
   data?: unknown,
 ): PermissionState {
@@ -118,19 +181,19 @@ export function useFilter<T>(
 }
 
 export function useTenant(): TenantView {
-  const permdock = usePermDock();
+  const permdock = useSnapshotPermDock();
   return useMemo(() => tenantView(permdock), [permdock]);
 }
 
 export function useMemberships(): readonly Membership[] {
-  const permdock = usePermDock();
+  const permdock = useSnapshotPermDock();
   return useMemo(() => permdock.memberships(), [permdock]);
 }
 
 export function useRoles(options: RolesOptions = {}): {
   readonly roles: readonly Role[];
 } {
-  const permdock = usePermDock();
+  const permdock = useSnapshotPermDock();
   const { tenant, scope, id } = options;
   return useMemo(
     () =>
@@ -144,14 +207,14 @@ export function useRoles(options: RolesOptions = {}): {
 }
 
 export function useAssignableRoles(): readonly Role[] {
-  const permdock = usePermDock();
+  const permdock = useSnapshotPermDock();
   return useMemo(() => permdock.assignableRoles(), [permdock]);
 }
 
 export function useAssignablePermissions(
   options: { readonly tenant?: string } = {},
 ): readonly Permission[] {
-  const permdock = usePermDock();
+  const permdock = useSnapshotPermDock();
   const { tenant } = options;
   return useMemo(
     () =>
@@ -161,7 +224,7 @@ export function useAssignablePermissions(
 }
 
 export function useSubject(): SubjectView {
-  const permdock = usePermDock();
+  const permdock = useSnapshotPermDock();
   return useMemo(() => subjectView(permdock), [permdock]);
 }
 
@@ -175,7 +238,7 @@ export function useDescribe(): (
 }
 
 export function useApproval(decision: Decision): ApprovalHandle {
-  return approvalHandle(storeOf(usePermDock()), decision);
+  return approvalHandle(storeOf(useSnapshotPermDock()), decision);
 }
 
 /**
@@ -199,7 +262,7 @@ export function useGate(
   data?: unknown,
   options: { readonly mode?: GateMode } = {},
 ): GateView {
-  const state = usePermission(permission, data);
+  const state = useDecision(permission, data);
   const describeDecision = useDescribe();
   const mode = options.mode ?? "disable";
   return useMemo(

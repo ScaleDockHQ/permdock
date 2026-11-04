@@ -1,7 +1,7 @@
-import type { Metafile } from "esbuild";
+import type { Metafile, Plugin } from "esbuild";
 
 import { build } from "esbuild";
-import { dirname } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
@@ -13,7 +13,6 @@ import { gzipSync } from "node:zlib";
 const CONSUMERS = {
   "core definePolicy + getPermDockSync": `import { getPermDockSync, definePermissions, definePolicy } from 'permdock'; export { getPermDockSync, definePermissions, definePolicy };`,
   "react PermDockProvider + usePermission": `export { PermDockProvider, usePermission } from 'permdock/react';`,
-  "react/lite PermDockProvider + usePermission + Protected": `export { PermDockProvider, Protected, usePermission } from 'permdock/react/lite';`,
   "react-native PermDockProvider + usePermission": `export { PermDockProvider, usePermission } from 'permdock/react-native';`,
   "react-native PermDockProvider + localSnapshot": `export { PermDockProvider, localSnapshot, usePermission } from 'permdock/react-native';`,
   "next createPermDock": `export { createPermDock } from 'permdock/next';`,
@@ -33,6 +32,20 @@ const CONSUMERS = {
 } as const;
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+
+function externalPermDock(): Plugin {
+  return {
+    name: "externals",
+    setup(pluginBuild): void {
+      // oxlint-disable-next-line eslint/require-unicode-regexp -- esbuild runs the filter as a Go regexp, which has no u flag
+      pluginBuild.onResolve({ filter: /^[^./]/ }, (args) =>
+        args.path === "permdock" || args.path.startsWith("permdock/")
+          ? undefined
+          : { path: args.path, external: true },
+      );
+    },
+  };
+}
 
 /**
  * The minified, tree-shaken output files a consumer's bundler emits for
@@ -56,24 +69,72 @@ export async function bundleWithMeta(
     mainFields: ["module", "main"],
     conditions: ["import", "default"],
     logLevel: "silent",
-    plugins: [
-      {
-        name: "externals",
-        setup(pluginBuild): void {
-          // oxlint-disable-next-line eslint/require-unicode-regexp -- esbuild runs the filter as a Go regexp, which has no u flag
-          pluginBuild.onResolve({ filter: /^[^./]/ }, (args) =>
-            args.path === "permdock" || args.path.startsWith("permdock/")
-              ? undefined
-              : { path: args.path, external: true },
-          );
-        },
-      },
-    ],
+    plugins: [externalPermDock()],
   });
   return {
     files: result.outputFiles.map((file) => file.contents),
     metafile: result.metafile,
   };
+}
+
+/**
+ * Fixtures whose bundle holds a lazily loaded chunk; their initial download is
+ * measured too.
+ */
+const SPLIT = [
+  "react PermDockProvider + usePermission",
+  "saas client react",
+] as const;
+
+/**
+ * The gzip bytes a page downloads before it runs: the entry chunk and every
+ * chunk it imports statically. A chunk behind `import()` loads on demand.
+ */
+async function initialGzip(source: string): Promise<number> {
+  const result = await build({
+    metafile: true,
+    stdin: { contents: source, resolveDir: HERE, loader: "js" },
+    bundle: true,
+    write: false,
+    minify: true,
+    treeShaking: true,
+    splitting: true,
+    outdir: join(HERE, "split-out"),
+    format: "esm",
+    platform: "neutral",
+    mainFields: ["module", "main"],
+    conditions: ["import", "default"],
+    logLevel: "silent",
+    plugins: [externalPermDock()],
+  });
+  const byName = new Map(
+    result.outputFiles.map((file) => [basename(file.path), file.contents]),
+  );
+  const outputs = Object.entries(result.metafile.outputs);
+  const entry = outputs.find(([, output]) => output.entryPoint !== undefined);
+  if (entry === undefined) {
+    throw new Error("PermDock bundle: the fixture produced no entry chunk");
+  }
+  const seen = new Set<string>();
+  const pending = [entry[0]];
+  let total = 0;
+  while (pending.length > 0) {
+    const key = pending.pop();
+    const output = key === undefined ? undefined : result.metafile.outputs[key];
+    if (key === undefined || output === undefined || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    const contents = byName.get(basename(key));
+    total +=
+      contents === undefined ? 0 : gzipSync(contents, { level: 9 }).length;
+    for (const item of output.imports) {
+      if (item.kind === "import-statement" && item.external !== true) {
+        pending.push(item.path);
+      }
+    }
+  }
+  return total;
 }
 
 export function consumerSource(name: string): string | undefined {
@@ -92,6 +153,10 @@ export async function measureConsumers(): Promise<Record<string, number>> {
   const measured: Record<string, number> = {};
   for (const [name, source] of Object.entries(CONSUMERS)) {
     measured[name] = await bundledGzip(source);
+    // SAFETY: widening the literal tuple to string for a membership test.
+    if ((SPLIT as readonly string[]).includes(name)) {
+      measured[`${name} (initial)`] = await initialGzip(source);
+    }
   }
   return measured;
 }

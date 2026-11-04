@@ -1,4 +1,3 @@
-import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import type { Snapshot } from "../../src/core/snapshot-types.ts";
@@ -14,6 +13,7 @@ import {
   permissions,
   policy,
 } from "../fixtures/quick-start.ts";
+import { renderSettled } from "./render.ts";
 
 async function memberSnapshot(): Promise<Snapshot> {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
@@ -34,7 +34,7 @@ function DescribeProbe(): string {
 describe("permdock/react provider defaults", () => {
   it("renders the approval slot, falling back to fallback", async () => {
     const snapshot = await memberSnapshot();
-    const html = renderToStaticMarkup(
+    const html = await renderSettled(
       <PermDockProvider snapshot={snapshot}>
         <Protected
           permission={permissions.post.delete}
@@ -59,7 +59,7 @@ describe("permdock/react provider defaults", () => {
 
   it("uses provider defaults for slots a Protected leaves out", async () => {
     const snapshot = await memberSnapshot();
-    const html = renderToStaticMarkup(
+    const html = await renderSettled(
       <PermDockProvider
         snapshot={snapshot}
         defaults={{
@@ -87,8 +87,8 @@ describe("permdock/react provider defaults", () => {
     expect(html).toBe("<i>no</i>|<b>human</b>|<i>own</i>");
   });
 
-  it("renders the default pending while the snapshot is on its way", () => {
-    const html = renderToStaticMarkup(
+  it("renders the default pending while the snapshot is on its way", async () => {
+    const html = await renderSettled(
       <PermDockProvider
         snapshotPromise={Promise.withResolvers<never>().promise}
         defaults={{ pending: <span>wait</span> }}
@@ -103,7 +103,7 @@ describe("permdock/react provider defaults", () => {
 
   it("describes with the provider messages", async () => {
     const snapshot = await memberSnapshot();
-    const html = renderToStaticMarkup(
+    const html = await renderSettled(
       <PermDockProvider
         snapshot={snapshot}
         messages={{ reasons: { "no-grant": "Geen toegang" } }}
@@ -117,7 +117,7 @@ describe("permdock/react provider defaults", () => {
   it("passes onSnapshot to the store", async () => {
     const snapshot = await memberSnapshot();
     const onSnapshot = vi.fn<(snapshot: Snapshot) => void>();
-    renderToStaticMarkup(
+    await renderSettled(
       <PermDockProvider snapshot={snapshot} onSnapshot={onSnapshot}>
         <span />
       </PermDockProvider>,

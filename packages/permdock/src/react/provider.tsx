@@ -4,7 +4,12 @@ import { useLayoutEffect, useMemo } from "react";
 
 import type { PermDockProviderProps } from "./types.ts";
 
-import { adapterStore, compact, emptySnapshot } from "../client/kit.ts";
+import {
+  adapterStore,
+  compact,
+  emptySnapshot,
+  lazyEvaluator,
+} from "../client/kit.ts";
 import {
   PermDockSnapshotPromiseContext,
   PermDockStoreContext,
@@ -39,6 +44,7 @@ export function PermDockProvider(props: PermDockProviderProps): ReactElement {
           refreshOn: props.refreshOn,
         }),
         props.snapshot ?? emptySnapshot(),
+        lazyEvaluator(),
       ),
     [
       props.snapshot,

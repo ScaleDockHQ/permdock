@@ -62,10 +62,6 @@
       "types": "./dist/react/index.d.ts",
       "default": "./dist/react/index.js"
     },
-    "./react/lite": {
-      "types": "./dist/react/lite.d.ts",
-      "default": "./dist/react/lite.js"
-    },
     "./react-native": {
       "types": "./dist/react-native/index.d.ts",
       "default": "./dist/react-native/index.js"

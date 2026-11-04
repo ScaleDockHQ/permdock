@@ -20,6 +20,7 @@ export type {
   FilterResult,
   GateMode,
   GateView,
+  PermissionOutcome,
   PermissionSet,
   PermissionState,
   ProtectedActionHandle,

@@ -325,6 +325,28 @@ function rejectUnsafe(value: unknown, path: string): void {
   }
 }
 
+function isKeyList(value: unknown): boolean {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
+}
+
+function validTypeLevel(value: unknown): boolean {
+  if (value === undefined) {
+    return true;
+  }
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  // SAFETY: a non-array object checked above; each field is checked next.
+  const record = value as Record<string, unknown>;
+  return (
+    isKeyList(record["granted"]) &&
+    (record["approval"] === undefined || isKeyList(record["approval"])) &&
+    (record["endpoint"] === undefined || isKeyList(record["endpoint"]))
+  );
+}
+
 export function parseSnapshot(json: unknown): Snapshot {
   const input: unknown = typeof json === "string" ? JSON.parse(json) : json;
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
@@ -365,6 +387,11 @@ export function parseSnapshot(json: unknown): Snapshot {
       "PermDock: snapshot authzVersion must be a non-negative integer and sessionId a string",
     );
   }
-  // SAFETY: only the version, times and unsafe keys are checked; the other fields are not validated here.
+  if (!validTypeLevel(record["typeLevel"])) {
+    throw new Error(
+      "PermDock: snapshot typeLevel must list permission keys under granted, approval and endpoint",
+    );
+  }
+  // SAFETY: only the version, times, typeLevel and unsafe keys are checked; the other fields are not validated here.
   return freezeDeep(value) as Snapshot;
 }

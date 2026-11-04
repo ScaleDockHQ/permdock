@@ -81,7 +81,7 @@ describe(useProtectedAction, () => {
     document.body.append(host);
     const created = createRoot(host);
     root = created;
-    act(() => {
+    await act(async () => {
       created.render(
         createElement(PermDockProvider, {
           snapshot,
@@ -89,6 +89,10 @@ describe(useProtectedAction, () => {
           children: createElement(Probe),
         }),
       );
+      // The evaluator loads in a chunk of its own; let it settle.
+      await new Promise((resolve) => {
+        setTimeout(resolve, 30);
+      });
     });
     expect(host.textContent).toBe("false:false:none:none");
     await act(async () => {

@@ -257,6 +257,7 @@
     "useApproval",
     "useAssignablePermissions",
     "useAssignableRoles",
+    "useDecision",
     "useDescribe",
     "useFilter",
     "useGate",
@@ -938,6 +939,5 @@
   ],
   "./unplugin": ["createPermDockUnplugin"],
   "./next/plugin": ["createPermDockPlugin"],
-  "./next/client": ["PermissionBoundary", "usePermissionBoundary"],
-  "./react/lite": ["PermDockProvider", "Protected", "usePermission"]
+  "./next/client": ["PermissionBoundary", "usePermissionBoundary"]
 }

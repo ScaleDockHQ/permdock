@@ -76,7 +76,6 @@ export const ENTRIES = {
   "./unplugin": "unplugin/index.js",
   "./next/plugin": "next/plugin.js",
   "./next/client": "next/client.js",
-  "./react/lite": "react/lite.js",
 } as const;
 
 export type Entry = keyof typeof ENTRIES;
@@ -171,7 +170,6 @@ export const WINTERTC_ENTRIES =
   );
 export const CLIENT_ENTRIES = [
   "./react",
-  "./react/lite",
   "./react-native",
   "./vue",
   "./svelte",
