@@ -2,6 +2,17 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.25.0 (2026-11-05)
+
+- **Breaking:** `permdock rls generate` writes each `*_read_only_actors` policy as `(select permdock_actor_may_write())` instead of inlining the `act` expression; regenerate and apply the output. `permdock doctor` PD090 also reads `supabase/schemas` and `rls.out` and flags a hand-written policy that inlines the 0.24 guard.
+- The `permdock-wire` skill passes the unawaited loader promise to the `permdock/next` `PermDockProvider` as `snapshot`, not `snapshotPromise`, and says a layout fetches while pages, loaders and actions decide.
+- `Snapshot` is now one compact form: each distinct grant condition is stored once in `conditions` and a grant is `{ permission, cond }` (an admin snapshot of 1,790 grants drops from 467,592 to 58,412 bytes). **Breaking:** code that reads `snapshot().grants[i].effect` or `.where` directly must call `expandSnapshot`; the `{ v: 1 }` option, `SnapshotInput`, `CompactSnapshot` and the flat public `Snapshot` are removed, and `parseSnapshot` rejects `v: 2`. `schemas/snapshot-v1.json` describes the compact form. Reissue PermDock Cloud snapshot consumers that read the wire format before upgrading.
+- `authorizationHooks` installs `delegation` only when you pass `delegation: true` or `delegation: { permissions }`, and `authorizationHooks({ policy })` returns `{ apiVersion, name, sessionTags }`. **Breaking:** an app that relied on the implicit delegation hook adds `delegation: true`.
+- `definePermDock` takes `sources: (client) => { memberships?, customRoles?, subjects? }` and adds `app.forClient(client)`, a definition bound to that client with its sources cached in a `WeakMap`. `forClient` throws a `TypeError` that names `sources` when the option is missing.
+- `operationPermissionsFromOpenApi` reads OAuth scopes from `security` and the new `x-permdock-enforcement: "kernel" | "handler"`, and exposes `kernel` and `handler` maps. **Behaviour change:** an operation with OAuth scopes and no `x-permdock-permissions` becomes a scope-only entry where it used to be skipped as `no-permission`, an operation's `security` scopes now reach `oauthScopes`, and `security: []` is skipped with the new cause `public`. `permdock doctor` PD091 gains `openapi.enforcement: "kernel"`.
+- `permdock doctor` PD089 also reads `create function` bodies and the `= any(array(select permitted_*_rows(…)))` form, and recommends `permitted_<resource>_row(id, permission)`. A measurement on 5,000 rows in 10 tenants shows the generated row helpers already read `permitted_<scope>_ids_by_permission` once per statement, so the generated SQL is unchanged; `tests/integration/bench/row-helpers-hot-path.test.ts` records the numbers.
+- `permdock doctor` PD092 reads only the `snapshots:` section of `pnpm-lock.yaml`, so a single copy of `permdock` no longer reports a second copy without peers from the `packages:` section.
+
 ## 0.24.0 (2026-11-04)
 
 - Breaking: `permdock/better-supabase` requires better-supabase 0.53.0 or later (`>=0.53.0`). The approvals and share-link bridges call the object-input block clients, and a policy step with `escalateAfter` throws. Upgrade better-supabase, run `better-supabase codemod 0.53` and `upgrade`, then update permdock.

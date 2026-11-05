@@ -1,5 +1,27 @@
 # permdock
 
+## 0.25.0
+
+### Minor Changes
+
+- [#290](https://github.com/ScaleDockHQ/permdock/pull/290) [`f0ba8cb`](https://github.com/ScaleDockHQ/permdock/commit/f0ba8cb360c4d410bb3a1abc00fbf49b625eff05) Thanks [@martijn00](https://github.com/martijn00)! - `definePermDock` takes `sources: (client) => { memberships?, customRoles?, subjects? }` and adds `app.forClient(client)`, a definition bound to that client with its sources cached in a `WeakMap`. `forClient` throws a `TypeError` that names `sources` when the option is missing.
+
+- [#290](https://github.com/ScaleDockHQ/permdock/pull/290) [`e8a7585`](https://github.com/ScaleDockHQ/permdock/commit/e8a7585dc1521d8f6e2cfe2734dd331779e8ec4b) Thanks [@martijn00](https://github.com/martijn00)! - `authorizationHooks` installs `delegation` only when you pass `delegation: true` or `delegation: { permissions }`, and `authorizationHooks({ policy })` returns `{ apiVersion, name, sessionTags }`. **Breaking:** an app that relied on the implicit delegation hook adds `delegation: true`.
+
+- [#290](https://github.com/ScaleDockHQ/permdock/pull/290) [`080840c`](https://github.com/ScaleDockHQ/permdock/commit/080840c070821eebff29eeccd170b0ce66087662) Thanks [@martijn00](https://github.com/martijn00)! - `operationPermissionsFromOpenApi` reads OAuth scopes from `security` and the new `x-permdock-enforcement: "kernel" | "handler"`, and exposes `kernel` and `handler` maps. **Behaviour change:** an operation with OAuth scopes and no `x-permdock-permissions` becomes a scope-only entry where it used to be skipped as `no-permission`, an operation's `security` scopes now reach `oauthScopes`, and `security: []` is skipped with the new cause `public`. `permdock doctor` PD091 gains `openapi.enforcement: "kernel"`.
+
+- [#290](https://github.com/ScaleDockHQ/permdock/pull/290) [`2b097a7`](https://github.com/ScaleDockHQ/permdock/commit/2b097a7ed93c672d95d0a794e786dcf33256167a) Thanks [@martijn00](https://github.com/martijn00)! - `permdock doctor` PD089 also reads `create function` bodies and the `= any(array(select permitted_*_rows(…)))` form, and recommends `permitted_<resource>_row(id, permission)`. A measurement on 5,000 rows in 10 tenants shows the generated row helpers already read `permitted_<scope>_ids_by_permission` once per statement, so the generated SQL is unchanged; `tests/integration/bench/row-helpers-hot-path.test.ts` records the numbers.
+
+- [#290](https://github.com/ScaleDockHQ/permdock/pull/290) [`26ba9be`](https://github.com/ScaleDockHQ/permdock/commit/26ba9beb681731f88662dd52f427da7cca80d077) Thanks [@martijn00](https://github.com/martijn00)! - **Breaking:** `permdock rls generate` writes each `*_read_only_actors` policy as `(select permdock_actor_may_write())` instead of inlining the `act` expression; regenerate and apply the output. `permdock doctor` PD090 also reads `supabase/schemas` and `rls.out` and flags a hand-written policy that inlines the 0.24 guard.
+
+- [#290](https://github.com/ScaleDockHQ/permdock/pull/290) [`f16a3de`](https://github.com/ScaleDockHQ/permdock/commit/f16a3de1b337c1e452840e24539dd7638887aa0f) Thanks [@martijn00](https://github.com/martijn00)! - `Snapshot` is now one compact form: each distinct grant condition is stored once in `conditions` and a grant is `{ permission, cond }` (an admin snapshot of 1,790 grants drops from 467,592 to 58,412 bytes). **Breaking:** code that reads `snapshot().grants[i].effect` or `.where` directly must call `expandSnapshot`; the `{ v: 1 }` option, `SnapshotInput`, `CompactSnapshot` and the flat public `Snapshot` are removed, and `parseSnapshot` rejects `v: 2`. `schemas/snapshot-v1.json` describes the compact form. Reissue PermDock Cloud snapshot consumers that read the wire format before upgrading.
+
+### Patch Changes
+
+- [#286](https://github.com/ScaleDockHQ/permdock/pull/286) [`80866ff`](https://github.com/ScaleDockHQ/permdock/commit/80866ff3b1bd483ae1ad963e3db2266a703deb29) Thanks [@martijn00](https://github.com/martijn00)! - The `permdock-wire` skill passes the unawaited loader promise to the `permdock/next` `PermDockProvider` as `snapshot`, not `snapshotPromise`, and says a layout fetches while pages, loaders and actions decide.
+
+- [#290](https://github.com/ScaleDockHQ/permdock/pull/290) [`f044227`](https://github.com/ScaleDockHQ/permdock/commit/f044227f4ddaaa9bc9c114adca05c54a2b8576c2) Thanks [@martijn00](https://github.com/martijn00)! - `permdock doctor` PD092 reads only the `snapshots:` section of `pnpm-lock.yaml`, so a single copy of `permdock` no longer reports a second copy without peers from the `packages:` section.
+
 ## 0.24.0
 
 ### Minor Changes
