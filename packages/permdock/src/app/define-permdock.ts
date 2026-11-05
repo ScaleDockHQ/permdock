@@ -1,4 +1,4 @@
-import type { AppDefinition, AppOptions } from "../core/app.ts";
+import type { AppDefinition, AppOptions, ClientSources } from "../core/app.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { PermDock, PermDockOptions } from "../core/permdock.ts";
 import type { Grant, Policy, PolicyVocabulary } from "../core/policy-types.ts";
@@ -20,7 +20,7 @@ function grantsOf(policy: Policy): readonly Grant[] {
   return [...policy.index.grantsByKey.values()].flat();
 }
 
-function assertProduction(policy: Policy, options: AppOptions): void {
+function assertProduction(policy: Policy, options: AppDefinition): void {
   const grants = grantsOf(policy);
   if (
     options.store === undefined &&
@@ -46,7 +46,10 @@ function assertProduction(policy: Policy, options: AppOptions): void {
  * live here, not in the adapters, so an adapter ships no store and an app
  * without `definePermDock` ships neither.
  */
-function devDefaults(policy: Policy, options: AppOptions): AppDefinition {
+function devDefaults(
+  policy: Policy,
+  options: Omit<AppOptions, "sources"> & Pick<AppDefinition, "sources">,
+): AppDefinition {
   return {
     ...options,
     profile: "dev",
@@ -65,7 +68,12 @@ function devDefaults(policy: Policy, options: AppOptions): AppDefinition {
 export type PermDockQuery = Pick<PermDockOptions, "tenant" | "intent">;
 
 /** The members `definePermDock` adds to the policy it binds. */
-export type PermDockApp<V extends PolicyVocabulary = PolicyVocabulary> = {
+export type PermDockApp<
+  V extends PolicyVocabulary = PolicyVocabulary,
+  TClient extends object = object,
+  TUser = unknown,
+  TPrincipal extends Principal = Principal,
+> = {
   /** The instance for `user`, built with the app's sources and caches. */
   readonly getPermDock: (
     user: unknown,
@@ -97,6 +105,15 @@ export type PermDockApp<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly sources: (versions?: VersionCache) => InstanceOptions;
   /** Drops the principal's instances, authorization version and subject record. */
   readonly evict: (principal: string) => Promise<void>;
+  /**
+   * The definition bound to `client`: the same policy, caches and services,
+   * with `memberships`, `customRoles` and `subjects` from
+   * `options.sources(client)`, which runs once per client (cached in a
+   * `WeakMap`). Throws a `TypeError` when the app has no `sources` option.
+   */
+  readonly forClient: (
+    client: TClient,
+  ) => PermDockDefinition<TUser, TPrincipal, V, TClient>;
 };
 
 /**
@@ -107,7 +124,8 @@ export type PermDockDefinition<
   TUser = unknown,
   TPrincipal extends Principal = Principal,
   V extends PolicyVocabulary = PolicyVocabulary,
-> = Policy<TUser, TPrincipal, V> & PermDockApp<V>;
+  TClient extends object = object,
+> = Policy<TUser, TPrincipal, V> & PermDockApp<V, TClient, TUser, TPrincipal>;
 
 /**
  * Binds the app's sources, caches, features and services to `policy` and adds
@@ -121,87 +139,120 @@ export function definePermDock<
   TUser,
   TPrincipal extends Principal,
   V extends PolicyVocabulary,
+  TClient extends object = object,
 >(
   policy: Policy<TUser, TPrincipal, V>,
-  options: AppOptions = {},
-): PermDockDefinition<TUser, TPrincipal, V> {
+  options: AppOptions<TClient> = {},
+): PermDockDefinition<TUser, TPrincipal, V, TClient> {
   const profile = options.profile ?? "prod";
+  // SAFETY: the sources factory is only called with the TClient that forClient takes.
+  const given = options as Omit<AppOptions, "sources"> &
+    Pick<AppDefinition, "sources">;
   const definition: AppDefinition =
-    profile === "dev" ? devDefaults(policy, options) : { ...options, profile };
+    profile === "dev" ? devDefaults(policy, given) : { ...given, profile };
   if (profile === "prod") {
     assertProduction(policy, definition);
   }
-  // SAFETY: a policy is a plain object (or null-prototype); the copy keeps its prototype and every own property, symbol-keyed ones included.
-  const prototype = Object.getPrototypeOf(policy) as object | null;
-  // SAFETY: the copy has the policy's own property descriptors, so it is the same Policy shape; the members are added below.
-  const app = Object.create(
-    prototype,
-    Object.getOwnPropertyDescriptors(policy),
-  ) as PermDockDefinition<TUser, TPrincipal, V>;
-  Object.defineProperty(app, APP, { value: Object.freeze(definition) });
-
-  const {
-    memberships: _m,
-    instances: _i,
-    ...sourcesOf
-  } = instanceOptions(definition);
-  const sources = versionSources({
-    ...(definition.memberships === undefined
-      ? {}
-      : { memberships: definition.memberships }),
-    ...(definition.instances === undefined
-      ? {}
-      : { instances: definition.instances }),
-    ...(definition.versions === undefined
-      ? {}
-      : { versions: definition.versions }),
-    options: {
-      ...sourcesOf,
-      ...(definition.settings === undefined
-        ? {}
-        : { settings: definition.settings }),
-    },
-  });
-  const build = (
-    user: unknown,
-    query: PermDockQuery | undefined,
-  ): Promise<PermDock<V>> =>
-    // SAFETY: the app is a policy of this TUser; a Subject or a user the mapper reads is what getPermDock takes.
-    getPermDock(app, user as TUser, { ...sources(), ...query });
-  const mapClaims = (claims: Readonly<Record<string, unknown>>): Subject =>
-    mapClaimsToSubject(
-      claims,
-      // SAFETY: mapClaimsToSubject reads the claims map and the options a verifier does not set; the verifier options of JwtSubjectOptions are never read.
-      compact({ claims: definition.claims }) as JwtSubjectOptions,
-    ).subject;
-  const members: PermDockApp<V> = {
-    getPermDock: build,
-    fromClaims: (claims, query) =>
-      build(isRecord(claims) ? mapClaims(claims) : null, query),
-    async fromApiKey(key, query) {
-      const credentials = definition.credentials;
-      if (credentials === undefined) {
-        throw new TypeError(
-          "PermDock: fromApiKey needs the credentials option of definePermDock",
-        );
-      }
-      const tenant = query?.tenant ?? credentials.tenant;
-      const subject = await subjectFromApiKey(key, {
-        ...credentials,
-        permissions: policy.permissions,
-        ...(tenant === undefined ? {} : { tenant }),
-      });
-      return build(subject, query);
-    },
-    sources,
-    async evict(principal) {
-      definition.versions?.evict(principal);
-      definition.instances?.evict(principal);
-      await definition.subjects?.evict(principal);
-    },
+  const perClient = new WeakMap<object, ClientSources>();
+  const sourcesOfClient = (client: TClient): ClientSources => {
+    if (definition.sources === undefined) {
+      throw new TypeError(
+        "PermDock: forClient needs the sources option of definePermDock",
+      );
+    }
+    if (typeof client !== "object" && typeof client !== "function") {
+      throw new TypeError("PermDock: forClient takes an object client");
+    }
+    const cached = perClient.get(client);
+    if (cached !== undefined) {
+      return cached;
+    }
+    // SAFETY: sources was declared for TClient and client is one.
+    const made = (definition.sources as (client: TClient) => ClientSources)(
+      client,
+    );
+    perClient.set(client, made);
+    return made;
   };
-  for (const [name, value] of Object.entries(members)) {
-    Object.defineProperty(app, name, { value });
-  }
-  return Object.freeze(app);
+  const bind = (
+    bound: AppDefinition,
+  ): PermDockDefinition<TUser, TPrincipal, V, TClient> => {
+    // SAFETY: a policy is a plain object (or null-prototype); the copy keeps its prototype and every own property, symbol-keyed ones included.
+    const prototype = Object.getPrototypeOf(policy) as object | null;
+    // SAFETY: the copy has the policy's own property descriptors, so it is the same Policy shape; the members are added below.
+    const app = Object.create(
+      prototype,
+      Object.getOwnPropertyDescriptors(policy),
+    ) as PermDockDefinition<TUser, TPrincipal, V, TClient>;
+    Object.defineProperty(app, APP, { value: Object.freeze(bound) });
+
+    const {
+      memberships: _m,
+      instances: _i,
+      ...sourcesOf
+    } = instanceOptions(bound);
+    const sources = versionSources({
+      ...(bound.memberships === undefined
+        ? {}
+        : { memberships: bound.memberships }),
+      ...(bound.instances === undefined ? {} : { instances: bound.instances }),
+      ...(bound.versions === undefined ? {} : { versions: bound.versions }),
+      options: {
+        ...sourcesOf,
+        ...(bound.settings === undefined ? {} : { settings: bound.settings }),
+      },
+    });
+    const build = (
+      user: unknown,
+      query: PermDockQuery | undefined,
+    ): Promise<PermDock<V>> =>
+      // SAFETY: the app is a policy of this TUser; a Subject or a user the mapper reads is what getPermDock takes.
+      getPermDock(app, user as TUser, { ...sources(), ...query });
+    const mapClaims = (claims: Readonly<Record<string, unknown>>): Subject =>
+      mapClaimsToSubject(
+        claims,
+        // SAFETY: mapClaimsToSubject reads the claims map and the options a verifier does not set; the verifier options of JwtSubjectOptions are never read.
+        compact({ claims: bound.claims }) as JwtSubjectOptions,
+      ).subject;
+    const members: PermDockApp<V, TClient, TUser, TPrincipal> = {
+      getPermDock: build,
+      fromClaims: (claims, query) =>
+        build(isRecord(claims) ? mapClaims(claims) : null, query),
+      async fromApiKey(key, query) {
+        const credentials = bound.credentials;
+        if (credentials === undefined) {
+          throw new TypeError(
+            "PermDock: fromApiKey needs the credentials option of definePermDock",
+          );
+        }
+        const tenant = query?.tenant ?? credentials.tenant;
+        const subject = await subjectFromApiKey(key, {
+          ...credentials,
+          permissions: policy.permissions,
+          ...(tenant === undefined ? {} : { tenant }),
+        });
+        return build(subject, query);
+      },
+      sources,
+      async evict(principal) {
+        bound.versions?.evict(principal);
+        bound.instances?.evict(principal);
+        await bound.subjects?.evict(principal);
+      },
+      forClient(client) {
+        const { memberships, customRoles, subjects } = sourcesOfClient(client);
+        return bind({
+          ...definition,
+          ...(memberships === undefined ? {} : { memberships }),
+          ...(customRoles === undefined ? {} : { customRoles }),
+          ...(subjects === undefined ? {} : { subjects }),
+        });
+      },
+    };
+    for (const [name, value] of Object.entries(members)) {
+      Object.defineProperty(app, name, { value });
+    }
+    return Object.freeze(app);
+  };
+  return bind(definition);
 }

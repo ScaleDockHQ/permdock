@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Snapshot, SnapshotGrant } from "../../src/core/snapshot-types.ts";
+import type { ExpandedSnapshot } from "../../src/core/snapshot-types.ts";
 
 import {
   PermDockApprovalRequiredError,
@@ -10,6 +11,10 @@ import { emptySnapshot, fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
+import {
+  compactSnapshot,
+  expandSnapshot,
+} from "../../src/core/snapshot-compact.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 import {
   activate,
@@ -88,21 +93,23 @@ describe(fromSnapshot, () => {
     if (decision.outcome === "denied") {
       expect(decision.denials[0]?.reason).toBe("opaque-condition");
     }
-    const opaque = fromSnapshot({
-      ...full,
-      grants: full.grants.map((grant) => {
-        if (grant.permission !== "post.update") {
-          return grant;
-        }
-        return {
-          permission: grant.permission,
-          effect: grant.effect,
-          role: grant.role,
-          to: grant.to,
-          portable: false as const,
-        };
+    const opaque = fromSnapshot(
+      compactSnapshot({
+        ...expandSnapshot(full),
+        grants: expandSnapshot(full).grants.map((grant) => {
+          if (grant.permission !== "post.update") {
+            return grant;
+          }
+          return {
+            permission: grant.permission,
+            effect: grant.effect,
+            role: grant.role,
+            to: grant.to,
+            portable: false as const,
+          };
+        }),
       }),
-    });
+    );
     const closed = opaque.decide(permissions.post.update, ownPost);
     expect(closed.outcome).toBe("denied");
     if (closed.outcome === "denied") {
@@ -186,8 +193,8 @@ function snapshotGrant(
   };
 }
 
-function docSnapshot(extra: Partial<Snapshot> = {}): Snapshot {
-  return {
+function docSnapshot(extra: Partial<ExpandedSnapshot> = {}): Snapshot {
+  return compactSnapshot({
     v: 1,
     issuedAt: "1970-01-01T00:00:01Z",
     subject: {
@@ -215,7 +222,7 @@ function docSnapshot(extra: Partial<Snapshot> = {}): Snapshot {
     tenants: ["t1", "t2"],
     vocabulary: { roles: vocabulary },
     ...extra,
-  };
+  });
 }
 
 describe("fromSnapshot instance surface", () => {

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import { memoryApprovalStore } from "../../src/approvals/index.ts";
+import { compactSnapshot } from "../../src/core/snapshot-compact.ts";
 import {
   actor,
   allow,
@@ -577,25 +578,27 @@ describe("conformance runners", () => {
   testDecisionSink({ write: () => undefined, flush: () => Promise.resolve() });
 
   testSnapshotSource({
-    get: () => ({
-      v: 1,
-      issuedAt: "1970-01-01T00:00:01Z",
-      subject: { principal: null, context: {} },
-      roles: [],
-      grants: [],
-      tenants: [],
-    }),
+    get: () =>
+      compactSnapshot({
+        v: 1,
+        issuedAt: "1970-01-01T00:00:01Z",
+        subject: { principal: null, context: {} },
+        roles: [],
+        grants: [],
+        tenants: [],
+      }),
   });
 
   testSnapshotSource({
-    get: () => ({
-      v: 1,
-      issuedAt: "1970-01-01T00:00:01Z",
-      subject: { principal: null, context: {} },
-      roles: [],
-      grants: [],
-      tenants: [],
-    }),
+    get: () =>
+      compactSnapshot({
+        v: 1,
+        issuedAt: "1970-01-01T00:00:01Z",
+        subject: { principal: null, context: {} },
+        roles: [],
+        grants: [],
+        tenants: [],
+      }),
     subscribe: () => () => undefined,
   });
 

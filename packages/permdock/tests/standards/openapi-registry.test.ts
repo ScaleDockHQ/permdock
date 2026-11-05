@@ -156,6 +156,7 @@ describe("OpenAPI registries", () => {
       "x-permdock-arity",
       "x-permdock-catalog",
       "x-permdock-conditions",
+      "x-permdock-enforcement",
       "x-permdock-oauth2MetadataUrl",
       "x-permdock-permissions",
       "x-permdock-securityProfile",

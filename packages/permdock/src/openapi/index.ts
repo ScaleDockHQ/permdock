@@ -9,7 +9,9 @@ export {
 export type {
   OpenApiOperationRef,
   OperationDeclaration,
+  OperationEnforcement,
   OperationEntry,
+  OperationLookup,
   OperationPermissions,
   OperationSkipCause,
 } from "./operations.ts";

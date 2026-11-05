@@ -8,6 +8,10 @@ import { branchClauses } from "../../src/cli/sql/clauses.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
+  compactSnapshot,
+  expandSnapshot,
+} from "../../src/core/snapshot-compact.ts";
+import {
   allow,
   getPermDockSync,
   definePermissions,
@@ -221,7 +225,7 @@ describe("grant validity", () => {
     if (snapshot instanceof Promise) {
       throw new TypeError("unsigned snapshot expected");
     }
-    const read = snapshot.grants.find(
+    const read = expandSnapshot(snapshot).grants.find(
       (grant) => grant.permission === "doc.read",
     );
     expect(read?.validity).toStrictEqual(WINDOW);
@@ -251,13 +255,15 @@ describe("grant validity", () => {
     if (snapshot instanceof Promise) {
       throw new TypeError("unsigned snapshot expected");
     }
-    const grants = snapshot.grants.filter((grant) => grant.effect !== "deny");
-    for (const grant of snapshot.grants) {
+    const grants = expandSnapshot(snapshot).grants.filter(
+      (grant) => grant.effect !== "deny",
+    );
+    for (const grant of expandSnapshot(snapshot).grants) {
       if (grant.effect === "deny") {
         grants.push(Object.assign({}, grant, { validity: { until: "x" } }));
       }
     }
-    const corrupted = { ...snapshot, grants };
+    const corrupted = compactSnapshot({ ...expandSnapshot(snapshot), grants });
     const client = fromSnapshot(corrupted);
     expect(client.can(permissions.doc.delete, doc, { now: at(during) })).toBe(
       false,

@@ -1,4 +1,4 @@
-import type { OperationPermissions } from "./operations.ts";
+import type { OperationLookup } from "./operations.ts";
 
 import { isRecord } from "../core/compact.ts";
 import { HTTP_METHODS } from "./operations.ts";
@@ -58,7 +58,7 @@ function under(path: string, prefixes: readonly string[]): boolean {
  * doctor` (PD091) run this one function.
  */
 export function operationCoverage(
-  operations: OperationPermissions,
+  operations: OperationLookup,
   document: unknown,
   options: OperationCoverageOptions,
 ): OperationCoverage {

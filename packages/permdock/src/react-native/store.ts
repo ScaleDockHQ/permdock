@@ -103,7 +103,10 @@ function seedOf(stored: Stored | undefined): Snapshot | string | undefined {
   return stored.kind === "signed" ? stored.jws : stored.snapshot;
 }
 
-function belongsTo(snapshot: Snapshot, subjectId: string | null): boolean {
+function belongsTo(
+  snapshot: Pick<Snapshot, "subject">,
+  subjectId: string | null,
+): boolean {
   return subjectId !== null && snapshot.subject.principal?.id === subjectId;
 }
 

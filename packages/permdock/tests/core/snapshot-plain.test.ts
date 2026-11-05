@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Membership } from "../../src/index.ts";
 
 import { plan } from "../../src/core/grantee.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import {
   allow,
   getPermDockSync,
@@ -154,7 +155,9 @@ describe("snapshots are plain data", () => {
     expect(shapes.all.vocabulary?.roles?.["owner"]?.kind).toBe("role");
     expect(shapes.all.vocabulary?.plans?.["pro"]?.kind).toBe("plan");
     expect(
-      shapes.all.grants.some((grant) => grant.approval !== undefined),
+      expandSnapshot(shapes.all).grants.some(
+        (grant) => grant.approval !== undefined,
+      ),
     ).toBe(true);
     for (const [name, snapshot] of Object.entries(shapes)) {
       expect(nonPlain(snapshot, name, [])).toStrictEqual([]);

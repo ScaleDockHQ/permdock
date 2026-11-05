@@ -1,7 +1,7 @@
 import type { Decision } from "./decision.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
-import type { Snapshot, SnapshotTypeLevel } from "./snapshot-types.ts";
+import type { ExpandedSnapshot, SnapshotTypeLevel } from "./snapshot-types.ts";
 
 import { compact } from "./compact.ts";
 import { findPermission } from "./permission-registry.ts";
@@ -12,7 +12,7 @@ import { subjectFromSnapshot } from "./snapshot-subject.ts";
  * Whether a rowless answer could change without a new snapshot: a grant with a
  * `validity` or a membership with `expiresAt` flips with the clock.
  */
-function clockDependent(snapshot: Snapshot): boolean {
+function clockDependent(snapshot: ExpandedSnapshot): boolean {
   return (
     snapshot.grants.some((entry) => entry.validity !== undefined) ||
     (snapshot.subject.principal?.memberships ?? []).some(
@@ -21,7 +21,10 @@ function clockDependent(snapshot: Snapshot): boolean {
   );
 }
 
-function rowless(snapshot: Snapshot, permission: Permission): Decision | null {
+function rowless(
+  snapshot: ExpandedSnapshot,
+  permission: Permission,
+): Decision | null {
   try {
     return evaluateSnapshot(
       snapshot,
@@ -44,7 +47,7 @@ function rowless(snapshot: Snapshot, permission: Permission): Decision | null {
  */
 export function typeLevelOf(
   policy: Policy,
-  snapshot: Snapshot,
+  snapshot: ExpandedSnapshot,
 ): SnapshotTypeLevel | undefined {
   if (clockDependent(snapshot)) {
     return undefined;

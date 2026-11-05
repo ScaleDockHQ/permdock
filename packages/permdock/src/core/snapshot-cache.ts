@@ -71,7 +71,9 @@ export function cacheLifeFor(
  * for a missing version or tenant. It carries no claims, so a refreshed token
  * at the same version keeps the key.
  */
-export function snapshotKey(snapshot: Snapshot): string {
+export function snapshotKey(
+  snapshot: Pick<Snapshot, "authzVersion" | "subject">,
+): string {
   const principal = snapshot.subject.principal;
   return [
     principal?.id ?? "anon",

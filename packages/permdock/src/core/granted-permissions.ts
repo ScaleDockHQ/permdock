@@ -1,11 +1,16 @@
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
-import type { Snapshot, SnapshotGrant } from "./snapshot-types.ts";
+import type {
+  ExpandedSnapshot,
+  Snapshot,
+  SnapshotGrant,
+} from "./snapshot-types.ts";
 import type { Subject } from "./subject.ts";
 
 import { flattenGrantee } from "./grantee.ts";
 import { findPermission } from "./permission-registry.ts";
 import { scopeList } from "./scopes.ts";
+import { expandSnapshot } from "./snapshot-compact.ts";
 import { evaluateSnapshot } from "./snapshot-evaluate.ts";
 import { subjectFromSnapshot } from "./snapshot-subject.ts";
 
@@ -73,7 +78,16 @@ function onInstance(
  */
 export function grantedPermissionsOf(
   policy: Policy,
-  snapshot: Snapshot,
+  input: Snapshot,
+  options: GrantedPermissionsOptions = {},
+): readonly Permission[] {
+  return grantedPermissionsOfExpanded(policy, expandSnapshot(input), options);
+}
+
+/** `grantedPermissionsOf` for a snapshot already in the evaluator's flat form. */
+export function grantedPermissionsOfExpanded(
+  policy: Policy,
+  snapshot: ExpandedSnapshot,
   options: GrantedPermissionsOptions = {},
 ): readonly Permission[] {
   const grants = snapshot.grants.filter((entry) => onInstance(entry, options));
@@ -103,7 +117,7 @@ export function grantedPermissionsOf(
  * granted.
  */
 function grantsOutright(
-  snapshot: Snapshot,
+  snapshot: ExpandedSnapshot,
   subject: Subject,
   permission: Permission,
   team: string | undefined,

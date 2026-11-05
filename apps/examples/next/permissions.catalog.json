@@ -1,8 +1,8 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-21T17:44:46.991Z",
-  "generator": "permdock@0.7.0",
+  "generatedAt": "2026-11-05T10:45:42.382Z",
+  "generator": "permdock@0.24.0",
   "fingerprint": "sha-256:T-Z96MJb0HNjeKTqFsv0j4XFo9LhEHoUKzYy4n-yZzQ",
   "resources": {
     "quote": {
@@ -108,6 +108,11 @@
           "file": "src/app/[org]/nav.tsx",
           "line": 53,
           "call": "tools"
+        },
+        {
+          "file": "src/lib/access.ts",
+          "line": 120,
+          "call": "can"
         },
         {
           "file": "src/policy.ts",
@@ -261,7 +266,7 @@
         },
         {
           "file": "src/lib/access.ts",
-          "line": 127,
+          "line": 147,
           "call": "can"
         },
         {

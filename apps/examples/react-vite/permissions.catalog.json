@@ -1,8 +1,8 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v1.json",
   "version": 1,
-  "generatedAt": "2026-10-14T01:05:30.907Z",
-  "generator": "permdock@0.4.0",
+  "generatedAt": "2026-11-05T10:45:42.682Z",
+  "generator": "permdock@0.24.0",
   "fingerprint": "sha-256:2a1UYqaErNnc1k1OrEBTPnPl9TwcU21dpVWDQG0Rlfs",
   "resources": {
     "post": {
@@ -72,12 +72,12 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 18,
+          "line": 16,
           "call": "allow"
         },
         {
           "file": "src/policy.ts",
-          "line": 27,
+          "line": 25,
           "call": "allow"
         }
       ],
@@ -114,12 +114,12 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 28,
+          "line": 26,
           "call": "allow"
         },
         {
           "file": "src/policy.ts",
-          "line": 29,
+          "line": 27,
           "call": "deny"
         }
       ],
@@ -161,7 +161,7 @@
         },
         {
           "file": "src/policy.ts",
-          "line": 26,
+          "line": 24,
           "call": "allow"
         }
       ],

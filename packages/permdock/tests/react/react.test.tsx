@@ -7,6 +7,8 @@ import { approvalHeaders } from "../../src/client/headers.ts";
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
+import { compactSnapshot } from "../../src/core/snapshot-compact.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import {
   useAssignablePermissions,
   useFilter,
@@ -145,9 +147,9 @@ describe("permdock/react", async () => {
   it("marks closure grants server-only without an endpoint", async () => {
     const snapshot = await memberSnapshot();
     const store = createClientStore({
-      snapshot: {
-        ...snapshot,
-        grants: snapshot.grants.map((grant) =>
+      snapshot: compactSnapshot({
+        ...expandSnapshot(snapshot),
+        grants: expandSnapshot(snapshot).grants.map((grant) =>
           grant.permission === "post.update"
             ? {
                 permission: grant.permission,
@@ -158,7 +160,7 @@ describe("permdock/react", async () => {
               }
             : grant,
         ),
-      },
+      }),
     });
     const state = store.permissionState(permissions.post.update, ownPost);
     expect(state.allowed).toBe(false);
@@ -173,8 +175,8 @@ describe("permdock/react", async () => {
     const fetch = vi.fn<typeof globalThis.fetch>();
     const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
     const closure = {
-      ...snapshot,
-      grants: snapshot.grants.map((grant) =>
+      ...expandSnapshot(snapshot),
+      grants: expandSnapshot(snapshot).grants.map((grant) =>
         grant.permission === "post.update"
           ? {
               permission: grant.permission,
@@ -193,7 +195,11 @@ describe("permdock/react", async () => {
         : state.status;
     }
     const html = await renderSettled(
-      <PermDockProvider snapshot={closure} endpoint={false} fetch={fetch}>
+      <PermDockProvider
+        snapshot={compactSnapshot(closure)}
+        endpoint={false}
+        fetch={fetch}
+      >
         <Reason />
         <Reason />
       </PermDockProvider>,
@@ -208,9 +214,9 @@ describe("permdock/react", async () => {
     const snapshot = await memberSnapshot();
     let calls = 0;
     const store = createClientStore({
-      snapshot: {
-        ...snapshot,
-        grants: snapshot.grants.map((grant) =>
+      snapshot: compactSnapshot({
+        ...expandSnapshot(snapshot),
+        grants: expandSnapshot(snapshot).grants.map((grant) =>
           grant.permission === "post.update"
             ? {
                 permission: grant.permission,
@@ -221,7 +227,7 @@ describe("permdock/react", async () => {
               }
             : grant,
         ),
-      },
+      }),
       endpoint: "/api/permdock",
       fetch: () => {
         calls += 1;
@@ -241,9 +247,9 @@ describe("permdock/react", async () => {
     const snapshot = await memberSnapshot();
     const calls: unknown[] = [];
     const store = createClientStore({
-      snapshot: {
-        ...snapshot,
-        grants: snapshot.grants.map((grant) =>
+      snapshot: compactSnapshot({
+        ...expandSnapshot(snapshot),
+        grants: expandSnapshot(snapshot).grants.map((grant) =>
           grant.permission === "post.update"
             ? {
                 permission: grant.permission,
@@ -254,7 +260,7 @@ describe("permdock/react", async () => {
               }
             : grant,
         ),
-      },
+      }),
       endpoint: "/api/permdock",
       server: false,
       fetch: async (_input, init) => {

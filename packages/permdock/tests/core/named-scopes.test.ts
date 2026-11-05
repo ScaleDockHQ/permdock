@@ -14,6 +14,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 import {
@@ -124,8 +125,8 @@ describe("named scopes: the scenario", () => {
     }
     expect(
       new Set(
-        snapshot.grants
-          .filter((grant) => grant.permission === "quote.read")
+        expandSnapshot(snapshot)
+          .grants.filter((grant) => grant.permission === "quote.read")
           .map((grant) => grant.scope),
       ),
     ).toStrictEqual(new Set(["organization"]));

@@ -1,6 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import {
   getPermDockSync,
   fromSnapshot,
@@ -50,6 +51,7 @@ describe(snapshotFor, () => {
     const actual = snapshotFor(policy, alice, {
       tenant: "acme",
       now: Temporal.Instant.from(expected.issuedAt),
+      v: 1,
     });
     expect(actual).toStrictEqual(expected);
   });
@@ -148,10 +150,12 @@ describe(snapshotFor, () => {
   });
 
   it("builds an anonymous snapshot for a null user", () => {
-    const snapshot = snapshotFor(policy, null);
+    const snapshot = snapshotFor(policy, null, { v: 1 });
     expect(snapshot.subject.principal).toBeNull();
     expect(
-      snapshot.grants.filter((grant) => grant.effect === "allow"),
+      expandSnapshot(snapshot).grants.filter(
+        (grant) => grant.effect === "allow",
+      ),
     ).toStrictEqual([]);
   });
 

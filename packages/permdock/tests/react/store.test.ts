@@ -7,6 +7,8 @@ import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
+import { compactSnapshot } from "../../src/core/snapshot-compact.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { requestBody, requestUrl } from "../fakes/fetch.ts";
 import {
   memberUser,
@@ -27,10 +29,10 @@ const required: Decision = {
 } as unknown as Decision;
 
 function signedIn(id: string): Snapshot {
-  return {
-    ...emptySnapshot(),
+  return compactSnapshot({
+    ...expandSnapshot(emptySnapshot()),
     subject: { principal: { id, roles: [] }, context: {} },
-  };
+  });
 }
 
 function ignore(): void {
@@ -326,10 +328,10 @@ async function closureSnapshot(
   extra: Partial<Snapshot> = {},
 ): Promise<Snapshot> {
   const snapshot = await memberSnapshot();
-  return {
+  return compactSnapshot({
     ...snapshot,
     ...extra,
-    grants: snapshot.grants.map((grant) =>
+    grants: expandSnapshot(snapshot).grants.map((grant) =>
       grant.permission === "post.update"
         ? {
             permission: grant.permission,
@@ -340,7 +342,7 @@ async function closureSnapshot(
           }
         : grant,
     ),
-  };
+  });
 }
 
 const granted = {

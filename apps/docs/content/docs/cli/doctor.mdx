@@ -612,11 +612,11 @@ error PD091  openapi.json: POST /api/orgs/{orgId}/posts is under a tenant path a
 error PD091  openapi.json: src/operations.ts#operations declares GET /orgs/{org}/old, which the document does not contain
 ```
 
-Set `openapi.operations` to `"<module>#<export>"`, `openapi.tenantPaths` to the path templates that act on a tenant (`["/orgs/{orgId}"]`, a `{param}` matching any name) and `openapi.base` to the prefix the document's paths carry and the keys do not. Declare the missing operation or remove the stale entry. An operation outside `tenantPaths` may stay undeclared. The check is skipped unless all of `openapi.operations`, `openapi.tenantPaths` and `openapi.doc` are set. `--only openapi` runs PD091.
+Set `openapi.operations` to `"<module>#<export>"`, `openapi.tenantPaths` to the path templates that act on a tenant (`["/orgs/{orgId}"]`, a `{param}` matching any name) and `openapi.base` to the prefix the document's paths carry and the keys do not. Declare the missing operation or remove the stale entry. Set `openapi.enforcement` to `"kernel"` to check only the operations the kernel enforces, leaving out those marked `x-permdock-enforcement: handler`. An operation outside `tenantPaths` may stay undeclared. The check is skipped unless all of `openapi.operations`, `openapi.tenantPaths` and `openapi.doc` are set. `--only openapi` runs PD091.
 
 ### PD092: two peer variants of permdock
 
-pnpm installs one copy of `permdock` per distinct set of resolved peers, so an app whose workspace packages pin different `react`, `zod` or `next` versions gets two copies. Module-level state does not cross copies except through `Symbol.for` brands, so a client store, a cache or an instance created from one copy is not the other copy's. PD092 reads `pnpm-lock.yaml` and lists each `permdock@<version>(…)` key beyond the first with the peers that differ:
+pnpm installs one copy of `permdock` per distinct set of resolved peers, so an app whose workspace packages pin different `react`, `zod` or `next` versions gets two copies. Module-level state does not cross copies except through `Symbol.for` brands, so a client store, a cache or an instance created from one copy is not the other copy's. PD092 reads only the `snapshots:` section of `pnpm-lock.yaml`, because `packages:` names every version once without peers, and lists each `permdock@<version>(…)` key beyond the first with the peers that differ:
 
 ```txt
 warning PD092  pnpm-lock.yaml resolves permdock@0.21.0 twice: (react@19.1.0) and (react@19.2.0)
@@ -640,11 +640,11 @@ The row helpers `permitted_<resource>_rows` and `permitted_<resource>_row` retur
 
 ### PD089: one id tested against the whole row set
 
-`$1 in (select permitted_doc_rows('doc.read'))`, with a bound parameter, `new.<column>` or `old.<column>` on the left, builds the permitted set to test one id. The `permitted_<resource>_row(id, permission)` overload evaluates that row alone. `--only sql` (or `--only supabase`) runs PD089.
+`$1 in (select permitted_doc_rows('doc.read'))` and `$1 = any(array(select permitted_doc_rows('doc.read')))`, with a bound parameter, a `p_<name>` function parameter, `new.<column>` or `old.<column>` on the left, build the permitted set to test one id. PD089 reads policies and `create function` bodies, and skips the `permitted_*` helpers `permdock rls generate` writes. The `permitted_<resource>_row(id, permission)` overload evaluates that row alone: on a 5,000-row table in 10 tenants, `tests/integration/bench/row-helpers-hot-path.test.ts` measures a one-id check at about 0.4 ms with `permitted_item_row` and about 1.5 ms through a wrapper over `permitted_item_rows`. `--only sql` (or `--only supabase`) runs PD089.
 
 ### PD090: repeated read-only actor guard
 
-`permdock rls generate` writes a restrictive `<table>_<command>_read_only_actors` policy per write command with `rls.readOnlyActors`. A hand-written policy on the same table and command that also calls `permdock_actor_may_write()` runs the guard twice. The check reads the migration folders and warns once per such policy. Remove the call from the hand-written policy. `--only sql` (or `--only supabase`) runs PD090.
+`permdock rls generate` writes a restrictive `<table>_<command>_read_only_actors` policy per write command with `rls.readOnlyActors`. A hand-written policy on the same table and command that also calls `permdock_actor_may_write()` runs the guard twice. The check reads the migration folders, `supabase/schemas` and `rls.out`, even when `doctor.migrations` lists other folders, and warns once per such policy. A policy counts as guarded when it calls the function or inlines the expression that `rls generate` wrote before 0.25. Remove the call from the hand-written policy. `--only sql` (or `--only supabase`) runs PD090.
 
 ### PD093: hand-written own_subject
 

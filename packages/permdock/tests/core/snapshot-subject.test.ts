@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Snapshot } from "../../src/core/snapshot-types.ts";
+import type { ExpandedSnapshot } from "../../src/core/snapshot-types.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { scopeList } from "../../src/core/scopes.ts";
@@ -78,7 +78,7 @@ describe(heldRoleNames, () => {
 });
 
 describe(subjectFromSnapshot, () => {
-  const base: Snapshot = {
+  const base: ExpandedSnapshot = {
     v: 1,
     issuedAt: "1970-01-01T00:00:00Z",
     subject: { principal: { id: "u1", roles: [], tenant: "t1" }, context: {} },
@@ -91,7 +91,7 @@ describe(subjectFromSnapshot, () => {
   it("keeps the snapshot tenant, and selects a requested one only with a membership", () => {
     expect(subjectFromSnapshot(base, undefined).principal?.tenant).toBe("t1");
     expect(subjectFromSnapshot(base, "t2").principal?.tenant).toBeUndefined();
-    const member: Snapshot = {
+    const member: ExpandedSnapshot = {
       ...base,
       subject: {
         principal: {

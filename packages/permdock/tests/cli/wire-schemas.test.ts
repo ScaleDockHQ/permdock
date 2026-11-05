@@ -101,7 +101,7 @@ describe("schemas/*.json", () => {
       "https://json-schema.org/draft/2020-12/schema",
     );
     expect(schema["$id"]).toBe(`https://permdock.com/schemas/${name}`);
-    expect(name).toMatch(/^[a-z][a-z0-9-]*-v1\.json$/u);
+    expect(name).toMatch(/^[a-z][a-z0-9-]*-v\d+\.json$/u);
   });
 
   it("puts a pattern on every date-time", () => {

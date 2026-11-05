@@ -17,7 +17,11 @@ import type { WireDelegation } from "./wire-delegation.ts";
  */
 export type SnapshotTenants = "all" | readonly string[];
 
-export type Snapshot = {
+/**
+ * The flat form the evaluator reads: one entry per grant, each with its full
+ * terms. Not public.
+ */
+export type ExpandedSnapshot = {
   readonly v: 1;
   /**
    * RFC 3339. The epoch for a snapshot built without a clock. Signed, it is the
@@ -97,6 +101,31 @@ export type Snapshot = {
    * (a grant `validity`, a membership `expiresAt`) or on the server alone.
    */
   readonly typeLevel?: SnapshotTypeLevel;
+};
+
+/**
+ * What a grant says apart from its permission key: its effect, role, grantee,
+ * conditions, scope and membership. A `Snapshot` lists each distinct set once
+ * in `conditions`.
+ */
+export type SnapshotGrantTerms = Omit<SnapshotGrant, "permission">;
+
+/**
+ * The wire form `snapshot()` returns and every client takes: `conditions` holds
+ * each distinct set of grant terms once and a grant is `{ permission, cond }`,
+ * `cond` indexing it. `parseSnapshot` validates it; the evaluator expands it
+ * into an `ExpandedSnapshot` it alone reads.
+ */
+export type Snapshot = Omit<ExpandedSnapshot, "grants"> & {
+  readonly conditions: readonly SnapshotGrantTerms[];
+  readonly grants: readonly {
+    readonly permission: string;
+    /**
+     * Indexes into `conditions`: one, or a list for consecutive grants of the
+     * same permission, in grant order.
+     */
+    readonly cond: number | readonly number[];
+  }[];
 };
 
 /** The permission keys a rowless check grants or sends to an approver. */
@@ -183,7 +212,7 @@ export type SnapshotGrant = {
 export type LocalSnapshotManifest = {
   readonly v: 1;
   readonly scopes?: readonly SnapshotScope[];
-  readonly vocabulary?: Snapshot["vocabulary"];
+  readonly vocabulary?: ExpandedSnapshot["vocabulary"];
   /** Declared role names; a custom role cannot take one. */
   readonly roles: readonly string[];
   /** Declared role names in rank order, when an `assigns` graph ranks them. */

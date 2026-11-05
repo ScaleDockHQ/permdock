@@ -11,6 +11,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { compactSnapshot } from "../../src/core/snapshot-compact.ts";
 import { snapshotFor } from "../../src/core/snapshot-for.ts";
 import { decideCredential } from "../../src/index.ts";
 import { alice, policy as saas } from "../fixtures/saas.ts";
@@ -31,18 +32,20 @@ function permdock(
   grants: readonly SnapshotGrant[],
   subject: Partial<Snapshot["subject"]> = {},
 ): PermDock {
-  return fromSnapshot({
-    v: 1,
-    issuedAt: "1970-01-01T00:00:01Z",
-    subject: {
-      principal: { id: "u1", roles: ["member"], tenant: "t1" },
-      context: {},
-      ...subject,
-    },
-    roles: ["member"],
-    grants,
-    tenants: ["t1"],
-  });
+  return fromSnapshot(
+    compactSnapshot({
+      v: 1,
+      issuedAt: "1970-01-01T00:00:01Z",
+      subject: {
+        principal: { id: "u1", roles: ["member"], tenant: "t1" },
+        context: {},
+        ...subject,
+      },
+      roles: ["member"],
+      grants,
+      tenants: ["t1"],
+    }),
+  );
 }
 
 describe(mayUse, () => {

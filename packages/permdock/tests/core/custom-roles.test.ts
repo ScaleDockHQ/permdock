@@ -19,6 +19,7 @@ import { listPermissions } from "../../src/core/permission-registry.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { snapshotFor } from "../../src/core/snapshot-for.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 import { decideRoleChange } from "../../src/index.ts";
@@ -952,7 +953,7 @@ describe("snapshot parity", () => {
     if (full instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
-    expect(full.grants).toContainEqual(
+    expect(expandSnapshot(full).grants).toContainEqual(
       expect.objectContaining({
         permission: "invoice.read",
         role: "c",

@@ -4,13 +4,15 @@ import type { Snapshot } from "../../src/core/snapshot-types.ts";
 
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
+import { compactSnapshot } from "../../src/core/snapshot-compact.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 
 function signedIn(id: string, tenants: readonly string[] = []): Snapshot {
-  return {
-    ...emptySnapshot(),
+  return compactSnapshot({
+    ...expandSnapshot(emptySnapshot()),
     subject: { principal: { id, roles: [] }, context: {} },
     tenants,
-  };
+  });
 }
 
 describe("fetchSnapshot", () => {

@@ -12,6 +12,21 @@ const MAX_LEVELS = 8;
  */
 const SNAPSHOT_KEY = /^ {2}'?permdock@([^(:'\s]+)((?:\([^)]*\))*)'?:\s*$/gmu;
 
+/**
+ * The body of the top-level `snapshots:` section. `packages:` lists the same
+ * name once without peers, which is not a second copy.
+ */
+function snapshotsSection(lock: string): string {
+  const start = /^snapshots:\s*$/mu.exec(lock);
+  if (start === null) {
+    return "";
+  }
+  const rest = lock.slice(start.index + start[0].length);
+  const end = /^\S/mu.exec(rest.replace(/^\r?\n/u, ""));
+  const body = rest.replace(/^\r?\n/u, "");
+  return end === null ? body : body.slice(0, end.index);
+}
+
 function lockfileFrom(project: Project): string | undefined {
   let dir = project.cwd;
   for (let level = 0; level < MAX_LEVELS; level += 1) {
@@ -39,10 +54,12 @@ export function pd092(project: Project): readonly DoctorFinding[] {
     return [];
   }
   const variants = new Map<string, Set<string>>();
-  for (const match of project.files.read(lockfile).matchAll(SNAPSHOT_KEY)) {
-    const version = match[1] ?? "";
+  for (const match of snapshotsSection(project.files.read(lockfile)).matchAll(
+    SNAPSHOT_KEY,
+  )) {
+    const version = String(match[1]);
     const peers = variants.get(version) ?? new Set<string>();
-    peers.add(match[2] ?? "");
+    peers.add(String(match[2]));
     variants.set(version, peers);
   }
   return [...variants]

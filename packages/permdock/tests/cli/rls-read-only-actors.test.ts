@@ -15,6 +15,7 @@ describe("rls read only actors", () => {
   afterAll(removeProjects);
 
   const ACT = "((select auth.jwt()) -> 'act')";
+  const GUARD = '(select "permdock".permdock_actor_may_write())';
   const READ_ONLY_AGENT = ` and not coalesce((${ACT} ->> 'kind') = 'agent' and (${ACT} ->> 'read_only') = 'true', false)`;
 
   const allow = (
@@ -41,10 +42,9 @@ describe("rls read only actors", () => {
           allow("public_notes", "update", ["anon"]),
           { ...allow("quotes", "update"), effect: "deny" },
         ],
-        ACT,
-        ["support", "impersonation"],
+        GUARD,
       );
-      const passes = `(not coalesce((${ACT} ->> 'kind') = any(array['support', 'impersonation']::text[]) or ((${ACT} ->> 'kind') is null and ${ACT} ? 'session_id'), false) or coalesce((${ACT} ->> 'read_only') = 'false', false))${READ_ONLY_AGENT}`;
+      const passes = GUARD;
       expect(policies).toStrictEqual([
         {
           name: "quotes_insert_read_only_actors",
@@ -74,25 +74,47 @@ describe("rls read only actors", () => {
       ]);
     });
 
-    it("matches only the listed kinds, without the session_id fallback when support is not one", () => {
-      const [policy] = readOnlyActorPolicies([allow("quotes", "delete")], ACT, [
-        "impersonation",
-      ]);
-      expect(policy?.using).toBe(
-        `(not coalesce((${ACT} ->> 'kind') = any(array['impersonation']::text[]), false) or coalesce((${ACT} ->> 'read_only') = 'false', false))${READ_ONLY_AGENT}`,
+    it("checks the guard function once per statement and nothing else", () => {
+      const [policy] = readOnlyActorPolicies(
+        [allow("quotes", "delete")],
+        GUARD,
       );
+      expect(policy?.using).toBe(GUARD);
+      expect(GUARD).toContain("permdock_actor_may_write()");
     });
 
-    it("refuses an agent only with read_only true, unless agent is a listed kind", () => {
-      const [policy] = readOnlyActorPolicies([allow("quotes", "delete")], ACT, [
-        "support",
-      ]);
-      expect(policy?.using).toContain(READ_ONLY_AGENT);
-      const [listed] = readOnlyActorPolicies([allow("quotes", "delete")], ACT, [
-        "agent",
-      ]);
-      expect(listed?.using).toBe(
-        `(not coalesce((${ACT} ->> 'kind') = any(array['agent']::text[]), false) or coalesce((${ACT} ->> 'read_only') = 'false', false))`,
+    it("defines the function before the policies that call it, with the kinds inside it", async () => {
+      const policyPath = path.join(
+        import.meta.dirname,
+        "../fixtures/named-scopes.ts",
+      );
+      const cwd = project({
+        "permdock.config.ts": `export default ${JSON.stringify({
+          permissions: policyPath,
+          policy: policyPath,
+          rls: { dialect: "supabase", readOnlyActors: ["impersonation"] },
+        })};\n`,
+      });
+      const result = await run(["rls", "generate", "--out", "rls.sql"], {
+        cwd,
+      });
+      expect(result.code).toBe(0);
+      const sql = readFileSync(path.join(cwd, "rls.sql"), "utf8");
+      const defined = sql.indexOf(
+        'create or replace function "permdock".permdock_actor_may_write()',
+      );
+      const used = sql.indexOf('create policy "public_');
+      const guard = sql.search(/create policy "[a-z_]+_read_only_actors"/u);
+      expect(defined).toBeGreaterThan(-1);
+      expect(guard).toBeGreaterThan(defined);
+      expect(used === -1 || guard > defined).toBe(true);
+      expect(sql).toContain(`array['impersonation']::text[]`);
+      expect(sql).toContain(READ_ONLY_AGENT);
+      expect(sql).toMatch(
+        /using \(\(select "permdock"\.permdock_actor_may_write\(\)\)\)/u,
+      );
+      expect(sql).not.toMatch(
+        /create policy "[a-z_]+_read_only_actors"[\s\S]*?'read_only'/u,
       );
     });
 

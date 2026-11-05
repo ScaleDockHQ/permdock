@@ -13,6 +13,8 @@ import { isPromiseLike } from "../../src/client/source.ts";
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
+import { compactSnapshot } from "../../src/core/snapshot-compact.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { PermDockStoreContext } from "../../src/react/context.ts";
 import {
   useApproval,
@@ -508,9 +510,9 @@ describe("hooks", () => {
       const info = vi
         .spyOn(console, "info")
         .mockImplementation(() => undefined);
-      const closure: Snapshot = {
+      const closure: Snapshot = compactSnapshot({
         ...snapshot,
-        grants: snapshot.grants.map((grant) =>
+        grants: expandSnapshot(snapshot).grants.map((grant) =>
           grant.permission === "post.update" || grant.permission === "post.read"
             ? {
                 permission: grant.permission,
@@ -521,7 +523,7 @@ describe("hooks", () => {
               }
             : grant,
         ),
-      };
+      });
       try {
         const view = await mount(
           createElement(PermDockProvider, {

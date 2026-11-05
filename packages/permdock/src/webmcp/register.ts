@@ -6,7 +6,7 @@ import type {
   PermissionTree,
   ResourceNode,
 } from "../core/permission-types.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { ExpandedSnapshot } from "../core/snapshot-types.ts";
 import type { ResourceRef } from "../core/tool-refusal.ts";
 import type {
   ModelContext,
@@ -26,6 +26,7 @@ import {
   listPermissions,
 } from "../core/permission-registry.ts";
 import { resourceRef } from "../core/resource-ref.ts";
+import { expandGrants } from "../core/snapshot-compact.ts";
 import { ignoreRejection, isThenable } from "../core/thenable.ts";
 import {
   approvalToolRefusal,
@@ -48,12 +49,22 @@ function current(permdock: WebMcpPermDock): WebMcpPermDock {
     : permdock;
 }
 
-function snapshotOf(permdock: WebMcpPermDock): Snapshot | undefined {
+/** The fields of a snapshot the tool list reads, from either wire form. */
+type SnapshotView = Pick<ExpandedSnapshot, "grants" | "simulated">;
+
+function snapshotOf(permdock: WebMcpPermDock): SnapshotView | undefined {
   const value = permdock.snapshot();
   if (value instanceof Promise || typeof value === "string") {
     return undefined;
   }
-  return value;
+  try {
+    return {
+      ...expandGrants(value),
+      ...(value.simulated === true ? { simulated: true as const } : {}),
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 function toolName(permission: Permission): string {
@@ -291,7 +302,10 @@ function wrapResult(value: unknown): WebMcpToolResult {
   return { content: [{ type: "text", text: JSON.stringify(value ?? null) }] };
 }
 
-function instanceAllowed(snapshot: Snapshot, permission: Permission): boolean {
+function instanceAllowed(
+  snapshot: SnapshotView,
+  permission: Permission,
+): boolean {
   return snapshot.grants.some(
     (grant) =>
       grant.permission === permission.key &&
@@ -302,7 +316,7 @@ function instanceAllowed(snapshot: Snapshot, permission: Permission): boolean {
 
 function shouldRegister(
   permdock: WebMcpPermDock,
-  snapshot: Snapshot,
+  snapshot: SnapshotView,
   permission: Permission,
 ): boolean {
   if (snapshot.simulated === true) {

@@ -18,6 +18,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { whoCan } from "../../src/index.ts";
 import { testRelationSource } from "../../src/testing/conformance/relations.ts";
 
@@ -374,7 +375,7 @@ describe("relationship graph", () => {
     const snapshot = vera.snapshot();
     const grant =
       "grants" in snapshot
-        ? snapshot.grants.find(
+        ? expandSnapshot(snapshot).grants.find(
             (item) => item.permission === "doc.read" && item.portable === false,
           )
         : undefined;

@@ -63,6 +63,7 @@ const p = saasPermissions;
 function snapshotOf(user: string, tenant: string, tenants?: "all"): Snapshot {
   return snapshotFor(saasPolicy, saasPrincipal(user, tenant), {
     tenant,
+    v: 1,
     ...(tenants === undefined ? {} : { tenants }),
   });
 }
@@ -71,6 +72,7 @@ function snapshotOf(user: string, tenant: string, tenants?: "all"): Snapshot {
 function leadSnapshot(): Snapshot {
   return snapshotFor(saasPolicy, saasPrincipal("gina", "acme"), {
     tenant: "acme",
+    v: 1,
     tenants: "all",
     memberships: [
       ...saasMemberships("gina"),

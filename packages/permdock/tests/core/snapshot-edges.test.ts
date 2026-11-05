@@ -4,6 +4,7 @@ import { allow } from "../../src/core/grant-builders.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { policy, tree } from "../fixtures/org-tree.ts";
 
 describe("snapshot edges", () => {
@@ -27,7 +28,9 @@ describe("snapshot edges", () => {
     if (snap instanceof Promise) {
       throw new TypeError("json");
     }
-    expect(snap.grants.some((grant) => grant.scope === "tenant")).toBe(true);
+    expect(
+      expandSnapshot(snap).grants.some((grant) => grant.scope === "tenant"),
+    ).toBe(true);
     const anonymousSnap = getPermDockSync(policy, null).snapshot();
     if (anonymousSnap instanceof Promise) {
       throw new TypeError("json");
@@ -65,7 +68,9 @@ describe("snapshot edges", () => {
     if (teamSnap instanceof Promise) {
       throw new TypeError("json");
     }
-    expect(teamSnap.grants.some((grant) => grant.scope === "team")).toBe(true);
+    expect(
+      expandSnapshot(teamSnap).grants.some((grant) => grant.scope === "team"),
+    ).toBe(true);
     expect(teamPermdock.snapshot({ include: [] })).toBeDefined();
     const resourceSnap = getPermDockSync(
       definePolicy(tree, {
@@ -83,8 +88,10 @@ describe("snapshot edges", () => {
     if (owned instanceof Promise) {
       throw new TypeError("json");
     }
-    expect(owned.grants.some((grant) => typeof grant.scope === "object")).toBe(
-      true,
-    );
+    expect(
+      expandSnapshot(owned).grants.some(
+        (grant) => typeof grant.scope === "object",
+      ),
+    ).toBe(true);
   });
 });

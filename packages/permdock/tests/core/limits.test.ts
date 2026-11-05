@@ -12,6 +12,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 
 const at = (seconds: number): Instant => ({
   epochMilliseconds: seconds * 1000,
@@ -246,7 +247,7 @@ describe("quota grants", () => {
     if (snapshot instanceof Promise) {
       throw new TypeError("expected json snapshot");
     }
-    const exportGrant = snapshot.grants.find(
+    const exportGrant = expandSnapshot(snapshot).grants.find(
       (grant) => grant.permission === permissions.report.export.key,
     );
     expect(exportGrant?.portable).toBe(false);

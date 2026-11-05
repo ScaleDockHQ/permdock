@@ -4,6 +4,7 @@ import type { SnapshotSource } from "../core/interfaces.ts";
 import type {
   LocalCustomRoleTable,
   LocalSnapshotManifest,
+  ExpandedSnapshot,
   Snapshot,
   SnapshotGrant,
 } from "../core/snapshot-types.ts";
@@ -17,7 +18,6 @@ import type {
 
 import { bindConditionRefs } from "../conditions/bind.ts";
 import { compact } from "../core/compact.ts";
-import { freezeDeep } from "../core/freeze.ts";
 import { flattenGrantee } from "../core/grantee.ts";
 import { LOCAL_CUSTOM_ROLE } from "../core/local-role.ts";
 import {
@@ -26,6 +26,7 @@ import {
   scopeList,
   tenantOf,
 } from "../core/scopes.ts";
+import { compactSnapshot } from "../core/snapshot-compact.ts";
 import { heldRoleNames } from "../core/snapshot-subject.ts";
 import { isMembershipExpired, resolveActiveTenant } from "../core/tenancy.ts";
 import { rfc3339, secondsAt } from "../core/time.ts";
@@ -257,7 +258,7 @@ export function buildLocalSnapshot(
   const principal =
     input === null
       ? null
-      : compact<NonNullable<Snapshot["subject"]["principal"]>>({
+      : compact<NonNullable<ExpandedSnapshot["subject"]["principal"]>>({
           id: input.id,
           roles: input.roles ?? [],
           plans: input.plans,
@@ -420,8 +421,8 @@ export function buildLocalSnapshot(
           now,
         );
   const rules = manifest.assignable;
-  return freezeDeep(
-    compact<Snapshot>({
+  return compactSnapshot(
+    compact<ExpandedSnapshot>({
       v: 1 as const,
       issuedAt: rfc3339(now),
       subject: { principal, context: {} },

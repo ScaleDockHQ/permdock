@@ -7,7 +7,7 @@ import type {
   ApprovalStatus,
 } from "../../src/approvals/types.ts";
 import type { SinkEvent } from "../../src/core/event-types.ts";
-import type { Snapshot } from "../../src/core/snapshot-types.ts";
+import type { ExpandedSnapshot } from "../../src/core/snapshot-types.ts";
 import type { Subject } from "../../src/core/subject.ts";
 
 import { isApprovalError } from "../../src/approvals/errors.ts";
@@ -41,7 +41,7 @@ const approver = {
     issuer: "https://app.example.com",
   }),
 };
-const SNAPSHOT: Snapshot = {
+const SNAPSHOT: ExpandedSnapshot = {
   v: 1,
   issuedAt: "1970-01-01T00:00:01Z",
   subject: { principal: { id: "u_1", roles: ["member"] }, context: {} },
@@ -79,10 +79,9 @@ function listQuery(params: URLSearchParams): ApprovalListQuery {
   };
 }
 
-function fakeCloud(options: { readonly snapshot?: Snapshot | string } = {}): {
-  readonly fetch: typeof fetch;
-  readonly decisions: SinkEvent[][];
-} {
+function fakeCloud(
+  options: { readonly snapshot?: ExpandedSnapshot | string } = {},
+): { readonly fetch: typeof fetch; readonly decisions: SinkEvent[][] } {
   const store = memoryApprovalStore();
   const decisions: SinkEvent[][] = [];
   const snapshot = options.snapshot ?? SNAPSHOT;

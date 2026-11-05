@@ -226,6 +226,7 @@ export type {
   Snapshot,
   SnapshotAssignable,
   SnapshotGrant,
+  SnapshotGrantTerms,
   SnapshotTenants,
   SnapshotNotEntitled,
   SnapshotScope,

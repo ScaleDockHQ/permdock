@@ -18,6 +18,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { memoryDecisionSink } from "../../src/core/sink.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { isDecisionEvent } from "../fixtures/decisions.ts";
 import {
@@ -448,7 +449,7 @@ describe(getPermDockSync, () => {
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
-    const grant = snapshot.grants.find(
+    const grant = expandSnapshot(snapshot).grants.find(
       (item) => item.permission === "post.read",
     );
     expect(grant?.portable).not.toBe(false);

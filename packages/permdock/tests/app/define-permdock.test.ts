@@ -94,4 +94,79 @@ describe(definePermDock, () => {
     const permdock = await resolve(subject);
     expect(permdock.subject.principal?.id).toBe("u1");
   });
+
+  describe("forClient", () => {
+    type Client = { readonly name: string };
+    const sourcesFor = (log: string[]) => (client: Client) => {
+      log.push(client.name);
+      return { memberships: { name: client.name, membershipsFor: () => [] } };
+    };
+
+    it("calls sources once per client and answers the same bound definition sources", () => {
+      const log: string[] = [];
+      const app = definePermDock(policy, { sources: sourcesFor(log) });
+      const a: Client = { name: "a" };
+      const b: Client = { name: "b" };
+      expect(appOf(app.forClient(a))?.memberships).toBe(
+        appOf(app.forClient(a))?.memberships,
+      );
+      expect(appOf(app.forClient(a))?.memberships).not.toBe(
+        appOf(app.forClient(b))?.memberships,
+      );
+      expect(log).toStrictEqual(["a", "b"]);
+    });
+
+    it("binds memberships, keeps the caches and still builds instances", async () => {
+      const instances = instanceCache();
+      const app = definePermDock(policy, {
+        instances,
+        sources: sourcesFor([]),
+      });
+      const bound = app.forClient({ name: "a" });
+      expect(appOf(bound)?.instances).toBe(instances);
+      expect(bound.fingerprint).toBe(policy.fingerprint);
+      const permdock = await bound.getPermDock({ id: "u1", roles: ["member"] });
+      expect(permdock.can(permissions.post.read, { id: "p1" })).toBe(true);
+      expect(bound.sources().memberships).toBeDefined();
+      expect(app.sources().memberships).toBeUndefined();
+    });
+
+    it("feeds permdockFor the bound sources", () => {
+      const app = definePermDock(policy, { sources: sourcesFor([]) });
+      const resolve = permdockFor({ policy: app.forClient({ name: "a" }) });
+      expect(resolve.sources().memberships).toBeDefined();
+    });
+
+    it("accepts a test double as the client", () => {
+      const app = definePermDock(policy, {
+        sources: (client: { readonly rpc: () => void }) => {
+          client.rpc();
+          return {};
+        },
+      });
+      let calls = 0;
+      app.forClient({
+        rpc: () => {
+          calls += 1;
+        },
+      });
+      expect(calls).toBe(1);
+    });
+
+    it("throws a TypeError that names the option when sources is not set", () => {
+      const app = definePermDock(policy);
+      expect(() => app.forClient({})).toThrow(
+        new TypeError(
+          "PermDock: forClient needs the sources option of definePermDock",
+        ),
+      );
+    });
+
+    it("types the client from the sources option", () => {
+      const app = definePermDock(policy, { sources: sourcesFor([]) });
+      // @ts-expect-error the client has no name
+      app.forClient({});
+      expect(app.forClient({ name: "a" })).toBeDefined();
+    });
+  });
 });

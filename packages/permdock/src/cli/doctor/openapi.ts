@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 
-import type { OperationPermissions } from "../../openapi/operations.ts";
+import type { OperationLookup } from "../../openapi/operations.ts";
 import type { Project } from "../project/project.ts";
 import type { DoctorFinding } from "../shared/doctor-types.ts";
 import type { PermDockConfig } from "../types.ts";
@@ -10,7 +10,7 @@ import { operationCoverage } from "../../openapi/coverage.ts";
 import { describeError } from "../core/errors.ts";
 import { loadModule } from "../project/load.ts";
 
-function isOperationPermissions(value: unknown): value is OperationPermissions {
+function isOperationPermissions(value: unknown): value is OperationLookup {
   return isRecord(value) && typeof value["entries"] === "function";
 }
 
@@ -76,6 +76,11 @@ export async function pd091(
       },
     ];
   }
+  const kernel: unknown = Reflect.get(operations, "kernel");
+  const checked =
+    openapi.enforcement === "kernel" && isOperationPermissions(kernel)
+      ? kernel
+      : operations;
   const findings: DoctorFinding[] = [];
   for (const doc of openapi.doc ?? []) {
     const abs = resolve(project.cwd, doc);
@@ -95,7 +100,7 @@ export async function pd091(
       });
       continue;
     }
-    const coverage = operationCoverage(operations, document, {
+    const coverage = operationCoverage(checked, document, {
       tenantPaths: openapi.tenantPaths,
       ...(openapi.base === undefined ? {} : { base: openapi.base }),
     });

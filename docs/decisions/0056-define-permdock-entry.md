@@ -22,6 +22,10 @@ The consumer feedback asked for one definition that also builds instances: `getP
 
 An app that imported `defineApp` from `permdock` changes the import and the name. The `claimsFirst` wrapping that `permdockResolver` built per version cache moved to `core/version-sources.ts`, shared by `permdockFor` and `definePermDock().sources`.
 
+## Amendment, 2026-11-05
+
+`forClient(client)` joins the members. It binds `memberships`, `customRoles` and `subjects` from the `sources(client)` option for a client that exists only per request or lazily. The result is a definition like any other, so `createPermDock`, `authorizer` and `permdockFor` take it unchanged.
+
 ## Alternatives considered
 
 - Keep `defineApp` and add `definePermDock` beside it: two ways to bind the same options.

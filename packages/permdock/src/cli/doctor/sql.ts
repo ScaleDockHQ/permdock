@@ -712,10 +712,13 @@ const TEXT_CAST_ON_ROWS = new RegExp(
   String.raw`::\s*text\s+in\s*\(\s*select\s+${ROWS_HELPER}\s*\(|${ROWS_HELPER}\s*\([^()]*(?:\([^()]*\)[^()]*)*\)\s*::\s*text\b|(?:"[^"]+"\.|\w+\.)?"?permitted_\w+_row"?\s*\(\s*[^,()]+::\s*text\s*,`,
   "iu",
 );
+const KNOWN_ID = String.raw`(?:\$\d+|\bp_\w+|\b(?:new|old)\.\w+)(?:\s*::\s*\w+)?`;
 const KNOWN_ID_IN_ROWS = new RegExp(
-  String.raw`(?:\$\d+|\bp_\w+|\b(?:new|old)\.\w+)(?:\s*::\s*\w+)?\s+in\s*\(\s*select\s+${ROWS_HELPER}\s*\(`,
+  String.raw`${KNOWN_ID}\s+in\s*\(\s*select\s+${ROWS_HELPER}\s*\(|${KNOWN_ID}\s*=\s*any\s*\(\s*array\s*\(\s*select\s+${ROWS_HELPER}\s*\(`,
   "iu",
 );
+const GENERATED_ROW_HELPER =
+  /^create\s+(?:or\s+replace\s+)?function\s+(?:"?\w+"?\.)?"?permitted_\w+/iu;
 
 function firstLine(statement: SqlStatement, index: number): number {
   return statement.line + statement.text.slice(0, index).split("\n").length - 1;
@@ -760,16 +763,21 @@ export function pd088(
 }
 
 /**
- * PD089: `<known id> in (select permitted_*_rows(...))`. The `_rows` helper
- * lists every permitted row; for one id the `permitted_*_row(id, permission)`
- * overload checks that row alone.
+ * PD089: `<known id> in (select permitted_*_rows(...))` or `<known id> =
+ * any(array(select permitted_*_rows(...)))`, in a policy or a function body.
+ * The `_rows` helper lists every permitted row; for one id the
+ * `permitted_*_row(id, permission)` overload checks that row alone.
  */
 export function pd089(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  return rowHelperStatements(cwd, config, files).flatMap((statement) => {
+  // Function bodies count: a hand-written `may_read(p_id)` wrapper tests one id.
+  const statements = migrationStatements(files, cwd, config).filter(
+    (statement) => !GENERATED_ROW_HELPER.test(statement.text),
+  );
+  return statements.flatMap((statement) => {
     const match = KNOWN_ID_IN_ROWS.exec(statement.text);
     return match === null
       ? []
@@ -786,6 +794,12 @@ export function pd089(
 
 const POLICY_COMMAND = /\bfor\s+(all|select|insert|update|delete)\b/iu;
 const ACTOR_GUARD_CALL = /\bpermdock_actor_may_write\s*\(/iu;
+/** The expression `rls generate` inlined into the policies of 0.24 and earlier. */
+const INLINED_ACTOR_GUARD = /'act'[\s\S]*'read_only'/iu;
+
+function inlinesActorGuard(text: string): boolean {
+  return INLINED_ACTOR_GUARD.test(text.replaceAll('"', ""));
+}
 const WRITE_COMMANDS = ["insert", "update", "delete"] as const;
 
 type PolicyStatement = SqlStatement & {
@@ -813,23 +827,48 @@ function policyStatements(
           command === undefined || command === "all"
             ? WRITE_COMMANDS
             : [command],
-        guarded: ACTOR_GUARD_CALL.test(statement.text),
+        guarded:
+          ACTOR_GUARD_CALL.test(statement.text) ||
+          inlinesActorGuard(statement.text),
       },
     ];
   });
 }
 
 /**
- * PD090: a hand-written policy calls `permdock_actor_may_write()` on a table
- * and command where `permdock rls generate` already writes a restrictive
- * `*_read_only_actors` policy, so the guard runs twice.
+ * The statements PD090 reads: the migration folders, plus the declarative
+ * schemas and `rls.out`, which `doctor.migrations` does not drop.
+ */
+function guardStatements(
+  files: DoctorFiles,
+  cwd: string,
+  config: PermDockConfig,
+): readonly SqlStatement[] {
+  const out = config.rls?.out;
+  const entries = [
+    ...(config.doctor?.migrations ?? MIGRATION_DIRS),
+    "supabase/schemas",
+    ...(out === undefined ? [] : [out]),
+  ];
+  return [...new Set(sqlFiles(cwd, entries))].flatMap((file) =>
+    sqlStatements(files.read(file)).map((statement) =>
+      Object.assign({ file: rel(cwd, file) }, statement),
+    ),
+  );
+}
+
+/**
+ * PD090: a hand-written policy calls `permdock_actor_may_write()`, or inlines
+ * the guard expression of 0.24 and earlier, on a table and command where
+ * `permdock rls generate` already writes a restrictive `*_read_only_actors`
+ * policy, so the guard runs twice.
  */
 export function pd090(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  const policies = policyStatements(migrationStatements(files, cwd, config));
+  const policies = policyStatements(guardStatements(files, cwd, config));
   const generated = new Set(
     policies
       .filter((policy) => policy.name.endsWith("_read_only_actors"))

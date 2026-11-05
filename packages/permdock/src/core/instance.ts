@@ -33,7 +33,7 @@ import { evaluate } from "./evaluate/index.ts";
 import { emitSafe, emptyListeners, finish } from "./events.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
-import { grantedPermissionsOf } from "./granted-permissions.ts";
+import { grantedPermissionsOfExpanded } from "./granted-permissions.ts";
 import { heldRoleNames, roleLeaf } from "./held-roles.ts";
 import { deriveEnv } from "./instance-env.ts";
 import { snapshotOf } from "./instance-snapshot.ts";
@@ -45,6 +45,7 @@ import { pendingRelations, relationReader } from "./relations.ts";
 import { audiencesOf } from "./role-rank.ts";
 import { scopeList } from "./scopes.ts";
 import { previewSubject, simulateEvent } from "./simulate-preview.ts";
+import { compactSnapshot } from "./snapshot-compact.ts";
 import { collectSnapshotGrants, whereGrant } from "./snapshot-grants.ts";
 import { signSnapshot } from "./snapshot-sign.ts";
 import { snapshotGrant } from "./snapshot.ts";
@@ -497,7 +498,7 @@ export function buildInstance(
     }) as PermDock["simulate"],
     // SAFETY: the body returns a Promise exactly when options.signer is set, which is what the overloads say.
     snapshot: ((options?: SnapshotOptions): Snapshot | Promise<string> => {
-      const snapshot = snapshotOf(
+      const expanded = snapshotOf(
         policy,
         subject,
         compact<Parameters<typeof snapshotOf>[2]>({
@@ -510,6 +511,7 @@ export function buildInstance(
           simulated: envBase.simulated,
         }),
       );
+      const snapshot = compactSnapshot(expanded);
       if (options?.signer !== undefined) {
         return signSnapshot(
           snapshot,
@@ -581,7 +583,7 @@ export function buildInstance(
     grantedPermissions(
       options?: GrantedPermissionsOptions,
     ): readonly Permission[] {
-      return grantedPermissionsOf(
+      return grantedPermissionsOfExpanded(
         policy,
         snapshotOf(policy, subject, {
           customRoles: envBase.customRoles,
