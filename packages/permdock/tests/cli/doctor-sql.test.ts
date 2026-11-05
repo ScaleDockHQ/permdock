@@ -320,6 +320,23 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
     });
   });
 
+  describe("PD089 function bodies and the any(array()) form", () => {
+    it("reports a hand-written function and an = any(array(...)) test, not a generated helper", () => {
+      const cwd = migration(
+        [
+          `create function public.may_read(p_id uuid) returns boolean language sql stable as $$ select p_id in (select permdock.permitted_doc_rows('doc.read')) $$;`,
+          `create policy d on doc using (new.doc_id = any(array(select permdock.permitted_doc_rows('doc.read'))));`,
+          `create function permdock.permitted_doc_row(p_id uuid, p_permission text) returns boolean language sql as $$ select p_id in (select permdock.permitted_doc_rows(p_permission)) $$;`,
+          `create function public.fine(p_id uuid) returns boolean language sql as $$ select permdock.permitted_doc_row(p_id, 'doc.read') $$;`,
+        ].join("\n"),
+      );
+      expect(messages(pd089(cwd, config))).toStrictEqual([
+        `${MIGRATION}:1 tests one id against the whole permitted_*_rows set`,
+        `${MIGRATION}:2 tests one id against the whole permitted_*_rows set`,
+      ]);
+    });
+  });
+
   describe("PD090 repeated actor guard", () => {
     it("reports a hand-written policy that calls the guard where the generated one applies", () => {
       const cwd = migration(

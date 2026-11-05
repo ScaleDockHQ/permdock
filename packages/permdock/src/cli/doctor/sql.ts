@@ -712,10 +712,13 @@ const TEXT_CAST_ON_ROWS = new RegExp(
   String.raw`::\s*text\s+in\s*\(\s*select\s+${ROWS_HELPER}\s*\(|${ROWS_HELPER}\s*\([^()]*(?:\([^()]*\)[^()]*)*\)\s*::\s*text\b|(?:"[^"]+"\.|\w+\.)?"?permitted_\w+_row"?\s*\(\s*[^,()]+::\s*text\s*,`,
   "iu",
 );
+const KNOWN_ID = String.raw`(?:\$\d+|\bp_\w+|\b(?:new|old)\.\w+)(?:\s*::\s*\w+)?`;
 const KNOWN_ID_IN_ROWS = new RegExp(
-  String.raw`(?:\$\d+|\bp_\w+|\b(?:new|old)\.\w+)(?:\s*::\s*\w+)?\s+in\s*\(\s*select\s+${ROWS_HELPER}\s*\(`,
+  String.raw`${KNOWN_ID}\s+in\s*\(\s*select\s+${ROWS_HELPER}\s*\(|${KNOWN_ID}\s*=\s*any\s*\(\s*array\s*\(\s*select\s+${ROWS_HELPER}\s*\(`,
   "iu",
 );
+const GENERATED_ROW_HELPER =
+  /^create\s+(?:or\s+replace\s+)?function\s+(?:"?\w+"?\.)?"?permitted_\w+/iu;
 
 function firstLine(statement: SqlStatement, index: number): number {
   return statement.line + statement.text.slice(0, index).split("\n").length - 1;
@@ -760,16 +763,21 @@ export function pd088(
 }
 
 /**
- * PD089: `<known id> in (select permitted_*_rows(...))`. The `_rows` helper
- * lists every permitted row; for one id the `permitted_*_row(id, permission)`
- * overload checks that row alone.
+ * PD089: `<known id> in (select permitted_*_rows(...))` or `<known id> =
+ * any(array(select permitted_*_rows(...)))`, in a policy or a function body.
+ * The `_rows` helper lists every permitted row; for one id the
+ * `permitted_*_row(id, permission)` overload checks that row alone.
  */
 export function pd089(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  return rowHelperStatements(cwd, config, files).flatMap((statement) => {
+  // Function bodies count: a hand-written `may_read(p_id)` wrapper tests one id.
+  const statements = migrationStatements(files, cwd, config).filter(
+    (statement) => !GENERATED_ROW_HELPER.test(statement.text),
+  );
+  return statements.flatMap((statement) => {
     const match = KNOWN_ID_IN_ROWS.exec(statement.text);
     return match === null
       ? []
