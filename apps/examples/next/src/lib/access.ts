@@ -101,6 +101,26 @@ export async function visibleQuotes(
   };
 }
 
+/**
+ * The staff list this session may read: empty without `member.list`, so a
+ * denied visitor never receives it in the RSC payload.
+ */
+export async function visibleStaff(
+  organization: string,
+): Promise<Loaded<{ readonly user: string; readonly role: string }[]>> {
+  "use cache: private";
+  const [permdock, staff] = await Promise.all([
+    getPermDock({ tenant: organization }),
+    getStaff(organization),
+  ]);
+  cacheLife(cacheLifeFor(permdock.subject));
+  cacheTag(snapshotTag(permdock.subject.principal?.id), orgTag(organization));
+  return {
+    ...staff,
+    value: permdock.can(permissions.member.list) ? staff.value : [],
+  };
+}
+
 export type QuoteAccess = {
   readonly quote: Quote | null;
   readonly approve: boolean;

@@ -21,6 +21,7 @@
     "permdock": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "server-only": "catalog:",
     "shadcn": "catalog:",
     "tw-animate-css": "catalog:",
     "zod": "catalog:"

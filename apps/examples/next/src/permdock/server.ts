@@ -1,3 +1,4 @@
+import "server-only";
 import { createPermDock } from "permdock/next";
 
 import { currentUser } from "../lib/session.ts";

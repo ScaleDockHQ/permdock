@@ -35,10 +35,12 @@ export async function loadSnapshot(org: string) {
 }
 
 // app/[org]/layout.tsx: keep it synchronous
-<PermDockProvider snapshotPromise={params.then(({ org }) => loadSnapshot(org))}>
+<PermDockProvider snapshot={params.then(({ org }) => loadSnapshot(org))}>
 ```
 
-Hooks under a `snapshotPromise` never suspend: they deny with `status: 'pending'` until it resolves, so render a skeleton for `pending` (or `<Protected pending>`); pass `suspend` to the provider only when readers should wait inside a Suspense boundary.
+A layout fetches and never decides: it does not re-render on navigation and does not stop the segments below it from rendering. Check in pages (`requirePermission`), leaf Server Components, `'use cache: private'` loaders that return only readable rows, Server Actions and Route Handlers; a client `<Protected>` only hides UI.
+
+Hooks under the provider's snapshot never suspend: they deny with `status: 'pending'` until it resolves, so render a skeleton for `pending` (or `<Protected pending>`); pass `suspend` to the provider only when readers should wait inside a Suspense boundary.
 
 After a role change: `updateTag(snapshotTag(user))` in the Server Action; `revalidateTag(tag, { expire: 0 })` in a Route Handler (not `'max'`, which would keep serving the revoked grant). Pages whose permission UI must be instant export `instant = true`; a rarely visited admin page exports `prefetch = 'force-disabled'`. Resource links that should carry their gated actions use `<Link prefetch={true}>` with the check in a `'use cache: private'` function keyed on the resource id. In `proxy.ts`, use `mayAccess(policy, claims, permission, { tenant })` (optimistic, never a decision). Both reach only the acting browser; for other members, add an app-owned signal (Realtime, poll, SSE) that calls `router.refresh()`. Keep the `[org]` layout synchronous and never read `cookies()` outside the private-cached loader. With a slug in the URL (`[orgSlug]`), resolve it to the org id in a `'use cache'` lookup that reads no session, call `notFound()` for an unknown slug, and pass the id to `snapshotFor`, `requirePermission` and `getPermDock`. Export `const { POST, GET } = permdockHandler()` from `app/api/permdock/route.ts`, or pass `endpoint: false` when every client check is portable; then a closure grant read by `usePermission` is denied with reason `server-only` (`permdock doctor` PD044 warns). Guide: [Next.js Cache Components](https://permdock.com/docs/guides/next-cache-components).
 
