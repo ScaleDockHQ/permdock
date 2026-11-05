@@ -794,6 +794,12 @@ export function pd089(
 
 const POLICY_COMMAND = /\bfor\s+(all|select|insert|update|delete)\b/iu;
 const ACTOR_GUARD_CALL = /\bpermdock_actor_may_write\s*\(/iu;
+/** The expression `rls generate` inlined into the policies of 0.24 and earlier. */
+const INLINED_ACTOR_GUARD = /'act'[\s\S]*'read_only'/iu;
+
+function inlinesActorGuard(text: string): boolean {
+  return INLINED_ACTOR_GUARD.test(text.replaceAll('"', ""));
+}
 const WRITE_COMMANDS = ["insert", "update", "delete"] as const;
 
 type PolicyStatement = SqlStatement & {
@@ -821,23 +827,48 @@ function policyStatements(
           command === undefined || command === "all"
             ? WRITE_COMMANDS
             : [command],
-        guarded: ACTOR_GUARD_CALL.test(statement.text),
+        guarded:
+          ACTOR_GUARD_CALL.test(statement.text) ||
+          inlinesActorGuard(statement.text),
       },
     ];
   });
 }
 
 /**
- * PD090: a hand-written policy calls `permdock_actor_may_write()` on a table
- * and command where `permdock rls generate` already writes a restrictive
- * `*_read_only_actors` policy, so the guard runs twice.
+ * The statements PD090 reads: the migration folders, plus the declarative
+ * schemas and `rls.out`, which `doctor.migrations` does not drop.
+ */
+function guardStatements(
+  files: DoctorFiles,
+  cwd: string,
+  config: PermDockConfig,
+): readonly SqlStatement[] {
+  const out = config.rls?.out;
+  const entries = [
+    ...(config.doctor?.migrations ?? MIGRATION_DIRS),
+    "supabase/schemas",
+    ...(out === undefined ? [] : [out]),
+  ];
+  return [...new Set(sqlFiles(cwd, entries))].flatMap((file) =>
+    sqlStatements(files.read(file)).map((statement) =>
+      Object.assign({ file: rel(cwd, file) }, statement),
+    ),
+  );
+}
+
+/**
+ * PD090: a hand-written policy calls `permdock_actor_may_write()`, or inlines
+ * the guard expression of 0.24 and earlier, on a table and command where
+ * `permdock rls generate` already writes a restrictive `*_read_only_actors`
+ * policy, so the guard runs twice.
  */
 export function pd090(
   cwd: string,
   config: PermDockConfig,
   files: DoctorFiles = nodeFiles,
 ): readonly DoctorFinding[] {
-  const policies = policyStatements(migrationStatements(files, cwd, config));
+  const policies = policyStatements(guardStatements(files, cwd, config));
   const generated = new Set(
     policies
       .filter((policy) => policy.name.endsWith("_read_only_actors"))

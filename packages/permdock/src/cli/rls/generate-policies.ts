@@ -17,7 +17,6 @@ import { describeError } from "../core/errors.ts";
 import { compileGrants } from "../sql/compile.ts";
 import { scopeSources, scopeTable } from "../sql/names.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
-import { subjectClaimJsonSql } from "../sql/subject.ts";
 import { tableNames } from "../sql/tables.ts";
 import { policySql } from "./emit.ts";
 import { fieldViews, rowBranches } from "./fields.ts";
@@ -25,6 +24,7 @@ import {
   ACTOR_MAY_WRITE,
   assemblePolicies,
   readOnlyActorKinds,
+  actorMayWriteCall,
   readOnlyActorPolicies,
 } from "./policies.ts";
 import { realtimeStoragePolicies } from "./realtime-storage.ts";
@@ -209,11 +209,7 @@ export function generatePolicies(
     actorKinds === undefined || !helpersOnly
       ? []
       : helpersOnlyActorGuards(
-          readOnlyActorPolicies(
-            assembled,
-            subjectClaimJsonSql(ctx, "act"),
-            actorKinds,
-          ),
+          readOnlyActorPolicies(assembled, actorMayWriteCall(ctx)),
           rls?.tables,
           qualified(ctx, ACTOR_MAY_WRITE),
           warnings,
@@ -223,14 +219,7 @@ export function generatePolicies(
   ): readonly CompiledPolicy[] =>
     actorKinds === undefined
       ? items
-      : [
-          ...items,
-          ...readOnlyActorPolicies(
-            items,
-            subjectClaimJsonSql(ctx, "act"),
-            actorKinds,
-          ),
-        ];
+      : [...items, ...readOnlyActorPolicies(items, actorMayWriteCall(ctx))];
   let tablePolicies: readonly CompiledPolicy[];
   try {
     tablePolicies = realtimeStoragePolicies(

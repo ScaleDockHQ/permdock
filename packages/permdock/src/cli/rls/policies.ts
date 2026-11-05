@@ -302,17 +302,23 @@ grant execute on function ${fn}() to authenticated;
 }
 
 /**
+ * The call a generated read-only actor policy makes: one `InitPlan` per
+ * statement.
+ */
+export function actorMayWriteCall(ctx: RlsSqlContext): string {
+  return `(select ${qualified(ctx, ACTOR_MAY_WRITE)}())`;
+}
+
+/**
  * One restrictive policy per table and write command the allow policies grant
- * to `authenticated`: the write passes unless the token's `act` claim (`act`,
- * as SQL `jsonb`) is a session of one of `kinds` that is not `read_only:
- * false`. Reads are never touched.
+ * to `authenticated`. `passes` is the guard expression, in generated SQL
+ * {@link actorMayWriteCall}; the function {@link actorMayWriteSql} writes must
+ * come before these policies. Reads are never touched.
  */
 export function readOnlyActorPolicies(
   policies: readonly CompiledPolicy[],
-  act: string,
-  kinds: readonly string[],
+  passes: string,
 ): CompiledPolicy[] {
-  const passes = readOnlyActorPasses(act, kinds);
   const seen = new Set<string>();
   const out: CompiledPolicy[] = [];
   for (const policy of policies) {

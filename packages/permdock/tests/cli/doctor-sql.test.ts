@@ -368,6 +368,35 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
     });
   });
 
+  describe("PD090 declarative schemas and rls.out", () => {
+    const generated = `create policy "public_quotes_update_read_only_actors" on "public"."quotes" as restrictive for update to authenticated using ((select "permdock".permdock_actor_may_write()));`;
+
+    it("reads supabase/schemas when doctor.migrations lists another folder", () => {
+      const cwd = project({
+        "supabase/schemas/permdock.sql": generated,
+        "supabase/schemas/app.sql": `create policy quotes_write on public.quotes for update to authenticated using ((select permdock_actor_may_write()));`,
+        "supabase/migrations/20260101000000_x.sql": "select 1;",
+      });
+      expect(
+        messages(
+          pd090(cwd, { doctor: { migrations: ["supabase/migrations"] } }),
+        ),
+      ).toStrictEqual([
+        `supabase/schemas/app.sql:1 policy quotes_write on public.quotes repeats the permdock_actor_may_write() guard of the generated read-only actor policy`,
+      ]);
+    });
+
+    it("reads rls.out and matches the guard 0.24 inlined", () => {
+      const cwd = project({
+        "generated/rls.sql": generated,
+        [MIGRATION]: `create policy "quotes_write" on "public"."quotes" for update to authenticated using (not coalesce((((select auth.jwt()) -> 'act') ->> 'kind') = 'support', false) or coalesce((((select auth.jwt()) -> 'act') ->> 'read_only') = 'false', false));`,
+      });
+      expect(
+        messages(pd090(cwd, { rls: { out: "generated/rls.sql" } })),
+      ).toHaveLength(1);
+    });
+  });
+
   describe("PD090 policy commands", () => {
     it("treats a policy for all or without a command as every write, and skips other statements", () => {
       const cwd = migration(
