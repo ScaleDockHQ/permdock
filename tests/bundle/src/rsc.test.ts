@@ -164,7 +164,9 @@ describe("react-server build", () => {
     }
     const decoded = await decodeSnapshot(result.flight);
     expect(decoded.snapshot).toStrictEqual(result.snapshot);
-    expect(parseSnapshot(decoded.snapshot)).toStrictEqual(result.snapshot);
+    expect(parseSnapshot(decoded.snapshot)).toStrictEqual(
+      parseSnapshot(result.snapshot),
+    );
   });
 
   it("passes a tenant snapshot with vocabulary and assignable entries through development Flight", async () => {
