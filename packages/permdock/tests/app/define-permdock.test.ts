@@ -145,7 +145,11 @@ describe(definePermDock, () => {
         },
       });
       let calls = 0;
-      app.forClient({ rpc: () => (calls += 1) });
+      app.forClient({
+        rpc: () => {
+          calls += 1;
+        },
+      });
       expect(calls).toBe(1);
     });
 

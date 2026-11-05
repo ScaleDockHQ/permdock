@@ -1060,8 +1060,8 @@ export type PermDockConfig = {
     /** A prefix the documents' paths carry and the `operations` keys do not. */
     readonly base?: string;
     /**
-     * `"kernel"` checks coverage against the operations the kernel enforces
-     * and leaves out those marked `x-permdock-enforcement: handler`.
+     * `"kernel"` checks coverage against the operations the kernel enforces and
+     * leaves out those marked `x-permdock-enforcement: handler`.
      */
     readonly enforcement?: "kernel";
   };

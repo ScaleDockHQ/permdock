@@ -110,6 +110,7 @@ export const policy = definePolicy(permissions, {
         const node = (
           permissions as unknown as Record<string, Record<string, never>>
         )[name];
+        // SAFETY: the read leaf is a Permission; `allow` takes it typed.
         return allow(node?.["read"] as never, {
           where: { op: "eq", field: "status", value: "s0" },
         });

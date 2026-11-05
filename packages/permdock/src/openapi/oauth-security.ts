@@ -38,13 +38,17 @@ export function oauthScopesOf(
     }
     for (const [name, values] of Object.entries(requirement)) {
       if (schemes.has(name) && Array.isArray(values)) {
-        for (const value of values) {
-          if (typeof value === "string" && value !== "") {
-            scopes.add(value);
-          }
-        }
+        addScopes(scopes, values);
       }
     }
   }
   return [...scopes];
+}
+
+function addScopes(into: Set<string>, values: readonly unknown[]): void {
+  for (const value of values) {
+    if (typeof value === "string" && value !== "") {
+      into.add(value);
+    }
+  }
 }

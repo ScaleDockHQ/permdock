@@ -74,7 +74,7 @@ describe("snapshot v2 guards", () => {
       '"role":null',
       '"role":null,"where":{"__proto__":{"eq":1}}',
     );
-    expect(() => parseSnapshot(text)).toThrow();
+    expect(() => parseSnapshot(text)).toThrow(/snapshot/iu);
   });
 
   it("denies everything through an instance of a bad document's empty twin", () => {

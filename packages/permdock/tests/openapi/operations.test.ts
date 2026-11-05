@@ -206,8 +206,9 @@ describe("operationPermissionsFromOpenApi security and enforcement", () => {
   };
   const skipped: [string, OperationSkipCause][] = [];
   const operations = operationPermissionsFromOpenApi(document, permissions, {
-    onSkip: (operation, cause) =>
-      skipped.push([`${operation.method} ${operation.path}`, cause]),
+    onSkip: (operation, cause) => {
+      skipped.push([`${operation.method} ${operation.path}`, cause]);
+    },
   });
 
   it("builds a scope-only entry from the document-level OAuth requirement", () => {
@@ -224,9 +225,9 @@ describe("operationPermissionsFromOpenApi security and enforcement", () => {
     expect(operations.forRequest("POST", "/customers")?.key).toBe(
       "post.create",
     );
-    expect(operations.oauthScopesForRequest("POST", "/customers")).toStrictEqual(
-      ["customers:write", "customers:read"],
-    );
+    expect(
+      operations.oauthScopesForRequest("POST", "/customers"),
+    ).toStrictEqual(["customers:write", "customers:read"]);
   });
 
   it("skips security: [] as public and an invalid enforcement as an invalid extension", () => {
@@ -237,12 +238,12 @@ describe("operationPermissionsFromOpenApi security and enforcement", () => {
   });
 
   it("splits kernel-enforced from handler-enforced operations", () => {
-    expect(operations.kernel.entries().map((entry) => entry.path)).toStrictEqual(
-      ["/customers", "/customers"],
-    );
-    expect(operations.handler.entries().map((entry) => entry.path)).toStrictEqual(
-      ["/legacy"],
-    );
+    expect(
+      operations.kernel.entries().map((entry) => entry.path),
+    ).toStrictEqual(["/customers", "/customers"]);
+    expect(
+      operations.handler.entries().map((entry) => entry.path),
+    ).toStrictEqual(["/legacy"]);
     expect(operations.handler.forRequest("GET", "/legacy")?.key).toBe(
       "post.read",
     );

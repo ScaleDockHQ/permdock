@@ -70,7 +70,7 @@ export const operations = {
         doc: ["openapi.json"],
       },
     };
-    const run = async (extra: object) =>
+    const openapiFindings = async (extra: object) =>
       (
         await pd091(
           loadProject({
@@ -81,10 +81,10 @@ export const operations = {
           }),
         )
       ).map((finding) => finding.target);
-    expect(await run({})).toStrictEqual([
+    expect(await openapiFindings({})).toStrictEqual([
       "openapi.json:GET /orgs/{orgId}/export",
     ]);
-    expect(await run({ enforcement: "kernel" })).toStrictEqual([
+    expect(await openapiFindings({ enforcement: "kernel" })).toStrictEqual([
       "openapi.json:POST /orgs/{orgId}/posts",
       "openapi.json:GET /orgs/{orgId}/export",
     ]);

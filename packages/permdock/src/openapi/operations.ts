@@ -330,10 +330,10 @@ export function operationPermissions(
  * `x-permdock-permissions` names exactly one permission of `tree`, keyed by its
  * method, path and `operationId`, and every operation that has OAuth scopes in
  * its `security` requirement and names no permission (a scope-only entry). The
- * scopes come from `operation.security`, else `document.security`, for
- * `oauth2` and `openIdConnect` schemes. `x-permdock-enforcement` is `kernel`
- * (the default) or `handler`. An operation naming several or an unknown key,
- * an invalid extension, or `security: []` is left out, so a gate denies it;
+ * scopes come from `operation.security`, else `document.security`, for `oauth2`
+ * and `openIdConnect` schemes. `x-permdock-enforcement` is `kernel` (the
+ * default) or `handler`. An operation naming several or an unknown key, an
+ * invalid extension, or `security: []` is left out, so a gate denies it;
  * `onSkip` hears each one with its cause.
  */
 export function operationPermissionsFromOpenApi(
@@ -349,7 +349,9 @@ export function operationPermissionsFromOpenApi(
 ): OperationPermissions {
   const operations: Record<string, OperationEntry> = {};
   const schemes = oauthSchemes(document);
-  const documentSecurity = isRecord(document) ? document["security"] : undefined;
+  const documentSecurity = isRecord(document)
+    ? document["security"]
+    : undefined;
   const paths =
     isRecord(document) && isRecord(document["paths"]) ? document["paths"] : {};
   for (const [path, item] of Object.entries(paths)) {

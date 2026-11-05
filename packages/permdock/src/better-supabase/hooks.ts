@@ -326,16 +326,16 @@ export function authorizationHooks<
             ) {
               return false;
             }
-            const given = approvers[request.kind];
+            const entry = approvers[request.kind];
             if (
-              given === undefined ||
+              entry === undefined ||
               approver.claims["sub"] !== approver.userId
             ) {
               return false;
             }
             const permdock = await instance(approver.claims, request.tenant);
             if (permdock === null) return false;
-            const wanted = asApprover(given);
+            const wanted = asApprover(entry);
             const managed =
               request.requester === undefined
                 ? []

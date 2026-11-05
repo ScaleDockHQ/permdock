@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 
@@ -20,8 +20,7 @@ describe("snapshot size", () => {
     const v1 = bytes(server.snapshot({ v: 1, omitAssignable: true }));
     const v2 = bytes(server.snapshot({ omitAssignable: true }));
     const report = `admin snapshot, 1,790 grants, omitAssignable: v1 ${v1.raw} B (${v1.gzip} gzip), v2 ${v2.raw} B (${v2.gzip} gzip), ${(v1.raw / v2.raw).toFixed(1)}x raw`;
-    writeFileSync(join(tmpdir(), "permdock-snapshot-size.txt"), report);
-    console.info(report);
+    writeFileSync(path.join(tmpdir(), "permdock-snapshot-size.txt"), report);
     expect(v1.raw / v2.raw).toBeGreaterThanOrEqual(5);
     expect(v2.gzip).toBeLessThan(v1.gzip);
   });

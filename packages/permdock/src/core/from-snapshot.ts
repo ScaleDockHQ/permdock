@@ -203,10 +203,10 @@ export function fromSnapshot(
       );
     },
     // SAFETY: the implementation returns the result type of each simulate overload for its input.
-    simulate: ((input: unknown, simulateOptions?: SimulateOptions) => {
-      if (Array.isArray(input)) {
+    simulate: ((target: unknown, simulateOptions?: SimulateOptions) => {
+      if (Array.isArray(target)) {
         // SAFETY: the simulate overload that takes an array types it as [permission, data] pairs.
-        return (input as readonly (readonly [Permission, unknown?])[]).map(
+        return (target as readonly (readonly [Permission, unknown?])[]).map(
           ([permission, data]) =>
             run(
               permission,
@@ -216,7 +216,7 @@ export function fromSnapshot(
         );
       }
       // SAFETY: arrays returned above; the last overload takes this preview.
-      const preview = input as {
+      const preview = target as {
         readonly roles?: readonly (string | Role)[];
         readonly memberships?: readonly Membership[];
         readonly tenant?: string;

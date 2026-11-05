@@ -240,11 +240,11 @@ testOperationCoverage(operations, openapiDocument, {
 
 `operationPermissionsFromOpenApi(document, permissions, { base?, onSkip? })` reads three things from each operation:
 
-| Source | Becomes |
-| --- | --- |
-| `x-permdock-permissions` with one key | The entry's `permission` |
-| `security`, from the operation or else the document, for `oauth2` and `openIdConnect` schemes | The entry's `oauthScopes` |
-| `x-permdock-enforcement: "kernel" \| "handler"` | The entry's `enforcement`; absent means `kernel` |
+| Source                                                                                        | Becomes                                          |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `x-permdock-permissions` with one key                                                         | The entry's `permission`                         |
+| `security`, from the operation or else the document, for `oauth2` and `openIdConnect` schemes | The entry's `oauthScopes`                        |
+| `x-permdock-enforcement: "kernel" \| "handler"`                                               | The entry's `enforcement`; absent means `kernel` |
 
 An operation with OAuth scopes and no `x-permdock-permissions` becomes a scope-only entry. `security: []` marks an operation public and `onSkip` hears it with cause `public`. An invalid `x-permdock-enforcement` is skipped with `invalid-extension`.
 
