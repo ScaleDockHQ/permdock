@@ -616,7 +616,7 @@ Set `openapi.operations` to `"<module>#<export>"`, `openapi.tenantPaths` to the 
 
 ### PD092: two peer variants of permdock
 
-pnpm installs one copy of `permdock` per distinct set of resolved peers, so an app whose workspace packages pin different `react`, `zod` or `next` versions gets two copies. Module-level state does not cross copies except through `Symbol.for` brands, so a client store, a cache or an instance created from one copy is not the other copy's. PD092 reads `pnpm-lock.yaml` and lists each `permdock@<version>(…)` key beyond the first with the peers that differ:
+pnpm installs one copy of `permdock` per distinct set of resolved peers, so an app whose workspace packages pin different `react`, `zod` or `next` versions gets two copies. Module-level state does not cross copies except through `Symbol.for` brands, so a client store, a cache or an instance created from one copy is not the other copy's. PD092 reads only the `snapshots:` section of `pnpm-lock.yaml`, because `packages:` names every version once without peers, and lists each `permdock@<version>(…)` key beyond the first with the peers that differ:
 
 ```txt
 warning PD092  pnpm-lock.yaml resolves permdock@0.21.0 twice: (react@19.1.0) and (react@19.2.0)
