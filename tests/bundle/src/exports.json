@@ -177,9 +177,7 @@
     "wrapPermDock",
     "writable"
   ],
-  "./app": [
-    "definePermDock"
-  ],
+  "./app": ["definePermDock"],
   "./approvals": [
     "APPROVAL_HEADER",
     "APPROVAL_REQUEST_SCHEMA",
@@ -465,14 +463,8 @@
     "discoverViaSignatureAgent",
     "webBotAuthVerifier"
   ],
-  "./trpc": [
-    "createPermDock",
-    "errorFormatter"
-  ],
-  "./orpc": [
-    "createPermDock",
-    "permissionOf"
-  ],
+  "./trpc": ["createPermDock", "errorFormatter"],
+  "./orpc": ["createPermDock", "permissionOf"],
   "./vue": [
     "PermissionBoundary",
     "Protected",
@@ -556,24 +548,11 @@
     "useTenant",
     "visibilityRefresh"
   ],
-  "./agent": [
-    "createPermDock"
-  ],
-  "./ai-sdk": [
-    "createPermDock"
-  ],
-  "./claude-agent": [
-    "createPermDock"
-  ],
-  "./eve": [
-    "actorFromEve",
-    "createPermDock",
-    "rolesOf",
-    "subjectFromEve"
-  ],
-  "./openai": [
-    "createPermDock"
-  ],
+  "./agent": ["createPermDock"],
+  "./ai-sdk": ["createPermDock"],
+  "./claude-agent": ["createPermDock"],
+  "./eve": ["actorFromEve", "createPermDock", "rolesOf", "subjectFromEve"],
+  "./openai": ["createPermDock"],
   "./mcp": [
     "APPROVAL_META_KEY",
     "createPermDock",
@@ -624,9 +603,7 @@
     "formatDecision",
     "looksLikeJwt"
   ],
-  "./webmcp": [
-    "registerTools"
-  ],
+  "./webmcp": ["registerTools"],
   "./workflow": [
     "createPermDock",
     "memoryAutomationSource",
@@ -639,9 +616,7 @@
     "startAutomation",
     "workflowSdkWaiter"
   ],
-  "./a2a": [
-    "createPermDock"
-  ],
+  "./a2a": ["createPermDock"],
   "./otel": [
     "GENAI_SEMCONV_PIN",
     "GEN_AI_TOOL_CALL_ID",
@@ -712,11 +687,7 @@
     "resendTransport",
     "resendWebhook"
   ],
-  "./chat": [
-    "createPermDock",
-    "isChatAuthor",
-    "subjectFromChat"
-  ],
+  "./chat": ["createPermDock", "isChatAuthor", "subjectFromChat"],
   "./chat-sdk": [
     "APPROVE_ACTION",
     "REJECT_ACTION",
@@ -725,11 +696,7 @@
     "chatSdkAuthor",
     "chatSdkTransport"
   ],
-  "./drizzle": [
-    "checkRow",
-    "toWhere",
-    "withSubject"
-  ],
+  "./drizzle": ["checkRow", "toWhere", "withSubject"],
   "./prisma": [
     "checkRow",
     "permdockExtension",
@@ -739,11 +706,7 @@
     "toWhere",
     "withSubject"
   ],
-  "./kysely": [
-    "checkRow",
-    "toWhere",
-    "withSubject"
-  ],
+  "./kysely": ["checkRow", "toWhere", "withSubject"],
   "./supabase": [
     "AUTHZ_EVENT",
     "AUTHZ_TOPIC",
@@ -771,12 +734,8 @@
     "tableApprovalPolicySource",
     "tableMembershipSource"
   ],
-  "./supabase/middleware": [
-    "createPermDock"
-  ],
-  "./supabase/client": [
-    "supabaseRealtimeRefresh"
-  ],
+  "./supabase/middleware": ["createPermDock"],
+  "./supabase/client": ["supabaseRealtimeRefresh"],
   "./ssf": [
     "SSF_POLL_DELIVERY",
     "SSF_PUSH_DELIVERY",
@@ -829,14 +788,8 @@
     "topicPolicy",
     "workflowResource"
   ],
-  "./clerk": [
-    "clerkSubjectResolver",
-    "subjectFromClerk"
-  ],
-  "./convex": [
-    "ConvexError",
-    "createPermDock"
-  ],
+  "./clerk": ["clerkSubjectResolver", "subjectFromClerk"],
+  "./convex": ["ConvexError", "createPermDock"],
   "./pdp": [
     "getPermDock",
     "getPermDockSync",
@@ -844,10 +797,7 @@
     "remotePdp",
     "spicedb"
   ],
-  "./compile": [
-    "compileWhere",
-    "escapeLike"
-  ],
+  "./compile": ["compileWhere", "escapeLike"],
   "./catalog": [
     "PUSHED_POLICY_SCHEMA",
     "catalogDrift",
@@ -949,11 +899,7 @@
     "testVersionStore",
     "testWhereCompiler"
   ],
-  "./testing/core": [
-    "policyMatrix",
-    "testOrmParity",
-    "testRlsParity"
-  ],
+  "./testing/core": ["policyMatrix", "testOrmParity", "testRlsParity"],
   "./testing/fixtures": [
     "betterSupabaseCatalog",
     "betterSupabaseManifest",
@@ -1019,14 +965,7 @@
     "pushedPolicy",
     "run"
   ],
-  "./unplugin": [
-    "createPermDockUnplugin"
-  ],
-  "./next/plugin": [
-    "createPermDockPlugin"
-  ],
-  "./next/client": [
-    "PermissionBoundary",
-    "usePermissionBoundary"
-  ]
+  "./unplugin": ["createPermDockUnplugin"],
+  "./next/plugin": ["createPermDockPlugin"],
+  "./next/client": ["PermissionBoundary", "usePermissionBoundary"]
 }

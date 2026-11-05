@@ -57,9 +57,9 @@ export function pd092(project: Project): readonly DoctorFinding[] {
   for (const match of snapshotsSection(project.files.read(lockfile)).matchAll(
     SNAPSHOT_KEY,
   )) {
-    const version = match[1] ?? "";
+    const version = String(match[1]);
     const peers = variants.get(version) ?? new Set<string>();
-    peers.add(match[2] ?? "");
+    peers.add(String(match[2]));
     variants.set(version, peers);
   }
   return [...variants]

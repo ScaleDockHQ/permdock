@@ -83,6 +83,12 @@ snapshots:
     expect(run(undefined)).toStrictEqual([]);
   });
 
+  it("is quiet for a lockfile without a snapshots section", () => {
+    expect(
+      run("lockfileVersion: '9.0'\npackages:\n  permdock@0.21.0: {}\n"),
+    ).toStrictEqual([]);
+  });
+
   it("names a variant without peers and finds the lockfile in a parent directory", () => {
     const root = project({
       "pnpm-lock.yaml":
