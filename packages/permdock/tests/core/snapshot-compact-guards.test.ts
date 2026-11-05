@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 
 const base = {
-  v: 2,
+  v: 1,
   issuedAt: "1970-01-01T00:00:00Z",
   subject: { principal: null, context: {} },
   roles: [],
@@ -13,9 +14,9 @@ const base = {
   grants: [{ permission: "post.read", cond: 0 }],
 };
 
-describe("snapshot v2 guards", () => {
+describe("compact snapshot guards", () => {
   it("expands a valid document", () => {
-    const snapshot = parseSnapshot(JSON.stringify(base));
+    const snapshot = expandSnapshot(parseSnapshot(JSON.stringify(base)));
     expect(snapshot.grants[0]).toStrictEqual({
       permission: "post.read",
       effect: "allow",
@@ -50,11 +51,9 @@ describe("snapshot v2 guards", () => {
         grants: [{ permission: "post.read", cond: [0, 1, 0] }],
       }),
     );
-    expect(snapshot.grants.map((grant) => grant.effect)).toStrictEqual([
-      "allow",
-      "deny",
-      "allow",
-    ]);
+    expect(
+      expandSnapshot(snapshot).grants.map((grant) => grant.effect),
+    ).toStrictEqual(["allow", "deny", "allow"]);
   });
 
   it("throws when conditions is not an array", () => {

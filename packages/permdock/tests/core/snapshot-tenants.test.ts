@@ -30,7 +30,6 @@ const subject: Subject = {
 function snapshotOf(tenants?: "all" | readonly string[]): Snapshot {
   const instance = getPermDockSync(policy, { id: "u1" }, { tenant: "o1" });
   const snapshot = instance.snapshot({
-    v: 1,
     include: [tree.post.read],
     ...(tenants === undefined ? {} : { tenants }),
   });

@@ -1,6 +1,7 @@
 import type { Permission } from "./permission-types.ts";
 import type { Grant, PolicyVocabulary } from "./policy-types.ts";
 import type {
+  ExpandedSnapshot,
   Snapshot,
   SnapshotAssignable,
   SnapshotGrant,
@@ -15,7 +16,7 @@ import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { scopeList } from "./scopes.ts";
-import { expandGrants } from "./snapshot-compact.ts";
+import { expandGrants, expandSnapshot } from "./snapshot-compact.ts";
 import { tenantsOf } from "./tenancy.ts";
 import { isRfc3339, nowSeconds, rfc3339 } from "./time.ts";
 import { wireValidity } from "./validity.ts";
@@ -143,13 +144,13 @@ export function buildSnapshot(input: {
   readonly simulated?: boolean;
   readonly now?: number;
   readonly vocabulary?: PolicyVocabulary;
-  readonly scopes?: Snapshot["scopes"];
+  readonly scopes?: ExpandedSnapshot["scopes"];
   readonly assignable?: (tenant: string) => SnapshotAssignable;
   readonly notEntitled?: readonly { readonly grant: Grant }[];
   readonly delegated?: ReadonlySet<string>;
   /** The id field of a resource, when its `id` option names one. */
   readonly idOf?: (resource: string) => string | undefined;
-}): Snapshot {
+}): ExpandedSnapshot {
   const now = input.now ?? nowSeconds();
   const principal = input.subject.principal;
   const allTenants = tenantsOf(principal, scopeList(input.scopes));
@@ -212,14 +213,14 @@ export function buildSnapshot(input: {
           });
         });
   const snapshot = freezeDeep(
-    compact<Snapshot>({
+    compact<ExpandedSnapshot>({
       v: 1 as const,
       issuedAt: rfc3339(now),
-      subject: compact<Snapshot["subject"]>({
+      subject: compact<ExpandedSnapshot["subject"]>({
         principal:
           principal === null
             ? null
-            : compact<NonNullable<Snapshot["subject"]["principal"]>>({
+            : compact<NonNullable<ExpandedSnapshot["subject"]["principal"]>>({
                 id: principal.id,
                 roles: principal.roles ?? [],
                 plans: principal.plans,
@@ -258,7 +259,7 @@ export function buildSnapshot(input: {
       vocabulary:
         input.vocabulary === undefined
           ? undefined
-          : compact<NonNullable<Snapshot["vocabulary"]>>({
+          : compact<NonNullable<ExpandedSnapshot["vocabulary"]>>({
               roles:
                 listRoles(input.vocabulary.roles).length === 0
                   ? undefined
@@ -348,6 +349,11 @@ function validTypeLevel(value: unknown): boolean {
   );
 }
 
+/**
+ * Validates a snapshot document, from JSON text or a value, and returns it
+ * frozen. Throws on an unsupported `v`, a malformed time, `typeLevel` or grant
+ * index, and on a key that would reach a prototype.
+ */
 export function parseSnapshot(json: unknown): Snapshot {
   const input: unknown = typeof json === "string" ? JSON.parse(json) : json;
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
@@ -364,7 +370,7 @@ export function parseSnapshot(json: unknown): Snapshot {
   // SAFETY: value is a non-array object; its fields stay unknown until checked.
   const record = value as Record<string, unknown>;
   const version = record["v"];
-  if (version !== 1 && version !== 2) {
+  if (version !== 1) {
     throw new Error(
       `PermDock: unsupported snapshot version '${String(version)}'`,
     );
@@ -393,11 +399,13 @@ export function parseSnapshot(json: unknown): Snapshot {
       "PermDock: snapshot typeLevel must list permission keys under granted, approval and endpoint",
     );
   }
-  if (version === 2) {
-    const { conditions: _conditions, ...rest } = record;
-    // SAFETY: only the version, times, typeLevel, unsafe keys and the grant indexes are checked; the other fields are not validated here.
-    return freezeDeep({ ...rest, v: 1, ...expandGrants(record) }) as Snapshot;
-  }
-  // SAFETY: only the version, times, typeLevel and unsafe keys are checked; the other fields are not validated here.
+  // Reading the grants checks every `cond` index now, so a malformed document never parses.
+  expandGrants(record);
+  // SAFETY: the version, times, typeLevel, unsafe keys and grant indexes are checked; the other fields are not validated here.
   return freezeDeep(value) as Snapshot;
+}
+
+/** `parseSnapshot`, then the flat form the evaluator reads. */
+export function parseExpandedSnapshot(json: unknown): ExpandedSnapshot {
+  return expandSnapshot(parseSnapshot(json));
 }

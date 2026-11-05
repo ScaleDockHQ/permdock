@@ -15,13 +15,15 @@ import {
 } from "../../src/client/refresh-on.ts";
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
+import { compactSnapshot } from "../../src/core/snapshot-compact.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { supabaseRealtimeRefresh } from "../../src/supabase/client.ts";
 
 function signedIn(id: string): Snapshot {
-  return {
-    ...emptySnapshot(),
+  return compactSnapshot({
+    ...expandSnapshot(emptySnapshot()),
     subject: { principal: { id, roles: [] }, context: {} },
-  };
+  });
 }
 
 function counted(): {

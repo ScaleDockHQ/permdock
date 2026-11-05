@@ -2,6 +2,7 @@ import type { Decision } from "../core/decision.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Snapshot } from "../core/snapshot-types.ts";
 
+import { expandSnapshot } from "../core/snapshot-compact.ts";
 import { snapshotReads } from "../core/snapshot-reads.ts";
 import { subjectFromSnapshot } from "../core/snapshot-subject.ts";
 
@@ -20,8 +21,9 @@ export function lightInstance(
   snapshot: Snapshot,
   options: { readonly tenant?: string },
 ): PermDock {
-  const subject = subjectFromSnapshot(snapshot, options.tenant);
-  const reads = snapshotReads(snapshot, subject);
+  const expanded = expandSnapshot(snapshot);
+  const subject = subjectFromSnapshot(expanded, options.tenant);
+  const reads = snapshotReads(expanded, subject);
   // SAFETY: the members that evaluate are absent; the store never exposes this instance to a check, and the two it may call, can and decide, deny.
   return {
     ...reads,

@@ -2,7 +2,7 @@ import type { App, Plugin } from "vue";
 
 import { effectScope, isRef, toValue, watch } from "vue";
 
-import type { SnapshotInput } from "../core/snapshot-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockPluginOptions } from "./types.ts";
 
 import { providerStore, switchTenant, isPromiseLike } from "../client/kit.ts";
@@ -26,7 +26,7 @@ export const permdockPlugin: Plugin<PermDockPluginOptions> = {
       if (!promised && (isRef(source) || typeof source === "function")) {
         // SAFETY: the promise case is handled above, so source is a ref or getter of a Snapshot or string.
         watch(
-          () => toValue(source) as SnapshotInput | string,
+          () => toValue(source) as Snapshot | string,
           (next) => {
             store.replace(next);
           },

@@ -42,7 +42,7 @@ describe("canAll", () => {
   });
 
   it("answers the same on an instance built from a snapshot", () => {
-    const snapshot = getPermDockSync(policy, memberUser).snapshot({ v: 1 });
+    const snapshot = getPermDockSync(policy, memberUser).snapshot();
     const permdock = fromSnapshot(snapshot);
     expect(
       permdock.canAll([
@@ -71,7 +71,7 @@ describe("decideAll", () => {
 
   it("answers the same on an instance built from a snapshot", () => {
     const permdock = fromSnapshot(
-      getPermDockSync(policy, memberUser).snapshot({ v: 1 }),
+      getPermDockSync(policy, memberUser).snapshot(),
     );
     const decisions = permdock.decideAll([
       permissions.post.list,

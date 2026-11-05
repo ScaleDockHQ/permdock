@@ -24,6 +24,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { crud } from "../../src/core/presets.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { isActor } from "../../src/core/subject.ts";
 import {
@@ -231,12 +232,12 @@ describe("principal refs and snapshots", () => {
       },
     );
     const permdock = getPermDockSync(policy, { id: "u1" });
-    const snapshot = permdock.snapshot({ v: 1 });
+    const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected json snapshot");
     }
     expect(snapshot.v).toBe(1);
-    expect(snapshot.grants[0]?.to).toMatchObject({
+    expect(expandSnapshot(snapshot).grants[0]?.to).toMatchObject({
       kind: "role",
       role: "owner",
     });

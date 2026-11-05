@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import type { ClientStoreOptions } from "../client/store.ts";
 import type { DescribeMessages } from "../core/describe.ts";
 import type { SnapshotSource, TokenVerifier } from "../core/interfaces.ts";
-import type { SnapshotInput } from "../core/snapshot-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockDefaults } from "../react/types.ts";
 
 export type SnapshotStorage = {
@@ -40,7 +40,7 @@ export type ReactNativePermDockProviderProps = {
    * persisted snapshot for this id is read or written; `null` clears storage.
    */
   readonly subjectId: string | null;
-  readonly snapshot?: SnapshotInput | string;
+  readonly snapshot?: Snapshot | string;
   readonly snapshotUrl?: string;
   /**
    * Hydrates from the device's own rows (`localSnapshot`); with `snapshotUrl`

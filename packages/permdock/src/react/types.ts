@@ -10,7 +10,7 @@ import type { DescribeMessages } from "../core/describe.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
 import type { RowData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { SnapshotInput } from "../core/snapshot-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 
 export type {
   ApprovalHandle,
@@ -31,10 +31,7 @@ export type {
 } from "../client/types.ts";
 
 export type PermDockProviderProps = (
-  | {
-      readonly snapshot: SnapshotInput | string;
-      readonly snapshotPromise?: never;
-    }
+  | { readonly snapshot: Snapshot | string; readonly snapshotPromise?: never }
   | {
       /**
        * An unawaited snapshot from a Server Component. Hooks never suspend on
@@ -42,7 +39,7 @@ export type PermDockProviderProps = (
        * re-render. A rejection fails closed (`server-only`). Set `suspend` to
        * suspend readers through `use()` instead.
        */
-      readonly snapshotPromise: PromiseLike<SnapshotInput | string>;
+      readonly snapshotPromise: PromiseLike<Snapshot | string>;
       readonly snapshot?: never;
     }
 ) & {

@@ -25,7 +25,7 @@ describe("get snapshot", () => {
         include: [permissions.post],
         tags: ["org:acme"],
       });
-      expect(snapshot.v).toBe(2);
+      expect(snapshot.v).toBe(1);
       expect(snapshot.grants.length).toBeGreaterThan(0);
       expect(cacheLife).toHaveBeenCalledWith({ stale: 300 });
       expect(cacheTag).toHaveBeenCalledWith(

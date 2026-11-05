@@ -113,7 +113,7 @@ describe("permdock/sveltekit", () => {
     const instance = await getPermDock(eventFor("/"));
     const conn = await connection(eventFor("/"));
     expect([snapshot.status, evaluations.status]).toStrictEqual([200, 200]);
-    expect(loaded.v).toBe(2);
+    expect(loaded.v).toBe(1);
     expect(instance.can(permissions.post.read, ownPost)).toBe(true);
     expect(conn.signal.aborted).toBe(false);
   });

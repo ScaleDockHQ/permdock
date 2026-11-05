@@ -346,7 +346,7 @@ describe("decideFor", () => {
   it("is unsupported on a snapshot instance; decideEach works there", async () => {
     const permdock = getPermDockSync(policy, subjectOf(alice), { principals });
     const offline = fromSnapshot(
-      permdock.snapshot({ v: 1, include: [permissions.invoice.read] }),
+      permdock.snapshot({ include: [permissions.invoice.read] }),
     );
     const decision = await offline.decideFor(
       "bob",

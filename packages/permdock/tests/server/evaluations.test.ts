@@ -229,7 +229,7 @@ describe("evaluationsHandler GET", () => {
     const response = await handler({ resolve }).GET(
       new Request("https://api.example/permdock/snapshot?tenant=o1"),
     );
-    expect(await response.json()).toMatchObject({ v: 2 });
+    expect(await response.json()).toMatchObject({ v: 1 });
     expect(tenants).toStrictEqual(["o1"]);
     const getPermDock = vi.fn<
       (query?: { readonly tenant?: string }) => Promise<PermDock>

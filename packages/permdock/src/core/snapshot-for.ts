@@ -2,9 +2,8 @@ import type { AuthEvent } from "./event-types.ts";
 import type { SnapshotInclude } from "./instance-snapshot.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type {
-  CompactSnapshot,
+  ExpandedSnapshot,
   Snapshot,
-  SnapshotInput,
   SnapshotTenants,
 } from "./snapshot-types.ts";
 import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
@@ -74,28 +73,9 @@ export function snapshotFor<
 >(
   policy: Policy<TUser, TPrincipal, V>,
   user: TUser | Subject | null,
-  options: SnapshotForOptions & { readonly v: 1 },
-): Snapshot;
-export function snapshotFor<
-  TUser,
-  TPrincipal extends Principal = Principal,
-  V extends PolicyVocabulary = PolicyVocabulary,
->(
-  policy: Policy<TUser, TPrincipal, V>,
-  user: TUser | Subject | null,
-  options?: SnapshotForOptions & { readonly v?: 2 },
-): CompactSnapshot;
-export function snapshotFor<
-  TUser,
-  TPrincipal extends Principal = Principal,
-  V extends PolicyVocabulary = PolicyVocabulary,
->(
-  policy: Policy<TUser, TPrincipal, V>,
-  user: TUser | Subject | null,
   options: SnapshotForOptions = {},
-): SnapshotInput {
-  const expanded = expandedSnapshotFor(policy, user, options);
-  return options.v === 1 ? expanded : compactSnapshot(expanded);
+): Snapshot {
+  return compactSnapshot(expandedSnapshotFor(policy, user, options));
 }
 
 function expandedSnapshotFor<
@@ -106,7 +86,7 @@ function expandedSnapshotFor<
   policy: Policy<TUser, TPrincipal, V>,
   user: TUser | Subject | null,
   options: SnapshotForOptions,
-): Snapshot {
+): ExpandedSnapshot {
   const auth: AuthEvent[] = [];
   const memberships = options.memberships;
   // SAFETY: the generics only type the caller's side; resolveSubject reads the erased policy.

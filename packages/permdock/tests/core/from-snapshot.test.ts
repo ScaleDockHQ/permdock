@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { Snapshot, SnapshotGrant } from "../../src/core/snapshot-types.ts";
+import type { ExpandedSnapshot } from "../../src/core/snapshot-types.ts";
 
 import {
   PermDockApprovalRequiredError,
@@ -10,6 +11,10 @@ import { emptySnapshot, fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
+import {
+  compactSnapshot,
+  expandSnapshot,
+} from "../../src/core/snapshot-compact.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 import {
   activate,
@@ -30,7 +35,7 @@ import {
 describe(fromSnapshot, () => {
   it("answers the same portable checks as the server instance", async () => {
     const server = getPermDockSync(policy, memberUser);
-    const snapshot = server.snapshot({ v: 1 });
+    const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -51,7 +56,7 @@ describe(fromSnapshot, () => {
 
   it("keeps deny-overrides-allow for admin publish", async () => {
     const server = getPermDockSync(policy, adminUser);
-    const snapshot = server.snapshot({ v: 1 });
+    const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -65,7 +70,7 @@ describe(fromSnapshot, () => {
 
   it("fails closed for anonymous and unknown include", async () => {
     const server = getPermDockSync(policy, null);
-    const snapshot = server.snapshot({ v: 1 });
+    const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -78,7 +83,7 @@ describe(fromSnapshot, () => {
 
   it("treats portable false and include misses as server-only denials", async () => {
     const server = getPermDockSync(policy, memberUser);
-    const full = server.snapshot({ v: 1 });
+    const full = server.snapshot();
     if (full instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -88,21 +93,23 @@ describe(fromSnapshot, () => {
     if (decision.outcome === "denied") {
       expect(decision.denials[0]?.reason).toBe("opaque-condition");
     }
-    const opaque = fromSnapshot({
-      ...full,
-      grants: full.grants.map((grant) => {
-        if (grant.permission !== "post.update") {
-          return grant;
-        }
-        return {
-          permission: grant.permission,
-          effect: grant.effect,
-          role: grant.role,
-          to: grant.to,
-          portable: false as const,
-        };
+    const opaque = fromSnapshot(
+      compactSnapshot({
+        ...expandSnapshot(full),
+        grants: expandSnapshot(full).grants.map((grant) => {
+          if (grant.permission !== "post.update") {
+            return grant;
+          }
+          return {
+            permission: grant.permission,
+            effect: grant.effect,
+            role: grant.role,
+            to: grant.to,
+            portable: false as const,
+          };
+        }),
       }),
-    });
+    );
     const closed = opaque.decide(permissions.post.update, ownPost);
     expect(closed.outcome).toBe("denied");
     if (closed.outcome === "denied") {
@@ -112,7 +119,7 @@ describe(fromSnapshot, () => {
 
   it("throws the same assert errors as the server", async () => {
     const server = getPermDockSync(policy, memberUser);
-    const snapshot = server.snapshot({ v: 1 });
+    const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -124,7 +131,7 @@ describe(fromSnapshot, () => {
 
   it("exposes snapshot tenants and derived tenant instances", async () => {
     const server = getPermDockSync(policy, memberUser);
-    const snapshot = server.snapshot({ v: 1 });
+    const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -147,7 +154,7 @@ describe(fromSnapshot, () => {
         access: [{ type: "post", actions: ["read"], identifier: "p1" }],
       },
     });
-    const snapshot = server.snapshot({ v: 1 });
+    const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -186,8 +193,8 @@ function snapshotGrant(
   };
 }
 
-function docSnapshot(extra: Partial<Snapshot> = {}): Snapshot {
-  return {
+function docSnapshot(extra: Partial<ExpandedSnapshot> = {}): Snapshot {
+  return compactSnapshot({
     v: 1,
     issuedAt: "1970-01-01T00:00:01Z",
     subject: {
@@ -215,7 +222,7 @@ function docSnapshot(extra: Partial<Snapshot> = {}): Snapshot {
     tenants: ["t1", "t2"],
     vocabulary: { roles: vocabulary },
     ...extra,
-  };
+  });
 }
 
 describe("fromSnapshot instance surface", () => {
@@ -285,7 +292,7 @@ describe("fromSnapshot instance surface", () => {
     expect(plan.outcome).toBe("denied");
 
     const asOwner = client.simulate({ roles: [vocabulary.owner, "contact"] });
-    const ownerView = asOwner.snapshot({ v: 1 });
+    const ownerView = asOwner.snapshot();
     if (typeof ownerView === "string" || ownerView instanceof Promise) {
       throw new TypeError("expected a JSON snapshot");
     }

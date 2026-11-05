@@ -1,6 +1,7 @@
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
 
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import {
   getPermDockSync,
   fromSnapshot,
@@ -43,12 +44,10 @@ function assertJson(value: unknown, path = "$"): void {
 }
 
 describe(snapshotFor, () => {
-  it("matches getPermDockSync().snapshot({ v: 1 }) for the same subject", async () => {
+  it("matches getPermDockSync().snapshot() for the same subject", async () => {
     const permdock = getPermDockSync(policy, alice, { tenant: "acme" });
     // SAFETY: the instance has no signer, so snapshot() returned an unsigned Snapshot.
-    const expected = permdock.snapshot({ v: 1 }) as {
-      readonly issuedAt: string;
-    };
+    const expected = permdock.snapshot() as { readonly issuedAt: string };
     const actual = snapshotFor(policy, alice, {
       tenant: "acme",
       now: Temporal.Instant.from(expected.issuedAt),
@@ -154,7 +153,9 @@ describe(snapshotFor, () => {
     const snapshot = snapshotFor(policy, null, { v: 1 });
     expect(snapshot.subject.principal).toBeNull();
     expect(
-      snapshot.grants.filter((grant) => grant.effect === "allow"),
+      expandSnapshot(snapshot).grants.filter(
+        (grant) => grant.effect === "allow",
+      ),
     ).toStrictEqual([]);
   });
 

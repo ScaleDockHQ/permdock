@@ -1,5 +1,5 @@
 import type { TokenVerifier } from "../core/interfaces.ts";
-import type { SnapshotInput } from "../core/snapshot-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { ClientStore } from "./store-core.ts";
 import type { AdapterStoreOptions } from "./store-options.ts";
 
@@ -68,11 +68,7 @@ type ProviderStoreOptions = Pick<
 export function providerStore(
   options: ProviderStoreOptions,
   read: LiveRead,
-  snapshot:
-    | SnapshotInput
-    | string
-    | PromiseLike<SnapshotInput | string>
-    | undefined,
+  snapshot: Snapshot | string | PromiseLike<Snapshot | string> | undefined,
 ): ClientStore {
   const promised = isPromiseLike(snapshot);
   const store = adapterStore(

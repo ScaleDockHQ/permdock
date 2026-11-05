@@ -1,6 +1,6 @@
 import type { ClientStore } from "../client/store.ts";
 import type { SnapshotSource } from "../core/interfaces.ts";
-import type { Snapshot, SnapshotInput } from "../core/snapshot-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { Stored } from "./storage.ts";
 import type {
   ReactNativePermDockProviderProps,
@@ -44,7 +44,7 @@ function contentKey(snapshot: Snapshot): string {
  * Whether a source read changes nothing: same content as the snapshot the store
  * holds, and the store already settled on it.
  */
-function unchanged(store: ClientStore, next: SnapshotInput | string): boolean {
+function unchanged(store: ClientStore, next: Snapshot | string): boolean {
   if (typeof next === "string" || store.get().status() === "stale") {
     return false;
   }
@@ -96,9 +96,7 @@ export function connectSource(
   };
 }
 
-function seedOf(
-  stored: Stored | undefined,
-): SnapshotInput | string | undefined {
+function seedOf(stored: Stored | undefined): Snapshot | string | undefined {
   if (stored === undefined) {
     return undefined;
   }
@@ -106,7 +104,7 @@ function seedOf(
 }
 
 function belongsTo(
-  snapshot: Pick<SnapshotInput, "subject">,
+  snapshot: Pick<Snapshot, "subject">,
   subjectId: string | null,
 ): boolean {
   return subjectId !== null && snapshot.subject.principal?.id === subjectId;
@@ -115,7 +113,7 @@ function belongsTo(
 /** A JWS stays a string for the verifier; anything else parses or is dropped. */
 function parseSeed(
   given: NativeStoreOptions["snapshot"],
-): SnapshotInput | string | undefined {
+): Snapshot | string | undefined {
   if (given === undefined) {
     return undefined;
   }

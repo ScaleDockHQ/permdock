@@ -8,6 +8,10 @@ import { branchClauses } from "../../src/cli/sql/clauses.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
+  compactSnapshot,
+  expandSnapshot,
+} from "../../src/core/snapshot-compact.ts";
+import {
   allow,
   getPermDockSync,
   definePermissions,
@@ -190,7 +194,7 @@ describe("grant validity", () => {
       expect(decision.denials[0]?.reason).toBe("validation");
     }
     expect(permdock.can(permissions.doc.update, doc, options)).toBe(false);
-    const snapshot = permdock.snapshot({ v: 1 });
+    const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("unsigned snapshot expected");
     }
@@ -217,11 +221,11 @@ describe("grant validity", () => {
 
   it("carries validity into the snapshot and evaluates it there", async () => {
     const permdock = await contractor();
-    const snapshot = permdock.snapshot({ v: 1 });
+    const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("unsigned snapshot expected");
     }
-    const read = snapshot.grants.find(
+    const read = expandSnapshot(snapshot).grants.find(
       (grant) => grant.permission === "doc.read",
     );
     expect(read?.validity).toStrictEqual(WINDOW);
@@ -247,17 +251,19 @@ describe("grant validity", () => {
 
   it("keeps a deny with a malformed wire window in force on the client", async () => {
     const permdock = await contractor();
-    const snapshot = permdock.snapshot({ v: 1 });
+    const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("unsigned snapshot expected");
     }
-    const grants = snapshot.grants.filter((grant) => grant.effect !== "deny");
-    for (const grant of snapshot.grants) {
+    const grants = expandSnapshot(snapshot).grants.filter(
+      (grant) => grant.effect !== "deny",
+    );
+    for (const grant of expandSnapshot(snapshot).grants) {
       if (grant.effect === "deny") {
         grants.push(Object.assign({}, grant, { validity: { until: "x" } }));
       }
     }
-    const corrupted = { ...snapshot, grants };
+    const corrupted = compactSnapshot({ ...expandSnapshot(snapshot), grants });
     const client = fromSnapshot(corrupted);
     expect(client.can(permissions.doc.delete, doc, { now: at(during) })).toBe(
       false,

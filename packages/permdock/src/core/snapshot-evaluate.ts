@@ -9,7 +9,7 @@ import type {
 import type { DecideOptions, WhereResult } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Scope } from "./scopes.ts";
-import type { Snapshot, SnapshotGrant } from "./snapshot-types.ts";
+import type { ExpandedSnapshot, SnapshotGrant } from "./snapshot-types.ts";
 import type { Subject } from "./subject.ts";
 
 import { evaluateCondition } from "../conditions/condition-evaluate.ts";
@@ -35,7 +35,10 @@ import { decisionToken, tokenPayload } from "./token.ts";
 import { isActive, readWireValidity } from "./validity.ts";
 import { whereFromGrants } from "./where-scope.ts";
 
-function coveredByInclude(snapshot: Snapshot, permission: Permission): boolean {
+function coveredByInclude(
+  snapshot: ExpandedSnapshot,
+  permission: Permission,
+): boolean {
   const include = snapshot.include;
   if (include === undefined || include.length === 0) {
     return true;
@@ -53,7 +56,7 @@ function coveredByInclude(snapshot: Snapshot, permission: Permission): boolean {
  * `fields` entry, else the scope's key.
  */
 function snapshotField(
-  snapshot: Snapshot,
+  snapshot: ExpandedSnapshot,
   name: string,
   resource: string,
 ): string | undefined {
@@ -63,7 +66,7 @@ function snapshotField(
 }
 
 function scopeOk(
-  snapshot: Snapshot,
+  snapshot: ExpandedSnapshot,
   grant: SnapshotGrant,
   permission: Permission,
   subject: Subject,
@@ -240,7 +243,7 @@ function matchedOf(grant: SnapshotGrant): MatchedGrant {
 }
 
 export function evaluateSnapshot(
-  snapshot: Snapshot,
+  snapshot: ExpandedSnapshot,
   subject: Subject,
   permission: Permission,
   data: unknown,
@@ -516,7 +519,7 @@ export function evaluateSnapshot(
 }
 
 export function whereFromSnapshot(
-  snapshot: Snapshot,
+  snapshot: ExpandedSnapshot,
   subject: Subject,
   permission: Permission,
   team?: string,

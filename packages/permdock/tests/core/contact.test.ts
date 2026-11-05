@@ -150,7 +150,7 @@ describe("contact principals", () => {
     expect(
       permdock.where(permissions.invoice.read).condition,
     ).not.toStrictEqual({ op: "or", conditions: [] });
-    const offline = fromSnapshot(permdock.snapshot({ v: 1 }));
+    const offline = fromSnapshot(permdock.snapshot());
     expect(offline.can(permissions.invoice.read, i1)).toBe(true);
     expect(offline.can(permissions.invoice.comment, i1)).toBe(false);
     expect(offline.can(permissions.invoice.pay, i1)).toBe(true);

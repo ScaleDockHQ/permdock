@@ -1,7 +1,7 @@
 import type { MembershipFilter } from "./membership-filter.ts";
 import type { PermDock } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
-import type { Snapshot, SnapshotAssignable } from "./snapshot-types.ts";
+import type { ExpandedSnapshot, SnapshotAssignable } from "./snapshot-types.ts";
 import type { Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
@@ -11,7 +11,7 @@ import { heldRoleNames } from "./snapshot-subject.ts";
 import { findRole, listRoles, synthesiseRole } from "./vocabulary.ts";
 
 function assignableEntry(
-  snapshot: Snapshot,
+  snapshot: ExpandedSnapshot,
   tenant: string | undefined,
 ): SnapshotAssignable | undefined {
   if (tenant === undefined) {
@@ -26,7 +26,7 @@ function assignableEntry(
  * reads them without the evaluator.
  */
 export function snapshotReads(
-  snapshot: Snapshot,
+  snapshot: ExpandedSnapshot,
   subject: Subject,
 ): Pick<
   PermDock,

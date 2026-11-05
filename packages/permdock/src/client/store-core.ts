@@ -2,7 +2,7 @@ import type { Decision } from "../core/decision.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { Snapshot, SnapshotInput } from "../core/snapshot-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { CacheEntry } from "./batch.ts";
 import type { RefreshTrigger } from "./refresh-on.ts";
 import type { StoreHeaders } from "./request.ts";
@@ -28,7 +28,7 @@ import { storeRequest } from "./request.ts";
 import { isJws } from "./source.ts";
 
 export type ClientStoreOptions = {
-  readonly snapshot: SnapshotInput | string;
+  readonly snapshot: Snapshot | string;
   readonly endpoint?: string;
   readonly snapshotUrl?: string;
   /**
@@ -39,7 +39,7 @@ export type ClientStoreOptions = {
    */
   readonly fetchSnapshot?: (query: {
     readonly tenant?: string;
-  }) => SnapshotInput | string | Promise<SnapshotInput | string>;
+  }) => Snapshot | string | Promise<Snapshot | string>;
   readonly approvals?: string;
   readonly tenant?: string;
   readonly fetch?: typeof fetch;
@@ -141,19 +141,19 @@ export type ClientStore = {
    * Stay `pending` until `value` settles, then hydrate; a rejection fails
    * closed.
    */
-  follow: (value: PromiseLike<SnapshotInput | string>) => void;
+  follow: (value: PromiseLike<Snapshot | string>) => void;
   /**
    * `follow()` once per `value`, without suspending. A thenable React already
    * settled (`status: 'fulfilled'`) hydrates at once.
    */
-  track: (value: PromiseLike<SnapshotInput | string>) => void;
+  track: (value: PromiseLike<Snapshot | string>) => void;
   /**
    * Render-time `track()`: hydrates at once from a promise React already
    * settled (`status: 'fulfilled'`) and does nothing for a pending one, which
    * `track()` follows after commit. Subscribers are notified in a microtask,
    * never inside render.
    */
-  seed: (value: PromiseLike<SnapshotInput | string>) => void;
+  seed: (value: PromiseLike<Snapshot | string>) => void;
   /**
    * What a server render saw: the instance the store held when first read after
    * `seed()`. Pass it as `getServerSnapshot`, so a boundary that hydrates after
@@ -170,7 +170,7 @@ export type ClientStore = {
    * `source`; subscribers are notified in a microtask, never synchronously
    * inside render.
    */
-  adopt: (value: SnapshotInput | string, source: object) => void;
+  adopt: (value: Snapshot | string, source: object) => void;
   snapshot: () => Snapshot;
   /** The tenant the store currently answers for. */
   tenant: () => string | undefined;
@@ -757,11 +757,11 @@ export function createStore(
     }
   };
 
-  const follow = (value: PromiseLike<SnapshotInput | string>): void => {
+  const follow = (value: PromiseLike<Snapshot | string>): void => {
     const started = generation;
     following += 1;
     emit();
-    const settle = (next: SnapshotInput | string | undefined): void => {
+    const settle = (next: Snapshot | string | undefined): void => {
       following -= 1;
       if (started !== generation) {
         emit();
@@ -786,7 +786,7 @@ export function createStore(
       dispatch(value);
     },
     follow,
-    track(value: PromiseLike<SnapshotInput | string>): void {
+    track(value: PromiseLike<Snapshot | string>): void {
       if (tracked === value) {
         return;
       }
@@ -808,7 +808,7 @@ export function createStore(
         follow(value);
       }
     },
-    seed(value: PromiseLike<SnapshotInput | string>): void {
+    seed(value: PromiseLike<Snapshot | string>): void {
       // SAFETY: React marks a thenable it has read with `status` and `value`; anything else is pending.
       const thenable = value as {
         readonly status?: unknown;
@@ -823,8 +823,8 @@ export function createStore(
         following -= 1;
       }
       store.adopt(
-        // SAFETY: a fulfilled thenable of PromiseLike<SnapshotInput | string> holds that value.
-        thenable.value as SnapshotInput | string,
+        // SAFETY: a fulfilled thenable of PromiseLike<Snapshot | string> holds that value.
+        thenable.value as Snapshot | string,
         value,
       );
     },
@@ -832,7 +832,7 @@ export function createStore(
       serverView ??= cached;
       return serverView;
     },
-    adopt(value: SnapshotInput | string, source: object): void {
+    adopt(value: Snapshot | string, source: object): void {
       if (adopted === source) {
         return;
       }

@@ -14,6 +14,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 import {
@@ -57,7 +58,7 @@ describe("named scopes: decide, snapshot and where agree", () => {
   for (const [name, principal] of Object.entries(personas)) {
     it(`agrees for ${name}`, async () => {
       const permdock = await permdockFor(principal);
-      const snapshot = permdock.snapshot({ v: 1 });
+      const snapshot = permdock.snapshot();
       if (snapshot instanceof Promise) {
         throw new TypeError("expected an unsigned snapshot");
       }
@@ -118,14 +119,14 @@ describe("named scopes: the scenario", () => {
     expect(
       permdock.memberships().filter((item) => item.scope === "customer"),
     ).toStrictEqual([]);
-    const snapshot = permdock.snapshot({ v: 1 });
+    const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");
     }
     expect(
       new Set(
-        snapshot.grants
-          .filter((grant) => grant.permission === "quote.read")
+        expandSnapshot(snapshot)
+          .grants.filter((grant) => grant.permission === "quote.read")
           .map((grant) => grant.scope),
       ),
     ).toStrictEqual(new Set(["organization"]));
@@ -179,7 +180,7 @@ describe("named scopes: the scenario", () => {
       expect(reasonOf(decision)).toBe("scope");
     }
     const client = fromSnapshot(
-      parseSnapshot(JSON.stringify(contact.snapshot({ v: 1 }))),
+      parseSnapshot(JSON.stringify(contact.snapshot())),
     );
     expect(client.can(permissions.asset.read, undefined)).toBe(false);
     expect(contact.can(permissions.asset.read, defined(assets[0]))).toBe(true);
@@ -277,7 +278,7 @@ describe("named scopes: permissions a suspended organization keeps", () => {
         op: "or",
         conditions: [],
       });
-      const snapshot = permdock.snapshot({ v: 1 });
+      const snapshot = permdock.snapshot();
       if (snapshot instanceof Promise) {
         throw new TypeError("expected an unsigned snapshot");
       }
@@ -319,7 +320,7 @@ describe("named scopes: permissions a suspended organization keeps", () => {
 describe("named scopes: snapshot scope list", () => {
   it("denies a scoped grant whose scope the snapshot does not list", async () => {
     const permdock = await permdockFor(personas.privateContact);
-    const snapshot = permdock.snapshot({ v: 1 });
+    const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");
     }
@@ -342,7 +343,7 @@ describe("named scopes: snapshot scope list", () => {
 
   it("pushes the scopes to the Cloud as a snapshot carries them", async () => {
     const permdock = await permdockFor(personas.owner);
-    const snapshot = permdock.snapshot({ v: 1 });
+    const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected an unsigned snapshot");
     }

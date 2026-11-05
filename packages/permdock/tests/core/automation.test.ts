@@ -249,7 +249,7 @@ describe(decideAutomation, () => {
   });
 
   it("denies with unsupported on an instance built from a snapshot", async () => {
-    const snapshot = owner.snapshot({ v: 1 });
+    const snapshot = owner.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected a JSON snapshot");
     }

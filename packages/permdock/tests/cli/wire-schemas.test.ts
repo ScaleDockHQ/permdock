@@ -134,30 +134,6 @@ describe("schemas/*.json", () => {
   });
 });
 
-describe("snapshot-v2.json", () => {
-  const check = validator("snapshot-v2.json");
-  const fixture = (): Record<string, unknown> =>
-    json(new URL("../../fixtures/snapshot-v2.json", import.meta.url));
-
-  it("accepts the compact fixture and expands it to the v1 fixture", () => {
-    expect(check(fixture())).toStrictEqual([]);
-    expect(parseSnapshot(fixture())).toStrictEqual(
-      parseSnapshot(
-        json(new URL("../../fixtures/snapshot.json", import.meta.url)),
-      ),
-    );
-  });
-
-  it("rejects a v1 body and a grant that names no terms", () => {
-    expect(
-      check(json(new URL("../../fixtures/snapshot.json", import.meta.url))),
-    ).not.toStrictEqual([]);
-    expect(
-      check({ ...fixture(), grants: [{ permission: "post.read" }] }),
-    ).not.toStrictEqual([]);
-  });
-});
-
 describe("snapshot-v1.json", () => {
   const check = validator("snapshot-v1.json");
 

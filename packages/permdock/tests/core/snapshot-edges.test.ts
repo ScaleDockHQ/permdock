@@ -4,6 +4,7 @@ import { allow } from "../../src/core/grant-builders.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { policy, tree } from "../fixtures/org-tree.ts";
 
 describe("snapshot edges", () => {
@@ -21,15 +22,16 @@ describe("snapshot edges", () => {
       { tenant: "o1" },
     );
     const snap = scopedSnap.snapshot({
-      v: 1,
       include: [tree.post.read],
       tenants: "all",
     });
     if (snap instanceof Promise) {
       throw new TypeError("json");
     }
-    expect(snap.grants.some((grant) => grant.scope === "tenant")).toBe(true);
-    const anonymousSnap = getPermDockSync(policy, null).snapshot({ v: 1 });
+    expect(
+      expandSnapshot(snap).grants.some((grant) => grant.scope === "tenant"),
+    ).toBe(true);
+    const anonymousSnap = getPermDockSync(policy, null).snapshot();
     if (anonymousSnap instanceof Promise) {
       throw new TypeError("json");
     }
@@ -62,12 +64,14 @@ describe("snapshot edges", () => {
       { id: "u1" },
       { tenant: "o1" },
     );
-    const teamSnap = teamPermdock.snapshot({ v: 1 });
+    const teamSnap = teamPermdock.snapshot();
     if (teamSnap instanceof Promise) {
       throw new TypeError("json");
     }
-    expect(teamSnap.grants.some((grant) => grant.scope === "team")).toBe(true);
-    expect(teamPermdock.snapshot({ v: 1, include: [] })).toBeDefined();
+    expect(
+      expandSnapshot(teamSnap).grants.some((grant) => grant.scope === "team"),
+    ).toBe(true);
+    expect(teamPermdock.snapshot({ include: [] })).toBeDefined();
     const resourceSnap = getPermDockSync(
       definePolicy(tree, {
         roles: [role("owner", [allow(tree.post.read)], { on: tree.post })],
@@ -80,12 +84,14 @@ describe("snapshot edges", () => {
       }),
       { id: "u1" },
     );
-    const owned = resourceSnap.snapshot({ v: 1 });
+    const owned = resourceSnap.snapshot();
     if (owned instanceof Promise) {
       throw new TypeError("json");
     }
-    expect(owned.grants.some((grant) => typeof grant.scope === "object")).toBe(
-      true,
-    );
+    expect(
+      expandSnapshot(owned).grants.some(
+        (grant) => typeof grant.scope === "object",
+      ),
+    ).toBe(true);
   });
 });

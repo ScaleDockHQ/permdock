@@ -17,7 +17,11 @@ import type { WireDelegation } from "./wire-delegation.ts";
  */
 export type SnapshotTenants = "all" | readonly string[];
 
-export type Snapshot = {
+/**
+ * The flat form the evaluator reads: one entry per grant, each with its full
+ * terms. Not public.
+ */
+export type ExpandedSnapshot = {
   readonly v: 1;
   /**
    * RFC 3339. The epoch for a snapshot built without a clock. Signed, it is the
@@ -101,18 +105,18 @@ export type Snapshot = {
 
 /**
  * What a grant says apart from its permission key: its effect, role, grantee,
- * conditions, scope and membership. A `CompactSnapshot` lists each distinct set
- * once in `conditions`.
+ * conditions, scope and membership. A `Snapshot` lists each distinct set once
+ * in `conditions`.
  */
 export type SnapshotGrantTerms = Omit<SnapshotGrant, "permission">;
 
 /**
- * The `v: 2` wire form of a `Snapshot`: `conditions` holds each distinct set of
- * grant terms once and a grant is `{ permission, cond }`, `cond` indexing it.
- * `parseSnapshot` expands it into the `Snapshot` every reader takes.
+ * The wire form `snapshot()` returns and every client takes: `conditions` holds
+ * each distinct set of grant terms once and a grant is `{ permission, cond }`,
+ * `cond` indexing it. `parseSnapshot` validates it; the evaluator expands it
+ * into an `ExpandedSnapshot` it alone reads.
  */
-export type CompactSnapshot = Omit<Snapshot, "v" | "grants"> & {
-  readonly v: 2;
+export type Snapshot = Omit<ExpandedSnapshot, "grants"> & {
   readonly conditions: readonly SnapshotGrantTerms[];
   readonly grants: readonly {
     readonly permission: string;
@@ -123,9 +127,6 @@ export type CompactSnapshot = Omit<Snapshot, "v" | "grants"> & {
     readonly cond: number | readonly number[];
   }[];
 };
-
-/** A snapshot in either form: what `snapshot()` returns and a client accepts. */
-export type SnapshotInput = Snapshot | CompactSnapshot;
 
 /** The permission keys a rowless check grants or sends to an approver. */
 export type SnapshotTypeLevel = {
@@ -211,7 +212,7 @@ export type SnapshotGrant = {
 export type LocalSnapshotManifest = {
   readonly v: 1;
   readonly scopes?: readonly SnapshotScope[];
-  readonly vocabulary?: Snapshot["vocabulary"];
+  readonly vocabulary?: ExpandedSnapshot["vocabulary"];
   /** Declared role names; a custom role cannot take one. */
   readonly roles: readonly string[];
   /** Declared role names in rank order, when an `assigns` graph ranks them. */

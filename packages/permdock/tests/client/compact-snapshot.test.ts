@@ -8,7 +8,7 @@ describe("client store with a compact snapshot", () => {
   it("holds the expanded form of a compact snapshot", () => {
     const server = getPermDockSync(policy, adminOf("o0"), { tenant: "o0" });
     const compact = server.snapshot();
-    const expanded = server.snapshot({ v: 1 });
+    const expanded = server.snapshot();
     if (compact instanceof Promise || expanded instanceof Promise) {
       throw new TypeError("expected unsigned snapshots");
     }

@@ -6,7 +6,7 @@ import type {
   SnapshotOptions,
 } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
-import type { Snapshot, SnapshotInput } from "./snapshot-types.ts";
+import type { ExpandedSnapshot, Snapshot } from "./snapshot-types.ts";
 import type { Membership } from "./subject.ts";
 import type { Role } from "./vocabulary.ts";
 
@@ -25,7 +25,7 @@ import { mayUse, permittedIds } from "./may-use.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { rowIdOf } from "./row-pair.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
-import { compactSnapshot } from "./snapshot-compact.ts";
+import { compactSnapshot, expandSnapshot } from "./snapshot-compact.ts";
 import { evaluateSnapshot, whereFromSnapshot } from "./snapshot-evaluate.ts";
 import { snapshotReads } from "./snapshot-reads.ts";
 import { signSnapshot } from "./snapshot-sign.ts";
@@ -33,7 +33,7 @@ import { subjectFromSnapshot } from "./snapshot-subject.ts";
 import { parseSnapshot } from "./snapshot.ts";
 
 function resourceRef(
-  snapshot: Snapshot,
+  snapshot: ExpandedSnapshot,
   permission: Permission,
   data: unknown,
 ): { readonly type: string; readonly id?: string } {
@@ -47,10 +47,11 @@ function resourceRef(
 }
 
 export function fromSnapshot(
-  input: SnapshotInput,
+  input: Snapshot,
   options: { readonly tenant?: string; readonly team?: string } = {},
 ): PermDock {
-  const snapshot = input.v === 2 ? parseSnapshot(input) : input;
+  const wire = parseSnapshot(input);
+  const snapshot = expandSnapshot(wire);
   const subject = subjectFromSnapshot(snapshot, options.tenant);
   const team = options.team;
 
@@ -226,7 +227,7 @@ export function fromSnapshot(
       );
       // The table answers for the real subject.
       const { typeLevel: _real, ...rest } = snapshot;
-      const next: Snapshot = freezeDeep({
+      const next: ExpandedSnapshot = freezeDeep({
         ...rest,
         simulated: true as const,
         subject: {
@@ -234,7 +235,7 @@ export function fromSnapshot(
           principal:
             snapshot.subject.principal === null
               ? null
-              : compact<NonNullable<Snapshot["subject"]["principal"]>>({
+              : compact<NonNullable<ExpandedSnapshot["subject"]["principal"]>>({
                   ...snapshot.subject.principal,
                   roles: previewRoles ?? snapshot.subject.principal.roles,
                   memberships:
@@ -248,16 +249,10 @@ export function fromSnapshot(
                 }),
         },
       });
-      return fromSnapshot(next, options);
+      return fromSnapshot(compactSnapshot(next), options);
     }) as PermDock["simulate"],
     // SAFETY: the body returns a Promise exactly when signer is set, which is what the overloads say.
-    snapshot: ((signing?: SnapshotOptions): SnapshotInput | Promise<string> => {
-      const wire =
-        signing?.v === 1
-          ? snapshot
-          : input.v === 2
-            ? input
-            : compactSnapshot(snapshot);
+    snapshot: ((signing?: SnapshotOptions): Snapshot | Promise<string> => {
       return signing?.signer === undefined
         ? wire
         : signSnapshot(
@@ -270,13 +265,10 @@ export function fromSnapshot(
       return (): void => undefined;
     },
     tenant(id: string): PermDock {
-      return fromSnapshot(snapshot, compact({ tenant: id, team }));
+      return fromSnapshot(wire, compact({ tenant: id, team }));
     },
     team(id: string): PermDock {
-      return fromSnapshot(
-        snapshot,
-        compact({ tenant: options.tenant, team: id }),
-      );
+      return fromSnapshot(wire, compact({ tenant: options.tenant, team: id }));
     },
     grantedPermissions() {
       return [];

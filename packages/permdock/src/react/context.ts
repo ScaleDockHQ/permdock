@@ -4,7 +4,7 @@ import { createContext } from "react";
 
 import type { ClientStore } from "../client/store.ts";
 import type { DescribeMessages } from "../core/describe.ts";
-import type { SnapshotInput } from "../core/snapshot-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockDefaults } from "./types.ts";
 
 export const PermDockStoreContext: Context<ClientStore | null> =
@@ -21,5 +21,5 @@ export const PermDockUiContext: Context<PermDockUi> = createContext<PermDockUi>(
 );
 
 export const PermDockSnapshotPromiseContext: Context<PromiseLike<
-  SnapshotInput | string
-> | null> = createContext<PromiseLike<SnapshotInput | string> | null>(null);
+  Snapshot | string
+> | null> = createContext<PromiseLike<Snapshot | string> | null>(null);

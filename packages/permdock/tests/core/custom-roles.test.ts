@@ -19,6 +19,7 @@ import { listPermissions } from "../../src/core/permission-registry.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { snapshotFor } from "../../src/core/snapshot-for.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 import { decideRoleChange } from "../../src/index.ts";
@@ -822,7 +823,7 @@ describe("assigning custom roles", () => {
       [{ scope: "tenant", id: "acme", roles: ["editor"] }],
       all,
     );
-    const snapshot = editor.snapshot({ v: 1 });
+    const snapshot = editor.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -905,7 +906,7 @@ describe("snapshot parity", () => {
               roles: ["c"],
             };
       const server = await permdockFor([membership], [fixture.custom]);
-      const snapshot = server.snapshot({ v: 1 });
+      const snapshot = server.snapshot();
       if (snapshot instanceof Promise) {
         throw new TypeError("expected JSON snapshot");
       }
@@ -913,7 +914,6 @@ describe("snapshot parity", () => {
         tenant: "acme",
         customRoles: [fixture.custom],
         now: Temporal.Instant.from(snapshot.issuedAt),
-        v: 1,
       });
       expect(cached).toStrictEqual(snapshot);
       const client = fromSnapshot(JSON.parse(JSON.stringify(snapshot)));
@@ -939,7 +939,7 @@ describe("snapshot parity", () => {
       [{ scope: "tenant", id: "acme", roles: ["steward", "c"] }],
       [{ tenant: "acme", name: "c", grants: [{ permission: "invoice.read" }] }],
     );
-    const snapshot = server.snapshot({ v: 1, include: [permissions.post] });
+    const snapshot = server.snapshot({ include: [permissions.post] });
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -949,11 +949,11 @@ describe("snapshot parity", () => {
     expect(
       snapshot.assignable?.[0]?.permissions.map((leaf) => leaf.key),
     ).toStrictEqual(["post.read", "post.update", "post.create"]);
-    const full = server.snapshot({ v: 1 });
+    const full = server.snapshot();
     if (full instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
-    expect(full.grants).toContainEqual(
+    expect(expandSnapshot(full).grants).toContainEqual(
       expect.objectContaining({
         permission: "invoice.read",
         role: "c",

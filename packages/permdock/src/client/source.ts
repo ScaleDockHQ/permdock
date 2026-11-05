@@ -1,4 +1,4 @@
-import type { SnapshotInput } from "../core/snapshot-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 
 /** A compact JWS: three non-empty dot-separated parts. */
 export function isJws(value: string): boolean {
@@ -8,7 +8,7 @@ export function isJws(value: string): boolean {
 
 export function isPromiseLike(
   value: unknown,
-): value is PromiseLike<SnapshotInput | string> {
+): value is PromiseLike<Snapshot | string> {
   return (
     typeof value === "object" &&
     value !== null &&

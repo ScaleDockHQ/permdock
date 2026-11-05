@@ -138,7 +138,7 @@ describe("permdock/h3", () => {
     const snapshot = await app.request("/snapshot");
     const who = await app.request("/who");
     expect(endpoint.status).toBe(200);
-    expect(await snapshot.json()).toMatchObject({ v: 2 });
+    expect(await snapshot.json()).toMatchObject({ v: 1 });
     expect(await who.text()).toBe("u1");
   });
 });

@@ -90,7 +90,11 @@
       "role": {
         "column": "role"
       },
-      "columns": ["user_id", "organization_id", "role"]
+      "columns": [
+        "user_id",
+        "organization_id",
+        "role"
+      ]
     },
     {
       "table": "public.contacts",
@@ -104,7 +108,9 @@
         "column": "customer_id"
       },
       "role": {
-        "value": ["contact"]
+        "value": [
+          "contact"
+        ]
       },
       "within": {
         "columns": {
@@ -114,7 +120,11 @@
       "via": {
         "value": "contact"
       },
-      "columns": ["user_id", "customer_id", "organization_id"]
+      "columns": [
+        "user_id",
+        "customer_id",
+        "organization_id"
+      ]
     }
   ],
   "rls": {
@@ -137,67 +147,89 @@
         "name": "permdock_has",
         "args": "p_grant text",
         "returns": "boolean",
-        "execute": ["authenticated"]
+        "execute": [
+          "authenticated"
+        ]
       },
       {
         "name": "permitted_organization_ids",
         "args": "p_grant text",
         "returns": "setof uuid",
-        "execute": ["authenticated"]
+        "execute": [
+          "authenticated"
+        ]
       },
       {
         "name": "member_organization_ids",
         "args": "",
         "returns": "setof uuid",
-        "execute": ["authenticated"]
+        "execute": [
+          "authenticated"
+        ]
       },
       {
         "name": "member_organization_ids_for",
         "args": "p_user uuid",
         "returns": "setof uuid",
-        "execute": ["supabase_auth_admin"]
+        "execute": [
+          "supabase_auth_admin"
+        ]
       },
       {
         "name": "permitted_customer_ids",
         "args": "p_grant text",
         "returns": "setof uuid",
-        "execute": ["authenticated"]
+        "execute": [
+          "authenticated"
+        ]
       },
       {
         "name": "member_customer_ids",
         "args": "",
         "returns": "setof uuid",
-        "execute": ["authenticated"]
+        "execute": [
+          "authenticated"
+        ]
       },
       {
         "name": "member_customer_ids_for",
         "args": "p_user uuid",
         "returns": "setof uuid",
-        "execute": ["supabase_auth_admin"]
+        "execute": [
+          "supabase_auth_admin"
+        ]
       },
       {
         "name": "permdock_user_id",
         "args": "",
         "returns": "uuid",
-        "execute": ["authenticated"]
+        "execute": [
+          "authenticated"
+        ]
       },
       {
         "name": "permdock_subject",
         "args": "",
         "returns": "jsonb",
-        "execute": ["authenticated"]
+        "execute": [
+          "authenticated"
+        ]
       },
       {
         "name": "permdock_actor_may_write",
         "args": "",
         "returns": "boolean",
-        "execute": ["authenticated"]
+        "execute": [
+          "authenticated"
+        ]
       },
       {
         "name": "permdock_is_approver",
         "args": "p_approvers jsonb, p_tenant text, p_requester text, p_resource text",
         "returns": "boolean",
-        "execute": ["authenticated"]
+        "execute": [
+          "authenticated"
+        ]
       },
       {
         "name": "permdock_has_for",
@@ -257,7 +289,11 @@
         "role": {
           "column": "role"
         },
-        "columns": ["user_id", "organization_id", "role"]
+        "columns": [
+          "user_id",
+          "organization_id",
+          "role"
+        ]
       },
       {
         "table": "public.contacts",
@@ -271,7 +307,9 @@
           "column": "customer_id"
         },
         "role": {
-          "value": ["contact"]
+          "value": [
+            "contact"
+          ]
         },
         "within": {
           "columns": {
@@ -281,7 +319,11 @@
         "via": {
           "value": "contact"
         },
-        "columns": ["user_id", "customer_id", "organization_id"]
+        "columns": [
+          "user_id",
+          "customer_id",
+          "organization_id"
+        ]
       }
     ],
     "customRoles": true,

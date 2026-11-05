@@ -163,7 +163,7 @@ describe("permdock/tanstack-start", () => {
     const instance = await getPermDock(request());
     const conn = await connection(request());
     expect([get.status, post.status]).toStrictEqual([200, 200]);
-    expect(snapshot.v).toBe(2);
+    expect(snapshot.v).toBe(1);
     expect(instance.can(permissions.post.read, ownPost)).toBe(true);
     expect(conn.signal.aborted).toBe(false);
   });

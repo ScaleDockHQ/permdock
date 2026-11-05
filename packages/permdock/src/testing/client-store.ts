@@ -5,7 +5,6 @@ import type {
   Permission,
   PermDock,
   Snapshot,
-  SnapshotInput,
   TokenVerifier,
 } from "../index.ts";
 
@@ -39,7 +38,7 @@ export type ClientStoreHandle = {
 };
 
 export type ClientStoreFactoryOptions = {
-  readonly snapshot: SnapshotInput | string;
+  readonly snapshot: Snapshot | string;
   readonly snapshotUrl?: string;
   readonly endpoint?: string;
   readonly tenant?: string;

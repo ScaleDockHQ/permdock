@@ -32,12 +32,7 @@ import type { Permission, ResourceNode, RowOf } from "./permission-types.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
 import type { PrincipalSource } from "./principal-source.ts";
 import type { Scope } from "./scopes.ts";
-import type {
-  CompactSnapshot,
-  Snapshot,
-  SnapshotInput,
-  SnapshotTenants,
-} from "./snapshot-types.ts";
+import type { Snapshot, SnapshotTenants } from "./snapshot-types.ts";
 import type {
   Actor,
   CustomRole,
@@ -211,11 +206,6 @@ export type SnapshotOptions = {
    * roles or custom-role permissions to hand out.
    */
   readonly omitAssignable?: boolean;
-  /**
-   * The wire version: `2` (the default) lists each distinct set of grant terms
-   * once, `1` repeats them on every grant, for a reader older than 0.25.0.
-   */
-  readonly v?: 1 | 2;
   readonly signer?: TokenSigner;
   readonly audience?: string | readonly string[];
 };
@@ -431,19 +421,11 @@ export type PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
     }): PermDock<V>;
   };
   readonly snapshot: {
-    (
-      options: SnapshotOptions & { readonly signer?: undefined; readonly v: 1 },
-    ): Snapshot;
-    (
-      options?: SnapshotOptions & {
-        readonly signer?: undefined;
-        readonly v?: 2;
-      },
-    ): CompactSnapshot;
+    (options?: SnapshotOptions & { readonly signer?: undefined }): Snapshot;
     (
       options: SnapshotOptions & { readonly signer: TokenSigner },
     ): Promise<string>;
-    (options?: SnapshotOptions): SnapshotInput | Promise<string>;
+    (options?: SnapshotOptions): Snapshot | Promise<string>;
   };
   readonly on: (
     event: "decision" | "denied" | "approval" | "auth" | "error",

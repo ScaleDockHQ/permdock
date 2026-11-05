@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Membership } from "../../src/index.ts";
 
 import { plan } from "../../src/core/grantee.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import {
   allow,
   getPermDockSync,
@@ -143,10 +144,10 @@ describe("snapshots are plain data", () => {
   it("carries only plain, JSON and structured-clone safe values in every shape", async () => {
     const permdock = getPermDockSync(policy, ana, { relations, customRoles });
     const shapes = {
-      own: permdock.snapshot({ v: 1 }),
-      all: permdock.snapshot({ v: 1, tenants: "all" }),
-      tenant: permdock.tenant("acme").snapshot({ v: 1 }),
-      other: permdock.tenant("globex").snapshot({ v: 1, include: [file] }),
+      own: permdock.snapshot(),
+      all: permdock.snapshot({ tenants: "all" }),
+      tenant: permdock.tenant("acme").snapshot(),
+      other: permdock.tenant("globex").snapshot({ include: [file] }),
       offline: snapshotFor(policy, ana, { tenants: "all" }),
       manifest: localSnapshotManifest(policy),
     };
@@ -154,7 +155,9 @@ describe("snapshots are plain data", () => {
     expect(shapes.all.vocabulary?.roles?.["owner"]?.kind).toBe("role");
     expect(shapes.all.vocabulary?.plans?.["pro"]?.kind).toBe("plan");
     expect(
-      shapes.all.grants.some((grant) => grant.approval !== undefined),
+      expandSnapshot(shapes.all).grants.some(
+        (grant) => grant.approval !== undefined,
+      ),
     ).toBe(true);
     for (const [name, snapshot] of Object.entries(shapes)) {
       expect(nonPlain(snapshot, name, [])).toStrictEqual([]);

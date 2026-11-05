@@ -28,7 +28,7 @@ async function snapshotOf(user: typeof memberUser): Promise<Snapshot> {
   // SAFETY: user is a quick-start user fixture; only the policy generic is erased.
   const server = getPermDockSync(policy as never, user);
   // SAFETY: snapshot() returns a Snapshot; the erased generic above hides its type.
-  return server.snapshot({ v: 1 }) as Snapshot;
+  return server.snapshot() as Snapshot;
 }
 
 function latest<T>(readable: {

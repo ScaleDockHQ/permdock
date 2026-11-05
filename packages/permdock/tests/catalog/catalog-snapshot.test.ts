@@ -5,6 +5,7 @@ import type { ScanResult } from "../../src/cli/types.ts";
 
 import { policyFromCatalog, pushedPolicy } from "../../src/catalog/index.ts";
 import { buildCatalog } from "../../src/cli/catalog-doc.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import {
   allow,
   definePermissions,
@@ -81,8 +82,8 @@ describe("snapshot on an instance built from a catalog", () => {
       rebuilt,
       { id: "u1", roles: ["member"], plans: ["pro"] },
       { policies: hostedPolicies(memoryPolicySource(document)) },
-    ).snapshot({ v: 1 });
-    const listed = snapshot.grants.map((grant) => [
+    ).snapshot();
+    const listed = expandSnapshot(snapshot).grants.map((grant) => [
       grant.permission,
       grant.portable ?? true,
     ]);
@@ -92,7 +93,7 @@ describe("snapshot on an instance built from a catalog", () => {
         ["doc.export", true],
       ]),
     );
-    const update = snapshot.grants.find(
+    const update = expandSnapshot(snapshot).grants.find(
       (grant) => grant.permission === "doc.update",
     );
     expect(update === undefined || update.portable === false).toBe(true);

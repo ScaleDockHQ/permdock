@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import type { Condition } from "../../src/conditions/ast.ts";
-import type { Snapshot, SnapshotGrant } from "../../src/core/snapshot-types.ts";
+import type {
+  ExpandedSnapshot,
+  SnapshotGrant,
+} from "../../src/core/snapshot-types.ts";
 
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
+import { compactSnapshot } from "../../src/core/snapshot-compact.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 
@@ -18,8 +22,8 @@ const orgMembership = { scope: "org", id: "o1", roles: ["member"] } as const;
 
 function snapshotWith(
   grants: readonly SnapshotGrant[],
-  extra: Partial<Snapshot> = {},
-): Snapshot {
+  extra: Partial<ExpandedSnapshot> = {},
+): ExpandedSnapshot {
   return {
     v: 1,
     issuedAt: "1970-01-01T00:00:01Z",
@@ -55,7 +59,9 @@ const opaque: Condition = { op: "opaque", sql: "true", fingerprint: "f" };
 describe("evaluateSnapshot", () => {
   it("denies a grantee that does not match with its reason", () => {
     const client = fromSnapshot(
-      snapshotWith([{ ...allowRead, to: { kind: "plan", plan: "pro" } }]),
+      compactSnapshot(
+        snapshotWith([{ ...allowRead, to: { kind: "plan", plan: "pro" } }]),
+      ),
     );
     expect(reasonOf(client.decide(permissions.doc.read, { id: "d1" }))).toBe(
       "not-entitled",
@@ -74,10 +80,10 @@ describe("evaluateSnapshot", () => {
       ],
       { subject: { principal: null, context: {} } },
     );
-    const decision = fromSnapshot(snapshot).decide(permissions.doc.read, {
-      id: "d1",
-      orgId: "o1",
-    });
+    const decision = fromSnapshot(compactSnapshot(snapshot)).decide(
+      permissions.doc.read,
+      { id: "d1", orgId: "o1" },
+    );
     expect(reasonOf(decision)).toBe("no-membership");
   });
 
@@ -86,8 +92,10 @@ describe("evaluateSnapshot", () => {
       { ...allowRead, scope: "org", membership: orgMembership },
     ]);
     const row = { id: "d1", orgId: "o1" };
-    expect(fromSnapshot(snapshot).can(permissions.doc.read, row)).toBe(true);
-    const scoped = fromSnapshot(snapshot, { team: "blue" });
+    expect(
+      fromSnapshot(compactSnapshot(snapshot)).can(permissions.doc.read, row),
+    ).toBe(true);
+    const scoped = fromSnapshot(compactSnapshot(snapshot), { team: "blue" });
     expect(reasonOf(scoped.decide(permissions.doc.read, row))).toBe("scope");
   });
 
@@ -101,31 +109,41 @@ describe("evaluateSnapshot", () => {
     // SAFETY: an instance check without a row, as an untyped caller could make it.
     const read = permissions.doc.read as never;
     const org = fromSnapshot(
-      snapshotWith([{ ...allowRead, scope: "org", membership: orgMembership }]),
+      compactSnapshot(
+        snapshotWith([
+          { ...allowRead, scope: "org", membership: orgMembership },
+        ]),
+      ),
     );
     expect(org.decide(read).outcome).toBe("granted");
     const team = snapshotWith([
       { ...allowRead, scope: "team", membership: teamMembership },
     ]);
-    expect(reasonOf(fromSnapshot(team).decide(read))).toBe("scope");
-    expect(fromSnapshot(team, { team: "t1" }).decide(read).outcome).toBe(
-      "granted",
+    expect(reasonOf(fromSnapshot(compactSnapshot(team)).decide(read))).toBe(
+      "scope",
     );
+    expect(
+      fromSnapshot(compactSnapshot(team), { team: "t1" }).decide(read).outcome,
+    ).toBe("granted");
   });
 
   it("denies an opaque where or check as opaque-condition", () => {
-    const where = fromSnapshot(snapshotWith([{ ...allowRead, where: opaque }]));
+    const where = fromSnapshot(
+      compactSnapshot(snapshotWith([{ ...allowRead, where: opaque }])),
+    );
     expect(reasonOf(where.decide(permissions.doc.read, { id: "d1" }))).toBe(
       "opaque-condition",
     );
     const check = fromSnapshot(
-      snapshotWith([
-        {
-          ...allowRead,
-          where: { op: "eq", field: "id", value: "d1" },
-          check: opaque,
-        },
-      ]),
+      compactSnapshot(
+        snapshotWith([
+          {
+            ...allowRead,
+            where: { op: "eq", field: "id", value: "d1" },
+            check: opaque,
+          },
+        ]),
+      ),
     );
     expect(reasonOf(check.decide(permissions.doc.read, { id: "d1" }))).toBe(
       "opaque-condition",
@@ -138,7 +156,7 @@ describe("evaluateSnapshot", () => {
       permission: "doc.update",
       check: { op: "eq", field: "status", value: "draft" },
     };
-    const client = fromSnapshot(snapshotWith([grant]));
+    const client = fromSnapshot(compactSnapshot(snapshotWith([grant])));
     const draft = { id: "d1", status: "draft" };
     const sent = { id: "d1", status: "sent" };
     expect(
@@ -160,7 +178,7 @@ describe("evaluateSnapshot", () => {
       ...allowRead,
       check: { op: "or", conditions: [opaque] },
     };
-    const client = fromSnapshot(snapshotWith([grant]));
+    const client = fromSnapshot(compactSnapshot(snapshotWith([grant])));
     expect(reasonOf(client.decide(permissions.doc.read, { id: "d1" }))).toBe(
       "opaque-condition",
     );
@@ -168,10 +186,12 @@ describe("evaluateSnapshot", () => {
 
   it("skips a non-portable deny that does not cover the requested field", () => {
     const client = fromSnapshot(
-      snapshotWith([
-        allowRead,
-        { ...allowRead, effect: "deny", portable: false, fields: ["secret"] },
-      ]),
+      compactSnapshot(
+        snapshotWith([
+          allowRead,
+          { ...allowRead, effect: "deny", portable: false, fields: ["secret"] },
+        ]),
+      ),
     );
     const row = { id: "d1", title: "t", secret: "s" };
     expect(client.can(permissions.doc.read, row, { field: "title" })).toBe(
@@ -184,7 +204,7 @@ describe("evaluateSnapshot", () => {
   });
 
   it("binds the token to the current row when the next row is absent", () => {
-    const client = fromSnapshot(snapshotWith([allowRead]));
+    const client = fromSnapshot(compactSnapshot(snapshotWith([allowRead])));
     const first = client.decide(permissions.doc.read, {
       current: { title: "a" },
       next: undefined,
@@ -201,7 +221,11 @@ describe("evaluateSnapshot", () => {
 
   it("compiles where for a partitioned scoped grant from the snapshot scopes", () => {
     const client = fromSnapshot(
-      snapshotWith([{ ...allowRead, scope: "org", membership: orgMembership }]),
+      compactSnapshot(
+        snapshotWith([
+          { ...allowRead, scope: "org", membership: orgMembership },
+        ]),
+      ),
     );
     const where = client.where(permissions.doc.read);
     expect(where.partial).toBe(false);
@@ -213,14 +237,16 @@ describe("a forged snapshot grantee", () => {
   it("never grants through a grantee kind the client does not know", () => {
     const forged = parseSnapshot(
       JSON.stringify(
-        snapshotWith([
-          // SAFETY: a forged grantee kind, as a tampered snapshot could carry.
-          {
-            ...allowRead,
-            role: null,
-            to: { kind: "wizard", matched: true } as never,
-          },
-        ]),
+        compactSnapshot(
+          snapshotWith([
+            // SAFETY: a forged grantee kind, as a tampered snapshot could carry.
+            {
+              ...allowRead,
+              role: null,
+              to: { kind: "wizard", matched: true } as never,
+            },
+          ]),
+        ),
       ),
     );
     const client = fromSnapshot(forged);
@@ -234,16 +260,18 @@ describe("a forged snapshot grantee", () => {
     const client = fromSnapshot(
       parseSnapshot(
         JSON.stringify(
-          snapshotWith([
-            allowRead,
-            // SAFETY: a deny naming a grantee kind newer than this client.
-            {
-              permission: "doc.read",
-              effect: "deny",
-              role: null,
-              to: { kind: "wizard" } as never,
-            },
-          ]),
+          compactSnapshot(
+            snapshotWith([
+              allowRead,
+              // SAFETY: a deny naming a grantee kind newer than this client.
+              {
+                permission: "doc.read",
+                effect: "deny",
+                role: null,
+                to: { kind: "wizard" } as never,
+              },
+            ]),
+          ),
         ),
       ),
     );

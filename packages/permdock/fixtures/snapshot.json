@@ -9,13 +9,22 @@
     "context": {}
   },
   "roles": ["member"],
+  "tenants": [],
+  "conditions": [
+    {
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      }
+    }
+  ],
   "grants": [
     {
       "permission": "post.read",
-      "effect": "allow",
-      "role": "member",
-      "to": { "kind": "role", "role": "member", "scope": "global" }
+      "cond": 0
     }
-  ],
-  "tenants": []
+  ]
 }

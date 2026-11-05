@@ -13,7 +13,7 @@ import type { RowData, UncheckedData } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { PolicyVocabulary } from "../core/policy-types.ts";
 import type { CacheLifeForOptions } from "../core/snapshot-cache.ts";
-import type { SnapshotInput, SnapshotTenants } from "../core/snapshot-types.ts";
+import type { Snapshot, SnapshotTenants } from "../core/snapshot-types.ts";
 import type { Subject } from "../core/subject.ts";
 import type { PermDockWrap } from "../core/wrap.ts";
 import type { OtelWrap } from "../otel/types.ts";
@@ -114,7 +114,7 @@ export type NextPermDockProviderProps = NextPermDockProviderDisplay &
          * cache: private'` loader around `getSnapshot`, so a prefetch carries
          * it. The loader decides what it includes.
          */
-        readonly snapshot: Promise<SnapshotInput>;
+        readonly snapshot: Promise<Snapshot>;
         readonly include?: never;
         readonly tenants?: never;
         readonly omitAssignable?: never;
@@ -312,7 +312,7 @@ export type NextPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
    * `cacheTag(snapshotTag(sub), ...tags)` in that scope, and throws outside
    * one.
    */
-  readonly getSnapshot: (query?: GetSnapshotQuery) => Promise<SnapshotInput>;
+  readonly getSnapshot: (query?: GetSnapshotQuery) => Promise<Snapshot>;
   /**
    * Resolves to the granted `Decision`. A denial first runs `onDenied` (the
    * call's, else the factory's), then calls `unauthorized()` for an anonymous

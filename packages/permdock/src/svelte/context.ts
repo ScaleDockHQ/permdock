@@ -5,7 +5,7 @@ import { toStore } from "svelte/store";
 
 import type { ClientStore } from "../client/store.ts";
 import type { DescribeMessages } from "../core/describe.ts";
-import type { SnapshotInput } from "../core/snapshot-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockDefaults, SveltePermDockOptions } from "./types.ts";
 
 import {
@@ -24,7 +24,7 @@ export type PermDockUi = {
   readonly messages?: DescribeMessages | undefined;
 };
 
-function isReadable(value: unknown): value is Readable<SnapshotInput | string> {
+function isReadable(value: unknown): value is Readable<Snapshot | string> {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -35,7 +35,7 @@ function isReadable(value: unknown): value is Readable<SnapshotInput | string> {
 
 function reactiveSource(
   source: SveltePermDockOptions["snapshot"],
-): Readable<SnapshotInput | string> | undefined {
+): Readable<Snapshot | string> | undefined {
   if (typeof source === "function") {
     return toStore(source);
   }
@@ -53,14 +53,14 @@ function connectSvelteStore(options: SveltePermDockOptions): {
   const source = options.snapshot;
   const promised = isPromiseLike(source);
   const reactive = promised ? undefined : reactiveSource(source);
-  let initial: SnapshotInput | string | undefined;
+  let initial: Snapshot | string | undefined;
   if (reactive !== undefined) {
     reactive.subscribe((value) => {
       initial = value;
     })();
   } else if (!promised) {
     // SAFETY: not a promise, function or store, so it is the plain Snapshot or string the option allows.
-    initial = source as SnapshotInput | string;
+    initial = source as Snapshot | string;
   }
   const tenant = options.tenant;
   const headers = options.headers;

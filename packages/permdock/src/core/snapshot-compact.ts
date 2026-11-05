@@ -1,6 +1,6 @@
 import type {
-  CompactSnapshot,
   Snapshot,
+  ExpandedSnapshot,
   SnapshotGrant,
   SnapshotGrantTerms,
 } from "./snapshot-types.ts";
@@ -10,12 +10,12 @@ import { isRecord } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 
 /**
- * The `v: 2` form of `snapshot`: each distinct set of grant terms is written
- * once, in order of first use, so the same policy always serialises to the same
- * bytes.
+ * The wire form of an expanded snapshot: each distinct set of grant terms is
+ * written once, in order of first use, so the same policy always serialises to
+ * the same bytes.
  */
-export function compactSnapshot(snapshot: Snapshot): CompactSnapshot {
-  const { v: _v, grants, ...rest } = snapshot;
+export function compactSnapshot(snapshot: ExpandedSnapshot): Snapshot {
+  const { grants, ...rest } = snapshot;
   const indexes = new Map<string, number>();
   const conditions: SnapshotGrantTerms[] = [];
   const compacted: { permission: string; cond: number | number[] }[] = [];
@@ -36,7 +36,7 @@ export function compactSnapshot(snapshot: Snapshot): CompactSnapshot {
       last.cond.push(cond);
     }
   }
-  return freezeDeep({ v: 2 as const, ...rest, conditions, grants: compacted });
+  return freezeDeep({ ...rest, conditions, grants: compacted });
 }
 
 function bad(detail: string): Error {
@@ -44,9 +44,9 @@ function bad(detail: string): Error {
 }
 
 /**
- * The grants of a `v: 2` document as the `Snapshot` model holds them. Throws on
- * a `conditions` that is not a list of objects or a grant whose `cond` is not
- * an index into it, so a malformed document never reads as a narrower grant.
+ * The grants of a wire document as the `Snapshot` model holds them. Throws on a
+ * `conditions` that is not a list of objects or a grant whose `cond` is not an
+ * index into it, so a malformed document never reads as a narrower grant.
  */
 export function expandGrants(record: Readonly<Record<string, unknown>>): {
   readonly grants: readonly SnapshotGrant[];
@@ -85,4 +85,10 @@ export function expandGrants(record: Readonly<Record<string, unknown>>): {
       });
     }),
   };
+}
+
+/** The flat form the evaluator reads, from a validated wire `Snapshot`. */
+export function expandSnapshot(snapshot: Snapshot): ExpandedSnapshot {
+  const { conditions: _conditions, grants: _grants, ...rest } = snapshot;
+  return freezeDeep({ ...rest, ...expandGrants(snapshot) });
 }

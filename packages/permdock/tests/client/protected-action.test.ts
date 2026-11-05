@@ -11,6 +11,8 @@ import {
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { problemType } from "../../src/core/problem-types.ts";
+import { compactSnapshot } from "../../src/core/snapshot-compact.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 
 const approvalRequired: ActionResult<never> = {
   ok: false,
@@ -36,10 +38,10 @@ const denied: ActionResult<never> = {
 };
 
 function signedIn(): Snapshot {
-  return {
-    ...emptySnapshot(),
+  return compactSnapshot({
+    ...expandSnapshot(emptySnapshot()),
     subject: { principal: { id: "u1", roles: [] }, context: {} },
-  };
+  });
 }
 
 function deferred<T>(): {

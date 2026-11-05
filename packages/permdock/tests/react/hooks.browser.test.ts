@@ -13,6 +13,8 @@ import { isPromiseLike } from "../../src/client/source.ts";
 import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
+import { compactSnapshot } from "../../src/core/snapshot-compact.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { PermDockStoreContext } from "../../src/react/context.ts";
 import {
   useApproval,
@@ -84,7 +86,7 @@ describe("hooks", () => {
   async function memberSnapshot(): Promise<Snapshot> {
     // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
     const server = getPermDockSync(policy as never, memberUser);
-    const snapshot = server.snapshot({ v: 1 });
+    const snapshot = server.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -178,7 +180,7 @@ describe("hooks", () => {
 
     it("read tenants, scoped roles and assignable roles", async () => {
       const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
-      const snapshot = server.snapshot({ v: 1, tenants: "all" });
+      const snapshot = server.snapshot({ tenants: "all" });
       if (snapshot instanceof Promise) {
         throw new TypeError("expected JSON snapshot");
       }
@@ -286,7 +288,7 @@ describe("hooks", () => {
 
     it("decides for another tenant with the tenant prop", async () => {
       const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
-      const snapshot = server.snapshot({ v: 1, tenants: "all" });
+      const snapshot = server.snapshot({ tenants: "all" });
       if (snapshot instanceof Promise) {
         throw new TypeError("expected JSON snapshot");
       }
@@ -508,9 +510,9 @@ describe("hooks", () => {
       const info = vi
         .spyOn(console, "info")
         .mockImplementation(() => undefined);
-      const closure: Snapshot = {
+      const closure: Snapshot = compactSnapshot({
         ...snapshot,
-        grants: snapshot.grants.map((grant) =>
+        grants: expandSnapshot(snapshot).grants.map((grant) =>
           grant.permission === "post.update" || grant.permission === "post.read"
             ? {
                 permission: grant.permission,
@@ -521,7 +523,7 @@ describe("hooks", () => {
               }
             : grant,
         ),
-      };
+      });
       try {
         const view = await mount(
           createElement(PermDockProvider, {

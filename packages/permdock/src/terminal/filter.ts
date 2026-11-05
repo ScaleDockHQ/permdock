@@ -1,13 +1,16 @@
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { CommandEntry, FilterCommandsOptions } from "./types.ts";
 
+import { expandSnapshot } from "../core/snapshot-compact.ts";
+
 function snapshotAllows(permdock: PermDock, permission: Permission): boolean {
-  const snapshot = permdock.snapshot({ v: 1 });
-  if (typeof snapshot === "string" || snapshot instanceof Promise) {
+  const wire: Snapshot | Promise<string> | string = permdock.snapshot();
+  if (typeof wire === "string" || wire instanceof Promise) {
     return false;
   }
-  return snapshot.grants.some(
+  return expandSnapshot(wire).grants.some(
     (grant) => grant.permission === permission.key && grant.effect === "allow",
   );
 }

@@ -6,7 +6,7 @@ import type {
   PermissionTree,
   ResourceNode,
 } from "../core/permission-types.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { ExpandedSnapshot } from "../core/snapshot-types.ts";
 import type { ResourceRef } from "../core/tool-refusal.ts";
 import type {
   ModelContext,
@@ -50,18 +50,18 @@ function current(permdock: WebMcpPermDock): WebMcpPermDock {
 }
 
 /** The fields of a snapshot the tool list reads, from either wire form. */
-type SnapshotView = Pick<Snapshot, "grants" | "simulated">;
+type SnapshotView = Pick<ExpandedSnapshot, "grants" | "simulated">;
 
 function snapshotOf(permdock: WebMcpPermDock): SnapshotView | undefined {
   const value = permdock.snapshot();
   if (value instanceof Promise || typeof value === "string") {
     return undefined;
   }
-  if (value.v === 1) {
-    return value;
-  }
   try {
-    return { ...value, ...expandGrants(value) };
+    return {
+      ...expandGrants(value),
+      ...(value.simulated === true ? { simulated: true as const } : {}),
+    };
   } catch {
     return undefined;
   }

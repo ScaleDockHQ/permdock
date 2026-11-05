@@ -20,7 +20,7 @@ import type {
 import type { ActionResult } from "../core/action-result.ts";
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
-import type { SnapshotInput } from "../core/snapshot-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 
 export type SveltePermDockOptions = ProviderOptionsBase & {
   /**
@@ -29,11 +29,11 @@ export type SveltePermDockOptions = ProviderOptionsBase & {
    * (render the same promise with `{#await}`).
    */
   readonly snapshot:
-    | SnapshotInput
+    | Snapshot
     | string
-    | (() => SnapshotInput | string)
-    | Readable<SnapshotInput | string>
-    | PromiseLike<SnapshotInput | string>;
+    | (() => Snapshot | string)
+    | Readable<Snapshot | string>
+    | PromiseLike<Snapshot | string>;
   /**
    * A getter (`() => page.params.org`) switches the active tenant (`refresh({
    * tenant })`) when it changes.

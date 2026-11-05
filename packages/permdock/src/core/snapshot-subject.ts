@@ -1,5 +1,5 @@
 import type { Scope } from "./scopes.ts";
-import type { Snapshot } from "./snapshot-types.ts";
+import type { ExpandedSnapshot } from "./snapshot-types.ts";
 import type { Principal, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
@@ -11,7 +11,7 @@ import { secondsOf } from "./time.ts";
 import { fromWireDelegation } from "./wire-delegation.ts";
 
 export function subjectFromSnapshot(
-  snapshot: Snapshot,
+  snapshot: ExpandedSnapshot,
   tenant: string | undefined,
 ): Subject {
   const principal = snapshot.subject.principal;

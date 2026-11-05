@@ -18,6 +18,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { memoryDecisionSink } from "../../src/core/sink.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { isDecisionEvent } from "../fixtures/decisions.ts";
 import {
@@ -173,7 +174,7 @@ describe(getPermDockSync, () => {
     if (snapshot instanceof Promise) {
       throw new TypeError("expected json snapshot");
     }
-    expect(snapshot.v).toBe(2);
+    expect(snapshot.v).toBe(1);
     expect(
       snapshot.grants.every((grant) => grant.permission.startsWith("post")),
     ).toBe(true);
@@ -193,7 +194,7 @@ describe(getPermDockSync, () => {
     });
     expect(await signed).toBe("signed.jws");
     const plain = permdock.snapshot();
-    expect(plain.v).toBe(2);
+    expect(plain.v).toBe(1);
     const client = fromSnapshot(plain);
     expect(client.snapshot()).toBe(plain);
     expect(
@@ -280,11 +281,9 @@ describe(getPermDockSync, () => {
       if (denied.outcome === "denied") {
         expect(denied.denials[0]?.reason).toBe("no-delegation");
       }
+      expect(unsigned(permdock.snapshot()).grants.length).toBeGreaterThan(0);
       expect(
-        unsigned(permdock.snapshot({ v: 1 })).grants.length,
-      ).toBeGreaterThan(0);
-      expect(
-        fromSnapshot(unsigned(permdock.snapshot({ v: 1 }))).can(
+        fromSnapshot(unsigned(permdock.snapshot())).can(
           permissions.post.read,
           ownPost,
         ),
@@ -446,11 +445,11 @@ describe(getPermDockSync, () => {
     const permdock = getPermDockSync(fnPolicy, memberUser);
     expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
     expect(permdock.can(permissions.post.read, otherPost)).toBe(false);
-    const snapshot = permdock.snapshot({ v: 1 });
+    const snapshot = permdock.snapshot();
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
-    const grant = snapshot.grants.find(
+    const grant = expandSnapshot(snapshot).grants.find(
       (item) => item.permission === "post.read",
     );
     expect(grant?.portable).not.toBe(false);

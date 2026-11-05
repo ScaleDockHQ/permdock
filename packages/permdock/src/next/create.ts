@@ -11,7 +11,7 @@ import type { DecisionSink, Intent } from "../core/interfaces.ts";
 import type { DecideOptions, PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
-import type { SnapshotInput } from "../core/snapshot-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { Principal, Subject } from "../core/subject.ts";
 import type {
   GetPermDockQuery,
@@ -275,7 +275,7 @@ export function createPermDock<
   let warnedShortLife = false;
   const getSnapshot = async (
     query: GetSnapshotQuery = {},
-  ): Promise<SnapshotInput> => {
+  ): Promise<Snapshot> => {
     const permdock = await getPermDock(
       compact({ tenant: query.tenant, version: query.version }),
     );
@@ -349,7 +349,7 @@ export function createPermDock<
   const PermDockProvider = (props: NextPermDockProviderProps): ReactElement => {
     // A rejection reaches the client store as `server-only`, or with
     // `suspend` the nearest error boundary; Next.js interrupts keep working.
-    const snapshotPromise: Promise<SnapshotInput | string> =
+    const snapshotPromise: Promise<Snapshot | string> =
       props.snapshot ??
       getPermDock(
         props.tenant === undefined ? undefined : { tenant: props.tenant },

@@ -2,7 +2,7 @@ import type { JSX } from "solid-js";
 
 import { createComponent, createComputed, on, onCleanup } from "solid-js";
 
-import type { SnapshotInput } from "../core/snapshot-types.ts";
+import type { Snapshot } from "../core/snapshot-types.ts";
 import type { PermDockUi } from "./context.ts";
 import type { PermDockProviderProps } from "./types.ts";
 
@@ -23,13 +23,13 @@ export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
   // SAFETY: the only function the snapshot prop allows is an accessor of a snapshot or string.
   const read =
     typeof source === "function"
-      ? (source as () => SnapshotInput | string | undefined)
+      ? (source as () => Snapshot | string | undefined)
       : undefined;
   // SAFETY: neither a promise nor an accessor, so it is the plain Snapshot or string the prop allows.
   const initial = promised
     ? undefined
     : read === undefined
-      ? (source as SnapshotInput | string)
+      ? (source as Snapshot | string)
       : read();
   const store = providerStore(
     compact({
@@ -66,10 +66,10 @@ export function PermDockProvider(props: PermDockProviderProps): JSX.Element {
   if (!promised && read !== undefined) {
     // An accessor that is still `undefined` (a loading `createResource`)
     // keeps the store pending until its first value.
-    let arrive: ((value: SnapshotInput | string) => void) | undefined;
+    let arrive: ((value: Snapshot | string) => void) | undefined;
     if (initial === undefined) {
       store.follow(
-        new Promise<SnapshotInput | string>((resolve) => {
+        new Promise<Snapshot | string>((resolve) => {
           arrive = resolve;
         }),
       );

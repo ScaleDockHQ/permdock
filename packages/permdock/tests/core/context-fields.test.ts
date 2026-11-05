@@ -9,6 +9,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
 import { unsigned } from "../fixtures/snapshots.ts";
 
 const Post = z.object({
@@ -198,8 +199,8 @@ describe("schema-aware field-level grants", () => {
       subject: () => ({ id: "u1", roles: ["member"] }),
     });
     const server = getPermDockSync(policy, { id: "u1" });
-    const snapshot = unsigned(server.snapshot({ v: 1 }));
-    expect(snapshot.grants[0]?.fields).toStrictEqual(["title"]);
+    const snapshot = unsigned(server.snapshot());
+    expect(expandSnapshot(snapshot).grants[0]?.fields).toStrictEqual(["title"]);
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.post.read, row)).toBe(true);
     expect(client.pick(permissions.post.read, row)).toStrictEqual({

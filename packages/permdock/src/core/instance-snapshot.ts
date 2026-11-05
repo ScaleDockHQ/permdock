@@ -2,7 +2,7 @@ import type { CustomGrant } from "./custom-roles.ts";
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
 import type {
-  Snapshot,
+  ExpandedSnapshot,
   SnapshotAssignable,
   SnapshotTenants,
 } from "./snapshot-types.ts";
@@ -48,7 +48,7 @@ export function snapshotOf(
     readonly simulated?: boolean;
     readonly now?: number;
   },
-): Snapshot {
+): ExpandedSnapshot {
   const now = options.now ?? nowSeconds();
   const customGrants =
     options.customGrants ?? customGrantsFor(policy, options.customRoles);
@@ -141,7 +141,7 @@ export function snapshotOf(
  * The policy's scopes as snapshots and `permdock cloud push` carry them, with
  * the resources each partitions.
  */
-export function snapshotScopes(policy: Policy): Snapshot["scopes"] {
+export function snapshotScopes(policy: Policy): ExpandedSnapshot["scopes"] {
   if (policy.scopes.length === 0) {
     return undefined;
   }
@@ -159,7 +159,7 @@ export function snapshotScopes(policy: Policy): Snapshot["scopes"] {
           : [[node.name, field] as const];
       }),
     );
-    return compact<NonNullable<Snapshot["scopes"]>[number]>({
+    return compact<NonNullable<ExpandedSnapshot["scopes"]>[number]>({
       name: scope.name,
       key: scope.key ?? "",
       within: scope.within,

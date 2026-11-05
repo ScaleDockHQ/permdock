@@ -108,7 +108,7 @@ describe("invariant 9: boundary data is validated before a check", () => {
 
   it("rejects a refreshed snapshot that is not a valid snapshot", async () => {
     const server = getPermDockSync(policy, adminUser);
-    const initial = server.snapshot({ v: 1 });
+    const initial = server.snapshot();
     if (initial instanceof Promise) {
       throw new TypeError("expected a JSON snapshot");
     }

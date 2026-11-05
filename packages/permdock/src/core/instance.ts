@@ -19,7 +19,7 @@ import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
 import type { RelationCache } from "./relations.ts";
 import type { SimulatePreview } from "./simulate-preview.ts";
-import type { SnapshotInput } from "./snapshot-types.ts";
+import type { Snapshot } from "./snapshot-types.ts";
 import type { Membership, Principal, Subject } from "./subject.ts";
 import type { Role } from "./vocabulary.ts";
 
@@ -33,7 +33,7 @@ import { evaluate } from "./evaluate/index.ts";
 import { emitSafe, emptyListeners, finish } from "./events.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
-import { grantedPermissionsOf } from "./granted-permissions.ts";
+import { grantedPermissionsOfExpanded } from "./granted-permissions.ts";
 import { heldRoleNames, roleLeaf } from "./held-roles.ts";
 import { deriveEnv } from "./instance-env.ts";
 import { snapshotOf } from "./instance-snapshot.ts";
@@ -497,7 +497,7 @@ export function buildInstance(
       );
     }) as PermDock["simulate"],
     // SAFETY: the body returns a Promise exactly when options.signer is set, which is what the overloads say.
-    snapshot: ((options?: SnapshotOptions): SnapshotInput | Promise<string> => {
+    snapshot: ((options?: SnapshotOptions): Snapshot | Promise<string> => {
       const expanded = snapshotOf(
         policy,
         subject,
@@ -511,7 +511,7 @@ export function buildInstance(
           simulated: envBase.simulated,
         }),
       );
-      const snapshot = options?.v === 1 ? expanded : compactSnapshot(expanded);
+      const snapshot = compactSnapshot(expanded);
       if (options?.signer !== undefined) {
         return signSnapshot(
           snapshot,
@@ -583,7 +583,7 @@ export function buildInstance(
     grantedPermissions(
       options?: GrantedPermissionsOptions,
     ): readonly Permission[] {
-      return grantedPermissionsOf(
+      return grantedPermissionsOfExpanded(
         policy,
         snapshotOf(policy, subject, {
           customRoles: envBase.customRoles,

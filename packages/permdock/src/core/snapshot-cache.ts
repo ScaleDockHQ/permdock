@@ -1,4 +1,4 @@
-import type { Snapshot, SnapshotInput } from "./snapshot-types.ts";
+import type { Snapshot } from "./snapshot-types.ts";
 import type { Instant } from "./time.ts";
 
 import { nowSeconds, secondsOf } from "./time.ts";
@@ -72,7 +72,7 @@ export function cacheLifeFor(
  * at the same version keeps the key.
  */
 export function snapshotKey(
-  snapshot: Pick<SnapshotInput, "authzVersion" | "subject">,
+  snapshot: Pick<Snapshot, "authzVersion" | "subject">,
 ): string {
   const principal = snapshot.subject.principal;
   return [

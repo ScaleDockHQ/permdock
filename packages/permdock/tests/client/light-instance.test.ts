@@ -10,7 +10,7 @@ import { memberUser, permissions, policy } from "../fixtures/quick-start.ts";
 
 function snapshot() {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const built = getPermDockSync(policy as never, memberUser).snapshot({ v: 1 });
+  const built = getPermDockSync(policy as never, memberUser).snapshot();
   if (built instanceof Promise) {
     throw new TypeError("expected JSON snapshot");
   }
@@ -25,9 +25,9 @@ describe(lightInstance, () => {
     expect(light.decide(permissions.post.list)).toMatchObject({
       outcome: "denied",
     });
-    expect(light.snapshot({ v: 1 })).toBe(built);
+    expect(light.snapshot()).toBe(built);
     expect(light.roles).toStrictEqual(built.vocabulary?.roles ?? {});
-    expect(light.tenant("o_1").snapshot({ v: 1 })).toBe(built);
+    expect(light.tenant("o_1").snapshot()).toBe(built);
   });
 });
 

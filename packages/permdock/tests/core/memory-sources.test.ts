@@ -8,20 +8,21 @@ import {
   memoryCustomRoleSource,
   memorySnapshotSource,
 } from "../../src/core/memory-sources.ts";
+import { compactSnapshot } from "../../src/core/snapshot-compact.ts";
 import {
   testMembershipSource,
   testCustomRoleSource,
 } from "../../src/testing/conformance/identity.ts";
 import { testSnapshotSource } from "../../src/testing/conformance/runtime-stores.ts";
 
-const snapshot: Snapshot = {
+const snapshot: Snapshot = compactSnapshot({
   v: 1,
   issuedAt: "1970-01-01T00:00:01Z",
   subject: { principal: null, context: {} },
   roles: [],
   grants: [],
   tenants: [],
-};
+});
 
 const memberships: Record<string, Membership[]> = {
   alice: [{ scope: "organization", id: "o1", roles: ["admin"] }],

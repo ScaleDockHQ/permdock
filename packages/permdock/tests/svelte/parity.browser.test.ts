@@ -14,7 +14,7 @@ import { cell } from "./fixtures/cell.svelte.ts";
 async function saasSnapshot(): Promise<Snapshot> {
   const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
   // SAFETY: snapshot() returns a Snapshot without a signer.
-  return server.snapshot({ tenants: "all", v: 1 }) as Snapshot;
+  return server.snapshot({ tenants: "all" }) as Snapshot;
 }
 
 describe("permdock/svelte parity", () => {

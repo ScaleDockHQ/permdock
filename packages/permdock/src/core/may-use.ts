@@ -5,6 +5,7 @@ import type { Delegation } from "./subject.ts";
 
 import { coveredByDelegation, readOnlyActorRefuses } from "./delegation.ts";
 import { resolveScope, scopeList, tenantOf } from "./scopes.ts";
+import { expandSnapshot } from "./snapshot-compact.ts";
 import { isMembershipExpired, nowSeconds } from "./tenancy.ts";
 import { isActive, readWireValidity } from "./validity.ts";
 
@@ -66,11 +67,8 @@ export function delegationAllows(
   permission: Permission,
 ): boolean {
   try {
-    const snapshot = permdock.snapshot({ v: 1 });
-    return (
-      "grants" in snapshot &&
-      withinDelegation(permdock, permission, snapshot.delegated)
-    );
+    const snapshot = expandSnapshot(permdock.snapshot());
+    return withinDelegation(permdock, permission, snapshot.delegated);
   } catch {
     return false;
   }
@@ -84,11 +82,8 @@ export function delegationAllows(
  */
 export function mayUse(permdock: PermDock, permission: Permission): boolean {
   try {
-    const snapshot = permdock.snapshot({ v: 1 });
-    if (
-      !("grants" in snapshot) ||
-      !withinDelegation(permdock, permission, snapshot.delegated)
-    ) {
+    const snapshot = expandSnapshot(permdock.snapshot());
+    if (!withinDelegation(permdock, permission, snapshot.delegated)) {
       return false;
     }
     const tenant = permdock.subject.principal?.tenant;
@@ -145,10 +140,7 @@ export function permittedIds(
   options: PermittedIdsOptions = {},
 ): readonly string[] {
   try {
-    const snapshot = permdock.snapshot({ tenants: "all", v: 1 });
-    if (!("grants" in snapshot)) {
-      return [];
-    }
+    const snapshot = expandSnapshot(permdock.snapshot({ tenants: "all" }));
     const scopes = scopeList(snapshot.scopes);
     const name = resolveScope(scopes, scope);
     if (

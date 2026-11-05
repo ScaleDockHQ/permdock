@@ -29,7 +29,6 @@ const policy = definePolicy(tree, {
 function snapshotOf(omitAssignable?: boolean): Snapshot {
   const instance = getPermDockSync(policy, { id: "u1" }, { tenant: "o1" });
   const snapshot = instance.snapshot({
-    v: 1,
     tenants: "all",
     ...(omitAssignable === undefined ? {} : { omitAssignable }),
   });
