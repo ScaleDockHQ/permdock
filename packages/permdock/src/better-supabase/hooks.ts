@@ -47,8 +47,21 @@ type RequestContext = NonNullable<Awaited<ReturnType<TicketSubject>>>;
 /** better-supabase's claim that caps a context to the permission keys it lists. */
 const PERMISSION_CAP_CLAIM = "bsb_permission_cap";
 
+type DelegationHook = {
+  readonly permissions?: (
+    ref: DelegationRef,
+  ) => readonly string[] | Promise<readonly string[]>;
+};
+
 type AuthorizationHooksBase<V extends PolicyVocabulary> = {
   readonly policy: Policy<unknown, Principal, V>;
+  /**
+   * Installs `delegation`, which maps a token's OAuth scopes to permission
+   * keys. `true` uses the policy's scopes and `oauthScopes`; an object's
+   * `permissions` replaces that mapping. Without it the hooks set no
+   * `delegation` and better-supabase grants a delegated token nothing.
+   */
+  readonly delegation?: true | DelegationHook;
   /**
    * The app's `permdockFor` resolver, shared with `authorizer({ permdockFor })`
    * so a hook reuses the instances the checks built. It holds `subject`,
@@ -121,8 +134,8 @@ type ClaimsHooks<V extends PolicyVocabulary> = {
 
 /**
  * With `claims` the hooks set `automation`, `support` and `tickets`; without it
- * only `sessionTags`, `delegation`, `approverOf`, `identities` and `delivery`,
- * and passing `service`, `support` or `tickets` is a type error.
+ * only `sessionTags`, `approverOf`, `identities`, `delivery` and the opt-in
+ * `delegation`, and passing `service`, `support` or `tickets` is a type error.
  */
 export type AuthorizationHooksOptions<
   V extends PolicyVocabulary = PolicyVocabulary,
@@ -195,12 +208,14 @@ function matches(
  * authorization })`), decided by `policy`. Every hook builds the principal's
  * instance from the claims `claims` loads now, never from the request, and
  * fails closed: a throw, an unknown key and `approval-required` refuse.
- * `delegation` and `sessionTags` (`snapshotTag(userId)`, so `evictSession` and
- * sign-out clear PermDock snapshots) are always set; `automation`, `support`
- * and `tickets` only with `claims`; `identities`, `delivery` and `approverOf`
- * only with the options they read. `delegation.permissions` maps each scope to
- * the keys whose `.scope` it is, was renamed from, or that a policy
- * `oauthScopes` entry covers, and reads no `authorization_details`.
+ * `sessionTags` (`snapshotTag(userId)`, so `evictSession` and sign-out clear
+ * PermDock snapshots) is always set, so `authorizationHooks({ policy })` is the
+ * session-tags-only form; `delegation` only with `delegation: true` or an
+ * object; `automation`, `support` and `tickets` only with `claims`;
+ * `identities`, `delivery` and `approverOf` only with the options they read.
+ * `delegation.permissions` maps each scope to the keys whose `.scope` it is,
+ * was renamed from, or that a policy `oauthScopes` entry covers, and reads no
+ * `authorization_details`.
  */
 export function authorizationHooks<
   V extends PolicyVocabulary = PolicyVocabulary,
@@ -270,8 +285,17 @@ export function authorizationHooks<
     },
   };
 
+  const given = options.delegation;
+  const override = given === undefined || given === true ? undefined : given;
   const delegation: NonNullable<AuthorizationHooks["delegation"]> = {
     permissions(ref: DelegationRef) {
+      if (override?.permissions !== undefined) {
+        const own = override.permissions;
+        // A throw or rejection grants nothing, as the default mapping does.
+        return Promise.resolve()
+          .then(() => own(ref))
+          .catch(() => []);
+      }
       try {
         const scopes = new Set(ref.scopes);
         return listPermissions(policy.permissions)
@@ -366,7 +390,7 @@ export function authorizationHooks<
     ...(loadClaims === undefined
       ? {}
       : { automation: Object.freeze(automation) }),
-    delegation: Object.freeze(delegation),
+    ...(given === undefined ? {} : { delegation: Object.freeze(delegation) }),
     ...(approverOf === undefined ? {} : { approverOf }),
     ...(identities === undefined
       ? {}

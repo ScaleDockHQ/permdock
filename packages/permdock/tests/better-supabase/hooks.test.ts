@@ -84,6 +84,7 @@ const base = {
 } satisfies AuthorizationHooksOptions;
 const hooks = authorizationHooks({
   ...base,
+  delegation: true,
   service: (tenant: string | null) =>
     tenant === ORG ? claimsFor("service-account", "editor") : null,
   principals: memoryPrincipalSource({
@@ -188,6 +189,54 @@ describe(authorizationHooks, () => {
     });
   });
 
+  it("installs no delegation unless asked", () => {
+    expect(authorizationHooks(base)).not.toHaveProperty("delegation");
+    expect(hooks).toHaveProperty("delegation");
+  });
+
+  it("returns apiVersion, name and sessionTags alone for the bare form", () => {
+    const bare = authorizationHooks({ policy });
+    expect(Object.keys(bare).toSorted()).toStrictEqual([
+      "apiVersion",
+      "name",
+      "sessionTags",
+    ]);
+  });
+
+  it("calls the permissions override of an object delegation, failing closed", async () => {
+    const seen: string[][] = [];
+    const custom = authorizationHooks({
+      ...base,
+      delegation: {
+        permissions: (ref) => {
+          seen.push([...ref.scopes]);
+          return [doc.read.key];
+        },
+      },
+    });
+    expect(
+      await defined(custom.delegation).permissions({
+        userId: EDITOR,
+        scopes: ["any"],
+      }),
+    ).toStrictEqual([doc.read.key]);
+    expect(seen).toStrictEqual([["any"]]);
+    const throwing = authorizationHooks({
+      ...base,
+      delegation: {
+        permissions: () => {
+          throw new Error("down");
+        },
+      },
+    });
+    expect(
+      await defined(throwing.delegation).permissions({
+        userId: EDITOR,
+        scopes: ["any"],
+      }),
+    ).toStrictEqual([]);
+  });
+
   it("maps delegated scopes to the keys whose scope they are", async () => {
     expect(
       await defined(hooks.delegation).permissions({
@@ -202,6 +251,7 @@ describe(authorizationHooks, () => {
   it("maps a coarse oauthScopes scope to the keys it covers", async () => {
     const scoped = authorizationHooks({
       ...base,
+      delegation: true,
       policy: definePolicy(
         { permissions, roles },
         {
@@ -353,9 +403,7 @@ describe(authorizationHooks, () => {
       expect(bare.apiVersion).toBe(1);
       expect(bare.name).toBe("PermDock");
       expect(bare.sessionTags?.(EDITOR)).toHaveLength(1);
-      expect(
-        bare.delegation?.permissions({ userId: EDITOR, scopes: ["doc.read"] }),
-      ).toBeDefined();
+      expect(bare).not.toHaveProperty("delegation");
       await expect(testAuthorizationHooks(bare)).resolves.toBeDefined();
     });
 

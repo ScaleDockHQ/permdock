@@ -986,6 +986,7 @@ export const server = createServer(betterSupabase, {
   authorization: authorizationHooks({
     policy,
     claims: store.claims, // (userId, { tenant }) => the claims better-supabase mints now
+    delegation: true, // OAuth client and agent tokens get the keys their scopes name
     service: (tenant) => store.serviceClaims(tenant),
     principals,
     events: { "invoice.paid": permissions.invoices.read },
@@ -996,9 +997,10 @@ export const server = createServer(betterSupabase, {
 });
 ```
 
-`claims` is optional. Without it the hooks hold `apiVersion`, `name`, `sessionTags`, `delegation` and `approverOf`, but no `automation` or `tickets`, because both load a user's claims. `service`, `support` and `tickets` need `claims`; passing one without it is a type error.
+`claims` is optional. Without it the hooks hold `apiVersion`, `name` and `sessionTags`, plus `approverOf` with `approvers` and `delegation` with the `delegation` option, but no `automation` or `tickets`, because both load a user's claims. `service`, `support` and `tickets` need `claims`; passing one without it is a type error.
 
 - `automation.mayPublish` lets a user publish an automation only with every key it uses granted to them in its tenant. `automation.runAs` loads the publisher's current claims, or `service(tenant)` for an organization-owned automation, checks every key again, and adds the automation's keys as `bsb_permission_cap`. A deleted or suspended publisher, a key they lost and a missing `service` run as no one.
+- `delegation` is set only with `delegation: true` or `delegation: { permissions }`; `authorizationHooks({ policy })` returns `{ apiVersion, name, sessionTags }`. An app that relied on the implicit hook adds `delegation: true`. The object form replaces the scope mapping with `permissions(ref)`, and a throw or rejection grants nothing.
 - `delegation.permissions` maps a token's OAuth scopes to the keys whose `.scope` they are or were renamed from, and to the keys a policy `oauthScopes` entry covers. It reads no `authorization_details`.
 - `approverOf` exists with `approvers`. It refuses the requester and claims whose `sub` is not the approver, then matches `user()` by id and `holder()` with `decide` in the request's tenant.
 - `identities.principalByIdentity` exists when `principals` has `principalByIdentity`; a contact maps to `{ kind: "contact" }`. `delivery.subscribers` and `delivery.audience` are `subscriberPolicy` and exist with `principals` and `events`.
