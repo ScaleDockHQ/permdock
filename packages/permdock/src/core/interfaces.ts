@@ -3,7 +3,7 @@ import type { Credential, CredentialPolicy } from "./credential.ts";
 import type { Decision } from "./decision.ts";
 import type { SinkEvent } from "./event-types.ts";
 import type { Permission } from "./permission-types.ts";
-import type { Snapshot } from "./snapshot-types.ts";
+import type { SnapshotInput } from "./snapshot-types.ts";
 import type {
   CustomRole,
   JsonWebKeyLike,
@@ -399,7 +399,7 @@ export type SubjectResolver<
 export type SnapshotSource = {
   /** Names the implementation in errors and events. */
   readonly name?: string;
-  get: () => Promise<Snapshot | string> | Snapshot | string;
+  get: () => Promise<SnapshotInput | string> | SnapshotInput | string;
   subscribe?: (listener: () => void) => () => void;
 };
 

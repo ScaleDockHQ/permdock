@@ -231,7 +231,7 @@ describe("principal refs and snapshots", () => {
       },
     );
     const permdock = getPermDockSync(policy, { id: "u1" });
-    const snapshot = permdock.snapshot();
+    const snapshot = permdock.snapshot({ v: 1 });
     if (snapshot instanceof Promise) {
       throw new TypeError("expected json snapshot");
     }

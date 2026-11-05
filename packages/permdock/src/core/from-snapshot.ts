@@ -6,7 +6,7 @@ import type {
   SnapshotOptions,
 } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
-import type { Snapshot } from "./snapshot-types.ts";
+import type { Snapshot, SnapshotInput } from "./snapshot-types.ts";
 import type { Membership } from "./subject.ts";
 import type { Role } from "./vocabulary.ts";
 
@@ -25,10 +25,12 @@ import { mayUse, permittedIds } from "./may-use.ts";
 import { listPermissions } from "./permission-registry.ts";
 import { rowIdOf } from "./row-pair.ts";
 import { normalizeMemberships, scopeList } from "./scopes.ts";
+import { compactSnapshot } from "./snapshot-compact.ts";
 import { evaluateSnapshot, whereFromSnapshot } from "./snapshot-evaluate.ts";
 import { snapshotReads } from "./snapshot-reads.ts";
 import { signSnapshot } from "./snapshot-sign.ts";
 import { subjectFromSnapshot } from "./snapshot-subject.ts";
+import { parseSnapshot } from "./snapshot.ts";
 
 function resourceRef(
   snapshot: Snapshot,
@@ -45,9 +47,10 @@ function resourceRef(
 }
 
 export function fromSnapshot(
-  snapshot: Snapshot,
+  input: SnapshotInput,
   options: { readonly tenant?: string; readonly team?: string } = {},
 ): PermDock {
+  const snapshot = input.v === 2 ? parseSnapshot(input) : input;
   const subject = subjectFromSnapshot(snapshot, options.tenant);
   const team = options.team;
 
@@ -248,14 +251,21 @@ export function fromSnapshot(
       return fromSnapshot(next, options);
     }) as PermDock["simulate"],
     // SAFETY: the body returns a Promise exactly when signer is set, which is what the overloads say.
-    snapshot: ((signing?: SnapshotOptions): Snapshot | Promise<string> =>
-      signing?.signer === undefined
-        ? snapshot
+    snapshot: ((signing?: SnapshotOptions): SnapshotInput | Promise<string> => {
+      const wire =
+        signing?.v === 1
+          ? snapshot
+          : input.v === 2
+            ? input
+            : compactSnapshot(snapshot);
+      return signing?.signer === undefined
+        ? wire
         : signSnapshot(
-            snapshot,
+            wire,
             signing.signer,
             compact({ audience: signing.audience }),
-          )) as PermDock["snapshot"],
+          );
+    }) as PermDock["snapshot"],
     on() {
       return (): void => undefined;
     },

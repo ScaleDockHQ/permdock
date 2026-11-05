@@ -4,7 +4,7 @@ import type { Operation, OperationInput } from "../core/operations.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { SnapshotInput } from "../core/snapshot-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type {
@@ -91,7 +91,7 @@ export type AstroPermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly getSnapshot: (
     context: APIContext,
     query?: SnapshotQuery,
-  ) => Promise<Snapshot>;
+  ) => Promise<SnapshotInput>;
   readonly connection: (
     context: APIContext,
     connectionOptions?: ConnectionOptions,

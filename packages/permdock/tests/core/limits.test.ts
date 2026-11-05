@@ -242,7 +242,7 @@ describe("quota grants", () => {
     const permdock = await permdockFor([limited], "member", {
       limits: limits(memoryLimitStore()),
     });
-    const snapshot = permdock.snapshot();
+    const snapshot = permdock.snapshot({ v: 1 });
     if (snapshot instanceof Promise) {
       throw new TypeError("expected json snapshot");
     }

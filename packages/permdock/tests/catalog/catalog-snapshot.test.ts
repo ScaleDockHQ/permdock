@@ -81,7 +81,7 @@ describe("snapshot on an instance built from a catalog", () => {
       rebuilt,
       { id: "u1", roles: ["member"], plans: ["pro"] },
       { policies: hostedPolicies(memoryPolicySource(document)) },
-    ).snapshot();
+    ).snapshot({ v: 1 });
     const listed = snapshot.grants.map((grant) => [
       grant.permission,
       grant.portable ?? true,

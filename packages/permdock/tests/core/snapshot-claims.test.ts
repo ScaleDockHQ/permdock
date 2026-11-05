@@ -48,7 +48,7 @@ const user = {
 describe("claims in snapshots", () => {
   it("binds claim refs to the subject values and keeps carried refs", async () => {
     const permdock = getPermDockSync(policy, user);
-    const snapshot = permdock.snapshot();
+    const snapshot = permdock.snapshot({ v: 1 });
     if (snapshot instanceof Promise || typeof snapshot !== "object") {
       throw new TypeError("expected a json snapshot");
     }
@@ -72,7 +72,7 @@ describe("claims in snapshots", () => {
   it("never lets the snapshot client grant what the server denies", async () => {
     const permdock = getPermDockSync(policy, user);
     const client = fromSnapshot(
-      parseSnapshot(JSON.stringify(permdock.snapshot())),
+      parseSnapshot(JSON.stringify(permdock.snapshot({ v: 1 }))),
     );
     const rows = [
       { id: "a", region: "eu", ownerId: "u_1" },

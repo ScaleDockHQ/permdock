@@ -1,5 +1,9 @@
 import type { JwtClaims, TokenSigner } from "./interfaces.ts";
-import type { Snapshot } from "./snapshot-types.ts";
+import type {
+  CompactSnapshot,
+  Snapshot,
+  SnapshotInput,
+} from "./snapshot-types.ts";
 
 import { compact, isRecord } from "./compact.ts";
 import { parseSnapshot } from "./snapshot.ts";
@@ -15,7 +19,9 @@ export type SignSnapshotOptions = {
  * `jti`.
  */
 export type SnapshotClaims = {
-  readonly snapshot: Omit<Snapshot, "issuedAt" | "expiresAt">;
+  readonly snapshot:
+    | Omit<Snapshot, "issuedAt" | "expiresAt">
+    | Omit<CompactSnapshot, "issuedAt" | "expiresAt">;
   /** The principal's id; absent for an anonymous snapshot. */
   readonly sub?: string;
   /** `issuedAt` in NumericDate seconds; absent when it is not after the epoch. */
@@ -32,7 +38,7 @@ export type SnapshotClaims = {
  * become `iat` and `exp` and leave the `snapshot` claim, so the registered
  * claims are the only times a verifier reads.
  */
-export function snapshotClaims(snapshot: Snapshot): SnapshotClaims {
+export function snapshotClaims(snapshot: SnapshotInput): SnapshotClaims {
   const { issuedAt, expiresAt, ...claim } = snapshot;
   const iat = secondsOf(issuedAt);
   return compact<SnapshotClaims>({
@@ -48,7 +54,7 @@ export function snapshotClaims(snapshot: Snapshot): SnapshotClaims {
  * `snapshotClaims` answers.
  */
 export function signSnapshot(
-  snapshot: Snapshot,
+  snapshot: SnapshotInput,
   signer: TokenSigner,
   options: SignSnapshotOptions = {},
 ): Promise<string> {

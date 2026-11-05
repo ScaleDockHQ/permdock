@@ -25,7 +25,7 @@ import type {
 } from "../core/decision.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { SnapshotInput } from "../core/snapshot-types.ts";
 
 /** Structural `JSX.Element`: text, a DOM node or a list of children. */
 export type SolidChild =
@@ -44,10 +44,10 @@ export type PermDockProviderProps = ProviderOptionsBase & {
    * the store `pending` until it settles.
    */
   readonly snapshot:
-    | Snapshot
+    | SnapshotInput
     | string
-    | Accessor<Snapshot | string | undefined>
-    | PromiseLike<Snapshot | string>;
+    | Accessor<SnapshotInput | string | undefined>
+    | PromiseLike<SnapshotInput | string>;
   /** A change switches the active tenant (`refresh({ tenant })`). */
   readonly tenant?: string;
   /**

@@ -1,7 +1,11 @@
 import { describe, expectTypeOf, it } from "vitest";
 
 import type { TokenSigner } from "../../src/core/interfaces.ts";
-import type { Snapshot } from "../../src/core/snapshot-types.ts";
+import type {
+  CompactSnapshot,
+  Snapshot,
+  SnapshotInput,
+} from "../../src/core/snapshot-types.ts";
 import type { PermDock, SnapshotOptions } from "../../src/index.ts";
 
 import { snapshotFor } from "../../src/index.ts";
@@ -39,6 +43,7 @@ type Serializable<T, Depth extends unknown[] = []> = Depth["length"] extends 12
 describe("the Snapshot type", () => {
   it("holds only plain, serializable data", () => {
     expectTypeOf<Serializable<Snapshot>>().toEqualTypeOf<true>();
+    expectTypeOf<Serializable<CompactSnapshot>>().toEqualTypeOf<true>();
     expectTypeOf<
       Serializable<{ readonly f: () => void }>
     >().toEqualTypeOf<false>();
@@ -48,7 +53,10 @@ describe("the Snapshot type", () => {
   });
 
   it("is what snapshotFor returns, synchronously", () => {
-    expectTypeOf(snapshotFor(policy, alice)).toEqualTypeOf<Snapshot>();
+    expectTypeOf(snapshotFor(policy, alice)).toEqualTypeOf<CompactSnapshot>();
+    expectTypeOf(
+      snapshotFor(policy, alice, { v: 1 }),
+    ).toEqualTypeOf<Snapshot>();
   });
 });
 
@@ -58,15 +66,16 @@ declare const options: SnapshotOptions;
 
 describe("permdock.snapshot", () => {
   it("returns a Snapshot without a signer and a token promise with one", () => {
-    expectTypeOf(permdock.snapshot()).toEqualTypeOf<Snapshot>();
+    expectTypeOf(permdock.snapshot()).toEqualTypeOf<CompactSnapshot>();
     expectTypeOf(
       permdock.snapshot({ tenants: "all" }),
-    ).toEqualTypeOf<Snapshot>();
+    ).toEqualTypeOf<CompactSnapshot>();
+    expectTypeOf(permdock.snapshot({ v: 1 })).toEqualTypeOf<Snapshot>();
     expectTypeOf(permdock.snapshot({ signer })).toEqualTypeOf<
       Promise<string>
     >();
     expectTypeOf(permdock.snapshot(options)).toEqualTypeOf<
-      Snapshot | Promise<string>
+      SnapshotInput | Promise<string>
     >();
   });
 });

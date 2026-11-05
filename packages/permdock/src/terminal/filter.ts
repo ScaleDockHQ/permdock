@@ -3,7 +3,7 @@ import type { Permission } from "../core/permission-types.ts";
 import type { CommandEntry, FilterCommandsOptions } from "./types.ts";
 
 function snapshotAllows(permdock: PermDock, permission: Permission): boolean {
-  const snapshot = permdock.snapshot();
+  const snapshot = permdock.snapshot({ v: 1 });
   if (typeof snapshot === "string" || snapshot instanceof Promise) {
     return false;
   }

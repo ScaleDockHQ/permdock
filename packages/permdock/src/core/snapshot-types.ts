@@ -99,6 +99,34 @@ export type Snapshot = {
   readonly typeLevel?: SnapshotTypeLevel;
 };
 
+/**
+ * What a grant says apart from its permission key: its effect, role, grantee,
+ * conditions, scope and membership. A `CompactSnapshot` lists each distinct set
+ * once in `conditions`.
+ */
+export type SnapshotGrantTerms = Omit<SnapshotGrant, "permission">;
+
+/**
+ * The `v: 2` wire form of a `Snapshot`: `conditions` holds each distinct set of
+ * grant terms once and a grant is `{ permission, cond }`, `cond` indexing it.
+ * `parseSnapshot` expands it into the `Snapshot` every reader takes.
+ */
+export type CompactSnapshot = Omit<Snapshot, "v" | "grants"> & {
+  readonly v: 2;
+  readonly conditions: readonly SnapshotGrantTerms[];
+  readonly grants: readonly {
+    readonly permission: string;
+    /**
+     * Indexes into `conditions`: one, or a list for consecutive grants of the
+     * same permission, in grant order.
+     */
+    readonly cond: number | readonly number[];
+  }[];
+};
+
+/** A snapshot in either form: what `snapshot()` returns and a client accepts. */
+export type SnapshotInput = Snapshot | CompactSnapshot;
+
 /** The permission keys a rowless check grants or sends to an approver. */
 export type SnapshotTypeLevel = {
   readonly granted: readonly string[];

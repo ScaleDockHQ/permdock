@@ -143,10 +143,10 @@ describe("snapshots are plain data", () => {
   it("carries only plain, JSON and structured-clone safe values in every shape", async () => {
     const permdock = getPermDockSync(policy, ana, { relations, customRoles });
     const shapes = {
-      own: permdock.snapshot(),
-      all: permdock.snapshot({ tenants: "all" }),
-      tenant: permdock.tenant("acme").snapshot(),
-      other: permdock.tenant("globex").snapshot({ include: [file] }),
+      own: permdock.snapshot({ v: 1 }),
+      all: permdock.snapshot({ v: 1, tenants: "all" }),
+      tenant: permdock.tenant("acme").snapshot({ v: 1 }),
+      other: permdock.tenant("globex").snapshot({ v: 1, include: [file] }),
       offline: snapshotFor(policy, ana, { tenants: "all" }),
       manifest: localSnapshotManifest(policy),
     };

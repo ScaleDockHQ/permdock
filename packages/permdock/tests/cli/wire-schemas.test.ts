@@ -101,7 +101,7 @@ describe("schemas/*.json", () => {
       "https://json-schema.org/draft/2020-12/schema",
     );
     expect(schema["$id"]).toBe(`https://permdock.com/schemas/${name}`);
-    expect(name).toMatch(/^[a-z][a-z0-9-]*-v1\.json$/u);
+    expect(name).toMatch(/^[a-z][a-z0-9-]*-v\d+\.json$/u);
   });
 
   it("puts a pattern on every date-time", () => {
@@ -131,6 +131,30 @@ describe("schemas/*.json", () => {
       walk(json(new URL(name, SCHEMAS)), name);
     }
     expect(missing).toStrictEqual([]);
+  });
+});
+
+describe("snapshot-v2.json", () => {
+  const check = validator("snapshot-v2.json");
+  const fixture = (): Record<string, unknown> =>
+    json(new URL("../../fixtures/snapshot-v2.json", import.meta.url));
+
+  it("accepts the compact fixture and expands it to the v1 fixture", () => {
+    expect(check(fixture())).toStrictEqual([]);
+    expect(parseSnapshot(fixture())).toStrictEqual(
+      parseSnapshot(
+        json(new URL("../../fixtures/snapshot.json", import.meta.url)),
+      ),
+    );
+  });
+
+  it("rejects a v1 body and a grant that names no terms", () => {
+    expect(
+      check(json(new URL("../../fixtures/snapshot.json", import.meta.url))),
+    ).not.toStrictEqual([]);
+    expect(
+      check({ ...fixture(), grants: [{ permission: "post.read" }] }),
+    ).not.toStrictEqual([]);
   });
 });
 

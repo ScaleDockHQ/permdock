@@ -84,7 +84,7 @@ describe("hooks", () => {
   async function memberSnapshot(): Promise<Snapshot> {
     // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
     const server = getPermDockSync(policy as never, memberUser);
-    const snapshot = server.snapshot();
+    const snapshot = server.snapshot({ v: 1 });
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -178,7 +178,7 @@ describe("hooks", () => {
 
     it("read tenants, scoped roles and assignable roles", async () => {
       const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
-      const snapshot = server.snapshot({ tenants: "all" });
+      const snapshot = server.snapshot({ v: 1, tenants: "all" });
       if (snapshot instanceof Promise) {
         throw new TypeError("expected JSON snapshot");
       }
@@ -286,7 +286,7 @@ describe("hooks", () => {
 
     it("decides for another tenant with the tenant prop", async () => {
       const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
-      const snapshot = server.snapshot({ tenants: "all" });
+      const snapshot = server.snapshot({ v: 1, tenants: "all" });
       if (snapshot instanceof Promise) {
         throw new TypeError("expected JSON snapshot");
       }

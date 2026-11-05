@@ -19,7 +19,7 @@ import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
 import type { RelationCache } from "./relations.ts";
 import type { SimulatePreview } from "./simulate-preview.ts";
-import type { Snapshot } from "./snapshot-types.ts";
+import type { SnapshotInput } from "./snapshot-types.ts";
 import type { Membership, Principal, Subject } from "./subject.ts";
 import type { Role } from "./vocabulary.ts";
 
@@ -45,6 +45,7 @@ import { pendingRelations, relationReader } from "./relations.ts";
 import { audiencesOf } from "./role-rank.ts";
 import { scopeList } from "./scopes.ts";
 import { previewSubject, simulateEvent } from "./simulate-preview.ts";
+import { compactSnapshot } from "./snapshot-compact.ts";
 import { collectSnapshotGrants, whereGrant } from "./snapshot-grants.ts";
 import { signSnapshot } from "./snapshot-sign.ts";
 import { snapshotGrant } from "./snapshot.ts";
@@ -496,8 +497,8 @@ export function buildInstance(
       );
     }) as PermDock["simulate"],
     // SAFETY: the body returns a Promise exactly when options.signer is set, which is what the overloads say.
-    snapshot: ((options?: SnapshotOptions): Snapshot | Promise<string> => {
-      const snapshot = snapshotOf(
+    snapshot: ((options?: SnapshotOptions): SnapshotInput | Promise<string> => {
+      const expanded = snapshotOf(
         policy,
         subject,
         compact<Parameters<typeof snapshotOf>[2]>({
@@ -510,6 +511,7 @@ export function buildInstance(
           simulated: envBase.simulated,
         }),
       );
+      const snapshot = options?.v === 1 ? expanded : compactSnapshot(expanded);
       if (options?.signer !== undefined) {
         return signSnapshot(
           snapshot,

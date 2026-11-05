@@ -25,7 +25,7 @@ import {
 
 async function memberSnapshot(): Promise<Snapshot> {
   const server = getPermDockSync(policy, memberUser);
-  const snapshot = server.snapshot();
+  const snapshot = server.snapshot({ v: 1 });
   if (snapshot instanceof Promise || typeof snapshot === "string") {
     throw new TypeError("expected JSON snapshot");
   }

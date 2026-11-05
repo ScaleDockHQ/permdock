@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { SnapshotInput } from "../core/snapshot-types.ts";
 import type { NextPermDockProviderProps } from "./types.ts";
 
 import { compact } from "../core/compact.ts";
@@ -12,7 +12,7 @@ type ClientProviderOptions = Omit<
   NextPermDockProviderProps,
   "snapshot" | "include" | "tenants" | "children"
 > & {
-  readonly snapshotPromise: PromiseLike<Snapshot | string>;
+  readonly snapshotPromise: PromiseLike<SnapshotInput | string>;
   readonly endpoint: string | false;
   readonly children: ReactNode;
 };

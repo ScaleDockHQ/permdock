@@ -34,7 +34,7 @@ import { renderSettled } from "./render.ts";
 async function memberSnapshot() {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
   const server = getPermDockSync(policy as never, memberUser);
-  const snapshot = server.snapshot();
+  const snapshot = server.snapshot({ v: 1 });
   if (snapshot instanceof Promise) {
     throw new TypeError("expected JSON snapshot");
   }
@@ -65,7 +65,7 @@ function AssignableProbe(): string {
 describe(useAssignablePermissions, () => {
   it("reads the custom-role ceiling the subject may hand out from the snapshot", async () => {
     const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
-    const snapshot = server.snapshot({ tenants: "all" });
+    const snapshot = server.snapshot({ v: 1, tenants: "all" });
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }

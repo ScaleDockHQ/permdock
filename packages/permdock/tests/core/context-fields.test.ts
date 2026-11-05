@@ -198,7 +198,7 @@ describe("schema-aware field-level grants", () => {
       subject: () => ({ id: "u1", roles: ["member"] }),
     });
     const server = getPermDockSync(policy, { id: "u1" });
-    const snapshot = unsigned(server.snapshot());
+    const snapshot = unsigned(server.snapshot({ v: 1 }));
     expect(snapshot.grants[0]?.fields).toStrictEqual(["title"]);
     const client = fromSnapshot(snapshot);
     expect(client.can(permissions.post.read, row)).toBe(true);

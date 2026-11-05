@@ -26,6 +26,7 @@ import {
   listPermissions,
 } from "../core/permission-registry.ts";
 import { resourceRef } from "../core/resource-ref.ts";
+import { parseSnapshot } from "../core/snapshot.ts";
 import { ignoreRejection, isThenable } from "../core/thenable.ts";
 import {
   approvalToolRefusal,
@@ -53,7 +54,11 @@ function snapshotOf(permdock: WebMcpPermDock): Snapshot | undefined {
   if (value instanceof Promise || typeof value === "string") {
     return undefined;
   }
-  return value;
+  try {
+    return parseSnapshot(value);
+  } catch {
+    return undefined;
+  }
 }
 
 function toolName(permission: Permission): string {

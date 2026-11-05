@@ -15,6 +15,7 @@ import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { scopeList } from "./scopes.ts";
+import { expandGrants } from "./snapshot-compact.ts";
 import { tenantsOf } from "./tenancy.ts";
 import { isRfc3339, nowSeconds, rfc3339 } from "./time.ts";
 import { wireValidity } from "./validity.ts";
@@ -363,7 +364,7 @@ export function parseSnapshot(json: unknown): Snapshot {
   // SAFETY: value is a non-array object; its fields stay unknown until checked.
   const record = value as Record<string, unknown>;
   const version = record["v"];
-  if (version !== 1) {
+  if (version !== 1 && version !== 2) {
     throw new Error(
       `PermDock: unsupported snapshot version '${String(version)}'`,
     );
@@ -391,6 +392,11 @@ export function parseSnapshot(json: unknown): Snapshot {
     throw new Error(
       "PermDock: snapshot typeLevel must list permission keys under granted, approval and endpoint",
     );
+  }
+  if (version === 2) {
+    const { conditions: _conditions, ...rest } = record;
+    // SAFETY: only the version, times, typeLevel, unsafe keys and the grant indexes are checked; the other fields are not validated here.
+    return freezeDeep({ ...rest, v: 1, ...expandGrants(record) }) as Snapshot;
   }
   // SAFETY: only the version, times, typeLevel and unsafe keys are checked; the other fields are not validated here.
   return freezeDeep(value) as Snapshot;

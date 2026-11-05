@@ -1,0 +1,30 @@
+{
+  "v": 2,
+  "issuedAt": "2023-11-14T22:13:20Z",
+  "subject": {
+    "principal": {
+      "id": "u1",
+      "roles": ["member"]
+    },
+    "context": {}
+  },
+  "roles": ["member"],
+  "tenants": [],
+  "conditions": [
+    {
+      "effect": "allow",
+      "role": "member",
+      "to": {
+        "kind": "role",
+        "role": "member",
+        "scope": "global"
+      }
+    }
+  ],
+  "grants": [
+    {
+      "permission": "post.read",
+      "cond": 0
+    }
+  ]
+}

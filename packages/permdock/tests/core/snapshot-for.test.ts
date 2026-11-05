@@ -43,13 +43,16 @@ function assertJson(value: unknown, path = "$"): void {
 }
 
 describe(snapshotFor, () => {
-  it("matches getPermDockSync().snapshot() for the same subject", async () => {
+  it("matches getPermDockSync().snapshot({ v: 1 }) for the same subject", async () => {
     const permdock = getPermDockSync(policy, alice, { tenant: "acme" });
     // SAFETY: the instance has no signer, so snapshot() returned an unsigned Snapshot.
-    const expected = permdock.snapshot() as { readonly issuedAt: string };
+    const expected = permdock.snapshot({ v: 1 }) as {
+      readonly issuedAt: string;
+    };
     const actual = snapshotFor(policy, alice, {
       tenant: "acme",
       now: Temporal.Instant.from(expected.issuedAt),
+      v: 1,
     });
     expect(actual).toStrictEqual(expected);
   });
@@ -148,7 +151,7 @@ describe(snapshotFor, () => {
   });
 
   it("builds an anonymous snapshot for a null user", () => {
-    const snapshot = snapshotFor(policy, null);
+    const snapshot = snapshotFor(policy, null, { v: 1 });
     expect(snapshot.subject.principal).toBeNull();
     expect(
       snapshot.grants.filter((grant) => grant.effect === "allow"),

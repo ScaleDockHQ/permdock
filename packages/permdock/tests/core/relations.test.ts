@@ -371,7 +371,7 @@ describe("relationship graph", () => {
 
   it("keeps the graph out of snapshots but in where()", async () => {
     const vera = permdock("vera");
-    const snapshot = vera.snapshot();
+    const snapshot = vera.snapshot({ v: 1 });
     const grant =
       "grants" in snapshot
         ? snapshot.grants.find(

@@ -19,7 +19,7 @@ import type {
 import type { ActionResult } from "../core/action-result.ts";
 import type { ApprovalRequiredDecision, Decision } from "../core/decision.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { SnapshotInput } from "../core/snapshot-types.ts";
 
 export type PermDockPluginOptions = ProviderOptionsBase & {
   /**
@@ -28,8 +28,8 @@ export type PermDockPluginOptions = ProviderOptionsBase & {
    * `setup` under `<Suspense>`).
    */
   readonly snapshot:
-    | MaybeRefOrGetter<Snapshot | string>
-    | PromiseLike<Snapshot | string>;
+    | MaybeRefOrGetter<SnapshotInput | string>
+    | PromiseLike<SnapshotInput | string>;
   /**
    * A ref or getter switches the active tenant (`refresh({ tenant })`) when it
    * changes.

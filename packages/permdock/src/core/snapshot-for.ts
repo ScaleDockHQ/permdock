@@ -1,7 +1,12 @@
 import type { AuthEvent } from "./event-types.ts";
 import type { SnapshotInclude } from "./instance-snapshot.ts";
 import type { Policy, PolicyVocabulary } from "./policy-types.ts";
-import type { Snapshot, SnapshotTenants } from "./snapshot-types.ts";
+import type {
+  CompactSnapshot,
+  Snapshot,
+  SnapshotInput,
+  SnapshotTenants,
+} from "./snapshot-types.ts";
 import type { CustomRole, Membership, Principal, Subject } from "./subject.ts";
 import type { Instant } from "./time.ts";
 
@@ -10,6 +15,7 @@ import { freezeDeep } from "./freeze.ts";
 import { snapshotOf } from "./instance-snapshot.ts";
 import { resolveSubject } from "./resolve-subject.ts";
 import { scopeList } from "./scopes.ts";
+import { compactSnapshot } from "./snapshot-compact.ts";
 import { tenantsOf } from "./tenancy.ts";
 import { isThenable } from "./thenable.ts";
 import { nowSeconds } from "./time.ts";
@@ -31,6 +37,8 @@ export type SnapshotForOptions = {
   readonly include?: SnapshotInclude;
   readonly tenants?: SnapshotTenants;
   readonly omitAssignable?: boolean;
+  /** The wire version: `2` (the default) or `1` for a reader older than 0.25.0. */
+  readonly v?: 1 | 2;
   /** The instant for `issuedAt` and membership expiry. Defaults to the clock. */
   readonly now?: Instant;
 };
@@ -66,7 +74,38 @@ export function snapshotFor<
 >(
   policy: Policy<TUser, TPrincipal, V>,
   user: TUser | Subject | null,
+  options: SnapshotForOptions & { readonly v: 1 },
+): Snapshot;
+export function snapshotFor<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
+  user: TUser | Subject | null,
+  options?: SnapshotForOptions & { readonly v?: 2 },
+): CompactSnapshot;
+export function snapshotFor<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
+  user: TUser | Subject | null,
   options: SnapshotForOptions = {},
+): SnapshotInput {
+  const expanded = expandedSnapshotFor(policy, user, options);
+  return options.v === 1 ? expanded : compactSnapshot(expanded);
+}
+
+function expandedSnapshotFor<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
+  user: TUser | Subject | null,
+  options: SnapshotForOptions,
 ): Snapshot {
   const auth: AuthEvent[] = [];
   const memberships = options.memberships;

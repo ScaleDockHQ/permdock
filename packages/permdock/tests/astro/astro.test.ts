@@ -110,7 +110,7 @@ describe("permdock/astro", () => {
     const instance = await getPermDock(contextFor("/"));
     const conn = await connection(contextFor("/"));
     expect([snapshot.status, evaluations.status]).toStrictEqual([200, 200]);
-    expect(loaded.v).toBe(1);
+    expect(loaded.v).toBe(2);
     expect(instance.can(permissions.post.read, ownPost)).toBe(true);
     expect(conn.signal.aborted).toBe(false);
   });

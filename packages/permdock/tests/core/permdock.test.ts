@@ -173,7 +173,7 @@ describe(getPermDockSync, () => {
     if (snapshot instanceof Promise) {
       throw new TypeError("expected json snapshot");
     }
-    expect(snapshot.v).toBe(1);
+    expect(snapshot.v).toBe(2);
     expect(
       snapshot.grants.every((grant) => grant.permission.startsWith("post")),
     ).toBe(true);
@@ -193,7 +193,7 @@ describe(getPermDockSync, () => {
     });
     expect(await signed).toBe("signed.jws");
     const plain = permdock.snapshot();
-    expect(plain.v).toBe(1);
+    expect(plain.v).toBe(2);
     const client = fromSnapshot(plain);
     expect(client.snapshot()).toBe(plain);
     expect(
@@ -280,9 +280,11 @@ describe(getPermDockSync, () => {
       if (denied.outcome === "denied") {
         expect(denied.denials[0]?.reason).toBe("no-delegation");
       }
-      expect(unsigned(permdock.snapshot()).grants.length).toBeGreaterThan(0);
       expect(
-        fromSnapshot(unsigned(permdock.snapshot())).can(
+        unsigned(permdock.snapshot({ v: 1 })).grants.length,
+      ).toBeGreaterThan(0);
+      expect(
+        fromSnapshot(unsigned(permdock.snapshot({ v: 1 }))).can(
           permissions.post.read,
           ownPost,
         ),
@@ -444,7 +446,7 @@ describe(getPermDockSync, () => {
     const permdock = getPermDockSync(fnPolicy, memberUser);
     expect(permdock.can(permissions.post.read, ownPost)).toBe(true);
     expect(permdock.can(permissions.post.read, otherPost)).toBe(false);
-    const snapshot = permdock.snapshot();
+    const snapshot = permdock.snapshot({ v: 1 });
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }

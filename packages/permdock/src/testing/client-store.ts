@@ -5,6 +5,7 @@ import type {
   Permission,
   PermDock,
   Snapshot,
+  SnapshotInput,
   TokenVerifier,
 } from "../index.ts";
 
@@ -38,7 +39,7 @@ export type ClientStoreHandle = {
 };
 
 export type ClientStoreFactoryOptions = {
-  readonly snapshot: Snapshot | string;
+  readonly snapshot: SnapshotInput | string;
   readonly snapshotUrl?: string;
   readonly endpoint?: string;
   readonly tenant?: string;
@@ -63,6 +64,7 @@ const p = saasPermissions;
 function snapshotOf(user: string, tenant: string, tenants?: "all"): Snapshot {
   return snapshotFor(saasPolicy, saasPrincipal(user, tenant), {
     tenant,
+    v: 1,
     ...(tenants === undefined ? {} : { tenants }),
   });
 }
@@ -71,6 +73,7 @@ function snapshotOf(user: string, tenant: string, tenants?: "all"): Snapshot {
 function leadSnapshot(): Snapshot {
   return snapshotFor(saasPolicy, saasPrincipal("gina", "acme"), {
     tenant: "acme",
+    v: 1,
     tenants: "all",
     memberships: [
       ...saasMemberships("gina"),

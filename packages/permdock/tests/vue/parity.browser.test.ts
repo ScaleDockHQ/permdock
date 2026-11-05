@@ -30,7 +30,7 @@ async function memberSnapshot(): Promise<Snapshot> {
   // SAFETY: memberUser is a quick-start user fixture; only the policy generic is erased.
   const server = getPermDockSync(policy as never, memberUser);
   // SAFETY: snapshot() returns a Snapshot; the erased generic above hides its type.
-  return server.snapshot() as Snapshot;
+  return server.snapshot({ v: 1 }) as Snapshot;
 }
 
 function refused(digest: string): Error {
@@ -113,7 +113,7 @@ describe("permdock/vue parity", () => {
   it("switches tenant when the tenant ref changes", async () => {
     const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
     // SAFETY: snapshot() returns a Snapshot without a signer.
-    const snapshot = server.snapshot({ tenants: "all" }) as Snapshot;
+    const snapshot = server.snapshot({ tenants: "all", v: 1 }) as Snapshot;
     const tenant = shallowRef<string | undefined>("acme");
     let view: ReturnType<typeof useTenant> | undefined;
     const app = createApp(

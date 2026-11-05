@@ -311,7 +311,7 @@ async function settle(): Promise<void> {
 async function memberSnapshot(): Promise<Snapshot> {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
   const server = getPermDockSync(policy as never, memberUser);
-  const snapshot = server.snapshot();
+  const snapshot = server.snapshot({ v: 1 });
   if (snapshot instanceof Promise) {
     throw new TypeError("expected JSON snapshot");
   }

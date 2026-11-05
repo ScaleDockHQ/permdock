@@ -134,7 +134,7 @@ describe("permdock/solid-start", () => {
     }).request("/");
     expect([get.status, post.status]).toStrictEqual([200, 200]);
     expect(await details.json()).toStrictEqual({
-      v: 1,
+      v: 2,
       id: "u1",
       aborted: false,
     });

@@ -21,6 +21,7 @@ describe("snapshot edges", () => {
       { tenant: "o1" },
     );
     const snap = scopedSnap.snapshot({
+      v: 1,
       include: [tree.post.read],
       tenants: "all",
     });
@@ -28,7 +29,7 @@ describe("snapshot edges", () => {
       throw new TypeError("json");
     }
     expect(snap.grants.some((grant) => grant.scope === "tenant")).toBe(true);
-    const anonymousSnap = getPermDockSync(policy, null).snapshot();
+    const anonymousSnap = getPermDockSync(policy, null).snapshot({ v: 1 });
     if (anonymousSnap instanceof Promise) {
       throw new TypeError("json");
     }
@@ -61,12 +62,12 @@ describe("snapshot edges", () => {
       { id: "u1" },
       { tenant: "o1" },
     );
-    const teamSnap = teamPermdock.snapshot();
+    const teamSnap = teamPermdock.snapshot({ v: 1 });
     if (teamSnap instanceof Promise) {
       throw new TypeError("json");
     }
     expect(teamSnap.grants.some((grant) => grant.scope === "team")).toBe(true);
-    expect(teamPermdock.snapshot({ include: [] })).toBeDefined();
+    expect(teamPermdock.snapshot({ v: 1, include: [] })).toBeDefined();
     const resourceSnap = getPermDockSync(
       definePolicy(tree, {
         roles: [role("owner", [allow(tree.post.read)], { on: tree.post })],
@@ -79,7 +80,7 @@ describe("snapshot edges", () => {
       }),
       { id: "u1" },
     );
-    const owned = resourceSnap.snapshot();
+    const owned = resourceSnap.snapshot({ v: 1 });
     if (owned instanceof Promise) {
       throw new TypeError("json");
     }

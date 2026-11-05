@@ -2,7 +2,7 @@ import type { EventHandler, H3Event, H3EventContext, Middleware } from "h3";
 
 import type { PermDock } from "../core/permdock.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { SnapshotInput } from "../core/snapshot-types.ts";
 import type { Principal } from "../core/subject.ts";
 import type { Connection, ConnectionOptions } from "../server/connection.ts";
 import type {
@@ -51,7 +51,7 @@ export type H3PermDock<V extends PolicyVocabulary = PolicyVocabulary> = {
   readonly getSnapshot: (
     event: H3Event,
     query?: SnapshotQuery,
-  ) => Promise<Snapshot>;
+  ) => Promise<SnapshotInput>;
   /**
    * Types `event.context.permdock` and `permdockData` for the handler, builds
    * the instance when no middleware set it, and answers a thrown PermDock error

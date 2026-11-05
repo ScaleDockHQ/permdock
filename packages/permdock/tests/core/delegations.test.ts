@@ -73,7 +73,7 @@ const billingAgent = { id: "agent-billing", kind: "eve" };
 type TestPermDock = Awaited<ReturnType<typeof getPermDockSync>>;
 
 function unsigned(permdock: TestPermDock): Snapshot {
-  const snapshot = permdock.snapshot();
+  const snapshot = permdock.snapshot({ v: 1 });
   if (snapshot instanceof Promise) {
     throw new TypeError("unsigned snapshot expected");
   }

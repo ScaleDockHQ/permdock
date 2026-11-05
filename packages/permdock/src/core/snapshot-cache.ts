@@ -1,4 +1,4 @@
-import type { Snapshot } from "./snapshot-types.ts";
+import type { Snapshot, SnapshotInput } from "./snapshot-types.ts";
 import type { Instant } from "./time.ts";
 
 import { nowSeconds, secondsOf } from "./time.ts";
@@ -71,7 +71,9 @@ export function cacheLifeFor(
  * for a missing version or tenant. It carries no claims, so a refreshed token
  * at the same version keeps the key.
  */
-export function snapshotKey(snapshot: Snapshot): string {
+export function snapshotKey(
+  snapshot: Pick<SnapshotInput, "authzVersion" | "subject">,
+): string {
   const principal = snapshot.subject.principal;
   return [
     principal?.id ?? "anon",

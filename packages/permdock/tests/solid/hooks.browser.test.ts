@@ -49,13 +49,13 @@ async function memberSnapshot(): Promise<Snapshot> {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
   const server = getPermDockSync(policy as never, memberUser);
   // SAFETY: snapshot() returns a Snapshot; the erased generic above hides its type.
-  return server.snapshot() as Snapshot;
+  return server.snapshot({ v: 1 }) as Snapshot;
 }
 
 async function aliceSnapshot(): Promise<Snapshot> {
   const server = getPermDockSync(saasPolicy, alice, { tenant: "acme" });
   // SAFETY: snapshot() returns a Snapshot without a signer.
-  return server.snapshot({ tenants: "all" }) as Snapshot;
+  return server.snapshot({ tenants: "all", v: 1 }) as Snapshot;
 }
 
 function mount(

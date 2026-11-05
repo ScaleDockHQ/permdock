@@ -17,7 +17,9 @@ import {
 
 function memberSnapshot(): Snapshot {
   // SAFETY: memberUser is the quick-start policy's own user fixture; only the generic is erased.
-  const snapshot = getPermDockSync(policy as never, memberUser).snapshot();
+  const snapshot = getPermDockSync(policy as never, memberUser).snapshot({
+    v: 1,
+  });
   if (snapshot instanceof Promise) {
     throw new TypeError("expected JSON snapshot");
   }

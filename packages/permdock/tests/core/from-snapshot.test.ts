@@ -30,7 +30,7 @@ import {
 describe(fromSnapshot, () => {
   it("answers the same portable checks as the server instance", async () => {
     const server = getPermDockSync(policy, memberUser);
-    const snapshot = server.snapshot();
+    const snapshot = server.snapshot({ v: 1 });
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -51,7 +51,7 @@ describe(fromSnapshot, () => {
 
   it("keeps deny-overrides-allow for admin publish", async () => {
     const server = getPermDockSync(policy, adminUser);
-    const snapshot = server.snapshot();
+    const snapshot = server.snapshot({ v: 1 });
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -65,7 +65,7 @@ describe(fromSnapshot, () => {
 
   it("fails closed for anonymous and unknown include", async () => {
     const server = getPermDockSync(policy, null);
-    const snapshot = server.snapshot();
+    const snapshot = server.snapshot({ v: 1 });
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -78,7 +78,7 @@ describe(fromSnapshot, () => {
 
   it("treats portable false and include misses as server-only denials", async () => {
     const server = getPermDockSync(policy, memberUser);
-    const full = server.snapshot();
+    const full = server.snapshot({ v: 1 });
     if (full instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -112,7 +112,7 @@ describe(fromSnapshot, () => {
 
   it("throws the same assert errors as the server", async () => {
     const server = getPermDockSync(policy, memberUser);
-    const snapshot = server.snapshot();
+    const snapshot = server.snapshot({ v: 1 });
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -124,7 +124,7 @@ describe(fromSnapshot, () => {
 
   it("exposes snapshot tenants and derived tenant instances", async () => {
     const server = getPermDockSync(policy, memberUser);
-    const snapshot = server.snapshot();
+    const snapshot = server.snapshot({ v: 1 });
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -147,7 +147,7 @@ describe(fromSnapshot, () => {
         access: [{ type: "post", actions: ["read"], identifier: "p1" }],
       },
     });
-    const snapshot = server.snapshot();
+    const snapshot = server.snapshot({ v: 1 });
     if (snapshot instanceof Promise) {
       throw new TypeError("expected JSON snapshot");
     }
@@ -285,7 +285,7 @@ describe("fromSnapshot instance surface", () => {
     expect(plan.outcome).toBe("denied");
 
     const asOwner = client.simulate({ roles: [vocabulary.owner, "contact"] });
-    const ownerView = asOwner.snapshot();
+    const ownerView = asOwner.snapshot({ v: 1 });
     if (typeof ownerView === "string" || ownerView instanceof Promise) {
       throw new TypeError("expected a JSON snapshot");
     }

@@ -66,7 +66,7 @@ export function delegationAllows(
   permission: Permission,
 ): boolean {
   try {
-    const snapshot = permdock.snapshot();
+    const snapshot = permdock.snapshot({ v: 1 });
     return (
       "grants" in snapshot &&
       withinDelegation(permdock, permission, snapshot.delegated)
@@ -84,7 +84,7 @@ export function delegationAllows(
  */
 export function mayUse(permdock: PermDock, permission: Permission): boolean {
   try {
-    const snapshot = permdock.snapshot();
+    const snapshot = permdock.snapshot({ v: 1 });
     if (
       !("grants" in snapshot) ||
       !withinDelegation(permdock, permission, snapshot.delegated)
@@ -145,7 +145,7 @@ export function permittedIds(
   options: PermittedIdsOptions = {},
 ): readonly string[] {
   try {
-    const snapshot = permdock.snapshot({ tenants: "all" });
+    const snapshot = permdock.snapshot({ tenants: "all", v: 1 });
     if (!("grants" in snapshot)) {
       return [];
     }

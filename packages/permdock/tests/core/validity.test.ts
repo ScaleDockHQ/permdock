@@ -190,7 +190,7 @@ describe("grant validity", () => {
       expect(decision.denials[0]?.reason).toBe("validation");
     }
     expect(permdock.can(permissions.doc.update, doc, options)).toBe(false);
-    const snapshot = permdock.snapshot();
+    const snapshot = permdock.snapshot({ v: 1 });
     if (snapshot instanceof Promise) {
       throw new TypeError("unsigned snapshot expected");
     }
@@ -217,7 +217,7 @@ describe("grant validity", () => {
 
   it("carries validity into the snapshot and evaluates it there", async () => {
     const permdock = await contractor();
-    const snapshot = permdock.snapshot();
+    const snapshot = permdock.snapshot({ v: 1 });
     if (snapshot instanceof Promise) {
       throw new TypeError("unsigned snapshot expected");
     }
@@ -247,7 +247,7 @@ describe("grant validity", () => {
 
   it("keeps a deny with a malformed wire window in force on the client", async () => {
     const permdock = await contractor();
-    const snapshot = permdock.snapshot();
+    const snapshot = permdock.snapshot({ v: 1 });
     if (snapshot instanceof Promise) {
       throw new TypeError("unsigned snapshot expected");
     }

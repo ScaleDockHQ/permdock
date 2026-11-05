@@ -36,7 +36,7 @@ const user: Subject = {
 
 describe("snapshot authzVersion, sessionId and snapshotKey", () => {
   it("carries the token's version and session", async () => {
-    const snapshot = (await getPermDock(policy, user)).snapshot();
+    const snapshot = (await getPermDock(policy, user)).snapshot({ v: 1 });
     expect(snapshot.authzVersion).toBe(7);
     expect(snapshot.sessionId).toBe("s1");
     expect(snapshotKey(snapshot)).toBe("u1:7:");

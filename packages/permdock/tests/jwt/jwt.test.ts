@@ -987,7 +987,7 @@ describe("signed snapshot", () => {
     });
     expect(checked.ok).toBe(true);
     if (checked.ok) {
-      expect(checked.claims["snapshot"]).toMatchObject({ v: 1 });
+      expect(checked.claims["snapshot"]).toMatchObject({ v: 2 });
     }
   });
 });

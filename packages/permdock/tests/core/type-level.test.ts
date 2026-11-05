@@ -24,7 +24,7 @@ function snapshotFrom(
   if (built instanceof Promise) {
     throw new TypeError("expected JSON snapshot");
   }
-  return built;
+  return parseSnapshot(built);
 }
 
 /**
@@ -60,7 +60,7 @@ function expectParity(
 describe("snapshot typeLevel", () => {
   it("skips a grant whose permission the policy does not declare", () => {
     const snapshot = snapshotFrom(
-      getPermDockSync(saas, alice, { tenant: "acme" }).snapshot(),
+      getPermDockSync(saas, alice, { tenant: "acme" }).snapshot({ v: 1 }),
     );
     const [first] = snapshot.grants;
     expect(first).toBeDefined();
@@ -83,7 +83,10 @@ describe("snapshot typeLevel", () => {
       [bob, "acme"],
     ] as const) {
       const snapshot = snapshotFrom(
-        getPermDockSync(saas, user, { tenant }).snapshot({ tenants: "all" }),
+        getPermDockSync(saas, user, { tenant }).snapshot({
+          v: 1,
+          tenants: "all",
+        }),
       );
       expect(snapshot.typeLevel).toBeDefined();
       expect(expectParity(snapshot, permissions)).toBeGreaterThan(0);
@@ -94,11 +97,11 @@ describe("snapshot typeLevel", () => {
     const permissions = listPermissions(quickStart.permissions);
     const member = snapshotFrom(
       // SAFETY: the fixture users belong to the quick-start policy; only the generic is erased.
-      getPermDockSync(quickStart as never, memberUser).snapshot(),
+      getPermDockSync(quickStart as never, memberUser).snapshot({ v: 1 }),
     );
     const admin = snapshotFrom(
       // SAFETY: the fixture users belong to the quick-start policy; only the generic is erased.
-      getPermDockSync(quickStart as never, adminUser).snapshot(),
+      getPermDockSync(quickStart as never, adminUser).snapshot({ v: 1 }),
     );
     expectParity(member, permissions);
     expectParity(admin, permissions);
@@ -118,7 +121,7 @@ describe("snapshot typeLevel", () => {
           : { id: user.id, orgId: user.orgId, roles: user.roles },
     });
     const snapshot = snapshotFrom(
-      getPermDockSync(gated, memberUser).snapshot(),
+      getPermDockSync(gated, memberUser).snapshot({ v: 1 }),
     );
     expect(snapshot.typeLevel?.approval).toStrictEqual(["post.publish"]);
     expect(snapshot.typeLevel?.granted).toStrictEqual(["post.read"]);
@@ -127,7 +130,7 @@ describe("snapshot typeLevel", () => {
 
   it("denies a key the table does not list and the evaluator is not asked", () => {
     const snapshot = snapshotFrom(
-      getPermDockSync(saas, bob, { tenant: "acme" }).snapshot(),
+      getPermDockSync(saas, bob, { tenant: "acme" }).snapshot({ v: 1 }),
     );
     const store = createClientStore({ snapshot });
     const unknown = listPermissions(saas.permissions).find(
@@ -155,7 +158,7 @@ describe("snapshot typeLevel", () => {
           : { id: user.id, orgId: user.orgId, roles: user.roles },
     });
     const snapshot = snapshotFrom(
-      getPermDockSync(timed, memberUser).snapshot(),
+      getPermDockSync(timed, memberUser).snapshot({ v: 1 }),
     );
     expect(snapshot.typeLevel).toBeUndefined();
     const store = createClientStore({ snapshot });
@@ -167,6 +170,7 @@ describe("snapshot typeLevel", () => {
   it("is not used for another tenant than the one it was built for", () => {
     const snapshot = snapshotFrom(
       getPermDockSync(saas, alice, { tenant: "acme" }).snapshot({
+        v: 1,
         tenants: "all",
       }),
     );
@@ -178,16 +182,18 @@ describe("snapshot typeLevel", () => {
 
   it("is dropped by simulate, which changes the subject", () => {
     const real = snapshotFrom(
-      getPermDockSync(saas, alice, { tenant: "acme" }).snapshot(),
+      getPermDockSync(saas, alice, { tenant: "acme" }).snapshot({ v: 1 }),
     );
     expect(real.typeLevel).toBeDefined();
     const simulated = fromSnapshot(real).simulate({ roles: ["viewer"] });
-    expect(snapshotFrom(simulated.snapshot()).typeLevel).toBeUndefined();
+    expect(
+      snapshotFrom(simulated.snapshot({ v: 1 })).typeLevel,
+    ).toBeUndefined();
   });
 
   it("rejects a malformed table when parsing", () => {
     const snapshot = snapshotFrom(
-      getPermDockSync(saas, bob, { tenant: "acme" }).snapshot(),
+      getPermDockSync(saas, bob, { tenant: "acme" }).snapshot({ v: 1 }),
     );
     expect(() =>
       parseSnapshot({ ...snapshot, typeLevel: { granted: [1] } }),

@@ -30,7 +30,7 @@ import {
 async function snapshotOf(user: typeof memberUser): Promise<Snapshot> {
   // SAFETY: user is a quick-start user fixture; only the policy generic is erased.
   const server = getPermDockSync(policy as never, user);
-  const snapshot = server.snapshot();
+  const snapshot = server.snapshot({ v: 1 });
   if (snapshot instanceof Promise) {
     throw new TypeError("expected JSON snapshot");
   }

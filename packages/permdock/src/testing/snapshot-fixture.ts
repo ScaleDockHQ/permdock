@@ -33,8 +33,9 @@ export async function snapshotFixture(
   }
   const snapshot =
     options.include === undefined && options.tenants === undefined
-      ? target.snapshot()
+      ? target.snapshot({ v: 1 })
       : target.snapshot({
+          v: 1,
           ...(options.include === undefined
             ? {}
             : { include: options.include }),

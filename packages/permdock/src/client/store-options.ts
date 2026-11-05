@@ -1,5 +1,5 @@
 import type { Permission } from "../core/permission-types.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { SnapshotInput } from "../core/snapshot-types.ts";
 import type {
   ClientStore,
   ClientStoreOptions,
@@ -75,7 +75,7 @@ function both<A extends readonly unknown[]>(
 
 export function adapterStore(
   options: AdapterStoreOptions,
-  snapshot: Snapshot | string,
+  snapshot: SnapshotInput | string,
   evaluator: Evaluator,
   native?: NativeStoreHooks,
 ): ClientStore {
