@@ -209,7 +209,7 @@ describe("row helpers on the hot path", () => {
       const calls = Object.entries(row.calls)
         .filter(([name]) => name.includes("by_permission"))
         .reduce((total, [, value]) => total + value, 0);
-      expect(calls, row.shape).toBeLessThanOrEqual(1);
+      expect(calls).toBeLessThanOrEqual(1);
     }
   });
 
