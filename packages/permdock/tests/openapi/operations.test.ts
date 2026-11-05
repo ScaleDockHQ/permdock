@@ -172,6 +172,119 @@ describe(operationPermissions, () => {
   });
 });
 
+describe("operationPermissionsFromOpenApi security and enforcement", () => {
+  const document = {
+    components: {
+      securitySchemes: {
+        oauth: { type: "oauth2", flows: {} },
+        key: { type: "apiKey", in: "header", name: "x-key" },
+      },
+    },
+    security: [{ oauth: ["customers:read"], key: ["ignored"] }],
+    paths: {
+      "/customers": {
+        get: { operationId: "list_customers" },
+        post: {
+          security: [{ oauth: ["customers:write", "customers:read"] }],
+          "x-permdock-permissions": ["post.create"],
+        },
+      },
+      "/health": { get: { security: [] } },
+      "/legacy": {
+        get: {
+          "x-permdock-permissions": ["post.read"],
+          "x-permdock-enforcement": "handler",
+        },
+      },
+      "/odd": {
+        get: {
+          "x-permdock-permissions": ["post.read"],
+          "x-permdock-enforcement": "both",
+        },
+      },
+    },
+  };
+  const skipped: [string, OperationSkipCause][] = [];
+  const operations = operationPermissionsFromOpenApi(document, permissions, {
+    onSkip: (operation, cause) =>
+      skipped.push([`${operation.method} ${operation.path}`, cause]),
+  });
+
+  it("builds a scope-only entry from the document-level OAuth requirement", () => {
+    expect(operations.forRequest("GET", "/customers")).toBeUndefined();
+    expect(operations.oauthScopesForRequest("GET", "/customers")).toStrictEqual(
+      ["customers:read"],
+    );
+    expect(operations.oauthScopesForOperation("list_customers")).toStrictEqual([
+      "customers:read",
+    ]);
+  });
+
+  it("prefers the operation-level requirement and keeps the permission", () => {
+    expect(operations.forRequest("POST", "/customers")?.key).toBe(
+      "post.create",
+    );
+    expect(operations.oauthScopesForRequest("POST", "/customers")).toStrictEqual(
+      ["customers:write", "customers:read"],
+    );
+  });
+
+  it("skips security: [] as public and an invalid enforcement as an invalid extension", () => {
+    expect(skipped).toStrictEqual([
+      ["GET /health", "public"],
+      ["GET /odd", "invalid-extension"],
+    ]);
+  });
+
+  it("splits kernel-enforced from handler-enforced operations", () => {
+    expect(operations.kernel.entries().map((entry) => entry.path)).toStrictEqual(
+      ["/customers", "/customers"],
+    );
+    expect(operations.handler.entries().map((entry) => entry.path)).toStrictEqual(
+      ["/legacy"],
+    );
+    expect(operations.handler.forRequest("GET", "/legacy")?.key).toBe(
+      "post.read",
+    );
+    expect(operations.kernel.forRequest("GET", "/legacy")).toBeUndefined();
+    expect(operations.entries()).toHaveLength(3);
+  });
+
+  it("matches a hand-written operationPermissions over a 63-operation document", () => {
+    const paths = Object.fromEntries(
+      Array.from({ length: 63 }, (_, index) => [
+        `/r${index}`,
+        { get: { security: [{ oauth: [`r${index}:read`] }] } },
+      ]),
+    );
+    const read = operationPermissionsFromOpenApi(
+      { components: document.components, paths },
+      permissions,
+    );
+    const written = operationPermissions(
+      Object.fromEntries(
+        Array.from({ length: 63 }, (_, index) => [
+          `GET /r${index}`,
+          { oauthScopes: [`r${index}:read`] },
+        ]),
+      ),
+    );
+    expect(read.entries()).toStrictEqual(written.entries());
+  });
+
+  it("rejects an enforcement value on a hand-written entry", () => {
+    expect(() =>
+      operationPermissions({
+        "GET /x": {
+          permission: permissions.post.read,
+          // SAFETY: proves the runtime check for a value the type forbids.
+          enforcement: "both" as never,
+        },
+      }),
+    ).toThrow("must be 'kernel' or 'handler'");
+  });
+});
+
 describe("operation coverage", () => {
   const document = {
     paths: {

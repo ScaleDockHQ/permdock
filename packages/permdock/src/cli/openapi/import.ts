@@ -13,6 +13,7 @@ import type { CliIo } from "../types.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { byCodePoint } from "../../core/compare.ts";
+import { oauthSchemes, oauthScopesOf } from "../../openapi/oauth-security.ts";
 import { applyFiles } from "../core/files.ts";
 import { httpRequest } from "../core/http.ts";
 import { readJsonFile } from "../files.ts";
@@ -102,49 +103,6 @@ function arity(path: string, resource: string): "instance" | "collection" {
   );
   const after = at === -1 ? parts : parts.slice(at + 1);
   return after.some(isParam) ? "instance" : "collection";
-}
-
-function oauthSchemes(document: Record<string, unknown>): ReadonlySet<string> {
-  const components = isRecord(document["components"])
-    ? document["components"]
-    : {};
-  const schemes = isRecord(components["securitySchemes"])
-    ? components["securitySchemes"]
-    : {};
-  return new Set(
-    Object.entries(schemes)
-      .filter(
-        ([, scheme]) =>
-          isRecord(scheme) &&
-          (scheme["type"] === "oauth2" || scheme["type"] === "openIdConnect"),
-      )
-      .map(([name]) => name),
-  );
-}
-
-function scopesOf(
-  requirements: unknown,
-  schemes: ReadonlySet<string>,
-): readonly string[] {
-  if (!Array.isArray(requirements)) {
-    return [];
-  }
-  const scopes: string[] = [];
-  for (const requirement of requirements) {
-    if (!isRecord(requirement)) {
-      continue;
-    }
-    for (const [name, values] of Object.entries(requirement)) {
-      if (schemes.has(name) && Array.isArray(values)) {
-        scopes.push(
-          ...values.filter(
-            (value): value is string => typeof value === "string",
-          ),
-        );
-      }
-    }
-  }
-  return scopes;
 }
 
 function defaultAction(method: string, kind: "instance" | "collection") {
@@ -268,7 +226,7 @@ function inferOperation(
   } else if (Array.isArray(explicit)) {
     keys = explicit.filter((key): key is string => typeof key === "string");
   } else {
-    const scopes = scopesOf(
+    const scopes = oauthScopesOf(
       operation.node["security"] ?? document["security"],
       schemes,
     );

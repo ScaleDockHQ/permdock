@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 
 import type { OperationCoverageOptions } from "../openapi/coverage.ts";
-import type { OperationPermissions } from "../openapi/operations.ts";
+import type { OperationLookup } from "../openapi/operations.ts";
 
 import { operationCoverage } from "../openapi/coverage.ts";
 
@@ -12,7 +12,7 @@ import { operationCoverage } from "../openapi/coverage.ts";
  * catches a route added without a permission before it ships.
  */
 export function testOperationCoverage(
-  operations: OperationPermissions,
+  operations: OperationLookup,
   document: unknown,
   options: OperationCoverageOptions,
 ): void {

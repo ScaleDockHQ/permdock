@@ -44,6 +44,52 @@ export const other = { entries: () => [] };
     ).toBe(true);
   });
 
+  it("checks only the kernel map when openapi.enforcement is kernel", async () => {
+    const cwd = project({
+      "src/operations.ts": `const entry = (method, path, enforcement) => ({ method, path, enforcement });
+const all = [
+  entry('GET', '/orgs/{org}/posts', 'kernel'),
+  entry('POST', '/orgs/{org}/posts', 'handler'),
+];
+export const operations = {
+  entries: () => all,
+  kernel: { entries: () => all.filter((item) => item.enforcement === 'kernel') },
+};
+`,
+      "openapi.json": JSON.stringify({
+        paths: {
+          "/orgs/{orgId}/posts": { get: {}, post: {} },
+          "/orgs/{orgId}/export": { get: {} },
+        },
+      }),
+    });
+    const config = {
+      openapi: {
+        operations: "src/operations.ts#operations",
+        tenantPaths: ["/orgs/{org}"],
+        doc: ["openapi.json"],
+      },
+    };
+    const run = async (extra: object) =>
+      (
+        await pd091(
+          loadProject({
+            cwd,
+            config: { openapi: { ...config.openapi, ...extra } },
+            now: NOW,
+            io: quietIo,
+          }),
+        )
+      ).map((finding) => finding.target);
+    expect(await run({})).toStrictEqual([
+      "openapi.json:GET /orgs/{orgId}/export",
+    ]);
+    expect(await run({ enforcement: "kernel" })).toStrictEqual([
+      "openapi.json:POST /orgs/{orgId}/posts",
+      "openapi.json:GET /orgs/{orgId}/export",
+    ]);
+  });
+
   it("reports an undeclared tenant-path operation and a stale entry", async () => {
     const findings = await run({
       openapi: {

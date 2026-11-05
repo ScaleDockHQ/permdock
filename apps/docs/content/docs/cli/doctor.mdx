@@ -612,7 +612,7 @@ error PD091  openapi.json: POST /api/orgs/{orgId}/posts is under a tenant path a
 error PD091  openapi.json: src/operations.ts#operations declares GET /orgs/{org}/old, which the document does not contain
 ```
 
-Set `openapi.operations` to `"<module>#<export>"`, `openapi.tenantPaths` to the path templates that act on a tenant (`["/orgs/{orgId}"]`, a `{param}` matching any name) and `openapi.base` to the prefix the document's paths carry and the keys do not. Declare the missing operation or remove the stale entry. An operation outside `tenantPaths` may stay undeclared. The check is skipped unless all of `openapi.operations`, `openapi.tenantPaths` and `openapi.doc` are set. `--only openapi` runs PD091.
+Set `openapi.operations` to `"<module>#<export>"`, `openapi.tenantPaths` to the path templates that act on a tenant (`["/orgs/{orgId}"]`, a `{param}` matching any name) and `openapi.base` to the prefix the document's paths carry and the keys do not. Declare the missing operation or remove the stale entry. Set `openapi.enforcement` to `"kernel"` to check only the operations the kernel enforces, leaving out those marked `x-permdock-enforcement: handler`. An operation outside `tenantPaths` may stay undeclared. The check is skipped unless all of `openapi.operations`, `openapi.tenantPaths` and `openapi.doc` are set. `--only openapi` runs PD091.
 
 ### PD092: two peer variants of permdock
 

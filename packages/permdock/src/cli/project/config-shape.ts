@@ -46,6 +46,7 @@ const OPENAPI = {
   operations: STRING,
   tenantPaths: ARRAY,
   base: STRING,
+  enforcement: STRING,
 } as const satisfies Record<
   keyof NonNullable<PermDockConfig["openapi"]>,
   KeyShape

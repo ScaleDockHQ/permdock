@@ -232,6 +232,22 @@ testOperationCoverage(operations, openapiDocument, {
 
 `permdock doctor` runs the same check as PD091 when `openapi.operations` (`"<module>#<export>"`, the export defaults to `operations`), `openapi.tenantPaths` and `openapi.doc` are set ([config](/docs/cli/config), [doctor](/docs/cli/doctor#pd091-a-tenant-operation-has-no-permission)). Operations outside `tenantPaths` may stay undeclared, such as a health check.
 
+`operationCoverage(operations, document, options)` is the function behind `testOperationCoverage` and PD091; it returns the `undeclared` and `stale` operations, so a `verifyOperations`-style check in a test is one call and one `expect`.
+
+`operations.kernel` and `operations.handler` split the declaration by `enforcement`. An entry is kernel-enforced unless it sets `enforcement: "handler"` (or the document sets `x-permdock-enforcement: "handler"`), the case for a route whose handler checks the permission itself. `operationCoverage` accepts either map, and PD091 checks only the kernel map when `openapi.enforcement` is `"kernel"`.
+
+### Read scopes and enforcement from a document
+
+`operationPermissionsFromOpenApi(document, permissions, { base?, onSkip? })` reads three things from each operation:
+
+| Source | Becomes |
+| --- | --- |
+| `x-permdock-permissions` with one key | The entry's `permission` |
+| `security`, from the operation or else the document, for `oauth2` and `openIdConnect` schemes | The entry's `oauthScopes` |
+| `x-permdock-enforcement: "kernel" \| "handler"` | The entry's `enforcement`; absent means `kernel` |
+
+An operation with OAuth scopes and no `x-permdock-permissions` becomes a scope-only entry. `security: []` marks an operation public and `onSkip` hears it with cause `public`. An invalid `x-permdock-enforcement` is skipped with `invalid-extension`.
+
 To emit `x-permdock-permissions` from the route source, put the permission key in the route's JSDoc and have the description generator copy it into the operation. Most generators (`@hono/zod-openapi`, `tsoa`, `swagger-jsdoc`) read an `x-` field from the JSDoc or the route config. `operationPermissionsFromOpenApi` then reads the generated document, and `onSkip` lists the routes whose comment names no permission.
 
 ### OpenAPI-to-MCP bridges
