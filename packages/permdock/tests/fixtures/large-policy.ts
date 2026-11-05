@@ -38,7 +38,7 @@ export const permissions = definePermissions(
   ),
 );
 
-export const STATUSES = Array.from({ length: 12 }, (_, index) => `s${index}`);
+const STATUSES = Array.from({ length: 12 }, (_, index) => `s${index}`);
 
 /** The distinct `where` conditions the generated grants draw from. */
 const CONDITIONS: readonly Condition[] = [
@@ -95,8 +95,6 @@ function adminGrants(): ReturnType<typeof allow>[] {
   }
   return grants;
 }
-
-export const ADMIN_GRANTS = 1790;
 
 export const policy = definePolicy(permissions, {
   scopes: { tenant: { key: "orgId" } },

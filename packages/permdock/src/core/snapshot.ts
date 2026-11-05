@@ -16,7 +16,7 @@ import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { isForbiddenKey } from "./paths.ts";
 import { scopeList } from "./scopes.ts";
-import { expandGrants, expandSnapshot } from "./snapshot-compact.ts";
+import { expandGrants } from "./snapshot-compact.ts";
 import { tenantsOf } from "./tenancy.ts";
 import { isRfc3339, nowSeconds, rfc3339 } from "./time.ts";
 import { wireValidity } from "./validity.ts";
@@ -403,9 +403,4 @@ export function parseSnapshot(json: unknown): Snapshot {
   expandGrants(record);
   // SAFETY: the version, times, typeLevel, unsafe keys and grant indexes are checked; the other fields are not validated here.
   return freezeDeep(value) as Snapshot;
-}
-
-/** `parseSnapshot`, then the flat form the evaluator reads. */
-export function parseExpandedSnapshot(json: unknown): ExpandedSnapshot {
-  return expandSnapshot(parseSnapshot(json));
 }
