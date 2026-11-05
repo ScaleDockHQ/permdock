@@ -20,8 +20,15 @@ export type AppProfile = "dev" | "prod";
  * opt-in features and the services. An adapter's own options win over these,
  * key by key.
  */
-export type AppOptions = InstanceOptions &
+export type AppOptions<TClient extends object = object> = InstanceOptions &
   Pick<PermDockOptions, "settings"> & {
+    /**
+     * The sources of one client, such as a request-scoped or lazily created
+     * admin client. `app.forClient(client)` calls it once per client and caches
+     * the answer in a `WeakMap`, so a client the app no longer holds is
+     * collected with its sources.
+     */
+    readonly sources?: (client: TClient) => ClientSources;
     /** Where approval requests open and resume, for every adapter. */
     readonly store?: ApprovalStore;
     readonly profile?: AppProfile;
@@ -38,11 +45,20 @@ export type AppOptions = InstanceOptions &
     readonly credentials?: Omit<ApiKeySubjectOptions, "permissions">;
   };
 
+/** What `AppOptions.sources` answers for one client. */
+export type ClientSources = Pick<
+  InstanceOptions,
+  "memberships" | "customRoles"
+> & { readonly subjects?: SubjectCache };
+
 /**
  * The app definition `definePermDock` attached to a policy, as read back by
  * core and adapters.
  */
-export type AppDefinition = AppOptions & { readonly profile: AppProfile };
+export type AppDefinition = Omit<AppOptions, "sources"> & {
+  readonly profile: AppProfile;
+  readonly sources?: (client: never) => ClientSources;
+};
 
 // Symbol.for: one key across copies of this module (two bundler chunks, or a
 // dist and a source import), so an adapter always sees the app definition.
@@ -69,6 +85,7 @@ export function withApp<T extends object>(policy: object, options: T): T {
   }
   const {
     profile: _profile,
+    sources: _sources,
     claims: _claims,
     credentials: _credentials,
     ...values
