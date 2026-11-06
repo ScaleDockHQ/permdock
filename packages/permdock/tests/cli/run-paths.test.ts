@@ -35,9 +35,7 @@ describe("run: groups", () => {
     expect(result.code).toBe(2);
     expect(errorOf(result.stdout)).toMatchObject({
       code: "usage",
-      choices: {
-        "<command>": ["generate", "import", "verify", "migrate", "explain"],
-      },
+      choices: { "<command>": ["import", "verify", "migrate", "explain"] },
     });
   });
 
@@ -118,7 +116,7 @@ describe("run: flags", () => {
     const result = await run(
       [
         "codemod",
-        "0.5",
+        "0.26",
         "--agent",
         "yes",
         "--cwd",

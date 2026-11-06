@@ -198,15 +198,15 @@ describe("file plan", () => {
       const cwd = repo();
       writeFileSync(
         join(cwd, "a.ts"),
-        'import { createServerKernel } from "permdock/server";\nexport const k = createServerKernel;\n',
+        'export const sql = "permdock permitted_note_row(";\n',
       );
-      const refused = await run(["codemod", "0.5"], { cwd });
+      const refused = await run(["codemod", "0.26"], { cwd });
       expect(refused.code).toBe(3);
       expect(refused.stderr).toContain(
         "codemod rewrites files with uncommitted changes: a.ts",
       );
-      expect(refused.stderr).toContain("permdock codemod 0.5 --force");
-      const forced = await run(["codemod", "0.5", "--force"], { cwd });
+      expect(refused.stderr).toContain("permdock codemod 0.26 --force");
+      const forced = await run(["codemod", "0.26", "--force"], { cwd });
       expect(forced.code).toBe(0);
     });
 

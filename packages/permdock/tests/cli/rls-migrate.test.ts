@@ -100,6 +100,7 @@ export default {
   rls: {
     dialect: 'supabase',
     membershipSources: [tableMembershipSource({ table: 'memberships' })],
+    actions: { accept: 'none', disable: 'none', pay: 'none' },
     migrate: ${JSON.stringify({ ...MIGRATE, ...extra.migrate })},${extra.roleValues === undefined ? "" : `\n    roleValues: ${JSON.stringify(extra.roleValues)},`}
   },
 };

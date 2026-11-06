@@ -501,7 +501,14 @@ export const policy = definePolicy(permissions, {
           },
         ]),
       );
-      const base = { cwd, config: projectConfig, check: false };
+      const base = {
+        cwd,
+        config: {
+          ...projectConfig,
+          powersync: { resources: ["folder", "file"] },
+        },
+        check: false,
+      };
       await runPowerSync({ ...base, rest: ["generate"] });
       expect(readFileSync(join(cwd, "sync-config.yaml"), "utf8")).toContain(
         "SELECT * FROM file WHERE file.folder_id IN (SELECT folder.id FROM folder WHERE folder.owner_id = auth.user_id())",

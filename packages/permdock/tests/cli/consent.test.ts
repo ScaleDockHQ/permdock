@@ -27,7 +27,8 @@ describe("consent", () => {
     }
   });
 
-  const SCRIPT = "permdock doctor --strict\n";
+  const SCRIPT = "permdock rls generate\n";
+  const REWRITTEN = "permdock generate --only rls\n";
 
   function project(): string {
     mkdirSync(TMP, { recursive: true });
@@ -50,10 +51,10 @@ describe("consent", () => {
   describe("consent in agent mode", () => {
     it("stops a rewrite with consent_required and the command to run once the person agrees", async () => {
       const cwd = project();
-      const result = await run(["codemod", "0.5"], { cwd, io: io() });
+      const result = await run(["codemod", "0.26"], { cwd, io: io() });
       expect(result.code).toBe(3);
       const envelope: unknown = JSON.parse(result.stdout);
-      const token = consentToken(["rewrite"], ["codemod", "0.5"], cwd);
+      const token = consentToken(["rewrite"], ["codemod", "0.26"], cwd);
       expect(envelope).toMatchObject({
         status: "action_required",
         error: {
@@ -65,36 +66,34 @@ describe("consent", () => {
         next: [
           {
             when: "after the person agrees",
-            command: `permdock codemod 0.5 --confirm ${token}`,
+            command: `permdock codemod 0.26 --confirm ${token}`,
           },
         ],
       });
       expect(readFileSync(join(cwd, "check.sh"), "utf8")).toBe(SCRIPT);
 
-      const confirmed = await run(["codemod", "0.5", "--confirm", token], {
+      const confirmed = await run(["codemod", "0.26", "--confirm", token], {
         cwd,
         io: io(),
       });
       expect(confirmed).toMatchObject({ code: 0 });
-      expect(readFileSync(join(cwd, "check.sh"), "utf8")).toBe(
-        "permdock doctor --fail-on warning\n",
-      );
+      expect(readFileSync(join(cwd, "check.sh"), "utf8")).toBe(REWRITTEN);
     });
 
     it("makes tokens that never parse as a flag", () => {
       for (let i = 0; i < 500; i += 1) {
         expect(
-          consentToken(["rewrite"], ["codemod", "0.5"], `/repo/${i}`),
+          consentToken(["rewrite"], ["codemod", "0.26"], `/repo/${i}`),
         ).toMatch(/^[0-9a-f]{16}$/u);
       }
     });
 
     it("is not satisfied by --yes or by a token for another command line", async () => {
       const cwd = project();
-      const token = consentToken(["rewrite"], ["codemod", "0.5", "src"], cwd);
+      const token = consentToken(["rewrite"], ["codemod", "0.26", "src"], cwd);
       for (const argv of [
-        ["codemod", "0.5", "--yes"],
-        ["codemod", "0.5", "--confirm", token],
+        ["codemod", "0.26", "--yes"],
+        ["codemod", "0.26", "--confirm", token],
       ]) {
         const result = await run(argv, { cwd, io: io() });
         expect(result.code).toBe(3);
@@ -107,18 +106,16 @@ describe("consent", () => {
 
     it("asks nothing for a dry run, or outside agent mode", async () => {
       const cwd = project();
-      const { code } = await run(["codemod", "0.5", "--dry-run"], {
+      const { code } = await run(["codemod", "0.26", "--dry-run"], {
         cwd,
         io: io(),
       });
       expect(code).toBe(0);
       expect(
-        (await run(["codemod", "0.5", "--agent", "no"], { cwd, io: io() }))
+        (await run(["codemod", "0.26", "--agent", "no"], { cwd, io: io() }))
           .code,
       ).toBe(0);
-      expect(readFileSync(join(cwd, "check.sh"), "utf8")).toBe(
-        "permdock doctor --fail-on warning\n",
-      );
+      expect(readFileSync(join(cwd, "check.sh"), "utf8")).toBe(REWRITTEN);
     });
 
     it("stops cloud push before it contacts the Cloud", async () => {

@@ -5,7 +5,6 @@ import { z } from "zod";
 
 import type { OpenApiPermDockOptions } from "../../src/openapi/types.ts";
 
-import { run } from "../../src/cli/core/run.ts";
 import { validateOpenapi } from "../../src/cli/openapi/schema.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import {
@@ -23,6 +22,7 @@ import {
   DRAFT_PINS,
   GNAP_RESERVED,
 } from "../../src/openapi/index.ts";
+import { openapiEmit } from "../cli/rls-call.ts";
 
 const METADATA = "https://auth.example/.well-known/oauth-authorization-server";
 const REGISTERED_OAI = new Set([
@@ -384,10 +384,8 @@ describe("OpenAPI", () => {
       cpSync(path.join(import.meta.dirname, "../cli/fixtures/mini-app"), cwd, {
         recursive: true,
       });
-      const result = await run(
+      const result = await openapiEmit(
         [
-          "openapi",
-          "emit",
           "--doc",
           "openapi.json",
           "--out",

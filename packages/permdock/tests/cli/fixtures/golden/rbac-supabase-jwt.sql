@@ -5,14 +5,8 @@
 -- authorize: jwt (reads the hook claims; stale until the token refreshes)
 -- the custom access token hook that writes user_role and memberships: permdock supabase hook generate
 create schema if not exists "app";
-do $$ begin
-  create type "app"."app_role" as enum ('admin', 'member');
-exception when duplicate_object then null;
-end $$;
-do $$ begin
-  create type "app"."app_permission" as enum ('post.read', 'post.update', 'post.delete', 'post.publish', 'post.archive', 'post.create', 'post.list');
-exception when duplicate_object then null;
-end $$;
+create type "app"."app_role" as enum ('admin', 'member');
+create type "app"."app_permission" as enum ('post.read', 'post.update', 'post.delete', 'post.publish', 'post.archive', 'post.create', 'post.list');
 
 create table if not exists "app"."user_roles" (
   user_id uuid not null references auth.users on delete cascade,

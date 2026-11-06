@@ -928,15 +928,16 @@ export default {
         cwd,
         '\n[db.migrations]\nschema_paths = ["./schemas/**/*.sql"]\n',
       );
-      put(cwd, part("indexes"), "-- permdock:indexes v1\n");
+      const leftover = "supabase/schemas/056_permdock_indexes.sql";
+      put(cwd, leftover, "-- permdock:indexes v1\n");
       put(cwd, "supabase/schemas/public/060_customers.sql", "-- mine\n");
       const left = await findings(cwd, "PD069");
       expect(left.map((finding) => finding.message)).toStrictEqual([
         "supabase/config.toml sets [db.migrations] schema_paths, which pg-delta does not need: it orders the schema files by their dependencies",
-        `${part("indexes")} is a numbered part from declarative schemas on migra; under pg-delta, rls generate --split writes the per-schema layout instead`,
+        `${leftover} is SQL in the schema directory; under pg-delta the per-schema layout lives in a schema subdirectory, and a file here is applied as well`,
       ]);
       pgDelta(cwd);
-      rmSync(join(cwd, part("indexes")));
+      rmSync(join(cwd, leftover));
       expect(await findings(cwd, "PD069")).toStrictEqual([]);
     });
   });

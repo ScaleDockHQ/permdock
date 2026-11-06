@@ -879,6 +879,7 @@ export function compileGrants(
       command,
       grant.effect,
       grantKey ?? "",
+      accessExpr ?? "",
       using ?? "",
       check ?? "",
     ].join("\u0000");

@@ -41,7 +41,7 @@ describe("generated helper planner settings", () => {
 
   it("never marks a set_config memo helper parallel safe", () => {
     const memoized = functions("rbac-supabase-database.sql").filter((fn) =>
-      fn.includes("set_config(v_key"),
+      fn.includes("set_config("),
     );
     expect(memoized.length).toBeGreaterThan(0);
     for (const fn of memoized) {

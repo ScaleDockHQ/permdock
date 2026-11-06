@@ -8,8 +8,14 @@ import { powersyncGenerateFromFlags } from "../../src/cli/commands/powersync.ts"
 import { rlsGenerateFromFlags } from "../../src/cli/commands/rls.ts";
 import { scimGenerateFromFlags } from "../../src/cli/commands/scim.ts";
 import { hookGenerateFromFlags } from "../../src/cli/commands/supabase.ts";
-import { CliError, problemOf } from "../../src/cli/core/errors.ts";
-import { envelope } from "../../src/cli/core/output.ts";
+import {
+  CliError,
+  cliProblem,
+  exitCodeOfError,
+  kindOfCode,
+  problemOf,
+} from "../../src/cli/core/errors.ts";
+import { dataOf, envelope } from "../../src/cli/core/output.ts";
 import { createStyle } from "../../src/cli/core/style.ts";
 import { loadConfig } from "../../src/cli/project/config.ts";
 import { dateAt } from "../../src/core/time.ts";
@@ -48,6 +54,63 @@ function declareActions(config: PermDockConfig): PermDockConfig {
       },
     },
   };
+}
+
+function isReport(data: unknown): boolean {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    !(Object.keys(data).length === 1 && "message" in data)
+  );
+}
+
+function problemDetail(output: string, data: unknown): string {
+  if (!isReport(data)) {
+    return output.trim();
+  }
+  if (typeof data === "object" && data !== null) {
+    const detail = Reflect.get(data, "detail");
+    if (typeof detail === "string") {
+      return detail;
+    }
+  }
+  return "The command reported a problem; see data";
+}
+
+/** The cli-result-v1 body `run` prints for `--json`. */
+function jsonEnvelope(
+  code: RunResult["code"],
+  output: string,
+  data: unknown,
+): string {
+  const parsed = dataOf(output);
+  const body = data ?? parsed;
+  if (code === 0) {
+    return JSON.stringify(
+      envelope({
+        status: "success",
+        ...(body === undefined ? {} : { data: body }),
+      }),
+      null,
+      2,
+    );
+  }
+  const report = data !== undefined || isReport(body) ? body : undefined;
+  const problem = cliProblem(
+    kindOfCode(code),
+    problemDetail(output, body),
+    "rls generate",
+    { exitCode: code },
+  );
+  return JSON.stringify(
+    envelope({
+      status: code === 3 ? "action_required" : "error",
+      ...(report === undefined ? {} : { data: report }),
+      error: problem,
+    }),
+    null,
+    2,
+  );
 }
 
 function lined(text: string): string {
@@ -110,7 +173,11 @@ function withoutGlobals(flags: readonly string[]): {
       json = true;
       continue;
     }
-    if (token === "--no-color" || token === "--color") {
+    if (
+      token === "--no-json" ||
+      token === "--no-color" ||
+      token === "--color"
+    ) {
       continue;
     }
     if (token === "--cwd" || token === "--config" || token === "--agent") {
@@ -179,7 +246,7 @@ async function runRemoved(
     return finish(result.code, result.output, result.data);
   } catch (error) {
     const message = error instanceof CliError ? error.message : String(error);
-    return finish(2, message, undefined, error);
+    return finish(exitCodeOfError(error), message, undefined, error);
   }
 }
 
@@ -247,8 +314,17 @@ export async function rlsGenerate(
       options?.io?.stderr(text);
     },
   };
-  const cwd = options?.cwd ?? process.cwd();
-  const finish = (code: RunResult["code"], output: string): RunResult => {
+  const parsed = withoutGlobals(flags);
+  const cwd = options?.cwd ?? parsed.cwd ?? process.cwd();
+  const finish = (
+    code: RunResult["code"],
+    output: string,
+    data?: unknown,
+  ): RunResult => {
+    if (parsed.json) {
+      stdout.push(`${jsonEnvelope(code, output, data)}\n`);
+      return { code, stdout: stdout.join(""), stderr: stderr.join("") };
+    }
     if (output !== "") {
       const chunk = lined(output);
       if (code === 0 || code === 1) {
@@ -260,11 +336,20 @@ export async function rlsGenerate(
     return { code, stdout: stdout.join(""), stderr: stderr.join("") };
   };
   try {
-    const ctx = await contextFor(cwd, io, false);
-    const result = await rlsGenerateFromFlags(ctx, flags);
-    return finish(result.code, result.output);
+    const ctx = await contextFor(cwd, io, parsed.json);
+    const result = await rlsGenerateFromFlags(ctx, parsed.flags);
+    return finish(result.code, result.output, result.data);
   } catch (error) {
+    const code = exitCodeOfError(error);
     const message = error instanceof CliError ? error.message : String(error);
-    return finish(2, message);
+    if (parsed.json) {
+      const body = envelope({
+        status: code === 3 ? "action_required" : "error",
+        error: problemOf(error ?? new Error(message), undefined),
+      });
+      stdout.push(`${JSON.stringify(body, null, 2)}\n`);
+      return { code, stdout: stdout.join(""), stderr: stderr.join("") };
+    }
+    return finish(code, message);
   }
 }
