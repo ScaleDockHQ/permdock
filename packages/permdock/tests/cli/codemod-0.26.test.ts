@@ -184,9 +184,22 @@ select permitted_doc_rows('doc.read')::text;
     expect(rewritten.source).not.toContain("permissions: { disabled: true");
     expect(rewritten.source).toContain("other: 1");
     expect(rewritten.source).toContain('canAssign: "custom"');
+    const nestedDisabled = rewrite026(
+      "better-supabase.config.ts",
+      `export default {\n  blocks: {\n    permissions: {\n      keep: { a: 1 },\n      disabled: true,\n    },\n  },\n};\n`,
+    );
+    expect(nestedDisabled.source).not.toContain("disabled");
+    expect(nestedDisabled.source).toContain("keep: { a: 1 }");
+    const untouched = rewrite026(
+      "better-supabase.config.ts",
+      "export default { blocks: { permissions: { other: 1 } } };\n",
+    );
+    expect(untouched.changes.map((change) => change.from)).not.toContain(
+      "roleThrough",
+    );
     const nested = rewrite026(
       "better-supabase.config.ts",
-      `export default {\n  roleThrough: ["a", "b"],\n  keep: 1,\n};\n`,
+      'export default {\n  roleThrough: [{ name: "a" }],\n  keep: 1,\n};\n',
     );
     expect(nested.source).not.toContain("roleThrough");
     expect(nested.source).toContain("keep: 1");
