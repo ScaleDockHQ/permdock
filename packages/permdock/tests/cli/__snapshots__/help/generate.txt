@@ -6,6 +6,7 @@ Flags
   --check            Exit 1 when a file on disk is stale; write nothing
   --dry-run          Print what would change; write nothing
   --policy <module>  Module exporting the policy (default policy in the config)
+  --db-url-stdin     Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
   --only <plugin>    Run this plugin; repeat for more than one (repeatable)
   --no-cache         Emit and write even when a cache entry matches
   --cache-dir <dir>  Cache directory (default node_modules/.cache/permdock or PERMDOCK_CACHE_DIR)
