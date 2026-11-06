@@ -1,4 +1,5 @@
 import { Lock } from "lucide-react";
+import { prefetch } from "next/cache";
 import { Protected } from "permdock/react";
 import { Suspense } from "react";
 
@@ -33,6 +34,16 @@ function Hidden() {
   );
 }
 
+/**
+ * `prefetch()` keeps the member read out of the App Shell every link loads; the
+ * Members link's own prefetch still carries it.
+ */
+async function StaffIsland(props: PageProps<"/[org]/members">) {
+  await prefetch();
+  const { org } = await props.params;
+  return <Staff organization={org} />;
+}
+
 export default function Members(props: PageProps<"/[org]/members">) {
   return (
     <div className="flex flex-col gap-6">
@@ -46,9 +57,7 @@ export default function Members(props: PageProps<"/[org]/members">) {
         denied={<Hidden />}
       >
         <Suspense fallback={<StaffSkeleton />}>
-          {props.params.then(({ org }) => (
-            <Staff organization={org} />
-          ))}
+          <StaffIsland {...props} />
         </Suspense>
       </Protected>
     </div>

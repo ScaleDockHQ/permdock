@@ -1,4 +1,5 @@
 import { Trash2 } from "lucide-react";
+import { navigation } from "next/cache";
 
 import { SubmitButton } from "@/components/submit-button.tsx";
 import {
@@ -18,11 +19,14 @@ import { getQuote } from "../quote-queries.ts";
 /**
  * Checks at request time and throws: a denial or an approval request becomes
  * the `PermissionBoundary` fallback around it, and the rest of the page stays.
+ * `navigation()` keeps the read and the check out of every prefetch, so only a
+ * real navigation pays for them.
  */
 export async function DeleteZone(props: {
   readonly organization: string;
   readonly id: string;
 }) {
+  await navigation();
   const [{ value: quote }, permdock] = await Promise.all([
     getQuote(props.organization, props.id),
     getPermDock({ tenant: props.organization }),
