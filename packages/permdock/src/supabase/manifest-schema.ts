@@ -281,7 +281,7 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
             properties: {
               idType: {
                 description:
-                  "The id type the rls.rowHelpers pair rows and row take and return, with rows. Absent from a manifest written before 0.22.1, read as uuid.",
+                  "The id type the rls.rowHelpers pair rows and row take and return, with rows. Required when rows is set. A manifest without it is refused: run permdock generate.",
                 type: "string",
               },
             },

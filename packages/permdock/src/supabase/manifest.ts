@@ -116,7 +116,10 @@ export type SupabaseManifestResourceNames = {
   /** Graph resources only: `permitted_<resource>_ids` and its restriction check. */
   readonly permittedIds?: string;
   readonly restricted?: string;
-  /** With `rls.rowHelpers` naming the resource. */
+  /**
+   * With `rls.rowHelpers` naming the resource. `idType` is required with
+   * `rows`.
+   */
   readonly rows?: string;
   readonly row?: string;
   readonly idType?: string;

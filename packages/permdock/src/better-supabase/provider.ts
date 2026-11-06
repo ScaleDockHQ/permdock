@@ -105,30 +105,7 @@ export type ProviderPersona = {
   readonly permissions: readonly string[];
 };
 
-/**
- * The `AuthorizationProvider` fields added after better-supabase 0.39.0. They
- * are plain data, so an older better-supabase ignores them.
- */
-type ProviderExtras = {
-  readonly platformRoles?: {
-    readonly table: string;
-    readonly user: string;
-    readonly role: string;
-    readonly through?: {
-      readonly table: string;
-      readonly id: string;
-      readonly column: string;
-    };
-    readonly canAssign?: string;
-    readonly canAssignFor?: string;
-  };
-  readonly personas?: readonly ProviderPersona[];
-};
-
-/**
- * `subject_for` for the signed-in user, from the hook (`supabase hook
- * generate`).
- */
+/** `subject_for` for the signed-in user, from the hook (`permdock generate`). */
 const OWN_SUBJECT = "permdock_subject";
 
 type DisabledRow = NonNullable<
@@ -441,7 +418,7 @@ function platformRolesOf(
   schema: string,
   scope: string,
   assignAny: boolean,
-): ProviderExtras["platformRoles"] {
+): AuthorizationProvider["platformRoles"] {
   const roles = manifest.rls.roles;
 
   if (
@@ -609,17 +586,28 @@ function rowTemplatesOf(
   requires: AuthorizationRequirement[],
   problems: string[],
 ): Partial<Record<RowTemplate, string>> {
-  const rows = Object.values(manifest.names?.resources ?? {}).flatMap(
-    ({ rows: helper, idType }) =>
-      helper === undefined ? [] : [{ helper, idType }],
-  );
+  const rows: { readonly helper: string; readonly idType: string }[] = [];
+  for (const [resource, names] of Object.entries(
+    manifest.names?.resources ?? {},
+  )) {
+    if (names.rows === undefined) {
+      continue;
+    }
+    if (names.idType === undefined || names.idType === "") {
+      problems.push(
+        `names.resources.${resource}.idType is missing. Run permdock generate.`,
+      );
+      return {};
+    }
+    rows.push({ helper: names.rows, idType: names.idType });
+  }
   if (rows.length === 0) {
     problems.push(
-      "rowHelpers: the manifest names no permitted_<resource>_rows helper. Set rls.rowHelpers, run `permdock rls generate`, then `permdock supabase inspect --out`.",
+      "rowHelpers: the manifest names no permitted_<resource>_rows helper. Set rls.rowHelpers and run permdock generate.",
     );
     return {};
   }
-  const types = new Set(rows.map((row) => row.idType ?? "uuid"));
+  const types = new Set(rows.map((row) => row.idType));
   const [only] = types;
   const idType = types.size === 1 ? only : undefined;
   for (const { helper } of rows) {
@@ -900,7 +888,7 @@ export function authorizationProvider(
       role: "authenticated",
     });
   }
-  const functions: AuthorizationFunctions & { subject?: string } = {
+  const functions: AuthorizationFunctions = {
     ...rowTemplates,
     ...optional,
     idsWith: `${schema}.${TEMPLATES.idsWith.sql}`,
@@ -921,12 +909,6 @@ export function authorizationProvider(
           assignAny && listed("canAssign", tenantScope),
         )
       : undefined;
-  const extras: ProviderExtras = {
-    ...(platformRoles === undefined ? {} : { platformRoles }),
-    ...(options.personas === undefined || options.personas.length === 0
-      ? {}
-      : { personas: options.personas }),
-  };
   const operations = catalog === undefined ? {} : operationsOf(catalog);
   const delegated = delegatedScopes(catalog);
   const scopes = rls.scopes.map((scope) => {
@@ -965,7 +947,10 @@ export function authorizationProvider(
         }
       : {}),
     ...(roleSources.length > 0 ? { roleSources } : {}),
-    ...extras,
+    ...(platformRoles === undefined ? {} : { platformRoles }),
+    ...(options.personas === undefined || options.personas.length === 0
+      ? {}
+      : { personas: options.personas }),
     ...(Object.keys(operations).length > 0 ? { operations } : {}),
     ...(Object.keys(delegated).length > 0
       ? { delegation: { scopes: delegated } }

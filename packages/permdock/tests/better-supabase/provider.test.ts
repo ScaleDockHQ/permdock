@@ -1414,25 +1414,21 @@ describe(authorizationProvider, () => {
       });
     });
 
-    it("reads a manifest without idType as uuid", () => {
+    it("refuses a row helper whose manifest omits idType", () => {
       const legacy = rowsOf(
         withRows({ fileNode: { rows: "permitted_file_node_rows" } }),
       );
-      expect(legacy.functions.rowsWith).toBe(
-        "permdock.permitted_{resource}_rows({permission}, ({ids})::uuid[])",
+      expect(legacy.functions).not.toHaveProperty("rowsWith");
+      expect(legacy.problems).toContainEqual(
+        "names.resources.fileNode.idType is missing. Run permdock generate.",
       );
-      expect(legacy.requires).toContainEqual({
-        function: "permdock.permitted_file_node_rows",
-        args: "text, uuid[]",
-        role: "authenticated",
-      });
     });
 
     it("reads every row without candidates when the id types differ", () => {
       const provider = rowsOf(
         withRows({
           ledger: { rows: "permitted_ledger_rows", idType: "bigint" },
-          fileNode: { rows: "permitted_file_node_rows" },
+          fileNode: { rows: "permitted_file_node_rows", idType: "text" },
         }),
       );
       expect(provider.functions.rowsWith).toBe(
