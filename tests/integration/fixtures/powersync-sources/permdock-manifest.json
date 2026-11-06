@@ -4,11 +4,15 @@
     {
       "name": "tenant",
       "key": "tenant_id",
-      "resources": ["job"]
+      "resources": [
+        "job"
+      ]
     }
   ],
   "vocabulary": {},
-  "roles": ["owner"],
+  "roles": [
+    "owner"
+  ],
   "grants": [
     {
       "permission": "job.read",
@@ -114,11 +118,21 @@
               }
             ]
           },
-          "reach": ["own", "team", "all"],
+          "reach": [
+            "own",
+            "team",
+            "all"
+          ],
           "levelReach": {
-            "own": ["own"],
-            "team": ["team"],
-            "all": ["all"]
+            "own": [
+              "own"
+            ],
+            "team": [
+              "team"
+            ],
+            "all": [
+              "all"
+            ]
           }
         },
         "job.update": {
@@ -199,11 +213,21 @@
               }
             ]
           },
-          "reach": ["own", "team", "all"],
+          "reach": [
+            "own",
+            "team",
+            "all"
+          ],
           "levelReach": {
-            "own": ["own"],
-            "team": ["team"],
-            "all": ["all"]
+            "own": [
+              "own"
+            ],
+            "team": [
+              "team"
+            ],
+            "all": [
+              "all"
+            ]
           }
         }
       },
@@ -235,8 +259,16 @@
       },
       "includeReach": {
         "owner": {
-          "job.read": ["own", "team", "all"],
-          "job.update": ["own", "team", "all"]
+          "job.read": [
+            "own",
+            "team",
+            "all"
+          ],
+          "job.update": [
+            "own",
+            "team",
+            "all"
+          ]
         }
       }
     }
@@ -246,7 +278,10 @@
       {
         "name": "owner",
         "on": "tenant",
-        "allows": ["job.read", "job.update"]
+        "allows": [
+          "job.read",
+          "job.update"
+        ]
       }
     ],
     "manage": {
@@ -272,12 +307,28 @@
       }
     ],
     "levels": {
-      "job.read": ["own", "team", "all"],
-      "job.update": ["own", "team", "all"]
+      "job.read": [
+        "own",
+        "team",
+        "all"
+      ],
+      "job.update": [
+        "own",
+        "team",
+        "all"
+      ]
     },
     "grants": {
-      "0": ["own", "team", "all"],
-      "1": ["own", "team", "all"]
+      "0": [
+        "own",
+        "team",
+        "all"
+      ],
+      "1": [
+        "own",
+        "team",
+        "all"
+      ]
     }
   },
   "rows": {

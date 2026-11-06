@@ -4,11 +4,19 @@
     {
       "name": "organization",
       "key": "organization_id",
-      "resources": ["job", "customer"]
+      "resources": [
+        "job",
+        "customer"
+      ]
     }
   ],
   "vocabulary": {},
-  "roles": ["admin", "pro", "support", "technician"],
+  "roles": [
+    "admin",
+    "pro",
+    "support",
+    "technician"
+  ],
   "grants": [
     {
       "permission": "job.read",
@@ -267,11 +275,21 @@
               }
             ]
           },
-          "reach": ["own", "team", "all"],
+          "reach": [
+            "own",
+            "team",
+            "all"
+          ],
           "levelReach": {
-            "own": ["own"],
-            "team": ["team"],
-            "all": ["all"]
+            "own": [
+              "own"
+            ],
+            "team": [
+              "team"
+            ],
+            "all": [
+              "all"
+            ]
           }
         },
         "job.update": {
@@ -427,11 +445,21 @@
               }
             ]
           },
-          "reach": ["own", "team", "all"],
+          "reach": [
+            "own",
+            "team",
+            "all"
+          ],
           "levelReach": {
-            "own": ["own"],
-            "team": ["team"],
-            "all": ["all"]
+            "own": [
+              "own"
+            ],
+            "team": [
+              "team"
+            ],
+            "all": [
+              "all"
+            ]
           }
         },
         "customer.read": {
@@ -604,15 +632,31 @@
       },
       "includeReach": {
         "admin": {
-          "job.read": ["own", "team", "all"],
-          "job.update": ["own", "team", "all"]
+          "job.read": [
+            "own",
+            "team",
+            "all"
+          ],
+          "job.update": [
+            "own",
+            "team",
+            "all"
+          ]
         },
         "support": {
-          "job.read": ["own", "team", "all"]
+          "job.read": [
+            "own",
+            "team",
+            "all"
+          ]
         },
         "technician": {
-          "job.read": ["own"],
-          "job.update": ["own"]
+          "job.read": [
+            "own"
+          ],
+          "job.update": [
+            "own"
+          ]
         }
       }
     }
@@ -622,17 +666,26 @@
       {
         "name": "admin",
         "on": "organization",
-        "allows": ["customer.read", "job.read", "job.update"]
+        "allows": [
+          "customer.read",
+          "job.read",
+          "job.update"
+        ]
       },
       {
         "name": "technician",
         "on": "organization",
-        "allows": ["job.read", "job.update"]
+        "allows": [
+          "job.read",
+          "job.update"
+        ]
       },
       {
         "name": "pro",
         "on": "organization",
-        "allows": ["customer.read"]
+        "allows": [
+          "customer.read"
+        ]
       }
     ],
     "manage": {
@@ -666,15 +719,39 @@
       }
     ],
     "levels": {
-      "job.read": ["own", "team", "all"],
-      "job.update": ["own", "team", "all"]
+      "job.read": [
+        "own",
+        "team",
+        "all"
+      ],
+      "job.update": [
+        "own",
+        "team",
+        "all"
+      ]
     },
     "grants": {
-      "0": ["own", "team", "all"],
-      "1": ["own", "team", "all"],
-      "3": ["own"],
-      "4": ["own"],
-      "6": ["own", "team", "all"]
+      "0": [
+        "own",
+        "team",
+        "all"
+      ],
+      "1": [
+        "own",
+        "team",
+        "all"
+      ],
+      "3": [
+        "own"
+      ],
+      "4": [
+        "own"
+      ],
+      "6": [
+        "own",
+        "team",
+        "all"
+      ]
     }
   },
   "rows": {

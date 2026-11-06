@@ -62,7 +62,10 @@ describe("Lienlink declarative jobs", () => {
           await pool.end();
         }
       };
-      const project = `${ROLES}\n${AUTH}\n${app}`;
+      // Roles are cluster-wide. Creating them inside both databases fails
+      // the second apply.
+      await db.admin.query(ROLES);
+      const project = `${AUTH}\n${app}`;
       await apply(declared.toString(), `${project}\n${schema}`);
       await apply(applied.toString(), project);
       const diff = async (): Promise<string> => {
