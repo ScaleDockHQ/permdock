@@ -107,9 +107,10 @@ describe("membership sources with a user through a profile table", () => {
   it("bumps the users a membership row references and both users of a re-linked profile", () => {
     const { sql } = supabaseHookSql(scopes, config);
     expect(sql).toContain(
-      `create trigger "permdock_authz_version"
-  after insert or update or delete on "public"."organization_users"
-  for each row execute function "permdock".permdock_bump_authz_version('user_id');`,
+      `create trigger "permdock_authz_version_update"
+  after update on "public"."organization_users"
+  referencing old table as permdock_old new table as permdock_new
+  for each statement execute function "permdock".permdock_bump_authz_version('user_id');`,
     );
     expect(sql).not.toContain(
       `permdock_bump_authz_version('contact_profile_id')`,

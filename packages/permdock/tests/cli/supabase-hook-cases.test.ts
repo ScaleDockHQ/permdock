@@ -299,7 +299,7 @@ describe("supabase.hook.teams", () => {
     );
     expect(hookBody).not.toContain("team_members");
     expect(sql).toContain(
-      'on "public"."team_members"\n  for each row execute function "permdock".permdock_bump_authz_version(\'user_id\')',
+      'on "public"."team_members"\n  referencing new table as permdock_new\n  for each statement execute function "permdock".permdock_bump_authz_version(\'user_id\')',
     );
   });
 

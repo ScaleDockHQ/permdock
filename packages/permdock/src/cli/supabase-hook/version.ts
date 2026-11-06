@@ -7,6 +7,12 @@ import { tableKey } from "../sql/deciding-columns.ts";
 import { quoteIdent, quoteLiteral, quoteQualified } from "../sql/quote.ts";
 
 const VERSION_TRIGGER = "permdock_authz_version";
+/** The statement triggers on a direct membership table, one per event. */
+const STATEMENT_TRIGGERS = {
+  insert: "permdock_authz_version_insert",
+  update: "permdock_authz_version_update",
+  delete: "permdock_authz_version_delete",
+} as const;
 
 export const AUTHZ_VERSION_BUMP = "permdock_bump_authz_version_for";
 
@@ -32,15 +38,26 @@ export function versionSql(parts: Parts): string {
     tables.push([parts.hook.teams.table, parts.hook.teams.user]);
   }
   const triggers = tables
-    .map(
-      ([
-        name,
-        user,
-      ]) => `drop trigger if exists ${quoteIdent(VERSION_TRIGGER)} on ${quoteQualified(name)};
-create trigger ${quoteIdent(VERSION_TRIGGER)}
-  after insert or update or delete on ${quoteQualified(name)}
-  for each row execute function ${bump}(${quoteLiteral(user)});`,
-    )
+    .map(([name, user]) => {
+      const target = quoteQualified(name);
+      const argument = quoteLiteral(user);
+      return `drop trigger if exists ${quoteIdent(VERSION_TRIGGER)} on ${target};
+drop trigger if exists ${quoteIdent(STATEMENT_TRIGGERS.insert)} on ${target};
+create trigger ${quoteIdent(STATEMENT_TRIGGERS.insert)}
+  after insert on ${target}
+  referencing new table as permdock_new
+  for each statement execute function ${bump}(${argument});
+drop trigger if exists ${quoteIdent(STATEMENT_TRIGGERS.update)} on ${target};
+create trigger ${quoteIdent(STATEMENT_TRIGGERS.update)}
+  after update on ${target}
+  referencing old table as permdock_old new table as permdock_new
+  for each statement execute function ${bump}(${argument});
+drop trigger if exists ${quoteIdent(STATEMENT_TRIGGERS.delete)} on ${target};
+create trigger ${quoteIdent(STATEMENT_TRIGGERS.delete)}
+  after delete on ${target}
+  referencing old table as permdock_old
+  for each statement execute function ${bump}(${argument});`;
+    })
     .join("\n");
   return `-- the authorization version: bumped on every membership change, written to authz_ver
 create table if not exists ${versionTable} (
@@ -69,6 +86,7 @@ as $$
 $$;
 revoke execute on function ${bumpFor}(uuid[]) from public, anon, authenticated;
 
+-- one bump per statement: the users in the transition tables, old and new, each once
 create or replace function ${bump}()
 returns trigger
 language plpgsql
@@ -77,11 +95,20 @@ set search_path = ''
 as $$
 declare
   column_name text := tg_argv[0];
+  users uuid[] := '{}';
+  holder uuid[];
 begin
-  perform ${bumpFor}(array[
-    case when tg_op <> 'INSERT' then to_jsonb(old) ->> column_name end,
-    case when tg_op <> 'DELETE' then to_jsonb(new) ->> column_name end
-  ]::uuid[]);
+  if tg_op <> 'INSERT' then
+    execute format('select coalesce(array_agg(distinct %1$I::text::uuid), ''{}'') from permdock_old where %1$I is not null', column_name)
+      into holder;
+    users := users || holder;
+  end if;
+  if tg_op <> 'DELETE' then
+    execute format('select coalesce(array_agg(distinct %1$I::text::uuid), ''{}'') from permdock_new where %1$I is not null', column_name)
+      into holder;
+    users := users || holder;
+  end if;
+  perform ${bumpFor}(users);
   return null;
 end;
 $$;
@@ -152,7 +179,7 @@ function broadcastSql(parts: Parts, versionTable: string): string {
   }
   const send = `${quoteIdent(parts.schema)}.permdock_broadcast_authz_version`;
   const payload =
-    "jsonb_build_object('user_id', new.user_id, 'version', new.version)";
+    "jsonb_build_object('user_id', r.user_id, 'version', r.version)";
   const event = quoteLiteral(AUTHZ_EVENT);
   const receive = broadcast.receivePolicy ? authzReceiveEmbed() : "";
   return `
@@ -164,19 +191,30 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  r record;
 begin
   if to_regprocedure('realtime.send(jsonb, text, text, boolean)') is not null then
-    perform realtime.send(${payload}, ${event}, ${quoteLiteral(broadcast.topic)}, true);
-    perform realtime.send(${payload}, ${event}, 'authz:' || new.user_id::text, true);
+    for r in select * from permdock_new loop
+      perform realtime.send(${payload}, ${event}, ${quoteLiteral(broadcast.topic)}, true);
+      perform realtime.send(${payload}, ${event}, 'authz:' || r.user_id::text, true);
+    end loop;
   end if;
   return null;
 end;
 $$;
 revoke execute on function ${send}() from public, anon, authenticated;
 drop trigger if exists permdock_authz_version_broadcast on ${versionTable};
-create trigger permdock_authz_version_broadcast
-  after insert or update on ${versionTable}
-  for each row execute function ${send}();${receive}`;
+drop trigger if exists permdock_authz_version_broadcast_insert on ${versionTable};
+create trigger permdock_authz_version_broadcast_insert
+  after insert on ${versionTable}
+  referencing new table as permdock_new
+  for each statement execute function ${send}();
+drop trigger if exists permdock_authz_version_broadcast_update on ${versionTable};
+create trigger permdock_authz_version_broadcast_update
+  after update on ${versionTable}
+  referencing new table as permdock_new
+  for each statement execute function ${send}();${receive}`;
 }
 
 function signedUp(user: string): string {
