@@ -165,8 +165,8 @@ export function activeFromSql(
 }
 
 /**
- * One variable per user-keyed table `membership_entries_for` reads, holding the
- * user (a uuid, as Supabase Auth issues) as that column's type, so each lookup
+ * One variable per user-keyed table `memberships_for` reads, holding the user
+ * (a uuid, as Supabase Auth issues) as that column's type, so each lookup
  * compares the column uncast and its index applies.
  */
 export function typedSourceUsers(parts: Parts): string {

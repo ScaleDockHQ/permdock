@@ -17,7 +17,7 @@ import {
 } from "../sql/quote.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
-import { MEMBERSHIP_ENTRIES_FOR, heldSql } from "./entries.ts";
+import { MEMBERSHIPS_FOR, heldSql } from "./entries.ts";
 import { typedUsers } from "./memberships.ts";
 
 const SUBJECT_FOR = "subject_for";
@@ -94,7 +94,7 @@ begin
 ${roles}
   select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text), '[]'::jsonb)
     into memberships
-    from ${schema}.${MEMBERSHIP_ENTRIES_FOR}(uid) x;${custom}${version}${teams}${extra}
+    from ${schema}.${MEMBERSHIPS_FOR}(uid) x;${custom}${version}${teams}${extra}
   return jsonb_strip_nulls(jsonb_build_object(
     'claims', case when claims = '{}'::jsonb then null else claims end,
     'id', uid::text,

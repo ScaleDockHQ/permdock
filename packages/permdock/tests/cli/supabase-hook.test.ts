@@ -59,9 +59,7 @@ describe("supabase hook", () => {
       expect(
         sql.indexOf('create schema if not exists "permdock"'),
       ).toBeLessThan(
-        sql.indexOf(
-          'create or replace function "permdock".membership_entries_for',
-        ),
+        sql.indexOf('create or replace function "permdock".memberships_for'),
       );
       expect(sql).toContain(
         `claims -> 'app_metadata' ->> 'active_organization'`,

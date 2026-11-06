@@ -33,7 +33,7 @@ import {
   validateSql,
 } from "./claims.ts";
 import {
-  MEMBERSHIP_ENTRIES_FOR,
+  MEMBERSHIPS_FOR,
   entriesGrantsSql,
   entryTenantSql,
   heldSql,
@@ -176,7 +176,7 @@ ${roles}
     select x.entry, x.root_id is not distinct from active as current
     from (
       select e.ord, e.entry, ${entryTenantSql(parts, "e")} as root_id
-      from ${quoteIdent(parts.schema)}.${MEMBERSHIP_ENTRIES_FOR}(uid) e
+      from ${quoteIdent(parts.schema)}.${MEMBERSHIPS_FOR}(uid) e
     ) x
     order by (x.root_id is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
   loop

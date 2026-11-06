@@ -249,13 +249,13 @@ describe("PD085", () => {
 });
 
 describe("one membership function", () => {
-  it("reads the entries through membership_entries_for in the hook and subject_for", () => {
+  it("reads the entries through memberships_for in the hook and subject_for", () => {
     const sql = hookOf();
     const create = sql.match(
-      /create or replace function "permdock"\.membership_entries_for/gu,
+      /create or replace function "permdock"\.memberships_for/gu,
     );
     expect(create).toHaveLength(1);
-    expect(sql).toContain(`from "permdock".membership_entries_for(uid)`);
+    expect(sql).toContain(`from "permdock".memberships_for(uid)`);
     expect(sql.match(/'managed_by', s\.managed_by/gu)).toHaveLength(2);
   });
 
@@ -270,7 +270,7 @@ describe("one membership function", () => {
       policy: "p.ts",
       supabase: { hook: { memberships } },
     });
-    for (const fn of ["membership_entries_for", "global_roles_for"]) {
+    for (const fn of ["memberships_for", "global_roles_for"]) {
       expect(sql).toContain(
         `revoke execute on function "permdock".${fn}(uuid) from public, anon, authenticated;`,
       );
@@ -283,10 +283,10 @@ describe("one membership function", () => {
   it("grants a definer hook no reader execute and keeps the revokes", () => {
     const sql = hookOf("definer");
     expect(sql).not.toContain(
-      `grant execute on function "permdock".membership_entries_for`,
+      `grant execute on function "permdock".memberships_for`,
     );
     expect(sql).toContain(
-      `revoke execute on function "permdock".membership_entries_for(uuid) from public, anon, authenticated;`,
+      `revoke execute on function "permdock".memberships_for(uuid) from public, anon, authenticated;`,
     );
   });
 
