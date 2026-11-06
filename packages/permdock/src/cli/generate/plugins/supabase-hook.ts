@@ -2,7 +2,7 @@ import type { SupabaseSchemas } from "../../types.ts";
 import type { PermDockPlugin } from "../plugin.ts";
 
 import { CliError } from "../../core/errors.ts";
-import { definePlugin, noted } from "../plugin.ts";
+import { definePlugin, noted, schemaInputs } from "../plugin.ts";
 import { pluginVersion } from "./version.ts";
 
 export type SupabaseHookPluginOptions = {
@@ -22,7 +22,7 @@ export function supabaseHook(
     name: "supabaseHook",
     version: pluginVersion(),
     after: ["rls"],
-    inputs: () => ({ files: [], options }),
+    inputs: (ctx) => schemaInputs(ctx, options),
     plan: () => [
       { id: "hook", out: options.out ?? "supabase/permdock-hook.sql" },
     ],

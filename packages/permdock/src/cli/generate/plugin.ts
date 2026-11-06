@@ -78,6 +78,17 @@ export type PluginInit = {
   readonly emit: PermDockPlugin["emit"];
 };
 
+/**
+ * Inputs for a plugin that reads the schema directory: the directory feeds the
+ * cache key, so a changed schema file is a miss.
+ */
+export function schemaInputs(
+  ctx: ProjectContext,
+  options: unknown,
+): PluginInputs {
+  return { files: ctx.schemaDir === undefined ? [] : [ctx.schemaDir], options };
+}
+
 function emptyInputs(): PluginInputs {
   return { files: [], options: undefined };
 }

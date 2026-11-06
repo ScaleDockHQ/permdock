@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 
+import { canonicalJson } from "../../core/canonical-json.ts";
 import { writeFileEnsuringDir } from "../files.ts";
 
 /** Cache entries this process understands. An older or newer file is ignored. */
@@ -20,6 +21,66 @@ export type CacheEntry = {
 
 export function hashText(text: string): string {
   return createHash("sha256").update(text).digest("hex");
+}
+
+function withoutFunctions(value: unknown, path: Set<object>): unknown {
+  if (typeof value === "function") {
+    return `fn:${Function.prototype.toString.call(value)}`;
+  }
+  if (value === null || typeof value !== "object" || path.has(value)) {
+    return value;
+  }
+  path.add(value);
+  try {
+    if (Array.isArray(value)) {
+      return value.map((item: unknown) => withoutFunctions(item, path));
+    }
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(value)) {
+      out[key] = withoutFunctions(Reflect.get(value, key), path);
+    }
+    return out;
+  } finally {
+    path.delete(value);
+  }
+}
+
+/**
+ * Canonical text of plugin options or config. A function member contributes its
+ * source text, so editing a callback is a different key.
+ */
+export function optionsKey(value: unknown): string {
+  return canonicalJson(withoutFunctions(value, new Set()));
+}
+
+function filesIn(cwd: string, path: string): readonly string[] {
+  const abs = join(cwd, path);
+  if (!existsSync(abs)) {
+    return [];
+  }
+  if (!statSync(abs).isDirectory()) {
+    return [path];
+  }
+  return readdirSync(abs, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => relative(cwd, join(entry.parentPath, entry.name)));
+}
+
+/**
+ * One line per input file: path and content hash. A directory contributes every
+ * file under it and a missing path contributes nothing, so creating the file
+ * changes the key.
+ */
+export function inputsKey(
+  cwd: string,
+  paths: readonly string[],
+): readonly string[] {
+  const files = [...new Set(paths.flatMap((path) => filesIn(cwd, path)))];
+  return files
+    .toSorted()
+    .map(
+      (file) => `${file}:${hashText(readFileSync(join(cwd, file), "utf8"))}`,
+    );
 }
 
 /**

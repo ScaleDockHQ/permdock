@@ -1,6 +1,6 @@
 import type { PermDockPlugin } from "../plugin.ts";
 
-import { definePlugin } from "../plugin.ts";
+import { definePlugin, schemaInputs } from "../plugin.ts";
 import { pluginVersion } from "./version.ts";
 
 export type BetterSupabasePluginOptions = { readonly manifest?: string };
@@ -16,7 +16,7 @@ export function betterSupabase(
     name: "betterSupabase",
     version: pluginVersion(),
     after: ["supabaseHook"],
-    inputs: () => ({ files: [], options }),
+    inputs: (ctx) => schemaInputs(ctx, options),
     plan: () => [],
     emit: () => [],
   });
