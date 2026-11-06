@@ -209,7 +209,7 @@ function storagePolicies(
       const path = `(storage.foldername(name))[${String(folder)}]`;
       const objectId = type === "text" ? path : `${path}::${type}`;
       return `bucket_id = ${quoteLiteral(id)}
-    and ${qualified(ctx, `can_${sql}`)}(${objectId}, ${quoteLiteral(key)})`;
+    and ${qualified(ctx, `can_${sql}`)}(${objectId}, ${quoteLiteral(key)}::text)`;
     };
     const commands: readonly [
       SqlCommand,

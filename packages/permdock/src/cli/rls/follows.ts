@@ -73,7 +73,7 @@ export function followPolicies(
       const childName = quoteIdent(bare(child));
       const column = quoteIdent(fk);
       const exists = (action: "read" | "update"): string =>
-        `exists (select 1 from ${parent} p where p.${id} = ${childName}.${column} and ${can}(p, ${quoteLiteral(`${resource}.${action}`)}))`;
+        `exists (select 1 from ${parent} p where p.${id} = ${childName}.${column} and ${can}(p, ${quoteLiteral(`${resource}.${action}`)}::text))`;
       const commands: readonly [
         SqlCommand,
         "read" | "update",

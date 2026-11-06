@@ -5,8 +5,18 @@
 -- authorize: database (reads user_roles on every statement)
 -- the custom access token hook that writes user_role: permdock supabase hook generate
 create schema if not exists "permdock";
-create type "permdock"."app_role" as enum ('admin', 'member');
-create type "permdock"."app_permission" as enum ('post.read', 'post.update', 'post.delete', 'post.publish', 'post.archive', 'post.create', 'post.list');
+do $permdock$ begin
+  create type "permdock"."app_role" as enum ('admin', 'member');
+exception
+  when duplicate_object then null;
+end
+$permdock$;
+do $permdock$ begin
+  create type "permdock"."app_permission" as enum ('post.read', 'post.update', 'post.delete', 'post.publish', 'post.archive', 'post.create', 'post.list');
+exception
+  when duplicate_object then null;
+end
+$permdock$;
 
 create table if not exists "permdock"."user_roles" (
   user_id uuid not null references auth.users on delete cascade,

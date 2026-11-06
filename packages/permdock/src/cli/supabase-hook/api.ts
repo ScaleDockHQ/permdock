@@ -50,7 +50,7 @@ export function subjectForSql(parts: Parts, config: PermDockConfig): string {
   select coalesce((
     select jsonb_agg(to_jsonb(u.id::text) order by u.n)
     from unnest(array(
-      select id from ${schema}.member_team_ids_for(uid)
+      select team_id from ${schema}.member_team_ids_for(uid) as team(team_id)
     )) with ordinality as u(id, n)
   ), '[]'::jsonb)
     into team_ids;

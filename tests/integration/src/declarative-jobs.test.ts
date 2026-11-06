@@ -6,7 +6,7 @@ import { Pool } from "pg";
 import { describe, expect, it } from "vitest";
 
 import { run } from "./support/cli-run.ts";
-import { ROLES } from "./support/declarative-fixtures.ts";
+import { AUTH, ROLES } from "./support/declarative-fixtures.ts";
 import { startPostgres } from "./support/postgres.ts";
 
 const FIXTURE = join(
@@ -58,8 +58,9 @@ describe("Lienlink declarative jobs", () => {
           await pool.end();
         }
       };
-      await apply(declared.toString(), `${ROLES}\n${schema}`);
-      await apply(applied.toString(), ROLES);
+      const project = `${ROLES}\n${AUTH}`;
+      await apply(declared.toString(), `${project}\n${schema}`);
+      await apply(applied.toString(), project);
       const diff = async (): Promise<string> => {
         const source = new Pool({ connectionString: applied.toString() });
         const target = new Pool({ connectionString: declared.toString() });
