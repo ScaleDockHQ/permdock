@@ -1,5 +1,11 @@
 # permdock
 
+## 0.25.1
+
+### Patch Changes
+
+- [#293](https://github.com/ScaleDockHQ/permdock/pull/293) [`2899a68`](https://github.com/ScaleDockHQ/permdock/commit/2899a68467178f105ee82066ec4293ca899d0373) Thanks [@mick340](https://github.com/mick340)! - `permdock rls generate` with `rls.seeds: "view"` no longer writes the memo generation triggers on the `role_permissions` view. Postgres refuses `after` triggers on a view, so the generated helpers failed to apply. The view's rows change only with a migration, so the transaction-local memo never needs that bump.
+
 ## 0.25.0
 
 ### Minor Changes

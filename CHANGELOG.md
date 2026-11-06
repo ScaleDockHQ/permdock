@@ -2,6 +2,10 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.25.1 (2026-11-06)
+
+- `permdock rls generate` with `rls.seeds: "view"` no longer writes the memo generation triggers on the `role_permissions` view. Postgres refuses `after` triggers on a view, so the generated helpers failed to apply. The view's rows change only with a migration, so the transaction-local memo never needs that bump.
+
 ## 0.25.0 (2026-11-05)
 
 - **Breaking:** `permdock rls generate` writes each `*_read_only_actors` policy as `(select permdock_actor_may_write())` instead of inlining the `act` expression; regenerate and apply the output. `permdock doctor` PD090 also reads `supabase/schemas` and `rls.out` and flags a hand-written policy that inlines the 0.24 guard.
