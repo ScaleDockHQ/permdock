@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
 import { policyModule, policyProject, removeProjects } from "./doctor-kit.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 describe("rls user id", () => {
   afterAll(removeProjects);
@@ -61,7 +61,7 @@ $$;`;
         })};\n`,
       },
     );
-    const result = await run(["rls", "generate", "--out", "rls.sql"], { cwd });
+    const result = await rlsGenerate(["--out", "rls.sql"], { cwd });
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
     }

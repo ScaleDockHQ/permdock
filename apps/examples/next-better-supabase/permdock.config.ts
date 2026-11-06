@@ -1,4 +1,5 @@
 import { defineConfig } from "permdock/cli";
+import { rls } from "permdock/cli/plugins/rls";
 
 import { permissions } from "./src/permissions.ts";
 import { policy } from "./src/policy.ts";
@@ -9,6 +10,13 @@ const { quotes } = permissions;
 export default defineConfig({
   permissions,
   policy,
+  plugins: [
+    rls({
+      target: "sql",
+      split: ["helpers", "seeds", "indexes", "policies", "hook"],
+      seeds: { out: "supabase/migrations/" },
+    }),
+  ],
   collect: { srcPath: ["./src"] },
   // topics.orgQuotes and paths.quoteFiles, from the realtime and storage blocks below.
   gen: { kinds: ["constants"], out: "src/generated" },

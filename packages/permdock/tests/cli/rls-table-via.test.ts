@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/core/run.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../../../../tests/integration/fixtures/table-via");
@@ -51,9 +52,7 @@ describe("rls table via", () => {
   describe("rls.tables via", () => {
     it("names the helper after the parent table, singular, and keys on <parent>_id", async () => {
       const cwd = project(`{ deploy: { table: 'deployments', via: ${VIA} } }`);
-      const generated = await run(["rls", "generate", "--target", "sql"], {
-        cwd,
-      });
+      const generated = await rlsGenerate(["--target", "sql"], { cwd });
       expect(generated.code).toBe(0);
       const sql = readFileSync(join(cwd, "rls.sql"), "utf8");
       expect(sql).toContain("permitted_environment_ids");
@@ -68,9 +67,7 @@ describe("rls table via", () => {
       const cwd = project(
         `{ deploy: { via: { table: 'cloud.stages', column: 'org_id', key: 'stage', id: 'uid', type: 'text', scope: 'org' } } }`,
       );
-      const generated = await run(["rls", "generate", "--target", "sql"], {
-        cwd,
-      });
+      const generated = await rlsGenerate(["--target", "sql"], { cwd });
       expect(generated.code).toBe(0);
       const sql = readFileSync(join(cwd, "rls.sql"), "utf8");
       expect(sql).toContain("permitted_stage_ids");
@@ -82,9 +79,7 @@ describe("rls table via", () => {
       const cwd = project(
         `{ deploy: { via: { table: 'cloud.environments', column: 'org_id', scope: 'team' } } }`,
       );
-      const generated = await run(["rls", "generate", "--target", "sql"], {
-        cwd,
-      });
+      const generated = await rlsGenerate(["--target", "sql"], { cwd });
       expect(generated.code).toBe(2);
       expect(generated.stdout + generated.stderr).toContain(
         "rls.tables.deploy.via.scope 'team' is not a scope of the policy",

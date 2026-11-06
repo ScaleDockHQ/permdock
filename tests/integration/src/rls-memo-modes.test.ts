@@ -3,8 +3,9 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MODES = new Map<string, string>([
@@ -120,10 +121,9 @@ describe("row helper memo modes answer the same", () => {
   beforeAll(async () => {
     for (const [mode, cwd] of MODES) {
       const out = join(dir, `${mode}.sql`);
-      const generated = await run(
-        ["rls", "generate", "--target", "sql", "--out", out],
-        { cwd },
-      );
+      const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+        cwd,
+      });
       if (generated.code !== 0) {
         throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
       }

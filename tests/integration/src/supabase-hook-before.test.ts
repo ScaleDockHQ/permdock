@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/hook-before");
@@ -67,10 +68,9 @@ describe("supabase.hook.before", () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-hook-before-"));
     const rlsOut = join(dir, "rls.sql");
     const hookOut = join(dir, "hook.sql");
-    const rls = await run(
-      ["rls", "generate", "--target", "sql", "--out", rlsOut],
-      { cwd: FIXTURE },
-    );
+    const rls = await rlsGenerate(["--target", "sql", "--out", rlsOut], {
+      cwd: FIXTURE,
+    });
     if (rls.code !== 0) {
       throw new Error(`rls generate: ${rls.stdout}${rls.stderr}`);
     }

@@ -28,9 +28,9 @@ describe("permdock completion", () => {
   });
 
   it("prints one candidate per line through __complete", async () => {
-    const { code, stdout } = await run(["__complete", "--", "rls", "gen"]);
+    const { code, stdout } = await run(["__complete", "--", "rls", "ver"]);
     expect(code).toBe(0);
-    expect(stdout).toBe("generate\n");
+    expect(stdout).toBe("verify\n");
   });
 });
 
@@ -55,8 +55,8 @@ describe("completion candidates", () => {
 
   it("offers global flags on a group and leaf flags on a leaf", async () => {
     expect(await candidates(["rls", "--j"])).toStrictEqual(["--json"]);
-    expect(await candidates(["rls", "generate", "--sp"])).toStrictEqual([
-      "--split",
+    expect(await candidates(["rls", "verify", "--k"])).toStrictEqual([
+      "--kind",
     ]);
   });
 
@@ -80,7 +80,7 @@ describe("completion candidates", () => {
   });
 
   it("offers nothing after a plain string flag, so the shell lists files", async () => {
-    expect(await candidates(["rls", "generate", "--out", ""])).toStrictEqual(
+    expect(await candidates(["rls", "verify", "--fixtures", ""])).toStrictEqual(
       [],
     );
   });
@@ -95,14 +95,6 @@ describe("completion candidates", () => {
   });
 
   it("completes after the last comma and skips values already given", async () => {
-    expect(
-      await candidates(["rls", "generate", "--split", "helpers,"]),
-    ).toStrictEqual([
-      "helpers,seeds",
-      "helpers,indexes",
-      "helpers,policies",
-      "helpers,hook",
-    ]);
     expect(
       await candidates(["init", "--integration", "ai-sdk,m"]),
     ).toStrictEqual(["ai-sdk,mcp"]);

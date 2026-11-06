@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 describe("rls permitted users", () => {
   afterAll(removeProjects);
@@ -21,7 +21,7 @@ describe("rls permitted users", () => {
         rls: { dialect: "supabase", ...rls },
       })};\n`,
     });
-    const result = await run(["rls", "generate", "--out", "rls.sql"], { cwd });
+    const result = await rlsGenerate(["--out", "rls.sql"], { cwd });
     expect(result.code).toBe(0);
     return readFileSync(path.join(cwd, "rls.sql"), "utf8");
   }

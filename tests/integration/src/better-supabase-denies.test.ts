@@ -13,6 +13,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { permissions } from "../fixtures/permission-denies/permissions.ts";
 import { ask, askAs } from "./support/pglite.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/permission-denies");
@@ -75,10 +76,9 @@ describe("better-supabase SQL against a deny of the same permission", () => {
 
   beforeAll(async () => {
     const out = join(dir, "rls.sql");
-    const generated = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}`);
     }

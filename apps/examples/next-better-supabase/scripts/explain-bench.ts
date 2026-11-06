@@ -1,6 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Client } from "pg";
 
@@ -20,23 +19,19 @@ const USER = "11111111-1111-4111-8111-111111111111";
  * --explain <function>`.
  */
 function generated(memo: string | undefined): string {
-  const out = path.join(
-    mkdtempSync(path.join(tmpdir(), "explain-bench-")),
-    "bench.sql",
-  );
   const config =
     memo === "better-supabase" ? ["--config", "better-supabase.config.ts"] : [];
   const result = spawnSync(
     path.join(root, "node_modules/.bin/permdock"),
-    ["rls", "generate", "--target", "sql", "--out", out, ...config],
+    ["generate", "--only", "rls", "--no-cache", ...config],
     { cwd: benchDir, encoding: "utf8" },
   );
   if (result.status !== 0) {
     throw new Error(
-      `permdock rls generate failed: ${result.stderr}${result.stdout}`,
+      `permdock generate --only rls failed: ${result.stderr}${result.stdout}`,
     );
   }
-  return readFileSync(out, "utf8");
+  return readFileSync(path.join(benchDir, "bench.sql"), "utf8");
 }
 
 function flag(name: string): string | undefined {

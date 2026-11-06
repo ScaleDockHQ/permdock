@@ -21,18 +21,8 @@ const FIXTURE = join(ROOT, "tests", "integration", "fixtures", "generate-perf");
 const SLACK = 1.1;
 const ENFORCE_TIME = process.env["CI"] === undefined;
 
-/**
- * The generator this record measures. Phase A replaces it with `generate --only
- * rls`; the commit that moves the numbers states both.
- */
-const ARGS = [
-  "rls",
-  "generate",
-  "--target",
-  "sql",
-  "--out",
-  "out.sql",
-] as const;
+/** `generate --only rls`, with the cache off so the run still emits. */
+const ARGS = ["generate", "--only", "rls", "--no-cache"] as const;
 
 interface Sample {
   /** Wall-clock milliseconds. */

@@ -9,6 +9,8 @@ import { authorizationProvider } from "permdock/better-supabase";
 import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { rlsGenerate } from "./support/rls.ts";
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/row-ids");
 
@@ -107,8 +109,15 @@ describe("better-supabase blocks over uuid PermDock row helpers", () => {
     const sql = join(dir, "rls.sql");
     const manifest = join(dir, "permdock.manifest.json");
     const hook = join(dir, "hook.sql");
+    const generated = await rlsGenerate(["--target", "sql", "--out", sql], {
+      cwd: FIXTURE,
+    });
+    if (generated.code !== 0) {
+      throw new Error(
+        `generate --only rls: ${generated.stdout}${generated.stderr}`,
+      );
+    }
     for (const argv of [
-      ["rls", "generate", "--target", "sql", "--out", sql],
       ["supabase", "hook", "generate", "--out", hook],
       ["supabase", "inspect", "--out", manifest],
     ]) {

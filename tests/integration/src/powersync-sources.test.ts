@@ -9,6 +9,7 @@ import type { Postgres } from "./support/postgres.ts";
 import { runPipingDbUrl } from "./db-url.ts";
 import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const FIXTURE = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -32,8 +33,8 @@ describe("powersync over rls.membershipSources", () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-powersync-sources-"));
     const out = join(dir, "rls.sql");
-    const result = await runPipingDbUrl(
-      ["rls", "generate", "--target", "sql", "--dialect", "guc", "--out", out],
+    const result = await rlsGenerate(
+      ["--target", "sql", "--dialect", "guc", "--out", out],
       { cwd: FIXTURE },
     );
     if (result.code !== 0) {

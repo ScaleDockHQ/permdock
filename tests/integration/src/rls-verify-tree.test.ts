@@ -9,6 +9,7 @@ import type { Postgres } from "./support/postgres.ts";
 
 import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/saas");
@@ -47,10 +48,9 @@ describe("rls verify --tree over the shared SaaS folder tree", () => {
   const out = join(dir, "saas.sql");
 
   beforeAll(async () => {
-    const generated = await runPipingDbUrl(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
     }

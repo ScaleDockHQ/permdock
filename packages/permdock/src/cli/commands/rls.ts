@@ -4,6 +4,7 @@ import type { CliContext } from "../core/context.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { RlsRunInput } from "../rls/rls.ts";
 
+import { parseLeaf } from "../core/args.ts";
 import { defineLeaf } from "../core/command.ts";
 import { missingInput } from "../core/errors.ts";
 import {
@@ -218,71 +219,85 @@ async function runRls(input: RlsRunInput): Promise<CommandResult> {
   return (await import("../rls/rls.ts")).runRls(input);
 }
 
-export const generate: Leaf = defineLeaf({
-  flags: {
-    ...shapeFlags,
-    ...outFlag,
-    ...checkFlag,
-    project: {
-      type: "string",
-      description:
-        "Rebuild the policy from a PermDock Cloud project's pushed catalog and policy",
-      valueHint: "id",
-    },
-    url: {
-      type: "string",
-      description: "With --project: Cloud API base URL",
-      valueHint: "url",
-    },
-    split: {
-      type: "string",
-      description:
-        "Write helpers, seeds, indexes, policies and hook as separate parts",
-      valueHint: "parts",
-      list: true,
-      async complete() {
-        // Lazy: the writer module loads only when completion asks for the parts.
-        const { SPLIT_PARTS } = await import("../core/output-files.ts");
-        return SPLIT_PARTS;
-      },
-    },
-    "grants-out": {
-      type: "string",
-      description: "migra: file for the privileges supabase db diff drops",
-      valueHint: "file",
-    },
-    "seeds-out": {
-      type: "string",
-      description: "File for the role_permissions seeds",
-      valueHint: "file",
-    },
-    "no-seeds": {
-      type: "boolean",
-      description:
-        "Do not write the seeds part: the project seeds role_permissions itself",
-    },
-    "backfill-out": {
-      type: "string",
-      description: "File for the rls.customRoles.from copy",
-      valueHint: "file",
+const rlsGenerateFlags = {
+  ...shapeFlags,
+  ...outFlag,
+  ...checkFlag,
+  project: {
+    type: "string",
+    description:
+      "Rebuild the policy from a PermDock Cloud project's pushed catalog and policy",
+    valueHint: "id",
+  },
+  url: {
+    type: "string",
+    description: "With --project: Cloud API base URL",
+    valueHint: "url",
+  },
+  split: {
+    type: "string",
+    description:
+      "Write helpers, seeds, indexes, policies and hook as separate parts",
+    valueHint: "parts",
+    list: true,
+    async complete(): Promise<readonly string[]> {
+      // Lazy: the writer module loads only when completion asks for the parts.
+      const { SPLIT_PARTS } = await import("../core/output-files.ts");
+      return SPLIT_PARTS;
     },
   },
-  async run(ctx, { flags }) {
-    const backfillOut = given(flags["backfill-out"]);
-    return runRls({
-      ...(await rlsInput(ctx, "generate", flags)),
-      out: given(flags.out),
-      check: flags.check,
-      project: given(flags.project),
-      url: given(flags.url),
-      split: given(flags.split),
-      grantsOut: given(flags["grants-out"]),
-      seedsOut: given(flags["seeds-out"]),
-      ...(flags["no-seeds"] ? { noSeeds: true } : {}),
-      ...(backfillOut === undefined ? {} : { backfillOut }),
-    });
+  "grants-out": {
+    type: "string",
+    description: "migra: file for the privileges supabase db diff drops",
+    valueHint: "file",
   },
-});
+  "seeds-out": {
+    type: "string",
+    description: "File for the role_permissions seeds",
+    valueHint: "file",
+  },
+  "no-seeds": {
+    type: "boolean",
+    description:
+      "Do not write the seeds part: the project seeds role_permissions itself",
+  },
+  "backfill-out": {
+    type: "string",
+    description: "File for the rls.customRoles.from copy",
+    valueHint: "file",
+  },
+} as const;
+
+export function rlsGenerateFromFlags(
+  ctx: CliContext,
+  argv: readonly string[],
+): Promise<CommandResult> {
+  const parsed = parseLeaf("rls generate", argv, rlsGenerateFlags);
+  // SAFETY: parseLeaf widens the flag object to Flags; the values are this command's.
+  return executeRlsGenerate(
+    ctx,
+    parsed.flags as FlagValues<typeof rlsGenerateFlags>,
+  );
+}
+
+async function executeRlsGenerate(
+  ctx: CliContext,
+  flags: FlagValues<typeof rlsGenerateFlags>,
+): Promise<CommandResult> {
+  const backfillOut = given(flags["backfill-out"]);
+  return runRls({
+    ...(await rlsInput(ctx, "generate", flags)),
+    out: given(flags.out),
+    check: flags.check,
+    project: given(flags.project),
+    url: given(flags.url),
+    split: given(flags.split),
+    grantsOut: given(flags["grants-out"]),
+    seedsOut: given(flags["seeds-out"]),
+    ...(flags["no-seeds"] ? { noSeeds: true } : {}),
+    ...(backfillOut === undefined ? {} : { backfillOut }),
+  });
+}
 
 export const importPolicies: Leaf = defineLeaf({
   flags: {

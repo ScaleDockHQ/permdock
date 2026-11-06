@@ -2,7 +2,6 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "../src/support/postgres.ts";
@@ -10,7 +9,7 @@ import type { Postgres } from "../src/support/postgres.ts";
 import { ROWS, setupSql, TENANTS } from "../fixtures/row-hot-path/policy.ts";
 import { defined } from "../src/support/defined.ts";
 import { startPostgres } from "../src/support/postgres.ts";
-import { jwtClaims } from "../src/support/rls.ts";
+import { rlsGenerate, jwtClaims } from "../src/support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/row-hot-path");
@@ -139,10 +138,9 @@ describe("row helpers on the hot path", () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-hot-path-"));
     const out = join(dir, "rls.sql");
-    const generated = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
     }

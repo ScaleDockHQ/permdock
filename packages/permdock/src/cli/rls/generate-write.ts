@@ -17,7 +17,11 @@ import { outputFiles } from "./generate-output.ts";
  * Writes the emitted parts, or reports drift. Nothing is written when `check`
  * is set. `--out -` prints the SQL on stdout and the notes on stderr.
  */
-export function writeGenerated(plan: {
+/**
+ * The files `generate` would write, including the Drizzle or Prisma migration
+ * and the custom-role backfill. A string is a refusal.
+ */
+export function generatedFiles(plan: {
   readonly input: RlsGenerateInput;
   readonly outRel: string;
   readonly text: string;
@@ -28,21 +32,19 @@ export function writeGenerated(plan: {
   readonly migration: string;
   readonly migrationRel: string | undefined;
   readonly backfill: string | undefined;
-  readonly warnings: readonly string[];
-  readonly extras: { readonly migration?: string };
-}): GenerateOutcome {
-  const { input, text, extras } = plan;
+}): readonly OutputFile[] | string {
+  const { input } = plan;
   const planned = outputFiles({
     input,
     outRel: plan.outRel,
-    text,
+    text: plan.text,
     helpersOnly: plan.helpersOnly,
     sql: plan.parts,
     scopes: plan.scopes,
     schema: plan.schema,
   });
   if (typeof planned === "string") {
-    return { code: 2, output: planned, text, ...extras };
+    return planned;
   }
   const files: OutputFile[] = [...planned];
   if (plan.migrationRel !== undefined) {
@@ -67,6 +69,29 @@ export function writeGenerated(plan: {
       files.push(file);
     }
   }
+  return files;
+}
+
+export function writeGenerated(plan: {
+  readonly input: RlsGenerateInput;
+  readonly outRel: string;
+  readonly text: string;
+  readonly helpersOnly: boolean;
+  readonly parts: () => SplitSql;
+  readonly scopes: readonly Scope[];
+  readonly schema: string;
+  readonly migration: string;
+  readonly migrationRel: string | undefined;
+  readonly backfill: string | undefined;
+  readonly warnings: readonly string[];
+  readonly extras: { readonly migration?: string };
+}): GenerateOutcome {
+  const { input, text, extras } = plan;
+  const planned = generatedFiles(plan);
+  if (typeof planned === "string") {
+    return { code: 2, output: planned, text, ...extras };
+  }
+  const files = planned;
   if (input.check) {
     const drift = driftOf(input.cwd, files);
     return drift.length === 0

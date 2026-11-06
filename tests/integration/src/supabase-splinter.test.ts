@@ -8,11 +8,11 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { SupabasePostgres } from "./support/supabase-postgres.ts";
 
+import { rlsGenerate } from "./support/rls.ts";
 import { generatedFindings, runSplinter } from "./support/splinter.ts";
 import { startSupabasePostgres } from "./support/supabase-postgres.ts";
 
@@ -150,10 +150,9 @@ describe("Splinter on the generated RLS", () => {
         `export default ${JSON.stringify(scenario.config, null, 2)};\n`,
       );
     }
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd },
-    );
+    const result = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd,
+    });
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
     }

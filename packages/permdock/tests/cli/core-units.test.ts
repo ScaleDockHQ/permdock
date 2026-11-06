@@ -378,12 +378,10 @@ describe("core units", () => {
     });
 
     it("prints a leaf's help as JSON when asked", async () => {
-      const result = await run(["rls", "generate", "--help", "--json"]);
+      const result = await run(["rls", "verify", "--help", "--json"]);
       expect(result.code).toBe(0);
       expect(JSON.parse(result.stdout)).toMatchObject({
         $schema: "https://permdock.com/schemas/cli-commands-v1.json",
-        name: "permdock",
-        commands: [{ name: "generate", path: "rls generate" }],
       });
     });
 

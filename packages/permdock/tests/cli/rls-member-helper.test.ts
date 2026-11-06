@@ -9,7 +9,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");
@@ -54,10 +54,9 @@ export default {
 };
 `,
     );
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
-      { cwd },
-    );
+    const result = await rlsGenerate(["--target", "sql", "--out", "rls.sql"], {
+      cwd,
+    });
     let sql = "";
     try {
       sql = readFileSync(join(cwd, "rls.sql"), "utf8");

@@ -12,6 +12,7 @@ import { policy } from "../fixtures/graph/policy.ts";
 import { runPipingDbUrl } from "./db-url.ts";
 import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/graph");
@@ -182,10 +183,9 @@ describe("relationship graph in RLS (closure table)", () => {
   const out = join(dir, "graph.sql");
 
   beforeAll(async () => {
-    const generated = await runPipingDbUrl(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}`);
     }

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/core/run.ts";
 import { miniAppCopy, removeProjects } from "./doctor-kit.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 describe("rls import dump", () => {
   afterEach(removeProjects);
@@ -11,9 +12,7 @@ describe("rls import dump", () => {
   describe("permdock rls import from a dump", () => {
     it("import writes permissions.generated.ts from a SQL dump", async () => {
       const cwd = miniAppCopy();
-      await run(["rls", "generate", "--target", "sql", "--out", "schema.sql"], {
-        cwd,
-      });
+      await rlsGenerate(["--target", "sql", "--out", "schema.sql"], { cwd });
       const imported = await run(
         [
           "rls",
@@ -71,10 +70,8 @@ export const policy = definePolicy(permissions, {
 };
 `,
         );
-        const generated = await run(
+        const generated = await rlsGenerate(
           [
-            "rls",
-            "generate",
             "--out",
             "schema.sql",
             ...(shape === "per-role" ? ["--policy-per-role"] : []),

@@ -286,16 +286,6 @@ export const SECTIONS: readonly Section[] = [
         "Generate, import, verify or migrate Postgres RLS policies",
         "rls",
         [
-          leaf("generate", "Compile the policy into RLS policies and helpers", {
-            examples: [
-              "permdock rls generate --target sql --out supabase/schemas/permdock.sql",
-              "permdock rls generate --check",
-            ],
-            docs: "rls",
-            effects: ["files", "database:read", "network"],
-            config: true,
-            load: async () => (await import("../commands/rls.ts")).generate,
-          }),
           leaf(
             "import",
             "Turn existing RLS policies into a generated definition",

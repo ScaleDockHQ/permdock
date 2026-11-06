@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
 import { policyProject, removeProjects } from "./doctor-kit.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 describe("rls token scopes", () => {
   afterAll(removeProjects);
@@ -40,16 +40,14 @@ describe("rls token scopes", () => {
         })};\n`,
       },
     );
-    return run(["rls", "generate", "--out", "rls.sql"], { cwd }).then(
-      (result) => ({
-        code: result.code,
-        out: result.stdout + result.stderr,
-        sql:
-          result.code === 0
-            ? readFileSync(path.join(cwd, "rls.sql"), "utf8")
-            : "",
-      }),
-    );
+    return rlsGenerate(["--out", "rls.sql"], { cwd }).then((result) => ({
+      code: result.code,
+      out: result.stdout + result.stderr,
+      sql:
+        result.code === 0
+          ? readFileSync(path.join(cwd, "rls.sql"), "utf8")
+          : "",
+    }));
   }
 
   describe("rls generate with rls.tokenScopes", () => {

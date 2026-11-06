@@ -4,12 +4,12 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { CompiledPolicy } from "../../src/cli/sql/compile.ts";
 
-import { run } from "../../src/cli/core/run.ts";
 import {
   readOnlyActorKinds,
   readOnlyActorPolicies,
 } from "../../src/cli/rls/policies.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 describe("rls read only actors", () => {
   afterAll(removeProjects);
@@ -95,9 +95,7 @@ describe("rls read only actors", () => {
           rls: { dialect: "supabase", readOnlyActors: ["impersonation"] },
         })};\n`,
       });
-      const result = await run(["rls", "generate", "--out", "rls.sql"], {
-        cwd,
-      });
+      const result = await rlsGenerate(["--out", "rls.sql"], { cwd });
       expect(result.code).toBe(0);
       const sql = readFileSync(path.join(cwd, "rls.sql"), "utf8");
       const defined = sql.indexOf(
@@ -146,9 +144,7 @@ describe("rls read only actors", () => {
       const cwd = project({
         "permdock.config.ts": config({ readOnlyActors: true }),
       });
-      const result = await run(["rls", "generate", "--out", "rls.sql"], {
-        cwd,
-      });
+      const result = await rlsGenerate(["--out", "rls.sql"], { cwd });
       expect(result.code).toBe(0);
       const sql = readFileSync(path.join(cwd, "rls.sql"), "utf8");
       expect(sql).toMatch(
@@ -162,9 +158,7 @@ describe("rls read only actors", () => {
           helpersOnly: true,
         }),
       });
-      const quiet = await run(["rls", "generate", "--out", "rls.sql"], {
-        cwd: helpers,
-      });
+      const quiet = await rlsGenerate(["--out", "rls.sql"], { cwd: helpers });
       expect(quiet.stdout + quiet.stderr).toContain(
         'rls.readOnlyActors with --helpers-only writes read-only actor policies only on tables rls.tables names; for public.asset, public.quote, name the table in rls.tables, or add `and (select "permdock".permdock_actor_may_write())` to each hand-written insert, update and delete policy',
       );
@@ -202,9 +196,7 @@ grant execute on function "permdock".permdock_actor_may_write() to authenticated
           },
         })};\n`,
       });
-      const result = await run(["rls", "generate", "--out", "rls.sql"], {
-        cwd,
-      });
+      const result = await rlsGenerate(["--out", "rls.sql"], { cwd });
       expect(result.code).toBe(0);
       const output = result.stdout + result.stderr;
       expect(output).toContain("for public.asset, name the table");
@@ -226,16 +218,8 @@ create policy "public_quotes_update_read_only_actors"
       expect(sql).not.toMatch(/"public"\.\S+ enable row level security/u);
       expect(sql).not.toMatch(/^grant .* on table "public"\."quotes"/mu);
 
-      const split = await run(
-        [
-          "rls",
-          "generate",
-          "--split",
-          "helpers",
-          "--no-seeds",
-          "--out",
-          "rls_{part}.sql",
-        ],
+      const split = await rlsGenerate(
+        ["--split", "helpers", "--no-seeds", "--out", "rls_{part}.sql"],
         { cwd },
       );
       expect(split.code).toBe(0);

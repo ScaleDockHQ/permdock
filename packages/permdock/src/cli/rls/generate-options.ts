@@ -83,6 +83,11 @@ export type RlsGenerateInput = {
   /** `false` returns the SQL and its policies without touching `out`. */
   readonly write?: boolean;
   /**
+   * With `write: false`, also return the files that would be written. A refusal
+   * from the file plan replaces the success result.
+   */
+  readonly listFiles?: boolean;
+  /**
    * `--db-url-stdin`: index suggestions leave out what the database already
    * indexes or lacks.
    */

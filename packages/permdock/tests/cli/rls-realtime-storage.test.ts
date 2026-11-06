@@ -2,13 +2,13 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
 import {
   helperCallKeys,
   helperTablePolicies,
 } from "../../src/cli/sql/helper-calls.ts";
 import { supabaseRls } from "../../src/supabase/index.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 describe("rls realtime storage", () => {
   afterAll(removeProjects);
@@ -49,7 +49,7 @@ describe("rls realtime storage", () => {
         rls: { dialect, ...rls },
       })};\n`,
     });
-    const result = await run(["rls", "generate", "--out", "rls.sql"], { cwd });
+    const result = await rlsGenerate(["--out", "rls.sql"], { cwd });
     let sql = "";
     try {
       sql = readFileSync(path.join(cwd, "rls.sql"), "utf8");
@@ -157,10 +157,8 @@ describe("rls realtime storage", () => {
           rls: { dialect: "supabase", storage },
         })};\n`,
       });
-      const split = await run(
+      const split = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--split",
@@ -180,8 +178,8 @@ describe("rls realtime storage", () => {
       );
       expect(read("rls.helpers.sql")).not.toContain("storage.objects");
 
-      const drizzle = await run(
-        ["rls", "generate", "--target", "drizzle", "--out", "rls.ts"],
+      const drizzle = await rlsGenerate(
+        ["--target", "drizzle", "--out", "rls.ts"],
         { cwd },
       );
       expect(drizzle.code).toBe(0);

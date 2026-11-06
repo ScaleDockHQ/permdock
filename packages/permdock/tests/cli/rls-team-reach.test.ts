@@ -10,7 +10,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "./fixtures/mini-app");
@@ -72,10 +72,9 @@ export const policy = definePolicy(permissions, {
 };
 `,
     );
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
-      { cwd: dir },
-    );
+    const result = await rlsGenerate(["--target", "sql", "--out", "rls.sql"], {
+      cwd: dir,
+    });
     if (result.code !== 0) {
       throw new Error(result.stdout);
     }

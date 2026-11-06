@@ -69,6 +69,66 @@ function lineColumn(
  * The leaf path the positional tokens name, with the token after which a moved
  * subcommand goes.
  */
+const REMOVED_COMMANDS = [
+  {
+    from: ["rls", "generate"],
+    command: "rls generate",
+    to: "generate --only rls",
+  },
+  {
+    from: ["supabase", "hook", "generate"],
+    command: "supabase hook generate",
+    to: "generate --only supabaseHook",
+  },
+  {
+    from: ["powersync", "generate"],
+    command: "powersync generate",
+    to: "generate --only powersync",
+  },
+  {
+    from: ["scim", "generate"],
+    command: "scim generate",
+    to: "generate --only scim",
+  },
+  {
+    from: ["openapi", "emit"],
+    command: "openapi emit",
+    to: "generate --only openapi",
+  },
+  { from: ["gen"], command: "gen", to: "generate" },
+] as const;
+
+function removedCommand(
+  tokens: readonly Token[],
+):
+  | {
+      readonly command: string;
+      readonly start: number;
+      readonly end: number;
+      readonly to: string;
+      readonly from: string;
+    }
+  | undefined {
+  const words = tokens.filter((token) => !token.text.startsWith("-"));
+  for (const item of REMOVED_COMMANDS) {
+    const matched = item.from.every(
+      (name, index) => words[index]?.text === name,
+    );
+    const first = words[0];
+    const last = words[item.from.length - 1];
+    if (matched && first !== undefined && last !== undefined) {
+      return {
+        command: item.command,
+        start: first.start,
+        end: last.end,
+        to: item.to,
+        from: item.from.join(" "),
+      };
+    }
+  }
+  return undefined;
+}
+
 function commandOf(tokens: readonly Token[]): {
   readonly command: string | undefined;
   readonly insertAfter?: Token;
@@ -207,11 +267,25 @@ export function rewriteCliCalls(
     const start = match.index + match[0].length;
     const end = commandEnd(text, start, options.json);
     const tokens = tokensOf(text, start, end);
+    const removed = removedCommand(tokens);
     const { command, insertAfter, insert } = commandOf(tokens);
-    if (command === undefined) {
+    const named = removed?.command ?? command;
+    if (named === undefined) {
       continue;
     }
-    if (insertAfter !== undefined && insert !== undefined) {
+    if (removed !== undefined) {
+      edits.push({
+        start: removed.start,
+        end: removed.end,
+        text: removed.to,
+        from: removed.from,
+      });
+    }
+    if (
+      removed === undefined &&
+      insertAfter !== undefined &&
+      insert !== undefined
+    ) {
       edits.push({
         start: insertAfter.end,
         end: insertAfter.end,
@@ -219,12 +293,12 @@ export function rewriteCliCalls(
         from: insertAfter.text,
       });
     }
-    edits.push(...flagEdits(command, tokens, notes));
+    edits.push(...flagEdits(named, tokens, notes));
     for (const change of DEFAULT_CHANGES) {
       const given = new Set(tokens.map((token) => token.text));
       const last = tokens.at(-1);
       if (
-        change.command === command &&
+        change.command === named &&
         last !== undefined &&
         !change.unless.some((flag) => given.has(flag)) &&
         !given.has(change.add)

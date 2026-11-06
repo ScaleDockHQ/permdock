@@ -5,6 +5,7 @@ import { suggestion } from "../core/args.ts";
 import { defineLeaf } from "../core/command.ts";
 import { CliError } from "../core/errors.ts";
 import { checkFlag, dryRunFlag, policyFlag } from "../core/flags.ts";
+import { runGen } from "../gen/gen.ts";
 import { projectContext } from "../generate/context.ts";
 import { withImportGraph } from "../generate/import-graph.ts";
 import { runGenerate } from "../generate/pipeline.ts";
@@ -126,9 +127,30 @@ export const generate: Leaf = defineLeaf({
       if (result.summary.unchanged > 0) {
         ctx.io.stderr(`Unchanged ${result.summary.unchanged}\n`);
       }
+      const generated = ctx.config.gen;
+      if (generated === undefined) {
+        return {
+          code: result.code,
+          output: flags.check ? result.diff : "",
+          data: { files: result.files, summary: result.summary },
+        };
+      }
+      const typed = await runGen({
+        cwd: ctx.cwd,
+        config: ctx.config,
+        kinds: [],
+        check: flags.check,
+        dryRun: flags["dry-run"],
+        ...(flags.policy === undefined || flags.policy === ""
+          ? {}
+          : { from: flags.policy }),
+      });
+      const output = [flags.check ? result.diff : "", typed.output]
+        .filter((part) => part !== "")
+        .join("\n");
       return {
-        code: result.code,
-        output: flags.check ? result.diff : "",
+        code: result.code === 0 ? typed.code : result.code,
+        output,
         data: { files: result.files, summary: result.summary },
       };
     } catch (error) {

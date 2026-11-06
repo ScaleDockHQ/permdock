@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock } from "permdock";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -18,7 +17,7 @@ import {
   users,
 } from "../fixtures/typed-groups/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
-import { readableIds, visibleIds } from "./support/rls.ts";
+import { rlsGenerate, readableIds, visibleIds } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/typed-groups");
@@ -63,10 +62,9 @@ describe("edge groups with a typed subject column per group in RLS", () => {
   const out = join(dir, "typed-groups.sql");
 
   beforeAll(async () => {
-    const generated = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
     }

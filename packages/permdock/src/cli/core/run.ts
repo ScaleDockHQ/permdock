@@ -179,7 +179,12 @@ function missingInputNext(
 
 export async function run(
   argv: readonly string[],
-  options?: { readonly cwd?: string; readonly io?: CliIo },
+  options?: {
+    readonly cwd?: string;
+    readonly io?: CliIo;
+    /** Replaces `plugins` from the config file for this run. */
+    readonly plugins?: readonly unknown[];
+  },
 ): Promise<RunResult> {
   const stdoutChunks: string[] = [];
   const stderrChunks: string[] = [];
@@ -346,10 +351,17 @@ export async function run(
         .filter((child) => child.kind === "group" || child.hidden !== true)
         .map((child) => child.name);
       const where = command === "" ? "permdock" : `permdock ${command}`;
+      const replacement = replacedGenerate(
+        [...resolved.path, resolved.unknown].join(" "),
+      );
+      const hint =
+        replacement === undefined
+          ? `${suggestion(resolved.unknown, names)} Commands: ${names.join(", ")}.`
+          : ` Did you mean permdock ${replacement}?`;
       return fail(
         new CliError(
           "usage",
-          `unknown command '${resolved.unknown}' for ${where}.${suggestion(resolved.unknown, names)} Commands: ${names.join(", ")}.`,
+          `unknown command '${resolved.unknown}' for ${where}.${hint}`,
           { code: "unknown_command" },
         ),
       );
@@ -504,6 +516,12 @@ export async function run(
         }
       }
     }
+    if (options?.plugins !== undefined) {
+      loaded = {
+        ...loaded,
+        config: { ...loaded.config, plugins: options.plugins },
+      };
+    }
     const signal = io.signal ?? new AbortController().signal;
     const interactive =
       io.interactive === true &&
@@ -617,6 +635,28 @@ export async function run(
 }
 
 /** A JSON report object, as opposed to text wrapped as `{ message }`. */
+/** The one replacement for a generate command 0.26 removed. */
+function replacedGenerate(command: string): string | undefined {
+  switch (command) {
+    case "rls generate":
+      return "generate --only rls";
+    case "powersync generate":
+      return "generate --only powersync";
+    case "openapi emit":
+      return "generate --only openapi";
+    case "gen":
+      return "generate";
+    case "scim":
+    case "scim generate":
+      return "generate --only scim";
+    case "supabase hook":
+    case "supabase hook generate":
+      return "generate --only supabaseHook";
+    default:
+      return undefined;
+  }
+}
+
 function isReport(data: unknown): boolean {
   return (
     typeof data === "object" &&

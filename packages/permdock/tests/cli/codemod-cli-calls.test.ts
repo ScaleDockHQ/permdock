@@ -91,8 +91,20 @@ describe("codemod cli calls", () => {
     });
 
     it.each([
-      "permdock rls generate --db-url-stdin",
-      "permdock openapi emit --policy p.ts",
+      [
+        "permdock rls generate --db-url-stdin",
+        "permdock generate --only rls --db-url-stdin",
+      ],
+      [
+        "permdock openapi emit --policy p.ts",
+        "permdock generate --only openapi --policy p.ts",
+      ],
+      ["permdock gen --kind zod", "permdock generate --kind zod"],
+    ])("rewrites a removed generate command %s", (before, after) => {
+      expect(shell(before)).toBe(after);
+    });
+
+    it.each([
       "permdock --version",
       "import { x } from 'permdock/cli'",
       "the permdock CLI writes permdock.config.ts",
@@ -211,6 +223,13 @@ describe("codemod cli calls", () => {
         "scripts/catalog.sh",
       ]);
       expect(report.followUps).toStrictEqual([
+        {
+          file: "README.md",
+          line: 1,
+          column: 15,
+          name: "cli",
+          message: "rls generate → generate --only rls since 0.5.0",
+        },
         {
           file: "README.md",
           line: 1,

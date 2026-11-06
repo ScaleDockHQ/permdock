@@ -8,6 +8,7 @@ import type { Postgres } from "./support/postgres.ts";
 
 import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -47,10 +48,9 @@ describe("rls.readOnlyActors", () => {
 
   beforeAll(async () => {
     const out = join(dir, "rls.sql");
-    const result = await runPipingDbUrl(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: join(HERE, "../fixtures/read-only-actors") },
-    );
+    const result = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: join(HERE, "../fixtures/read-only-actors"),
+    });
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}`);
     }
@@ -152,8 +152,8 @@ describe("rls.readOnlyActors with --helpers-only", () => {
 
   beforeAll(async () => {
     const out = join(dir, "rls.sql");
-    const result = await runPipingDbUrl(
-      ["rls", "generate", "--target", "sql", "--helpers-only", "--out", out],
+    const result = await rlsGenerate(
+      ["--target", "sql", "--helpers-only", "--out", out],
       { cwd: fixture },
     );
     if (result.code !== 0) {
@@ -259,8 +259,8 @@ describe("rls.readOnlyActors with --helpers-only and rls.tables", () => {
 
   beforeAll(async () => {
     const out = join(dir, "rls.sql");
-    const result = await runPipingDbUrl(
-      ["rls", "generate", "--target", "sql", "--helpers-only", "--out", out],
+    const result = await rlsGenerate(
+      ["--target", "sql", "--helpers-only", "--out", out],
       { cwd: fixture },
     );
     if (result.code !== 0) {

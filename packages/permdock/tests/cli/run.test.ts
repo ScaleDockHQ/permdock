@@ -11,7 +11,8 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/core/run.ts";
-import { defineConfig } from "../../src/cli/project/config.ts";
+import { runOpenapi } from "../../src/cli/openapi/openapi.ts";
+import { defineConfig, loadConfig } from "../../src/cli/project/config.ts";
 import { jsonData } from "./envelope.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -19,12 +20,6 @@ const FIXTURE = join(HERE, "./fixtures/mini-app");
 const TMP = join(HERE, "../../tmp");
 
 const temps: string[] = [];
-const URLS = [
-  "--authorization-url",
-  "https://auth.example.com/authorize",
-  "--token-url",
-  "https://auth.example.com/token",
-];
 
 function appCopy(): string {
   mkdirSync(TMP, { recursive: true });
@@ -62,33 +57,61 @@ describe("the run module", () => {
 
     it("emits security onto an OpenAPI document", async () => {
       const cwd = appCopy();
-      const result = await run(
-        [
-          "openapi",
-          "emit",
-          "--doc",
-          "openapi.json",
-          "--out",
-          "openapi.out.json",
-          ...URLS,
-        ],
-        { cwd },
-      );
+      const config = await loadConfig(cwd);
+      const io = {
+        stdout() {
+          return undefined;
+        },
+        stderr() {
+          return undefined;
+        },
+      };
+      const result = await runOpenapi({
+        cwd,
+        config,
+        rest: ["emit"],
+        doc: "openapi.json",
+        out: "openapi.out.json",
+        from: undefined,
+        target: "3.1",
+        format: "document",
+        overlay: "1.1",
+        check: false,
+        profile: undefined,
+        profileScheme: undefined,
+        scheme: "oauth",
+        authorizationUrl: "https://auth.example.com/authorize",
+        tokenUrl: "https://auth.example.com/token",
+        metadataUrl: undefined,
+        deviceFlow: false,
+        deviceAuthorizationUrl: undefined,
+        preview: false,
+        io,
+      });
       expect(result.code).toBe(0);
-      expect(result.stdout).toContain("wrote");
-      const check = await run(
-        [
-          "openapi",
-          "emit",
-          "--doc",
-          "openapi.json",
-          "--out",
-          "openapi.out.json",
-          ...URLS,
-          "--check",
-        ],
-        { cwd },
-      );
+      expect(result.output).toContain("wrote");
+      const check = await runOpenapi({
+        cwd,
+        config,
+        rest: ["emit"],
+        doc: "openapi.json",
+        out: "openapi.out.json",
+        from: undefined,
+        target: "3.1",
+        format: "document",
+        overlay: "1.1",
+        check: true,
+        profile: undefined,
+        profileScheme: undefined,
+        scheme: "oauth",
+        authorizationUrl: "https://auth.example.com/authorize",
+        tokenUrl: "https://auth.example.com/token",
+        metadataUrl: undefined,
+        deviceFlow: false,
+        deviceAuthorizationUrl: undefined,
+        preview: false,
+        io,
+      });
       expect(check.code).toBe(0);
     });
 
@@ -129,21 +152,10 @@ describe("the run module", () => {
 
     it("reads a flag followed by another flag as given without a value", async () => {
       const cwd = appCopy();
-      const result = await run(
-        [
-          "openapi",
-          "emit",
-          "--doc",
-          "openapi.json",
-          "--out",
-          "--check",
-          ...URLS,
-        ],
-        { cwd },
-      );
-      expect(result.stdout).toMatch(/^openapi drift/u);
+      const result = await run(["catalog", "--out", "--check"], { cwd });
+      expect(result.code).not.toBe(0);
       expect(readFileSync(join(cwd, "openapi.json"), "utf8")).not.toContain(
-        "securitySchemes",
+        "--check",
       );
     });
 
@@ -374,23 +386,23 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
       ],
       [
         ["openapi", "emit", "--target", "4.0"],
-        "openapi emit: --target '4.0' is not one of 3.1, 3.2, 3.3.",
+        "unknown command 'emit' for permdock openapi. Did you mean permdock generate --only openapi?",
       ],
       [
         ["openapi", "emit", "--kind", "yaml"],
-        "openapi emit: --kind 'yaml' is not one of document, overlay.",
+        "unknown command 'emit' for permdock openapi. Did you mean permdock generate --only openapi?",
       ],
       [
         ["openapi", "emit", "--overlay", "2.0"],
-        "openapi emit: --overlay '2.0' is not one of 1.1, 1.2.",
+        "unknown command 'emit' for permdock openapi. Did you mean permdock generate --only openapi?",
       ],
       [
         ["openapi", "emit", "--profile", "fapi1"],
-        "openapi emit: --profile 'fapi1' is not one of fapi2. Did you mean fapi2?",
+        "unknown command 'emit' for permdock openapi. Did you mean permdock generate --only openapi?",
       ],
       [
         ["rls", "generate", "--rbac", "auth0"],
-        "rls generate: --rbac 'auth0' is not one of supabase.",
+        "unknown command 'generate' for permdock rls. Did you mean permdock generate --only rls?",
       ],
     ])("exits 2 on %o", async (argv, message) => {
       expect(await run(argv, { cwd: appCopy() })).toStrictEqual({

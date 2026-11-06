@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/core/run.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 const FIXTURE = join(import.meta.dirname, "fixtures/mini-app");
 
@@ -49,7 +50,7 @@ describe("run: groups", () => {
   });
 
   it("keeps rls generate's stdout to the SQL for --out -", async () => {
-    const result = await run(["rls", "generate", "--out", "-", "--no-json"], {
+    const result = await rlsGenerate(["--out", "-", "--no-json"], {
       cwd: FIXTURE,
     });
     expect(result.code).toBe(0);

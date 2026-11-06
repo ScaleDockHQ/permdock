@@ -7,6 +7,7 @@ import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
 
 import { run } from "../../src/cli/core/run.ts";
 import { jsonData } from "./envelope.ts";
+import { rlsGenerate } from "./rls-call.ts";
 import {
   HERE,
   SOURCES,
@@ -683,17 +684,8 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
         [],
         `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, authorize: 'database', helpersOnly: true, memberships: { scopes: { organization: { table: 'memberships', user: 'user_id', role: 'role', columns: { organization: 'organization_id' } }, customer: { table: 'contacts', user: 'user_id', role: 'role', columns: { customer: 'customer_id', organization: 'organization_id' } } } } }`,
       );
-      const split = await run(
-        [
-          "rls",
-          "generate",
-          "--target",
-          "sql",
-          "--split",
-          "helpers",
-          "--schemas",
-          "migrations",
-        ],
+      const split = await rlsGenerate(
+        ["--target", "sql", "--split", "helpers", "--schemas", "migrations"],
         { cwd: configured.cwd },
       );
       expect(split.code).toBe(0);
@@ -745,8 +737,8 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
         [],
         `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, split: ['helpers', 'seeds', 'hook'], authorize: 'database', ${MEMBERSHIPS} }, doctor: { migrations: [] }`,
       );
-      const split = await run(
-        ["rls", "generate", "--target", "sql", "--schemas", "migrations"],
+      const split = await rlsGenerate(
+        ["--target", "sql", "--schemas", "migrations"],
         { cwd: configured.cwd },
       );
       expect(split.stdout).toContain(
@@ -767,10 +759,8 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
       await expect(hookOf(flagged.cwd)).resolves.toBe(
         "supabase/schemas/permdock/functions/custom_access_token_hook.sql",
       );
-      await run(
+      await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--split",
@@ -787,10 +777,8 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
         [],
         `{ dialect: 'supabase', authorize: 'database', ${MEMBERSHIPS} }, doctor: { migrations: ['supabase/migrations'] }`,
       );
-      const declarative = await run(
+      const declarative = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--split",

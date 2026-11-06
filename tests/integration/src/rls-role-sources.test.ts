@@ -2,14 +2,13 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
-import { visibleIds } from "./support/rls.ts";
+import { rlsGenerate, visibleIds } from "./support/rls.ts";
 
 const FIXTURE = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -38,8 +37,8 @@ describe("membership rows with several role sources", () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-role-sources-"));
     const out = join(dir, "rls.sql");
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--dialect", "guc", "--out", out],
+    const result = await rlsGenerate(
+      ["--target", "sql", "--dialect", "guc", "--out", out],
       { cwd: FIXTURE },
     );
     if (result.code !== 0) {

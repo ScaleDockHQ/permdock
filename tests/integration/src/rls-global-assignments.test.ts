@@ -2,13 +2,12 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
-import { jwtClaims } from "./support/rls.ts";
+import { rlsGenerate, jwtClaims } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -56,10 +55,9 @@ describe("rls.assignments on the global-roles table", () => {
 
   beforeAll(async () => {
     const out = join(dir, "rls.sql");
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: join(HERE, "../fixtures/global-assignments") },
-    );
+    const result = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: join(HERE, "../fixtures/global-assignments"),
+    });
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}`);
     }

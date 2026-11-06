@@ -8,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
-import { jwtClaims } from "./support/rls.ts";
+import { rlsGenerate, jwtClaims } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/hook-teams");
@@ -55,10 +55,9 @@ describe("supabase.hook.teams", () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-hook-teams-"));
     const rlsOut = join(dir, "rls.sql");
     const hookOut = join(dir, "hook.sql");
-    const rls = await run(
-      ["rls", "generate", "--target", "sql", "--out", rlsOut],
-      { cwd: FIXTURE },
-    );
+    const rls = await rlsGenerate(["--target", "sql", "--out", rlsOut], {
+      cwd: FIXTURE,
+    });
     if (rls.code !== 0) {
       throw new Error(`rls generate: ${rls.stdout}${rls.stderr}`);
     }

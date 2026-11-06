@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock } from "permdock";
-import { run } from "permdock/cli";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -11,6 +10,7 @@ import type { Postgres } from "./support/postgres.ts";
 
 import { permissions, policy } from "../fixtures/constant-via/policy.ts";
 import { startPostgres, databaseUri } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const FIXTURE = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -46,10 +46,9 @@ describe("a constant via on an rls.memberships table", () => {
     try {
       for (const shape of SHAPES) {
         const out = join(dir, `${shape.name}.sql`);
-        const result = await run(
-          ["rls", "generate", "--target", "sql", "--out", out],
-          { cwd: shape.cwd },
-        );
+        const result = await rlsGenerate(["--target", "sql", "--out", out], {
+          cwd: shape.cwd,
+        });
         if (result.code !== 0) {
           throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
         }
@@ -127,7 +126,7 @@ describe("a constant via on an rls.memberships table", () => {
   );
 
   it("refuses a constant kind that no role lists, as PD073", async () => {
-    const result = await run(["rls", "generate", "--target", "sql"], {
+    const result = await rlsGenerate(["--target", "sql"], {
       cwd: join(FIXTURE, "contact"),
     });
     expect(result.code).toBe(2);

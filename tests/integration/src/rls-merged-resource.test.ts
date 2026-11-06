@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock } from "permdock";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -12,7 +11,7 @@ import * as merged from "../fixtures/merged-resource/merged/policy.ts";
 import { rows, setupSql, users } from "../fixtures/merged-resource/shared.ts";
 import * as split from "../fixtures/merged-resource/split/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
-import { jwtClaims, readableIds } from "./support/rls.ts";
+import { rlsGenerate, jwtClaims, readableIds } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(HERE, "../fixtures/merged-resource");
@@ -40,10 +39,9 @@ const helperOf = (key: string): string =>
 
 async function generate(name: string, dir: string): Promise<string> {
   const out = join(dir, `${name}.sql`);
-  const result = await run(
-    ["rls", "generate", "--target", "sql", "--out", out],
-    { cwd: join(FIXTURES, name) },
-  );
+  const result = await rlsGenerate(["--target", "sql", "--out", out], {
+    cwd: join(FIXTURES, name),
+  });
   if (result.code !== 0) {
     throw new Error(`rls generate ${name}: ${result.stdout}${result.stderr}`);
   }

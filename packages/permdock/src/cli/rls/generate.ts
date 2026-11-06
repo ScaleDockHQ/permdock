@@ -22,7 +22,7 @@ import { buildContext } from "./generate-context.ts";
 import { isPolicyLoadFailure, loadGeneratePolicy } from "./generate-load.ts";
 import { generateOptions, isRefusal, splitsPart } from "./generate-options.ts";
 import { generateSql } from "./generate-sql.ts";
-import { writeGenerated } from "./generate-write.ts";
+import { generatedFiles, writeGenerated } from "./generate-write.ts";
 import {
   indexKeysFromProject,
   tablesFromProject,
@@ -62,6 +62,11 @@ export type GenerateOutcome = {
   readonly helpersOnly?: boolean;
   /** How the SQL binds to the application's schema; set when `write` is false. */
   readonly explain?: RlsExplain;
+  /** Set when `listFiles` is set and `write` is false. */
+  readonly files?: readonly {
+    readonly path: string;
+    readonly contents: string;
+  }[];
 };
 
 function refused(output: string): GenerateOutcome {
@@ -145,6 +150,24 @@ export async function runRlsGenerate(
     }
   }
   const extras = migration === "" ? {} : { migration };
+  const listed =
+    input.write === false && input.listFiles === true
+      ? generatedFiles({
+          input,
+          outRel: generated.outRel,
+          text,
+          helpersOnly,
+          parts: () => generated.parts(indexes),
+          scopes: ctx.scopes,
+          schema: built.schema,
+          migration,
+          migrationRel,
+          backfill: generated.backfill,
+        })
+      : undefined;
+  if (typeof listed === "string") {
+    return refused(listed);
+  }
   if (input.write === false) {
     return {
       code: 0,
@@ -171,6 +194,14 @@ export async function runRlsGenerate(
         generated,
         text,
       }),
+      ...(listed === undefined
+        ? {}
+        : {
+            files: listed.map((file) => ({
+              path: file.rel,
+              contents: file.text,
+            })),
+          }),
       ...extras,
     };
   }

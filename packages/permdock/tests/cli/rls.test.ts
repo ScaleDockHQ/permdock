@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/core/run.ts";
 import { miniAppCopy, removeProjects } from "./doctor-kit.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 describe("rls", () => {
   afterEach(removeProjects);
@@ -42,8 +43,8 @@ describe("rls", () => {
 };
 `,
         );
-        const result = await run(
-          ["rls", "generate", "--target", "sql", "--out", "rls.sql", ...extra],
+        const result = await rlsGenerate(
+          ["--target", "sql", "--out", "rls.sql", ...extra],
           { cwd },
         );
         let sql = "";
@@ -80,18 +81,8 @@ describe("rls", () => {
         target: string,
         extra: readonly string[],
       ) =>
-        run(
-          [
-            "rls",
-            "generate",
-            "--target",
-            target,
-            "--dialect",
-            "supabase",
-            "--out",
-            out,
-            ...extra,
-          ],
+        rlsGenerate(
+          ["--target", target, "--dialect", "supabase", "--out", out, ...extra],
           { cwd },
         );
       await generate("plain.sql", "sql", []);
@@ -111,17 +102,8 @@ describe("rls", () => {
 
     it("generates SQL without service_role and compiles principal.id", async () => {
       const cwd = miniAppCopy();
-      const result = await run(
-        [
-          "rls",
-          "generate",
-          "--target",
-          "sql",
-          "--dialect",
-          "supabase",
-          "--out",
-          "rls.sql",
-        ],
+      const result = await rlsGenerate(
+        ["--target", "sql", "--dialect", "supabase", "--out", "rls.sql"],
         { cwd },
       );
       expect(result.code).toBe(0);
@@ -138,18 +120,19 @@ describe("rls", () => {
 
     it("collapses policies by default and keeps the per-role shape behind a flag", async () => {
       const cwd = miniAppCopy();
-      const base = ["rls", "generate", "--target", "sql"];
-      await run([...base, "--out", "collapsed.sql"], { cwd });
+      const base = ["--target", "sql"];
+      await rlsGenerate([...base, "--out", "collapsed.sql"], { cwd });
       const collapsed = readFileSync(join(cwd, "collapsed.sql"), "utf8");
       expect(collapsed.match(/create policy "post_select"/gu)).toHaveLength(1);
       expect(collapsed).not.toContain("member_post_read");
-      await run([...base, "--policy-per-role", "--out", "per-role.sql"], {
-        cwd,
-      });
+      await rlsGenerate(
+        [...base, "--policy-per-role", "--out", "per-role.sql"],
+        { cwd },
+      );
       const perRole = readFileSync(join(cwd, "per-role.sql"), "utf8");
       expect(perRole).toContain('create policy "member_post_read"');
       expect(perRole).toContain('create policy "member_post_list"');
-      await run(
+      await rlsGenerate(
         [...base, "--policy-name", "pd_{table}_{op}", "--out", "n.sql"],
         { cwd },
       );
@@ -160,16 +143,14 @@ describe("rls", () => {
 
     it("generate --check reports drift then up to date", async () => {
       const cwd = miniAppCopy();
-      const missing = await run(
-        ["rls", "generate", "--target", "sql", "--out", "rls.sql", "--check"],
+      const missing = await rlsGenerate(
+        ["--target", "sql", "--out", "rls.sql", "--check"],
         { cwd },
       );
       expect(missing.code).toBe(1);
-      await run(["rls", "generate", "--target", "sql", "--out", "rls.sql"], {
-        cwd,
-      });
-      const fresh = await run(
-        ["rls", "generate", "--target", "sql", "--out", "rls.sql", "--check"],
+      await rlsGenerate(["--target", "sql", "--out", "rls.sql"], { cwd });
+      const fresh = await rlsGenerate(
+        ["--target", "sql", "--out", "rls.sql", "--check"],
         { cwd },
       );
       expect(fresh.code).toBe(0);
@@ -200,10 +181,8 @@ export const policy = definePolicy(permissions, {
 };
 `,
       );
-      const result = await run(
+      const result = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--dialect",
@@ -254,10 +233,8 @@ export const policy = definePolicy(permissions, {
 `,
       );
       const generate = async (extra: readonly string[]): Promise<string> => {
-        const result = await run(
+        const result = await rlsGenerate(
           [
-            "rls",
-            "generate",
             "--target",
             "sql",
             "--dialect",
@@ -308,10 +285,8 @@ export const policy = definePolicy(permissions, {
 
     it("emits authorize() and points to the supabase token hook with --rbac-scaffold", async () => {
       const cwd = miniAppCopy();
-      const result = await run(
+      const result = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--dialect",
@@ -364,8 +339,8 @@ export const planPolicy = definePolicy(permissions, {
 };
 `,
       );
-      const result = await run(
-        ["rls", "generate", "--rbac", "supabase", "--out", "rls.sql"],
+      const result = await rlsGenerate(
+        ["--rbac", "supabase", "--out", "rls.sql"],
         { cwd },
       );
       expect(result.code).toBe(0);
@@ -381,21 +356,23 @@ export const planPolicy = definePolicy(permissions, {
 
     it("rejects unknown --rbac values, bad --authorize and non-supabase dialects", async () => {
       const cwd = miniAppCopy();
-      const base = ["rls", "generate", "--target", "sql", "--out", "rls.sql"];
-      const { code } = await run([...base, "--rbac", "clerk"], { cwd });
+      const base = ["--target", "sql", "--out", "rls.sql"];
+      const { code } = await rlsGenerate([...base, "--rbac", "clerk"], { cwd });
       expect(code).toBe(2);
       expect(
         (
-          await run([...base, "--rbac", "supabase", "--authorize", "cookie"], {
-            cwd,
-          })
+          await rlsGenerate(
+            [...base, "--rbac", "supabase", "--authorize", "cookie"],
+            { cwd },
+          )
         ).code,
       ).toBe(2);
       expect(
         (
-          await run([...base, "--rbac", "supabase", "--dialect", "neon"], {
-            cwd,
-          })
+          await rlsGenerate(
+            [...base, "--rbac", "supabase", "--dialect", "neon"],
+            { cwd },
+          )
         ).code,
       ).toBe(2);
     });
@@ -447,10 +424,8 @@ export const policy = definePolicy(permissions, {
 };
 `,
         );
-        const result = await run(
+        const result = await rlsGenerate(
           [
-            "rls",
-            "generate",
             "--target",
             "sql",
             "--dialect",
@@ -478,27 +453,16 @@ export const policy = definePolicy(permissions, {
 
     it("compiles neon and guc subject dialects", async () => {
       const cwd = miniAppCopy();
-      const neon = await run(
-        [
-          "rls",
-          "generate",
-          "--target",
-          "sql",
-          "--dialect",
-          "neon",
-          "--out",
-          "neon.sql",
-        ],
+      const neon = await rlsGenerate(
+        ["--target", "sql", "--dialect", "neon", "--out", "neon.sql"],
         { cwd },
       );
       expect(neon.code).toBe(0);
       expect(readFileSync(join(cwd, "neon.sql"), "utf8")).toContain(
         "(select auth.user_id())",
       );
-      const guc = await run(
+      const guc = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--dialect",
@@ -540,8 +504,8 @@ export const policy = definePolicy(permissions, {
 };
 `,
       );
-      const result = await run(
-        ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
+      const result = await rlsGenerate(
+        ["--target", "sql", "--out", "rls.sql"],
         { cwd },
       );
       expect(result.code).toBe(0);
@@ -554,9 +518,7 @@ export const policy = definePolicy(permissions, {
 
     it("rejects an unknown generate target and import without --sql", async () => {
       const cwd = miniAppCopy();
-      const target = await run(["rls", "generate", "--target", "mysql"], {
-        cwd,
-      });
+      const target = await rlsGenerate(["--target", "mysql"], { cwd });
       expect(target.code).toBe(2);
       const imported = await run(["rls", "import"], { cwd });
       expect(imported.code).toBe(3);
@@ -565,15 +527,8 @@ export const policy = definePolicy(permissions, {
 
     it("writes drizzle and prisma targets", async () => {
       const cwd = miniAppCopy();
-      const drizzle = await run(
-        [
-          "rls",
-          "generate",
-          "--target",
-          "drizzle",
-          "--out",
-          "src/db/policies.ts",
-        ],
+      const drizzle = await rlsGenerate(
+        ["--target", "drizzle", "--out", "src/db/policies.ts"],
         { cwd },
       );
       expect(drizzle.code).toBe(0);
@@ -585,17 +540,8 @@ export const policy = definePolicy(permissions, {
       expect(
         readFileSync(join(cwd, "src/db/policies.migration.sql"), "utf8"),
       ).toContain("enable row level security");
-      const guc = await run(
-        [
-          "rls",
-          "generate",
-          "--target",
-          "drizzle",
-          "--dialect",
-          "guc",
-          "--out",
-          "guc/policies.ts",
-        ],
+      const guc = await rlsGenerate(
+        ["--target", "drizzle", "--dialect", "guc", "--out", "guc/policies.ts"],
         { cwd },
       );
       expect(guc.code).toBe(0);
@@ -604,15 +550,8 @@ export const policy = definePolicy(permissions, {
         "export const authenticatedRole = pgRole('authenticated').existing()",
       );
       expect(gucText).not.toContain("drizzle-orm/supabase");
-      const prisma = await run(
-        [
-          "rls",
-          "generate",
-          "--target",
-          "prisma",
-          "--out",
-          "prisma/policies.prisma",
-        ],
+      const prisma = await rlsGenerate(
+        ["--target", "prisma", "--out", "prisma/policies.prisma"],
         { cwd },
       );
       expect(prisma.code).toBe(0);
@@ -657,24 +596,16 @@ export const policy = definePolicy(permissions, {
 };
 `,
       );
-      const generated = await run(
-        ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
+      const generated = await rlsGenerate(
+        ["--target", "sql", "--out", "rls.sql"],
         { cwd },
       );
       expect(generated.code).toBe(0);
       expect(generated.stdout).toContain("portable via twin");
       const sql = readFileSync(join(cwd, "rls.sql"), "utf8");
       expect(sql).toContain('"job_permitted"("id")');
-      const inlined = await run(
-        [
-          "rls",
-          "generate",
-          "--target",
-          "sql",
-          "--inline-functions",
-          "--out",
-          "inline.sql",
-        ],
+      const inlined = await rlsGenerate(
+        ["--target", "sql", "--inline-functions", "--out", "inline.sql"],
         { cwd },
       );
       expect(inlined.code).toBe(0);
@@ -714,24 +645,16 @@ export const policy = definePolicy(permissions, {
 };
 `,
       );
-      const generated = await run(
-        ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
+      const generated = await rlsGenerate(
+        ["--target", "sql", "--out", "rls.sql"],
         { cwd },
       );
       expect(generated.code).toBe(0);
       const sql = readFileSync(join(cwd, "rls.sql"), "utf8");
       expect(sql).toContain(`"id" in (select "job_permitted"('read'))`);
       expect(sql).not.toContain('"job_permitted"("id")');
-      const inlined = await run(
-        [
-          "rls",
-          "generate",
-          "--target",
-          "sql",
-          "--inline-functions",
-          "--out",
-          "inline.sql",
-        ],
+      const inlined = await rlsGenerate(
+        ["--target", "sql", "--inline-functions", "--out", "inline.sql"],
         { cwd },
       );
       expect(inlined.code).toBe(0);

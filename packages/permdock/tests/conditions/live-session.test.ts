@@ -4,7 +4,6 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { Subject } from "../../src/core/subject.ts";
 
-import { run } from "../../src/cli/core/run.ts";
 import { conditionFromAst } from "../../src/cli/rls/import-ast.ts";
 import { evaluateCondition } from "../../src/conditions/condition-evaluate.ts";
 import { normalizeWhere } from "../../src/conditions/normalize.ts";
@@ -13,6 +12,7 @@ import { getPermDockSync } from "../../src/core/permdock.ts";
 import { parseSnapshot } from "../../src/core/snapshot.ts";
 import { subjectFromSupabase } from "../../src/supabase/subject.ts";
 import { project, removeProjects } from "../cli/doctor-kit.ts";
+import { rlsGenerate } from "../cli/rls-call.ts";
 import { reasonOf } from "../fixtures/decisions.ts";
 import { permissions, policy } from "../fixtures/live-session.ts";
 
@@ -62,7 +62,7 @@ describe("live session", () => {
         rls: { dialect },
       })};\n`,
     });
-    const result = await run(["rls", "generate", "--out", "rls.sql"], { cwd });
+    const result = await rlsGenerate(["--out", "rls.sql"], { cwd });
     let sql = "";
     try {
       sql = readFileSync(path.join(cwd, "rls.sql"), "utf8");

@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/core/run.ts";
 import { jsonData } from "./envelope.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "./fixtures/fields-app");
@@ -45,8 +46,8 @@ describe("rls fields", () => {
     readonly stderr: string;
     sql: string;
   }> {
-    const result = await run(
-      ["rls", "generate", "--target", target, "--out", out, ...extra],
+    const result = await rlsGenerate(
+      ["--target", target, "--out", out, ...extra],
       { cwd },
     );
     let sql = "";
@@ -279,17 +280,8 @@ export const permissions = definePermissions({
 });
 `,
       );
-      const result = await run(
-        [
-          "rls",
-          "generate",
-          "--target",
-          "sql",
-          "--out",
-          "rls.sql",
-          "--fields",
-          "views",
-        ],
+      const result = await rlsGenerate(
+        ["--target", "sql", "--out", "rls.sql", "--fields", "views"],
         { cwd },
       );
       expect(result.code).not.toBe(0);

@@ -24,6 +24,7 @@ import {
   tableMembershipSource,
 } from "../../src/supabase/sources.ts";
 import { policyModule, project, removeProjects } from "./doctor-kit.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 describe("rls unsatisfied kinds", () => {
   afterEach(removeProjects);
@@ -231,9 +232,7 @@ export default {
       expect(viaHook).toHaveLength(1);
       const explained = await run(["rls", "explain"], { cwd });
       expect(explained.code).toBe(2);
-      const generated = await run(["rls", "generate", "--target", "sql"], {
-        cwd,
-      });
+      const generated = await rlsGenerate(["--target", "sql"], { cwd });
       expect(generated.code).toBe(2);
       expect(generated.stdout + generated.stderr).toContain(
         "role contact is for contact, but its membership sources hold org_staff (via staff)",

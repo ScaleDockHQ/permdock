@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/core/run.ts";
 import { jsonData } from "./envelope.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");
@@ -64,10 +65,8 @@ export default {
   const part = (name: string) => OUT.replace("{part}", name);
 
   const generate = (cwd: string, extra: readonly string[] = []) =>
-    run(
+    rlsGenerate(
       [
-        "rls",
-        "generate",
         "--target",
         "sql",
         "--split",
@@ -89,10 +88,8 @@ export default {
       const result = await generate(cwd, ["--no-seeds"]);
       expect(result.code).toBe(2);
       expect(result.stderr).toContain("--no-seeds and --seeds-out exclude");
-      const bare = await run(
+      const bare = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--split",
@@ -172,8 +169,6 @@ export default {
         ),
       );
       const helpersOnly = [
-        "rls",
-        "generate",
         "--split",
         "helpers,seeds",
         "--out",
@@ -181,12 +176,13 @@ export default {
         "--seeds-out",
         SEEDS,
       ];
-      const full = await run(helpersOnly, { cwd });
+      const full = await rlsGenerate(helpersOnly, { cwd });
       expect(full.code).toBe(0);
       const inline = read(cwd, part("helpers"));
-      const result = await run([...helpersOnly, "--grants-out", GRANTS], {
-        cwd,
-      });
+      const result = await rlsGenerate(
+        [...helpersOnly, "--grants-out", GRANTS],
+        { cwd },
+      );
       expect(result.code).toBe(0);
       expect(result.stdout).toContain(
         `wrote ${part("helpers")}, ${SEEDS}, ${GRANTS}`,
@@ -235,7 +231,7 @@ export default {
       ]);
       expect(grants).not.toContain("custom_role_permissions");
       expect(grants).not.toMatch(/service_role/iu);
-      const check = await run(
+      const check = await rlsGenerate(
         [...helpersOnly, "--grants-out", GRANTS, "--check"],
         { cwd },
       );
@@ -273,17 +269,8 @@ export default {
 
     it("writes only the parts it is given, and prints the grants with -", async () => {
       const cwd = project();
-      const result = await run(
-        [
-          "rls",
-          "generate",
-          "--split",
-          "hook",
-          "--out",
-          OUT,
-          "--grants-out",
-          "-",
-        ],
+      const result = await rlsGenerate(
+        ["--split", "hook", "--out", OUT, "--grants-out", "-"],
         { cwd },
       );
       expect(result.code).toBe(0);
@@ -297,17 +284,8 @@ export default {
 
     it("writes the role_permissions rows as their own seeds migration", async () => {
       const cwd = project();
-      const result = await run(
-        [
-          "rls",
-          "generate",
-          "--split",
-          "helpers,seeds",
-          "--out",
-          OUT,
-          "--seeds-out",
-          SEEDS,
-        ],
+      const result = await rlsGenerate(
+        ["--split", "helpers,seeds", "--out", OUT, "--seeds-out", SEEDS],
         { cwd },
       );
       expect(result.code).toBe(0);
@@ -325,31 +303,21 @@ export default {
         'insert into "permdock".role_permissions (role, permission, grant_key, scope, effect) values',
       );
       expect(existsSync(join(cwd, part("seeds")))).toBe(false);
-      const stray = await run(
-        [
-          "rls",
-          "generate",
-          "--split",
-          "policies",
-          "--out",
-          OUT,
-          "--seeds-out",
-          SEEDS,
-        ],
+      const stray = await rlsGenerate(
+        ["--split", "policies", "--out", OUT, "--seeds-out", SEEDS],
         { cwd },
       );
       expect(stray.code).toBe(2);
       expect(stray.stderr).toContain("--seeds-out needs the seeds part");
-      const inline = await run(
-        ["rls", "generate", "--split", "helpers", "--out", OUT],
-        { cwd },
-      );
+      const inline = await rlsGenerate(["--split", "helpers", "--out", OUT], {
+        cwd,
+      });
       expect(inline.code).toBe(2);
       expect(inline.stderr).toContain(
         "rls generate --split helpers under migra needs the seeds part with --seeds-out",
       );
-      const unplaced = await run(
-        ["rls", "generate", "--split", "helpers,seeds", "--out", OUT],
+      const unplaced = await rlsGenerate(
+        ["--split", "helpers,seeds", "--out", OUT],
         { cwd },
       );
       expect(unplaced.code).toBe(2);
@@ -364,8 +332,8 @@ export default {
       expect(unsplit.stdout).toContain(
         "index suggestion: create index on public.memberships (user_id), or add indexes to --split",
       );
-      const result = await run(
-        ["rls", "generate", "--split", "indexes,policies", "--out", OUT],
+      const result = await rlsGenerate(
+        ["--split", "indexes,policies", "--out", OUT],
         { cwd },
       );
       expect(result.code).toBe(0);
@@ -389,10 +357,8 @@ export default {
         true,
         ", helpersOnly: true, tables: { invoice: 'invoices', quote: 'quotes' }",
       );
-      const result = await run(
+      const result = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--split",
           "helpers,seeds,indexes",
           "--out",
@@ -418,8 +384,8 @@ export default {
         true,
         ", tables: { invoice: 'invoices', quote: 'quotes' }",
       );
-      const result = await run(
-        ["rls", "generate", "--split", "indexes,policies", "--out", OUT],
+      const result = await rlsGenerate(
+        ["--split", "indexes,policies", "--out", OUT],
         { cwd },
       );
       expect(result.code).toBe(0);
@@ -431,43 +397,32 @@ export default {
 
     it("refuses a split without {part}, grants without the helpers or hook part, and a hook part without supabase.hook", async () => {
       const cwd = project(false);
-      const noPart = await run(
-        ["rls", "generate", "--split", "helpers,policies", "--out", "rls.sql"],
+      const noPart = await rlsGenerate(
+        ["--split", "helpers,policies", "--out", "rls.sql"],
         { cwd },
       );
       expect(noPart.code).toBe(2);
       expect(noPart.stderr).toContain(
         "rls generate --split under migra needs {part} in --out",
       );
-      const noHook = await run(
-        [
-          "rls",
-          "generate",
-          "--split",
-          "policies",
-          "--out",
-          OUT,
-          "--grants-out",
-          GRANTS,
-        ],
+      const noHook = await rlsGenerate(
+        ["--split", "policies", "--out", OUT, "--grants-out", GRANTS],
         { cwd },
       );
       expect(noHook.code).toBe(2);
       expect(noHook.stderr).toContain(
         "--grants-out needs the helpers or hook part in --split",
       );
-      const plain = await run(["rls", "generate", "--grants-out", GRANTS], {
-        cwd,
-      });
+      const plain = await rlsGenerate(["--grants-out", GRANTS], { cwd });
       expect(plain.code).toBe(2);
-      const unconfigured = await run(
-        ["rls", "generate", "--split", "hook", "--out", OUT],
+      const unconfigured = await rlsGenerate(
+        ["--split", "hook", "--out", OUT],
         { cwd },
       );
       expect(unconfigured.code).toBe(2);
       expect(unconfigured.stderr).toContain("needs supabase.hook");
-      const unknown = await run(
-        ["rls", "generate", "--split", "helpers,views", "--out", OUT],
+      const unknown = await rlsGenerate(
+        ["--split", "helpers,views", "--out", OUT],
         { cwd },
       );
       expect(unknown.code).toBe(2);
@@ -489,10 +444,8 @@ export default {
     it("writes the per-schema, unnumbered layout without --out, grants included", async () => {
       const cwd = project(true, "", null);
       pgDelta(cwd);
-      const result = await run(
+      const result = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--split",
           "helpers,seeds,indexes,policies,hook",
           "--seeds-out",
@@ -533,10 +486,8 @@ export default {
         null,
       );
       pgDelta(cwd);
-      const result = await run(
+      const result = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--split",
           "helpers,seeds,indexes,policies,hook",
           "--seeds-out",
@@ -572,20 +523,18 @@ export default {
       const cwd = project(true, "", null);
       pgDelta(cwd);
       const args = [
-        "rls",
-        "generate",
         "--split",
         "helpers,seeds,indexes,policies,hook",
         "--seeds-out",
         SEEDS,
       ];
-      expect((await run(args, { cwd })).code).toBe(0);
-      const fresh = await run([...args, "--check"], { cwd });
+      expect((await rlsGenerate(args, { cwd })).code).toBe(0);
+      const fresh = await rlsGenerate([...args, "--check"], { cwd });
       expect(fresh.stdout + fresh.stderr).not.toContain("drift");
       expect(fresh.code).toBe(0);
       const file = join(cwd, "supabase/schemas/permdock/helpers.sql");
       writeFileSync(file, `${readFileSync(file, "utf8")}-- hand edit\n`);
-      const edited = await run([...args, "--check"], { cwd });
+      const edited = await rlsGenerate([...args, "--check"], { cwd });
       expect(edited.code).toBe(1);
       expect(edited.stdout + edited.stderr).toContain(
         "supabase/schemas/permdock/helpers.sql",
@@ -595,8 +544,8 @@ export default {
     it("refuses --grants-out, since pg-delta keeps the grants in each part", async () => {
       const cwd = project(true, "", null);
       pgDelta(cwd);
-      const split = await run(
-        ["rls", "generate", "--split", "hook", "--grants-out", GRANTS],
+      const split = await rlsGenerate(
+        ["--split", "hook", "--grants-out", GRANTS],
         { cwd },
       );
       expect(split.code).toBe(2);
@@ -616,19 +565,16 @@ export default {
     it("follows declarative_schema_path and takes {part} in an explicit --out", async () => {
       const cwd = project(true, "", null);
       pgDelta(cwd, 'declarative_schema_path = "./declarative"\n');
-      const moved = await run(["rls", "generate", "--split", "indexes"], {
-        cwd,
-      });
+      const moved = await rlsGenerate(["--split", "indexes"], { cwd });
       expect(moved.stdout).toContain(
         "wrote supabase/declarative/permdock/indexes.sql",
       );
-      const explicit = await run(
-        ["rls", "generate", "--split", "indexes", "--out", OUT],
-        { cwd },
-      );
+      const explicit = await rlsGenerate(["--split", "indexes", "--out", OUT], {
+        cwd,
+      });
       expect(explicit.stdout).toContain(`wrote ${part("indexes")}`);
-      const single = await run(
-        ["rls", "generate", "--split", "indexes", "--out", "rls.sql"],
+      const single = await rlsGenerate(
+        ["--split", "indexes", "--out", "rls.sql"],
         { cwd },
       );
       expect(single.code).toBe(2);
@@ -654,15 +600,8 @@ export default {
         null,
       );
       pgDelta(cwd);
-      const result = await run(
-        [
-          "rls",
-          "generate",
-          "--split",
-          "helpers,seeds,policies",
-          "--seeds-out",
-          SEEDS,
-        ],
+      const result = await rlsGenerate(
+        ["--split", "helpers,seeds,policies", "--seeds-out", SEEDS],
         { cwd },
       );
       expect(result.code).toBe(0);
@@ -688,23 +627,14 @@ begin
         "  if to_regclass('storage.objects') is not null then",
       );
       expect(seeds).toContain("  end if;\nend\n$permdock$;\n");
-      const checked = await run(
-        [
-          "rls",
-          "generate",
-          "--split",
-          "helpers,seeds,policies",
-          "--seeds-out",
-          SEEDS,
-          "--check",
-        ],
+      const checked = await rlsGenerate(
+        ["--split", "helpers,seeds,policies", "--seeds-out", SEEDS, "--check"],
         { cwd },
       );
       expect(checked.code).toBe(0);
-      const withoutSeeds = await run(
-        ["rls", "generate", "--split", "indexes,policies"],
-        { cwd },
-      );
+      const withoutSeeds = await rlsGenerate(["--split", "indexes,policies"], {
+        cwd,
+      });
       expect(withoutSeeds.code).toBe(2);
       expect(withoutSeeds.stderr).toContain(
         "rls generate --split policies under pg-delta with rls.realtime or rls.storage needs the seeds part with --seeds-out",
@@ -714,10 +644,9 @@ begin
         `, realtime: { topics: { 'org:{organization}:assets': { read: { key: 'asset.read' } } } }`,
         "migra",
       );
-      const unsplit = await run(
-        ["rls", "generate", "--split", "policies", "--out", OUT],
-        { cwd: plain },
-      );
+      const unsplit = await rlsGenerate(["--split", "policies", "--out", OUT], {
+        cwd: plain,
+      });
       expect(unsplit.code).toBe(0);
       expect(read(plain, part("policies"))).toContain(
         'create policy "permdock_realtime_org_organization_assets_select"\n  on "realtime"."messages"',
@@ -727,17 +656,12 @@ begin
     it("needs the seeds part with --seeds-out, since pg-delta rejects rows in a declarative file", async () => {
       const cwd = project(true, "", null);
       pgDelta(cwd);
-      const inline = await run(["rls", "generate", "--split", "helpers"], {
-        cwd,
-      });
+      const inline = await rlsGenerate(["--split", "helpers"], { cwd });
       expect(inline.code).toBe(2);
       expect(inline.stderr).toContain(
         "rls generate --split helpers under pg-delta needs the seeds part with --seeds-out",
       );
-      const result = await run(
-        ["rls", "generate", "--split", "helpers,seeds"],
-        { cwd },
-      );
+      const result = await rlsGenerate(["--split", "helpers,seeds"], { cwd });
       expect(result.code).toBe(2);
       expect(result.stderr).toContain(
         "rls generate --split seeds under pg-delta needs --seeds-out: pg-delta does not diff the role_permissions rows, so they go in a migration",
@@ -748,9 +672,7 @@ begin
   describe("the schema workflow rls generate and supabase hook generate follow", () => {
     it("generates for pg-delta without a config.toml or supabase.schemas", async () => {
       const cwd = project(true, "", null);
-      const result = await run(["rls", "generate", "--split", "indexes"], {
-        cwd,
-      });
+      const result = await rlsGenerate(["--split", "indexes"], { cwd });
       expect(result.code).toBe(0);
       expect(result.stdout).toContain(
         "wrote supabase/schemas/permdock/indexes.sql",
@@ -764,17 +686,15 @@ begin
     it("uses migra when config.toml sets enabled = false, and --schemas overrides both", async () => {
       const cwd = project(true, "", null);
       pgDelta(cwd, "", "false");
-      const migra = await run(["rls", "generate", "--split", "indexes"], {
-        cwd,
-      });
+      const migra = await rlsGenerate(["--split", "indexes"], { cwd });
       expect(migra.code).toBe(2);
       expect(migra.stderr).toContain(
         "rls generate --split under migra needs {part} in --out",
       );
       const hook = await run(["supabase", "hook", "generate"], { cwd });
       expect(hook.stdout).toContain("wrote supabase/permdock-hook.sql");
-      const flagged = await run(
-        ["rls", "generate", "--split", "indexes", "--schemas", "pg-delta"],
+      const flagged = await rlsGenerate(
+        ["--split", "indexes", "--schemas", "pg-delta"],
         { cwd },
       );
       expect(flagged.code).toBe(0);
@@ -794,33 +714,24 @@ begin
       const cwd = project(true, "", "migrations");
       const MIGRATION =
         "supabase/migrations/20260101000000_permdock_{part}.sql";
-      const split = await run(
-        ["rls", "generate", "--split", "helpers,policies", "--out", MIGRATION],
+      const split = await rlsGenerate(
+        ["--split", "helpers,policies", "--out", MIGRATION],
         { cwd },
       );
       expect(split.code).toBe(0);
       expect(read(cwd, MIGRATION.replace("{part}", "helpers"))).toContain(
         'insert into "permdock".role_permissions',
       );
-      const refused = await run(
-        [
-          "rls",
-          "generate",
-          "--split",
-          "helpers",
-          "--out",
-          MIGRATION,
-          "--grants-out",
-          GRANTS,
-        ],
+      const refused = await rlsGenerate(
+        ["--split", "helpers", "--out", MIGRATION, "--grants-out", GRANTS],
         { cwd },
       );
       expect(refused.code).toBe(2);
       expect(refused.stderr).toContain(
         "a hand-written migration keeps its grants",
       );
-      const noPart = await run(
-        ["rls", "generate", "--split", "helpers", "--out", "rls.sql"],
+      const noPart = await rlsGenerate(
+        ["--split", "helpers", "--out", "rls.sql"],
         { cwd },
       );
       expect(noPart.code).toBe(2);
@@ -841,8 +752,8 @@ begin
 
     it("refuses an unknown --schemas value", async () => {
       const cwd = project(true, "", null);
-      const rls = await run(
-        ["rls", "generate", "--split", "indexes", "--schemas", "flyway"],
+      const rls = await rlsGenerate(
+        ["--split", "indexes", "--schemas", "flyway"],
         { cwd },
       );
       expect(rls.code).toBe(2);
@@ -993,9 +904,7 @@ begin
 
     it("PD068: pg-delta files in a project whose config.toml does not turn pg-delta on", async () => {
       const cwd = project(true, "", null);
-      expect(
-        (await run(["rls", "generate", "--split", "indexes"], { cwd })).code,
-      ).toBe(0);
+      expect((await rlsGenerate(["--split", "indexes"], { cwd })).code).toBe(0);
       expect(await findings(cwd, "PD068")).toStrictEqual([]);
       put(cwd, "supabase/config.toml", "[auth]\nenabled = true\n");
       const off = await findings(cwd, "PD068");

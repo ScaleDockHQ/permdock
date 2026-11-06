@@ -9,6 +9,7 @@ import { supabaseHookManifestFixture } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { permissionsBlockSql } from "./support/better-supabase-sql.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/token-scopes");
@@ -57,10 +58,9 @@ describe("rls.tokenScopes", () => {
 
   beforeAll(async () => {
     const out = join(dir, "rls.sql");
-    const generated = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
     }

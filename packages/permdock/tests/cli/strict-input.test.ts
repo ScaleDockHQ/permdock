@@ -7,6 +7,7 @@ import { isCi } from "../../src/cli/core/env.ts";
 import { exitCodeOf } from "../../src/cli/core/errors.ts";
 import { run } from "../../src/cli/core/run.ts";
 import { runDoctor } from "../../src/cli/doctor/doctor.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 const dirs: string[] = [];
 
@@ -93,9 +94,7 @@ describe("strict input", () => {
 
   describe("value checks", () => {
     it("rejects an unknown --authorize value", async () => {
-      const result = await run(["rls", "generate", "--authorize", "jwk"], {
-        cwd: dir(),
-      });
+      const result = await rlsGenerate(["--authorize", "jwk"], { cwd: dir() });
       expect(result.code).toBe(2);
       expect(result.stderr).toBe(
         "rls generate: --authorize 'jwk' is not one of database, jwt. Did you mean jwt?\n",

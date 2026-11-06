@@ -1,11 +1,10 @@
-import type { RlsConfig } from "../../types.ts";
 import type { PermDockPlugin } from "../plugin.ts";
+import type { RlsPluginOptions } from "./rls-options.ts";
 
 import { definePlugin } from "../plugin.ts";
 import { pluginVersion } from "./version.ts";
 
-/** Options captured by `rls()`. They replace `rls` in the config for this run. */
-export type RlsPluginOptions = RlsConfig;
+export type { RlsPluginOptions, RlsSeedsOption } from "./rls-options.ts";
 
 /**
  * The RLS plugin. The factory records options; the SQL generator loads on emit,

@@ -10,7 +10,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "./fixtures/mini-app");
@@ -96,8 +96,8 @@ export const policy = definePolicy(permissions, {
     cwd: string,
     extra: readonly string[] = [],
   ): Promise<string> {
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", "rls.sql", ...extra],
+    const result = await rlsGenerate(
+      ["--target", "sql", "--out", "rls.sql", ...extra],
       { cwd },
     );
     if (result.code !== 0) {
@@ -263,8 +263,8 @@ export const policy = definePolicy(permissions, {
         ["['job.nope']", "undeclared permissions: job.nope"],
         ["[]", "names no permission"],
       ] as const) {
-        const result = await run(
-          ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
+        const result = await rlsGenerate(
+          ["--target", "sql", "--out", "rls.sql"],
           { cwd: requiring(requires) },
         );
         expect(result.code).toBe(2);
