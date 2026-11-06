@@ -255,7 +255,7 @@ create or replace trigger "permdock_memo_generation_truncate"
 create or replace function "permdock".permdock_has(p_grant text)
 returns boolean
 language plpgsql
-stable
+volatile
 security definer
 cost 1000
 set search_path = ''
@@ -267,7 +267,9 @@ declare
       v_user,
       p_grant,
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
-      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
     ));
   v_memo text := nullif(current_setting(v_key, true), '');
   v_has boolean;
@@ -297,6 +299,7 @@ begin
     ))
   )
   );
+  perform set_config(v_key, jsonb_build_object('k', v_disc, 'v', v_has)::text, true);
   return v_has;
 end;
 $$;
@@ -328,7 +331,7 @@ grant execute on function "permdock".permdock_capability_ids(text, text, text) t
 create or replace function "permdock".permitted_organization_ids(p_grant text)
 returns setof uuid
 language plpgsql
-stable
+volatile
 security definer
 cost 1000
 set search_path = ''
@@ -341,7 +344,9 @@ declare
       v_user,
       p_grant,
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
-      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
     ));
   v_memo text := nullif(current_setting(v_key, true), '');
   v_ids uuid[];
@@ -390,6 +395,7 @@ begin
       'organization'
     ))
     );
+    perform set_config(v_key, jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text, true);
   end if;
   return query select unnest(v_ids);
 end;
@@ -457,7 +463,7 @@ revoke execute on function "permdock".member_organization_ids_for(uuid) from pub
 create or replace function "permdock".permitted_customer_ids(p_grant text)
 returns setof uuid
 language plpgsql
-stable
+volatile
 security definer
 cost 1000
 set search_path = ''
@@ -470,7 +476,9 @@ declare
       v_user,
       p_grant,
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
-      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
     ));
   v_memo text := nullif(current_setting(v_key, true), '');
   v_ids uuid[];
@@ -519,6 +527,7 @@ begin
       'customer'
     ))
     );
+    perform set_config(v_key, jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text, true);
   end if;
   return query select unnest(v_ids);
 end;

@@ -8,10 +8,10 @@ import {
   bucketPolicy,
   topicPolicy,
 } from "permdock/better-supabase";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { permissions } from "../fixtures/permission-denies/permissions.ts";
+import { run } from "./support/cli-run.ts";
 import { ask, askAs } from "./support/pglite.ts";
 import { rlsGenerate } from "./support/rls.ts";
 

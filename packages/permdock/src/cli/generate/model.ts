@@ -124,6 +124,19 @@ function roleScope(binding: RoleBinding): string {
   return binding.on === undefined ? "global" : "resource";
 }
 
+/**
+ * A plain copy. Level records are proxies, and `structuredClone` cannot read
+ * them; JSON can.
+ */
+function plainData<T>(value: T): T {
+  const text = JSON.stringify(value);
+  if (text === undefined) {
+    throw new TypeError("policy model value is not JSON");
+  }
+  // SAFETY: JSON.stringify walked `value`, so the parse is the same JSON type.
+  return JSON.parse(text) as T;
+}
+
 function resourceOf(node: ResourceNode): ModelResource {
   return compact<ModelResource>({
     name: node.name,
@@ -131,7 +144,7 @@ function resourceOf(node: ResourceNode): ModelResource {
     parent: node.parent,
     relations: node.relations,
     links: node.links,
-    levels: node.levels,
+    levels: node.levels === undefined ? undefined : plainData(node.levels),
     orderedLevels: node.orderedLevels,
     instanceActions: [...node.instanceActions].toSorted(),
     collectionActions: [...node.collectionActions].toSorted(),
@@ -163,7 +176,7 @@ export function policyModel(policy: Policy): PolicyModel {
       .map((grant) => grantOf(grant, policy.scopes)),
     scopes: policy.scopes.map((scope) => ({ ...scope })),
     resources,
-    levels: policy.levels ?? {},
+    levels: plainData(policy.levels ?? {}),
     orderedLevels: policy.orderedLevels ?? [],
     seeds: null,
   };

@@ -6,12 +6,12 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveCustomRole } from "permdock";
 import { parseCatalog } from "permdock/catalog";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { policy } from "../fixtures/rls-custom-roles/policy.ts";
+import { run } from "./support/cli-run.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { rlsGenerate } from "./support/rls.ts";
 

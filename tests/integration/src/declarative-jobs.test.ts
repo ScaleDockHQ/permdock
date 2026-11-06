@@ -2,10 +2,10 @@ import { extract, plan, renderApplyScript } from "@supabase/pg-delta";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { Pool } from "pg";
 import { describe, expect, it } from "vitest";
 
+import { run } from "./support/cli-run.ts";
 import { ROLES } from "./support/declarative-fixtures.ts";
 import { startPostgres } from "./support/postgres.ts";
 

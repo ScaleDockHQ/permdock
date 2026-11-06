@@ -4,7 +4,6 @@ import { PGlite } from "@electric-sql/pglite";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { run } from "permdock/cli";
 import { scim } from "permdock/cli/plugins/scim";
 import {
   DirectoryUniquenessError,
@@ -14,6 +13,8 @@ import {
 } from "permdock/scim";
 import { testDirectoryStore } from "permdock/testing";
 import { beforeAll, describe, expect, it } from "vitest";
+
+import { run } from "./support/cli-run.ts";
 
 async function generated(dialect: "guc" | "supabase"): Promise<string> {
   const cwd = mkdtempSync(join(tmpdir(), "permdock-scim-generate-"));

@@ -6,9 +6,9 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { authorizationProvider } from "permdock/better-supabase";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { run } from "./support/cli-run.ts";
 import { hookGenerate, rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));

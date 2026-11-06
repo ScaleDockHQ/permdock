@@ -2,13 +2,13 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { powersync } from "permdock/cli/plugins/powersync";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { runPipingDbUrl } from "./db-url.ts";
+import { run } from "./support/cli-run.ts";
 import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { rlsGenerate } from "./support/rls.ts";
