@@ -1,0 +1,44 @@
+{
+  "$schema": "https://permdock.com/schemas/catalog-v2.json",
+  "version": 2,
+  "generatedAt": "2026-11-06T18:27:11.282Z",
+  "generator": "permdock@0.25.1",
+  "fingerprint": "sha-256:bMjdGQXUZ8IT5YbRtOZRT25LPQagcujRdTitIMCju90",
+  "resources": {
+    "note": {
+      "id": "id",
+      "schema": null
+    }
+  },
+  "permissions": [
+    {
+      "key": "note.read",
+      "scope": "note:read",
+      "resource": "note",
+      "action": "read",
+      "arity": "instance",
+      "meta": {},
+      "usages": [],
+      "rowConditions": false
+    }
+  ],
+  "roles": [
+    {
+      "key": "reader",
+      "assignable": false
+    }
+  ],
+  "grants": [
+    {
+      "permission": "note.read",
+      "effect": "allow",
+      "role": "reader",
+      "to": {
+        "kind": "role",
+        "role": "reader",
+        "scope": "global"
+      },
+      "scope": "global"
+    }
+  ]
+}
