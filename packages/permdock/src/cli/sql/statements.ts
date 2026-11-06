@@ -12,15 +12,22 @@ export function sqlStatements(
 ): readonly { readonly line: number; readonly text: string }[] {
   const text = blankComments(sql);
   const statements: { line: number; text: string }[] = [];
+  // Statements arrive in order, so count newlines once instead of rescanning the prefix.
+  let counted = 0;
+  let line = 1;
   const push = (start: number, end: number): void => {
     const body = text.slice(start, end);
     const lead = body.length - body.trimStart().length;
     const trimmed = body.trim();
     if (trimmed !== "") {
-      statements.push({
-        line: text.slice(0, start + lead).split("\n").length,
-        text: trimmed,
-      });
+      const at = start + lead;
+      for (let cursor = counted; cursor < at; cursor += 1) {
+        if (text[cursor] === "\n") {
+          line += 1;
+        }
+      }
+      counted = at;
+      statements.push({ line, text: trimmed });
     }
   };
   let start = 0;

@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
+import { availableParallelism, loadavg } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -9,10 +10,21 @@ const BUDGET = join(ROOT, "scripts", "typecheck-perf.json");
 /** Headroom over the recorded count before the gate fails. */
 const INSTANTIATION_SLACK = 1.1;
 /**
+ * One checker is CPU-bound, so a wall-clock ceiling only means something when
+ * the machine has a free core. A one-minute load average above the core count
+ * (a parallel `verify`, another build) stretches `Check time` without any type
+ * getting slower; the ceiling then only reports. The instantiation count, which
+ * does not depend on load, is always enforced.
+ */
+function overloaded(): boolean {
+  return (loadavg()[0] ?? 0) > availableParallelism();
+}
+
+/**
  * CI runners share their cores with the rest of the turbo run, so check time
  * there only reports.
  */
-const ENFORCE_CHECK_TIME = process.env["CI"] === undefined;
+const ENFORCE_CHECK_TIME = process.env["CI"] === undefined && !overloaded();
 
 const PROJECTS = {
   src: "tsconfig.json",
