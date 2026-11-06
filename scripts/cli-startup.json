@@ -1,11 +1,12 @@
 {
   "recordedMs": {
-    "version": 22,
-    "help": 28,
-    "catalog --help": 26,
-    "doctor --help": 28,
-    "generate --help": 50,
-    "cloud push --help": 28
+    "version": 30,
+    "help": 38,
+    "catalog --help": 39,
+    "doctor --help": 43,
+    "generate --help": 72,
+    "generate --check": 223,
+    "cloud push --help": 42
   },
   "maxMs": {
     "version": 150,
@@ -13,7 +14,8 @@
     "catalog --help": 200,
     "doctor --help": 200,
     "generate --help": 200,
-    "cloud push --help": 200
+    "cloud push --help": 200,
+    "generate --check": 600
   },
   "maxHelpRatio": 1.5,
   "helpSlackMs": 15
