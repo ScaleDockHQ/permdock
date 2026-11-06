@@ -105,10 +105,9 @@ describe("permission-key helpers", () => {
       "select permdock.grant_keys('job.update', 'tenant', 'conditioned-allow') as key",
     );
     expect(keys.rows.map((row) => row.key)).toStrictEqual([
-      "job.update#1@own",
       "job.update#2",
-      "job.update#2@all",
-      "job.update#2@own",
+      "job.update@all",
+      "job.update@own",
     ]);
     const forUser = await db.admin.query<{ id: string }>(
       "select id from permdock.permitted_tenant_ids_by_permission_for($1, 'job.update', true) id",
@@ -135,7 +134,7 @@ describe("permission-key helpers", () => {
     );
     expect(keys.rows.map((row) => row.key)).toStrictEqual([
       "job.update#1",
-      "job.update#1@all",
+      "job.update@all",
     ]);
     const forUser = await db.admin.query<{ id: string }>(
       "select id from permdock.permitted_tenant_ids_by_permission_for($1, 'job.update') id",

@@ -7,9 +7,9 @@ import type { RlsGrant } from "./grants.ts";
 
 import { canonicalJson } from "../../core/canonical-json.ts";
 import { sole } from "../../core/compact.ts";
-import { andWhere, leveled } from "../../core/custom-roles.ts";
+import { leveled } from "../../core/custom-roles.ts";
 import { requiresStandIn } from "../../core/delegation.ts";
-import { coveredLevels, policyLevels } from "../../core/policy.ts";
+import { policyLevels } from "../../core/policy.ts";
 import { defaultSqlCommand } from "../../core/sql.ts";
 import { scopeField } from "../../core/tenancy.ts";
 import {
@@ -141,36 +141,24 @@ function levelReachOf(
     const levels = policyLevels(policy, resource);
     if (levels.length > 0) {
       const set = reach.get(grantKey) ?? new Set<string>();
-      const reached = coveredLevels(
-        policy,
-        resource,
-        reachedLevels(grant.where, levels),
-      );
+      const reached = reachedLevels(grant.where, levels);
       for (const name of reached) {
         set.add(name);
       }
       reach.set(grantKey, set);
     }
   }
-  const resourceOf = new Map(
-    [...keys].map(([entry, grantKey]) => [
-      grantKey,
-      entry.item.grant.permission.resource,
-    ]),
-  );
   const out: (readonly [string, string])[] = [];
   for (const grantKey of new Set(keys.values())) {
     const at = grantKey.lastIndexOf("@");
     const base = at === -1 ? grantKey : grantKey.slice(0, at);
     const level = at === -1 ? undefined : grantKey.slice(at + 1);
-    const covered =
-      level === undefined
-        ? undefined
-        : coveredLevels(policy, resourceOf.get(grantKey) ?? "", [level]);
+    if (level !== undefined) {
+      out.push([grantKey, level]);
+      continue;
+    }
     for (const name of reach.get(base) ?? []) {
-      if (covered === undefined || covered.includes(name)) {
-        out.push([grantKey, name]);
-      }
+      out.push([grantKey, name]);
     }
   }
   return out.toSorted(([a, x], [b, y]) =>
@@ -470,7 +458,8 @@ function signature(entry: Prepared, byFields: boolean): string {
  * `permission#n` when role grants carry different portable conditions (or
  * effects), one key per condition group; a group whose grants set `group` is
  * `permission#<group>` instead. With field views, grants that differ only in
- * `fields` get their own keys too, so a view can tell them apart.
+ * `fields` get their own keys too, so a view can tell them apart. A level is
+ * `<permission>@<level>` and is not crossed with a `#n` group.
  */
 function assignKeys(
   entries: readonly Prepared[],
@@ -534,12 +523,18 @@ function groupOf(
   return names[0];
 }
 
+/** The level condition alone. An empty level (`{}`) is the whole tenant. */
+function levelWhere(condition: Condition): Condition | undefined {
+  return condition.op === "and" && condition.conditions.length === 0
+    ? undefined
+    : condition;
+}
+
 /**
- * One entry per level for every allow of a role on a resource with levels,
- * keyed `<grant key>@<level>`, whether or not the role is assignable: every
- * role holds the same leveled keys, and `permdock_ceiling` keeps only the
- * assignable roles'. Only `permdock_custom_keys` hands these keys out, to a
- * custom role whose stored allow names the level.
+ * One entry per role per level, keyed `<permission>@<level>` with the level
+ * condition only. A `#n` group is not crossed into the level key. Every role
+ * holds the same leveled keys, and `permdock_ceiling` keeps only the assignable
+ * roles'.
  */
 function levelEntries(
   policy: Policy,
@@ -555,7 +550,7 @@ function levelEntries(
   }
   const out: Prepared[] = [];
   // The loop adds the leveled keys to `keys`, so it walks a copy.
-  for (const [entry, grantKey] of Array.from(keys)) {
+  for (const [entry] of Array.from(keys)) {
     const { item } = entry;
     const { grant } = item;
     if (
@@ -574,15 +569,17 @@ function levelEntries(
       policy,
       grant.permission.resource,
     )) {
-      const where = andWhere(item.where, condition);
+      const where = levelWhere(condition);
+      const { where: _base, ...rest } = item;
+      const { where: _grantWhere, check: _grantCheck, ...bare } = grant;
       const narrowed: RlsGrant = {
-        ...item,
-        grant: leveled(grant, level, condition),
+        ...rest,
+        grant: leveled(bare, level, condition),
         ...(where === undefined ? {} : { where }),
       };
       const prepared = prepare(narrowed, tables, warnings, skipClosures, ctx);
       if (prepared !== undefined) {
-        keys.set(prepared, `${grantKey}@${level}`);
+        keys.set(prepared, `${grant.permission.key}@${level}`);
         out.push(prepared);
       }
     }
@@ -706,6 +703,7 @@ export function compileGrants(
     typed.set(name, next);
     return next;
   };
+  const seenBranch = new Set<string>();
   for (const entry of entries) {
     const { item, table } = entry;
     const { grant, access, label } = item;
@@ -836,7 +834,19 @@ export function compileGrants(
     const using = compileOptional(entry.using, rowCtx);
     const check = compileOptional(entry.check, rowCtx);
     const fields = grant.fields === undefined ? {} : { fields: grant.fields };
-    if (!linkOnly) {
+    const branchKey = [
+      table,
+      command,
+      grant.effect,
+      grantKey ?? "",
+      using ?? "",
+      check ?? "",
+    ].join("\u0000");
+    const duplicate = seenBranch.has(branchKey);
+    if (!duplicate) {
+      seenBranch.add(branchKey);
+    }
+    if (!linkOnly && !duplicate) {
       target.push({
         table,
         command,
