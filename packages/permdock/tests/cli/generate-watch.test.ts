@@ -121,6 +121,57 @@ describe("generate --watch", () => {
     expect(event).toMatchObject({ event: "generate", status: "success" });
   }, 20_000);
 
+  it("prints a JSON error and closes when the run is aborted", async () => {
+    const cwd = copyFixture();
+    writeFileSync(
+      join(cwd, "permdock.config.ts"),
+      `export default { policy: "./missing.ts", plugins: [] };\n`,
+    );
+    const controller = new AbortController();
+    const stdout: string[] = [];
+    const result = await run(["generate", "--watch", "--json"], {
+      cwd,
+      io: {
+        stdout: (text) => {
+          stdout.push(text);
+        },
+        stderr: () => undefined,
+        signal: controller.signal,
+      },
+    });
+    controller.abort();
+    expect(result.code).toBe(0);
+    const line = stdout.find((text) => text.includes('"status":"error"'));
+    expect(line).toBeDefined();
+    expect(JSON.parse(line ?? "{}")).toMatchObject({
+      event: "generate",
+      status: "error",
+    });
+  }, 20_000);
+
+  it("says files when a cycle writes none", async () => {
+    const cwd = copyFixture();
+    writeFileSync(
+      join(cwd, "permdock.config.ts"),
+      `export default { policy: "./src/policy.ts", plugins: [] };\n`,
+    );
+    const stderr: string[] = [];
+    const controller = new AbortController();
+    const result = await run(["generate", "--watch"], {
+      cwd,
+      io: {
+        stdout: () => undefined,
+        stderr: (text) => {
+          stderr.push(text);
+        },
+        signal: controller.signal,
+      },
+    });
+    controller.abort();
+    expect(result.code).toBe(0);
+    expect(stderr.join("")).toContain("Generated 0 files");
+  }, 20_000);
+
   it("refuses --watch with --check", async () => {
     const result = await run(["generate", "--watch", "--check"], {
       cwd: copyFixture(),

@@ -20,7 +20,7 @@ import { rewrite026 } from "../../src/cli/codemod/rewrite-0.26.ts";
 import { run } from "../../src/cli/core/run.ts";
 import { projectContext } from "../../src/cli/generate/context.ts";
 import { dialectsFor } from "../../src/cli/generate/dialects.ts";
-import { executeGenerate } from "../../src/cli/generate/execute.ts";
+import { executeGenerate, localInput } from "../../src/cli/generate/execute.ts";
 import { withImportGraph } from "../../src/cli/generate/import-graph.ts";
 import { definePlugin } from "../../src/cli/generate/plugin.ts";
 import { betterSupabase } from "../../src/cli/generate/plugins/better-supabase.ts";
@@ -30,6 +30,7 @@ import { rls } from "../../src/cli/generate/plugins/rls.ts";
 import { scim } from "../../src/cli/generate/plugins/scim.ts";
 import { supabaseHook } from "../../src/cli/generate/plugins/supabase-hook.ts";
 import { watchReply } from "../../src/cli/generate/watch-worker.ts";
+import { parseWatchReply } from "../../src/cli/generate/watch.ts";
 import {
   allow,
   definePermissions,
@@ -370,6 +371,83 @@ describe(executeGenerate, () => {
       },
     });
     expect(seeded.map((file) => file.path).join(" ")).toContain("rls");
+    const ctx = await projectContext(cwd);
+    expect(await openapi().plan(model, ctx)).toStrictEqual([]);
+    expect((await openapi({ doc: "a.json" }).plan(model, ctx))[0]?.id).toBe(
+      "document",
+    );
+    expect(await powersync().inputs(ctx)).toStrictEqual({
+      files: [],
+      options: {},
+    });
+    expect((await powersync().plan(model, ctx))[0]?.out).toBe(
+      "sync-config.yaml",
+    );
+    expect(
+      await powersync().emit({ id: "sync", out: "sync.yaml" }, model),
+    ).toStrictEqual([]);
+    expect((await scim().inputs(ctx)).files).toStrictEqual([]);
+    expect((await scim().plan(model, ctx))[0]?.out).toContain("scim.sql");
+    expect((await scim({ dialect: "neon" }).plan(model, ctx))[0]?.out).toBe(
+      "permdock_scim.sql",
+    );
+    expect((await openapi().inputs(ctx)).files).toStrictEqual([]);
+    expect(
+      (await openapi({ doc: "a.json", routes: "app/**" }).inputs(ctx)).files,
+    ).toStrictEqual(["a.json", "app/**"]);
+    expect(await betterSupabase().inputs(ctx)).toStrictEqual({
+      files: [],
+      options: {},
+    });
+    expect(await supabaseHook().inputs(ctx)).toStrictEqual({
+      files: [],
+      options: {},
+    });
+    expect((await supabaseHook().plan(model, ctx))[0]?.out).toBe(
+      "supabase/permdock-hook.sql",
+    );
+    expect(
+      await supabaseHook().emit({ id: "hook", out: "hook.sql" }, model),
+    ).toStrictEqual([]);
+    await expect(
+      supabaseHook().emit({ id: "hook", out: "hook.sql" }, model, source),
+    ).rejects.toThrow("supabase.hook");
+    const withDefaults = {
+      ...source,
+      config: {
+        ...config,
+        seeds: {
+          defaults: {
+            roles: [{ key: "reader", scope: "tenant", grants: ["note.read"] }],
+          },
+          fixtures: {
+            users: { ada: { id: "u1", email: "a@b.c" } },
+            tenants: {},
+            memberships: [],
+            customRoles: [],
+            rows: {},
+          },
+        },
+      },
+    };
+    const defaults = await rls({ out: "rls.sql", schemas: "migra" }).emit(
+      { id: "sql", out: "rls.sql" },
+      model,
+      withDefaults,
+    );
+    const migration = defaults.find((file) => file.path.includes("defaults"));
+    expect(migration?.contents).toContain("note.read");
+    expect(defaults.some((file) => file.path.endsWith("permdock.sql"))).toBe(
+      true,
+    );
+    mkdirSync(join(cwd, "supabase/migrations"), { recursive: true });
+    writeFileSync(join(cwd, migration?.path ?? ""), migration?.contents ?? "");
+    const again = await rls({ out: "rls.sql", schemas: "migra" }).emit(
+      { id: "sql", out: "rls.sql" },
+      model,
+      withDefaults,
+    );
+    expect(again.some((file) => file.path.includes("defaults"))).toBe(false);
     await expect(
       rls({ seeds: false }).emit({ id: "sql", out: "rls.sql" }, model, {
         ...source,
@@ -420,6 +498,29 @@ export default { policy: "./policy.ts", plugins: [echo] };
     expect(count.stderr).toContain("positive integer");
   });
 
+  it("accepts a concurrency, a cache directory and an explicit policy", async () => {
+    const cwd = configured();
+    const result = await run(
+      [
+        "generate",
+        "--concurrency",
+        "1",
+        "--cache-dir",
+        join(cwd, "cache"),
+        "--policy",
+        "policy.ts",
+        "--no-cache",
+      ],
+      { cwd },
+    );
+    expect(result.code).toBe(0);
+    expect(readFileSync(join(cwd, "echo.txt"), "utf8")).toBe("cmd\n");
+    const empty = await run(["generate", "--cache-dir", "", "--policy", ""], {
+      cwd,
+    });
+    expect(empty.code).toBe(0);
+  });
+
   it("writes the plugin file and prints the receipt", async () => {
     const cwd = configured();
     const result = await run(["generate", "--no-cache"], { cwd });
@@ -449,7 +550,26 @@ describe("watch reply", () => {
       join(cwd, "permdock.config.ts"),
       `export default { policy: "./policy.ts", plugins: [] };\n`,
     );
-    const reply = await watchReply({ cwd, only: [], noCache: true });
+    expect(
+      await watchReply({
+        cwd: "/tmp",
+        only: [1],
+        configFile: "permdock.config.ts",
+        policy: "policy.ts",
+        cacheDir: "/cache",
+        concurrency: 2,
+        noCache: false,
+      }),
+    ).toMatchObject({ ok: false });
+    const reply = await watchReply({
+      cwd,
+      only: [],
+      noCache: true,
+      configFile: "permdock.config.ts",
+      policy: "policy.ts",
+      cacheDir: join(cwd, "cache"),
+      concurrency: 1,
+    });
     expect(reply.ok).toBe(true);
     if (reply.ok) {
       expect(reply.summary.created).toBe(0);
@@ -523,6 +643,173 @@ describe("import graph and dialects", () => {
       scopes,
     );
     expect(opaque === undefined || opaque.stream === opaque.rls).toBe(true);
+    expect(
+      dialectsFor({ op: "gt", field: "n", value: 2 }, scopes)?.stream,
+    ).toContain(">");
+    expect(
+      dialectsFor({ op: "gte", field: "n", value: 2 }, scopes)?.stream,
+    ).toContain(">=");
+    expect(
+      dialectsFor({ op: "lt", field: "n", value: 2 }, scopes)?.stream,
+    ).toContain("<");
+    expect(
+      dialectsFor({ op: "lte", field: "n", value: 2 }, scopes)?.stream,
+    ).toContain("<=");
+    expect(
+      dialectsFor({ op: "eq", field: "flag", value: true }, scopes)?.stream,
+    ).toContain("true");
+    expect(
+      dialectsFor({ op: "eq", field: "flag", value: false }, scopes)?.stream,
+    ).toContain("false");
+    expect(
+      dialectsFor({ op: "eq", field: "gone", value: null }, scopes)?.stream,
+    ).toContain("null");
+    expect(
+      dialectsFor({ op: "isNull", field: "gone", value: false }, scopes)
+        ?.stream,
+    ).toContain("NOT NULL");
+    expect(
+      dialectsFor({ op: "notIn", field: "status", value: ["a"] }, scopes)
+        ?.stream,
+    ).toContain("NOT IN");
+    const refList = dialectsFor(
+      { op: "in", field: "status", value: { ref: "principal.id" } },
+      scopes,
+    );
+    expect(refList === undefined || refList.stream === refList.rls).toBe(true);
+    const mixed = dialectsFor(
+      { op: "in", field: "status", value: [{ ref: "principal.id" }] },
+      scopes,
+    );
+    expect(mixed === undefined || mixed.stream === mixed.rls).toBe(true);
+    expect(
+      dialectsFor(
+        {
+          op: "or",
+          conditions: [
+            { op: "eq", field: "a", value: 1 },
+            { op: "eq", field: "b", value: "x" },
+          ],
+        },
+        scopes,
+      )?.stream,
+    ).toContain("OR");
+    const blocked = dialectsFor(
+      {
+        op: "and",
+        conditions: [
+          { op: "eq", field: "a", value: 1 },
+          { op: "memberOf", scope: "tenant", field: "orgId", roles: [] },
+        ],
+      },
+      scopes,
+    );
+    expect(blocked === undefined || blocked.stream === blocked.rls).toBe(true);
+    const hidden = dialectsFor(
+      { op: "not", condition: { op: "liveSession" } },
+      scopes,
+    );
+    expect(hidden === undefined || hidden.stream === hidden.rls).toBe(true);
+    expect(
+      dialectsFor(
+        {
+          op: "sqlFunction",
+          name: "app.ok",
+          args: [],
+          twin: { op: "eq", field: "a", value: 1 },
+        },
+        scopes,
+      )?.stream,
+    ).toContain("=");
+    for (const condition of [
+      { op: "contains", field: "title", value: "x" },
+      { op: "liveSession" },
+      {
+        op: "related",
+        resource: "folder",
+        relation: "viewer",
+        field: "folder_id",
+        depth: 0,
+      },
+    ] as const) {
+      const rendered = dialectsFor(condition, scopes);
+      expect(rendered === undefined || rendered.stream === rendered.rls).toBe(
+        true,
+      );
+    }
+    expect(
+      dialectsFor(
+        { op: "eq", field: "a", value: { ref: "context.user" } },
+        scopes,
+      ),
+    ).toBeUndefined();
+    // SAFETY: `and` without `conditions` is not a condition; compile throws TypeError.
+    const broken = { op: "and" } as unknown as Parameters<
+      typeof dialectsFor
+    >[0];
+    expect(() => dialectsFor(broken, scopes)).toThrow(TypeError);
+  });
+
+  it("keeps a project file and drops a dependency, a parent and a remote URL", () => {
+    const cwd = "/app";
+    expect(localInput(cwd, pathToFileURL("/app/policy.ts").href)).toBe(
+      "/app/policy.ts",
+    );
+    expect(
+      localInput(cwd, pathToFileURL("/app/node_modules/pkg/index.js").href),
+    ).toBeUndefined();
+    expect(localInput(cwd, pathToFileURL("/other/policy.ts").href)).toBe(
+      undefined,
+    );
+    expect(localInput(cwd, "https://example.com/policy.ts")).toBeUndefined();
+  });
+});
+
+describe("watch reply parser", () => {
+  it("rejects a missing, failed or incomplete worker message", () => {
+    expect(parseWatchReply(null)).toStrictEqual({
+      ok: false,
+      message: "generate worker returned nothing",
+    });
+    expect(parseWatchReply({ ok: false })).toStrictEqual({
+      ok: false,
+      message: "generate worker failed",
+    });
+    expect(parseWatchReply({ ok: false, message: "no policy" })).toStrictEqual({
+      ok: false,
+      message: "no policy",
+    });
+    expect(parseWatchReply({ ok: true })).toStrictEqual({
+      ok: false,
+      message: "generate worker returned nothing",
+    });
+    expect(
+      parseWatchReply({
+        ok: true,
+        summary: {
+          created: 0,
+          updated: 1,
+          unchanged: 2,
+          planned: 3,
+          skipped: 4,
+        },
+        written: ["echo.txt", 1],
+        inputs: ["policy.ts", false],
+      }),
+    ).toStrictEqual({
+      ok: true,
+      summary: { created: 0, updated: 1, unchanged: 2, planned: 3, skipped: 4 },
+      written: ["echo.txt"],
+      inputs: ["policy.ts"],
+    });
+    expect(
+      parseWatchReply({
+        ok: true,
+        summary: { created: "0" },
+        written: [],
+        inputs: [],
+      }),
+    ).toMatchObject({ ok: false });
   });
 });
 

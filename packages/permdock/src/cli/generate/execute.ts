@@ -77,7 +77,11 @@ function selected(
   return plugins.filter((plugin) => only.includes(plugin.name));
 }
 
-function localInput(cwd: string, url: string): string | undefined {
+/**
+ * A loaded `file:` URL inside the project, or `undefined` for a dependency or a
+ * parent.
+ */
+export function localInput(cwd: string, url: string): string | undefined {
   if (!url.startsWith("file:")) {
     return undefined;
   }

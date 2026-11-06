@@ -66,7 +66,8 @@ function summaryOf(value: unknown): GenerateSummary | undefined {
   return { created, updated, unchanged, planned, skipped };
 }
 
-function replyOf(value: unknown): WatchReply {
+/** The worker message as a reply. A shape the worker does not send is a failure. */
+export function parseWatchReply(value: unknown): WatchReply {
   if (!isRecord(value)) {
     return { ok: false, message: "generate worker returned nothing" };
   }
@@ -131,7 +132,7 @@ function runWorker(
       void worker.terminate();
     };
     worker.once("message", (message: unknown) => {
-      finish(replyOf(message));
+      finish(parseWatchReply(message));
     });
     worker.once("error", (error) => {
       if (settled) {

@@ -63,11 +63,7 @@ function ownerProperty(source: string, owner: string): RegExpExecArray | null {
   return pattern.exec(source);
 }
 
-function withAlso(
-  property: string,
-  child: string,
-  owner: string,
-): string | undefined {
+function withAlso(property: string, child: string, owner: string): string {
   const stringValue = new RegExp(
     String.raw`^([ \t]*)${owner}\s*:\s*(['"])([^'"\n]*)\2,?$`,
     "u",
@@ -333,11 +329,7 @@ export function rewrite026(file: string, source: string): RewriteResult {
       });
       continue;
     }
-    const next = withAlso(property[0], child, owner);
-    if (next === undefined) {
-      continue;
-    }
-    text = text.replaceAll(property[0], next);
+    text = text.replaceAll(property[0], withAlso(property[0], child, owner));
   }
   const changes = [...sql.changes];
   if (found.length > 0) {

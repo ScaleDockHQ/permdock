@@ -95,5 +95,64 @@ describe("rls.tables follows and walk", () => {
     expect(() =>
       treeHelperSql(ctx, policy, tables, { "public.other": {} }),
     ).toThrow(/self-parented folder/u);
+    expect(treeHelperSql(ctx, policy, tables, { job: {} })).toContain(
+      "permdock_tree_job",
+    );
+  });
+
+  it("skips a child table and refuses a follows or walk the policy cannot name", () => {
+    expect(
+      followPolicies(ctx, policy, {
+        child: { tableOf: "job" },
+        job: tables.job,
+      }).map((item) => item.table),
+    ).toStrictEqual([
+      "public.job_parties",
+      "public.job_parties",
+      "public.job_parties",
+      "public.job_parties",
+    ]);
+    expect(
+      walkChainSql(ctx, policy, { job: { table: "public.jobs" } }, false),
+    ).toBe("");
+    expect(() =>
+      followPolicies(ctx, policy, {
+        ghost: { table: "public.ghosts", follows: { "public.child": "id" } },
+      }),
+    ).toThrow(/does not declare/u);
+    const long = "a".repeat(70);
+    expect(() =>
+      followPolicies(ctx, policy, {
+        job: {
+          table: "public.jobs",
+          follows: { [`public.${long}`]: "job_id" },
+        },
+      }),
+    ).toThrow(/63 bytes/u);
+    expect(() =>
+      walkChainSql(
+        ctx,
+        policy,
+        { ghost: { table: "public.ghosts", walk: "recursive" } },
+        false,
+      ),
+    ).toThrow(/self-parented resource/u);
+    const loose = definePolicy(
+      definePermissions({
+        folder: resource({
+          actions: ["read"],
+          parent: { field: "parentId", resource: "folder" },
+        }),
+      }),
+      { subject: () => null },
+    );
+    expect(() =>
+      treeHelperSql(
+        ctx,
+        loose,
+        { folder: { table: "public.folders", walk: "recursive" } },
+        { "public.folders": {} },
+      ),
+    ).toThrow(/self-parented folder/u);
   });
 });

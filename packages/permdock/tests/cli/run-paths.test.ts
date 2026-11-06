@@ -21,6 +21,22 @@ function errorOf(stdout: string): unknown {
     : undefined;
 }
 
+describe("removed generate commands", () => {
+  it.each([
+    [["powersync", "generate"], "generate --only powersync"],
+    [["openapi", "emit"], "generate --only openapi"],
+    [["gen"], "generate"],
+    [["scim"], "generate --only scim"],
+    [["scim", "generate"], "generate --only scim"],
+    [["supabase", "hook"], "generate --only supabaseHook"],
+    [["supabase", "hook", "generate"], "generate --only supabaseHook"],
+  ])("points %j at %s", async (argv, hint) => {
+    const result = await run(argv, { cwd: FIXTURE });
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain(hint);
+  });
+});
+
 describe("run: groups", () => {
   it("asks for a subcommand when a group gets only flags", async () => {
     const result = await run(["openapi", "--check", "--json"], {

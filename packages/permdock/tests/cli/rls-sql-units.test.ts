@@ -38,6 +38,7 @@ import {
   subjectClaimSql,
 } from "../../src/cli/sql/subject.ts";
 import { qualifySqlTable } from "../../src/core/sql.ts";
+import { definePermissions, definePolicy, resource } from "../../src/index.ts";
 
 const scopes = [
   { name: "org", key: "org_id" },
@@ -423,6 +424,12 @@ describe("compileConditionSql values and refs", () => {
     expect(() =>
       sql({ op: "in", field: "s", value: { ref: "principal.id" } }),
     ).toThrow("non-portable in against 'principal.id'");
+    expect(
+      sql(
+        { op: "in", field: "n", value: { ref: "principal.claim.levels" } },
+        { columnTypes: { n: "numeric" }, dialect: "guc" },
+      ),
+    ).toContain("current_setting('app.levels', true)");
   });
 
   it("compiles contains on text and on array columns", () => {
@@ -726,6 +733,45 @@ describe("compileConditionSql related", () => {
     ).toBe(
       `("folder_id"::uuid in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and ancestor::uuid = any (array(select "permdock".permitted_folder_ids('viewer')))) and "restricted" is not true)`,
     );
+  });
+
+  it("compiles a link hop from the policy resources", () => {
+    const permissions = definePermissions({
+      folder: resource({
+        actions: ["read"],
+        links: { team: { field: "teamId", resource: "team" } },
+      }),
+      team: resource({ actions: ["read"] }),
+    });
+    const defined = definePolicy(permissions, { subject: () => null });
+    const hop = {
+      op: "related",
+      resource: "team",
+      relation: "",
+      field: "team_id",
+      depth: 0,
+      permission: "team.read",
+    } as const;
+    const graph = {
+      closures: {},
+      resources: defined.resources,
+      tables: { folder: "public.folders", team: "public.teams" },
+    };
+    expect(
+      sql({ ...hop, hops: [{ resource: "folder", link: "team" }] }, { graph }),
+    ).toContain("team_id");
+    expect(
+      sql(
+        {
+          ...hop,
+          hops: [
+            { resource: "folder", link: "team" },
+            { resource: "team", link: "folder" },
+          ],
+        },
+        { graph: { closures: {}, resources: defined.resources } },
+      ),
+    ).toContain("team");
   });
 
   it("needs the policy resources for link hops", () => {

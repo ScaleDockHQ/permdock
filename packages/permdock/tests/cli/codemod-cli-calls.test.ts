@@ -83,6 +83,20 @@ describe("codemod cli calls", () => {
       });
     });
 
+    it("keeps a flag value and leaves an equals rewrite to a person", () => {
+      expect(shell("permdock rls generate --from=policy.ts")).toBe(
+        "permdock generate --only rls --policy=policy.ts",
+      );
+      const scaffold = rewriteCliCalls(
+        "permdock rls generate --rbac-scaffold=supabase",
+        { json: false },
+      );
+      expect(scaffold.text).toBe(
+        "permdock generate --only rls --rbac-scaffold=supabase",
+      );
+      expect(scaffold.followUps[0]?.message).toContain("--rbac supabase");
+    });
+
     it("leaves a connection string on a removed generate command to a person", () => {
       const text = "permdock rls generate --db-url $DATABASE_URL";
       const result = rewriteCliCalls(text, { json: false });
