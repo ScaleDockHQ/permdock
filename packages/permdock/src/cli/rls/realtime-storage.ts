@@ -8,6 +8,8 @@ import type {
 } from "../types.ts";
 
 import { configError } from "../core/errors.ts";
+import { idTypeOf } from "../sql/columns.ts";
+import { graphSqlName } from "../sql/names.ts";
 import { qualified, quoteLiteral } from "../sql/quote.ts";
 import { permittedByPermissionHelper } from "./permission-keys.ts";
 
@@ -43,6 +45,7 @@ function grantKey(
   ref: RlsPermissionRef | undefined,
   where: string,
   warnings: string[],
+  conditioned: "scope" | "row",
 ): string | undefined {
   if (ref === undefined) {
     return undefined;
@@ -54,12 +57,19 @@ function grantKey(
       `PermDock CLI: ${where} must be a permission reference from the definitions (got ${JSON.stringify(key)})`,
     );
   }
-  if (facts.rowConditions.has(key)) {
+  if (conditioned === "scope" && facts.rowConditions.has(key)) {
     warnings.push(
       `${where} is ${key}, whose grants carry row conditions (a relation, a where or another condition): the policy admits only the instances its role allows without a condition reach, through permitted_<scope>_ids_by_permission`,
     );
   }
   return key;
+}
+
+/** The resource a permission key names, before its action, group and level. */
+function resourceOf(key: string): string {
+  const base = key.split("#")[0]?.split("@")[0] ?? key;
+  const dot = base.lastIndexOf(".");
+  return dot <= 0 ? base : base.slice(0, dot);
 }
 
 function declaredScope(
@@ -126,8 +136,20 @@ function realtimePolicies(
       `extension in ('broadcast', 'presence')
     and ${TOPIC} ~ ${quoteLiteral(regex)}
     and ${permitted(ctx, id, scope, key)}`;
-    const read = grantKey(facts, topic.read, `${where}.read`, warnings);
-    const write = grantKey(facts, topic.write, `${where}.write`, warnings);
+    const read = grantKey(
+      facts,
+      topic.read,
+      `${where}.read`,
+      warnings,
+      "scope",
+    );
+    const write = grantKey(
+      facts,
+      topic.write,
+      `${where}.write`,
+      warnings,
+      "scope",
+    );
     if (read === undefined) {
       throw configError(`PermDock CLI: ${where}.read is required`);
     }
@@ -173,11 +195,22 @@ function storagePolicies(
 ): CompiledPolicy[] {
   return Object.entries(storage.buckets).flatMap(([id, bucket]) => {
     const where = `rls.storage.buckets['${id}']`;
-    const scope = declaredScope(facts, bucket.scope, `${where}.scope`);
+    declaredScope(facts, bucket.scope, `${where}.scope`);
     const folder = folderOf(bucket, where);
-    const condition = (key: string): string =>
-      `bucket_id = ${quoteLiteral(id)}
-    and ${permitted(ctx, `(storage.foldername(name))[${String(folder)}]`, scope, key)}`;
+    const condition = (key: string): string => {
+      const resource = resourceOf(key);
+      const sql = graphSqlName(resource);
+      if (sql === undefined) {
+        throw configError(
+          `PermDock CLI: ${where} permission '${key}' does not name a SQL resource`,
+        );
+      }
+      const type = idTypeOf(ctx, resource);
+      const path = `(storage.foldername(name))[${String(folder)}]`;
+      const objectId = type === "text" ? path : `${path}::${type}`;
+      return `bucket_id = ${quoteLiteral(id)}
+    and ${qualified(ctx, `can_${sql}`)}(${objectId}, ${quoteLiteral(key)})`;
+    };
     const commands: readonly [
       SqlCommand,
       RlsPermissionRef | undefined,
@@ -189,7 +222,7 @@ function storagePolicies(
       ["delete", bucket.delete, "delete"],
     ];
     const policies = commands.flatMap(([command, ref, field]) => {
-      const key = grantKey(facts, ref, `${where}.${field}`, warnings);
+      const key = grantKey(facts, ref, `${where}.${field}`, warnings, "row");
       if (key === undefined) {
         return [];
       }
@@ -217,11 +250,10 @@ function storagePolicies(
 
 /**
  * The `realtime.messages` and `storage.objects` policies `rls.realtime` and
- * `rls.storage` describe. Each one admits a row only where the subject holds
- * the permission in the scope instance its topic segment or folder names,
- * through an allow without a row condition, so the helpers' API-key ceiling and
- * suspension rules apply and a relationship grant on the same permission never
- * reaches a topic or a folder.
+ * `rls.storage` describe. A topic admits a row only where the subject holds the
+ * permission in the scope instance its segment names, through an allow without
+ * a row condition. A bucket admits a row when `can_<resource>` allows the
+ * object id in the folder for that permission, row conditions included.
  */
 export function realtimeStoragePolicies(
   ctx: RlsSqlContext,

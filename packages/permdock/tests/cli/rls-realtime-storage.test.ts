@@ -90,21 +90,21 @@ describe("rls realtime storage", () => {
         },
       });
       expect(code).toBe(0);
-      const id = `(storage.foldername(name))[2] ${IDS}`;
+      const id = `"permdock".can_asset((storage.foldername(name))[2]::uuid,`;
       expect(sql).toContain(`create policy "permdock_storage_asset_files_select"
   on "storage"."objects"
   as permissive
   for select
   to authenticated
   using (bucket_id = 'asset-files'
-    and ${id}('asset.read') x));`);
+    and ${id} 'asset.read'));`);
       expect(sql).toMatch(
         /"permdock_storage_asset_files_insert"[\s\S]*?for insert\n {2}to authenticated\n {2}with check \(bucket_id/u,
       );
       expect(sql).toMatch(
         /"permdock_storage_asset_files_update"[\s\S]*?using \(bucket_id[\s\S]*?with check \(bucket_id/u,
       );
-      expect(sql).toContain(`${id}('asset.delete') x));`);
+      expect(sql).toContain(`${id} 'asset.delete'));`);
       expect(sql).not.toMatch(/alter table "storage"|grant .* on "storage"/u);
     });
 
@@ -112,11 +112,14 @@ describe("rls realtime storage", () => {
       const { sql } = await generate({ realtime, storage });
       expect(helperTablePolicies(sql)).toStrictEqual([]);
       expect(helperCallKeys(sql)).toStrictEqual(
-        expect.arrayContaining(["asset.read", "asset.update", "asset.delete"]),
+        expect.arrayContaining(["asset.read", "asset.update"]),
+      );
+      expect(sql).toContain(
+        `"permdock".can_asset((storage.foldername(name))[1]::uuid, 'asset.delete')`,
       );
     });
 
-    it("admits a permission with row conditions through its allows without one, and says so", async () => {
+    it("checks a bucket through can_<resource>, row conditions included", async () => {
       const { code, sql, output } = await generate({
         storage: {
           buckets: {
@@ -125,10 +128,13 @@ describe("rls realtime storage", () => {
         },
       });
       expect(code).toBe(0);
-      expect(sql).toContain(`${IDS}('quote.read') x));`);
-      expect(output).toContain(
-        "rls.storage.buckets['b'].read is quote.read, whose grants carry row conditions",
+      expect(sql).toContain(
+        `"permdock".can_quote((storage.foldername(name))[1]::uuid, 'quote.read')`,
       );
+      expect(sql).not.toContain(
+        "permitted_organization_ids_by_permission('quote.read')",
+      );
+      expect(output).not.toContain("whose grants carry row conditions");
     });
 
     it("adds read-only actor policies on the write commands", async () => {

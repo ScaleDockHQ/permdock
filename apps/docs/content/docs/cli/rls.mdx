@@ -396,7 +396,7 @@ create policy "job_update_actor" on "public"."job" as restrictive for update to 
 
 ### Realtime channels and Storage buckets
 
-On the `supabase` dialect, `rls.realtime` and `rls.storage` write policies on `realtime.messages` (private channels) and `storage.objects`. Each policy admits a row only where the subject holds the permission in the scope instance that a topic segment or a folder names. It checks that through `permitted_<scope>_ids`, so API-key ceilings, suspension and custom roles apply as they do on your tables. `supabaseRls()` passes both through.
+On the `supabase` dialect, `rls.realtime` and `rls.storage` write policies on `realtime.messages` (private channels) and `storage.objects`. A topic admits a row only where the subject holds the permission in the scope instance its segment names, through `permitted_<scope>_ids_by_permission`. A bucket admits a row when `can_<resource>` allows the object id in the folder for that permission, so the resource's row conditions apply. `supabaseRls()` passes both through.
 
 ```ts title="permdock.config.ts"
 import { permissions } from "./src/permissions";
