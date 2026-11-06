@@ -42,6 +42,7 @@ import {
   activeFromSql,
   activeSource,
   checkSources,
+  hookMemberships,
   memberForPlan,
   positiveInteger,
   typedUsers,
@@ -440,12 +441,17 @@ export function hookParts(
   quoteIdent(schema);
   const tenantClaim = config.rls?.tenantClaim ?? supabaseTenantClaim;
   const extraPlan = extraClaimsPlan(hook.claims, tenantClaim);
-  checkSources({ sources: hook.memberships, scopes });
+  const sources = hookMemberships(
+    hook.memberships,
+    config.rls?.memberships,
+    scopes,
+  );
+  checkSources({ sources, scopes });
   const parts: Parts = {
     schema,
     scopes,
     root,
-    sources: hook.memberships,
+    sources,
     budget: positiveInteger(
       overrides.budget ?? hook.budget ?? supabaseMembershipsBudget,
       "budget",

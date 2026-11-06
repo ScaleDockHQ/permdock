@@ -134,7 +134,7 @@ export default {
         'grant select on table "identity"."roles" to supabase_auth_admin;',
       );
       expect(hook).toContain(`create trigger "permdock_authz_version"
-  after update or delete on "identity"."roles"
+  after insert or update or delete on "identity"."roles"
   for each row execute function "permdock".permdock_bump_authz_version_role_keys();`);
     });
 

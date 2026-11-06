@@ -3,7 +3,9 @@ import type {
   SupabaseManifestActiveFrom,
   SupabaseManifestMembership,
 } from "../../supabase/manifest.ts";
+import type { RoleSource } from "../../supabase/roles.ts";
 import type { SqlMembershipSource } from "../../supabase/sources.ts";
+import type { RoleMap, RoleThrough } from "../../supabase/types.ts";
 import type {
   RlsMembershipTable,
   RlsMemberships,
@@ -15,6 +17,7 @@ import { scopeColumn } from "../../conditions/compile.ts";
 import { resolveScope, scopeChain } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { roleManifest } from "../../supabase/roles.ts";
+import { junctionMembershipSource } from "../../supabase/sources.ts";
 import { configError } from "../core/errors.ts";
 import {
   hasMemberFor,
@@ -196,13 +199,70 @@ export function typedUsers(parts: Parts): string {
   return vars.map((line) => `\n  ${line}`).join("");
 }
 
+function isRoleList(
+  role: RlsMembershipTable["role"],
+): role is readonly RoleSource[] {
+  return Array.isArray(role);
+}
+
+function junctionRoles(
+  role: RlsMembershipTable["role"],
+):
+  | string
+  | RoleMap
+  | RoleThrough
+  | { readonly sources: readonly RoleSource[] } {
+  if (isRoleList(role)) {
+    return { sources: role };
+  }
+  return role;
+}
+
+/**
+ * `supabase.hook.memberships`, or one junction source per `rls.memberships`
+ * scope table when the hook leaves memberships unset.
+ */
+export function hookMemberships(
+  memberships: readonly SqlMembershipSource[] | undefined,
+  tables: RlsMemberships | undefined,
+  scopes: readonly Scope[],
+): readonly SqlMembershipSource[] {
+  if (memberships !== undefined) {
+    return memberships;
+  }
+  return Object.entries(tables?.scopes ?? {}).map(([key, table]) => {
+    const scope = resolveScope(scopes, key) ?? key;
+    const id = scopeColumn(table, scopes, scope) ?? table.id;
+    const within: Record<string, string> = {};
+    for (const ancestor of scopeChain(scopes, scope).slice(1)) {
+      const column = scopeColumn(table, scopes, ancestor);
+      if (column !== undefined) {
+        within[ancestor] = column;
+      }
+    }
+    return junctionMembershipSource({
+      table: table.table,
+      scope,
+      ...(id === undefined ? {} : { id }),
+      user: table.user,
+      roles: junctionRoles(table.role),
+      ...(Object.keys(within).length === 0 ? {} : { within }),
+      ...(table.expiresAt === undefined ? {} : { expiresAt: table.expiresAt }),
+      ...(table.disabledAt === undefined
+        ? {}
+        : { disabledAt: table.disabledAt }),
+      ...(typeof table.via === "object" ? { via: table.via.value } : {}),
+    });
+  });
+}
+
 export function checkSources(parts: {
   readonly sources: readonly SqlMembershipSource[];
   readonly scopes: readonly Scope[];
 }): void {
   if (parts.sources.length === 0) {
     throw configError(
-      "PermDock CLI: supabase.hook.memberships needs at least one tableMembershipSource, junctionMembershipSource or blockMembershipSource source",
+      "PermDock CLI: supabase.hook.memberships needs at least one tableMembershipSource, junctionMembershipSource or blockMembershipSource source, or rls.memberships",
     );
   }
   for (const source of parts.sources) {

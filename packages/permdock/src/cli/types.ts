@@ -861,9 +861,10 @@ export type RlsStorage = {
 export type SupabaseHookConfig = {
   /**
    * The same `tableMembershipSource` / `junctionMembershipSource` sources the
-   * app passes as `memberships`.
+   * app passes as `memberships`. Default: one junction source per
+   * `rls.memberships` scope table.
    */
-  readonly memberships: readonly SqlMembershipSource[];
+  readonly memberships?: readonly SqlMembershipSource[];
   /**
    * Schema of the hook and the version table. Default `rls.schema`, else
    * `permdock`.

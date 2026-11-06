@@ -383,6 +383,34 @@ function roleKeyHolders(parts: Parts): readonly RoleKeyHolder[] {
  * The bump for one roles table: unchanged keys and ids return early, else every
  * holder of `old` is bumped.
  */
+function holderSelect(holder: RoleKeyHolder, row: "old" | "new"): string {
+  const held = holder.through.match
+    .map(([ref, id]) => `h.${quoteIdent(ref)} = ${row}.${quoteIdent(id)}`)
+    .join(" and ");
+  return holder.userThrough === undefined
+    ? `select h.${quoteIdent(holder.user)}::uuid as user_id from ${quoteQualified(holder.table)} h where ${held}`
+    : `select u.${quoteIdent(holder.userThrough.key)}::uuid as user_id from ${quoteQualified(holder.table)} h join ${quoteQualified(holder.userThrough.table)} u on u.${quoteIdent(holder.userThrough.id)} = h.${quoteIdent(holder.user)} where ${held}`;
+}
+
+function bumpHolders(
+  selects: readonly string[],
+  versionTable: string,
+  indent: string,
+): string {
+  return `${indent}insert into ${versionTable} as v (user_id, version)
+${indent}select distinct h.user_id, 1
+${indent}from (
+${indent}  ${selects.join(`\n${indent}  union\n${indent}  `)}
+${indent}) h
+${indent}where h.user_id is not null
+${indent}  and exists (select 1 from auth.users au where au.id = h.user_id)
+${indent}on conflict (user_id) do update set version = v.version + 1;`;
+}
+
+/**
+ * An insert bumps the new holder, a delete the old one, and an update that
+ * moves the row both. An update that changes no key returns without a write.
+ */
 function roleKeysBumpSql(
   holders: readonly RoleKeyHolder[],
   versionTable: string,
@@ -401,35 +429,24 @@ function roleKeysBumpSql(
       (column) =>
         `new.${quoteIdent(column)} is not distinct from old.${quoteIdent(column)}`,
     )
-    .join(`\n${indent}  and `);
-  const selects = holders
-    .map((holder) => {
-      const held = holder.through.match
-        .map(([ref, id]) => `h.${quoteIdent(ref)} = old.${quoteIdent(id)}`)
-        .join(" and ");
-      return holder.userThrough === undefined
-        ? `select h.${quoteIdent(holder.user)}::uuid as user_id from ${quoteQualified(holder.table)} h where ${held}`
-        : `select u.${quoteIdent(holder.userThrough.key)}::uuid as user_id from ${quoteQualified(holder.table)} h join ${quoteQualified(holder.userThrough.table)} u on u.${quoteIdent(holder.userThrough.id)} = h.${quoteIdent(holder.user)} where ${held}`;
-    })
-    .join(`\n${indent}  union\n${indent}  `);
-  return `${indent}if tg_op = 'UPDATE'
-${indent}  and ${unchanged} then
+    .join(`\n${indent}    and `);
+  const oldRows = holders.map((holder) => holderSelect(holder, "old"));
+  const newRows = holders.map((holder) => holderSelect(holder, "new"));
+  return `${indent}if tg_op = 'INSERT' then
+${bumpHolders(newRows, versionTable, `${indent}  `)}
+${indent}elsif tg_op = 'DELETE' then
+${bumpHolders(oldRows, versionTable, `${indent}  `)}
+${indent}elsif ${unchanged} then
 ${indent}  return null;
-${indent}end if;
-${indent}insert into ${versionTable} as v (user_id, version)
-${indent}select distinct h.user_id, 1
-${indent}from (
-${indent}  ${selects}
-${indent}) h
-${indent}where h.user_id is not null
-${indent}  and exists (select 1 from auth.users au where au.id = h.user_id)
-${indent}on conflict (user_id) do update set version = v.version + 1;`;
+${indent}else
+${bumpHolders([...oldRows, ...newRows], versionTable, `${indent}  `)}
+${indent}end if;`;
 }
 
 /**
- * A renamed role key changes the `roles` claim of everyone who holds it and the
- * `roles` of every membership that references it, so updates to a roles table
- * bump each holder.
+ * A new membership role, a removed one, or a renamed role key changes the
+ * `roles` claim, so an insert, update or delete on the roles table bumps each
+ * holder. A moved row bumps the old holder and the new one.
  */
 function roleKeysVersionSql(parts: Parts, versionTable: string): string {
   const holders = roleKeyHolders(parts);
@@ -467,7 +484,7 @@ ${roleKeysBumpSql(group.holders, versionTable, "    ")}
       const target = quoteQualified(group.table);
       return `drop trigger if exists ${quoteIdent(VERSION_TRIGGER)} on ${target};
 create trigger ${quoteIdent(VERSION_TRIGGER)}
-  after update or delete on ${target}
+  after insert or update or delete on ${target}
   for each row execute function ${bump}();`;
     })
     .join("\n");

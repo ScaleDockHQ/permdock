@@ -219,7 +219,7 @@ function claimsFirstFor(
       continue;
     }
     mapped = true;
-    const source = hook.memberships.find(
+    const source = hook.memberships?.find(
       (item) => item.sql.scope === scope.name,
     );
     if (

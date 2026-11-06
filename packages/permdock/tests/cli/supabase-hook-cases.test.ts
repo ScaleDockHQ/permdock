@@ -27,6 +27,29 @@ const hookWith = (memberships: readonly SqlMembershipSource[]) => () =>
     supabase: { hook: { memberships } },
   });
 
+describe("supabase.hook.memberships", () => {
+  it("defaults to the rls.memberships scope tables", () => {
+    const { sql } = supabaseHookSql(scopes, {
+      policy: "p.ts",
+      rls: {
+        memberships: {
+          scopes: {
+            organization: {
+              table: "organization_members",
+              user: "user_id",
+              role: "role",
+              columns: { organization: "organization_id" },
+            },
+          },
+        },
+      },
+      supabase: { hook: {} },
+    });
+    expect(sql).toContain('from "public"."organization_members" m');
+    expect(sql).toContain("memberships_for");
+  });
+});
+
 describe(activeFromSql, () => {
   it("reads app_metadata, a table column or a mapped id column", () => {
     expect(activeFromSql(undefined, "organization")).toStrictEqual({
