@@ -16,6 +16,7 @@ import {
   usePermDock,
   usePermission,
   usePermissions,
+  useRefreshOn,
   useRoles,
   useSubject,
   useTenant,
@@ -55,6 +56,7 @@ function Probe(): string {
   const { roles } = useRoles();
   const subject = useSubject();
   const permdock = usePermDock();
+  useRefreshOn([() => () => undefined]);
   return `${allowed}:${actions.granted.length}:${editable.length}:${editable.partial}:${tenant.tenant ?? "none"}:${memberships.length}:${roles.map((item) => item.key).join(",")}:${subject.simulated}:${permdock.status()}`;
 }
 

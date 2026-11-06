@@ -95,6 +95,54 @@ async function withDocument(
   return { permdock, errors };
 }
 
+describe("hosted approval shapes the code does not accept", () => {
+  it("drops an unknown mode, a non-confirm fallback and an escalation the code does not have", () => {
+    const merged = mergeHostedGrants(
+      policy,
+      document([
+        {
+          id: "g_mode",
+          permission: "invoice.delete",
+          to: { kind: "role", role: "auditor", scope: "global" },
+          approval: { by: "auditor", mode: "sign" },
+        },
+        {
+          id: "g_fallback",
+          permission: "invoice.delete",
+          to: { kind: "role", role: "auditor", scope: "global" },
+          approval: { by: "auditor", fallback: "deny" },
+        },
+        {
+          id: "g_escalates",
+          permission: "invoice.delete",
+          to: { kind: "role", role: "auditor", scope: "global" },
+          approval: {
+            by: "auditor",
+            escalation: { after: 3600, to: "auditor" },
+          },
+        },
+      ]),
+    );
+    expect(merged.dropped.map((item) => item.grant).toSorted()).toStrictEqual([
+      "g_escalates",
+      "g_fallback",
+      "g_mode",
+    ]);
+  });
+
+  it("leaves a policy with nothing hostable unchanged", () => {
+    const bare = definePolicy(permissions, {
+      roles: [role("member", [allow(permissions.invoice.read)])],
+      subject: (user: User) => user,
+    });
+    const source = memoryPolicySource(document([]));
+    expect(hostedPolicies(source).apply(bare)).toStrictEqual({
+      policy: bare,
+      errors: [],
+    });
+  });
+});
+
 describe("hosted grants", () => {
   it("ignores hosted grants without a policies source", async () => {
     const permdock = getPermDockSync(policy, proUser);

@@ -557,4 +557,64 @@ describe("access reviews", () => {
       ),
     ).rejects.toThrow(/not found/u);
   });
+
+  it("pages the item list and maps the remaining refusal codes", async () => {
+    const opener = getPermDockSync(policy, inTenant("ann", ["owner"]));
+    const store = memoryAccessReviewStore();
+    await startAccessReview(
+      opener,
+      {
+        id: "paged",
+        permissions: [permissions.billing.view],
+        reviewers: user("ann"),
+        dueAt: "2026-12-31T00:00:00.000Z",
+      },
+      {
+        reviews: store,
+        holders: [
+          { principal: "ben", permission: "billing.view", via: ["member"] },
+        ],
+      },
+    );
+    const item = (await store.items({ review: "paged" })).items[0];
+    if (item === undefined) {
+      throw new Error("expected an item");
+    }
+    const listed = store.items.bind(store);
+    const paged = {
+      ...store,
+      items: (query: Parameters<typeof store.items>[0]) =>
+        query.cursor === undefined
+          ? Promise.resolve({ items: [], next: "more" })
+          : listed({ review: query.review }),
+    };
+    const url = `https://api.example.com/access-reviews/paged/${encodeURIComponent(item.id)}/revoke`;
+    const anonymous = accessReviewsHandler(store, {
+      subject: () => ({ principal: null, context: {} }),
+    });
+    expect(
+      (
+        await anonymous(
+          new Request(url, {
+            method: "POST",
+            headers: { authorization: "Bearer x" },
+          }),
+        )
+      ).status,
+    ).toBe(401);
+    const owner = accessReviewsHandler(paged, {
+      subject: () => inTenant("ann", ["owner"]),
+    });
+    expect(
+      (
+        await owner(
+          new Request(url, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: "{",
+          }),
+        )
+      ).status,
+    ).toBe(200);
+  });
 });
