@@ -1,0 +1,40 @@
+---
+title: Seeds
+description: defineSeeds separates role defaults, which ship in a migration, from fixture rows, which stay in supabase/seeds.
+---
+
+`defineSeeds(policy, { defaults, fixtures })` is the seed data `permdock generate` writes. Defaults and fixtures are different files.
+
+## Defaults
+
+`defaults.roles` is a role key, a scope and the permission references that role holds. Generate writes those rows into the `role_permissions` migration, or into the `role_permissions` view when `rls.seeds` is `"view"`. A default that names an unknown role, scope or permission is doctor PD097.
+
+## Fixtures
+
+`fixtures` holds users, tenants, memberships, custom roles and rows. Generate writes them to `supabase/seeds/permdock.sql`. A migration or a schema file that contains the fixture marker is PD097.
+
+The CLI prints this block and does not edit `supabase/config.toml`:
+
+```toml
+[db.seed]
+sql_paths = ['./seeds/permdock.sql']
+```
+
+Add that block so `supabase db reset` loads the fixtures. Without it, PD097 warns.
+
+## Per backend
+
+| Backend                           | Defaults                                         | Fixtures                                  |
+| --------------------------------- | ------------------------------------------------ | ----------------------------------------- |
+| Supabase, `rls.seeds: "function"` | `select <schema>.seed()` after deploy            | `supabase/seeds/permdock.sql`             |
+| Supabase, `rls.seeds: "view"`     | the `role_permissions` view                      | `supabase/seeds/permdock.sql`             |
+| Drizzle or Prisma                 | the defaults migration the `rls()` plugin writes | not applied; the app's own seed owns rows |
+| Memory                            | none                                             | `memorySources` in tests                  |
+
+Fixture rows never go in a schema file. The view cannot take hand-added `role_permissions` rows.
+
+## Related
+
+- [generate](/docs/cli/generate)
+- [RLS](/docs/adapters/rls)
+- [Custom roles](/docs/concepts/custom-roles)

@@ -5,6 +5,8 @@ description: Write the files each configured plugin emits from the policy, in on
 
 `permdock generate` loads the policy, builds one model, and runs every plugin in `plugins`. A config with `plugins: []` is valid and writes no plugin files. `--check` writes nothing and exits 1 when a file would change. The diff is on stdout, one `+` or `~` row per file. The receipt is on stderr.
 
+`rls generate`, `supabase hook generate`, `powersync generate`, `scim generate` and `openapi emit` are not commands. `permdock generate --only <plugin>` writes that plugin. `permdock codemod 0.26` rewrites `package.json` scripts.
+
 ## Usage
 
 ```bash

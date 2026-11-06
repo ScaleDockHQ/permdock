@@ -1,0 +1,54 @@
+---
+title: Plugins
+description: definePlugin is the contract permdock generate runs. Each plugin plans tasks from the policy model and emits files.
+---
+
+`permdock generate` runs the plugins in `permdock.config.ts`. A plugin is a frozen object from `definePlugin`.
+
+## Contract
+
+`definePlugin` takes `name`, `version`, `plan` and `emit`. `after` names plugins that run first. `inputs` lists the files and options a cache entry depends on. Without `inputs`, the plugin depends on nothing but the model.
+
+`plan(model, ctx)` returns tasks. A task is `{ id, out }`. `out` is the file the task owns, relative to the project.
+
+`emit(task, model, source)` returns `{ path, contents }`. It reads no project file except what `inputs` named. `source` is present in the main process and absent in a worker, so a third-party plugin keeps `emit` a function of `task` and `model`.
+
+## Built-in plugins
+
+| Plugin             | Writes                                                             |
+| ------------------ | ------------------------------------------------------------------ |
+| `rls()`            | Helpers, policies, seeds and the split parts                       |
+| `supabaseHook()`   | The Custom Access Token Hook                                       |
+| `powersync()`      | Sync Streams for `powersync.resources`                             |
+| `betterSupabase()` | The better-supabase authorization file                             |
+| `openapi()`        | An annotated document, and the operations map when `routes` is set |
+| `scim()`           | The SCIM schema file                                               |
+
+`permdock generate --only rls` runs one of them. Repeat `--only` for more than one. Plugin order is the `plugins` array, then each plugin's `after` list.
+
+## A third-party plugin
+
+```ts
+import { definePlugin } from "permdock/cli";
+
+export function notes() {
+  return definePlugin({
+    name: "notes",
+    version: "1",
+    plan: () => [{ id: "notes", out: "src/notes.generated.ts" }],
+    emit: () => [
+      {
+        path: "src/notes.generated.ts",
+        contents: "export const notes = [];\n",
+      },
+    ],
+  });
+}
+```
+
+The config lists `notes()` in `plugins`. `permdock generate --check` fails when the file on disk differs.
+
+## Related
+
+- [generate](/docs/cli/generate)
+- [RLS](/docs/adapters/rls)

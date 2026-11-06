@@ -5,6 +5,8 @@ description: permdock rls generate, import and verify round-trip PermDock polici
 
 `permdock rls` is the CLI surface (with a `permdock/rls` runtime for the parity runner) that compiles roles and grants to Postgres row-level security policies, imports existing policies back into generated definitions, and verifies that in-process decisions and database outcomes agree.
 
+Write the SQL with `permdock generate --only rls`. Both `permitted_<resource>_row` overloads are `can_<resource>`. A resource that shares the owner's table is `also` on that owner. `follows` writes the child table's policies. `rls.seeds: "view"` makes `role_permissions` a view. A verb with no `rls.actions` entry and no inferred command fails generate.
+
 ## Database-first (SQL is the authority)
 
 TypeScript-first is the default: `generate` emits policies from `definePolicy`. Teams whose SQL catalog is authority (declarative `supabase/schemas`, helper functions, CI that must not `db push`) keep that catalog. They never have to run `generate`. They pin a policy with `sqlFunction` twins, map names in `rls.functions`, and run `permdock rls verify --db-url-stdin` so `can()` on the twin agrees with the live function. `--inline-functions` is for generate targets that cannot call a SQL function; it is not required for database-first CI.

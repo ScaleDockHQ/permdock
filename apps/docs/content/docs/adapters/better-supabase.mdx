@@ -9,6 +9,8 @@ The entry needs `better-supabase` 0.53 or later as a peer (`>=0.53.0`). The rang
 
 Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
 
+A better-supabase app imports `definePermDock` from `permdock/better-supabase`. That definition owns the caches and adds `.authorizer` and `.next`. `permdock/app` has neither. `authorizationProvider` fills `platformRoles` and `functions.subject` unless the option is `false`. `suspension.userKey` is the user id column. `personas: "roles"` builds personas from the catalog.
+
 ## Why
 
 - better-supabase has slots, not a PermDock mode. Its config takes an `authorization` provider, a bucket or topic takes an `access` policy, and its API key block takes a claim and a verifier. Each slot is a neutral, versioned contract (`apiVersion: 1`), so PermDock fills it the way `permdock/better-auth` fills Better Auth's role source, and any other authorization package could fill it too.

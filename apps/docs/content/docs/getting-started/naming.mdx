@@ -607,6 +607,23 @@ PermDock's subject vocabulary is TypeScript, camelCase and typed; the specificat
 - Example apps are `apps/examples/<adapter>`; the docs page is `/docs/adapters/<adapter>`; the source folder is `packages/permdock/src/<adapter>`. The same short name is used in all three.
 - Errors are `PermDockDeniedError`, `PermDockApprovalRequiredError`, `PermDockValidationError` and `PermDockRevokedError`. Any other error class is a domain error with an `is<Name>` guard: `ApprovalError` and `isApprovalError`, `AccessReviewError` and `isAccessReviewError`, `DirectoryUniquenessError` and `isDirectoryUniquenessError`, `DirectoryNotFoundError` and `isDirectoryNotFoundError`, `CloudAuthError` and `isCloudAuthError`, plus `InvalidSignatureError`. Every guard matches by `name` and `code`, so an error from another copy of the module still maps. Problem Details `type` URIs end in `/denied`, `/approval-required` and `/validation`. The first two carry `digest` (React's name for the property that survives the Server Component boundary): `PERMDOCK_DENIED;<permission>` and `PERMDOCK_APPROVAL_REQUIRED;<permission>;<token>`, read with `parsePermDockDigest`.
 
+## Renamed in 0.26.0
+
+`permdock codemod 0.26` rewrites the helper calls, `{ tableOf }`, inferred `rls.actions` entries and a stored catalog. The old generate commands have no alias.
+
+| Old                                                            | New                                              |
+| -------------------------------------------------------------- | ------------------------------------------------ |
+| `permitted_<resource>_row(`                                    | `can_<resource>(`                                |
+| `membership_entries_for`                                       | `memberships_for`                                |
+| catalog `catalog-v1.json`, `version: 1`                        | `catalog-v2.json`, `version: 2`                  |
+| `permdock rls generate`                                        | `permdock generate --only rls`                   |
+| `permdock supabase hook generate`                              | `permdock generate --only supabase-hook`         |
+| `permdock powersync generate`                                  | `permdock generate --only powersync`             |
+| `permdock scim generate`                                       | `permdock generate --only scim`                  |
+| `permdock openapi emit`                                        | `permdock generate --only openapi`               |
+| `rls.tables.<child>: { tableOf: '<owner>' }`                   | `also` on the owner                              |
+| `definePermDock` from `permdock/app` for a better-supabase app | `definePermDock` from `permdock/better-supabase` |
+
 ## Renamed in 0.22.0
 
 `permdock codemod 0.5` lists the `defineApp` call sites; `doctor.sharedTables` has no codemod, since only the reader knows which resource owns the table.

@@ -2,6 +2,7 @@
   "title": "Concepts",
   "defaultOpen": true,
   "pages": [
+    "seeds",
     "permissions",
     "policies",
     "apps",
