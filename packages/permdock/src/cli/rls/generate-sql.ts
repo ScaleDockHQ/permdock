@@ -56,6 +56,7 @@ import { permissionHoldersSql } from "./permission-holders.ts";
 import { permissionHelpersSql } from "./permission-keys.ts";
 import { actorMayWriteSql, readOnlyActorKinds } from "./policies.ts";
 import { rbacScaffold } from "./rbac.ts";
+import { storageResources } from "./realtime-storage.ts";
 import { CANDIDATES, inheritTargets, rowHelpersSql } from "./rows.ts";
 import { shimGrants, shimsSql } from "./shims.ts";
 import { auditSql, generatedTables, triggersSql } from "./triggers.ts";
@@ -220,7 +221,14 @@ function sectionsSql(
   }
   const graphed = graphSql(ctx, graph, tableNames(rls?.tables));
   let rowHelpers = "";
-  if (rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0) {
+  const storageRows = storageResources(rls?.storage);
+  const asked = rls?.rowHelpers;
+  const select = asked === true ? true : [...(asked ?? []), ...storageRows];
+  if (
+    asked !== undefined ||
+    inheritTargets(policy).length > 0 ||
+    storageRows.length > 0
+  ) {
     const readable = (grants: CompiledGrants): readonly CompiledBranch[] => [
       ...(options.fieldsMode === undefined
         ? grants.branches
@@ -241,7 +249,7 @@ function sectionsSql(
         rowCtx,
         policy,
         readable(compiled),
-        rls?.rowHelpers ?? [],
+        select,
         tableNames(rls?.tables),
         warnings,
         readable(narrowed),

@@ -271,6 +271,12 @@ describe(executeGenerate, () => {
       source,
     );
     expect(sql.map((file) => file.contents).join("")).toContain("note.read");
+    const warned = await rls({ out: "rls.sql" }).emit(
+      { id: "sql", out: "rls.sql" },
+      model,
+      { ...source, config: { ...config, rls: { seeds: "function" } } },
+    );
+    expect(warned.notes?.join("\n")).toContain(".seed()");
     const tables = await scim({ out: "scim.sql" }).emit(
       { id: "schema", out: "scim.sql" },
       model,

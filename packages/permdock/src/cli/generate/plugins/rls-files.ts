@@ -98,8 +98,9 @@ export async function filesForRls(
     ]),
   ];
   const seeds = source.config.seeds;
+  const notes = outcome.output === "" ? [] : outcome.output.split("\n");
   if (!isSeeds(seeds)) {
-    return files;
+    return noted(files, notes);
   }
   const schema = applied.config.schema ?? "permdock";
   const mode = applied.config.seeds;
@@ -125,5 +126,5 @@ export async function filesForRls(
   if (fixturesPresent(seeds)) {
     files.push({ path: FIXTURES_PATH, contents: fixturesSeedSql(seeds) });
   }
-  return noted(files, outcome.output === "" ? [] : outcome.output.split("\n"));
+  return noted(files, notes);
 }

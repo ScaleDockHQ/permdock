@@ -109,6 +109,9 @@ describe("rls realtime storage", () => {
         /"permdock_storage_asset_files_update"[\s\S]*?using \(bucket_id[\s\S]*?with check \(bucket_id/u,
       );
       expect(sql).toContain(`${id} 'asset.delete'::text));`);
+      expect(sql).toContain(
+        'create or replace function "permdock".can_asset(p_id uuid, p_permission text)',
+      );
       expect(sql).not.toMatch(/alter table "storage"|grant .* on "storage"/u);
     });
 

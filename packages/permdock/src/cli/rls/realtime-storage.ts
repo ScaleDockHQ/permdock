@@ -65,6 +65,27 @@ function grantKey(
   return key;
 }
 
+/**
+ * Resources a storage bucket calls `can_<resource>(id, permission)` for. Those
+ * id helpers have to exist even when `rls.rowHelpers` does not name them.
+ */
+export function storageResources(
+  storage: RlsStorage | undefined,
+): readonly string[] {
+  if (storage === undefined) {
+    return [];
+  }
+  const names = new Set<string>();
+  for (const bucket of Object.values(storage.buckets)) {
+    for (const ref of [bucket.read, bucket.write, bucket.delete]) {
+      if (ref !== undefined) {
+        names.add(resourceOf(ref.key));
+      }
+    }
+  }
+  return [...names].toSorted();
+}
+
 /** The resource a permission key names, before its action, group and level. */
 function resourceOf(key: string): string {
   const base = key.split("#")[0]?.split("@")[0] ?? key;

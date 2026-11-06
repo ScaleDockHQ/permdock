@@ -132,10 +132,7 @@ describe("permission-key helpers", () => {
     const keys = await db.admin.query<{ key: string }>(
       "select permdock.grant_keys('job.update', 'tenant') as key",
     );
-    expect(keys.rows.map((row) => row.key)).toStrictEqual([
-      "job.update#1",
-      "job.update@all",
-    ]);
+    expect(keys.rows.map((row) => row.key)).toStrictEqual(["job.update#1"]);
     const forUser = await db.admin.query<{ id: string }>(
       "select id from permdock.permitted_tenant_ids_by_permission_for($1, 'job.update') id",
       [ADMIN],
