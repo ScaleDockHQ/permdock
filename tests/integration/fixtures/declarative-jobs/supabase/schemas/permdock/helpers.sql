@@ -936,7 +936,14 @@ set search_path = ''
 as $$
   with permdock_candidates as (select (p_row).*)
   select exists (select 1 from permdock_candidates where case p_permission
-    when 'job.read' then coalesce(("organizationId" in (select "permdock".permitted_tenant_ids('job.read'))), false)
+    when 'job.read' then coalesce(("organizationId" in (select e::uuid from jsonb_array_elements_text(case when (nullif(current_setting('permdock.m.' || 'tenant' || '.k' || (hashtext('job.read') & 1023)::text, true), '')::jsonb ->> 'k') = md5(concat_ws('|',
+      (select "permdock".permdock_user_id())::text,
+      'job.read',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    )) then nullif(current_setting('permdock.m.' || 'tenant' || '.k' || (hashtext('job.read') & 1023)::text, true), '')::jsonb -> 'ids' else to_jsonb(array(select * from "permdock".permitted_tenant_ids('job.read'))) end) s(e))), false)
     else false
   end)
 $$;
@@ -970,16 +977,16 @@ set search_path = ''
 as $$
 declare
   v_row "public"."jobs";
-  v_rows "public"."jobs"[] := '{}';
+  v_rows "public"."jobs"[] := '{}'::"public"."jobs"[];
   v_id uuid;
 begin
   begin
-    foreach v_id in array coalesce(p_ids, '{}') loop
+    foreach v_id in array coalesce(p_ids, '{}'::uuid[]) loop
       v_row."id" := v_id;
       v_rows := pg_catalog.array_append(v_rows, v_row);
     end loop;
   exception when data_exception then
-    v_rows := '{}';
+    v_rows := '{}'::"public"."jobs"[];
     foreach v_id in array p_ids loop
       begin
         v_row."id" := v_id;

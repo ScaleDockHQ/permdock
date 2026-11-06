@@ -47,9 +47,25 @@ export type PluginInputs = {
   readonly options: unknown;
 };
 
+/** One doctor finding a plugin reports from the model. */
+export type PluginFinding = {
+  readonly code: string;
+  readonly severity: "error" | "warning" | "info";
+  readonly message: string;
+};
+
+/**
+ * A command a plugin adds to the CLI. Declared on the plugin and listed by
+ * `permdock generate --help`; dispatch is not wired yet.
+ */
+export type PluginCommand = { readonly name: string; readonly summary: string };
+
 /**
  * A generate plugin. `emit` is pure in `task` and `model`: it reads no project
- * files except what `inputs` named. `after` is ordering only.
+ * files except what `inputs` named. `after` is ordering only. `seeds` returns
+ * seed files the plugin owns, written with the emitted files. `doctor` reports
+ * findings about the model; the run prints them after the Generated line.
+ * `commands` names commands the plugin adds.
  */
 export type PermDockPlugin = {
   readonly name: string;
@@ -67,6 +83,15 @@ export type PermDockPlugin = {
     model: PolicyModel,
     source?: EmitSource,
   ) => PluginEmit | Promise<PluginEmit>;
+  readonly seeds?: (
+    model: PolicyModel,
+    ctx: ProjectContext,
+  ) => readonly EmittedFile[] | Promise<readonly EmittedFile[]>;
+  readonly doctor?: (
+    model: PolicyModel,
+    ctx: ProjectContext,
+  ) => readonly PluginFinding[] | Promise<readonly PluginFinding[]>;
+  readonly commands?: readonly PluginCommand[];
 };
 
 export type PluginInit = {
@@ -76,6 +101,9 @@ export type PluginInit = {
   readonly inputs?: PermDockPlugin["inputs"];
   readonly plan: PermDockPlugin["plan"];
   readonly emit: PermDockPlugin["emit"];
+  readonly seeds?: PermDockPlugin["seeds"];
+  readonly doctor?: PermDockPlugin["doctor"];
+  readonly commands?: PermDockPlugin["commands"];
 };
 
 /**
@@ -102,6 +130,11 @@ export function definePlugin(init: PluginInit): PermDockPlugin {
     inputs: init.inputs ?? emptyInputs,
     plan: init.plan,
     emit: init.emit,
+    ...(init.seeds === undefined ? {} : { seeds: init.seeds }),
+    ...(init.doctor === undefined ? {} : { doctor: init.doctor }),
+    ...(init.commands === undefined
+      ? {}
+      : { commands: Object.freeze([...init.commands]) }),
   });
 }
 

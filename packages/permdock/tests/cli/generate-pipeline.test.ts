@@ -184,6 +184,43 @@ describe("generate pipeline", () => {
     expect(calls).toBe(2);
   });
 
+  it("writes a plugin's seed files and prints its doctor findings", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "permdock-generate-"));
+    dirs.push(cwd);
+    const seeded = definePlugin({
+      name: "seeded",
+      version: "1",
+      plan: () => [{ id: "a", out: "a.txt" }],
+      emit: () => [{ path: "a.txt", contents: "a\n" }],
+      seeds: (model) => [
+        { path: "seed.txt", contents: `${String(model.roles.length)} roles\n` },
+      ],
+      doctor: () => [
+        { code: "X001", severity: "warning", message: "check the thing" },
+      ],
+      commands: [{ name: "seeded", summary: "Seeds" }],
+    });
+    expect(seeded.commands).toStrictEqual([
+      { name: "seeded", summary: "Seeds" },
+    ]);
+    const run = await runGenerate({
+      cwd,
+      policy,
+      plugins: [seeded],
+      config: {},
+      ctx: await projectContext(cwd),
+      check: false,
+      dryRun: false,
+      noCache: true,
+    });
+    expect(readFileSync(join(cwd, "seed.txt"), "utf8")).toBe("1 roles\n");
+    expect(run.files.map((file) => file.path)).toStrictEqual([
+      "a.txt",
+      "seed.txt",
+    ]);
+    expect(run.notes).toStrictEqual(["X001 warning: check the thing"]);
+  });
+
   describe("cache key", () => {
     function counted(options: unknown) {
       const calls = { n: 0 };

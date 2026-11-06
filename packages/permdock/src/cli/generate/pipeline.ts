@@ -214,6 +214,14 @@ export async function runGenerate(input: {
   );
   const notes = groups.flatMap((group) => group.notes);
   const emitted = groups.flatMap((group) => group.files);
+  for (const plugin of plugins) {
+    for (const file of (await plugin.seeds?.(model, input.ctx)) ?? []) {
+      emitted.push({ plugin: plugin.name, ...file });
+    }
+    for (const finding of (await plugin.doctor?.(model, input.ctx)) ?? []) {
+      notes.push(`${finding.code} ${finding.severity}: ${finding.message}`);
+    }
+  }
   const bodies = emitted.map((item) => ({
     path: item.path,
     text: item.contents,

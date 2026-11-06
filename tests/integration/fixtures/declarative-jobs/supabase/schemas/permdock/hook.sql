@@ -116,7 +116,7 @@ begin
   team_ids := coalesce((
     select jsonb_agg(to_jsonb(u.id::text) order by u.n)
     from unnest(array(
-      select id from "permdock".member_team_ids_for(uid, active)
+      select team_id from "permdock".member_team_ids_for(uid, active) as team(team_id)
     )) with ordinality as u(id, n)
   ), '[]'::jsonb);
   if octet_length(team_ids::text) > budget then
@@ -247,7 +247,7 @@ begin
   select coalesce((
     select jsonb_agg(to_jsonb(u.id::text) order by u.n)
     from unnest(array(
-      select id from "permdock".member_team_ids_for(uid)
+      select team_id from "permdock".member_team_ids_for(uid) as team(team_id)
     )) with ordinality as u(id, n)
   ), '[]'::jsonb)
     into team_ids;
