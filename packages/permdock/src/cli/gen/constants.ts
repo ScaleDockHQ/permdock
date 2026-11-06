@@ -174,6 +174,9 @@ export function constantsModule(model: GenModel, header: string): string {
       model.labels.permissions.map(([permission]) => permission),
     ).join("\n"),
   ];
+  if (model.plans.length > 0) {
+    parts.push(tuple("planNames", "PlanName", model.plans).join("\n"));
+  }
   if (model.operations.length > 0) {
     parts.push(
       tuple(

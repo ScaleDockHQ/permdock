@@ -569,6 +569,29 @@ export default { policy: "./policy.ts", plugins: [echo] };
     expect(result.stderr).toContain("Generated 1 file");
     expect(readFileSync(join(cwd, "echo.txt"), "utf8")).toBe("cmd\n");
   });
+
+  it("runs a plugin command by name and leaves unknown names an error", async () => {
+    const cwd = configured();
+    const hello = definePlugin({
+      name: "hello",
+      version: "1",
+      plan: () => [],
+      emit: () => [],
+      commands: [
+        {
+          name: "hello",
+          summary: "Greets",
+          run: ({ args }) => ({ code: 0, output: `hello ${args.join(",")}` }),
+        },
+      ],
+    });
+    const ok = await run(["hello", "a", "b"], { cwd, plugins: [hello] });
+    expect(ok.code).toBe(0);
+    expect(ok.stdout).toContain("hello a,b");
+    const missing = await run(["goodbye"], { cwd, plugins: [hello] });
+    expect(missing.code).toBe(2);
+    expect(missing.stderr).toContain("unknown command 'goodbye'");
+  });
 });
 
 describe("watch reply", () => {

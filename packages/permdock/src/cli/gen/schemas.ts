@@ -169,6 +169,25 @@ function arrayOf(kind: SchemaKind, ident: string): string {
   }
 }
 
+/**
+ * Fails the build when a row schema's output drifts from its `types.ts` row
+ * type.
+ */
+function rowGuard(kind: SchemaKind, mini: boolean, row: string): string {
+  switch (kind) {
+    case "zod":
+      return ` satisfies ${mini ? "z.ZodMiniType" : "z.ZodType"}<${row}>`;
+    case "valibot":
+      return ` satisfies v.GenericSchema<unknown, ${row}>`;
+    case "arktype":
+      return "";
+    default: {
+      const exhaustive: never = kind;
+      return exhaustive;
+    }
+  }
+}
+
 function resultsOf(model: GenModel): readonly (readonly [string, Typed])[] {
   const byName = new Map(
     typed(model).map((resource) => [resource.name, resource]),
@@ -209,16 +228,22 @@ export function validatorModule(
       }),
     ),
   );
-  const blocks = rows.map(
-    (resource, index) =>
-      `export const ${resource.ident}Row = ${bodies[index]};`,
-  );
+  const blocks = rows.map((resource, index) => {
+    const guard = rowGuard(kind, mini, `${pascalCase(resource.name)}Row`);
+    return `export const ${resource.ident}Row = ${bodies[index]}${guard};`;
+  });
   const results = resultsOf(model).map(
     ([operation, resource]) =>
       `export const ${operation}Result = ${arrayOf(kind, `${resource.ident}Row`)};`,
   );
   const imports = mini ? 'import * as z from "zod/mini";' : IMPORTS[kind];
-  return `${[options.header, imports, ...consts, ...blocks, ...results].join("\n\n")}\n`;
+  const rowTypes =
+    rows.length > 0 && kind !== "arktype"
+      ? [
+          `import type { ${rows.map((resource) => `${pascalCase(resource.name)}Row`).join(", ")} } from "./types.ts";`,
+        ]
+      : [];
+  return `${[options.header, imports, ...rowTypes, ...consts, ...blocks, ...results].join("\n\n")}\n`;
 }
 
 function literalType(value: unknown): string {
@@ -254,7 +279,7 @@ export function typeOf(schema: JsonSchema, depth = 0): string {
 function objectType(schema: JsonSchema, depth: number): string {
   const fields = properties(schema).map(
     ([name, child, required]) =>
-      `readonly ${propertyKey(name)}${required ? "" : "?"}: ${typeOf(child, depth + 1)}`,
+      `readonly ${propertyKey(name)}${required ? "" : "?"}: ${typeOf(child, depth + 1)}${required ? "" : " | undefined"}`,
   );
   return fields.length === 0 ? "{}" : `{ ${fields.join("; ")} }`;
 }

@@ -56,9 +56,27 @@ export type PluginFinding = {
 
 /**
  * A command a plugin adds to the CLI. Declared on the plugin and listed by
- * `permdock generate --help`; dispatch is not wired yet.
+ * `permdock generate --help`, and run as `permdock <name>` when no built-in
+ * command has that name.
  */
-export type PluginCommand = { readonly name: string; readonly summary: string };
+export type PluginCommand = {
+  readonly name: string;
+  readonly summary: string;
+  /**
+   * Runs `permdock <name> ...args` in the project. The output goes to stdout
+   * and the code is the exit code.
+   */
+  readonly run?: (input: {
+    readonly cwd: string;
+    readonly config: PermDockConfig;
+    readonly args: readonly string[];
+  }) => PluginCommandResult | Promise<PluginCommandResult>;
+};
+
+export type PluginCommandResult = {
+  readonly code: 0 | 1;
+  readonly output: string;
+};
 
 /**
  * A generate plugin. `emit` is pure in `task` and `model`: it reads no project

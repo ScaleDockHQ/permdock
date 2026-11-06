@@ -40,6 +40,7 @@ import {
 import { progressReporter } from "./io.ts";
 import { resolve } from "./manifest.ts";
 import { dataOf, envelope, githubAnnotations, sarifLog } from "./output.ts";
+import { runPluginCommand } from "./plugin-commands.ts";
 import { createStyle } from "./style.ts";
 import { cliVersion } from "./version.ts";
 
@@ -347,6 +348,24 @@ export async function run(
 
   if (resolved.kind === "group") {
     if (resolved.unknown !== undefined) {
+      const custom =
+        resolved.path.length === 0
+          ? await runPluginCommand({
+              name: resolved.unknown,
+              args: rest.slice(1),
+              cwd: resolveCwd(globals.cwd, options?.cwd ?? process.cwd()),
+              ...(globals.config === undefined
+                ? {}
+                : { config: globals.config }),
+              ...(options?.plugins === undefined
+                ? {}
+                : { plugins: options.plugins }),
+            })
+          : undefined;
+      if (custom !== undefined) {
+        writeOut(custom.output);
+        return done(custom.code);
+      }
       const names = resolved.entry.children
         .filter((child) => child.kind === "group" || child.hidden !== true)
         .map((child) => child.name);

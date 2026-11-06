@@ -50,6 +50,7 @@ function model(
     operations: [],
     scopes: [],
     roles: [],
+    plans: [],
     names,
     topics: [],
     labels: { permissions: [], roles: [] },

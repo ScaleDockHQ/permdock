@@ -121,6 +121,7 @@ describe("emitted parts", () => {
         operations: [],
         scopes: [],
         roles: [],
+        plans: [],
         names,
         topics: [],
         labels: { permissions: [], roles: [] },
