@@ -287,6 +287,12 @@ describe("rls run", () => {
         code: 2,
         output: `rls.jsonSchema must be true or false (got "yes")`,
       });
+      expect(await generate(true)).toMatchObject({
+        code: 0,
+        output: expect.stringContaining(
+          "rls.jsonSchema constrains the approval store",
+        ),
+      });
       expect(await generate("auto")).toMatchObject({
         code: 2,
         output:
