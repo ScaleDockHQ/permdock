@@ -139,6 +139,14 @@ describe("seed sql", () => {
       tenant: "acme",
       permissions: [],
     });
+    const byName = memoryPostgrestSources(unnamed);
+    expect(
+      await byName.memberships.membershipsFor({ id: "ada" }, {}),
+    ).toStrictEqual([{ scope: "tenant", id: "acme", roles: [] }]);
+    expect(
+      await byName.memberships.list?.({ scope: "tenant", id: "other" }),
+    ).toStrictEqual([]);
+    expect(await byName.customRoles.rolesFor("acme")).toStrictEqual([]);
     expect(rolePersonas(seeds)).toStrictEqual([
       {
         name: "admin",
