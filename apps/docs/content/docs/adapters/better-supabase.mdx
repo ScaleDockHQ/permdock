@@ -9,7 +9,7 @@ The entry needs `better-supabase` 0.53 or later as a peer (`>=0.53.0`). The rang
 
 Everything on the [Supabase page](/docs/adapters/supabase) still applies: the hook, the helpers and the claims are the same with or without better-supabase.
 
-A better-supabase app imports `definePermDock` from `permdock/better-supabase`. That definition owns the caches and adds `.authorizer` and `.next`. `permdock/app` has neither. `authorizationProvider` fills `platformRoles` and `functions.subject` unless the option is `false`. `suspension.userKey` is the user id column. `personas: "roles"` builds personas from the catalog.
+A better-supabase app imports `definePermDock` from `permdock/better-supabase`. That definition owns the caches and adds `.authorizer` and `.next`. Each definition builds its own version, instance and subject caches: entries are keyed by principal, authorization version and tenant, bounded to 10,000 per cache with least-recently-used eviction, and expire after `maxStaleMs`. The definition keeps no module-level subject state, and the admin client is a `WeakMap` key only. `permdock/app` has neither. `authorizationProvider` fills `platformRoles` and `functions.subject` unless the option is `false`. `suspension.userKey` is the user id column. `personas: "roles"` builds personas from the catalog.
 
 ## Why
 

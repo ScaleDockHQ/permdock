@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { PermDock } from "../../src/core/permdock.ts";
@@ -79,5 +80,20 @@ describe(definePermDock, () => {
     expectTypeOf<Awaited<ReturnType<(typeof app)["server"]>>>().toEqualTypeOf<
       PermDock<Vocabulary>
     >();
+  });
+
+  it("keeps no module-level mutable state in either definition entry", () => {
+    // Invariant 7: one Fluid Compute instance serves concurrent requests, so a
+    // module-level Map, Set, WeakMap or `let` would leak one subject into the next.
+    for (const file of [
+      "../../src/better-supabase/define-permdock.ts",
+      "../../src/app/define-permdock.ts",
+    ]) {
+      const source = readFileSync(new URL(file, import.meta.url), "utf8");
+      expect(source).not.toMatch(
+        /^(?:const|let|var)\s+\w+(?::[^=]+)?=\s*new\s+(?:Weak)?(?:Map|Set)\b/mu,
+      );
+      expect(source).not.toMatch(/^let\s/mu);
+    }
   });
 });
