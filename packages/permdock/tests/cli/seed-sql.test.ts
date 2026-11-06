@@ -108,6 +108,37 @@ describe("seed sql", () => {
     });
     expect(pgtap).toContain("-- persona admin");
     expect(pgtap).toContain("permdock_persona");
+    const quiet = emitPgtap({
+      fixtures: [
+        { subject: { id: "user-1" }, row: { id: "doc-1" }, action: "doc.read" },
+      ],
+      inProcess: [{ action: "doc.read", granted: true, kind: "portable" }],
+      policy,
+      config: { rls: { dialect: "supabase" } },
+      customRoles: [],
+    });
+    expect(quiet).not.toContain("permdock_persona");
+    expect(
+      await sources.memberships.membershipsFor({ id: "missing" }, {}),
+    ).toStrictEqual([]);
+    expect(
+      await sources.memberships.list?.({ scope: "team", id: "org-1" }),
+    ).toStrictEqual([]);
+    expect(await sources.customRoles.rolesFor("other")).toStrictEqual([]);
+    expect(await sources.memberships.version?.({ id: "user-1" })).toBe(1);
+    const unnamed = defineSeeds(policy, {
+      fixtures: {
+        users: {},
+        tenants: {},
+        memberships: [{ user: "ada", tenant: "acme", roles: [] }],
+      },
+    });
+    expect(rolePersonas(unnamed)[0]).toMatchObject({
+      name: "ada",
+      user: "ada",
+      tenant: "acme",
+      permissions: [],
+    });
     expect(rolePersonas(seeds)).toStrictEqual([
       {
         name: "admin",

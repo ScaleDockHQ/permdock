@@ -17,6 +17,14 @@ async function check(name: string): Promise<void> {
 }
 
 describe("adoption fixtures", () => {
+  it("refuses role personas unless the output is pgTAP", async () => {
+    const result = await run(["rls", "verify", "--personas", "roles"], {
+      cwd: join(ADOPTION, "ts-only"),
+    });
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain("--kind pgtap");
+  });
+
   it("generates a TypeScript-only app with no plugins", async () => {
     await check("ts-only");
   });

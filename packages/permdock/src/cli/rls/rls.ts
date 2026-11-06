@@ -467,13 +467,6 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
       if (format !== "node" && format !== "pgtap") {
         return { code: 2, output: "rls verify --format must be pgtap or node" };
       }
-      if (
-        input.personas !== undefined &&
-        input.personas !== "roles" &&
-        input.personas !== ""
-      ) {
-        return { code: 2, output: "rls verify --personas must be roles" };
-      }
       if (input.personas === "roles" && format !== "pgtap") {
         return {
           code: 2,
