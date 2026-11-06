@@ -52,7 +52,7 @@ const memberships = [
 export default {
   permissions: ${JSON.stringify(POLICY)},
   policy: ${JSON.stringify(POLICY)},
-  rls: { dialect: 'supabase', membershipSources: memberships${rls} },
+  rls: { dialect: 'supabase', actions: { accept: 'none', disable: 'none', pay: 'none' }, membershipSources: memberships${rls} },
   supabase: { ${hook ? `hook: { memberships${hookFields === "" ? "" : `, ${hookFields}`} },` : ""} ${schemas === null ? "" : `schemas: '${schemas}'`} },
 };
 `,

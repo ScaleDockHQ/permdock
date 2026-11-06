@@ -12,6 +12,7 @@ describe("rls generate golden parts", () => {
       config: {
         policy: "./src/policy.ts",
         permissions: "./src/permissions.ts",
+        rls: { actions: { archive: "none", publish: "none" } },
       },
       target: "sql",
       dialect: "supabase",

@@ -26,7 +26,18 @@ describe("rls plugin", () => {
     const result = await runGenerate({
       cwd,
       policy,
-      config: { policy: POLICY },
+      config: {
+        policy: POLICY,
+        rls: {
+          actions: {
+            archive: "none",
+            publish: "none",
+            accept: "none",
+            disable: "none",
+            pay: "none",
+          },
+        },
+      },
       plugins: [rls({ out: "out.sql" })],
       ctx: await projectContext(cwd),
       check: false,

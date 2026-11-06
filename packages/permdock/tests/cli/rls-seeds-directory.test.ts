@@ -29,7 +29,10 @@ describe("rls seeds directory", () => {
   function generate(now: string, check = false, policy = MINI) {
     return runRlsGenerate({
       cwd,
-      config: { policy },
+      config: {
+        policy,
+        rls: { actions: { archive: "none", publish: "none" } },
+      },
       target: "sql",
       dialect: "supabase",
       rbac: false,

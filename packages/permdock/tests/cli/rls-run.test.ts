@@ -30,7 +30,10 @@ const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });
 const cwd = mkdtempSync(path.join(TMP, "rls-run-"));
 const io = { stdout: () => undefined, stderr: () => undefined };
-const config: PermDockConfig = { policy: POLICY };
+const config: PermDockConfig = {
+  policy: POLICY,
+  rls: { actions: { archive: "none", publish: "none" } },
+};
 
 describe("rls run", () => {
   afterAll(() => {
@@ -113,6 +116,7 @@ describe("rls run", () => {
           config: {
             policy: NAMED_SCOPES,
             rls: {
+              actions: { accept: "none", disable: "none", pay: "none" },
               authorize: "database",
               memberships: {
                 scopes: {
@@ -217,7 +221,10 @@ describe("rls run", () => {
             target: "sql",
             dialect: "supabase",
             // SAFETY: the config arrives untyped from permdock.config.ts at run time.
-            config: { ...config, rls: { jsonSchema } } as PermDockConfig,
+            config: {
+              ...config,
+              rls: { ...config.rls, jsonSchema },
+            } as PermDockConfig,
           }),
         );
       expect(await generate("yes")).toMatchObject({
@@ -239,7 +246,10 @@ describe("rls run", () => {
             target: "sql",
             dialect: "supabase",
             // SAFETY: the config arrives untyped from permdock.config.ts at run time.
-            config: { ...config, rls } as PermDockConfig,
+            config: {
+              ...config,
+              rls: { ...config.rls, ...rls },
+            } as PermDockConfig,
           }),
         );
       const adopted = await generate({
@@ -274,7 +284,7 @@ describe("rls run", () => {
         cwd,
         config: {
           ...config,
-          rls: { trustedReaders: ["service_role", "support"] },
+          rls: { ...config.rls, trustedReaders: ["service_role", "support"] },
         },
         target: "sql",
         dialect: "supabase",
@@ -415,7 +425,10 @@ describe("rls run", () => {
         const mapped = await runRls(
           input({
             cwd: project,
-            config: { ...config, rls: { tables: { post: "public.posts" } } },
+            config: {
+              ...config,
+              rls: { ...config.rls, tables: { post: "public.posts" } },
+            },
             rest: ["generate"],
             dialect: "guc",
             out: "bind.sql",
@@ -431,7 +444,7 @@ describe("rls run", () => {
     it("writes no policies for a resource rls.tables marks false and still seeds its role grants", async () => {
       const outcome = await runRlsGenerate({
         cwd,
-        config: { ...config, rls: { tables: { post: false } } },
+        config: { ...config, rls: { ...config.rls, tables: { post: false } } },
         target: "sql",
         dialect: "guc",
         rbac: false,
@@ -520,7 +533,7 @@ describe("rls run", () => {
           rest: ["generate"],
           out: "from.sql",
           from: POLICY,
-          config: {},
+          config: { rls: { actions: { archive: "none", publish: "none" } } },
         }),
       );
       expect(result.code).toBe(0);

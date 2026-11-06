@@ -58,6 +58,7 @@ function context(
     scopes: scopeList(policy.scopes),
     tenantClaim: "tenant_id",
     gucPrefix: "app",
+    actions: { archive: "none" },
   };
 }
 

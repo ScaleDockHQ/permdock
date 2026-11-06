@@ -69,7 +69,13 @@ describe("rls generate options", () => {
       cwd,
       config: {
         policy: "./manage.ts",
-        rls: { authorize: "database", customRoles: true, memberships, ...rls },
+        rls: {
+          authorize: "database",
+          customRoles: true,
+          memberships,
+          actions: { assignRole: "none" },
+          ...rls,
+        },
       },
       target: "sql",
       dialect: "supabase",
@@ -88,7 +94,12 @@ describe("rls generate options", () => {
         cwd,
         config: {
           policy: "./manage.ts",
-          rls: { authorize: "database", memberships, seeds: "function" },
+          rls: {
+            authorize: "database",
+            memberships,
+            seeds: "function",
+            actions: { assignRole: "none" },
+          },
         },
         target: "sql",
         dialect: "supabase",
@@ -124,7 +135,12 @@ describe("rls generate options", () => {
           cwd,
           config: {
             policy: "./manage.ts",
-            rls: { authorize, memberships, approvals: { delegations: true } },
+            rls: {
+              authorize,
+              memberships,
+              approvals: { delegations: true },
+              actions: { assignRole: "none" },
+            },
           },
           target: "sql",
           dialect: "supabase",
@@ -147,7 +163,12 @@ describe("rls generate options", () => {
         cwd,
         config: {
           policy: "./manage.ts",
-          rls: { authorize: "database", memberships, seeds: "view" },
+          rls: {
+            authorize: "database",
+            memberships,
+            seeds: "view",
+            actions: { assignRole: "none" },
+          },
         },
         target: "sql",
         dialect: "supabase",
@@ -183,7 +204,10 @@ describe("rls generate options", () => {
     it("exits 1, not 2, when --db-url-stdin cannot be reached", async () => {
       const outcome = await runRlsGenerate({
         cwd,
-        config: { policy: "./manage.ts", rls: { memberships } },
+        config: {
+          policy: "./manage.ts",
+          rls: { memberships, actions: { assignRole: "none" } },
+        },
         target: "sql",
         dialect: "supabase",
         rbac: false,
@@ -210,7 +234,10 @@ describe("rls generate options", () => {
     it("writes --out and prints nothing else when every part goes to a file", async () => {
       const outcome = await runRlsGenerate({
         cwd,
-        config: { policy: "./manage.ts", rls: { memberships } },
+        config: {
+          policy: "./manage.ts",
+          rls: { memberships, actions: { assignRole: "none" } },
+        },
         target: "sql",
         dialect: "supabase",
         rbac: false,
@@ -317,6 +344,7 @@ describe("rls generate options", () => {
         tenantClaim: "tenant_id",
         scopes,
         gucPrefix: "app",
+        actions: { accept: "none", disable: "none", pay: "none" },
         authorize: "database",
         assignments: { tables: [] },
         customRoles: { declared: [], assignable: [] },
@@ -329,7 +357,11 @@ describe("rls generate options", () => {
 
     it("puts the held custom roles in subject_for in database mode", () => {
       const hook = supabaseHookSql(scopeList(namedScopes.scopes), {
-        rls: { authorize: "database", customRoles: true },
+        rls: {
+          authorize: "database",
+          customRoles: true,
+          actions: { assignRole: "none" },
+        },
         supabase: {
           hook: {
             memberships: [

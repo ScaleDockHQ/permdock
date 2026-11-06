@@ -135,9 +135,9 @@ describe("rls generate cases", () => {
   function generate(
     over: Partial<Input> & { readonly config?: PermDockConfig },
   ) {
+    const { config: given, ...rest } = over;
     return runRlsGenerate({
       cwd,
-      config: {},
       target: "sql",
       dialect: "supabase",
       rbac: false,
@@ -146,7 +146,14 @@ describe("rls generate cases", () => {
       inlineFunctions: false,
       io,
       write: false,
-      ...over,
+      ...rest,
+      config: {
+        ...given,
+        rls: {
+          ...given?.rls,
+          actions: { publish: "none", archive: "none", ...given?.rls?.actions },
+        },
+      },
     });
   }
 

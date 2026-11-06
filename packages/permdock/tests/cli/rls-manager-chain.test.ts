@@ -52,6 +52,7 @@ function context(): RlsSqlContext {
     scopes: scopeList(policy.scopes),
     tenantClaim: "tenant_id",
     gucPrefix: "app",
+    actions: { review: "none" },
     graph: { closures: closureDepths(graphPlan(policy)) },
   };
 }

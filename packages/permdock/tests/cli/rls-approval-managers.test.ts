@@ -70,6 +70,10 @@ describe("rls.approvals.managers", () => {
     expect(sql).toContain(
       'revoke execute on function "permdock".permdock_is_approver_base(jsonb, text) from public, anon, authenticated;',
     );
+    expect(sql).toContain("permdock_approver_for_ids");
+    expect(sql).toContain("permdock_managed_user_ids");
+    expect(sql).toContain('m."user_id"::text <>');
+    expect(sql).not.toContain("approval_delegations");
   });
 
   it("keeps the two-argument check as it was without managers", () => {
@@ -79,6 +83,9 @@ describe("rls.approvals.managers", () => {
     );
     expect(sql).not.toContain("permdock_is_approver_base");
     expect(sql).not.toContain("drop function if exists");
+    expect(sql).toContain("d.delegator::text");
+    expect(sql).toContain('d."until" > now()');
+    expect(sql).not.toContain("permdock_managed_user_ids");
   });
 
   it("leaves the four-argument check to the covers when delegations are on", () => {

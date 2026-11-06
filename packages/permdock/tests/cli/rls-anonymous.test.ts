@@ -41,6 +41,7 @@ describe("rls anonymous", () => {
         tenantClaim: "tenant_id",
         scopes: scopeList(undefined),
         gucPrefix: "app",
+        actions: { accept: "none", disable: "none", pay: "none" },
         ...(anonymousSignIns === undefined ? {} : { anonymousSignIns }),
       },
       undefined,

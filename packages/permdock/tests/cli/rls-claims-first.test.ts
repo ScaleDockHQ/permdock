@@ -307,15 +307,20 @@ function config(
 ): PermDockConfig {
   return {
     policy: MINI,
-    rls: { memberships: { scopes: { tenant: tenantTable } }, ...over.rls },
+    rls: {
+      memberships: { scopes: { tenant: tenantTable } },
+      actions: { archive: "none", publish: "none" },
+      ...over.rls,
+    },
     supabase: { hook: { memberships: [tenantSource], ...over.hook } },
   };
 }
 
 function generate(over: Partial<Input> = {}) {
+  const given = over.config;
+  const { config: _config, ...rest } = over;
   return runRlsGenerate({
     cwd: import.meta.dirname,
-    config: {},
     target: "sql",
     dialect: "supabase",
     authorize: "database",
@@ -325,7 +330,11 @@ function generate(over: Partial<Input> = {}) {
     inlineFunctions: false,
     io,
     write: false,
-    ...over,
+    ...rest,
+    config: {
+      ...given,
+      rls: { actions: { archive: "none", publish: "none" }, ...given?.rls },
+    },
   });
 }
 

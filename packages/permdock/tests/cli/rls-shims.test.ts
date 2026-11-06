@@ -20,6 +20,7 @@ const base: RlsSqlContext = {
   tenantClaim: "tenant_id",
   scopes: scopeList(undefined),
   gucPrefix: "app",
+  actions: { export: "none" },
 };
 
 const permissions = definePermissions(
@@ -49,7 +50,7 @@ describe("alias rows", () => {
     );
     const compiled = compileGrants(
       policy,
-      { ...base, actions: { read: "none" } },
+      { ...base, actions: { read: "none", export: "none" } },
       undefined,
       [],
       false,

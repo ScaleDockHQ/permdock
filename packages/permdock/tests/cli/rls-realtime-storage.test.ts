@@ -46,7 +46,11 @@ describe("rls realtime storage", () => {
       "permdock.config.ts": `export default ${JSON.stringify({
         permissions: policyPath,
         policy: policyPath,
-        rls: { dialect, ...rls },
+        rls: {
+          dialect,
+          actions: { accept: "none", pay: "none", disable: "none" },
+          ...rls,
+        },
       })};\n`,
     });
     const result = await rlsGenerate(["--out", "rls.sql"], { cwd });

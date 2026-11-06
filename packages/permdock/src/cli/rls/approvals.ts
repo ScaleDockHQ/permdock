@@ -17,6 +17,7 @@ import {
   approvalManagersSql,
 } from "./approval-managers.ts";
 import { approvalPoliciesSql } from "./approval-policies.ts";
+import { approvalSetsSql } from "./approval-sets.ts";
 import {
   PERMISSION_HELPERS,
   checkName,
@@ -364,7 +365,11 @@ export function approvalsSql(
     return undefined;
   }
   if (approvals === true) {
-    return approvalStoreSql(ctx, jsonSchema) + isApproverSql(ctx);
+    return (
+      approvalStoreSql(ctx, jsonSchema) +
+      isApproverSql(ctx) +
+      approvalSetsSql(ctx, { delegations: false })
+    );
   }
   const { table, delegations, tenantPolicies, managers } = approvals;
   if (delegations !== undefined && typeof delegations !== "boolean") {
@@ -419,7 +424,11 @@ export function approvalsSql(
       : "") +
     (tenantPolicies === undefined
       ? ""
-      : approvalPoliciesSql(ctx, tenantPolicies, actorMayWrite))
+      : approvalPoliciesSql(ctx, tenantPolicies, actorMayWrite)) +
+    approvalSetsSql(ctx, {
+      delegations: delegations === true,
+      ...(managers === undefined ? {} : { managers }),
+    })
   );
 }
 

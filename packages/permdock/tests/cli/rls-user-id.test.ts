@@ -56,6 +56,7 @@ $$;`;
           rls: {
             scopeTypes: { tenant: "text" },
             tables: { post: "posts", note: "notes" },
+            actions: { pay: "none", transfer: "none" },
             ...rls,
           },
         })};\n`,

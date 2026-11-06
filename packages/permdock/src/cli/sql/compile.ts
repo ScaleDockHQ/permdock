@@ -641,6 +641,25 @@ function noteConditions(entry: Prepared, warnings: string[]): void {
  */
 const PERMANENT_USER = `((select auth.jwt()) ->> 'is_anonymous') is distinct from 'true'`;
 
+const INFERRED_VERBS =
+  "read, list and get select; create and duplicate insert; delete and remove delete; update, approve, reject, cancel, send, withdraw, confirm, fulfill, receive, reimburse and writeOff update; mark*, pause* and resume* update";
+
+/** Verbs with no inferred command and no `rls.actions` entry, including `none`. */
+export function unmappedActions(
+  policy: Policy,
+  actions: RlsActions | undefined,
+): readonly string[] {
+  const missing = new Set<string>();
+  for (const leaf of listPermissions(policy.permissions)) {
+    const declared =
+      actions !== undefined && Object.hasOwn(actions, leaf.action);
+    if (!declared && commandFor(leaf.action, actions) === undefined) {
+      missing.add(leaf.action);
+    }
+  }
+  return [...missing].toSorted();
+}
+
 export function compileGrants(
   policy: Policy,
   ctx: RlsSqlContext,
@@ -649,6 +668,14 @@ export function compileGrants(
   skipClosures: boolean,
   rowActions = false,
 ): CompiledGrants {
+  const missing = unmappedActions(policy, ctx.actions);
+  if (missing.length > 0) {
+    const listed = missing.map((verb) => `'${verb}'`).join(", ");
+    const verb = missing.length === 1 ? "verb" : "verbs";
+    throw configError(
+      `PermDock CLI: ${listed} ${verb} ${missing.length === 1 ? "has" : "have"} no rls.actions entry and ${missing.length === 1 ? "does" : "do"} not infer a SQL command. Verbs that infer: ${INFERRED_VERBS}.`,
+    );
+  }
   const items = collectGrants(policy);
   const entries = items.flatMap((item) => {
     const entry = prepare(

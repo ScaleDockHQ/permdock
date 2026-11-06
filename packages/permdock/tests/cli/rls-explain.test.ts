@@ -89,7 +89,15 @@ function input(config: PermDockConfig): RlsRunInput {
 }
 
 async function explained(rls: NonNullable<PermDockConfig["rls"]>) {
-  const result = await runRls(input({ policy: POLICY, rls }));
+  const result = await runRls(
+    input({
+      policy: POLICY,
+      rls: {
+        actions: { accept: "none", disable: "none", pay: "none" },
+        ...rls,
+      },
+    }),
+  );
   expect(result.code).toBe(0);
   const report: RlsExplain = JSON.parse(result.output);
   return report;

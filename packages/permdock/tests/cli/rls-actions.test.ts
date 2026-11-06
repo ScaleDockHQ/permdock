@@ -61,6 +61,7 @@ const base: RlsSqlContext = {
   tenantClaim: "tenant_id",
   scopes: scopeList(undefined),
   gucPrefix: "app",
+  actions: { accept: "none", disable: "none", pay: "none" },
 };
 
 describe(commandFor, () => {
@@ -116,7 +117,7 @@ describe("rls.actions", () => {
     const warnings: string[] = [];
     const compiled = compileGrants(
       policy,
-      { ...base, actions: { view: "select", send: "none" } },
+      { ...base, actions: { view: "select", send: "none", archive: "none" } },
       undefined,
       warnings,
       false,
@@ -170,7 +171,12 @@ describe("rls.actions", () => {
       approve: "none",
       archive: "none",
     });
-    const partial = run({ view: "select", approve: "none", send: "none" });
+    const partial = run({
+      view: "select",
+      approve: "none",
+      send: "none",
+      archive: "none",
+    });
     expect(partial.compiled).toStrictEqual(mapped.compiled);
     expect(partial.warnings).toStrictEqual(mapped.warnings);
   });
@@ -184,8 +190,17 @@ describe("rls.actions", () => {
         roles: [role(roles.admin, [allow(permissions.quote.archive)])],
       },
     );
+    expect(() => compileGrants(solo, base, undefined, [], false)).toThrow(
+      /'archive', 'view' verbs have no rls.actions entry and do not infer a SQL command. Verbs that infer: read, list and get select/u,
+    );
     const warnings: string[] = [];
-    const compiled = compileGrants(solo, base, undefined, warnings, false);
+    const compiled = compileGrants(
+      solo,
+      { ...base, actions: { view: "select", archive: "none" } },
+      undefined,
+      warnings,
+      false,
+    );
     expect(compiled.rolePermissions).toStrictEqual([
       {
         role: "admin",
@@ -206,7 +221,11 @@ describe("tableless resources", () => {
     const warnings: string[] = [];
     const compiled = compileGrants(
       policy,
-      { ...base, tableless: new Set(["quote"]) },
+      {
+        ...base,
+        actions: { view: "select", archive: "none" },
+        tableless: new Set(["quote"]),
+      },
       undefined,
       warnings,
       false,
@@ -240,7 +259,12 @@ describe("rls.tables via scope", () => {
     expect(() =>
       compileGrants(
         scoped,
-        { ...base, scopes: scopeList(scoped.scopes), vias: { quote: via } },
+        {
+          ...base,
+          actions: { accept: "update", pay: "update", disable: "update" },
+          scopes: scopeList(scoped.scopes),
+          vias: { quote: via },
+        },
         undefined,
         [],
         false,
