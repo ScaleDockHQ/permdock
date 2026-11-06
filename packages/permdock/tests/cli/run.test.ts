@@ -247,6 +247,51 @@ describe("the run module", () => {
       expect(report.noRole.some((item) => item.key === "finance")).toBe(true);
     });
 
+    it("does not treat a deny as granting the permission", async () => {
+      const cwd = appCopy();
+      const policyFile = join(cwd, "src/policy.ts");
+      writeFileSync(
+        policyFile,
+        readFileSync(policyFile, "utf8")
+          .replace(
+            'import { allow, definePolicy, principal, role } from "permdock";',
+            'import { allow, definePolicy, deny, principal, role } from "permdock";',
+          )
+          .replace(
+            "allow(permissions.post.read),",
+            "deny(permissions.post.read),",
+          ),
+      );
+      const result = await run(["usage", "--json"], { cwd });
+      expect(result.code).toBe(1);
+      // SAFETY: the --json report printed by `permdock usage` under test.
+      const report = jsonData(result.stdout) as {
+        readonly ungranted: readonly { readonly key: string }[];
+      };
+      expect(report.ungranted.some((item) => item.key === "post.read")).toBe(
+        true,
+      );
+    });
+
+    it("emits collect watch events as JSON when a config file is set", async () => {
+      const cwd = appCopy();
+      const stdout: string[] = [];
+      const result = await run(
+        ["collect", "--watch", "--json", "--config", "permdock.config.ts"],
+        {
+          cwd,
+          io: {
+            stdout: (text) => {
+              stdout.push(text);
+            },
+            stderr: () => undefined,
+          },
+        },
+      );
+      expect(result.code).toBe(0);
+      expect(stdout.join("")).toContain('"event":"collect"');
+    });
+
     it("usage flags conditions on fields the schema does not declare", async () => {
       const cwd = appCopy();
       const policyFile = join(cwd, "src/policy.ts");

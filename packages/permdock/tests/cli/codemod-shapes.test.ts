@@ -60,6 +60,27 @@ describe("the denied slot", () => {
     ]);
   });
 
+  it("follows up when defaults is not an object and skips a non-object argument", () => {
+    const defaults = apply([
+      'import { PermDockProvider } from "permdock/react";',
+      'export const a = <PermDockProvider defaults="nope" />;',
+    ]);
+    expect(defaults.followUps.map((item) => item.message)).toContain(
+      "`defaults.fallback` of `<PermDockProvider>` is `defaults.denied`",
+    );
+    const call = apply([
+      'import { Protected } from "permdock/react";',
+      'export const a = wrap(Protected, "text");',
+    ]);
+    expect(call.source).toContain('wrap(Protected, "text")');
+    const partial = apply(
+      ["export const a = <PermDockProvider defaults={{ pending: true }} />;"],
+      "file.tsx",
+    );
+    expect(partial.source).toContain("pending: true");
+    expect(partial.followUps).toStrictEqual([]);
+  });
+
   it("leaves fallback on other components and on a shadowed Protected alone", () => {
     const source = [
       'import { Protected } from "permdock/solid";',
