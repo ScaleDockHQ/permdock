@@ -28,6 +28,9 @@ export function versionSql(parts: Parts): string {
   if (parts.roles !== undefined) {
     tables.push([parts.roles.table, parts.roles.user]);
   }
+  if (parts.hook.teams !== undefined) {
+    tables.push([parts.hook.teams.table, parts.hook.teams.user]);
+  }
   const triggers = tables
     .map(
       ([

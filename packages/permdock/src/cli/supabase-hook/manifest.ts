@@ -94,7 +94,15 @@ function helperList(
     }),
     ...(teams === undefined
       ? []
-      : [helperEntry(teams, "p_user uuid", "setof uuid", client)]),
+      : [
+          helperEntry(
+            "member_team_ids_for",
+            "p_user uuid, p_active text",
+            "setof uuid",
+            ["supabase_auth_admin"],
+          ),
+          helperEntry(teams, "p_user uuid", "setof uuid", client),
+        ]),
   ];
 }
 

@@ -103,20 +103,13 @@ describe("supabase.hook.teams", () => {
     expect(claims["memberships_truncated"]).toBeUndefined();
   });
 
-  it("cuts team_ids at the memberships budget and flags the truncation", async () => {
+  it("omits team_ids when they exceed their own budget", async () => {
     const claims = await mint(CROWDED, {
       app_metadata: { active_tenant: "acme" },
     });
-    const teams = claims["team_ids"];
-    if (!Array.isArray(teams)) {
-      throw new TypeError("team_ids is not an array");
-    }
-    expect(teams.length).toBeLessThan(31);
-    expect(
-      JSON.stringify(claims["memberships"]).length +
-        JSON.stringify(teams).length,
-    ).toBeLessThanOrEqual(400);
-    expect(claims["memberships_truncated"]).toBe(true);
+    expect(claims["team_ids"]).toBeUndefined();
+    expect(claims["team_ids_truncated"]).toBe(true);
+    expect(claims["memberships_truncated"]).toBeUndefined();
   });
 
   it("returns every team in subject_for's claims, with no budget", async () => {

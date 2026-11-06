@@ -34,7 +34,6 @@ import {
   managedSql,
   schemaSql,
 } from "../sql.ts";
-import { teamIdsOfSql } from "../teams.ts";
 import { versionSql } from "../version.ts";
 
 /**
@@ -128,7 +127,6 @@ ${toml}${grantsOut === undefined ? "" : `\n-- what supabase db diff drops from t
     permdockSubjectSql(parts),
     authzVersionForSql(parts),
     membersOfSql(parts),
-    teamIdsOfSql(parts),
     apiWrappersSql(parts),
     grantsSql(parts),
     managedSql(parts),

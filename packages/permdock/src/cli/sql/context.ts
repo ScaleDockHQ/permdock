@@ -43,6 +43,16 @@ export type RlsSqlContext = {
    * table for.
    */
   readonly memberSources?: readonly SqlMembershipSource[];
+  /**
+   * `supabase.hook.teams`: the table `member_team_ids_for` reads when no team
+   * scope already has that helper.
+   */
+  readonly hookTeams?: {
+    readonly table: string;
+    readonly user: string;
+    readonly team: string;
+    readonly tenant?: string;
+  };
   readonly tenantClaim: string;
   /**
    * Scopes whose `member_<scope>_ids(p_roles text[])` overload `rls.migrate`'s

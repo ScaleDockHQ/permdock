@@ -903,9 +903,10 @@ export type SupabaseHookConfig = {
   /**
    * The `team_ids` claim: the uuid of every team the user belongs to, read from
    * `table` (`user` and `team` columns; `tenant` puts the active tenant's teams
-   * first). It shares the `memberships` budget, so a user with many teams gets
-   * a prefix and `memberships_truncated`. A suspended user gets none. Clients
-   * must not write the table.
+   * first) through `member_team_ids_for`. Teams have their own budget. On
+   * overflow `team_ids` is omitted and `team_ids_truncated` is set; the claim
+   * is never a prefix, and `memberships_truncated` is not set by team rows. A
+   * suspended user gets none. Clients must not write the table.
    */
   readonly teams?: {
     readonly table: string;

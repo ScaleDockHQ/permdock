@@ -48,9 +48,13 @@
           "type": "boolean"
         },
         "team_ids": {
-          "description": "The uuid of every team the user belongs to (supabase.hook.teams), cut by the memberships budget.",
+          "description": "The uuid of every team the user belongs to (supabase.hook.teams). Omitted when the team budget is exceeded.",
           "type": "array",
           "items": { "type": "string" }
+        },
+        "team_ids_truncated": {
+          "description": "true when team_ids was omitted because it exceeded its own budget. memberships_truncated is not set by team rows.",
+          "type": "boolean"
         },
         "tenant_id": {
           "description": "The active tenant (the default rls.tenantClaim): the canonical text of one instance of the first scope.",

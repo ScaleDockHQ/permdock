@@ -19,6 +19,7 @@ import {
 } from "../sql/quote.ts";
 import { HELPERS, rootName } from "../sql/shared.ts";
 import { keyTenantSql, subjectIdSql, userIdHelperSql } from "../sql/subject.ts";
+import { hookTeamReadersSql } from "../supabase-hook/teams.ts";
 import {
   apiKeyAllowsCall,
   apiKeyAllowsSql,
@@ -447,6 +448,10 @@ revoke all on table ${ur} from anon, authenticated, public;`);
     if (hasMemberOf(ctx, scope.name)) {
       chunks.push(memberOfFunction(ctx, scope.name, type));
     }
+  }
+  const teamReaders = hookTeamReadersSql(ctx);
+  if (teamReaders !== "") {
+    chunks.push(teamReaders);
   }
   chunks.push(...viaHelpersSql(ctx, anon));
   const forUser = forUserSql(ctx);

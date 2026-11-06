@@ -437,6 +437,10 @@ export function buildContext(
     ...(memberSources === undefined || memberSources.length === 0
       ? {}
       : { memberSources }),
+    ...(input.dialect === "supabase" &&
+    input.config.supabase?.hook?.teams !== undefined
+      ? { hookTeams: input.config.supabase.hook.teams }
+      : {}),
     ...(suspension === undefined ? {} : { suspension }),
     ...(roles === undefined ? {} : { roles }),
     ...(input.customRoles === true || customRolesOn(rls)
