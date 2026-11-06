@@ -34,6 +34,28 @@ const scan: ScanResult = {
   unparsed: [],
 };
 
+describe("catalog edges", () => {
+  it("records a scope with no key and keeps a resource link", () => {
+    const tree = definePermissions({
+      file: resource({
+        actions: ["read"],
+        links: { owner: { field: "ownerId", resource: "user" } },
+      }),
+      user: resource({ actions: ["read"] }),
+    });
+    const linked = definePolicy(tree, {
+      subject: () => null,
+      roles: [role("reader", [allow(tree.file.read)])],
+    });
+    const catalog = buildCatalog(tree, scan, "2026-09-29T00:00:00Z", linked);
+    expect(catalog.resources["file"]?.links).toMatchObject({
+      owner: { field: "ownerId", resource: "user" },
+    });
+    expect(catalog.resources["file"]?.id).toBe("id");
+    expect(catalog.resources["user"]?.links).toBeUndefined();
+  });
+});
+
 const permissions = definePermissions({
   invoice: resource({ actions: ["pay", "void"], version: "updatedAt" }),
   note: resource({ actions: ["read"] }),
