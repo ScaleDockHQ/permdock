@@ -9,8 +9,8 @@ const CLOUD_URL = "https://cloud.permdock.test";
 const KEY = "env-key";
 
 const document: CatalogDocument = {
-  $schema: "https://permdock.com/schemas/catalog-v1.json",
-  version: 1,
+  $schema: "https://permdock.com/schemas/catalog-v2.json",
+  version: 2,
   generatedAt: "2026-10-14T10:00:00.000Z",
   generator: "permdock@0.1.0",
   resources: { invoice: { id: "id", schema: { type: "object" } } },

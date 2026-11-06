@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://permdock.com/schemas/catalog-v1.json",
+  "$id": "https://permdock.com/schemas/catalog-v2.json",
   "type": "object",
   "required": [
     "$schema",
@@ -15,7 +15,7 @@
       "type": "string"
     },
     "version": {
-      "const": 1
+      "const": 2
     },
     "generatedAt": {
       "type": "string"
@@ -298,14 +298,8 @@
                       "enum": ["any", "all", "sequential"]
                     },
                     "mode": {
-                      "description": "confirm or authorize; a catalog written before 0.17 holds any, all or sequential here, read as combine.",
-                      "enum": [
-                        "confirm",
-                        "authorize",
-                        "any",
-                        "all",
-                        "sequential"
-                      ]
+                      "description": "confirm or authorize.",
+                      "enum": ["confirm", "authorize"]
                     },
                     "stages": {
                       "type": "array",
@@ -320,10 +314,6 @@
                           }
                         }
                       }
-                    },
-                    "distinct": {
-                      "description": "Written before 0.17; false reads as mode: confirm.",
-                      "type": "boolean"
                     },
                     "fallback": {
                       "description": "confirm lets the request's principal approve while no other eligible approver exists.",
@@ -444,8 +434,8 @@
                     "enum": ["any", "all", "sequential"]
                   },
                   "mode": {
-                    "description": "confirm or authorize; a catalog written before 0.17 holds any, all or sequential here, read as combine.",
-                    "enum": ["confirm", "authorize", "any", "all", "sequential"]
+                    "description": "confirm or authorize.",
+                    "enum": ["confirm", "authorize"]
                   },
                   "stages": {
                     "type": "array",
@@ -460,10 +450,6 @@
                         }
                       }
                     }
-                  },
-                  "distinct": {
-                    "description": "Written before 0.17; false reads as mode: confirm.",
-                    "type": "boolean"
                   },
                   "fallback": {
                     "description": "confirm lets the request's principal approve while no other eligible approver exists.",

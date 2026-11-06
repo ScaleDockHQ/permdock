@@ -31,8 +31,8 @@ describe("cloud pull", () => {
   type Cloud = Awaited<ReturnType<typeof referenceCloud>>;
 
   const SEED: CatalogDocument = {
-    $schema: "https://permdock.com/schemas/catalog-v1.json",
-    version: 1,
+    $schema: "https://permdock.com/schemas/catalog-v2.json",
+    version: 2,
     generatedAt: "2026-10-01T00:00:00.000Z",
     generator: "permdock@0.4.0",
     resources: { post: { id: "id", schema: { type: "object" } } },

@@ -27,9 +27,8 @@ const approval = {
         by: {},
         combine: { enum: ["any", "all", "sequential"] },
         mode: {
-          description:
-            "confirm or authorize; a catalog written before 0.17 holds any, all or sequential here, read as combine.",
-          enum: ["confirm", "authorize", "any", "all", "sequential"],
+          description: "confirm or authorize.",
+          enum: ["confirm", "authorize"],
         },
         stages: {
           type: "array",
@@ -38,10 +37,6 @@ const approval = {
             required: ["by"],
             properties: { by: {}, quorum: { type: "integer", minimum: 1 } },
           },
-        },
-        distinct: {
-          description: "Written before 0.17; false reads as mode: confirm.",
-          type: "boolean",
         },
         fallback: {
           description:
@@ -61,10 +56,10 @@ const approval = {
   ],
 } as const;
 
-/** `schemas/catalog-v1.json`; a test keeps the two equal. */
+/** `schemas/catalog-v2.json`; a test keeps the two equal. */
 export const catalogSchema: CatalogSchemaNode = freezeDeep({
   $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://permdock.com/schemas/catalog-v1.json",
+  $id: "https://permdock.com/schemas/catalog-v2.json",
   type: "object",
   required: [
     "$schema",
@@ -76,7 +71,7 @@ export const catalogSchema: CatalogSchemaNode = freezeDeep({
   ],
   properties: {
     $schema: { type: "string" },
-    version: { const: 1 },
+    version: { const: 2 },
     generatedAt: { type: "string" },
     generator: { type: "string" },
     fingerprint: { type: "string" },

@@ -5466,7 +5466,7 @@
             "description": "The permdock version that pushed"
           },
           "catalog": {
-            "$ref": "https://permdock.com/schemas/catalog-v1.json"
+            "$ref": "https://permdock.com/schemas/catalog-v2.json"
           },
           "manifest": {
             "$ref": "https://permdock.com/schemas/supabase-manifest-v1.json"

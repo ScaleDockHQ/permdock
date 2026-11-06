@@ -204,10 +204,10 @@ export type CatalogGrant = {
   readonly meta?: Readonly<Record<string, unknown>>;
 };
 
-/** `permissions.catalog.json`, validated by `schemas/catalog-v1.json`. */
+/** `permissions.catalog.json`, validated by `schemas/catalog-v2.json`. */
 export type CatalogDocument = {
   readonly $schema: string;
-  readonly version: 1;
+  readonly version: 2;
   readonly generatedAt: string;
   readonly generator: string;
   /**

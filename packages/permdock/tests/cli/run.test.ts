@@ -217,7 +217,7 @@ describe("the run module", () => {
     it("catalog --format schema emits a JSON Schema document", async () => {
       const result = await run(["catalog", "--kind", "json-schema"]);
       expect(result.code).toBe(0);
-      expect(result.stdout).toContain("catalog-v1.json");
+      expect(result.stdout).toContain("catalog-v2.json");
     });
 
     it("catalog --format markdown has a post section", async () => {
@@ -484,7 +484,7 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
       const catalog = JSON.parse(
         readFileSync(join(cwd, "custom.catalog.json"), "utf8"),
       ) as { readonly version: number };
-      expect(catalog.version).toBe(1);
+      expect(catalog.version).toBe(2);
     });
   });
 });

@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import { catalogFingerprint } from "../../src/core/catalog-fingerprint.ts";
 
 const catalog = {
-  $schema: "https://permdock.com/schemas/catalog-v1.json",
-  version: 1,
+  $schema: "https://permdock.com/schemas/catalog-v2.json",
+  version: 2,
   generatedAt: "2026-09-28T10:00:00.000Z",
   generator: "permdock 0.1.0",
   resources: { post: { id: "id", schema: null } },
@@ -33,7 +33,7 @@ describe(catalogFingerprint, () => {
           usages: [],
         })),
         resources: catalog.resources,
-        version: 1,
+        version: 2,
         $schema: catalog.$schema,
         generatedAt: "2030-01-01T00:00:00.000Z",
         generator: "permdock 9.9.9",

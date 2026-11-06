@@ -12,8 +12,8 @@ describe("doctor oauth scopes", () => {
 
   function catalog(extra: Readonly<Record<string, unknown>> = {}): string {
     return JSON.stringify({
-      $schema: "https://permdock.com/schemas/catalog-v1.json",
-      version: 1,
+      $schema: "https://permdock.com/schemas/catalog-v2.json",
+      version: 2,
       generatedAt: "2026-10-18T00:00:00Z",
       generator: "test",
       resources: { post: { id: "id", schema: null } },

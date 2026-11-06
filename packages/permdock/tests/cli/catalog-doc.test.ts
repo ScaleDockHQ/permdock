@@ -91,7 +91,7 @@ describe("catalog app data", () => {
     expect(reads).not.toHaveProperty("meta");
   });
 
-  it("validates against catalog-v1", () => {
+  it("validates against catalog-v2", () => {
     expect(() =>
       parseCatalog(JSON.parse(JSON.stringify(catalog))),
     ).not.toThrow();

@@ -60,8 +60,8 @@ function consumerFiles(): readonly (readonly [string, string])[] {
 const word = (name: string): RegExp => new RegExp(`\\b${name}\\b`, "u");
 
 const emptyCatalog = {
-  $schema: "https://permdock.com/schemas/catalog-v1.json",
-  version: 1,
+  $schema: "https://permdock.com/schemas/catalog-v2.json",
+  version: 2,
   generatedAt: "2026-01-01T00:00:00Z",
   generator: "test",
   resources: {},

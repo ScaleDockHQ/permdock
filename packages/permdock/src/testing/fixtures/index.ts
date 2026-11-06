@@ -8,7 +8,7 @@ import manifest from "./better-supabase.manifest.json" with { type: "json" };
 
 /**
  * The `permissions.catalog.json` of `apps/examples/next-better-supabase`, a
- * `catalog-v1` document with resources, permissions, scopes, roles, grants and
+ * `catalog-v2` document with resources, permissions, scopes, roles, grants and
  * delegations, for testing a catalog consumer such as a Cloud.
  */
 export const betterSupabaseCatalog: CatalogDocument = parseCatalog(catalog);

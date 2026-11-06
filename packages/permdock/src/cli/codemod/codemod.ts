@@ -8,6 +8,7 @@ import type { CodemodChange, CodemodFollowUp, RenameSet } from "./transform.ts";
 import { CliError } from "../core/errors.ts";
 import { applyFiles, refuseDirty } from "../core/files.ts";
 import { rel } from "../files.ts";
+import { rewriteStoredCatalog } from "./catalog-0.26.ts";
 import { rewriteCliCalls } from "./cli-calls.ts";
 import { moveConfigKeys } from "./config-moves.ts";
 import { RENAMES_0_5, SIGNATURE_CHANGES_0_5 } from "./renames-0.5.ts";
@@ -49,11 +50,17 @@ export const CODEMOD_0_17: RenameSet = Object.freeze({
   literals: rewriteLiterals017,
 });
 
+export const CODEMOD_0_26: RenameSet = Object.freeze({
+  renames: [],
+  signatures: [],
+});
+
 /** Each codemod version and the rename map it applies. */
 const CODEMODS: Readonly<Record<string, RenameSet>> = Object.freeze({
   "0.5": CODEMOD_0_5,
   "0.8": CODEMOD_0_8,
   "0.17": CODEMOD_0_17,
+  "0.26": CODEMOD_0_26,
 });
 
 export function codemodVersions(): readonly string[] {
@@ -149,12 +156,26 @@ export function codemod(options: CodemodOptions): CodemodReport {
     options.cwd,
     options.paths.length === 0 ? ["."] : options.paths,
     CLI_RENAME_VERSIONS.has(version),
+    version === "0.26",
   );
   const changed: CodemodFileReport[] = [];
   const followUps: CodemodFollowUpReport[] = [];
   const writes: PlannedFile[] = [];
   for (const file of files) {
     const source = readFileSync(file, "utf8");
+    if (version === "0.26" && extname(file) === ".json") {
+      const rewritten = rewriteStoredCatalog(source);
+      if (rewritten !== undefined && rewritten.text !== source) {
+        changed.push({
+          file: rel(options.cwd, file),
+          changes: [
+            { line: 1, column: 1, from: rewritten.from, to: rewritten.to },
+          ],
+        });
+        writes.push({ path: file, text: rewritten.text });
+      }
+      continue;
+    }
     if (
       !source.includes("permdock") &&
       !basename(file).startsWith("permdock.config.")
@@ -294,6 +315,7 @@ function sourceFiles(
   cwd: string,
   paths: readonly string[],
   cli: boolean,
+  catalogs: boolean,
 ): readonly string[] {
   const out = new Set<string>();
   for (const path of paths) {
@@ -305,13 +327,18 @@ function sourceFiles(
     if (stats.isFile()) {
       out.add(root);
     } else {
-      walkDir(root, out, cli);
+      walkDir(root, out, cli, catalogs);
     }
   }
   return [...out].toSorted();
 }
 
-function walkDir(dir: string, out: Set<string>, cli: boolean): void {
+function walkDir(
+  dir: string,
+  out: Set<string>,
+  cli: boolean,
+  catalogs: boolean,
+): void {
   for (const name of readdirSync(dir)) {
     if (SKIP_DIRS.has(name)) {
       continue;
@@ -319,8 +346,12 @@ function walkDir(dir: string, out: Set<string>, cli: boolean): void {
     const full = join(dir, name);
     const stats = statSync(full);
     if (stats.isDirectory()) {
-      walkDir(full, out, cli);
-    } else if (EXTENSIONS.has(extname(name)) || (cli && isCliFile(name))) {
+      walkDir(full, out, cli, catalogs);
+    } else if (
+      EXTENSIONS.has(extname(name)) ||
+      (cli && isCliFile(name)) ||
+      (catalogs && extname(name) === ".json")
+    ) {
       out.add(full);
     }
   }

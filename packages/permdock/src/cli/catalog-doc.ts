@@ -127,7 +127,7 @@ export function buildCatalog(
   };
   const head = {
     $schema: CATALOG_SCHEMA,
-    version: 1 as const,
+    version: 2 as const,
     generatedAt,
     generator: generatorBanner(),
   };

@@ -17,8 +17,8 @@ const EXAMPLE = "../../../../apps/examples/next-better-supabase/";
 const exampleManifest = read(`${EXAMPLE}permdock.manifest.json`);
 const exampleCatalog = read(`${EXAMPLE}permissions.catalog.json`);
 const emptyCatalog = {
-  $schema: "https://permdock.com/schemas/catalog-v1.json",
-  version: 1,
+  $schema: "https://permdock.com/schemas/catalog-v2.json",
+  version: 2,
   generatedAt: "2026-01-01T00:00:00Z",
   generator: "test",
   resources: {},
