@@ -3,7 +3,7 @@ import type { Condition, Policy, ResourceNode } from "../../index.ts";
 import type { RolePermission } from "../rls/helpers.ts";
 import type { RlsActions } from "../types.ts";
 import type { RlsSqlContext } from "./context.ts";
-import type { RlsGrant } from "./grants.ts";
+import type { RlsAccess, RlsGrant } from "./grants.ts";
 
 import { canonicalJson } from "../../core/canonical-json.ts";
 import { sole } from "../../core/compact.ts";
@@ -269,13 +269,11 @@ function membershipField(
 // one of its ancestors, keyed by the row field that holds that resource's id.
 function resourceCondition(
   item: RlsGrant,
+  access: Extract<RlsAccess, { readonly kind: "resource" }>,
   policy: Policy,
   ctx: RlsSqlContext,
 ): Condition {
-  if (item.access.kind !== "resource") {
-    throw configError("PermDock CLI: resourceCondition needs a resource role");
-  }
-  const { role, resource: roleResource } = item.access;
+  const { role, resource: roleResource } = access;
   const target = policy.resources.get(item.grant.permission.resource);
   const holders = [roleResource, ...ancestorsOf(policy, roleResource)];
   const hops: Condition[] = [];
@@ -829,10 +827,10 @@ export function compileGrants(
       accessExpr = `${subjectClaimSql(ctx, "client_id")} is not null or ${subjectClaimJsonSql(ctx, "act")} is not null`;
     }
     if (access.kind === "resource" && !linkOnly) {
-      accessExpr = compileConditionSql(resourceCondition(item, policy, ctx), {
-        ...ctx,
-        permission: grant.permission.key,
-      });
+      accessExpr = compileConditionSql(
+        resourceCondition(item, access, policy, ctx),
+        { ...ctx, permission: grant.permission.key },
+      );
     }
     if (linkOnly) {
       warnings.push(
