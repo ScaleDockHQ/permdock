@@ -21,6 +21,17 @@ function errorOf(stdout: string): unknown {
     : undefined;
 }
 
+describe("run plugins option", () => {
+  it("uses the plugins passed to run instead of the config file", async () => {
+    const result = await run(["generate", "--no-cache"], {
+      cwd: FIXTURE,
+      plugins: [],
+    });
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain("Generated 0 files");
+  });
+});
+
 describe("removed generate commands", () => {
   it.each([
     [["powersync", "generate"], "generate --only powersync"],
