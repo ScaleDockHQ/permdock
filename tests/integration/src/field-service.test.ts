@@ -2,11 +2,12 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { run } from "permdock/cli";
+import { powersync } from "permdock/cli/plugins/powersync";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
-import { powersyncGenerate } from "../../../packages/permdock/tests/cli/rls-call.ts";
 import { runPipingDbUrl } from "./db-url.ts";
 import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
@@ -64,10 +65,12 @@ describe("field-service fixture", () => {
   });
 
   it("keeps sync-config.yaml current with the policy", async () => {
-    const result = await powersyncGenerate(["--check"], { cwd: FIXTURE });
-    expect(result.stdout).toContain("sync-config.yaml is current");
-    expect(result.stdout).toContain("permdock-manifest.json is current");
+    const result = await run(
+      ["generate", "--only", "powersync", "--check", "--no-cache"],
+      { cwd: FIXTURE, plugins: [powersync()] },
+    );
     expect(result.code).toBe(0);
+    expect(result.stderr).toContain("Unchanged");
   });
 
   it("streams each user's own membership rows and the roles they reference", async () => {
