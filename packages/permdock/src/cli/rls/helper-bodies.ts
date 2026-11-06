@@ -660,7 +660,9 @@ function memoDiscriminatorSql(user: string, key: string): string {
       ${user},
       ${key},
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
-      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
     ))`;
 }
 
@@ -680,7 +682,7 @@ export function functionBody(body: Body, parallelSafe = false): string {
     ];
     if (body.memo.type === "boolean") {
       return `language plpgsql
-stable
+volatile
 security definer
 cost 1000
 set search_path = ''
@@ -694,13 +696,14 @@ begin
   v_has := (
 ${body.sql}
   );
+  perform ${memoWriteSql(body.memo.api, "v_key", "jsonb_build_object('k', v_disc, 'v', v_has)::text")};
   return v_has;
 end;
 $$;`;
     }
     declare.push(`v_ids ${body.memo.type}[];`);
     return `language plpgsql
-stable
+volatile
 security definer
 cost 1000
 set search_path = ''
@@ -714,6 +717,7 @@ begin
     v_ids := array(
 ${body.sql}
     );
+    perform ${memoWriteSql(body.memo.api, "v_key", "jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text")};
   end if;
   return query select unnest(v_ids);
 end;

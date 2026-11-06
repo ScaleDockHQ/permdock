@@ -167,15 +167,14 @@ describe("row helper memo modes answer the same", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("calls better_supabase.memo_get and memo_set for both memos only in that mode", () => {
+  it("calls better_supabase.memo_get and memo_set for the grant helpers only in that mode", () => {
     const own = sql.get("permdock") ?? "";
     const shared = sql.get("better-supabase") ?? "";
     expect(own).toContain("set_config(v_key");
     expect(own).not.toContain("better_supabase.memo_");
     expect(shared).toContain("better_supabase.memo_get(v_key)");
     expect(shared).toContain("better_supabase.memo_set(v_key");
-    expect(shared).toContain("better_supabase.memo_get(v_permdock_key)");
-    expect(shared).toContain("better_supabase.memo_set(v_permdock_key");
+    expect(shared).not.toContain("v_permdock_key");
     expect(shared).toContain("'permdock.m.'");
   });
 
