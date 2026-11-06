@@ -343,6 +343,12 @@ export const verify: Leaf = defineLeaf({
       options: ["node", "pgtap"],
       description: "Run the fixtures in Node or write a pgTAP file",
     },
+    personas: {
+      type: "enum",
+      options: ["roles"],
+      description:
+        "With --kind pgtap, write one persona per role the fixtures hold",
+    },
     out: {
       type: "string",
       description:
@@ -374,6 +380,7 @@ export const verify: Leaf = defineLeaf({
       out: fileOut("rls verify", flags.out),
       fixtures: given(flags.fixtures),
       format: flags.kind,
+      personas: flags.personas,
       tree: flags.tree,
       introspect: flags.introspect,
       advisors: flags.advisors,

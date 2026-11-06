@@ -83,6 +83,8 @@ export async function runRlsVerify(input: {
   readonly db?: string;
   readonly from?: string;
   readonly format: "node" | "pgtap";
+  /** `roles`: the pgTAP file names one persona per role the fixtures hold. */
+  readonly personas?: string;
   /** `format: 'pgtap'`: the file to write, default {@link PGTAP_OUT}. */
   readonly out?: string;
   /**
@@ -225,6 +227,7 @@ export async function runRlsVerify(input: {
         policy,
         config: input.config,
         customRoles,
+        ...(input.personas === undefined ? {} : { personas: input.personas }),
       }),
     );
     return result;

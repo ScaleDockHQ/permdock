@@ -25,6 +25,9 @@ describe("snapshot size", () => {
     writeFileSync(path.join(tmpdir(), "permdock-snapshot-size.txt"), report);
     expect(v1.raw / v2.raw).toBeGreaterThanOrEqual(5);
     expect(v2.gzip).toBeLessThan(v1.gzip);
+    // The 1,790-grant admin snapshot was 58,412 B after interning. Growth past
+    // 70,000 B raw fails this regression.
+    expect(v2.raw).toBeLessThanOrEqual(70_000);
   });
 
   it("shrinks the grants by at least 6 times with assignable included", () => {

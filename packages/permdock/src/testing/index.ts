@@ -39,6 +39,8 @@ export { snapshotFixture } from "./snapshot-fixture.ts";
 export { seedRows } from "./seed-rows.ts";
 export type { SeedRows } from "./seed-rows.ts";
 export { applySeeds, memorySources } from "./apply-seeds.ts";
+export { memoryPostgrestSources, rolePersonas } from "./memory-postgrest.ts";
+export type { RolePersona } from "./memory-postgrest.ts";
 export { testHttpAdapter } from "./http-adapter/scenarios.ts";
 export type {
   HttpAdapterOptions,

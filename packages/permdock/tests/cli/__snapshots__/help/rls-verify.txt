@@ -27,6 +27,7 @@ Flags
   --db-url-stdin                         Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
   --fixtures <file>                      Fixtures file
   --kind <node|pgtap>                    Run the fixtures in Node or write a pgTAP file
+  --personas <roles>                     With --kind pgtap, write one persona per role the fixtures hold
   --out <file>                           With --kind pgtap, the file to write (default supabase/tests/permdock_rls.test.sql)
   --tree                                 Check the relationship closure
   --introspect                           Compare against the live database
