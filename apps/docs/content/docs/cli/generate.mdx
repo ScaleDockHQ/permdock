@@ -31,6 +31,8 @@ permdock generate --dry-run
 
 `--watch` loads the policy in a new worker on every cycle, because native ESM cannot drop a module it has already imported. A cycle writes nothing until the policy and the plugins have been read.
 
+`pnpm generate:perf` records a cold run, a warm run, and a generate after a one-line policy edit on the CentraKit-size fixture. Peak RSS fails the gate at 10% above `scripts/generate-perf.json`. Wall time is printed and not enforced.
+
 ## Side effects
 
 What each command may change; [side effects](/docs/cli#side-effects) explains each one.

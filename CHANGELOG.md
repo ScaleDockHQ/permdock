@@ -13,6 +13,9 @@ Every PermDock release, newest first. Per-package detail is in [`packages/permdo
 - The custom-role assignable trigger. The sync guard skips when the caller is signed out or `permdock.sync` is `on`. `pg_trigger_depth()` is not the guard.
 - The platform-role before-delete trigger. The provider supplies `platformRoles` from `rls.roles`, including `permdock_can_assign_any` when the manifest lists it.
 - The duplicated membership block and `::text` casts. `permdock codemod 0.26` removes `::text` around a helper call and deletes a second copy of the membership block the generator now writes.
+- `permdock/testing` `memoryPostgrestSources` and `rolePersonas` answer membership and persona reads from `defineSeeds` fixtures. `permdock rls verify --kind pgtap --personas roles` writes one persona per role those fixtures hold.
+- CASL and Casbin imports emit `defineSeeds` defaults beside the policy.
+- Adoption fixtures cover a TypeScript-only app, plain Postgres, Supabase, better-supabase, and a third-party plugin that calls only `definePlugin`.
 
 ## 0.25.1 (2026-11-06)
 

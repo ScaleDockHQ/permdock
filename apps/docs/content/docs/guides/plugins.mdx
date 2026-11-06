@@ -46,7 +46,7 @@ export function notes() {
 }
 ```
 
-The config lists `notes()` in `plugins`. `permdock generate --check` fails when the file on disk differs.
+The config lists `notes()` in `plugins`. `permdock generate --check` fails when the file on disk differs. `tests/integration/fixtures/adoption/third-party` is a plugin outside this package: its `emit` uses only `task` and `model`.
 
 ## Related
 

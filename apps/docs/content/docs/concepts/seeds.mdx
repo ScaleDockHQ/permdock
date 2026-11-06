@@ -24,12 +24,13 @@ Add that block so `supabase db reset` loads the fixtures. Without it, PD097 warn
 
 ## Per backend
 
-| Backend                           | Defaults                                         | Fixtures                                  |
-| --------------------------------- | ------------------------------------------------ | ----------------------------------------- |
-| Supabase, `rls.seeds: "function"` | `select <schema>.seed()` after deploy            | `supabase/seeds/permdock.sql`             |
-| Supabase, `rls.seeds: "view"`     | the `role_permissions` view                      | `supabase/seeds/permdock.sql`             |
-| Drizzle or Prisma                 | the defaults migration the `rls()` plugin writes | not applied; the app's own seed owns rows |
-| Memory                            | none                                             | `memorySources` in tests                  |
+| Backend                           | Defaults                                         | Fixtures                                                             |
+| --------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------- |
+| Supabase, `rls.seeds: "function"` | `select <schema>.seed()` after deploy            | `supabase/seeds/permdock.sql`                                        |
+| Supabase, `rls.seeds: "view"`     | the `role_permissions` view                      | `supabase/seeds/permdock.sql`                                        |
+| Drizzle or Prisma                 | the defaults migration the `rls()` plugin writes | not applied; the app's own seed owns rows                            |
+| Memory                            | none                                             | `memorySources` and `memoryPostgrestSources` in tests                |
+| pgTAP                             | none                                             | `rolePersonas(seeds)` and `rls verify --kind pgtap --personas roles` |
 
 Fixture rows never go in a schema file. The view cannot take hand-added `role_permissions` rows.
 
