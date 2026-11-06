@@ -1140,8 +1140,8 @@ export type PowerSyncConfig = {
   /** The Sync Streams file; default `sync-config.yaml`. */
   readonly out?: string;
   /**
-   * Resources that get a stream; default every resource with a grant of
-   * `action`.
+   * The only resources that get a stream. A helper does not add one. None when
+   * omitted.
    */
   readonly resources?: readonly string[];
   /** The action whose grants decide which rows sync; default `read`. */

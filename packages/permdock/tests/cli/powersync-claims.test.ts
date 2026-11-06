@@ -48,7 +48,7 @@ const policy = definePolicy(permissions, {
 const config: PermDockConfig = {
   policy: "policy.ts",
   rls: { tables: { job: "jobs", note: "notes" } },
-  powersync: {},
+  powersync: { resources: ["job", "note"] },
 };
 
 const cwd = mkdtempSync(join(tmpdir(), "permdock-pd084-"));

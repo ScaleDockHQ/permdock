@@ -115,15 +115,7 @@ function planWith(
     gaps: [],
   };
   const action = config.powersync?.action ?? "read";
-  const resources =
-    config.powersync?.resources ??
-    [...policy.resources.keys()].filter((name) =>
-      grants.some(
-        (item) =>
-          item.grant.permission.resource === name &&
-          item.grant.permission.action === action,
-      ),
-    );
+  const resources = config.powersync?.resources ?? [];
   const streams: PowerSyncStream[] = [];
   const omitted: { resource: string; reason: string }[] = [];
   const warnings: string[] = [];

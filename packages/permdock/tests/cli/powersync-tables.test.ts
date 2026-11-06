@@ -65,7 +65,7 @@ function plan(
   return powersyncPlan(policy, {
     policy: "p.ts",
     rls: memberships,
-    powersync: { tables },
+    powersync: { resources: ["job", "secret"], tables },
   });
 }
 

@@ -32,25 +32,20 @@ function db(
 }
 
 describe("synced authz_ver", () => {
-  it("streams the user's version row when the token hook stamps authz_ver", () => {
-    const stream = powersyncPlan(policy, config).subject.find(
-      (entry) => entry.table === "permdock_authz_version",
-    );
-    expect(stream).toStrictEqual({
-      name: "permdock_authz_version",
+  it("does not stream permdock_authz_version", () => {
+    expect(
+      powersyncPlan(policy, config).subject.map((entry) => entry.table),
+    ).not.toContain("permdock_authz_version");
+    expect(
+      powersyncPlan(policy, config, POSTGRES).subject.map(
+        (entry) => entry.table,
+      ),
+    ).not.toContain("permdock_authz_version");
+    expect(localRows(policy, config, new Map()).version).toStrictEqual({
       table: "permdock_authz_version",
       user: "user_id",
-      queries: [
-        'SELECT * FROM "permdock"."permdock_authz_version" AS permdock_authz_version WHERE permdock_authz_version.user_id = auth.user_id()',
-      ],
+      version: "version",
     });
-    expect(
-      powersyncPlan(policy, config, POSTGRES).subject.find(
-        (entry) => entry.table === "permdock_authz_version",
-      )?.queries,
-    ).toStrictEqual([
-      'SELECT * FROM "permdock"."permdock_authz_version" AS permdock_authz_version WHERE permdock_authz_version.user_id::text = $1::text',
-    ]);
   });
 
   it("streams no version row without the hook or with hook.version off", () => {

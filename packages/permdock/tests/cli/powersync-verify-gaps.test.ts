@@ -48,6 +48,7 @@ const policy = definePolicy(permissions, {
 
 const config: PermDockConfig = {
   policy: "p.ts",
+  powersync: { resources: ["job"] },
   rls: {
     authorize: "database",
     customRoles: true,

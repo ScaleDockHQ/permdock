@@ -352,7 +352,7 @@ Each pass runs `auth.refreshSession()`, then `db.disconnect()` and `db.connect(c
 
 The channel closes when the app moves to the background and rejoins on the return to the foreground. A message sent in between is lost, so the return runs a catch-up:
 
-- With `powersync.manifest` from `permdock powersync generate`, the device syncs its own `permdock_authz_version` row, and the catch-up runs a pass only when that version is above the token's `authz_ver`. The same check runs whenever the row syncs, which covers a message sent while the app was closed. `powerSyncSource` sets the synced version as `snapshot.authzVersion`.
+- With `powersync.manifest` from `permdock powersync generate`, the catch-up runs a pass only when the device's `permdock_authz_version` row is above the token's `authz_ver`. `generate` names that table in the manifest and does not add a stream for it: sync the hook table yourself. The same check runs whenever the row changes, which covers a message sent while the app was closed. `powerSyncSource` sets the synced version as `snapshot.authzVersion`.
 - With `powersync.source`, the catch-up reads the version through the source's `authzVersion()` instead of its own query. Pass the source the provider reads, so both see the same user. The check on each sync still needs `manifest`.
 - Without either, every return to the foreground runs a full pass.
 

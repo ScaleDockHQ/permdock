@@ -129,6 +129,9 @@ const policy = definePolicy(permissions, {
 
 const config: PermDockConfig = {
   policy: "p.ts",
+  powersync: {
+    resources: ["job", "folder", "file", "note", "secret", "audit"],
+  },
   rls: {
     authorize: "database",
     tables: { job: "public.jobs", file: "app.files" },
@@ -565,7 +568,10 @@ describe("powersync streams", () => {
         }),
       ],
     });
-    const plan = powersyncPlan(odd, config);
+    const plan = powersyncPlan(odd, {
+      ...config,
+      powersync: { resources: ["job", "note"] },
+    });
     expect(plan.omitted).toStrictEqual([
       { resource: "job", reason: "no grant of job.read compiles" },
       { resource: "note", reason: "no grant of note.read compiles" },
@@ -673,7 +679,12 @@ describe("powersync streams", () => {
         }),
       ],
     });
-    expect(powersyncPlan(wide, { policy: "p.ts" }).omitted).toStrictEqual([
+    expect(
+      powersyncPlan(wide, {
+        policy: "p.ts",
+        powersync: { resources: ["note"] },
+      }).omitted,
+    ).toStrictEqual([
       { resource: "note", reason: "64 queries, over the limit of 32" },
     ]);
   });

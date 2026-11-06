@@ -76,6 +76,7 @@ const policy = definePolicy(permissions, {
 
 const config: PermDockConfig = {
   policy: "p.ts",
+  powersync: { resources: ["project", "task", "comment", "secret", "vault"] },
   rls: {
     authorize: "database",
     memberships: {
@@ -164,7 +165,10 @@ describe("powersync streams for inherit() of other parent grants", () => {
         }),
       ],
     }),
-    { policy: "p.ts" },
+    {
+      policy: "p.ts",
+      powersync: { resources: ["doc", "note", "locked", "pin"] },
+    },
   );
   const queries = (name: string): readonly string[] | undefined =>
     plan.streams.find((stream) => stream.name === name)?.queries;

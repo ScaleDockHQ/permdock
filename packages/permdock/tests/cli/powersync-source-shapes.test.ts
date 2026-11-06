@@ -63,6 +63,7 @@ const paused = junctionMembershipSource({
 
 const config: PermDockConfig = {
   policy: "p.ts",
+  powersync: { resources: ["job"] },
   rls: {
     authorize: "database",
     customRoles: true,
@@ -144,6 +145,7 @@ describe("powersync over membership source shapes", () => {
     const scoped = powersyncPlan(policy, {
       policy: "p.ts",
       rls: { tables: { job: "jobs" }, membershipSources: [memberships] },
+      powersync: { resources: ["job"] },
     });
     expect(
       scoped.streams.find((stream) => stream.name === "job")?.queries,
