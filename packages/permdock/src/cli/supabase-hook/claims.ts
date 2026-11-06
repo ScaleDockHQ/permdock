@@ -4,7 +4,12 @@ import type { Parts } from "./parts.ts";
 
 import { PERMDOCK_CLAIMS_SCHEMA } from "../claims-schema.ts";
 import { configError } from "../core/errors.ts";
-import { quoteLiteral, quoteQualified, quoteTable } from "../sql/quote.ts";
+import {
+  quoteIdent,
+  quoteLiteral,
+  quoteQualified,
+  quoteTable,
+} from "../sql/quote.ts";
 
 const CLAIM_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 
@@ -235,7 +240,10 @@ grant execute on function extensions.jsonb_matches_schema(json, jsonb) to supaba
  * Fails the migration when a client role can write an `attrs` column: a claim
  * the user can set is not a server-owned attribute.
  */
-export function attrsGuardSql(plan: AttrsPlan | undefined): string {
+export function attrsGuardSql(
+  plan: AttrsPlan | undefined,
+  schema = "permdock",
+): string {
   if (plan?.table === undefined || plan.columns.length === 0) {
     return "";
   }
@@ -243,8 +251,14 @@ export function attrsGuardSql(plan: AttrsPlan | undefined): string {
   const columns = plan.columns
     .map((column) => `(${quoteLiteral(column)})`)
     .join(", ");
+  const fn = `${quoteIdent(schema)}.permdock_attrs_are_server_owned`;
   return `-- attrs must be server-owned: refuse columns anon or authenticated can insert or update
-do $$
+create or replace function ${fn}()
+returns void
+language plpgsql
+volatile
+set search_path = ''
+as $$
 begin
   if exists (
     select 1
@@ -257,7 +271,9 @@ begin
       using errcode = '42501';
   end if;
 end
-$$;`;
+$$;
+revoke execute on function ${fn}() from public, anon, authenticated;
+select ${fn}();`;
 }
 
 function permdockClaim(name: string, budget = false): SupabaseHookClaim {

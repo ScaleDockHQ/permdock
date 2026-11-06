@@ -78,13 +78,11 @@ function serverOnly(fn: string, args: string): string {
 const BODY_CHECK = `${APPROVAL_STORE.table}_body_schema`;
 
 /**
- * `rls.jsonSchema`: a pg_jsonschema check that `body` matches
- * `approval-request-v1.json`, added `not valid` and then validated. `auto` adds
- * it only where the extension is available.
+ * `rls.jsonSchema: true`: a pg_jsonschema check that `body` matches
+ * `approval-request-v1.json`, added `not valid` and then validated.
  */
 function bodySchemaSql(
   table: string,
-  mode: "auto" | true,
   body = "body",
   check = BODY_CHECK,
 ): string {
@@ -95,19 +93,7 @@ function bodySchemaSql(
     `alter table ${table} add constraint "${check}" check (extensions.jsonb_matches_schema(${quoteLiteral(JSON.stringify(APPROVAL_REQUEST_SCHEMA))}::json, ${body})) not valid;`,
     `alter table ${table} validate constraint "${check}";`,
   ];
-  const comment =
-    "-- approval store: body matches schemas/approval-request-v1.json through pg_jsonschema";
-  if (mode === true) {
-    return `\n${comment}\n${statements.join("\n")}\n`;
-  }
-  return `\n${comment}, where the extension is available
-do $permdock$
-begin
-  if exists (select 1 from pg_available_extensions where name = 'pg_jsonschema') then
-${statements.map((statement) => `    ${statement}`).join("\n")}
-  end if;
-end
-$permdock$;\n`;
+  return `\n-- approval store: body matches schemas/approval-request-v1.json through pg_jsonschema\n${statements.join("\n")}\n`;
 }
 
 /**
@@ -119,7 +105,7 @@ $permdock$;\n`;
  */
 export function approvalStoreSql(
   ctx: RlsSqlContext,
-  jsonSchema: "auto" | boolean = false,
+  jsonSchema = false,
 ): string {
   const table = qualified(ctx, APPROVAL_STORE.table);
   const fn = (name: string): string => qualified(ctx, name);
@@ -142,7 +128,7 @@ create index if not exists ${index("page")} on ${table} (created_at collate "C",
 create index if not exists ${index("pending")} on ${table} (status, expires_at);
 alter table ${table} enable row level security;
 revoke all on table ${table} from anon, authenticated, public;
-${jsonSchema === false ? "" : bodySchemaSql(table, jsonSchema)}
+${jsonSchema ? bodySchemaSql(table) : ""}
 -- open a request; a repeated ask keeps the open record and replaces only an expired one
 create or replace function ${fn(APPROVAL_STORE.open)}(p_request jsonb)
 returns void
@@ -371,7 +357,7 @@ ${exposure}
 export function approvalsSql(
   ctx: RlsSqlContext,
   approvals: boolean | RlsApprovalsAdopt | undefined,
-  jsonSchema: "auto" | boolean,
+  jsonSchema: boolean,
   actorMayWrite = false,
 ): string | undefined {
   if (approvals === undefined || approvals === false) {
@@ -772,7 +758,7 @@ function mirrorSet(table: string, mirror: Mirror, body: string): string {
 export function adoptedApprovalStoreSql(
   ctx: RlsSqlContext,
   adopt: RlsApprovalsAdopt & { readonly table: string },
-  jsonSchema: "auto" | boolean = false,
+  jsonSchema = false,
 ): string {
   const table = quoteQualified(adopt.table);
   const base = adopt.table.split(".").at(-1) ?? adopt.table;
@@ -872,7 +858,7 @@ alter table ${table} add column if not exists ${body} jsonb;
 create unique index if not exists ${index("token")} on ${table} (${token});
 create index if not exists ${index("page")} on ${table} ((${body} ->> 'createdAt') collate "C", ${token} collate "C");
 create index if not exists ${index("status")} on ${table} ((${body} ->> 'status'));
-${jsonSchema === false ? "" : bodySchemaSql(table, jsonSchema, body, `${base}_permdock_body_schema`)}
+${jsonSchema ? bodySchemaSql(table, body, `${base}_permdock_body_schema`) : ""}
 ${open === "attach" ? attachSql : insertSql}
 ${serverOnly(fn(APPROVAL_STORE.open), "jsonb")}
 

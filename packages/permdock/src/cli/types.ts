@@ -355,12 +355,11 @@ export type RlsConfig = {
    */
   readonly approvals?: boolean | RlsApprovalsAdopt;
   /**
-   * A pg_jsonschema check constraint on generated `jsonb` columns: the approval
-   * store's `body` must match `approval-request-v1.json`. `true` installs the
-   * extension into `extensions`; `'auto'` adds the constraint only where
-   * `pg_available_extensions` lists it. Off by default.
+   * A pg_jsonschema check constraint on the approval store's `body`: it must
+   * match `approval-request-v1.json`. `true` installs the extension into
+   * `extensions`. Off by default. `'auto'` is refused: it needed a `do` block.
    */
-  readonly jsonSchema?: "auto" | boolean;
+  readonly jsonSchema?: boolean;
   /**
    * `false` leaves out the holder-count and transfer-only triggers `min`, `max`
    * and `transferOnly` put on the membership tables; a map with `<scope>:

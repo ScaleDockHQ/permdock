@@ -3,6 +3,7 @@ import type { RlsCustomRolesFrom, RlsMigrateConfig } from "../types.ts";
 
 import { qualifySqlTable } from "../../core/sql.ts";
 import { BACKFILL_MARKER } from "../sql/markers.ts";
+import { quoteQualified } from "../sql/quote.ts";
 import { DROPPED_LIST, rebuildPlan } from "./custom-role-rebuild.ts";
 
 export { legacyKeySql } from "./custom-role-rebuild.ts";
@@ -21,10 +22,19 @@ export function backfillSql(
 ): string {
   const plan = rebuildPlan(ctx, from, migrate);
   const { rolesTable, perms, includes, replace, scopes } = plan;
+  const fn = quoteQualified(
+    `${ctx.schema ?? "permdock"}.permdock_backfill_custom_roles`,
+  );
   return `${BACKFILL_MARKER} schema=${ctx.schema ?? "permdock"}
 -- custom roles copied from ${qualifySqlTable(plan.roles.table)} (rls.customRoles.from) through ${replace}
 -- a role that already has rows is left as it is; entries PermDock cannot hold are dropped and listed in one warning
-do $permdock$
+create or replace function ${fn}()
+returns void
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $permdock$
 declare
   v record;
   v_allow text[];
@@ -68,5 +78,7 @@ ${plan.collect}
   end if;
 end
 $permdock$;
+revoke execute on function ${fn}() from public, anon, authenticated;
+select ${fn}();
 `;
 }

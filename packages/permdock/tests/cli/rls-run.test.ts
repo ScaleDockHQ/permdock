@@ -222,11 +222,13 @@ describe("rls run", () => {
         );
       expect(await generate("yes")).toMatchObject({
         code: 2,
-        output: `rls.jsonSchema must be 'auto', true or false (got "yes")`,
+        output: `rls.jsonSchema must be true or false (got "yes")`,
       });
-      expect((await generate("auto")).output).toContain(
-        "rls.jsonSchema constrains the approval store's body, which needs rls.approvals: true",
-      );
+      expect(await generate("auto")).toMatchObject({
+        code: 2,
+        output:
+          "rls.jsonSchema: 'auto' is not supported. Set true or false. 'auto' needed a do block, which a schema file cannot carry.",
+      });
     });
 
     it("adopts an approvals table and writes row helpers, and exits 2 on a config they cannot use", async () => {
@@ -242,7 +244,7 @@ describe("rls run", () => {
         );
       const adopted = await generate({
         approvals: { table: "approvals", mirror: { status: "state" } },
-        jsonSchema: "auto",
+        jsonSchema: true,
       });
       expect(adopted.code).toBe(0);
       expect(adopted.output).not.toContain("rls.jsonSchema constrains");

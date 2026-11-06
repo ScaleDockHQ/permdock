@@ -110,17 +110,23 @@ function preflight(
       refusal: `rls.anonymousSignIns needs --dialect supabase (got ${ctx.dialect})`,
     };
   }
-  const jsonSchema = rls?.jsonSchema;
-  if (
-    jsonSchema !== undefined &&
-    jsonSchema !== "auto" &&
-    typeof jsonSchema !== "boolean"
-  ) {
+  // A config file is untyped JavaScript, so 'auto' still arrives at run time.
+  const jsonSchema: unknown = rls?.jsonSchema;
+  if (jsonSchema === "auto") {
     return {
-      refusal: `rls.jsonSchema must be 'auto', true or false (got ${JSON.stringify(jsonSchema)})`,
+      refusal:
+        "rls.jsonSchema: 'auto' is not supported. Set true or false. 'auto' needed a do block, which a schema file cannot carry.",
     };
   }
-  return { backfill, jsonSchema };
+  if (jsonSchema !== undefined && typeof jsonSchema !== "boolean") {
+    return {
+      refusal: `rls.jsonSchema must be true or false (got ${JSON.stringify(jsonSchema)})`,
+    };
+  }
+  return {
+    backfill,
+    jsonSchema: typeof jsonSchema === "boolean" ? jsonSchema : undefined,
+  };
 }
 
 function rbacPart(

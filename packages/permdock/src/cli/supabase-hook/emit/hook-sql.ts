@@ -119,7 +119,7 @@ export function supabaseHookSql(
 -- supabase/config.toml:
 ${toml}${grantsOut === undefined ? "" : `\n-- what supabase db diff drops from this part is in ${grantsOut}`}`,
     schemaSql(parts),
-    attrsGuardSql(parts.attrs),
+    attrsGuardSql(parts.attrs, parts.schema),
     globalRolesSql(parts),
     membershipEntriesSql(parts),
     hookSql(parts),
