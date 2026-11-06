@@ -45,6 +45,7 @@ import {
   migrationSql,
 } from "./emit.ts";
 import { rowBranches } from "./fields.ts";
+import { walkChainSql } from "./follows.ts";
 import { isRefusal, splitsPart } from "./generate-options.ts";
 import { generatePolicies, withHelperTables } from "./generate-policies.ts";
 import { closureBackfillSql, graphSql } from "./graph.ts";
@@ -252,12 +253,19 @@ function sectionsSql(
     ctx,
     breakGlassEntries(policy, tableNames(rls?.tables)),
   );
+  const chain = walkChainSql(
+    ctx,
+    policy,
+    rls?.tables,
+    typeof rls?.approvals === "object" && rls.approvals.delegations === true,
+  );
   return [
     approvals,
     owned === "" ? undefined : owned,
     graphed === "" ? undefined : graphed,
     breakGlass === "" ? undefined : breakGlass,
     rowHelpers === "" ? undefined : rowHelpers,
+    chain === "" ? undefined : chain,
   ];
 }
 

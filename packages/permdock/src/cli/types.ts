@@ -128,16 +128,30 @@ export type RlsTableVia = {
 };
 
 /**
- * A resource's table: its `schema.table`, an object that adds `via`, `false`
- * for a resource with no table (a console permission), or `{ tableOf }` for a
- * resource stored in another resource's table. `false` and `{ tableOf }` get no
- * policies while their role grants are still seeded; the owner resource writes
- * the table's policies.
+ * A resource's table. `false` is a resource with no table. `{ tableOf }` is the
+ * older way to store a resource in another resource's table; `also` on the
+ * owner replaces it. `follows` names child tables whose policies are an
+ * `exists` of `can_<resource>` on this row. `walk: "recursive"` is the manager
+ * chain: one recursive set helper.
  */
+export type RlsTableOwner = {
+  readonly table?: string;
+  readonly via?: RlsTableVia;
+  /** Other resources stored in this table. They get no policies of their own. */
+  readonly also?: readonly string[];
+  /**
+   * Child table to the column that holds this resource's id. Each child gets
+   * select, insert, update and delete policies that call `can_<resource>`.
+   */
+  readonly follows?: Readonly<Record<string, string>>;
+  /** A self-parented resource walked as one recursive set, the manager chain. */
+  readonly walk?: "recursive";
+};
+
 export type RlsTable =
   | string
   | false
-  | { readonly table?: string; readonly via: RlsTableVia }
+  | RlsTableOwner
   | { readonly tableOf: string };
 
 export type RlsConfig = {

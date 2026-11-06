@@ -1,5 +1,5 @@
 import type { Scope } from "../../core/scopes.ts";
-import type { RlsTable } from "../types.ts";
+import type { RlsTable, RlsTableOwner } from "../types.ts";
 
 import { configError } from "../core/errors.ts";
 import { permittedIdsHelper } from "./names.ts";
@@ -47,21 +47,30 @@ export function tableNames(
       );
 }
 
+function isOwner(entry: RlsTable): entry is RlsTableOwner {
+  return typeof entry === "object" && !("tableOf" in entry);
+}
+
 /**
- * The resources `rls.tables` marks `false` or `{ tableOf }`: no policies of
- * their own, their grants only seeded.
+ * The resources `rls.tables` marks `false` or `{ tableOf }`, plus every
+ * resource an owner's `also` names: no policies of their own, their grants only
+ * seeded.
  */
 export function tablelessResources(
   tables: Readonly<Record<string, RlsTable>> | undefined,
 ): ReadonlySet<string> {
-  return new Set(
-    Object.entries(tables ?? {})
-      .filter(
-        ([, entry]) =>
-          entry === false || (typeof entry === "object" && "tableOf" in entry),
-      )
-      .map(([resource]) => resource),
-  );
+  const out = new Set<string>();
+  for (const [resource, entry] of Object.entries(tables ?? {})) {
+    if (entry === false || (typeof entry === "object" && "tableOf" in entry)) {
+      out.add(resource);
+    }
+    if (isOwner(entry)) {
+      for (const name of entry.also ?? []) {
+        out.add(name);
+      }
+    }
+  }
+  return out;
 }
 
 /**
@@ -121,7 +130,7 @@ export function resolveVias(
 ): Readonly<Record<string, ResolvedVia>> | undefined {
   const out: Record<string, ResolvedVia> = {};
   for (const [resource, entry] of Object.entries(tables ?? {})) {
-    if (typeof entry === "string" || entry === false || "tableOf" in entry) {
+    if (!isOwner(entry) || entry.via === undefined) {
       continue;
     }
     const { via } = entry;

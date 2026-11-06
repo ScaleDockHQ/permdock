@@ -20,6 +20,7 @@ import { qualified } from "../sql/quote.ts";
 import { tableNames } from "../sql/tables.ts";
 import { policySql } from "./emit.ts";
 import { fieldViews, rowBranches } from "./fields.ts";
+import { followPolicies } from "./follows.ts";
 import {
   ACTOR_MAY_WRITE,
   assemblePolicies,
@@ -249,7 +250,9 @@ export function generatePolicies(
     helpersOnly,
     force,
     views,
-    policies: helpersOnly ? [] : withActors(assembled),
+    policies: helpersOnly
+      ? []
+      : withActors([...assembled, ...followPolicies(ctx, policy, rls?.tables)]),
     ...(actorGuards.length === 0
       ? {}
       : {
