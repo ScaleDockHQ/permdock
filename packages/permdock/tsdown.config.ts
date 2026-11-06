@@ -90,6 +90,7 @@ export default defineConfig({
   entry: [
     "src/index.ts",
     "src/app/index.ts",
+    "src/seeds/index.ts",
     "src/approvals/index.ts",
     "src/jwt/index.ts",
     "src/react/index.ts",

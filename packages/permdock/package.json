@@ -50,6 +50,10 @@
       "types": "./dist/app/index.d.ts",
       "default": "./dist/app/index.js"
     },
+    "./seeds": {
+      "types": "./dist/seeds/index.d.ts",
+      "default": "./dist/seeds/index.js"
+    },
     "./approvals": {
       "types": "./dist/approvals/index.d.ts",
       "default": "./dist/approvals/index.js"

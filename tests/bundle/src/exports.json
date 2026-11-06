@@ -64,7 +64,6 @@
     "definePlans",
     "definePolicy",
     "defineRoles",
-    "defineSeeds",
     "delegatedPermissions",
     "deliveryEvent",
     "deny",
@@ -179,6 +178,7 @@
     "writable"
   ],
   "./app": ["definePermDock"],
+  "./seeds": ["defineSeeds"],
   "./approvals": [
     "APPROVAL_HEADER",
     "APPROVAL_REQUEST_SCHEMA",

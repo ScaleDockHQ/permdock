@@ -1,4 +1,5 @@
-import { allow, definePolicy, defineSeeds, role } from "permdock";
+import { allow, definePolicy, role } from "permdock";
+import { defineSeeds } from "permdock/seeds";
 
 import { permissions } from "./permissions.ts";
 
