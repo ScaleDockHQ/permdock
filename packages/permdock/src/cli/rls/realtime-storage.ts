@@ -1,3 +1,4 @@
+import type { Policy } from "../../index.ts";
 import type { CompiledPolicy, SqlCommand } from "../sql/compile.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type {
@@ -8,9 +9,10 @@ import type {
 } from "../types.ts";
 
 import { configError } from "../core/errors.ts";
-import { idTypeOf } from "../sql/columns.ts";
+import { idTypeOf, scopeTypeOf } from "../sql/columns.ts";
+import { tableFor } from "../sql/compile.ts";
 import { graphSqlName } from "../sql/names.ts";
-import { qualified, quoteLiteral } from "../sql/quote.ts";
+import { qualified, quoteLiteral, quoteQualified } from "../sql/quote.ts";
 import { permittedByPermissionHelper } from "./permission-keys.ts";
 
 /**
@@ -208,11 +210,33 @@ function folderOf(bucket: RlsStorageBucket, where: string): number {
   return folder;
 }
 
+/**
+ * The column that holds `scope` on `resource`: a `memberOf` relation's field.
+ * The folder id is that scope instance, and also the resource id.
+ */
+function memberField(
+  policy: Policy | undefined,
+  resource: string,
+  scope: string,
+): string | undefined {
+  const node = policy?.resources.get(resource);
+  if (node === undefined) {
+    return undefined;
+  }
+  for (const relation of Object.values(node.relations)) {
+    if ("memberOf" in relation && relation.memberOf === scope) {
+      return relation.field;
+    }
+  }
+  return undefined;
+}
+
 function storagePolicies(
   ctx: RlsSqlContext,
   facts: HelperTableFacts,
   storage: RlsStorage,
   warnings: string[],
+  policy: Policy | undefined,
 ): CompiledPolicy[] {
   return Object.entries(storage.buckets).flatMap(([id, bucket]) => {
     const where = `rls.storage.buckets['${id}']`;
@@ -226,11 +250,21 @@ function storagePolicies(
           `PermDock CLI: ${where} permission '${key}' does not name a SQL resource`,
         );
       }
-      const type = idTypeOf(ctx, resource);
       const path = `(storage.foldername(name))[${String(folder)}]`;
-      const objectId = type === "text" ? path : `${path}::${type}`;
+      const idType = idTypeOf(ctx, resource);
+      const node = policy?.resources.get(resource);
+      const idName = node?.id ?? "id";
+      const pairs = [`${quoteLiteral(idName)}, ${path}::${idType}`];
+      const scopeField = memberField(policy, resource, bucket.scope);
+      if (scopeField !== undefined && scopeField !== idName) {
+        pairs.push(
+          `${quoteLiteral(scopeField)}, ${path}::${scopeTypeOf(ctx, bucket.scope)}`,
+        );
+      }
+      const table = quoteQualified(tableFor(resource, ctx.graph?.tables));
+      const row = `json_populate_record(null::${table}, json_build_object(${pairs.join(", ")}))`;
       return `bucket_id = ${quoteLiteral(id)}
-    and ${qualified(ctx, `can_${sql}`)}(${objectId}, ${quoteLiteral(key)}::text)`;
+    and ${qualified(ctx, `can_${sql}`)}(${row}, ${quoteLiteral(key)}::text)`;
     };
     const commands: readonly [
       SqlCommand,
@@ -273,14 +307,16 @@ function storagePolicies(
  * The `realtime.messages` and `storage.objects` policies `rls.realtime` and
  * `rls.storage` describe. A topic admits a row only where the subject holds the
  * permission in the scope instance its segment names, through an allow without
- * a row condition. A bucket admits a row when `can_<resource>` allows the
- * object id in the folder for that permission, row conditions included.
+ * a row condition. A bucket builds a row whose id and scope column are the
+ * folder, each cast to that column's type, and calls `can_<resource>` so the
+ * resource's row conditions apply.
  */
 export function realtimeStoragePolicies(
   ctx: RlsSqlContext,
   facts: HelperTableFacts,
   config: { readonly realtime?: RlsRealtime; readonly storage?: RlsStorage },
   warnings: string[] = [],
+  policy?: Policy,
 ): readonly CompiledPolicy[] {
   if (config.realtime === undefined && config.storage === undefined) {
     return [];
@@ -296,7 +332,7 @@ export function realtimeStoragePolicies(
       : realtimePolicies(ctx, facts, config.realtime, warnings)),
     ...(config.storage === undefined
       ? []
-      : storagePolicies(ctx, facts, config.storage, warnings)),
+      : storagePolicies(ctx, facts, config.storage, warnings, policy)),
   ];
   const seen = new Set<string>();
   for (const { name } of policies) {

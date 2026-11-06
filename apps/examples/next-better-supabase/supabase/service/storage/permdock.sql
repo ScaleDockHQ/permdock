@@ -8,7 +8,7 @@ create policy "permdock_storage_quote_files_select"
   for select
   to authenticated
   using (bucket_id = 'quote-files'
-    and "permdock".can_quotes((storage.foldername(name))[1]::uuid, 'quotes.read'::text));
+    and "permdock".can_quotes(json_populate_record(null::"public"."quotes", json_build_object('id', (storage.foldername(name))[1]::uuid, 'organization_id', (storage.foldername(name))[1]::uuid)), 'quotes.read'::text));
 
 drop policy if exists "permdock_storage_quote_files_insert" on "storage"."objects";
 create policy "permdock_storage_quote_files_insert"
@@ -17,7 +17,7 @@ create policy "permdock_storage_quote_files_insert"
   for insert
   to authenticated
   with check (bucket_id = 'quote-files'
-    and "permdock".can_quotes((storage.foldername(name))[1]::uuid, 'quotes.update'::text));
+    and "permdock".can_quotes(json_populate_record(null::"public"."quotes", json_build_object('id', (storage.foldername(name))[1]::uuid, 'organization_id', (storage.foldername(name))[1]::uuid)), 'quotes.update'::text));
 
 drop policy if exists "permdock_storage_quote_files_update" on "storage"."objects";
 create policy "permdock_storage_quote_files_update"
@@ -26,9 +26,9 @@ create policy "permdock_storage_quote_files_update"
   for update
   to authenticated
   using (bucket_id = 'quote-files'
-    and "permdock".can_quotes((storage.foldername(name))[1]::uuid, 'quotes.update'::text))
+    and "permdock".can_quotes(json_populate_record(null::"public"."quotes", json_build_object('id', (storage.foldername(name))[1]::uuid, 'organization_id', (storage.foldername(name))[1]::uuid)), 'quotes.update'::text))
   with check (bucket_id = 'quote-files'
-    and "permdock".can_quotes((storage.foldername(name))[1]::uuid, 'quotes.update'::text));
+    and "permdock".can_quotes(json_populate_record(null::"public"."quotes", json_build_object('id', (storage.foldername(name))[1]::uuid, 'organization_id', (storage.foldername(name))[1]::uuid)), 'quotes.update'::text));
 
 drop policy if exists "permdock_storage_quote_files_delete" on "storage"."objects";
 create policy "permdock_storage_quote_files_delete"
@@ -37,7 +37,7 @@ create policy "permdock_storage_quote_files_delete"
   for delete
   to authenticated
   using (bucket_id = 'quote-files'
-    and "permdock".can_quotes((storage.foldername(name))[1]::uuid, 'quotes.update'::text));
+    and "permdock".can_quotes(json_populate_record(null::"public"."quotes", json_build_object('id', (storage.foldername(name))[1]::uuid, 'organization_id', (storage.foldername(name))[1]::uuid)), 'quotes.update'::text));
 
 drop policy if exists "storage_objects_insert_read_only_actors" on "storage"."objects";
 create policy "storage_objects_insert_read_only_actors"

@@ -65,6 +65,17 @@ describe("rls realtime storage", () => {
 
   const IDS = `in (select x::text from "permdock".permitted_organization_ids_by_permission`;
 
+  const storedRow = (
+    resource: string,
+    folder: number,
+    idType: string,
+    scopeType: string,
+    scopeField: string,
+  ): string => {
+    const folderPath = `(storage.foldername(name))[${String(folder)}]`;
+    return `json_populate_record(null::"public"."${resource}", json_build_object('id', ${folderPath}::${idType}, '${scopeField}', ${folderPath}::${scopeType}))`;
+  };
+
   describe("rls.realtime and rls.storage", () => {
     it("writes realtime.messages policies per topic pattern", async () => {
       const { code, sql } = await generate({ realtime });
@@ -94,7 +105,7 @@ describe("rls realtime storage", () => {
         },
       });
       expect(code).toBe(0);
-      const id = `"permdock".can_asset((storage.foldername(name))[2]::uuid,`;
+      const id = `"permdock".can_asset(${storedRow("asset", 2, "uuid", "uuid", "organization_id")},`;
       expect(sql).toContain(`create policy "permdock_storage_asset_files_select"
   on "storage"."objects"
   as permissive
@@ -122,7 +133,7 @@ describe("rls realtime storage", () => {
         expect.arrayContaining(["asset.read", "asset.update"]),
       );
       expect(sql).toContain(
-        `"permdock".can_asset((storage.foldername(name))[1]::uuid, 'asset.delete'::text)`,
+        `"permdock".can_asset(${storedRow("asset", 1, "uuid", "uuid", "organization_id")}, 'asset.delete'::text)`,
       );
     });
 
@@ -136,12 +147,28 @@ describe("rls realtime storage", () => {
       });
       expect(code).toBe(0);
       expect(sql).toContain(
-        `"permdock".can_quote((storage.foldername(name))[1]::uuid, 'quote.read'::text)`,
+        `"permdock".can_quote(${storedRow("quote", 1, "uuid", "uuid", "organization_id")}, 'quote.read'::text)`,
       );
       expect(sql).not.toContain(
         "permitted_organization_ids_by_permission('quote.read')",
       );
       expect(output).not.toContain("whose grants carry row conditions");
+    });
+
+    it("casts a text id and a text scope column when idTypes says so", async () => {
+      const { code, sql } = await generate({
+        idTypes: { "*": "text" },
+        scopeTypes: { organization: "text" },
+        storage,
+      });
+      expect(code).toBe(0);
+      expect(sql).toContain(
+        `"permdock".can_asset(${storedRow("asset", 1, "text", "text", "organization_id")}, 'asset.read'::text)`,
+      );
+      expect(sql).toContain(
+        'create or replace function "permdock".can_asset(p_id text, p_permission text)',
+      );
+      expect(sql).toContain('where permdock_row."id" = p_id');
     });
 
     it("adds read-only actor policies on the write commands", async () => {

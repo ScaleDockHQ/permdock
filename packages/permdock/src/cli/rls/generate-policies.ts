@@ -234,6 +234,7 @@ export function generatePolicies(
       },
       compact({ realtime: rls?.realtime, storage: rls?.storage }),
       warnings,
+      policy,
     );
   } catch (cause) {
     return { refusal: describeError(cause) };
