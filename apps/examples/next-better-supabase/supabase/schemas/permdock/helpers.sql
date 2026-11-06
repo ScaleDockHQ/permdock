@@ -826,23 +826,14 @@ begin
       message = 'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform'),
       hint = 'not-member';
   end if;
-  if p_scope = 'global' then
-    if not exists (
+  if not exists (
     select 1 from "permdock".role_permissions rp
     where rp.effect = 'allow'
       and rp.permission = any(array['roles.manage']::text[])
-      and "permdock".permdock_has(rp.grant_key)
-  ) then
-      raise exception using
-        errcode = '42501',
-        message = 'permdock: the caller may not manage roles in ' || coalesce(p_tenant::text, 'the platform'),
-        hint = 'manage-roles';
-    end if;
-  elsif not exists (
-    select 1 from "permdock".role_permissions rp
-    where rp.effect = 'allow'
-      and rp.permission = any(array['roles.manage']::text[])
-      and p_tenant::text in (select x::text from "permdock".permitted_organization_ids(rp.grant_key) x)
+      and ("permdock".permdock_has(rp.grant_key)
+        or (p_scope <> 'global'
+          and (p_tenant::text in (select x::text from "permdock".permitted_organization_ids(rp.grant_key) x)
+            or (case p_scope when 'organization' then false when 'customer' then p_scope_id in (select x::text from "permdock".permitted_customer_ids(rp.grant_key) x) else false end))))
   ) then
     raise exception using
       errcode = '42501',
@@ -930,23 +921,14 @@ begin
       message = 'permdock: the caller is not a member of ' || coalesce(p_tenant::text, 'the platform'),
       hint = 'not-member';
   end if;
-  if p_scope = 'global' then
-    if not exists (
+  if not exists (
     select 1 from "permdock".role_permissions rp
     where rp.effect = 'allow'
       and rp.permission = any(array['roles.manage']::text[])
-      and "permdock".permdock_has_for(p_user, rp.grant_key)
-  ) then
-      raise exception using
-        errcode = '42501',
-        message = 'permdock: the caller may not manage roles in ' || coalesce(p_tenant::text, 'the platform'),
-        hint = 'manage-roles';
-    end if;
-  elsif not exists (
-    select 1 from "permdock".role_permissions rp
-    where rp.effect = 'allow'
-      and rp.permission = any(array['roles.manage']::text[])
-      and p_tenant::text in (select x::text from "permdock".permitted_organization_ids_for(p_user, rp.grant_key) x)
+      and ("permdock".permdock_has_for(p_user, rp.grant_key)
+        or (p_scope <> 'global'
+          and (p_tenant::text in (select x::text from "permdock".permitted_organization_ids_for(p_user, rp.grant_key) x)
+            or (case p_scope when 'organization' then false when 'customer' then p_scope_id in (select x::text from "permdock".permitted_customer_ids_for(p_user, rp.grant_key) x) else false end))))
   ) then
     raise exception using
       errcode = '42501',
@@ -3362,3 +3344,180 @@ create constraint trigger "permdock_holders_organization"
   after insert or update or delete on "public"."organization_memberships"
   deferrable initially deferred
   for each row execute function "permdock".permdock_holders_organization();
+
+-- quotes: one predicate, called by the set, the id list and both row forms
+create or replace function "permdock".permitted_quotes_match(p_row "public"."quotes", p_permission text)
+returns boolean
+language sql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+  with permdock_candidates as (select (p_row).*)
+  select exists (select 1 from permdock_candidates where case p_permission
+    when 'quotes.list' then coalesce((("organization_id" in (select e::uuid from jsonb_array_elements_text(case when (nullif(current_setting('permdock.m.' || 'organization' || '.k' || (hashtext('quotes.list') & 1023)::text, true), '')::jsonb ->> 'k') = md5(concat_ws('|',
+      (select "permdock".permdock_user_id())::text,
+      'quotes.list',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    )) then nullif(current_setting('permdock.m.' || 'organization' || '.k' || (hashtext('quotes.list') & 1023)::text, true), '')::jsonb -> 'ids' else to_jsonb(array(select * from "permdock".permitted_organization_ids('quotes.list'))) end) s(e))) or ("customer_id" in (select e::uuid from jsonb_array_elements_text(case when (nullif(current_setting('permdock.m.' || 'customer' || '.k' || (hashtext('quotes.list') & 1023)::text, true), '')::jsonb ->> 'k') = md5(concat_ws('|',
+      (select "permdock".permdock_user_id())::text,
+      'quotes.list',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    )) then nullif(current_setting('permdock.m.' || 'customer' || '.k' || (hashtext('quotes.list') & 1023)::text, true), '')::jsonb -> 'ids' else to_jsonb(array(select * from "permdock".permitted_customer_ids('quotes.list'))) end) s(e)))), false)
+    when 'quotes.read' then coalesce((("organization_id" in (select e::uuid from jsonb_array_elements_text(case when (nullif(current_setting('permdock.m.' || 'organization' || '.k' || (hashtext('quotes.read') & 1023)::text, true), '')::jsonb ->> 'k') = md5(concat_ws('|',
+      (select "permdock".permdock_user_id())::text,
+      'quotes.read',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    )) then nullif(current_setting('permdock.m.' || 'organization' || '.k' || (hashtext('quotes.read') & 1023)::text, true), '')::jsonb -> 'ids' else to_jsonb(array(select * from "permdock".permitted_organization_ids('quotes.read'))) end) s(e))) or ("customer_id" in (select e::uuid from jsonb_array_elements_text(case when (nullif(current_setting('permdock.m.' || 'customer' || '.k' || (hashtext('quotes.read') & 1023)::text, true), '')::jsonb ->> 'k') = md5(concat_ws('|',
+      (select "permdock".permdock_user_id())::text,
+      'quotes.read',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    )) then nullif(current_setting('permdock.m.' || 'customer' || '.k' || (hashtext('quotes.read') & 1023)::text, true), '')::jsonb -> 'ids' else to_jsonb(array(select * from "permdock".permitted_customer_ids('quotes.read'))) end) s(e)))), false)
+    when 'quotes.update' then coalesce(("organization_id" in (select e::uuid from jsonb_array_elements_text(case when (nullif(current_setting('permdock.m.' || 'organization' || '.k' || (hashtext('quotes.update') & 1023)::text, true), '')::jsonb ->> 'k') = md5(concat_ws('|',
+      (select "permdock".permdock_user_id())::text,
+      'quotes.update',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    )) then nullif(current_setting('permdock.m.' || 'organization' || '.k' || (hashtext('quotes.update') & 1023)::text, true), '')::jsonb -> 'ids' else to_jsonb(array(select * from "permdock".permitted_organization_ids('quotes.update'))) end) s(e))), false)
+    else false
+  end)
+$$;
+revoke execute on function "permdock".permitted_quotes_match("public"."quotes", text) from public, anon;
+grant execute on function "permdock".permitted_quotes_match("public"."quotes", text) to authenticated;
+-- quotes: ids of the rows the caller may act on with p_permission, as the table's policies decide it
+create or replace function "permdock".permitted_quotes_rows(p_permission text)
+returns setof uuid
+language sql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+  select "id"::uuid from "public"."quotes" as permdock_row
+  where "permdock".permitted_quotes_match(permdock_row, p_permission)
+$$;
+revoke execute on function "permdock".permitted_quotes_rows(text) from public, anon;
+grant execute on function "permdock".permitted_quotes_rows(text) to authenticated;
+create or replace function "permdock".permitted_quotes_rows(p_permission text, p_ids uuid[])
+returns setof uuid
+language plpgsql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+declare
+  v_row "public"."quotes";
+  v_rows "public"."quotes"[] := '{}';
+  v_id uuid;
+begin
+  begin
+    foreach v_id in array coalesce(p_ids, '{}') loop
+      v_row."id" := v_id;
+      v_rows := pg_catalog.array_append(v_rows, v_row);
+    end loop;
+  exception when data_exception then
+    v_rows := '{}';
+    foreach v_id in array p_ids loop
+      begin
+        v_row."id" := v_id;
+        v_rows := pg_catalog.array_append(v_rows, v_row);
+      exception when data_exception then
+        null;
+      end;
+    end loop;
+  end;
+  return query
+  with permdock_candidates as materialized (
+    select * from "public"."quotes" where "id" = any (array(select (r)."id" from pg_catalog.unnest(v_rows) r))
+  )
+  select "id"::uuid from permdock_candidates
+  where "permdock".permitted_quotes_match(permdock_candidates, p_permission);
+end
+$$;
+revoke execute on function "permdock".permitted_quotes_rows(text, uuid[]) from public, anon;
+grant execute on function "permdock".permitted_quotes_rows(text, uuid[]) to authenticated;
+create or replace function "permdock".can_quotes(p_row "public"."quotes", p_permission text)
+returns boolean
+language sql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+  select "permdock".permitted_quotes_match(p_row, p_permission)
+$$;
+revoke execute on function "permdock".can_quotes("public"."quotes", text) from public, anon;
+grant execute on function "permdock".can_quotes("public"."quotes", text) to authenticated;
+create or replace function "permdock".can_quotes(p_id uuid, p_permission text)
+returns boolean
+language sql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+  select exists (
+    select 1 from "public"."quotes" as permdock_row
+    where permdock_row."id" = p_id
+      and "permdock".permitted_quotes_match(permdock_row, p_permission)
+  )
+$$;
+revoke execute on function "permdock".can_quotes(uuid, text) from public, anon;
+grant execute on function "permdock".can_quotes(uuid, text) to authenticated;
+-- the same rows for a user the caller names, with claims it supplies; no client role may execute it
+create or replace function "permdock".permitted_quotes_rows_for(p_user uuid, p_permission text, p_claims jsonb default '{}')
+returns setof uuid
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_claims text := pg_catalog.current_setting('request.jwt.claims', true);
+begin
+  perform pg_catalog.set_config(
+    'request.jwt.claims',
+    (coalesce(p_claims, '{}'::jsonb) || pg_catalog.jsonb_build_object('sub', p_user::text, 'role', 'authenticated'))::text,
+    true
+  );
+  return query select r.id from "permdock".permitted_quotes_rows(p_permission) r(id);
+  perform pg_catalog.set_config('request.jwt.claims', coalesce(v_claims, ''), true);
+end
+$$;
+revoke execute on function "permdock".permitted_quotes_rows_for(uuid, text, jsonb) from public, anon, authenticated;
+create or replace function "permdock".permitted_quotes_rows_for(p_user uuid, p_permission text, p_ids uuid[], p_claims jsonb default '{}')
+returns setof uuid
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_claims text := pg_catalog.current_setting('request.jwt.claims', true);
+begin
+  perform pg_catalog.set_config(
+    'request.jwt.claims',
+    (coalesce(p_claims, '{}'::jsonb) || pg_catalog.jsonb_build_object('sub', p_user::text, 'role', 'authenticated'))::text,
+    true
+  );
+  return query select r.id from "permdock".permitted_quotes_rows(p_permission, p_ids) r(id);
+  perform pg_catalog.set_config('request.jwt.claims', coalesce(v_claims, ''), true);
+end
+$$;
+revoke execute on function "permdock".permitted_quotes_rows_for(uuid, text, uuid[], jsonb) from public, anon, authenticated;

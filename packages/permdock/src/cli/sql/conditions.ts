@@ -726,6 +726,7 @@ function compileRelatedSql(
           graphCall,
           `${subjectIdSql(ctx)}::text`,
           ctx.memo,
+          rowsType,
         )
       : undefined;
   if (held !== undefined) {

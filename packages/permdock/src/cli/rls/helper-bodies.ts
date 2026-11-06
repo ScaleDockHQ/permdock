@@ -717,6 +717,7 @@ export function memoHitList(
   call: string,
   userSql: string,
   api?: "better-supabase",
+  idType = "text",
 ): string {
   const setting = `'permdock.m.' || ${quoteLiteral(scope)} || '.k' || (hashtext(${keySql}) & 1023)::text`;
   const disc = memoDiscriminatorSql(userSql, keySql);
@@ -724,7 +725,7 @@ export function memoHitList(
     api === "better-supabase"
       ? `nullif(better_supabase.memo_get(${setting}), '')::jsonb`
       : `nullif(current_setting(${setting}, true), '')::jsonb`;
-  return `select e from jsonb_array_elements_text(case when (${read} ->> 'k') = ${disc} then ${read} -> 'ids' else to_jsonb(array(select * from ${call})) end) s(e)`;
+  return `select e::${idType} from jsonb_array_elements_text(case when (${read} ->> 'k') = ${disc} then ${read} -> 'ids' else to_jsonb(array(select * from ${call})) end) s(e)`;
 }
 
 function memoDiscriminatorSql(user: string, key: string): string {

@@ -89,7 +89,7 @@ export function accessSql(
   }
   const fn = qualified(ctx, helper ?? permittedIdsHelper(scope));
   if (ctx.reuseMemo === true && memoizes(ctx)) {
-    return `${quoteIdent(column)} in (${memoHitList(scope, key, `${fn}(${key})`, `${subjectIdSql(ctx)}::text`, ctx.memo)})`;
+    return `${quoteIdent(column)} in (${memoHitList(scope, key, `${fn}(${key})`, `${subjectIdSql(ctx)}::text`, ctx.memo, scopeTypeOf(ctx, scope))})`;
   }
   return `${quoteIdent(column)} in (select ${fn}(${key}))`;
 }
