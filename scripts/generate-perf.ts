@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const BIN = join(ROOT, "packages", "permdock", "dist", "cli", "bin.js");
 const BUDGET = join(ROOT, "scripts", "generate-perf.json");
-const FIXTURE = join(ROOT, "tests", "integration", "fixtures", "generate-perf");
+const FIXTURES = join(ROOT, "tests", "integration", "fixtures");
 /**
  * Headroom over the recorded peak RSS before the gate fails. Wall time is
  * printed against the idle recording and not enforced: a `pnpm verify` run
@@ -21,8 +21,14 @@ const FIXTURE = join(ROOT, "tests", "integration", "fixtures", "generate-perf");
  */
 const SLACK = 1.1;
 
-/** `generate --only rls`, with the cache off so the run still emits. */
-const ARGS = ["generate", "--only", "rls", "--no-cache"] as const;
+/**
+ * Both fixtures: the small one runs the rls plugin only, the large one every
+ * plugin.
+ */
+const FIXTURE_RUNS = [
+  { name: "small", dir: "generate-perf", only: ["--only", "rls"] },
+  { name: "large", dir: "generate-perf-large", only: [] },
+] as const;
 
 interface Sample {
   /** Wall-clock milliseconds. */
@@ -31,14 +37,27 @@ interface Sample {
   readonly rssKb: number;
 }
 
-interface Budget {
+interface FixtureBudget {
+  /** `--no-cache`: every plugin emits. */
   readonly cold: Sample;
+  /** A second run over an unchanged policy: the cache answers. */
   readonly warm: Sample;
-  /**
-   * A one-line edit of `policy.ts`, then a full generate. Watch does not exist
-   * yet.
-   */
+  /** A one-line edit of `policy.ts`, then a full generate. */
   readonly oneFile: Sample;
+}
+
+interface Budget {
+  readonly small: FixtureBudget;
+  readonly large: FixtureBudget;
+  /**
+   * Reference only, never gated: `permdock rls generate` cold on origin/main
+   * (d29d6d62b) over the large fixture, and `generate --only rls --no-cache` on
+   * this branch over the same fixture, median of six idle runs.
+   */
+  readonly main: {
+    readonly rlsGenerateCold: Sample;
+    readonly branchRlsOnlyCold: Sample;
+  };
 }
 
 function readBudget(): Budget {
@@ -74,83 +93,85 @@ function timeCommand(): {
   );
 }
 
-function run(
-  cwd: string,
-): Sample & { readonly code: number; readonly stderr: string } {
+function measure(cwd: string, args: readonly string[]): Sample {
   const time = timeCommand();
   const start = performance.now();
   const result = spawnSync(
     time.bin,
-    [...time.prefix, process.execPath, BIN, ...ARGS],
+    [...time.prefix, process.execPath, BIN, ...args],
     { cwd, encoding: "utf8", env: { ...process.env, PERMDOCK_AGENT: "no" } },
   );
-  const stderr = result.stderr;
+  const ms = Math.round(performance.now() - start);
   const code = result.status ?? 1;
-  return {
-    ms: Math.round(performance.now() - start),
-    rssKb: code === 0 ? peakRssKb(stderr) : 0,
-    code,
-    stderr,
-  };
-}
-
-function measure(cwd: string): Sample {
-  const sample = run(cwd);
-  if (sample.code !== 0) {
+  if (code !== 0) {
     throw new Error(
-      `permdock ${ARGS.join(" ")} exited ${sample.code}\n${sample.stderr}`,
+      `permdock ${args.join(" ")} exited ${code}\n${result.stderr}`,
     );
   }
-  return { ms: sample.ms, rssKb: sample.rssKb };
+  return { ms, rssKb: peakRssKb(result.stderr) };
 }
 
-function prepare(): string {
+function prepare(dir: string): string {
   // Under the integration workspace so `permdock` resolves from its node_modules.
   const root = join(ROOT, "tests", "integration", "tmp");
   mkdirSync(root, { recursive: true });
   const cwd = mkdtempSync(join(root, "generate-perf-"));
-  cpSync(FIXTURE, cwd, { recursive: true });
+  cpSync(join(FIXTURES, dir), cwd, { recursive: true });
   return cwd;
 }
 
-function main(): void {
-  const write = process.argv.includes("--write");
-  const cwd = prepare();
+function measureFixture(run: (typeof FIXTURE_RUNS)[number]): FixtureBudget {
+  const cwd = prepare(run.dir);
   try {
-    const cold = measure(cwd);
-    const warm = measure(cwd);
+    const base = ["generate", ...run.only] as const;
+    const cold = measure(cwd, [...base, "--no-cache"]);
+    // The first cached run writes the cache entry; the second reads it.
+    measure(cwd, base);
+    const warm = measure(cwd, base);
     const policyPath = join(cwd, "policy.ts");
     writeFileSync(
       policyPath,
       `${readFileSync(policyPath, "utf8")}\n// one-file change\n`,
     );
-    const oneFile = measure(cwd);
-    const measured: Budget = { cold, warm, oneFile };
-    const budget = write ? measured : readBudget();
-    const failures: string[] = [];
+    const oneFile = measure(cwd, base);
+    return { cold, warm, oneFile };
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
+function main(): void {
+  const write = process.argv.includes("--write");
+  const recorded = readBudget();
+  const measured: Budget = {
+    small: measureFixture(FIXTURE_RUNS[0]),
+    large: measureFixture(FIXTURE_RUNS[1]),
+    main: recorded.main,
+  };
+  const budget = write ? measured : recorded;
+  const failures: string[] = [];
+  for (const run of FIXTURE_RUNS) {
     for (const key of ["cold", "warm", "oneFile"] as const) {
-      const got = measured[key];
-      const limit = budget[key];
+      const got = measured[run.name][key];
+      const limit = budget[run.name][key];
       process.stdout.write(
-        `${key}: ${got.ms} ms (recorded ${limit.ms}), peak RSS ${got.rssKb} KB (recorded ${limit.rssKb})\n`,
+        `${run.name} ${key}: ${got.ms} ms (recorded ${limit.ms}), peak RSS ${got.rssKb} KB (recorded ${limit.rssKb})\n`,
       );
       if (got.rssKb > limit.rssKb * SLACK) {
         failures.push(
-          `${key}: peak RSS ${got.rssKb} KB is more than ${SLACK}x the recorded ${limit.rssKb} KB`,
+          `${run.name} ${key}: peak RSS ${got.rssKb} KB is more than ${SLACK}x the recorded ${limit.rssKb} KB`,
         );
       }
     }
-    if (write) {
-      writeFileSync(BUDGET, `${JSON.stringify(measured, null, 2)}\n`);
-      process.stdout.write(`Recorded ${BUDGET}\n`);
-    } else if (failures.length > 0) {
-      process.stderr.write(
-        `${failures.join("\n")}\nFind what grew, or record the new numbers on purpose with \`pnpm generate:perf --write\`.\n`,
-      );
-      process.exitCode = 1;
-    }
-  } finally {
-    rmSync(cwd, { recursive: true, force: true });
+  }
+  if (write) {
+    writeFileSync(BUDGET, `${JSON.stringify(measured, null, 2)}\n`);
+    process.stdout.write(`Recorded ${BUDGET}\n`);
+  } else if (failures.length > 0) {
+    process.stderr.write(
+      `${failures.join("\n")}\nFind what grew, or record the new numbers on purpose with \`pnpm generate:perf --write\`.\n`,
+    );
+    process.exitCode = 1;
   }
 }
 
