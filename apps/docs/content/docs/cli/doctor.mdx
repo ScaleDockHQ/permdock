@@ -147,7 +147,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD090` | A hand-written policy calls `permdock_actor_may_write()` where the generated `*_read_only_actors` policy already applies                                                                                                                                                                                   | warning         |
 | `PD093` | A migration defines `own_subject()`, which `permdock_subject()` from the hook migration already is                                                                                                                                                                                                         |
 | `PD094` | A better-supabase config sets `roleThrough`, `blocks.permissions.disabled` or `permdock_can_assign_any`, which the provider already supplies                                                                                                                                                               | error           |
-| `PD095` | A schema file uses a shape pg-delta rejects, or a migration repeats DDL or a grant the schema file already defines                                                                                                                                                                                         | error           |
+| `PD095` | A schema file has a `do` block that creates an object, `grant … on all`, two definitions of one signature, or a trigger on a view. A `-- permdock:` migration repeats DDL or a grant a schema file already defines                                                                                         | error           |
 | `PD096` | A membership `through.on` lists a column that deciding columns omit, so the hook join, the stream and the manifest can drop that pair                                                                                                                                                                      | error           |
 
 ### PD001: server-only imports in client entries
@@ -660,7 +660,7 @@ The provider writes `roleThrough`, `blocks.permissions.disabled` and a `canAssig
 
 ### PD095: schema SQL pg-delta cannot diff
 
-A file under `supabase/schemas` is an error when it contains a `do` block whose body creates an object, `if not exists`, a `drop trigger` followed by `create trigger`, `grant … on all`, two definitions of one signature, or a trigger on a view. A migration is an error when it repeats DDL or a grant for a name a schema file already defines. Rewrite the schema file as plain `create or replace` statements, and delete the migration statement the schema file owns. `--only rls` or `--only supabase` runs PD095.
+A file under `supabase/schemas` is an error when it contains a `do` block whose body creates an object, `grant … on all`, two definitions of one signature, or a trigger on a view. A migration whose first line is a versioned `-- permdock:<part> v1` marker is an error when it repeats DDL or a grant for a name a PermDock schema file already defines. The check reads PermDock's schema files, not another tool's. Rewrite the schema file as plain `create or replace` statements, and delete the marked migration statement the schema file owns. `--only rls` or `--only supabase` runs PD095.
 
 ### PD096: a through pair deciding columns omit
 
