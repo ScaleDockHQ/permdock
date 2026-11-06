@@ -15,7 +15,6 @@ import { graphIdsSql, graphPlan } from "./graph.ts";
 import {
   memoDiscriminatorSql,
   memoReadSql,
-  memoWriteSql,
   memoizes,
 } from "./helper-bodies.ts";
 import { memoReadsSql } from "./helpers.ts";
@@ -260,7 +259,7 @@ export function memoRowSql(
   return `create or replace function ${fn}(${params}, p_permission text)
 returns boolean
 language plpgsql
-volatile
+stable
 security definer
 cost 1000
 set search_path = ''
@@ -278,7 +277,6 @@ begin
 ${computed.join("\n")}
       else '{}'::jsonb
     end;
-    perform ${memoWriteSql(ctx.memo, "v_permdock_key", `jsonb_build_object('k', v_permdock_disc, 'v', ${TERMS})::text`)};
   end if;
   return exists (
     with ${candidates}

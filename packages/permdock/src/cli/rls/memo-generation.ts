@@ -9,7 +9,7 @@ import {
   quoteTable,
 } from "../sql/quote.ts";
 import { CUSTOM_ROLES } from "../sql/shared.ts";
-import { memoizes } from "./helper-bodies.ts";
+import { memoWriteSql, memoizes } from "./helper-bodies.ts";
 
 const BUMP = "permdock_bump_memo_generation";
 const TRIGGER = "permdock_memo_generation";
@@ -156,7 +156,19 @@ export function memoGenerationSql(ctx: RlsSqlContext, reads = ""): string {
   }
   const bump = qualified(ctx, BUMP);
   const trigger = qualified(ctx, TRIGGER);
+  const put = qualified(ctx, "permdock_memo_put");
   return `-- a permission, custom-role, suspension or membership write changes permitted ids inside the statement
+create or replace function ${put}(p_key text, p_value text)
+returns void
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  select ${memoWriteSql(ctx.memo, "p_key", "p_value")}
+$$;
+revoke execute on function ${put}(text, text) from public, anon, authenticated;
+
 create or replace function ${bump}()
 returns void
 language sql

@@ -239,11 +239,9 @@ describe("permitted_<resource>_row memo", () => {
     expect(shared).toContain(
       "v_permdock_memo jsonb := better_supabase.memo_get(v_permdock_key)::jsonb;",
     );
-    expect(shared).toContain(
-      "perform better_supabase.memo_set(v_permdock_key,",
-    );
+    expect(shared).not.toContain("memo_set(");
     expect(shared).not.toContain("set_config(");
-    expect(rowBody(memoized())).toContain("perform set_config(v_permdock_key,");
+    expect(rowBody(memoized())).not.toContain("set_config(");
   });
 
   it("keeps the sql form when the helpers do not memoize", () => {
@@ -256,7 +254,7 @@ describe("permitted_<resource>_row memo", () => {
   it("reads the row-independent helper calls from one memo per statement", () => {
     const body = rowBody(memoized());
     expect(body).toContain(
-      "returns boolean\nlanguage plpgsql\nvolatile\nsecurity definer\ncost 1000\nset search_path = ''",
+      "returns boolean\nlanguage plpgsql\nstable\nsecurity definer\ncost 1000\nset search_path = ''",
     );
     expect(body).toContain(
       "v_permdock_key text := 'permdock.m.' || 'doc' || '.r' || (hashtext(p_permission) & 1023)::text;",
@@ -264,7 +262,7 @@ describe("permitted_<resource>_row memo", () => {
     expect(body).toContain(
       '(select "permdock".permdock_user_id())::text,\n      p_permission,',
     );
-    expect(body).toContain("statement_timestamp()::text");
+    expect(body).not.toContain("statement_timestamp()");
     expect(body).toContain(
       "coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')",
     );
@@ -280,9 +278,7 @@ describe("permitted_<resource>_row memo", () => {
     expect(body).toContain(
       `when 'doc.archive' then coalesce(("ownerId" = ((v_permdock_terms ->> 't0')::uuid)), false)`,
     );
-    expect(body).toContain(
-      "perform set_config(v_permdock_key, jsonb_build_object('k', v_permdock_disc, 'v', v_permdock_terms)::text, true);",
-    );
+    expect(body).not.toContain("set_config(");
     expect(body).toContain(
       "return exists (\n    with permdock_candidates as (select (p_row).*)",
     );

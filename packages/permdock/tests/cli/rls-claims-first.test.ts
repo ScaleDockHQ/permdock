@@ -125,7 +125,7 @@ describe("claims first helpers", () => {
   it("memoizes the ids for the rest of the statement", () => {
     const body = fnBody(helpers(), "permitted_org_ids");
     expect(body).toContain("language plpgsql");
-    expect(body).toContain("language plpgsql\nvolatile\nsecurity definer");
+    expect(body).toContain("language plpgsql\nstable\nsecurity definer");
     expect(body).toContain("v_ids uuid[];");
     expect(body).toContain(
       "v_key text := 'permdock.m.' || 'org' || '.k' || (hashtext(p_grant) & 1023)::text;",
@@ -137,17 +137,15 @@ describe("claims first helpers", () => {
     expect(body).toContain(
       "coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')",
     );
-    expect(body).toContain("statement_timestamp()::text");
-    expect(body).toContain("md5(coalesce((select auth.jwt())::text, ''))");
+    expect(body).not.toContain("statement_timestamp()");
+    expect(body).not.toContain("md5(coalesce((select auth.jwt())::text, ''))");
     expect(body).toContain(
       "v_memo text := nullif(current_setting(v_key, true), '');",
     );
     expect(body).toContain(
       "if v_memo is not null and (v_memo::jsonb ->> 'k') = v_disc then",
     );
-    expect(body).toContain(
-      "perform set_config(v_key, jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text, true);",
-    );
+    expect(body).not.toContain("set_config(");
     expect(body).toContain("return query select unnest(v_ids);");
   });
 
@@ -220,7 +218,7 @@ describe("claims first helpers", () => {
     ).not.toContain("permdock_memo_generation");
   });
 
-  it("marks the custom-role write guards volatile when the helpers memoize", () => {
+  it("keeps the custom-role write guards stable when the helpers memoize", () => {
     const sql = helpers({
       customRoles: {
         declared: ["admin"],
@@ -230,10 +228,10 @@ describe("claims first helpers", () => {
       },
     });
     expect(fnBody(sql, "permdock_custom_role_beyond")).toContain(
-      "language plpgsql\nvolatile\nsecurity definer",
+      "language plpgsql\nstable\nsecurity definer",
     );
     expect(fnBody(sql, "permdock_custom_role_guard")).toContain(
-      "language plpgsql\nvolatile\nsecurity definer",
+      "language plpgsql\nstable\nsecurity definer",
     );
   });
 
