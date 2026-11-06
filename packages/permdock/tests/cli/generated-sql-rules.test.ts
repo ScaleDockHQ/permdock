@@ -30,7 +30,11 @@ function ruleViolations(sql: string): readonly string[] {
   if (/\bdo\s+\$/iu.test(sql)) {
     found.push("do block");
   }
-  if (/if not exists/iu.test(sql)) {
+  const withoutSharedSchema = sql.replaceAll(
+    /create schema if not exists/giu,
+    "create schema",
+  );
+  if (/if not exists/iu.test(withoutSharedSchema)) {
     found.push("if not exists");
   }
   if (

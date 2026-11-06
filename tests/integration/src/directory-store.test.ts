@@ -1,9 +1,10 @@
 import type { DirectoryStore, ScimFilter, SqlQuery } from "permdock/scim";
 
 import { PGlite } from "@electric-sql/pglite";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { scim } from "permdock/cli/plugins/scim";
 import {
   DirectoryUniquenessError,
@@ -19,6 +20,14 @@ import { run } from "./support/cli-run.ts";
 async function generated(dialect: "guc" | "supabase"): Promise<string> {
   const cwd = mkdtempSync(join(tmpdir(), "permdock-scim-generate-"));
   try {
+    const policy = join(
+      dirname(fileURLToPath(import.meta.url)),
+      "../fixtures/capabilities/policy.ts",
+    );
+    writeFileSync(
+      join(cwd, "permdock.config.ts"),
+      `export default { permissions: ${JSON.stringify(policy)}, policy: ${JSON.stringify(policy)} };\n`,
+    );
     const result = await run(["generate", "--only", "scim", "--no-cache"], {
       cwd,
       plugins: [scim({ dialect, out: "scim.sql" })],

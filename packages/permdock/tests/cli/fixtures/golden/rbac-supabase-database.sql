@@ -147,7 +147,7 @@ create trigger "permdock_memo_generation_truncate"
 create or replace function "permdock".permdock_has(p_grant text)
 returns boolean
 language plpgsql
-stable
+volatile
 security definer
 cost 1000
 set search_path = ''
@@ -159,7 +159,9 @@ declare
       v_user,
       p_grant,
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
-      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
     ));
   v_memo text := nullif(current_setting(v_key, true), '');
   v_has boolean;
@@ -177,6 +179,7 @@ begin
       and rp.scope = 'global'
   )
   );
+  perform set_config(v_key, jsonb_build_object('k', v_disc, 'v', v_has)::text, true);
   return v_has;
 end;
 $$;
@@ -186,7 +189,7 @@ grant execute on function "permdock".permdock_has(text) to authenticated;
 create or replace function "permdock".permitted_tenant_ids(p_grant text)
 returns setof uuid
 language plpgsql
-stable
+volatile
 security definer
 cost 1000
 set search_path = ''
@@ -198,7 +201,9 @@ declare
       v_user,
       p_grant,
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
-      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
     ));
   v_memo text := nullif(current_setting(v_key, true), '');
   v_ids uuid[];
@@ -215,6 +220,7 @@ begin
     and rp.scope = 'tenant'
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     );
+    perform set_config(v_key, jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text, true);
   end if;
   return query select unnest(v_ids);
 end;
