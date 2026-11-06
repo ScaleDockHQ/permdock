@@ -11,6 +11,7 @@ import { rel } from "../files.ts";
 import { rewriteStoredCatalog } from "./catalog-0.26.ts";
 import { rewriteCliCalls } from "./cli-calls.ts";
 import { moveConfigKeys } from "./config-moves.ts";
+import { rewrite026 } from "./rewrite-0.26.ts";
 import { rewriteLiterals017 } from "./shapes-0.17.ts";
 import { transformSource } from "./transform.ts";
 
@@ -23,6 +24,7 @@ export const CODEMOD_0_17: RenameSet = Object.freeze({
 export const CODEMOD_0_26: RenameSet = Object.freeze({
   renames: [],
   signatures: [],
+  literals: rewrite026,
 });
 
 /** Each codemod version and the rename map it applies. */
