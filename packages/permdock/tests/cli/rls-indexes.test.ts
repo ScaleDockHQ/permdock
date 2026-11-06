@@ -7,6 +7,8 @@ import type { Principal } from "../../src/core/subject.ts";
 import {
   indexedFields,
   indexName,
+  indexesSql,
+  indexTargets,
   pruneIndexTargets,
   readTableIndexFacts,
 } from "../../src/cli/rls/indexes.ts";
@@ -203,5 +205,65 @@ describe("index targets from compiled grants", () => {
         .map((item) => `${item.table}.${item.column}`)
         .toSorted(),
     ).toStrictEqual(["ticket.owner_id", "ticket.workspace_id"]);
+  });
+});
+
+describe("index shapes", () => {
+  const scopes = scopeList(
+    definePolicy(definePermissions({ doc: resource({ actions: ["read"] }) }), {
+      scopes: { workspace: { key: "workspace_id" } },
+      subject: () => null,
+    }).scopes,
+  );
+  const ctx: RlsSqlContext = {
+    dialect: "guc",
+    scopes,
+    tenantClaim: "tenant_id",
+    gucPrefix: "app",
+    memberships: {
+      scopes: {
+        workspace: {
+          table: "public.members",
+          user: "user_id",
+          role: "role",
+          disabledAt: "disabled_at",
+          columns: { workspace: "workspace_id" },
+        },
+      },
+    },
+  };
+
+  it("emits equality columns first, the role as an included column and a live-rows predicate", () => {
+    const targets = indexTargets(ctx, []);
+    expect(targets).toStrictEqual([
+      {
+        table: "public.members",
+        columns: ["user_id", "workspace_id"],
+        include: ["role"],
+        where: '"disabled_at" is null',
+      },
+    ]);
+    expect(indexesSql(targets)).toBe(
+      'create index if not exists "permdock_members_user_id_workspace_id_live_cov_idx" on "public"."members" ("user_id", "workspace_id") include ("role") where "disabled_at" is null;',
+    );
+  });
+
+  it("keeps the plain form without a disabled column", () => {
+    const plain: RlsSqlContext = {
+      ...ctx,
+      memberships: {
+        scopes: {
+          workspace: {
+            table: "public.members",
+            user: "user_id",
+            role: { column: "role_id", map: {} },
+            columns: { workspace: "workspace_id" },
+          },
+        },
+      },
+    };
+    expect(indexesSql(indexTargets(plain, []))).toBe(
+      'create index if not exists "permdock_members_user_id_workspace_id_idx" on "public"."members" ("user_id", "workspace_id");',
+    );
   });
 });

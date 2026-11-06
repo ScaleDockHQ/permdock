@@ -137,6 +137,8 @@ export function outputFiles(plan: {
   readonly sql: () => SplitSql;
   readonly scopes: readonly Scope[];
   readonly schema: string;
+  /** Whether the pg-delta schema directory already exists on disk. */
+  readonly schemaDirExists: boolean;
 }): readonly OutputFile[] | string {
   const { input } = plan;
   const split = parseSplit(input.split);
@@ -156,7 +158,30 @@ export function outputFiles(plan: {
     if (input.noSeeds === true) {
       return "rls generate --no-seeds needs --split: without it the seeds are part of the one file";
     }
-    return [{ part: "rls", rel: plan.outRel, text: plan.text }];
+    const files: OutputFile[] = [
+      { part: "rls", rel: plan.outRel, text: plan.text },
+    ];
+    // pg-delta plans only what a schema file declares, so the indexes the
+    // helpers read through are always one.
+    const pgDeltaSchemas = resolveSchemas(
+      input.cwd,
+      input.config,
+      input.schemas,
+    );
+    const indexes = plan.sql().indexes;
+    if (
+      pgDeltaSchemas.mode === "pg-delta" &&
+      input.target === "sql" &&
+      plan.schemaDirExists &&
+      indexes.includes("create index")
+    ) {
+      files.push({
+        part: "indexes",
+        rel: pgDeltaPath(pgDeltaSchemas.schemaDir, "indexes", plan.schema),
+        text: declarativeSql(indexes),
+      });
+    }
+    return files;
   }
   if (input.target !== "sql") {
     return "rls generate --split needs --target sql";

@@ -43,6 +43,8 @@ export function defaultsSeedSql(seeds: Seeds, schema: string): string {
     return `${DEFAULTS_MARKER}\n-- no default roles\n`;
   }
   return `${DEFAULTS_MARKER}
+-- a seed run never holds a long lock on ${schema}.role_permissions
+select set_config('lock_timeout', '5s', true), set_config('statement_timeout', '30s', true);
 insert into ${table} (role, permission, grant_key, scope, effect) values
 ${values.join(",\n")}
 on conflict (role, grant_key, scope) do update

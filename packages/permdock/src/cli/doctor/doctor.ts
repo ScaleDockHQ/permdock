@@ -96,6 +96,7 @@ import {
   pd090,
   pd093,
 } from "./sql.ts";
+import { pd098, pd099 } from "./supabase-checklist.ts";
 import { pd061 } from "./suspension.ts";
 
 export type { DoctorFinding, DoctorSeverity } from "../shared/doctor-types.ts";
@@ -427,6 +428,16 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: (project) => pd096(project.config),
   },
   { code: "PD097", groups: ["rls", "seeds"], run: pd097 },
+  {
+    code: "PD098",
+    groups: ["supabase", "pooling"],
+    run: (project) => pd098(project.io.env ?? process.env),
+  },
+  {
+    code: "PD099",
+    groups: ["rls", "supabase"],
+    run: (project) => pd099(project.cwd, project.files),
+  },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
   { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },
 ];

@@ -739,6 +739,9 @@ function memoDiscriminatorSql(user: string, key: string): string {
     ))`;
 }
 
+/** The planner's row estimate for a memoised id-set helper. */
+const SETOF_ROWS = 10;
+
 /**
  * `language sql`, or `plpgsql` returning the query when the body declares
  * variables.
@@ -775,10 +778,13 @@ end;
 $$;`;
     }
     declare.push(`v_ids ${body.memo.type}[];`);
+    // A `setof` helper is estimated at 1,000 rows. A user holds a handful of scope
+    // instances, so a small estimate keeps `id in (select helper())` off a hash join.
     return `language plpgsql
 volatile
 security definer
 cost 1000
+rows ${SETOF_ROWS}
 set search_path = ''
 as $$
 declare

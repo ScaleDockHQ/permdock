@@ -17,6 +17,13 @@ import { quoteIdent, quoteTable } from "../sql/quote.ts";
 export type IndexTarget = {
   readonly table: string;
   readonly columns: readonly string[];
+  /**
+   * Columns carried in the index leaf, so a helper that reads them is an
+   * index-only scan (`include`).
+   */
+  readonly include?: readonly string[];
+  /** The predicate of a partial index, written as SQL. */
+  readonly where?: string;
 };
 
 /** Postgres truncates identifiers longer than this, in bytes. */
@@ -80,8 +87,17 @@ export function indexTargets(
   rowColumns: readonly { readonly table: string; readonly column: string }[],
 ): readonly IndexTarget[] {
   const targets = new Map<string, IndexTarget>();
-  const add = (table: string, columns: readonly string[]): void => {
-    const target = { table: qualifySqlTable(table), columns };
+  const add = (
+    table: string,
+    columns: readonly string[],
+    shape: Pick<IndexTarget, "include" | "where"> = {},
+  ): void => {
+    const target: IndexTarget = {
+      table: qualifySqlTable(table),
+      columns,
+      ...(shape.include === undefined ? {} : { include: shape.include }),
+      ...(shape.where === undefined ? {} : { where: shape.where }),
+    };
     targets.set(`${target.table}\u0000${columns[0] ?? ""}`, target);
   };
   for (const { table, column } of rowColumns) {
@@ -90,7 +106,14 @@ export function indexTargets(
   for (const scope of ctx.scopes) {
     const mapped = scopeTable(ctx, scope.name);
     if (mapped !== undefined) {
-      add(mapped.table.table, [mapped.table.user, mapped.column]);
+      const { disabledAt, role } = mapped.table;
+      add(mapped.table.table, [mapped.table.user, mapped.column], {
+        // The helpers read live memberships only, and select the role they hold.
+        ...(typeof role === "string" ? { include: [role] } : {}),
+        ...(disabledAt === undefined
+          ? {}
+          : { where: `${quoteIdent(disabledAt)} is null` }),
+      });
     }
   }
   for (const source of [...(ctx.sources ?? []), ...(ctx.memberSources ?? [])]) {
@@ -110,7 +133,8 @@ export function indexTargets(
 /** A stable index name under Postgres' identifier limit. */
 export function indexName(target: IndexTarget): string {
   const bare = target.table.slice(target.table.lastIndexOf(".") + 1);
-  const name = `permdock_${bare}_${target.columns.join("_")}_idx`;
+  const shape = `${target.where === undefined ? "" : "_live"}${target.include === undefined ? "" : "_cov"}`;
+  const name = `permdock_${bare}_${target.columns.join("_")}${shape}_idx`;
   if (Buffer.byteLength(name) <= MAX_IDENT) {
     return name;
   }
@@ -118,13 +142,20 @@ export function indexName(target: IndexTarget): string {
   return `permdock_${hash}_idx`;
 }
 
-/** `create index if not exists` for every target, one per line. */
+/**
+ * `create index if not exists` for every target, one per line: equality columns
+ * first, then `include` and the partial predicate when the target has them.
+ */
 export function indexesSql(targets: readonly IndexTarget[]): string {
   return targets
-    .map(
-      (target) =>
-        `create index if not exists ${quoteIdent(indexName(target))} on ${quoteTable(target.table)} (${target.columns.map(quoteIdent).join(", ")});`,
-    )
+    .map((target) => {
+      const include =
+        target.include === undefined
+          ? ""
+          : ` include (${target.include.map(quoteIdent).join(", ")})`;
+      const where = target.where === undefined ? "" : ` where ${target.where}`;
+      return `create index if not exists ${quoteIdent(indexName(target))} on ${quoteTable(target.table)} (${target.columns.map(quoteIdent).join(", ")})${include}${where};`;
+    })
     .join("\n");
 }
 

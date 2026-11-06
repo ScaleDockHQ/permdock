@@ -334,6 +334,7 @@ language plpgsql
 volatile
 security definer
 cost 1000
+rows 10
 set search_path = ''
 as $$
 declare
@@ -466,6 +467,7 @@ language plpgsql
 volatile
 security definer
 cost 1000
+rows 10
 set search_path = ''
 as $$
 declare

@@ -136,6 +136,8 @@ export default defineConfig({
 
 Run `better-supabase upgrade` and `better-supabase gen` after a change to the policy, so the rendered SQL and the provider agree. Rerun `permdock supabase inspect --out` first.
 
+The provider templates call the generated helpers as prepared statements. Connect through the session pooler, or set `prepare: false` for the transaction pooler ([connection pooling](/docs/adapters/supabase#connection-pooling)).
+
 ### Claims
 
 Validate sessions with the claim contract's Standard Schema, extended with the app's own claims:

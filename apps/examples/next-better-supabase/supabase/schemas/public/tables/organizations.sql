@@ -11,10 +11,12 @@ alter table public.organizations enable row level security;
 -- Supabase's default privileges grant every table to the API roles; grant back only what clients read.
 revoke all on public.organizations from anon, authenticated;
 
+-- The public slug lookup is the only anonymous read: anon sees these three columns of every row.
 create policy organizations_public_read on public.organizations
   for select to anon, authenticated using (true);
 
-grant select on public.organizations to anon, authenticated;
+grant select on public.organizations to authenticated;
+grant select (id, slug, name) on public.organizations to anon;
 
 create trigger bsb_updated_at before update on public.organizations
   for each row execute function better_supabase.set_updated_at('updated_at');
