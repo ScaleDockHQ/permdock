@@ -180,6 +180,7 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
         },
         memberships: { type: "array", items: { $ref: "#/$defs/membership" } },
         customRoles: { type: "boolean" },
+        customRoleTenant: { type: "string" },
         roles: {
           type: "object",
           required: ["table", "user", "role"],
@@ -374,7 +375,7 @@ export const supabaseManifestSchema: JsonSchemaNode = freezeDeep({
     helperName: {
       type: "string",
       pattern:
-        "^(permdock_has(_for)?|permitted_[a-z][a-z0-9_]*_(ids|permission_keys)(_for)?|permitted_[a-z][a-z0-9_]*_users|member_[a-z][a-z0-9_]*_ids(_for|_of)?|permdock_can_assign(_any|_custom_role)?(_for)?|permdock_api_key_allows|permdock_token_scope_allows|permdock_actor_may_write|permdock_is_approver|permdock_manages|permdock_user_id|permdock_subject)$",
+        "^(permdock_has(_for)?|permitted_[a-z][a-z0-9_]*_(ids|permission_keys)(_for)?|permitted_[a-z][a-z0-9_]*_users|member_[a-z][a-z0-9_]*_ids(_for|_of)?|permdock_can_assign(_any|_custom_role)?(_for)?|permdock_api_key_allows|permdock_token_scope_allows|permdock_actor_may_write|permdock_is_approver|permdock_manages|permdock_user_id|permdock_subject|permdock_approver_for_ids|permdock_managed_user_ids)$",
     },
     column: {
       type: "object",

@@ -13,6 +13,7 @@ import type { CatalogDocument } from "../catalog/types.ts";
 import type { OperationRisk } from "../core/operation-risks.ts";
 import type { OperationEffect } from "../core/operations.ts";
 import type { Permission } from "../core/permission-types.ts";
+import type { PermissionKeyOf } from "../core/type-helpers.ts";
 import type {
   SupabaseHookManifest,
   SupabaseManifest,
@@ -36,7 +37,26 @@ import {
 } from "./active-tenant.ts";
 import { IS_APPROVER, MANAGES, isApproverTemplate } from "./approvers.ts";
 
-export type AuthorizationProviderOptions = {
+type ProviderKey<P> = [P] extends [undefined]
+  ? string
+  : PermissionKeyOf<Exclude<P, undefined>>;
+
+/** `AuthorizationProvider` plus the 0.26 templates and the suspension user key. */
+export type PermDockAuthorizationProvider<Key extends string = string> = Omit<
+  AuthorizationProvider<Key>,
+  "functions" | "suspension"
+> & {
+  readonly functions: AuthorizationFunctions & {
+    readonly approverFor?: string;
+    readonly managedUsers?: string;
+  };
+  readonly suspension?: NonNullable<AuthorizationProvider["suspension"]> & {
+    /** The user id column of `suspension.user`, from `rls.suspension.users.id`. */
+    readonly userKey?: string;
+  };
+};
+
+export type AuthorizationProviderOptions<P = undefined> = {
   /**
    * `permdock.manifest.json`, parsed or as JSON text, from `permdock supabase
    * inspect --out`.
@@ -87,14 +107,26 @@ export type AuthorizationProviderOptions = {
    * `{user}` and `{tenant}`; `permissions` are the keys the persona holds in
    * the tenant, and every other `sqlComplete` key is asserted denied.
    */
-  readonly personas?: readonly ProviderPersona[];
   /**
-   * Names `permdock_subject()` as `functions.subject`, so a bootstrap seeds the
-   * provider subject.
+   * `'roles'`: one persona per catalog role, at the tenant scope and for global
+   * roles. An array is the personas as written.
+   */
+  readonly personas?: "roles" | readonly ProviderPersona[];
+  /**
+   * Names `permdock_subject()` as `functions.subject`. Default on when the
+   * manifest lists the helper. `false` leaves it out.
    */
   readonly subject?: boolean;
-  /** Fills `platformRoles` from `rls.roles`. */
+  /**
+   * Fills `platformRoles` from `rls.roles`. Default on when that table is a
+   * column. `false` leaves it out.
+   */
   readonly platformRoles?: boolean;
+  /**
+   * The permission tree the catalog was generated from. It types the provider's
+   * keys; the catalog still supplies the entries.
+   */
+  readonly permissions?: P;
 };
 
 /** One `personas` entry of better-supabase's `AuthorizationProvider`. */
@@ -248,6 +280,8 @@ const TEAM_IDS_OF = "member_{scope}_ids_of";
 /** The scope names better-supabase reads as its teams (doctor BS417). */
 const TEAM_SCOPE = /^teams?$/u;
 const ACTOR_MAY_WRITE = "permdock_actor_may_write";
+const APPROVER_FOR = "permdock_approver_for_ids";
+const MANAGED_USERS = "permdock_managed_user_ids";
 
 const OPTIONAL: readonly Template[] = [
   "idsWithFor",
@@ -373,8 +407,47 @@ function isRoleList(
   return Array.isArray(role);
 }
 
+function scopeValue(source: SupabaseManifestMembership): string | undefined {
+  if (!("value" in source.scope)) {
+    return undefined;
+  }
+  return typeof source.scope.value === "string"
+    ? source.scope.value
+    : undefined;
+}
+
+function scopeRoleKeys(
+  catalog: CatalogDocument | undefined,
+  scope: string | undefined,
+): readonly string[] {
+  return (catalog?.roles ?? [])
+    .filter((role) =>
+      scope === undefined ? typeof role.on === "string" : role.on === scope,
+    )
+    .map((role) => role.key)
+    .toSorted();
+}
+
+function roleWhere(
+  column: string,
+  keys: readonly string[],
+  tenant: string | undefined,
+): string | undefined {
+  const parts: string[] = [];
+  if (keys.length > 0) {
+    const listed = keys.map((key) => quoteSqlLiteral(key)).join(", ");
+    parts.push(`{row}.${sqlIdent(column)} in (${listed})`);
+  }
+  if (tenant !== undefined && tenant !== "") {
+    parts.push(`{row}.${sqlIdent(tenant)} is not null`);
+  }
+  return parts.length === 0 ? undefined : parts.join(" or ");
+}
+
 function roleSourceOf(
   source: SupabaseManifestMembership,
+  catalog: CatalogDocument | undefined,
+  tenant: string | undefined,
 ): AuthorizationRoleSource | undefined {
   const role = source.role;
   if (
@@ -385,6 +458,11 @@ function roleSourceOf(
   ) {
     return undefined;
   }
+  const where = roleWhere(
+    role.through.column,
+    scopeRoleKeys(catalog, scopeValue(source)),
+    tenant,
+  );
   return {
     table: source.table,
     role: {
@@ -393,9 +471,55 @@ function roleSourceOf(
         table: role.through.table,
         id: role.through.id,
         column: role.through.column,
+        ...(where === undefined ? {} : { where }),
       },
     },
   };
+}
+
+function personaName(key: string): string {
+  const name = key.toLowerCase().replaceAll(/[^a-z0-9_]/gu, "_");
+  if (name === "" || name.startsWith("_") || !/^[a-z]/u.test(name)) {
+    return `role_${name}`;
+  }
+  return name;
+}
+
+function personaSetup(
+  source: SupabaseManifestMembership | undefined,
+  roleKey: string,
+): string {
+  const literal = quoteSqlLiteral(roleKey);
+  const role = source?.role;
+  const column =
+    source !== undefined &&
+    !("through" in source.user) &&
+    !Array.isArray(role) &&
+    role !== undefined &&
+    "column" in role
+      ? role.column
+      : undefined;
+  if (source === undefined || column === undefined) {
+    return `select ${literal}`;
+  }
+  return `insert into ${source.table} (${source.user.column}, ${source.id.column}, ${column}) values ({user}, {tenant}, ${literal})`;
+}
+
+function personasFromRoles(
+  catalog: CatalogDocument,
+  memberships: readonly SupabaseManifestMembership[],
+  tenantScope: string,
+): readonly ProviderPersona[] {
+  const source = memberships.find((entry) => covers(entry, tenantScope));
+  return (catalog.roles ?? [])
+    .filter((role) => role.on === tenantScope || role.on === undefined)
+    .map((role) => ({
+      name: personaName(role.key),
+      setup: personaSetup(source, role.key),
+      permissions: (catalog.grants ?? [])
+        .filter((grant) => grant.role === role.key && grant.effect === "allow")
+        .map((grant) => grant.permission),
+    }));
 }
 
 function disabledRow(row: SupabaseManifestActiveRow): DisabledRow {
@@ -716,9 +840,9 @@ function delegatedScopes(
  * when the manifest or catalog is invalid, or when the tenant scope is
  * ambiguous.
  */
-export function authorizationProvider(
-  options: AuthorizationProviderOptions,
-): AuthorizationProvider {
+export function authorizationProvider<P = undefined>(
+  options: AuthorizationProviderOptions<P>,
+): PermDockAuthorizationProvider<ProviderKey<P>> {
   const manifest = parseSupabaseManifest(options.manifest);
   const catalog =
     options.catalog === undefined ? undefined : parseCatalog(options.catalog);
@@ -727,6 +851,11 @@ export function authorizationProvider(
   if (catalog === undefined) {
     problems.push(
       "No catalog: better-supabase cannot check that the permission keys its SQL modules use (ai_chat, workflow, inbox and the rest) exist. Pass `catalog`.",
+    );
+  }
+  if (options.personas === "roles" && catalog === undefined) {
+    problems.push(
+      "personas: 'roles' needs a catalog of the policy's roles. Pass `catalog`.",
     );
   }
   const activeFrom = hasTokenHook(manifest)
@@ -805,7 +934,7 @@ export function authorizationProvider(
     if (!covers(source, tenantScope)) continue;
     const membership = membershipOf(source, tenantScope, problems);
     if (membership) memberships.push(membership);
-    const roleSource = roleSourceOf(source);
+    const roleSource = roleSourceOf(source, catalog, rls.customRoleTenant);
     if (roleSource) roleSources.push(roleSource);
   }
   const users = rls.suspension?.users;
@@ -879,7 +1008,7 @@ export function authorizationProvider(
       ? rowTemplatesOf(schema, manifest, requires, problems)
       : {};
   const ownSubject =
-    options.subject === true && helpers.has(OWN_SUBJECT)
+    options.subject !== false && helpers.has(OWN_SUBJECT)
       ? `${schema}.${sqlIdent(OWN_SUBJECT)}()`
       : undefined;
   if (ownSubject !== undefined) {
@@ -888,6 +1017,16 @@ export function authorizationProvider(
       role: "authenticated",
     });
   }
+  const setTemplate = (name: string): string | undefined => {
+    if (!helpers.has(name)) {
+      return undefined;
+    }
+    const fn = `${schema}.${sqlIdent(name)}`;
+    requires.push({ function: fn, role: "authenticated" });
+    return `${fn}()`;
+  };
+  const approverFor = setTemplate(APPROVER_FOR);
+  const managedUsers = setTemplate(MANAGED_USERS);
   const functions: AuthorizationFunctions = {
     ...rowTemplates,
     ...optional,
@@ -899,16 +1038,18 @@ export function authorizationProvider(
     ...(isApprover === undefined ? {} : { isApprover }),
     ...(permitted === undefined ? {} : { permitted }),
     ...(ownSubject === undefined ? {} : { subject: ownSubject }),
+    ...(approverFor === undefined ? {} : { approverFor }),
+    ...(managedUsers === undefined ? {} : { managedUsers }),
   };
   const platformRoles =
-    options.platformRoles === true
-      ? platformRolesOf(
+    options.platformRoles === false
+      ? undefined
+      : platformRolesOf(
           manifest,
           schema,
           tenantScope,
           assignAny && listed("canAssign", tenantScope),
-        )
-      : undefined;
+        );
   const operations = catalog === undefined ? {} : operationsOf(catalog);
   const delegated = delegatedScopes(catalog);
   const scopes = rls.scopes.map((scope) => {
@@ -927,6 +1068,13 @@ export function authorizationProvider(
           parent: scope.within,
         };
   });
+  const personas =
+    options.personas === "roles"
+      ? catalog === undefined
+        ? undefined
+        : personasFromRoles(catalog, rls.memberships, tenantScope)
+      : options.personas;
+  // SAFETY: a catalog built from `permissions` uses that tree's keys; without the tree the keys stay strings.
   return freezeDeep({
     apiVersion: 1,
     name: "PermDock",
@@ -941,16 +1089,14 @@ export function authorizationProvider(
     ...(users || tenants
       ? {
           suspension: {
-            ...(users ? { user: disabledRow(users) } : {}),
+            ...(users ? { user: disabledRow(users), userKey: users.id } : {}),
             ...(tenants ? { tenant: disabledRow(tenants) } : {}),
           },
         }
       : {}),
     ...(roleSources.length > 0 ? { roleSources } : {}),
     ...(platformRoles === undefined ? {} : { platformRoles }),
-    ...(options.personas === undefined || options.personas.length === 0
-      ? {}
-      : { personas: options.personas }),
+    ...(personas === undefined || personas.length === 0 ? {} : { personas }),
     ...(Object.keys(operations).length > 0 ? { operations } : {}),
     ...(Object.keys(delegated).length > 0
       ? { delegation: { scopes: delegated } }
@@ -960,5 +1106,5 @@ export function authorizationProvider(
       ? { tokenHook: tokenHookOf(manifest, options.activeTenant) }
       : {}),
     ...(problems.length > 0 ? { problems } : {}),
-  });
+  }) as PermDockAuthorizationProvider<ProviderKey<P>>;
 }

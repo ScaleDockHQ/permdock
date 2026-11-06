@@ -284,6 +284,7 @@ function rlsSettings(
 ): Pick<
   SupabaseManifestRls,
   | "customRoles"
+  | "customRoleTenant"
   | "roles"
   | "suspension"
   | "assignments"
@@ -299,6 +300,9 @@ function rlsSettings(
       : guardedTables(config, parts.scopes);
   return {
     customRoles: resolveAuthorize(config) === "database" && customRolesOn(rls),
+    ...(rls?.customRoleWrites?.roles?.tenant === undefined
+      ? {}
+      : { customRoleTenant: rls.customRoleWrites.roles.tenant }),
     ...(parts.roles === undefined
       ? {}
       : {

@@ -296,6 +296,11 @@ export type SupabaseManifestRls = {
    * `database` mode).
    */
   readonly customRoles?: boolean;
+  /**
+   * `rls.customRoleWrites.roles.tenant`: the tenant column of the custom-role
+   * table. A role source's `where` treats a non-null value as a custom role.
+   */
+  readonly customRoleTenant?: string;
   /** The global-roles table the hook and the `database` mode helpers read. */
   readonly roles?: {
     readonly table: string;
