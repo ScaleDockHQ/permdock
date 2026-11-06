@@ -48,11 +48,36 @@ function sqlUnder(
   return found;
 }
 
+export function captured(match: RegExpMatchArray, index: number): string {
+  const value = match[index];
+  if (typeof value !== "string") {
+    throw new TypeError(
+      "PermDock CLI: schema pattern matched without its group",
+    );
+  }
+  return value;
+}
+
+export function matchStart(match: RegExpMatchArray): number {
+  if (typeof match.index !== "number") {
+    throw new TypeError("PermDock CLI: schema match has no index");
+  }
+  return match.index;
+}
+
+export function lastSegment(name: string): string {
+  const bare = name.split(".").at(-1);
+  if (bare === undefined) {
+    return name;
+  }
+  return bare;
+}
+
 function doCreates(text: string): boolean {
   const marker = /\bdo\s+(\$\$|\$[A-Za-z0-9_]*\$)/giu;
   for (const match of text.matchAll(marker)) {
-    const fence = match[1] ?? "$$";
-    const start = (match.index ?? 0) + match[0].length;
+    const fence = captured(match, 1);
+    const start = matchStart(match) + match[0].length;
     const end = text.indexOf(fence, start);
     const body = end === -1 ? text.slice(start) : text.slice(start, end);
     if (/\bcreate\b/iu.test(body)) {
@@ -67,7 +92,7 @@ function signatures(text: string): ReadonlyMap<string, number> {
   const pattern =
     /\bcreate\s+(?:or\s+replace\s+)?function\s+([^\s(]+)\s*(\([^)]*\))/giu;
   for (const match of text.matchAll(pattern)) {
-    const key = `${(match[1] ?? "").toLowerCase()}${(match[2] ?? "").toLowerCase()}`;
+    const key = `${captured(match, 1).toLowerCase()}${captured(match, 2).toLowerCase()}`;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return counts;
@@ -77,7 +102,7 @@ function viewNames(text: string): ReadonlySet<string> {
   const names = new Set<string>();
   const pattern = /\bcreate\s+(?:or\s+replace\s+)?view\s+([^\s(]+)/giu;
   for (const match of text.matchAll(pattern)) {
-    names.add((match[1] ?? "").replaceAll('"', "").toLowerCase());
+    names.add(captured(match, 1).replaceAll('"', "").toLowerCase());
   }
   return names;
 }
@@ -86,8 +111,8 @@ function triggerOnView(text: string, views: ReadonlySet<string>): boolean {
   const pattern =
     /\bcreate\s+(?:or\s+replace\s+)?trigger\s+\S+\s+\w+\s+on\s+([^\s;]+)/giu;
   for (const match of text.matchAll(pattern)) {
-    const target = (match[1] ?? "").replaceAll('"', "").toLowerCase();
-    const bare = target.split(".").at(-1) ?? target;
+    const target = captured(match, 1).replaceAll('"', "").toLowerCase();
+    const bare = lastSegment(target);
     if (views.has(target) || views.has(bare)) {
       return true;
     }
@@ -100,13 +125,9 @@ function grantedNames(text: string): readonly string[] {
   const pattern =
     /\bgrant\b[^;]*\bon\s+(?:table\s+|function\s+|all\s+)?([^\s(;]+)/giu;
   for (const match of text.matchAll(pattern)) {
-    const name = (match[1] ?? "").replaceAll('"', "").toLowerCase();
+    const name = captured(match, 1).replaceAll('"', "").toLowerCase();
     if (name !== "" && name !== "all") {
-      names.push(name);
-      const bare = name.split(".").at(-1);
-      if (bare !== undefined) {
-        names.push(bare);
-      }
+      names.push(name, lastSegment(name));
     }
   }
   return names;
@@ -117,12 +138,9 @@ function definedNames(text: string): ReadonlySet<string> {
   const pattern =
     /\bcreate\s+(?:or\s+replace\s+)?(?:function|table|view)\s+([^\s(]+)/giu;
   for (const match of text.matchAll(pattern)) {
-    const name = (match[1] ?? "").replaceAll('"', "").toLowerCase();
+    const name = captured(match, 1).replaceAll('"', "").toLowerCase();
     names.add(name);
-    const bare = name.split(".").at(-1);
-    if (bare !== undefined) {
-      names.add(bare);
-    }
+    names.add(lastSegment(name));
   }
   return names;
 }

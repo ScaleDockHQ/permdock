@@ -7,7 +7,13 @@ import type { DoctorFiles } from "../../src/cli/shared/doctor-types.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 import type { Policy } from "../../src/core/policy-types.ts";
 
-import { pd095, pd096 } from "../../src/cli/doctor/schema-checks.ts";
+import {
+  captured,
+  lastSegment,
+  matchStart,
+  pd095,
+  pd096,
+} from "../../src/cli/doctor/schema-checks.ts";
 import { pd097 } from "../../src/cli/doctor/seed-data.ts";
 import { nodeFiles } from "../../src/cli/shared/doctor-files.ts";
 import {
@@ -200,5 +206,24 @@ describe("PD097 defaults", () => {
         policy: () => Promise.resolve(undefined),
       }),
     ).toStrictEqual([]);
+  });
+});
+
+describe("schema match parts", () => {
+  it("reads a group and an index, and refuses a match that has neither", () => {
+    const match = /do (\$\$)/u.exec("do $$");
+    if (match === null) {
+      throw new Error("expected a match");
+    }
+    expect(captured(match, 1)).toBe("$$");
+    expect(matchStart(match)).toBe(0);
+    expect(lastSegment("public.folders")).toBe("folders");
+    expect(() => captured(match, 4)).toThrow("without its group");
+    const bare = /do/u.exec("do $$");
+    if (bare === null) {
+      throw new Error("expected a match");
+    }
+    Object.defineProperty(bare, "index", { value: undefined });
+    expect(() => matchStart(bare)).toThrow("no index");
   });
 });
