@@ -106,6 +106,9 @@ function memoTargets(
       add(targets, table);
     }
   }
+  if (ctx.seeds === "view") {
+    targets.delete(qualifySqlTable(`${schema}.role_permissions`));
+  }
   return targets;
 }
 

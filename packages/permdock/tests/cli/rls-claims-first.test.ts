@@ -712,6 +712,15 @@ describe("claims first helper branches", () => {
     expect(body).toContain("ms.keep");
   });
 
+  it("puts no memo trigger on the role_permissions view", () => {
+    const sql = helpersSql(ctx({ seeds: "view" }), [], { userRoles: false });
+
+    expect(sql).toContain(
+      'create or replace function "permdock".permdock_memo_generation()',
+    );
+    expect(sql).not.toMatch(/ on "permdock"\."role_permissions"/u);
+  });
+
   it("writes an empty role_permissions view without seed rows", () => {
     const sql = helpersSql(ctx({ seeds: "view" }), [], { userRoles: false });
     expect(sql).toContain(
