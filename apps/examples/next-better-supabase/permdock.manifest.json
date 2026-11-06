@@ -285,6 +285,7 @@
       }
     ],
     "customRoles": true,
+    "customRoleTenant": "organization_id",
     "roles": {
       "table": "permdock.user_roles",
       "user": {

@@ -22,7 +22,7 @@ create policy "quotes_select"
   as permissive
   for select
   to authenticated
-  using (("organization_id" in (select "permdock".permitted_organization_ids('quotes.read'))) or ("organization_id" in (select "permdock".permitted_organization_ids('quotes.list'))));
+  using ((("organization_id" in (select "permdock".permitted_organization_ids('quotes.read'))) or ("customer_id" in (select "permdock".permitted_customer_ids('quotes.read')))) or (("organization_id" in (select "permdock".permitted_organization_ids('quotes.list'))) or ("customer_id" in (select "permdock".permitted_customer_ids('quotes.list')))));
 
 create policy "quotes_select_anon"
   on "public"."quotes"
