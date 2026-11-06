@@ -607,13 +607,13 @@ export default {
       );
       expect(hookSql).not.toContain("permdock_authz_version_receive");
       expect(hookSql).not.toContain("to_regclass");
-      const receive = read(cwd, "supabase/schemas/realtime/authz.sql");
+      const receive = read(cwd, "supabase/service/realtime/authz.sql");
       expect(receive).toContain(
         "create policy permdock_authz_version_receive on realtime.messages",
       );
       expect(receive).toContain("unscoped sync");
       expect(receive).not.toContain("do $$");
-      expect(result.stdout).toContain("supabase/schemas/realtime/authz.sql");
+      expect(result.stdout).toContain("supabase/service/realtime/authz.sql");
     });
 
     it("writes Realtime and Storage policies as static SQL outside the seeds migration", async () => {
@@ -642,14 +642,14 @@ export default {
       expect(seeds).not.toContain("to_regclass");
       expect(seeds).not.toContain("realtime");
       expect(seeds).not.toContain("storage.objects");
-      const realtime = read(cwd, "supabase/schemas/realtime/permdock.sql");
+      const realtime = read(cwd, "supabase/service/realtime/permdock.sql");
       expect(realtime).toContain("unscoped sync");
       expect(realtime).toContain(
         'create policy "permdock_realtime_org_organization_assets_select"',
       );
       expect(realtime).not.toContain("do ");
       expect(realtime).not.toContain("if not exists");
-      const storage = read(cwd, "supabase/schemas/storage/permdock.sql");
+      const storage = read(cwd, "supabase/service/storage/permdock.sql");
       expect(storage).toContain("unscoped sync");
       expect(storage).toContain('on "storage"."objects"');
       expect(storage).not.toContain("do ");
@@ -662,7 +662,7 @@ export default {
         cwd,
       });
       expect(withoutSeeds.code).toBe(0);
-      expect(read(cwd, "supabase/schemas/realtime/permdock.sql")).toContain(
+      expect(read(cwd, "supabase/service/realtime/permdock.sql")).toContain(
         'on "realtime"."messages"',
       );
       const plain = project(

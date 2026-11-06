@@ -19,6 +19,7 @@ import {
   driftOf,
   partPath,
   pgDeltaPath,
+  serviceRel,
   underSchemaDir,
   writeOutputFiles,
 } from "../core/output-files.ts";
@@ -368,7 +369,7 @@ export async function runSupabase(input: {
       : [
           {
             part: "realtime",
-            rel: `${schemas.schemaDir}/realtime/authz.sql`,
+            rel: serviceRel(schemas.schemaDir, "realtime/authz.sql"),
             text: aside.receive,
           },
         ];

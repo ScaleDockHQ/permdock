@@ -10,6 +10,7 @@ import {
   partPath,
   pgDeltaPath,
   seedsMigration,
+  serviceRel,
   underSchemaDir,
 } from "../../core/output-files.ts";
 import { declarativeSql } from "../../sql/declarative.ts";
@@ -26,9 +27,9 @@ export type SplitSql = {
   readonly policies: string;
   /** The policies part without the Realtime and Storage policies, for pg-delta. */
   readonly declarativePolicies: string;
-  /** Plain Realtime policies for `<root>/realtime/permdock.sql`. */
+  /** Plain Realtime policies for `<parent>/service/realtime/permdock.sql`. */
   readonly realtimePolicies?: string;
-  /** Plain Storage policies for `<root>/storage/permdock.sql`. */
+  /** Plain Storage policies for `<parent>/service/storage/permdock.sql`. */
   readonly storagePolicies?: string;
   readonly helpers: string;
   readonly seeds: string;
@@ -257,7 +258,7 @@ export function outputFiles(plan: {
         if (aside.receive !== undefined && pgDelta !== undefined) {
           files.push({
             part: "realtime",
-            rel: `${pgDelta.schemaDir}/realtime/authz.sql`,
+            rel: serviceRel(pgDelta.schemaDir, "realtime/authz.sql"),
             text: aside.receive,
           });
         }
@@ -276,14 +277,14 @@ export function outputFiles(plan: {
     if (sql.realtimePolicies !== undefined) {
       files.push({
         part: "realtime",
-        rel: `${pgDelta.schemaDir}/realtime/permdock.sql`,
+        rel: serviceRel(pgDelta.schemaDir, "realtime/permdock.sql"),
         text: sql.realtimePolicies,
       });
     }
     if (sql.storagePolicies !== undefined) {
       files.push({
         part: "storage",
-        rel: `${pgDelta.schemaDir}/storage/permdock.sql`,
+        rel: serviceRel(pgDelta.schemaDir, "storage/permdock.sql"),
         text: sql.storagePolicies,
       });
     }

@@ -447,7 +447,7 @@ create policy "permdock_realtime_org_organization_chat_select"
 - Each permission is a reference from your definitions. The policies call `permitted_<scope>_ids_by_permission`, which counts only the allows without a row condition, minus any deny: a topic or a folder has no resource columns to check a condition against. A permission that also has a relationship grant or a `where` (a chat thread shared with one person) is accepted with a warning, and its topic admits only the holders whose role reaches the instance; the share keeps applying in the table policies.
 - An undeclared scope, a dialect other than `supabase`, a duplicate policy name or one over 63 bytes exits 2.
 - The output does not enable RLS, revoke or grant on either table. Supabase owns both, and supautils `policy_grants` lets `postgres` create the policies.
-- With `--split`, the policies go in the `policies` part, after your tables' policies. Under pg-delta they are static SQL at `<schema dir>/realtime/permdock.sql` and `<schema dir>/storage/permdock.sql`, outside the scoped declarative sync: pg-delta's shadow database has no `realtime.messages` or `storage.objects`. Apply those files with an unscoped sync only where the service has created the table ([pg-delta](#pg-delta)). The bucket is a row in `storage.buckets`: create it in a seed or a versioned migration.
+- With `--split`, the policies go in the `policies` part, after your tables' policies. Under pg-delta they are static SQL at `<schema dir>/../service/realtime/permdock.sql` and `<schema dir>/../service/storage/permdock.sql`, outside the scoped declarative sync: pg-delta's shadow database has no `realtime.messages` or `storage.objects`. Apply those files with an unscoped sync only where the service has created the table ([pg-delta](#pg-delta)). The bucket is a row in `storage.buckets`: create it in a seed or a versioned migration.
 - With `rls.readOnlyActors`, the write commands get the restrictive read-only policies too, named `realtime_messages_insert_read_only_actors` and `storage_objects_<op>_read_only_actors`. `--helpers-only` writes none of these policies and says so.
 
 ### API keys
@@ -890,18 +890,18 @@ Under pg-delta, the files at its per-schema paths (no `--out`) carry no `drop` s
 
 `rls generate --check` with the same `--split` compares each file byte for byte with the one at its pg-delta path, so it fails when a declarative file is edited by hand or generated from an older policy, and names the file. It compares against the files on disk, not against `supabase db schema declarative sync` output.
 
-| Part       | File                                              |
-| ---------- | ------------------------------------------------- |
-| `helpers`  | `<schema>/helpers.sql`                            |
-| `indexes`  | `<schema>/indexes.sql`                            |
-| `policies` | `public/policies/permdock.sql`                    |
-| `hook`     | `<schema>/functions/custom_access_token_hook.sql` |
-| Realtime   | `realtime/permdock.sql` and `realtime/authz.sql`  |
-| Storage    | `storage/permdock.sql`                            |
+| Part       | File                                                                   |
+| ---------- | ---------------------------------------------------------------------- |
+| `helpers`  | `<schema>/helpers.sql`                                                 |
+| `indexes`  | `<schema>/indexes.sql`                                                 |
+| `policies` | `public/policies/permdock.sql`                                         |
+| `hook`     | `<schema>/functions/custom_access_token_hook.sql`                      |
+| Realtime   | `../service/realtime/permdock.sql` and `../service/realtime/authz.sql` |
+| Storage    | `../service/storage/permdock.sql`                                      |
 
-`<schema>` is the helper schema (`permdock` unless `rls.schema` says otherwise). An explicit `--out` with `{part}` replaces the layout; an explicit `--out` without it is refused, and `rls.out` without it is ignored. pg-delta keeps grants, revokes and view options, so every part keeps its own and `--grants-out` is refused. `permdock supabase hook generate` without `--out` writes the same hook path. When the hook broadcasts versions, the receive policy is `realtime/authz.sql`, not a `do` block in the hook file.
+`<schema>` is the helper schema (`permdock` unless `rls.schema` says otherwise). An explicit `--out` with `{part}` replaces the layout; an explicit `--out` without it is refused, and `rls.out` without it is ignored. pg-delta keeps grants, revokes and view options, so every part keeps its own and `--grants-out` is refused. `permdock supabase hook generate` without `--out` writes the same hook path. When the hook broadcasts versions, the receive policy is `../service/realtime/authz.sql`, not a `do` block in the hook file.
 
-The shadow database pg-delta loads the declarative files into has no `realtime.messages` or `storage.objects`. `rls.realtime` and `rls.storage` policies, and the authz receive policy, are static SQL under `realtime/` and `storage/`. A scoped sync (`declarative sync -f permdock`) leaves them out. An unscoped sync applies them, and it applies only where the Realtime or Storage service has created the table.
+pg-delta's shadow database has no `realtime.messages` or `storage.objects`. `rls.realtime` and `rls.storage` policies, and the authz receive policy, are static SQL under `supabase/service/`, beside the schema directory, so a scoped sync does not load them. Apply those files where the Realtime or Storage service has created the table.
 
 ```bash
 SPLIT="--target sql --split helpers,seeds,indexes,policies,hook"

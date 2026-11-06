@@ -21,6 +21,14 @@ describe(declarativeSql, () => {
     );
   });
 
+  it("keeps if not exists on a schema two files share", () => {
+    const out = declarativeSql(
+      'create schema if not exists "permdock";\ncreate table if not exists "permdock".docs (id uuid);\n',
+    );
+    expect(out).toContain('create schema if not exists "permdock";');
+    expect(out).toContain('create table "permdock".docs (id uuid);');
+  });
+
   it("keeps a constraint trigger plain, which pg-delta cannot replace", () => {
     const out = declarativeSql(
       'drop trigger if exists "h" on "public"."a";\ncreate constraint trigger "h"\n  after delete on "public"."a" deferrable;\n',
