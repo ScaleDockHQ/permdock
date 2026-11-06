@@ -281,6 +281,35 @@ describe("doctor collect", () => {
         ),
       ).toStrictEqual(["post.read is a sensitive verb without approval"]);
     });
+
+    it("matches a camelCase prefix and ignores a deny of another role", async () => {
+      const cwd = policyProject(
+        {
+          policy: `  roles: [
+    role('a', [allow(permissions.post.deleteAll)]),
+    role('b', [deny(permissions.post.deleteAll)]),
+  ],`,
+        },
+        {
+          "src/permissions.ts": `import { definePermissions, resource } from 'permdock';
+export const permissions = definePermissions({
+  post: resource({ actions: ['read', 'delete', 'deleteAll'] }),
+});
+`,
+        },
+      );
+      expect(
+        messages(
+          await pd017({
+            cwd,
+            config: {
+              policy: "./src/policy.ts",
+              doctor: { sensitiveActions: ["delete"] },
+            },
+          }),
+        ),
+      ).toStrictEqual(["post.deleteAll is a sensitive verb without approval"]);
+    });
   });
 
   describe("PD024 self-approval", () => {

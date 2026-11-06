@@ -692,8 +692,8 @@ export async function pd086(
 
 /**
  * PD075: two resources that `rls.tables` maps to one table, each with its own
- * keys and helpers for the same rows. A resource declared `{ tableOf }` is the
- * intended way to share a table and is not counted.
+ * keys and helpers for the same rows. `also` on the owner names the resources
+ * that share its table. `{ tableOf }` is the old form and is an error.
  */
 export async function pd075(
   input: DoctorInput,
@@ -706,25 +706,56 @@ export async function pd075(
   if (policy === undefined) {
     return [];
   }
+  const shared = new Set<string>();
+  const findings: DoctorFinding[] = [];
+  for (const [name, entry] of Object.entries(rls.tables ?? {})) {
+    if (typeof entry === "object" && entry !== null && "tableOf" in entry) {
+      findings.push({
+        code: "PD075",
+        severity: "error",
+        target: name,
+        message: `rls.tables.${name} uses tableOf, which also on the owner replaces`,
+        fix: `move ${name} onto the owner's also list and delete the tableOf entry`,
+      });
+    }
+    if (
+      typeof entry === "object" &&
+      entry !== null &&
+      "also" in entry &&
+      Array.isArray(entry.also)
+    ) {
+      for (const child of entry.also) {
+        if (typeof child === "string") {
+          shared.add(child);
+        }
+      }
+    }
+  }
   const byTable = new Map<string, Set<string>>();
   for (const leaf of listPermissions(policy.vocabulary.permissions)) {
+    if (shared.has(leaf.resource)) {
+      continue;
+    }
     const entry = rls.tables?.[leaf.resource];
-    if (typeof entry === "object" && "tableOf" in entry) {
+    if (typeof entry === "object" && entry !== null && "tableOf" in entry) {
       continue;
     }
     const table = qualifySqlTable(tableNameOf(entry, leaf.resource));
     byTable.set(table, (byTable.get(table) ?? new Set()).add(leaf.resource));
   }
-  return [...byTable.entries()]
-    .filter(([, resources]) => resources.size > 1)
-    .toSorted(byKey)
-    .map(([table, resources]) => {
-      const names = [...resources].toSorted();
-      return {
-        code: "PD075",
-        severity: "warning" as const,
-        message: `rls.tables maps ${names.join(" and ")} to ${table}, so the same rows carry two sets of keys and helpers`,
-        fix: `merge them into one resource (https://permdock.com/docs/guides/merge-resources), or declare one with rls.tables.<resource>: { tableOf: '<owner>' } so only the owner writes ${table} policies`,
-      };
-    });
+  return [
+    ...findings,
+    ...[...byTable.entries()]
+      .filter(([, resources]) => resources.size > 1)
+      .toSorted(byKey)
+      .map(([table, resources]) => {
+        const names = [...resources].toSorted();
+        return {
+          code: "PD075",
+          severity: "error" as const,
+          message: `rls.tables maps ${names.join(" and ")} to ${table}, so the same rows carry two sets of keys and helpers`,
+          fix: `merge them into one resource (https://permdock.com/docs/guides/merge-resources), or list the other on the owner's also so only the owner writes ${table} policies`,
+        };
+      }),
+  ];
 }

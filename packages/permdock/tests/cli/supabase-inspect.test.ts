@@ -663,7 +663,7 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
       const configured = await generate(
         `{ memberships: [${SOURCES}] }`,
         [],
-        `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, authorize: 'database', helpersOnly: true, memberships: { scopes: { organization: { table: 'memberships', user: 'user_id', role: 'role', columns: { organization: 'organization_id' } }, customer: { table: 'contacts', user: 'user_id', role: 'role', columns: { customer: 'customer_id', organization: 'organization_id' } } } } }`,
+        `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, authorize: 'database', helpersOnly: true, actions: { accept: 'none', disable: 'none', pay: 'none' }, memberships: { scopes: { organization: { table: 'memberships', user: 'user_id', role: 'role', columns: { organization: 'organization_id' } }, customer: { table: 'contacts', user: 'user_id', role: 'role', columns: { customer: 'customer_id', organization: 'organization_id' } } } } }`,
       );
       const split = await rlsGenerate(
         ["--target", "sql", "--split", "helpers", "--schemas", "migrations"],
@@ -713,7 +713,7 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
       const configured = await generate(
         `{ memberships: [${SOURCES}] }`,
         [],
-        `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, split: ['helpers', 'seeds', 'hook'], authorize: 'database', ${MEMBERSHIPS} }, doctor: { migrations: [] }`,
+        `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, split: ['helpers', 'seeds', 'hook'], authorize: 'database', actions: { accept: 'none', disable: 'none', pay: 'none' }, ${MEMBERSHIPS} }, doctor: { migrations: [] }`,
       );
       const split = await rlsGenerate(
         ["--target", "sql", "--schemas", "migrations"],

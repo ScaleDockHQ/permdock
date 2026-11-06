@@ -9,6 +9,48 @@ import { membershipsFixture, policyOf } from "./inputs.ts";
 
 type Waiver = { readonly key: string; readonly reason: string };
 
+/**
+ * A sensitive verb matches the action itself or a camelCase compound that
+ * starts with it: `delete` matches `deleteAll`, not `deleted`.
+ */
+function isSensitive(action: string, prefixes: ReadonlySet<string>): boolean {
+  if (prefixes.has(action)) {
+    return true;
+  }
+  for (const prefix of prefixes) {
+    const next = action.charAt(prefix.length);
+    if (
+      action.startsWith(prefix) &&
+      next !== "" &&
+      next.toLowerCase() !== next
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * A deny suppresses the allow only when it reaches the same requester: a
+ * role-less deny, or a deny of the allow's role. A deny of another role does
+ * not.
+ */
+function excludesRequester(
+  deny: {
+    readonly permission: { readonly key: string };
+    readonly role: string | null;
+  },
+  allow: {
+    readonly permission: { readonly key: string };
+    readonly role: string | null;
+  },
+): boolean {
+  if (deny.permission.key !== allow.permission.key) {
+    return false;
+  }
+  return deny.role === null || deny.role === allow.role;
+}
+
 /** `doctor.waivers`, checked; PD017 is the only code a waiver names. */
 function waiversOf(input: DoctorInput): readonly Waiver[] {
   const entries: unknown = input.config.doctor?.waivers ?? [];
@@ -47,11 +89,7 @@ export async function pd017(
   const sensitive = new Set(
     input.config.doctor?.sensitiveActions ?? DEFAULT_SENSITIVE_ACTIONS,
   );
-  const denied = new Set(
-    policy.grants
-      .filter((grant) => grant.effect === "deny")
-      .map((grant) => grant.permission.key),
-  );
+  const denies = policy.grants.filter((grant) => grant.effect === "deny");
   const waivers = waiversOf(input);
   const waived = new Set(waivers.map((waiver) => waiver.key));
   const matched = new Set<string>();
@@ -61,13 +99,13 @@ export async function pd017(
     if (grant.effect !== "allow") {
       continue;
     }
-    if (!sensitive.has(grant.permission.action)) {
+    if (!isSensitive(grant.permission.action, sensitive)) {
       continue;
     }
     if (grant.approval !== undefined) {
       continue;
     }
-    if (denied.has(grant.permission.key)) {
+    if (denies.some((deny) => excludesRequester(deny, grant))) {
       continue;
     }
     if (seen.has(grant.permission.key)) {
@@ -76,7 +114,6 @@ export async function pd017(
     seen.add(grant.permission.key);
     if (waived.has(grant.permission.key)) {
       matched.add(grant.permission.key);
-      continue;
     }
     findings.push({
       code: "PD017",

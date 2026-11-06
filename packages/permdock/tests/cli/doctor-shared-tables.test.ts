@@ -49,17 +49,17 @@ export const permissions = definePermissions({
       expect(findings).toStrictEqual([
         {
           code: "PD075",
-          severity: "warning",
+          severity: "error",
           message:
             "rls.tables maps chat and thread to public.chat_threads, so the same rows carry two sets of keys and helpers",
-          fix: "merge them into one resource (https://permdock.com/docs/guides/merge-resources), or declare one with rls.tables.<resource>: { tableOf: '<owner>' } so only the owner writes public.chat_threads policies",
+          fix: "merge them into one resource (https://permdock.com/docs/guides/merge-resources), or list the other on the owner's also so only the owner writes public.chat_threads policies",
         },
         {
           code: "PD075",
-          severity: "warning",
+          severity: "error",
           message:
             "rls.tables maps file and fileNode to public.file_nodes, so the same rows carry two sets of keys and helpers",
-          fix: "merge them into one resource (https://permdock.com/docs/guides/merge-resources), or declare one with rls.tables.<resource>: { tableOf: '<owner>' } so only the owner writes public.file_nodes policies",
+          fix: "merge them into one resource (https://permdock.com/docs/guides/merge-resources), or list the other on the owner's also so only the owner writes public.file_nodes policies",
         },
       ]);
     });
@@ -80,11 +80,22 @@ export const permissions = definePermissions({
       ]);
     });
 
-    it("skips a resource declared with tableOf", async () => {
+    it("errors on tableOf and keeps an also list as one table", async () => {
+      const tableOf = await pd075({
+        cwd: files(),
+        config: config({ file: "file_nodes", fileNode: { tableOf: "file" } }),
+      });
+      expect(tableOf.map((finding) => finding.message)).toStrictEqual([
+        "rls.tables.fileNode uses tableOf, which also on the owner replaces",
+      ]);
+      expect(tableOf[0]?.severity).toBe("error");
       expect(
         await pd075({
           cwd: files(),
-          config: config({ file: "file_nodes", fileNode: { tableOf: "file" } }),
+          config: config({
+            file: { table: "file_nodes", also: ["fileNode"] },
+            fileNode: false,
+          }),
         }),
       ).toStrictEqual([]);
     });
