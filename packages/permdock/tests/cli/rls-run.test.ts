@@ -250,6 +250,50 @@ describe("rls run", () => {
       ).rejects.toThrow(/fixtures not found/u);
     });
 
+    it("writes a walk chain and a tree helper, and warns when assignments have no assigns", async () => {
+      const policyFile = path.join(cwd, "folder-policy.ts");
+      writeFileSync(
+        policyFile,
+        `import { allow, definePermissions, definePolicy, resource, role } from "permdock";
+export const permissions = definePermissions({
+  folder: resource({
+    actions: ["read"],
+    parent: { field: "parentId", resource: "folder" },
+    relations: { org: { field: "orgId", memberOf: "tenant" } },
+  }),
+});
+export const policy = definePolicy(permissions, {
+  subject: () => null,
+  roles: [role("reader", [allow(permissions.folder.read)])],
+});
+`,
+      );
+      const result = await runRls(
+        input({
+          rest: ["generate"],
+          target: "sql",
+          dialect: "supabase",
+          config: {
+            policy: policyFile,
+            rls: {
+              tables: {
+                folder: { table: "public.folders", walk: "recursive" },
+              },
+              treeValues: { "public.folders": { name: "kept" } },
+              assignments: true,
+            },
+          },
+        }),
+      );
+      expect(result.code).toBe(0);
+      expect(result.output).toContain(
+        "rls.assignments needs a role that declares assigns",
+      );
+      const sql = readFileSync(path.join(cwd, "rls.sql"), "utf8");
+      expect(sql).toContain("permdock_folder_chain");
+      expect(sql).toContain("permdock_tree_folder");
+    });
+
     it("refuses an unknown --schemas value before any action runs", async () => {
       expect(
         await runRls(input({ rest: ["generate"], schemas: "flyway" })),
