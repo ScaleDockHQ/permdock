@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "next build",
+    "build": "node ../../../scripts/next-build.ts",
     "dev": "next dev -p 3489 -H 127.0.0.1",
     "doctor": "permdock doctor && permdock supabase inspect --check && node scripts/better-supabase.ts doctor",
     "gen": "permdock generate --only rls && permdock supabase inspect --out && node scripts/better-supabase.ts gen",

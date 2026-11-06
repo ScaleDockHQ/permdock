@@ -1,10 +1,8 @@
-import type { ReactNode } from "react";
-
 import Link from "next/link";
 import { locale } from "next/root-params";
 import { Suspense } from "react";
 
-import { snapshotForSlug } from "../../../../lib/access.ts";
+import { snapshotForSlug } from "../../../../features/organization/organization-queries.ts";
 import { PermDockProvider } from "../../../../permdock/server.ts";
 import { Nav, NavSkeleton } from "./nav.tsx";
 
@@ -14,7 +12,7 @@ const organizations = [
 ] as const;
 
 async function OrganizationSwitch() {
-  const prefix = `/${await locale()}`;
+  const prefix: `/${string}` = `/${await locale()}`;
   return (
     <header>
       <nav aria-label="Organizations">
@@ -35,15 +33,11 @@ async function OrganizationSwitch() {
 
 // Synchronous: the shell is static, and only the gated nav waits for the
 // private-cached snapshot, which the prefetch already carries.
-export default function OrganizationLayout(props: {
-  readonly children: ReactNode;
-  readonly params: Promise<{
-    readonly locale: string;
-    readonly orgSlug: string;
-  }>;
-}) {
+export default function OrganizationLayout(
+  props: LayoutProps<"/[locale]/[orgSlug]">,
+) {
   const base = props.params.then(
-    (params) => `/${params.locale}/${params.orgSlug}`,
+    (params): `/${string}/${string}` => `/${params.locale}/${params.orgSlug}`,
   );
   const snapshot = props.params
     .then(({ orgSlug }) => orgSlug)

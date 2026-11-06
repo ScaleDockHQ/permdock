@@ -86,6 +86,12 @@ export type GetSnapshotQuery = GetPermDockQuery & {
    */
   readonly tags?: readonly string[];
   /**
+   * The `subject.context` keys the snapshot ships to the browser. The context
+   * goes to the client verbatim, so every other key is dropped, and in
+   * development a warning names them.
+   */
+  readonly context?: readonly string[];
+  /**
    * `cacheLifeFor` options; `{ capToToken: true }` caps the entry at the
    * token's expiry. Default 300 seconds.
    */
@@ -118,6 +124,7 @@ export type NextPermDockProviderProps = NextPermDockProviderDisplay &
         readonly include?: never;
         readonly tenants?: never;
         readonly omitAssignable?: never;
+        readonly context?: never;
       }
     | {
         /** Without `snapshot`, the provider builds one outside any cache. */
@@ -128,6 +135,11 @@ export type NextPermDockProviderProps = NextPermDockProviderDisplay &
         )[];
         readonly tenants?: SnapshotTenants;
         readonly omitAssignable?: boolean;
+        /**
+         * The `subject.context` keys the snapshot ships; see
+         * `GetSnapshotQuery`.
+         */
+        readonly context?: readonly string[];
       }
   );
 
@@ -155,6 +167,11 @@ type NextPermDockProviderDisplay = Omit<
   readonly tenant?: string;
   /** Overrides the factory's `endpoint`; `false` is snapshot-only. */
   readonly endpoint?: string | false;
+  /**
+   * `"lazy"` renders the provider that loads the evaluator when a check needs
+   * it (14.5 KB initial instead of 21 KB gzip); default `"eager"`.
+   */
+  readonly evaluator?: "eager" | "lazy";
   /**
    * Suspends permission readers until the snapshot streams in, instead of
    * answering `pending`.

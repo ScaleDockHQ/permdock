@@ -1,6 +1,6 @@
-import type { Quote } from "../../permissions.ts";
+import type { Quote } from "../../../permissions.ts";
 
-import { customers } from "../../lib/store.ts";
+import { customers } from "../../../lib/store.ts";
 
 export const money = new Intl.NumberFormat("en-US", {
   style: "currency",

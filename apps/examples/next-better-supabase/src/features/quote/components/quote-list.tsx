@@ -1,26 +1,15 @@
 import { notFound } from "next/navigation";
 
-import { organizationBySlug, visibleQuotes } from "../../lib/access.ts";
-import { DataSource } from "./data-source.tsx";
-
-export function QuotesSkeleton() {
-  return (
-    <ul aria-busy="true" data-testid="quotes-skeleton">
-      <li>&nbsp;</li>
-      <li>&nbsp;</li>
-    </ul>
-  );
-}
+import { DataSource } from "../../../components/data-source.tsx";
+import { organizationBySlug } from "../../organization/organization-queries.ts";
+import { visibleQuotes } from "../quote-queries.ts";
 
 /**
  * The rows RLS lets the caller read: every quote for an owner, one customer's
  * for a contact.
  */
-export async function Quotes(props: {
-  readonly params: Promise<{ readonly orgSlug: string }>;
-}) {
-  const { orgSlug } = await props.params;
-  const organization = await organizationBySlug(orgSlug);
+export async function QuoteList(props: { readonly orgSlug: string }) {
+  const organization = await organizationBySlug(props.orgSlug);
   if (organization === null) {
     notFound();
   }
@@ -37,5 +26,14 @@ export async function Quotes(props: {
       </ul>
       <DataSource name="Quotes" loaded={quotes} />
     </>
+  );
+}
+
+export function QuoteListSkeleton() {
+  return (
+    <ul aria-busy="true" data-testid="quotes-skeleton">
+      <li>&nbsp;</li>
+      <li>&nbsp;</li>
+    </ul>
   );
 }

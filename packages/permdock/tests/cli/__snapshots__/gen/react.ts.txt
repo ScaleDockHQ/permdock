@@ -41,6 +41,7 @@ export {
   describe,
   eventSourceRefresh,
   focusRefresh,
+  onlineRefresh,
   requiredPlans,
   useApproval,
   useAssignablePermissions,

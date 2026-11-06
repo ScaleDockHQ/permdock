@@ -37,7 +37,7 @@ The first three layers make navigation instant. The fourth decides. A stale snap
 ### Private cache: the snapshot loader
 
 ```ts
-// src/lib/access.ts
+// src/features/quote/quote-queries.ts
 import { cacheLife, cacheTag } from "next/cache";
 import { snapshotFor } from "permdock";
 import { cacheLifeFor, snapshotTag } from "permdock/next";
@@ -45,7 +45,7 @@ import { cacheLifeFor, snapshotTag } from "permdock/next";
 export async function getOrg(id: string) {
   "use cache";
   cacheTag(`org:${id}`);
-  cacheLife("hours");
+  cacheLife("max"); // every write calls updateTag, so the entry lives until then
   return db.orgs.find(id); // plan, customRoles
 }
 
@@ -235,7 +235,7 @@ Read `versions.stats()` around a render to count version calls, and report it wi
 Most apps put a slug in the URL and a tenant id in the token: `app/[locale]/(app)/[orgSlug]/projects/page.tsx`. The snapshot is keyed by id, so the route resolves the slug first, in a public cache, and only then enters the private one.
 
 ```ts
-// src/lib/access.ts
+// src/features/quote/quote-queries.ts
 import { cacheLife, cacheTag } from "next/cache";
 import { emptySnapshot, snapshotFor } from "permdock";
 import { cacheLifeFor, snapshotTag } from "permdock/next";
@@ -398,7 +398,7 @@ subjectFromSupabaseSession(session, { claims: { memberships: "memberships" } });
 better-supabase is one such session source; its `AuthSession` union already has the `{ kind, claims }` shape. `bsb.cached()` is the first statement of an app-authored `'use cache: private'` function: it verifies the session locally against the JWKS, caps `stale` at the token's expiry and at 300 seconds, tags the entry `bsb:session:<user id>` plus the `tags` you pass, and returns the caller's context:
 
 ```ts
-// src/lib/access.ts
+// src/features/quote/quote-queries.ts
 import { cacheTag } from "next/cache";
 import { snapshotFor } from "permdock";
 import { snapshotTag } from "permdock/next";

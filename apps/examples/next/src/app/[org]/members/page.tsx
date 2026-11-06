@@ -11,8 +11,11 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty.tsx";
 
+import {
+  Staff,
+  StaffSkeleton,
+} from "../../../features/member/components/staff.tsx";
 import { permissions } from "../../../permissions.ts";
-import { MembersSkeleton, Staff } from "./staff.tsx";
 
 export const instant = true;
 
@@ -30,9 +33,7 @@ function Hidden() {
   );
 }
 
-export default function Members(props: {
-  readonly params: Promise<{ readonly org: string }>;
-}) {
+export default function Members(props: PageProps<"/[org]/members">) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -41,11 +42,13 @@ export default function Members(props: {
       />
       <Protected
         permission={permissions.member.list}
-        pending={<MembersSkeleton />}
+        pending={<StaffSkeleton />}
         denied={<Hidden />}
       >
-        <Suspense fallback={<MembersSkeleton />}>
-          <Staff params={props.params} />
+        <Suspense fallback={<StaffSkeleton />}>
+          {props.params.then(({ org }) => (
+            <Staff organization={org} />
+          ))}
         </Suspense>
       </Protected>
     </div>

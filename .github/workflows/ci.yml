@@ -105,6 +105,38 @@ jobs:
       - name: Build
         run: pnpm run build
 
+  # `instant()` needs a production build compiled with the testing API, so the specs
+  # build and start the example themselves (apps/examples/next/playwright.config.ts).
+  instant:
+    name: Instant navigation specs
+    needs: dist
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: $/.github/actions/setup
+        with:
+          turbo-team: ${{ vars.TURBO_TEAM }}
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: packages
+
+      - name: Browser
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: apps/examples/next
+
+      - name: Instant specs
+        run: pnpm run test:e2e
+        working-directory: apps/examples/next
+
   verify:
     name: Verify
     needs: dist

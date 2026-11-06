@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge.tsx";
 
-import type { Quote } from "../../permissions.ts";
+import type { Quote } from "../../../permissions.ts";
 
 export function StatusBadge(props: {
   readonly status: Quote["status"];

@@ -6,7 +6,7 @@ import { useActionState } from "react";
 import { SubmitButton } from "@/components/submit-button.tsx";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert.tsx";
 
-import { approveQuote } from "../../app/actions.ts";
+import { approveQuote } from "../quote-actions.ts";
 
 export function ApproveQuoteForm(props: {
   readonly organization: string;

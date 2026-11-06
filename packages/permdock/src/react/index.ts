@@ -28,6 +28,7 @@ export {
   useSubject,
   useTenant,
 } from "./hooks.ts";
+export { onlineRefresh } from "./refresh-online.ts";
 export { PermDockProvider } from "./provider.tsx";
 export { Protected } from "./protected.tsx";
 export { useProtectedAction } from "./protected-action.ts";

@@ -40,6 +40,53 @@ describe("get snapshot", () => {
       expect(cacheTag).toHaveBeenCalledWith("permdock:anon");
     });
 
+    it("warns once more when the lifetime is under 30 s, which no prefetch carries", async () => {
+      vi.stubEnv("NODE_ENV", "development");
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const { getSnapshot } = createPermDock(policy, {
+          subject: () => memberUser,
+        });
+        await getSnapshot({ cacheLife: { min: 0, max: 10 } });
+        await getSnapshot({ cacheLife: { min: 0, max: 10 } });
+        const messages = warn.mock.calls.map(([message]) => String(message));
+        expect(messages).toHaveLength(2);
+        expect(messages[0]).toContain("under 30 s out of every prefetch");
+        expect(messages[1]).toContain("under 300 s");
+      } finally {
+        warn.mockRestore();
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it("ships only the context keys the allow-list names, and warns about the rest", async () => {
+      vi.stubEnv("NODE_ENV", "development");
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        const { getSnapshot } = createPermDock(policy, {
+          subject: () => ({
+            principal: { ...memberUser },
+            context: { plan: "pro", internal: "secret" },
+          }),
+        });
+        const snapshot = await getSnapshot({ context: ["plan"] });
+        expect(snapshot.subject.context).toStrictEqual({ plan: "pro" });
+        const dropped = warn.mock.calls
+          .map(([message]) => String(message))
+          .filter((message) => message.includes("context drops"));
+        expect(dropped).toHaveLength(1);
+        expect(dropped[0]).toContain("internal");
+        const whole = await getSnapshot();
+        expect(whole.subject.context).toStrictEqual({
+          plan: "pro",
+          internal: "secret",
+        });
+      } finally {
+        warn.mockRestore();
+        vi.unstubAllEnvs();
+      }
+    });
+
     it("warns once in development about a lifetime under 300 s", async () => {
       vi.stubEnv("NODE_ENV", "development");
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

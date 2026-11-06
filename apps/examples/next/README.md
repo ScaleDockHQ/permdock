@@ -1,6 +1,6 @@
 # `@permdock/example-next`
 
-`permdock/next` on Next.js 16.3 with Cache Components, Partial Prefetching and instant navigation. A field-service app on named scopes: organizations (`acme`, `globex`) with staff roles, and customers inside them whose portal contacts see only their own quotes.
+`permdock/next` on Next.js 16.4 with Cache Components, Partial Prefetching and instant navigation. A field-service app on named scopes: organizations (`acme`, `globex`) with staff roles, and customers inside them whose portal contacts see only their own quotes.
 
 ```bash
 pnpm --filter @permdock/example-next build

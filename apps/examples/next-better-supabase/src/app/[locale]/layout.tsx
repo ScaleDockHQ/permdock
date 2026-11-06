@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 
 import { locale } from "next/root-params";
 
+import { OfflineBadge } from "./offline-badge.tsx";
+
 export const metadata = {
   title: "PermDock with better-supabase",
   description:
@@ -17,7 +19,10 @@ export default async function RootLayout(props: {
 }) {
   return (
     <html lang={await locale()}>
-      <body>{props.children}</body>
+      <body>
+        {props.children}
+        <OfflineBadge />
+      </body>
     </html>
   );
 }

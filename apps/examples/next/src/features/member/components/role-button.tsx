@@ -3,7 +3,7 @@ import { Protected } from "permdock/react";
 import { SubmitButton } from "@/components/submit-button.tsx";
 
 import { permissions } from "../../../permissions.ts";
-import { changeRole } from "../../actions.ts";
+import { changeRole } from "../member-actions.ts";
 
 export function RoleButton(props: {
   readonly org: string;

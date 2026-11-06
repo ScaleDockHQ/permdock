@@ -3,11 +3,14 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   reactStrictMode: true,
   reactCompiler: true,
+  typedRoutes: true,
   allowedDevOrigins: ["127.0.0.1"],
   cacheComponents: true,
   partialPrefetching: true,
   experimental: {
     authInterrupts: true,
+    // `permdock/next` taints the PermDock instance and options so they cannot reach a client component.
+    taint: true,
     useOffline: true,
     turbopackRustReactCompiler: true,
     // Pinned: the framework default may change between minors.

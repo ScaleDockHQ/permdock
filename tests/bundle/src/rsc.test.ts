@@ -241,3 +241,12 @@ describe("react-server build", () => {
     }
   });
 });
+
+describe("permdock/next reads no request API itself", () => {
+  it("imports nothing from next/headers", () => {
+    for (const file of walk(ENTRIES["./next"])) {
+      const source = readFileSync(file, "utf8");
+      expect(source).not.toMatch(/from\s*["']next\/headers(?:\.js)?["']/u);
+    }
+  });
+});

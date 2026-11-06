@@ -58,6 +58,7 @@ export const HOOK_EXPORTS: Readonly<Record<HookKind, readonly string[]>> = {
     "describe",
     "eventSourceRefresh",
     "focusRefresh",
+    "onlineRefresh",
     "requiredPlans",
     "useApproval",
     "useAssignablePermissions",

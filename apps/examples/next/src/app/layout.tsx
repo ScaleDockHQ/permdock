@@ -4,7 +4,7 @@ import "./globals.css";
 import { OfflineBadge } from "./offline-badge.tsx";
 
 export const metadata = {
-  title: "PermDock on Next.js 16.3",
+  title: "PermDock on Next.js 16.4",
   description:
     "Cache Components, Partial Prefetching and instant navigation with permission-gated UI.",
 };

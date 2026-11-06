@@ -1,18 +1,16 @@
-import type { ReactNode } from "react";
-
 import { Suspense } from "react";
 
-import { loadSnapshot } from "../../lib/access.ts";
+import { loadSnapshot } from "../../features/organization/organization-queries.ts";
 import { PermDockProvider } from "../../permdock/server.ts";
 import { Header } from "./header.tsx";
 import { Nav, NavSkeleton } from "./nav.tsx";
 
+// The build fails when a later change adds request-time rendering to the App Shell.
+export const ensureStatic = "shell";
+
 // Synchronous: the layout is static, and only the gated nav waits for the
 // private-cached snapshot, which a prefetch already carries.
-export default function OrganizationLayout(props: {
-  readonly children: ReactNode;
-  readonly params: Promise<{ readonly org: string }>;
-}) {
+export default function OrganizationLayout(props: LayoutProps<"/[org]">) {
   const organization = props.params.then(({ org }) => org);
   const snapshot = organization.then(loadSnapshot);
   return (

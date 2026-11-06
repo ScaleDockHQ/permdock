@@ -10,10 +10,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card.tsx";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
 
-import type { Quote } from "../../permissions.ts";
+import type { Quote } from "../../../permissions.ts";
 
-import { quoteAccess } from "../../lib/access.ts";
+import { quoteAccess } from "../quote-queries.ts";
 import { ApproveQuoteForm } from "./approve-quote-form.tsx";
 import { customerName, money } from "./format.ts";
 import { StatusBadge } from "./status-badge.tsx";
@@ -39,10 +40,10 @@ function Facts(props: { readonly quote: Quote }) {
 }
 
 export async function QuoteView(props: {
-  readonly params: Promise<{ readonly org: string; readonly id: string }>;
+  readonly organization: string;
+  readonly id: string;
 }) {
-  const { org, id } = await props.params;
-  const loaded = await quoteAccess(org, id);
+  const loaded = await quoteAccess(props.organization, props.id);
   const { quote, approve } = loaded.value;
   if (quote === null) {
     notFound();
@@ -66,8 +67,29 @@ export async function QuoteView(props: {
         data-testid="quote-actions"
         className="justify-end gap-2 border-t empty:hidden"
       >
-        {approve ? <ApproveQuoteForm organization={org} id={quote.id} /> : null}
+        {approve ? (
+          <ApproveQuoteForm organization={props.organization} id={quote.id} />
+        ) : null}
       </CardFooter>
+    </Card>
+  );
+}
+
+export function QuoteViewSkeleton() {
+  return (
+    <Card aria-busy="true" data-testid="quote-skeleton">
+      <CardHeader>
+        <Skeleton className="h-5 w-56" />
+        <Skeleton className="h-4 w-40" />
+      </CardHeader>
+      <CardContent className="grid gap-4 sm:grid-cols-3">
+        {["a", "b", "c"].map((cell) => (
+          <div key={cell} className="flex flex-col gap-2">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-5 w-28" />
+          </div>
+        ))}
+      </CardContent>
     </Card>
   );
 }

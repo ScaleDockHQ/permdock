@@ -1,6 +1,6 @@
 # `@permdock/example-next-better-supabase`
 
-PermDock with [better-supabase](https://www.npmjs.com/package/better-supabase) on Next.js 16.3 with Cache Components, Partial Prefetching and instant navigation, in the CentraKit shape: `/[locale]/[orgSlug]/...` routes, staff roles per organization in `organization_memberships`, and customer-portal contacts through `contacts.user_id`.
+PermDock with [better-supabase](https://www.npmjs.com/package/better-supabase) on Next.js 16.4 with Cache Components, Partial Prefetching and instant navigation, in the CentraKit shape: `/[locale]/[orgSlug]/...` routes, staff roles per organization in `organization_memberships`, and customer-portal contacts through `contacts.user_id`.
 
 The example runs on better-supabase 0.53.0. Its `memberships` block runs over the app's `public.organization_memberships` table, which PermDock reads with `blockMembershipSource`.
 

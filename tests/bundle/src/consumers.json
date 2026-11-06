@@ -1,11 +1,11 @@
 {
   "core definePolicy + getPermDockSync": 44074,
   "react PermDockProvider + usePermission": 21019,
-  "react/lazy PermDockProvider + usePermission": 21584,
-  "react/lazy PermDockProvider + usePermission (initial)": 14529,
+  "react/lazy PermDockProvider + usePermission": 21588,
+  "react/lazy PermDockProvider + usePermission (initial)": 14535,
   "react-native PermDockProvider + usePermission": 22104,
   "react-native PermDockProvider + localSnapshot": 24272,
-  "next createPermDock": 48780,
+  "next createPermDock": 50448,
   "server createPermDock": 44777,
   "server createPermDock + webBotAuthVerifier": 46583,
   "hono createPermDock": 46111,
@@ -17,8 +17,8 @@
   "ai-sdk createPermDock": 42264,
   "supabase/middleware createPermDock": 46051,
   "saas client react": 21595,
-  "saas client react/lazy": 22140,
-  "saas client react/lazy (initial)": 15102,
-  "saas server better-supabase + next": 79649,
+  "saas client react/lazy": 22127,
+  "saas client react/lazy (initial)": 15098,
+  "saas server better-supabase + next": 81244,
   "openapi securityFor + permissionsExtension + problemDetails": 862
 }

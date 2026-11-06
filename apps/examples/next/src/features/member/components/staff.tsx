@@ -13,27 +13,11 @@ import {
   TableRow,
 } from "@/components/ui/table.tsx";
 
-import { visibleStaff } from "../../../lib/access.ts";
 import { people } from "../../../lib/store.ts";
+import { visibleStaff } from "../member-queries.ts";
 import { RoleButton } from "./role-button.tsx";
 
 type Row = { readonly user: string; readonly role: string };
-
-export function MembersSkeleton() {
-  return (
-    <Card aria-busy="true" data-testid="members-skeleton" className="py-2">
-      <div className="flex flex-col divide-y px-4">
-        {["a", "b"].map((row) => (
-          <div key={row} className="flex items-center gap-3 py-3">
-            <Skeleton className="size-8 rounded-full" />
-            <Skeleton className="h-4 flex-1" />
-            <Skeleton className="h-5 w-16 rounded-4xl" />
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
 
 function StaffRow(props: { readonly org: string; readonly row: Row }) {
   const person = people.find((item) => item.id === props.row.user) ?? null;
@@ -72,10 +56,8 @@ function StaffRow(props: { readonly org: string; readonly row: Row }) {
   );
 }
 
-export async function Staff(props: {
-  readonly params: Promise<{ readonly org: string }>;
-}) {
-  const { org } = await props.params;
+export async function Staff(props: { readonly organization: string }) {
+  const org = props.organization;
   const loaded = await visibleStaff(org);
   return (
     <Card className="py-0">
@@ -98,6 +80,22 @@ export async function Staff(props: {
       <CardFooter className="border-t px-4 py-3">
         <DataSource name="Members" loaded={loaded} />
       </CardFooter>
+    </Card>
+  );
+}
+
+export function StaffSkeleton() {
+  return (
+    <Card aria-busy="true" data-testid="members-skeleton" className="py-2">
+      <div className="flex flex-col divide-y px-4">
+        {["a", "b"].map((row) => (
+          <div key={row} className="flex items-center gap-3 py-3">
+            <Skeleton className="size-8 rounded-full" />
+            <Skeleton className="h-4 flex-1" />
+            <Skeleton className="h-5 w-16 rounded-4xl" />
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }

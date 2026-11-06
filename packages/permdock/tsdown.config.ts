@@ -72,10 +72,11 @@ function clientReferencePlugin(): {
     name: "react-provider-reference",
     resolveId(source, importer) {
       if (
-        source === "../react/provider-client.js" &&
+        (source === "../react/provider-client.js" ||
+          source === "../react/provider-client-lazy.js") &&
         importer?.endsWith("src/next/provider.tsx") === true
       ) {
-        return { id: "../react/provider-client.js", external: true };
+        return { id: source, external: true };
       }
       return null;
     },
@@ -96,6 +97,7 @@ export default defineConfig({
     "src/react/index.ts",
     "src/react/lazy.ts",
     "src/react/provider-client.ts",
+    "src/react/provider-client-lazy.ts",
     "src/react-native/index.ts",
     "src/next/index.ts",
     "src/next/plugin.ts",

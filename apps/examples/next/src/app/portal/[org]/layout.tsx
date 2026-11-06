@@ -1,5 +1,3 @@
-import type { ReactNode } from "react";
-
 import { LogOut } from "lucide-react";
 import Link from "next/link";
 
@@ -7,13 +5,10 @@ import { Brand } from "@/components/brand.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { buttonVariants } from "@/components/ui/button.tsx";
 
-import { loadSnapshot } from "../../../lib/access.ts";
+import { loadSnapshot } from "../../../features/organization/organization-queries.ts";
 import { PermDockProvider } from "../../../permdock/server.ts";
 
-export default function PortalLayout(props: {
-  readonly children: ReactNode;
-  readonly params: Promise<{ readonly org: string }>;
-}) {
+export default function PortalLayout(props: LayoutProps<"/portal/[org]">) {
   const snapshot = props.params.then(({ org }) => org).then(loadSnapshot);
   return (
     <PermDockProvider snapshot={snapshot}>
