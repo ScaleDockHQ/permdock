@@ -15,11 +15,11 @@ const BIN = join(ROOT, "packages", "permdock", "dist", "cli", "bin.js");
 const BUDGET = join(ROOT, "scripts", "generate-perf.json");
 const FIXTURE = join(ROOT, "tests", "integration", "fixtures", "generate-perf");
 /**
- * Headroom over the recorded time and peak RSS before the gate fails. Wall time
- * is machine-dependent, so CI only reports it, matching `typecheck:perf`.
+ * Headroom over the recorded peak RSS before the gate fails. Wall time is
+ * printed against the idle recording and not enforced: a `pnpm verify` run
+ * shares the machine with the rest of turbo, so the clock is not the cost.
  */
 const SLACK = 1.1;
-const ENFORCE_TIME = process.env["CI"] === undefined;
 
 /** `generate --only rls`, with the cache off so the run still emits. */
 const ARGS = ["generate", "--only", "rls", "--no-cache"] as const;
@@ -134,11 +134,6 @@ function main(): void {
       process.stdout.write(
         `${key}: ${got.ms} ms (recorded ${limit.ms}), peak RSS ${got.rssKb} KB (recorded ${limit.rssKb})\n`,
       );
-      if (ENFORCE_TIME && got.ms > limit.ms * SLACK) {
-        failures.push(
-          `${key}: ${got.ms} ms is more than ${SLACK}x the recorded ${limit.ms} ms`,
-        );
-      }
       if (got.rssKb > limit.rssKb * SLACK) {
         failures.push(
           `${key}: peak RSS ${got.rssKb} KB is more than ${SLACK}x the recorded ${limit.rssKb} KB`,
