@@ -220,7 +220,7 @@ export const policy = definePolicy(permissions, {
         `coalesce((("orgId" in (select "permdock".permitted_tenant_ids('job.create'))) or (("orgId" in (select "permdock".permitted_tenant_ids('job.create@own'))) and ("ownerId" = (select "permdock".permdock_user_id()))) or ("orgId" in (select "permdock".permitted_tenant_ids('job.create@all')))), false)`,
       );
       expect(sql).toContain(
-        'create or replace function "permdock".permitted_job_row(p_row "public"."job", p_permission text)',
+        'create or replace function "permdock".can_job(p_row "public"."job", p_permission text)',
       );
     });
 

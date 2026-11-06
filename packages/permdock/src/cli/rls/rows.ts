@@ -49,7 +49,7 @@ export type LevelKey = {
   readonly permission: string;
   /** `false` for a level without a row condition, such as `all: {}`. */
   readonly conditioned: boolean;
-  /** `permitted_<resource>_row`, unqualified. */
+  /** `can_<resource>`, unqualified. */
   readonly rowHelper: string;
 };
 
@@ -70,7 +70,7 @@ export function levelKeys(policy: Policy): readonly LevelKey[] {
         conditioned: !(
           condition.op === "and" && condition.conditions.length === 0
         ),
-        rowHelper: `permitted_${graphSqlName(leaf.resource) ?? leaf.resource}_row`,
+        rowHelper: `can_${graphSqlName(leaf.resource) ?? leaf.resource}`,
       });
     }
   }
@@ -218,6 +218,12 @@ function matchHelper(resource: string): string {
   return rowsHelper(resource).replace(/_rows$/u, "_match");
 }
 
+function canHelper(resource: string): string {
+  return rowsHelper(resource)
+    .replace(/^permitted_/u, "can_")
+    .replace(/_rows$/u, "");
+}
+
 function matchSql(
   ctx: RlsSqlContext,
   node: ResourceNode,
@@ -241,7 +247,7 @@ grant execute on function ${fn}(${table}, text) to authenticated;`;
 }
 
 function rowSql(ctx: RlsSqlContext, node: ResourceNode, table: string): string {
-  const fn = qualified(ctx, rowsHelper(node.name).replace(/_rows$/u, "_row"));
+  const fn = qualified(ctx, canHelper(node.name));
   const match = qualified(ctx, matchHelper(node.name));
   return `create or replace function ${fn}(p_row ${table}, p_permission text)
 returns boolean
@@ -258,8 +264,8 @@ grant execute on function ${fn}(${table}, text) to authenticated;`;
 }
 
 /**
- * `permitted_<resource>_row(p_id <type>, p_permission)`: the per-id form, which
- * reads the one row by its key so a caller holding an id never builds a row.
+ * `can_<resource>(p_id <type>, p_permission)`: the per-id form, which reads the
+ * one row by its key so a caller holding an id never builds a row.
  */
 function rowByIdSql(
   ctx: RlsSqlContext,
@@ -267,7 +273,7 @@ function rowByIdSql(
   table: string,
   idType: string,
 ): string {
-  const fn = qualified(ctx, rowsHelper(node.name).replace(/_rows$/u, "_row"));
+  const fn = qualified(ctx, canHelper(node.name));
   const match = qualified(ctx, matchHelper(node.name));
   const id = quoteIdent(node.id);
   return `create or replace function ${fn}(p_id ${idType}, p_permission text)

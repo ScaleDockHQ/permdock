@@ -448,9 +448,9 @@ export type RlsConfig = {
   /**
    * Emit `permitted_<resource>_rows(p_permission)`, its `_for` form,
    * `permitted_<resource>_rows(p_permission, p_ids)` limited to candidate ids
-   * and the row-valued `permitted_<resource>_row(p_row, p_permission)` for
-   * these resources, or for every resource a grant reaches with `true`: the row
-   * ids the caller may act on, as the generated policies decide them.
+   * and `can_<resource>(p_row, p_permission)` for these resources, or for every
+   * resource a grant reaches with `true`: the row ids the caller may act on, as
+   * the generated policies decide them.
    */
   readonly rowHelpers?: true | readonly string[];
   /**

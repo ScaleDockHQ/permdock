@@ -166,7 +166,7 @@ describe("permitted_<resource>_rows narrowed to candidate ids, and the row-value
       expect(
         await ids(
           user,
-          "select r.id::text as id from unnest($1::public.item[]) r where permdock.permitted_item_row(r, $2)",
+          "select r.id::text as id from unnest($1::public.item[]) r where permdock.can_item(r, $2)",
           [rows, key],
         ),
       ).toStrictEqual(await permitted(user, key));
@@ -190,7 +190,7 @@ describe("permitted_<resource>_rows narrowed to candidate ids, and the row-value
     expect(narrowed.space.seq).toBe(0);
     const rows = await scansOf(
       MEMBER,
-      "select count(*) from unnest($1::public.item[]) r where permdock.permitted_item_row(r, 'item.read')",
+      "select count(*) from unnest($1::public.item[]) r where permdock.can_item(r, 'item.read')",
       [await candidateRows()],
     );
     expect(rows.space.seq).toBe(0);

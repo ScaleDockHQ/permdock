@@ -94,7 +94,7 @@ describe(resolveNames, () => {
         doc: {
           table: "public.docs",
           rows: "permitted_doc_rows",
-          row: "permitted_doc_row",
+          row: "can_doc",
           idType: "uuid",
           visible: "public.docs_visible",
           visibleFields: "docs_visible_fields",

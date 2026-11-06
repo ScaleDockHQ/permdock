@@ -161,7 +161,7 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
     ).toStrictEqual(["n-acme"]);
   });
 
-  it("answers permitted_node_row for a row value, including one not yet inserted", async () => {
+  it("answers can_node for a row value, including one not yet inserted", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
@@ -177,7 +177,7 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
         const got = await asUser(
           db,
           user.id,
-          `select v.id from (values ${rowValues}) v(id, r) where permdock.permitted_node_row(v.r, '${key}') order by v.id`,
+          `select v.id from (values ${rowValues}) v(id, r) where permdock.can_node(v.r, '${key}') order by v.id`,
         );
         const want = await inProcess(
           user,
@@ -198,7 +198,7 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
       await asUser(
         db,
         member,
-        `select 'n-new' as id where permdock.permitted_node_row(${unsaved}, 'node.read')`,
+        `select 'n-new' as id where permdock.can_node(${unsaved}, 'node.read')`,
       ),
     ).toStrictEqual(["n-new"]);
     expect(
@@ -209,7 +209,7 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
       ),
     ).toStrictEqual([]);
     await db.admin.query(
-      "grant insert on public.node to authenticated; create policy node_insert on public.node for insert to authenticated with check (permdock.permitted_node_row(node, 'node.read'))",
+      "grant insert on public.node to authenticated; create policy node_insert on public.node for insert to authenticated with check (permdock.can_node(node, 'node.read'))",
     );
     expect(
       await asUser(

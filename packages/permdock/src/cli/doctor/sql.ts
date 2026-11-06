@@ -708,8 +708,9 @@ export function pd066(
 }
 
 const ROWS_HELPER = String.raw`(?:"[^"]+"\.|\w+\.)?"?permitted_\w+_rows"?`;
+const CAN_HELPER = String.raw`(?:"[^"]+"\.|\w+\.)?"?can_\w+"?`;
 const TEXT_CAST_ON_ROWS = new RegExp(
-  String.raw`::\s*text\s+in\s*\(\s*select\s+${ROWS_HELPER}\s*\(|${ROWS_HELPER}\s*\([^()]*(?:\([^()]*\)[^()]*)*\)\s*::\s*text\b|(?:"[^"]+"\.|\w+\.)?"?permitted_\w+_row"?\s*\(\s*[^,()]+::\s*text\s*,`,
+  String.raw`::\s*text\s+in\s*\(\s*select\s+${ROWS_HELPER}\s*\(|${ROWS_HELPER}\s*\([^()]*(?:\([^()]*\)[^()]*)*\)\s*::\s*text\b|(?:${CAN_HELPER}|permitted_\w+_row)\s*\(\s*[^,()]+::\s*text\s*,`,
   "iu",
 );
 const KNOWN_ID = String.raw`(?:\$\d+|\bp_\w+|\b(?:new|old)\.\w+)(?:\s*::\s*\w+)?`;
@@ -755,7 +756,7 @@ export function pd088(
           {
             code: "PD088",
             severity: "warning" as const,
-            message: `${statement.file}:${String(firstLine(statement, match.index))} casts to text around a permitted_*_rows or permitted_*_row call`,
+            message: `${statement.file}:${String(firstLine(statement, match.index))} casts to text around a permitted_*_rows or can_<resource> call`,
             fix: "compare the id column to the helper's own type (uuid by default) and set rls.idTypes when the column is not uuid, then run permdock rls generate",
           },
         ];
@@ -766,7 +767,7 @@ export function pd088(
  * PD089: `<known id> in (select permitted_*_rows(...))` or `<known id> =
  * any(array(select permitted_*_rows(...)))`, in a policy or a function body.
  * The `_rows` helper lists every permitted row; for one id the
- * `permitted_*_row(id, permission)` overload checks that row alone.
+ * `can_<resource>(id, permission)` form checks that row alone.
  */
 export function pd089(
   cwd: string,
@@ -786,7 +787,7 @@ export function pd089(
             code: "PD089",
             severity: "warning" as const,
             message: `${statement.file}:${String(firstLine(statement, match.index))} tests one id against the whole permitted_*_rows set`,
-            fix: "call permitted_<resource>_row(id, permission), which evaluates that row only",
+            fix: "call can_<resource>(id, permission), which evaluates that row only",
           },
         ];
   });

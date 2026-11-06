@@ -86,9 +86,9 @@ select 'b' || n, 'acme', null, false from generate_series(1, ${String(BENCH)}) n
 grant select, insert on public.doc to authenticated;
 alter table public.doc enable row level security;
 create policy doc_read on public.doc for select to authenticated
-  using (permdock.permitted_doc_row(doc, 'doc.read'));
+  using (permdock.can_doc(doc, 'doc.read'));
 create policy doc_create on public.doc for insert to authenticated
-  with check (permdock.permitted_doc_row(doc, 'doc.create'));
+  with check (permdock.can_doc(doc, 'doc.create'));
 
 create function public.read_around(p_user uuid, p_doc text, p_write text)
 returns table (first boolean, second boolean)
@@ -100,9 +100,9 @@ begin
     jsonb_build_object('sub', p_user, 'role', 'authenticated')::text,
     true
   );
-  first := (select permdock.permitted_doc_row(d, 'doc.read') from public.doc d where d.id = p_doc);
+  first := (select permdock.can_doc(d, 'doc.read') from public.doc d where d.id = p_doc);
   execute p_write;
-  second := (select permdock.permitted_doc_row(d, 'doc.read') from public.doc d where d.id = p_doc);
+  second := (select permdock.can_doc(d, 'doc.read') from public.doc d where d.id = p_doc);
   return next;
 end;
 $$;
@@ -144,7 +144,7 @@ describe("row helper memo modes answer the same", () => {
               [CLAIMS(user)],
             );
             const rows = await lite.query<{ readonly id: string }>(
-              "select d.id from public.doc d where permdock.permitted_doc_row(d, $1) order by d.id",
+              "select d.id from public.doc d where permdock.can_doc(d, $1) order by d.id",
               [permission],
             );
             const ids = await lite.query<{ readonly id: string }>(

@@ -207,7 +207,7 @@ describe("RLS adopter cutover: database mode with an application roles table", (
         async () =>
           (
             await target.tester.query<{ ok: boolean }>(
-              `select permdock.permitted_job_row(j, 'job.read') as ok from public.job j where id = $1`,
+              `select permdock.can_job(j, 'job.read') as ok from public.job j where id = $1`,
               [row],
             )
           ).rows[0]?.ok ?? false,
@@ -235,7 +235,7 @@ describe("RLS adopter cutover: database mode with an application roles table", (
         async () =>
           (
             await target.tester.query<{ ok: boolean }>(
-              `select permdock.permitted_job_row(row('j-new', 'acme', $1::text)::public.job, 'job.create') as ok`,
+              `select permdock.can_job(row('j-new', 'acme', $1::text)::public.job, 'job.create') as ok`,
               [sub],
             )
           ).rows[0]?.ok ?? false,

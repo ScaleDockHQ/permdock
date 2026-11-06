@@ -137,7 +137,7 @@ describe("permitted_<resource>_rows", () => {
   it("writes a row-valued form that reads the row's columns instead of looking up its id", () => {
     const { sql } = generate("neon", ["doc"]);
     expect(sql).toContain(
-      'create or replace function "permdock".permitted_doc_row(p_row "app"."documents", p_permission text)\nreturns boolean',
+      'create or replace function "permdock".can_doc(p_row "app"."documents", p_permission text)\nreturns boolean',
     );
     expect(sql).toContain(
       'select "permdock".permitted_doc_match(p_row, p_permission)',
@@ -146,7 +146,7 @@ describe("permitted_<resource>_rows", () => {
       `with permdock_candidates as (select (p_row).*)\n  select exists (select 1 from permdock_candidates where case p_permission\n    when 'doc.archive' then`,
     );
     expect(sql).toContain(
-      'grant execute on function "permdock".permitted_doc_row("app"."documents", text) to authenticated;',
+      'grant execute on function "permdock".can_doc("app"."documents", text) to authenticated;',
     );
   });
 
@@ -186,13 +186,13 @@ describe("permitted_<resource>_rows", () => {
   it("writes a scalar _row overload that reads one row by id", () => {
     const { sql } = generate("supabase", ["doc"]);
     expect(sql).toContain(
-      'create or replace function "permdock".permitted_doc_row(p_id uuid, p_permission text)',
+      'create or replace function "permdock".can_doc(p_id uuid, p_permission text)',
     );
     expect(sql).toContain(
       'select 1 from "app"."documents" as permdock_row\n    where permdock_row."id" = p_id\n      and "permdock".permitted_doc_match(permdock_row, p_permission)',
     );
     expect(sql).toContain(
-      'grant execute on function "permdock".permitted_doc_row(uuid, text) to authenticated;',
+      'grant execute on function "permdock".can_doc(uuid, text) to authenticated;',
     );
   });
 
@@ -338,13 +338,13 @@ describe(levelKeys, () => {
         key: "job.read@own",
         permission: "job.read",
         conditioned: true,
-        rowHelper: "permitted_job_row",
+        rowHelper: "can_job",
       },
       {
         key: "job.read@all",
         permission: "job.read",
         conditioned: false,
-        rowHelper: "permitted_job_row",
+        rowHelper: "can_job",
       },
     ]);
   });
