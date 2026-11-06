@@ -150,6 +150,27 @@ describe("rls generate cases", () => {
     });
   }
 
+  describe("rls generate --split", () => {
+    it("names the skipped policies part and writes no table policy", async () => {
+      const outcome = await generate({
+        from: "./roles.ts",
+        split: "helpers",
+        out: "rls.{part}.sql",
+        schemas: "migrations",
+        listFiles: true,
+      });
+      expect(outcome.code).toBe(0);
+      expect(outcome.output).toContain(
+        "skipped policies: rls.split has no policies part, so no table policy is written",
+      );
+      const files = "files" in outcome ? outcome.files : [];
+      expect(files.map((file) => file.path)).toStrictEqual(["rls.helpers.sql"]);
+      expect(
+        files.some((file) => file.contents.includes("create policy")),
+      ).toBe(false);
+    });
+  });
+
   describe("rls generate policy loading", () => {
     it("reads the config policy for --from drizzle and needs one", async () => {
       await expect(generate({ from: "drizzle" })).rejects.toThrow(

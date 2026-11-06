@@ -142,6 +142,15 @@ export async function runRlsGenerate(
       };
     }
   }
+  if (
+    input.split !== undefined &&
+    !splitsPart(input.split, "policies") &&
+    !helpersOnly
+  ) {
+    warnings.push(
+      "skipped policies: rls.split has no policies part, so no table policy is written",
+    );
+  }
   if (!splitsPart(input.split, "indexes")) {
     for (const target of indexes) {
       warnings.push(
