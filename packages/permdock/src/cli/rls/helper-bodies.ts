@@ -638,10 +638,7 @@ export function sourcesBodyOf(
 }
 
 /** SQL reading the memo at `key`: a text value, or null when unset. */
-export function memoReadSql(
-  api: "better-supabase" | undefined,
-  key: string,
-): string {
+function memoReadSql(api: "better-supabase" | undefined, key: string): string {
   return api === "better-supabase"
     ? `better_supabase.memo_get(${key})`
     : `nullif(current_setting(${key}, true), '')`;
@@ -658,7 +655,7 @@ export function memoWriteSql(
     : `set_config(${key}, ${value}, true)`;
 }
 
-export function memoDiscriminatorSql(user: string, key: string): string {
+function memoDiscriminatorSql(user: string, key: string): string {
   return `md5(concat_ws('|',
       ${user},
       ${key},

@@ -25,7 +25,7 @@ export type FlagRename = {
 /** A group that used to run a default action when called bare. */
 export type CommandMove = { readonly from: string; readonly to: string };
 
-export const FLAG_RENAMES: readonly FlagRename[] = [
+const FLAG_RENAMES: readonly FlagRename[] = [
   {
     commands: ["rls generate", "supabase hook generate"],
     from: "--db",

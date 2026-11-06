@@ -49,7 +49,7 @@ import { defaultOut, hookMarker } from "./manifest.ts";
 import { configToml } from "./sql.ts";
 import { asideAuthzReceive } from "./version.ts";
 
-export { grantsLabel, supabaseHookManifest, supabaseHookSql };
+export { supabaseHookManifest, supabaseHookSql };
 
 const SUPABASE_HELP = `permdock supabase hook generate | inspect
 

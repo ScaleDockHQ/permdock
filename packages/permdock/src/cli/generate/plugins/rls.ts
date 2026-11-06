@@ -4,7 +4,7 @@ import type { RlsPluginOptions } from "./rls-options.ts";
 import { definePlugin } from "../plugin.ts";
 import { pluginVersion } from "./version.ts";
 
-export type { RlsPluginOptions, RlsSeedsOption } from "./rls-options.ts";
+export type { RlsPluginOptions } from "./rls-options.ts";
 
 /**
  * The RLS plugin. The factory records options; the SQL generator loads on emit,

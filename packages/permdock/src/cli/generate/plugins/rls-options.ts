@@ -9,7 +9,7 @@ import type {
  * `rls.seeds` as a mode, or `false` to skip the rows, or where they are
  * written.
  */
-export type RlsSeedsOption =
+type RlsSeedsOption =
   | "function"
   | "view"
   | false

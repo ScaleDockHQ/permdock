@@ -645,7 +645,7 @@ const INFERRED_VERBS =
   "read, list and get select; create and duplicate insert; delete and remove delete; update, approve, reject, cancel, send, withdraw, confirm, fulfill, receive, reimburse and writeOff update; mark*, pause* and resume* update";
 
 /** Verbs with no inferred command and no `rls.actions` entry, including `none`. */
-export function unmappedActions(
+function unmappedActions(
   policy: Policy,
   actions: RlsActions | undefined,
 ): readonly string[] {

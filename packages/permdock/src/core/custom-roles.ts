@@ -100,7 +100,7 @@ const GRANT_KEYS: ReadonlySet<string> = new Set([
 type AllowLevels = "all" | Map<string, Condition>;
 
 /** `where` narrowed by a level; the empty level (`{}`) leaves it as is. */
-export function andWhere(
+function andWhere(
   where: Condition | undefined,
   level: Condition,
 ): Condition | undefined {
