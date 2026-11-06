@@ -382,6 +382,20 @@ export const SECTIONS: readonly Section[] = [
         "openapi",
         [
           leaf(
+            "annotate",
+            "Write an operations map from @permission comments",
+            {
+              examples: [
+                "permdock openapi annotate --routes 'app/**/route.ts'",
+              ],
+              docs: "openapi",
+              effects: ["files"],
+              config: false,
+              load: async () =>
+                (await import("../commands/openapi.ts")).annotateRoutes,
+            },
+          ),
+          leaf(
             "import",
             "Turn an OpenAPI document into a generated definition",
             {

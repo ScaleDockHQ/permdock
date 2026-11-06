@@ -27,6 +27,7 @@ description: Emit security and securitySchemes into an existing OpenAPI document
 | `--validator`                                         | `zod`, `valibot`, `arktype` | none                                      | `import`                       | Validator used for generated resource schemas; without it resources are schema-less                                                                                                                                                                                                                                                                                |
 | `--map <file>`                                        | JSON file                   | none                                      | `import`                       | `{ "METHOD /path": "resource.action" }`: names the permission for an operation, overriding scopes, `x-permdock-permissions` and the inferred name                                                                                                                                                                                                                  |
 | `--annotate`                                          | flag                        | off                                       | `import`                       | Write the inferred keys back into the local `--doc` as `x-permdock-permissions` on every operation; JSON is rewritten with two-space indent, YAML keeps its comments and layout                                                                                                                                                                                    |
+| `--routes <glob>`                                     | glob                        | required                                  | `annotate`                     | Route modules whose `@permission`, `@permissionCheck` and `@oauthScopes` comments become the operations map. `permdock generate --only openapi` emits the same map when the plugin sets `routes`                                                                                                                                                                   |
 
 `--cwd`, `--config` and `--json` are shared by every command ([CLI](/docs/cli)). Exit codes follow the shared contract: `0` clean, `1` drift or findings, `2` usage error (for example `--target 3.0`, or `--profile fapi2` on a document whose scheme is not `oauth2` or `openIdConnect`).
 
@@ -161,6 +162,12 @@ The generated file merges with hand-written definitions through `mergePermission
 - **Validation first.** A document the official schema rejects produces keys from whatever happened to parse; failing early keeps the generated module honest. The schemas ship with the CLI, so validation needs no network.
 - **`--map` over flags per operation.** A committed mapping file is reviewable and survives regeneration; heuristics stay visible in `meta.inferredFrom` instead of being hidden in naming rules.
 
+## Annotate
+
+`permdock openapi annotate --routes 'app/**/route.ts'` reads `@permission`, `@permissionCheck` and `@oauthScopes` on each exported handler and writes `src/operations.generated.ts`. The path comes from the file: `app/orgs/[org]/posts/route.ts` is `POST /orgs/{org}/posts` when the handler is `POST`. `x-authorization` and `x-oauth-scopes` on an existing document are input only; `emit` and the runtime hooks still write `x-permdock-*` and `security`.
+
+The openapi plugin emits the same module when `routes` is set, through `permdock generate --only openapi`.
+
 ## `--check` in CI
 
 ```yaml
@@ -197,10 +204,10 @@ jobs:
 
 What each command may change; [side effects](/docs/cli#side-effects) explains each one.
 
-| Command                   | Side effects       |
-| ------------------------- | ------------------ |
-| `permdock openapi emit`   | `files`            |
-| `permdock openapi import` | `files`, `network` |
+| Command                     | Side effects       |
+| --------------------------- | ------------------ |
+| `permdock openapi annotate` | `files`            |
+| `permdock openapi import`   | `files`, `network` |
 
 ## Why
 

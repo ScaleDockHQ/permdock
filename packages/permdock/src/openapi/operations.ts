@@ -94,6 +94,78 @@ export type OperationDeclaration = {
   readonly enforcement: OperationEnforcement;
 };
 
+/**
+ * `x-authorization` is a permission key, a one-key list, or `{ permission,
+ * check }`. `x-permdock-permissions` wins when both are set. `check` is
+ * `kernel` or `handler`.
+ */
+function authorizationOf(operation: Record<string, unknown>): {
+  readonly keys: unknown;
+  readonly mode: OperationEnforcement | undefined;
+  readonly invalid: boolean;
+} {
+  const legacy = operation["x-permdock-permissions"];
+  if (legacy === undefined) {
+    return authorizationValue(operation["x-authorization"]);
+  }
+  return { keys: legacy, mode: undefined, invalid: false };
+}
+
+function authorizationValue(raw: unknown): {
+  readonly keys: unknown;
+  readonly mode: OperationEnforcement | undefined;
+  readonly invalid: boolean;
+} {
+  if (typeof raw === "string") {
+    return { keys: [raw], mode: undefined, invalid: false };
+  }
+  if (isRecord(raw)) {
+    return authorizationRecord(raw);
+  }
+  return { keys: raw, mode: undefined, invalid: false };
+}
+
+function authorizationRecord(raw: Record<string, unknown>): {
+  readonly keys: unknown;
+  readonly mode: OperationEnforcement | undefined;
+  readonly invalid: boolean;
+} {
+  const permission = raw["permission"];
+  const check = raw["check"];
+  if (typeof permission !== "string") {
+    return { keys: raw, mode: undefined, invalid: false };
+  }
+  if (check !== undefined && check !== "kernel" && check !== "handler") {
+    return { keys: undefined, mode: undefined, invalid: true };
+  }
+  return {
+    keys: [permission],
+    mode: check === "kernel" || check === "handler" ? check : undefined,
+    invalid: false,
+  };
+}
+
+/** `x-oauth-scopes` when set; `invalid` when it is not a list of strings. */
+function oauthScopesExtension(
+  operation: Record<string, unknown>,
+): readonly string[] | "invalid" | undefined {
+  if (!Object.hasOwn(operation, "x-oauth-scopes")) {
+    return undefined;
+  }
+  const value = operation["x-oauth-scopes"];
+  if (!Array.isArray(value)) {
+    return "invalid";
+  }
+  const scopes: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") {
+      return "invalid";
+    }
+    scopes.push(item);
+  }
+  return scopes;
+}
+
 /** An OpenAPI operation `operationPermissionsFromOpenApi` read. */
 export type OpenApiOperationRef = {
   readonly method: string;
@@ -327,14 +399,16 @@ export function operationPermissions(
 
 /**
  * The operation permissions an OpenAPI document declares: every operation whose
- * `x-permdock-permissions` names exactly one permission of `tree`, keyed by its
- * method, path and `operationId`, and every operation that has OAuth scopes in
- * its `security` requirement and names no permission (a scope-only entry). The
- * scopes come from `operation.security`, else `document.security`, for `oauth2`
- * and `openIdConnect` schemes. `x-permdock-enforcement` is `kernel` (the
+ * `x-permdock-permissions` or `x-authorization` names exactly one permission of
+ * `tree`, keyed by its method, path and `operationId`, and every operation that
+ * has OAuth scopes and names no permission (a scope-only entry). Scopes come
+ * from `x-oauth-scopes` when set, else `operation.security`, else
+ * `document.security`, for `oauth2` and `openIdConnect` schemes.
+ * `x-permdock-enforcement`, or `x-authorization.check`, is `kernel` (the
  * default) or `handler`. An operation naming several or an unknown key, an
  * invalid extension, or `security: []` is left out, so a gate denies it;
- * `onSkip` hears each one with its cause.
+ * `onSkip` hears each one with its cause. Emission still writes `x-permdock-*`
+ * and `security`.
  */
 export function operationPermissionsFromOpenApi(
   document: unknown,
@@ -368,7 +442,12 @@ export function operationPermissionsFromOpenApi(
         path,
         ...(typeof operationId === "string" ? { operationId } : {}),
       };
-      const enforcement = operation["x-permdock-enforcement"];
+      const declared = authorizationOf(operation);
+      if (declared.invalid) {
+        options.onSkip?.(ref, "invalid-extension");
+        continue;
+      }
+      const enforcement = declared.mode ?? operation["x-permdock-enforcement"];
       if (
         enforcement !== undefined &&
         enforcement !== "kernel" &&
@@ -384,8 +463,13 @@ export function operationPermissionsFromOpenApi(
       const security = Object.hasOwn(operation, "security")
         ? operation["security"]
         : documentSecurity;
-      const scopes = oauthScopesOf(security, schemes);
-      const keys = operation["x-permdock-permissions"];
+      const extensionScopes = oauthScopesExtension(operation);
+      if (extensionScopes === "invalid") {
+        options.onSkip?.(ref, "invalid-extension");
+        continue;
+      }
+      const scopes = extensionScopes ?? oauthScopesOf(security, schemes);
+      const keys = declared.keys;
       let permission: Permission | undefined;
       if (keys === undefined) {
         if (scopes.length === 0) {

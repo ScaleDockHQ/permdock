@@ -129,6 +129,43 @@ async function executeOpenapiEmit(
   });
 }
 
+const annotateFlags = {
+  routes: {
+    type: "string",
+    description: "Glob of route modules with @permission comments",
+    valueHint: "glob",
+  },
+  ...outFlag,
+} as const;
+
+async function executeAnnotate(
+  ctx: CliContext,
+  flags: FlagValues<typeof annotateFlags>,
+): Promise<CommandResult> {
+  const routes = given(flags.routes);
+  if (routes === undefined) {
+    throw missingInput(
+      "openapi annotate",
+      ["--routes"],
+      "the route modules to read",
+    );
+  }
+  return (await import("../openapi/annotate.ts")).runAnnotate({
+    cwd: ctx.cwd,
+    routes,
+    out:
+      fileOut("openapi annotate", flags.out) ?? "src/operations.generated.ts",
+    io: ctx.io,
+  });
+}
+
+export const annotateRoutes: Leaf = defineLeaf({
+  flags: annotateFlags,
+  run(ctx, { flags }) {
+    return executeAnnotate(ctx, flags);
+  },
+});
+
 export const importDocument: Leaf = defineLeaf({
   flags: {
     ...docFlag,
