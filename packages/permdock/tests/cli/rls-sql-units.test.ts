@@ -702,10 +702,10 @@ describe("compileConditionSql related", () => {
       depth: 0,
     } as const;
     expect(sql(related)).toBe(
-      `"folder_id"::text in (select "permdock".permitted_folder_ids('viewer'))`,
+      `"folder_id"::uuid in (select "permdock".permitted_folder_ids('viewer'))`,
     );
     expect(sql(related, { columnTypes: { folder_id: "uuid" } })).toBe(
-      `"folder_id" in (select p.id::uuid from "permdock".permitted_folder_ids('viewer') as p(id))`,
+      `"folder_id" in (select "permdock".permitted_folder_ids('viewer'))`,
     );
     expect(
       sql(
@@ -716,7 +716,7 @@ describe("compileConditionSql related", () => {
         },
       ),
     ).toBe(
-      `"folder_id" in (select descendant from "permdock".permdock_closure where resource = 'folder' and depth <= 3 and ancestor = any (array(select "permdock".permitted_folder_ids('viewer'))))`,
+      `"folder_id"::uuid in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and depth <= 3 and ancestor::uuid = any (array(select "permdock".permitted_folder_ids('viewer'))))`,
     );
     expect(
       sql(
@@ -724,7 +724,7 @@ describe("compileConditionSql related", () => {
         { graph: { closures: { folder: 8 } } },
       ),
     ).toBe(
-      `("folder_id"::text in (select descendant from "permdock".permdock_closure where resource = 'folder' and ancestor = any (array(select "permdock".permitted_folder_ids('viewer')))) and "restricted" is not true)`,
+      `("folder_id"::uuid in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and ancestor::uuid = any (array(select "permdock".permitted_folder_ids('viewer')))) and "restricted" is not true)`,
     );
   });
 

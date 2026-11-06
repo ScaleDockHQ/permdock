@@ -100,7 +100,7 @@ describe("graph grants in RLS", () => {
   it("compiles to the closure subquery, a depth bound only below the cap, and the restricted row", () => {
     const ctx = context({ columnTypes: { folderId: "uuid" } });
     expect(compileConditionSql(related(), ctx)).toBe(
-      `"folderId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and ancestor = any (array(select "permdock".permitted_folder_ids('viewer'))))`,
+      `"folderId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and ancestor::uuid = any (array(select "permdock".permitted_folder_ids('viewer'))))`,
     );
     expect(
       compileConditionSql(
@@ -113,11 +113,11 @@ describe("graph grants in RLS", () => {
         ctx,
       ),
     ).toBe(
-      `("folderId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and depth <= 2 and ancestor = any (array(select "permdock".permitted_folder_ids('editor')))) and "restricted" is not true)`,
+      `("folderId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and depth <= 2 and ancestor::uuid = any (array(select "permdock".permitted_folder_ids('editor')))) and "restricted" is not true)`,
     );
     expect(
       compileConditionSql(related({ field: "id", depth: 0 }), context()),
-    ).toBe(`"id"::text in (select "permdock".permitted_folder_ids('viewer'))`);
+    ).toBe(`"id"::uuid in (select "permdock".permitted_folder_ids('viewer'))`);
   });
 
   it("emits helpers, the closure table and triggers that stop at restricted rows and the depth", () => {
@@ -142,7 +142,7 @@ describe("graph grants in RLS", () => {
     );
     expect(sql).toContain("is its own ancestor");
     expect(sql).toContain(
-      `using (resource = 'folder' and ancestor in (select "permdock".permitted_folder_ids(null)))`,
+      `using (resource = 'folder' and ancestor::uuid in (select "permdock".permitted_folder_ids(null)))`,
     );
     expect(sql).toContain(
       'revoke execute on function "permdock".permdock_closure_folder(text[]) from public, anon, authenticated;',
@@ -243,7 +243,7 @@ describe("graph grants in RLS", () => {
       '"permdock".permitted_chat_team_ids(p_relation text)',
     );
     expect(sql).toContain(
-      '"permdock".permdock_link_chat_thread_owner_team(p_ids text[])',
+      '"permdock".permdock_link_chat_thread_owner_team(p_ids uuid[])',
     );
     expect(sql).toContain(
       '"permdock".permdock_closure_chat_thread(p_ids text[])',
@@ -361,7 +361,7 @@ describe("graph grants in RLS", () => {
     expect(sql).toContain(`"permdock".permitted_squad_ids('member')`);
     expect(sql).toContain("with recursive g");
     expect(sql).toContain(
-      '"permdock".permdock_link_folder_squad(p_ids text[])',
+      '"permdock".permdock_link_folder_squad(p_ids uuid[])',
     );
     expect(
       compileConditionSql(
@@ -379,7 +379,7 @@ describe("graph grants in RLS", () => {
         ctx,
       ),
     ).toBe(
-      `coalesce("folderId"::text in (select "permdock".permdock_link_folder_squad(array(select "permdock".permitted_squad_ids('lead')))), false)`,
+      `coalesce("folderId" in (select "permdock".permdock_link_folder_squad(array(select "permdock".permitted_squad_ids('lead')))), false)`,
     );
   });
 });

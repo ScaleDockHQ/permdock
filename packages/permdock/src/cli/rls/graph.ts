@@ -24,6 +24,7 @@ import { scopeList } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { configError } from "../core/errors.ts";
 import { activeUserSql } from "../sql/active.ts";
+import { idTypeOf } from "../sql/columns.ts";
 import {
   CLOSURE,
   graphHelper,
@@ -206,6 +207,7 @@ function relationArm(
       resources: new Map([...plan].map(([name, item]) => [name, item.node])),
       ...(tables === undefined ? {} : { tables }),
       qualify: qualifySqlTable,
+      idType: (resource) => idTypeOf(ctx, resource),
       holders: (resource, groupRelation) => [
         {
           text: `select ${qualified(ctx, graphHelper(resource))}(${quoteLiteral(groupRelation)})`,
@@ -243,12 +245,13 @@ function permittedSql(
       tables,
     ),
   );
+  const idType = idTypeOf(ctx, entry.node.name);
   if (arms.length === 0) {
-    arms.push("  select null::text where false");
+    arms.push(`  select null::${idType} where false`);
   }
   return `-- ${entry.node.name}: ids the subject holds a relation on (all relations when p_relation is null)
 create or replace function ${fn}(p_relation text)
-returns setof text
+returns setof ${idType}
 language sql
 stable
 security definer
@@ -276,20 +279,22 @@ function linkSql(
     throw configError(`PermDock CLI: ${node.name} has no link '${link}'`);
   }
   const fn = qualified(ctx, linkHelper(node.name, link));
+  const sourceType = idTypeOf(ctx, node.name);
+  const targetType = idTypeOf(ctx, spec.resource);
   return `-- ${node.name}.${link}: rows whose ${spec.field} points at one of the given ${spec.resource} ids
-create or replace function ${fn}(p_ids text[])
-returns setof text
+create or replace function ${fn}(p_ids ${targetType}[])
+returns setof ${sourceType}
 language sql
 stable
 security definer
 cost 1000
 set search_path = ''
 as $$
-  select t.${quoteIdent(node.id)}::text from ${quoteQualified(tableFor(node.name, tables))} t
-  where t.${quoteIdent(spec.field)}::text = any(p_ids)
+  select t.${quoteIdent(node.id)} from ${quoteQualified(tableFor(node.name, tables))} t
+  where t.${quoteIdent(spec.field)} = any(p_ids)
 $$;
-revoke execute on function ${fn}(text[]) from public, anon;
-grant execute on function ${fn}(text[]) to authenticated;`;
+revoke execute on function ${fn}(${targetType}[]) from public, anon;
+grant execute on function ${fn}(${targetType}[]) to authenticated;`;
 }
 
 function closureTableSql(ctx: RlsSqlContext): string {
@@ -338,6 +343,8 @@ function closureObjectsSql(
   const refresh = qualified(ctx, `${CLOSURE.table}_${sqlName}`);
   const changed = qualified(ctx, `${CLOSURE.table}_${sqlName}_changed`);
   const literal = quoteLiteral(name);
+  const idType = idTypeOf(ctx, name);
+  const ancestor = idType === "text" ? "ancestor" : `ancestor::${idType}`;
   const restrictedChanged =
     restricted === undefined
       ? ""
@@ -352,7 +359,7 @@ function closureObjectsSql(
 drop policy if exists ${quoteIdent(`${CLOSURE.table}_${sqlName}`)} on ${closure};
 create policy ${quoteIdent(`${CLOSURE.table}_${sqlName}`)} on ${closure}
   for select to authenticated
-  using (resource = ${literal} and ancestor in (select ${qualified(ctx, graphHelper(name))}(null)));
+  using (resource = ${literal} and ${ancestor} in (select ${qualified(ctx, graphHelper(name))}(null)));
 create or replace function ${refresh}(p_ids text[])
 returns void
 language plpgsql
@@ -498,6 +505,7 @@ function restrictedRowsHelperSql(
       resources: new Map([...plan].map(([name, item]) => [name, item.node])),
       ...(tables === undefined ? {} : { tables }),
       qualify: qualifySqlTable,
+      idType: (resource) => idTypeOf(ctx, resource),
       closure: `${helperSchema(ctx)}.${CLOSURE.table}`,
       closureDepths: closureDepths(plan),
     }),
@@ -505,7 +513,7 @@ function restrictedRowsHelperSql(
   );
   return `-- ${entry.node.name}: rows a stopped link does not reach below: restricted, under a restricted row within ${String(above.depth - 1)} levels, or deeper
 create or replace function ${fn}()
-returns setof text
+returns setof ${idTypeOf(ctx, entry.node.name)}
 language sql
 stable
 security definer

@@ -218,7 +218,7 @@ allow(hr.timeEntry.read, {
 });
 ```
 
-A manager reads the time entries of every employee below them, to `depth` levels, and none of their own. `permdock rls generate` compiles the grant to `"employeeId" in (select descendant from permdock_closure where resource = 'employee' and ancestor = any (array(select permitted_employee_ids('manager'))))`, an uncorrelated subquery over the closure of `employee`, which the statement triggers keep current. `can` walks the same chain with `RelationSource.ancestors`. A manager whose chain is deeper than `depth` is denied beyond it.
+A manager reads the time entries of every employee below them, to `depth` levels, and none of their own. `permdock rls generate` compiles the grant to `"employeeId" in (select descendant::uuid from permdock_closure where resource = 'employee' and ancestor::uuid = any (array(select permitted_employee_ids('manager'))))`, an uncorrelated subquery over the closure of `employee`, which the statement triggers keep current. `can` walks the same chain with `RelationSource.ancestors`. A manager whose chain is deeper than `depth` is denied beyond it.
 
 ### A ceiling on a relationship
 

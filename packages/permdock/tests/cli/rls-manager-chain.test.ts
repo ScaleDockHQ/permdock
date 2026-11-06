@@ -68,7 +68,7 @@ describe("manager chains over the closure graph", () => {
       (branch) => branch.permissionKey === "timeEntry.read",
     );
     expect(read?.using).toBe(
-      `"employeeId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'employee' and ancestor = any (array(select "permdock".permitted_employee_ids('manager'))))`,
+      `"employeeId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'employee' and ancestor::uuid = any (array(select "permdock".permitted_employee_ids('manager'))))`,
     );
   });
 

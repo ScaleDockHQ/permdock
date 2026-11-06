@@ -307,7 +307,7 @@ describe("inherit() in generated RLS", () => {
       (item) => item.permissionKey === "node.read",
     );
     expect(branch?.using).toBe(
-      `(coalesce("driveId"::text in (select p.id::text from "permdock".permitted_drive_rows('drive.read') as p(id)), false) and "restricted" is not true)`,
+      `(coalesce("driveId" in (select "permdock".permitted_drive_rows('drive.read')), false) and "restricted" is not true)`,
     );
     expect(branch?.roles).toStrictEqual(["authenticated"]);
   });
@@ -381,7 +381,7 @@ describe("inherit() in generated RLS", () => {
     const using = (key: string): string | undefined =>
       compiled.branches.find((item) => item.permissionKey === key)?.using;
     expect(using("node.read")).toBe(
-      `(coalesce("driveId"::text in (select p.id::text from "permdock".permitted_drive_rows('drive.read', array(select "driveId"::uuid from permdock_candidates)) as p(id)), false) and "restricted" is not true)`,
+      `(coalesce("driveId" in (select "permdock".permitted_drive_rows('drive.read', array(select "driveId"::uuid from permdock_candidates))), false) and "restricted" is not true)`,
     );
     expect(using("node.delete")).toContain(
       `"folderId"::uuid in (select "permdock".permitted_folder_rows('folder.read', array(select "folderId"::uuid from permdock_candidates)))`,
