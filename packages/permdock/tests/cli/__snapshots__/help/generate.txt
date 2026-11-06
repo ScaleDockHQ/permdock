@@ -7,6 +7,9 @@ Flags
   --dry-run          Print what would change; write nothing
   --policy <module>  Module exporting the policy (default policy in the config)
   --only <plugin>    Run this plugin; repeat for more than one (repeatable)
+  --no-cache         Emit and write even when a cache entry matches
+  --cache-dir <dir>  Cache directory (default node_modules/.cache/permdock or PERMDOCK_CACHE_DIR)
+  --concurrency <n>  How many tasks run at once. 1 runs them one at a time. Default is one less than the CPU count.
 
 Global flags
   --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help

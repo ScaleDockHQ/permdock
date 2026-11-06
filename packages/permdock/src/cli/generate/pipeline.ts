@@ -4,9 +4,18 @@ import type { ProjectContext } from "./context.ts";
 import type { PolicyModel } from "./model.ts";
 import type { PermDockPlugin, PluginTask } from "./plugin.ts";
 
+import { canonicalJson } from "../../core/canonical-json.ts";
 import { applyFiles, planFiles } from "../core/files.ts";
+import {
+  cacheDirectory,
+  cacheHit,
+  hashText,
+  readCache,
+  writeCache,
+} from "./cache.ts";
 import { policyModel } from "./model.ts";
 import { orderPlugins } from "./plugin.ts";
+import { concurrencyOf, mapLimited } from "./pool.ts";
 
 export type GenerateOutcome = "created" | "updated" | "unchanged" | "planned";
 
@@ -76,9 +85,34 @@ export async function runGenerate(input: {
   readonly ctx: ProjectContext;
   readonly check: boolean;
   readonly dryRun: boolean;
+  readonly noCache?: boolean;
+  readonly cacheDir?: string;
+  readonly concurrency?: number;
+  /** Module URLs recorded while the policy loaded. Part of the cache key. */
+  readonly importGraph?: readonly string[];
 }): Promise<GenerateRun> {
   const model = policyModel(input.policy);
   const plugins = orderPlugins(input.plugins);
+  const useCache = input.noCache !== true && !input.check && !input.dryRun;
+  const key = hashText(
+    [
+      ...plugins.map((plugin) => `${plugin.name}@${plugin.version}`),
+      canonicalJson(model),
+      ...(input.importGraph ?? []),
+    ].join("\n"),
+  );
+  const directory = cacheDirectory(input.cwd, input.cacheDir);
+  if (useCache) {
+    const cached = readCache(directory, key);
+    if (cached !== undefined && cacheHit(input.cwd, cached)) {
+      const files = cached.files.map((file) => ({
+        path: file.path,
+        plugin: file.plugin,
+        outcome: "unchanged" as const,
+      }));
+      return { model, files, summary: summaryOf(files), diff: "", code: 0 };
+    }
+  }
   const tasks: {
     readonly plugin: PermDockPlugin;
     readonly task: PluginTask;
@@ -89,20 +123,23 @@ export async function runGenerate(input: {
       tasks.push({ plugin, task });
     }
   }
-  const emitted: { plugin: string; path: string; contents: string }[] = [];
-  for (const item of tasks) {
-    for (const file of await item.plugin.emit(item.task, model, {
-      cwd: input.cwd,
-      config: input.config,
-      policy: input.policy,
-    })) {
-      emitted.push({
+  const groups = await mapLimited(
+    tasks,
+    concurrencyOf(input.concurrency),
+    async (item) => {
+      const produced = await item.plugin.emit(item.task, model, {
+        cwd: input.cwd,
+        config: input.config,
+        policy: input.policy,
+      });
+      return produced.map((file) => ({
         plugin: item.plugin.name,
         path: file.path,
         contents: file.contents,
-      });
-    }
-  }
+      }));
+    },
+  );
+  const emitted = groups.flat();
   const bodies = emitted.map((item) => ({
     path: item.path,
     text: item.contents,
@@ -118,6 +155,17 @@ export async function runGenerate(input: {
         ? "planned"
         : file.outcome,
   }));
+  if (useCache && write) {
+    writeCache(
+      directory,
+      key,
+      emitted.map((file) => ({
+        path: file.path,
+        hash: hashText(file.contents),
+        plugin: file.plugin,
+      })),
+    );
+  }
   const summary = summaryOf(files);
   const drifted = summary.created + summary.updated + summary.planned > 0;
   return {

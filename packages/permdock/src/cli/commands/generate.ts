@@ -6,6 +6,7 @@ import { defineLeaf } from "../core/command.ts";
 import { CliError } from "../core/errors.ts";
 import { checkFlag, dryRunFlag, policyFlag } from "../core/flags.ts";
 import { projectContext } from "../generate/context.ts";
+import { withImportGraph } from "../generate/import-graph.ts";
 import { runGenerate } from "../generate/pipeline.ts";
 import { isPermDockPlugin } from "../generate/plugin.ts";
 import { requirePolicy } from "../project/load.ts";
@@ -26,6 +27,19 @@ function pluginsOf(value: readonly unknown[] | undefined): PermDockPlugin[] {
     plugins.push(item);
   }
   return plugins;
+}
+
+function concurrencyFlag(value: string | undefined): number | undefined {
+  if (value === undefined || value === "") {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new CliError("usage", "--concurrency must be a positive integer", {
+      code: "invalid_value",
+    });
+  }
+  return parsed;
 }
 
 function selected(
@@ -59,6 +73,22 @@ export const generate: Leaf = defineLeaf({
       valueHint: "plugin",
       repeatable: true,
     },
+    "no-cache": {
+      type: "boolean",
+      description: "Emit and write even when a cache entry matches",
+    },
+    "cache-dir": {
+      type: "string",
+      description:
+        "Cache directory (default node_modules/.cache/permdock or PERMDOCK_CACHE_DIR)",
+      valueHint: "dir",
+    },
+    concurrency: {
+      type: "string",
+      description:
+        "How many tasks run at once. 1 runs them one at a time. Default is one less than the CPU count.",
+      valueHint: "n",
+    },
   },
   async run(ctx, { flags }) {
     const phase = ctx.progress("Generating");
@@ -67,20 +97,29 @@ export const generate: Leaf = defineLeaf({
         flags.policy !== undefined && flags.policy !== ""
           ? flags.policy
           : ctx.config.policy;
-      const policy = await requirePolicy(
-        ctx.cwd,
-        path,
-        "generate needs policy in permdock.config.ts or --policy",
+      const concurrency = concurrencyFlag(flags.concurrency);
+      const loaded = await withImportGraph(() =>
+        requirePolicy(
+          ctx.cwd,
+          path,
+          "generate needs policy in permdock.config.ts or --policy",
+        ),
       );
       const project = await projectContext(ctx.cwd);
       const result = await runGenerate({
         cwd: ctx.cwd,
-        policy,
+        policy: loaded.value,
         plugins: selected(pluginsOf(ctx.config.plugins), flags.only),
         config: ctx.config,
         ctx: project,
         check: flags.check,
         dryRun: flags["dry-run"],
+        noCache: flags["no-cache"],
+        ...(flags["cache-dir"] === undefined || flags["cache-dir"] === ""
+          ? {}
+          : { cacheDir: flags["cache-dir"] }),
+        ...(concurrency === undefined ? {} : { concurrency }),
+        importGraph: loaded.files,
       });
       const wrote = result.summary.created + result.summary.updated;
       phase.done(`Generated ${wrote} ${wrote === 1 ? "file" : "files"}`);

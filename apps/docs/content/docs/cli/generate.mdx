@@ -14,12 +14,15 @@ permdock generate --check
 permdock generate --dry-run
 ```
 
-| Flag                | Meaning                                                                |
-| ------------------- | ---------------------------------------------------------------------- |
-| `--only <plugin>`   | Run this plugin. Repeat the flag to run more than one.                 |
-| `--check`           | Exit 1 when a file on disk differs; write nothing. The diff is stdout. |
-| `--dry-run`         | Report each change as `planned`; write nothing.                        |
-| `--policy <module>` | The module exporting the policy. Default: `policy` in the config.      |
+| Flag                | Meaning                                                                           |
+| ------------------- | --------------------------------------------------------------------------------- |
+| `--only <plugin>`   | Run this plugin. Repeat the flag to run more than one.                            |
+| `--check`           | Exit 1 when a file on disk differs; write nothing. The diff is stdout.            |
+| `--dry-run`         | Report each change as `planned`; write nothing.                                   |
+| `--policy <module>` | The module exporting the policy. Default: `policy` in the config.                 |
+| `--no-cache`        | Emit and write even when a cache entry matches.                                   |
+| `--cache-dir <dir>` | Cache directory. Default `node_modules/.cache/permdock`, or `PERMDOCK_CACHE_DIR`. |
+| `--concurrency <n>` | How many tasks run at once. `1` runs them one at a time.                          |
 
 `--json` puts `files` and `summary` in the result. Each file has `path`, `plugin` and `outcome`. `outcome` is `created`, `updated`, `unchanged` or, with `--dry-run`, `planned`.
 

@@ -98,6 +98,59 @@ describe("generate pipeline", () => {
     expect(check.diff).toBe("");
   });
 
+  it("writes the same bytes with and without a cache", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "permdock-generate-"));
+    dirs.push(cwd);
+    const ctx = await projectContext(cwd);
+    let calls = 0;
+    const echo = definePlugin({
+      name: "echo",
+      version: "1",
+      plan: () => [{ id: "a", out: "a.txt" }],
+      emit: () => {
+        calls += 1;
+        return [{ path: "a.txt", contents: "hello\n" }];
+      },
+    });
+    const fresh = await runGenerate({
+      cwd,
+      policy,
+      plugins: [echo],
+      config: {},
+      ctx,
+      check: false,
+      dryRun: false,
+      noCache: true,
+    });
+    const cacheDir = join(cwd, "cache");
+    const first = await runGenerate({
+      cwd,
+      policy,
+      plugins: [echo],
+      config: {},
+      ctx,
+      check: false,
+      dryRun: false,
+      cacheDir,
+    });
+    const second = await runGenerate({
+      cwd,
+      policy,
+      plugins: [echo],
+      config: {},
+      ctx,
+      check: false,
+      dryRun: false,
+      cacheDir,
+    });
+    const bytes = readFileSync(join(cwd, "a.txt"), "utf8");
+    expect(bytes).toBe("hello\n");
+    expect(fresh.files[0]?.outcome).toBe("created");
+    expect(first.files[0]?.outcome).toBe("unchanged");
+    expect(second.summary.unchanged).toBe(1);
+    expect(calls).toBe(2);
+  });
+
   it("skips an after name that is not configured", () => {
     expect(
       orderPlugins([plugin("b", ["a"])]).map((item) => item.name),
