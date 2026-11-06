@@ -3,12 +3,7 @@ import type { FlagRename } from "./cli-renames-0.5.ts";
 import type { CodemodChange, CodemodFollowUp } from "./context.ts";
 
 import { ROOT } from "../core/manifest.ts";
-import {
-  COMMAND_MOVES,
-  DEFAULT_CHANGES,
-  flagRename,
-  renameMessage,
-} from "./cli-renames-0.5.ts";
+import { flagRename, renameMessage } from "./cli-renames-0.5.ts";
 
 export type CliCallResult = {
   readonly text: string;
@@ -129,14 +124,9 @@ function removedCommand(
   return undefined;
 }
 
-function commandOf(tokens: readonly Token[]): {
-  readonly command: string | undefined;
-  readonly insertAfter?: Token;
-  readonly insert?: string;
-} {
+function commandOf(tokens: readonly Token[]): string | undefined {
   let node: GroupEntry = ROOT;
   const path: string[] = [];
-  let last: Token | undefined;
   for (const token of tokens) {
     if (token.text.startsWith("-")) {
       continue;
@@ -146,21 +136,12 @@ function commandOf(tokens: readonly Token[]): {
       break;
     }
     path.push(child.name);
-    last = token;
     if (child.kind === "leaf") {
-      return { command: path.join(" ") };
+      return path.join(" ");
     }
     node = child;
   }
-  const move = COMMAND_MOVES.find((item) => item.from === path.join(" "));
-  if (move === undefined || last === undefined) {
-    return { command: undefined };
-  }
-  return {
-    command: move.to,
-    insertAfter: last,
-    insert: move.to.slice(move.from.length + 1),
-  };
+  return undefined;
 }
 
 function flagEdits(
@@ -169,7 +150,7 @@ function flagEdits(
   notes: { readonly at: number; readonly message: string }[],
 ): readonly Edit[] {
   const edits: Edit[] = [];
-  for (const [index, token] of tokens.entries()) {
+  for (const token of tokens) {
     if (!token.text.startsWith("--")) {
       continue;
     }
@@ -179,7 +160,7 @@ function flagEdits(
     if (rename === undefined) {
       continue;
     }
-    const edit = flagEdit(rename, token, eq, tokens[index + 1]);
+    const edit = flagEdit(rename, token, eq);
     if (edit === undefined) {
       notes.push({ at: token.start, message: renameMessage(command, rename) });
     } else {
@@ -193,7 +174,6 @@ function flagEdit(
   rename: FlagRename,
   token: Token,
   eq: number,
-  next: Token | undefined,
 ): readonly Edit[] | undefined {
   if (rename.rewrite !== undefined) {
     return eq === -1
@@ -210,46 +190,15 @@ function flagEdit(
   if (rename.to === undefined || rename.hint !== undefined) {
     return undefined;
   }
-  if (rename.values === undefined) {
-    const value = eq === -1 ? "" : token.text.slice(eq);
-    return [
-      {
-        start: token.start,
-        end: token.end,
-        text: `${rename.to}${value}`,
-        from: token.text,
-      },
-    ];
-  }
-  if (eq !== -1) {
-    const mapped = mappedValue(rename.values, token.text.slice(eq + 1));
-    return mapped === undefined
-      ? undefined
-      : [
-          {
-            start: token.start,
-            end: token.end,
-            text: `${rename.to}=${mapped}`,
-            from: token.text,
-          },
-        ];
-  }
-  const mapped =
-    next === undefined ? undefined : mappedValue(rename.values, next.text);
-  if (next === undefined || mapped === undefined) {
-    return undefined;
-  }
+  const value = eq === -1 ? "" : token.text.slice(eq);
   return [
-    { start: token.start, end: token.end, text: rename.to, from: token.text },
-    { start: next.start, end: next.end, text: mapped, from: next.text },
+    {
+      start: token.start,
+      end: token.end,
+      text: `${rename.to}${value}`,
+      from: token.text,
+    },
   ];
-}
-
-function mappedValue(
-  values: Readonly<Record<string, string>>,
-  value: string,
-): string | undefined {
-  return Object.hasOwn(values, value) ? values[value] : undefined;
 }
 
 /**
@@ -268,7 +217,7 @@ export function rewriteCliCalls(
     const end = commandEnd(text, start, options.json);
     const tokens = tokensOf(text, start, end);
     const removed = removedCommand(tokens);
-    const { command, insertAfter, insert } = commandOf(tokens);
+    const command = commandOf(tokens);
     const named = removed?.command ?? command;
     if (named === undefined) {
       continue;
@@ -281,51 +230,16 @@ export function rewriteCliCalls(
         from: removed.from,
       });
     }
-    if (
-      removed === undefined &&
-      insertAfter !== undefined &&
-      insert !== undefined
-    ) {
-      edits.push({
-        start: insertAfter.end,
-        end: insertAfter.end,
-        text: ` ${insert}`,
-        from: insertAfter.text,
-      });
-    }
     edits.push(...flagEdits(named, tokens, notes));
-    for (const change of DEFAULT_CHANGES) {
-      const given = new Set(tokens.map((token) => token.text));
-      const last = tokens.at(-1);
-      if (
-        change.command === named &&
-        last !== undefined &&
-        !change.unless.some((flag) => given.has(flag)) &&
-        !given.has(change.add)
-      ) {
-        edits.push({
-          start: last.end,
-          end: last.end,
-          text: ` ${change.add}`,
-          from: last.text,
-        });
-      }
-    }
   }
   const changes: CodemodChange[] = [];
   let out = text;
   for (const edit of edits.toSorted((a, b) => b.start - a.start)) {
-    const { start, end } = edit.text === "" ? dropWithSpace(out, edit) : edit;
-    out = `${out.slice(0, start)}${edit.text}${out.slice(end)}`;
+    out = `${out.slice(0, edit.start)}${edit.text}${out.slice(edit.end)}`;
     changes.push({
       ...lineColumn(text, edit.start),
       from: edit.from,
-      to:
-        edit.start === edit.end
-          ? `${edit.from}${edit.text}`
-          : edit.text === ""
-            ? "(removed)"
-            : edit.text,
+      to: edit.text,
     });
   }
   return {
@@ -336,14 +250,4 @@ export function rewriteCliCalls(
       return { line, column, name: "cli", message: note.message };
     }),
   };
-}
-
-/** A dropped flag takes the space before it, so `a --legacy b` becomes `a b`. */
-function dropWithSpace(
-  text: string,
-  edit: Edit,
-): { readonly start: number; readonly end: number } {
-  return text[edit.start - 1] === " "
-    ? { start: edit.start - 1, end: edit.end }
-    : edit;
 }

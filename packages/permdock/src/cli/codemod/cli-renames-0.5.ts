@@ -10,8 +10,6 @@ export type FlagRename = {
   readonly from: string;
   /** The new spelling; `undefined` when the flag is gone. */
   readonly to?: string;
-  /** For an enum flag whose values changed too: old value to new value. */
-  readonly values?: Readonly<Record<string, string>>;
   /**
    * Shown instead of a replacement when there is none, or as advice. A rename
    * with a hint and no `rewrite` needs a person: the codemod reports it instead
@@ -21,9 +19,6 @@ export type FlagRename = {
   /** What the codemod writes in place of the old boolean flag; `""` drops it. */
   readonly rewrite?: string;
 };
-
-/** A group that used to run a default action when called bare. */
-export type CommandMove = { readonly from: string; readonly to: string };
 
 const FLAG_RENAMES: readonly FlagRename[] = [
   {
@@ -54,19 +49,6 @@ const FLAG_RENAMES: readonly FlagRename[] = [
   },
 ];
 
-export const COMMAND_MOVES: readonly CommandMove[] = [];
-
-/**
- * A leaf whose default flipped: a call with none of `unless` gains `add` to
- * keep its old behaviour.
- */
-export type DefaultChange = {
-  readonly command: string;
-  readonly unless: readonly string[];
-  readonly add: string;
-};
-
-export const DEFAULT_CHANGES: readonly DefaultChange[] = [];
 /** The rename that matches `flag` (as typed, before any `=`) on `command`. */
 export function flagRename(
   command: string,
