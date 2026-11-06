@@ -12,7 +12,7 @@
   "hono createPermDock + withOtel": 47690,
   "express createPermDock": 46175,
   "fastify createPermDock": 46006,
-  "jwt subjectFromJwt": 9452,
+  "jwt subjectFromJwt": 9387,
   "mcp createPermDock": 46686,
   "ai-sdk createPermDock": 42264,
   "supabase/middleware createPermDock": 46051,
