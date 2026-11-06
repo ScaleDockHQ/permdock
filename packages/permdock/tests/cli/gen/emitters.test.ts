@@ -378,4 +378,40 @@ describe("the gen model", () => {
       'tag: /* @__PURE__ */ z.enum(["a"]).nullable()',
     );
   });
+
+  it("hoists an enum literal used by two resources into one const", () => {
+    const status: JsonSchema = {
+      type: "object",
+      properties: { status: { enum: ["open", "closed"] } },
+      required: ["status"],
+    };
+    const two = model([
+      { name: "a", ident: "a", schema: status },
+      { name: "b", ident: "b", schema: status },
+    ]);
+    for (const kind of ["zod", "valibot"] as const) {
+      const code = validatorModule(kind, two, { header: HEADER });
+      expect(code).toContain("const values1 =");
+      expect(code.match(/values1/gu)).toHaveLength(3);
+    }
+    expect(validatorModule("arktype", two, { header: HEADER })).not.toContain(
+      "values1",
+    );
+  });
+
+  it("rejects two SQL names that generate one export", () => {
+    // SAFETY: the emitter reads only these ResolvedNames fields.
+    const names = {
+      schema: "permdock",
+      claims: {},
+      scopes: {
+        a: { permittedIds: "permitted_x_ids" },
+        b: { permittedIds: "permitted_x_ids" },
+      },
+      resources: {},
+    } as unknown as GenModel["names"];
+    expect(() => sqlModule(model([], { names }), HEADER)).toThrow(
+      /both generate the export 'permittedXIds'/u,
+    );
+  });
 });

@@ -137,8 +137,12 @@ export function outputFiles(plan: {
   readonly sql: () => SplitSql;
   readonly scopes: readonly Scope[];
   readonly schema: string;
-  /** Whether the pg-delta schema directory already exists on disk. */
-  readonly schemaDirExists: boolean;
+  /**
+   * Whether `supabase/config.toml` enables the pg-delta declarative workflow. A
+   * static input: a run never changes it, so a second run writes the same
+   * files.
+   */
+  readonly declarativeConfig: boolean;
 }): readonly OutputFile[] | string {
   const { input } = plan;
   const split = parseSplit(input.split);
@@ -172,7 +176,7 @@ export function outputFiles(plan: {
     if (
       pgDeltaSchemas.mode === "pg-delta" &&
       input.target === "sql" &&
-      plan.schemaDirExists &&
+      plan.declarativeConfig &&
       indexes.includes("create index")
     ) {
       files.push({

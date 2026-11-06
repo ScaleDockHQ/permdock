@@ -1,6 +1,3 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-
 import type { Scope } from "../../core/scopes.ts";
 import type { OutputFile } from "../core/output-files.ts";
 import type { RlsGenerateInput } from "./generate-options.ts";
@@ -14,6 +11,7 @@ import {
   writeOutputFiles,
 } from "../core/output-files.ts";
 import { BACKFILL_MARKER } from "../sql/markers.ts";
+import { readSupabaseConfig } from "../supabase-config.ts";
 import { resolveSchemas } from "../supabase-schemas.ts";
 import { outputFiles } from "./generate-output.ts";
 
@@ -39,10 +37,12 @@ export function generatedFiles(plan: {
 }): readonly OutputFile[] | string {
   const { input } = plan;
   const schemas = resolveSchemas(input.cwd, input.config, input.schemas);
+  const read = readSupabaseConfig(input.cwd);
   const planned = outputFiles({
-    schemaDirExists:
+    declarativeConfig:
       schemas.mode === "pg-delta" &&
-      existsSync(join(input.cwd, schemas.schemaDir)),
+      read?.ok === true &&
+      read.config.pgDelta !== undefined,
     input,
     outRel: plan.outRel,
     text: plan.text,

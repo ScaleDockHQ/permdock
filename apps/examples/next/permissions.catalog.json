@@ -1,8 +1,8 @@
 {
   "$schema": "https://permdock.com/schemas/catalog-v2.json",
   "version": 2,
-  "generatedAt": "2026-11-05T10:45:42.382Z",
-  "generator": "permdock@0.24.0",
+  "generatedAt": "2026-11-06T23:09:19.446Z",
+  "generator": "permdock@0.25.1",
   "fingerprint": "sha-256:yhA53BBVanaVjVdTOPY4BirAzsxSmygIo0qm2opo36A",
   "resources": {
     "quote": {
@@ -101,17 +101,17 @@
         },
         {
           "file": "src/app/[org]/members/page.tsx",
-          "line": 43,
+          "line": 44,
           "call": "reference"
         },
         {
           "file": "src/app/[org]/nav.tsx",
-          "line": 53,
+          "line": 56,
           "call": "tools"
         },
         {
-          "file": "src/lib/access.ts",
-          "line": 120,
+          "file": "src/features/member/member-queries.ts",
+          "line": 43,
           "call": "can"
         },
         {
@@ -136,23 +136,23 @@
           "call": "tools"
         },
         {
-          "file": "src/app/[org]/members/role-button.tsx",
-          "line": 15,
-          "call": "reference"
-        },
-        {
           "file": "src/app/[org]/nav.tsx",
-          "line": 60,
+          "line": 63,
           "call": "tools"
         },
         {
           "file": "src/app/[org]/settings/page.tsx",
-          "line": 23,
+          "line": 27,
           "call": "requirePermission"
         },
         {
-          "file": "src/app/actions.ts",
-          "line": 65,
+          "file": "src/features/member/components/role-button.tsx",
+          "line": 15,
+          "call": "reference"
+        },
+        {
+          "file": "src/features/member/member-actions.ts",
+          "line": 23,
           "call": "requirePermission"
         },
         {
@@ -172,8 +172,8 @@
       "meta": {},
       "usages": [
         {
-          "file": "src/app/actions.ts",
-          "line": 27,
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 14,
           "call": "protectAction"
         },
         {
@@ -198,13 +198,13 @@
       "meta": {},
       "usages": [
         {
-          "file": "src/app/[org]/quotes/[id]/delete-zone.tsx",
-          "line": 45,
+          "file": "src/features/quote/components/delete-zone.tsx",
+          "line": 33,
           "call": "assert"
         },
         {
-          "file": "src/app/actions.ts",
-          "line": 48,
+          "file": "src/features/quote/quote-actions.ts",
+          "line": 35,
           "call": "requirePermission"
         },
         {
@@ -235,7 +235,7 @@
         },
         {
           "file": "src/app/[org]/nav.tsx",
-          "line": 46,
+          "line": 49,
           "call": "tools"
         },
         {
@@ -260,13 +260,13 @@
       "meta": {},
       "usages": [
         {
-          "file": "src/lib/access.ts",
-          "line": 100,
+          "file": "src/features/quote/quote-queries.ts",
+          "line": 57,
           "call": "filter"
         },
         {
-          "file": "src/lib/access.ts",
-          "line": 147,
+          "file": "src/features/quote/quote-queries.ts",
+          "line": 84,
           "call": "can"
         },
         {
