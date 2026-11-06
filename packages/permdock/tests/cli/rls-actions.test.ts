@@ -83,7 +83,15 @@ describe("inferred actions", () => {
   });
 
   it("keeps any other verb, a word that only starts with a verb and a configured action out", () => {
-    expect(commandFor("approveInvoice")).toBeUndefined();
+    expect(commandFor("approveInvoice")).toBe("update");
+    expect(commandFor("markPaid")).toBe("update");
+    expect(commandFor("pause_run")).toBe("update");
+    expect(commandFor("resumeAll")).toBe("update");
+    expect(commandFor("remove")).toBe("delete");
+    expect(commandFor("duplicate")).toBe("insert");
+    expect(commandFor("writeOff")).toBe("update");
+    expect(commandFor("remove", { remove: "none" })).toBeUndefined();
+    expect(commandFor("export")).toBeUndefined();
     expect(commandFor("updater")).toBeUndefined();
     expect(commandFor("readonly")).toBeUndefined();
     expect(
@@ -119,10 +127,13 @@ describe("rls.actions", () => {
         .map((branch) => branch.command),
     ).toStrictEqual(["select", "select"]);
     expect(
-      compiled.branches.some((branch) =>
-        ["quote.send", "quote.approve"].includes(branch.permissionKey),
-      ),
+      compiled.branches.some((branch) => branch.permissionKey === "quote.send"),
     ).toBe(false);
+    expect(
+      compiled.branches
+        .filter((branch) => branch.permissionKey === "quote.approve")
+        .map((branch) => branch.command),
+    ).toStrictEqual(["update", "update"]);
     const rows = compiled.rolePermissions.map(
       (row) => `${row.role} ${row.grantKey} ${row.effect}`,
     );
@@ -159,7 +170,7 @@ describe("rls.actions", () => {
       approve: "none",
       archive: "none",
     });
-    const partial = run({ view: "select" });
+    const partial = run({ view: "select", approve: "none", send: "none" });
     expect(partial.compiled).toStrictEqual(mapped.compiled);
     expect(partial.warnings).toStrictEqual(mapped.warnings);
   });
@@ -169,8 +180,8 @@ describe("rls.actions", () => {
       { permissions, roles },
       {
         subject: () => null,
-        grants: [allow(permissions.quote.send, { to: anyone() })],
-        roles: [role(roles.admin, [allow(permissions.quote.send)])],
+        grants: [allow(permissions.quote.archive, { to: anyone() })],
+        roles: [role(roles.admin, [allow(permissions.quote.archive)])],
       },
     );
     const warnings: string[] = [];
@@ -178,14 +189,14 @@ describe("rls.actions", () => {
     expect(compiled.rolePermissions).toStrictEqual([
       {
         role: "admin",
-        permission: "quote.send",
-        grantKey: "quote.send",
+        permission: "quote.archive",
+        grantKey: "quote.archive",
         scope: "global",
         effect: "allow",
       },
     ]);
     expect(warnings).toContain(
-      "skipped anyone/quote.send: action 'send' has no SQL command (rls.actions) and only role grants are seeded",
+      "skipped anyone/quote.archive: action 'archive' has no SQL command (rls.actions) and only role grants are seeded",
     );
   });
 });

@@ -99,8 +99,10 @@ export function sqlTextArray(values: readonly string[]): string {
 export type SqlCommand = "select" | "insert" | "update" | "delete";
 
 /**
- * The SQL command a default verb runs: `read`, `list` and `get` select,
- * `create` inserts, `update` and `delete` keep their name.
+ * The SQL command a default verb runs. `read`, `list` and `get` select.
+ * `create` and `duplicate` insert. `delete` and `remove` delete. `update`,
+ * `approve`, `reject`, `cancel`, `send`, `withdraw`, `confirm`, `fulfill`,
+ * `receive`, `reimburse` and `writeOff` update.
  */
 export function defaultSqlCommand(action: string): SqlCommand | undefined {
   switch (action) {
@@ -109,11 +111,23 @@ export function defaultSqlCommand(action: string): SqlCommand | undefined {
     case "get":
       return "select";
     case "create":
+    case "duplicate":
       return "insert";
-    case "update":
-      return "update";
     case "delete":
+    case "remove":
       return "delete";
+    case "update":
+    case "approve":
+    case "reject":
+    case "cancel":
+    case "send":
+    case "withdraw":
+    case "confirm":
+    case "fulfill":
+    case "receive":
+    case "reimburse":
+    case "writeOff":
+      return "update";
     default:
       return undefined;
   }

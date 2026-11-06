@@ -167,11 +167,13 @@ function levelReachOf(
 }
 
 /**
- * The first word of a camelCase, snake_case or kebab-case compound that is one
- * of the six default verbs: `updateStatus` and `list_archived`. The prefix list
- * is closed; any other verb needs an `rls.actions` entry.
+ * The first word of a camelCase, snake_case or kebab-case compound that infers
+ * a command: `updateStatus`, `list_archived`, `markPaid`, `pause_run`. `mark`,
+ * `pause` and `resume` infer only with a suffix. Any other verb needs an
+ * `rls.actions` entry.
  */
-const VERB_PREFIX = /^(read|list|get|create|update|delete)(?=[A-Z0-9_-])/u;
+const VERB_PREFIX =
+  /^(read|list|get|create|duplicate|update|delete|remove|approve|reject|cancel|send|withdraw|confirm|fulfill|receive|reimburse|writeOff|mark|pause|resume)(?=[A-Z0-9_-])/u;
 
 /**
  * The SQL command a compound action name implies through its default-verb
@@ -189,14 +191,25 @@ export function inferredCommand(
     return undefined;
   }
   const verb = VERB_PREFIX.exec(action)?.[1];
-  return verb === undefined ? undefined : defaultSqlCommand(verb);
+  return verb === undefined ? undefined : prefixCommand(verb);
+}
+
+function prefixCommand(verb: string): SqlCommand | undefined {
+  switch (verb) {
+    case "mark":
+    case "pause":
+    case "resume":
+      return "update";
+    default:
+      return defaultSqlCommand(verb);
+  }
 }
 
 /**
- * The SQL command `action` compiles to: `rls.actions` first, then the six
- * default verbs, then a compound whose prefix is one of them ({@link
- * inferredCommand}). Any other verb is `undefined`, as `'none'` is: no policy,
- * and its grants are still seeded.
+ * The SQL command `action` compiles to: `rls.actions` first, then a default
+ * verb, then a compound whose prefix is one ({@link inferredCommand}). Any
+ * other verb is `undefined`, as `'none'` is: no policy, and its grants are
+ * still seeded.
  */
 export function commandFor(
   action: string,
