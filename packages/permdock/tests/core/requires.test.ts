@@ -289,6 +289,7 @@ describe("requires with a list of permissions", () => {
         scopes: scopeList(listPolicy.scopes),
         tenantClaim: "tenant_id",
         gucPrefix: "app",
+        actions: { download: "none" as const },
       },
       undefined,
       [],
@@ -464,6 +465,7 @@ describe("requires and a delegated key's scopes", () => {
         scopes: scopeList(scoped.scopes),
         tenantClaim: "tenant_id",
         gucPrefix: "app",
+        actions: { download: "none" as const },
         apiKeys: {
           claim: "api_key",
           scopes: "scopes",
@@ -602,6 +604,7 @@ describe("requires and a key's scopes on a write", () => {
         scopes: scopeList(nodePolicy.scopes),
         tenantClaim: "tenant_id",
         gucPrefix: "app",
+        actions: { download: "none" as const },
         apiKeys: {
           claim: "api_key",
           scopes: "scopes",
@@ -630,6 +633,7 @@ describe("requires in generated RLS", () => {
       scopes: scopeList(policy.scopes),
       tenantClaim: "tenant_id",
       gucPrefix: "app",
+      actions: { download: "none" as const },
     };
     const compiled = compileGrants(policy, ctx, undefined, [], false);
     const branch = compiled.branches.find(

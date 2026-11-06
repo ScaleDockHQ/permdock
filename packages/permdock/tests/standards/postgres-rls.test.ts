@@ -9,8 +9,8 @@ import path from "node:path";
 import { parse } from "pgsql-parser";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
 import { conditionFromAst } from "../../src/cli/rls/import-ast.ts";
+import { rlsGenerate } from "../cli/rls-call.ts";
 
 type Node = Record<string, unknown>;
 
@@ -49,17 +49,8 @@ describe("postgres rls", () => {
 `,
     );
     for (const dialect of DIALECTS) {
-      const result = await run(
-        [
-          "rls",
-          "generate",
-          "--target",
-          "sql",
-          "--dialect",
-          dialect,
-          "--out",
-          `${dialect}.sql`,
-        ],
+      const result = await rlsGenerate(
+        ["--target", "sql", "--dialect", dialect, "--out", `${dialect}.sql`],
         { cwd },
       );
       if (result.code !== 0) {

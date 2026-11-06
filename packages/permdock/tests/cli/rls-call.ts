@@ -1,6 +1,6 @@
 import type { CliContext } from "../../src/cli/core/context.ts";
 import type { CommandResult } from "../../src/cli/core/result.ts";
-import type { CliIo, RunResult } from "../../src/cli/types.ts";
+import type { CliIo, PermDockConfig, RunResult } from "../../src/cli/types.ts";
 
 import { genFromFlags } from "../../src/cli/commands/gen.ts";
 import { openapiEmitFromFlags } from "../../src/cli/commands/openapi.ts";
@@ -14,6 +14,42 @@ import { createStyle } from "../../src/cli/core/style.ts";
 import { loadConfig } from "../../src/cli/project/config.ts";
 import { dateAt } from "../../src/core/time.ts";
 
+/**
+ * Verbs the fixtures grant that do not infer a SQL command. Generation fails
+ * closed without an `rls.actions` entry; the fixtures mean "no policy".
+ */
+const DECLARED_NONE = [
+  "accept",
+  "archive",
+  "assignRole",
+  "close",
+  "disable",
+  "download",
+  "export",
+  "manage",
+  "pay",
+  "publish",
+  "revert",
+  "review",
+  "transfer",
+  "view",
+  "void",
+] as const;
+
+function declareActions(config: PermDockConfig): PermDockConfig {
+  const rls = config.rls ?? {};
+  return {
+    ...config,
+    rls: {
+      ...rls,
+      actions: {
+        ...Object.fromEntries(DECLARED_NONE.map((verb) => [verb, "none"])),
+        ...rls.actions,
+      },
+    },
+  };
+}
+
 function lined(text: string): string {
   return text === "" || text.endsWith("\n") ? text : `${text}\n`;
 }
@@ -26,7 +62,7 @@ function contextFor(
   return loadConfig(cwd).then((config) => ({
     command: "rls generate",
     cwd,
-    config,
+    config: declareActions(config),
     configWarnings: [],
     io,
     env: io.env ?? process.env,

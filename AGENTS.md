@@ -70,7 +70,7 @@ pnpm changeset             # every user-visible change
 
 ## Local dev
 
-Run `pnpm exec portless list` first and reuse a running PermDock route. The Portless proxy is shared with other repositories: never stop it, never run `portless clean` or `prune` (`pnpm dev:cleanup` is the user's to run), never kill a process you did not start. Check UI changes with `agent-browser` on the Portless URL. [`docs/agents/`](./docs/agents/README.md) lists the fixes agents needed before.
+Run `pnpm exec portless list` and reuse a route. The Portless proxy is shared: never stop it, never run `portless clean` or `prune`, never kill a process you did not start. Check UI with `agent-browser`. [`docs/agents/`](./docs/agents/README.md) lists earlier fixes.
 
 ## When you change X, also update Y
 
@@ -93,7 +93,7 @@ Run `pnpm exec portless list` first and reuse a running PermDock route. The Port
 ## Hard rules
 
 - Never discard uncommitted work you did not make.
-- Read the installed docs (`node_modules/next/dist/docs`, `turbo/docs`, the package README) before configuring Next.js, Turborepo or Fumadocs.
+- Read the installed docs (`node_modules/next/dist/docs`, `turbo/docs`, the package README) before configuring them.
 - Never lower `minimumReleaseAge`. Pin versions from `pnpm view` at run time.
 - Secrets never go in git or `NEXT_PUBLIC_*`. Never set `AI_GATEWAY_API_KEY` or a provider key: the AI Gateway uses Vercel OIDC.
 - Fix the code, not the test.
@@ -137,10 +137,8 @@ Records in `docs/decisions`:
 - 0029 no Turbopack CI cache; 0030 `Vary` only on Markdown
 - 0031 `tests/*` outside Vitest `projects`; 0032 no `actions.lock`; 0033 `jsx: "react-jsx"`; 0034 `Instant` over `Temporal`; 0037 shared CLI contract; 0038-0041, 0046-0048, 0050-0051, 0053-0054, 0059 better-supabase pins; 0044 lint rules kept off; 0045 open peer ranges; 0049 hook gate
 - 0055 `turbo.json` `global` block
-- 0056 `permdock/app` and `definePermDock`
-- 0057 `oxc-parser`, `jiti` as optional CLI peers
-- 0058 React evaluator split
-- 0061 better-supabase `definePermDock` owns `.next` and `.authorizer`
+- 0056 `permdock/app` `definePermDock`; 0061 `.next` and `.authorizer` on better-supabase
+- 0057 `oxc-parser`, `jiti` optional CLI peers; 0058 React evaluator split
 
 ## Pre-release pins
 

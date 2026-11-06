@@ -17,6 +17,7 @@ import {
   writeCredentials,
 } from "../../src/terminal/storage.ts";
 import { jsonData } from "./envelope.ts";
+import { rlsGenerate } from "./rls-call.ts";
 import { SOURCES, generate, removeHookProjects } from "./supabase-hook-kit.ts";
 
 // Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
@@ -399,10 +400,8 @@ describe("cloud edges", () => {
   describe("permdock rls generate --project against a failing Cloud", () => {
     async function generateRls(route: Route, json = false) {
       const { cwd } = await generate(`{ memberships: [${SOURCES}] }`);
-      return run(
+      return rlsGenerate(
         [
-          "rls",
-          "generate",
           "--project",
           "prj_1",
           "--out",

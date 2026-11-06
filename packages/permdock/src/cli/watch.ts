@@ -7,7 +7,7 @@ import type { CliContext } from "./core/context.ts";
 import type { CommandResult } from "./core/result.ts";
 import type { CollectConfig, PermDockPluginOptions } from "./types.ts";
 
-import { dateAt } from "../core/time.ts";
+import { dateAt, nowMillis } from "../core/time.ts";
 import { runCollect } from "./collect.ts";
 import { describeError } from "./core/errors.ts";
 import { defaultSrcPath } from "./files.ts";
@@ -229,7 +229,7 @@ export function createChangeScheduler(options: {
     if (watchers.length > 0) {
       return;
     }
-    watchingSince = Date.now();
+    watchingSince = nowMillis();
     for (const dir of sources) {
       watchDir(dir, true, () => true);
     }

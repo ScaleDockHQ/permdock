@@ -37,7 +37,7 @@ const policy = definePolicy(permissions, {
 const config: PermDockConfig = {
   policy: "policy.ts",
   rls: { tables: { job: "jobs" } },
-  powersync: {},
+  powersync: { resources: ["job"] },
 };
 
 describe("emitted parts", () => {

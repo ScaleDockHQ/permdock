@@ -51,7 +51,7 @@ streams:
 | Flag             | Values   | Default                                  | Effect                                                                                                                                                        |
 | ---------------- | -------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--out`          | a path   | `powersync.out`, else `sync-config.yaml` | Where `generate` writes and what `verify` compares                                                                                                            |
-| `--check`        | flag     | off                                      | `generate`: exit `1` when the file on disk is stale; write nothing                                                                                            |
+| `check`          | flag     | off                                      | `generate`: exit `1` when the file on disk is stale; write nothing. The command is `permdock generate --check`.                                               |
 | `--db-url-stdin` | flag     | off                                      | `verify`: read the connection string from stdin and run every stream query against that database per fixture (default `DATABASE_URL`, then `SUPABASE_DB_URL`) |
 | `--fixtures`     | a path   | `rls.fixtures`, else `rls.fixtures.json` | `verify`: the [`rls verify`](/docs/cli/rls) fixtures                                                                                                          |
 | `--policy`       | a module | `policy` in the config                   | The module exporting `policy`                                                                                                                                 |
@@ -253,10 +253,9 @@ A stream that reads a token claim keeps the claims its connection started with, 
 
 What each command may change; [side effects](/docs/cli#side-effects) explains each one.
 
-| Command                       | Side effects    |
-| ----------------------------- | --------------- |
-| `permdock powersync generate` | `files`         |
-| `permdock powersync verify`   | `database:read` |
+| Command                     | Side effects    |
+| --------------------------- | --------------- |
+| `permdock powersync verify` | `database:read` |
 
 ## Why
 
