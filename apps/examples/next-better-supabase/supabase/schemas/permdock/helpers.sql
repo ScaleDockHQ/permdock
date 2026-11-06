@@ -57,8 +57,8 @@ alter table "permdock".custom_role_permissions add constraint "custom_role_permi
   case when scope = 'global' then tenant_id is null and scope_id is null
   else tenant_id is not null or scope_id is null end
 );
-create unique index "custom_role_permissions_key"
-  on "permdock".custom_role_permissions (coalesce(tenant_id::text, ''), scope, coalesce(scope_id, ''), role, permission, effect);
+create unique index "custom_role_permissions_nnd_key"
+  on "permdock".custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect) nulls not distinct;
 -- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
 alter table "permdock".custom_role_permissions add column if not exists id bigint generated always as identity primary key;
 alter table "permdock".custom_role_permissions enable row level security;
@@ -78,8 +78,8 @@ alter table "permdock".custom_role_includes add constraint "custom_role_includes
   case when scope = 'global' then tenant_id is null and scope_id is null
   else tenant_id is not null or scope_id is null end
 );
-create unique index "custom_role_includes_key"
-  on "permdock".custom_role_includes (coalesce(tenant_id::text, ''), scope, coalesce(scope_id, ''), role, include_role);
+create unique index "custom_role_includes_nnd_key"
+  on "permdock".custom_role_includes (tenant_id, scope, scope_id, role, include_role) nulls not distinct;
 -- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
 alter table "permdock".custom_role_includes add column if not exists id bigint generated always as identity primary key;
 alter table "permdock".custom_role_includes enable row level security;
@@ -1655,6 +1655,7 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
 parallel safe
 set search_path = ''
 as $$
@@ -1891,6 +1892,7 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
 parallel safe
 set search_path = ''
 as $$
@@ -1921,6 +1923,7 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
 parallel safe
 set search_path = ''
 as $$
@@ -2145,6 +2148,7 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
 parallel safe
 set search_path = ''
 as $$
@@ -2190,6 +2194,7 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
 parallel safe
 set search_path = ''
 as $$
@@ -2209,6 +2214,7 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
 parallel safe
 set search_path = ''
 as $$
@@ -2446,6 +2452,7 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
 parallel safe
 set search_path = ''
 as $$
@@ -2465,6 +2472,7 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
 parallel safe
 set search_path = ''
 as $$
@@ -2779,7 +2787,8 @@ create table "permdock".approval_requests (
   consumed_at timestamptz
 );
 create index "approval_requests_page" on "permdock".approval_requests (created_at collate "C", token collate "C");
-create index "approval_requests_pending" on "permdock".approval_requests (status, expires_at);
+-- only open requests expire, so the index holds them alone
+create index "approval_requests_pending_expires" on "permdock".approval_requests (expires_at) where status = 'pending';
 alter table "permdock".approval_requests enable row level security;
 revoke all on table "permdock".approval_requests from anon, authenticated, public;
 

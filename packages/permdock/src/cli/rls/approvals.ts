@@ -126,7 +126,8 @@ create table if not exists ${table} (
   consumed_at timestamptz
 );
 create index if not exists ${index("page")} on ${table} (created_at collate "C", token collate "C");
-create index if not exists ${index("pending")} on ${table} (status, expires_at);
+-- only open requests expire, so the index holds them alone
+create index if not exists ${index("pending_expires")} on ${table} (expires_at) where status = 'pending';
 alter table ${table} enable row level security;
 revoke all on table ${table} from anon, authenticated, public;
 ${jsonSchema ? bodySchemaSql(table) : ""}

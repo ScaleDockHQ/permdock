@@ -115,17 +115,19 @@ describe("membership sources with a user through a profile table", () => {
     expect(sql).not.toContain(
       `permdock_bump_authz_version('contact_profile_id')`,
     );
-    expect(fn(sql, "permdock_bump_authz_version_member_users"))
-      .toContain(`  perform "permdock".permdock_bump_authz_version_for(array(
-    select u."user_id"::uuid from "public"."contact_profiles" u
-    where ((tg_op <> 'INSERT' and u."id" = old."contact_profile_id")
-       or (tg_op <> 'DELETE' and u."id" = new."contact_profile_id"))
-      and exists (select 1 from auth.users a where a.id = u."user_id"::uuid)
-  ));`);
+    expect(
+      fn(sql, "permdock_bump_authz_version_member_users").replaceAll(
+        /\s+/gu,
+        " ",
+      ),
+    ).toContain(
+      `select u."user_id"::uuid from "public"."contact_profiles" u where u."id" in (select t."contact_profile_id" from permdock_old t) and exists (select 1 from auth.users a where a.id = u."user_id"::uuid)`,
+    );
     expect(sql).toContain(
-      `create trigger "permdock_authz_version"
-  after insert or update or delete on "public"."customer_contacts"
-  for each row execute function "permdock".permdock_bump_authz_version_member_users();`,
+      `create trigger "permdock_authz_version_insert"
+  after insert on "public"."customer_contacts"
+  referencing new table as permdock_new
+  for each statement execute function "permdock".permdock_bump_authz_version_member_users();`,
     );
     expect(sql).toContain(
       `create trigger "permdock_authz_version_user_id"
@@ -157,7 +159,7 @@ describe("membership sources with a user through a profile table", () => {
     expect(body).toContain(
       `if tg_table_schema = 'public' and tg_table_name = 'memberships' then`,
     );
-    expect(body.match(/perform/gu)).toHaveLength(2);
+    expect(body.match(/perform/gu)).toHaveLength(4);
     expect(
       sql.match(/create trigger "permdock_authz_version_user_id"/gu),
     ).toHaveLength(1);
