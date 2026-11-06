@@ -11,6 +11,7 @@ export default {
     idTypes: { "*": "text" },
     scopeTypes: { tenant: "text" },
     authorize: "database",
+    actions: { manage: "none" },
     rowHelpers: true,
     customRoles: {
       from: {

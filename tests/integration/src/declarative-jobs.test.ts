@@ -42,7 +42,7 @@ describe("Lienlink declarative jobs", () => {
       "utf8",
     );
     expect(schema).not.toMatch(/\bdo\s+\$\$/iu);
-    const db = await startPostgres([ROLES]);
+    const db = await startPostgres();
     try {
       const declared = new URL(db.uri);
       declared.pathname = "/jobs_declared";
