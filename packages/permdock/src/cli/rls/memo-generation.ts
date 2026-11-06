@@ -78,13 +78,23 @@ export function readTables(sql: string): readonly string[] {
   return [...out];
 }
 
+/** A `role_permissions` view cannot carry a trigger. */
+function memoTable(ctx: RlsSqlContext, table: string): boolean {
+  return !(
+    ctx.seeds === "view" &&
+    qualifySqlTable(table) === `${helperSchema(ctx)}.role_permissions`
+  );
+}
+
 function memoTargets(
   ctx: RlsSqlContext,
   reads: string,
 ): ReadonlyMap<string, Target> {
   const schema = helperSchema(ctx);
   const targets = new Map<string, Target>();
-  add(targets, `${schema}.role_permissions`);
+  if (memoTable(ctx, `${schema}.role_permissions`)) {
+    add(targets, `${schema}.role_permissions`);
+  }
   if (ctx.customRoles !== undefined) {
     add(targets, `${schema}.${CUSTOM_ROLES.permissions}`);
     add(targets, `${schema}.${CUSTOM_ROLES.includes}`);
@@ -102,7 +112,7 @@ function memoTargets(
     suspensionTargets(targets, row);
   }
   for (const table of readTables(reads)) {
-    if (!targets.has(qualifySqlTable(table))) {
+    if (memoTable(ctx, table) && !targets.has(qualifySqlTable(table))) {
       add(targets, table);
     }
   }
@@ -186,7 +196,7 @@ export function memoReadTriggersSql(
   const done = memoTargets(ctx, covered);
   const targets = new Map<string, Target>();
   for (const table of readTables(reads)) {
-    if (!done.has(qualifySqlTable(table))) {
+    if (memoTable(ctx, table) && !done.has(qualifySqlTable(table))) {
       add(targets, table);
     }
   }

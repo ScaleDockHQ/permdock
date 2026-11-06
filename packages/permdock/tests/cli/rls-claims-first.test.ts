@@ -197,6 +197,13 @@ describe("claims first helpers", () => {
     expect(sql).toContain(
       'create trigger "permdock_memo_generation_truncate"\n  after truncate on "permdock"."role_permissions"\n  for each statement',
     );
+    const view = helpers({ seeds: "view" });
+    expect(view).not.toContain(
+      'create trigger "permdock_memo_generation"\n  after insert or update or delete on "permdock"."role_permissions"',
+    );
+    expect(view).toContain(
+      'after insert or update or delete on "public"."org_members"',
+    );
   });
 
   it("bumps the memo generation on membership writes the helpers read", () => {
