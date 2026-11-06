@@ -140,6 +140,7 @@ Records in `docs/decisions`:
 - 0056 `permdock/app` and `definePermDock`
 - 0057 `oxc-parser`, `jiti` as optional CLI peers
 - 0058 React evaluator split
+- 0061 better-supabase `definePermDock` owns `.next` and `.authorizer`
 
 ## Pre-release pins
 
