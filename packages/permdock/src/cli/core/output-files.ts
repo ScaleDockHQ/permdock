@@ -110,6 +110,12 @@ export function parseSplit(
   return SPLIT_PARTS.filter((part) => names.includes(part));
 }
 
+/** Whether `rel` sits in the pg-delta schema directory, `{part}` paths included. */
+export function underSchemaDir(rel: string, schemaDir: string): boolean {
+  const root = schemaDir.replace(/\/$/u, "");
+  return rel === root || rel.startsWith(`${root}/`);
+}
+
 /** The path of one split part: `{part}` in `out` replaced by the part name. */
 export function partPath(out: string, part: SplitPart): string {
   return out.replaceAll("{part}", part);

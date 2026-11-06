@@ -19,6 +19,7 @@ import {
   driftOf,
   partPath,
   pgDeltaPath,
+  underSchemaDir,
   writeOutputFiles,
 } from "../core/output-files.ts";
 import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
@@ -353,12 +354,9 @@ export async function runSupabase(input: {
     typeof input.out === "string"
       ? input.out
       : hookOut(input.cwd, input.config, input.schema, flag);
-  // The file is declarative only at pg-delta's own path; `--out`, `supabase.hook.out` and the split hook part name a migration.
+  // A hook file under the schema directory is declarative, including hook.out.
   const sql =
-    schemas.mode === "pg-delta" &&
-    typeof input.out !== "string" &&
-    input.config.supabase?.hook?.out === undefined &&
-    splitHookOut(input.cwd, input.config) === undefined
+    schemas.mode === "pg-delta" && underSchemaDir(outRel, schemas.schemaDir)
       ? declarativeSql(generated.sql)
       : generated.sql;
   const outPath = resolve(input.cwd, outRel);

@@ -9,5 +9,9 @@
 export function declarativeSql(sql: string): string {
   return sql
     .replaceAll(/^drop (?:trigger|policy) if exists [^;\n]+;\n/gmu, "")
-    .replaceAll(/^create trigger /gmu, "create or replace trigger ");
+    .replaceAll(/^create trigger /gmu, "create or replace trigger ")
+    .replaceAll(
+      /^(create (?:unique index|index|table|schema|type|extension)) if not exists /gmu,
+      "$1 ",
+    );
 }

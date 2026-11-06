@@ -10,6 +10,7 @@ import {
   partPath,
   pgDeltaPath,
   seedsMigration,
+  underSchemaDir,
 } from "../../core/output-files.ts";
 import { declarativeSql } from "../../sql/declarative.ts";
 import { GRANTS_MARKER, SEEDS_MARKER } from "../../sql/markers.ts";
@@ -277,11 +278,14 @@ export function outputFiles(plan: {
       }
     }
   }
-  if (pgDelta !== undefined && !placeholder) {
+  if (pgDelta !== undefined) {
     for (const [index, file] of files.entries()) {
-      if (file.part !== "seeds" || input.seedsOut === undefined) {
-        files[index] = { ...file, text: declarativeSql(file.text) };
+      const dataMigration =
+        file.part === "seeds" && input.seedsOut !== undefined;
+      if (dataMigration || !underSchemaDir(file.rel, pgDelta.schemaDir)) {
+        continue;
       }
+      files[index] = { ...file, text: declarativeSql(file.text) };
     }
   }
   if (input.grantsOut !== undefined) {
