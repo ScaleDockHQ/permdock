@@ -47,7 +47,7 @@ import {
 import { rowBranches } from "./fields.ts";
 import { isRefusal, splitsPart } from "./generate-options.ts";
 import { generatePolicies, withHelperTables } from "./generate-policies.ts";
-import { graphSql } from "./graph.ts";
+import { closureBackfillSql, graphSql } from "./graph.ts";
 import { helpersSql, seedSql } from "./helpers.ts";
 import { indexTargets, indexesSql } from "./indexes.ts";
 import { ownershipSql } from "./ownership.ts";
@@ -373,8 +373,12 @@ function preambleSql(
     return { refusal: describeError(cause) };
   }
   const seedsSplit = splitsPart(input.split, "seeds");
+  const closure =
+    seedsSplit || ctx.seeds === "view"
+      ? ""
+      : closureBackfillSql(ctx, built.graph, tableNames(rls?.tables));
   return {
-    preamble: [core, ownTriggers, seedsSplit ? "" : audit]
+    preamble: [core, ownTriggers, seedsSplit ? "" : audit, closure]
       .filter((part) => part !== "")
       .join("\n"),
     audit,
@@ -385,19 +389,26 @@ function seedsBody(
   ctx: RlsSqlContext,
   schema: string,
   rows: readonly RolePermission[],
+  closure: string,
 ): string {
+  let body: string;
   switch (ctx.seeds) {
     case "function":
-      return `select ${quoteQualified(`${schema}.seed`)}();`;
+      body = `select ${quoteQualified(`${schema}.seed`)}();`;
+      break;
     case "view":
-      return "-- rls.seeds: 'view': the role_permissions rows are in the helpers part";
+      body =
+        "-- rls.seeds: 'view': the role_permissions rows are in the helpers part";
+      break;
     case undefined:
-      return seedSql(ctx, rows);
+      body = seedSql(ctx, rows);
+      break;
     default: {
       const exhaustive: never = ctx.seeds;
       return exhaustive;
     }
   }
+  return closure === "" ? body : `${body}\n${closure}`;
 }
 
 function forceWarnings({ graph }: GenerateContext, warnings: string[]): void {
@@ -610,7 +621,12 @@ export function generateSql(
         ),
         ctx.dialect,
       ),
-      seeds: `${SEEDS_MARKER} schema=${built.schema}\n${seedsBody(ctx, built.schema, generated.compiled.rolePermissions)}\n${seedsSplit ? audit : ""}`,
+      seeds: `${SEEDS_MARKER} schema=${built.schema}\n${seedsBody(
+        ctx,
+        built.schema,
+        generated.compiled.rolePermissions,
+        closureBackfillSql(ctx, built.graph, tableNames(rls?.tables)),
+      )}\n${seedsSplit ? audit : ""}`,
       indexes: `${INDEXES_MARKER}\n${indexesSql(indexes)}\n`,
     }),
   };

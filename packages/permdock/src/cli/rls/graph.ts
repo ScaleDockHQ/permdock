@@ -450,8 +450,36 @@ create trigger ${trigger("delete")} after delete on ${table}
   for each statement execute function ${changed}();
 drop trigger if exists ${trigger("truncate")} on ${table};
 create trigger ${trigger("truncate")} after truncate on ${table}
-  for each statement execute function ${changed}();
-select ${refresh}(array(select t.${id}::text from ${table} t));`;
+  for each statement execute function ${changed}();`;
+}
+
+/**
+ * One statement per walked table that fills the closure from the rows already
+ * stored. It is data, so it belongs in the seeds migration. `rls.seeds: 'view'`
+ * has no data migration, and the triggers fill the closure from later writes.
+ */
+export function closureBackfillSql(
+  ctx: RlsSqlContext,
+  plan: GraphPlan,
+  tables: Readonly<Record<string, string>> | undefined,
+): string {
+  if (ctx.seeds === "view") {
+    return "";
+  }
+  const lines = dependencyOrder(plan).flatMap((entry) => {
+    const { node } = entry;
+    if (entry.closure === undefined || node.parent === undefined) {
+      return [];
+    }
+    const sqlName = graphSqlName(node.name) ?? node.name;
+    const refresh = qualified(ctx, `${CLOSURE.table}_${sqlName}`);
+    const table = quoteQualified(tableFor(node.name, tables));
+    const id = quoteIdent(node.id);
+    return [`select ${refresh}(array(select t.${id}::text from ${table} t));`];
+  });
+  return lines.length === 0
+    ? ""
+    : `-- closure backfill: one pass over each walked table after its triggers exist\n${lines.join("\n")}\n`;
 }
 
 function restrictedRowsHelperSql(

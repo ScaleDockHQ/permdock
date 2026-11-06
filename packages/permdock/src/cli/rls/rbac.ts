@@ -105,10 +105,7 @@ function createEnum(
   values: readonly string[],
 ): string {
   const list = values.map((value) => quoteLiteral(value)).join(", ");
-  return `do $$ begin
-  create type ${quoteTable(`${schema}.${name}`)} as enum (${list});
-exception when duplicate_object then null;
-end $$;`;
+  return `create type ${quoteTable(`${schema}.${name}`)} as enum (${list});`;
 }
 
 /**

@@ -215,24 +215,6 @@ function plannerOf(ctx: RlsSqlContext): string {
 
 export const CANDIDATES = "permdock_candidates";
 
-function stubSql(ctx: RlsSqlContext, resource: string): string {
-  const fn = qualified(ctx, rowsHelper(resource));
-  const type = idTypeOf(ctx, resource);
-  return ["p_permission text", `p_permission text, p_ids ${type}[]`]
-    .map(
-      (parameters) => `create or replace function ${fn}(${parameters})
-returns setof ${type}
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select null::${type} where false
-$$;`,
-    )
-    .join("\n");
-}
-
 function rowSql(
   ctx: RlsSqlContext,
   policy: Policy,
@@ -510,8 +492,12 @@ export function rowHelpersSql(
       names.push(name);
     }
   }
-  const chunks: string[] = called.map((name) => stubSql(ctx, name));
-  for (const name of names) {
+  const ordered = [
+    ...called.filter((name) => names.includes(name)),
+    ...names.filter((name) => !called.includes(name)),
+  ];
+  const chunks: string[] = [];
+  for (const name of ordered) {
     const node = policy.resources.get(name);
     if (node === undefined) {
       throw configError(

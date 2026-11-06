@@ -83,10 +83,8 @@ $$;
 revoke execute on function ${isApprover}(jsonb, text, text, text) from public, anon;
 grant execute on function ${isApprover}(jsonb, text, text, text) to authenticated;
 `;
-  // A second two-argument signature would make every two-argument call ambiguous.
   const twoArguments = `
 -- approvers with managers: the two-argument call decides manager leaves when it passes the requester
-drop function if exists ${isApprover}(jsonb, text);
 create or replace function ${isApprover}(p_approvers jsonb, p_tenant text default null, p_requester text default null)
 returns boolean
 language sql

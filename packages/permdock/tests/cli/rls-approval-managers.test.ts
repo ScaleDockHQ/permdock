@@ -54,9 +54,7 @@ describe("rls.approvals.managers", () => {
 
   it("routes the three-argument check through permdock_approves and keeps the base for other leaves", () => {
     const sql = approvalsSql(ctx, { managers }, false) ?? "";
-    expect(sql).toContain(
-      'drop function if exists "permdock".permdock_is_approver(jsonb, text);',
-    );
+    expect(sql).not.toContain("drop function if exists");
     expect(sql).toContain(
       'create or replace function "permdock".permdock_is_approver(p_approvers jsonb, p_tenant text default null, p_requester text default null)',
     );
