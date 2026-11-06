@@ -1,0 +1,20 @@
+permdock generate: Write every plugin's files from the policy
+
+Usage  permdock generate [flags]
+
+Flags
+  --check            Exit 1 when a file on disk is stale; write nothing
+  --dry-run          Print what would change; write nothing
+  --policy <module>  Module exporting the policy (default policy in the config)
+  --only <plugin>    Run this plugin; repeat for more than one (repeatable)
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock generate
+  permdock generate --only rls
+  permdock generate --check
+
+Side effects  files
+Docs  https://permdock.com/docs/cli/generate

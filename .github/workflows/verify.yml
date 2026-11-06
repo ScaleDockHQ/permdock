@@ -70,7 +70,7 @@ jobs:
             run: pnpm exec turbo run test $AFFECTED
           # Alone on its machine, one task at a time: the timing ceilings flake when tasks share the CPU.
           - name: perf
-            run: pnpm exec turbo run typecheck:perf cli:startup --concurrency=1
+            run: pnpm exec turbo run typecheck:perf generate:perf cli:startup --concurrency=1
     steps:
       - uses: actions/checkout@v7
         with:

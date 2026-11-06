@@ -1075,6 +1075,11 @@ export type PermDockConfig = {
   readonly powersync?: PowerSyncConfig;
   readonly doctor?: DoctorConfig;
   readonly gen?: GenConfig;
+  /**
+   * Generate plugins, in `definePlugin` order. `after` reorders them. An empty
+   * list writes the core outputs only.
+   */
+  readonly plugins?: readonly unknown[];
 };
 
 /** What `permdock gen --kind` writes. */

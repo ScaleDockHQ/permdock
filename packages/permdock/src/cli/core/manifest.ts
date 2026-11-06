@@ -212,6 +212,17 @@ export const SECTIONS: readonly Section[] = [
           load: async () => (await import("../commands/catalog.ts")).catalog,
         },
       ),
+      leaf("generate", "Write every plugin's files from the policy", {
+        examples: [
+          "permdock generate",
+          "permdock generate --only rls",
+          "permdock generate --check",
+        ],
+        docs: "generate",
+        effects: ["files"],
+        config: true,
+        load: async () => (await import("../commands/generate.ts")).generate,
+      }),
       leaf(
         "gen",
         "Write typed constants, schemas, factories, hooks and messages from the policy",

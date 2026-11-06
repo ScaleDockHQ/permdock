@@ -186,6 +186,16 @@
       "outputs": [],
       "env": ["CI"]
     },
+    "//#generate:perf": {
+      "dependsOn": ["permdock#build"],
+      "inputs": [
+        "scripts/generate-perf.*",
+        "tests/integration/fixtures/generate-perf/**",
+        "packages/permdock/src/cli/**"
+      ],
+      "outputs": [],
+      "env": ["CI"]
+    },
     "//#cli:startup": {
       "dependsOn": ["permdock#build"],
       "inputs": ["scripts/cli-startup.*", "packages/permdock/src/cli/**"],

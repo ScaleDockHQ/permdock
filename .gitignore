@@ -24,6 +24,7 @@ coverage/
 tests/integration/src/support/prisma/
 apps/examples/prisma/src/generated/
 packages/permdock/tmp/
+tests/integration/tmp/
 
 # next.js
 .next/

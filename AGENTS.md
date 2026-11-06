@@ -58,6 +58,7 @@ pnpm test:runtimes         # Bun (on PATH), Deno and workerd; CI requires all th
 pnpm lint && pnpm format   # oxlint per workspace, oxfmt everywhere; `pnpm fix` applies both
 pnpm knip                  # unused files, exports and dependencies
 pnpm size                  # per-entry gzip against the baseline
+pnpm generate:perf         # generator time and peak RSS against scripts/generate-perf.json
 pnpm gen:check && pnpm doctor   # generated catalogs and SQL current; doctors per example
 pnpm docs:drift            # docs match doctor codes, entries, meta.json, names
 pnpm dev:portless          # https://permdock.localhost, docs at /docs

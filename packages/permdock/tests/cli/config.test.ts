@@ -213,7 +213,10 @@ export default { permissions };
   describe("the config shape registry", () => {
     it("lists a section for every config key that is not a module path", () => {
       expectTypeOf<keyof typeof CONFIG_SHAPE>().toEqualTypeOf<
-        Exclude<keyof PermDockConfig, "permissions" | "policy" | "operations">
+        Exclude<
+          keyof PermDockConfig,
+          "permissions" | "policy" | "operations" | "plugins"
+        >
       >();
       expect(Object.keys(CONFIG_SHAPE).toSorted()).toStrictEqual([
         "betterSupabase",
