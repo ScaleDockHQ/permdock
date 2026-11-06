@@ -12,9 +12,9 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { run } from "../../src/cli/core/run.ts";
 import { runOpenapi } from "../../src/cli/openapi/openapi.ts";
 import { validateOpenapi } from "../../src/cli/openapi/schema.ts";
+import { openapiEmit } from "./rls-call.ts";
 
 const FIXTURE = path.join(import.meta.dirname, "fixtures/mini-app");
 const TMP = path.join(import.meta.dirname, "../../tmp");
@@ -144,9 +144,7 @@ describe("openapi emit", () => {
         ...BASE,
         paths: { "/x": { get: { "x-permdock-permissions": ["post.fly"] } } },
       });
-      const result = await run(["openapi", "emit", "--doc", "openapi.json"], {
-        cwd,
-      });
+      const result = await openapiEmit(["--doc", "openapi.json"], { cwd });
       expect({ code: result.code, stderr: result.stderr }).toStrictEqual({
         code: 2,
         stderr: expect.stringContaining("unknown permission 'post.fly'"),

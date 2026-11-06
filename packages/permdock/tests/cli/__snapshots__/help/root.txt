@@ -13,7 +13,6 @@ Permissions
   collect   Scan the sources for definePermissions() and references; write the catalog and barrel
   catalog   Export the catalog as catalog JSON, JSON Schema or Markdown
   generate  Write every plugin's files from the policy
-  gen       Write typed constants, schemas, factories, hooks and messages from the policy
   usage     Report unused, ungranted and role-less permissions and conditions on undeclared fields
   diff      Compare two policies or catalogs; exit 1 on a breaking change
   config    Check permdock.config.ts for unknown keys, or print the effective config
@@ -22,7 +21,6 @@ Database
   rls        Generate, import, verify or migrate Postgres RLS policies
   supabase   Generate the Supabase Custom Access Token Hook, or inspect its manifest
   powersync  Generate PowerSync Sync Streams from the policy, or verify them
-  scim       Generate the Postgres tables postgresDirectoryStore keeps a SCIM directory in
 
 Interop
   openapi  Emit security into an OpenAPI document, or import one into a definition

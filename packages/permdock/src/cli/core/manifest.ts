@@ -224,21 +224,6 @@ export const SECTIONS: readonly Section[] = [
         load: async () => (await import("../commands/generate.ts")).generate,
       }),
       leaf(
-        "gen",
-        "Write typed constants, schemas, factories, hooks and messages from the policy",
-        {
-          examples: [
-            "permdock gen",
-            "permdock gen --kind zod --kind factories",
-            "permdock gen --check",
-          ],
-          docs: "gen",
-          effects: ["files"],
-          config: true,
-          load: async () => (await import("../commands/gen.ts")).gen,
-        },
-      ),
-      leaf(
         "usage",
         "Report unused, ungranted and role-less permissions and conditions on undeclared fields",
         {
@@ -352,23 +337,6 @@ export const SECTIONS: readonly Section[] = [
         "Generate the Supabase Custom Access Token Hook, or inspect its manifest",
         "supabase",
         [
-          group("hook", "The Custom Access Token Hook", "supabase", [
-            leaf(
-              "generate",
-              "Compile the membership sources into the hook migration",
-              {
-                examples: [
-                  "permdock supabase hook generate --out supabase/schemas/permdock_hook.sql",
-                  "permdock supabase hook generate --check",
-                ],
-                docs: "supabase",
-                effects: ["files", "database:read"],
-                config: true,
-                load: async () =>
-                  (await import("../commands/supabase.ts")).hookGenerate,
-              },
-            ),
-          ]),
           leaf("inspect", "Print or write the hook and helper manifest", {
             examples: [
               "permdock supabase inspect",
@@ -386,17 +354,6 @@ export const SECTIONS: readonly Section[] = [
         "Generate PowerSync Sync Streams from the policy, or verify them",
         "powersync",
         [
-          leaf("generate", "Compile the read grants into sync-config.yaml", {
-            examples: [
-              "permdock powersync generate",
-              "permdock powersync generate --check",
-            ],
-            docs: "powersync",
-            effects: ["files"],
-            config: true,
-            load: async () =>
-              (await import("../commands/powersync.ts")).generate,
-          }),
           leaf(
             "verify",
             "Fail on stale streams or a stream that syncs a denied row",
@@ -414,28 +371,6 @@ export const SECTIONS: readonly Section[] = [
           ),
         ],
       ),
-      group(
-        "scim",
-        "Generate the Postgres tables postgresDirectoryStore keeps a SCIM directory in",
-        "scim",
-        [
-          leaf(
-            "generate",
-            "Write the tenant-keyed users, groups and members tables",
-            {
-              examples: [
-                "permdock scim generate",
-                "permdock scim generate --dialect guc --out db/scim.sql",
-                "permdock scim generate --check",
-              ],
-              docs: "scim",
-              effects: ["files"],
-              config: true,
-              load: async () => (await import("../commands/scim.ts")).generate,
-            },
-          ),
-        ],
-      ),
     ],
   },
   {
@@ -446,20 +381,6 @@ export const SECTIONS: readonly Section[] = [
         "Emit security into an OpenAPI document, or import one into a definition",
         "openapi",
         [
-          leaf(
-            "emit",
-            "Write security and securitySchemes into an OpenAPI document",
-            {
-              examples: [
-                "permdock openapi emit --doc openapi.json --out openapi.secured.json",
-                "permdock openapi emit --doc openapi.json --kind overlay --out overlay.json",
-              ],
-              docs: "openapi",
-              effects: ["files"],
-              config: true,
-              load: async () => (await import("../commands/openapi.ts")).emit,
-            },
-          ),
           leaf(
             "import",
             "Turn an OpenAPI document into a generated definition",

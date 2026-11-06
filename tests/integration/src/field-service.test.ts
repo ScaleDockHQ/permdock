@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
+import { powersyncGenerate } from "../../../packages/permdock/tests/cli/rls-call.ts";
 import { runPipingDbUrl } from "./db-url.ts";
 import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
@@ -63,9 +64,7 @@ describe("field-service fixture", () => {
   });
 
   it("keeps sync-config.yaml current with the policy", async () => {
-    const result = await runPipingDbUrl(["powersync", "generate", "--check"], {
-      cwd: FIXTURE,
-    });
+    const result = await powersyncGenerate(["--check"], { cwd: FIXTURE });
     expect(result.stdout).toContain("sync-config.yaml is current");
     expect(result.stdout).toContain("permdock-manifest.json is current");
     expect(result.code).toBe(0);

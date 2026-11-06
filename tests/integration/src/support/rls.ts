@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { run } from "permdock/cli";
 import { rls } from "permdock/cli/plugins/rls";
+import { supabaseHook } from "permdock/cli/plugins/supabase-hook";
 
 import type { AsOptions, Postgres } from "./postgres.ts";
 
@@ -135,6 +136,49 @@ function pluginOptions(flags: readonly string[]): {
   return { check: values.get("check") === true, options };
 }
 
+/**
+ * The hook plugin, with the flags a test used to pass to `supabase hook
+ * generate`.
+ */
+export async function hookGenerate(
+  flags: readonly string[],
+  options?: { readonly cwd?: string },
+): Promise<RunResult> {
+  const values = flagValues(flags);
+  const text = (name: string): string | undefined => {
+    const value = values.get(name);
+    return typeof value === "string" ? value : undefined;
+  };
+  const schemas = oneOf(text("schemas"), ["pg-delta", "migra", "migrations"]);
+  const out = text("out");
+  const schema = text("schema");
+  const grantsOut = text("grants-out");
+  const activeFrom = text("active-from");
+  const budget = text("budget");
+  return run(
+    [
+      "generate",
+      "--only",
+      "supabaseHook",
+      "--no-cache",
+      ...(values.get("check") === true ? ["--check"] : []),
+    ],
+    {
+      ...(options?.cwd === undefined ? {} : { cwd: options.cwd }),
+      plugins: [
+        supabaseHook({
+          ...(out === undefined ? {} : { out }),
+          ...(schemas === undefined ? {} : { schemas }),
+          ...(schema === undefined ? {} : { schema }),
+          ...(grantsOut === undefined ? {} : { grantsOut }),
+          ...(activeFrom === undefined ? {} : { activeFrom }),
+          ...(budget === undefined ? {} : { budget }),
+        }),
+      ],
+    },
+  );
+}
+
 /** The RLS plugin, with the flags a test used to pass to `rls generate`. */
 export async function rlsGenerate(
   flags: readonly string[],
@@ -208,6 +252,23 @@ export async function generateSql(
 ): Promise<string> {
   if (args[0] === "rls" && args[1] === "generate") {
     return generateRls(cwd, args.slice(2));
+  }
+  if (args[0] === "supabase" && args[1] === "hook" && args[2] === "generate") {
+    const dir = mkdtempSync(join(tmpdir(), "permdock-generated-"));
+    try {
+      const result = await hookGenerate(
+        ["--out", join(dir, "out.sql"), ...args.slice(3)],
+        { cwd },
+      );
+      if (result.code !== 0) {
+        throw new Error(
+          `generate --only supabaseHook: ${result.stdout}${result.stderr}`,
+        );
+      }
+      return readFileSync(join(dir, "out.sql"), "utf8");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   }
   const [sql = ""] = await generated(
     [...args, "--out", "{dir}/out.sql"],

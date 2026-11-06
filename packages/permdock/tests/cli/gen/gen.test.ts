@@ -3,9 +3,11 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { run } from "../../../src/cli/core/run.ts";
+import type { RunResult } from "../../../src/cli/types.ts";
+
 import { isRecord } from "../../../src/core/compact.ts";
 import { project, removeProjects } from "../doctor-kit.ts";
+import { typedGen } from "../rls-call.ts";
 
 const POLICY = `import { allow, defineOperations, definePermissions, definePolicy, defineRoles, resource, role } from 'permdock';
 import { z } from 'zod';
@@ -98,8 +100,8 @@ function fixture(config = CONFIG): string {
 async function generate(
   cwd: string,
   args: readonly string[],
-): Promise<Awaited<ReturnType<typeof run>>> {
-  return run(["gen", ...args, "--cwd", cwd]);
+): Promise<RunResult> {
+  return typedGen([...args, "--cwd", cwd]);
 }
 
 /** Loads a generated module the way an app would. */

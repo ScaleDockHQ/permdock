@@ -3,10 +3,9 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { rlsGenerate } from "./support/rls.ts";
+import { rlsGenerate, hookGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/assignments-provider");
@@ -192,9 +191,7 @@ describe("RLS memo generation against Postgres", () => {
       throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
     }
     const hookOut = join(dir, "hook.sql");
-    const hook = await run(["supabase", "hook", "generate", "--out", hookOut], {
-      cwd: FIXTURE,
-    });
+    const hook = await hookGenerate(["--out", hookOut], { cwd: FIXTURE });
     if (hook.code !== 0) {
       throw new Error(`hook generate: ${hook.stdout}${hook.stderr}`);
     }

@@ -4,7 +4,6 @@ import { PGlite } from "@electric-sql/pglite";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { run } from "permdock/cli";
 import {
   DirectoryUniquenessError,
   directoryMembershipSource,
@@ -14,13 +13,14 @@ import {
 import { testDirectoryStore } from "permdock/testing";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { scimGenerate } from "../../../packages/permdock/tests/cli/rls-call.ts";
+
 async function generated(dialect: "guc" | "supabase"): Promise<string> {
   const cwd = mkdtempSync(join(tmpdir(), "permdock-scim-generate-"));
   try {
-    const result = await run(
-      ["scim", "generate", "--dialect", dialect, "--out", "-"],
-      { cwd },
-    );
+    const result = await scimGenerate(["--dialect", dialect, "--out", "-"], {
+      cwd,
+    });
     if (result.code !== 0) {
       throw new Error(`scim generate: ${result.stdout}`);
     }

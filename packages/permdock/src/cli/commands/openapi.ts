@@ -1,5 +1,9 @@
+import type { FlagValues } from "../core/command.ts";
 import type { Leaf } from "../core/command.ts";
+import type { CliContext } from "../core/context.ts";
+import type { CommandResult } from "../core/result.ts";
 
+import { parseLeaf } from "../core/args.ts";
 import { defineLeaf } from "../core/command.ts";
 import { missingInput } from "../core/errors.ts";
 import {
@@ -19,100 +23,111 @@ const docFlag = {
   },
 } as const;
 
-export const emit: Leaf = defineLeaf({
-  flags: {
-    ...docFlag,
-    ...outFlag,
-    ...checkFlag,
-    ...policyFlag,
-    target: {
-      type: "enum",
-      options: ["3.1", "3.2", "3.3"],
-      default: "3.2",
-      description: "OpenAPI version; 3.3 is the pinned Security Profiles draft",
-    },
-    kind: {
-      type: "enum",
-      options: ["document", "overlay"],
-      default: "document",
-      description: "A full document or an Overlay",
-    },
-    overlay: {
-      type: "enum",
-      options: ["1.1", "1.2"],
-      default: "1.1",
-      description: "Overlay version; 1.2 is the pinned reusable-actions draft",
-    },
-    profile: {
-      type: "enum",
-      options: ["fapi2"],
-      description: "Security profile to declare",
-    },
-    "profile-scheme": {
-      type: "string",
-      description: "Security scheme name for the profile",
-      valueHint: "name",
-    },
-    scheme: {
-      type: "string",
-      description: "OAuth security scheme name (default permdockOAuth)",
-      valueHint: "name",
-    },
-    "metadata-url": {
-      type: "string",
-      description: "OAuth authorization server metadata URL",
-      valueHint: "url",
-    },
-    "device-flow": {
-      type: "boolean",
-      description: "Declare the device authorization flow",
-    },
-    arity: {
-      type: "boolean",
-      description: "Mark instance and collection operations",
-    },
-    "authorization-url": {
-      type: "string",
-      description: "OAuth authorization endpoint",
-      valueHint: "url",
-    },
-    "token-url": {
-      type: "string",
-      description: "OAuth token endpoint",
-      valueHint: "url",
-    },
-    "device-authorization-url": {
-      type: "string",
-      description: "OAuth device authorization endpoint",
-      valueHint: "url",
-    },
+const emitFlags = {
+  ...docFlag,
+  ...outFlag,
+  ...checkFlag,
+  ...policyFlag,
+  target: {
+    type: "enum",
+    options: ["3.1", "3.2", "3.3"],
+    default: "3.2",
+    description: "OpenAPI version; 3.3 is the pinned Security Profiles draft",
   },
-  async run(ctx, { flags }) {
-    // Lazy: the implementation loads only when this command runs, not for --help.
-    return (await import("../openapi/openapi.ts")).runOpenapi({
-      cwd: ctx.cwd,
-      config: ctx.config,
-      rest: ["emit"],
-      doc: given(flags.doc),
-      out: fileOut("openapi emit", flags.out),
-      from: given(flags.policy),
-      target: flags.target,
-      format: flags.kind,
-      overlay: flags.overlay,
-      check: flags.check,
-      profile: flags.profile,
-      profileScheme: given(flags["profile-scheme"]),
-      scheme: given(flags.scheme) ?? "permdockOAuth",
-      metadataUrl: given(flags["metadata-url"]),
-      deviceFlow: flags["device-flow"],
-      arity: flags.arity,
-      authorizationUrl: given(flags["authorization-url"]),
-      tokenUrl: given(flags["token-url"]),
-      deviceAuthorizationUrl: given(flags["device-authorization-url"]),
-      io: ctx.io,
-    });
+  kind: {
+    type: "enum",
+    options: ["document", "overlay"],
+    default: "document",
+    description: "A full document or an Overlay",
   },
-});
+  overlay: {
+    type: "enum",
+    options: ["1.1", "1.2"],
+    default: "1.1",
+    description: "Overlay version; 1.2 is the pinned reusable-actions draft",
+  },
+  profile: {
+    type: "enum",
+    options: ["fapi2"],
+    description: "Security profile to declare",
+  },
+  "profile-scheme": {
+    type: "string",
+    description: "Security scheme name for the profile",
+    valueHint: "name",
+  },
+  scheme: {
+    type: "string",
+    description: "OAuth security scheme name (default permdockOAuth)",
+    valueHint: "name",
+  },
+  "metadata-url": {
+    type: "string",
+    description: "OAuth authorization server metadata URL",
+    valueHint: "url",
+  },
+  "device-flow": {
+    type: "boolean",
+    description: "Declare the device authorization flow",
+  },
+  arity: {
+    type: "boolean",
+    description: "Mark instance and collection operations",
+  },
+  "authorization-url": {
+    type: "string",
+    description: "OAuth authorization endpoint",
+    valueHint: "url",
+  },
+  "token-url": {
+    type: "string",
+    description: "OAuth token endpoint",
+    valueHint: "url",
+  },
+  "device-authorization-url": {
+    type: "string",
+    description: "OAuth device authorization endpoint",
+    valueHint: "url",
+  },
+} as const;
+
+export function openapiEmitFromFlags(
+  ctx: CliContext,
+  argv: readonly string[],
+): Promise<CommandResult> {
+  const parsed = parseLeaf("openapi emit", argv, emitFlags);
+  // SAFETY: parseLeaf widens the flag object to Flags; the values are this command's.
+  return executeOpenapiEmit(ctx, parsed.flags as FlagValues<typeof emitFlags>);
+}
+
+async function executeOpenapiEmit(
+  ctx: CliContext,
+  flags: FlagValues<typeof emitFlags>,
+): Promise<CommandResult> {
+  // Lazy: the implementation loads only when this command runs, not for --help.
+  return (await import("../openapi/openapi.ts")).runOpenapi({
+    cwd: ctx.cwd,
+    config: ctx.config,
+    rest: ["emit"],
+    doc: given(flags.doc),
+    out: fileOut("openapi emit", flags.out),
+    from: given(flags.policy),
+    target: flags.target,
+    format: flags.kind,
+    overlay: flags.overlay,
+    check: flags.check,
+    profile: flags.profile,
+    profileScheme: given(flags["profile-scheme"]),
+    scheme: given(flags.scheme) ?? "permdockOAuth",
+    metadataUrl: given(flags["metadata-url"]),
+    deviceFlow: flags["device-flow"],
+    arity: flags.arity,
+    authorizationUrl: given(flags["authorization-url"]),
+    tokenUrl: given(flags["token-url"]),
+    deviceAuthorizationUrl: given(flags["device-authorization-url"]),
+    io: ctx.io,
+  });
+}
 
 export const importDocument: Leaf = defineLeaf({
   flags: {

@@ -12,7 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/core/run.ts";
 import { jsonData } from "./envelope.ts";
-import { rlsGenerate } from "./rls-call.ts";
+import { rlsGenerate, hookGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");
@@ -509,7 +509,7 @@ export default {
       expect(text).toMatch(/^create or replace trigger /mu);
       expect(text).not.toMatch(/^create trigger /mu);
       expect(text).toContain("create policy");
-      const hook = await run(["supabase", "hook", "generate"], { cwd });
+      const hook = await hookGenerate([], { cwd });
       expect(hook.code).toBe(0);
       expect(
         read(
@@ -552,10 +552,7 @@ export default {
       expect(split.stderr).toContain(
         "rls generate --grants-out is for --schemas migra: pg-delta keeps the grants in each part",
       );
-      const hook = await run(
-        ["supabase", "hook", "generate", "--grants-out", GRANTS],
-        { cwd },
-      );
+      const hook = await hookGenerate(["--grants-out", GRANTS], { cwd });
       expect(hook.code).toBe(2);
       expect(hook.stderr).toContain(
         "supabase hook generate --grants-out is for --schemas migra: pg-delta keeps the grants in the hook file",
@@ -586,7 +583,7 @@ export default {
     it("writes supabase hook generate to the per-schema path without --out", async () => {
       const cwd = project(true, "", null);
       pgDelta(cwd);
-      const result = await run(["supabase", "hook", "generate"], { cwd });
+      const result = await hookGenerate([], { cwd });
       expect(result.code).toBe(0);
       expect(result.stdout).toContain(
         "wrote supabase/schemas/permdock/functions/custom_access_token_hook.sql",
@@ -677,7 +674,7 @@ begin
       expect(result.stdout).toContain(
         "wrote supabase/schemas/permdock/indexes.sql",
       );
-      const hook = await run(["supabase", "hook", "generate"], { cwd });
+      const hook = await hookGenerate([], { cwd });
       expect(hook.stdout).toContain(
         "wrote supabase/schemas/permdock/functions/custom_access_token_hook.sql",
       );
@@ -691,7 +688,7 @@ begin
       expect(migra.stderr).toContain(
         "rls generate --split under migra needs {part} in --out",
       );
-      const hook = await run(["supabase", "hook", "generate"], { cwd });
+      const hook = await hookGenerate([], { cwd });
       expect(hook.stdout).toContain("wrote supabase/permdock-hook.sql");
       const flagged = await rlsGenerate(
         ["--split", "indexes", "--schemas", "pg-delta"],
@@ -701,10 +698,9 @@ begin
       expect(flagged.stdout).toContain(
         "wrote supabase/schemas/permdock/indexes.sql",
       );
-      const flaggedHook = await run(
-        ["supabase", "hook", "generate", "--schemas", "pg-delta"],
-        { cwd },
-      );
+      const flaggedHook = await hookGenerate(["--schemas", "pg-delta"], {
+        cwd,
+      });
       expect(flaggedHook.stdout).toContain(
         "wrote supabase/schemas/permdock/functions/custom_access_token_hook.sql",
       );
@@ -738,15 +734,12 @@ begin
       expect(noPart.stderr).toContain(
         "rls generate --split needs {part} in --out, for example supabase/migrations/",
       );
-      const hook = await run(
-        ["supabase", "hook", "generate", "--grants-out", GRANTS],
-        { cwd },
-      );
+      const hook = await hookGenerate(["--grants-out", GRANTS], { cwd });
       expect(hook.code).toBe(2);
       expect(hook.stderr).toContain(
         "a hand-written migration keeps its grants",
       );
-      const { stdout } = await run(["supabase", "hook", "generate"], { cwd });
+      const { stdout } = await hookGenerate([], { cwd });
       expect(stdout).toContain("wrote supabase/permdock-hook.sql");
     });
 
@@ -757,10 +750,7 @@ begin
         { cwd },
       );
       expect(rls.code).toBe(2);
-      const hook = await run(
-        ["supabase", "hook", "generate", "--schemas", "flyway"],
-        { cwd },
-      );
+      const hook = await hookGenerate(["--schemas", "flyway"], { cwd });
       expect(hook.code).toBe(2);
     });
   });
@@ -777,15 +767,13 @@ begin
         "--grants-out",
         GRANTS,
       ];
-      const result = await run(args, { cwd });
+      const result = await hookGenerate(args.slice(3), { cwd });
       expect(result.code).toBe(0);
       expect(result.stdout).toContain(`wrote hook.sql, ${GRANTS}`);
       const hook = read(cwd, "hook.sql");
       expect(hook).not.toMatch(UNDIFFED);
       expect(hook).toContain('"permdock_auth_admin_read_memberships"');
-      await run(["supabase", "hook", "generate", "--out", "inline.sql"], {
-        cwd,
-      });
+      await hookGenerate(["--out", "inline.sql"], { cwd });
       const statements = (text: string) =>
         text
           .split("\n")
@@ -797,22 +785,18 @@ begin
           (line) => !hook.includes(line),
         ),
       ).toStrictEqual(grants);
-      expect((await run([...args, "--check"], { cwd })).code).toBe(0);
+      expect(
+        (await hookGenerate([...args.slice(3), "--check"], { cwd })).code,
+      ).toBe(0);
       writeFileSync(join(cwd, GRANTS), "");
-      const drift = await run([...args, "--check"], { cwd });
+      const drift = await hookGenerate([...args.slice(3), "--check"], { cwd });
       expect(drift.code).toBe(1);
       expect(drift.stdout).toContain(`supabase hook drift: grants: ${GRANTS}`);
     });
 
     it("keeps the grants in one file without --grants-out", async () => {
       const cwd = project();
-      expect(
-        (
-          await run(["supabase", "hook", "generate", "--out", "hook.sql"], {
-            cwd,
-          })
-        ).code,
-      ).toBe(0);
+      expect((await hookGenerate(["--out", "hook.sql"], { cwd })).code).toBe(0);
       const sql = read(cwd, "hook.sql");
       expect(sql).toContain("to supabase_auth_admin;");
       expect(sql.indexOf("create table if not exists")).toBeLessThan(
@@ -852,18 +836,9 @@ begin
       );
       put(cwd, LATER, "");
       expect(await findings(cwd, "PD042")).toHaveLength(1);
-      await run(
-        [
-          "supabase",
-          "hook",
-          "generate",
-          "--out",
-          part("hook"),
-          "--grants-out",
-          LATER,
-        ],
-        { cwd },
-      );
+      await hookGenerate(["--out", part("hook"), "--grants-out", LATER], {
+        cwd,
+      });
       expect(await findings(cwd, "PD042")).toStrictEqual([]);
       put(
         cwd,

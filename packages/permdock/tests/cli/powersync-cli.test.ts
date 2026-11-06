@@ -16,6 +16,7 @@ import { run } from "../../src/cli/core/run.ts";
 import { pd058 } from "../../src/cli/doctor/powersync.ts";
 import { runPowerSync } from "../../src/cli/powersync/powersync.ts";
 import { junctionMembershipSource } from "../../src/supabase/index.ts";
+import { powersyncGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TMP = join(HERE, "../../tmp");
@@ -840,7 +841,7 @@ export const policy = definePolicy(permissions, {
         join(cwd, "permdock.config.ts"),
         "export default { policy: './policy.ts', powersync: { out: 'streams.yaml' } };\n",
       );
-      const generated = await run(["powersync", "generate"], { cwd });
+      const generated = await powersyncGenerate([], { cwd });
       expect(generated.stdout).toContain("wrote streams.yaml");
       const checked = await run(
         ["powersync", "verify", "--policy", "./policy.ts"],
