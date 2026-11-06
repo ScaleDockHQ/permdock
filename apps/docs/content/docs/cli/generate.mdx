@@ -23,8 +23,11 @@ permdock generate --dry-run
 | `--no-cache`        | Emit and write even when a cache entry matches.                                   |
 | `--cache-dir <dir>` | Cache directory. Default `node_modules/.cache/permdock`, or `PERMDOCK_CACHE_DIR`. |
 | `--concurrency <n>` | How many tasks run at once. `1` runs them one at a time.                          |
+| `--watch`           | Generate again when a policy, config or plugin input changes. Ctrl-C exits 130.   |
 
-`--json` puts `files` and `summary` in the result. Each file has `path`, `plugin` and `outcome`. `outcome` is `created`, `updated`, `unchanged` or, with `--dry-run`, `planned`.
+`--json` puts `files` and `summary` in the result. Each file has `path`, `plugin` and `outcome`. `outcome` is `created`, `updated`, `unchanged` or, with `--dry-run`, `planned`. With `--watch`, each cycle is one JSON line on stdout and the process keeps running.
+
+`--watch` loads the policy in a new worker on every cycle, because native ESM cannot drop a module it has already imported. A cycle writes nothing until the policy and the plugins have been read.
 
 ## Side effects
 

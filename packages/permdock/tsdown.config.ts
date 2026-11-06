@@ -155,6 +155,7 @@ export default defineConfig({
     "src/preset/index.ts",
     "src/cli/index.ts",
     "src/cli/bin.ts",
+    "src/cli/generate/watch-worker.ts",
     "src/cli/plugins/rls.ts",
     "src/cli/plugins/supabase-hook.ts",
     "src/cli/plugins/powersync.ts",

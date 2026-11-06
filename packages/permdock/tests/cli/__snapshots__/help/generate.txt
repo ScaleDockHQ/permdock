@@ -10,6 +10,7 @@ Flags
   --no-cache         Emit and write even when a cache entry matches
   --cache-dir <dir>  Cache directory (default node_modules/.cache/permdock or PERMDOCK_CACHE_DIR)
   --concurrency <n>  How many tasks run at once. 1 runs them one at a time. Default is one less than the CPU count.
+  --watch            Generate again when a policy, config or plugin input changes
 
 Global flags
   --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help

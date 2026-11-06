@@ -1,6 +1,6 @@
 import type { FSWatcher } from "node:fs";
 
-import { watch } from "node:fs";
+import { statSync, watch } from "node:fs";
 import { basename, dirname, relative, resolve, sep } from "node:path";
 
 import type { CliContext } from "./core/context.ts";
@@ -96,38 +96,65 @@ export type CollectScheduler = {
   readonly close: () => void;
 };
 
-export function createCollectScheduler(
-  cwd: string,
-  options: PermDockPluginOptions | undefined,
-  settings?: CollectSettings,
-): CollectScheduler {
-  const log = settings?.report ?? report;
-  let loaded = false;
+export type ChangeCycle = {
+  readonly message: string | undefined;
+  readonly written: readonly string[];
+  readonly sources: readonly string[];
+  readonly inputs: readonly string[];
+};
+
+export type ChangeScheduler = {
+  /** Runs one cycle now. `"run"` is a direct call; `"change"` is a file change. */
+  readonly run: () => Promise<string | undefined>;
+  /** Schedules a cycle for a changed file, unless the last cycle wrote it. */
+  readonly changed: (file: string | undefined) => void;
+  /** Watches the source folders and the input files the last cycle named. */
+  readonly watch: () => void;
+  readonly close: () => void;
+};
+
+/**
+ * One debounce, one pending bit and one running drain. `collect --watch`,
+ * `generate --watch`, the Next plugin and the unplugin all use it.
+ */
+export function createChangeScheduler(options: {
+  readonly cwd: string;
+  readonly cycle: (reason: "run" | "change") => Promise<ChangeCycle>;
+  readonly report?: (message: string | undefined) => void;
+  readonly initialSources?: readonly string[];
+}): ChangeScheduler {
+  const log = options.report ?? report;
   let ignored: ReadonlySet<string> = new Set();
   let inputs: readonly string[] = [];
-  let sources: readonly string[] = (
-    options?.collect?.srcPath ?? defaultSrcPath()
-  ).map((entry) => watchRoot(cwd, entry));
+  let sources: readonly string[] = [...(options.initialSources ?? [])];
   let running = false;
   let pending = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let watchingSince = 0;
   const watchers: FSWatcher[] = [];
 
-  async function run(check: boolean): Promise<string | undefined> {
-    const fresh = loaded;
-    loaded = true;
-    const result = await collectOnce(
-      cwd,
-      options,
-      check,
-      fresh,
-      settings?.configFile,
-      settings?.now,
+  const tempSuffix = `.permdock-${String(process.pid)}.tmp`;
+
+  /** The file itself, or the temp name `writeFileEnsuringDir` renames onto it. */
+  function ownWrite(file: string): boolean {
+    if (ignored.has(file)) {
+      return true;
+    }
+    return (
+      file.endsWith(tempSuffix) &&
+      ignored.has(file.slice(0, -tempSuffix.length))
     );
-    ignored = new Set(result.written);
+  }
+
+  function apply(result: ChangeCycle): string | undefined {
+    ignored = new Set(result.written.map((file) => resolve(options.cwd, file)));
     inputs = result.inputs;
     sources = result.sources;
     return result.message;
+  }
+
+  async function run(): Promise<string | undefined> {
+    return apply(await options.cycle("run"));
   }
 
   async function drain(): Promise<void> {
@@ -135,7 +162,7 @@ export function createCollectScheduler(
     while (pending) {
       pending = false;
       try {
-        log(await run(false));
+        log(apply(await options.cycle("change")));
       } catch (error) {
         log(describeError(error));
       }
@@ -144,8 +171,11 @@ export function createCollectScheduler(
   }
 
   function changed(file: string | undefined): void {
-    if (file !== undefined && ignored.has(resolve(cwd, file))) {
-      return;
+    if (file !== undefined) {
+      const resolved = resolve(options.cwd, file);
+      if (ownWrite(resolved) || unchangedSinceWatch(resolved)) {
+        return;
+      }
     }
     pending = true;
     if (running) {
@@ -180,21 +210,38 @@ export function createCollectScheduler(
     }
   }
 
+  /**
+   * FSEvents can report a write that finished before `watch()` ran. The file's
+   * mtime is then older than the watcher, so it is not a new edit.
+   */
+  function unchangedSinceWatch(file: string): boolean {
+    if (watchingSince === 0) {
+      return false;
+    }
+    try {
+      return statSync(file).mtimeMs < watchingSince;
+    } catch {
+      return false;
+    }
+  }
+
   function startWatch(): void {
     if (watchers.length > 0) {
       return;
     }
+    watchingSince = Date.now();
     for (const dir of sources) {
       watchDir(dir, true, () => true);
     }
     const loose = inputs.filter((file) => !within(sources, file));
-    const dirs = new Set([cwd, ...loose.map((file) => dirname(file))]);
+    const dirs = new Set([options.cwd, ...loose.map((file) => dirname(file))]);
     for (const dir of dirs) {
       watchDir(
         dir,
         false,
         (file) =>
-          loose.includes(file) || (dir === cwd && isConfigFile(basename(file))),
+          loose.includes(file) ||
+          (dir === options.cwd && isConfigFile(basename(file))),
       );
     }
   }
@@ -207,6 +254,49 @@ export function createCollectScheduler(
   }
 
   return { run, changed, watch: startWatch, close };
+}
+
+export function createCollectScheduler(
+  cwd: string,
+  options: PermDockPluginOptions | undefined,
+  settings?: CollectSettings,
+): CollectScheduler {
+  let loaded = false;
+  let check = false;
+  const scheduler = createChangeScheduler({
+    cwd,
+    initialSources: (options?.collect?.srcPath ?? defaultSrcPath()).map(
+      (entry) => watchRoot(cwd, entry),
+    ),
+    ...(settings?.report === undefined ? {} : { report: settings.report }),
+    cycle: async (reason) => {
+      const fresh = loaded;
+      loaded = true;
+      const result = await collectOnce(
+        cwd,
+        options,
+        reason === "run" ? check : false,
+        fresh,
+        settings?.configFile,
+        settings?.now,
+      );
+      return {
+        message: result.message,
+        written: result.written,
+        sources: result.sources,
+        inputs: result.inputs,
+      };
+    },
+  });
+  return {
+    run: (next) => {
+      check = next;
+      return scheduler.run();
+    },
+    changed: scheduler.changed,
+    watch: scheduler.watch,
+    close: scheduler.close,
+  };
 }
 
 /**
