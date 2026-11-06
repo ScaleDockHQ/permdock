@@ -4,7 +4,7 @@
     "help": 28,
     "catalog --help": 26,
     "doctor --help": 28,
-    "rls generate --help": 28,
+    "generate --help": 50,
     "cloud push --help": 28
   },
   "maxMs": {
@@ -12,7 +12,7 @@
     "help": 200,
     "catalog --help": 200,
     "doctor --help": 200,
-    "rls generate --help": 200,
+    "generate --help": 200,
     "cloud push --help": 200
   },
   "maxHelpRatio": 1.5,
