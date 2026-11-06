@@ -41,6 +41,10 @@ describe("Lienlink declarative jobs", () => {
       join(FIXTURE, "supabase/schemas/permdock/helpers.sql"),
       "utf8",
     );
+    const app = readFileSync(
+      join(FIXTURE, "supabase/schemas/public/tables.sql"),
+      "utf8",
+    );
     expect(schema).not.toMatch(/\bdo\s+\$\$/iu);
     const db = await startPostgres();
     try {
@@ -58,7 +62,7 @@ describe("Lienlink declarative jobs", () => {
           await pool.end();
         }
       };
-      const project = `${ROLES}\n${AUTH}`;
+      const project = `${ROLES}\n${AUTH}\n${app}`;
       await apply(declared.toString(), `${project}\n${schema}`);
       await apply(applied.toString(), project);
       const diff = async (): Promise<string> => {
