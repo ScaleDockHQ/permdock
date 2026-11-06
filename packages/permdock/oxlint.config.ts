@@ -68,6 +68,24 @@ export default defineConfig({
       },
     },
     {
+      files: ["src/cli/**/emit/**/*.ts"],
+      rules: {
+        // Emit is a pure function of the model, so a worker can run it.
+        "eslint/no-restricted-imports": [
+          "error",
+          {
+            patterns: [
+              {
+                group: ["node:*", "**/core/io.ts", "**/core/io.js"],
+                message:
+                  "An emit module imports no node:* and no core/io (architecture.mdc).",
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
       files: [
         "src/cli/**/*.{ts,tsx}",
         "src/unplugin/**/*.ts",
