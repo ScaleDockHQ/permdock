@@ -87,6 +87,15 @@ const related = (extra: Partial<RelatedCondition> = {}): RelatedCondition => ({
   ...extra,
 });
 
+describe("a relation whose resource is gone", () => {
+  it("skips the relation instead of inventing a node", () => {
+    const resources = new Map(policy.resources);
+    resources.clear();
+    const plan = graphPlan({ ...policy, resources });
+    expect([...plan.keys()]).toStrictEqual([]);
+  });
+});
+
 describe("graph grants in RLS", () => {
   it("plans the relations each resource needs and the deepest walk", () => {
     const plan = graphPlan(policy);

@@ -254,17 +254,29 @@ describe("rls run", () => {
       const policyFile = path.join(cwd, "folder-policy.ts");
       writeFileSync(
         policyFile,
-        `import { allow, definePermissions, definePolicy, resource, role } from "permdock";
+        `import { allow, definePermissions, definePolicy, relation, resource, role } from "permdock";
 export const permissions = definePermissions({
   folder: resource({
     actions: ["read"],
     parent: { field: "parentId", resource: "folder" },
-    relations: { org: { field: "orgId", memberOf: "tenant" } },
+    relations: {
+      above: { field: "parentId" },
+      org: { field: "orgId", memberOf: "tenant" },
+    },
   }),
 });
 export const policy = definePolicy(permissions, {
   subject: () => null,
-  roles: [role("reader", [allow(permissions.folder.read)])],
+  roles: [
+    role("reader", [
+      allow(permissions.folder.read, {
+        to: relation(permissions.folder, "above", {
+          depth: 2,
+          through: "parent",
+        }),
+      }),
+    ]),
+  ],
 });
 `,
       );
@@ -281,6 +293,7 @@ export const policy = definePolicy(permissions, {
               },
               treeValues: { "public.folders": { name: "kept" } },
               assignments: true,
+              idTypes: { folder: "text" },
             },
           },
         }),
@@ -292,6 +305,8 @@ export const policy = definePolicy(permissions, {
       const sql = readFileSync(path.join(cwd, "rls.sql"), "utf8");
       expect(sql).toContain("permdock_folder_chain");
       expect(sql).toContain("permdock_tree_folder");
+      expect(sql).toContain("ancestor");
+      expect(sql).not.toContain("ancestor::uuid");
     });
 
     it("refuses an unknown --schemas value before any action runs", async () => {

@@ -71,6 +71,25 @@ describe(graphPlan, () => {
 });
 
 describe(graphSql, () => {
+  it("refuses a resource name that is not a SQL identifier", () => {
+    const entry = graphPlan(policy).get("node");
+    if (entry === undefined) {
+      throw new Error("missing node");
+    }
+    expect(() =>
+      graphSql(
+        ctx,
+        new Map([
+          [
+            "not-ident",
+            { ...entry, node: { ...entry.node, name: "not-ident" } },
+          ],
+        ]),
+        undefined,
+      ),
+    ).toThrow("not a SQL name");
+  });
+
   it("writes the closure without restricted stops for an unrestricted tree", () => {
     const text = graphSql(ctx, graphPlan(policy), { node: "app.nodes" });
     expect(text).toContain(
