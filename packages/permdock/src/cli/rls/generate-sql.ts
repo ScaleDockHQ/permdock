@@ -569,7 +569,8 @@ export function generateSql(
     force,
     views,
     helperTables,
-    guardedTables,
+    realtimePolicies,
+    storagePolicies,
     helpersOnly,
     actorGuards,
   } = generated;
@@ -596,9 +597,12 @@ export function generateSql(
         emitSql(policies, "", force, views),
         ctx.dialect,
       ),
-      ...(guardedTables === undefined
+      ...(realtimePolicies === undefined
         ? {}
-        : { servicePolicies: dialectRoles(guardedTables, ctx.dialect) }),
+        : { realtimePolicies: dialectRoles(realtimePolicies, ctx.dialect) }),
+      ...(storagePolicies === undefined
+        ? {}
+        : { storagePolicies: dialectRoles(storagePolicies, ctx.dialect) }),
       helpers: dialectRoles(
         withHelperTables(
           emitSql([], preamble, false, helpersOnly ? views : []),

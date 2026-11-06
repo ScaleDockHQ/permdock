@@ -47,6 +47,7 @@ import {
 } from "./emit/hook-sql.ts";
 import { defaultOut, hookMarker } from "./manifest.ts";
 import { configToml } from "./sql.ts";
+import { asideAuthzReceive } from "./version.ts";
 
 export { grantsLabel, supabaseHookManifest, supabaseHookSql };
 
@@ -355,10 +356,22 @@ export async function runSupabase(input: {
       ? input.out
       : hookOut(input.cwd, input.config, input.schema, flag);
   // A hook file under the schema directory is declarative, including hook.out.
-  const sql =
-    schemas.mode === "pg-delta" && underSchemaDir(outRel, schemas.schemaDir)
-      ? declarativeSql(generated.sql)
-      : generated.sql;
+  const declarative =
+    schemas.mode === "pg-delta" && underSchemaDir(outRel, schemas.schemaDir);
+  const aside = declarative
+    ? asideAuthzReceive(generated.sql)
+    : { sql: generated.sql, receive: undefined };
+  const sql = declarative ? declarativeSql(aside.sql) : aside.sql;
+  const receiveFile: readonly OutputFile[] =
+    aside.receive === undefined || schemas.mode !== "pg-delta"
+      ? []
+      : [
+          {
+            part: "realtime",
+            rel: `${schemas.schemaDir}/realtime/authz.sql`,
+            text: aside.receive,
+          },
+        ];
   const outPath = resolve(input.cwd, outRel);
   const hook = input.config.supabase?.hook;
   const grantsFile: readonly OutputFile[] =
@@ -377,13 +390,16 @@ export async function runSupabase(input: {
     if (onDisk !== sql) {
       return { code: 1, output: markerDrift(onDisk, manifest, outRel) };
     }
-    const drift = driftOf(input.cwd, grantsFile);
+    const drift = driftOf(input.cwd, [...receiveFile, ...grantsFile]);
     return drift.length === 0
       ? { code: 0, output: "supabase hook up to date" }
       : { code: 1, output: `supabase hook drift: ${drift.join("; ")}` };
   }
   writeFileEnsuringDir(outPath, sql);
-  const grantsWritten = writeOutputFiles(input.cwd, grantsFile);
+  const grantsWritten = writeOutputFiles(input.cwd, [
+    ...receiveFile,
+    ...grantsFile,
+  ]);
   const placed = { ...manifest, hook: { ...manifest.hook, out: outRel } };
   const missing =
     input.db === undefined

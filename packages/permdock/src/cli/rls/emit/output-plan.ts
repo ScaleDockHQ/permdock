@@ -19,17 +19,17 @@ import {
   grantsLabel,
   supabaseHookSql,
 } from "../../supabase-hook/emit/hook-sql.ts";
+import { asideAuthzReceive } from "../../supabase-hook/version.ts";
 import { resolveSchemas } from "../../supabase-schemas.ts";
 
 export type SplitSql = {
   readonly policies: string;
   /** The policies part without the Realtime and Storage policies, for pg-delta. */
   readonly declarativePolicies: string;
-  /**
-   * The Realtime and Storage policies, each guarded by its table, for the seeds
-   * migration under pg-delta.
-   */
-  readonly servicePolicies?: string;
+  /** Plain Realtime policies for `<root>/realtime/permdock.sql`. */
+  readonly realtimePolicies?: string;
+  /** Plain Storage policies for `<root>/storage/permdock.sql`. */
+  readonly storagePolicies?: string;
   readonly helpers: string;
   readonly seeds: string;
   readonly indexes: string;
@@ -198,18 +198,7 @@ export function outputFiles(plan: {
     return "rls generate --split hook needs supabase.hook in permdock.config.ts";
   }
   const sql = plan.sql();
-  const relocated = pgDelta === undefined ? undefined : sql.servicePolicies;
-  if (
-    relocated !== undefined &&
-    split.includes("policies") &&
-    !split.includes("seeds")
-  ) {
-    return "rls generate --split policies under pg-delta with rls.realtime or rls.storage needs the seeds part with --seeds-out: the declarative sync shadow database has no realtime.messages or storage.objects, so their policies go in that migration";
-  }
-  const seeds =
-    relocated === undefined || !split.includes("policies")
-      ? sql.seeds
-      : `${sql.seeds}\n${relocated}`;
+  const seeds = sql.seeds;
   const files: OutputFile[] = [];
   const label = grantsLabel(input.grantsOut);
   let grantsMarker = `${GRANTS_MARKER} schema=${plan.schema}`;
@@ -228,9 +217,6 @@ export function outputFiles(plan: {
       }
       case "seeds": {
         if (input.noSeeds === true) {
-          if (relocated !== undefined && split.includes("policies")) {
-            return "rls generate --no-seeds cannot drop the seeds part under pg-delta with rls.realtime or rls.storage: their policies live in it";
-          }
           break;
         }
         const out = input.seedsOut;
@@ -262,11 +248,19 @@ export function outputFiles(plan: {
         break;
       case "hook": {
         const hook = supabaseHookSql(plan.scopes, input.config, {}, label);
-        files.push({
-          part,
-          rel: at(part, hook.manifest.hook.schema),
-          text: hook.sql,
-        });
+        const rel = at(part, hook.manifest.hook.schema);
+        const aside =
+          pgDelta !== undefined && underSchemaDir(rel, pgDelta.schemaDir)
+            ? asideAuthzReceive(hook.sql)
+            : { sql: hook.sql, receive: undefined };
+        files.push({ part, rel, text: aside.sql });
+        if (aside.receive !== undefined && pgDelta !== undefined) {
+          files.push({
+            part: "realtime",
+            rel: `${pgDelta.schemaDir}/realtime/authz.sql`,
+            text: aside.receive,
+          });
+        }
         const [marker = grantsMarker, ...rest] = hook.grants.split("\n");
         grantsMarker = marker;
         grants.push(rest.join("\n").trimEnd());
@@ -276,6 +270,22 @@ export function outputFiles(plan: {
         const exhaustive: never = part;
         return exhaustive;
       }
+    }
+  }
+  if (pgDelta !== undefined && split.includes("policies")) {
+    if (sql.realtimePolicies !== undefined) {
+      files.push({
+        part: "realtime",
+        rel: `${pgDelta.schemaDir}/realtime/permdock.sql`,
+        text: sql.realtimePolicies,
+      });
+    }
+    if (sql.storagePolicies !== undefined) {
+      files.push({
+        part: "storage",
+        rel: `${pgDelta.schemaDir}/storage/permdock.sql`,
+        text: sql.storagePolicies,
+      });
     }
   }
   if (pgDelta !== undefined) {

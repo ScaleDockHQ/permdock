@@ -86,6 +86,57 @@ revoke execute on function ${bump}() from public, anon, authenticated;
 ${triggers}${broadcastSql(parts, versionTable)}${memberUsersVersionSql(parts, bumpFor)}${roleKeysVersionSql(parts, versionTable)}`;
 }
 
+const AUTHZ_RECEIVE_POLICY = `create policy permdock_authz_version_receive on realtime.messages
+      for select to authenticated
+      using (
+        realtime.messages.extension = 'broadcast'
+        and (select realtime.topic()) = 'authz:' || (select auth.uid())::text
+      );`;
+
+/** The receive policy as a `do` block, for a migration that may lack the table. */
+function authzReceiveEmbed(): string {
+  return `
+
+-- each user receives their own authz:<uid> topic, and no user may join the server topic
+do $$
+begin
+  if to_regclass('realtime.messages') is not null and not exists (
+    select 1 from pg_policies
+    where schemaname = 'realtime' and tablename = 'messages'
+      and policyname = 'permdock_authz_version_receive'
+  ) then
+    ${AUTHZ_RECEIVE_POLICY}
+  end if;
+end;
+$$;`;
+}
+
+const AUTHZ_RECEIVE_FILE = `-- Each user receives their own authz:<uid> topic, and no user may join the server topic.
+-- This policy sits outside the scoped declarative sync: pg-delta's shadow database has no realtime.messages.
+-- Apply this file with an unscoped sync only where the Realtime service has created the table.
+create policy permdock_authz_version_receive on realtime.messages
+  for select to authenticated
+  using (
+    realtime.messages.extension = 'broadcast'
+    and (select realtime.topic()) = 'authz:' || (select auth.uid())::text
+  );
+`;
+
+/**
+ * Moves the receive policy out of a schema file. A migration keeps the guarded
+ * block.
+ */
+export function asideAuthzReceive(sql: string): {
+  readonly sql: string;
+  readonly receive: string | undefined;
+} {
+  const embed = authzReceiveEmbed();
+  if (!sql.includes(embed)) {
+    return { sql, receive: undefined };
+  }
+  return { sql: sql.replace(embed, ""), receive: AUTHZ_RECEIVE_FILE };
+}
+
 /**
  * Every version row written is sent as `{ user_id, version }` on the server
  * topic and on the user's `authz:<uid>`, in the shape better-supabase's
@@ -100,27 +151,7 @@ function broadcastSql(parts: Parts, versionTable: string): string {
   const payload =
     "jsonb_build_object('user_id', new.user_id, 'version', new.version)";
   const event = quoteLiteral(AUTHZ_EVENT);
-  const receive = broadcast.receivePolicy
-    ? `
-
--- each user receives their own authz:<uid> topic, and no user may join the server topic
-do $$
-begin
-  if to_regclass('realtime.messages') is not null and not exists (
-    select 1 from pg_policies
-    where schemaname = 'realtime' and tablename = 'messages'
-      and policyname = 'permdock_authz_version_receive'
-  ) then
-    create policy permdock_authz_version_receive on realtime.messages
-      for select to authenticated
-      using (
-        realtime.messages.extension = 'broadcast'
-        and (select realtime.topic()) = 'authz:' || (select auth.uid())::text
-      );
-  end if;
-end;
-$$;`
-    : "";
+  const receive = broadcast.receivePolicy ? authzReceiveEmbed() : "";
   return `
 
 -- sends every version bump on the server topic and on the user's authz:<uid>

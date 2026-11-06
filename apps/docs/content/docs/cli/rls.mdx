@@ -447,7 +447,7 @@ create policy "permdock_realtime_org_organization_chat_select"
 - Each permission is a reference from your definitions. The policies call `permitted_<scope>_ids_by_permission`, which counts only the allows without a row condition, minus any deny: a topic or a folder has no resource columns to check a condition against. A permission that also has a relationship grant or a `where` (a chat thread shared with one person) is accepted with a warning, and its topic admits only the holders whose role reaches the instance; the share keeps applying in the table policies.
 - An undeclared scope, a dialect other than `supabase`, a duplicate policy name or one over 63 bytes exits 2.
 - The output does not enable RLS, revoke or grant on either table. Supabase owns both, and supautils `policy_grants` lets `postgres` create the policies.
-- With `--split`, the policies go in the `policies` part, after your tables' policies. Under pg-delta they go in the `--seeds-out` migration instead, each in a `do` block that creates it only when `to_regclass` finds its table: the Realtime and Storage services create `realtime.messages` and `storage.objects`, so pg-delta's shadow database and a local stack with `[realtime]` or `[storage]` off have neither, and a declarative file that names them cannot apply ([pg-delta](#pg-delta)). Regenerate after enabling a service locally and reset the database to get its policies. The bucket is a row in `storage.buckets`: create it in a seed or a versioned migration.
+- With `--split`, the policies go in the `policies` part, after your tables' policies. Under pg-delta they are static SQL at `<schema dir>/realtime/permdock.sql` and `<schema dir>/storage/permdock.sql`, outside the scoped declarative sync: pg-delta's shadow database has no `realtime.messages` or `storage.objects`. Apply those files with an unscoped sync only where the service has created the table ([pg-delta](#pg-delta)). The bucket is a row in `storage.buckets`: create it in a seed or a versioned migration.
 - With `rls.readOnlyActors`, the write commands get the restrictive read-only policies too, named `realtime_messages_insert_read_only_actors` and `storage_objects_<op>_read_only_actors`. `--helpers-only` writes none of these policies and says so.
 
 ### API keys
@@ -872,7 +872,7 @@ The `role_permissions` rows are data, which no schema diff carries. Under `pg-de
 
 `--seeds-out` may name the migrations directory instead of a file (a path that ends in `/` or an existing directory). `generate` then compares the rows with the newest migration there that starts with `-- permdock:seeds v1` and writes a new `<version>_permdock_seeds.sql` only when they differ, numbered one second after the newest versioned migration in the directory (the clock is read only when the directory has none), so the same directory always gives the same name and a repeated `--check` names the same file, so an unchanged policy writes nothing and an applied migration is never rewritten in place. When `--seeds-out` and `--backfill-out` name the same directory and both write in one run, the backfill is numbered one second after the new seeds migration, so the two never share a version. With `--check` it fails when that newest migration is missing or out of date. Run it after `declarative sync` or `db diff`, so the new migration sorts after the one that creates `role_permissions`; doctor PD054 warns when the newest seeds migration no longer matches the policy.
 
-`--no-seeds` writes no `seeds` part, for a project that seeds `role_permissions` itself (a `psql` seed file, `supabase/seed.sql`). It needs `--split`, replaces `--seeds-out` and the `seeds` requirement of the `helpers` part, and exits `2` beside `--seeds-out`. Do not point `--seeds-out` at `/dev/null` for this: character devices are written in place, but the flag says what you mean. Under pg-delta with `rls.realtime` or `rls.storage` the `seeds` part also carries their policies, so `--no-seeds` is refused with the `seeds` part in `--split`.
+`--no-seeds` writes no `seeds` part, for a project that seeds `role_permissions` itself (a `psql` seed file, `supabase/seed.sql`). It needs `--split`, replaces `--seeds-out` and the `seeds` requirement of the `helpers` part, and exits `2` beside `--seeds-out`. Do not point `--seeds-out` at `/dev/null` for this: character devices are written in place, but the flag says what you mean.
 
 #### Seeds as a function
 
@@ -880,7 +880,7 @@ The `role_permissions` rows are data, which no schema diff carries. Under `pg-de
 
 #### Seeds as a view
 
-`rls.seeds: 'view'` creates `<schema>.role_permissions` as `create or replace view ... with (security_invoker = true) as select ... from (values ...)` in the helpers part, with the same `revoke` from `public`, `anon` and `authenticated` the table has. A declarative diff carries a view, so under `pg-delta` and `migra` the project needs no seeds migration and no `select <schema>.seed();` call. The part names stay as they are: `--split ...,seeds` still writes the `seeds` part, which holds only a comment (and, under pg-delta, the `rls.realtime` and `rls.storage` policies). The view is read-only: a statement that inserts into `role_permissions`, such as a hand-written seed file, fails with `cannot insert into view`. Doctor PD054 and `rls verify --introspect` read it as they read the table.
+`rls.seeds: 'view'` creates `<schema>.role_permissions` as `create or replace view ... with (security_invoker = true) as select ... from (values ...)` in the helpers part, with the same `revoke` from `public`, `anon` and `authenticated` the table has. A declarative diff carries a view, so under `pg-delta` and `migra` the project needs no seeds migration and no `select <schema>.seed();` call. The part names stay as they are: `--split ...,seeds` still writes the `seeds` part, which holds only a comment. The view is read-only: a statement that inserts into `role_permissions`, such as a hand-written seed file, fails with `cannot insert into view`. Doctor PD054 and `rls verify --introspect` read it as they read the table.
 
 #### pg-delta
 
@@ -896,10 +896,12 @@ Under pg-delta, the files at its per-schema paths (no `--out`) carry no `drop` s
 | `indexes`  | `<schema>/indexes.sql`                            |
 | `policies` | `public/policies/permdock.sql`                    |
 | `hook`     | `<schema>/functions/custom_access_token_hook.sql` |
+| Realtime   | `realtime/permdock.sql` and `realtime/authz.sql`  |
+| Storage    | `storage/permdock.sql`                            |
 
-`<schema>` is the helper schema (`permdock` unless `rls.schema` says otherwise). An explicit `--out` with `{part}` replaces the layout; an explicit `--out` without it is refused, and `rls.out` without it is ignored. pg-delta keeps grants, revokes and view options, so every part keeps its own and `--grants-out` is refused. `permdock supabase hook generate` without `--out` writes the same hook path.
+`<schema>` is the helper schema (`permdock` unless `rls.schema` says otherwise). An explicit `--out` with `{part}` replaces the layout; an explicit `--out` without it is refused, and `rls.out` without it is ignored. pg-delta keeps grants, revokes and view options, so every part keeps its own and `--grants-out` is refused. `permdock supabase hook generate` without `--out` writes the same hook path. When the hook broadcasts versions, the receive policy is `realtime/authz.sql`, not a `do` block in the hook file.
 
-The shadow database pg-delta loads the declarative files into has no `realtime.messages` or `storage.objects`. With `rls.realtime` or `rls.storage`, the `policies` part leaves their policies out and the seeds migration carries them, each guarded by its table, so the `policies` part needs the `seeds` part with `--seeds-out` too.
+The shadow database pg-delta loads the declarative files into has no `realtime.messages` or `storage.objects`. `rls.realtime` and `rls.storage` policies, and the authz receive policy, are static SQL under `realtime/` and `storage/`. A scoped sync (`declarative sync -f permdock`) leaves them out. An unscoped sync applies them, and it applies only where the Realtime or Storage service has created the table.
 
 ```bash
 SPLIT="--target sql --split helpers,seeds,indexes,policies,hook"

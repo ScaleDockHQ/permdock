@@ -37,6 +37,7 @@ describe("declarative schema", () => {
     hook = true,
     rls = "",
     schemas: string | null = "migra",
+    hookFields = "",
   ): string {
     mkdirSync(TMP, { recursive: true });
     const cwd = mkdtempSync(join(TMP, "declarative-"));
@@ -52,7 +53,7 @@ export default {
   permissions: ${JSON.stringify(POLICY)},
   policy: ${JSON.stringify(POLICY)},
   rls: { dialect: 'supabase', membershipSources: memberships${rls} },
-  supabase: { ${hook ? "hook: { memberships }," : ""} ${schemas === null ? "" : `schemas: '${schemas}'`} },
+  supabase: { ${hook ? `hook: { memberships${hookFields === "" ? "" : `, ${hookFields}`} },` : ""} ${schemas === null ? "" : `schemas: '${schemas}'`} },
 };
 `,
     );
@@ -590,7 +591,32 @@ export default {
       );
     });
 
-    it("moves the Realtime and Storage policies into the seeds migration, each guarded by its table", async () => {
+    it("writes the authz receive policy under realtime/ and leaves the hook free of it", async () => {
+      const cwd = project(
+        true,
+        "",
+        null,
+        "broadcast: { topic: 'better_supabase:authz' }",
+      );
+      pgDelta(cwd);
+      const result = await hookGenerate([], { cwd });
+      expect(result.code).toBe(0);
+      const hookSql = read(
+        cwd,
+        "supabase/schemas/permdock/functions/custom_access_token_hook.sql",
+      );
+      expect(hookSql).not.toContain("permdock_authz_version_receive");
+      expect(hookSql).not.toContain("to_regclass");
+      const receive = read(cwd, "supabase/schemas/realtime/authz.sql");
+      expect(receive).toContain(
+        "create policy permdock_authz_version_receive on realtime.messages",
+      );
+      expect(receive).toContain("unscoped sync");
+      expect(receive).not.toContain("do $$");
+      expect(result.stdout).toContain("supabase/schemas/realtime/authz.sql");
+    });
+
+    it("writes Realtime and Storage policies as static SQL outside the seeds migration", async () => {
       const cwd = project(
         true,
         `, realtime: { topics: { 'org:{organization}:assets': { read: { key: 'asset.read' } } } }, storage: { buckets: { files: { scope: 'organization', read: { key: 'asset.read' } } } }`,
@@ -613,17 +639,20 @@ export default {
       expect(seeds.split("\n", 1)[0]).toBe(
         "-- permdock:seeds v1 schema=permdock",
       );
-      expect(seeds).toContain(
-        `do $permdock$
-begin
-  if to_regclass('realtime.messages') is not null then
-    drop policy if exists "permdock_realtime_org_organization_assets_select" on "realtime"."messages";
-    create policy "permdock_realtime_org_organization_assets_select"`,
+      expect(seeds).not.toContain("to_regclass");
+      expect(seeds).not.toContain("realtime");
+      expect(seeds).not.toContain("storage.objects");
+      const realtime = read(cwd, "supabase/schemas/realtime/permdock.sql");
+      expect(realtime).toContain("unscoped sync");
+      expect(realtime).toContain(
+        'create policy "permdock_realtime_org_organization_assets_select"',
       );
-      expect(seeds).toContain(
-        "  if to_regclass('storage.objects') is not null then",
-      );
-      expect(seeds).toContain("  end if;\nend\n$permdock$;\n");
+      expect(realtime).not.toContain("do ");
+      expect(realtime).not.toContain("if not exists");
+      const storage = read(cwd, "supabase/schemas/storage/permdock.sql");
+      expect(storage).toContain("unscoped sync");
+      expect(storage).toContain('on "storage"."objects"');
+      expect(storage).not.toContain("do ");
       const checked = await rlsGenerate(
         ["--split", "helpers,seeds,policies", "--seeds-out", SEEDS, "--check"],
         { cwd },
@@ -632,9 +661,9 @@ begin
       const withoutSeeds = await rlsGenerate(["--split", "indexes,policies"], {
         cwd,
       });
-      expect(withoutSeeds.code).toBe(2);
-      expect(withoutSeeds.stderr).toContain(
-        "rls generate --split policies under pg-delta with rls.realtime or rls.storage needs the seeds part with --seeds-out",
+      expect(withoutSeeds.code).toBe(0);
+      expect(read(cwd, "supabase/schemas/realtime/permdock.sql")).toContain(
+        'on "realtime"."messages"',
       );
       const plain = project(
         true,
