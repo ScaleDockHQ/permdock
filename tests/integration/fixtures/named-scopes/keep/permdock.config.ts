@@ -74,6 +74,7 @@ export default {
     dialect: "supabase",
     scopeTypes: { tenant: "text" },
     authorize: "jwt",
+    actions: { accept: "none", disable: "none", pay: "none" },
     suspension,
     memberships,
   },

@@ -5,6 +5,7 @@ export default {
     dialect: "guc",
     scopeTypes: { tenant: "text" },
     authorize: "database",
+    actions: { accept: "none", disable: "none", pay: "none" },
     memberships: {
       scopes: {
         organization: {

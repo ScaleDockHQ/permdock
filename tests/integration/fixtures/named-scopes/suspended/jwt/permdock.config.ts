@@ -5,6 +5,7 @@ export default {
     dialect: "guc",
     scopeTypes: { tenant: "text" },
     authorize: "jwt",
+    actions: { accept: "none", disable: "none", pay: "none" },
     suspension: {
       users: { table: "profiles", id: "id", disabledAt: "disabled_at" },
       scopes: {

@@ -5,6 +5,7 @@ export default {
     dialect: "supabase",
     scopeTypes: { tenant: "text" },
     authorize: "jwt",
+    actions: { accept: "none" },
     capabilities: true,
   },
 };

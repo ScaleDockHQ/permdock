@@ -7,6 +7,7 @@ export default {
     dialect: "supabase",
     scopeTypes: { tenant: "text" },
     authorize: "database",
+    actions: { accept: "none", disable: "none", pay: "none" },
     suspension,
   },
   supabase: { hook: { memberships: sources({ suspension }) } },

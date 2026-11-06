@@ -5,6 +5,7 @@ export default {
     dialect: "supabase",
     scopeTypes: { tenant: "text" },
     authorize: "database",
+    actions: { archive: "none" },
     rowHelpers: ["item"],
     memberships: {
       scopes: {

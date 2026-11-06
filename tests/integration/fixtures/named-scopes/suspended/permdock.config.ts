@@ -22,6 +22,7 @@ export default {
     dialect: "guc",
     scopeTypes: { tenant: "text" },
     authorize: "database",
+    actions: { accept: "none", disable: "none", pay: "none" },
     suspension,
     memberships: {
       scopes: {

@@ -79,6 +79,9 @@ export async function filesForRls(
     ...(applied.config.policyName === undefined
       ? {}
       : { policyName: applied.config.policyName }),
+    ...(applied.tenantType === undefined
+      ? {}
+      : { tenantType: applied.tenantType }),
   });
   if (outcome.code !== 0) {
     throw new CliError(

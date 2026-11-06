@@ -68,6 +68,39 @@ const SPLIT_PARTS = [
   "hook",
 ] as const;
 
+/**
+ * `--memberships table:tenant,user,role[,expires]`, the same shape as the
+ * generator's flag.
+ */
+function membershipsFromFlag(
+  raw: string | undefined,
+): RlsPluginOptions["memberships"] {
+  if (raw === undefined || raw === "") {
+    return undefined;
+  }
+  const colon = raw.indexOf(":");
+  const table = colon === -1 ? raw : raw.slice(0, colon);
+  const cols = (colon === -1 ? "" : raw.slice(colon + 1))
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item !== "");
+  const tenant = cols[0] ?? "tenant_id";
+  const user = cols[1] ?? "user_id";
+  const role = cols[2] ?? "role";
+  const expiresAt = cols[3];
+  return {
+    scopes: {
+      tenant: {
+        table,
+        columns: { tenant },
+        user,
+        role,
+        ...(expiresAt === undefined ? {} : { expiresAt }),
+      },
+    },
+  };
+}
+
 function applyBooleans(
   options: { -readonly [K in keyof RlsPluginOptions]?: RlsPluginOptions[K] },
   values: ReadonlyMap<string, string | true>,
@@ -82,6 +115,14 @@ function applyBooleans(
   if (values.get("shims") === true) options.shims = true;
   if (values.get("revoke-columns") === true) options.revokeColumns = true;
   if (textOf(values, "rbac") === "supabase") options.rbacScaffold = "supabase";
+  const authorize = oneOf(textOf(values, "authorize"), ["database", "jwt"]);
+  if (authorize !== undefined) options.authorize = authorize;
+  const schema = textOf(values, "rbac-schema");
+  if (schema !== undefined) options.schema = schema;
+  const tenantType = textOf(values, "tenant-type");
+  if (tenantType !== undefined) options.tenantType = tenantType;
+  const memberships = membershipsFromFlag(textOf(values, "memberships"));
+  if (memberships !== undefined) options.memberships = memberships;
 }
 
 function pluginOptions(flags: readonly string[]): {
@@ -212,10 +253,13 @@ export async function generated(
 ): Promise<string[]> {
   const dir = mkdtempSync(join(tmpdir(), "permdock-generated-"));
   try {
-    const result = await run(
-      args.map((arg) => arg.replaceAll("{dir}", dir)),
-      { cwd: options.cwd },
-    );
+    const argv = args.map((arg) => arg.replaceAll("{dir}", dir));
+    const result =
+      argv[0] === "rls" && argv[1] === "generate"
+        ? await rlsGenerate(argv.slice(2), { cwd: options.cwd })
+        : argv[0] === "supabase" && argv[1] === "hook" && argv[2] === "generate"
+          ? await hookGenerate(argv.slice(3), { cwd: options.cwd })
+          : await run(argv, { cwd: options.cwd });
     if (result.code !== 0) {
       throw new Error(`${args.join(" ")}: ${result.stdout}${result.stderr}`);
     }

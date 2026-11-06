@@ -46,11 +46,18 @@ describe("better-supabase example forward migrations", () => {
             ),
             "utf8",
           );
-          // Existing policies must be replaced when replaying declarative files over migrations.
-          const sql = source.replaceAll(
-            /create policy ("[^"]+") on ([^\n]+)\n/giu,
-            "drop policy if exists $1 on $2;\ncreate policy $1 on $2\n",
-          );
+          // Declarative files drop `if not exists` and `drop policy`. Replaying
+          // them over the migrations has to skip objects the migrations created
+          // and replace policies.
+          const sql = source
+            .replaceAll(
+              /create policy ("[^"]+") on ([^\n]+)\n/giu,
+              "drop policy if exists $1 on $2;\ncreate policy $1 on $2\n",
+            )
+            .replaceAll(
+              /^(create (?:schema|table)) (?!if not exists)/gmu,
+              "$1 if not exists ",
+            );
           await client.query(sql);
         }
         const declared = await extract(pool);

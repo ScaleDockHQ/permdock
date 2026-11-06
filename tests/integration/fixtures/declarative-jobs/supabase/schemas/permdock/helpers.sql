@@ -4,7 +4,7 @@
 -- permdock helpers (database: reads the membership and user_roles tables)
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
-create schema "permdock";
+create schema if not exists "permdock";
 revoke all on schema "permdock" from public;
 grant usage on schema "permdock" to authenticated;
 

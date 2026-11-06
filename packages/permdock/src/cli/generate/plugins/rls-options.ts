@@ -31,6 +31,8 @@ export type RlsPluginOptions = Omit<RlsConfig, "seeds"> & {
   readonly grantsOut?: string;
   /** `--rbac supabase`: scaffold the role tables. */
   readonly rbacScaffold?: "supabase";
+  /** `--tenant-type`: the tenant id type the helpers take. */
+  readonly tenantType?: string;
 };
 
 export type AppliedRlsPlugin = {
@@ -45,6 +47,7 @@ export type AppliedRlsPlugin = {
   readonly noSeeds: boolean;
   readonly grantsOut: string | undefined;
   readonly rbac: boolean;
+  readonly tenantType: string | undefined;
 };
 
 function seedMode(
@@ -80,6 +83,7 @@ export function applyRlsPlugin(
     seeds,
     grantsOut,
     rbacScaffold,
+    tenantType,
     out,
     split,
     dialect,
@@ -114,5 +118,6 @@ export function applyRlsPlugin(
     noSeeds: seeds === false,
     grantsOut,
     rbac: rbacScaffold === "supabase",
+    tenantType,
   };
 }
