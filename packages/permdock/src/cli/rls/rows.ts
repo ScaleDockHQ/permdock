@@ -341,15 +341,15 @@ set search_path = ''
 as $$
 declare
   v_row ${table};
-  v_rows ${table}[] := '{}';
+  v_rows ${table}[] := '{}'::${table}[];
   v_id ${idType};
 begin
   begin
-    foreach v_id in array coalesce(p_ids, '{}') loop
+    foreach v_id in array coalesce(p_ids, '{}'::${idType}[]) loop
 ${assign("      ")}
     end loop;
   exception when data_exception then
-    v_rows := '{}';
+    v_rows := '{}'::${table}[];
     foreach v_id in array p_ids loop
       begin
 ${assign("        ")}

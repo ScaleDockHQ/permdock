@@ -158,7 +158,9 @@ describe("permitted_<resource>_rows", () => {
       'create or replace function "permdock".permitted_doc_rows(p_permission text, p_ids uuid[])\nreturns setof uuid\nlanguage plpgsql',
     );
     expect(sql).toContain('v_row "app"."documents";');
-    expect(sql).toContain(`foreach v_id in array coalesce(p_ids, '{}') loop`);
+    expect(sql).toContain(
+      `foreach v_id in array coalesce(p_ids, '{}'::uuid[]) loop`,
+    );
     expect(sql).toContain("exception when data_exception then");
     expect(sql).toContain(
       'select * from "app"."documents" where "id" = any (array(select (r)."id" from pg_catalog.unnest(v_rows) r))',

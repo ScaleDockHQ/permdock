@@ -237,16 +237,16 @@ CREATE OR REPLACE FUNCTION permdock.permitted_quotes_rows (
   AS $function$
 declare
   v_row "public"."quotes";
-  v_rows "public"."quotes"[] := '{}';
+  v_rows "public"."quotes"[] := '{}'::"public"."quotes"[];
   v_id uuid;
 begin
   begin
-    foreach v_id in array coalesce(p_ids, '{}') loop
+    foreach v_id in array coalesce(p_ids, '{}'::uuid[]) loop
       v_row."id" := v_id;
       v_rows := pg_catalog.array_append(v_rows, v_row);
     end loop;
   exception when data_exception then
-    v_rows := '{}';
+    v_rows := '{}'::"public"."quotes"[];
     foreach v_id in array p_ids loop
       begin
         v_row."id" := v_id;
