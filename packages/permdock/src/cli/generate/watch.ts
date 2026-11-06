@@ -10,6 +10,7 @@ import { isRecord } from "../../core/compact.ts";
 import { dateAt } from "../../core/time.ts";
 import { CliError, describeError } from "../core/errors.ts";
 import { createChangeScheduler } from "../watch.ts";
+import { receiptRows } from "./pipeline.ts";
 
 export type GenerateWatchOptions = {
   readonly policy?: string;
@@ -52,15 +53,17 @@ function summaryOf(value: unknown): GenerateSummary | undefined {
   const updated = value["updated"];
   const unchanged = value["unchanged"];
   const planned = value["planned"];
+  const skipped = value["skipped"];
   if (
     typeof created !== "number" ||
     typeof updated !== "number" ||
     typeof unchanged !== "number" ||
-    typeof planned !== "number"
+    typeof planned !== "number" ||
+    typeof skipped !== "number"
   ) {
     return undefined;
   }
-  return { created, updated, unchanged, planned };
+  return { created, updated, unchanged, planned, skipped };
 }
 
 function replyOf(value: unknown): WatchReply {
@@ -156,8 +159,8 @@ function receipt(ctx: CliContext, summary: GenerateSummary): void {
   const wrote = summary.created + summary.updated;
   const phase = ctx.progress("Generating");
   phase.done(`Generated ${wrote} ${wrote === 1 ? "file" : "files"}`);
-  if (summary.unchanged > 0) {
-    ctx.io.stderr(`Unchanged ${summary.unchanged}\n`);
+  for (const row of receiptRows(summary)) {
+    ctx.io.stderr(`${row}\n`);
   }
 }
 

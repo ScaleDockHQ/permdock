@@ -4,6 +4,7 @@ import { defineLeaf } from "../core/command.ts";
 import { CliError } from "../core/errors.ts";
 import { checkFlag, dryRunFlag, policyFlag } from "../core/flags.ts";
 import { executeGenerate } from "../generate/execute.ts";
+import { receiptRows } from "../generate/pipeline.ts";
 
 function concurrencyFlag(value: string | undefined): number | undefined {
   if (value === undefined || value === "") {
@@ -94,8 +95,8 @@ export const generate: Leaf = defineLeaf({
       });
       const wrote = executed.summary.created + executed.summary.updated;
       phase.done(`Generated ${wrote} ${wrote === 1 ? "file" : "files"}`);
-      if (executed.summary.unchanged > 0) {
-        ctx.io.stderr(`Unchanged ${executed.summary.unchanged}\n`);
+      for (const row of receiptRows(executed.summary)) {
+        ctx.io.stderr(`${row}\n`);
       }
       return {
         code: executed.code,

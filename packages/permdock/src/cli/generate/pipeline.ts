@@ -30,6 +30,8 @@ export type GenerateSummary = {
   readonly updated: number;
   readonly unchanged: number;
   readonly planned: number;
+  /** Files whose emit and write were skipped because the cache matched. */
+  readonly skipped: number;
 };
 
 export type GenerateRun = {
@@ -42,11 +44,29 @@ export type GenerateRun = {
 };
 
 function summaryOf(files: readonly GeneratedFile[]): GenerateSummary {
-  const summary = { created: 0, updated: 0, unchanged: 0, planned: 0 };
+  const summary = {
+    created: 0,
+    updated: 0,
+    unchanged: 0,
+    planned: 0,
+    skipped: 0,
+  };
   for (const file of files) {
     summary[file.outcome] += 1;
   }
   return summary;
+}
+
+/** Stderr rows after the Generated line. A cache hit is not Unchanged. */
+export function receiptRows(summary: GenerateSummary): readonly string[] {
+  const rows: string[] = [];
+  if (summary.unchanged > 0) {
+    rows.push(`Unchanged ${String(summary.unchanged)}`);
+  }
+  if (summary.skipped > 0) {
+    rows.push(`Skipped (cache) ${String(summary.skipped)}`);
+  }
+  return rows;
 }
 
 function diffOf(files: readonly GeneratedFile[]): string {
@@ -110,7 +130,19 @@ export async function runGenerate(input: {
         plugin: file.plugin,
         outcome: "unchanged" as const,
       }));
-      return { model, files, summary: summaryOf(files), diff: "", code: 0 };
+      return {
+        model,
+        files,
+        summary: {
+          created: 0,
+          updated: 0,
+          unchanged: 0,
+          planned: 0,
+          skipped: files.length,
+        },
+        diff: "",
+        code: 0,
+      };
     }
   }
   const tasks: {

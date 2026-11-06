@@ -46,7 +46,7 @@ export function parseConfig(value: unknown, file: string): ParsedConfig {
   }
   const warnings: string[] = [];
   const unknown = (path: string, known: Iterable<string>): string =>
-    `${file}: unknown key ${path}; PermDock reads ${[...known].join(", ")}`;
+    `[unknown_key] ${file}: unknown key ${path}; PermDock reads ${[...known].join(", ")}`;
   for (const [key, entry] of Object.entries(value)) {
     if (key === "plugins") {
       if (entry !== undefined && !Array.isArray(entry)) {

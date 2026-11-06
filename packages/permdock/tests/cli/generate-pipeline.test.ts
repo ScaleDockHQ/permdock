@@ -83,7 +83,8 @@ describe("generate pipeline", () => {
       check: false,
       dryRun: false,
     });
-    expect(second.summary.unchanged).toBe(1);
+    expect(second.summary.skipped).toBe(1);
+    expect(second.summary.unchanged).toBe(0);
 
     const check = await runGenerate({
       cwd,
@@ -147,7 +148,8 @@ describe("generate pipeline", () => {
     expect(bytes).toBe("hello\n");
     expect(fresh.files[0]?.outcome).toBe("created");
     expect(first.files[0]?.outcome).toBe("unchanged");
-    expect(second.summary.unchanged).toBe(1);
+    expect(second.summary.skipped).toBe(1);
+    expect(second.summary.unchanged).toBe(0);
     expect(calls).toBe(2);
   });
 
