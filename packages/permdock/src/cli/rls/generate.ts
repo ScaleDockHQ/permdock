@@ -1,29 +1,15 @@
-import type { Policy } from "../../index.ts";
 import type { ExitCode } from "../core/errors.ts";
-import type { OutputFile } from "../core/output-files.ts";
 import type { CompiledPolicy } from "../sql/compile.ts";
-import type { PermDockConfig } from "../types.ts";
 import type { RlsExplain } from "./explain.ts";
 import type { RlsGenerateInput } from "./generate-options.ts";
 import type { RolePermission } from "./helpers.ts";
 import type { IndexTarget } from "./indexes.ts";
 import type { LevelKey } from "./rows.ts";
 
-import { policyFromCatalog } from "../../catalog/policy-from-catalog.ts";
 import { renamedKeys } from "../../core/permission-registry.ts";
 import { policyRowConditionKeys } from "../../core/row-conditions.ts";
-import { dateAt } from "../../core/time.ts";
 import { listPermissions } from "../../index.ts";
-import { POLICY_NOT_PUBLISHED } from "../cloud/problem-types.ts";
-import { fetchProjectPolicy } from "../cloud/pull.ts";
 import { describeError, exitCodeOfError } from "../core/errors.ts";
-import {
-  dataMigrationFile,
-  driftOf,
-  writeOutputFiles,
-} from "../core/output-files.ts";
-import { requirePolicy } from "../project/load.ts";
-import { BACKFILL_MARKER } from "../sql/markers.ts";
 import { tableNames } from "../sql/tables.ts";
 import {
   bindingNotes,
@@ -33,9 +19,10 @@ import {
 } from "./bindings.ts";
 import { explainRls } from "./explain.ts";
 import { buildContext } from "./generate-context.ts";
+import { isPolicyLoadFailure, loadGeneratePolicy } from "./generate-load.ts";
 import { generateOptions, isRefusal, splitsPart } from "./generate-options.ts";
-import { outputFiles } from "./generate-output.ts";
 import { generateSql } from "./generate-sql.ts";
+import { writeGenerated } from "./generate-write.ts";
 import {
   indexKeysFromProject,
   tablesFromProject,
@@ -77,78 +64,6 @@ export type GenerateOutcome = {
   readonly explain?: RlsExplain;
 };
 
-function loadPolicy(
-  cwd: string,
-  config: PermDockConfig,
-  from: string | undefined,
-): Promise<Policy> {
-  const policyPath =
-    from === "drizzle" ? config.policy : (from ?? config.policy);
-  return requirePolicy(
-    cwd,
-    policyPath,
-    "rls generate needs policy in permdock.config.ts or --policy",
-  );
-}
-
-const PROJECT_COMMAND = "permdock rls generate";
-
-/**
- * The policy `policyFromCatalog` rebuilds from the project's pushed catalog and
- * policy; a project with no pushed policy fails with `policy-not-published`.
- */
-async function projectPolicyOf(
-  input: RlsGenerateInput,
-  project: string,
-): Promise<Policy | GenerateOutcome> {
-  const fetched = await fetchProjectPolicy({
-    command: PROJECT_COMMAND,
-    url: input.url,
-    project,
-    json: input.json === true,
-    env: input.io.env ?? process.env,
-    io: input.io,
-  });
-  if (!fetched.ok) {
-    return { ...fetched.result, text: "" };
-  }
-  const { catalog, policy } = fetched.value;
-  if (policy === undefined) {
-    const detail = `project ${project} has a pushed catalog but no policy; push from a project whose permdock.config.ts names one`;
-    return {
-      code: 1,
-      output:
-        input.json === true
-          ? JSON.stringify(
-              {
-                type: POLICY_NOT_PUBLISHED,
-                title: "Policy not published",
-                detail,
-                command: PROJECT_COMMAND,
-                exitCode: 1,
-              },
-              null,
-              2,
-            )
-          : `${PROJECT_COMMAND}: ${detail}`,
-      text: "",
-    };
-  }
-  try {
-    return policyFromCatalog(catalog, policy);
-  } catch (cause) {
-    return {
-      code: 1,
-      output: `${PROJECT_COMMAND}: the pushed policy does not rebuild: ${describeError(cause)}`,
-      text: "",
-    };
-  }
-}
-
-function isOutcome(value: Policy | GenerateOutcome): value is GenerateOutcome {
-  return "text" in value && "code" in value;
-}
-
 function refused(output: string): GenerateOutcome {
   return { code: 2, output, text: "" };
 }
@@ -160,25 +75,11 @@ export async function runRlsGenerate(
   if (isRefusal(options)) {
     return refused(options.refusal);
   }
-  if (
-    input.project !== undefined &&
-    input.from !== undefined &&
-    input.from !== "drizzle"
-  ) {
-    return refused(
-      "rls generate takes the policy from --project or from a --policy module, not both",
-    );
+  const loaded = await loadGeneratePolicy(input);
+  if (isPolicyLoadFailure(loaded)) {
+    return loaded;
   }
-  let policy: Policy;
-  if (input.project === undefined) {
-    policy = await loadPolicy(input.cwd, input.config, input.from);
-  } else {
-    const loaded = await projectPolicyOf(input, input.project);
-    if (isOutcome(loaded)) {
-      return loaded;
-    }
-    policy = loaded;
-  }
+  const policy = loaded;
   const built = buildContext(input, policy, options);
   if (isRefusal(built)) {
     return refused(built.refusal);
@@ -273,65 +174,18 @@ export async function runRlsGenerate(
       ...extras,
     };
   }
-  const planned = outputFiles({
+  return writeGenerated({
     input,
     outRel: generated.outRel,
     text,
     helpersOnly,
-    sql: () => generated.parts(indexes),
+    parts: () => generated.parts(indexes),
     scopes: ctx.scopes,
     schema: built.schema,
+    migration,
+    migrationRel,
+    backfill: generated.backfill,
+    warnings,
+    extras,
   });
-  if (typeof planned === "string") {
-    return { code: 2, output: planned, text, ...extras };
-  }
-  const files: OutputFile[] = [...planned];
-  if (migrationRel !== undefined) {
-    files.push({ part: "migration", rel: migrationRel, text: migration });
-  }
-  if (input.backfillOut !== undefined && generated.backfill !== undefined) {
-    const file = dataMigrationFile({
-      cwd: input.cwd,
-      out: input.backfillOut,
-      part: "backfill",
-      marker: BACKFILL_MARKER,
-      text: generated.backfill,
-      now: input.io.now?.() ?? dateAt(),
-      check: input.check,
-      reserved: files.map((other) => other.rel),
-    });
-    if (file !== undefined) {
-      files.push(file);
-    }
-  }
-  if (input.check) {
-    const drift = driftOf(input.cwd, files);
-    return drift.length === 0
-      ? { code: 0, output: "rls generate up to date", text, ...extras }
-      : {
-          code: 1,
-          output: drift.map((line) => `rls generate drift: ${line}`).join("\n"),
-          text,
-          ...extras,
-        };
-  }
-  const written = writeOutputFiles(input.cwd, files);
-  const notes = [
-    ...(written.wrote.length === 0
-      ? []
-      : [`wrote ${written.wrote.join(", ")}`]),
-    ...warnings,
-  ];
-  if (written.printed !== "") {
-    // Stdout carries only the printed SQL, so `--out -` pipes into a file.
-    for (const note of notes) {
-      input.io.stderr(note);
-    }
-  }
-  return {
-    code: 0,
-    output: written.printed === "" ? notes.join("\n") : written.printed,
-    text,
-    ...extras,
-  };
 }

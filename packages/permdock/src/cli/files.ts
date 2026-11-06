@@ -5,6 +5,8 @@ import {
   readFileSync,
   readdirSync,
   realpathSync,
+  renameSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -198,8 +200,29 @@ export function readJsonFile(path: string): unknown {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-/** Writes `text` to `path`, creating its directory first. */
+/**
+ * Writes `text` to `path`, creating its directory first. The bytes land in a
+ * temp file beside the target and replace it with one rename, so a reader never
+ * sees a partial file. A character device is written in place.
+ */
 export function writeFileEnsuringDir(path: string, text: string): void {
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, text);
+  if (existsSync(path)) {
+    try {
+      if (statSync(path).isCharacterDevice()) {
+        writeFileSync(path, text);
+        return;
+      }
+    } catch {
+      // The path disappeared between the exists check and the stat.
+    }
+  }
+  const temp = `${path}.permdock-${String(process.pid)}.tmp`;
+  try {
+    writeFileSync(temp, text);
+    renameSync(temp, path);
+  } catch (error) {
+    rmSync(temp, { force: true });
+    throw error;
+  }
 }
