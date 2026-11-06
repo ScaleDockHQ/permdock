@@ -117,6 +117,8 @@ export type RlsSqlContext = {
    * `better_supabase.memo_get` and `memo_set`.
    */
   readonly memo?: "better-supabase";
+  /** `rls.memo: 'none'`: no helper writes a memo, so every helper is plain SQL. */
+  readonly noMemo?: true;
   /**
    * Row predicates read a memoized helper's stored ids and call it only on a
    * miss, so one statement enters the helper once per key.

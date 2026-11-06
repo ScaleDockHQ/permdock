@@ -6,6 +6,7 @@ export default {
   ...assignments,
   permissions: "../assignments/policy.ts",
   policy: "../assignments/policy.ts",
+  rls: { ...assignments.rls, memo: "permdock" },
   supabase: {
     hook: {
       memberships: [

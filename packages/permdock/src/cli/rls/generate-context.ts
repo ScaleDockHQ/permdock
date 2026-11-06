@@ -452,6 +452,9 @@ export function buildContext(
     ...(rls?.memo === "better-supabase"
       ? { memo: "better-supabase" as const }
       : {}),
+    ...(rls?.memo === undefined || rls.memo === "none"
+      ? { noMemo: true as const }
+      : {}),
     ...(memberships === undefined ? {} : { memberships }),
     ...(sources === undefined || sources.length === 0 ? {} : { sources }),
     ...(memberSources === undefined || memberSources.length === 0

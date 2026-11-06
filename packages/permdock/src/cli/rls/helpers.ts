@@ -191,7 +191,7 @@ grant execute on function ${fn}(text) to anon, authenticated;`
 grant execute on function ${fn}(text) to authenticated;`;
   return `create or replace function ${fn}(p_grant text)
 returns ${returns}
-${functionBody(body, !memoizes(ctx))}
+${functionBody(body, !memoizes(ctx), returns.startsWith("setof"))}
 ${grants}`;
 }
 
@@ -215,7 +215,7 @@ function forUserSql(ctx: RlsSqlContext): string {
     const qualifiedName = qualified(ctx, name);
     return `create or replace function ${qualifiedName}(p_user ${type}, p_grant text)
 returns ${returns}
-${functionBody(body, !memoizes(ctx))}
+${functionBody(body, !memoizes(ctx), returns.startsWith("setof"))}
 revoke execute on function ${qualifiedName}(${type}, text) from public, anon, authenticated;`;
   };
   return [

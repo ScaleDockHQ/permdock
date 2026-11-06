@@ -612,6 +612,7 @@ export type Body = {
 
 export function memoizes(ctx: RlsSqlContext): boolean {
   return (
+    ctx.noMemo !== true &&
     ctx.authorize === "database" &&
     ctx.dialect === "supabase" &&
     ctx.grantSet !== true &&
@@ -746,8 +747,12 @@ const SETOF_ROWS = 10;
  * `language sql`, or `plpgsql` returning the query when the body declares
  * variables.
  */
-export function functionBody(body: Body, parallelSafe = false): string {
-  const planner = `cost 1000${parallelSafe ? "\nparallel safe" : ""}`;
+export function functionBody(
+  body: Body,
+  parallelSafe = false,
+  setof = false,
+): string {
+  const planner = `cost 1000${setof ? `\nrows ${String(SETOF_ROWS)}` : ""}${parallelSafe ? "\nparallel safe" : ""}`;
   if (body.memo !== undefined) {
     const declare = [
       ...body.vars,
