@@ -101,6 +101,10 @@ export async function executeGenerate(
   input: GenerateRequest,
 ): Promise<GenerateExecution> {
   const plugins = selected(pluginsOf(input.config.plugins), input.only);
+  const inputs = new Set<string>();
+  if (input.policyPath !== undefined && input.policyPath !== "") {
+    inputs.add(resolve(input.cwd, input.policyPath));
+  }
   const loaded = await withImportGraph(() =>
     requirePolicy(
       input.cwd,
@@ -109,15 +113,11 @@ export async function executeGenerate(
     ),
   );
   const project = await projectContext(input.cwd);
-  const inputs = new Set<string>();
   for (const url of loaded.files) {
     const path = localInput(input.cwd, url);
     if (path !== undefined) {
       inputs.add(path);
     }
-  }
-  if (input.policyPath !== undefined && input.policyPath !== "") {
-    inputs.add(resolve(input.cwd, input.policyPath));
   }
   for (const plugin of plugins) {
     const found = await plugin.inputs(project);
@@ -177,16 +177,14 @@ async function typedModules(
       ? {}
       : { from: input.policyPath }),
   });
-  const files: unknown = Reflect.get(typed.data ?? {}, "files");
+  // SAFETY: runGen always sets data to an object. Check mode omits files.
+  const files: unknown = Reflect.get(typed.data as object, "files");
   const written: string[] = [];
   if (Array.isArray(files)) {
     for (const file of files) {
-      if (file !== null && typeof file === "object" && "path" in file) {
-        const path: unknown = Reflect.get(file, "path");
-        if (typeof path === "string") {
-          written.push(resolve(input.cwd, path));
-        }
-      }
+      // SAFETY: runGen file plans are objects whose path is a string.
+      const path = Reflect.get(file as object, "path") as string;
+      written.push(resolve(input.cwd, path));
     }
   }
   return { ...typed, written };

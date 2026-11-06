@@ -96,42 +96,37 @@ export function isPermDockPlugin(value: unknown): value is PermDockPlugin {
 export function orderPlugins(
   plugins: readonly PermDockPlugin[],
 ): readonly PermDockPlugin[] {
-  const byName = new Map<string, PermDockPlugin>();
+  const byName = new Map<
+    string,
+    { readonly plugin: PermDockPlugin; left: number }
+  >();
   for (const plugin of plugins) {
     if (byName.has(plugin.name)) {
       throw new Error(`PermDock: duplicate plugin '${plugin.name}'`);
     }
-    byName.set(plugin.name, plugin);
+    byName.set(plugin.name, { plugin, left: 0 });
   }
-  const remaining = new Map<string, number>();
-  const dependents = new Map<string, string[]>();
-  for (const plugin of plugins) {
-    const present = plugin.after.filter((name) => byName.has(name));
-    remaining.set(plugin.name, present.length);
+  const dependents = new Map<
+    string,
+    { readonly plugin: PermDockPlugin; left: number }[]
+  >();
+  const nodes = [...byName.values()];
+  for (const node of nodes) {
+    const present = node.plugin.after.filter((name) => byName.has(name));
+    node.left = present.length;
     for (const dep of present) {
       const list = dependents.get(dep) ?? [];
-      list.push(plugin.name);
+      list.push(node);
       dependents.set(dep, list);
     }
   }
-  const ready = plugins
-    .filter((plugin) => (remaining.get(plugin.name) ?? 0) === 0)
-    .map((plugin) => plugin.name);
+  const ready = nodes.filter((node) => node.left === 0);
   const ordered: PermDockPlugin[] = [];
-  while (ready.length > 0) {
-    const name = ready.shift();
-    if (name === undefined) {
-      break;
-    }
-    const plugin = byName.get(name);
-    if (plugin === undefined) {
-      break;
-    }
-    ordered.push(plugin);
-    for (const next of dependents.get(name) ?? []) {
-      const count = (remaining.get(next) ?? 0) - 1;
-      remaining.set(next, count);
-      if (count === 0) {
+  for (const node of ready) {
+    ordered.push(node.plugin);
+    for (const next of dependents.get(node.plugin.name) ?? []) {
+      next.left -= 1;
+      if (next.left === 0) {
         ready.push(next);
       }
     }
