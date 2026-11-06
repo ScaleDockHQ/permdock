@@ -176,23 +176,11 @@
                   "scope": "organization"
                 },
                 "where": {
-                  "op": "and",
-                  "conditions": [
-                    {
-                      "op": "eq",
-                      "field": "assignee_id",
-                      "value": {
-                        "ref": "principal.id"
-                      }
-                    },
-                    {
-                      "op": "eq",
-                      "field": "assignee_id",
-                      "value": {
-                        "ref": "principal.id"
-                      }
-                    }
-                  ]
+                  "op": "eq",
+                  "field": "assignee_id",
+                  "value": {
+                    "ref": "principal.id"
+                  }
                 },
                 "scope": "organization"
               }
@@ -348,23 +336,11 @@
                   "scope": "organization"
                 },
                 "where": {
-                  "op": "and",
-                  "conditions": [
-                    {
-                      "op": "eq",
-                      "field": "assignee_id",
-                      "value": {
-                        "ref": "principal.id"
-                      }
-                    },
-                    {
-                      "op": "eq",
-                      "field": "assignee_id",
-                      "value": {
-                        "ref": "principal.id"
-                      }
-                    }
-                  ]
+                  "op": "eq",
+                  "field": "assignee_id",
+                  "value": {
+                    "ref": "principal.id"
+                  }
                 },
                 "scope": "organization"
               }
