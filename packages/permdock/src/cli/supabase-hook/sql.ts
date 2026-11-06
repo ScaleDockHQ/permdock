@@ -140,7 +140,8 @@ export function hookSql(parts: Parts): string {
       select team_id from ${quoteIdent(parts.schema)}.member_team_ids_for(uid, active) as team(team_id)
     )) with ordinality as u(id, n)
   ), '[]'::jsonb);
-  if octet_length(team_ids::text) > budget then
+  -- the teams share the budget with the attrs and the memberships already kept
+  if used + octet_length(kept::text) + octet_length(team_ids::text) > budget then
     team_truncated := true;
   end if;
   if team_truncated then
