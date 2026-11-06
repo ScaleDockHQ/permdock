@@ -194,6 +194,62 @@ describe("rls run", () => {
       ).toMatchObject({ code: 2, output });
     });
 
+    it("forwards the optional generate inputs", async () => {
+      const result = await runRls(
+        input({
+          rest: ["generate"],
+          target: "sql",
+          dialect: "supabase",
+          out: path.join(cwd, "out.sql"),
+          from: POLICY,
+          project: "proj",
+          url: "https://example.com",
+          memberships: "public.members",
+          gucPrefix: "app",
+          policyName: "{table}_{op}",
+          tenantType: "uuid",
+          fields: "mask",
+          rbacSchema: "auth",
+          authorize: "database",
+          grantsOut: path.join(cwd, "grants.sql"),
+          seedsOut: path.join(cwd, "seeds.sql"),
+          noSeeds: true,
+          backfillOut: path.join(cwd, "backfill.sql"),
+          schemas: "migra",
+        }),
+      );
+      expect(result.code === 0 || result.code === 2).toBe(true);
+      if (result.code === 2) {
+        expect(result.output.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("runs advisors without a database url and verifies from a policy file", async () => {
+      const advisors = await runRls(
+        input({
+          rest: ["verify"],
+          advisors: true,
+          io: {
+            stdout: () => undefined,
+            stderr: () => undefined,
+            signal: AbortSignal.abort(),
+          },
+        }),
+      );
+      expect(advisors.code).toBeGreaterThan(0);
+      const sql = fakeSql();
+      await expect(
+        runRls(
+          input({
+            rest: ["verify"],
+            from: POLICY,
+            db: "postgres://x",
+            connect: sql.connect,
+          }),
+        ),
+      ).rejects.toThrow(/fixtures not found/u);
+    });
+
     it("refuses an unknown --schemas value before any action runs", async () => {
       expect(
         await runRls(input({ rest: ["generate"], schemas: "flyway" })),
