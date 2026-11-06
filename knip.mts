@@ -77,7 +77,10 @@ const config: KnipConfig = {
       entry: [
         "src/fixtures/rsc/{register,render}.ts",
         "src/fixtures/gen/{policy,usage}.ts",
+        // The CLI loads this policy in a temporary project; the generated modules import valibot.
+        "src/fixtures/gen-shake/policy.ts",
       ],
+      ignoreDependencies: ["valibot"],
     },
     "tests/integration": {
       entry: ["fixtures/**/*.ts", "src/support/openai-resume.ts"],

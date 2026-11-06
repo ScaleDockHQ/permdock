@@ -280,9 +280,7 @@ describe("generate coverage", () => {
       });
       expect(wrote.code).toBe(0);
       expect(wrote.inputs).toContain(join(cwd, "policy.ts"));
-      expect(wrote.written).toContain(
-        join(cwd, "src/generated/permdock.generated.ts"),
-      );
+      expect(wrote.written).toContain(join(cwd, "src/permdock/constants.ts"));
       writeFileSync(join(cwd, "echo.txt"), "stale\n");
       const check = await executeGenerate({
         cwd,
@@ -295,13 +293,11 @@ describe("generate coverage", () => {
       });
       expect(check.code).toBe(1);
       expect(check.output).toContain("~ echo.txt");
-      expect(check.output).toContain(
-        "src/generated/permdock.generated.ts is current",
-      );
+      expect(check.output).toContain("src/permdock/constants.ts is current");
       expect(check.written).toContain(join(cwd, "echo.txt"));
-      expect(
-        check.written.some((file) => file.endsWith("permdock.generated.ts")),
-      ).toBe(false);
+      expect(check.written.some((file) => file.endsWith("constants.ts"))).toBe(
+        false,
+      );
       expect(readFileSync(join(cwd, "echo.txt"), "utf8")).toBe("stale\n");
     });
 
@@ -319,12 +315,14 @@ describe("generate coverage", () => {
       expect(dry.code).toBe(0);
       expect(dry.summary.planned).toBe(1);
       expect(dry.output).toBe(
-        "Would create src/generated/permdock.generated.ts",
+        [
+          "Would create src/permdock/constants.ts",
+          "Would create src/permdock/types.ts",
+          "Would create src/permdock/sql.ts",
+        ].join("\n"),
       );
       expect(dry.written).toContain(join(cwd, "echo.txt"));
-      expect(dry.written).toContain(
-        join(cwd, "src/generated/permdock.generated.ts"),
-      );
+      expect(dry.written).toContain(join(cwd, "src/permdock/constants.ts"));
       expect(() => readFileSync(join(cwd, "echo.txt"), "utf8")).toThrow(
         "ENOENT",
       );

@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { measureConsumers } from "./consumers.ts";
+import { measureGenConsumers } from "./gen-consumers.ts";
 import { ENTRIES, exportNames, gzipGraph, walk } from "./graph.ts";
 
 export function measureSizes(): Record<string, number> {
@@ -34,5 +35,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   writeFileSync(
     join(dir, "consumers.json"),
     `${JSON.stringify(await measureConsumers(), null, 2)}\n`,
+  );
+  writeFileSync(
+    join(dir, "gen-consumers.json"),
+    `${JSON.stringify(await measureGenConsumers(), null, 2)}\n`,
   );
 }

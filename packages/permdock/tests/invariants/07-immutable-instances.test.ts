@@ -27,6 +27,8 @@ const MEMO_CACHES: Readonly<Record<string, string>> = {
   [path.join("cli", "project", "package-root.ts")]:
     "the permdock package directory",
   [path.join("cli", "openapi", "schema.ts")]: "compiled JSON Schema validators",
+  [path.join("testing", "factory-kit.ts")]:
+    "the generated factories' id sequence, reset by `resetFactories`; `permdock/testing` is no runtime entry",
   [path.join("better-supabase", "version-cache.ts")]:
     "one adapter per better-supabase cache, keyed weakly by the caller's cache",
 };

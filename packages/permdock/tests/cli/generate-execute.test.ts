@@ -214,9 +214,9 @@ describe(executeGenerate, () => {
       noCache: true,
     });
     expect(wrote.code).toBe(0);
-    expect(
-      wrote.written.some((file) => file.endsWith("permdock.generated.ts")),
-    ).toBe(true);
+    expect(wrote.written.some((file) => file.endsWith("constants.ts"))).toBe(
+      true,
+    );
     await expect(
       executeGenerate({
         cwd,

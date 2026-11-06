@@ -3,7 +3,6 @@ import type { GenModel, GenResource } from "./model.ts";
 
 import { isRecord } from "../../core/compact.ts";
 import { pascalCase } from "./model.ts";
-import { GENERATED, typeOf } from "./schemas.ts";
 
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/u;
 
@@ -68,17 +67,17 @@ function valueOf(schema: JsonSchema, field: string, depth: number): string {
 function stringValue(schema: JsonSchema, field: string): string {
   switch (schema["format"]) {
     case "uuid":
-      return "uuid()";
+      return "factoryUuid()";
     case "email":
-      return "`user${String(next())}@example.com`";
+      return "`user${String(sequence())}@example.com`";
     case "date-time":
       return '"2026-01-01T00:00:00.000Z"';
     case "date":
       return '"2026-01-01"';
     case "uri":
-      return "`https://example.com/${String(next())}`";
+      return "`https://example.com/${String(sequence())}`";
     default:
-      return `text(${JSON.stringify(field)}, ${String(number(schema, "minLength") ?? 0)}, ${String(number(schema, "maxLength") ?? 255)})`;
+      return `factoryText(${JSON.stringify(field)}, ${String(number(schema, "minLength") ?? 0)}, ${String(number(schema, "maxLength") ?? 255)})`;
   }
 }
 
@@ -141,79 +140,51 @@ function factory(resource: Typed, model: GenModel): string {
   const row = `${pascalCase(resource.name)}Row`;
   const refs = refsOf(resource, model);
   const used = [...new Set(refs.values())].map(
-    (name) => `readonly ${name}?: Ref`,
+    (name) => `readonly ${name}?: FactoryRef`,
   );
   const fill = objectValue(resource.schema, 0, refs);
   const params = [
     `overrides: Partial<${row}> = {}`,
     ...(used.length === 0 ? [] : [`refs: { ${used.join("; ")} } = {}`]),
   ];
-  return `  ${key(resource.ident)}: (${params.join(", ")}): ${row} => (${fill === "{}" ? "{ ...overrides }" : `{ ...${fill}, ...overrides }`}),`;
+  return `export const ${resource.ident}Factory = (${params.join(", ")}): ${row} => (${fill === "{}" ? "{ ...overrides }" : `{ ...${fill}, ...overrides }`});`;
 }
-
-const RUNTIME = `let sequence = 0;
-
-/** Restarts the ids and names, so a test reads the same rows on every run. */
-export function resetFactories(): void {
-  sequence = 0;
-}
-
-function next(): number {
-  sequence += 1;
-  return sequence;
-}
-
-function uuid(): string {
-  return \`00000000-0000-4000-8000-\${String(next()).padStart(12, "0")}\`;
-}
-
-function text(field: string, min: number, max: number): string {
-  return \`\${field}-\${String(next())}\`.padEnd(min, "x").slice(0, max);
-}
-
-type Ref = string | { readonly id: string };
-
-function idOf(ref: Ref): string {
-  return typeof ref === "string" ? ref : ref.id;
-}`;
 
 /**
  * `factories`: a row builder per resource that fills the required fields with
- * valid values, plus `subject` for a principal with typed roles and
- * memberships.
+ * valid values, plus `subjectFactory` for a principal with typed roles and
+ * memberships. The sequence lives in `permdock/testing`, so the module holds no
+ * state; it is for tests and imports a test entry.
  */
-export function factoriesModule(model: GenModel): string {
+export function factoriesModule(model: GenModel, header: string): string {
   const resources = model.resources.filter(
     (resource): resource is Typed => resource.schema !== undefined,
   );
-  const types = resources.map(
-    (resource) =>
-      `export type ${pascalCase(resource.name)}Row = ${typeOf(resource.schema)};`,
-  );
+  const rows = resources.map((resource) => `${pascalCase(resource.name)}Row`);
   const roles = model.roles.map((role) => JSON.stringify(role)).join(" | ");
-  const scopes = model.scopes
-    .map((scope) => JSON.stringify(scope.name))
-    .join(" | ");
-  const subject = `export type FactoryMembership = {
-  readonly scope: ${scopes === "" ? "string" : scopes};
-  readonly id: string;
+  const subject = `export type FactorySubject = Principal & {
   readonly roles: readonly (${roles === "" ? "string" : roles})[];
+  readonly memberships: readonly (Membership & { readonly scope: ScopeName })[];
 };
 
-export type FactorySubject = Principal & {
-  readonly roles: readonly (${roles === "" ? "string" : roles})[];
-  readonly memberships: readonly FactoryMembership[];
-};`;
-  const body = [
-    ...resources.map((resource) => factory(resource, model)),
-    `  subject: (input: Partial<FactorySubject> = {}): FactorySubject => ({ id: uuid(), roles: [], memberships: [], ...input }),`,
+export const subjectFactory = (input: Partial<FactorySubject> = {}): FactorySubject => ({ id: factoryUuid(), roles: [], memberships: [], ...input });`;
+  const runtime = new Set(["factoryUuid"]);
+  const body = resources.map((resource) => factory(resource, model));
+  const text = body.join("\n");
+  for (const name of ["factoryText", "idOf", "sequence"]) {
+    if (text.includes(`${name}(`)) {
+      runtime.add(name);
+    }
+  }
+  const imports = [
+    'import type { Membership, Principal } from "permdock";',
+    'import type { FactoryRef } from "permdock/testing";',
+    ...(rows.length === 0
+      ? []
+      : [`import type { ${rows.join(", ")} } from "./types.ts";`]),
+    'import type { ScopeName } from "./constants.ts";',
+    `import { ${[...runtime].toSorted().join(", ")} } from "permdock/testing";`,
+    'export { resetFactories } from "permdock/testing";',
   ];
-  return `${[
-    GENERATED,
-    'import type { Principal } from "permdock";',
-    RUNTIME,
-    ...types,
-    subject,
-    `export const factories = {\n${body.join("\n")}\n};`,
-  ].join("\n\n")}\n`;
+  return `${[header, imports.join("\n"), subject, ...body].join("\n\n")}\n`;
 }

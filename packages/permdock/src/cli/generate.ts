@@ -101,13 +101,27 @@ export type SchemaExpressionOptions = {
    * bounds and a `null` member of `type`.
    */
   readonly constraints?: boolean;
+  /**
+   * Put `/* @__PURE__ *\/` before every constructor call chain, so a bundler
+   * drops the schemas a page does not import.
+   */
+  readonly pure?: boolean;
+  /** `zod/mini` writes `z.optional(x)` and `.check(z.minLength(1))`. */
+  readonly zodMini?: boolean;
 };
 
-type Emit = { readonly resolve: Resolve; readonly constraints: boolean };
+type Emit = {
+  readonly resolve: Resolve;
+  readonly constraints: boolean;
+  readonly mini: boolean;
+};
 
 function bound(node: JsonSchema, key: string): number | undefined {
   const value = node[key];
-  return typeof value === "number" && Number.isFinite(value)
+  // A bound at the safe-integer limit is the one Zod's `int()` already enforces.
+  return typeof value === "number" &&
+    Number.isFinite(value) &&
+    Math.abs(value) !== Number.MAX_SAFE_INTEGER
     ? value
     : undefined;
 }
@@ -160,17 +174,47 @@ const ZOD_FORMATS: Readonly<Record<string, string>> = {
   date: "z.iso.date()",
 };
 
+const ZOD_MINI_CHECKS: Readonly<Record<string, string>> = {
+  min: "gte",
+  max: "lte",
+  gt: "gt",
+  lt: "lt",
+};
+
+/**
+ * A length bound on a string or array is `minLength`; on a number it is a value
+ * bound.
+ */
 function zodChain(
   base: string,
   pairs: readonly (readonly [string, number])[],
+  emit: Emit,
+  length = false,
 ): string {
-  return `${base}${pairs.map(([method, value]) => `.${method}(${String(value)})`).join("")}`;
+  if (!emit.mini) {
+    return `${base}${pairs.map(([method, value]) => `.${method}(${String(value)})`).join("")}`;
+  }
+  if (pairs.length === 0) {
+    return base;
+  }
+  const checks = pairs.map(([method, value]) => {
+    const name = length
+      ? method === "min"
+        ? "minLength"
+        : "maxLength"
+      : (ZOD_MINI_CHECKS[method] ?? method);
+    return `z.${name}(${String(value)})`;
+  });
+  return `${base}.check(${checks.join(", ")})`;
 }
 
 function zodOf(schema: JsonSchema, emit: Emit, depth: number): string {
   const node = emit.resolve(schema);
   const expression = zodNode(node, emit, depth);
-  return isNullable(node, emit) ? `${expression}.nullable()` : expression;
+  if (!isNullable(node, emit)) {
+    return expression;
+  }
+  return emit.mini ? `z.nullable(${expression})` : `${expression}.nullable()`;
 }
 
 function zodNode(node: JsonSchema, emit: Emit, depth: number): string {
@@ -187,22 +231,33 @@ function zodNode(node: JsonSchema, emit: Emit, depth: number): string {
       return zodChain(
         ZOD_FORMATS[formatOf(node, emit) ?? ""] ?? "z.string()",
         bounds(node, emit, LENGTH_BOUNDS),
+        emit,
+        true,
       );
     case "number":
-      return zodChain("z.number()", bounds(node, emit, NUMBER_BOUNDS));
+      return zodChain("z.number()", bounds(node, emit, NUMBER_BOUNDS), emit);
     case "integer":
-      return zodChain("z.number().int()", bounds(node, emit, NUMBER_BOUNDS));
+      return zodChain(
+        emit.mini ? "z.int()" : "z.number().int()",
+        bounds(node, emit, NUMBER_BOUNDS),
+        emit,
+      );
     case "boolean":
       return "z.boolean()";
     case "array":
       return zodChain(
         `z.array(${isRecord(node["items"]) ? zodOf(node["items"], emit, depth + 1) : "z.unknown()"})`,
         bounds(node, emit, ITEM_BOUNDS),
+        emit,
+        true,
       );
     case "object": {
       const fields = objectFields(node).map(([name, child, required]) => {
         const expression = zodOf(child, emit, depth + 1);
-        return `${propertyKey(name)}: ${required ? expression : `${expression}.optional()`}`;
+        const optional = emit.mini
+          ? `z.optional(${expression})`
+          : `${expression}.optional()`;
+        return `${propertyKey(name)}: ${required ? expression : optional}`;
       });
       return `z.object({${fields.length === 0 ? "" : ` ${fields.join(", ")} `}})`;
     }
@@ -388,6 +443,23 @@ function arktypeNode(node: JsonSchema, emit: Emit, depth: number): string {
   }
 }
 
+const PURE = "/* @__PURE__ */ ";
+
+/**
+ * Puts the pure annotation before each call chain that starts with `root.` (or
+ * `root(` for ArkType's `type`), skipping string literals. The chain is one
+ * call expression to a bundler, so one comment per chain is enough.
+ */
+function annotated(expression: string, root: string): string {
+  const start = new RegExp(String.raw`(?<![\w.$])${root}(?=[.(])`, "gu");
+  return expression
+    .split(/("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')/u)
+    .map((part, index) =>
+      index % 2 === 1 ? part : part.replaceAll(start, `${PURE}${root}`),
+    )
+    .join("");
+}
+
 /**
  * A validator expression for a JSON Schema object. Only the portable core
  * (primitives, enums of strings, arrays, objects with `required`) is
@@ -400,15 +472,26 @@ export function schemaExpression(
   resolve: Resolve = (node) => node,
   options: SchemaExpressionOptions = {},
 ): string {
-  const emit: Emit = { resolve, constraints: options.constraints === true };
+  const emit: Emit = {
+    resolve,
+    constraints: options.constraints === true,
+    mini: options.zodMini === true,
+  };
+  const pure = options.pure === true;
   switch (kind) {
     case "zod":
-      return zodOf(schema, emit, 0);
+      return pure
+        ? annotated(zodOf(schema, emit, 0), "z")
+        : zodOf(schema, emit, 0);
     case "valibot":
-      return valibotOf(schema, emit, 0);
+      return pure
+        ? annotated(valibotOf(schema, emit, 0), "v")
+        : valibotOf(schema, emit, 0);
     case "arktype": {
       const definition = arktypeOf(schema, emit, 0);
-      return `type(${definition})`;
+      return pure
+        ? annotated(`type(${definition})`, "type")
+        : `type(${definition})`;
     }
     default: {
       const exhaustive: never = kind;

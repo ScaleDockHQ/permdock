@@ -1121,15 +1121,21 @@ export type GenKind =
 
 /** `permdock gen` input. */
 export type GenConfig = {
-  /** The directory the generated files go to; default `src/generated`. */
+  /** The directory the generated files go to; default `src/permdock`. */
   readonly out?: string;
   /** The kinds `permdock gen` writes without `--kind`; default `['constants']`. */
   readonly kinds?: readonly GenKind[];
   /**
-   * The schema kinds also export `<resource>Fields`: per field its `label`,
-   * `required`, enum `options` and bounds, for forms.
+   * Also write `fields.ts`: `<resource>Fields` per resource, with each field's
+   * `label`, `required`, enum `options` and bounds, for forms. A form page
+   * imports it; a validator page does not.
    */
-  readonly fieldMeta?: boolean;
+  readonly fields?: boolean;
+  /** Zod output settings. */
+  readonly zod?: {
+    /** `zod/mini` writes the functional, tree-shakeable API; default `zod`. */
+    readonly specifier?: "zod" | "zod/mini";
+  };
 };
 
 /**

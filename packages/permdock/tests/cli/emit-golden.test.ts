@@ -127,14 +127,21 @@ describe("emitted parts", () => {
         buckets: [],
       },
       {
-        fieldMeta: false,
-        rel: "src/generated/permdock.generated.ts",
-        file: "/tmp/permdock.generated.ts",
+        fields: false,
+        zodSpecifier: "zod",
+        rel: "src/permdock/constants.ts",
+        file: "/tmp/constants.ts",
         policy: "/tmp/policy.ts",
         previous: undefined,
+        header: { version: "0.0.0", policy: "policy.ts", hash: "digest" },
       },
     );
-    expect(text).toContain('"schema": "app"');
-    expect(text).toContain("export const roles");
+    expect(text.map((file) => file.name)).toStrictEqual([
+      "constants.ts",
+      "types.ts",
+      "sql.ts",
+    ]);
+    expect(text[2]?.text).toContain("helperSchema");
+    expect(text[0]?.text).toContain("export const roleNames");
   });
 });

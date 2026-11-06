@@ -343,6 +343,18 @@
       "types": "./dist/cli/plugins/scim.d.ts",
       "default": "./dist/cli/plugins/scim.js"
     },
+    "./cli/plugins/schemas": {
+      "types": "./dist/cli/plugins/schemas.d.ts",
+      "default": "./dist/cli/plugins/schemas.js"
+    },
+    "./cli/plugins/ui": {
+      "types": "./dist/cli/plugins/ui.d.ts",
+      "default": "./dist/cli/plugins/ui.js"
+    },
+    "./cli/plugins/app": {
+      "types": "./dist/cli/plugins/app.d.ts",
+      "default": "./dist/cli/plugins/app.js"
+    },
     "./unplugin": {
       "types": "./dist/unplugin/index.d.ts",
       "default": "./dist/unplugin/index.js"

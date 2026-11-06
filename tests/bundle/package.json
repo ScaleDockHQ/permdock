@@ -25,7 +25,9 @@
     "solid-js": "catalog:",
     "svelte": "catalog:",
     "typescript": "catalog:",
+    "valibot": "catalog:",
     "vitest": "catalog:",
-    "vue": "catalog:"
+    "vue": "catalog:",
+    "zod": "catalog:"
   }
 }

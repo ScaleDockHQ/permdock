@@ -168,3 +168,11 @@ export type {
   SupabaseClaimVectors,
 } from "./supabase-fixtures.ts";
 export { PROBLEM_EXAMPLES } from "./problem-examples.ts";
+export {
+  factoryText,
+  factoryUuid,
+  idOf,
+  resetFactories,
+  sequence,
+} from "./factory-kit.ts";
+export type { FactoryRef } from "./factory-kit.ts";
