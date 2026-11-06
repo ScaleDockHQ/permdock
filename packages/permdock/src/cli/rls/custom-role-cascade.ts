@@ -1,6 +1,6 @@
 import type { RlsSqlContext } from "../sql/context.ts";
 
-import { qualifySqlTable } from "../../core/sql.ts";
+import { qualifySqlTable, sqlTextArray } from "../../core/sql.ts";
 import { tenantTypeOf } from "../sql/columns.ts";
 import { qualified, quoteIdent, quoteTable } from "../sql/quote.ts";
 import { CUSTOM_ROLES, allowEntry, signedIn } from "../sql/shared.ts";
@@ -20,10 +20,11 @@ function cascadeMatch(prefix: string): string {
  * The trigger on the application's roles table (`rls.customRoleWrites.roles`):
  * a rename, a move to another tenant, scope or instance, or a delete of a
  * custom role's row carries its grants and includes along. A signed-in caller
- * at trigger depth 1 passes the write functions' checks: authority over the
- * stored definition where it was, and, after a move, membership and authority
- * where it lands and entries inside that scope's ceiling. Other paths (a
- * migration, a job, a nested trigger) move the rows as the function owner.
+ * passes the write functions' checks unless the transaction set
+ * `permdock.sync`: authority over the stored definition where it was, and,
+ * after a move, membership and authority where it lands and entries inside that
+ * scope's ceiling. Other paths (a migration, a job, a nested trigger) move the
+ * rows as the function owner.
  */
 export function customRoleCascadeSql(ctx: RlsSqlContext): string {
   const custom = ctx.customRoles;
@@ -73,7 +74,7 @@ declare
   v_new_scope text;
   v_new_id text;
   v_new_key text;
-  v_checked boolean := ${signedIn(ctx)} and pg_trigger_depth() = 1;
+  v_checked boolean := ${signedIn(ctx)} and current_setting('permdock.sync', true) is distinct from 'on';
   v_allow text[];
   v_deny text[];
   v_include text[];
@@ -101,8 +102,12 @@ begin
     perform ${guard}(v_old_tenant, v_old_scope, v_old_id, v_old_key);
   end if;
   if v_new_key is null then
-    delete from ${perms} c where ${cascadeMatch("old")};
-    delete from ${includes} c where ${cascadeMatch("old")};
+    perform set_config('permdock.sync', 'on', true);
+    perform ${qualified(ctx, CUSTOM_ROLES.trustedRemove)}(v_old_tenant, v_old_scope, v_old_id, v_old_key);
+    delete from ${includes} c
+    where c.include_role = v_old_key
+      and not (v_old_key = any(${sqlTextArray(custom.declared)}));
+    perform set_config('permdock.sync', '', true);
     return null;
   end if;
   if exists (select 1 from ${perms} c where ${cascadeMatch("new")})

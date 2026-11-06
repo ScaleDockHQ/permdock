@@ -59,6 +59,16 @@ describe("custom role cascade", () => {
     expect(sql).toContain(
       'revoke execute on function "permdock".permdock_cascade_custom_role() from public, anon, authenticated;',
     );
+    expect(sql).toContain(`v_old_key text := old."name"::text;`);
+    expect(sql).toContain("permdock.sync");
+    expect(sql).toContain(
+      `"permdock".permdock_trusted_delete_custom_role_grants(v_old_tenant, v_old_scope, v_old_id, v_old_key)`,
+    );
+    expect(sql).toContain(
+      "c.include_role = v_old_key\n      and not (v_old_key = any(array['admin', 'member', 'owner', 'viewer']::text[]))",
+    );
+    expect(sql).not.toContain("display_name");
+    expect(sql).not.toMatch(/v_old_key text := old\."id"/u);
   });
 
   it("treats a table without a tenant column as platform roles", () => {

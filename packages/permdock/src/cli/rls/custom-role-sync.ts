@@ -14,10 +14,11 @@ import { raiseSql } from "./custom-roles.ts";
  * same reads the backfill uses. An entry outside the ceiling is dropped with a
  * warning rather than aborting the legacy write, and a tenant role whose name a
  * shared role holds is skipped with a warning (`name-taken`). Before-row
- * triggers hold a signed-in caller at trigger depth 1 to the checks of
- * `permdock_replace_custom_role_grants`: `permdock_custom_role_guard` on each
- * role the row names, the entry it adds against the ceiling, then
- * `permdock_custom_role_beyond` on that entry; a refusal aborts the write.
+ * triggers hold a signed-in caller, unless the transaction set `permdock.sync`,
+ * to the checks of `permdock_replace_custom_role_grants`:
+ * `permdock_custom_role_guard` on each role the row names, the entry it adds
+ * against the ceiling, then `permdock_custom_role_beyond` on that entry; a
+ * refusal aborts the write.
  */
 export function customRoleSyncSql(
   ctx: RlsSqlContext,
@@ -76,7 +77,9 @@ begin
     end if;
     v_dropped := '{}'::text[];
 ${plan.collect}${keepIncludes}
+    perform set_config('permdock.sync', 'on', true);
     perform ${plan.replace}(v.tenant_id, v.scope, v.scope_id, v.role, v_allow, v_deny, v_include);
+    perform set_config('permdock.sync', '', true);
     if cardinality(v_dropped) > 0 then
       raise warning 'permdock sync: dropped % entr(ies) PermDock cannot hold: %', cardinality(v_dropped), ${DROPPED_LIST};
     end if;
@@ -121,7 +124,7 @@ declare
     case when tg_op <> 'DELETE' then new.${quoteIdent(ref.ref)}::text end
   ];
 begin
-  if not (${signedIn(ctx)} and pg_trigger_depth() = 1) then
+  if not (${signedIn(ctx)}) or current_setting('permdock.sync', true) = 'on' then
     return coalesce(new, old);
   end if;
   for v in
