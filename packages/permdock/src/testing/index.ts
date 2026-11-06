@@ -38,6 +38,7 @@ export type {
 export { snapshotFixture } from "./snapshot-fixture.ts";
 export { seedRows } from "./seed-rows.ts";
 export type { SeedRows } from "./seed-rows.ts";
+export { applySeeds, memorySources } from "./apply-seeds.ts";
 export { testHttpAdapter } from "./http-adapter/scenarios.ts";
 export type {
   HttpAdapterOptions,

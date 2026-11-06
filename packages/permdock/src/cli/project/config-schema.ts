@@ -15,6 +15,7 @@ const TOP_LEVEL: ReadonlySet<string> = new Set<string>([
   ...Object.keys(MODULE_KEYS),
   ...Object.keys(CONFIG_SHAPE),
   "plugins",
+  "seeds",
 ]);
 
 export type ParsedConfig = {
@@ -53,6 +54,12 @@ export function parseConfig(value: unknown, file: string): ParsedConfig {
           file,
           "plugins must be an array of definePlugin() results",
         );
+      }
+      continue;
+    }
+    if (key === "seeds") {
+      if (entry !== undefined && !isRecord(entry)) {
+        throw invalid(file, "seeds must be the object defineSeeds returns");
       }
       continue;
     }

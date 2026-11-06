@@ -215,7 +215,7 @@ export default { permissions };
       expectTypeOf<keyof typeof CONFIG_SHAPE>().toEqualTypeOf<
         Exclude<
           keyof PermDockConfig,
-          "permissions" | "policy" | "operations" | "plugins"
+          "permissions" | "policy" | "operations" | "plugins" | "seeds"
         >
       >();
       expect(Object.keys(CONFIG_SHAPE).toSorted()).toStrictEqual([

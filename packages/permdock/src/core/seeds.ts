@@ -1,6 +1,7 @@
 import type { Permission } from "./permission-types.ts";
 import type { Policy } from "./policy-types.ts";
 
+import { isRecord } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { listPermissions } from "./permission-registry.ts";
 
@@ -67,6 +68,16 @@ export type Seeds = {
     >;
   };
 };
+
+/** A frozen `defineSeeds` result. */
+export function isSeeds(value: unknown): value is Seeds {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const defaults: unknown = Reflect.get(value, "defaults");
+  const fixtures: unknown = Reflect.get(value, "fixtures");
+  return isRecord(defaults) && isRecord(fixtures);
+}
 
 function roleOf(role: SeedRole): FrozenSeedRole {
   return {

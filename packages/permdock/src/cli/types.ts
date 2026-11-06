@@ -1,4 +1,5 @@
 import type { CatalogUsage } from "../catalog/types.ts";
+import type { Seeds } from "../core/seeds.ts";
 import type { SqlMembershipSource } from "../supabase/sources.ts";
 import type { RoleMap, RoleThrough } from "../supabase/types.ts";
 import type { ExitCode } from "./core/errors.ts";
@@ -1080,6 +1081,12 @@ export type PermDockConfig = {
    * list writes the core outputs only.
    */
   readonly plugins?: readonly unknown[];
+  /**
+   * `defineSeeds` output. Defaults become a data migration. Fixtures become
+   * `supabase/seeds/permdock.sql`. `rls.seeds` still chooses `'function'` or
+   * `'view'` for the compiled `role_permissions` rows.
+   */
+  readonly seeds?: Seeds;
 };
 
 /** What `permdock gen --kind` writes. */

@@ -1,7 +1,17 @@
 import type { EmittedFile, EmitSource, PluginTask } from "../plugin.ts";
 import type { RlsPluginOptions } from "./rls.ts";
 
+import { isSeeds } from "../../../core/seeds.ts";
+import { dateAt } from "../../../core/time.ts";
 import { CliError } from "../../core/errors.ts";
+import { seedsMigration } from "../../core/output-files.ts";
+import {
+  DEFAULTS_MARKER,
+  FIXTURES_PATH,
+  defaultsSeedSql,
+  fixturesPresent,
+  fixturesSeedSql,
+} from "../../rls/emit/seed-sql.ts";
 import { runRlsGenerate } from "../../rls/generate.ts";
 import { applyRlsPlugin } from "./rls-options.ts";
 
@@ -74,7 +84,38 @@ export async function filesForRls(
       { code: outcome.code === 2 ? "config_invalid" : "check_failed" },
     );
   }
-  return (
-    outcome.files ?? [{ path: applied.out ?? task.out, contents: outcome.text }]
-  );
+  const files: EmittedFile[] = [
+    ...(outcome.files ?? [
+      { path: applied.out ?? task.out, contents: outcome.text },
+    ]),
+  ];
+  const seeds = source.config.seeds;
+  if (!isSeeds(seeds)) {
+    return files;
+  }
+  const schema = applied.config.schema ?? "permdock";
+  const mode = applied.config.seeds;
+  if (
+    !applied.noSeeds &&
+    mode !== "function" &&
+    mode !== "view" &&
+    seeds.defaults.roles.length > 0
+  ) {
+    const text = defaultsSeedSql(seeds, schema);
+    const planned = seedsMigration(
+      source.cwd,
+      "supabase/migrations",
+      DEFAULTS_MARKER,
+      text,
+      dateAt(),
+      "defaults",
+    );
+    if (!planned.current) {
+      files.push({ path: planned.rel, contents: text });
+    }
+  }
+  if (fixturesPresent(seeds)) {
+    files.push({ path: FIXTURES_PATH, contents: fixturesSeedSql(seeds) });
+  }
+  return files;
 }

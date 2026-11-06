@@ -148,7 +148,7 @@ const GEN = {
 
 export type Section = Exclude<
   keyof PermDockConfig,
-  "permissions" | "policy" | "operations" | "plugins"
+  "permissions" | "policy" | "operations" | "plugins" | "seeds"
 >;
 
 export type ModuleKey = "permissions" | "policy" | "operations";

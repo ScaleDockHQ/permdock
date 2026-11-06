@@ -61,6 +61,7 @@ import {
   pd076,
   pd086,
 } from "./rls.ts";
+import { pd097 } from "./seed-data.ts";
 import { pd054 } from "./seeds.ts";
 import {
   pd001,
@@ -413,6 +414,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   },
   { code: "PD091", groups: ["openapi"], when: pd091Applies, run: pd091 },
   { code: "PD092", groups: ["project"], run: pd092 },
+  { code: "PD097", groups: ["rls", "seeds"], run: pd097 },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
   { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },
 ];
