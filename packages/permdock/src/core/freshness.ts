@@ -60,6 +60,7 @@ export function rereadStale(
   auth: AuthEvent[],
   readRoles?: () => readonly string[] | Promise<readonly string[]>,
   known?: number,
+  force = false,
 ): {
   readonly memberships: readonly Membership[] | Promise<readonly Membership[]>;
   readonly stale: boolean | Promise<boolean>;
@@ -68,12 +69,15 @@ export function rereadStale(
   const claims = principal.memberships ?? [];
   const claimed = principal.authzVersion;
   const judge = (current: number | undefined): Freshness =>
-    typeof claimed === "number" && current !== undefined && claimed >= current
-      ? "fresh"
-      : "reread";
+    force ||
+    typeof claimed !== "number" ||
+    current === undefined ||
+    claimed < current
+      ? "reread"
+      : "fresh";
   const unknown = (): Freshness => {
     threw(source, auth);
-    return "unknown";
+    return force ? "reread" : "unknown";
   };
   let freshness: Freshness | Promise<Freshness>;
   try {

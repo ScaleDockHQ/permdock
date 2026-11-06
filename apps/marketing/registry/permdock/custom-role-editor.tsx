@@ -17,7 +17,7 @@ type CustomRoleEditorProps = {
  * validates the saved role again.
  */
 export function CustomRoleEditor({ value, onChange }: CustomRoleEditorProps) {
-  const permissions = useAssignablePermissions();
+  const { permissions } = useAssignablePermissions();
   const selected = new Set(value);
   return (
     <div className="grid gap-2">

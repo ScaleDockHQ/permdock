@@ -231,7 +231,7 @@ describe("permdock/solid hooks", () => {
             keys(team().roles),
             keys(held().roles),
             keys(assignable()),
-            leaves().length > 0,
+            leaves().permissions.length > 0,
             subject().principal?.id,
             subject().simulated,
           ].join(":");

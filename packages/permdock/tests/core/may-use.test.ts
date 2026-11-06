@@ -88,6 +88,11 @@ describe(mayUse, () => {
     };
     expect(permdock([elsewhere]).mayUse(permissions.doc.read)).toBe(false);
     expect(permdock([here]).mayUse(permissions.doc.read)).toBe(true);
+    const untented = permdock([elsewhere], {
+      principal: { id: "u1", roles: ["member"] },
+    });
+    expect(untented.mayUse(permissions.doc.read)).toBe(true);
+    expect(untented.can(permissions.doc.read, { id: "d" })).toBe(false);
   });
 
   it("is false when the delegation covers no row of the permission", () => {

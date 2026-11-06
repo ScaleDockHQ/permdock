@@ -26,6 +26,36 @@ import type {
 } from "./types.ts";
 
 import { describe, requiredPlans } from "../core/describe.ts";
+import { isThenable } from "../core/thenable.ts";
+
+export type AssignablePermissionsView = {
+  readonly permissions: readonly Permission[];
+  /** `server-only` when the list comes from a local snapshot. */
+  readonly status: "ready" | "server-only";
+};
+
+/**
+ * The permissions the subject may hand out, and whether the server must confirm
+ * them.
+ */
+export function assignablePermissionsView(
+  permdock: Pick<ClientPermDock, "assignablePermissions" | "snapshot">,
+  options: { readonly tenant?: string } = {},
+): AssignablePermissionsView {
+  let local = false;
+  try {
+    const snapshot = permdock.snapshot();
+    local = !isThenable(snapshot) && snapshot.local === true;
+  } catch {
+    local = true;
+  }
+  return {
+    permissions: permdock.assignablePermissions(
+      options.tenant === undefined ? {} : { tenant: options.tenant },
+    ),
+    status: local ? "server-only" : "ready",
+  };
+}
 
 export function permissionSet(
   store: ClientStore,

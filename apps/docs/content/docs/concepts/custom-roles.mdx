@@ -235,13 +235,13 @@ export function RoleColumn({
   role: CustomRole;
   onToggle: (key: string, on: boolean) => void;
 }) {
-  const offered = useAssignablePermissions(); // the ceiling this admin may hand out
+  const offered = useAssignablePermissions(); // { permissions, status }; a local snapshot is server-only
   const granted = new Set(
     (role.grants ?? [])
       .filter((g) => g.effect !== "deny")
       .map((g) => g.permission),
   );
-  return offered.map((leaf) => (
+  return offered.permissions.map((leaf) => (
     <label key={leaf.key}>
       <input
         type="checkbox"

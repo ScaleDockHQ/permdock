@@ -36,6 +36,7 @@ import {
   actionApproval,
   actionRunner,
   approvalHandle,
+  assignablePermissionsView,
   describeWith,
   filterResult,
   gateView,
@@ -176,10 +177,14 @@ export function useAssignablePermissions(
   options:
     | { readonly tenant?: string }
     | Accessor<{ readonly tenant?: string }> = {},
-): Accessor<readonly Permission[]> {
+): Accessor<{
+  readonly permissions: readonly Permission[];
+  readonly status: "ready" | "server-only";
+}> {
   const permdock = usePermDock();
   return createMemo(() =>
-    permdock.assignablePermissions(
+    assignablePermissionsView(
+      permdock,
       typeof options === "function" ? options() : options,
     ),
   );

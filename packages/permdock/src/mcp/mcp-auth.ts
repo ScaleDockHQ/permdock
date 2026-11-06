@@ -6,6 +6,7 @@ import type {
 import type { McpAuthInfo, McpPermDockOptions } from "./types.ts";
 
 import { isRecord } from "../core/compact.ts";
+import { authorizationDetailsOf } from "../core/delegation-input.ts";
 import { hasScope } from "../core/oauth-scopes.ts";
 import { protectedResourceMetadataUrl } from "../server/problem.ts";
 
@@ -143,10 +144,25 @@ export function declaredScopes(
   return Object.freeze([first, ...rest]);
 }
 
+export type ChallengeInput = {
+  readonly unscopedTokens?: "deny" | "subject";
+  readonly resource?: string | URL;
+  readonly policyScopes: ReadonlySet<string>;
+};
+
+function subjectDecides(input: ChallengeInput, authInfo: McpAuthInfo): boolean {
+  return (
+    input.unscopedTokens === "subject" &&
+    authorizationDetailsOf(authInfo.extra) === undefined &&
+    !(authInfo.scopes ?? []).some((scope) => input.policyScopes.has(scope))
+  );
+}
+
 export function challengeFor(
   own: ScopeChallengeHandler | undefined,
   reaching: readonly string[],
   challenged: string,
+  input?: ChallengeInput,
 ): ScopeChallengeHandler {
   return async (context) => {
     const first = await own?.(context);
@@ -155,6 +171,14 @@ export function challengeFor(
     }
     const authInfo = context.authInfo;
     if (authInfo === undefined || hasScope(authInfo.scopes, reaching)) {
+      return undefined;
+    }
+    if (
+      input !== undefined &&
+      ((input.resource !== undefined &&
+        !sameResource(input.resource, authInfo.resource)) ||
+        subjectDecides(input, authInfo))
+    ) {
       return undefined;
     }
     return { scopes: [challenged] } satisfies ScopeChallenge;

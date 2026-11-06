@@ -96,7 +96,7 @@ export function mayUse(permdock: PermDock, permission: Permission): boolean {
         grant.membership === undefined
           ? undefined
           : tenantOf(grant.membership, scopes);
-      return owner === undefined || owner === tenant;
+      return owner === undefined || tenant === undefined || owner === tenant;
     });
     if (grants.some(blocksEveryRow)) {
       return false;

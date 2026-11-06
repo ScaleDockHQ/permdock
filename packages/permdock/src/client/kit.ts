@@ -22,6 +22,7 @@ export { adapterStore } from "./store-options.ts";
 export { storeOf } from "./store-core.ts";
 export {
   approvalHandle,
+  assignablePermissionsView,
   describeWith,
   filterResult,
   gateView,

@@ -37,6 +37,7 @@ import {
   actionApproval,
   actionRunner,
   approvalHandle,
+  assignablePermissionsView,
   describeWith,
   filterResult,
   gateView,
@@ -193,9 +194,14 @@ export function useAssignableRoles(): ComputedRef<readonly Role[]> {
 
 export function useAssignablePermissions(
   options: MaybeRefOrGetter<{ readonly tenant?: string }> = {},
-): ComputedRef<readonly Permission[]> {
+): ComputedRef<{
+  readonly permissions: readonly Permission[];
+  readonly status: "ready" | "server-only";
+}> {
   const permdock = useTick(useStore());
-  return computed(() => permdock.value.assignablePermissions(toValue(options)));
+  return computed(() =>
+    assignablePermissionsView(permdock.value, toValue(options)),
+  );
 }
 
 export function useSubject(): ComputedRef<SubjectView> {

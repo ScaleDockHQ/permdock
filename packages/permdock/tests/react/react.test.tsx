@@ -61,7 +61,7 @@ function Probe(): string {
 function AssignableProbe(): string {
   const leaves = useAssignablePermissions();
   const other = useAssignablePermissions({ tenant: "globex" });
-  return `${leaves.map((leaf) => leaf.key).join(",")}|${other.length}`;
+  return `${leaves.status}:${leaves.permissions.map((leaf) => leaf.key).join(",")}|${other.status}:${other.permissions.length}`;
 }
 
 describe(useAssignablePermissions, () => {
@@ -77,10 +77,13 @@ describe(useAssignablePermissions, () => {
       </PermDockProvider>,
     );
     const [acme = "", globex] = html.split("|");
-    expect(acme.split(",")).toContain("project.update");
-    expect(acme.split(",")).not.toContain("billing.read");
-    expect(Number(globex)).toBeGreaterThan(0);
-    expect(acme.split(",")).toStrictEqual(
+    const [status = "", ...keys] = acme.split(":");
+    expect(status).toBe("ready");
+    expect(keys.join(":").split(",")).toContain("project.update");
+    expect(keys.join(":").split(",")).not.toContain("billing.read");
+    expect(globex?.startsWith("ready:")).toBe(true);
+    expect(Number(globex?.slice("ready:".length))).toBeGreaterThan(0);
+    expect(keys.join(":").split(",")).toStrictEqual(
       server.assignablePermissions().map((leaf) => leaf.key),
     );
   });
