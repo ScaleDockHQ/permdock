@@ -50,10 +50,18 @@ describe(policyModel, () => {
         meta: permissions.doc.read.meta,
       },
     ]);
-    expect(model.roles[0]?.grants[0]?.where).toStrictEqual({
-      portable: true,
-      condition: { op: "eq", field: "status", value: "open" },
-    });
+    const where = model.roles[0]?.grants[0]?.where;
+    expect(where?.portable).toBe(true);
+    if (where?.portable === true) {
+      expect(where.condition).toStrictEqual({
+        op: "eq",
+        field: "status",
+        value: "open",
+      });
+      expect(where.rls).toContain("open");
+      expect(where.stream).toContain("open");
+      expect(where.stream).not.toContain("<>");
+    }
     expect(model.roles[0]?.grants[1]?.where).toStrictEqual({
       portable: false,
       key: "doc.read",

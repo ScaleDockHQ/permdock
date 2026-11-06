@@ -77,6 +77,7 @@ export const generate: Leaf = defineLeaf({
         cwd: ctx.cwd,
         policy,
         plugins: selected(pluginsOf(ctx.config.plugins), flags.only),
+        config: ctx.config,
         ctx: project,
         check: flags.check,
         dryRun: flags["dry-run"],

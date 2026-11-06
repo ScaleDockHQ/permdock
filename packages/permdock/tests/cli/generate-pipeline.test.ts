@@ -63,6 +63,7 @@ describe("generate pipeline", () => {
       cwd,
       policy,
       plugins: [plugin("rules")],
+      config: {},
       ctx,
       check: false,
       dryRun: false,
@@ -77,6 +78,7 @@ describe("generate pipeline", () => {
       cwd,
       policy,
       plugins: [plugin("rules")],
+      config: {},
       ctx,
       check: false,
       dryRun: false,
@@ -87,6 +89,7 @@ describe("generate pipeline", () => {
       cwd,
       policy,
       plugins: [plugin("rules")],
+      config: {},
       ctx,
       check: true,
       dryRun: false,
@@ -95,7 +98,9 @@ describe("generate pipeline", () => {
     expect(check.diff).toBe("");
   });
 
-  it("refuses a plugin that follows one that is not configured", () => {
-    expect(() => orderPlugins([plugin("b", ["a"])])).toThrow(/follows 'a'/u);
+  it("skips an after name that is not configured", () => {
+    expect(
+      orderPlugins([plugin("b", ["a"])]).map((item) => item.name),
+    ).toStrictEqual(["b"]);
   });
 });

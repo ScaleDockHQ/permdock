@@ -294,6 +294,8 @@ export async function runOpenapi(input: {
   readonly tokenUrl?: string | undefined;
   readonly deviceAuthorizationUrl?: string | undefined;
   readonly io: CliIo;
+  /** Return the document text and do not write it. */
+  readonly preview?: boolean;
 }): Promise<CommandResult> {
   const action = input.rest[0] ?? "emit";
   if (action !== "emit") {
@@ -391,6 +393,9 @@ export async function runOpenapi(input: {
     return { code: 1, output: conformance };
   }
   const text = stableJson(result);
+  if (input.preview === true) {
+    return { code: 0, output: text };
+  }
   const outFile = input.out ?? input.doc;
   const outPath = resolve(input.cwd, outFile);
   if (input.check) {

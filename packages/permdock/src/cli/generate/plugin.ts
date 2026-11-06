@@ -1,5 +1,18 @@
+import type { Policy } from "../../core/policy-types.ts";
+import type { PermDockConfig } from "../types.ts";
 import type { ProjectContext } from "./context.ts";
 import type { PolicyModel } from "./model.ts";
+
+/**
+ * The loaded project. Built-in plugins use it to call the current generators. A
+ * third-party plugin ignores it; `emit` stays a function of `task` and `model`
+ * when this is absent, which is how a worker runs it.
+ */
+export type EmitSource = {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+  readonly policy: Policy;
+};
 
 /** One unit of emit. `out` is the file the task owns, relative to the project. */
 export type PluginTask = { readonly id: string; readonly out: string };
@@ -29,6 +42,7 @@ export type PermDockPlugin = {
   readonly emit: (
     task: PluginTask,
     model: PolicyModel,
+    source?: EmitSource,
   ) => readonly EmittedFile[] | Promise<readonly EmittedFile[]>;
 };
 
@@ -75,7 +89,8 @@ export function isPermDockPlugin(value: unknown): value is PermDockPlugin {
 }
 
 /**
- * Plugins in `after` order. Ties keep the input order. A missing name or a
+ * Plugins in `after` order. Ties keep the input order. An `after` name that is
+ * not configured is skipped: ordering only, and emit does not require it. A
  * cycle throws; nothing is written when this throws.
  */
 export function orderPlugins(
@@ -88,27 +103,19 @@ export function orderPlugins(
     }
     byName.set(plugin.name, plugin);
   }
-  for (const plugin of plugins) {
-    for (const dep of plugin.after) {
-      if (!byName.has(dep)) {
-        throw new Error(
-          `PermDock: plugin '${plugin.name}' follows '${dep}', which is not in plugins`,
-        );
-      }
-    }
-  }
   const remaining = new Map<string, number>();
   const dependents = new Map<string, string[]>();
   for (const plugin of plugins) {
-    remaining.set(plugin.name, plugin.after.length);
-    for (const dep of plugin.after) {
+    const present = plugin.after.filter((name) => byName.has(name));
+    remaining.set(plugin.name, present.length);
+    for (const dep of present) {
       const list = dependents.get(dep) ?? [];
       list.push(plugin.name);
       dependents.set(dep, list);
     }
   }
   const ready = plugins
-    .filter((plugin) => plugin.after.length === 0)
+    .filter((plugin) => (remaining.get(plugin.name) ?? 0) === 0)
     .map((plugin) => plugin.name);
   const ordered: PermDockPlugin[] = [];
   while (ready.length > 0) {

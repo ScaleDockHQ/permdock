@@ -1,4 +1,5 @@
 import type { Policy } from "../../core/policy-types.ts";
+import type { PermDockConfig } from "../types.ts";
 import type { ProjectContext } from "./context.ts";
 import type { PolicyModel } from "./model.ts";
 import type { PermDockPlugin, PluginTask } from "./plugin.ts";
@@ -71,6 +72,7 @@ export async function runGenerate(input: {
   readonly cwd: string;
   readonly policy: Policy;
   readonly plugins: readonly PermDockPlugin[];
+  readonly config: PermDockConfig;
   readonly ctx: ProjectContext;
   readonly check: boolean;
   readonly dryRun: boolean;
@@ -89,7 +91,11 @@ export async function runGenerate(input: {
   }
   const emitted: { plugin: string; path: string; contents: string }[] = [];
   for (const item of tasks) {
-    for (const file of await item.plugin.emit(item.task, model)) {
+    for (const file of await item.plugin.emit(item.task, model, {
+      cwd: input.cwd,
+      config: input.config,
+      policy: input.policy,
+    })) {
       emitted.push({
         plugin: item.plugin.name,
         path: file.path,
