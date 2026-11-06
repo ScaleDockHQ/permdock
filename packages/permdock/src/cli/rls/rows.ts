@@ -1,7 +1,6 @@
 import type { Policy, ResourceNode } from "../../index.ts";
 import type { CompiledBranch } from "../sql/compile.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
-import type { RowArm } from "./row-memo.ts";
 
 import { flattenGrantee } from "../../core/grantee.ts";
 import { listPermissions } from "../../core/permission-registry.ts";
@@ -21,7 +20,7 @@ import {
 import { memoizes } from "./helper-bodies.ts";
 import { permittedByPermissionHelper } from "./permission-keys.ts";
 import { orSql } from "./policies.ts";
-import { memoRowSql, memoRowTriggersSql } from "./row-memo.ts";
+import { memoRowTriggersSql } from "./row-memo.ts";
 
 /**
  * `permitted_<resource>_rows(p_permission)`: the resource's row ids the subject
@@ -122,7 +121,6 @@ function usingOf(branches: readonly CompiledBranch[]): string | undefined {
 function permissionCase(
   key: string,
   branches: readonly CompiledBranch[],
-  tenantFirst: string | undefined,
 ): string | undefined {
   const allow = usingOf(branches.filter((branch) => branch.effect === "allow"));
   if (allow === undefined) {
@@ -130,8 +128,7 @@ function permissionCase(
   }
   const deny = usingOf(branches.filter((branch) => branch.effect === "deny"));
   const granted = `coalesce((${allow}), false)`;
-  const first = tenantFirst === undefined ? "" : `${tenantFirst} and `;
-  return `    when ${quoteLiteral(key)} then ${first}${deny === undefined ? granted : `${granted} and (${deny}) is not true`}`;
+  return `    when ${quoteLiteral(key)} then ${deny === undefined ? granted : `${granted} and (${deny}) is not true`}`;
 }
 
 function forUserSql(
@@ -215,25 +212,20 @@ function plannerOf(ctx: RlsSqlContext): string {
 
 export const CANDIDATES = "permdock_candidates";
 
-function rowSql(
+const ROW = "permdock_row";
+
+function matchHelper(resource: string): string {
+  return rowsHelper(resource).replace(/_rows$/u, "_match");
+}
+
+function matchSql(
   ctx: RlsSqlContext,
-  policy: Policy,
   node: ResourceNode,
   table: string,
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string {
-  const fn = qualified(ctx, rowsHelper(node.name).replace(/_rows$/u, "_row"));
-  const body =
-    memoRowSql(
-      ctx,
-      policy,
-      fn,
-      `p_row ${table}`,
-      graphSqlName(node.name) ?? node.name,
-      armsOf(branches),
-      `${CANDIDATES} as (select (p_row).*)`,
-    ) ??
-    `create or replace function ${fn}(p_row ${table}, p_permission text)
+  const fn = qualified(ctx, matchHelper(node.name));
+  return `create or replace function ${fn}(p_row ${table}, p_permission text)
 returns boolean
 language sql
 stable
@@ -243,19 +235,26 @@ set search_path = ''
 as $$
   with ${CANDIDATES} as (select (p_row).*)
   select exists (select 1 from ${CANDIDATES} where ${whereOf(branches)})
-$$;`;
-  return `${body}
+$$;
 revoke execute on function ${fn}(${table}, text) from public, anon;
 grant execute on function ${fn}(${table}, text) to authenticated;`;
 }
 
-function armsOf(
-  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
-): readonly RowArm[] {
-  return [...branches.keys()].toSorted().flatMap((key) => {
-    const sql = permissionCase(key, branches.get(key) ?? [], undefined);
-    return sql === undefined ? [] : [{ key, sql }];
-  });
+function rowSql(ctx: RlsSqlContext, node: ResourceNode, table: string): string {
+  const fn = qualified(ctx, rowsHelper(node.name).replace(/_rows$/u, "_row"));
+  const match = qualified(ctx, matchHelper(node.name));
+  return `create or replace function ${fn}(p_row ${table}, p_permission text)
+returns boolean
+language sql
+stable
+security definer
+${plannerOf(ctx)}
+set search_path = ''
+as $$
+  select ${match}(p_row, p_permission)
+$$;
+revoke execute on function ${fn}(${table}, text) from public, anon;
+grant execute on function ${fn}(${table}, text) to authenticated;`;
 }
 
 /**
@@ -264,26 +263,14 @@ function armsOf(
  */
 function rowByIdSql(
   ctx: RlsSqlContext,
-  policy: Policy,
   node: ResourceNode,
   table: string,
   idType: string,
-  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string {
   const fn = qualified(ctx, rowsHelper(node.name).replace(/_rows$/u, "_row"));
+  const match = qualified(ctx, matchHelper(node.name));
   const id = quoteIdent(node.id);
-  const source = `${CANDIDATES} as materialized (select * from ${table} where ${id} = p_id)`;
-  const body =
-    memoRowSql(
-      ctx,
-      policy,
-      fn,
-      `p_id ${idType}`,
-      graphSqlName(node.name) ?? node.name,
-      armsOf(branches),
-      source,
-    ) ??
-    `create or replace function ${fn}(p_id ${idType}, p_permission text)
+  return `create or replace function ${fn}(p_id ${idType}, p_permission text)
 returns boolean
 language sql
 stable
@@ -291,24 +278,21 @@ security definer
 ${plannerOf(ctx)}
 set search_path = ''
 as $$
-  with ${source}
-  select exists (select 1 from ${CANDIDATES} where ${whereOf(branches)})
-$$;`;
-  return `${body}
+  select exists (
+    select 1 from ${table} as ${ROW}
+    where ${ROW}.${id} = p_id
+      and ${match}(${ROW}, p_permission)
+  )
+$$;
 revoke execute on function ${fn}(${idType}, text) from public, anon;
 grant execute on function ${fn}(${idType}, text) to authenticated;`;
 }
 
 function whereOf(
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
-  tenantFirst?: (key: string) => string | undefined,
 ): string {
   const cases = [...branches.keys()].toSorted().flatMap((key) => {
-    const sql = permissionCase(
-      key,
-      branches.get(key) ?? [],
-      tenantFirst?.(key),
-    );
+    const sql = permissionCase(key, branches.get(key) ?? []);
     return sql === undefined ? [] : [sql];
   });
   return cases.length === 0
@@ -321,7 +305,7 @@ function candidatesSql(
   table: string,
   id: string,
   idType: string,
-  where: string,
+  match: string,
 ): string {
   const assign = (indent: string): string =>
     `${indent}v_row.${id} := v_id;\n${indent}v_rows := pg_catalog.array_append(v_rows, v_row);`;
@@ -357,7 +341,7 @@ ${assign("        ")}
     select * from ${table} where ${id} = any (array(select (r).${id} from pg_catalog.unnest(v_rows) r))
   )
   select ${id}::${idType} from ${CANDIDATES}
-  where ${where};
+  where ${match}(${CANDIDATES}, p_permission);
 end
 $$;
 revoke execute on function ${fn}(text, ${idType}[]) from public, anon;
@@ -416,6 +400,27 @@ function tenantFirstOf(
   };
 }
 
+function tenantLeadSql(
+  ctx: RlsSqlContext,
+  policy: Policy,
+  node: ResourceNode,
+  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
+): string {
+  const first = tenantFirstOf(ctx, policy, node);
+  if (first === undefined) {
+    return "";
+  }
+  const cases = [...branches.keys()].toSorted().flatMap((key) => {
+    const predicate = first(key);
+    return predicate === undefined
+      ? []
+      : [`    when ${quoteLiteral(key)} then ${predicate}`];
+  });
+  return cases.length === 0
+    ? ""
+    : `case p_permission\n${cases.join("\n")}\n    else true\n  end\n  and `;
+}
+
 function resourceSql(
   ctx: RlsSqlContext,
   policy: Policy,
@@ -428,9 +433,11 @@ function resourceSql(
   const fn = qualified(ctx, name);
   const table = quoteQualified(tableFor(node.name, tables));
   const idType = idTypeOf(ctx, node.name);
-  const where = whereOf(branches, tenantFirstOf(ctx, policy, node));
-  const near = whereOf(narrowed);
-  const rows = `-- ${node.name}: ids of the rows the caller may act on with p_permission, as the table's policies decide it
+  const match = qualified(ctx, matchHelper(node.name));
+  const lead = tenantLeadSql(ctx, policy, node, branches);
+  const rows = `-- ${node.name}: one predicate, called by the set, the id list and both row forms
+${matchSql(ctx, node, table, narrowed)}
+-- ${node.name}: ids of the rows the caller may act on with p_permission, as the table's policies decide it
 create or replace function ${fn}(p_permission text)
 returns setof ${idType}
 language sql
@@ -439,14 +446,14 @@ security definer
 ${plannerOf(ctx)}
 set search_path = ''
 as $$
-  select ${quoteIdent(node.id)}::${idType} from ${table}
-  where ${where}
+  select ${quoteIdent(node.id)}::${idType} from ${table} as ${ROW}
+  where ${lead}${match}(${ROW}, p_permission)
 $$;
 revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;
-${candidatesSql(fn, table, quoteIdent(node.id), idType, near)}
-${rowSql(ctx, policy, node, table, narrowed)}
-${rowByIdSql(ctx, policy, node, table, idType, narrowed)}`;
+${candidatesSql(fn, table, quoteIdent(node.id), idType, match)}
+${rowSql(ctx, node, table)}
+${rowByIdSql(ctx, node, table, idType)}`;
   if (ctx.dialect === "neon") {
     return rows;
   }

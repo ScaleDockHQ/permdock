@@ -92,14 +92,20 @@ describe("permitted_<resource>_rows", () => {
     expect(sql).toContain('"permdock".permitted_doc_rows(p_permission text)');
     expect(sql).toContain('select "id"::uuid from "app"."documents"');
     expect(sql).toContain(
-      `when 'doc.read' then "orgId" in (select "permdock".permitted_tenant_ids_by_permission(p_permission, true)) and coalesce(("orgId" in (select "permdock".permitted_tenant_ids('doc.read#1'))), false) and (("orgId" in (select "permdock".permitted_tenant_ids('doc.read#2'))) and ("locked" = true)) is not true`,
+      '"permdock".permitted_doc_match(permdock_row, p_permission)',
+    );
+    expect(sql).toContain(
+      `when 'doc.read' then coalesce(("orgId" in (select "permdock".permitted_tenant_ids('doc.read#1'))), false) and (("orgId" in (select "permdock".permitted_tenant_ids('doc.read#2'))) and ("locked" = true)) is not true`,
     );
     expect(sql).toContain(
       `when 'doc.archive' then coalesce(("ownerId" = (select "permdock".permdock_user_id())), false)`,
     );
     expect(sql).toContain(`when 'doc.update' then`);
     expect(sql).toContain(
-      `when 'doc.create' then "orgId" in (select "permdock".permitted_tenant_ids_by_permission(p_permission, true)) and coalesce(("orgId" in (select "permdock".permitted_tenant_ids('doc.create'))), false)`,
+      `when 'doc.create' then "orgId" in (select "permdock".permitted_tenant_ids_by_permission(p_permission, true))`,
+    );
+    expect(sql).toContain(
+      `when 'doc.create' then coalesce(("orgId" in (select "permdock".permitted_tenant_ids('doc.create'))), false)`,
     );
     expect(sql).toContain("    else false");
     expect(sql).toContain(
@@ -123,7 +129,7 @@ describe("permitted_<resource>_rows", () => {
     expect(sql).toContain('"permdock".permitted_note_rows');
     expect(sql).not.toContain(`when 'note.read'`);
     expect(sql).toMatch(
-      /permitted_note_rows\(p_permission text\)[^$]*\$\$\n {2}select "id"::uuid from "public"."note"\n {2}where false\n\$\$/u,
+      /permitted_note_rows\(p_permission text\)[^$]*\$\$\n {2}select "id"::uuid from "public"."note" as permdock_row\n {2}where "permdock"\.permitted_note_match\(permdock_row, p_permission\)\n\$\$/u,
     );
     expect(warnings.join("\n")).not.toContain("doc.archive");
   });
@@ -132,6 +138,9 @@ describe("permitted_<resource>_rows", () => {
     const { sql } = generate("neon", ["doc"]);
     expect(sql).toContain(
       'create or replace function "permdock".permitted_doc_row(p_row "app"."documents", p_permission text)\nreturns boolean',
+    );
+    expect(sql).toContain(
+      'select "permdock".permitted_doc_match(p_row, p_permission)',
     );
     expect(sql).toContain(
       `with permdock_candidates as (select (p_row).*)\n  select exists (select 1 from permdock_candidates where case p_permission\n    when 'doc.archive' then`,
@@ -153,7 +162,7 @@ describe("permitted_<resource>_rows", () => {
       'select * from "app"."documents" where "id" = any (array(select (r)."id" from pg_catalog.unnest(v_rows) r))',
     );
     expect(sql).toContain(
-      `select "id"::uuid from permdock_candidates\n  where case p_permission\n    when 'doc.archive' then`,
+      'select "id"::uuid from permdock_candidates\n  where "permdock".permitted_doc_match(permdock_candidates, p_permission);',
     );
     expect(sql).toContain(
       'grant execute on function "permdock".permitted_doc_rows(text, uuid[]) to authenticated;',
@@ -179,7 +188,9 @@ describe("permitted_<resource>_rows", () => {
     expect(sql).toContain(
       'create or replace function "permdock".permitted_doc_row(p_id uuid, p_permission text)',
     );
-    expect(sql).toContain('select * from "app"."documents" where "id" = p_id');
+    expect(sql).toContain(
+      'select 1 from "app"."documents" as permdock_row\n    where permdock_row."id" = p_id\n      and "permdock".permitted_doc_match(permdock_row, p_permission)',
+    );
     expect(sql).toContain(
       'grant execute on function "permdock".permitted_doc_row(uuid, text) to authenticated;',
     );
@@ -188,7 +199,10 @@ describe("permitted_<resource>_rows", () => {
   it("leads a root-scope key with the tenant prefilter and skips it for a global role", () => {
     const { sql } = generate("supabase", ["doc"]);
     expect(sql).toContain(
-      `when 'doc.read' then "orgId" in (select "permdock".permitted_tenant_ids_by_permission(p_permission, true)) and `,
+      `when 'doc.read' then "orgId" in (select "permdock".permitted_tenant_ids_by_permission(p_permission, true))`,
+    );
+    expect(sql).toContain(
+      'and "permdock".permitted_doc_match(permdock_row, p_permission)',
     );
     expect(sql).not.toContain(
       `when 'note.read' then "orgId" in (select "permdock".permitted_tenant_ids_by_permission`,
@@ -220,74 +234,38 @@ describe("permitted_<resource>_rows", () => {
   });
 });
 
-describe("permitted_<resource>_row memo", () => {
-  const memoized = (): string =>
-    generate("supabase", ["doc"], undefined, { authorize: "database" }).sql;
-
-  function rowBody(sql: string): string {
-    const start = sql.indexOf('"permdock".permitted_doc_row(p_row');
+describe("permitted_<resource>_match", () => {
+  function matchBody(sql: string): string {
+    const start = sql.indexOf('"permdock".permitted_doc_match(p_row');
     return sql.slice(start, sql.indexOf("$$;", start));
   }
 
-  it("calls better_supabase.memo_get and memo_set under rls.memo 'better-supabase'", () => {
-    const shared = rowBody(
-      generate("supabase", ["doc"], undefined, {
-        authorize: "database",
-        memo: "better-supabase",
-      }).sql,
-    );
-    expect(shared).toContain(
-      "v_permdock_memo jsonb := better_supabase.memo_get(v_permdock_key)::jsonb;",
-    );
-    expect(shared).not.toContain("memo_set(");
-    expect(shared).not.toContain("set_config(");
-    expect(rowBody(memoized())).not.toContain("set_config(");
-  });
-
-  it("keeps the sql form when the helpers do not memoize", () => {
-    expect(rowBody(generate("supabase", ["doc"]).sql)).toContain(
-      "returns boolean\nlanguage sql\nstable",
-    );
-    expect(rowBody(generate("guc", ["doc"]).sql)).not.toContain("permdock.m.");
-  });
-
-  it("reads the row-independent helper calls from one memo per statement", () => {
-    const body = rowBody(memoized());
+  it("is one stable predicate the row forms call, with no term map", () => {
+    const sql = generate("supabase", ["doc"], undefined, {
+      authorize: "database",
+    }).sql;
+    const body = matchBody(sql);
+    expect(body).toContain("returns boolean\nlanguage sql\nstable");
     expect(body).toContain(
-      "returns boolean\nlanguage plpgsql\nstable\nsecurity definer\ncost 1000\nset search_path = ''",
+      `when 'doc.read' then coalesce(("orgId" in (select "permdock".permitted_tenant_ids('doc.read#1'))), false)`,
     );
     expect(body).toContain(
-      "v_permdock_key text := 'permdock.m.' || 'doc' || '.r' || (hashtext(p_permission) & 1023)::text;",
+      `when 'doc.archive' then coalesce(("ownerId" = (select "permdock".permdock_user_id())), false)`,
     );
-    expect(body).toContain(
-      '(select "permdock".permdock_user_id())::text,\n      p_permission,',
+    expect(sql).not.toContain("v_permdock_terms");
+    expect(sql).not.toContain("jsonb_build_object('t");
+    expect(sql).toContain(
+      'select "permdock".permitted_doc_match(p_row, p_permission)',
     );
-    expect(body).not.toContain("statement_timestamp()");
-    expect(body).toContain(
-      "coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')",
+    expect(sql).toContain(
+      '"permdock".permitted_doc_match(permdock_row, p_permission)',
     );
-    expect(body).toContain(
-      `when 'doc.read' then jsonb_build_object('t2', to_jsonb(array(select "permdock".permitted_tenant_ids('doc.read#1'))), 't3', to_jsonb(array(select "permdock".permitted_tenant_ids('doc.read#2'))))`,
-    );
-    expect(body).toContain(
-      `when 'doc.archive' then jsonb_build_object('t0', to_jsonb((select "permdock".permdock_user_id())))`,
-    );
-    expect(body).toContain(
-      `when 'doc.read' then coalesce(("orgId" in (select pdm.v::uuid from pg_catalog.jsonb_array_elements_text(v_permdock_terms -> 't2') pdm(v))), false) and (("orgId" in (select pdm.v::uuid from pg_catalog.jsonb_array_elements_text(v_permdock_terms -> 't3') pdm(v))) and ("locked" = true)) is not true`,
-    );
-    expect(body).toContain(
-      `when 'doc.archive' then coalesce(("ownerId" = ((v_permdock_terms ->> 't0')::uuid)), false)`,
-    );
-    expect(body).not.toContain("set_config(");
-    expect(body).toContain(
-      "return exists (\n    with permdock_candidates as (select (p_row).*)",
-    );
-    expect(memoized()).toContain(
-      'grant execute on function "permdock".permitted_doc_row("app"."documents", text) to authenticated;',
+    expect(sql).toContain(
+      '"permdock".permitted_doc_match(permdock_candidates, p_permission)',
     );
   });
 
-  it("leaves row-dependent and unknown helper calls in place", () => {
+  it("keeps a row-dependent inherit call inside the match", () => {
     const linked = definePermissions({
       space: resource({
         actions: ["read"],
@@ -329,15 +307,16 @@ describe("permitted_<resource>_row memo", () => {
       undefined,
       [],
     );
-    const item = sql.slice(sql.indexOf('"permdock".permitted_item_row(p_row'));
+    const item = sql.slice(
+      sql.indexOf('"permdock".permitted_item_match(p_row'),
+    );
     expect(item.slice(0, item.indexOf("$$;"))).toContain("language sql");
-    expect(item).toContain(
+    expect(item.slice(0, item.indexOf("$$;"))).toContain(
       `"permdock".permitted_space_rows('space.read', array(select "spaceId"::uuid from permdock_candidates))`,
     );
-    const space = sql.slice(
-      sql.indexOf('"permdock".permitted_space_row(p_row'),
+    expect(sql).toContain(
+      'select "permdock".permitted_item_match(p_row, p_permission)',
     );
-    expect(space.slice(0, space.indexOf("$$;"))).toContain("language plpgsql");
   });
 });
 
