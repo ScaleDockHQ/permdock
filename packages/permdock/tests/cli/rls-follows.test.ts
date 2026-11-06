@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
-import { followPolicies, walkChainSql } from "../../src/cli/rls/follows.ts";
+import {
+  followPolicies,
+  treeHelperSql,
+  walkChainSql,
+} from "../../src/cli/rls/follows.ts";
 import { tablelessResources } from "../../src/cli/sql/tables.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import { definePermissions, definePolicy, resource } from "../../src/index.ts";
@@ -11,6 +15,7 @@ const permissions = definePermissions({
   job: resource({
     actions: ["read", "update"],
     parent: { field: "managerId", resource: "job" },
+    relations: { org: { field: "orgId", memberOf: "tenant" } },
   }),
 });
 
@@ -72,5 +77,23 @@ describe("rls.tables follows and walk", () => {
     expect(walkChainSql(ctx, policy, tables, true)).toContain(
       '"permdock".approval_delegations',
     );
+  });
+
+  it("walks only the treeValues folder, inside the caller's tenants", () => {
+    const sql = treeHelperSql(ctx, policy, tables, {
+      "public.jobs": { name: "kept" },
+    });
+    expect(sql).toContain(
+      'create or replace function "permdock".permdock_tree_job()',
+    );
+    expect(sql).toContain('from "public"."jobs" t');
+    expect(sql).toContain(
+      'where t."orgId" in (select "permdock".member_tenant_ids())',
+    );
+    expect(sql).toContain('join tree w on c."managerId" = w.id');
+    expect(sql).not.toContain("name");
+    expect(() =>
+      treeHelperSql(ctx, policy, tables, { "public.other": {} }),
+    ).toThrow(/self-parented folder/u);
   });
 });

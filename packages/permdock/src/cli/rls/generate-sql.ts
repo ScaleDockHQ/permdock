@@ -45,7 +45,7 @@ import {
   migrationSql,
 } from "./emit.ts";
 import { rowBranches } from "./fields.ts";
-import { walkChainSql } from "./follows.ts";
+import { treeHelperSql, walkChainSql } from "./follows.ts";
 import { isRefusal, splitsPart } from "./generate-options.ts";
 import { generatePolicies, withHelperTables } from "./generate-policies.ts";
 import { closureBackfillSql, graphSql } from "./graph.ts";
@@ -259,6 +259,7 @@ function sectionsSql(
     rls?.tables,
     typeof rls?.approvals === "object" && rls.approvals.delegations === true,
   );
+  const tree = treeHelperSql(ctx, policy, rls?.tables, rls?.treeValues);
   return [
     approvals,
     owned === "" ? undefined : owned,
@@ -266,6 +267,7 @@ function sectionsSql(
     breakGlass === "" ? undefined : breakGlass,
     rowHelpers === "" ? undefined : rowHelpers,
     chain === "" ? undefined : chain,
+    tree === "" ? undefined : tree,
   ];
 }
 

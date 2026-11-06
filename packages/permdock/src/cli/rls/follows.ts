@@ -3,9 +3,12 @@ import type { CompiledPolicy, SqlCommand } from "../sql/compile.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type { RlsTable, RlsTableOwner } from "../types.ts";
 
+import { isFieldRelation } from "../../core/resource-relations.ts";
+import { rootScope } from "../../core/scopes.ts";
+import { qualifySqlTable } from "../../core/sql.ts";
 import { configError } from "../core/errors.ts";
 import { idTypeOf } from "../sql/columns.ts";
-import { graphSqlName } from "../sql/names.ts";
+import { graphSqlName, memberIdsHelper } from "../sql/names.ts";
 import {
   qualified,
   quoteIdent,
@@ -164,6 +167,119 @@ as $$
     join chain w on c.${up} = w.id
   )
   select id from chain
+$$;
+revoke execute on function ${fn}() from public, anon;
+grant execute on function ${fn}() to authenticated;`);
+  }
+  return chunks.join("\n\n");
+}
+
+function sameTable(left: string, right: string): boolean {
+  return qualifySqlTable(left) === qualifySqlTable(right);
+}
+
+function folderOf(
+  policy: Policy,
+  tables: Readonly<Record<string, RlsTable>> | undefined,
+  table: string,
+): string | undefined {
+  let byName: string | undefined;
+  for (const resource of policy.resources.keys()) {
+    const named = tableNameOf(tables?.[resource], resource, tables);
+    if (sameTable(named, table)) {
+      return resource;
+    }
+    if (resource === bare(table)) {
+      byName = resource;
+    }
+  }
+  return byName;
+}
+
+function tenantField(
+  policy: Policy,
+  resource: string,
+  root: string,
+): string | undefined {
+  const node = policy.resources.get(resource);
+  if (node === undefined) {
+    return undefined;
+  }
+  for (const relation of Object.values(node.relations)) {
+    if (isFieldRelation(relation) && relation.memberOf === root) {
+      return relation.field;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * One helper per `rls.treeValues` table: the folder rows in the caller's
+ * tenants, walked on that table alone.
+ */
+export function treeHelperSql(
+  ctx: RlsSqlContext,
+  policy: Policy,
+  tables: Readonly<Record<string, RlsTable>> | undefined,
+  treeValues: Readonly<Record<string, unknown>> | undefined,
+): string {
+  const root = rootScope(ctx.scopes);
+  const chunks: string[] = [];
+  for (const table of Object.keys(treeValues ?? {}).toSorted()) {
+    const resource = folderOf(policy, tables, table);
+    const node =
+      resource === undefined ? undefined : policy.resources.get(resource);
+    const parent = node?.parent;
+    const tenant =
+      root === undefined || resource === undefined
+        ? undefined
+        : tenantField(policy, resource, root);
+    if (
+      resource === undefined ||
+      node === undefined ||
+      parent === undefined ||
+      parent.resource !== resource ||
+      tenant === undefined ||
+      root === undefined
+    ) {
+      throw configError(
+        `PermDock CLI: rls.treeValues.${table} must be a self-parented folder in the caller's root scope`,
+      );
+    }
+    const sql = graphSqlName(resource);
+    if (sql === undefined) {
+      throw configError(
+        `PermDock CLI: rls.treeValues.${table} is not a SQL name`,
+      );
+    }
+    const type = idTypeOf(ctx, resource);
+    const fn = qualified(ctx, `permdock_tree_${sql}`);
+    const id = quoteIdent(node.id);
+    const up = quoteIdent(parent.field);
+    const org = quoteIdent(tenant);
+    const from = quoteQualified(
+      tableNameOf(tables?.[resource], resource, tables),
+    );
+    const members = qualified(ctx, memberIdsHelper(root));
+    chunks.push(`-- ${resource}: folder rows in the caller's tenants
+create or replace function ${fn}()
+returns setof ${type}
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with recursive tree(id) as (
+    select t.${id}
+    from ${from} t
+    where t.${org} in (select ${members}())
+    union
+    select c.${id}
+    from ${from} c
+    join tree w on c.${up} = w.id
+    where c.${org} in (select ${members}())
+  )
+  select id from tree
 $$;
 revoke execute on function ${fn}() from public, anon;
 grant execute on function ${fn}() to authenticated;`);
