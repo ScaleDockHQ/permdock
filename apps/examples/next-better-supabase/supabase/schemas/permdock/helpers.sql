@@ -734,7 +734,7 @@ revoke execute on function "permdock".permitted_customer_ids_for(uuid, text) fro
 create or replace function "permdock".permdock_custom_role_beyond(p_tenant uuid, p_scope text, p_scope_id text, p_allow text[], p_deny text[], p_include text[])
 returns setof text
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$
@@ -805,7 +805,7 @@ revoke execute on function "permdock".permdock_custom_role_shape(uuid, text, tex
 create or replace function "permdock".permdock_custom_role_guard(p_tenant uuid, p_scope text, p_scope_id text, p_role text)
 returns void
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$
@@ -874,7 +874,7 @@ revoke execute on function "permdock".permdock_custom_role_guard(uuid, text, tex
 create or replace function "permdock".permdock_custom_role_beyond_for(p_user uuid, p_tenant uuid, p_scope text, p_scope_id text, p_allow text[], p_deny text[], p_include text[])
 returns setof text
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$
@@ -909,7 +909,7 @@ revoke execute on function "permdock".permdock_custom_role_beyond_for(uuid, uuid
 create or replace function "permdock".permdock_custom_role_guard_for(p_user uuid, p_tenant uuid, p_scope text, p_scope_id text, p_role text)
 returns void
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$

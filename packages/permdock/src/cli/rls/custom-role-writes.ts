@@ -28,7 +28,7 @@ function callerFunctionsSql(
 ): { readonly beyond: string; readonly guard: string } {
   const leveled = custom.levels === true;
   const tenantType = tenantTypeOf(ctx);
-  const volatility = "stable";
+  const volatility = "volatile";
   const rp = qualified(ctx, "role_permissions");
   const keys = qualified(ctx, CUSTOM_ROLES.keys);
   const perms = qualified(ctx, CUSTOM_ROLES.permissions);

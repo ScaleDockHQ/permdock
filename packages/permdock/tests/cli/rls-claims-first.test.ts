@@ -220,7 +220,7 @@ describe("claims first helpers", () => {
     ).not.toContain("permdock_memo_generation");
   });
 
-  it("keeps the custom-role write guards stable when the helpers memoize", () => {
+  it("marks the custom-role write guards volatile when the helpers memoize", () => {
     const sql = helpers({
       customRoles: {
         declared: ["admin"],
@@ -230,10 +230,10 @@ describe("claims first helpers", () => {
       },
     });
     expect(fnBody(sql, "permdock_custom_role_beyond")).toContain(
-      "language plpgsql\nstable\nsecurity definer",
+      "language plpgsql\nvolatile\nsecurity definer",
     );
     expect(fnBody(sql, "permdock_custom_role_guard")).toContain(
-      "language plpgsql\nstable\nsecurity definer",
+      "language plpgsql\nvolatile\nsecurity definer",
     );
   });
 

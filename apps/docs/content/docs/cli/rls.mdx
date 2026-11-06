@@ -723,7 +723,7 @@ A stored `level` on a permission with no levels is ignored, so a row such as `sc
 
 #### Guard your own write path
 
-`permdock_custom_role_guard(p_tenant, p_scope, p_scope_id, p_role)` and `permdock_custom_role_beyond(p_tenant, p_scope, p_scope_id, p_allow, p_deny, p_include)` are stable: their names, arguments and results keep their meaning within a major. A write path PermDock does not generate, such as a trigger on a table `customRoles.from` does not map, calls them from a `security definer` function, because no client role may execute them.
+`permdock_custom_role_guard(p_tenant, p_scope, p_scope_id, p_role)` and `permdock_custom_role_beyond(p_tenant, p_scope, p_scope_id, p_allow, p_deny, p_include)` are volatile, because they call the memoized grant helpers. Their names, arguments and results keep their meaning within a major. A write path PermDock does not generate, such as a trigger on a table `customRoles.from` does not map, calls them from a `security definer` function, because no client role may execute them.
 
 - `permdock_custom_role_guard` raises unless the signed-in caller may change the stored role: `unknown-scope` or `declared-role` for the role's shape, `not-member`, `manage-roles` with `rls.customRoleWrites.requires`, and `not-assignable-by` when the stored definition allows a permission or level the caller may not hand out.
 - `permdock_custom_role_beyond` returns the permission keys among `p_allow` and `p_include` that the caller may not hand out in that tenant or instance, and no rows when the caller holds a `meta.manageRoles` permission. `p_allow` entries are `<permission>[@<level>]`.
