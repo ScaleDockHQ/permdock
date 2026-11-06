@@ -13,7 +13,6 @@ import type { CodemodReport } from "../../src/cli/codemod/codemod.ts";
 import type { RenameSet } from "../../src/cli/codemod/transform.ts";
 
 import { codemod, runCodemod } from "../../src/cli/codemod/codemod.ts";
-import { RENAMES_0_5 } from "../../src/cli/codemod/renames-0.5.ts";
 import { transformSource } from "../../src/cli/codemod/transform.ts";
 import { run } from "../../src/cli/core/run.ts";
 import { jsonData } from "./envelope.ts";
@@ -586,31 +585,10 @@ describe("the codemod module", () => {
     });
   });
 
-  describe("the 0.5 rename map", () => {
-    it("has one row per from, target and entry, never renaming to itself", () => {
-      const keys = RENAMES_0_5.map(
-        (row) => `${row.from}→${row.to}@${row.entries.join(",")}`,
-      );
-      expect(new Set(keys).size).toBe(keys.length);
-      for (const row of RENAMES_0_5) {
-        expect(row.from).not.toBe(row.to);
-        expect(row.entries.length).toBeGreaterThan(0);
-        for (const entry of row.entries) {
-          expect(entry).toMatch(/^permdock(?:\/[\w/-]+)?$/u);
-        }
-      }
-    });
-
-    it("is frozen", () => {
-      expect(Object.isFrozen(RENAMES_0_5)).toBe(true);
-      expect(RENAMES_0_5.every((row) => Object.isFrozen(row))).toBe(true);
-    });
-  });
-
   describe("permdock codemod", () => {
     const files = {
       "src/sinks.ts":
-        'import { memorySink } from "permdock";\nexport const sink = memorySink();\n',
+        'import { allow } from "permdock";\nexport const grant = allow(p.pay, { approval: { by: role("cfo"), distinct: false } });\n',
       "src/plain.ts": "export const memorySink = 1;\n",
       "src/notes.md": "memorySink\n",
       "node_modules/dep/index.js":
@@ -620,12 +598,12 @@ describe("the codemod module", () => {
 
     it("writes the renames and skips node_modules and dist", async () => {
       const dir = project(files);
-      const result = await run(["codemod", "0.5", "--cwd", dir]);
+      const result = await run(["codemod", "0.17", "--cwd", dir]);
       expect(result.code).toBe(0);
       expect(result.stdout).toContain("src/sinks.ts");
-      expect(result.stdout).toContain("1:10  memorySink → memoryDecisionSink");
-      expect(readFileSync(join(dir, "src/sinks.ts"), "utf8")).toBe(
-        'import { memoryDecisionSink } from "permdock";\nexport const sink = memoryDecisionSink();\n',
+      expect(result.stdout).toContain('distinct: false → mode: "confirm"');
+      expect(readFileSync(join(dir, "src/sinks.ts"), "utf8")).toContain(
+        'mode: "confirm"',
       );
       expect(readFileSync(join(dir, "src/plain.ts"), "utf8")).toBe(
         files["src/plain.ts"],
@@ -638,40 +616,11 @@ describe("the codemod module", () => {
       );
     });
 
-    it("moves the 0.8 config keys in a config file that imports no permdock entry", async () => {
-      const dir = project({
-        "permdock.config.ts":
-          'export default { rls: { tenantType: "text" } };\n',
-        "src/other.ts": "export const rls = { tenantType: 'text' };\n",
-      });
-      const result = await run(["codemod", "0.8", "--cwd", dir]);
-      expect(result.code).toBe(0);
-      expect(result.stdout).toContain("rls.tenantType → rls.scopeTypes.tenant");
-      expect(readFileSync(join(dir, "permdock.config.ts"), "utf8")).toBe(
-        'export default { rls: { scopeTypes: { tenant: "text" } } };\n',
-      );
-      expect(readFileSync(join(dir, "src/other.ts"), "utf8")).toBe(
-        "export const rls = { tenantType: 'text' };\n",
-      );
-    });
-
-    it("reports a 0.8 useRoles call that may pass team", async () => {
-      const source =
-        'import { useRoles } from "permdock/react";\nexport const roles = () => useRoles({ team: "t1" });\n';
-      const dir = project({ "src/roles.ts": source });
-      const result = await run(["codemod", "0.8", "--cwd", dir]);
-      expect(result.code).toBe(0);
-      expect(result.stdout).toContain(
-        '`useRoles({ team: id })` is now `useRoles({ scope: "team", id })`',
-      );
-      expect(readFileSync(join(dir, "src/roles.ts"), "utf8")).toBe(source);
-    });
-
     it("writes nothing on a dry run and reports JSON", async () => {
       const dir = project(files);
       const result = await run([
         "codemod",
-        "0.5",
+        "0.17",
         "src",
         "--dry-run",
         "--json",
@@ -682,7 +631,7 @@ describe("the codemod module", () => {
       // SAFETY: `codemod --json` prints a CodemodReport.
       const report = jsonData(result.stdout) as CodemodReport;
       expect(report.dryRun).toBe(true);
-      expect(report.scanned).toBe(3);
+      expect(report.scanned).toBe(2);
       expect(report.files.map((file) => file.file)).toStrictEqual([
         "src/sinks.ts",
       ]);
@@ -693,46 +642,24 @@ describe("the codemod module", () => {
 
     it("says what it would change in text on a dry run", async () => {
       const dir = project(files);
-      const result = await run(["codemod", "0.5.0", "--dry-run", "--cwd", dir]);
-      expect(result.stdout).toMatch(/^permdock codemod 0\.5: would change/u);
+      const result = await run([
+        "codemod",
+        "0.17.0",
+        "--dry-run",
+        "--cwd",
+        dir,
+      ]);
+      expect(result.stdout).toMatch(/^permdock codemod 0\.17: would change/u);
       expect(result.stdout).toContain("dry run, nothing written");
     });
 
     it("lists follow-ups and parse failures", async () => {
       const dir = project({
-        "keys.ts":
-          'import { subjectFromApiKey } from "permdock/server";\nsubjectFromApiKey({ verifier })(key);\n',
-        "broken.ts": 'import { memorySink } from "permdock";\nconst = ;\n',
+        "broken.ts": 'import { allow } from "permdock";\nconst = ;\n',
       });
-      const result = await run(["codemod", "0.5", "--dry-run", "--cwd", dir]);
+      const result = await run(["codemod", "0.17", "--dry-run", "--cwd", dir]);
       expect(result.code).toBe(0);
-      expect(result.stdout).toContain("Manual follow-ups");
-      expect(result.stdout).toContain(
-        "keys.ts:2:1  `subjectFromApiKey(options)(key)` is now `subjectFromApiKey(key, options)`",
-      );
       expect(result.stdout).toContain("broken.ts:1:1  not parsed");
-    });
-
-    it("lists no follow-ups for code already in the 0.5 shape", async () => {
-      const dir = project({
-        "auth.ts": [
-          'import { subjectFromApiKey } from "permdock/server";',
-          "const subject = await subjectFromApiKey(token, {",
-          "  permissions,",
-          "  verifier: apiKeyVerifier({ keys: connectServiceApiKeys(getAdmin()) }),",
-          "});",
-          "",
-        ].join("\n"),
-        "approvals.ts": [
-          'import { createPermDock } from "permdock";',
-          "await approvals.createRequest({ policy: { name }, quorum: requirement.quorum, requesterKind: check.actorKind, requirement: level, risk: 'medium', source: input.source, subjectId: input.subjectId ?? null });",
-          "await record({ check: input.check, requirement, source: input.source, subjectId: input.subjectId, subjectType: input.subjectType, ...extras });",
-          "",
-        ].join("\n"),
-      });
-      const result = await run(["codemod", "0.5", "--dry-run", "--cwd", dir]);
-      expect(result.code).toBe(0);
-      expect(result.stdout).not.toContain("Manual follow-ups");
     });
 
     it("refuses an unknown version and names the supported one", async () => {
@@ -745,7 +672,7 @@ describe("the codemod module", () => {
       };
       expect(problem.type).toBe("https://permdock.com/docs/cli/errors#usage");
       expect(problem.detail).toBe(
-        "unknown codemod version '0.4'. Supported: 0.5, 0.8, 0.17.",
+        "unknown codemod version '0.4'. Supported: 0.17, 0.26.",
       );
       expect(() =>
         codemod({
@@ -756,7 +683,7 @@ describe("the codemod module", () => {
           json: true,
         }),
       ).toThrow(
-        "codemod needs a version: permdock codemod <version>. Supported: 0.5, 0.8, 0.17.",
+        "codemod needs a version: permdock codemod <version>. Supported: 0.17, 0.26.",
       );
     });
 
@@ -768,17 +695,17 @@ describe("the codemod module", () => {
     it("counts one change, one file and one follow-up in the singular", () => {
       const dir = project({
         "one.ts":
-          'import { memorySink } from "permdock";\nimport { subjectFromApiKey } from "permdock/server";\nexport { subjectFromApiKey };\n',
+          'import { allow } from "permdock";\nallow(p.pay, { approval: { by: role("cfo"), distinct: false } });\nallow(p.void, { approval: { by: role("ops"), distinct: flag } });\n',
       });
       const result = runCodemod({
         cwd: dir,
-        version: "v0.5",
+        version: "v0.17",
         paths: [],
         dryRun: false,
         json: false,
       });
       expect(result.output.split("\n")[0]).toBe(
-        "permdock codemod 0.5: changed 1 name in 1 of 1 file; 1 manual follow-up",
+        "permdock codemod 0.17: changed 1 name in 1 of 1 file; 1 manual follow-up",
       );
     });
 
@@ -787,7 +714,7 @@ describe("the codemod module", () => {
       const missing = await run(["codemod", "--cwd", dir]);
       expect(missing.code).toBe(3);
       expect(missing.stderr).toContain("codemod: <version> is required");
-      const unknownPath = await run(["codemod", "0.5", "nope", "--cwd", dir]);
+      const unknownPath = await run(["codemod", "0.17", "nope", "--cwd", dir]);
       expect(unknownPath.code).toBe(2);
       expect(unknownPath.stderr).toContain("not found: nope");
     });
@@ -796,13 +723,13 @@ describe("the codemod module", () => {
       const dir = project(files);
       const report = codemod({
         cwd: dir,
-        version: "0.5",
+        version: "0.17",
         paths: ["src/sinks.ts"],
         dryRun: true,
         json: true,
       });
       expect(report.scanned).toBe(1);
-      expect(report.files[0]?.changes).toHaveLength(2);
+      expect(report.files[0]?.changes).toHaveLength(1);
     });
   });
 });

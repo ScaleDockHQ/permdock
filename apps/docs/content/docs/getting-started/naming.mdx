@@ -16,7 +16,7 @@ The rest follows from that rule:
 - A context or prop type puts the adapter first (`ExpressPermDockRequest`, `HonoPermDockEnv`) and spells out `Context`.
 - Signed outputs are `vnd.permdock.<format>+jwt` and CloudEvents types are `com.permdock.<family>`.
 
-[Renamed in 0.22.0](#renamed-in-0220), [Renamed in 0.17.0](#renamed-in-0170) and [Renamed in 0.5.0](#renamed-in-050) list every name these rules changed; `permdock codemod 0.17` and `permdock codemod 0.5` apply them.
+[Renamed in 0.22.0](#renamed-in-0220), [Renamed in 0.17.0](#renamed-in-0170) and [Renamed in 0.5.0](#renamed-in-050) list every name these rules changed. `permdock codemod 0.17` and `permdock codemod 0.26` apply the later changes. The 0.5 and 0.8 tables are history.
 
 ## The core names
 
@@ -633,7 +633,7 @@ PermDock's subject vocabulary is TypeScript, camelCase and typed; the specificat
 
 ## Renamed in 0.5.0
 
-`permdock codemod 0.5` applies these renames to every file that imports `permdock` ([codemod](/docs/cli/codemod)). Entries are the imports the old name came from. The codemod reports `method` rows, and `option` rows outside the calls it knows, for a manual edit. `pnpm docs:drift` keeps this section equal to `packages/permdock/src/cli/codemod/renames-0.5.ts`.
+These are the names 0.5.0 changed. The table is the history. `permdock codemod 0.17` and `permdock codemod 0.26` apply the later changes ([codemod](/docs/cli/codemod)).
 
 | Old                           | New                                 | Kind   | Entries                                                                                                                                                                                           |
 | ----------------------------- | ----------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

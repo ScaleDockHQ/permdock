@@ -11,38 +11,8 @@ import { rel } from "../files.ts";
 import { rewriteStoredCatalog } from "./catalog-0.26.ts";
 import { rewriteCliCalls } from "./cli-calls.ts";
 import { moveConfigKeys } from "./config-moves.ts";
-import { RENAMES_0_5, SIGNATURE_CHANGES_0_5 } from "./renames-0.5.ts";
-import { CONFIG_MOVES_0_8, SIGNATURE_CHANGES_0_8 } from "./renames-0.8.ts";
-import {
-  AWAIT_RENAMES_0_5,
-  CALL_RENAMES_0_5,
-  DURATION_KEYS_0_5,
-  FUNCTION_METHODS_0_5,
-  METHOD_FUNCTIONS_0_5,
-  OPTION_WRAPS_0_5,
-  PROP_RENAMES_0_5,
-  TEMPLATE_HINTS_0_5,
-} from "./shapes-0.5.ts";
 import { rewriteLiterals017 } from "./shapes-0.17.ts";
 import { transformSource } from "./transform.ts";
-
-export const CODEMOD_0_5: RenameSet = Object.freeze({
-  renames: Object.freeze([...RENAMES_0_5, ...CALL_RENAMES_0_5]),
-  signatures: SIGNATURE_CHANGES_0_5,
-  props: PROP_RENAMES_0_5,
-  templates: TEMPLATE_HINTS_0_5,
-  awaits: AWAIT_RENAMES_0_5,
-  methodFunctions: METHOD_FUNCTIONS_0_5,
-  functionMethods: FUNCTION_METHODS_0_5,
-  wraps: OPTION_WRAPS_0_5,
-  durations: DURATION_KEYS_0_5,
-});
-
-export const CODEMOD_0_8: RenameSet = Object.freeze({
-  renames: [],
-  signatures: SIGNATURE_CHANGES_0_8,
-  configMoves: CONFIG_MOVES_0_8,
-});
 
 export const CODEMOD_0_17: RenameSet = Object.freeze({
   renames: [],
@@ -57,8 +27,6 @@ export const CODEMOD_0_26: RenameSet = Object.freeze({
 
 /** Each codemod version and the rename map it applies. */
 const CODEMODS: Readonly<Record<string, RenameSet>> = Object.freeze({
-  "0.5": CODEMOD_0_5,
-  "0.8": CODEMOD_0_8,
   "0.17": CODEMOD_0_17,
   "0.26": CODEMOD_0_26,
 });
@@ -95,7 +63,7 @@ const CLI_EXTENSIONS: ReadonlySet<string> = new Set([".yml", ".yaml", ".sh"]);
 const CLI_REVIEW_EXTENSIONS: ReadonlySet<string> = new Set([".md", ".mdx"]);
 
 /** The versions whose renames include the CLI's own commands and flags. */
-const CLI_RENAME_VERSIONS: ReadonlySet<string> = new Set(["0.5"]);
+const CLI_RENAME_VERSIONS: ReadonlySet<string> = new Set(["0.26"]);
 
 const SKIP_DIRS: ReadonlySet<string> = new Set([
   "node_modules",
@@ -165,16 +133,18 @@ export function codemod(options: CodemodOptions): CodemodReport {
     const source = readFileSync(file, "utf8");
     if (version === "0.26" && extname(file) === ".json") {
       const rewritten = rewriteStoredCatalog(source);
-      if (rewritten !== undefined && rewritten.text !== source) {
-        changed.push({
-          file: rel(options.cwd, file),
-          changes: [
-            { line: 1, column: 1, from: rewritten.from, to: rewritten.to },
-          ],
-        });
-        writes.push({ path: file, text: rewritten.text });
+      if (rewritten !== undefined) {
+        if (rewritten.text !== source) {
+          changed.push({
+            file: rel(options.cwd, file),
+            changes: [
+              { line: 1, column: 1, from: rewritten.from, to: rewritten.to },
+            ],
+          });
+          writes.push({ path: file, text: rewritten.text });
+        }
+        continue;
       }
-      continue;
     }
     if (
       !source.includes("permdock") &&

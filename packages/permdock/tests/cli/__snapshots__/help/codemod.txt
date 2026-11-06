@@ -14,8 +14,8 @@ Global flags
   --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
-  permdock codemod 0.5 --dry-run
-  permdock codemod 0.5 src
+  permdock codemod 0.26 --dry-run
+  permdock codemod 0.17 src
 
 Side effects  rewrite
 Docs  https://permdock.com/docs/cli/codemod

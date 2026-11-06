@@ -1,13 +1,6 @@
-import { globSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { readFileSync } from "node:fs";
+import { relative } from "node:path";
 
-// oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the codemod map without a build
-import type { Rename } from "../packages/permdock/src/cli/codemod/renames-0.5.ts";
-
-import {
-  RENAMES_0_5,
-  // oxlint-disable-next-line import/no-relative-parent-imports -- Node strips the types, so the drift check reads the codemod map without a build
-} from "../packages/permdock/src/cli/codemod/renames-0.5.ts";
 import {
   RENAMED_HEADING,
   renamedSectionDrift,
@@ -49,18 +42,19 @@ function read(path: string): string {
  * exports at run time stays allowed; option and method rows are ordinary words
  * (`store`, `source`, `permdock`) and never banned.
  */
-function oldIdentifiers(exportsFile: string): readonly string[] {
+function oldIdentifiers(
+  namingPage: string,
+  exportsFile: string,
+): readonly string[] {
   // SAFETY: exports.json is the bundle test's own baseline, entry to sorted runtime export names
   const exported = JSON.parse(read(exportsFile)) as Readonly<
     Record<string, readonly string[]>
   >;
   const current = new Set(Object.values(exported).flat());
-  const names = RENAMES_0_5.filter(
-    (row) =>
-      row.kind === undefined || row.kind === "export" || row.kind === "type",
-  )
-    .map((row) => row.from)
-    .filter((name) => !current.has(name));
+  const names = tableRows(read(namingPage), "Old", "New")
+    .filter((row) => row[2] === "export" || row[2] === "type")
+    .map((row) => (row[0] ?? "").replaceAll("`", ""))
+    .filter((name) => name !== "" && !current.has(name));
   return [...new Set(names)].toSorted();
 }
 
@@ -110,7 +104,7 @@ function withoutRenamedSections(text: string): string {
 
 /** Old 0.5 names and wire values in docs code fences and inline code. */
 function oldNames(paths: RenameDriftPaths): readonly string[] {
-  const identifiers = oldIdentifiers(paths.exportsFile).map(
+  const identifiers = oldIdentifiers(paths.namingPage, paths.exportsFile).map(
     (name) =>
       [
         name,
@@ -145,51 +139,11 @@ function oldNames(paths: RenameDriftPaths): readonly string[] {
 }
 
 /**
- * The names a cell can mean: the code span itself, and its last identifier
- * (`scimHandler({ store })` is `store`).
+ * The 0.5 rename map is history on the Naming page. Changeset tables are no
+ * longer checked against a source file.
  */
-function cellNames(cell: string): readonly string[] {
-  const code = cell.replaceAll("`", "").trim();
-  const last = [...code.matchAll(/[A-Za-z_$][\w$]*/gu)].at(-1)?.[0];
-  return last === undefined || last === code ? [code] : [code, last];
-}
-
-function rowMatches(row: Rename, old: string, next: string): boolean {
-  return cellNames(old).includes(row.from) && cellNames(next).includes(row.to);
-}
-
-/**
- * Every `.changeset/rename-*.md` `| Old | New |` row is a codemod map row, and
- * every map row is in one or in a released `packages/permdock/CHANGELOG.md`
- * table, where versioning moves them.
- */
-function changesetRenames(root: string): readonly string[] {
-  const dir = join(root, ".changeset");
-  const problems: string[] = [];
-  const all: (readonly [string, string])[] = tableRows(
-    read(join(root, "packages/permdock/CHANGELOG.md")),
-    "Old",
-    "New",
-  ).map(([old = "", next = ""]): readonly [string, string] => [old, next]);
-  for (const name of globSync("rename-*.md", { cwd: dir }).toSorted()) {
-    const text = read(join(dir, name));
-    for (const [old = "", next = ""] of tableRows(text, "Old", "New")) {
-      all.push([old, next]);
-      if (!RENAMES_0_5.some((row) => rowMatches(row, old, next))) {
-        problems.push(
-          `.changeset/${name} renames ${old} to ${next}, which renames-0.5.ts does not list`,
-        );
-      }
-    }
-  }
-  for (const row of RENAMES_0_5) {
-    if (!all.some(([old, next]) => rowMatches(row, old, next))) {
-      problems.push(
-        `renames-0.5.ts renames ${row.from} to ${row.to} (${row.entries.join(", ")}), which no .changeset/rename-*.md or CHANGELOG.md table lists`,
-      );
-    }
-  }
-  return problems;
+function changesetRenames(_root: string): readonly string[] {
+  return [];
 }
 
 /**

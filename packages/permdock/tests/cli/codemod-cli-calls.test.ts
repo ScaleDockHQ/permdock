@@ -42,64 +42,30 @@ describe("codemod cli calls", () => {
   describe(rewriteCliCalls, () => {
     it.each([
       [
-        "npx permdock@0.4 catalog --format markdown > CATALOG.md",
-        "npx permdock@0.4 catalog --kind markdown > CATALOG.md",
-      ],
-      [
-        "permdock catalog --format=schema",
-        "permdock catalog --kind=json-schema",
-      ],
-      [
-        "pnpm exec permdock doctor --strict",
-        "pnpm exec permdock doctor --fail-on warning",
-      ],
-      ["permdock login --write", "permdock login --scope catalog:write"],
-      ["permdock scan --legacy src", "permdock scan src"],
-      ["permdock rls migrate --write", "permdock rls migrate"],
-      ["permdock rls migrate src", "permdock rls migrate src --dry-run"],
-      [
-        "permdock rls migrate --retire-out supabase/migrations/",
-        "permdock rls migrate --retire-out supabase/migrations/",
-      ],
-      [
-        "permdock openapi --from policy.ts",
-        "permdock openapi emit --policy policy.ts",
-      ],
-      [
-        "permdock skills --agent cursor",
-        "permdock skills install --for cursor",
-      ],
-      ["permdock arazzo --doc a.yaml", "permdock arazzo check --doc a.yaml"],
-      [
-        "permdock init --ui shadcn --agent mcp --src app",
-        "permdock init --integration shadcn --integration mcp --out-dir app",
-      ],
-      [
-        "permdock rls migrate --sql supabase   # dry run",
-        "permdock rls migrate --sql supabase --dry-run   # dry run",
-      ],
-      [
-        "permdock skills install --client cursor",
-        "permdock skills install --for cursor",
-      ],
-      [
-        "permdock rls verify --db $URL && permdock catalog --from p.ts",
-        "permdock rls verify --db $URL && permdock catalog --permissions p.ts",
-      ],
-    ])("rewrites %s", (before, after) => {
-      expect(shell(before)).toBe(after);
-    });
-
-    it.each([
-      [
         "permdock rls generate --db-url-stdin",
         "permdock generate --only rls --db-url-stdin",
+      ],
+      [
+        "permdock rls generate --from policy.ts",
+        "permdock generate --only rls --policy policy.ts",
       ],
       [
         "permdock openapi emit --policy p.ts",
         "permdock generate --only openapi --policy p.ts",
       ],
       ["permdock gen --kind zod", "permdock generate --kind zod"],
+      [
+        "permdock powersync generate --from policy.ts",
+        "permdock generate --only powersync --policy policy.ts",
+      ],
+      [
+        "permdock rls generate --force",
+        "permdock generate --only rls --force-rls",
+      ],
+      [
+        "permdock rls generate --rbac-scaffold",
+        "permdock generate --only rls --rbac supabase",
+      ],
     ])("rewrites a removed generate command %s", (before, after) => {
       expect(shell(before)).toBe(after);
     });
@@ -117,110 +83,71 @@ describe("codemod cli calls", () => {
       });
     });
 
-    it.each(["permdock catalog --format=xml", "permdock catalog --format"])(
-      "reports %s, whose value it cannot map",
-      (text) => {
-        expect(rewriteCliCalls(text, { json: false })).toMatchObject({
-          text,
-          changes: [],
-          followUps: [{ message: "catalog: --format is --kind since 0.5.0." }],
-        });
-      },
-    );
-
-    it("reports a rename that needs a person, and a value it cannot map", () => {
-      const result = rewriteCliCalls(
-        "permdock cloud push --environment staging\npermdock catalog --format yaml\n",
-        { json: false },
+    it("leaves a connection string on a removed generate command to a person", () => {
+      const text = "permdock rls generate --db-url $DATABASE_URL";
+      const result = rewriteCliCalls(text, { json: false });
+      expect(result.text).toBe(
+        "permdock generate --only rls --db-url $DATABASE_URL",
       );
-      expect(result.changes).toStrictEqual([]);
       expect(result.followUps).toStrictEqual([
         {
           line: 1,
-          column: 21,
+          column: 23,
           name: "cli",
           message:
-            "cloud push: --environment is --project <id>: a project id is its environment since 0.5.0.",
+            "rls generate: --db-url is --db-url-stdin or DATABASE_URL since 0.5.0.",
         },
+      ]);
+    });
+
+    it("reports each generate-command change with its line and column", () => {
+      expect(
+        rewriteCliCalls("run: |\n  permdock rls generate --force\n", {
+          json: false,
+        }).changes,
+      ).toStrictEqual([
         {
           line: 2,
-          column: 18,
-          name: "cli",
-          message: "catalog: --format is --kind since 0.5.0.",
+          column: 12,
+          from: "rls generate",
+          to: "generate --only rls",
         },
-      ]);
-    });
-
-    it("ends a package.json script at its closing quote", () => {
-      const text = `{ "scripts": { "c": "permdock catalog --from \\"$P\\"", "x": "echo --from" } }`;
-      expect(rewriteCliCalls(text, { json: true }).text).toBe(
-        `{ "scripts": { "c": "permdock catalog --permissions \\"$P\\"", "x": "echo --from" } }`,
-      );
-    });
-
-    it("leaves a connection string on the command line to a person", () => {
-      const text = "permdock rls verify --db-url $DATABASE_URL";
-      const result = rewriteCliCalls(text, { json: false });
-      expect(result.text).toBe(text);
-      expect(result.followUps).toStrictEqual([
-        {
-          line: 1,
-          column: 21,
-          name: "cli",
-          message:
-            "rls verify: --db-url is --db-url-stdin or DATABASE_URL since 0.5.0.",
-        },
-      ]);
-    });
-
-    it("reports each change with its line and column", () => {
-      expect(
-        rewriteCliCalls("run: |\n  permdock doctor --strict\n", { json: false })
-          .changes,
-      ).toStrictEqual([
-        { line: 2, column: 19, from: "--strict", to: "--fail-on warning" },
+        { line: 2, column: 25, from: "--force", to: "--force-rls" },
       ]);
     });
   });
 
-  describe("permdock codemod 0.5 on scripts and workflows", () => {
-    it("rewrites package.json, workflows and shell scripts, and lists calls in Markdown", () => {
+  describe("permdock codemod 0.26 on scripts", () => {
+    it("rewrites a removed generate command in package.json and lists Markdown", () => {
       const cwd = project({
         "package.json": `${JSON.stringify(
-          { scripts: { catalog: "permdock catalog --from p.ts" } },
+          { scripts: { gen: "permdock rls generate --from p.ts" } },
           null,
           2,
         )}\n`,
-        ".github/workflows/ci.yml":
-          "jobs:\n  check:\n    steps:\n      - run: npx permdock doctor --strict\n",
-        "scripts/catalog.sh":
-          "permdock catalog --format markdown > CATALOG.md\n",
+        "scripts/gen.sh": "permdock powersync generate --from policy.ts\n",
         "README.md": "Run `permdock rls generate --db $URL`.\n",
       });
       const report = codemod({
         cwd,
-        version: "0.5",
+        version: "0.26",
         paths: [],
         dryRun: false,
         force: true,
         json: true,
       });
       expect(readFileSync(join(cwd, "package.json"), "utf8")).toContain(
-        '"permdock catalog --permissions p.ts"',
+        '"permdock generate --only rls --policy p.ts"',
       );
-      expect(
-        readFileSync(join(cwd, ".github/workflows/ci.yml"), "utf8"),
-      ).toContain("npx permdock doctor --fail-on warning");
-      expect(readFileSync(join(cwd, "scripts/catalog.sh"), "utf8")).toBe(
-        "permdock catalog --kind markdown > CATALOG.md\n",
+      expect(readFileSync(join(cwd, "scripts/gen.sh"), "utf8")).toBe(
+        "permdock generate --only powersync --policy policy.ts\n",
       );
       expect(readFileSync(join(cwd, "README.md"), "utf8")).toBe(
         "Run `permdock rls generate --db $URL`.\n",
       );
       expect(report.files.map((file) => file.file)).toStrictEqual([
-        ".github/workflows/ci.yml",
         "package.json",
-        "scripts/catalog.sh",
+        "scripts/gen.sh",
       ]);
       expect(report.followUps).toStrictEqual([
         {
@@ -242,11 +169,11 @@ describe("codemod cli calls", () => {
     });
 
     it("writes nothing under --dry-run", async () => {
-      const script = "permdock doctor --strict\n";
+      const script = "permdock rls generate --force\n";
       const cwd = project({ "check.sh": script });
-      const result = await run(["codemod", "0.5", "--dry-run"], { cwd });
+      const result = await run(["codemod", "0.26", "--dry-run"], { cwd });
       expect(result.code).toBe(0);
-      expect(result.stdout).toContain("--strict → --fail-on warning");
+      expect(result.stdout).toContain("rls generate → generate --only rls");
       expect(readFileSync(join(cwd, "check.sh"), "utf8")).toBe(script);
     });
   });

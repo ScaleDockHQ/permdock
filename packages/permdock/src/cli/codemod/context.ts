@@ -1,6 +1,5 @@
 import type { Edit, Estree } from "./ast.ts";
 import type { ConfigMove } from "./config-moves.ts";
-import type { Rename, SignatureChange } from "./renames-0.5.ts";
 import type {
   AwaitRename,
   DurationKeys,
@@ -13,6 +12,35 @@ import type {
 
 import { beforeFirst } from "../shared/text.ts";
 import { bindingsCached, nameOf, nodes } from "./ast.ts";
+
+/**
+ * One renamed identifier. `entries` are the import specifiers that export
+ * `from` (`permdock`, `permdock/server`); a codemod renames only bindings
+ * imported from them.
+ */
+export type Rename = {
+  readonly from: string;
+  readonly to: string;
+  readonly entries: readonly string[];
+  readonly kind?: "export" | "option" | "method" | "type";
+  readonly calls?: readonly string[];
+};
+
+/**
+ * A change a codemod reports and never rewrites: the call shape moved, not only
+ * the name.
+ */
+export type SignatureChange = {
+  readonly name: string;
+  readonly entries: readonly string[];
+  readonly before: string;
+  readonly after: string;
+  /**
+   * `curried`: only a call with one argument that is an object literal or whose
+   * result is called has the old shape; any other call is left alone.
+   */
+  readonly shape?: "curried";
+};
 
 /** One version's rename map: what the codemod rewrites and what it only reports. */
 export const SCRIPT_BLOCK: RegExp = /<script\b([^>]*)>([\s\S]*?)<\/script>/gu;

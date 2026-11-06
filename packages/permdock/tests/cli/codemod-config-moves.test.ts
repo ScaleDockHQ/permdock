@@ -1,7 +1,36 @@
 import { describe, expect, it } from "vitest";
 
+import type { ConfigMove } from "../../src/cli/codemod/config-moves.ts";
+
 import { moveConfigKeys } from "../../src/cli/codemod/config-moves.ts";
-import { CONFIG_MOVES_0_8 } from "../../src/cli/codemod/renames-0.8.ts";
+
+const MEMBERSHIP_TABLES = [
+  ["rls", "memberships", "scopes", "*"],
+  ["rls", "memberships", "resource", "*"],
+] as const;
+
+/**
+ * The 0.8 moves, kept here so the mover stays tested after the codemod table
+ * went.
+ */
+const CONFIG_MOVES_0_8: readonly ConfigMove[] = [
+  { from: ["rls", "tenantType"], to: ["rls", "scopeTypes", "tenant"] },
+  { from: ["rls", "teamType"], to: ["rls", "scopeTypes", "team"] },
+  {
+    from: ["rls", "memberships", "tenant"],
+    to: ["rls", "memberships", "scopes", "tenant"],
+  },
+  {
+    from: ["rls", "memberships", "team"],
+    to: ["rls", "memberships", "scopes", "team"],
+  },
+  ...MEMBERSHIP_TABLES.flatMap((table) =>
+    ["tenant", "team"].map((scope) => ({
+      from: [...table, scope],
+      to: [...table, "columns", scope],
+    })),
+  ),
+];
 
 const move = (source: string) =>
   moveConfigKeys("permdock.config.ts", source, CONFIG_MOVES_0_8);

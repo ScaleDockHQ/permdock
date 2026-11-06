@@ -537,8 +537,8 @@ export const SECTIONS: readonly Section[] = [
         "Apply a release's renames to files that import permdock; list call sites to edit by hand",
         {
           examples: [
-            "permdock codemod 0.5 --dry-run",
-            "permdock codemod 0.5 src",
+            "permdock codemod 0.26 --dry-run",
+            "permdock codemod 0.17 src",
           ],
           docs: "codemod",
           effects: ["rewrite"],
