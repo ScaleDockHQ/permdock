@@ -117,6 +117,20 @@ export type RlsSqlContext = {
    * `better_supabase.memo_get` and `memo_set`.
    */
   readonly memo?: "better-supabase";
+  /**
+   * Row predicates read a memoized helper's stored ids and call it only on a
+   * miss, so one statement enters the helper once per key.
+   */
+  readonly reuseMemo?: true;
+  /**
+   * Relation helpers a row predicate must enter once per statement. Filled
+   * while compiling that predicate; an `or` would otherwise skip the call.
+   */
+  readonly memoTouches?: {
+    readonly scope: string;
+    readonly keySql: string;
+    readonly call: string;
+  }[];
   /** `rls.idTypes`: the id type of the row helpers, by resource and `"*"`. */
   readonly idTypes?: Readonly<Record<string, string>>;
   /**

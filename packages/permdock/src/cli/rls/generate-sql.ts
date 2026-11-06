@@ -228,16 +228,17 @@ function sectionsSql(
       ...grants.actionBranches,
     ];
     try {
+      const rowCtx = { ...ctx, reuseMemo: true as const, memoTouches: [] };
       const narrowed = compileGrants(
         policy,
-        { ...ctx, candidates: CANDIDATES },
+        { ...rowCtx, candidates: CANDIDATES },
         tableNames(rls?.tables),
         [],
         input.skipClosures,
         true,
       );
       rowHelpers = rowHelpersSql(
-        ctx,
+        rowCtx,
         policy,
         readable(compiled),
         rls?.rowHelpers ?? [],

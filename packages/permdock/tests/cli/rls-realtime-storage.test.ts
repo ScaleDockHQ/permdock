@@ -101,14 +101,14 @@ describe("rls realtime storage", () => {
   for select
   to authenticated
   using (bucket_id = 'asset-files'
-    and ${id} 'asset.read'));`);
+    and ${id} 'asset.read'::text));`);
       expect(sql).toMatch(
         /"permdock_storage_asset_files_insert"[\s\S]*?for insert\n {2}to authenticated\n {2}with check \(bucket_id/u,
       );
       expect(sql).toMatch(
         /"permdock_storage_asset_files_update"[\s\S]*?using \(bucket_id[\s\S]*?with check \(bucket_id/u,
       );
-      expect(sql).toContain(`${id} 'asset.delete'));`);
+      expect(sql).toContain(`${id} 'asset.delete'::text));`);
       expect(sql).not.toMatch(/alter table "storage"|grant .* on "storage"/u);
     });
 
@@ -119,7 +119,7 @@ describe("rls realtime storage", () => {
         expect.arrayContaining(["asset.read", "asset.update"]),
       );
       expect(sql).toContain(
-        `"permdock".can_asset((storage.foldername(name))[1]::uuid, 'asset.delete')`,
+        `"permdock".can_asset((storage.foldername(name))[1]::uuid, 'asset.delete'::text)`,
       );
     });
 
@@ -133,7 +133,7 @@ describe("rls realtime storage", () => {
       });
       expect(code).toBe(0);
       expect(sql).toContain(
-        `"permdock".can_quote((storage.foldername(name))[1]::uuid, 'quote.read')`,
+        `"permdock".can_quote((storage.foldername(name))[1]::uuid, 'quote.read'::text)`,
       );
       expect(sql).not.toContain(
         "permitted_organization_ids_by_permission('quote.read')",

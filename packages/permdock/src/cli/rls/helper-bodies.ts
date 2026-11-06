@@ -655,6 +655,78 @@ export function memoWriteSql(
     : `set_config(${key}, ${value}, true)`;
 }
 
+/**
+ * The volatile memo for a relation-id helper. A generation bump misses, so a
+ * fresh evaluation that denies is not answered from an earlier allow.
+ */
+export function memoizedSetofSql(input: {
+  readonly fn: string;
+  readonly param: string;
+  readonly returns: string;
+  readonly idType: string;
+  readonly scope: string;
+  readonly keySql: string;
+  readonly userSql: string;
+  readonly query: string;
+  readonly api?: "better-supabase";
+  readonly grants: string;
+}): string {
+  const disc = memoDiscriminatorSql("v_user", input.keySql);
+  const read = memoReadSql(input.api, "v_key");
+  const write = memoWriteSql(
+    input.api,
+    "v_key",
+    "jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text",
+  );
+  return `create or replace function ${input.fn}(${input.param})
+returns ${input.returns}
+language plpgsql
+volatile
+security definer
+cost 1000
+set search_path = ''
+as $$
+declare
+  v_user text := ${input.userSql}::text;
+  v_key text := 'permdock.m.' || ${quoteLiteral(input.scope)} || '.k' || (hashtext(${input.keySql}) & 1023)::text;
+  v_disc text := ${disc};
+  v_memo text := ${read};
+  v_ids ${input.idType}[];
+begin
+  if v_memo is not null and (v_memo::jsonb ->> 'k') = v_disc then
+    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb -> 'ids')::${input.idType});
+  else
+    v_ids := array(
+${input.query}
+    );
+    perform ${write};
+  end if;
+  return query select unnest(v_ids);
+end;
+$$;
+${input.grants}`;
+}
+
+/**
+ * Ids from a memoized helper. A hit reads the stored ids and does not call the
+ * helper; a miss calls it, which stores them. The key matches the helper's.
+ */
+export function memoHitList(
+  scope: string,
+  keySql: string,
+  call: string,
+  userSql: string,
+  api?: "better-supabase",
+): string {
+  const setting = `'permdock.m.' || ${quoteLiteral(scope)} || '.k' || (hashtext(${keySql}) & 1023)::text`;
+  const disc = memoDiscriminatorSql(userSql, keySql);
+  const read =
+    api === "better-supabase"
+      ? `nullif(better_supabase.memo_get(${setting}), '')::jsonb`
+      : `nullif(current_setting(${setting}, true), '')::jsonb`;
+  return `select e from jsonb_array_elements_text(case when (${read} ->> 'k') = ${disc} then ${read} -> 'ids' else to_jsonb(array(select * from ${call})) end) s(e)`;
+}
+
 function memoDiscriminatorSql(user: string, key: string): string {
   return `md5(concat_ws('|',
       ${user},

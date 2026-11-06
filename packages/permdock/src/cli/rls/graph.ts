@@ -40,6 +40,8 @@ import {
   quoteLiteral,
   quoteQualified,
 } from "../sql/quote.ts";
+import { subjectIdSql } from "../sql/subject.ts";
+import { memoizedSetofSql, memoizes } from "./helper-bodies.ts";
 
 function tableFor(
   resource: string,
@@ -249,7 +251,26 @@ function permittedSql(
   if (arms.length === 0) {
     arms.push(`  select null::${idType} where false`);
   }
-  return `-- ${entry.node.name}: ids the subject holds a relation on (all relations when p_relation is null)
+  const query = arms.join("\n  union\n");
+  const comment = `-- ${entry.node.name}: ids the subject holds a relation on (all relations when p_relation is null)`;
+  const grants = `revoke execute on function ${fn}(text) from public, anon;
+grant execute on function ${fn}(text) to authenticated;`;
+  if (memoizes(ctx)) {
+    return `${comment}
+${memoizedSetofSql({
+  fn,
+  param: "p_relation text",
+  returns: `setof ${idType}`,
+  idType,
+  scope: `rel.${entry.node.name}`,
+  keySql: "coalesce(p_relation, '')",
+  userSql: subjectIdSql(ctx),
+  query,
+  ...(ctx.memo === undefined ? {} : { api: ctx.memo }),
+  grants,
+})}`;
+  }
+  return `${comment}
 create or replace function ${fn}(p_relation text)
 returns setof ${idType}
 language sql
@@ -258,10 +279,9 @@ security definer
 cost 1000
 set search_path = ''
 as $$
-${arms.join("\n  union\n")}
+${query}
 $$;
-revoke execute on function ${fn}(text) from public, anon;
-grant execute on function ${fn}(text) to authenticated;`;
+${grants}`;
 }
 
 /**

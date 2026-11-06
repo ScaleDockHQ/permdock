@@ -53,11 +53,11 @@ describe("rls.tables follows and walk", () => {
     const select = policies[0];
     expect(select?.table).toBe("public.job_parties");
     expect(select?.using).toContain(
-      `exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_job(p, 'job.read'))`,
+      `exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_job(p, 'job.read'::text))`,
     );
-    expect(policies[1]?.check).toContain("can_job(p, 'job.update')");
-    expect(policies[2]?.using).toContain("can_job(p, 'job.update')");
-    expect(policies[2]?.check).toContain("can_job(p, 'job.update')");
+    expect(policies[1]?.check).toContain("can_job(p, 'job.update'::text)");
+    expect(policies[2]?.using).toContain("can_job(p, 'job.update'::text)");
+    expect(policies[2]?.check).toContain("can_job(p, 'job.update'::text)");
     expect(policies.map((item) => item.using).join(" ")).not.toContain(
       "jobParty",
     );

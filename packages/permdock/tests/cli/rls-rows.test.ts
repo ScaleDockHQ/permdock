@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
+import { memoizedSetofSql } from "../../src/cli/rls/helper-bodies.ts";
 import {
   levelKeys,
   rowHelpersSql,
@@ -370,6 +371,117 @@ describe("permitted_<resource>_match", () => {
     const review = sql.slice(sql.indexOf("when 'item.review'"));
     expect(read).toContain("permitted_space_rows('space.read'");
     expect(review).toContain("permitted_space_rows('space.read'");
+  });
+
+  it("reads a stored relation list and calls the helper only on a miss", () => {
+    const shared = definePermissions({
+      doc: resource({
+        actions: ["read"],
+        relations: {
+          org: { field: "orgId", memberOf: "tenant" },
+          viewer: { edge: "doc_shares", object: "doc_id", subject: "user_id" },
+        },
+      }),
+    });
+    const sharedPolicy = definePolicy(shared, {
+      scopes: { tenant: { key: "orgId" } },
+      roles: [role("member", [allow(shared.doc.read)], { on: "tenant" })],
+      grants: [allow(shared.doc.read, { to: relation(shared.doc, "viewer") })],
+      subject: () => null,
+    });
+    const base = { ...context("supabase"), authorize: "database" as const };
+    const touches: NonNullable<RlsSqlContext["memoTouches"]> = [];
+    const ctx: RlsSqlContext = {
+      ...base,
+      reuseMemo: true,
+      memoTouches: touches,
+    };
+    const compiled = compileGrants(
+      sharedPolicy,
+      { ...ctx, candidates: "permdock_candidates" },
+      undefined,
+      [],
+      false,
+      true,
+    );
+    const first = touches[0];
+    if (first !== undefined) {
+      touches.push(first);
+    }
+    const branches = [
+      ...compiled.branches,
+      ...compiled.actionBranches,
+    ] as const;
+    const sql = rowHelpersSql(
+      ctx,
+      sharedPolicy,
+      branches,
+      ["doc"],
+      undefined,
+      [],
+    );
+    expect(sql).toContain("select count(*) from");
+    expect(sql).toContain("'rel.doc'");
+    expect(sql).toContain("permitted_doc_ids('viewer')");
+    expect(sql).not.toContain("v_permdock_terms");
+    const plain = rowHelpersSql(
+      base,
+      sharedPolicy,
+      branches,
+      ["doc"],
+      undefined,
+      [],
+    );
+    expect(plain).not.toContain("select count(*) from");
+    const gateway: RlsSqlContext = {
+      ...ctx,
+      memo: "better-supabase",
+      memoTouches: [],
+    };
+    const again = compileGrants(
+      sharedPolicy,
+      { ...gateway, candidates: "permdock_candidates" },
+      undefined,
+      [],
+      false,
+      true,
+    );
+    const better = rowHelpersSql(
+      gateway,
+      sharedPolicy,
+      [...again.branches, ...again.actionBranches],
+      ["doc"],
+      undefined,
+      [],
+    );
+    expect(better).toContain("better_supabase.memo_get");
+    const stored = memoizedSetofSql({
+      fn: '"permdock".permitted_doc_ids',
+      param: "p_relation text",
+      returns: "setof text",
+      idType: "text",
+      scope: "rel.doc",
+      keySql: "coalesce(p_relation, '')",
+      userSql: '(select "permdock".permdock_user_id())',
+      query: "  select null::text where false",
+      grants:
+        'revoke execute on function "permdock".permitted_doc_ids(text) from public;',
+    });
+    expect(stored).toContain("set_config(");
+    const hosted = memoizedSetofSql({
+      fn: '"permdock".permitted_doc_ids',
+      param: "p_relation text",
+      returns: "setof text",
+      idType: "text",
+      scope: "rel.doc",
+      keySql: "coalesce(p_relation, '')",
+      userSql: '(select "permdock".permdock_user_id())',
+      query: "  select null::text where false",
+      api: "better-supabase",
+      grants:
+        'revoke execute on function "permdock".permitted_doc_ids(text) from public;',
+    });
+    expect(hosted).toContain("better_supabase.memo_set");
   });
 });
 

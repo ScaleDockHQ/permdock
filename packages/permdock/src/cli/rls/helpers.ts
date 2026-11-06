@@ -37,6 +37,7 @@ import { globalRolesSql } from "./global-roles.ts";
 import {
   functionBody,
   hasBody,
+  memoHitList,
   memoizes,
   scopedBody,
   sqlBody,
@@ -86,7 +87,11 @@ export function accessSql(
       `PermDock CLI: ${scope}-scoped grant needs definePolicy({ scopes.${scope} })`,
     );
   }
-  return `${quoteIdent(column)} in (select ${qualified(ctx, helper ?? permittedIdsHelper(scope))}(${key}))`;
+  const fn = qualified(ctx, helper ?? permittedIdsHelper(scope));
+  if (ctx.reuseMemo === true && memoizes(ctx)) {
+    return `${quoteIdent(column)} in (${memoHitList(scope, key, `${fn}(${key})`, `${subjectIdSql(ctx)}::text`, ctx.memo)})`;
+  }
+  return `${quoteIdent(column)} in (select ${fn}(${key}))`;
 }
 
 /**

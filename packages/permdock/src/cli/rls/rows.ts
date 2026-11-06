@@ -17,7 +17,8 @@ import {
   quoteLiteral,
   quoteQualified,
 } from "../sql/quote.ts";
-import { memoizes } from "./helper-bodies.ts";
+import { subjectIdSql } from "../sql/subject.ts";
+import { memoHitList, memoizes } from "./helper-bodies.ts";
 import { permittedByPermissionHelper } from "./permission-keys.ts";
 import { orSql } from "./policies.ts";
 import { memoRowTriggersSql } from "./row-memo.ts";
@@ -231,6 +232,21 @@ function matchSql(
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string {
   const fn = qualified(ctx, matchHelper(node.name));
+  const seenTouch = new Set<string>();
+  const touches = (ctx.memoTouches ?? [])
+    .filter((touch) => {
+      if (seenTouch.has(touch.call)) {
+        return false;
+      }
+      seenTouch.add(touch.call);
+      return true;
+    })
+    .map(
+      (touch) =>
+        `(select count(*) from (${memoHitList(touch.scope, touch.keySql, touch.call, `${subjectIdSql(ctx)}::text`, ctx.memo)}) s) >= 0`,
+    )
+    .join(" and ");
+  const guard = touches === "" ? "" : `${touches} and `;
   return `create or replace function ${fn}(p_row ${table}, p_permission text)
 returns boolean
 language sql
@@ -240,7 +256,7 @@ ${plannerOf(ctx)}
 set search_path = ''
 as $$
   with ${CANDIDATES} as (select (p_row).*)
-  select exists (select 1 from ${CANDIDATES} where ${whereOf(branches)})
+  select exists (select 1 from ${CANDIDATES} where ${guard}${whereOf(branches)})
 $$;
 revoke execute on function ${fn}(${table}, text) from public, anon;
 grant execute on function ${fn}(${table}, text) to authenticated;`;

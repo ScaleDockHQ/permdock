@@ -205,25 +205,42 @@ export const policy = definePolicy(permissions, {
       expect(reach).not.toMatch(/#\d+@/u);
     });
 
+    function clause(sql: string, key: string): string {
+      const needle = `when '${key}' then`;
+      const found: string[] = [];
+      let from = 0;
+      while (from < sql.length) {
+        const start = sql.indexOf(needle, from);
+        if (start === -1) {
+          break;
+        }
+        const rest = sql.slice(start + needle.length);
+        const next = rest.search(/\n {4}(?:when |else )/u);
+        found.push(next === -1 ? rest : rest.slice(0, next));
+        from = start + needle.length;
+      }
+      return found.find((item) => item.includes("ownerId")) ?? found[0] ?? "";
+    }
+
     it("emits one condition per level, and a null level is the whole tenant", async () => {
       const sql = await generate(appWith(true, "database", false, false, true));
-      const arm =
-        /\n {4}when 'job\.update' then ([^\n]+)/u.exec(sql)?.[1] ?? "";
+      const arm = clause(sql, "job.update");
       expect(arm.match(/ownerId/gu)).toHaveLength(1);
       expect(arm).toContain("'job.update@own'");
       expect(arm).toContain("'job.update@all'");
       expect(arm).not.toMatch(
-        /permitted_tenant_ids\('job\.update@all'\)\) and \("ownerId"/u,
+        /permitted_tenant_ids\('job\.update@all'\)[\s\S]{0,400}and \("ownerId"/u,
       );
       expect(sql).not.toMatch(/#\d+@/u);
     });
 
     it("gives an instance create one row-helper branch per level", async () => {
       const sql = await generate(appWith(true, "database", false, false, true));
-      const arm = /\n {4}when 'job\.create' then ([^\n]+)/u.exec(sql)?.[1];
-      expect(arm).toBe(
-        `coalesce((("orgId" in (select "permdock".permitted_tenant_ids('job.create'))) or (("orgId" in (select "permdock".permitted_tenant_ids('job.create@own'))) and ("ownerId" = (select "permdock".permdock_user_id()))) or ("orgId" in (select "permdock".permitted_tenant_ids('job.create@all')))), false)`,
-      );
+      const arm = clause(sql, "job.create");
+      expect(arm).toContain("permitted_tenant_ids('job.create')");
+      expect(arm).toContain("permitted_tenant_ids('job.create@own')");
+      expect(arm).toContain("permitted_tenant_ids('job.create@all')");
+      expect(arm.match(/ownerId/gu)).toHaveLength(1);
       expect(sql).toContain(
         'create or replace function "permdock".can_job(p_row "public"."job", p_permission text)',
       );

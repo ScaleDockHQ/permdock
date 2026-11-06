@@ -13,6 +13,7 @@ import { qualifySqlTable } from "../../core/sql.ts";
 import { isoAt } from "../../core/time.ts";
 import { isSqlFunctionField } from "../../index.ts";
 import { configError } from "../core/errors.ts";
+import { memoHitList, memoizes } from "../rls/helper-bodies.ts";
 import {
   activeInstancesSql,
   activeMembershipSql,
@@ -709,10 +710,31 @@ function compileRelatedSql(
     type === rowsType
       ? quoteIdent(condition.field)
       : `${quoteIdent(condition.field)}::${rowsType}`;
+  const relationKey = quoteLiteral(condition.relation);
+  const graphCall = `${qualified(ctx, graphHelper(condition.resource))}(${relationKey})`;
   const helper =
     condition.permission === undefined
-      ? `${qualified(ctx, graphHelper(condition.resource))}(${quoteLiteral(condition.relation)})`
+      ? graphCall
       : `${qualified(ctx, inheritedRowsHelper(condition.resource))}(${quoteLiteral(condition.permission)}${condition.depth === 0 ? candidateIds(ctx, condition.field, idsArgument, rowsType) : ""})`;
+  const held =
+    condition.permission === undefined &&
+    ctx.reuseMemo === true &&
+    memoizes(ctx)
+      ? memoHitList(
+          `rel.${condition.resource}`,
+          `coalesce(${relationKey}, '')`,
+          graphCall,
+          `${subjectIdSql(ctx)}::text`,
+          ctx.memo,
+        )
+      : undefined;
+  if (held !== undefined) {
+    ctx.memoTouches?.push({
+      scope: `rel.${condition.resource}`,
+      keySql: `coalesce(${relationKey}, '')`,
+      call: graphCall,
+    });
+  }
   const ancestor = rowsType === "text" ? "ancestor" : `ancestor::${rowsType}`;
   const descendant =
     rowsType === "text" ? "descendant" : `descendant::${rowsType}`;
@@ -729,7 +751,7 @@ function compileRelatedSql(
     );
     inner = `select ${descendant} from ${qualified(ctx, CLOSURE.table)} where resource = ${quoteLiteral(condition.resource)}${depth}${narrowed} and ${ancestor} = any (array(select ${helper}))`;
   } else {
-    inner = `select ${helper}`;
+    inner = held ?? `select ${helper}`;
   }
   const reach = `${column} in (${inner})`;
   if (condition.parent === true && condition.restricted !== undefined) {
