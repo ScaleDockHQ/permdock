@@ -42,7 +42,10 @@ export async function filesForRls(
     config: { ...source.config, rls: applied.config },
     target: applied.target,
     dialect: applied.dialect ?? "supabase",
-    out: applied.out ?? task.out,
+    // Split without an out uses the schema layout. A single file uses the task path.
+    ...(applied.out !== undefined || applied.split === undefined
+      ? { out: applied.out ?? task.out }
+      : {}),
     rbac: applied.rbac,
     check: false,
     skipClosures: false,

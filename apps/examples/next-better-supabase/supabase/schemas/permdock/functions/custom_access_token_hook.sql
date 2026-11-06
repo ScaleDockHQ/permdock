@@ -8,7 +8,7 @@
 --   enabled = true
 --   uri = "pg-functions://postgres/permdock/custom_access_token_hook"
 
-create schema if not exists "permdock";
+create schema "permdock";
 revoke all on schema "permdock" from public;
 
 -- the global roles of p_user as a json array; no client role may execute it
@@ -32,10 +32,11 @@ $$;
 revoke execute on function "permdock".global_roles_for(uuid) from public, anon, authenticated;
 
 -- the membership entries the hook and subject_for read for p_user; no client role may execute it
-create or replace function "permdock".membership_entries_for(p_user uuid)
+create or replace function "permdock".memberships_for(p_user uuid)
 returns table (ord integer, entry jsonb)
 language plpgsql
 stable
+security definer
 set search_path = ''
 as $$
 #variable_conflict use_column
@@ -80,7 +81,7 @@ begin
   ) x;
 end;
 $$;
-revoke execute on function "permdock".membership_entries_for(uuid) from public, anon, authenticated;
+revoke execute on function "permdock".memberships_for(uuid) from public, anon, authenticated;
 
 create or replace function "permdock".custom_access_token_hook(event jsonb)
 returns jsonb
@@ -115,7 +116,7 @@ begin
     select x.entry, x.root_id is not distinct from active as current
     from (
       select e.ord, e.entry, case when e.entry ->> 'scope' = 'organization' then e.entry ->> 'id' else e.entry -> 'within' ->> 'organization' end as root_id
-      from "permdock".membership_entries_for(uid) e
+      from "permdock".memberships_for(uid) e
     ) x
     order by (x.root_id is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
   loop
@@ -150,7 +151,7 @@ end;
 $$;
 
 -- the authorization version: bumped on every membership change, written to authz_ver
-create table if not exists "permdock"."permdock_authz_version" (
+create table "permdock"."permdock_authz_version" (
   user_id uuid primary key references auth.users on delete cascade,
   version bigint not null default 0
 );
@@ -223,24 +224,6 @@ create or replace trigger permdock_authz_version_broadcast
   after insert or update on "permdock"."permdock_authz_version"
   for each row execute function "permdock".permdock_broadcast_authz_version();
 
--- each user receives their own authz:<uid> topic, and no user may join the server topic
-do $$
-begin
-  if to_regclass('realtime.messages') is not null and not exists (
-    select 1 from pg_policies
-    where schemaname = 'realtime' and tablename = 'messages'
-      and policyname = 'permdock_authz_version_receive'
-  ) then
-    create policy permdock_authz_version_receive on realtime.messages
-      for select to authenticated
-      using (
-        realtime.messages.extension = 'broadcast'
-        and (select realtime.topic()) = 'authz:' || (select auth.uid())::text
-      );
-  end if;
-end;
-$$;
-
 -- the subject the hook would mint for p_user, for a backend acting for a stored user; no client role may execute it
 create or replace function "permdock".subject_for(p_user uuid)
 returns jsonb
@@ -264,7 +247,7 @@ begin
   held := "permdock".global_roles_for(uid);
   select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text), '[]'::jsonb)
     into memberships
-    from "permdock".membership_entries_for(uid) x;
+    from "permdock".memberships_for(uid) x;
   select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
       'name', c.role,
       'shared', case when c.tenant_id is null and c.scope <> 'global' then true end,
@@ -411,7 +394,7 @@ revoke all on function "public"."datetime_preference_claims"(uuid) from public, 
 grant execute on function "public"."datetime_preference_claims"(uuid) to supabase_auth_admin;
 revoke all on function "public"."feature_claims"(uuid) from public, anon, authenticated;
 grant execute on function "public"."feature_claims"(uuid) to supabase_auth_admin;
-grant execute on function "permdock".membership_entries_for(uuid) to supabase_auth_admin;
+grant execute on function "permdock".memberships_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".global_roles_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".member_organization_ids_for(uuid) to supabase_auth_admin;
 grant execute on function "permdock".member_customer_ids_for(uuid) to supabase_auth_admin;

@@ -23,6 +23,7 @@ export default defineConfig({
   rls: {
     dialect: "supabase",
     authorize: "database",
+    actions: { manage: "none", revert: "none" },
     scopeTypes: { tenant: "uuid" },
     // `audit` names better-supabase's audit block keys; the block owns its table and policies.
     tables: { staff: "staff", quotes: "quotes", audit: false },
