@@ -2,7 +2,12 @@ import type { Policy } from "../../core/policy-types.ts";
 import type { PermDockConfig } from "../types.ts";
 import type { ProjectContext } from "./context.ts";
 import type { PolicyModel } from "./model.ts";
-import type { PermDockPlugin, PluginTask } from "./plugin.ts";
+import type {
+  EmittedFile,
+  PermDockPlugin,
+  PluginEmit,
+  PluginTask,
+} from "./plugin.ts";
 
 import { canonicalJson } from "../../core/canonical-json.ts";
 import { applyFiles, planFiles } from "../core/files.ts";
@@ -40,8 +45,17 @@ export type GenerateRun = {
   readonly summary: GenerateSummary;
   /** `+`, `-` and `~` rows for files that would change. */
   readonly diff: string;
+  /** Lines from plugins, printed after the Generated line. */
+  readonly notes: readonly string[];
   readonly code: 0 | 1;
 };
+
+function partsOf(produced: PluginEmit): {
+  readonly files: readonly EmittedFile[];
+  readonly notes: readonly string[];
+} {
+  return { files: produced, notes: produced.notes ?? [] };
+}
 
 function summaryOf(files: readonly GeneratedFile[]): GenerateSummary {
   const summary = {
@@ -108,6 +122,8 @@ export async function runGenerate(input: {
   readonly noCache?: boolean;
   readonly cacheDir?: string;
   readonly concurrency?: number;
+  /** `--db-url-stdin`, passed to plugins that read the database. */
+  readonly db?: string;
   /** Module URLs recorded while the policy loaded. Part of the cache key. */
   readonly importGraph?: readonly string[];
 }): Promise<GenerateRun> {
@@ -141,6 +157,7 @@ export async function runGenerate(input: {
           skipped: files.length,
         },
         diff: "",
+        notes: [],
         code: 0,
       };
     }
@@ -159,19 +176,26 @@ export async function runGenerate(input: {
     tasks,
     concurrencyOf(input.concurrency),
     async (item) => {
-      const produced = await item.plugin.emit(item.task, model, {
-        cwd: input.cwd,
-        config: input.config,
-        policy: input.policy,
-      });
-      return produced.map((file) => ({
-        plugin: item.plugin.name,
-        path: file.path,
-        contents: file.contents,
-      }));
+      const produced = partsOf(
+        await item.plugin.emit(item.task, model, {
+          cwd: input.cwd,
+          config: input.config,
+          policy: input.policy,
+          ...(input.db === undefined ? {} : { db: input.db }),
+        }),
+      );
+      return {
+        files: produced.files.map((file) => ({
+          plugin: item.plugin.name,
+          path: file.path,
+          contents: file.contents,
+        })),
+        notes: produced.notes,
+      };
     },
   );
-  const emitted = groups.flat();
+  const notes = groups.flatMap((group) => group.notes);
+  const emitted = groups.flatMap((group) => group.files);
   const bodies = emitted.map((item) => ({
     path: item.path,
     text: item.contents,
@@ -205,6 +229,7 @@ export async function runGenerate(input: {
     files,
     summary,
     diff: diffOf(files),
+    notes,
     code: input.check === true && drifted ? 1 : 0,
   };
 }

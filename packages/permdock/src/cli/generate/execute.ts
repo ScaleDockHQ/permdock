@@ -26,6 +26,7 @@ export type GenerateRequest = {
   readonly noCache: boolean;
   readonly cacheDir?: string;
   readonly concurrency?: number;
+  readonly db?: string;
 };
 
 export type GenerateExecution = {
@@ -139,13 +140,16 @@ export async function executeGenerate(
       ? {}
       : { concurrency: input.concurrency }),
     importGraph: loaded.files,
+    ...(input.db === undefined ? {} : { db: input.db }),
   });
   const written = run.files.map((file) => resolve(input.cwd, file.path));
   if (input.config.gen === undefined) {
     return {
       run,
       code: run.code,
-      output: input.check ? run.diff : "",
+      output: [input.check ? run.diff : "", ...run.notes]
+        .filter((part) => part !== "")
+        .join("\n"),
       summary: run.summary,
       written,
       inputs: [...inputs],
@@ -155,7 +159,7 @@ export async function executeGenerate(
   return {
     run,
     code: run.code === 0 ? typed.code : run.code,
-    output: [input.check ? run.diff : "", typed.output]
+    output: [input.check ? run.diff : "", typed.output, ...run.notes]
       .filter((part) => part !== "")
       .join("\n"),
     summary: run.summary,

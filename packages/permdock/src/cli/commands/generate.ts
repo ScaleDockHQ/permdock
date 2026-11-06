@@ -2,7 +2,13 @@ import type { Leaf } from "../core/command.ts";
 
 import { defineLeaf } from "../core/command.ts";
 import { CliError } from "../core/errors.ts";
-import { checkFlag, dryRunFlag, policyFlag } from "../core/flags.ts";
+import {
+  checkFlag,
+  dbUrl,
+  dbUrlFlags,
+  dryRunFlag,
+  policyFlag,
+} from "../core/flags.ts";
 import { executeGenerate } from "../generate/execute.ts";
 import { receiptRows } from "../generate/pipeline.ts";
 
@@ -24,6 +30,7 @@ export const generate: Leaf = defineLeaf({
     ...checkFlag,
     ...dryRunFlag,
     ...policyFlag,
+    ...dbUrlFlags,
     only: {
       type: "string",
       description: "Run this plugin; repeat for more than one",
@@ -61,6 +68,7 @@ export const generate: Leaf = defineLeaf({
       );
     }
     const concurrency = concurrencyFlag(flags.concurrency);
+    const db = await dbUrl(ctx, flags);
     const policy =
       flags.policy !== undefined && flags.policy !== ""
         ? flags.policy
@@ -92,6 +100,7 @@ export const generate: Leaf = defineLeaf({
           ? {}
           : { cacheDir: flags["cache-dir"] }),
         ...(concurrency === undefined ? {} : { concurrency }),
+        ...(db === undefined ? {} : { db }),
       });
       const wrote = executed.summary.created + executed.summary.updated;
       phase.done(`Generated ${wrote} ${wrote === 1 ? "file" : "files"}`);

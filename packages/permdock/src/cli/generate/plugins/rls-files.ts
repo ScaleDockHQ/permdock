@@ -13,6 +13,7 @@ import {
   fixturesSeedSql,
 } from "../../rls/emit/seed-sql.ts";
 import { runRlsGenerate } from "../../rls/generate.ts";
+import { noted } from "../plugin.ts";
 import { applyRlsPlugin } from "./rls-options.ts";
 
 const io = {
@@ -82,6 +83,7 @@ export async function filesForRls(
     ...(applied.tenantType === undefined
       ? {}
       : { tenantType: applied.tenantType }),
+    ...(source.db === undefined ? {} : { db: source.db }),
   });
   if (outcome.code !== 0) {
     throw new CliError(
@@ -123,5 +125,5 @@ export async function filesForRls(
   if (fixturesPresent(seeds)) {
     files.push({ path: FIXTURES_PATH, contents: fixturesSeedSql(seeds) });
   }
-  return files;
+  return noted(files, outcome.output === "" ? [] : outcome.output.split("\n"));
 }

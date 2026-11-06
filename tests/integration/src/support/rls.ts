@@ -45,6 +45,22 @@ function flagValues(flags: readonly string[]): Map<string, string | true> {
   return values;
 }
 
+function dbIo(dbUrl: string): {
+  readonly stdout: (text: string) => void;
+  readonly stderr: (text: string) => void;
+  readonly readStdin: () => Promise<string>;
+} {
+  return {
+    stdout(text) {
+      void text;
+    },
+    stderr(text) {
+      void text;
+    },
+    readStdin: () => Promise.resolve(dbUrl),
+  };
+}
+
 function textOf(
   values: ReadonlyMap<string, string | true>,
   name: string,
@@ -196,6 +212,7 @@ export async function hookGenerate(
   const grantsOut = text("grants-out");
   const activeFrom = text("active-from");
   const budget = text("budget");
+  const dbUrl = text("db-url");
   return run(
     [
       "generate",
@@ -203,9 +220,11 @@ export async function hookGenerate(
       "supabaseHook",
       "--no-cache",
       ...(values.get("check") === true ? ["--check"] : []),
+      ...(dbUrl === undefined ? [] : ["--db-url-stdin"]),
     ],
     {
       ...(options?.cwd === undefined ? {} : { cwd: options.cwd }),
+      ...(dbUrl === undefined ? {} : { io: dbIo(dbUrl) }),
       plugins: [
         supabaseHook({
           ...(out === undefined ? {} : { out }),
@@ -226,6 +245,7 @@ export async function rlsGenerate(
   options?: { readonly cwd?: string },
 ): Promise<RunResult> {
   const parsed = pluginOptions(flags);
+  const dbUrl = textOf(flagValues(flags), "db-url");
   return run(
     [
       "generate",
@@ -233,9 +253,11 @@ export async function rlsGenerate(
       "rls",
       "--no-cache",
       ...(parsed.check ? ["--check"] : []),
+      ...(dbUrl === undefined ? [] : ["--db-url-stdin"]),
     ],
     {
       ...(options?.cwd === undefined ? {} : { cwd: options.cwd }),
+      ...(dbUrl === undefined ? {} : { io: dbIo(dbUrl) }),
       plugins: [rls(parsed.options)],
     },
   );

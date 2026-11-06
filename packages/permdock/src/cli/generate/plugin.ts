@@ -12,12 +12,35 @@ export type EmitSource = {
   readonly cwd: string;
   readonly config: PermDockConfig;
   readonly policy: Policy;
+  /** `--db-url-stdin`. Index suggestions and hook helper checks read it. */
+  readonly db?: string;
 };
 
 /** One unit of emit. `out` is the file the task owns, relative to the project. */
 export type PluginTask = { readonly id: string; readonly out: string };
 
 export type EmittedFile = { readonly path: string; readonly contents: string };
+
+/**
+ * Files plus lines the command prints, such as a doctor code or an index
+ * suggestion.
+ */
+export type NotedFiles = readonly EmittedFile[] & {
+  readonly notes?: readonly string[];
+};
+
+export type PluginEmit = NotedFiles;
+
+/** An array the existing callers can map, with `notes` for the command to print. */
+export function noted(
+  files: readonly EmittedFile[],
+  notes: readonly string[],
+): NotedFiles {
+  if (notes.length === 0) {
+    return files;
+  }
+  return Object.assign([...files], { notes });
+}
 
 export type PluginInputs = {
   readonly files: readonly string[];
@@ -43,7 +66,7 @@ export type PermDockPlugin = {
     task: PluginTask,
     model: PolicyModel,
     source?: EmitSource,
-  ) => readonly EmittedFile[] | Promise<readonly EmittedFile[]>;
+  ) => PluginEmit | Promise<PluginEmit>;
 };
 
 export type PluginInit = {
