@@ -5,11 +5,12 @@ import type { RlsActions } from "../types.ts";
 import type { RlsSqlContext } from "./context.ts";
 import type { RlsAccess, RlsGrant } from "./grants.ts";
 
+import { heldLevels } from "../../core/assignable.ts";
 import { canonicalJson } from "../../core/canonical-json.ts";
 import { sole } from "../../core/compact.ts";
 import { leveled } from "../../core/custom-roles.ts";
 import { requiresStandIn } from "../../core/delegation.ts";
-import { policyLevels } from "../../core/policy.ts";
+import { coveredLevels, levelNames, policyLevels } from "../../core/policy.ts";
 import { defaultSqlCommand } from "../../core/sql.ts";
 import { scopeField } from "../../core/tenancy.ts";
 import {
@@ -106,19 +107,27 @@ export type CompiledGrants = {
 
 /**
  * The levels an allow reaches: every level without a row condition, else the
- * levels whose condition equals its condition.
+ * levels whose condition equals its condition. `orderedLevels` adds every
+ * narrower level, as `heldLevels` does in process.
  */
 function reachedLevels(
+  policy: Policy,
+  resource: string,
   where: Condition | undefined,
   levels: readonly (readonly [string, Condition])[],
 ): readonly string[] {
+  const names = levels.map(([name]) => name);
   if (where === undefined) {
-    return levels.map(([name]) => name);
+    return coveredLevels(policy, resource, names);
   }
   const held = canonicalJson(where);
-  return levels
-    .filter(([, condition]) => canonicalJson(condition) === held)
-    .map(([name]) => name);
+  return coveredLevels(
+    policy,
+    resource,
+    levels
+      .filter(([, condition]) => canonicalJson(condition) === held)
+      .map(([name]) => name),
+  );
 }
 
 function levelReachOf(
@@ -141,7 +150,7 @@ function levelReachOf(
     const levels = policyLevels(policy, resource);
     if (levels.length > 0) {
       const set = reach.get(grantKey) ?? new Set<string>();
-      const reached = reachedLevels(grant.where, levels);
+      const reached = reachedLevels(policy, resource, grant.where, levels);
       for (const name of reached) {
         set.add(name);
       }
@@ -149,16 +158,25 @@ function levelReachOf(
     }
   }
   const out: (readonly [string, string])[] = [];
-  for (const grantKey of new Set(keys.values())) {
+  const seen = new Set<string>();
+  const push = (grantKey: string, level: string): void => {
+    const id = `${grantKey}\u0000${level}`;
+    if (seen.has(id)) {
+      return;
+    }
+    seen.add(id);
+    out.push([grantKey, level]);
+  };
+  for (const [, grantKey] of keys) {
     const at = grantKey.lastIndexOf("@");
-    const base = at === -1 ? grantKey : grantKey.slice(0, at);
-    const level = at === -1 ? undefined : grantKey.slice(at + 1);
-    if (level !== undefined) {
-      out.push([grantKey, level]);
+    if (at !== -1) {
+      // A level key names its own level. Narrower levels are separate keys the
+      // role holds, not extra rows of this key.
+      push(grantKey, grantKey.slice(at + 1));
       continue;
     }
-    for (const name of reach.get(base) ?? []) {
-      out.push([grantKey, name]);
+    for (const name of reach.get(grantKey) ?? []) {
+      push(grantKey, name);
     }
   }
   return out.toSorted(([a, x], [b, y]) =>
@@ -542,10 +560,11 @@ function levelWhere(condition: Condition): Condition | undefined {
 }
 
 /**
- * One entry per role per level, keyed `<permission>@<level>` with the level
- * condition only. A `#n` group is not crossed into the level key. Every role
- * holds the same leveled keys, and `permdock_ceiling` keeps only the assignable
- * roles'.
+ * One entry per role per level the role's allow reaches, keyed
+ * `<permission>@<level>` with the level condition only. A `#n` group is not
+ * crossed into the level key. `permdock_ceiling` keeps only the assignable
+ * roles' keys. A role that does not reach a level does not hold its key, so
+ * `permdock_has` stays false for it.
  */
 function levelEntries(
   policy: Policy,
@@ -560,6 +579,7 @@ function levelEntries(
     return [];
   }
   const out: Prepared[] = [];
+  const seen = new Set<string>();
   // The loop adds the leveled keys to `keys`, so it walks a copy.
   for (const [entry] of Array.from(keys)) {
     const { item } = entry;
@@ -576,10 +596,22 @@ function levelEntries(
         `PermDock CLI: permission key '${grant.permission.key}' holds '@', which separates a level in custom-role grant keys`,
       );
     }
+    const reached = new Set(
+      heldLevels(policy, grant, levelNames(policy, grant.permission.resource)),
+    );
     for (const [level, condition] of policyLevels(
       policy,
       grant.permission.resource,
     )) {
+      if (!reached.has(level)) {
+        continue;
+      }
+      const key = `${grant.permission.key}@${level}`;
+      const id = `${item.access.role}\0${key}`;
+      if (seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
       const where = levelWhere(condition);
       const { where: _base, ...rest } = item;
       const { where: _grantWhere, check: _grantCheck, ...bare } = grant;
@@ -590,7 +622,7 @@ function levelEntries(
       };
       const prepared = prepare(narrowed, tables, warnings, skipClosures, ctx);
       if (prepared !== undefined) {
-        keys.set(prepared, `${grant.permission.key}@${level}`);
+        keys.set(prepared, key);
         out.push(prepared);
       }
     }
@@ -693,6 +725,7 @@ export function compileGrants(
   const conditionedKeys = new Set<string>();
   for (const [entry, grantKey] of keys) {
     if (
+      grantKey.includes("@") ||
       entry.using !== undefined ||
       entry.check !== undefined ||
       entry.item.grant.validity !== undefined ||
@@ -875,6 +908,7 @@ export function compileGrants(
     const branchKey = [
       table,
       command,
+      grant.permission.key,
       grant.effect,
       grantKey ?? "",
       accessExpr ?? "",

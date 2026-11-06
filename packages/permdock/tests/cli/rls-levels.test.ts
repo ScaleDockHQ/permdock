@@ -195,6 +195,11 @@ export const policy = definePolicy(permissions, {
       )?.[1];
       expect(reach).toContain("('job.update@team', 'team')");
       expect(reach).not.toContain("('job.update@team', 'own')");
+      expect(sql).toContain("level_order (permission, level, ord)");
+      expect(sql).toContain("('job.update', 'own', 0)");
+      expect(sql).toContain("('job.update', 'team', 1)");
+      expect(sql).toContain("('job.update', 'all', 2)");
+      expect(sql).toContain("asked.ord <= held.ord");
       expect(reach).not.toContain("('job.read@team', 'own')");
       expect(reach).not.toContain("('job.read@own', 'team')");
       expect(reach).not.toMatch(/#\d+@/u);
@@ -292,6 +297,30 @@ export const policy = definePolicy(permissions, {
           .toSorted();
       expect(keys("owner")).toStrictEqual(["job.update@all", "job.update@own"]);
       expect(keys("admin")).toStrictEqual(keys("owner"));
+    });
+
+    it("omits a level the role's allow does not reach", async () => {
+      const sql = await generate(
+        appWith(true, "database", false, true, false, true),
+      );
+      const keys = (role: string): string[] =>
+        [
+          ...sql.matchAll(
+            new RegExp(`\\('${role}', 'job\\.update', '([^']+)',`, "gu"),
+          ),
+        ]
+          .map((match) => match[1] ?? "")
+          .filter((key) => key.includes("@"))
+          .toSorted();
+      expect(keys("admin")).toStrictEqual([
+        "job.update@all",
+        "job.update@own",
+        "job.update@team",
+      ]);
+      expect(keys("manager")).toStrictEqual([
+        "job.update@own",
+        "job.update@team",
+      ]);
     });
   });
 });

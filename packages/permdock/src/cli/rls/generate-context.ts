@@ -24,6 +24,7 @@ import type { RbacAuthorizeMode } from "./rbac.ts";
 
 import { scopeColumn, scopeMembershipTable } from "../../conditions/compile.ts";
 import { renamedKeys } from "../../core/permission-registry.ts";
+import { levelNames } from "../../core/policy.ts";
 import { resolveScope, scopeChain, scopeList } from "../../core/scopes.ts";
 import { qualifySqlTable } from "../../core/sql.ts";
 import { listPermissions } from "../../index.ts";
@@ -294,7 +295,26 @@ function customRoleNames(
     ...(manage.length === 0 ? {} : { manage: manage.toSorted() }),
     ...(requires === undefined ? {} : { requires }),
     ...(policy.levels === undefined ? {} : { levels: true as const }),
+    ...levelOrderOf(policy),
   };
+}
+
+/** Declaration order of each ordered resource's levels, per permission key. */
+function levelOrderOf(
+  policy: Policy,
+):
+  | { readonly levelOrder: readonly (readonly [string, string, number])[] }
+  | Record<string, never> {
+  const rows: (readonly [string, string, number])[] = [];
+  for (const leaf of listPermissions(policy.permissions)) {
+    if (policy.orderedLevels?.includes(leaf.resource) !== true) {
+      continue;
+    }
+    for (const [ord, name] of levelNames(policy, leaf.resource).entries()) {
+      rows.push([leaf.key, name, ord]);
+    }
+  }
+  return rows.length === 0 ? {} : { levelOrder: rows };
 }
 
 function skippedOwnershipTriggers(

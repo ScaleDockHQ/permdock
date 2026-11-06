@@ -319,6 +319,58 @@ describe("permitted_<resource>_match", () => {
       'select "permdock".permitted_item_match(p_row, p_permission)',
     );
   });
+
+  it("keeps a shared relation on every permission it grants", () => {
+    const shared = definePermissions({
+      space: resource({
+        actions: ["read"],
+        relations: { org: { field: "orgId", memberOf: "tenant" } },
+      }),
+      item: resource({
+        actions: ["read", "review"],
+        links: { space: { field: "spaceId", resource: "space" } },
+      }),
+    });
+    const sharedPolicy = definePolicy(shared, {
+      scopes: { tenant: { key: "orgId" } },
+      roles: [role("member", [allow(shared.space.read)], { on: "tenant" })],
+      grants: [
+        allow([shared.item.read, shared.item.review], {
+          to: inherit(shared.space.read, { through: ["space"] }),
+        }),
+      ],
+      subject: () => null,
+    });
+    const ctx: RlsSqlContext = {
+      ...context("supabase"),
+      authorize: "database",
+      actions: { review: "none" },
+      graph: { closures: {}, resources: sharedPolicy.resources },
+    };
+    const compiled = compileGrants(
+      sharedPolicy,
+      { ...ctx, candidates: "permdock_candidates" },
+      undefined,
+      [],
+      false,
+      true,
+    );
+    const sql = rowHelpersSql(
+      ctx,
+      sharedPolicy,
+      [...compiled.branches, ...compiled.actionBranches],
+      ["item"],
+      undefined,
+      [],
+    );
+    const read = sql.slice(
+      sql.indexOf("when 'item.read'"),
+      sql.indexOf("when 'item.review'"),
+    );
+    const review = sql.slice(sql.indexOf("when 'item.review'"));
+    expect(read).toContain("permitted_space_rows('space.read'");
+    expect(review).toContain("permitted_space_rows('space.read'");
+  });
 });
 
 describe(levelKeys, () => {

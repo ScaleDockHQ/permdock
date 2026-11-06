@@ -159,9 +159,16 @@ export type RlsSqlContext = {
     /**
      * Set when a resource declares levels: stored allows may carry a level
      * (`custom_role_permissions.level`, `key@level` in claims), and the
-     * assignable roles' grants get one `<grant key>@<level>` key per level.
+     * assignable roles' grants get one `<grant key>@<level>` key per level the
+     * role's allow reaches.
      */
     readonly levels?: true;
+    /**
+     * `(permission, level, declaration order)` for resources with
+     * `orderedLevels`. A stored level also holds every level declared before
+     * it. Absent when no resource orders its levels.
+     */
+    readonly levelOrder?: readonly (readonly [string, string, number])[];
     /**
      * The sync triggers (`rls.customRoles.from.sync`) as SQL, built from the
      * legacy tables.

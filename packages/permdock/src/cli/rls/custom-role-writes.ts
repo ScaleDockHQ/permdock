@@ -80,17 +80,11 @@ function callerFunctionsSql(
   const manageKeys = custom.manage ?? [];
   const manage = holdsAny(manageKeys, heldKey);
   const platform = holdsAny(manageKeys, has);
-  const atTenant = (key: string): string =>
-    `p_tenant::text in ${permitted(root, key)}`;
   const requires =
     custom.requires === undefined
       ? ""
       : `
-  if p_scope = 'global' then
-    if not ${holdsAny(custom.requires, has)} then
-${raiseSql("      ", "42501", `'permdock: the caller may not manage roles in ' || coalesce(p_tenant::text, 'the platform')`, "manage-roles")}
-    end if;
-  elsif not ${holdsAny(custom.requires, atTenant)} then
+  if not ${holdsAny(custom.requires, heldKey)} then
 ${raiseSql("    ", "42501", `'permdock: the caller may not manage roles in ' || coalesce(p_tenant::text, 'the platform')`, "manage-roles")}
   end if;`;
   const reachRows = levelReach
