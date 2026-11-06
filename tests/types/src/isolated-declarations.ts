@@ -39,3 +39,7 @@ export const mismatched: PermissionsOf<Mismatched> = definePermissions({
     collection: ["list"],
   }),
 });
+
+export type { PermDockPlugin } from "permdock/cli";
+export type { RlsPluginOptions } from "permdock/cli/plugins/rls";
+export type { Seeds } from "permdock/seeds";
