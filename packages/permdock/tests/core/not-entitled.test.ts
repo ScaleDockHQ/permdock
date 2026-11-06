@@ -55,7 +55,6 @@ describe("not-entitled", () => {
     const response = problemFromDecision(
       server.decide(p.analytics.read),
       p.analytics.read,
-      server.subject,
     );
     expect(response.status).toBe(403);
     // SAFETY: the Problem Details JSON produced by the response helper under test.

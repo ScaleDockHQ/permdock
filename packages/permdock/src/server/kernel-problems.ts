@@ -1,7 +1,6 @@
 import type { Decision } from "../core/decision.ts";
 import type { ApprovalHint } from "../core/errors.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { Subject } from "../core/subject.ts";
 
 import { compact } from "../core/compact.ts";
 import { LOAD_FAILED } from "../core/decision.ts";
@@ -37,7 +36,6 @@ export function loadFailedProblem(permission: Permission | null): Response {
  */
 export function scopeProblem(
   permission: Permission | null,
-  subject: Subject,
   credentials: boolean,
   scope: string | undefined,
 ): Response {
@@ -56,7 +54,6 @@ export function scopeProblem(
     : problemFromDecision(
         NOT_DELEGATED,
         permission,
-        subject,
         compact({ credentials, scope }),
       );
 }
@@ -70,7 +67,6 @@ export function problemFor(
     return problemFromDecision(
       decision,
       init.permission,
-      undefined,
       compact({ instance: init.instance, approval }),
     );
   }

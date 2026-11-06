@@ -428,11 +428,7 @@ describe("openid connect", () => {
         outcome: "denied",
         denials: [{ reason: "insufficient-user-authentication" }],
       });
-      const response = problemFromDecision(
-        decision,
-        permissions.payout.create,
-        permdock.subject,
-      );
+      const response = problemFromDecision(decision, permissions.payout.create);
       expect(response.status).toBe(401);
       expect(response.headers.get("WWW-Authenticate")).toBe(
         'Bearer error="insufficient_user_authentication", acr_values="urn:example:loa:3", max_age="300"',
