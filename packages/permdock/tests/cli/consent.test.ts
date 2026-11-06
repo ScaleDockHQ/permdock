@@ -166,6 +166,9 @@ describe("consent", () => {
       expect(replayArgv(["--tree", "--confirm", "abc"])).toStrictEqual([
         "--tree",
       ]);
+      const hole: string[] = ["ok"];
+      hole.length = 2;
+      expect(replayArgv(hole)).toStrictEqual(["ok", ""]);
     });
   });
 });

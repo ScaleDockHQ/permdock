@@ -38,6 +38,7 @@ import {
   resource,
   role,
 } from "../../src/index.ts";
+import { junctionMembershipSource } from "../../src/supabase/index.ts";
 
 const permissions = definePermissions({
   note: resource({
@@ -412,6 +413,40 @@ describe(executeGenerate, () => {
     await expect(
       supabaseHook().emit({ id: "hook", out: "hook.sql" }, model, source),
     ).rejects.toThrow("supabase.hook");
+    const hooked: EmitSource = {
+      ...source,
+      config: {
+        ...config,
+        supabase: {
+          hook: {
+            memberships: [
+              junctionMembershipSource({
+                table: "memberships",
+                scope: "tenant",
+                id: "org_id",
+                roles: "role",
+                user: "user_id",
+              }),
+            ],
+          },
+        },
+      },
+    };
+    const written = await supabaseHook({
+      out: "hook.sql",
+      schemas: "migra",
+    }).emit({ id: "hook", out: "hook.sql" }, model, hooked);
+    expect(written).toHaveLength(0);
+    expect(written.notes?.join("\n")).toContain("wrote hook.sql");
+    expect(readFileSync(join(cwd, "hook.sql"), "utf8")).toContain(
+      "custom_access_token",
+    );
+    await expect(
+      supabaseHook().emit({ id: "hook", out: "hook.sql" }, model, {
+        ...hooked,
+        db: "postgres://127.0.0.1:1/permdock",
+      }),
+    ).rejects.toThrow("could not connect");
     const withDefaults = {
       ...source,
       config: {

@@ -312,6 +312,13 @@ describe("core units", () => {
       expect(renameMessage("scan", { commands: ["scan"], from: "--old" })).toBe(
         "scan: --old was removed in 0.5.0.",
       );
+      expect(
+        renameMessage("scan", {
+          commands: ["scan"],
+          from: "--old",
+          hint: "use the new flag",
+        }),
+      ).toBe("scan: --old was removed in 0.5.0: use the new flag.");
     });
   });
 
@@ -349,6 +356,22 @@ describe("core units", () => {
 
   describe(run, () => {
     const quiet = { stdout: () => undefined, stderr: () => undefined };
+
+    it("passes a database url into doctor and a policy into powersync generate", async () => {
+      const doctor = await run(["doctor", "--db-url-stdin", "--json"], {
+        cwd: FIXTURE,
+        io: {
+          ...quiet,
+          readStdin: () => Promise.resolve("postgres://127.0.0.1:1/permdock"),
+        },
+      });
+      expect(doctor.code).not.toBe(0);
+      const powersync = await run(
+        ["powersync", "generate", "--policy", "missing.ts", "--json"],
+        { cwd: FIXTURE, io: quiet },
+      );
+      expect(powersync.code).not.toBe(0);
+    });
 
     it("refuses an empty secret on stdin", async () => {
       const result = await run(["rls", "verify", "--db-url-stdin", "--json"], {

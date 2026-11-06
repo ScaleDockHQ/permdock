@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { projectContext } from "../../src/cli/generate/context.ts";
-import { runGenerate } from "../../src/cli/generate/pipeline.ts";
+import { receiptRows, runGenerate } from "../../src/cli/generate/pipeline.ts";
 import { definePlugin, orderPlugins } from "../../src/cli/generate/plugin.ts";
 import {
   allow,
@@ -44,6 +44,27 @@ describe("generate pipeline", () => {
     for (const dir of dirs.splice(0)) {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("prints an unchanged row and a cache skip", () => {
+    expect(
+      receiptRows({
+        created: 0,
+        updated: 0,
+        unchanged: 2,
+        planned: 0,
+        skipped: 1,
+      }),
+    ).toStrictEqual(["Unchanged 2", "Skipped (cache) 1"]);
+    expect(
+      receiptRows({
+        created: 1,
+        updated: 0,
+        unchanged: 0,
+        planned: 0,
+        skipped: 0,
+      }),
+    ).toStrictEqual([]);
   });
 
   it("orders plugins by after and keeps input order", () => {

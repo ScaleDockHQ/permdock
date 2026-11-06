@@ -32,12 +32,21 @@ import {
   permittedIdsHelper,
   scopeTable,
 } from "../../src/cli/sql/names.ts";
-import { textArrayLiteral } from "../../src/cli/sql/quote.ts";
+import { declaredArray, textArrayLiteral } from "../../src/cli/sql/quote.ts";
 import {
   subjectClaimJsonSql,
   subjectClaimSql,
 } from "../../src/cli/sql/subject.ts";
 import { qualifySqlTable } from "../../src/core/sql.ts";
+
+describe(declaredArray, () => {
+  it("writes an empty array and a quoted list", () => {
+    expect(declaredArray([])).toBe("'{}'::text[]");
+    expect(declaredArray(["admin", "member"])).toBe(
+      "array['admin', 'member']::text[]",
+    );
+  });
+});
 import { definePermissions, definePolicy, resource } from "../../src/index.ts";
 
 const scopes = [

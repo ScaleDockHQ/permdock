@@ -66,6 +66,19 @@ describe("doctor config names", () => {
     ).toStrictEqual([]);
   });
 
+  it("ignores the idTypes star and names another resource", async () => {
+    const findings = await pd077({
+      cwd: cwd(),
+      config: {
+        policy: "src/policy.ts",
+        rls: { idTypes: { "*": "uuid", widget: "text" } },
+      },
+    });
+    expect(findings.map((finding) => finding.message)).toStrictEqual([
+      "rls.idTypes names the resource 'widget', which the policy does not declare",
+    ]);
+  });
+
   it("finds nothing without a policy", async () => {
     expect(
       await pd077({ cwd: cwd(), config: { rls: { tables: { x: "x" } } } }),

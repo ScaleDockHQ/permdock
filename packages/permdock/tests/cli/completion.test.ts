@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
 
+import type { CliContext } from "../../src/cli/core/context.ts";
+
+import { completion as completionCommand } from "../../src/cli/commands/completion.ts";
 import { candidates, SHELLS } from "../../src/cli/core/completion.ts";
 import { leaves } from "../../src/cli/core/manifest.ts";
 import { run } from "../../src/cli/core/run.ts";
 import { ARCHETYPES, FEATURES } from "../../src/preset/index.ts";
 
 describe("permdock completion", () => {
+  it("rejects a shell that was not given", () => {
+    expect(() =>
+      completionCommand.run(
+        // SAFETY: this leaf reads only the shell positional.
+        undefined as unknown as CliContext,
+        { args: {}, flags: {}, rest: [], passthrough: [] },
+      ),
+    ).toThrow("unknown shell ''");
+  });
+
   it.each(SHELLS)("matches the recorded %s script", async (shell) => {
     const { code, stdout } = await run(["completion", shell]);
     expect(code).toBe(0);
