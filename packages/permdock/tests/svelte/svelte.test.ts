@@ -144,7 +144,10 @@ describe("permdock/svelte", () => {
     expect(subject.simulated).toBe(false);
     expect(permdock.status()).toBe("ready");
     expect(get(assignableFor(store))).toStrictEqual([]);
-    expect(get(assignablePermissionsFor(store))).toStrictEqual([]);
+    expect(get(assignablePermissionsFor(store))).toStrictEqual({
+      permissions: [],
+      status: "ready",
+    });
     expect(get(approvalFor(store, () => canEdit.decision)).state).toBe(
       "not-needed",
     );

@@ -5,7 +5,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDockSync, signCapability } from "permdock";
-import { run } from "permdock/cli";
 import { joseTokenSigner, subjectFromCapability } from "permdock/jwt";
 import { memoryReplayStore } from "permdock/ssf";
 import { exchangeCapability } from "permdock/supabase";
@@ -21,6 +20,7 @@ import {
 } from "../fixtures/capabilities/policy.ts";
 import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/capabilities");
@@ -152,10 +152,9 @@ describe("link capabilities through the Supabase exchange", () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-links-"));
     const out = join(dir, "rls.sql");
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const result = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
     }

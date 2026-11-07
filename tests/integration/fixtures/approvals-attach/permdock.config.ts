@@ -2,6 +2,7 @@ export default {
   permissions: "../custom-role-writes/permissions.ts",
   policy: "../custom-role-writes/policy.ts",
   rls: {
+    actions: { assignRole: "none" },
     dialect: "supabase",
     scopeTypes: { tenant: "text" },
     approvals: {

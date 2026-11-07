@@ -6,13 +6,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveCustomRole } from "permdock";
 import { parseCatalog } from "permdock/catalog";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { policy } from "../fixtures/rls-custom-roles/policy.ts";
+import { run } from "./support/cli-run.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/rls-custom-roles");
@@ -152,10 +153,9 @@ describe("permdock_role_permissions and permdock_permission_keys", () => {
 
   beforeAll(async () => {
     const out = join(dir, "rls.sql");
-    const generated = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}`);
     }

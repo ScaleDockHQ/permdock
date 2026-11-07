@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/core/run.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 const FIXTURE = join(import.meta.dirname, "fixtures/mini-app");
 
@@ -20,6 +21,33 @@ function errorOf(stdout: string): unknown {
     : undefined;
 }
 
+describe("run plugins option", () => {
+  it("uses the plugins passed to run instead of the config file", async () => {
+    const result = await run(["generate", "--no-cache"], {
+      cwd: FIXTURE,
+      plugins: [],
+    });
+    expect(result.code).toBe(0);
+    expect(result.stderr).toContain("Generated 0 files");
+  });
+});
+
+describe("removed generate commands", () => {
+  it.each([
+    [["powersync", "generate"], "generate --only powersync"],
+    [["openapi", "emit"], "generate --only openapi"],
+    [["gen"], "generate"],
+    [["scim"], "generate --only scim"],
+    [["scim", "generate"], "generate --only scim"],
+    [["supabase", "hook"], "generate --only supabaseHook"],
+    [["supabase", "hook", "generate"], "generate --only supabaseHook"],
+  ])("points %j at %s", async (argv, hint) => {
+    const result = await run(argv, { cwd: FIXTURE });
+    expect(result.code).toBe(2);
+    expect(result.stderr).toContain(hint);
+  });
+});
+
 describe("run: groups", () => {
   it("asks for a subcommand when a group gets only flags", async () => {
     const result = await run(["openapi", "--check", "--json"], {
@@ -34,9 +62,7 @@ describe("run: groups", () => {
     expect(result.code).toBe(2);
     expect(errorOf(result.stdout)).toMatchObject({
       code: "usage",
-      choices: {
-        "<command>": ["generate", "import", "verify", "migrate", "explain"],
-      },
+      choices: { "<command>": ["import", "verify", "migrate", "explain"] },
     });
   });
 
@@ -49,7 +75,7 @@ describe("run: groups", () => {
   });
 
   it("keeps rls generate's stdout to the SQL for --out -", async () => {
-    const result = await run(["rls", "generate", "--out", "-", "--no-json"], {
+    const result = await rlsGenerate(["--out", "-", "--no-json"], {
       cwd: FIXTURE,
     });
     expect(result.code).toBe(0);
@@ -117,7 +143,7 @@ describe("run: flags", () => {
     const result = await run(
       [
         "codemod",
-        "0.5",
+        "0.26",
         "--agent",
         "yes",
         "--cwd",

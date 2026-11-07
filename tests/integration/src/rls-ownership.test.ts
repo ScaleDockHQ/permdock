@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock } from "permdock";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -11,7 +10,7 @@ import type { Postgres } from "./support/postgres.ts";
 import { permissions, policy } from "../fixtures/ownership/policy.ts";
 import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
-import { visibleIds } from "./support/rls.ts";
+import { rlsGenerate, visibleIds } from "./support/rls.ts";
 
 const FIXTURE = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -46,8 +45,8 @@ describe("ownership triggers in generated RLS", () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-ownership-"));
     const out = join(dir, "rls.sql");
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--dialect", "guc", "--out", out],
+    const result = await rlsGenerate(
+      ["--target", "sql", "--dialect", "guc", "--out", out],
       { cwd: FIXTURE },
     );
     if (result.code !== 0) {

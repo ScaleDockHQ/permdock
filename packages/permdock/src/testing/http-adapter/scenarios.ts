@@ -309,7 +309,6 @@ export function testHttpAdapter(options: HttpAdapterOptions): void {
           problemFromDecision(
             bob.decide(permission, project("p2")),
             permission,
-            bob.subject,
           ),
         );
         expect(denied.status).toBe(fromProtect.status);

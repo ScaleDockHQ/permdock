@@ -105,10 +105,14 @@ function createEnum(
   values: readonly string[],
 ): string {
   const list = values.map((value) => quoteLiteral(value)).join(", ");
-  return `do $$ begin
-  create type ${quoteTable(`${schema}.${name}`)} as enum (${list});
-exception when duplicate_object then null;
-end $$;`;
+  const type = quoteTable(`${schema}.${name}`);
+  // Re-applying the scaffold (a second authorize mode on one database) finds the type.
+  return `do $permdock$ begin
+  create type ${type} as enum (${list});
+exception
+  when duplicate_object then null;
+end
+$permdock$;`;
 }
 
 /**

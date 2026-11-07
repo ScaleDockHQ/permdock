@@ -569,4 +569,37 @@ describe("permdock/pdp getPermDockSync", () => {
       expect(tenant.subject.principal?.tenant).toBe("acme");
     });
   });
+
+  it("explains a local grant and fills a trace the provider left off", async () => {
+    const local = getPermDockSync(policyWith([]), member);
+    const explained = await local.explain(permissions.post.read, post);
+    expect(explained.outcome).toBe("granted");
+    expect(explained.trace.allows.length).toBeGreaterThan(0);
+    const remote = getPermDockSync(
+      policyWith([provider({ decide: async () => grantedBy("fake") })]),
+      member,
+    );
+    const filled = await remote.explain(permissions.note.read, { key: "n1" });
+    expect(filled.trace).toStrictEqual({
+      evaluated: 0,
+      allows: [],
+      denies: [],
+      skipped: [],
+    });
+  });
+
+  it("decides each row", async () => {
+    const permdock = getPermDockSync(
+      policyWith([provider({ decide: async () => grantedBy("fake") })]),
+      member,
+    );
+    const rows = await permdock.decideEach(permissions.post.read, [
+      post,
+      { id: "p2", title: "Next" },
+    ]);
+    expect(rows.map((row) => row.outcome)).toStrictEqual([
+      "granted",
+      "granted",
+    ]);
+  });
 });

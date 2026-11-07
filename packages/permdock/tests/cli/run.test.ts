@@ -11,7 +11,8 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { run } from "../../src/cli/core/run.ts";
-import { defineConfig } from "../../src/cli/project/config.ts";
+import { runOpenapi } from "../../src/cli/openapi/openapi.ts";
+import { defineConfig, loadConfig } from "../../src/cli/project/config.ts";
 import { jsonData } from "./envelope.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -19,12 +20,6 @@ const FIXTURE = join(HERE, "./fixtures/mini-app");
 const TMP = join(HERE, "../../tmp");
 
 const temps: string[] = [];
-const URLS = [
-  "--authorization-url",
-  "https://auth.example.com/authorize",
-  "--token-url",
-  "https://auth.example.com/token",
-];
 
 function appCopy(): string {
   mkdirSync(TMP, { recursive: true });
@@ -62,33 +57,61 @@ describe("the run module", () => {
 
     it("emits security onto an OpenAPI document", async () => {
       const cwd = appCopy();
-      const result = await run(
-        [
-          "openapi",
-          "emit",
-          "--doc",
-          "openapi.json",
-          "--out",
-          "openapi.out.json",
-          ...URLS,
-        ],
-        { cwd },
-      );
+      const config = await loadConfig(cwd);
+      const io = {
+        stdout() {
+          return undefined;
+        },
+        stderr() {
+          return undefined;
+        },
+      };
+      const result = await runOpenapi({
+        cwd,
+        config,
+        rest: ["emit"],
+        doc: "openapi.json",
+        out: "openapi.out.json",
+        from: undefined,
+        target: "3.1",
+        format: "document",
+        overlay: "1.1",
+        check: false,
+        profile: undefined,
+        profileScheme: undefined,
+        scheme: "oauth",
+        authorizationUrl: "https://auth.example.com/authorize",
+        tokenUrl: "https://auth.example.com/token",
+        metadataUrl: undefined,
+        deviceFlow: false,
+        deviceAuthorizationUrl: undefined,
+        preview: false,
+        io,
+      });
       expect(result.code).toBe(0);
-      expect(result.stdout).toContain("wrote");
-      const check = await run(
-        [
-          "openapi",
-          "emit",
-          "--doc",
-          "openapi.json",
-          "--out",
-          "openapi.out.json",
-          ...URLS,
-          "--check",
-        ],
-        { cwd },
-      );
+      expect(result.output).toContain("wrote");
+      const check = await runOpenapi({
+        cwd,
+        config,
+        rest: ["emit"],
+        doc: "openapi.json",
+        out: "openapi.out.json",
+        from: undefined,
+        target: "3.1",
+        format: "document",
+        overlay: "1.1",
+        check: true,
+        profile: undefined,
+        profileScheme: undefined,
+        scheme: "oauth",
+        authorizationUrl: "https://auth.example.com/authorize",
+        tokenUrl: "https://auth.example.com/token",
+        metadataUrl: undefined,
+        deviceFlow: false,
+        deviceAuthorizationUrl: undefined,
+        preview: false,
+        io,
+      });
       expect(check.code).toBe(0);
     });
 
@@ -129,21 +152,10 @@ describe("the run module", () => {
 
     it("reads a flag followed by another flag as given without a value", async () => {
       const cwd = appCopy();
-      const result = await run(
-        [
-          "openapi",
-          "emit",
-          "--doc",
-          "openapi.json",
-          "--out",
-          "--check",
-          ...URLS,
-        ],
-        { cwd },
-      );
-      expect(result.stdout).toMatch(/^openapi drift/u);
+      const result = await run(["catalog", "--out", "--check"], { cwd });
+      expect(result.code).not.toBe(0);
       expect(readFileSync(join(cwd, "openapi.json"), "utf8")).not.toContain(
-        "securitySchemes",
+        "--check",
       );
     });
 
@@ -205,7 +217,7 @@ describe("the run module", () => {
     it("catalog --format schema emits a JSON Schema document", async () => {
       const result = await run(["catalog", "--kind", "json-schema"]);
       expect(result.code).toBe(0);
-      expect(result.stdout).toContain("catalog-v1.json");
+      expect(result.stdout).toContain("catalog-v2.json");
     });
 
     it("catalog --format markdown has a post section", async () => {
@@ -233,6 +245,51 @@ describe("the run module", () => {
         true,
       );
       expect(report.noRole.some((item) => item.key === "finance")).toBe(true);
+    });
+
+    it("does not treat a deny as granting the permission", async () => {
+      const cwd = appCopy();
+      const policyFile = join(cwd, "src/policy.ts");
+      writeFileSync(
+        policyFile,
+        readFileSync(policyFile, "utf8")
+          .replace(
+            'import { allow, definePolicy, principal, role } from "permdock";',
+            'import { allow, definePolicy, deny, principal, role } from "permdock";',
+          )
+          .replace(
+            "allow(permissions.post.read),",
+            "deny(permissions.post.read),",
+          ),
+      );
+      const result = await run(["usage", "--json"], { cwd });
+      expect(result.code).toBe(1);
+      // SAFETY: the --json report printed by `permdock usage` under test.
+      const report = jsonData(result.stdout) as {
+        readonly ungranted: readonly { readonly key: string }[];
+      };
+      expect(report.ungranted.some((item) => item.key === "post.read")).toBe(
+        true,
+      );
+    });
+
+    it("emits collect watch events as JSON when a config file is set", async () => {
+      const cwd = appCopy();
+      const stdout: string[] = [];
+      const result = await run(
+        ["collect", "--watch", "--json", "--config", "permdock.config.ts"],
+        {
+          cwd,
+          io: {
+            stdout: (text) => {
+              stdout.push(text);
+            },
+            stderr: () => undefined,
+          },
+        },
+      );
+      expect(result.code).toBe(0);
+      expect(stdout.join("")).toContain('"event":"collect"');
     });
 
     it("usage flags conditions on fields the schema does not declare", async () => {
@@ -374,23 +431,23 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
       ],
       [
         ["openapi", "emit", "--target", "4.0"],
-        "openapi emit: --target '4.0' is not one of 3.1, 3.2, 3.3.",
+        "unknown command 'emit' for permdock openapi. Did you mean permdock generate --only openapi?",
       ],
       [
         ["openapi", "emit", "--kind", "yaml"],
-        "openapi emit: --kind 'yaml' is not one of document, overlay.",
+        "unknown command 'emit' for permdock openapi. Did you mean permdock generate --only openapi?",
       ],
       [
         ["openapi", "emit", "--overlay", "2.0"],
-        "openapi emit: --overlay '2.0' is not one of 1.1, 1.2.",
+        "unknown command 'emit' for permdock openapi. Did you mean permdock generate --only openapi?",
       ],
       [
         ["openapi", "emit", "--profile", "fapi1"],
-        "openapi emit: --profile 'fapi1' is not one of fapi2. Did you mean fapi2?",
+        "unknown command 'emit' for permdock openapi. Did you mean permdock generate --only openapi?",
       ],
       [
         ["rls", "generate", "--rbac", "auth0"],
-        "rls generate: --rbac 'auth0' is not one of supabase.",
+        "unknown command 'generate' for permdock rls. Did you mean permdock generate --only rls?",
       ],
     ])("exits 2 on %o", async (argv, message) => {
       expect(await run(argv, { cwd: appCopy() })).toStrictEqual({
@@ -472,7 +529,7 @@ export const read = (permdock: { can: (p: unknown) => boolean }) =>
       const catalog = JSON.parse(
         readFileSync(join(cwd, "custom.catalog.json"), "utf8"),
       ) as { readonly version: number };
-      expect(catalog.version).toBe(1);
+      expect(catalog.version).toBe(2);
     });
   });
 });

@@ -2,13 +2,13 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
 import {
   helperCallKeys,
   helperTablePolicies,
 } from "../../src/cli/sql/helper-calls.ts";
 import { supabaseRls } from "../../src/supabase/index.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 describe("rls realtime storage", () => {
   afterAll(removeProjects);
@@ -46,10 +46,14 @@ describe("rls realtime storage", () => {
       "permdock.config.ts": `export default ${JSON.stringify({
         permissions: policyPath,
         policy: policyPath,
-        rls: { dialect, ...rls },
+        rls: {
+          dialect,
+          actions: { accept: "none", pay: "none", disable: "none" },
+          ...rls,
+        },
       })};\n`,
     });
-    const result = await run(["rls", "generate", "--out", "rls.sql"], { cwd });
+    const result = await rlsGenerate(["--out", "rls.sql"], { cwd });
     let sql = "";
     try {
       sql = readFileSync(path.join(cwd, "rls.sql"), "utf8");
@@ -60,6 +64,17 @@ describe("rls realtime storage", () => {
   }
 
   const IDS = `in (select x::text from "permdock".permitted_organization_ids_by_permission`;
+
+  const storedRow = (
+    resource: string,
+    folder: number,
+    idType: string,
+    scopeType: string,
+    scopeField: string,
+  ): string => {
+    const folderPath = `(storage.foldername(name))[${String(folder)}]`;
+    return `json_populate_record(null::"public"."${resource}", json_build_object('id', ${folderPath}::${idType}, '${scopeField}', ${folderPath}::${scopeType}))`;
+  };
 
   describe("rls.realtime and rls.storage", () => {
     it("writes realtime.messages policies per topic pattern", async () => {
@@ -90,21 +105,24 @@ describe("rls realtime storage", () => {
         },
       });
       expect(code).toBe(0);
-      const id = `(storage.foldername(name))[2] ${IDS}`;
+      const id = `"permdock".can_asset(${storedRow("asset", 2, "uuid", "uuid", "organization_id")},`;
       expect(sql).toContain(`create policy "permdock_storage_asset_files_select"
   on "storage"."objects"
   as permissive
   for select
   to authenticated
   using (bucket_id = 'asset-files'
-    and ${id}('asset.read') x));`);
+    and ${id} 'asset.read'::text));`);
       expect(sql).toMatch(
         /"permdock_storage_asset_files_insert"[\s\S]*?for insert\n {2}to authenticated\n {2}with check \(bucket_id/u,
       );
       expect(sql).toMatch(
         /"permdock_storage_asset_files_update"[\s\S]*?using \(bucket_id[\s\S]*?with check \(bucket_id/u,
       );
-      expect(sql).toContain(`${id}('asset.delete') x));`);
+      expect(sql).toContain(`${id} 'asset.delete'::text));`);
+      expect(sql).toContain(
+        'create or replace function "permdock".can_asset(p_id uuid, p_permission text)',
+      );
       expect(sql).not.toMatch(/alter table "storage"|grant .* on "storage"/u);
     });
 
@@ -112,11 +130,14 @@ describe("rls realtime storage", () => {
       const { sql } = await generate({ realtime, storage });
       expect(helperTablePolicies(sql)).toStrictEqual([]);
       expect(helperCallKeys(sql)).toStrictEqual(
-        expect.arrayContaining(["asset.read", "asset.update", "asset.delete"]),
+        expect.arrayContaining(["asset.read", "asset.update"]),
+      );
+      expect(sql).toContain(
+        `"permdock".can_asset(${storedRow("asset", 1, "uuid", "uuid", "organization_id")}, 'asset.delete'::text)`,
       );
     });
 
-    it("admits a permission with row conditions through its allows without one, and says so", async () => {
+    it("checks a bucket through can_<resource>, row conditions included", async () => {
       const { code, sql, output } = await generate({
         storage: {
           buckets: {
@@ -125,10 +146,29 @@ describe("rls realtime storage", () => {
         },
       });
       expect(code).toBe(0);
-      expect(sql).toContain(`${IDS}('quote.read') x));`);
-      expect(output).toContain(
-        "rls.storage.buckets['b'].read is quote.read, whose grants carry row conditions",
+      expect(sql).toContain(
+        `"permdock".can_quote(${storedRow("quote", 1, "uuid", "uuid", "organization_id")}, 'quote.read'::text)`,
       );
+      expect(sql).not.toContain(
+        "permitted_organization_ids_by_permission('quote.read')",
+      );
+      expect(output).not.toContain("whose grants carry row conditions");
+    });
+
+    it("casts a text id and a text scope column when idTypes says so", async () => {
+      const { code, sql } = await generate({
+        idTypes: { "*": "text" },
+        scopeTypes: { organization: "text" },
+        storage,
+      });
+      expect(code).toBe(0);
+      expect(sql).toContain(
+        `"permdock".can_asset(${storedRow("asset", 1, "text", "text", "organization_id")}, 'asset.read'::text)`,
+      );
+      expect(sql).toContain(
+        'create or replace function "permdock".can_asset(p_id text, p_permission text)',
+      );
+      expect(sql).toContain('where permdock_row."id" = p_id');
     });
 
     it("adds read-only actor policies on the write commands", async () => {
@@ -157,10 +197,8 @@ describe("rls realtime storage", () => {
           rls: { dialect: "supabase", storage },
         })};\n`,
       });
-      const split = await run(
+      const split = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--split",
@@ -180,8 +218,8 @@ describe("rls realtime storage", () => {
       );
       expect(read("rls.helpers.sql")).not.toContain("storage.objects");
 
-      const drizzle = await run(
-        ["rls", "generate", "--target", "drizzle", "--out", "rls.ts"],
+      const drizzle = await rlsGenerate(
+        ["--target", "drizzle", "--out", "rls.ts"],
         { cwd },
       );
       expect(drizzle.code).toBe(0);

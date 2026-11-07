@@ -14,6 +14,7 @@ import type {
 import { readClaim } from "../core/claims-map.ts";
 import { clientNameOf } from "../core/clients.ts";
 import { compact, isRecord } from "../core/compact.ts";
+import { authorizationDetailsOf } from "../core/delegation-input.ts";
 import { freezeDeep } from "../core/freeze.ts";
 import { readMemberships } from "../core/read-memberships.ts";
 import { anonymousSubject } from "../core/subject.ts";
@@ -71,6 +72,7 @@ function claimAt(claims: Record<string, unknown>, path: ClaimPath): unknown {
 function asRoles(
   value: unknown,
   declared: readonly string[] | undefined,
+  keepUndeclared: boolean,
 ): readonly string[] {
   const raw =
     typeof value === "string"
@@ -80,11 +82,30 @@ function asRoles(
       : Array.isArray(value)
         ? value.filter((item): item is string => typeof item === "string")
         : [];
-  if (declared === undefined) {
+  if (declared === undefined || keepUndeclared) {
     return raw;
   }
   const allowed = new Set(declared);
   return raw.filter((role) => allowed.has(role));
+}
+
+/**
+ * A `scope` claim or RFC 9396 authorization details. Identity scopes still
+ * count: they mark an OAuth client. A session token has neither.
+ */
+function oauthClientEvidence(claims: Record<string, unknown>): boolean {
+  if (Object.hasOwn(claims, "scope")) {
+    const scope = claims["scope"];
+    const names =
+      typeof scope === "string"
+        ? scope.split(/\s+/u).filter(Boolean)
+        : asStrings(scope);
+    if (names.length > 0) {
+      return true;
+    }
+  }
+  const details = authorizationDetailsOf(claims);
+  return details !== undefined && details.length > 0;
 }
 
 function asStrings(value: unknown): readonly string[] {
@@ -399,8 +420,14 @@ function mapClaims(
   if (options.anonymousSignIns === "deny" && claims["is_anonymous"] === true) {
     return anonymousSubject();
   }
+  const sessionClient =
+    act.actor?.kind === "oauth-client" &&
+    !Object.hasOwn(claims, "act") &&
+    !oauthClientEvidence(claims);
   const actor =
-    act.actor === undefined ? undefined : subjectActor(act.actor, options);
+    act.actor === undefined || sessionClient
+      ? undefined
+      : subjectActor(act.actor, options);
   const roleClaim = options.claims?.roles ?? "user_role";
   const tenantClaim = options.claims?.tenant ?? supabaseTenantClaim;
   const membershipsClaim = options.claims?.memberships ?? "memberships";
@@ -422,7 +449,11 @@ function mapClaims(
   const principal = compact<SupabasePrincipal>({
     id,
     kind: "user",
-    roles: asRoles(claimAt(claims, roleClaim), options.declared),
+    roles: asRoles(
+      claimAt(claims, roleClaim),
+      options.declared,
+      options.customRoles !== undefined,
+    ),
     tenant,
     plans: plans.length > 0 ? plans : undefined,
     memberships,
@@ -462,7 +493,8 @@ function mapClaims(
       principal,
       actor,
       delegation:
-        act.actor?.kind === "oauth-client" || act.actor?.kind === "agent"
+        actor !== undefined &&
+        (act.actor?.kind === "oauth-client" || act.actor?.kind === "agent")
           ? subjectDelegation(claims, act.actor.chain)
           : undefined,
       context: {},

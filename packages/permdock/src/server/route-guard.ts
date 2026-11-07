@@ -179,7 +179,7 @@ export async function guardOn<T, V extends PolicyVocabulary>(
   ) {
     return refused(
       deps.options.deniedResponse,
-      scopeProblem(lead, instance.subject, credentials, declared[0]),
+      scopeProblem(lead, credentials, declared[0]),
       NOT_DELEGATED,
       request,
       report,
@@ -321,7 +321,6 @@ export async function guardOn<T, V extends PolicyVocabulary>(
     problemFromDecision(
       decision,
       refusedPermission,
-      instance.subject,
       compact({
         approval: deps.options.approval,
         credentials,

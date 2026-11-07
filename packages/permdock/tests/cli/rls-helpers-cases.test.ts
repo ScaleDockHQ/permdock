@@ -30,6 +30,15 @@ function fnBody(sql: string, name: string): string {
   return start === -1 ? "" : sql.slice(start, sql.indexOf("$$;", start));
 }
 
+/**
+ * The query lives in the volatile memo function when the public helper is the
+ * stable wrapper.
+ */
+function idsBody(sql: string, name: string): string {
+  const memo = fnBody(sql, `${name}_memo`);
+  return memo === "" ? fnBody(sql, name) : memo;
+}
+
 const teamMembers = {
   table: "app.team_members",
   user: "user_id",
@@ -69,8 +78,8 @@ describe("helpersSql schema", () => {
 describe("helpersSql scopes off the root chain", () => {
   it("does not narrow a scope outside the first scope to the active tenant (jwt)", () => {
     const sql = helpers({});
-    expect(fnBody(sql, "permitted_team_ids")).toContain("->> 'tenant_id'");
-    expect(fnBody(sql, "permitted_region_ids")).not.toContain(
+    expect(idsBody(sql, "permitted_team_ids")).toContain("->> 'tenant_id'");
+    expect(idsBody(sql, "permitted_region_ids")).not.toContain(
       "->> 'tenant_id'",
     );
   });
@@ -80,7 +89,7 @@ describe("helpersSql scopes off the root chain", () => {
       authorize: "database",
       sources: [tableMembershipSource({ table: "memberships" })],
     });
-    expect(fnBody(sql, "permitted_region_ids")).not.toContain("is null or");
+    expect(idsBody(sql, "permitted_region_ids")).not.toContain("is null or");
   });
 
   it("resolves custom roles over membership sources", () => {
@@ -89,14 +98,14 @@ describe("helpersSql scopes off the root chain", () => {
       sources: [tableMembershipSource({ table: "memberships" })],
       customRoles: { declared: ["admin"], assignable: ["admin"] },
     });
-    const org = fnBody(sql, "permitted_org_ids");
+    const org = idsBody(sql, "permitted_org_ids");
     expect(org).toContain("  union\n  select (ms.id)::uuid");
     expect(org).toContain("and not (r.role = any(array['admin']::text[]))");
     expect(org).toContain(
       "case when \"permdock\".permdock_is_shared_role('org', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'org' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role",
     );
     expect(org).toContain('"permdock".permdock_custom_keys(');
-    const team = fnBody(sql, "permitted_team_ids");
+    const team = idsBody(sql, "permitted_team_ids");
     expect(team).toContain(
       "case when \"permdock\".permdock_is_shared_role('team', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'org')::text end and c.scope = 'team'",
     );
@@ -132,8 +141,8 @@ describe("helpersSql with rls.tenants 'all'", () => {
       const narrowed = helpers(extra);
       const all = helpers({ ...extra, tenants: "all" });
       expect(narrowed).toContain("'tenant_id'");
-      expect(fnBody(all, "permitted_org_ids")).not.toContain("'tenant_id'");
-      expect(fnBody(all, "permitted_team_ids")).not.toContain("'tenant_id'");
+      expect(idsBody(all, "permitted_org_ids")).not.toContain("'tenant_id'");
+      expect(idsBody(all, "permitted_team_ids")).not.toContain("'tenant_id'");
     }
   });
 });
@@ -318,7 +327,7 @@ describe("helpersSql database mode", () => {
       },
       ownership: { kinds: { admin: ["staff"] }, assigns: [], counted: [] },
     });
-    const org = fnBody(sql, "permitted_org_ids");
+    const org = idsBody(sql, "permitted_org_ids");
     expect(org).not.toContain("coalesce(m.");
     expect(org).not.toContain('m."via"');
     const contact = fnBody(

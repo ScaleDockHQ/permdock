@@ -38,10 +38,14 @@ export function membershipColumns(
       ...(source.sql.userThrough === undefined ? [] : [source.sql.userThrough]),
     ]) {
       const keys = tableKey(through.table);
-      byTable.set(
-        keys,
-        new Set([...(byTable.get(keys) ?? []), through.id, through.key]),
-      );
+      const referenced = byTable.get(keys) ?? new Set<string>();
+      referenced.add(through.id);
+      referenced.add(through.key);
+      for (const [ref, id] of through.match) {
+        columns.add(ref);
+        referenced.add(id);
+      }
+      byTable.set(keys, referenced);
     }
   }
   return byTable;

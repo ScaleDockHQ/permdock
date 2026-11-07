@@ -1,4 +1,4 @@
-import type { Rename } from "./renames-0.5.ts";
+import type { Rename } from "./context.ts";
 
 export type PropRename = {
   readonly component: string;

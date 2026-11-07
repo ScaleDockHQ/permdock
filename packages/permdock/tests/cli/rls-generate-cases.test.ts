@@ -135,9 +135,9 @@ describe("rls generate cases", () => {
   function generate(
     over: Partial<Input> & { readonly config?: PermDockConfig },
   ) {
+    const { config: given, ...rest } = over;
     return runRlsGenerate({
       cwd,
-      config: {},
       target: "sql",
       dialect: "supabase",
       rbac: false,
@@ -146,9 +146,37 @@ describe("rls generate cases", () => {
       inlineFunctions: false,
       io,
       write: false,
-      ...over,
+      ...rest,
+      config: {
+        ...given,
+        rls: {
+          ...given?.rls,
+          actions: { publish: "none", archive: "none", ...given?.rls?.actions },
+        },
+      },
     });
   }
+
+  describe("rls generate --split", () => {
+    it("names the skipped policies part and writes no table policy", async () => {
+      const outcome = await generate({
+        from: "./roles.ts",
+        split: "helpers",
+        out: "rls.{part}.sql",
+        schemas: "migrations",
+        listFiles: true,
+      });
+      expect(outcome.code).toBe(0);
+      expect(outcome.output).toContain(
+        "skipped policies: rls.split has no policies part, so no table policy is written",
+      );
+      const files = "files" in outcome ? outcome.files : [];
+      expect(files.map((file) => file.path)).toStrictEqual(["rls.helpers.sql"]);
+      expect(
+        files.some((file) => file.contents.includes("create policy")),
+      ).toBe(false);
+    });
+  });
 
   describe("rls generate policy loading", () => {
     it("reads the config policy for --from drizzle and needs one", async () => {
@@ -310,10 +338,10 @@ describe("rls generate cases", () => {
       });
       expect(outcome.code).toBe(0);
       expect(outcome.text).toContain(
-        `coalesce("spaceId"::text in (select p.id::text from "permdock".permitted_space_rows('space.read') as p(id)), false)`,
+        `coalesce("spaceId" in (select "permdock".permitted_space_rows('space.read')), false)`,
       );
       expect(outcome.text).toContain(
-        `"permdock".permitted_space_rows('space.read', array(select "spaceId"::uuid from permdock_candidates)) as p(id)`,
+        `"permdock".permitted_space_rows('space.read', array(select "spaceId"::uuid from permdock_candidates))`,
       );
       expect(outcome.text).toContain(
         '"permdock".permitted_item_rows(p_permission text, p_ids uuid[])',

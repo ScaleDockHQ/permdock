@@ -17,12 +17,12 @@ import {
   memoryApprovalStore,
   requestApproval,
 } from "permdock/approvals";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { permissions, policy } from "../fixtures/centrakit-adoption/policy.ts";
+import { run } from "./support/cli-run.ts";
 import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
 import { visibleIds, jwtClaims } from "./support/rls.ts";

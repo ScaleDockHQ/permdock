@@ -30,7 +30,10 @@ const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });
 const cwd = mkdtempSync(path.join(TMP, "rls-run-"));
 const io = { stdout: () => undefined, stderr: () => undefined };
-const config: PermDockConfig = { policy: POLICY };
+const config: PermDockConfig = {
+  policy: POLICY,
+  rls: { actions: { archive: "none", publish: "none" } },
+};
 
 describe("rls run", () => {
   afterAll(() => {
@@ -113,6 +116,7 @@ describe("rls run", () => {
           config: {
             policy: NAMED_SCOPES,
             rls: {
+              actions: { accept: "none", disable: "none", pay: "none" },
               authorize: "database",
               memberships: {
                 scopes: {
@@ -190,6 +194,121 @@ describe("rls run", () => {
       ).toMatchObject({ code: 2, output });
     });
 
+    it("forwards the optional generate inputs", async () => {
+      const result = await runRls(
+        input({
+          rest: ["generate"],
+          target: "sql",
+          dialect: "supabase",
+          out: path.join(cwd, "out.sql"),
+          from: POLICY,
+          project: "proj",
+          url: "https://example.com",
+          memberships: "public.members",
+          gucPrefix: "app",
+          policyName: "{table}_{op}",
+          tenantType: "uuid",
+          fields: "mask",
+          rbacSchema: "auth",
+          authorize: "database",
+          grantsOut: path.join(cwd, "grants.sql"),
+          seedsOut: path.join(cwd, "seeds.sql"),
+          noSeeds: true,
+          backfillOut: path.join(cwd, "backfill.sql"),
+          schemas: "migra",
+        }),
+      );
+      expect(result.code === 0 || result.code === 2).toBe(true);
+      if (result.code === 2) {
+        expect(result.output.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("runs advisors without a database url and verifies from a policy file", async () => {
+      const advisors = await runRls(
+        input({
+          rest: ["verify"],
+          advisors: true,
+          io: {
+            stdout: () => undefined,
+            stderr: () => undefined,
+            signal: AbortSignal.abort(),
+          },
+        }),
+      );
+      expect(advisors.code).toBeGreaterThan(0);
+      const sql = fakeSql();
+      await expect(
+        runRls(
+          input({
+            rest: ["verify"],
+            from: POLICY,
+            db: "postgres://x",
+            connect: sql.connect,
+          }),
+        ),
+      ).rejects.toThrow(/fixtures not found/u);
+    });
+
+    it("writes a walk chain and a tree helper, and warns when assignments have no assigns", async () => {
+      const policyFile = path.join(cwd, "folder-policy.ts");
+      writeFileSync(
+        policyFile,
+        `import { allow, definePermissions, definePolicy, relation, resource, role } from "permdock";
+export const permissions = definePermissions({
+  folder: resource({
+    actions: ["read"],
+    parent: { field: "parentId", resource: "folder" },
+    relations: {
+      above: { field: "parentId" },
+      org: { field: "orgId", memberOf: "tenant" },
+    },
+  }),
+});
+export const policy = definePolicy(permissions, {
+  subject: () => null,
+  roles: [
+    role("reader", [
+      allow(permissions.folder.read, {
+        to: relation(permissions.folder, "above", {
+          depth: 2,
+          through: "parent",
+        }),
+      }),
+    ]),
+  ],
+});
+`,
+      );
+      const result = await runRls(
+        input({
+          rest: ["generate"],
+          target: "sql",
+          dialect: "supabase",
+          config: {
+            policy: policyFile,
+            rls: {
+              tables: {
+                folder: { table: "public.folders", walk: "recursive" },
+              },
+              treeValues: { "public.folders": { name: "kept" } },
+              assignments: true,
+              idTypes: { folder: "text" },
+            },
+          },
+        }),
+      );
+      expect(result.code).toBe(0);
+      expect(result.output).toContain(
+        "rls.assignments needs a role that declares assigns",
+      );
+      const sql = readFileSync(path.join(cwd, "rls.sql"), "utf8");
+      expect(sql).toContain("permdock_folder_chain");
+      expect(sql).toContain("permdock_tree_folder");
+      expect(sql).toContain("ancestor");
+      expect(sql).not.toContain("ancestor::uuid");
+    });
+
     it("refuses an unknown --schemas value before any action runs", async () => {
       expect(
         await runRls(input({ rest: ["generate"], schemas: "flyway" })),
@@ -217,16 +336,27 @@ describe("rls run", () => {
             target: "sql",
             dialect: "supabase",
             // SAFETY: the config arrives untyped from permdock.config.ts at run time.
-            config: { ...config, rls: { jsonSchema } } as PermDockConfig,
+            config: {
+              ...config,
+              rls: { ...config.rls, jsonSchema },
+            } as PermDockConfig,
           }),
         );
       expect(await generate("yes")).toMatchObject({
         code: 2,
-        output: `rls.jsonSchema must be 'auto', true or false (got "yes")`,
+        output: `rls.jsonSchema must be true or false (got "yes")`,
       });
-      expect((await generate("auto")).output).toContain(
-        "rls.jsonSchema constrains the approval store's body, which needs rls.approvals: true",
-      );
+      expect(await generate(true)).toMatchObject({
+        code: 0,
+        output: expect.stringContaining(
+          "rls.jsonSchema constrains the approval store",
+        ),
+      });
+      expect(await generate("auto")).toMatchObject({
+        code: 2,
+        output:
+          "rls.jsonSchema: 'auto' is not supported. Set true or false. 'auto' needed a do block, which a schema file cannot carry.",
+      });
     });
 
     it("adopts an approvals table and writes row helpers, and exits 2 on a config they cannot use", async () => {
@@ -237,12 +367,15 @@ describe("rls run", () => {
             target: "sql",
             dialect: "supabase",
             // SAFETY: the config arrives untyped from permdock.config.ts at run time.
-            config: { ...config, rls } as PermDockConfig,
+            config: {
+              ...config,
+              rls: { ...config.rls, ...rls },
+            } as PermDockConfig,
           }),
         );
       const adopted = await generate({
         approvals: { table: "approvals", mirror: { status: "state" } },
-        jsonSchema: "auto",
+        jsonSchema: true,
       });
       expect(adopted.code).toBe(0);
       expect(adopted.output).not.toContain("rls.jsonSchema constrains");
@@ -272,7 +405,7 @@ describe("rls run", () => {
         cwd,
         config: {
           ...config,
-          rls: { trustedReaders: ["service_role", "support"] },
+          rls: { ...config.rls, trustedReaders: ["service_role", "support"] },
         },
         target: "sql",
         dialect: "supabase",
@@ -413,7 +546,10 @@ describe("rls run", () => {
         const mapped = await runRls(
           input({
             cwd: project,
-            config: { ...config, rls: { tables: { post: "public.posts" } } },
+            config: {
+              ...config,
+              rls: { ...config.rls, tables: { post: "public.posts" } },
+            },
             rest: ["generate"],
             dialect: "guc",
             out: "bind.sql",
@@ -429,7 +565,7 @@ describe("rls run", () => {
     it("writes no policies for a resource rls.tables marks false and still seeds its role grants", async () => {
       const outcome = await runRlsGenerate({
         cwd,
-        config: { ...config, rls: { tables: { post: false } } },
+        config: { ...config, rls: { ...config.rls, tables: { post: false } } },
         target: "sql",
         dialect: "guc",
         rbac: false,
@@ -518,7 +654,7 @@ describe("rls run", () => {
           rest: ["generate"],
           out: "from.sql",
           from: POLICY,
-          config: {},
+          config: { rls: { actions: { archive: "none", publish: "none" } } },
         }),
       );
       expect(result.code).toBe(0);

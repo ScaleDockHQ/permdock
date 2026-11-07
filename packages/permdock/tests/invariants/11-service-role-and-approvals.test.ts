@@ -18,7 +18,6 @@ import {
   requestApproval,
   resolveApproval,
 } from "../../src/approvals/index.ts";
-import { run } from "../../src/cli/core/run.ts";
 import {
   allow,
   getPermDockSync,
@@ -28,6 +27,7 @@ import {
   role,
 } from "../../src/index.ts";
 import { subjectFromSupabase } from "../../src/supabase/index.ts";
+import { rlsGenerate } from "../cli/rls-call.ts";
 
 const FIXTURE = path.join(import.meta.dirname, "../fixtures/rls-standard.ts");
 const GOLDEN = path.join(import.meta.dirname, "../cli/fixtures/golden");
@@ -109,17 +109,8 @@ describe("11 service role and approvals", () => {
       for (const dialect of DIALECTS) {
         for (const target of TARGETS) {
           const out = `${authorize}-${dialect}-${target}.out`;
-          const result = await run(
-            [
-              "rls",
-              "generate",
-              "--target",
-              target,
-              "--dialect",
-              dialect,
-              "--out",
-              out,
-            ],
+          const result = await rlsGenerate(
+            ["--target", target, "--dialect", dialect, "--out", out],
             { cwd },
           );
           if (result.code !== 0) {

@@ -17,6 +17,7 @@ import { policy } from "../fixtures/rls-custom-roles/policy.ts";
 import { runPipingDbUrl } from "./db-url.ts";
 import { defined } from "./support/defined.ts";
 import { startPostgres, databaseUri, testerUri } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/rls-custom-roles");
@@ -400,10 +401,9 @@ describe("custom roles in generated RLS (database and jwt modes)", () => {
     db = await startPostgres([ROLES]);
     for (const shape of SHAPES) {
       const out = join(dir, `${shape.name}.sql`);
-      const result = await runPipingDbUrl(
-        ["rls", "generate", "--target", "sql", "--out", out],
-        { cwd: shape.cwd },
-      );
+      const result = await rlsGenerate(["--target", "sql", "--out", out], {
+        cwd: shape.cwd,
+      });
       if (result.code !== 0) {
         throw new Error(`rls generate ${shape.name}: ${result.stdout}`);
       }

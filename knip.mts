@@ -68,6 +68,8 @@ const config: KnipConfig = {
         "tests/cli/fixtures/*/src/*.ts",
         // Loaded by path as the CLI's `policy` module.
         "tests/fixtures/rls-standard.ts",
+        // The 0.26 codemod test reads this config by path.
+        "tests/cli/codemod/fixtures/lienlink.permdock.config.ts",
       ],
     },
     "tests/*": {},

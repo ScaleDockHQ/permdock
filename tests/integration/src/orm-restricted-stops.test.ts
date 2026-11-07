@@ -18,7 +18,6 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { toWhere as drizzleWhere } from "permdock/drizzle";
 import { toWhere as kyselyWhere } from "permdock/kysely";
 import { resolveRelated } from "permdock/prisma";
@@ -39,6 +38,7 @@ import {
   trees,
   users,
 } from "../fixtures/restricted-stops/policy.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/restricted-stops");
@@ -96,10 +96,9 @@ describe("ORM parity for restricted stops: links closed below a restricted row",
   const out = join(dir, "restricted.sql");
 
   beforeAll(async () => {
-    const generated = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
     }

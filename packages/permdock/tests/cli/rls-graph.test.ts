@@ -4,7 +4,12 @@ import { z } from "zod";
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import type { RelatedCondition } from "../../src/conditions/ast.ts";
 
-import { closureDepths, graphPlan, graphSql } from "../../src/cli/rls/graph.ts";
+import {
+  closureBackfillSql,
+  closureDepths,
+  graphPlan,
+  graphSql,
+} from "../../src/cli/rls/graph.ts";
 import { compileConditionSql } from "../../src/cli/sql/conditions.ts";
 import { compileWhere } from "../../src/conditions/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
@@ -82,6 +87,15 @@ const related = (extra: Partial<RelatedCondition> = {}): RelatedCondition => ({
   ...extra,
 });
 
+describe("a relation whose resource is gone", () => {
+  it("skips the relation instead of inventing a node", () => {
+    const resources = new Map(policy.resources);
+    resources.clear();
+    const plan = graphPlan({ ...policy, resources });
+    expect([...plan.keys()]).toStrictEqual([]);
+  });
+});
+
 describe("graph grants in RLS", () => {
   it("plans the relations each resource needs and the deepest walk", () => {
     const plan = graphPlan(policy);
@@ -95,7 +109,7 @@ describe("graph grants in RLS", () => {
   it("compiles to the closure subquery, a depth bound only below the cap, and the restricted row", () => {
     const ctx = context({ columnTypes: { folderId: "uuid" } });
     expect(compileConditionSql(related(), ctx)).toBe(
-      `"folderId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and ancestor = any (array(select "permdock".permitted_folder_ids('viewer'))))`,
+      `"folderId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and ancestor::uuid = any (array(select "permdock".permitted_folder_ids('viewer'))))`,
     );
     expect(
       compileConditionSql(
@@ -108,11 +122,11 @@ describe("graph grants in RLS", () => {
         ctx,
       ),
     ).toBe(
-      `("folderId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and depth <= 2 and ancestor = any (array(select "permdock".permitted_folder_ids('editor')))) and "restricted" is not true)`,
+      `("folderId" in (select descendant::uuid from "permdock".permdock_closure where resource = 'folder' and depth <= 2 and ancestor::uuid = any (array(select "permdock".permitted_folder_ids('editor')))) and "restricted" is not true)`,
     );
     expect(
       compileConditionSql(related({ field: "id", depth: 0 }), context()),
-    ).toBe(`"id"::text in (select "permdock".permitted_folder_ids('viewer'))`);
+    ).toBe(`"id"::uuid in (select "permdock".permitted_folder_ids('viewer'))`);
   });
 
   it("emits helpers, the closure table and triggers that stop at restricted rows and the depth", () => {
@@ -137,11 +151,25 @@ describe("graph grants in RLS", () => {
     );
     expect(sql).toContain("is its own ancestor");
     expect(sql).toContain(
-      `using (resource = 'folder' and ancestor in (select "permdock".permitted_folder_ids(null)))`,
+      `using (resource = 'folder' and ancestor::uuid in (select "permdock".permitted_folder_ids(null)))`,
     );
     expect(sql).toContain(
       'revoke execute on function "permdock".permdock_closure_folder(text[]) from public, anon, authenticated;',
     );
+    expect(sql).not.toContain(
+      'select "permdock".permdock_closure_folder(array(select t."id"::text from "app"."folders" t))',
+    );
+    const plan = graphPlan(policy);
+    expect(
+      closureBackfillSql(context(), plan, { folder: "app.folders" }),
+    ).toContain(
+      'select "permdock".permdock_closure_folder(array(select t."id"::text from "app"."folders" t));',
+    );
+    expect(
+      closureBackfillSql(context({ seeds: "view" }), plan, {
+        folder: "app.folders",
+      }),
+    ).toBe("");
   });
 
   it("refuses a graph resource named like a scope", () => {
@@ -224,7 +252,7 @@ describe("graph grants in RLS", () => {
       '"permdock".permitted_chat_team_ids(p_relation text)',
     );
     expect(sql).toContain(
-      '"permdock".permdock_link_chat_thread_owner_team(p_ids text[])',
+      '"permdock".permdock_link_chat_thread_owner_team(p_ids uuid[])',
     );
     expect(sql).toContain(
       '"permdock".permdock_closure_chat_thread(p_ids text[])',
@@ -342,7 +370,7 @@ describe("graph grants in RLS", () => {
     expect(sql).toContain(`"permdock".permitted_squad_ids('member')`);
     expect(sql).toContain("with recursive g");
     expect(sql).toContain(
-      '"permdock".permdock_link_folder_squad(p_ids text[])',
+      '"permdock".permdock_link_folder_squad(p_ids uuid[])',
     );
     expect(
       compileConditionSql(
@@ -360,7 +388,7 @@ describe("graph grants in RLS", () => {
         ctx,
       ),
     ).toBe(
-      `coalesce("folderId"::text in (select "permdock".permdock_link_folder_squad(array(select "permdock".permitted_squad_ids('lead')))), false)`,
+      `coalesce("folderId" in (select "permdock".permdock_link_folder_squad(array(select "permdock".permitted_squad_ids('lead')))), false)`,
     );
   });
 });

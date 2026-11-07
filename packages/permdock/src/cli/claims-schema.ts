@@ -26,9 +26,14 @@ export const PERMDOCK_CLAIMS_SCHEMA: Readonly<Record<string, unknown>> = {
         },
         team_ids: {
           description:
-            "The uuid of every team the user belongs to (supabase.hook.teams), cut by the memberships budget.",
+            "The uuid of every team the user belongs to (supabase.hook.teams). Omitted when the team budget is exceeded.",
           type: "array",
           items: { type: "string" },
+        },
+        team_ids_truncated: {
+          description:
+            "true when team_ids was omitted because it exceeded its own budget. memberships_truncated is not set by team rows.",
+          type: "boolean",
         },
         tenant_id: {
           description:

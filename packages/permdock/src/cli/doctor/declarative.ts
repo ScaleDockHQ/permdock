@@ -1,4 +1,4 @@
-import { basename, join } from "node:path";
+import { join } from "node:path";
 
 import type { DoctorFiles, DoctorFinding } from "../shared/doctor-types.ts";
 import type { PermDockConfig } from "../types.ts";
@@ -163,13 +163,21 @@ export function pd069(
       fix: "remove schema_paths from [db.migrations] in supabase/config.toml",
     });
   }
-  for (const file of generatedSchemaFiles(cwd, schemas.schemaDir, files)) {
-    if (/^\d+_permdock_/u.test(basename(file))) {
+  const root = join(cwd, schemas.schemaDir);
+  if (files.isDirectory(root)) {
+    for (const name of files.list(root)) {
+      if (!name.endsWith(".sql")) {
+        continue;
+      }
+      const file = join(root, name);
+      if (files.isDirectory(file)) {
+        continue;
+      }
       findings.push({
         code: "PD069",
         severity: "warning",
-        message: `${rel(cwd, file)} is a numbered part from declarative schemas on migra; under pg-delta, rls generate --split writes the per-schema layout instead`,
-        fix: "delete the numbered parts, run permdock rls generate --split without --out, then supabase db schema declarative sync",
+        message: `${rel(cwd, file)} is SQL in the schema directory; under pg-delta the per-schema layout lives in a schema subdirectory, and a file here is applied as well`,
+        fix: "delete the file, run permdock rls generate --split without --out, then supabase db schema declarative sync",
       });
     }
   }

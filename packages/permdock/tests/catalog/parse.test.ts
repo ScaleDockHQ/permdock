@@ -14,10 +14,10 @@ import { PermDockValidationError } from "../../src/core/errors.ts";
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url));
 
-// SAFETY: catalog-v1.json is the package's own JSON Schema, a top-level object.
+// SAFETY: catalog-v2.json is the package's own JSON Schema, a top-level object.
 const fileSchema = JSON.parse(
   readFileSync(
-    new URL("../../schemas/catalog-v1.json", import.meta.url),
+    new URL("../../schemas/catalog-v2.json", import.meta.url),
     "utf8",
   ),
 ) as object;
@@ -49,8 +49,8 @@ function committedCatalogs(): readonly string[] {
 }
 
 const base = {
-  $schema: "https://permdock.com/schemas/catalog-v1.json",
-  version: 1,
+  $schema: "https://permdock.com/schemas/catalog-v2.json",
+  version: 2,
   generatedAt: "2026-10-01T00:00:00.000Z",
   generator: "permdock@0.1.0",
   resources: { post: { id: "id", schema: null } },
@@ -104,7 +104,7 @@ function permission(doc: Record<string, unknown>): Record<string, unknown> {
 }
 
 const invalid: readonly [string, Mutation][] = [
-  ["version 2", (doc) => (doc["version"] = 2)],
+  ["version 1", (doc) => (doc["version"] = 1)],
   ["no $schema", (doc) => delete doc["$schema"]],
   ["no generatedAt", (doc) => delete doc["generatedAt"]],
   ["no generator", (doc) => delete doc["generator"]],
@@ -157,8 +157,8 @@ const invalid: readonly [string, Mutation][] = [
   ["a plan without key", (doc) => (doc["plans"] = [{}])],
 ];
 
-describe("catalog-v1 schema", () => {
-  it("matches schemas/catalog-v1.json and the catalog --format schema output", () => {
+describe("catalog-v2 schema", () => {
+  it("matches schemas/catalog-v2.json and the catalog --format schema output", () => {
     expect(fileSchema).toStrictEqual(catalogSchema);
     expect(catalogSchemaDocument()).toStrictEqual(fileSchema);
   });
@@ -213,7 +213,7 @@ describe(parseCatalog, () => {
   it("reports every issue with its path", () => {
     const doc = mutated((d) => {
       delete permission(d)["meta"];
-      d["version"] = 2;
+      d["version"] = 1;
     });
     try {
       parseCatalog(doc);
@@ -227,7 +227,7 @@ describe(parseCatalog, () => {
         ["permissions", 0, "meta"],
       ]);
       expect(error.message).toBe(
-        "PermDock: invalid catalog at version: Expected 1 (and 1 more)",
+        "PermDock: invalid catalog at version: Expected 2 (and 1 more)",
       );
     }
   });

@@ -197,6 +197,13 @@ describe("claims first helpers", () => {
     expect(sql).toContain(
       'create trigger "permdock_memo_generation_truncate"\n  after truncate on "permdock"."role_permissions"\n  for each statement',
     );
+    const view = helpers({ seeds: "view" });
+    expect(view).not.toContain(
+      'create trigger "permdock_memo_generation"\n  after insert or update or delete on "permdock"."role_permissions"',
+    );
+    expect(view).toContain(
+      'after insert or update or delete on "public"."org_members"',
+    );
   });
 
   it("bumps the memo generation on membership writes the helpers read", () => {
@@ -302,15 +309,20 @@ function config(
 ): PermDockConfig {
   return {
     policy: MINI,
-    rls: { memberships: { scopes: { tenant: tenantTable } }, ...over.rls },
+    rls: {
+      memberships: { scopes: { tenant: tenantTable } },
+      actions: { archive: "none", publish: "none" },
+      ...over.rls,
+    },
     supabase: { hook: { memberships: [tenantSource], ...over.hook } },
   };
 }
 
 function generate(over: Partial<Input> = {}) {
+  const given = over.config;
+  const { config: _config, ...rest } = over;
   return runRlsGenerate({
     cwd: import.meta.dirname,
-    config: {},
     target: "sql",
     dialect: "supabase",
     authorize: "database",
@@ -320,7 +332,11 @@ function generate(over: Partial<Input> = {}) {
     inlineFunctions: false,
     io,
     write: false,
-    ...over,
+    ...rest,
+    config: {
+      ...given,
+      rls: { actions: { archive: "none", publish: "none" }, ...given?.rls },
+    },
   });
 }
 

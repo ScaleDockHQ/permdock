@@ -172,9 +172,9 @@ const LEGACY_COMBINE: ReadonlySet<unknown> = new Set([
 ]);
 
 /**
- * An approval as a v1 record holds it. Records written before 0.17 carry the
- * combinator in `mode` and `distinct: false` for `'confirm'`; both read as the
- * current names.
+ * A stored approval in the current shape. A record from before 0.17, with the
+ * combinator in `mode` or a boolean `distinct`, fails closed: it is not read as
+ * `combine` or `mode: 'confirm'`. `permdock codemod 0.26` rewrites one.
  */
 export function readWireApproval<T>(value: T): T {
   if (typeof value !== "object" || value === null) {
@@ -182,25 +182,12 @@ export function readWireApproval<T>(value: T): T {
   }
   const mode: unknown = Reflect.get(value, "mode");
   const distinct: unknown = Reflect.get(value, "distinct");
-  if (!LEGACY_COMBINE.has(mode) && typeof distinct !== "boolean") {
-    return value;
+  if (LEGACY_COMBINE.has(mode) || typeof distinct === "boolean") {
+    throw new Error(
+      "PermDock: a stored approval uses a pre-0.17 shape (mode any, all or sequential, or distinct). It fails closed. Run permdock codemod 0.26.",
+    );
   }
-  const next: Record<string, unknown> = {};
-  for (const [key, item] of Object.entries(value)) {
-    if (key !== "mode" && !(key === "distinct" && typeof item === "boolean")) {
-      next[key] = item;
-    }
-  }
-  if (LEGACY_COMBINE.has(mode)) {
-    next["combine"] = mode;
-  } else if (mode !== undefined) {
-    next["mode"] = mode;
-  }
-  if (distinct === false) {
-    next["mode"] = "confirm";
-  }
-  // SAFETY: only the legacy keys were renamed; every other field of T is copied unchanged.
-  return Object.freeze(next) as T;
+  return value;
 }
 
 /** `'authorize'` is the default, so it is stored as absent. */

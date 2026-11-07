@@ -2,6 +2,21 @@
 
 Every PermDock release, newest first. Per-package detail is in [`packages/permdock/CHANGELOG.md`](https://github.com/ScaleDockHQ/PermDock/blob/main/packages/permdock/CHANGELOG.md).
 
+## 0.26.0
+
+`permdock generate` replaces the hand edits these apps carried:
+
+- Deleted view triggers. Triggers stay on the six real tables. `rls.seeds: "view"` does not put a trigger on the `role_permissions` view.
+- The `membership_roles` widen. The stream is not filtered to `user_id = auth.user_id()`. The caller's own membership must be active, and the id uses every `through.on` pair.
+- The dropped `permdock_authz_version` stream. The table stays. Generate does not stream it.
+- The deleted `scopeChallenge` for a subject token. A token with no scope claim and no `authorization_details` is the user. `challengeFor` returns no `insufficient_scope` when the call decides on the subject.
+- The custom-role assignable trigger. The sync guard skips when the caller is signed out or `permdock.sync` is `on`. `pg_trigger_depth()` is not the guard.
+- The platform-role before-delete trigger. The provider supplies `platformRoles` from `rls.roles`, including `permdock_can_assign_any` when the manifest lists it.
+- The duplicated membership block and `::text` casts. `permdock codemod 0.26` removes `::text` around a helper call and deletes a second copy of the membership block the generator now writes.
+- `permdock/testing` `memoryPostgrestSources` and `rolePersonas` answer membership and persona reads from `defineSeeds` fixtures. `permdock rls verify --kind pgtap --personas roles` writes one persona per role those fixtures hold.
+- CASL and Casbin imports emit `defineSeeds` defaults beside the policy.
+- Adoption fixtures cover a TypeScript-only app, plain Postgres, Supabase, better-supabase, and a third-party plugin that calls only `definePlugin`.
+
 ## 0.25.1 (2026-11-06)
 
 - `permdock rls generate` with `rls.seeds: "view"` no longer writes the memo generation triggers on the `role_permissions` view. Postgres refuses `after` triggers on a view, so the generated helpers failed to apply. The view's rows change only with a migration, so the transaction-local memo never needs that bump.

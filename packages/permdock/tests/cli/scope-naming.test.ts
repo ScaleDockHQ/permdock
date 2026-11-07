@@ -10,8 +10,8 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { run } from "../../src/cli/core/run.ts";
 import { runRlsGenerate } from "../../src/cli/rls/generate.ts";
+import { hookGenerate, powersyncGenerate } from "./rls-call.ts";
 
 const TMP = path.join(import.meta.dirname, "../../tmp");
 mkdirSync(TMP, { recursive: true });
@@ -201,24 +201,11 @@ export default {
 };
 `,
     );
-    const hook = await run([
-      "supabase",
-      "hook",
-      "generate",
-      "--out",
-      "hook.sql",
-      "--cwd",
-      dir,
-    ]);
+    const hook = await hookGenerate(["--out", "hook.sql"], { cwd: dir });
     expect(hook.stderr).toBe("");
-    const streams = await run([
-      "powersync",
-      "generate",
-      "--out",
-      "sync-config.yaml",
-      "--cwd",
-      dir,
-    ]);
+    const streams = await powersyncGenerate(["--out", "sync-config.yaml"], {
+      cwd: dir,
+    });
     expect(streams.stderr).toBe("");
     for (const file of ["hook.sql", "sync-config.yaml"]) {
       const text = readFileSync(path.join(dir, file), "utf8");

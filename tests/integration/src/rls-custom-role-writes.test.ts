@@ -2,13 +2,13 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { DatabaseError } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/custom-role-writes");
@@ -54,10 +54,9 @@ describe("permdock_replace_custom_role_grants with levels, renamed keys and mana
 
   beforeAll(async () => {
     const out = join(dir, "rls.sql");
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const result = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}`);
     }
@@ -310,10 +309,9 @@ describe("rls.customRoleWrites.requires", () => {
 
   beforeAll(async () => {
     const out = join(dir, "rls.sql");
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: REQUIRES_FIXTURE },
-    );
+    const result = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: REQUIRES_FIXTURE,
+    });
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}`);
     }
@@ -394,10 +392,9 @@ describe("custom-role functions keyed by the role row id", () => {
 
   beforeAll(async () => {
     const out = join(dir, "rls.sql");
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: BY_ID_FIXTURE },
-    );
+    const result = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: BY_ID_FIXTURE,
+    });
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}`);
     }

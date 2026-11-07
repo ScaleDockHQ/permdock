@@ -92,6 +92,11 @@ export type ExpandedSnapshot = {
    * from. A client compares it with the version in a refresh signal.
    */
   readonly authzVersion?: number;
+  /**
+   * Set by a local snapshot. Assignable permissions from it are `server-only`:
+   * the device list is a hint and the server decides what may be handed out.
+   */
+  readonly local?: true;
   /** The Auth session (`session_id`) the snapshot was built for. */
   readonly sessionId?: string;
   /**

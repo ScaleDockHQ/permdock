@@ -48,7 +48,9 @@ type Stores = {
   readonly tenantRoles: Readable<{ roles: readonly { key: string }[] }>;
   readonly teamRoles: Readable<{ roles: readonly { key: string }[] }>;
   readonly assignable: Readable<readonly { key: string }[]>;
-  readonly assignablePermissions: Readable<readonly unknown[]>;
+  readonly assignablePermissions: Readable<{
+    readonly permissions: readonly unknown[];
+  }>;
   readonly subject: Readable<{
     principal: { id: string } | null;
     simulated: boolean;
@@ -137,7 +139,7 @@ describe("permdock/svelte context stores", () => {
     );
     expect(get(stores.teamRoles).roles).toStrictEqual([]);
     expect(get(stores.assignable)).toStrictEqual([]);
-    expect(get(stores.assignablePermissions)).toStrictEqual([]);
+    expect(get(stores.assignablePermissions).permissions).toStrictEqual([]);
     expect(get(stores.subject)).toMatchObject({
       principal: { id: "u1" },
       simulated: false,

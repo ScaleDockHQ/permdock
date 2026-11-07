@@ -212,21 +212,17 @@ export const SECTIONS: readonly Section[] = [
           load: async () => (await import("../commands/catalog.ts")).catalog,
         },
       ),
-      leaf(
-        "gen",
-        "Write typed constants, schemas, factories, hooks and messages from the policy",
-        {
-          examples: [
-            "permdock gen",
-            "permdock gen --kind zod --kind factories",
-            "permdock gen --check",
-          ],
-          docs: "gen",
-          effects: ["files"],
-          config: true,
-          load: async () => (await import("../commands/gen.ts")).gen,
-        },
-      ),
+      leaf("generate", "Write every plugin's files from the policy", {
+        examples: [
+          "permdock generate",
+          "permdock generate --only rls",
+          "permdock generate --check",
+        ],
+        docs: "generate",
+        effects: ["files"],
+        config: true,
+        load: async () => (await import("../commands/generate.ts")).generate,
+      }),
       leaf(
         "usage",
         "Report unused, ungranted and role-less permissions and conditions on undeclared fields",
@@ -275,16 +271,6 @@ export const SECTIONS: readonly Section[] = [
         "Generate, import, verify or migrate Postgres RLS policies",
         "rls",
         [
-          leaf("generate", "Compile the policy into RLS policies and helpers", {
-            examples: [
-              "permdock rls generate --target sql --out supabase/schemas/permdock.sql",
-              "permdock rls generate --check",
-            ],
-            docs: "rls",
-            effects: ["files", "database:read", "network"],
-            config: true,
-            load: async () => (await import("../commands/rls.ts")).generate,
-          }),
           leaf(
             "import",
             "Turn existing RLS policies into a generated definition",
@@ -351,23 +337,6 @@ export const SECTIONS: readonly Section[] = [
         "Generate the Supabase Custom Access Token Hook, or inspect its manifest",
         "supabase",
         [
-          group("hook", "The Custom Access Token Hook", "supabase", [
-            leaf(
-              "generate",
-              "Compile the membership sources into the hook migration",
-              {
-                examples: [
-                  "permdock supabase hook generate --out supabase/schemas/permdock_hook.sql",
-                  "permdock supabase hook generate --check",
-                ],
-                docs: "supabase",
-                effects: ["files", "database:read"],
-                config: true,
-                load: async () =>
-                  (await import("../commands/supabase.ts")).hookGenerate,
-              },
-            ),
-          ]),
           leaf("inspect", "Print or write the hook and helper manifest", {
             examples: [
               "permdock supabase inspect",
@@ -385,17 +354,6 @@ export const SECTIONS: readonly Section[] = [
         "Generate PowerSync Sync Streams from the policy, or verify them",
         "powersync",
         [
-          leaf("generate", "Compile the read grants into sync-config.yaml", {
-            examples: [
-              "permdock powersync generate",
-              "permdock powersync generate --check",
-            ],
-            docs: "powersync",
-            effects: ["files"],
-            config: true,
-            load: async () =>
-              (await import("../commands/powersync.ts")).generate,
-          }),
           leaf(
             "verify",
             "Fail on stale streams or a stream that syncs a denied row",
@@ -413,28 +371,6 @@ export const SECTIONS: readonly Section[] = [
           ),
         ],
       ),
-      group(
-        "scim",
-        "Generate the Postgres tables postgresDirectoryStore keeps a SCIM directory in",
-        "scim",
-        [
-          leaf(
-            "generate",
-            "Write the tenant-keyed users, groups and members tables",
-            {
-              examples: [
-                "permdock scim generate",
-                "permdock scim generate --dialect guc --out db/scim.sql",
-                "permdock scim generate --check",
-              ],
-              docs: "scim",
-              effects: ["files"],
-              config: true,
-              load: async () => (await import("../commands/scim.ts")).generate,
-            },
-          ),
-        ],
-      ),
     ],
   },
   {
@@ -446,17 +382,17 @@ export const SECTIONS: readonly Section[] = [
         "openapi",
         [
           leaf(
-            "emit",
-            "Write security and securitySchemes into an OpenAPI document",
+            "annotate",
+            "Write an operations map from @permission comments",
             {
               examples: [
-                "permdock openapi emit --doc openapi.json --out openapi.secured.json",
-                "permdock openapi emit --doc openapi.json --kind overlay --out overlay.json",
+                "permdock openapi annotate --routes 'app/**/route.ts'",
               ],
               docs: "openapi",
               effects: ["files"],
-              config: true,
-              load: async () => (await import("../commands/openapi.ts")).emit,
+              config: false,
+              load: async () =>
+                (await import("../commands/openapi.ts")).annotateRoutes,
             },
           ),
           leaf(
@@ -615,8 +551,8 @@ export const SECTIONS: readonly Section[] = [
         "Apply a release's renames to files that import permdock; list call sites to edit by hand",
         {
           examples: [
-            "permdock codemod 0.5 --dry-run",
-            "permdock codemod 0.5 src",
+            "permdock codemod 0.26 --dry-run",
+            "permdock codemod 0.17 src",
           ],
           docs: "codemod",
           effects: ["rewrite"],

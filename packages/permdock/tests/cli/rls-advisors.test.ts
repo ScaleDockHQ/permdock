@@ -92,7 +92,7 @@ describe("rls verify --advisors", () => {
     expect(result).toStrictEqual({
       code: 2,
       output: expect.stringMatching(
-        /install it with \S+ (?:add|install) -D supabase/u,
+        /install it with \S+ (?:add|install|i) -D supabase/u,
       ),
     });
   });

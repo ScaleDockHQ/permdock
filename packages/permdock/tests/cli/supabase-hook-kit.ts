@@ -8,7 +8,7 @@ import {
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { run } from "../../src/cli/core/run.ts";
+import { hookGenerate } from "./rls-call.ts";
 
 export const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");
@@ -51,10 +51,7 @@ export default {
 };
 `,
   );
-  const result = await run(
-    ["supabase", "hook", "generate", "--out", "hook.sql", ...extra],
-    { cwd },
-  );
+  const result = await hookGenerate(["--out", "hook.sql", ...extra], { cwd });
   let sql = "";
   try {
     sql = readFileSync(join(cwd, "hook.sql"), "utf8");

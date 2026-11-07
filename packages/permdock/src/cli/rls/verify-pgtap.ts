@@ -289,12 +289,23 @@ export function customRoleSchema(config: PermDockConfig): string {
  * A pgTAP script that runs each fixture's statement under the fixture's subject
  * and asserts the outcome `can()` gave in-process.
  */
+function personaLines(fixtures: readonly RlsFixture[]): readonly string[] {
+  const roles = [
+    ...new Set(fixtures.flatMap((fixture) => fixture.subject.roles ?? [])),
+  ].toSorted((left, right) => left.localeCompare(right));
+  return roles.map(
+    (role) =>
+      `-- persona ${role}\nselect ${quoteLiteral(role)} as permdock_persona;`,
+  );
+}
+
 export function emitPgtap(input: {
   readonly fixtures: readonly RlsFixture[];
   readonly inProcess: readonly InProcess[];
   readonly policy: Policy;
   readonly config: PermDockConfig;
   readonly customRoles: readonly CustomRole[];
+  readonly personas?: string;
 }): string {
   const scopes = scopeList(input.policy.scopes);
   const subject = subjectOf(input.config, input.customRoles, scopes);
@@ -303,6 +314,9 @@ export function emitPgtap(input: {
     `select plan(${String(input.fixtures.length)});`,
     PGTAP_DECISION_SQL,
   ];
+  if (input.personas === "roles") {
+    lines.push(...personaLines(input.fixtures));
+  }
   if (seedsCustomRoleTables(input.config)) {
     for (const row of customRoleRows(
       customRoleSchema(input.config),

@@ -1,9 +1,267 @@
+import type { RunResult } from "permdock/cli";
+import type { RlsPluginOptions } from "permdock/cli/plugins/rls";
+
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { run } from "permdock/cli";
+import { rls } from "permdock/cli/plugins/rls";
+import { supabaseHook } from "permdock/cli/plugins/supabase-hook";
 
 import type { AsOptions, Postgres } from "./postgres.ts";
+
+const BOOLEAN_FLAGS = new Set([
+  "check",
+  "no-seeds",
+  "skip-closures",
+  "inline-functions",
+  "force-rls",
+  "policy-per-role",
+  "custom-roles",
+  "capabilities",
+  "revoke-columns",
+  "helpers-only",
+  "shims",
+]);
+
+function flagValues(flags: readonly string[]): Map<string, string | true> {
+  const values = new Map<string, string | true>();
+  for (let index = 0; index < flags.length; index += 1) {
+    const token = flags[index] ?? "";
+    if (!token.startsWith("--")) {
+      continue;
+    }
+    const name = token.slice(2);
+    if (BOOLEAN_FLAGS.has(name)) {
+      values.set(name, true);
+      continue;
+    }
+    const next = flags[index + 1];
+    if (next !== undefined && !next.startsWith("--")) {
+      values.set(name, next);
+      index += 1;
+    }
+  }
+  return values;
+}
+
+function dbIo(dbUrl: string): {
+  readonly stdout: (text: string) => void;
+  readonly stderr: (text: string) => void;
+  readonly readStdin: () => Promise<string>;
+} {
+  return {
+    stdout(text) {
+      void text;
+    },
+    stderr(text) {
+      void text;
+    },
+    readStdin: () => Promise.resolve(dbUrl),
+  };
+}
+
+function textOf(
+  values: ReadonlyMap<string, string | true>,
+  name: string,
+): string | undefined {
+  const value = values.get(name);
+  return typeof value === "string" ? value : undefined;
+}
+
+function oneOf<T extends string>(
+  value: string | undefined,
+  allowed: readonly T[],
+): T | undefined {
+  return allowed.find((item) => item === value);
+}
+
+const SPLIT_PARTS = [
+  "helpers",
+  "seeds",
+  "indexes",
+  "policies",
+  "hook",
+] as const;
+
+/**
+ * `--memberships table:tenant,user,role[,expires]`, the same shape as the
+ * generator's flag.
+ */
+function membershipsFromFlag(
+  raw: string | undefined,
+): RlsPluginOptions["memberships"] {
+  if (raw === undefined || raw === "") {
+    return undefined;
+  }
+  const colon = raw.indexOf(":");
+  const table = colon === -1 ? raw : raw.slice(0, colon);
+  const cols = (colon === -1 ? "" : raw.slice(colon + 1))
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item !== "");
+  const tenant = cols[0] ?? "tenant_id";
+  const user = cols[1] ?? "user_id";
+  const role = cols[2] ?? "role";
+  const expiresAt = cols[3];
+  return {
+    scopes: {
+      tenant: {
+        table,
+        columns: { tenant },
+        user,
+        role,
+        ...(expiresAt === undefined ? {} : { expiresAt }),
+      },
+    },
+  };
+}
+
+function applyBooleans(
+  options: { -readonly [K in keyof RlsPluginOptions]?: RlsPluginOptions[K] },
+  values: ReadonlyMap<string, string | true>,
+): void {
+  if (values.get("no-seeds") === true) options.seeds = false;
+  if (values.get("force-rls") === true) options.force = true;
+  if (values.get("inline-functions") === true) options.inlineFunctions = true;
+  if (values.get("policy-per-role") === true) options.policyPerRole = true;
+  if (values.get("custom-roles") === true) options.customRoles = true;
+  if (values.get("capabilities") === true) options.capabilities = true;
+  if (values.get("helpers-only") === true) options.helpersOnly = true;
+  if (values.get("shims") === true) options.shims = true;
+  if (values.get("revoke-columns") === true) options.revokeColumns = true;
+  if (textOf(values, "rbac") === "supabase") options.rbacScaffold = "supabase";
+  const authorize = oneOf(textOf(values, "authorize"), ["database", "jwt"]);
+  if (authorize !== undefined) options.authorize = authorize;
+  const schema = textOf(values, "rbac-schema");
+  if (schema !== undefined) options.schema = schema;
+  const tenantType = textOf(values, "tenant-type");
+  if (tenantType !== undefined) options.tenantType = tenantType;
+  const memberships = membershipsFromFlag(textOf(values, "memberships"));
+  if (memberships !== undefined) options.memberships = memberships;
+}
+
+function pluginOptions(flags: readonly string[]): {
+  readonly options: RlsPluginOptions;
+  readonly check: boolean;
+} {
+  const values = flagValues(flags);
+  const options: {
+    -readonly [K in keyof RlsPluginOptions]?: RlsPluginOptions[K];
+  } = {};
+  const target = oneOf(textOf(values, "target"), ["sql", "drizzle", "prisma"]);
+  const schemas = oneOf(textOf(values, "schemas"), [
+    "pg-delta",
+    "migra",
+    "migrations",
+  ]);
+  const dialect = oneOf(textOf(values, "dialect"), ["supabase", "neon", "guc"]);
+  const fields = oneOf(textOf(values, "fields"), ["views", "mask"]);
+  const out = textOf(values, "out");
+  const grantsOut = textOf(values, "grants-out");
+  const gucPrefix = textOf(values, "guc-prefix");
+  const policyName = textOf(values, "policy-name");
+  const split = textOf(values, "split");
+  if (target !== undefined) options.target = target;
+  if (schemas !== undefined) options.schemas = schemas;
+  if (dialect !== undefined) options.dialect = dialect;
+  if (fields !== undefined) options.fields = fields;
+  if (out !== undefined) options.out = out;
+  if (grantsOut !== undefined) options.grantsOut = grantsOut;
+  if (gucPrefix !== undefined) options.gucPrefix = gucPrefix;
+  if (policyName !== undefined) options.policyName = policyName;
+  if (split !== undefined) {
+    options.split = split.split(",").flatMap((part) => {
+      const known = oneOf(part, SPLIT_PARTS);
+      return known === undefined ? [] : [known];
+    });
+  }
+  applyBooleans(options, values);
+  const seedsOut = textOf(values, "seeds-out");
+  const backfill = textOf(values, "backfill-out");
+  if (
+    options.seeds !== false &&
+    (seedsOut !== undefined || backfill !== undefined)
+  ) {
+    const mode = oneOf(textOf(values, "seeds"), ["function", "view"]);
+    options.seeds = {
+      ...(mode === undefined ? {} : { mode }),
+      ...(seedsOut === undefined ? {} : { out: seedsOut }),
+      ...(backfill === undefined ? {} : { backfill }),
+    };
+  }
+  return { check: values.get("check") === true, options };
+}
+
+/**
+ * The hook plugin, with the flags a test used to pass to `supabase hook
+ * generate`.
+ */
+export async function hookGenerate(
+  flags: readonly string[],
+  options?: { readonly cwd?: string },
+): Promise<RunResult> {
+  const values = flagValues(flags);
+  const text = (name: string): string | undefined => {
+    const value = values.get(name);
+    return typeof value === "string" ? value : undefined;
+  };
+  const schemas = oneOf(text("schemas"), ["pg-delta", "migra", "migrations"]);
+  const out = text("out");
+  const schema = text("schema");
+  const grantsOut = text("grants-out");
+  const activeFrom = text("active-from");
+  const budget = text("budget");
+  const dbUrl = text("db-url");
+  return run(
+    [
+      "generate",
+      "--only",
+      "supabaseHook",
+      "--no-cache",
+      ...(values.get("check") === true ? ["--check"] : []),
+      ...(dbUrl === undefined ? [] : ["--db-url-stdin"]),
+    ],
+    {
+      ...(options?.cwd === undefined ? {} : { cwd: options.cwd }),
+      ...(dbUrl === undefined ? {} : { io: dbIo(dbUrl) }),
+      plugins: [
+        supabaseHook({
+          ...(out === undefined ? {} : { out }),
+          ...(schemas === undefined ? {} : { schemas }),
+          ...(schema === undefined ? {} : { schema }),
+          ...(grantsOut === undefined ? {} : { grantsOut }),
+          ...(activeFrom === undefined ? {} : { activeFrom }),
+          ...(budget === undefined ? {} : { budget }),
+        }),
+      ],
+    },
+  );
+}
+
+/** The RLS plugin, with the flags a test used to pass to `rls generate`. */
+export async function rlsGenerate(
+  flags: readonly string[],
+  options?: { readonly cwd?: string },
+): Promise<RunResult> {
+  const parsed = pluginOptions(flags);
+  const dbUrl = textOf(flagValues(flags), "db-url");
+  return run(
+    [
+      "generate",
+      "--only",
+      "rls",
+      "--no-cache",
+      ...(parsed.check ? ["--check"] : []),
+      ...(dbUrl === undefined ? [] : ["--db-url-stdin"]),
+    ],
+    {
+      ...(options?.cwd === undefined ? {} : { cwd: options.cwd }),
+      ...(dbUrl === undefined ? {} : { io: dbIo(dbUrl) }),
+      plugins: [rls(parsed.options)],
+    },
+  );
+}
 
 /**
  * Runs the CLI with every `{dir}` in `args` replaced by a fresh temporary
@@ -17,14 +275,37 @@ export async function generated(
 ): Promise<string[]> {
   const dir = mkdtempSync(join(tmpdir(), "permdock-generated-"));
   try {
-    const result = await run(
-      args.map((arg) => arg.replaceAll("{dir}", dir)),
-      { cwd: options.cwd },
-    );
+    const argv = args.map((arg) => arg.replaceAll("{dir}", dir));
+    const result =
+      argv[0] === "rls" && argv[1] === "generate"
+        ? await rlsGenerate(argv.slice(2), { cwd: options.cwd })
+        : argv[0] === "supabase" && argv[1] === "hook" && argv[2] === "generate"
+          ? await hookGenerate(argv.slice(3), { cwd: options.cwd })
+          : await run(argv, { cwd: options.cwd });
     if (result.code !== 0) {
       throw new Error(`${args.join(" ")}: ${result.stdout}${result.stderr}`);
     }
     return files.map((file) => readFileSync(join(dir, file), "utf8"));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** `permdock generate --only rls` with `target: "sql"`, as one SQL string. */
+export async function generateRls(
+  cwd: string,
+  args: readonly string[] = [],
+): Promise<string> {
+  const dir = mkdtempSync(join(tmpdir(), "permdock-generated-"));
+  try {
+    const result = await rlsGenerate(
+      ["--target", "sql", "--out", join(dir, "out.sql"), ...args],
+      { cwd },
+    );
+    if (result.code !== 0) {
+      throw new Error(`generate --only rls: ${result.stdout}${result.stderr}`);
+    }
+    return readFileSync(join(dir, "out.sql"), "utf8");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -35,6 +316,26 @@ export async function generateSql(
   cwd: string,
   args: readonly string[],
 ): Promise<string> {
+  if (args[0] === "rls" && args[1] === "generate") {
+    return generateRls(cwd, args.slice(2));
+  }
+  if (args[0] === "supabase" && args[1] === "hook" && args[2] === "generate") {
+    const dir = mkdtempSync(join(tmpdir(), "permdock-generated-"));
+    try {
+      const result = await hookGenerate(
+        ["--out", join(dir, "out.sql"), ...args.slice(3)],
+        { cwd },
+      );
+      if (result.code !== 0) {
+        throw new Error(
+          `generate --only supabaseHook: ${result.stdout}${result.stderr}`,
+        );
+      }
+      return readFileSync(join(dir, "out.sql"), "utf8");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
   const [sql = ""] = await generated(
     [...args, "--out", "{dir}/out.sql"],
     ["out.sql"],
@@ -43,38 +344,37 @@ export async function generateSql(
   return sql;
 }
 
-/** `permdock rls generate --target sql ...args` in `cwd`, as one SQL string. */
-export async function generateRls(
-  cwd: string,
-  args: readonly string[] = [],
-): Promise<string> {
-  return generateSql(cwd, ["rls", "generate", "--target", "sql", ...args]);
-}
-
 /** `--split` parts written to `{part}.sql`, joined in the order given. */
 export async function generateRlsParts(
   cwd: string,
   parts: readonly string[],
   args: readonly string[] = [],
 ): Promise<string> {
-  const files = await generated(
-    [
-      "rls",
-      "generate",
-      "--target",
-      "sql",
-      ...args,
-      "--schemas",
-      "migrations",
-      "--split",
-      parts.join(","),
-      "--out",
-      "{dir}/{part}.sql",
-    ],
-    parts.map((part) => `${part}.sql`),
-    { cwd },
-  );
-  return files.join("\n");
+  const dir = mkdtempSync(join(tmpdir(), "permdock-generated-"));
+  try {
+    const result = await rlsGenerate(
+      [
+        "--target",
+        "sql",
+        ...args,
+        "--schemas",
+        "migrations",
+        "--split",
+        parts.join(","),
+        "--out",
+        join(dir, "{part}.sql"),
+      ],
+      { cwd },
+    );
+    if (result.code !== 0) {
+      throw new Error(`generate --only rls: ${result.stdout}${result.stderr}`);
+    }
+    return parts
+      .map((part) => readFileSync(join(dir, `${part}.sql`), "utf8"))
+      .join("\n");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 /** The settings a Supabase request carries: `request.jwt.claims` for `sub`. */

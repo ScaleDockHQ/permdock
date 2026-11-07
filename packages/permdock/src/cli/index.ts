@@ -1,5 +1,8 @@
 export { catalogPath } from "./catalog-path.ts";
 export { defineConfig } from "./project/config.ts";
+export { definePlugin } from "./generate/plugin.ts";
+export type { PermDockPlugin, PluginTask } from "./generate/plugin.ts";
+export type { PolicyModel } from "./generate/model.ts";
 export type {
   ConfigChecks,
   PermDockConfigInput,

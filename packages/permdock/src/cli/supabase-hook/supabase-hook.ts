@@ -19,7 +19,8 @@ import {
   driftOf,
   partPath,
   pgDeltaPath,
-  STDOUT,
+  serviceRel,
+  underSchemaDir,
   writeOutputFiles,
 } from "../core/output-files.ts";
 import { readJsonFile, writeFileEnsuringDir } from "../files.ts";
@@ -27,13 +28,7 @@ import { formatManifestJson, MANIFEST_FILE } from "../manifest-json.ts";
 import { requirePolicy } from "../project/load.ts";
 import { hookUri, resolveAuthorize } from "../rls/rbac.ts";
 import { declarativeSql } from "../sql/declarative.ts";
-import {
-  GRANTS_MARKER,
-  HOOK_MARKER,
-  hookMarkerFields,
-} from "../sql/markers.ts";
-import { membershipSourcesOf } from "../sql/sources.ts";
-import { splitUndiffed } from "../sql/statements.ts";
+import { HOOK_MARKER, hookMarkerFields } from "../sql/markers.ts";
 import { supabaseConfig } from "../supabase-config.ts";
 import {
   isSupabaseSchemas,
@@ -46,30 +41,16 @@ import {
   missingHelpersMessage,
 } from "../supabase-setup.ts";
 import {
-  authzVersionForSql,
-  membersOfSql,
-  apiWrappersSql,
-  permdockSubjectSql,
-  subjectForSql,
-} from "./api.ts";
-import { attrsGuardSql } from "./claims.ts";
-import { globalRolesSql, membershipEntriesSql } from "./entries.ts";
-import {
-  databaseManifestOf,
-  defaultOut,
-  hookMarker,
-  manifestOf,
-} from "./manifest.ts";
-import {
-  configToml,
-  grantsSql,
-  hookParts,
-  hookSql,
-  managedSql,
-  schemaSql,
-} from "./sql.ts";
-import { teamIdsOfSql } from "./teams.ts";
-import { versionSql } from "./version.ts";
+  grantsLabel,
+  supabaseDatabaseManifest,
+  supabaseHookManifest,
+  supabaseHookSql,
+} from "./emit/hook-sql.ts";
+import { defaultOut, hookMarker } from "./manifest.ts";
+import { configToml } from "./sql.ts";
+import { asideAuthzReceive } from "./version.ts";
+
+export { supabaseHookManifest, supabaseHookSql };
 
 const SUPABASE_HELP = `permdock supabase hook generate | inspect
 
@@ -141,126 +122,12 @@ export function hookOut(
       );
 }
 
-/**
- * The manifest `supabase inspect` prints. With `policy`, `rls.helpers` also
- * lists the assignment checks `rls generate` writes for roles that declare
- * `assigns`.
- */
-export function supabaseHookManifest(
-  scopes: readonly Scope[],
-  config: PermDockConfig,
-  overrides: HookOverrides & {
-    readonly out?: string;
-    readonly schemas?: SupabaseSchemas;
-  } = {},
-  policy?: Policy,
-): SupabaseHookManifest {
-  const parts = hookParts(scopes, config, overrides);
-  const manifest = manifestOf(
-    parts,
-    overrides.out ?? defaultOut(config),
-    config,
-    policy,
-  );
-  return overrides.schemas === undefined
-    ? manifest
-    : { ...manifest, hook: { ...manifest.hook, schemas: overrides.schemas } };
-}
-
-/**
- * The manifest of a project in `rls.authorize: 'database'` mode with no
- * `supabase.hook`: the helpers, scopes, membership sources and grants, and no
- * token hook.
- */
-function supabaseDatabaseManifest(
-  scopes: readonly Scope[],
-  config: PermDockConfig,
-  overrides: HookOverrides & { readonly out?: string } = {},
-  policy?: Policy,
-): SupabaseDatabaseManifest {
-  const parts = hookParts(
-    scopes,
-    {
-      ...config,
-      supabase: {
-        ...config.supabase,
-        hook: { memberships: membershipSourcesOf(config) },
-      },
-    },
-    overrides,
-  );
-  return databaseManifestOf(
-    parts,
-    overrides.out ?? defaultOut(config),
-    config,
-    policy,
-  );
-}
-
 /** Whether the project is in the one case that has a manifest without a hook. */
 function hooklessDatabase(config: PermDockConfig): boolean {
   return (
     config.supabase?.hook === undefined &&
     resolveAuthorize(config) === "database"
   );
-}
-
-/**
- * The hook migration. With `grantsOut`, the statements `supabase db diff` drops
- * are left out of `sql` and returned in `grants` for that file.
- */
-export function supabaseHookSql(
-  scopes: readonly Scope[],
-  config: PermDockConfig,
-  overrides: HookOverrides = {},
-  grantsOut?: string,
-): {
-  readonly sql: string;
-  readonly grants: string;
-  readonly manifest: SupabaseHookManifest;
-} {
-  const parts = hookParts(scopes, config, overrides);
-  const manifest = manifestOf(parts, defaultOut(config), config);
-  const toml = configToml(parts.schema, parts.jwtExpiry)
-    .split("\n")
-    .map((line) => (line === "" ? "--" : `--   ${line}`))
-    .join("\n");
-  const sql = [
-    `${hookMarker(manifest)}
--- custom_access_token_hook(jsonb): memberships go active ${parts.root} first and stop at the budget
--- supabase/config.toml:
-${toml}${grantsOut === undefined ? "" : `\n-- what supabase db diff drops from this part is in ${grantsOut}`}`,
-    schemaSql(parts),
-    attrsGuardSql(parts.attrs),
-    globalRolesSql(parts),
-    membershipEntriesSql(parts),
-    hookSql(parts),
-    versionSql(parts),
-    subjectForSql(parts, config),
-    permdockSubjectSql(parts),
-    authzVersionForSql(parts),
-    membersOfSql(parts),
-    teamIdsOfSql(parts),
-    apiWrappersSql(parts),
-    grantsSql(parts),
-    managedSql(parts),
-  ]
-    .filter((chunk) => chunk !== "")
-    .join("\n\n");
-  const { kept, moved } = splitUndiffed(`${sql}\n`);
-  const grants = `${GRANTS_MARKER} schema=${parts.schema}
--- the privileges and view options supabase db diff drops from the hook part
-${moved.join("\n")}
-`;
-  return { sql: grantsOut === undefined ? `${sql}\n` : kept, grants, manifest };
-}
-
-/** What the hook file's header says about where its grants went. */
-export function grantsLabel(grantsOut: string | undefined): string | undefined {
-  if (grantsOut === undefined) {
-    return undefined;
-  }
-  return grantsOut === STDOUT ? "a separate migration" : grantsOut;
 }
 
 function markerDrift(
@@ -489,14 +356,23 @@ export async function runSupabase(input: {
     typeof input.out === "string"
       ? input.out
       : hookOut(input.cwd, input.config, input.schema, flag);
-  // The file is declarative only at pg-delta's own path; `--out`, `supabase.hook.out` and the split hook part name a migration.
-  const sql =
-    schemas.mode === "pg-delta" &&
-    typeof input.out !== "string" &&
-    input.config.supabase?.hook?.out === undefined &&
-    splitHookOut(input.cwd, input.config) === undefined
-      ? declarativeSql(generated.sql)
-      : generated.sql;
+  // A hook file under the schema directory is declarative, including hook.out.
+  const declarative =
+    schemas.mode === "pg-delta" && underSchemaDir(outRel, schemas.schemaDir);
+  const aside = declarative
+    ? asideAuthzReceive(generated.sql)
+    : { sql: generated.sql, receive: undefined };
+  const sql = declarative ? declarativeSql(aside.sql) : aside.sql;
+  const receiveFile: readonly OutputFile[] =
+    aside.receive === undefined || schemas.mode !== "pg-delta"
+      ? []
+      : [
+          {
+            part: "realtime",
+            rel: serviceRel(schemas.schemaDir, "realtime/authz.sql"),
+            text: aside.receive,
+          },
+        ];
   const outPath = resolve(input.cwd, outRel);
   const hook = input.config.supabase?.hook;
   const grantsFile: readonly OutputFile[] =
@@ -515,13 +391,16 @@ export async function runSupabase(input: {
     if (onDisk !== sql) {
       return { code: 1, output: markerDrift(onDisk, manifest, outRel) };
     }
-    const drift = driftOf(input.cwd, grantsFile);
+    const drift = driftOf(input.cwd, [...receiveFile, ...grantsFile]);
     return drift.length === 0
       ? { code: 0, output: "supabase hook up to date" }
       : { code: 1, output: `supabase hook drift: ${drift.join("; ")}` };
   }
   writeFileEnsuringDir(outPath, sql);
-  const grantsWritten = writeOutputFiles(input.cwd, grantsFile);
+  const grantsWritten = writeOutputFiles(input.cwd, [
+    ...receiveFile,
+    ...grantsFile,
+  ]);
   const placed = { ...manifest, hook: { ...manifest.hook, out: outRel } };
   const missing =
     input.db === undefined

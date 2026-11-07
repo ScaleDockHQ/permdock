@@ -2,8 +2,9 @@ import { PGlite } from "@electric-sql/pglite";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { run } from "./support/cli-run.ts";
 const OWNER = "00000000-0000-4000-8000-0000000000d1";
 const CONTACT = "00000000-0000-4000-8000-0000000000d2";
 const SUSPENDED = "00000000-0000-4000-8000-0000000000d3";

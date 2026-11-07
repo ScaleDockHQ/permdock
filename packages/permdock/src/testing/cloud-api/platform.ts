@@ -4,7 +4,7 @@ export { POLICY_NOT_PUBLISHED };
 
 type Node = Readonly<Record<string, unknown>>;
 
-const CATALOG = "https://permdock.com/schemas/catalog-v1.json";
+const CATALOG = "https://permdock.com/schemas/catalog-v2.json";
 const MANIFEST = "https://permdock.com/schemas/supabase-manifest-v1.json";
 export const PUSHED_POLICY =
   "https://permdock.com/schemas/pushed-policy-v1.json";

@@ -16,6 +16,7 @@ import { run } from "../../src/cli/core/run.ts";
 import { pd058 } from "../../src/cli/doctor/powersync.ts";
 import { runPowerSync } from "../../src/cli/powersync/powersync.ts";
 import { junctionMembershipSource } from "../../src/supabase/index.ts";
+import { powersyncGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TMP = join(HERE, "../../tmp");
@@ -72,7 +73,10 @@ export const policy = definePolicy(permissions, {
     return dir;
   }
 
-  const projectConfig: PermDockConfig = { policy: "policy.ts", powersync: {} };
+  const projectConfig: PermDockConfig = {
+    policy: "policy.ts",
+    powersync: { resources: ["note"] },
+  };
 
   function fakeDb(
     synced: (values: readonly unknown[]) => boolean,
@@ -91,6 +95,7 @@ export const policy = definePolicy(permissions, {
       const config: PermDockConfig = {
         ...projectConfig,
         powersync: {
+          resources: ["note"],
           tables: {
             attachments: { follow: [{ resource: "note", field: "parent_id" }] },
           },
@@ -145,6 +150,7 @@ export const policy = definePolicy(permissions, {
       const config: PermDockConfig = {
         ...projectConfig,
         powersync: {
+          resources: ["note"],
           tables: {
             attachments: {
               user: "user_id",
@@ -191,7 +197,10 @@ export const policy = definePolicy(permissions, {
       const cwd = project();
       const config: PermDockConfig = {
         ...projectConfig,
-        powersync: { tables: { preferences: { user: "user_id" } } },
+        powersync: {
+          resources: ["note"],
+          tables: { preferences: { user: "user_id" } },
+        },
       };
       writeFileSync(
         join(cwd, "rls.fixtures.json"),
@@ -229,6 +238,7 @@ export const policy = definePolicy(permissions, {
       const config: PermDockConfig = {
         ...projectConfig,
         powersync: {
+          resources: ["note"],
           tables: {
             attachments: {
               follow: [
@@ -371,6 +381,7 @@ export const policy = definePolicy(permissions, {
       const config: PermDockConfig = {
         ...projectConfig,
         powersync: {
+          resources: ["note"],
           tables: {
             attachments: {
               user: "user_id",
@@ -490,7 +501,14 @@ export const policy = definePolicy(permissions, {
           },
         ]),
       );
-      const base = { cwd, config: projectConfig, check: false };
+      const base = {
+        cwd,
+        config: {
+          ...projectConfig,
+          powersync: { resources: ["folder", "file"] },
+        },
+        check: false,
+      };
       await runPowerSync({ ...base, rest: ["generate"] });
       expect(readFileSync(join(cwd, "sync-config.yaml"), "utf8")).toContain(
         "SELECT * FROM file WHERE file.folder_id IN (SELECT folder.id FROM folder WHERE folder.owner_id = auth.user_id())",
@@ -567,7 +585,10 @@ export const policy = definePolicy(permissions, {
       const cwd = project();
       const withManifest: PermDockConfig = {
         ...projectConfig,
-        powersync: { manifest: "src/permdock-manifest.json" },
+        powersync: {
+          resources: ["note"],
+          manifest: "src/permdock-manifest.json",
+        },
       };
       mkdirSync(join(cwd, "src"));
       const base = { cwd, config: withManifest, check: false };
@@ -714,7 +735,7 @@ export const policy = definePolicy(permissions, {
             }),
           ],
         },
-        powersync: {},
+        powersync: { resources: ["note"] },
       };
       const base = { cwd, config, check: false };
       const { output } = await runPowerSync({ ...base, rest: ["generate"] });
@@ -803,7 +824,9 @@ export const policy = definePolicy(permissions, {
         message:
           "PermDock CLI: powersync needs policy in the config or --policy",
       });
-      expect(await pd058({ cwd, config: { powersync: {} } })).toStrictEqual([]);
+      expect(
+        await pd058({ cwd, config: { powersync: { resources: ["note"] } } }),
+      ).toStrictEqual([]);
       const broken: PermDockConfig = {
         ...projectConfig,
         rls: { tables: { note: "bad name" } },
@@ -830,7 +853,10 @@ export const policy = definePolicy(permissions, {
           "PermDock CLI: 'bad name' is not a plain identifier, which Sync Streams need",
       });
       expect(
-        await pd058({ cwd, config: { policy: "missing.ts", powersync: {} } }),
+        await pd058({
+          cwd,
+          config: { policy: "missing.ts", powersync: { resources: ["note"] } },
+        }),
       ).toStrictEqual([]);
     });
 
@@ -838,9 +864,9 @@ export const policy = definePolicy(permissions, {
       const cwd = project();
       writeFileSync(
         join(cwd, "permdock.config.ts"),
-        "export default { policy: './policy.ts', powersync: { out: 'streams.yaml' } };\n",
+        "export default { policy: './policy.ts', powersync: { resources: ['note'], out: 'streams.yaml' } };\n",
       );
-      const generated = await run(["powersync", "generate"], { cwd });
+      const generated = await powersyncGenerate([], { cwd });
       expect(generated.stdout).toContain("wrote streams.yaml");
       const checked = await run(
         ["powersync", "verify", "--policy", "./policy.ts"],

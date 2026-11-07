@@ -30,6 +30,12 @@ const CLIENT_SAFE = new Set([
 /** Build- and test-time entries no application file imports at run time. */
 const TOOLING = new Set([
   "permdock/cli",
+  "permdock/cli/plugins/better-supabase",
+  "permdock/cli/plugins/openapi",
+  "permdock/cli/plugins/powersync",
+  "permdock/cli/plugins/rls",
+  "permdock/cli/plugins/scim",
+  "permdock/cli/plugins/supabase-hook",
   "permdock/next/plugin",
   "permdock/testing",
   "permdock/testing/core",

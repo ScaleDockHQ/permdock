@@ -9,7 +9,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDockSync } from "permdock";
-import { run } from "permdock/cli";
 import { withSubject as drizzleWithSubject } from "permdock/drizzle";
 import { withSubject as kyselyWithSubject } from "permdock/kysely";
 import { withSubject as prismaWithSubject } from "permdock/prisma";
@@ -29,6 +28,7 @@ import {
 } from "../fixtures/workspace/policy.ts";
 import { startPostgres, testerUri } from "./support/postgres.ts";
 import { PrismaClient } from "./support/prisma/client.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/workspace");
@@ -83,10 +83,9 @@ describe("withSubject runs Drizzle, Kysely and Prisma under the generated RLS", 
 
   beforeAll(async () => {
     const out = join(dir, "workspace.sql");
-    const generated = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
     }

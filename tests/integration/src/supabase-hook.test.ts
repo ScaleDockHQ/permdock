@@ -5,7 +5,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock } from "permdock";
-import { run } from "permdock/cli";
 import { subjectFromSupabase } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -17,7 +16,9 @@ import {
   permissions,
   policy,
 } from "../fixtures/named-scopes/policy.ts";
+import { run } from "./support/cli-run.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { hookGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/named-scopes/supabase");
@@ -108,9 +109,7 @@ describe("Supabase token hook with named scopes (jwt mode)", () => {
     }
     generated = readFileSync(out, "utf8");
     const hookOut = join(dir, "hook.sql");
-    const hook = await run(["supabase", "hook", "generate", "--out", hookOut], {
-      cwd: FIXTURE,
-    });
+    const hook = await hookGenerate(["--out", hookOut], { cwd: FIXTURE });
     if (hook.code !== 0) {
       throw new Error(`hook generate: ${hook.stdout}${hook.stderr}`);
     }

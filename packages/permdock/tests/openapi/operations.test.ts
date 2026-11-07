@@ -286,6 +286,48 @@ describe("operationPermissionsFromOpenApi security and enforcement", () => {
   });
 });
 
+describe("x-authorization and x-oauth-scopes", () => {
+  it("reads a permission, a check and scopes from the input extensions", () => {
+    const operations = operationPermissionsFromOpenApi(
+      {
+        paths: {
+          "/posts": {
+            post: {
+              "x-authorization": {
+                permission: "post.create",
+                check: "handler",
+              },
+              "x-oauth-scopes": ["posts:write"],
+            },
+          },
+        },
+      },
+      permissions,
+    );
+    expect(operations.forRequest("POST", "/posts")).toBe(
+      permissions.post.create,
+    );
+    expect(operations.entries()[0]?.enforcement).toBe("handler");
+    expect(operations.oauthScopesForRequest("POST", "/posts")).toStrictEqual([
+      "posts:write",
+    ]);
+  });
+
+  it("skips an x-oauth-scopes value that is not a list of strings", () => {
+    const skipped: OperationSkipCause[] = [];
+    operationPermissionsFromOpenApi(
+      { paths: { "/posts": { get: { "x-oauth-scopes": "posts:read" } } } },
+      permissions,
+      {
+        onSkip: (_operation, cause) => {
+          skipped.push(cause);
+        },
+      },
+    );
+    expect(skipped).toStrictEqual(["invalid-extension"]);
+  });
+});
+
 describe("operation coverage", () => {
   const document = {
     paths: {

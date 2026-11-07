@@ -53,6 +53,7 @@ const base: RlsSqlContext = {
   tenantClaim: "tenant_id",
   scopes,
   gucPrefix: "app",
+  actions: { accept: "none", disable: "none", pay: "none" },
   tenantType: "uuid",
   ...(ownership === undefined ? {} : { ownership }),
 };
@@ -94,17 +95,16 @@ describe("membership sources through a roles table", () => {
 
   it("bumps the global and the membership holders of a renamed key from one trigger", () => {
     const { sql } = supabaseHookSql(scopes, config);
-    expect(sql).toContain(`  if tg_op = 'UPDATE'
-    and new."key" is not distinct from old."key"
-    and new."id" is not distinct from old."id" then
-    return null;
-  end if;`);
-    expect(sql)
-      .toContain(`    select h."user_id"::uuid as user_id from "public"."user_roles" h where h."role_id" = old."id"
-    union
-    select h."user_id"::uuid as user_id from "public"."organization_users" h where h."role_id" = old."id"`);
+    expect(sql).toContain('elsif new."key" is not distinct from old."key"');
+    expect(sql).toContain('and new."id" is not distinct from old."id" then');
+    expect(sql).toContain(
+      `select h."user_id"::uuid as user_id from "public"."organization_users" h where h."role_id" = new."id"`,
+    );
+    expect(sql).toContain(
+      `select h."user_id"::uuid as user_id from "public"."organization_users" h where h."role_id" = old."id"`,
+    );
     expect(
-      sql.match(/after update or delete on "public"\."roles"/gu),
+      sql.match(/after insert or update or delete on "public"\."roles"/gu),
     ).toHaveLength(1);
   });
 
@@ -153,10 +153,10 @@ describe("membership sources through a roles table", () => {
       `if tg_table_schema = 'public' and tg_table_name = 'roles' then`,
     );
     expect(sql).toContain(
-      'create trigger "permdock_authz_version"\n  after update or delete on "public"."platform_roles"',
+      'create trigger "permdock_authz_version"\n  after insert or update or delete on "public"."platform_roles"',
     );
     expect(sql).toContain(
-      'create trigger "permdock_authz_version"\n  after update or delete on "public"."roles"',
+      'create trigger "permdock_authz_version"\n  after insert or update or delete on "public"."roles"',
     );
   });
 
@@ -167,8 +167,12 @@ describe("membership sources through a roles table", () => {
         hook: { memberships: [organizationUsers, organizationUsers] },
       },
     });
+    const inserted = sql.slice(
+      sql.indexOf("if tg_op = 'INSERT'"),
+      sql.indexOf("elsif tg_op = 'DELETE'"),
+    );
     expect(
-      sql.match(/from "public"\."organization_users" h where/gu),
+      inserted.match(/from "public"\."organization_users" h where/gu),
     ).toHaveLength(1);
   });
 

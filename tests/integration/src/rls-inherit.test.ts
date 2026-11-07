@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock } from "permdock";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { InheritUser } from "../fixtures/inherit/policy.ts";
@@ -18,7 +17,12 @@ import {
   users,
 } from "../fixtures/inherit/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
-import { jwtClaims, readableIds, visibleIds } from "./support/rls.ts";
+import {
+  rlsGenerate,
+  jwtClaims,
+  readableIds,
+  visibleIds,
+} from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/inherit");
@@ -49,10 +53,9 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
   const out = join(dir, "inherit.sql");
 
   beforeAll(async () => {
-    const generated = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
     }
@@ -158,7 +161,7 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
     ).toStrictEqual(["n-acme"]);
   });
 
-  it("answers permitted_node_row for a row value, including one not yet inserted", async () => {
+  it("answers can_node for a row value, including one not yet inserted", async () => {
     if (db === undefined) {
       throw new Error("PermDock: Postgres was not started");
     }
@@ -174,7 +177,7 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
         const got = await asUser(
           db,
           user.id,
-          `select v.id from (values ${rowValues}) v(id, r) where permdock.permitted_node_row(v.r, '${key}') order by v.id`,
+          `select v.id from (values ${rowValues}) v(id, r) where permdock.can_node(v.r, '${key}') order by v.id`,
         );
         const want = await inProcess(
           user,
@@ -195,7 +198,7 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
       await asUser(
         db,
         member,
-        `select 'n-new' as id where permdock.permitted_node_row(${unsaved}, 'node.read')`,
+        `select 'n-new' as id where permdock.can_node(${unsaved}, 'node.read')`,
       ),
     ).toStrictEqual(["n-new"]);
     expect(
@@ -206,7 +209,7 @@ describe("inherit() in RLS: a node is readable where its drive is", () => {
       ),
     ).toStrictEqual([]);
     await db.admin.query(
-      "grant insert on public.node to authenticated; create policy node_insert on public.node for insert to authenticated with check (permdock.permitted_node_row(node, 'node.read'))",
+      "grant insert on public.node to authenticated; create policy node_insert on public.node for insert to authenticated with check (permdock.can_node(node, 'node.read'))",
     );
     expect(
       await asUser(

@@ -4,9 +4,9 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
-import { run } from "../../src/cli/core/run.ts";
 import { pd054 } from "../../src/cli/doctor/seeds.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 describe("doctor seeds", () => {
   afterAll(removeProjects);
@@ -16,7 +16,10 @@ describe("doctor seeds", () => {
   const config: PermDockConfig = {
     permissions: POLICY,
     policy: POLICY,
-    rls: { dialect: "supabase" },
+    rls: {
+      dialect: "supabase",
+      actions: { accept: "none", disable: "none", pay: "none" },
+    },
   };
 
   const LEVELLED = `import { allow, definePermissions, definePolicy, principal, resource, role } from 'permdock';
@@ -43,10 +46,8 @@ export const policy = definePolicy(permissions, {
     const cwd = project({
       "permdock.config.ts": `export default ${JSON.stringify(config)};\n`,
     });
-    const result = await run(
+    const result = await rlsGenerate(
       [
-        "rls",
-        "generate",
         "--split",
         "helpers,seeds",
         "--out",
@@ -127,7 +128,12 @@ export const policy = definePolicy(permissions, {
       );
       const [finding] = await pd054({
         cwd,
-        config: { permissions: POLICY, policy: POLICY, supabase: {} },
+        config: {
+          permissions: POLICY,
+          policy: POLICY,
+          supabase: {},
+          rls: { actions: { accept: "none", disable: "none", pay: "none" } },
+        },
       });
       expect(finding?.message).toContain(
         "rows the policy no longer compiles to: 1 stale, such as (ghost quote.read quote.read organization allow)",
@@ -184,10 +190,8 @@ export const policy = definePolicy(permissions, {
           "permdock.config.ts": `export default ${JSON.stringify(levelConfig)};\n`,
           "src/levels.ts": LEVELLED,
         });
-        const result = await run(
+        const result = await rlsGenerate(
           [
-            "rls",
-            "generate",
             "--split",
             seeds === undefined ? "helpers,seeds" : "helpers",
             "--out",
@@ -216,15 +220,17 @@ export const policy = definePolicy(permissions, {
     it("generates the seed function with the helpers, and PD054 reads its body", async () => {
       const fnConfig: PermDockConfig = {
         ...config,
-        rls: { dialect: "supabase", seeds: "function" },
+        rls: {
+          dialect: "supabase",
+          seeds: "function",
+          actions: { accept: "none", disable: "none", pay: "none" },
+        },
       };
       const cwd = project({
         "permdock.config.ts": `export default ${JSON.stringify(fnConfig)};\n`,
       });
-      const result = await run(
+      const result = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--split",
           "helpers",
           "--out",

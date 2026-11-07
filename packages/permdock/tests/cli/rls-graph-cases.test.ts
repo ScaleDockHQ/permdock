@@ -71,6 +71,25 @@ describe(graphPlan, () => {
 });
 
 describe(graphSql, () => {
+  it("refuses a resource name that is not a SQL identifier", () => {
+    const entry = graphPlan(policy).get("node");
+    if (entry === undefined) {
+      throw new Error("missing node");
+    }
+    expect(() =>
+      graphSql(
+        ctx,
+        new Map([
+          [
+            "not-ident",
+            { ...entry, node: { ...entry.node, name: "not-ident" } },
+          ],
+        ]),
+        undefined,
+      ),
+    ).toThrow("not a SQL name");
+  });
+
   it("writes the closure without restricted stops for an unrestricted tree", () => {
     const text = graphSql(ctx, graphPlan(policy), { node: "app.nodes" });
     expect(text).toContain(
@@ -98,7 +117,7 @@ describe(graphSql, () => {
       relations: new Set(["ghost"]),
     });
     expect(graphSql(ctx, plan, undefined)).toContain(
-      "  select null::text where false",
+      "  select null::uuid where false",
     );
   });
 
@@ -122,7 +141,7 @@ describe(graphSql, () => {
     );
     expect(text).not.toContain('"authz".permitted_folder_ids(p_relation text)');
     expect(text).toContain(
-      'create or replace function "authz".permdock_link_folder_team(p_ids text[])',
+      'create or replace function "authz".permdock_link_folder_team(p_ids uuid[])',
     );
   });
 

@@ -33,7 +33,7 @@ import {
   validateSql,
 } from "./claims.ts";
 import {
-  MEMBERSHIP_ENTRIES_FOR,
+  MEMBERSHIPS_FOR,
   entriesGrantsSql,
   entryTenantSql,
   heldSql,
@@ -42,6 +42,7 @@ import {
   activeFromSql,
   activeSource,
   checkSources,
+  hookMemberships,
   memberForPlan,
   positiveInteger,
   typedUsers,
@@ -115,7 +116,10 @@ export function hookSql(parts: Parts): string {
   end if;`,
     )
     .join("");
-  const dropTeams = parts.hook.teams === undefined ? "" : " - 'team_ids'";
+  const dropTeams =
+    parts.hook.teams === undefined
+      ? ""
+      : " - 'team_ids' - 'team_ids_truncated'";
   const suspended =
     parts.users === undefined
       ? ""
@@ -130,20 +134,22 @@ export function hookSql(parts: Parts): string {
     teamsConfig === undefined
       ? ""
       : `
-  for team in
-    select t.${quoteIdent(teamsConfig.team)}::text as id
-    from ${quoteQualified(teamsConfig.table)} t
-    where t.${quoteIdent(teamsConfig.user)} = uid
-    order by ${teamsConfig.tenant === undefined ? "" : `(t.${quoteIdent(teamsConfig.tenant)}::text is not distinct from active) desc, `}t.${quoteIdent(teamsConfig.team)}
-  loop
-    if octet_length(kept::text) + used + octet_length((team_ids || to_jsonb(team.id))::text) > budget then
-      truncated := true;
-      exit;
+  team_ids := coalesce((
+    select jsonb_agg(to_jsonb(u.id::text) order by u.n)
+    from unnest(array(
+      select team_id from ${quoteIdent(parts.schema)}.member_team_ids_for(uid, active) as team(team_id)
+    )) with ordinality as u(id, n)
+  ), '[]'::jsonb);
+  if octet_length(team_ids::text) > budget then
+    team_truncated := true;
+  end if;
+  if team_truncated then
+    claims := jsonb_set(claims, '{team_ids_truncated}', 'true'::jsonb);
+  else
+    claims := claims - 'team_ids_truncated';
+    if team_ids <> '[]'::jsonb then
+      claims := jsonb_set(claims, '{team_ids}', team_ids);
     end if;
-    team_ids := team_ids || jsonb_build_array(team.id);
-  end loop;
-  if team_ids <> '[]'::jsonb then
-    claims := jsonb_set(claims, '{team_ids}', team_ids);
   end if;`;
   return `create or replace function ${fn}(event jsonb)
 returns jsonb
@@ -161,7 +167,7 @@ declare
   in_active boolean := false;
   budget integer := ${String(parts.budget)};
   used integer := 0;
-  item record;${teamsConfig === undefined ? "" : "\n  team record;\n  team_ids jsonb := '[]'::jsonb;"}${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}${parts.before.length === 0 ? "" : "\n  checked jsonb;"}
+  item record;${teamsConfig === undefined ? "" : "\n  team_ids jsonb := '[]'::jsonb;\n  team_truncated boolean := false;"}${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}${parts.before.length === 0 ? "" : "\n  checked jsonb;"}
 begin${beforeSql(parts.before)}${suspended}
   claims := claims - 'attrs'${dropTeams}${dropExtra};
 ${roles}
@@ -176,7 +182,7 @@ ${roles}
     select x.entry, x.root_id is not distinct from active as current
     from (
       select e.ord, e.entry, ${entryTenantSql(parts, "e")} as root_id
-      from ${quoteIdent(parts.schema)}.${MEMBERSHIP_ENTRIES_FOR}(uid) e
+      from ${quoteIdent(parts.schema)}.${MEMBERSHIPS_FOR}(uid) e
     ) x
     order by (x.root_id is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
   loop
@@ -327,12 +333,6 @@ function readsSql(parts: Parts): string {
       reads.set(through.table, reads.get(through.table) ?? "role_keys");
     }
   }
-  if (parts.hook.teams !== undefined) {
-    reads.set(
-      parts.hook.teams.table,
-      reads.get(parts.hook.teams.table) ?? "teams",
-    );
-  }
   if (parts.attrs?.table !== undefined && parts.attrs.columns.length > 0) {
     reads.set(parts.attrs.table, reads.get(parts.attrs.table) ?? "attrs");
   }
@@ -441,12 +441,17 @@ export function hookParts(
   quoteIdent(schema);
   const tenantClaim = config.rls?.tenantClaim ?? supabaseTenantClaim;
   const extraPlan = extraClaimsPlan(hook.claims, tenantClaim);
-  checkSources({ sources: hook.memberships, scopes });
+  const sources = hookMemberships(
+    hook.memberships,
+    config.rls?.memberships,
+    scopes,
+  );
+  checkSources({ sources, scopes });
   const parts: Parts = {
     schema,
     scopes,
     root,
-    sources: hook.memberships,
+    sources,
     budget: positiveInteger(
       overrides.budget ?? hook.budget ?? supabaseMembershipsBudget,
       "budget",

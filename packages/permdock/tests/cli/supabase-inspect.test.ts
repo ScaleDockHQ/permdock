@@ -7,6 +7,7 @@ import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
 
 import { run } from "../../src/cli/core/run.ts";
 import { jsonData } from "./envelope.ts";
+import { rlsGenerate, hookGenerate } from "./rls-call.ts";
 import {
   HERE,
   SOURCES,
@@ -24,31 +25,18 @@ describe("supabase inspect", () => {
         ["--budget", "2048"],
       );
       expect(code).toBe(0);
-      const upToDate = await run(
-        [
-          "supabase",
-          "hook",
-          "generate",
-          "--out",
-          "hook.sql",
-          "--budget",
-          "2048",
-          "--check",
-        ],
+      const upToDate = await hookGenerate(
+        ["--out", "hook.sql", "--budget", "2048", "--check"],
         { cwd },
       );
       expect(upToDate.code).toBe(0);
-      const drift = await run(
-        ["supabase", "hook", "generate", "--out", "hook.sql", "--check"],
-        { cwd },
-      );
+      const drift = await hookGenerate(["--out", "hook.sql", "--check"], {
+        cwd,
+      });
       expect(drift.code).toBe(1);
       expect(drift.stdout + drift.stderr).toContain("budget 2048 -> 1024");
-      const otherSchema = await run(
+      const otherSchema = await hookGenerate(
         [
-          "supabase",
-          "hook",
-          "generate",
           "--out",
           "hook.sql",
           "--budget",
@@ -64,10 +52,9 @@ describe("supabase inspect", () => {
         "schema permdock -> auth_hooks",
       );
       writeFileSync(join(cwd, "hook.sql"), "-- hand edited\n");
-      const unmarked = await run(
-        ["supabase", "hook", "generate", "--out", "hook.sql", "--check"],
-        { cwd },
-      );
+      const unmarked = await hookGenerate(["--out", "hook.sql", "--check"], {
+        cwd,
+      });
       expect(unmarked.stdout + unmarked.stderr).toContain(
         "hook.sql has no -- permdock:hook v1 line",
       );
@@ -608,10 +595,7 @@ describe("supabase inspect", () => {
 
       expect(printed).toMatchObject({ code: 0, stdout: bare.stdout });
       expect(existsSync(join(cwd, "-"))).toBe(false);
-      const refused = await run(
-        ["supabase", "hook", "generate", "--out", "-", "--json"],
-        { cwd },
-      );
+      const refused = await hookGenerate(["--out", "-", "--json"], { cwd });
 
       expect(refused.code).toBe(2);
       expect(JSON.parse(refused.stdout)).toMatchObject({
@@ -650,10 +634,9 @@ create or replace function permdock.permitted_organization_ids(p_grant text) ret
 create or replace function "permdock".member_organization_ids_for(p_user uuid) returns setof text language sql as $$ select null::text where false $$;
 `,
       );
-      const partial = await run(
-        ["supabase", "hook", "generate", "--out", "hook.sql"],
-        { cwd: missing.cwd },
-      );
+      const partial = await hookGenerate(["--out", "hook.sql"], {
+        cwd: missing.cwd,
+      });
       expect(partial.stdout).toContain(
         "PD039 schema permdock has no member_organization_ids, permitted_customer_ids, member_customer_ids, member_customer_ids_for",
       );
@@ -666,10 +649,9 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
         join(other.cwd, "rls.sql"),
         `create function "permdock".permdock_has(p_grant text) returns boolean language sql as $$ select false $$;`,
       );
-      const wrongSchema = await run(
-        ["supabase", "hook", "generate", "--out", "hook.sql"],
-        { cwd: other.cwd },
-      );
+      const wrongSchema = await hookGenerate(["--out", "hook.sql"], {
+        cwd: other.cwd,
+      });
       expect(wrongSchema.stdout).toContain(
         "PD039 schema app has no permdock_has",
       );
@@ -681,19 +663,10 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
       const configured = await generate(
         `{ memberships: [${SOURCES}] }`,
         [],
-        `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, authorize: 'database', helpersOnly: true, memberships: { scopes: { organization: { table: 'memberships', user: 'user_id', role: 'role', columns: { organization: 'organization_id' } }, customer: { table: 'contacts', user: 'user_id', role: 'role', columns: { customer: 'customer_id', organization: 'organization_id' } } } } }`,
+        `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, authorize: 'database', helpersOnly: true, actions: { accept: 'none', disable: 'none', pay: 'none' }, memberships: { scopes: { organization: { table: 'memberships', user: 'user_id', role: 'role', columns: { organization: 'organization_id' } }, customer: { table: 'contacts', user: 'user_id', role: 'role', columns: { customer: 'customer_id', organization: 'organization_id' } } } } }`,
       );
-      const split = await run(
-        [
-          "rls",
-          "generate",
-          "--target",
-          "sql",
-          "--split",
-          "helpers",
-          "--schemas",
-          "migrations",
-        ],
+      const split = await rlsGenerate(
+        ["--target", "sql", "--split", "helpers", "--schemas", "migrations"],
         { cwd: configured.cwd },
       );
       expect(split.code).toBe(0);
@@ -701,10 +674,9 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
         cwd: configured.cwd,
       });
       expect(doctor.stdout).not.toContain("has no");
-      const beside = await run(
-        ["supabase", "hook", "generate", "--out", HOOK],
-        { cwd: configured.cwd },
-      );
+      const beside = await hookGenerate(["--out", HOOK], {
+        cwd: configured.cwd,
+      });
       expect(beside.stdout).not.toContain("PD039");
 
       const unconfigured = await generate(`{ memberships: [${SOURCES}] }`);
@@ -718,15 +690,13 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
           "utf8",
         ),
       );
-      const sibling = await run(
-        ["supabase", "hook", "generate", "--out", HOOK],
-        { cwd: unconfigured.cwd },
-      );
+      const sibling = await hookGenerate(["--out", HOOK], {
+        cwd: unconfigured.cwd,
+      });
       expect(sibling.stdout).not.toContain("PD039");
-      const elsewhere = await run(
-        ["supabase", "hook", "generate", "--out", "hook.sql"],
-        { cwd: unconfigured.cwd },
-      );
+      const elsewhere = await hookGenerate(["--out", "hook.sql"], {
+        cwd: unconfigured.cwd,
+      });
       expect(elsewhere.stdout).toContain("PD039 schema permdock has no");
     });
 
@@ -743,10 +713,10 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
       const configured = await generate(
         `{ memberships: [${SOURCES}] }`,
         [],
-        `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, split: ['helpers', 'seeds', 'hook'], authorize: 'database', ${MEMBERSHIPS} }, doctor: { migrations: [] }`,
+        `{ dialect: 'supabase', out: ${JSON.stringify(OUT)}, split: ['helpers', 'seeds', 'hook'], authorize: 'database', actions: { accept: 'none', disable: 'none', pay: 'none' }, ${MEMBERSHIPS} }, doctor: { migrations: [] }`,
       );
-      const split = await run(
-        ["rls", "generate", "--target", "sql", "--schemas", "migrations"],
+      const split = await rlsGenerate(
+        ["--target", "sql", "--schemas", "migrations"],
         { cwd: configured.cwd },
       );
       expect(split.stdout).toContain(
@@ -767,10 +737,8 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
       await expect(hookOf(flagged.cwd)).resolves.toBe(
         "supabase/schemas/permdock/functions/custom_access_token_hook.sql",
       );
-      await run(
+      await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--split",
@@ -787,10 +755,8 @@ create or replace function "permdock".member_organization_ids_for(p_user uuid) r
         [],
         `{ dialect: 'supabase', authorize: 'database', ${MEMBERSHIPS} }, doctor: { migrations: ['supabase/migrations'] }`,
       );
-      const declarative = await run(
+      const declarative = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--split",

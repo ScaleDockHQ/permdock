@@ -25,6 +25,7 @@ import type {
 import {
   storeOf,
   approvalHandle,
+  assignablePermissionsView,
   describeWith,
   filterResult,
   gateView,
@@ -217,12 +218,18 @@ export function useAssignableRoles(): readonly Role[] {
 
 export function useAssignablePermissions(
   options: { readonly tenant?: string } = {},
-): readonly Permission[] {
+): {
+  readonly permissions: readonly Permission[];
+  readonly status: "ready" | "server-only";
+} {
   const permdock = useSnapshotPermDock();
   const { tenant } = options;
   return useMemo(
     () =>
-      permdock.assignablePermissions(tenant === undefined ? {} : { tenant }),
+      assignablePermissionsView(
+        permdock,
+        tenant === undefined ? {} : { tenant },
+      ),
     [permdock, tenant],
   );
 }

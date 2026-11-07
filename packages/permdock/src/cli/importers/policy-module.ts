@@ -162,6 +162,7 @@ export function emitPolicyModule(input: {
   const names = new Set([
     "definePermissions",
     "definePolicy",
+    "defineSeeds",
     "resource",
     "role",
   ]);
@@ -180,6 +181,15 @@ export function emitPolicyModule(input: {
         ? `    role(${quote(role.name)}, []),`
         : `    role(${quote(role.name)}, [\n${body.join("\n")}\n    ]),`;
     });
+  const seedRoles = input.roles
+    .toSorted((a, b) => byCodePoint(a.name, b.name))
+    .map((role) => {
+      const allowed = role.grants
+        .filter((grant) => grant.effect === "allow")
+        .map((grant) => `permissions.${grant.resource}.${grant.action}`);
+      const list = allowed.length === 0 ? "[]" : `[${allowed.join(", ")}]`;
+      return `      { key: ${quote(role.name)}, scope: "global", grants: ${list} },`;
+    });
   return `${permissionsModule.replace(
     "import { definePermissions, resource } from 'permdock'",
     imports,
@@ -190,6 +200,14 @@ ${roles.join("\n")}
   ],
   subject: (user: { readonly id: string; readonly roles: readonly string[] }) =>
     user,
+})
+
+export const seeds = defineSeeds(policy, {
+  defaults: {
+    roles: [
+${seedRoles.join("\n")}
+    ],
+  },
 })
 `;
 }

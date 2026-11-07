@@ -76,7 +76,7 @@ export function runConfig(input: {
   const report = configReport(input);
   const code = input.strict && report.warnings.length > 0 ? 1 : 0;
   const findings = report.warnings.map((warning) => ({
-    code: "config-warning",
+    code: "unknown_key",
     severity: "warning" as const,
     message: warning,
     ...(report.file === null ? {} : { file: report.file }),

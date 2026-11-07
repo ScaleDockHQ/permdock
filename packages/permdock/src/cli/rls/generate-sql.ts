@@ -45,9 +45,10 @@ import {
   migrationSql,
 } from "./emit.ts";
 import { rowBranches } from "./fields.ts";
+import { treeHelperSql, walkChainSql } from "./follows.ts";
 import { isRefusal, splitsPart } from "./generate-options.ts";
 import { generatePolicies, withHelperTables } from "./generate-policies.ts";
-import { graphSql } from "./graph.ts";
+import { closureBackfillSql, graphSql } from "./graph.ts";
 import { helpersSql, seedSql } from "./helpers.ts";
 import { indexTargets, indexesSql } from "./indexes.ts";
 import { ownershipSql } from "./ownership.ts";
@@ -55,6 +56,7 @@ import { permissionHoldersSql } from "./permission-holders.ts";
 import { permissionHelpersSql } from "./permission-keys.ts";
 import { actorMayWriteSql, readOnlyActorKinds } from "./policies.ts";
 import { rbacScaffold } from "./rbac.ts";
+import { storageResources } from "./realtime-storage.ts";
 import { CANDIDATES, inheritTargets, rowHelpersSql } from "./rows.ts";
 import { shimGrants, shimsSql } from "./shims.ts";
 import { auditSql, generatedTables, triggersSql } from "./triggers.ts";
@@ -110,17 +112,23 @@ function preflight(
       refusal: `rls.anonymousSignIns needs --dialect supabase (got ${ctx.dialect})`,
     };
   }
-  const jsonSchema = rls?.jsonSchema;
-  if (
-    jsonSchema !== undefined &&
-    jsonSchema !== "auto" &&
-    typeof jsonSchema !== "boolean"
-  ) {
+  // A config file is untyped JavaScript, so 'auto' still arrives at run time.
+  const jsonSchema: unknown = rls?.jsonSchema;
+  if (jsonSchema === "auto") {
     return {
-      refusal: `rls.jsonSchema must be 'auto', true or false (got ${JSON.stringify(jsonSchema)})`,
+      refusal:
+        "rls.jsonSchema: 'auto' is not supported. Set true or false. 'auto' needed a do block, which a schema file cannot carry.",
     };
   }
-  return { backfill, jsonSchema };
+  if (jsonSchema !== undefined && typeof jsonSchema !== "boolean") {
+    return {
+      refusal: `rls.jsonSchema must be true or false (got ${JSON.stringify(jsonSchema)})`,
+    };
+  }
+  return {
+    backfill,
+    jsonSchema: typeof jsonSchema === "boolean" ? jsonSchema : undefined,
+  };
 }
 
 function rbacPart(
@@ -213,7 +221,14 @@ function sectionsSql(
   }
   const graphed = graphSql(ctx, graph, tableNames(rls?.tables));
   let rowHelpers = "";
-  if (rls?.rowHelpers !== undefined || inheritTargets(policy).length > 0) {
+  const storageRows = storageResources(rls?.storage);
+  const asked = rls?.rowHelpers;
+  const select = asked === true ? true : [...(asked ?? []), ...storageRows];
+  if (
+    asked !== undefined ||
+    inheritTargets(policy).length > 0 ||
+    storageRows.length > 0
+  ) {
     const readable = (grants: CompiledGrants): readonly CompiledBranch[] => [
       ...(options.fieldsMode === undefined
         ? grants.branches
@@ -221,19 +236,20 @@ function sectionsSql(
       ...grants.actionBranches,
     ];
     try {
+      const rowCtx = { ...ctx, reuseMemo: true as const, memoTouches: [] };
       const narrowed = compileGrants(
         policy,
-        { ...ctx, candidates: CANDIDATES },
+        { ...rowCtx, candidates: CANDIDATES },
         tableNames(rls?.tables),
         [],
         input.skipClosures,
         true,
       );
       rowHelpers = rowHelpersSql(
-        ctx,
+        rowCtx,
         policy,
         readable(compiled),
-        rls?.rowHelpers ?? [],
+        select,
         tableNames(rls?.tables),
         warnings,
         readable(narrowed),
@@ -246,12 +262,21 @@ function sectionsSql(
     ctx,
     breakGlassEntries(policy, tableNames(rls?.tables)),
   );
+  const chain = walkChainSql(
+    ctx,
+    policy,
+    rls?.tables,
+    typeof rls?.approvals === "object" && rls.approvals.delegations === true,
+  );
+  const tree = treeHelperSql(ctx, policy, rls?.tables, rls?.treeValues);
   return [
     approvals,
     owned === "" ? undefined : owned,
     graphed === "" ? undefined : graphed,
     breakGlass === "" ? undefined : breakGlass,
     rowHelpers === "" ? undefined : rowHelpers,
+    chain === "" ? undefined : chain,
+    tree === "" ? undefined : tree,
   ];
 }
 
@@ -373,8 +398,12 @@ function preambleSql(
     return { refusal: describeError(cause) };
   }
   const seedsSplit = splitsPart(input.split, "seeds");
+  const closure =
+    seedsSplit || ctx.seeds === "view"
+      ? ""
+      : closureBackfillSql(ctx, built.graph, tableNames(rls?.tables));
   return {
-    preamble: [core, ownTriggers, seedsSplit ? "" : audit]
+    preamble: [core, ownTriggers, seedsSplit ? "" : audit, closure]
       .filter((part) => part !== "")
       .join("\n"),
     audit,
@@ -385,19 +414,26 @@ function seedsBody(
   ctx: RlsSqlContext,
   schema: string,
   rows: readonly RolePermission[],
+  closure: string,
 ): string {
+  let body: string;
   switch (ctx.seeds) {
     case "function":
-      return `select ${quoteQualified(`${schema}.seed`)}();`;
+      body = `select ${quoteQualified(`${schema}.seed`)}();`;
+      break;
     case "view":
-      return "-- rls.seeds: 'view': the role_permissions rows are in the helpers part";
+      body =
+        "-- rls.seeds: 'view': the role_permissions rows are in the helpers part";
+      break;
     case undefined:
-      return seedSql(ctx, rows);
+      body = seedSql(ctx, rows);
+      break;
     default: {
       const exhaustive: never = ctx.seeds;
       return exhaustive;
     }
   }
+  return closure === "" ? body : `${body}\n${closure}`;
 }
 
 function forceWarnings({ graph }: GenerateContext, warnings: string[]): void {
@@ -569,7 +605,8 @@ export function generateSql(
     force,
     views,
     helperTables,
-    guardedTables,
+    realtimePolicies,
+    storagePolicies,
     helpersOnly,
     actorGuards,
   } = generated;
@@ -596,9 +633,12 @@ export function generateSql(
         emitSql(policies, "", force, views),
         ctx.dialect,
       ),
-      ...(guardedTables === undefined
+      ...(realtimePolicies === undefined
         ? {}
-        : { servicePolicies: dialectRoles(guardedTables, ctx.dialect) }),
+        : { realtimePolicies: dialectRoles(realtimePolicies, ctx.dialect) }),
+      ...(storagePolicies === undefined
+        ? {}
+        : { storagePolicies: dialectRoles(storagePolicies, ctx.dialect) }),
       helpers: dialectRoles(
         withHelperTables(
           emitSql([], preamble, false, helpersOnly ? views : []),
@@ -606,7 +646,12 @@ export function generateSql(
         ),
         ctx.dialect,
       ),
-      seeds: `${SEEDS_MARKER} schema=${built.schema}\n${seedsBody(ctx, built.schema, generated.compiled.rolePermissions)}\n${seedsSplit ? audit : ""}`,
+      seeds: `${SEEDS_MARKER} schema=${built.schema}\n${seedsBody(
+        ctx,
+        built.schema,
+        generated.compiled.rolePermissions,
+        closureBackfillSql(ctx, built.graph, tableNames(rls?.tables)),
+      )}\n${seedsSplit ? audit : ""}`,
       indexes: `${INDEXES_MARKER}\n${indexesSql(indexes)}\n`,
     }),
   };

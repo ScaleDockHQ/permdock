@@ -28,7 +28,6 @@ import { permissions, policy } from "../fixtures/quick-start.ts";
 
 const at = (seconds: number): string => new Date(seconds * 1000).toISOString();
 
-const subject = { principal: null, context: {} };
 const permission = permissions.post.update;
 
 function denied(...denials: readonly Denial[]): Decision {
@@ -190,7 +189,7 @@ describe("RFC 9457 Problem Details", () => {
 
   for (const row of rows) {
     it(`answers ${row.name} with ${String(row.status)} /${row.type}`, async () => {
-      const response = problemFromDecision(row.decision, permission, subject, {
+      const response = problemFromDecision(row.decision, permission, {
         instance: "/posts/p1",
         ...(row.disclosure === undefined ? {} : { disclosure: row.disclosure }),
       });
@@ -250,7 +249,6 @@ describe("RFC 9457 Problem Details", () => {
       problemFromDecision(
         denied({ role: "member", reason: "condition" }),
         permission,
-        subject,
         { instance: "/posts/p1" },
       ),
     );
@@ -272,7 +270,6 @@ describe("RFC 9457 Problem Details", () => {
           detail: "signature mismatch",
         }),
         permission,
-        subject,
       ),
     );
     expect(problem).not.toHaveProperty("denials");
@@ -289,7 +286,6 @@ describe("RFC 9457 Problem Details", () => {
           to: { kind: "assurance", acr: ["urn:mfa"], maxAge: 60 },
         }),
         permission,
-        subject,
       ),
     );
     expect(problem).toMatchObject({ acrValues: ["urn:mfa"], maxAge: 60 });
@@ -311,7 +307,6 @@ describe("RFC 9457 Problem Details", () => {
           },
         ),
         permission,
-        subject,
       ),
     );
     expect(problem["plans"]).toStrictEqual(["pro", "enterprise"]);
@@ -325,7 +320,6 @@ describe("RFC 9457 Problem Details", () => {
         detail: { count: 10, per: 60, resetsAt: at(Date.now() / 1000 + 30) },
       }),
       permission,
-      subject,
     );
     expect(response.headers.get("Retry-After")).toMatch(/^\d+$/u);
     expect(response.headers.get("RateLimit")).toMatch(/^"member";r=0;t=\d+$/u);
@@ -346,7 +340,6 @@ describe("RFC 9457 Problem Details", () => {
           token: "sha256:abc",
         },
         permission,
-        subject,
         { approval: { at: "https://app.example/approvals" } },
       ),
     );
@@ -370,7 +363,6 @@ describe("RFC 9457 Problem Details", () => {
     const response = problemFromDecision(
       denied({ role: null, reason: "validation", detail: error }),
       permission,
-      subject,
     );
     expect(response.status).toBe(400);
     const problem = await body(response);
@@ -452,7 +444,6 @@ describe("the PROBLEM_EXAMPLES list", () => {
       problemFromDecision(
         refused({ role: "member", reason: "condition" }),
         remove,
-        author,
         { instance: "/posts/p_42" },
       ),
     "approval-required": () =>
@@ -464,7 +455,6 @@ describe("the PROBLEM_EXAMPLES list", () => {
           token: "pd1.eyJhbGciOiJFZERTQSJ9",
         },
         remove,
-        author,
         {
           instance: "/posts/p_42",
           approval: { at: "https://app.example/approvals" },
@@ -485,7 +475,6 @@ describe("the PROBLEM_EXAMPLES list", () => {
           }),
         }),
         remove,
-        author,
       ),
     "step-up-required": () =>
       problemFromDecision(
@@ -495,7 +484,6 @@ describe("the PROBLEM_EXAMPLES list", () => {
           to: { kind: "assurance", acr: ["urn:mfa"], maxAge: 600 },
         }),
         remove,
-        author,
       ),
     "not-entitled": () =>
       problemFromDecision(
@@ -505,7 +493,6 @@ describe("the PROBLEM_EXAMPLES list", () => {
           to: { kind: "plan", plan: "pro" },
         }),
         remove,
-        author,
       ),
     "rate-limited": () =>
       problemFromDecision(
@@ -515,13 +502,11 @@ describe("the PROBLEM_EXAMPLES list", () => {
           detail: { count: 10, per: 60, resetsAt: at(1_900_000_000) },
         }),
         remove,
-        author,
       ),
     "limit-unavailable": () =>
       problemFromDecision(
         refused({ role: "member", reason: "limit-unavailable" }),
         remove,
-        author,
       ),
     "invalid-signature": () =>
       invalidSignatureProblem("HTTP Message Signature did not verify"),

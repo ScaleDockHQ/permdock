@@ -249,7 +249,7 @@ export async function pd087(
     if (topic !== BETTER_SUPABASE_AUTHZ_TOPIC) {
       findings.push({
         code: "PD087",
-        severity: "warning",
+        severity: "error",
         message: `supabase.hook broadcasts authorization version changes on ${topic}, and better-supabase's subscribeAuthzVersions and SessionProvider listen on ${BETTER_SUPABASE_AUTHZ_TOPIC}: a role change never reaches a signed-in client`,
         fix: `remove supabase.hook.broadcast.topic, or set it to ${BETTER_SUPABASE_AUTHZ_TOPIC}, then run permdock supabase hook generate`,
       });
@@ -265,4 +265,45 @@ export async function pd087(
     });
   }
   return findings;
+}
+
+const SUPPLIED = [
+  {
+    present: (config: Record<string, unknown>): boolean =>
+      Object.hasOwn(config, "roleThrough"),
+    name: "roleThrough",
+  },
+  {
+    present: (config: Record<string, unknown>): boolean => {
+      const blocks = config["blocks"];
+      const permissions = isRecord(blocks) ? blocks["permissions"] : undefined;
+      return isRecord(permissions) && Object.hasOwn(permissions, "disabled");
+    },
+    name: "blocks.permissions.disabled",
+  },
+  {
+    present: (config: Record<string, unknown>): boolean =>
+      JSON.stringify(config).includes("permdock_can_assign_any"),
+    name: "permdock_can_assign_any",
+  },
+] as const;
+
+/**
+ * PD094: the better-supabase config restates a value the provider already
+ * supplies, so the two copies drift.
+ */
+export async function pd094(
+  input: DoctorInput,
+): Promise<readonly DoctorFinding[]> {
+  const config = await betterSupabaseConfig(lookupOf(input));
+  if (config === undefined) {
+    return [];
+  }
+  return SUPPLIED.filter((item) => item.present(config)).map((item) => ({
+    code: "PD094",
+    severity: "error" as const,
+    target: item.name,
+    message: `better-supabase config sets ${item.name}, which the provider supplies`,
+    fix: `delete ${item.name} from the better-supabase config`,
+  }));
 }

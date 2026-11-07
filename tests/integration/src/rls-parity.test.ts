@@ -2,7 +2,6 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { testRlsParity } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -11,6 +10,7 @@ import type { Postgres } from "./support/postgres.ts";
 import { permissions } from "../fixtures/posts/permissions.ts";
 import { policy } from "../fixtures/posts/policy.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/posts");
@@ -87,8 +87,8 @@ describe("RLS parity", () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-rls-"));
     const out = join(dir, "rls.sql");
-    const generate = await run(
-      ["rls", "generate", "--target", "sql", "--dialect", "guc", "--out", out],
+    const generate = await rlsGenerate(
+      ["--target", "sql", "--dialect", "guc", "--out", out],
       { cwd: FIXTURE },
     );
     generateCode = generate.code;

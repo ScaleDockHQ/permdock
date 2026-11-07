@@ -3,6 +3,7 @@ import type { StandardSchemaV1 } from "@standard-schema/spec";
 import type { ClaimsMap } from "../core/claims-map.ts";
 import type { ClientNames } from "../core/clients.ts";
 import type { AuthEvent } from "../core/event-types.ts";
+import type { CustomRoleSource } from "../core/interfaces.ts";
 import type { Principal } from "../core/subject.ts";
 import type { SupabaseActClaim } from "./claims.ts";
 
@@ -262,6 +263,12 @@ export type SupabaseSubjectOptions = {
   readonly schema?: StandardSchemaV1;
   readonly include?: readonly SupabaseInclude[];
   readonly declared?: readonly string[];
+  /**
+   * The custom-role source the factory reads. An undeclared global role stays
+   * on the principal, so a platform custom role is not dropped before
+   * `claimsFirst` rereads it.
+   */
+  readonly customRoles?: CustomRoleSource;
   /**
    * Names for OAuth client ids: an `oauth-client` actor gets `client` set to
    * the name of its id, which a policy delegation matches with `to: { kind:

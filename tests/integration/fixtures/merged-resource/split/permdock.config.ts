@@ -6,6 +6,7 @@ export default {
     idTypes: { "*": "text" },
     scopeTypes: { tenant: "text" },
     authorize: "database",
+    actions: { comment: "none" },
     tables: { file: "file_nodes", fileNode: "file_nodes" },
     rowHelpers: ["file", "fileNode"],
     memberships: {

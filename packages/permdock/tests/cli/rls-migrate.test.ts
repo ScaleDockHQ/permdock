@@ -14,6 +14,7 @@ import type { MigrateReport } from "../../src/cli/rls/migrate.ts";
 import { run } from "../../src/cli/core/run.ts";
 import { mapKey } from "../../src/cli/rls/migrate.ts";
 import { jsonData } from "./envelope.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");
@@ -99,6 +100,7 @@ export default {
   rls: {
     dialect: 'supabase',
     membershipSources: [tableMembershipSource({ table: 'memberships' })],
+    actions: { accept: 'none', disable: 'none', pay: 'none' },
     migrate: ${JSON.stringify({ ...MIGRATE, ...extra.migrate })},${extra.roleValues === undefined ? "" : `\n    roleValues: ${JSON.stringify(extra.roleValues)},`}
   },
 };
@@ -296,10 +298,8 @@ create policy "orgs_disable" on public.organization for update to authenticated
   describe("rls generate --helpers-only", () => {
     it("writes the helpers and seeds, and no table policies", async () => {
       const cwd = project({});
-      const result = await run(
+      const result = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--rbac",
@@ -320,10 +320,8 @@ create policy "orgs_disable" on public.organization for update to authenticated
 
     it("refuses a policies part", async () => {
       const cwd = project({});
-      const result = await run(
+      const result = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--helpers-only",

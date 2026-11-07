@@ -2,7 +2,6 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "../src/support/postgres.ts";
@@ -10,7 +9,7 @@ import type { Postgres } from "../src/support/postgres.ts";
 import { setupSql, uuid } from "../fixtures/row-candidates/policy.ts";
 import { defined } from "../src/support/defined.ts";
 import { startPostgres } from "../src/support/postgres.ts";
-import { jwtClaims } from "../src/support/rls.ts";
+import { rlsGenerate, jwtClaims } from "../src/support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/row-candidates");
@@ -41,10 +40,9 @@ describe("permitted_<resource>_rows narrowed to candidate ids, and the row-value
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-row-candidates-"));
     const out = join(dir, "rls.sql");
-    const generated = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
     }
@@ -168,7 +166,7 @@ describe("permitted_<resource>_rows narrowed to candidate ids, and the row-value
       expect(
         await ids(
           user,
-          "select r.id::text as id from unnest($1::public.item[]) r where permdock.permitted_item_row(r, $2)",
+          "select r.id::text as id from unnest($1::public.item[]) r where permdock.can_item(r, $2)",
           [rows, key],
         ),
       ).toStrictEqual(await permitted(user, key));
@@ -181,7 +179,11 @@ describe("permitted_<resource>_rows narrowed to candidate ids, and the row-value
       "select count(*) from permdock.permitted_item_rows('item.read')",
     );
     expect(full.item.seq).toBeGreaterThan(0);
-    expect(full.space.seq).toBeGreaterThan(0);
+    // The full helper passes each item's space id to permitted_space_rows,
+    // which reads space by primary key. A sequential scan of space is not
+    // required, and would read rows the items do not name.
+    expect(full.space.seq).toBe(0);
+    expect(full.space.idx).toBeGreaterThan(0);
     const narrowed = await scansOf(
       MEMBER,
       "select count(*) from permdock.permitted_item_rows('item.read', $1::uuid[])",
@@ -192,7 +194,7 @@ describe("permitted_<resource>_rows narrowed to candidate ids, and the row-value
     expect(narrowed.space.seq).toBe(0);
     const rows = await scansOf(
       MEMBER,
-      "select count(*) from unnest($1::public.item[]) r where permdock.permitted_item_row(r, 'item.read')",
+      "select count(*) from unnest($1::public.item[]) r where permdock.can_item(r, 'item.read')",
       [await candidateRows()],
     );
     expect(rows.space.seq).toBe(0);

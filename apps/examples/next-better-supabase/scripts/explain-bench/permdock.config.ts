@@ -1,10 +1,12 @@
 import { defineConfig } from "permdock/cli";
+import { rls } from "permdock/cli/plugins/rls";
 
 import { permissions, policy } from "./policy.ts";
 
 export default defineConfig({
   permissions,
   policy,
+  plugins: [rls({ target: "sql", out: "bench.sql" })],
   rls: {
     dialect: "supabase",
     authorize: "database",

@@ -9,7 +9,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");
@@ -69,8 +69,8 @@ describe("rls suspension", () => {
       join(cwd, "permdock.config.ts"),
       `export default ${JSON.stringify({ permissions: POLICY, policy: POLICY, rls })};\n`,
     );
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", "rls.sql", ...extra],
+    const result = await rlsGenerate(
+      ["--target", "sql", "--out", "rls.sql", ...extra],
       { cwd },
     );
     let sql = "";

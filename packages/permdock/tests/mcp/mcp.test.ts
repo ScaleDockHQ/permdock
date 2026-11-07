@@ -1266,14 +1266,31 @@ describe("permdock/mcp unscopedTokens", () => {
   });
 
   it("decides an unscoped token on the subject alone with 'subject'", async () => {
-    const { server } = postServer({
+    const { server, guarded } = postServer({
       subject: () => memberUser,
       unscopedTokens: "subject",
     });
+    const registered = guarded.registerTool(
+      "read_post",
+      { permission: permissions.post.read, inputSchema: idInput },
+      () => ({ content: [{ type: "text", text: "read" }] }),
+    );
+    expect(
+      await registered.scopeChallenge?.({
+        request: {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: { name: "read_post" },
+        },
+        authInfo: sessionToken,
+      }),
+    ).toBeUndefined();
     const { client } = await connect(server, { authInfo: sessionToken });
     expect(await names(client)).toStrictEqual([
       "delete_post",
       "list_posts",
+      "read_post",
       "update_post",
     ]);
     const granted = await client.callTool({

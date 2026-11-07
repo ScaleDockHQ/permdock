@@ -7,8 +7,8 @@ import { betterSupabaseCatalog } from "../../src/testing/fixtures/index.ts";
 
 function catalog(roles: readonly CatalogRole[]): CatalogDocument {
   return {
-    $schema: "https://permdock.com/schemas/catalog-v1.json",
-    version: 1,
+    $schema: "https://permdock.com/schemas/catalog-v2.json",
+    version: 2,
     generatedAt: "2026-10-21T00:00:00.000Z",
     generator: "test",
     resources: {},

@@ -12,6 +12,7 @@ import { POLICY_NOT_PUBLISHED } from "../../src/testing/cloud-api/platform.ts";
 import { referenceCloud } from "../cloud/fixtures/reference-cloud.ts";
 import { policy } from "../fixtures/named-scopes.ts";
 import { jsonData } from "./envelope.ts";
+import { rlsGenerate } from "./rls-call.ts";
 import { SOURCES, generate, removeHookProjects } from "./supabase-hook-kit.ts";
 
 // Credentials go to the XDG_CONFIG_HOME file, never the developer's keychain.
@@ -30,8 +31,8 @@ describe("cloud pull", () => {
   type Cloud = Awaited<ReturnType<typeof referenceCloud>>;
 
   const SEED: CatalogDocument = {
-    $schema: "https://permdock.com/schemas/catalog-v1.json",
-    version: 1,
+    $schema: "https://permdock.com/schemas/catalog-v2.json",
+    version: 2,
     generatedAt: "2026-10-01T00:00:00.000Z",
     generator: "permdock@0.4.0",
     resources: { post: { id: "id", schema: { type: "object" } } },
@@ -264,20 +265,13 @@ describe("cloud pull", () => {
     it("generates the same SQL from the pushed catalog and policy", async () => {
       const reference = await cloud();
       const project = await pushedProject(reference);
-      const local = await run(["rls", "generate", "--out", "local.sql"], {
+      const local = await rlsGenerate(["--out", "local.sql"], {
         cwd: project.cwd,
         io: io(reference, {}),
       });
       expect(local.code).toBe(0);
-      const hosted = await run(
-        [
-          "rls",
-          "generate",
-          "--out",
-          "hosted.sql",
-          "--project",
-          reference.environment,
-        ],
+      const hosted = await rlsGenerate(
+        ["--out", "hosted.sql", "--project", reference.environment],
         {
           cwd: project.cwd,
           io: io(reference, { PERMDOCK_CLOUD_TOKEN: reference.platform.token }),
@@ -293,8 +287,8 @@ describe("cloud pull", () => {
     it("refuses --project with a --from policy module", async () => {
       const reference = await cloud();
       const { cwd } = await generate(`{ memberships: [${SOURCES}] }`);
-      const result = await run(
-        ["rls", "generate", "--project", "test", "--policy", "./policy.ts"],
+      const result = await rlsGenerate(
+        ["--project", "test", "--policy", "./policy.ts"],
         { cwd, io: io(reference, {}) },
       );
       expect(result.code).toBe(2);

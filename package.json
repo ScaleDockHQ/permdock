@@ -28,6 +28,7 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "gen:check": "turbo run gen:check",
+    "generate:perf": "node scripts/generate-perf.ts",
     "knip": "knip --config knip.mts --cache",
     "lint": "pnpm run lint:root && turbo run lint",
     "lint:root": "oxlint commitlint.config.ts knip.mts oxfmt.config.ts oxlint.config.ts scripts vitest.config.ts",
@@ -46,7 +47,7 @@
     "typecheck": "turbo run typecheck",
     "typecheck:perf": "node scripts/typecheck-perf.ts",
     "typecheck:tooling": "tsc --noEmit",
-    "verify": "pnpm run format:check && pnpm run lint:root && pnpm run boundaries && turbo run --continue=dependencies-successful lint typecheck typecheck:tooling knip test size docs:drift openapi:check gen:check doctor check:publish typecheck:perf cli:startup audit:high",
+    "verify": "pnpm run format:check && pnpm run lint:root && pnpm run boundaries && turbo run --continue=dependencies-successful lint typecheck typecheck:tooling knip test size docs:drift openapi:check gen:check doctor check:publish typecheck:perf generate:perf cli:startup audit:high",
     "version-packages": "node scripts/root-changelog.ts && changeset version && node scripts/sync-server-version.ts && oxfmt .",
     "worktree:setup": "node scripts/worktree-setup.ts"
   },

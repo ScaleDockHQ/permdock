@@ -16,10 +16,11 @@ import { listPermissions } from "../../index.ts";
 import { describeError } from "../core/errors.ts";
 import { compileGrants } from "../sql/compile.ts";
 import { scopeSources, scopeTable } from "../sql/names.ts";
-import { qualified, quoteLiteral } from "../sql/quote.ts";
+import { qualified } from "../sql/quote.ts";
 import { tableNames } from "../sql/tables.ts";
 import { policySql } from "./emit.ts";
 import { fieldViews, rowBranches } from "./fields.ts";
+import { followPolicies } from "./follows.ts";
 import {
   ACTOR_MAY_WRITE,
   assemblePolicies,
@@ -39,8 +40,10 @@ export type GeneratedPolicies = {
   readonly policies: readonly CompiledPolicy[];
   /** The `realtime.messages` and `storage.objects` policies. */
   readonly helperTables?: string;
-  /** `helperTables` with each policy guarded by its table, for pg-delta. */
-  readonly guardedTables?: string;
+  /** Plain `realtime.messages` policies, written under `<root>/realtime/`. */
+  readonly realtimePolicies?: string;
+  /** Plain `storage.objects` policies, written under `<root>/storage/`. */
+  readonly storagePolicies?: string;
   /**
    * With `helpersOnly` and `rls.readOnlyActors`: the restrictive read-only
    * actor policies on the tables `rls.tables` names, as plain DDL, for the
@@ -55,26 +58,22 @@ const ACTOR_GUARDS_HEADER =
 const SERVICE_TABLES_HEADER =
   "-- Supabase Realtime and Storage: rls.realtime and rls.storage. RLS on both tables is Supabase's.";
 
-/**
- * A policy that applies only where its table exists. The Realtime and Storage
- * services create `realtime.messages` and `storage.objects`, so a local stack
- * with the service off, and pg-delta's shadow database, have none; under
- * `--helpers-only` the app's own migrations create its tables.
- */
-function guardedPolicySql(item: CompiledPolicy): string {
-  const body = policySql(item)
-    .trimEnd()
-    .split("\n")
-    .map((line) => `    ${line}`)
-    .join("\n");
-  return `do $permdock$
-begin
-  if to_regclass(${quoteLiteral(qualifySqlTable(item.table))}) is not null then
-${body}
-  end if;
-end
-$permdock$;
-`;
+const REALTIME_HEADER = `-- Supabase Realtime policies from rls.realtime.
+-- These policies sit outside the scoped declarative sync: pg-delta's shadow database has no realtime.messages.
+-- Apply this file with an unscoped sync only where the Realtime service has created the table.`;
+
+const STORAGE_HEADER = `-- Supabase Storage policies from rls.storage.
+-- These policies sit outside the scoped declarative sync: pg-delta's shadow database has no storage.objects.
+-- Apply this file with an unscoped sync only where the Storage service has created the table.`;
+
+function serviceFile(
+  header: string,
+  items: readonly CompiledPolicy[],
+): string | undefined {
+  if (items.length === 0) {
+    return undefined;
+  }
+  return `${header}\n${items.map((item) => policySql(item)).join("\n")}`;
 }
 
 /**
@@ -235,6 +234,7 @@ export function generatePolicies(
       },
       compact({ realtime: rls?.realtime, storage: rls?.storage }),
       warnings,
+      policy,
     );
   } catch (cause) {
     return { refusal: describeError(cause) };
@@ -251,7 +251,9 @@ export function generatePolicies(
     helpersOnly,
     force,
     views,
-    policies: helpersOnly ? [] : withActors(assembled),
+    policies: helpersOnly
+      ? []
+      : withActors([...assembled, ...followPolicies(ctx, policy, rls?.tables)]),
     ...(actorGuards.length === 0
       ? {}
       : {
@@ -264,15 +266,25 @@ export function generatePolicies(
   if (servicePolicies.length === 0) {
     return generated;
   }
+  const realtimePolicies = serviceFile(
+    REALTIME_HEADER,
+    servicePolicies.filter(
+      (item) => qualifySqlTable(item.table) === "realtime.messages",
+    ),
+  );
+  const storagePolicies = serviceFile(
+    STORAGE_HEADER,
+    servicePolicies.filter(
+      (item) => qualifySqlTable(item.table) === "storage.objects",
+    ),
+  );
   return {
     ...generated,
     helperTables: [
       SERVICE_TABLES_HEADER,
       ...servicePolicies.map(policySql),
     ].join("\n"),
-    guardedTables: [
-      `${SERVICE_TABLES_HEADER} A stack without the service has no table, so each policy is skipped there.`,
-      ...servicePolicies.map(guardedPolicySql),
-    ].join("\n"),
+    ...(realtimePolicies === undefined ? {} : { realtimePolicies }),
+    ...(storagePolicies === undefined ? {} : { storagePolicies }),
   };
 }

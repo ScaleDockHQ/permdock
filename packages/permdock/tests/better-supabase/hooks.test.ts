@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import type { AuthorizationHooksOptions } from "../../src/better-supabase/index.ts";
+import type { PrincipalSource } from "../../src/core/principal-source.ts";
 import type { Principal, RelationSource } from "../../src/index.ts";
 
 import { authorizationHooks } from "../../src/better-supabase/index.ts";
@@ -187,6 +188,57 @@ describe(authorizationHooks, () => {
         }),
       ).toBeNull();
     });
+  });
+
+  it("fails closed when the subject, identity lookup or ticket lookup throws", async () => {
+    const down = definePolicy(permissions, {
+      scopes: { organization: { key: "organization_id" } },
+      subject: () => {
+        throw new Error("down");
+      },
+      roles: [role(roles.viewer, [allow(doc.read)], { on: "organization" })],
+    });
+    const failing = authorizationHooks({
+      policy: down,
+      claims: () => {
+        throw new Error("down");
+      },
+      delegation: true,
+      approvers: { tool: holder(doc.approve) },
+      // SAFETY: principalByIdentity is the only method this test calls.
+      principals: {
+        principalByIdentity: () => {
+          throw new Error("down");
+        },
+      } as unknown as PrincipalSource,
+      events: { "doc.updated": doc.read },
+      tickets: () => {
+        throw new Error("down");
+      },
+    });
+    const ref = {
+      publisher: EDITOR,
+      tenant: ORG,
+      permissions: [doc.read.key],
+      claims: defined(users[EDITOR]),
+    };
+    const failingHooks = defined(failing.automation);
+    expect(await failingHooks.mayPublish?.(ref)).toBe(false);
+    const { claims: _claims, ...run } = ref;
+    expect(await failingHooks.runAs?.(run)).toBeNull();
+    expect(
+      await failing.approverOf?.(
+        { userId: LEAD, claims: defined(users[LEAD]) },
+        { kind: "tool", subject: "s1", tenant: ORG, requester: VIEWER },
+      ),
+    ).toBe(false);
+    expect(
+      await defined(failing.identities).principalByIdentity({
+        kind: "email",
+        value: "viewer@example.com",
+      }),
+    ).toBeNull();
+    expect(await defined(failing.tickets).subject("t-editor")).toBeNull();
   });
 
   it("installs no delegation unless asked", () => {

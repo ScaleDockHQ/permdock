@@ -38,6 +38,7 @@ function context(
     scopes,
     tenantClaim: "tenant_id",
     gucPrefix: "app",
+    actions: { accept: "none", disable: "none", pay: "none" },
     tenantType: "text",
     ...(!withOwnership || ownership === undefined ? {} : { ownership }),
     ...extra,

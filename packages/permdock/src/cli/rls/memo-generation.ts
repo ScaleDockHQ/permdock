@@ -9,7 +9,7 @@ import {
   quoteTable,
 } from "../sql/quote.ts";
 import { CUSTOM_ROLES } from "../sql/shared.ts";
-import { memoizes } from "./helper-bodies.ts";
+import { memoWriteSql, memoizes } from "./helper-bodies.ts";
 
 const BUMP = "permdock_bump_memo_generation";
 const TRIGGER = "permdock_memo_generation";
@@ -78,13 +78,23 @@ export function readTables(sql: string): readonly string[] {
   return [...out];
 }
 
+/** A `role_permissions` view cannot carry a trigger. */
+function memoTable(ctx: RlsSqlContext, table: string): boolean {
+  return !(
+    ctx.seeds === "view" &&
+    qualifySqlTable(table) === `${helperSchema(ctx)}.role_permissions`
+  );
+}
+
 function memoTargets(
   ctx: RlsSqlContext,
   reads: string,
 ): ReadonlyMap<string, Target> {
   const schema = helperSchema(ctx);
   const targets = new Map<string, Target>();
-  add(targets, `${schema}.role_permissions`);
+  if (memoTable(ctx, `${schema}.role_permissions`)) {
+    add(targets, `${schema}.role_permissions`);
+  }
   if (ctx.customRoles !== undefined) {
     add(targets, `${schema}.${CUSTOM_ROLES.permissions}`);
     add(targets, `${schema}.${CUSTOM_ROLES.includes}`);
@@ -102,7 +112,7 @@ function memoTargets(
     suspensionTargets(targets, row);
   }
   for (const table of readTables(reads)) {
-    if (!targets.has(qualifySqlTable(table))) {
+    if (memoTable(ctx, table) && !targets.has(qualifySqlTable(table))) {
       add(targets, table);
     }
   }
@@ -146,7 +156,19 @@ export function memoGenerationSql(ctx: RlsSqlContext, reads = ""): string {
   }
   const bump = qualified(ctx, BUMP);
   const trigger = qualified(ctx, TRIGGER);
+  const put = qualified(ctx, "permdock_memo_put");
   return `-- a permission, custom-role, suspension or membership write changes permitted ids inside the statement
+create or replace function ${put}(p_key text, p_value text)
+returns void
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  select ${memoWriteSql(ctx.memo, "p_key", "p_value")}
+$$;
+revoke execute on function ${put}(text, text) from public, anon, authenticated;
+
 create or replace function ${bump}()
 returns void
 language sql
@@ -186,7 +208,7 @@ export function memoReadTriggersSql(
   const done = memoTargets(ctx, covered);
   const targets = new Map<string, Target>();
   for (const table of readTables(reads)) {
-    if (!done.has(qualifySqlTable(table))) {
+    if (memoTable(ctx, table) && !done.has(qualifySqlTable(table))) {
       add(targets, table);
     }
   }

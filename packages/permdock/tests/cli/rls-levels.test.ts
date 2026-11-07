@@ -10,7 +10,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "./fixtures/mini-app");
@@ -96,8 +96,8 @@ export const policy = definePolicy(permissions, {
     cwd: string,
     extra: readonly string[] = [],
   ): Promise<string> {
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", "rls.sql", ...extra],
+    const result = await rlsGenerate(
+      ["--target", "sql", "--out", "rls.sql", ...extra],
       { cwd },
     );
     if (result.code !== 0) {
@@ -113,7 +113,8 @@ export const policy = definePolicy(permissions, {
         "add column if not exists level text check (level ~ '^[a-z][a-z0-9_]*$')",
       );
       expect(sql).toContain("'job.read@own'");
-      expect(sql).toMatch(/'job\.update#\d@all'/u);
+      expect(sql).toContain("'job.update@all'");
+      expect(sql).not.toMatch(/#\d+@/u);
       expect(sql).toContain("permission || coalesce('@' || c.level, '')");
       expect(sql).not.toMatch(/service_role/iu);
     });
@@ -180,42 +181,68 @@ export const policy = definePolicy(permissions, {
       const reach = /reach \(grant_key, level\) as \(values ([^\n]+)\)/u.exec(
         sql,
       )?.[1];
-      expect(reach).toContain(
-        "('job.update#3', 'own'), ('job.update#3@own', 'own')",
-      );
-      expect(reach).not.toContain("('job.update#3', 'all')");
-      expect(reach).not.toContain("'job.update#3@all'");
-      expect(reach).toContain(
-        "('job.update#1', 'all'), ('job.update#1', 'own')",
-      );
+      expect(reach).toContain("('job.update@own', 'own')");
+      expect(reach).not.toMatch(/job\.update#\d+@/u);
+      expect(reach).not.toContain("('job.update@own', 'all')");
     });
 
-    it("reaches every narrower level of an ordered resource", async () => {
+    it("emits the held level only, including when levels are ordered", async () => {
       const sql = await generate(
         appWith(true, "database", false, true, false, true),
       );
       const reach = /reach \(grant_key, level\) as \(values ([^\n]+)\)/u.exec(
         sql,
       )?.[1];
-      expect(reach).toContain(
-        "('job.update#3', 'own'), ('job.update#3', 'team')",
-      );
-      expect(reach).toContain(
-        "('job.update#3@own', 'own'), ('job.update#3@team', 'own'), ('job.update#3@team', 'team')",
-      );
-      expect(reach).not.toContain("('job.update#3', 'all')");
-      expect(reach).toContain("('job.read@team', 'own')");
+      expect(reach).toContain("('job.update@team', 'team')");
+      expect(reach).not.toContain("('job.update@team', 'own')");
+      expect(sql).toContain("level_order (permission, level, ord)");
+      expect(sql).toContain("('job.update', 'own', 0)");
+      expect(sql).toContain("('job.update', 'team', 1)");
+      expect(sql).toContain("('job.update', 'all', 2)");
+      expect(sql).toContain("asked.ord <= held.ord");
+      expect(reach).not.toContain("('job.read@team', 'own')");
       expect(reach).not.toContain("('job.read@own', 'team')");
+      expect(reach).not.toMatch(/#\d+@/u);
+    });
+
+    function clause(sql: string, key: string): string {
+      const needle = `when '${key}' then`;
+      const found: string[] = [];
+      let from = 0;
+      while (from < sql.length) {
+        const start = sql.indexOf(needle, from);
+        if (start === -1) {
+          break;
+        }
+        const rest = sql.slice(start + needle.length);
+        const next = rest.search(/\n {4}(?:when |else )/u);
+        found.push(next === -1 ? rest : rest.slice(0, next));
+        from = start + needle.length;
+      }
+      return found.find((item) => item.includes("ownerId")) ?? found[0] ?? "";
+    }
+
+    it("emits one condition per level, and a null level is the whole tenant", async () => {
+      const sql = await generate(appWith(true, "database", false, false, true));
+      const arm = clause(sql, "job.update");
+      expect(arm.match(/ownerId/gu)).toHaveLength(1);
+      expect(arm).toContain("'job.update@own'");
+      expect(arm).toContain("'job.update@all'");
+      expect(arm).not.toMatch(
+        /permitted_tenant_ids\('job\.update@all'\)[\s\S]{0,400}and \("ownerId"/u,
+      );
+      expect(sql).not.toMatch(/#\d+@/u);
     });
 
     it("gives an instance create one row-helper branch per level", async () => {
       const sql = await generate(appWith(true, "database", false, false, true));
-      const arm = /\n {4}when 'job\.create' then ([^\n]+)/u.exec(sql)?.[1];
-      expect(arm).toBe(
-        `coalesce((("orgId" in (select "permdock".permitted_tenant_ids('job.create'))) or (("orgId" in (select "permdock".permitted_tenant_ids('job.create@own'))) and ("ownerId" = (select "permdock".permdock_user_id()))) or ("orgId" in (select "permdock".permitted_tenant_ids('job.create@all')))), false)`,
-      );
+      const arm = clause(sql, "job.create");
+      expect(arm).toContain("permitted_tenant_ids('job.create')");
+      expect(arm).toContain("permitted_tenant_ids('job.create@own')");
+      expect(arm).toContain("permitted_tenant_ids('job.create@all')");
+      expect(arm.match(/ownerId/gu)).toHaveLength(1);
       expect(sql).toContain(
-        'create or replace function "permdock".permitted_job_row(p_row "public"."job", p_permission text)',
+        'create or replace function "permdock".can_job(p_row "public"."job", p_permission text)',
       );
     });
 
@@ -263,8 +290,8 @@ export const policy = definePolicy(permissions, {
         ["['job.nope']", "undeclared permissions: job.nope"],
         ["[]", "names no permission"],
       ] as const) {
-        const result = await run(
-          ["rls", "generate", "--target", "sql", "--out", "rls.sql"],
+        const result = await rlsGenerate(
+          ["--target", "sql", "--out", "rls.sql"],
           { cwd: requiring(requires) },
         );
         expect(result.code).toBe(2);
@@ -285,11 +312,32 @@ export const policy = definePolicy(permissions, {
           .map((match) => match[1] ?? "")
           .filter((key) => key.includes("@"))
           .toSorted();
-      expect(keys("owner")).toStrictEqual([
-        "job.update#1@all",
-        "job.update#1@own",
-      ]);
+      expect(keys("owner")).toStrictEqual(["job.update@all", "job.update@own"]);
       expect(keys("admin")).toStrictEqual(keys("owner"));
+    });
+
+    it("omits a level the role's allow does not reach", async () => {
+      const sql = await generate(
+        appWith(true, "database", false, true, false, true),
+      );
+      const keys = (role: string): string[] =>
+        [
+          ...sql.matchAll(
+            new RegExp(`\\('${role}', 'job\\.update', '([^']+)',`, "gu"),
+          ),
+        ]
+          .map((match) => match[1] ?? "")
+          .filter((key) => key.includes("@"))
+          .toSorted();
+      expect(keys("admin")).toStrictEqual([
+        "job.update@all",
+        "job.update@own",
+        "job.update@team",
+      ]);
+      expect(keys("manager")).toStrictEqual([
+        "job.update@own",
+        "job.update@team",
+      ]);
     });
   });
 });

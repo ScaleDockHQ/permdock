@@ -332,6 +332,41 @@ describe(claimsFirst, () => {
     expect(claimsFirst(live, { onStale: "deny" }).onStale).toBeUndefined();
   });
 
+  it("rereads a token that names a role the policy does not declare and keeps the actor", async () => {
+    let membershipCalls = 0;
+    let versionCalls = 0;
+    const live = source(
+      () => {
+        membershipCalls += 1;
+        return [{ scope: "organization", id: "T", roles: ["owner"] }];
+      },
+      {
+        version: () => {
+          versionCalls += 1;
+          return 3;
+        },
+      },
+    );
+    const permdock = await getPermDock(
+      policy,
+      {
+        principal: { ...token, roles: ["made-up"], authzVersion: 3 },
+        actor: { id: "admin-1", kind: "impersonation" },
+        context: {},
+      },
+      { memberships: claimsFirst(live, { onStale: "reread" }) },
+    );
+    expect(membershipCalls).toBe(1);
+    expect(versionCalls).toBe(1);
+    expect(permdock.subject.actor).toStrictEqual({
+      id: "admin-1",
+      kind: "impersonation",
+    });
+    expect(permdock.subject.principal?.memberships).toStrictEqual([
+      { scope: "organization", id: "T", roles: ["owner"] },
+    ]);
+  });
+
   it("marks IdP-owned memberships", () => {
     expect(
       isExternallyManaged({

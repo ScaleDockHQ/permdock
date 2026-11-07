@@ -2,13 +2,16 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { powersync } from "permdock/cli/plugins/powersync";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { runPipingDbUrl } from "./db-url.ts";
+import { run } from "./support/cli-run.ts";
 import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const FIXTURE = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -32,8 +35,8 @@ describe("powersync over rls.membershipSources", () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-powersync-sources-"));
     const out = join(dir, "rls.sql");
-    const result = await runPipingDbUrl(
-      ["rls", "generate", "--target", "sql", "--dialect", "guc", "--out", out],
+    const result = await rlsGenerate(
+      ["--target", "sql", "--dialect", "guc", "--out", out],
       { cwd: FIXTURE },
     );
     if (result.code !== 0) {
@@ -63,12 +66,12 @@ describe("powersync over rls.membershipSources", () => {
   });
 
   it("keeps sync-config.yaml and the manifest current with the policy", async () => {
-    const result = await runPipingDbUrl(["powersync", "generate", "--check"], {
-      cwd: FIXTURE,
-    });
-    expect(result.stdout).toContain("sync-config.yaml is current");
-    expect(result.stdout).toContain("permdock-manifest.json is current");
+    const result = await run(
+      ["generate", "--only", "powersync", "--check", "--no-cache"],
+      { cwd: FIXTURE, plugins: [powersync()] },
+    );
     expect(result.code).toBe(0);
+    expect(result.stderr).toContain("Unchanged");
   });
 
   it("syncs granted resource and attachment fixtures, but no denied parent or mismatched kind", async () => {

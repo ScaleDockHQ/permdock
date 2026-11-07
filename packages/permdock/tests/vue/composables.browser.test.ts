@@ -261,7 +261,7 @@ describe("permdock/vue composables", () => {
               keys(team.value.roles),
               keys(held.value.roles),
               keys(assignable.value),
-              leaves.value.length > 0,
+              leaves.value.permissions.length > 0,
               subject.value.principal?.id,
               subject.value.simulated,
             ].join(":");

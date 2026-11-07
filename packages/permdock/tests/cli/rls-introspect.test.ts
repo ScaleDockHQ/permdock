@@ -614,7 +614,7 @@ describe("diffMixed", () => {
       key,
       permission: "jobs.create",
       conditioned,
-      rowHelper: "permitted_jobs_row",
+      rowHelper: "can_jobs",
     });
     const result = diffMixed(
       {
@@ -649,7 +649,7 @@ describe("diffMixed", () => {
       "public.jobs: policy jobs_insert_team passes jobs.create@team, which the policy does not declare, so it always denies",
     ]);
     expect(result.info).toStrictEqual([
-      "public.jobs: policy jobs_insert passes jobs.create@own, which skips the level's row condition, so holders of it are denied there; use permitted_jobs_row(jobs, 'jobs.create')",
+      "public.jobs: policy jobs_insert passes jobs.create@own, which skips the level's row condition, so holders of it are denied there; use can_jobs(jobs, 'jobs.create')",
     ]);
   });
 

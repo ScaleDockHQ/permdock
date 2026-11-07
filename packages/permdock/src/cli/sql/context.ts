@@ -43,6 +43,16 @@ export type RlsSqlContext = {
    * table for.
    */
   readonly memberSources?: readonly SqlMembershipSource[];
+  /**
+   * `supabase.hook.teams`: the table `member_team_ids_for` reads when no team
+   * scope already has that helper.
+   */
+  readonly hookTeams?: {
+    readonly table: string;
+    readonly user: string;
+    readonly team: string;
+    readonly tenant?: string;
+  };
   readonly tenantClaim: string;
   /**
    * Scopes whose `member_<scope>_ids(p_roles text[])` overload `rls.migrate`'s
@@ -107,6 +117,20 @@ export type RlsSqlContext = {
    * `better_supabase.memo_get` and `memo_set`.
    */
   readonly memo?: "better-supabase";
+  /**
+   * Row predicates read a memoized helper's stored ids and call it only on a
+   * miss, so one statement enters the helper once per key.
+   */
+  readonly reuseMemo?: true;
+  /**
+   * Relation helpers a row predicate must enter once per statement. Filled
+   * while compiling that predicate; an `or` would otherwise skip the call.
+   */
+  readonly memoTouches?: {
+    readonly scope: string;
+    readonly keySql: string;
+    readonly call: string;
+  }[];
   /** `rls.idTypes`: the id type of the row helpers, by resource and `"*"`. */
   readonly idTypes?: Readonly<Record<string, string>>;
   /**
@@ -149,9 +173,16 @@ export type RlsSqlContext = {
     /**
      * Set when a resource declares levels: stored allows may carry a level
      * (`custom_role_permissions.level`, `key@level` in claims), and the
-     * assignable roles' grants get one `<grant key>@<level>` key per level.
+     * assignable roles' grants get one `<grant key>@<level>` key per level the
+     * role's allow reaches.
      */
     readonly levels?: true;
+    /**
+     * `(permission, level, declaration order)` for resources with
+     * `orderedLevels`. A stored level also holds every level declared before
+     * it. Absent when no resource orders its levels.
+     */
+    readonly levelOrder?: readonly (readonly [string, string, number])[];
     /**
      * The sync triggers (`rls.customRoles.from.sync`) as SQL, built from the
      * legacy tables.

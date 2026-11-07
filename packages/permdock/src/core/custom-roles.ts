@@ -4,6 +4,7 @@ import type { Grant, Policy } from "./policy-types.ts";
 import type { Scope } from "./scopes.ts";
 import type { CustomRole, CustomRoleGrant, Membership } from "./subject.ts";
 
+import { canonicalJson } from "./canonical-json.ts";
 import { freezeDeep } from "./freeze.ts";
 import { flattenGrantee } from "./grantee.ts";
 import { sameId } from "./ids.ts";
@@ -99,16 +100,30 @@ const GRANT_KEYS: ReadonlySet<string> = new Set([
 type AllowLevels = "all" | Map<string, Condition>;
 
 /** `where` narrowed by a level; the empty level (`{}`) leaves it as is. */
-export function andWhere(
+function andWhere(
   where: Condition | undefined,
   level: Condition,
 ): Condition | undefined {
   if (level.op === "and" && level.conditions.length === 0) {
     return where;
   }
-  return where === undefined
-    ? level
-    : { op: "and", conditions: [where, level] };
+  if (where === undefined) {
+    return level;
+  }
+  const parts = where.op === "and" ? [...where.conditions] : [where];
+  const levelKey = canonicalJson(level);
+  const unique = [...parts, level].filter(
+    (item, index, all) =>
+      all.findIndex((other) => canonicalJson(other) === canonicalJson(item)) ===
+      index,
+  );
+  if (unique.every((item) => canonicalJson(item) === levelKey)) {
+    return level;
+  }
+  const [only] = unique;
+  return unique.length === 1 && only !== undefined
+    ? only
+    : { op: "and", conditions: unique };
 }
 
 /** A ceiling grant narrowed by a level's condition and marked with the level. */

@@ -10,7 +10,7 @@ const MAX_LEVELS = 8;
  * `permdock@0.21.0(react@19.1.0)(zod@4.1.0):` under `snapshots:`; the peers are
  * the parenthesised groups.
  */
-const SNAPSHOT_KEY = /^ {2}'?permdock@([^(:'\s]+)((?:\([^)]*\))*)'?:\s*$/gmu;
+const SNAPSHOT_KEY = /^ {2}'?permdock@([^(:'\s]+)/gmu;
 
 /**
  * The body of the top-level `snapshots:` section. `packages:` lists the same
@@ -25,6 +25,40 @@ function snapshotsSection(lock: string): string {
   const end = /^\S/mu.exec(rest.replace(/^\r?\n/u, ""));
   const body = rest.replace(/^\r?\n/u, "");
   return end === null ? body : body.slice(0, end.index);
+}
+
+/**
+ * Consecutive balanced peer groups after a snapshot key, including nested
+ * peers.
+ */
+function peerSuffix(text: string, at: number): string {
+  let end = at;
+  while (text[end] === "(") {
+    const closed = closeGroup(text, end);
+    if (closed === undefined) {
+      break;
+    }
+    end = closed;
+  }
+  return text.slice(at, end);
+}
+
+function closeGroup(text: string, at: number): number | undefined {
+  let depth = 0;
+  for (let index = at; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "(") {
+      depth += 1;
+    } else if (char === ")") {
+      depth -= 1;
+      if (depth === 0) {
+        return index + 1;
+      }
+    } else if (char === "\n") {
+      return undefined;
+    }
+  }
+  return undefined;
 }
 
 function lockfileFrom(project: Project): string | undefined {
@@ -54,12 +88,12 @@ export function pd092(project: Project): readonly DoctorFinding[] {
     return [];
   }
   const variants = new Map<string, Set<string>>();
-  for (const match of snapshotsSection(project.files.read(lockfile)).matchAll(
-    SNAPSHOT_KEY,
-  )) {
+  const section = snapshotsSection(project.files.read(lockfile));
+  for (const match of section.matchAll(SNAPSHOT_KEY)) {
     const version = String(match[1]);
+    const suffix = peerSuffix(section, match.index + match[0].length);
     const peers = variants.get(version) ?? new Set<string>();
-    peers.add(String(match[2]));
+    peers.add(suffix);
     variants.set(version, peers);
   }
   return [...variants]

@@ -4,6 +4,7 @@ import type { PermDockConfig } from "../types.ts";
 
 import { scopeMembershipTable } from "../../conditions/compile.ts";
 import { scopeList } from "../../core/scopes.ts";
+import { policyModel } from "../generate/model.ts";
 import { powersyncFiles, staleFiles } from "../powersync/powersync.ts";
 import { scopeSourcesOf, streamOf } from "../powersync/sources.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
@@ -79,7 +80,52 @@ export async function pd058(
       : `${file.path} is not what the policy compiles to, so ${file.path === config.powersync?.manifest ? "the device builds snapshots" : "PowerSync syncs rows"} by an older policy`,
     fix: "run permdock powersync generate and deploy the files",
   }));
-  return [...stale, ...gaps];
+  return [
+    ...stale,
+    ...gaps,
+    ...branchGaps(policy, config.powersync?.resources ?? []),
+  ];
+}
+
+/**
+ * A resource stream whose portable conditions have RLS text and no Sync Streams
+ * text differs from `permitted_<resource>_match`, team level included.
+ */
+function branchGaps(
+  policy: Policy,
+  resources: readonly string[],
+): readonly DoctorFinding[] {
+  if (resources.length === 0) {
+    return [];
+  }
+  const model = policyModel(policy);
+  const grants = [
+    ...model.grants,
+    ...model.roles.flatMap((role) => role.grants),
+  ];
+  const findings: DoctorFinding[] = [];
+  for (const resource of resources) {
+    const diverged = grants.filter((grant) => {
+      const where = grant.where;
+      return (
+        grant.permission === `${resource}.read` &&
+        where !== undefined &&
+        where.portable &&
+        where.rls !== null &&
+        where.stream === null
+      );
+    });
+    if (diverged.length > 0) {
+      findings.push({
+        code: "PD058",
+        severity: "error",
+        target: resource,
+        message: `stream ${resource} branches differ from permitted_${resource}_match: ${String(diverged.length)} condition has RLS text and no Sync Streams form`,
+        fix: "give the condition a stream twin, or drop the resource from powersync.resources",
+      });
+    }
+  }
+  return findings;
 }
 
 /**

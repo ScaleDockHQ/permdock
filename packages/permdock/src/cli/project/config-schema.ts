@@ -14,6 +14,8 @@ import {
 const TOP_LEVEL: ReadonlySet<string> = new Set<string>([
   ...Object.keys(MODULE_KEYS),
   ...Object.keys(CONFIG_SHAPE),
+  "plugins",
+  "seeds",
 ]);
 
 export type ParsedConfig = {
@@ -44,8 +46,23 @@ export function parseConfig(value: unknown, file: string): ParsedConfig {
   }
   const warnings: string[] = [];
   const unknown = (path: string, known: Iterable<string>): string =>
-    `${file}: unknown key ${path}; PermDock reads ${[...known].join(", ")}`;
+    `[unknown_key] ${file}: unknown key ${path}; PermDock reads ${[...known].join(", ")}`;
   for (const [key, entry] of Object.entries(value)) {
+    if (key === "plugins") {
+      if (entry !== undefined && !Array.isArray(entry)) {
+        throw invalid(
+          file,
+          "plugins must be an array of definePlugin() results",
+        );
+      }
+      continue;
+    }
+    if (key === "seeds") {
+      if (entry !== undefined && !isRecord(entry)) {
+        throw invalid(file, "seeds must be the object defineSeeds returns");
+      }
+      continue;
+    }
     if (isModuleKey(key)) {
       if (entry !== undefined && typeof entry !== "string") {
         throw invalid(

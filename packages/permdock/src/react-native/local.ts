@@ -444,6 +444,7 @@ export function buildLocalSnapshot(
             ],
       scopes: manifest.scopes,
       vocabulary: manifest.vocabulary,
+      local: true,
       authzVersion:
         Number.isSafeInteger(data.authzVersion) &&
         (data.authzVersion ?? -1) >= 0

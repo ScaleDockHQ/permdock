@@ -19,6 +19,7 @@ import {
 } from "../sql/quote.ts";
 import { HELPERS, rootName } from "../sql/shared.ts";
 import { keyTenantSql, subjectIdSql, userIdHelperSql } from "../sql/subject.ts";
+import { hookTeamReadersSql } from "../supabase-hook/teams.ts";
 import {
   apiKeyAllowsCall,
   apiKeyAllowsSql,
@@ -36,6 +37,7 @@ import { globalRolesSql } from "./global-roles.ts";
 import {
   functionBody,
   hasBody,
+  memoHitList,
   memoizes,
   scopedBody,
   sqlBody,
@@ -85,7 +87,11 @@ export function accessSql(
       `PermDock CLI: ${scope}-scoped grant needs definePolicy({ scopes.${scope} })`,
     );
   }
-  return `${quoteIdent(column)} in (select ${qualified(ctx, helper ?? permittedIdsHelper(scope))}(${key}))`;
+  const fn = qualified(ctx, helper ?? permittedIdsHelper(scope));
+  if (ctx.reuseMemo === true && memoizes(ctx)) {
+    return `${quoteIdent(column)} in (${memoHitList(scope, key, `${fn}(${key})`, `${subjectIdSql(ctx)}::text`, ctx.memo, scopeTypeOf(ctx, scope))})`;
+  }
+  return `${quoteIdent(column)} in (select ${fn}(${key}))`;
 }
 
 /**
@@ -447,6 +453,10 @@ revoke all on table ${ur} from anon, authenticated, public;`);
     if (hasMemberOf(ctx, scope.name)) {
       chunks.push(memberOfFunction(ctx, scope.name, type));
     }
+  }
+  const teamReaders = hookTeamReadersSql(ctx);
+  if (teamReaders !== "") {
+    chunks.push(teamReaders);
   }
   chunks.push(...viaHelpersSql(ctx, anon));
   const forUser = forUserSql(ctx);

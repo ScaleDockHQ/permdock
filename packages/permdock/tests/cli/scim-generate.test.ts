@@ -10,8 +10,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
 import { scimSchemaSql } from "../../src/cli/scim/generate.ts";
+import { scimGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TMP = join(HERE, "../../tmp");
@@ -83,17 +83,17 @@ describe("scim generate", () => {
   describe("permdock scim generate", () => {
     it("writes supabase/schemas/permdock/scim.sql by default and checks it", async () => {
       const cwd = project();
-      const written = await run(["scim", "generate", "--no-color"], { cwd });
+      const written = await scimGenerate(["--no-color"], { cwd });
       expect(written.code).toBe(0);
       expect(written.stdout).toContain("supabase/schemas/permdock/scim.sql");
       const path = join(cwd, "supabase/schemas/permdock/scim.sql");
       expect(readFileSync(path, "utf8")).toBe(
         scimSchemaSql({ schema: "permdock", dialect: "supabase" }),
       );
-      const current = await run(["scim", "generate", "--check"], { cwd });
+      const current = await scimGenerate(["--check"], { cwd });
       expect(current.code).toBe(0);
       writeFileSync(path, "-- edited\n");
-      const stale = await run(["scim", "generate", "--check"], { cwd });
+      const stale = await scimGenerate(["--check"], { cwd });
       expect(stale.code).toBe(1);
       expect(stale.stdout).toContain(
         "scim: supabase/schemas/permdock/scim.sql",
@@ -106,15 +106,15 @@ describe("scim generate", () => {
         join(cwd, "permdock.config.ts"),
         "export default { rls: { dialect: 'guc', schema: 'identity' } };\n",
       );
-      const dry = await run(["scim", "generate", "--dry-run"], { cwd });
+      const dry = await scimGenerate(["--dry-run"], { cwd });
       expect(dry.code).toBe(0);
       expect(dry.stdout).toContain("Would create permdock_scim.sql");
       expect(existsSync(join(cwd, "permdock_scim.sql"))).toBe(false);
-      const printed = await run(["scim", "generate", "--out", "-"], { cwd });
+      const printed = await scimGenerate(["--out", "-"], { cwd });
       expect(printed.stdout).toContain('"identity"."scim_users"');
       expect(printed.stdout).toContain("from public;");
-      const flagged = await run(
-        ["scim", "generate", "--schema", "directory", "--out", "-"],
+      const flagged = await scimGenerate(
+        ["--schema", "directory", "--out", "-"],
         { cwd },
       );
       expect(flagged.stdout).toContain('"directory"."scim_users"');
@@ -122,16 +122,8 @@ describe("scim generate", () => {
 
     it("reports the files and tables in the --json envelope", async () => {
       const cwd = project();
-      const result = await run(
-        [
-          "scim",
-          "generate",
-          "--dialect",
-          "neon",
-          "--out",
-          "db/scim.sql",
-          "--json",
-        ],
+      const result = await scimGenerate(
+        ["--dialect", "neon", "--out", "db/scim.sql", "--json"],
         { cwd },
       );
       expect(result.code).toBe(0);

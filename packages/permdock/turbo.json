@@ -20,7 +20,7 @@
     "test": {
       "dependsOn": ["$TURBO_EXTENDS$", "build", "//#authzen:vectors"],
       "inputs": ["$TURBO_DEFAULT$", "tests/testing/fixtures/authzen/**"],
-      "env": ["$TURBO_EXTENDS$", "CI", "PERMDOCK_COLLECT"]
+      "env": ["$TURBO_EXTENDS$", "CI", "PERMDOCK_COLLECT", "PERMDOCK_CACHE_DIR"]
     },
     "gen:check": {
       "inputs": [

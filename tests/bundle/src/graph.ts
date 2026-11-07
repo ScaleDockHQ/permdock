@@ -74,6 +74,12 @@ export const ENTRIES = {
   "./testing/saas": "testing/saas/index.js",
   "./testing/saas/permissions": "testing/saas/permissions.js",
   "./cli": "cli/index.js",
+  "./cli/plugins/rls": "cli/plugins/rls.js",
+  "./cli/plugins/supabase-hook": "cli/plugins/supabase-hook.js",
+  "./cli/plugins/powersync": "cli/plugins/powersync.js",
+  "./cli/plugins/better-supabase": "cli/plugins/better-supabase.js",
+  "./cli/plugins/openapi": "cli/plugins/openapi.js",
+  "./cli/plugins/scim": "cli/plugins/scim.js",
   "./unplugin": "unplugin/index.js",
   "./next/plugin": "next/plugin.js",
   "./next/client": "next/client.js",
@@ -88,6 +94,12 @@ export type Entry = keyof typeof ENTRIES;
 const NODE_ONLY_ENTRIES = [
   "./terminal",
   "./cli",
+  "./cli/plugins/rls",
+  "./cli/plugins/supabase-hook",
+  "./cli/plugins/powersync",
+  "./cli/plugins/better-supabase",
+  "./cli/plugins/openapi",
+  "./cli/plugins/scim",
   "./unplugin",
   "./next/plugin",
 ] as const;
@@ -95,6 +107,12 @@ const NODE_ONLY_ENTRIES = [
 /** Build- and test-time entries; every other entry is a runtime entry. */
 const TOOLING_ENTRIES = [
   "./cli",
+  "./cli/plugins/rls",
+  "./cli/plugins/supabase-hook",
+  "./cli/plugins/powersync",
+  "./cli/plugins/better-supabase",
+  "./cli/plugins/openapi",
+  "./cli/plugins/scim",
   "./unplugin",
   "./next/plugin",
   "./testing",

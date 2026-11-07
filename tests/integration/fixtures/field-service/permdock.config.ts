@@ -27,5 +27,9 @@ export default {
       },
     },
   },
-  powersync: { out: "sync-config.yaml", manifest: "permdock-manifest.json" },
+  powersync: {
+    out: "sync-config.yaml",
+    manifest: "permdock-manifest.json",
+    resources: ["job", "customer"],
+  },
 };

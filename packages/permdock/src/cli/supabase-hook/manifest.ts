@@ -94,7 +94,15 @@ function helperList(
     }),
     ...(teams === undefined
       ? []
-      : [helperEntry(teams, "p_user uuid", "setof uuid", client)]),
+      : [
+          helperEntry(
+            "member_team_ids_for",
+            "p_user uuid, p_active text",
+            "setof uuid",
+            ["supabase_auth_admin"],
+          ),
+          helperEntry(teams, "p_user uuid", "setof uuid", client),
+        ]),
   ];
 }
 
@@ -276,6 +284,7 @@ function rlsSettings(
 ): Pick<
   SupabaseManifestRls,
   | "customRoles"
+  | "customRoleTenant"
   | "roles"
   | "suspension"
   | "assignments"
@@ -291,6 +300,9 @@ function rlsSettings(
       : guardedTables(config, parts.scopes);
   return {
     customRoles: resolveAuthorize(config) === "database" && customRolesOn(rls),
+    ...(rls?.customRoleWrites?.roles?.tenant === undefined
+      ? {}
+      : { customRoleTenant: rls.customRoleWrites.roles.tenant }),
     ...(parts.roles === undefined
       ? {}
       : {

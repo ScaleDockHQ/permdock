@@ -6,6 +6,7 @@ import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
 
 import { run } from "../../src/cli/core/run.ts";
 import { jsonData } from "./envelope.ts";
+import { hookGenerate } from "./rls-call.ts";
 import { SOURCES, generate, removeHookProjects } from "./supabase-hook-kit.ts";
 
 describe("supabase hook", () => {
@@ -58,9 +59,7 @@ describe("supabase hook", () => {
       expect(
         sql.indexOf('create schema if not exists "permdock"'),
       ).toBeLessThan(
-        sql.indexOf(
-          'create or replace function "permdock".membership_entries_for',
-        ),
+        sql.indexOf('create or replace function "permdock".memberships_for'),
       );
       expect(sql).toContain(
         `claims -> 'app_metadata' ->> 'active_organization'`,
@@ -148,8 +147,8 @@ describe("supabase hook", () => {
       const file = join(cwd, "hook.sql");
       const check = async (text: string): Promise<string> => {
         writeFileSync(file, text);
-        const { stdout } = await run(
-          ["supabase", "hook", "generate", "--out", "hook.sql", "--check"],
+        const { stdout } = await hookGenerate(
+          ["--out", "hook.sql", "--check"],
           { cwd },
         );
         return stdout;

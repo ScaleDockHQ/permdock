@@ -22,6 +22,7 @@ import {
   refuseDirty,
 } from "../../src/cli/core/files.ts";
 import { run } from "../../src/cli/core/run.ts";
+import { writeFileEnsuringDir } from "../../src/cli/files.ts";
 
 const FIXTURE = join(import.meta.dirname, "fixtures/mini-app");
 const dirs: string[] = [];
@@ -197,16 +198,28 @@ describe("file plan", () => {
       const cwd = repo();
       writeFileSync(
         join(cwd, "a.ts"),
-        'import { createServerKernel } from "permdock/server";\nexport const k = createServerKernel;\n',
+        'export const sql = "permdock permitted_note_row(";\n',
       );
-      const refused = await run(["codemod", "0.5"], { cwd });
+      const refused = await run(["codemod", "0.26"], { cwd });
       expect(refused.code).toBe(3);
       expect(refused.stderr).toContain(
         "codemod rewrites files with uncommitted changes: a.ts",
       );
-      expect(refused.stderr).toContain("permdock codemod 0.5 --force");
-      const forced = await run(["codemod", "0.5", "--force"], { cwd });
+      expect(refused.stderr).toContain("permdock codemod 0.26 --force");
+      const forced = await run(["codemod", "0.26", "--force"], { cwd });
       expect(forced.code).toBe(0);
+    });
+
+    it("replaces a file by renaming a temp file over it", () => {
+      const cwd = dir();
+      const target = join(cwd, "nested", "out.sql");
+      writeFileEnsuringDir(target, "select 1;\n");
+      expect(readFileSync(target, "utf8")).toBe("select 1;\n");
+      expect(
+        readdirSync(join(cwd, "nested")).some((name) => name.endsWith(".tmp")),
+      ).toBe(false);
+      writeFileEnsuringDir(target, "select 2;\n");
+      expect(readFileSync(target, "utf8")).toBe("select 2;\n");
     });
 
     it("writes a character device in place instead of renaming over it", () => {

@@ -4,11 +4,11 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "../src/support/postgres.ts";
 
+import { run } from "../src/support/cli-run.ts";
 import { defined } from "../src/support/defined.ts";
 import { startPostgres } from "../src/support/postgres.ts";
 

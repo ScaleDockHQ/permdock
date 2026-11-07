@@ -256,7 +256,6 @@ describe("RateLimit header fields (draft-ietf-httpapi-ratelimit-headers)", () =>
         { role: "viewer", reason: "condition" },
       ]),
       permissions.report.export,
-      { principal: null, context: {} },
     );
     expect(mixed.status).toBe(403);
     expect(mixed.headers.get("Retry-After")).toBeNull();

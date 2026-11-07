@@ -3,13 +3,14 @@ import type { Condition, Policy, ResourceNode } from "../../index.ts";
 import type { RolePermission } from "../rls/helpers.ts";
 import type { RlsActions } from "../types.ts";
 import type { RlsSqlContext } from "./context.ts";
-import type { RlsGrant } from "./grants.ts";
+import type { RlsAccess, RlsGrant } from "./grants.ts";
 
+import { heldLevels } from "../../core/assignable.ts";
 import { canonicalJson } from "../../core/canonical-json.ts";
 import { sole } from "../../core/compact.ts";
-import { andWhere, leveled } from "../../core/custom-roles.ts";
+import { leveled } from "../../core/custom-roles.ts";
 import { requiresStandIn } from "../../core/delegation.ts";
-import { coveredLevels, policyLevels } from "../../core/policy.ts";
+import { coveredLevels, levelNames, policyLevels } from "../../core/policy.ts";
 import { defaultSqlCommand } from "../../core/sql.ts";
 import { scopeField } from "../../core/tenancy.ts";
 import {
@@ -106,19 +107,27 @@ export type CompiledGrants = {
 
 /**
  * The levels an allow reaches: every level without a row condition, else the
- * levels whose condition equals its condition.
+ * levels whose condition equals its condition. `orderedLevels` adds every
+ * narrower level, as `heldLevels` does in process.
  */
 function reachedLevels(
+  policy: Policy,
+  resource: string,
   where: Condition | undefined,
   levels: readonly (readonly [string, Condition])[],
 ): readonly string[] {
+  const names = levels.map(([name]) => name);
   if (where === undefined) {
-    return levels.map(([name]) => name);
+    return coveredLevels(policy, resource, names);
   }
   const held = canonicalJson(where);
-  return levels
-    .filter(([, condition]) => canonicalJson(condition) === held)
-    .map(([name]) => name);
+  return coveredLevels(
+    policy,
+    resource,
+    levels
+      .filter(([, condition]) => canonicalJson(condition) === held)
+      .map(([name]) => name),
+  );
 }
 
 function levelReachOf(
@@ -141,36 +150,33 @@ function levelReachOf(
     const levels = policyLevels(policy, resource);
     if (levels.length > 0) {
       const set = reach.get(grantKey) ?? new Set<string>();
-      const reached = coveredLevels(
-        policy,
-        resource,
-        reachedLevels(grant.where, levels),
-      );
+      const reached = reachedLevels(policy, resource, grant.where, levels);
       for (const name of reached) {
         set.add(name);
       }
       reach.set(grantKey, set);
     }
   }
-  const resourceOf = new Map(
-    [...keys].map(([entry, grantKey]) => [
-      grantKey,
-      entry.item.grant.permission.resource,
-    ]),
-  );
   const out: (readonly [string, string])[] = [];
-  for (const grantKey of new Set(keys.values())) {
+  const seen = new Set<string>();
+  const push = (grantKey: string, level: string): void => {
+    const id = `${grantKey}\u0000${level}`;
+    if (seen.has(id)) {
+      return;
+    }
+    seen.add(id);
+    out.push([grantKey, level]);
+  };
+  for (const [, grantKey] of keys) {
     const at = grantKey.lastIndexOf("@");
-    const base = at === -1 ? grantKey : grantKey.slice(0, at);
-    const level = at === -1 ? undefined : grantKey.slice(at + 1);
-    const covered =
-      level === undefined
-        ? undefined
-        : coveredLevels(policy, resourceOf.get(grantKey) ?? "", [level]);
-    for (const name of reach.get(base) ?? []) {
-      if (covered === undefined || covered.includes(name)) {
-        out.push([grantKey, name]);
-      }
+    if (at !== -1) {
+      // A level key names its own level. Narrower levels are separate keys the
+      // role holds, not extra rows of this key.
+      push(grantKey, grantKey.slice(at + 1));
+      continue;
+    }
+    for (const name of reach.get(grantKey) ?? []) {
+      push(grantKey, name);
     }
   }
   return out.toSorted(([a, x], [b, y]) =>
@@ -179,11 +185,13 @@ function levelReachOf(
 }
 
 /**
- * The first word of a camelCase, snake_case or kebab-case compound that is one
- * of the six default verbs: `updateStatus` and `list_archived`. The prefix list
- * is closed; any other verb needs an `rls.actions` entry.
+ * The first word of a camelCase, snake_case or kebab-case compound that infers
+ * a command: `updateStatus`, `list_archived`, `markPaid`, `pause_run`. `mark`,
+ * `pause` and `resume` infer only with a suffix. Any other verb needs an
+ * `rls.actions` entry.
  */
-const VERB_PREFIX = /^(read|list|get|create|update|delete)(?=[A-Z0-9_-])/u;
+const VERB_PREFIX =
+  /^(read|list|get|create|duplicate|update|delete|remove|approve|reject|cancel|send|withdraw|confirm|fulfill|receive|reimburse|writeOff|mark|pause|resume)(?=[A-Z0-9_-])/u;
 
 /**
  * The SQL command a compound action name implies through its default-verb
@@ -201,14 +209,25 @@ export function inferredCommand(
     return undefined;
   }
   const verb = VERB_PREFIX.exec(action)?.[1];
-  return verb === undefined ? undefined : defaultSqlCommand(verb);
+  return verb === undefined ? undefined : prefixCommand(verb);
+}
+
+function prefixCommand(verb: string): SqlCommand | undefined {
+  switch (verb) {
+    case "mark":
+    case "pause":
+    case "resume":
+      return "update";
+    default:
+      return defaultSqlCommand(verb);
+  }
 }
 
 /**
- * The SQL command `action` compiles to: `rls.actions` first, then the six
- * default verbs, then a compound whose prefix is one of them ({@link
- * inferredCommand}). Any other verb is `undefined`, as `'none'` is: no policy,
- * and its grants are still seeded.
+ * The SQL command `action` compiles to: `rls.actions` first, then a default
+ * verb, then a compound whose prefix is one ({@link inferredCommand}). Any
+ * other verb is `undefined`, as `'none'` is: no policy, and its grants are
+ * still seeded.
  */
 export function commandFor(
   action: string,
@@ -268,13 +287,11 @@ function membershipField(
 // one of its ancestors, keyed by the row field that holds that resource's id.
 function resourceCondition(
   item: RlsGrant,
+  access: Extract<RlsAccess, { readonly kind: "resource" }>,
   policy: Policy,
   ctx: RlsSqlContext,
 ): Condition {
-  if (item.access.kind !== "resource") {
-    throw configError("PermDock CLI: resourceCondition needs a resource role");
-  }
-  const { role, resource: roleResource } = item.access;
+  const { role, resource: roleResource } = access;
   const target = policy.resources.get(item.grant.permission.resource);
   const holders = [roleResource, ...ancestorsOf(policy, roleResource)];
   const hops: Condition[] = [];
@@ -470,7 +487,8 @@ function signature(entry: Prepared, byFields: boolean): string {
  * `permission#n` when role grants carry different portable conditions (or
  * effects), one key per condition group; a group whose grants set `group` is
  * `permission#<group>` instead. With field views, grants that differ only in
- * `fields` get their own keys too, so a view can tell them apart.
+ * `fields` get their own keys too, so a view can tell them apart. A level is
+ * `<permission>@<level>` and is not crossed with a `#n` group.
  */
 function assignKeys(
   entries: readonly Prepared[],
@@ -534,12 +552,19 @@ function groupOf(
   return names[0];
 }
 
+/** The level condition alone. An empty level (`{}`) is the whole tenant. */
+function levelWhere(condition: Condition): Condition | undefined {
+  return condition.op === "and" && condition.conditions.length === 0
+    ? undefined
+    : condition;
+}
+
 /**
- * One entry per level for every allow of a role on a resource with levels,
- * keyed `<grant key>@<level>`, whether or not the role is assignable: every
- * role holds the same leveled keys, and `permdock_ceiling` keeps only the
- * assignable roles'. Only `permdock_custom_keys` hands these keys out, to a
- * custom role whose stored allow names the level.
+ * One entry per role per level the role's allow reaches, keyed
+ * `<permission>@<level>` with the level condition only. A `#n` group is not
+ * crossed into the level key. `permdock_ceiling` keeps only the assignable
+ * roles' keys. A role that does not reach a level does not hold its key, so
+ * `permdock_has` stays false for it.
  */
 function levelEntries(
   policy: Policy,
@@ -554,8 +579,9 @@ function levelEntries(
     return [];
   }
   const out: Prepared[] = [];
+  const seen = new Set<string>();
   // The loop adds the leveled keys to `keys`, so it walks a copy.
-  for (const [entry, grantKey] of Array.from(keys)) {
+  for (const [entry] of Array.from(keys)) {
     const { item } = entry;
     const { grant } = item;
     if (
@@ -570,19 +596,33 @@ function levelEntries(
         `PermDock CLI: permission key '${grant.permission.key}' holds '@', which separates a level in custom-role grant keys`,
       );
     }
+    const reached = new Set(
+      heldLevels(policy, grant, levelNames(policy, grant.permission.resource)),
+    );
     for (const [level, condition] of policyLevels(
       policy,
       grant.permission.resource,
     )) {
-      const where = andWhere(item.where, condition);
+      if (!reached.has(level)) {
+        continue;
+      }
+      const key = `${grant.permission.key}@${level}`;
+      const id = `${item.access.role}\0${key}`;
+      if (seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
+      const where = levelWhere(condition);
+      const { where: _base, ...rest } = item;
+      const { where: _grantWhere, check: _grantCheck, ...bare } = grant;
       const narrowed: RlsGrant = {
-        ...item,
-        grant: leveled(grant, level, condition),
+        ...rest,
+        grant: leveled(bare, level, condition),
         ...(where === undefined ? {} : { where }),
       };
       const prepared = prepare(narrowed, tables, warnings, skipClosures, ctx);
       if (prepared !== undefined) {
-        keys.set(prepared, `${grantKey}@${level}`);
+        keys.set(prepared, key);
         out.push(prepared);
       }
     }
@@ -631,6 +671,25 @@ function noteConditions(entry: Prepared, warnings: string[]): void {
  */
 const PERMANENT_USER = `((select auth.jwt()) ->> 'is_anonymous') is distinct from 'true'`;
 
+const INFERRED_VERBS =
+  "read, list and get select; create and duplicate insert; delete and remove delete; update, approve, reject, cancel, send, withdraw, confirm, fulfill, receive, reimburse and writeOff update; mark*, pause* and resume* update";
+
+/** Verbs with no inferred command and no `rls.actions` entry, including `none`. */
+function unmappedActions(
+  policy: Policy,
+  actions: RlsActions | undefined,
+): readonly string[] {
+  const missing = new Set<string>();
+  for (const leaf of listPermissions(policy.permissions)) {
+    const declared =
+      actions !== undefined && Object.hasOwn(actions, leaf.action);
+    if (!declared && commandFor(leaf.action, actions) === undefined) {
+      missing.add(leaf.action);
+    }
+  }
+  return [...missing].toSorted();
+}
+
 export function compileGrants(
   policy: Policy,
   ctx: RlsSqlContext,
@@ -639,6 +698,14 @@ export function compileGrants(
   skipClosures: boolean,
   rowActions = false,
 ): CompiledGrants {
+  const missing = unmappedActions(policy, ctx.actions);
+  if (missing.length > 0) {
+    const listed = missing.map((verb) => `'${verb}'`).join(", ");
+    const verb = missing.length === 1 ? "verb" : "verbs";
+    throw configError(
+      `PermDock CLI: ${listed} ${verb} ${missing.length === 1 ? "has" : "have"} no rls.actions entry and ${missing.length === 1 ? "does" : "do"} not infer a SQL command. Verbs that infer: ${INFERRED_VERBS}.`,
+    );
+  }
   const items = collectGrants(policy);
   const entries = items.flatMap((item) => {
     const entry = prepare(
@@ -658,6 +725,7 @@ export function compileGrants(
   const conditionedKeys = new Set<string>();
   for (const [entry, grantKey] of keys) {
     if (
+      grantKey.includes("@") ||
       entry.using !== undefined ||
       entry.check !== undefined ||
       entry.item.grant.validity !== undefined ||
@@ -706,6 +774,7 @@ export function compileGrants(
     typed.set(name, next);
     return next;
   };
+  const seenBranch = new Set<string>();
   for (const entry of entries) {
     const { item, table } = entry;
     const { grant, access, label } = item;
@@ -791,10 +860,10 @@ export function compileGrants(
       accessExpr = `${subjectClaimSql(ctx, "client_id")} is not null or ${subjectClaimJsonSql(ctx, "act")} is not null`;
     }
     if (access.kind === "resource" && !linkOnly) {
-      accessExpr = compileConditionSql(resourceCondition(item, policy, ctx), {
-        ...ctx,
-        permission: grant.permission.key,
-      });
+      accessExpr = compileConditionSql(
+        resourceCondition(item, access, policy, ctx),
+        { ...ctx, permission: grant.permission.key },
+      );
     }
     if (linkOnly) {
       warnings.push(
@@ -836,7 +905,21 @@ export function compileGrants(
     const using = compileOptional(entry.using, rowCtx);
     const check = compileOptional(entry.check, rowCtx);
     const fields = grant.fields === undefined ? {} : { fields: grant.fields };
-    if (!linkOnly) {
+    const branchKey = [
+      table,
+      command,
+      grant.permission.key,
+      grant.effect,
+      grantKey ?? "",
+      accessExpr ?? "",
+      using ?? "",
+      check ?? "",
+    ].join("\u0000");
+    const duplicate = seenBranch.has(branchKey);
+    if (!duplicate) {
+      seenBranch.add(branchKey);
+    }
+    if (!linkOnly && !duplicate) {
       target.push({
         table,
         command,

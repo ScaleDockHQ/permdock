@@ -6,8 +6,10 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { authorizationProvider } from "permdock/better-supabase";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { run } from "./support/cli-run.ts";
+import { hookGenerate, rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/row-ids");
@@ -107,11 +109,21 @@ describe("better-supabase blocks over uuid PermDock row helpers", () => {
     const sql = join(dir, "rls.sql");
     const manifest = join(dir, "permdock.manifest.json");
     const hook = join(dir, "hook.sql");
-    for (const argv of [
-      ["rls", "generate", "--target", "sql", "--out", sql],
-      ["supabase", "hook", "generate", "--out", hook],
-      ["supabase", "inspect", "--out", manifest],
-    ]) {
+    const generated = await rlsGenerate(["--target", "sql", "--out", sql], {
+      cwd: FIXTURE,
+    });
+    if (generated.code !== 0) {
+      throw new Error(
+        `generate --only rls: ${generated.stdout}${generated.stderr}`,
+      );
+    }
+    const hookResult = await hookGenerate(["--out", hook], { cwd: FIXTURE });
+    if (hookResult.code !== 0) {
+      throw new Error(
+        `generate --only supabaseHook: ${hookResult.stdout}${hookResult.stderr}`,
+      );
+    }
+    for (const argv of [["supabase", "inspect", "--out", manifest]]) {
       const result = await run(argv, { cwd: FIXTURE });
       if (result.code !== 0) {
         throw new Error(`${argv.join(" ")}: ${result.stdout}${result.stderr}`);

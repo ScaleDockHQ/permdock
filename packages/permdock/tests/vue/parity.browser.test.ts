@@ -227,7 +227,8 @@ describe("permdock/vue parity", () => {
         ),
       ),
     );
-    expect(Array.isArray(list?.value)).toBe(true);
+    expect(Array.isArray(list?.value.permissions)).toBe(true);
+    expect(list?.value.status).toBe("ready");
     scope.stop();
   });
 });

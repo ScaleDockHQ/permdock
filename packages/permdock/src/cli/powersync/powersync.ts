@@ -9,6 +9,7 @@ import type {
 } from "../fixtures.ts";
 import type { SqlConnect } from "../pg.ts";
 import type { PermDockConfig } from "../types.ts";
+import type { PowerSyncFile } from "./emit/files.ts";
 import type {
   PowerSyncPlan,
   PowerSyncStream,
@@ -19,7 +20,6 @@ import { hasConditionOp } from "../../conditions/ast.ts";
 import {
   findPermission,
   getPermDock,
-  localSnapshotManifest,
   memoryCustomRoleSource,
 } from "../../index.ts";
 import { usageResult } from "../core/errors.ts";
@@ -31,22 +31,17 @@ import { requirePolicy } from "../project/load.ts";
 import { canFixture } from "../rls/verify.ts";
 import { collectGrants } from "../sql/grants.ts";
 import { quoteIdent } from "../sql/quote.ts";
-import { claimWarnings } from "./claims.ts";
-import { localRows } from "./rows.ts";
+import { powersyncFiles, powersyncOut, sameJson } from "./emit/files.ts";
 import { POSTGRES, powersyncPlan } from "./streams.ts";
 import { verifyClaimsChange } from "./verify-claims.ts";
 import { verifyFollowedRow } from "./verify-followed.ts";
 import { warnedFor } from "./verify-gaps.ts";
-import { powersyncYaml } from "./yaml.ts";
+
+export { powersyncFiles };
+export type { PowerSyncFile };
 
 const POWERSYNC_HELP = `permdock powersync generate [--out sync-config.yaml] [--check]
 permdock powersync verify [--db-url-stdin] [--fixtures rls.fixtures.json]`;
-
-const DEFAULT_OUT = "sync-config.yaml";
-
-function powersyncOut(config: PermDockConfig, out?: string): string {
-  return out ?? config.powersync?.out ?? DEFAULT_OUT;
-}
 
 function loadPolicy(
   cwd: string,
@@ -58,69 +53,6 @@ function loadPolicy(
     from ?? config.policy,
     "powersync needs policy in the config or --policy",
   );
-}
-
-export type PowerSyncFile = {
-  readonly path: string;
-  readonly text: string;
-  /** Compared as parsed JSON, so a formatter run over the file keeps it current. */
-  readonly json?: true;
-};
-
-function sameJson(current: string, expected: string): boolean {
-  try {
-    return (
-      JSON.stringify(JSON.parse(current)) ===
-      JSON.stringify(JSON.parse(expected))
-    );
-  } catch {
-    return false;
-  }
-}
-
-/**
- * The files the policy compiles to: the Sync Streams file and, with
- * `powersync.manifest`, the local-snapshot manifest. `warnings` lists the
- * grants that do not sync.
- */
-export function powersyncFiles(
-  policy: Policy,
-  config: PermDockConfig,
-  out?: string,
-): {
-  readonly files: readonly PowerSyncFile[];
-  readonly warnings: readonly string[];
-  /** PD084: one line per stream that reads a token claim. */
-  readonly claims: readonly string[];
-  readonly publication?: string;
-} {
-  const plan = powersyncPlan(policy, config);
-  const files: PowerSyncFile[] = [
-    { path: powersyncOut(config, out), text: powersyncYaml(plan) },
-  ];
-  const manifest = config.powersync?.manifest;
-  if (manifest !== undefined) {
-    files.push({
-      path: manifest,
-      json: true,
-      text: `${JSON.stringify(
-        {
-          ...localSnapshotManifest(policy),
-          rows: localRows(policy, config, plan.devices),
-        },
-        null,
-        2,
-      )}\n`,
-    });
-  }
-  return {
-    files,
-    warnings: plan.warnings,
-    claims: claimWarnings(plan.streams),
-    ...(plan.publication === undefined
-      ? {}
-      : { publication: plan.publication }),
-  };
 }
 
 /**

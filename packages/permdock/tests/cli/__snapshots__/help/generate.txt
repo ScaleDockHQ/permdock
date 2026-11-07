@@ -1,0 +1,25 @@
+permdock generate: Write every plugin's files from the policy
+
+Usage  permdock generate [flags]
+
+Flags
+  --check            Exit 1 when a file on disk is stale; write nothing
+  --dry-run          Print what would change; write nothing
+  --policy <module>  Module exporting the policy (default policy in the config)
+  --db-url-stdin     Read the Postgres connection string from stdin (default $DATABASE_URL, then $SUPABASE_DB_URL)
+  --only <plugin>    Run this plugin; repeat for more than one (repeatable)
+  --no-cache         Emit and write even when a cache entry matches
+  --cache-dir <dir>  Cache directory (default node_modules/.cache/permdock or PERMDOCK_CACHE_DIR)
+  --concurrency <n>  How many tasks run at once. 1 runs them one at a time. Default is one less than the CPU count.
+  --watch            Generate again when a policy, config or plugin input changes
+
+Global flags
+  --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
+
+Examples
+  permdock generate
+  permdock generate --only rls
+  permdock generate --check
+
+Side effects  files
+Docs  https://permdock.com/docs/cli/generate

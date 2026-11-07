@@ -9,6 +9,7 @@ export default {
     dialect: "supabase",
     scopeTypes: { tenant: "text" },
     authorize: "database",
+    actions: { assignRole: "none" },
     readOnlyActors: true,
     memberships: {
       scopes: {

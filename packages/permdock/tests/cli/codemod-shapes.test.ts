@@ -1,7 +1,45 @@
 import { describe, expect, it } from "vitest";
 
-import { CODEMOD_0_5 as SET } from "../../src/cli/codemod/codemod.ts";
+import {
+  AWAIT_RENAMES_0_5,
+  CALL_RENAMES_0_5,
+  DURATION_KEYS_0_5,
+  FUNCTION_METHODS_0_5,
+  METHOD_FUNCTIONS_0_5,
+  OPTION_WRAPS_0_5,
+  PROP_RENAMES_0_5,
+  TEMPLATE_HINTS_0_5,
+} from "../../src/cli/codemod/shapes-0.5.ts";
 import { transformSource } from "../../src/cli/codemod/transform.ts";
+
+const SET = {
+  renames: [
+    ...CALL_RENAMES_0_5,
+    { from: "memorySink", to: "memoryDecisionSink", entries: ["permdock"] },
+    { from: "createPermDock", to: "getPermDockSync", entries: ["permdock"] },
+    { from: "createPermDock", to: "getPermDock", entries: ["permdock/pdp"] },
+    {
+      from: "memoryApprovalPolicies",
+      to: "memoryApprovalPolicySource",
+      entries: ["permdock"],
+    },
+  ],
+  signatures: [
+    {
+      name: "mayUse",
+      entries: ["permdock"],
+      before: "mayUse(permdock, permission)",
+      after: "permdock.mayUse(permission)",
+    },
+  ],
+  props: PROP_RENAMES_0_5,
+  templates: TEMPLATE_HINTS_0_5,
+  awaits: AWAIT_RENAMES_0_5,
+  methodFunctions: METHOD_FUNCTIONS_0_5,
+  functionMethods: FUNCTION_METHODS_0_5,
+  wraps: OPTION_WRAPS_0_5,
+  durations: DURATION_KEYS_0_5,
+};
 
 function apply(lines: readonly string[], file = "file.tsx") {
   return transformSource(file, lines.join("\n"), SET);
@@ -20,6 +58,27 @@ describe("the denied slot", () => {
     expect(result.changes).toStrictEqual([
       { line: 2, column: 44, from: "fallback", to: "denied" },
     ]);
+  });
+
+  it("follows up when defaults is not an object and skips a non-object argument", () => {
+    const defaults = apply([
+      'import { PermDockProvider } from "permdock/react";',
+      'export const a = <PermDockProvider defaults="nope" />;',
+    ]);
+    expect(defaults.followUps.map((item) => item.message)).toContain(
+      "`defaults.fallback` of `<PermDockProvider>` is `defaults.denied`",
+    );
+    const call = apply([
+      'import { Protected } from "permdock/react";',
+      'export const a = wrap(Protected, "text");',
+    ]);
+    expect(call.source).toContain('wrap(Protected, "text")');
+    const partial = apply(
+      ["export const a = <PermDockProvider defaults={{ pending: true }} />;"],
+      "file.tsx",
+    );
+    expect(partial.source).toContain("pending: true");
+    expect(partial.followUps).toStrictEqual([]);
   });
 
   it("leaves fallback on other components and on a shadowed Protected alone", () => {

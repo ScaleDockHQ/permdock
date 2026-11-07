@@ -217,6 +217,7 @@ export default {
   policy: ${JSON.stringify(POLICY)},
   rls: {
     dialect: 'supabase',
+    actions: { accept: 'none', disable: 'none', pay: 'none' },
     membershipSources: [tableMembershipSource({ table: 'memberships' })],
     migrate: ${JSON.stringify(MIGRATE)},
   },

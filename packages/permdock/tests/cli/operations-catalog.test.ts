@@ -97,7 +97,7 @@ describe("operations catalog", () => {
       ).toThrow(/meta\.title/u);
     });
 
-    it("collect writes operations that parse against catalog-v1", async () => {
+    it("collect writes operations that parse against catalog-v2", async () => {
       const cwd = project({
         "src/permissions.ts": PERMISSIONS,
         "src/operations.ts": OPERATIONS,

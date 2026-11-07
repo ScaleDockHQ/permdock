@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import type { Decision, Denial } from "../../src/core/decision.ts";
-import type { Subject } from "../../src/core/subject.ts";
 
 import { PermDockValidationError } from "../../src/core/errors.ts";
 import { getPermDockSync as createCorePermDock } from "../../src/core/permdock.ts";
@@ -22,11 +21,6 @@ import {
 } from "../fixtures/quick-start.ts";
 
 const at = (seconds: number): string => new Date(seconds * 1000).toISOString();
-
-const SUBJECT: Subject = {
-  principal: { id: "u1", roles: ["member"] },
-  context: {},
-};
 
 function denied(...denials: Denial[]): Decision {
   return { outcome: "denied", denials, alternatives: [] };
@@ -193,16 +187,16 @@ describe(problemFromDecision, () => {
   it("answers 204 for a granted decision", async () => {
     const permdock = createCorePermDock(policy, memberUser);
     const decision = permdock.decide(permissions.post.read, ownPost);
-    expect(
-      problemFromDecision(decision, permissions.post.read, SUBJECT).status,
-    ).toBe(204);
+    expect(problemFromDecision(decision, permissions.post.read).status).toBe(
+      204,
+    );
   });
 
   it("carries the approval hint only when it names something", async () => {
     const permdock = createCorePermDock(policy, memberUser);
     const decision = permdock.decide(permissions.post.delete, ownPost);
     const hinted = await body(
-      problemFromDecision(decision, permissions.post.delete, SUBJECT, {
+      problemFromDecision(decision, permissions.post.delete, {
         approval: { at: "https://app.example/approvals", hint: "ask an admin" },
         instance: "/posts/p1",
       }),
@@ -213,9 +207,7 @@ describe(problemFromDecision, () => {
       approval: { at: "https://app.example/approvals", hint: "ask an admin" },
     });
     const empty = await body(
-      problemFromDecision(decision, permissions.post.delete, SUBJECT, {
-        approval: {},
-      }),
+      problemFromDecision(decision, permissions.post.delete, { approval: {} }),
     );
     expect(empty).not.toHaveProperty("approval");
   });
@@ -232,7 +224,6 @@ describe(problemFromDecision, () => {
     const response = problemFromDecision(
       denied({ role: null, reason: "validation", detail: error }),
       permissions.post.update,
-      SUBJECT,
     );
     expect(response.status).toBe(error.toProblemDetails().status);
     expect(await body(response)).toMatchObject({
@@ -244,7 +235,6 @@ describe(problemFromDecision, () => {
     const response = problemFromDecision(
       denied({ role: null, reason: "anonymous" }),
       permissions.post.update,
-      { principal: null, context: {} },
       { credentials: false },
     );
     expect({

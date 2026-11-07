@@ -2,7 +2,6 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "../src/support/postgres.ts";
@@ -10,7 +9,7 @@ import type { Postgres } from "../src/support/postgres.ts";
 import { ROWS, setupSql, TENANTS } from "../fixtures/row-hot-path/policy.ts";
 import { defined } from "../src/support/defined.ts";
 import { startPostgres } from "../src/support/postgres.ts";
-import { jwtClaims } from "../src/support/rls.ts";
+import { rlsGenerate, jwtClaims } from "../src/support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/row-hot-path");
@@ -59,14 +58,14 @@ const SHAPES: readonly {
     sql: `select count(*) from public.item where id in (select permdock.permitted_item_rows('item.edit'))`,
   },
   {
-    shape: "permitted_item_row(id, 'item.read') [one known id]",
+    shape: "can_item(id, 'item.read') [one known id]",
     user: READER,
-    sql: `select permdock.permitted_item_row(id, 'item.read') from public.item where id = '${KNOWN}'`,
+    sql: `select permdock.can_item(id, 'item.read') from public.item where id = '${KNOWN}'`,
   },
   {
-    shape: "permitted_item_row(id, 'item.edit') [one known id, conditioned]",
+    shape: "can_item(id, 'item.edit') [one known id, conditioned]",
     user: EDITOR,
-    sql: `select permdock.permitted_item_row(id, 'item.edit') from public.item where id = '${KNOWN_EDIT}'`,
+    sql: `select permdock.can_item(id, 'item.edit') from public.item where id = '${KNOWN_EDIT}'`,
   },
   {
     shape: "hand-written fn over rows() for one known id",
@@ -139,10 +138,9 @@ describe("row helpers on the hot path", () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-hot-path-"));
     const out = join(dir, "rls.sql");
-    const generated = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
     }
@@ -213,9 +211,9 @@ describe("row helpers on the hot path", () => {
     }
   });
 
-  it("checks one known id faster with permitted_item_row than with the full rows() form", () => {
+  it("checks one known id faster with can_item than with the full rows() form", () => {
     const scalar = measured.find((row) =>
-      row.shape.startsWith("permitted_item_row(id, 'item.read')"),
+      row.shape.startsWith("can_item(id, 'item.read')"),
     );
     const full = measured.find((row) =>
       row.shape.startsWith("hand-written fn"),

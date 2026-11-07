@@ -116,15 +116,31 @@ export function throughRows(
 ): { readonly table: string; readonly query: string; readonly user?: string } {
   const keys = bare(through.through, dialect);
   const pairs = pairsOf(through);
-  const user = pairs.find(([ref]) => ref === ownUser)?.[1];
+  const widened = keys === "membership_roles";
+  const user = widened
+    ? undefined
+    : pairs.find(([ref]) => ref === ownUser)?.[1];
   const where = pairs.flatMap(([ref, id]) => {
     const owned = `${dialect.column(keys, id)} IN (SELECT ${dialect.column(own.table, ref)} FROM ${own.from} WHERE ${own.where.join(" AND ")})`;
+    if (widened && (ref === ownUser || id === user)) {
+      return [];
+    }
     if (id !== user) {
       return [owned];
     }
     const mine = `${dialect.column(keys, id)} = ${dialect.user}`;
     return pairs.length === 1 ? [mine, owned] : [mine];
   });
+  if (widened) {
+    const active = own.where.filter((clause) => /disabled/u.test(clause));
+    const match = pairs.map(
+      ([ref, id]) =>
+        `${dialect.column(own.table, ref)} = ${dialect.column(keys, id)}`,
+    );
+    where.push(
+      `EXISTS (SELECT 1 FROM ${own.from} WHERE ${[...match, ...active].join(" AND ")})`,
+    );
+  }
   const query = `SELECT ${throughSelect(through, keys, dialect)} FROM ${fromTable(through.through, dialect)} WHERE ${where.join(" AND ")}`;
   return user === undefined
     ? { table: keys, query }

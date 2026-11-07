@@ -3,8 +3,9 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/row-memo");
@@ -67,9 +68,9 @@ select 'b' || n, 'acme', null, false from generate_series(1, ${String(BENCH)}) n
 grant select, insert on public.doc to authenticated;
 alter table public.doc enable row level security;
 create policy doc_read on public.doc for select to authenticated
-  using (permdock.permitted_doc_row(doc, 'doc.read'));
+  using (permdock.can_doc(doc, 'doc.read'));
 create policy doc_create on public.doc for insert to authenticated
-  with check (permdock.permitted_doc_row(doc, 'doc.create'));
+  with check (permdock.can_doc(doc, 'doc.create'));
 
 create function public.read_around(p_user uuid, p_doc text, p_write text)
 returns table (first boolean, second boolean)
@@ -81,9 +82,9 @@ begin
     jsonb_build_object('sub', p_user, 'role', 'authenticated')::text,
     true
   );
-  first := (select permdock.permitted_doc_row(d, 'doc.read') from public.doc d where d.id = p_doc);
+  first := (select permdock.can_doc(d, 'doc.read') from public.doc d where d.id = p_doc);
   execute p_write;
-  second := (select permdock.permitted_doc_row(d, 'doc.read') from public.doc d where d.id = p_doc);
+  second := (select permdock.can_doc(d, 'doc.read') from public.doc d where d.id = p_doc);
   return next;
 end;
 $$;
@@ -99,10 +100,9 @@ describe("permitted_<resource>_row memo against Postgres", () => {
 
   beforeAll(async () => {
     const out = join(dir, "rls.sql");
-    const generated = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (generated.code !== 0) {
       throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
     }
@@ -147,7 +147,7 @@ describe("permitted_<resource>_row memo against Postgres", () => {
   ): Promise<readonly string[]> =>
     (
       await tx.query<{ readonly id: string }>(
-        "select d.id from public.doc d where permdock.permitted_doc_row(d, $1) order by d.id",
+        "select d.id from public.doc d where permdock.can_doc(d, $1) order by d.id",
         [permission],
       )
     ).rows.map((row) => row.id);
@@ -158,7 +158,7 @@ describe("permitted_<resource>_row memo against Postgres", () => {
   ): Promise<readonly string[]> =>
     (
       await tx.query<{ readonly id: string }>(
-        "select d.id from public.doc d where permdock.permitted_doc_row(d.id, $1) order by d.id",
+        "select d.id from public.doc d where permdock.can_doc(d.id, $1) order by d.id",
         [permission],
       )
     ).rows.map((row) => row.id);
@@ -176,7 +176,7 @@ describe("permitted_<resource>_row memo against Postgres", () => {
 
   it("memoizes the row helper", () => {
     expect(sql).toContain(
-      'create or replace function "permdock".permitted_doc_row(p_row "public"."doc", p_permission text)\nreturns boolean\nlanguage plpgsql\nvolatile',
+      'create or replace function "permdock".can_doc(p_row "public"."doc", p_permission text)\nreturns boolean\nlanguage sql\nstable',
     );
     expect(sql).toContain(
       'create trigger "permdock_memo_generation"\n  after insert or update or delete on "public"."doc_shares"',
@@ -312,7 +312,7 @@ describe("permitted_<resource>_row memo against Postgres", () => {
     });
     expect(calls.rows).toBe(BENCH + 3);
     expect(calls.calls).toMatchObject({
-      permitted_doc_row: BENCH + 4,
+      can_doc: BENCH + 4,
       permitted_tenant_ids: 3,
       permitted_tenant_ids_by_permission: 1,
       permitted_doc_ids: 1,

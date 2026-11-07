@@ -34,6 +34,7 @@ describe("gap branches", () => {
     tenantClaim: "tenant_id",
     scopes,
     gucPrefix: "app",
+    actions: { accept: "none", disable: "none", pay: "none" },
     authorize: "database",
   };
 

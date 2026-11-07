@@ -105,11 +105,16 @@ export async function pd091(
       ...(openapi.base === undefined ? {} : { base: openapi.base }),
     });
     for (const label of coverage.undeclared) {
+      const handler = handlerMode(operations, label);
       findings.push({
         code: "PD091",
         severity: "error",
-        message: `${doc}: ${label} is under a tenant path and has no entry in ${openapi.operations}, so the gate denies it`,
-        fix: `declare '${label.replace(openapi.base ?? "", "")}' in operationPermissions, or move it out of openapi.tenantPaths`,
+        message: handler
+          ? `${doc}: ${label} is under a tenant path and its entry is handler mode, so the handler must check it; the kernel map has no entry`
+          : `${doc}: ${label} is under a tenant path and has no entry in ${openapi.operations}, so the gate denies it`,
+        fix: handler
+          ? `check ${label} in the handler, or set its enforcement to kernel`
+          : `declare '${label.replace(openapi.base ?? "", "")}' in operationPermissions, or move it out of openapi.tenantPaths`,
         target: `${doc}:${label}`,
       });
     }
@@ -124,4 +129,32 @@ export async function pd091(
     }
   }
   return findings;
+}
+
+/**
+ * A document operation the full map marks `handler`, so the kernel map omits
+ * it.
+ */
+function handlerMode(source: OperationLookup, label: string): boolean {
+  const space = label.indexOf(" ");
+  const method = label.slice(0, space);
+  const path = shapeOf(label.slice(space + 1));
+  return source
+    .entries()
+    .some(
+      (entry) =>
+        entry.method === method &&
+        entry.enforcement === "handler" &&
+        shapeOf(entry.path) === path,
+    );
+}
+
+function shapeOf(path: string): string {
+  return path
+    .split("/")
+    .filter((segment) => segment !== "")
+    .map((segment) =>
+      segment.startsWith("{") && segment.endsWith("}") ? "{}" : segment,
+    )
+    .join("/");
 }

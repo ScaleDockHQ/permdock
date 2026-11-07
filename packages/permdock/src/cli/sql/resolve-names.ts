@@ -98,7 +98,7 @@ function resourceNames(
     ...(input.rows && sql !== undefined
       ? {
           rows: inheritedRowsHelper(resource),
-          row: `permitted_${sql}_row`,
+          row: `can_${sql}`,
           idType: input.idType,
         }
       : {}),

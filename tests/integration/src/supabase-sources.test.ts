@@ -25,6 +25,7 @@ import { permissions, roles } from "../fixtures/named-scopes/policy.ts";
 import { sources } from "../fixtures/supabase-sources/sources.ts";
 import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { hookGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/supabase-sources");
@@ -128,10 +129,7 @@ describe("permdock supabase hook generate against Postgres", () => {
     if (helpers.code !== 0) {
       throw new Error(`rls generate: ${helpers.stdout}${helpers.stderr}`);
     }
-    const result = await runPipingDbUrl(
-      ["supabase", "hook", "generate", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const result = await hookGenerate(["--out", out], { cwd: FIXTURE });
     if (result.code !== 0) {
       throw new Error(`hook generate: ${result.stdout}${result.stderr}`);
     }

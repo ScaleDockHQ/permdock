@@ -126,6 +126,15 @@ describe(subjectFromSupabase, () => {
     );
     expect(subject.principal?.roles).toStrictEqual(["editor"]);
     expect(subject.principal?.tenant).toBe("org-2");
+    const kept = subjectFromSupabase(
+      {
+        sub: "user-2",
+        role: "authenticated",
+        user_role: ["editor", "platform.custom"],
+      },
+      { declared: ["editor"], customRoles: { rolesFor: () => [] } },
+    );
+    expect(kept.principal?.roles).toStrictEqual(["editor", "platform.custom"]);
   });
 
   it("treats a null top-level claim as absent and falls back to app_metadata", () => {
@@ -278,6 +287,16 @@ describe(subjectFromSupabase, () => {
     expect(events).toMatchObject([{ cause: "invalid-chain" }]);
 
     expect(subjectFromSupabase(base).actor).toBeUndefined();
+    expect(
+      subjectFromSupabase({ ...base, client_id: "app-1" }).actor,
+    ).toBeUndefined();
+    expect(
+      subjectFromSupabase({
+        ...base,
+        client_id: "app-1",
+        authorization_details: [{ type: "invoice" }],
+      }).actor,
+    ).toStrictEqual({ id: "app-1", kind: "oauth-client" });
   });
 
   it("denies a third-party client whose scope does not delegate the permission", async () => {
@@ -300,7 +319,7 @@ describe(subjectFromSupabase, () => {
         permissions.invoice.read,
       );
     expect(await permdock(base)).toBe(true);
-    expect(await permdock({ ...base, client_id: "app-1" })).toBe(false);
+    expect(await permdock({ ...base, client_id: "app-1" })).toBe(true);
     expect(
       await permdock({ ...base, client_id: "app-1", scope: "invoice:read" }),
     ).toBe(true);

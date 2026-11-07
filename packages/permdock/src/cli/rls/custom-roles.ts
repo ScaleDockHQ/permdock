@@ -195,10 +195,10 @@ revoke execute on function ${shared}(text, text) from public, anon, authenticate
 
 /**
  * `permdock_custom_keys` when resources declare levels. An allow entry is `key`
- * or `key@level`. A level reaches only the ceiling's `<grant key>@<level>`
- * keys, plus the ceiling denies of that permission; a level no ceiling key
- * carries removes the permission, as `resolveCustomRole` drops it with
- * `unknown-level`.
+ * or `key@level`. A level reaches the ceiling's `<grant key>@<level>` keys,
+ * plus every narrower level when the resource sets `orderedLevels`, and the
+ * ceiling denies of that permission. A level no ceiling key carries removes the
+ * permission, as `resolveCustomRole` drops it with `unknown-level`.
  */
 function leveledKeysSql(
   ctx: RlsSqlContext,
@@ -207,6 +207,29 @@ function leveledKeysSql(
   const rp = qualified(ctx, "role_permissions");
   const ceiling = qualified(ctx, CUSTOM_ROLES.ceiling);
   const keys = qualified(ctx, CUSTOM_ROLES.keys);
+  const order = ctx.customRoles?.levelOrder ?? [];
+  const orderCte =
+    order.length === 0
+      ? ""
+      : `level_order (permission, level, ord) as (values ${order
+          .map(
+            ([permission, level, ord]) =>
+              `(${quoteLiteral(permission)}, ${quoteLiteral(level)}, ${String(ord)})`,
+          )
+          .join(", ")}),
+  `;
+  const covered =
+    order.length === 0
+      ? ""
+      : `
+    or exists (
+      select 1
+      from level_order held
+      join level_order asked on asked.permission = held.permission and asked.ord <= held.ord
+      where held.permission = a.permission
+        and held.level = a.level
+        and asked.level = split_part(c.grant_key, '@', 2)
+    )`;
   const renamed = renames.length > 0;
   const prelude = renamed
     ? `renamed (former, key) as (values ${renames
@@ -223,14 +246,14 @@ function leveledKeysSql(
     renamed
       ? ` left join renamed r_${alias} on r_${alias}.former = ${raw}`
       : "";
-  return `-- one custom role: as above, where an allow entry key@level reaches only the ceiling keys of that level
+  return `-- one custom role: as above, where an allow entry key@level reaches the ceiling keys of that level and, when ordered, every narrower level
 create or replace function ${keys}(p_allow text[], p_deny text[], p_include text[], p_scope text)
 returns setof text
 language sql
 stable
 set search_path = ''
 as $$
-  with ${prelude}entries as (
+  with ${prelude}${orderCte}entries as (
     select ${current("split_part(e.entry, '@', 1)", "e")} as permission, nullif(split_part(e.entry, '@', 2), '') as level
     from unnest(coalesce(p_allow, '{}'::text[])) as e(entry)${join("split_part(e.entry, '@', 1)", "e")}
   ),
@@ -303,7 +326,7 @@ as $$
   union
   select c.grant_key from ceiling c
   join allowed_levels a on a.permission = c.permission
-  where c.effect = 'deny' or split_part(c.grant_key, '@', 2) = a.level
+  where c.effect = 'deny' or split_part(c.grant_key, '@', 2) = a.level${covered}
 $$;
 revoke execute on function ${keys}(text[], text[], text[], text) from public, anon, authenticated;`;
 }

@@ -19,8 +19,6 @@ import {
   raiseSql,
   storedTenant,
 } from "./custom-roles.ts";
-import { memoizes } from "./helper-bodies.ts";
-
 function callerFunctionsSql(
   ctx: RlsSqlContext,
   custom: NonNullable<RlsSqlContext["customRoles"]>,
@@ -30,7 +28,7 @@ function callerFunctionsSql(
 ): { readonly beyond: string; readonly guard: string } {
   const leveled = custom.levels === true;
   const tenantType = tenantTypeOf(ctx);
-  const volatility = forUser || !memoizes(ctx) ? "stable" : "volatile";
+  const volatility = "volatile";
   const rp = qualified(ctx, "role_permissions");
   const keys = qualified(ctx, CUSTOM_ROLES.keys);
   const perms = qualified(ctx, CUSTOM_ROLES.permissions);

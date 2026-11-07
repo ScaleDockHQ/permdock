@@ -6,6 +6,7 @@ export default {
     idTypes: { "*": "text" },
     scopeTypes: { tenant: "text" },
     authorize: "database",
+    actions: { share: "none" },
     rowHelpers: ["node"],
     memberships: {
       scopes: {

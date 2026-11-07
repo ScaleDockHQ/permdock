@@ -3,8 +3,9 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MODES = new Map<string, string>([
@@ -85,9 +86,9 @@ select 'b' || n, 'acme', null, false from generate_series(1, ${String(BENCH)}) n
 grant select, insert on public.doc to authenticated;
 alter table public.doc enable row level security;
 create policy doc_read on public.doc for select to authenticated
-  using (permdock.permitted_doc_row(doc, 'doc.read'));
+  using (permdock.can_doc(doc, 'doc.read'));
 create policy doc_create on public.doc for insert to authenticated
-  with check (permdock.permitted_doc_row(doc, 'doc.create'));
+  with check (permdock.can_doc(doc, 'doc.create'));
 
 create function public.read_around(p_user uuid, p_doc text, p_write text)
 returns table (first boolean, second boolean)
@@ -99,9 +100,9 @@ begin
     jsonb_build_object('sub', p_user, 'role', 'authenticated')::text,
     true
   );
-  first := (select permdock.permitted_doc_row(d, 'doc.read') from public.doc d where d.id = p_doc);
+  first := (select permdock.can_doc(d, 'doc.read') from public.doc d where d.id = p_doc);
   execute p_write;
-  second := (select permdock.permitted_doc_row(d, 'doc.read') from public.doc d where d.id = p_doc);
+  second := (select permdock.can_doc(d, 'doc.read') from public.doc d where d.id = p_doc);
   return next;
 end;
 $$;
@@ -120,10 +121,9 @@ describe("row helper memo modes answer the same", () => {
   beforeAll(async () => {
     for (const [mode, cwd] of MODES) {
       const out = join(dir, `${mode}.sql`);
-      const generated = await run(
-        ["rls", "generate", "--target", "sql", "--out", out],
-        { cwd },
-      );
+      const generated = await rlsGenerate(["--target", "sql", "--out", out], {
+        cwd,
+      });
       if (generated.code !== 0) {
         throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
       }
@@ -144,7 +144,7 @@ describe("row helper memo modes answer the same", () => {
               [CLAIMS(user)],
             );
             const rows = await lite.query<{ readonly id: string }>(
-              "select d.id from public.doc d where permdock.permitted_doc_row(d, $1) order by d.id",
+              "select d.id from public.doc d where permdock.can_doc(d, $1) order by d.id",
               [permission],
             );
             const ids = await lite.query<{ readonly id: string }>(
@@ -167,15 +167,14 @@ describe("row helper memo modes answer the same", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
-  it("calls better_supabase.memo_get and memo_set for both memos only in that mode", () => {
+  it("calls better_supabase.memo_get and memo_set for the grant helpers only in that mode", () => {
     const own = sql.get("permdock") ?? "";
     const shared = sql.get("better-supabase") ?? "";
     expect(own).toContain("set_config(v_key");
     expect(own).not.toContain("better_supabase.memo_");
     expect(shared).toContain("better_supabase.memo_get(v_key)");
     expect(shared).toContain("better_supabase.memo_set(v_key");
-    expect(shared).toContain("better_supabase.memo_get(v_permdock_key)");
-    expect(shared).toContain("better_supabase.memo_set(v_permdock_key");
+    expect(shared).not.toContain("v_permdock_key");
     expect(shared).toContain("'permdock.m.'");
   });
 

@@ -1,13 +1,17 @@
 import { moduleIdType } from "better-supabase/sql";
 import { testAuthorizationProvider } from "better-supabase/testing";
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
 import type { SupabaseHookManifest } from "../../src/supabase/manifest.ts";
 
 import { authorizationProvider } from "../../src/better-supabase/index.ts";
 import { anyOf, holder, manager, user } from "../../src/core/approvers.ts";
 import { PermDockValidationError } from "../../src/core/validation-error.ts";
+import {
+  definePermissions,
+  resource as permissionResource,
+} from "../../src/index.ts";
 import { supabaseHookManifestFixture } from "../../src/testing/supabase-fixtures.ts";
 import { defined } from "../support/defined.ts";
 
@@ -17,8 +21,8 @@ const EXAMPLE = "../../../../apps/examples/next-better-supabase/";
 const exampleManifest = read(`${EXAMPLE}permdock.manifest.json`);
 const exampleCatalog = read(`${EXAMPLE}permissions.catalog.json`);
 const emptyCatalog = {
-  $schema: "https://permdock.com/schemas/catalog-v1.json",
-  version: 1,
+  $schema: "https://permdock.com/schemas/catalog-v2.json",
+  version: 2,
   generatedAt: "2026-01-01T00:00:00Z",
   generator: "test",
   resources: {},
@@ -97,6 +101,7 @@ describe(authorizationProvider, () => {
         args: "uuid",
         role: "supabase_auth_admin",
       },
+      { function: "permdock.permdock_subject", role: "authenticated" },
     ]);
   });
 
@@ -556,16 +561,16 @@ describe(authorizationProvider, () => {
         },
       });
 
-    it("fills platformRoles only on request, with an optional roles table", () => {
+    it("fills platformRoles from rls.roles unless turned off", () => {
       const manifest = platform({
         column: "role",
         through: { table: "public.roles", id: "id", column: "key" },
       });
-      expect(authorizationProvider({ manifest })).not.toHaveProperty(
-        "platformRoles",
-      );
-      const provider = authorizationProvider({ manifest, platformRoles: true });
-      expect(Reflect.get(provider, "platformRoles")).toStrictEqual({
+      expect(
+        authorizationProvider({ manifest, platformRoles: false }),
+      ).not.toHaveProperty("platformRoles");
+      const provider = authorizationProvider({ manifest });
+      expect(provider.platformRoles).toStrictEqual({
         table: "public.platform_roles",
         user: "user_id",
         role: "role",
@@ -661,6 +666,7 @@ describe(authorizationProvider, () => {
     ]);
     expect(provider.suspension).toStrictEqual({
       user: { table: "public.profiles", id: "id", disabledAt: "disabled_at" },
+      userKey: "id",
       tenant: {
         table: "public.tenants",
         id: "id",
@@ -668,6 +674,106 @@ describe(authorizationProvider, () => {
         active: ["active"],
       },
     });
+  });
+
+  it("derives a role-source where, personas and approval-set templates", () => {
+    const provider = authorizationProvider({
+      manifest: withRls({
+        customRoleTenant: "tenant_id",
+        helpers: [
+          ...supabaseHookManifestFixture.rls.helpers,
+          {
+            name: "permdock_approver_for_ids",
+            args: "",
+            returns: "setof text",
+            execute: ["authenticated"],
+          },
+          {
+            name: "permdock_managed_user_ids",
+            args: "",
+            returns: "setof text",
+            execute: ["authenticated"],
+          },
+        ],
+        memberships: [
+          {
+            table: "public.memberships",
+            user: { column: "user_id" },
+            scope: { value: "tenant" },
+            id: { column: "tenant_id" },
+            role: {
+              column: "role_id",
+              through: { table: "public.roles", id: "id", column: "key" },
+            },
+            columns: ["user_id", "role_id"],
+          },
+        ],
+      }),
+      catalog: {
+        ...emptyCatalog,
+        resources: { post: { id: "id", schema: null } },
+        permissions: [
+          {
+            key: "post.read",
+            scope: "post:read",
+            resource: "post",
+            action: "read",
+            arity: "instance",
+            meta: {},
+            usages: [],
+            rowConditions: false,
+          },
+        ],
+        roles: [{ key: "owner", on: "tenant" }, { key: "platform" }],
+        grants: [
+          {
+            permission: "post.read",
+            effect: "allow",
+            role: "owner",
+            to: { role: "owner" },
+            scope: "tenant",
+          },
+        ],
+      },
+      personas: "roles",
+    });
+    expect(provider.roleSources?.[0]?.role.through.where).toBe(
+      "{row}.key in ('owner') or {row}.tenant_id is not null",
+    );
+    expect(provider.personas).toStrictEqual([
+      {
+        name: "owner",
+        setup:
+          "insert into public.memberships (user_id, tenant_id, role_id) values ({user}, {tenant}, 'owner')",
+        permissions: ["post.read"],
+      },
+      {
+        name: "platform",
+        setup:
+          "insert into public.memberships (user_id, tenant_id, role_id) values ({user}, {tenant}, 'platform')",
+        permissions: [],
+      },
+    ]);
+    expect(provider.functions.approverFor).toBe(
+      "permdock.permdock_approver_for_ids()",
+    );
+    expect(provider.functions.managedUsers).toBe(
+      "permdock.permdock_managed_user_ids()",
+    );
+  });
+
+  it("types provider keys from the permission tree", () => {
+    const permissions = definePermissions({
+      post: permissionResource({ actions: ["read"] }),
+    });
+    const provider = authorizationProvider({
+      manifest: supabaseHookManifestFixture,
+      catalog: emptyCatalog,
+      permissions,
+    });
+    expectTypeOf<
+      NonNullable<(typeof provider)["permissions"]>[number]["key"]
+    >().toEqualTypeOf<"post.read">();
   });
 
   it("names a role set read over a composite reference as rolesTable", () => {
@@ -1414,25 +1520,21 @@ describe(authorizationProvider, () => {
       });
     });
 
-    it("reads a manifest without idType as uuid", () => {
+    it("refuses a row helper whose manifest omits idType", () => {
       const legacy = rowsOf(
         withRows({ fileNode: { rows: "permitted_file_node_rows" } }),
       );
-      expect(legacy.functions.rowsWith).toBe(
-        "permdock.permitted_{resource}_rows({permission}, ({ids})::uuid[])",
+      expect(legacy.functions).not.toHaveProperty("rowsWith");
+      expect(legacy.problems).toContainEqual(
+        "names.resources.fileNode.idType is missing. Run permdock generate.",
       );
-      expect(legacy.requires).toContainEqual({
-        function: "permdock.permitted_file_node_rows",
-        args: "text, uuid[]",
-        role: "authenticated",
-      });
     });
 
     it("reads every row without candidates when the id types differ", () => {
       const provider = rowsOf(
         withRows({
           ledger: { rows: "permitted_ledger_rows", idType: "bigint" },
-          fileNode: { rows: "permitted_file_node_rows" },
+          fileNode: { rows: "permitted_file_node_rows", idType: "text" },
         }),
       );
       expect(provider.functions.rowsWith).toBe(

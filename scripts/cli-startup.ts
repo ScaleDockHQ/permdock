@@ -22,7 +22,7 @@ const COMMANDS = {
   help: ["--help"],
   "catalog --help": ["catalog", "--help"],
   "doctor --help": ["doctor", "--help"],
-  "rls generate --help": ["rls", "generate", "--help"],
+  "generate --help": ["generate", "--help"],
   "cloud push --help": ["cloud", "push", "--help"],
 } as const;
 

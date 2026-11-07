@@ -2,13 +2,12 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
-import { jwtClaims } from "./support/rls.ts";
+import { rlsGenerate, jwtClaims, hookGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/hook-teams");
@@ -55,17 +54,13 @@ describe("supabase.hook.teams", () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-hook-teams-"));
     const rlsOut = join(dir, "rls.sql");
     const hookOut = join(dir, "hook.sql");
-    const rls = await run(
-      ["rls", "generate", "--target", "sql", "--out", rlsOut],
-      { cwd: FIXTURE },
-    );
+    const rls = await rlsGenerate(["--target", "sql", "--out", rlsOut], {
+      cwd: FIXTURE,
+    });
     if (rls.code !== 0) {
       throw new Error(`rls generate: ${rls.stdout}${rls.stderr}`);
     }
-    const generated = await run(
-      ["supabase", "hook", "generate", "--out", hookOut],
-      { cwd: FIXTURE },
-    );
+    const generated = await hookGenerate(["--out", hookOut], { cwd: FIXTURE });
     if (generated.code !== 0) {
       throw new Error(`hook generate: ${generated.stdout}${generated.stderr}`);
     }
@@ -108,20 +103,13 @@ describe("supabase.hook.teams", () => {
     expect(claims["memberships_truncated"]).toBeUndefined();
   });
 
-  it("cuts team_ids at the memberships budget and flags the truncation", async () => {
+  it("omits team_ids when they exceed their own budget", async () => {
     const claims = await mint(CROWDED, {
       app_metadata: { active_tenant: "acme" },
     });
-    const teams = claims["team_ids"];
-    if (!Array.isArray(teams)) {
-      throw new TypeError("team_ids is not an array");
-    }
-    expect(teams.length).toBeLessThan(31);
-    expect(
-      JSON.stringify(claims["memberships"]).length +
-        JSON.stringify(teams).length,
-    ).toBeLessThanOrEqual(400);
-    expect(claims["memberships_truncated"]).toBe(true);
+    expect(claims["team_ids"]).toBeUndefined();
+    expect(claims["team_ids_truncated"]).toBe(true);
+    expect(claims["memberships_truncated"]).toBeUndefined();
   });
 
   it("returns every team in subject_for's claims, with no budget", async () => {

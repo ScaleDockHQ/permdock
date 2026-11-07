@@ -10,13 +10,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
 import {
   parseSchema,
   patchOas33,
   validateOpenapi,
   validateOverlay,
 } from "../../src/cli/openapi/schema.ts";
+import { openapiEmit } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "./fixtures/mini-app");
@@ -91,10 +91,8 @@ describe("openapi schema", () => {
       "emits a valid OpenAPI %s document (%s, %j)",
       async (target, version, extra) => {
         const cwd = appCopy(version);
-        const result = await run(
+        const result = await openapiEmit(
           [
-            "openapi",
-            "emit",
             "--doc",
             "openapi.json",
             "--out",
@@ -128,17 +126,8 @@ describe("openapi schema", () => {
       };
       writeFileSync(join(cwd, "openapi.json"), JSON.stringify(doc));
       const emit = (out: string, extra: readonly string[]) =>
-        run(
-          [
-            "openapi",
-            "emit",
-            "--doc",
-            "openapi.json",
-            "--out",
-            out,
-            ...URLS,
-            ...extra,
-          ],
+        openapiEmit(
+          ["--doc", "openapi.json", "--out", out, ...URLS, ...extra],
           { cwd },
         );
 
@@ -163,10 +152,8 @@ describe("openapi schema", () => {
 
     it("emits a valid Overlay 1.1 document", async () => {
       const cwd = appCopy();
-      const result = await run(
+      const result = await openapiEmit(
         [
-          "openapi",
-          "emit",
           "--doc",
           "openapi.json",
           "--kind",
@@ -184,8 +171,8 @@ describe("openapi schema", () => {
 
     it("refuses to turn a valid document into an invalid one", async () => {
       const cwd = appCopy();
-      const result = await run(
-        ["openapi", "emit", "--doc", "openapi.json", "--out", "out.json"],
+      const result = await openapiEmit(
+        ["--doc", "openapi.json", "--out", "out.json"],
         { cwd },
       );
       expect(result.code).toBe(1);
@@ -215,8 +202,8 @@ describe("openapi schema", () => {
         },
       };
       writeFileSync(join(cwd, "openapi.json"), JSON.stringify(doc));
-      const result = await run(
-        ["openapi", "emit", "--doc", "openapi.json", "--out", "out.json"],
+      const result = await openapiEmit(
+        ["--doc", "openapi.json", "--out", "out.json"],
         { cwd },
       );
       expect(result.code).toBe(0);

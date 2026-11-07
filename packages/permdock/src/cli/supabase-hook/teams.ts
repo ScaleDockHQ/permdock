@@ -1,8 +1,9 @@
+import type { RlsSqlContext } from "../sql/context.ts";
 import type { Parts } from "./parts.ts";
 
-import { activeRowSql } from "../sql/active.ts";
-import { isTeamScope, memberOfHelper } from "../sql/names.ts";
-import { quoteIdent, quoteQualified } from "../sql/quote.ts";
+import { activeRowSql, activeUserSql } from "../sql/active.ts";
+import { hasMemberOf, isTeamScope, memberOfHelper } from "../sql/names.ts";
+import { helperSchema, quoteIdent, quoteQualified } from "../sql/quote.ts";
 
 /**
  * The `member_team_ids_of` helper the hook file writes from
@@ -18,24 +19,39 @@ export function hookTeamsHelper(parts: Parts): string | undefined {
 }
 
 /**
- * `member_team_ids_of(p_user uuid)`: the teams `supabase.hook.teams` lists for
- * the caller, the rows the hook writes to `team_ids`. Any other `p_user`, and a
- * suspended user, gets no rows, so `authenticated` may execute it. The team
- * column is a uuid, as the `team_ids` claim is.
+ * `member_team_ids_for` and `member_team_ids_of` for the helpers file.
+ * `member_team_ids_for` takes the user and never compares it with `auth.uid()`.
+ * The wrapper answers the caller only. Empty when a team scope already writes
+ * the same names.
  */
-export function teamIdsOfSql(parts: Parts): string {
-  const name = hookTeamsHelper(parts);
-  const teams = parts.hook.teams;
-  if (name === undefined || teams === undefined) {
+export function hookTeamReadersSql(ctx: RlsSqlContext): string {
+  const teams = ctx.hookTeams;
+  if (
+    teams === undefined ||
+    ctx.scopes.some((scope) => hasMemberOf(ctx, scope.name))
+  ) {
     return "";
   }
-  const fn = `${quoteIdent(parts.helpers.schema)}.${quoteIdent(name)}`;
-  const active =
-    parts.users === undefined
-      ? ""
-      : `\n    and ${activeRowSql(parts.users, "p_user")}`;
-  return `-- the caller's teams from supabase.hook.teams, for better-supabase's teamIdsOf
-create or replace function ${fn}(p_user uuid)
+  const schema = quoteIdent(helperSchema(ctx));
+  const reader = `${schema}.${quoteIdent("member_team_ids_for")}`;
+  const wrapper = `${schema}.${quoteIdent("member_team_ids_of")}`;
+  const root = ctx.scopes[0]?.name;
+  const tenantRow =
+    root === undefined ? undefined : ctx.suspension?.scopes?.[root];
+  const filters = [
+    ...activeUserSql(ctx, "p_user").map((part) => `    and ${part}`),
+    ...(tenantRow === undefined || teams.tenant === undefined
+      ? []
+      : [
+          `    and ${activeRowSql(tenantRow, `t.${quoteIdent(teams.tenant)}`)}`,
+        ]),
+  ];
+  const order =
+    teams.tenant === undefined
+      ? `t.${quoteIdent(teams.team)}`
+      : `(p_active is not null and t.${quoteIdent(teams.tenant)}::text is not distinct from p_active) desc, t.${quoteIdent(teams.team)}`;
+  return `-- teams of p_user from supabase.hook.teams; execute is supabase_auth_admin only
+create or replace function ${reader}(p_user uuid, p_active text default null)
 returns setof uuid
 language sql
 stable
@@ -45,8 +61,24 @@ as $$
   select t.${quoteIdent(teams.team)}
   from ${quoteQualified(teams.table)} t
   where t.${quoteIdent(teams.user)} = p_user
-    and p_user = (select auth.uid())${active}
+${filters.join("\n")}
+  order by ${order}
 $$;
-revoke execute on function ${fn}(uuid) from public, anon;
-grant execute on function ${fn}(uuid) to authenticated;`;
+revoke execute on function ${reader}(uuid, text) from public, anon, authenticated;
+grant execute on function ${reader}(uuid, text) to supabase_auth_admin;
+
+-- the caller's teams only, for better-supabase's teamIdsOf
+create or replace function ${wrapper}(p_user uuid)
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select m.id
+  from ${reader}(p_user, null) as m(id)
+  where p_user = (select ${schema}.permdock_user_id())
+$$;
+revoke execute on function ${wrapper}(uuid) from public, anon;
+grant execute on function ${wrapper}(uuid) to authenticated;`;
 }

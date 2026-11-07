@@ -297,6 +297,7 @@ describe("inherit() in generated RLS", () => {
         scopes: scopeList(policy.scopes),
         tenantClaim: "tenant_id",
         gucPrefix: "app",
+        actions: { manage: "none" as const },
         graph: { resources: policy.resources, closures: {} },
       },
       undefined,
@@ -307,7 +308,7 @@ describe("inherit() in generated RLS", () => {
       (item) => item.permissionKey === "node.read",
     );
     expect(branch?.using).toBe(
-      `(coalesce("driveId"::text in (select p.id::text from "permdock".permitted_drive_rows('drive.read') as p(id)), false) and "restricted" is not true)`,
+      `(coalesce("driveId" in (select "permdock".permitted_drive_rows('drive.read')), false) and "restricted" is not true)`,
     );
     expect(branch?.roles).toStrictEqual(["authenticated"]);
   });
@@ -324,6 +325,7 @@ describe("inherit() in generated RLS", () => {
           scopes: scopeList(policy.scopes),
           tenantClaim: "tenant_id",
           gucPrefix: "app",
+          actions: { manage: "none" as const },
           graph: { resources: policy.resources, closures: {} },
           ...(candidates === undefined ? {} : { candidates }),
           ...extra,
@@ -348,6 +350,7 @@ describe("inherit() in generated RLS", () => {
         scopes: scopeList(policy.scopes),
         tenantClaim: "tenant_id",
         gucPrefix: "app",
+        actions: { manage: "none" as const },
         graph: { resources: policy.resources, closures: {} },
         columnTypes: { folderId: "bigint", driveId: "text" },
         idTypes: { "*": "bigint" },
@@ -371,6 +374,7 @@ describe("inherit() in generated RLS", () => {
         scopes: scopeList(policy.scopes),
         tenantClaim: "tenant_id",
         gucPrefix: "app",
+        actions: { manage: "none" as const },
         graph: { resources: policy.resources, closures: {} },
         candidates: "permdock_candidates",
       },
@@ -381,19 +385,20 @@ describe("inherit() in generated RLS", () => {
     const using = (key: string): string | undefined =>
       compiled.branches.find((item) => item.permissionKey === key)?.using;
     expect(using("node.read")).toBe(
-      `(coalesce("driveId"::text in (select p.id::text from "permdock".permitted_drive_rows('drive.read', array(select "driveId"::uuid from permdock_candidates)) as p(id)), false) and "restricted" is not true)`,
+      `(coalesce("driveId" in (select "permdock".permitted_drive_rows('drive.read', array(select "driveId"::uuid from permdock_candidates))), false) and "restricted" is not true)`,
     );
     expect(using("node.delete")).toContain(
       `"folderId"::uuid in (select "permdock".permitted_folder_rows('folder.read', array(select "folderId"::uuid from permdock_candidates)))`,
     );
   });
 
-  it("writes a stub for each inherited row helper before the helpers that call it", () => {
+  it("defines each inherited row helper once, before the helpers that call it", () => {
     const ctx = {
       dialect: "supabase" as const,
       scopes: scopeList(policy.scopes),
       tenantClaim: "tenant_id",
       gucPrefix: "app",
+      actions: { manage: "none" as const },
       graph: { resources: policy.resources, closures: {} },
     };
     const compiled = compileGrants(policy, ctx, undefined, [], false, true);
@@ -406,18 +411,22 @@ describe("inherit() in generated RLS", () => {
       undefined,
       [],
     );
-    const stub = sql.indexOf("select null::uuid where false");
     const driveHelper = sql.indexOf(
-      '"permdock".permitted_drive_rows(p_permission text)',
+      'function "permdock".permitted_drive_rows(p_permission text)',
     );
+    expect(sql).not.toContain("select null::uuid where false");
+    expect(
+      sql.match(
+        /function "permdock"\.permitted_drive_rows\(p_permission text\)\n/gu,
+      ),
+    ).toHaveLength(1);
     expect(
       sql.indexOf(
         '"permdock".permitted_drive_rows(p_permission text, p_ids uuid[])',
       ),
     ).toBeLessThan(sql.indexOf("when 'node.read' then"));
-    expect(stub).toBeGreaterThan(-1);
     expect(driveHelper).toBeGreaterThan(-1);
-    expect(stub).toBeLessThan(sql.indexOf("when 'node.read' then"));
+    expect(driveHelper).toBeLessThan(sql.indexOf("when 'node.read' then"));
     expect(sql).toContain("permitted_folder_rows");
     expect(sql).toContain("permitted_node_rows");
   });
@@ -453,6 +462,7 @@ describe("inherit() in generated RLS", () => {
           scopes: scopeList(linked.scopes),
           tenantClaim: "tenant_id",
           gucPrefix: "app",
+          actions: { manage: "none" as const },
         },
         plan,
         undefined,

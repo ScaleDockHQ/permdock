@@ -23,7 +23,7 @@ $$;
 revoke execute on function "permdock".permdock_user_id() from public, anon;
 grant execute on function "permdock".permdock_user_id() to authenticated;
 
-create table if not exists "permdock".role_permissions (
+create table "permdock".role_permissions (
   role text not null,
   permission text not null,
   grant_key text not null,
@@ -34,7 +34,7 @@ create table if not exists "permdock".role_permissions (
 alter table "permdock".role_permissions enable row level security;
 revoke all on table "permdock".role_permissions from anon, authenticated, public;
 
-create table if not exists "permdock".user_roles (
+create table "permdock".user_roles (
   user_id uuid not null references auth.users on delete cascade,
   role text not null,
   primary key (user_id, role)
@@ -42,7 +42,7 @@ create table if not exists "permdock".user_roles (
 alter table "permdock".user_roles enable row level security;
 revoke all on table "permdock".user_roles from anon, authenticated, public;
 
-create table if not exists "permdock".custom_role_permissions (
+create table "permdock".custom_role_permissions (
   tenant_id uuid,
   scope text not null default 'organization',
   scope_id text,
@@ -57,14 +57,14 @@ alter table "permdock".custom_role_permissions add constraint "custom_role_permi
   case when scope = 'global' then tenant_id is null and scope_id is null
   else tenant_id is not null or scope_id is null end
 );
-create unique index if not exists "custom_role_permissions_key"
+create unique index "custom_role_permissions_key"
   on "permdock".custom_role_permissions (coalesce(tenant_id::text, ''), scope, coalesce(scope_id, ''), role, permission, effect);
 -- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
 alter table "permdock".custom_role_permissions add column if not exists id bigint generated always as identity primary key;
 alter table "permdock".custom_role_permissions enable row level security;
 revoke all on table "permdock".custom_role_permissions from anon, authenticated, public;
 
-create table if not exists "permdock".custom_role_includes (
+create table "permdock".custom_role_includes (
   tenant_id uuid,
   scope text not null default 'organization',
   scope_id text,
@@ -78,7 +78,7 @@ alter table "permdock".custom_role_includes add constraint "custom_role_includes
   case when scope = 'global' then tenant_id is null and scope_id is null
   else tenant_id is not null or scope_id is null end
 );
-create unique index if not exists "custom_role_includes_key"
+create unique index "custom_role_includes_key"
   on "permdock".custom_role_includes (coalesce(tenant_id::text, ''), scope, coalesce(scope_id, ''), role, include_role);
 -- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
 alter table "permdock".custom_role_includes add column if not exists id bigint generated always as identity primary key;
@@ -170,6 +170,17 @@ $$;
 revoke execute on function "permdock".permdock_is_shared_role(text, text) from public, anon, authenticated;
 
 -- a permission, custom-role, suspension or membership write changes permitted ids inside the statement
+create or replace function "permdock".permdock_memo_put(p_key text, p_value text)
+returns void
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  select set_config(p_key, p_value, true)
+$$;
+revoke execute on function "permdock".permdock_memo_put(text, text) from public, anon, authenticated;
+
 create or replace function "permdock".permdock_bump_memo_generation()
 returns void
 language sql
@@ -854,7 +865,7 @@ revoke execute on function "permdock".permdock_custom_role_guard(uuid, text, tex
 create or replace function "permdock".permdock_custom_role_beyond_for(p_user uuid, p_tenant uuid, p_scope text, p_scope_id text, p_allow text[], p_deny text[], p_include text[])
 returns setof text
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$
@@ -889,7 +900,7 @@ revoke execute on function "permdock".permdock_custom_role_beyond_for(uuid, uuid
 create or replace function "permdock".permdock_custom_role_guard_for(p_user uuid, p_tenant uuid, p_scope text, p_scope_id text, p_role text)
 returns void
 language plpgsql
-stable
+volatile
 security definer
 set search_path = ''
 as $$
@@ -1228,7 +1239,7 @@ declare
   v_new_scope text;
   v_new_id text;
   v_new_key text;
-  v_checked boolean := coalesce((select "permdock".permdock_user_id())::text, '') <> '' and pg_trigger_depth() = 1;
+  v_checked boolean := coalesce((select "permdock".permdock_user_id())::text, '') <> '' and current_setting('permdock.sync', true) is distinct from 'on';
   v_allow text[];
   v_deny text[];
   v_include text[];
@@ -1256,8 +1267,12 @@ begin
     perform "permdock".permdock_custom_role_guard(v_old_tenant, v_old_scope, v_old_id, v_old_key);
   end if;
   if v_new_key is null then
-    delete from "permdock".custom_role_permissions c where c.tenant_id is not distinct from v_old_tenant and c.scope = v_old_scope and c.scope_id is not distinct from v_old_id and c.role = v_old_key;
-    delete from "permdock".custom_role_includes c where c.tenant_id is not distinct from v_old_tenant and c.scope = v_old_scope and c.scope_id is not distinct from v_old_id and c.role = v_old_key;
+    perform set_config('permdock.sync', 'on', true);
+    perform "permdock".permdock_trusted_delete_custom_role_grants(v_old_tenant, v_old_scope, v_old_id, v_old_key);
+    delete from "permdock".custom_role_includes c
+    where c.include_role = v_old_key
+      and not (v_old_key = any(array['contact', 'guest', 'member', 'owner']::text[]));
+    perform set_config('permdock.sync', '', true);
     return null;
   end if;
   if exists (select 1 from "permdock".custom_role_permissions c where c.tenant_id is not distinct from v_new_tenant and c.scope = v_new_scope and c.scope_id is not distinct from v_new_id and c.role = v_new_key)
@@ -1350,7 +1365,9 @@ begin
     v_dropped := v_dropped || coalesce(v_lost, '{}'::text[]);
     v_include := null;
     v_include := array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is not distinct from v.tenant_id and c.scope = v.scope and c.scope_id is not distinct from v.scope_id and c.role = v.role);
+    perform set_config('permdock.sync', 'on', true);
     perform "permdock".permdock_trusted_replace_custom_role_grants(v.tenant_id, v.scope, v.scope_id, v.role, v_allow, v_deny, v_include);
+    perform set_config('permdock.sync', '', true);
     if cardinality(v_dropped) > 0 then
       raise warning 'permdock sync: dropped % entr(ies) PermDock cannot hold: %', cardinality(v_dropped), (select string_agg(g.role || ': ' || g.items, '; ' order by g.role)
     from (
@@ -1390,7 +1407,7 @@ declare
     case when tg_op <> 'DELETE' then new."role_id"::text end
   ];
 begin
-  if not (coalesce((select "permdock".permdock_user_id())::text, '') <> '' and pg_trigger_depth() = 1) then
+  if not (coalesce((select "permdock".permdock_user_id())::text, '') <> '') or current_setting('permdock.sync', true) = 'on' then
     return coalesce(new, old);
   end if;
   for v in
@@ -2863,7 +2880,7 @@ revoke execute on function "permdock".permdock_actor_may_write() from public, an
 grant execute on function "permdock".permdock_actor_may_write() to authenticated;
 
 -- approval store: ApprovalRequest bodies, opened, resolved and consumed through the functions below; supabaseApprovalStore calls them
-create table if not exists "permdock".approval_requests (
+create table "permdock".approval_requests (
   token text primary key,
   body jsonb not null,
   status text not null check (status in ('pending', 'approved', 'rejected', 'expired')),
@@ -2876,8 +2893,8 @@ create table if not exists "permdock".approval_requests (
   expires_at timestamptz not null,
   consumed_at timestamptz
 );
-create index if not exists "approval_requests_page" on "permdock".approval_requests (created_at collate "C", token collate "C");
-create index if not exists "approval_requests_pending" on "permdock".approval_requests (status, expires_at);
+create index "approval_requests_page" on "permdock".approval_requests (created_at collate "C", token collate "C");
+create index "approval_requests_pending" on "permdock".approval_requests (status, expires_at);
 alter table "permdock".approval_requests enable row level security;
 revoke all on table "permdock".approval_requests from anon, authenticated, public;
 
@@ -3087,7 +3104,7 @@ revoke execute on function "permdock".permdock_is_approver(jsonb, text) from pub
 grant execute on function "permdock".permdock_is_approver(jsonb, text) to authenticated;
 
 -- approval delegations: out-of-office covers a user writes for themselves; tableApprovalDelegationSource and permdock_is_approver read them
-create table if not exists "permdock".approval_delegations (
+create table "permdock".approval_delegations (
   id text primary key default gen_random_uuid()::text,
   delegator uuid not null default ("permdock".permdock_user_id())::uuid,
   delegate uuid not null,
@@ -3100,7 +3117,7 @@ create table if not exists "permdock".approval_delegations (
   constraint "approval_delegations_window" check ("from" < "until"),
   constraint "approval_delegations_distinct" check (delegator <> delegate)
 );
-create index if not exists "approval_delegations_delegate" on "permdock".approval_delegations (delegate, "until");
+create index "approval_delegations_delegate" on "permdock".approval_delegations (delegate, "until");
 alter table "permdock".approval_delegations enable row level security;
 revoke all on table "permdock".approval_delegations from anon, public;
 grant select, insert, update, delete on table "permdock".approval_delegations to authenticated;
@@ -3253,6 +3270,27 @@ $$;
 revoke execute on function "permdock".permdock_is_approver(jsonb, text, text, text, jsonb) from public, anon;
 grant execute on function "permdock".permdock_is_approver(jsonb, text, text, text, jsonb) to authenticated;
 
+-- approvers: the caller, plus each active delegator, one hop
+create or replace function "permdock".permdock_approver_for_ids()
+returns setof text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select (select "permdock".permdock_user_id())::text
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+  union
+  select d.delegator::text
+  from "permdock".approval_delegations d
+  where d.delegate::text = (select "permdock".permdock_user_id())::text
+    and d."from" <= now()
+    and d."until" > now()
+    and d.delegator::text <> (select "permdock".permdock_user_id())::text
+$$;
+revoke execute on function "permdock".permdock_approver_for_ids() from public, anon;
+grant execute on function "permdock".permdock_approver_for_ids() to authenticated;
+
 -- organization: holder counts (min / max) over the membership sources, checked at commit
 create or replace function "permdock".permdock_holders_organization()
 returns trigger
@@ -3306,3 +3344,180 @@ create constraint trigger "permdock_holders_organization"
   after insert or update or delete on "public"."organization_memberships"
   deferrable initially deferred
   for each row execute function "permdock".permdock_holders_organization();
+
+-- quotes: one predicate, called by the set, the id list and both row forms
+create or replace function "permdock".permitted_quotes_match(p_row "public"."quotes", p_permission text)
+returns boolean
+language sql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+  with permdock_candidates as (select (p_row).*)
+  select exists (select 1 from permdock_candidates where case p_permission
+    when 'quotes.list' then coalesce((("organization_id" in (select e::uuid from jsonb_array_elements_text(case when (nullif(current_setting('permdock.m.' || 'organization' || '.k' || (hashtext('quotes.list') & 1023)::text, true), '')::jsonb ->> 'k') = md5(concat_ws('|',
+      (select "permdock".permdock_user_id())::text,
+      'quotes.list',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    )) then nullif(current_setting('permdock.m.' || 'organization' || '.k' || (hashtext('quotes.list') & 1023)::text, true), '')::jsonb -> 'ids' else to_jsonb(array(select * from "permdock".permitted_organization_ids('quotes.list'))) end) s(e))) or ("customer_id" in (select e::uuid from jsonb_array_elements_text(case when (nullif(current_setting('permdock.m.' || 'customer' || '.k' || (hashtext('quotes.list') & 1023)::text, true), '')::jsonb ->> 'k') = md5(concat_ws('|',
+      (select "permdock".permdock_user_id())::text,
+      'quotes.list',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    )) then nullif(current_setting('permdock.m.' || 'customer' || '.k' || (hashtext('quotes.list') & 1023)::text, true), '')::jsonb -> 'ids' else to_jsonb(array(select * from "permdock".permitted_customer_ids('quotes.list'))) end) s(e)))), false)
+    when 'quotes.read' then coalesce((("organization_id" in (select e::uuid from jsonb_array_elements_text(case when (nullif(current_setting('permdock.m.' || 'organization' || '.k' || (hashtext('quotes.read') & 1023)::text, true), '')::jsonb ->> 'k') = md5(concat_ws('|',
+      (select "permdock".permdock_user_id())::text,
+      'quotes.read',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    )) then nullif(current_setting('permdock.m.' || 'organization' || '.k' || (hashtext('quotes.read') & 1023)::text, true), '')::jsonb -> 'ids' else to_jsonb(array(select * from "permdock".permitted_organization_ids('quotes.read'))) end) s(e))) or ("customer_id" in (select e::uuid from jsonb_array_elements_text(case when (nullif(current_setting('permdock.m.' || 'customer' || '.k' || (hashtext('quotes.read') & 1023)::text, true), '')::jsonb ->> 'k') = md5(concat_ws('|',
+      (select "permdock".permdock_user_id())::text,
+      'quotes.read',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    )) then nullif(current_setting('permdock.m.' || 'customer' || '.k' || (hashtext('quotes.read') & 1023)::text, true), '')::jsonb -> 'ids' else to_jsonb(array(select * from "permdock".permitted_customer_ids('quotes.read'))) end) s(e)))), false)
+    when 'quotes.update' then coalesce(("organization_id" in (select e::uuid from jsonb_array_elements_text(case when (nullif(current_setting('permdock.m.' || 'organization' || '.k' || (hashtext('quotes.update') & 1023)::text, true), '')::jsonb ->> 'k') = md5(concat_ws('|',
+      (select "permdock".permdock_user_id())::text,
+      'quotes.update',
+      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
+      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
+      statement_timestamp()::text,
+      md5(coalesce((select auth.jwt())::text, ''))
+    )) then nullif(current_setting('permdock.m.' || 'organization' || '.k' || (hashtext('quotes.update') & 1023)::text, true), '')::jsonb -> 'ids' else to_jsonb(array(select * from "permdock".permitted_organization_ids('quotes.update'))) end) s(e))), false)
+    else false
+  end)
+$$;
+revoke execute on function "permdock".permitted_quotes_match("public"."quotes", text) from public, anon;
+grant execute on function "permdock".permitted_quotes_match("public"."quotes", text) to authenticated;
+-- quotes: ids of the rows the caller may act on with p_permission, as the table's policies decide it
+create or replace function "permdock".permitted_quotes_rows(p_permission text)
+returns setof uuid
+language sql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+  select "id"::uuid from "public"."quotes" as permdock_row
+  where "permdock".permitted_quotes_match(permdock_row, p_permission)
+$$;
+revoke execute on function "permdock".permitted_quotes_rows(text) from public, anon;
+grant execute on function "permdock".permitted_quotes_rows(text) to authenticated;
+create or replace function "permdock".permitted_quotes_rows(p_permission text, p_ids uuid[])
+returns setof uuid
+language plpgsql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+declare
+  v_row "public"."quotes";
+  v_rows "public"."quotes"[] := '{}'::"public"."quotes"[];
+  v_id uuid;
+begin
+  begin
+    foreach v_id in array coalesce(p_ids, '{}'::uuid[]) loop
+      v_row."id" := v_id;
+      v_rows := pg_catalog.array_append(v_rows, v_row);
+    end loop;
+  exception when data_exception then
+    v_rows := '{}'::"public"."quotes"[];
+    foreach v_id in array p_ids loop
+      begin
+        v_row."id" := v_id;
+        v_rows := pg_catalog.array_append(v_rows, v_row);
+      exception when data_exception then
+        null;
+      end;
+    end loop;
+  end;
+  return query
+  with permdock_candidates as materialized (
+    select * from "public"."quotes" where "id" = any (array(select (r)."id" from pg_catalog.unnest(v_rows) r))
+  )
+  select "id"::uuid from permdock_candidates
+  where "permdock".permitted_quotes_match(permdock_candidates, p_permission);
+end
+$$;
+revoke execute on function "permdock".permitted_quotes_rows(text, uuid[]) from public, anon;
+grant execute on function "permdock".permitted_quotes_rows(text, uuid[]) to authenticated;
+create or replace function "permdock".can_quotes(p_row "public"."quotes", p_permission text)
+returns boolean
+language sql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+  select "permdock".permitted_quotes_match(p_row, p_permission)
+$$;
+revoke execute on function "permdock".can_quotes("public"."quotes", text) from public, anon;
+grant execute on function "permdock".can_quotes("public"."quotes", text) to authenticated;
+create or replace function "permdock".can_quotes(p_id uuid, p_permission text)
+returns boolean
+language sql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+  select exists (
+    select 1 from "public"."quotes" as permdock_row
+    where permdock_row."id" = p_id
+      and "permdock".permitted_quotes_match(permdock_row, p_permission)
+  )
+$$;
+revoke execute on function "permdock".can_quotes(uuid, text) from public, anon;
+grant execute on function "permdock".can_quotes(uuid, text) to authenticated;
+-- the same rows for a user the caller names, with claims it supplies; no client role may execute it
+create or replace function "permdock".permitted_quotes_rows_for(p_user uuid, p_permission text, p_claims jsonb default '{}')
+returns setof uuid
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_claims text := pg_catalog.current_setting('request.jwt.claims', true);
+begin
+  perform pg_catalog.set_config(
+    'request.jwt.claims',
+    (coalesce(p_claims, '{}'::jsonb) || pg_catalog.jsonb_build_object('sub', p_user::text, 'role', 'authenticated'))::text,
+    true
+  );
+  return query select r.id from "permdock".permitted_quotes_rows(p_permission) r(id);
+  perform pg_catalog.set_config('request.jwt.claims', coalesce(v_claims, ''), true);
+end
+$$;
+revoke execute on function "permdock".permitted_quotes_rows_for(uuid, text, jsonb) from public, anon, authenticated;
+create or replace function "permdock".permitted_quotes_rows_for(p_user uuid, p_permission text, p_ids uuid[], p_claims jsonb default '{}')
+returns setof uuid
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_claims text := pg_catalog.current_setting('request.jwt.claims', true);
+begin
+  perform pg_catalog.set_config(
+    'request.jwt.claims',
+    (coalesce(p_claims, '{}'::jsonb) || pg_catalog.jsonb_build_object('sub', p_user::text, 'role', 'authenticated'))::text,
+    true
+  );
+  return query select r.id from "permdock".permitted_quotes_rows(p_permission, p_ids) r(id);
+  perform pg_catalog.set_config('request.jwt.claims', coalesce(v_claims, ''), true);
+end
+$$;
+revoke execute on function "permdock".permitted_quotes_rows_for(uuid, text, uuid[], jsonb) from public, anon, authenticated;

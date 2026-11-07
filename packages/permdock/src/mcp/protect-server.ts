@@ -6,7 +6,7 @@ import type {
 
 import type { Permission, ToolHints } from "../core/permission-types.ts";
 import type { Access, McpChecks } from "./call-check.ts";
-import type { Context, Reach } from "./mcp-auth.ts";
+import type { ChallengeInput, Context, Reach } from "./mcp-auth.ts";
 import type {
   GuardedMcpServer,
   McpProcedureEnforcement,
@@ -28,6 +28,18 @@ import {
 import { throwRefusal, toolRefusal } from "./refusals.ts";
 
 const SESSIONS_PER_SERVER = 1000;
+
+function challengeInput(checks: McpChecks): ChallengeInput {
+  return {
+    policyScopes: checks.policyScopes,
+    ...(checks.options.unscopedTokens === undefined
+      ? {}
+      : { unscopedTokens: checks.options.unscopedTokens }),
+    ...(checks.options.resource === undefined
+      ? {}
+      : { resource: checks.options.resource }),
+  };
+}
 
 export type Handler = (...params: unknown[]) => unknown;
 
@@ -473,7 +485,12 @@ export function protectServer(
         scopeChallenge:
           reach === undefined
             ? ownChallenge
-            : challengeFor(ownChallenge, reach.scopes, reach.challenge),
+            : challengeFor(
+                ownChallenge,
+                reach.scopes,
+                reach.challenge,
+                challengeInput(checks),
+              ),
       }),
       wrapTool(tool, access, reach, declared, loaders, handler, longRunning),
     );
@@ -548,6 +565,7 @@ export function protectServer(
           scopeChallenge as ScopeChallengeHandler | undefined,
           scopesReaching(checks.policy, permission),
           challengeScope(checks.policy, permission),
+          challengeInput(checks),
         ),
       },
       wrap(handler),
@@ -630,6 +648,7 @@ export function protectServer(
                 ownChallenge,
                 scopesReaching(checks.policy, permission),
                 challengeScope(checks.policy, permission),
+                challengeInput(checks),
               )(context);
         },
       },

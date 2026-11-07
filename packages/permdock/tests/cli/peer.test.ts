@@ -2,7 +2,11 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
-import { peerHint, requirePeer } from "../../src/cli/core/peer.ts";
+import {
+  packageManagerOf,
+  peerHint,
+  requirePeer,
+} from "../../src/cli/core/peer.ts";
 import { packageRoot } from "../../src/cli/project/package-root.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
 
@@ -58,22 +62,24 @@ describe("peer", () => {
     });
 
     it("turns a missing peer into the install line", async () => {
+      const agent = await packageManagerOf(process.cwd());
       await expect(
         requirePeer(
           () => Promise.reject(missingModule("pgsql-parser")),
           "pgsql-parser",
           "permdock rls import",
         ),
-      ).rejects.toThrow(peerHint("pgsql-parser", "permdock rls import"));
+      ).rejects.toThrow(peerHint("pgsql-parser", "permdock rls import", agent));
     });
 
     it("treats a CommonJS MODULE_NOT_FOUND as missing", async () => {
+      const agent = await packageManagerOf(process.cwd());
       const error = Object.assign(new Error("Cannot find module 'pg'"), {
         code: "MODULE_NOT_FOUND",
       });
       await expect(
         requirePeer(() => Promise.reject(error), "pg", "permdock rls"),
-      ).rejects.toThrow(peerHint("pg", "permdock rls"));
+      ).rejects.toThrow(peerHint("pg", "permdock rls", agent));
     });
 
     it("rethrows a peer that is installed but fails to load", async () => {

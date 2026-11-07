@@ -70,6 +70,12 @@ export type GraphSqlOptions = RelationsMapping & {
    * `search_path = ''`.
    */
   readonly qualify?: (table: string) => string;
+  /**
+   * Postgres type of a resource id. Absent, or `text`, keeps the text form the
+   * ORM compilers use. RLS passes `rls.idTypes`, and then id columns are that
+   * type already, so the SQL does not cast them to text.
+   */
+  readonly idType?: (resource: string) => string;
 };
 
 /** A Postgres identifier, schema-qualified names split on `.`. */
@@ -87,6 +93,37 @@ export function quoteSqlName(name: string): string {
 }
 
 type Build = { readonly options: GraphSqlOptions; alias: number };
+
+function idTypeOfBuild(build: Build, resource: string): string {
+  return build.options.idType?.(resource) ?? "text";
+}
+
+/**
+ * A resource id column. Typed columns are already that type, so they are not
+ * cast.
+ */
+function asId(build: Build, resource: string, expr: string): string {
+  const type = idTypeOfBuild(build, resource);
+  return type === "text" ? `${expr}::text` : expr;
+}
+
+/**
+ * A closure id is text. Cast it to the resource id type when that type is not
+ * text.
+ */
+function fromClosure(build: Build, resource: string, expr: string): string {
+  const type = idTypeOfBuild(build, resource);
+  return type === "text" ? expr : `${expr}::${type}`;
+}
+
+function nullId(build: Build, resource: string): string {
+  return `null::${idTypeOfBuild(build, resource)}`;
+}
+
+/** The cast on a filtered row's id column before it is compared with helper ids. */
+function inCast(build: Build, resource: string): string {
+  return idTypeOfBuild(build, resource) === "text" ? "::text" : "";
+}
 
 function text(value: string): GraphSqlPart {
   return { text: value };
@@ -180,7 +217,7 @@ function edgeHolderFilter(
     if (group.resource === node.name) {
       continue;
     }
-    const id = `${col(alias, group.subject)}::text in (`;
+    const id = `${asId(build, group.resource, col(alias, group.subject))} in (`;
     parts.push(
       ...(kind === undefined
         ? [text(` or (${id}`)]
@@ -228,7 +265,9 @@ function relationArm(
     const object = spec.object ?? `${node.name}_id`;
     const e = nextAlias(build, "e");
     const base: GraphSql = [
-      text(`select ${col(e, object)}::text as id from ${edge} ${e} where `),
+      text(
+        `select ${asId(build, node.name, col(e, object))} as id from ${edge} ${e} where `,
+      ),
       ...edgeHolderFilter(build, node, spec, e),
       ...edgeRowFilter(spec, e),
     ];
@@ -247,7 +286,7 @@ function relationArm(
       ),
       ...base,
       text(
-        `) b union select ${col(n, object)}::text, ${g}.level + 1 from ${edge} ${n} join ${g} on ${subject}::text = ${g}.id where `,
+        `) b union select ${asId(build, node.name, col(n, object))}, ${g}.level + 1 from ${edge} ${n} join ${g} on ${asId(build, node.name, subject)} = ${g}.id where `,
       ),
       ...selfGroupWhere(spec, node, subject, n),
       text(` and ${g}.level < ${String(DEFAULT_GROUP_DEPTH)}`),
@@ -257,7 +296,7 @@ function relationArm(
   }
   const table = tableOf(build, node.name);
   const t = nextAlias(build, "t");
-  const id = `${col(t, node.id)}::text`;
+  const id = asId(build, node.name, col(t, node.id));
   if (isPrincipalRelation(spec)) {
     const parts: GraphSqlPart[] = [
       text(
@@ -295,7 +334,7 @@ function holderIds(build: Build, resource: string, relation: string): GraphSql {
     relationArm(build, node, name),
   );
   if (arms.length === 0) {
-    return [text("select null::text as id where false")];
+    return [text(`select ${nullId(build, resource)} as id where false`)];
   }
   const out: GraphSqlPart[] = [];
   for (const [index, arm] of arms.entries()) {
@@ -346,11 +385,18 @@ function heldIds(build: Build, condition: RelatedCondition): GraphSql {
     return groupHolders(build, condition.resource, condition.relation);
   }
   if (condition.ids.length === 0) {
-    return [text("select null::text as id where false")];
+    return [
+      text(`select ${nullId(build, condition.resource)} as id where false`),
+    ];
   }
+  const cast = `::${idTypeOfBuild(build, condition.resource)}`;
   const parts: GraphSqlPart[] = [text("select v.id from (values ")];
   for (const [index, id] of condition.ids.entries()) {
-    parts.push(text(index === 0 ? "(" : ", ("), { value: id }, text("::text)"));
+    parts.push(
+      text(index === 0 ? "(" : ", ("),
+      { value: id },
+      text(`${cast})`),
+    );
   }
   parts.push(text(") as v(id)"));
   return parts;
@@ -385,10 +431,12 @@ function reached(build: Build, condition: RelatedCondition): GraphSql {
         : ` and ${c}.depth <= ${String(condition.depth)}`;
     return [
       text(
-        `select ${c}.descendant as id from ${quoteSqlName(closure)} ${c} where ${c}.resource = `,
+        `select ${fromClosure(build, condition.resource, `${c}.descendant`)} as id from ${quoteSqlName(closure)} ${c} where ${c}.resource = `,
       ),
       { value: condition.resource },
-      text(`${depth} and ${c}.ancestor in (`),
+      text(
+        `${depth} and ${fromClosure(build, condition.resource, `${c}.ancestor`)} in (`,
+      ),
       ...held,
       text(")"),
     ];
@@ -404,7 +452,7 @@ function reached(build: Build, condition: RelatedCondition): GraphSql {
     ),
     ...held,
     text(
-      `) h union select ${col(t, node.id)}::text, ${d}.level + 1 from ${tableOf(build, node.name)} ${t} join ${d} on ${col(t, node.parent.field)}::text = ${d}.id where ${d}.level < ${String(condition.depth)}${restricted}) select ${d}.id from ${d}) ${d}`,
+      `) h union select ${asId(build, node.name, col(t, node.id))}, ${d}.level + 1 from ${tableOf(build, node.name)} ${t} join ${d} on ${asId(build, node.name, col(t, node.parent.field))} = ${d}.id where ${d}.level < ${String(condition.depth)}${restricted}) select ${d}.id from ${d}) ${d}`,
     ),
   ];
 }
@@ -438,7 +486,7 @@ function targets(build: Build, condition: RelatedCondition): GraphSql {
     const t = nextAlias(build, "t");
     set = [
       text(
-        `select ${col(t, node.id)}::text as id from ${tableOf(build, node.name)} ${t} where ${col(t, link.field)}::text in (`,
+        `select ${asId(build, node.name, col(t, node.id))} as id from ${tableOf(build, node.name)} ${t} where ${asId(build, link.resource, col(t, link.field))} in (`,
       ),
       ...set,
       text(")"),
@@ -477,7 +525,7 @@ function closedRows(build: Build, above: RestrictedAncestors): GraphSql {
     const q = nextAlias(build, "q");
     return [
       text(
-        `select ${c}.descendant as id from ${quoteSqlName(closure)} ${c} join ${table} ${a} on ${col(a, above.id)}::text = ${c}.ancestor where ${c}.resource = `,
+        `select ${fromClosure(build, above.resource, `${c}.descendant`)} as id from ${quoteSqlName(closure)} ${c} join ${table} ${a} on ${asId(build, above.resource, col(a, above.id))} = ${fromClosure(build, above.resource, `${c}.ancestor`)} where ${c}.resource = `,
       ),
       { value: above.resource },
       text(
@@ -494,7 +542,7 @@ function closedRows(build: Build, above: RestrictedAncestors): GraphSql {
   const q = nextAlias(build, "q");
   return [
     text(
-      `select ${d}.id from (with recursive ${d}(id, level) as (select ${col(t, above.id)}::text, 0 from ${table} ${t} where ${col(t, above.field)} is true union select ${col(u, above.id)}::text, ${d}.level + 1 from ${table} ${u} join ${d} on ${col(u, above.parent)}::text = ${d}.id where ${d}.level < ${String(span)}) select ${d}.id from ${d}) ${d} union select ${col(w, above.id)}::text from ${table} ${w} where ${col(w, above.id)}::text not in (select ${r}.id from (with recursive ${r}(id, level) as (select ${col(v, above.id)}::text, 0 from ${table} ${v} where ${col(v, above.parent)} is null or not exists (select 1 from ${table} ${q} where ${col(q, above.id)} = ${col(v, above.parent)}) union select ${col(t, above.id)}::text, ${r}.level + 1 from ${table} ${t} join ${r} on ${col(t, above.parent)}::text = ${r}.id where ${r}.level < ${String(span)}) select ${r}.id from ${r}) ${r})`,
+      `select ${d}.id from (with recursive ${d}(id, level) as (select ${asId(build, above.resource, col(t, above.id))}, 0 from ${table} ${t} where ${col(t, above.field)} is true union select ${asId(build, above.resource, col(u, above.id))}, ${d}.level + 1 from ${table} ${u} join ${d} on ${asId(build, above.resource, col(u, above.parent))} = ${d}.id where ${d}.level < ${String(span)}) select ${d}.id from ${d}) ${d} union select ${asId(build, above.resource, col(w, above.id))} from ${table} ${w} where ${asId(build, above.resource, col(w, above.id))} not in (select ${r}.id from (with recursive ${r}(id, level) as (select ${asId(build, above.resource, col(v, above.id))}, 0 from ${table} ${v} where ${col(v, above.parent)} is null or not exists (select 1 from ${table} ${q} where ${col(q, above.id)} = ${col(v, above.parent)}) union select ${asId(build, above.resource, col(t, above.id))}, ${r}.level + 1 from ${table} ${t} join ${r} on ${asId(build, above.resource, col(t, above.parent))} = ${r}.id where ${r}.level < ${String(span)}) select ${r}.id from ${r}) ${r})`,
     ),
   ];
 }
@@ -533,7 +581,7 @@ export function relatedSql(
   const parts: GraphSqlPart[] = [
     text("coalesce("),
     { column: condition.field },
-    text("::text in ("),
+    text(`${inCast(build, condition.resource)} in (`),
     ...targets(build, condition),
     text("), false)"),
   ];
@@ -552,7 +600,7 @@ export function relatedSql(
       { column: above.parent },
       text(" is null or "),
       { column: above.parent },
-      text("::text not in ("),
+      text(`${inCast(build, above.resource)} not in (`),
       ...closedRows(build, above),
       text("))"),
     );

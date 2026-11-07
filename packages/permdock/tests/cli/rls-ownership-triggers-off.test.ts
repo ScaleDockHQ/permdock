@@ -13,6 +13,7 @@ const base: RlsSqlContext = {
   tenantClaim: "tenant_id",
   scopes,
   gucPrefix: "app",
+  actions: { accept: "none", disable: "none", pay: "none" },
   authorize: "database",
   memberships: {
     scopes: {

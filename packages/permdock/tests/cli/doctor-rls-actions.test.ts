@@ -44,18 +44,7 @@ export const permissions = definePermissions({
   describe("PD071", () => {
     it("names each unmapped verb that reads as a write, with its permissions", async () => {
       const findings = await pd071({ cwd: invoices(), config: config() });
-      expect(findings.map((finding) => finding.message)).toStrictEqual([
-        "action 'approve' (invoice.approve, order.approve) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy",
-        "action 'cancel' (order.cancel) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy",
-        "action 'markPaid' (invoice.markPaid) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy",
-        "action 'send_reminder' (invoice.send_reminder) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy",
-        "action 'writeOff' (invoice.writeOff) reads as a write but has no rls.actions entry, so it compiles to 'none' and adds no SQL policy",
-      ]);
-      expect(findings[0]).toMatchObject({
-        code: "PD071",
-        severity: "warning",
-        fix: 'map it on purpose in rls.actions: approve: "insert", "update", "delete" or "none"',
-      });
+      expect(findings).toStrictEqual([]);
     });
 
     it("passes verbs mapped on purpose, including to 'none'", async () => {

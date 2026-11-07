@@ -62,6 +62,8 @@ export type RlsRunInput = {
   readonly schema: string | undefined;
   readonly memberships: string | undefined;
   readonly format: string | undefined;
+  /** `rls verify --personas roles`: one pgTAP persona per fixture role. */
+  readonly personas?: string | undefined;
   readonly rbac: boolean;
   readonly rbacSchema: string | undefined;
   readonly authorize: string | undefined;
@@ -465,12 +467,19 @@ export async function runRls(input: RlsRunInput): Promise<CommandResult> {
       if (format !== "node" && format !== "pgtap") {
         return { code: 2, output: "rls verify --format must be pgtap or node" };
       }
+      if (input.personas === "roles" && format !== "pgtap") {
+        return {
+          code: 2,
+          output: "rls verify --personas roles needs --kind pgtap",
+        };
+      }
       const verified = await runRlsVerify({
         cwd: input.cwd,
         config: input.config,
         format,
         tree: input.tree,
         io: input.io,
+        ...(input.personas === undefined ? {} : { personas: input.personas }),
         ...(input.out === undefined ? {} : { out: input.out }),
         ...(input.fixtures === undefined ? {} : { fixtures: input.fixtures }),
         ...(input.db === undefined ? {} : { db: input.db }),

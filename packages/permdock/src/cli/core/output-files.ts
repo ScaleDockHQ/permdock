@@ -110,6 +110,24 @@ export function parseSplit(
   return SPLIT_PARTS.filter((part) => names.includes(part));
 }
 
+/** Whether `rel` sits in the pg-delta schema directory, `{part}` paths included. */
+export function underSchemaDir(rel: string, schemaDir: string): boolean {
+  const root = schemaDir.replace(/\/$/u, "");
+  return rel === root || rel.startsWith(`${root}/`);
+}
+
+/**
+ * A Realtime or Storage policy file beside the schema directory. A scoped sync
+ * loads only that directory, and its shadow database has neither
+ * `realtime.messages` nor `storage.objects`.
+ */
+export function serviceRel(schemaDir: string, file: string): string {
+  const root = schemaDir.replace(/\/$/u, "");
+  const slash = root.lastIndexOf("/");
+  const parent = slash === -1 ? "." : root.slice(0, slash);
+  return `${parent}/service/${file}`;
+}
+
 /** The path of one split part: `{part}` in `out` replaced by the part name. */
 export function partPath(out: string, part: SplitPart): string {
   return out.replaceAll("{part}", part);

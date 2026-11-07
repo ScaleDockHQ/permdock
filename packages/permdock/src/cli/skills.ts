@@ -2,12 +2,10 @@ import {
   cpSync,
   existsSync,
   lstatSync,
-  mkdirSync,
   readdirSync,
   readFileSync,
   readlinkSync,
   realpathSync,
-  writeFileSync,
 } from "node:fs";
 import { findPackageJSON } from "node:module";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -18,7 +16,7 @@ import type { CommandResult } from "./core/result.ts";
 import { byCodePoint } from "../core/compare.ts";
 import { didYouMean } from "./core/args.ts";
 import { nonEmptyOr } from "./core/output.ts";
-import { readJsonFile } from "./files.ts";
+import { readJsonFile, writeFileEnsuringDir } from "./files.ts";
 import { packageRoot } from "./project/package-root.ts";
 
 const SKILL_NAMES = [
@@ -114,8 +112,7 @@ export function runSkillsInstall(input: {
     cpSync(target.from, target.real, { recursive: true });
     copied.push(target.shown);
   }
-  mkdirSync(join(input.cwd, ".permdock"), { recursive: true });
-  writeFileSync(
+  writeFileEnsuringDir(
     join(input.cwd, ".permdock/skills-lock.json"),
     `${JSON.stringify({ version, skills: [...SKILL_NAMES] }, null, 2)}\n`,
   );

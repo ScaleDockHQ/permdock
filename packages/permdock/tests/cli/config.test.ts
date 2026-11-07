@@ -136,9 +136,9 @@ export default { permissions };
       );
       expect(parsed.config.permissions).toBe("./src/permissions.ts");
       expect(parsed.warnings).toStrictEqual([
-        "permdock.config.ts: unknown key collect.srcPaths; PermDock reads srcPath, out, barrel",
+        "[unknown_key] permdock.config.ts: unknown key collect.srcPaths; PermDock reads srcPath, out, barrel",
         expect.stringMatching(
-          /^permdock\.config\.ts: unknown key polcy; PermDock reads permissions, policy, operations, collect/u,
+          /^\[unknown_key\] permdock\.config\.ts: unknown key polcy; PermDock reads permissions, policy, operations, collect/u,
         ),
       ]);
     });
@@ -213,7 +213,10 @@ export default { permissions };
   describe("the config shape registry", () => {
     it("lists a section for every config key that is not a module path", () => {
       expectTypeOf<keyof typeof CONFIG_SHAPE>().toEqualTypeOf<
-        Exclude<keyof PermDockConfig, "permissions" | "policy" | "operations">
+        Exclude<
+          keyof PermDockConfig,
+          "permissions" | "policy" | "operations" | "plugins" | "seeds"
+        >
       >();
       expect(Object.keys(CONFIG_SHAPE).toSorted()).toStrictEqual([
         "betterSupabase",
@@ -312,7 +315,7 @@ export default { permissions };
         other,
       ]);
       expect(result.stdout).toMatch(
-        /^config\/permdock\.ts: 2 warnings\n {2}warn config\/permdock\.ts: unknown key catlog/u,
+        /^config\/permdock\.ts: 2 warnings\n {2}warn \[unknown_key\] config\/permdock\.ts: unknown key catlog/u,
       );
       const clean = project({
         "permdock.config.mjs":
@@ -333,7 +336,7 @@ export default { permissions };
     it("warns on stderr when another command reads the config", async () => {
       const result = await run(["usage", "--cwd", cwd]);
       expect(result.stderr).toContain(
-        "permdock: warning: permdock.config.ts: unknown key doctr",
+        "permdock: warning: [unknown_key] permdock.config.ts: unknown key doctr",
       );
     });
 

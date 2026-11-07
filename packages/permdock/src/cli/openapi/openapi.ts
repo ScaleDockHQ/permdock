@@ -20,58 +20,8 @@ import {
   loadModule,
   pickNamed,
 } from "../project/load.ts";
+import { mergeRecord, mergeSchemes, stableJson } from "./emit/merge.ts";
 import { validateOpenapi, validateOverlay } from "./schema.ts";
-
-function mergeRecord(
-  base: Readonly<Record<string, unknown>>,
-  extra: Readonly<Record<string, unknown>>,
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(base)) {
-    result[key] = value;
-  }
-  for (const [key, value] of Object.entries(extra)) {
-    result[key] = value;
-  }
-  return result;
-}
-
-/**
- * Keeps what the document already says about a scheme (flow URLs, other flows,
- * description); PermDock owns the scopes.
- */
-function mergeSchemes(
-  existing: Readonly<Record<string, unknown>>,
-  emitted: Readonly<Record<string, unknown>>,
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [name, scheme] of Object.entries(emitted)) {
-    const before = existing[name];
-    if (!isRecord(before) || !isRecord(scheme)) {
-      result[name] = scheme;
-      continue;
-    }
-    const beforeFlows = isRecord(before["flows"]) ? before["flows"] : {};
-    const flows: Record<string, unknown> = { ...beforeFlows };
-    for (const [kind, flow] of Object.entries(
-      isRecord(scheme["flows"]) ? scheme["flows"] : {},
-    )) {
-      const previous = beforeFlows[kind];
-      flows[kind] =
-        isRecord(previous) && isRecord(flow) ? { ...previous, ...flow } : flow;
-    }
-    result[name] = {
-      ...before,
-      ...scheme,
-      ...(isRecord(scheme["flows"]) ? { flows } : {}),
-    };
-  }
-  return result;
-}
-
-function stableJson(value: unknown): string {
-  return `${JSON.stringify(value, null, 2)}\n`;
-}
 
 async function loadPolicy(
   cwd: string,
@@ -294,6 +244,8 @@ export async function runOpenapi(input: {
   readonly tokenUrl?: string | undefined;
   readonly deviceAuthorizationUrl?: string | undefined;
   readonly io: CliIo;
+  /** Return the document text and do not write it. */
+  readonly preview?: boolean;
 }): Promise<CommandResult> {
   const action = input.rest[0] ?? "emit";
   if (action !== "emit") {
@@ -391,6 +343,9 @@ export async function runOpenapi(input: {
     return { code: 1, output: conformance };
   }
   const text = stableJson(result);
+  if (input.preview === true) {
+    return { code: 0, output: text };
+  }
   const outFile = input.out ?? input.doc;
   const outPath = resolve(input.cwd, outFile);
   if (input.check) {

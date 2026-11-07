@@ -5,7 +5,8 @@ create role anon nologin;
 create role supabase_auth_admin nologin;
 `;
 
-const AUTH = `
+/** The `auth` schema a Supabase project has before generated helpers run. */
+export const AUTH = `
 alter default privileges grant all on tables to anon, authenticated;
 create schema auth;
 create table auth.users (id uuid primary key, raw_app_meta_data jsonb not null default '{}');

@@ -26,6 +26,10 @@ An app that imported `defineApp` from `permdock` changes the import and the name
 
 `forClient(client)` joins the members. It binds `memberships`, `customRoles` and `subjects` from the `sources(client)` option for a client that exists only per request or lazily. The result is a definition like any other, so `createPermDock`, `authorizer` and `permdockFor` take it unchanged.
 
+## Amendment, 2026-11-06
+
+[0061](./0061-better-supabase-define-permdock.md) puts `definePermDock` for a better-supabase app in `permdock/better-supabase`. `.next` and `.authorizer` live on that definition. `permdock/app` still has neither, so the entry does not load the optional peers.
+
 ## Alternatives considered
 
 - Keep `defineApp` and add `definePermDock` beside it: two ways to bind the same options.

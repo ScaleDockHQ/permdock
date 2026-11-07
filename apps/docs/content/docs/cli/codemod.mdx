@@ -3,14 +3,14 @@ title: codemod
 description: Rename the identifiers a permdock release renamed, in every file that imports permdock, rewrite the call shapes it can tie to an import, and list the rest for a manual edit.
 ---
 
-`permdock codemod 0.5` applies the 0.5.0 renames to your source. It rewrites imports from `permdock` and `permdock/*` and every reference bound to them. Then it lists the sites it would not change on its own, each with `file:line:column`. It exits `0` whether or not it found anything; run your type checker afterwards.
+`permdock codemod 0.17` rewrites the object literals 0.17.0 reshaped. `permdock codemod 0.26` rewrites a stored catalog-v1 document and the generate commands 0.26 removed. It lists the sites it would not change on its own, each with `file:line:column`. It exits `0` whether or not it found anything; run your type checker afterwards.
 
 ## Usage
 
 ```bash
-permdock codemod 0.5                      # every source file under the working directory
-permdock codemod 0.5 src apps/web --dry-run # report only, write nothing
-permdock codemod 0.5 src --json           # the report as JSON
+permdock codemod 0.26                      # every source file under the working directory
+permdock codemod 0.26 src apps/web --dry-run # report only, write nothing
+permdock codemod 0.17 src --json           # the report as JSON
 ```
 
 The positional arguments after the version are files or directories; the default is the working directory. The command reads `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.vue` and `.svelte` files and skips `node_modules`, `dist`, `.git`, `.next`, `.turbo`, `.svelte-kit` and `coverage`. In a Vue or Svelte file it rewrites each `<script>` block. A file that imports no `permdock` entry is never changed, except a `permdock.config.*` file.
@@ -23,11 +23,11 @@ The positional arguments after the version are files or directories; the default
 
 The codemod rewrites files in place, so in [agent mode](/docs/cli/agent-mode) a run without `--dry-run` first asks for the person's consent (`rewrite`).
 
-The version is `0.5`, `0.8` or `0.17` (`0.5.0` and `v0.5` are read the same way). Any other version is a usage error that names the supported ones, exit `2`.
+The version is `0.17` or `0.26` (`0.17.0` and `v0.17` are read the same way). Any other version is a usage error that names the supported ones, exit `2`. The 0.5 and 0.8 rename tables are history on the [Naming](/docs/getting-started/naming) page.
 
 ## What it renames
 
-The rename map is `packages/permdock/src/cli/codemod/renames-0.5.ts`; the [Naming](/docs/getting-started/naming#renamed-in-050) page lists every row. A row renames an identifier only where it is imported from one of the entries the row names, so a local `memorySink` of your own stays as it is.
+The 0.5.0 names are history on the [Naming](/docs/getting-started/naming#renamed-in-050) page. `permdock codemod` no longer applies that table. A row renamed an identifier only where it was imported from one of the entries the row names, so a local `memorySink` of your own stayed as it was.
 
 | Source                                              | Result                                                                                                                                                  |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -71,7 +71,7 @@ A flag that needs a person's choice is a follow-up, not a rewrite: `cloud push -
 
 ## Config keys in 0.8
 
-`permdock codemod 0.8` moves the `rls` keys 0.8.0 folded into named scopes. It edits the object passed to `defineConfig` and the default export of a `permdock.config.*` file; the rows live in `packages/permdock/src/cli/codemod/renames-0.8.ts`.
+`permdock codemod` no longer applies the 0.8.0 config moves. This table is the history of the keys 0.8.0 folded into named scopes.
 
 | Source                                                                                      | Result                                          |
 | ------------------------------------------------------------------------------------------- | ----------------------------------------------- |

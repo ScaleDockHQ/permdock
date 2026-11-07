@@ -14,7 +14,7 @@ import { MIGRATION_DIRS } from "./shared/constants.ts";
 import { resolveSchemas } from "./supabase-schemas.ts";
 
 const HELPER_NAME =
-  /^(?:permdock_has|permitted_[a-z][a-z0-9_]*_ids|member_[a-z][a-z0-9_]*_ids(?:_for)?)$/u;
+  /^(?:permdock_has|permitted_[a-z][a-z0-9_]*_ids|member_[a-z][a-z0-9_]*_ids(?:_for|_of)?)$/u;
 
 function escape(text: string): string {
   return text.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);

@@ -242,7 +242,7 @@ describe("compileGrants approval grants", () => {
     const warnings: string[] = [];
     const { branches } = compileGrants(
       withApprovals,
-      ctx,
+      { ...ctx, actions: { pay: "none", void: "none", close: "none" } },
       undefined,
       warnings,
       false,

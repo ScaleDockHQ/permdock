@@ -113,7 +113,7 @@ describe("schemas/cli-commands-v1.json", () => {
   it("is printed only when asked for, not by default in agent mode", async () => {
     for (const argv of [
       ["--help", "--agent", "yes"],
-      ["rls", "generate", "--help", "--agent", "yes"],
+      ["rls", "verify", "--help", "--agent", "yes"],
     ]) {
       const { code, stdout } = await run(argv);
       expect(code).toBe(0);

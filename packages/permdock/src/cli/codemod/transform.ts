@@ -6,7 +6,7 @@ import type {
   ImportBinding,
   RenameSet,
 } from "./context.ts";
-import type { Rename } from "./renames-0.5.ts";
+import type { Rename } from "./context.ts";
 
 import { parseSync } from "../core/optional.ts";
 import {

@@ -12,7 +12,6 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { OpenApiPermDockOptions } from "../../src/openapi/types.ts";
 
-import { run } from "../../src/cli/core/run.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import {
   allow,
@@ -22,6 +21,7 @@ import {
   role,
 } from "../../src/index.ts";
 import { createPermDock } from "../../src/openapi/index.ts";
+import { openapiEmit } from "../cli/rls-call.ts";
 
 const ROOT = path.join(import.meta.dirname, "../../../..");
 const PAGE = readFileSync(
@@ -284,10 +284,8 @@ describe("OpenAPI registries", () => {
       };
       Object.assign(document.paths["/posts/{id}"]?.["delete"] ?? {}, foreign);
       writeFileSync(file, JSON.stringify(document));
-      const emitted = await run(
+      const emitted = await openapiEmit(
         [
-          "openapi",
-          "emit",
           "--doc",
           "openapi.json",
           "--out",

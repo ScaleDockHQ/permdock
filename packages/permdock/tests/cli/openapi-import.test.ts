@@ -13,6 +13,7 @@ import type { Permission } from "../../src/index.ts";
 
 import { run } from "../../src/cli/core/run.ts";
 import { listPermissions } from "../../src/index.ts";
+import { openapiEmit } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TMP = join(HERE, "../../tmp");
@@ -248,10 +249,8 @@ paths:
         "x-permdock-permissions": ["post.read"],
         "x-vendor-note": "kept",
       });
-      const emitted = await run(
+      const emitted = await openapiEmit(
         [
-          "openapi",
-          "emit",
           "--doc",
           "openapi.json",
           "--out",

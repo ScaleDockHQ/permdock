@@ -116,7 +116,10 @@ export type SupabaseManifestResourceNames = {
   /** Graph resources only: `permitted_<resource>_ids` and its restriction check. */
   readonly permittedIds?: string;
   readonly restricted?: string;
-  /** With `rls.rowHelpers` naming the resource. */
+  /**
+   * With `rls.rowHelpers` naming the resource. `idType` is required with
+   * `rows`.
+   */
   readonly rows?: string;
   readonly row?: string;
   readonly idType?: string;
@@ -293,6 +296,11 @@ export type SupabaseManifestRls = {
    * `database` mode).
    */
   readonly customRoles?: boolean;
+  /**
+   * `rls.customRoleWrites.roles.tenant`: the tenant column of the custom-role
+   * table. A role source's `where` treats a non-null value as a custom role.
+   */
+  readonly customRoleTenant?: string;
   /** The global-roles table the hook and the `database` mode helpers read. */
   readonly roles?: {
     readonly table: string;

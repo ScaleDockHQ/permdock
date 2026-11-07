@@ -32,6 +32,7 @@ import {
   actionApproval,
   actionRunner,
   approvalHandle,
+  assignablePermissionsView,
   describeWith,
   filterResult,
   gateView,
@@ -230,20 +231,25 @@ type AssignableOptions =
 
 export function assignablePermissions(
   options: AssignableOptions = {},
-): Readable<readonly Permission[]> {
+): Readable<{
+  readonly permissions: readonly Permission[];
+  readonly status: "ready" | "server-only";
+}> {
   return assignablePermissionsFor(getStore(), options);
 }
 
 export function assignablePermissionsFor(
   store: ClientStore,
   options: AssignableOptions = {},
-): Readable<readonly Permission[]> {
+): Readable<{
+  readonly permissions: readonly Permission[];
+  readonly status: "ready" | "server-only";
+}> {
   return fromStore(store, () =>
-    store
-      .get()
-      .assignablePermissions(
-        typeof options === "function" ? options() : options,
-      ),
+    assignablePermissionsView(
+      store.get(),
+      typeof options === "function" ? options() : options,
+    ),
   );
 }
 

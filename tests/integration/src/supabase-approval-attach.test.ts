@@ -5,7 +5,6 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { supabaseApprovalStore } from "permdock/supabase";
 import { testApprovalStore } from "permdock/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -13,6 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -113,10 +113,9 @@ describe("supabase approval attach", () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-approval-attach-"));
     try {
       const out = join(dir, "rls.sql");
-      const result = await run(
-        ["rls", "generate", "--target", "sql", "--out", out],
-        { cwd: join(HERE, "../fixtures/approvals-attach") },
-      );
+      const result = await rlsGenerate(["--target", "sql", "--out", out], {
+        cwd: join(HERE, "../fixtures/approvals-attach"),
+      });
       if (result.code !== 0) {
         throw new Error(`rls generate: ${result.stdout}`);
       }

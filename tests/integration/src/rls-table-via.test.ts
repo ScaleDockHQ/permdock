@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDock } from "permdock";
-import { run } from "permdock/cli";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -11,6 +10,7 @@ import type { Postgres } from "./support/postgres.ts";
 
 import { permissions, policy } from "../fixtures/table-via/policy.ts";
 import { startPostgres, databaseUri } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const FIXTURE = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -45,10 +45,9 @@ describe("rls.tables via", () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-table-via-"));
     try {
       const out = join(dir, "via.sql");
-      const result = await run(
-        ["rls", "generate", "--target", "sql", "--out", out],
-        { cwd: FIXTURE },
-      );
+      const result = await rlsGenerate(["--target", "sql", "--out", out], {
+        cwd: FIXTURE,
+      });
       if (result.code !== 0) {
         throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
       }

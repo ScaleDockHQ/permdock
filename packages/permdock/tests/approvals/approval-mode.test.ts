@@ -100,29 +100,25 @@ describe("approval mode with the principal's own agent", () => {
 });
 
 describe(readWireApproval, () => {
-  it("reads a v1 record written before 0.17 under the current names", () => {
-    expect(
+  it("fails closed on a pre-0.17 stored approval", () => {
+    expect(() =>
       readWireApproval({
         stages: [{ by: { kind: "authenticated" } }],
         mode: "sequential",
         distinct: false,
       }),
-    ).toStrictEqual({
-      stages: [{ by: { kind: "authenticated" } }],
-      combine: "sequential",
-      mode: "confirm",
-    });
-    expect(readWireApproval({ by: "x", distinct: true })).toStrictEqual({
-      by: "x",
-    });
+    ).toThrow(/pre-0\.17/u);
+    expect(() => readWireApproval({ by: "x", distinct: true })).toThrow(
+      /pre-0\.17/u,
+    );
     const current = { combine: "all", mode: "confirm" } as const;
     expect(readWireApproval(current)).toBe(current);
     expect(readWireApproval("human")).toBe("human");
   });
 
-  it("lets a legacy sequential request admit only the first open stage", async () => {
+  it("fails closed when a stored request still uses mode sequential", async () => {
     const store = memoryApprovalStore();
-    // SAFETY: a stored v1 record from before 0.17, which the type no longer describes.
+    // SAFETY: a stored record from before 0.17, which the type no longer describes.
     const legacy = {
       stages: [
         { by: { kind: "user", id: "u_a" } },
@@ -136,6 +132,6 @@ describe(readWireApproval, () => {
         status: "approved",
         by: { principal: { id: "u_b", roles: [] }, context: {} },
       }),
-    ).rejects.toMatchObject({ code: "approver-not-eligible" });
+    ).rejects.toThrow(/pre-0\.17/u);
   });
 });

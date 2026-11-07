@@ -4,6 +4,7 @@ import type { Snapshot } from "../../src/core/snapshot-types.ts";
 import type { CustomRole, Principal } from "../../src/core/subject.ts";
 import type { LocalSnapshotData } from "../../src/react-native/local.ts";
 
+import { assignablePermissionsView } from "../../src/client/views.ts";
 import { principal } from "../../src/conditions/refs.ts";
 import { fromSnapshot } from "../../src/core/from-snapshot.ts";
 import { allow, deny } from "../../src/core/grant-builders.ts";
@@ -328,6 +329,7 @@ describe(localSnapshot, () => {
         );
         const active = snapshot.tenants[0];
         const label = `${user.id} in ${String(tenant)}`;
+        expect(snapshot.local).toBe(true);
         expect(snapshot.assignable ?? [], `${label} assignable`).toStrictEqual(
           (serverRaw.assignable ?? []).filter(
             (entry) => entry.tenant === active,
@@ -335,6 +337,7 @@ describe(localSnapshot, () => {
         );
         const server = fromSnapshot(serverRaw);
         const device = fromSnapshot(snapshot);
+        expect(assignablePermissionsView(device).status).toBe("server-only");
         expect(
           device.assignableRoles().map((leaf) => leaf.key),
           `${label} roles`,

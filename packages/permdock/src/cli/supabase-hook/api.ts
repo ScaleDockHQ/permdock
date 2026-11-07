@@ -9,15 +9,10 @@ import {
 import { configError } from "../core/errors.ts";
 import { resolveAuthorize } from "../rls/rbac.ts";
 import { activeRowSql } from "../sql/active.ts";
-import {
-  quoteIdent,
-  quoteLiteral,
-  quoteQualified,
-  quoteTable,
-} from "../sql/quote.ts";
+import { quoteIdent, quoteLiteral, quoteTable } from "../sql/quote.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
-import { MEMBERSHIP_ENTRIES_FOR, heldSql } from "./entries.ts";
+import { MEMBERSHIPS_FOR, heldSql } from "./entries.ts";
 import { typedUsers } from "./memberships.ts";
 
 const SUBJECT_FOR = "subject_for";
@@ -52,10 +47,13 @@ export function subjectForSql(parts: Parts, config: PermDockConfig): string {
     teamsConfig === undefined
       ? ""
       : `
-  select coalesce(jsonb_agg(to_jsonb(t.${quoteIdent(teamsConfig.team)}::text) order by t.${quoteIdent(teamsConfig.team)}), '[]'::jsonb)
-    into team_ids
-    from ${quoteQualified(teamsConfig.table)} t
-    where t.${quoteIdent(teamsConfig.user)} = uid;
+  select coalesce((
+    select jsonb_agg(to_jsonb(u.id::text) order by u.n)
+    from unnest(array(
+      select team_id from ${schema}.member_team_ids_for(uid) as team(team_id)
+    )) with ordinality as u(id, n)
+  ), '[]'::jsonb)
+    into team_ids;
   if team_ids <> '[]'::jsonb then
     claims := jsonb_set(claims, '{team_ids}', team_ids);
   end if;`;
@@ -94,7 +92,7 @@ begin
 ${roles}
   select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text), '[]'::jsonb)
     into memberships
-    from ${schema}.${MEMBERSHIP_ENTRIES_FOR}(uid) x;${custom}${version}${teams}${extra}
+    from ${schema}.${MEMBERSHIPS_FOR}(uid) x;${custom}${version}${teams}${extra}
   return jsonb_strip_nulls(jsonb_build_object(
     'claims', case when claims = '{}'::jsonb then null else claims end,
     'id', uid::text,

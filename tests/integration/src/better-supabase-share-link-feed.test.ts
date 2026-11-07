@@ -11,7 +11,6 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPermDockSync } from "permdock";
 import { subjectFromShareLink } from "permdock/better-supabase";
-import { run } from "permdock/cli";
 import { exchangeCapability } from "permdock/supabase";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -20,6 +19,7 @@ import {
   policy,
   quotes,
 } from "../fixtures/capabilities/policy.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/capabilities");
@@ -146,10 +146,9 @@ describe("a no-expiry better-supabase share link as a feed", () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-share-feed-"));
     const out = join(dir, "rls.sql");
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const result = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
     }

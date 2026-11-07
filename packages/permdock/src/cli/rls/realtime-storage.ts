@@ -1,3 +1,4 @@
+import type { Policy } from "../../index.ts";
 import type { CompiledPolicy, SqlCommand } from "../sql/compile.ts";
 import type { RlsSqlContext } from "../sql/context.ts";
 import type {
@@ -8,7 +9,10 @@ import type {
 } from "../types.ts";
 
 import { configError } from "../core/errors.ts";
-import { qualified, quoteLiteral } from "../sql/quote.ts";
+import { idTypeOf, scopeTypeOf } from "../sql/columns.ts";
+import { tableFor } from "../sql/compile.ts";
+import { graphSqlName } from "../sql/names.ts";
+import { qualified, quoteLiteral, quoteQualified } from "../sql/quote.ts";
 import { permittedByPermissionHelper } from "./permission-keys.ts";
 
 /**
@@ -43,6 +47,7 @@ function grantKey(
   ref: RlsPermissionRef | undefined,
   where: string,
   warnings: string[],
+  conditioned: "scope" | "row",
 ): string | undefined {
   if (ref === undefined) {
     return undefined;
@@ -54,12 +59,40 @@ function grantKey(
       `PermDock CLI: ${where} must be a permission reference from the definitions (got ${JSON.stringify(key)})`,
     );
   }
-  if (facts.rowConditions.has(key)) {
+  if (conditioned === "scope" && facts.rowConditions.has(key)) {
     warnings.push(
       `${where} is ${key}, whose grants carry row conditions (a relation, a where or another condition): the policy admits only the instances its role allows without a condition reach, through permitted_<scope>_ids_by_permission`,
     );
   }
   return key;
+}
+
+/**
+ * Resources a storage bucket calls `can_<resource>(id, permission)` for. Those
+ * id helpers have to exist even when `rls.rowHelpers` does not name them.
+ */
+export function storageResources(
+  storage: RlsStorage | undefined,
+): readonly string[] {
+  if (storage === undefined) {
+    return [];
+  }
+  const names = new Set<string>();
+  for (const bucket of Object.values(storage.buckets)) {
+    for (const ref of [bucket.read, bucket.write, bucket.delete]) {
+      if (ref !== undefined) {
+        names.add(resourceOf(ref.key));
+      }
+    }
+  }
+  return [...names].toSorted();
+}
+
+/** The resource a permission key names, before its action, group and level. */
+function resourceOf(key: string): string {
+  const base = key.split("#")[0]?.split("@")[0] ?? key;
+  const dot = base.lastIndexOf(".");
+  return dot <= 0 ? base : base.slice(0, dot);
 }
 
 function declaredScope(
@@ -126,8 +159,20 @@ function realtimePolicies(
       `extension in ('broadcast', 'presence')
     and ${TOPIC} ~ ${quoteLiteral(regex)}
     and ${permitted(ctx, id, scope, key)}`;
-    const read = grantKey(facts, topic.read, `${where}.read`, warnings);
-    const write = grantKey(facts, topic.write, `${where}.write`, warnings);
+    const read = grantKey(
+      facts,
+      topic.read,
+      `${where}.read`,
+      warnings,
+      "scope",
+    );
+    const write = grantKey(
+      facts,
+      topic.write,
+      `${where}.write`,
+      warnings,
+      "scope",
+    );
     if (read === undefined) {
       throw configError(`PermDock CLI: ${where}.read is required`);
     }
@@ -165,19 +210,62 @@ function folderOf(bucket: RlsStorageBucket, where: string): number {
   return folder;
 }
 
+/**
+ * The column that holds `scope` on `resource`: a `memberOf` relation's field.
+ * The folder id is that scope instance, and also the resource id.
+ */
+function memberField(
+  policy: Policy | undefined,
+  resource: string,
+  scope: string,
+): string | undefined {
+  const node = policy?.resources.get(resource);
+  if (node === undefined) {
+    return undefined;
+  }
+  for (const relation of Object.values(node.relations)) {
+    if ("memberOf" in relation && relation.memberOf === scope) {
+      return relation.field;
+    }
+  }
+  return undefined;
+}
+
 function storagePolicies(
   ctx: RlsSqlContext,
   facts: HelperTableFacts,
   storage: RlsStorage,
   warnings: string[],
+  policy: Policy | undefined,
 ): CompiledPolicy[] {
   return Object.entries(storage.buckets).flatMap(([id, bucket]) => {
     const where = `rls.storage.buckets['${id}']`;
-    const scope = declaredScope(facts, bucket.scope, `${where}.scope`);
+    declaredScope(facts, bucket.scope, `${where}.scope`);
     const folder = folderOf(bucket, where);
-    const condition = (key: string): string =>
-      `bucket_id = ${quoteLiteral(id)}
-    and ${permitted(ctx, `(storage.foldername(name))[${String(folder)}]`, scope, key)}`;
+    const condition = (key: string): string => {
+      const resource = resourceOf(key);
+      const sql = graphSqlName(resource);
+      if (sql === undefined) {
+        throw configError(
+          `PermDock CLI: ${where} permission '${key}' does not name a SQL resource`,
+        );
+      }
+      const path = `(storage.foldername(name))[${String(folder)}]`;
+      const idType = idTypeOf(ctx, resource);
+      const node = policy?.resources.get(resource);
+      const idName = node?.id ?? "id";
+      const pairs = [`${quoteLiteral(idName)}, ${path}::${idType}`];
+      const scopeField = memberField(policy, resource, bucket.scope);
+      if (scopeField !== undefined && scopeField !== idName) {
+        pairs.push(
+          `${quoteLiteral(scopeField)}, ${path}::${scopeTypeOf(ctx, bucket.scope)}`,
+        );
+      }
+      const table = quoteQualified(tableFor(resource, ctx.graph?.tables));
+      const row = `json_populate_record(null::${table}, json_build_object(${pairs.join(", ")}))`;
+      return `bucket_id = ${quoteLiteral(id)}
+    and ${qualified(ctx, `can_${sql}`)}(${row}, ${quoteLiteral(key)}::text)`;
+    };
     const commands: readonly [
       SqlCommand,
       RlsPermissionRef | undefined,
@@ -189,7 +277,7 @@ function storagePolicies(
       ["delete", bucket.delete, "delete"],
     ];
     const policies = commands.flatMap(([command, ref, field]) => {
-      const key = grantKey(facts, ref, `${where}.${field}`, warnings);
+      const key = grantKey(facts, ref, `${where}.${field}`, warnings, "row");
       if (key === undefined) {
         return [];
       }
@@ -217,17 +305,18 @@ function storagePolicies(
 
 /**
  * The `realtime.messages` and `storage.objects` policies `rls.realtime` and
- * `rls.storage` describe. Each one admits a row only where the subject holds
- * the permission in the scope instance its topic segment or folder names,
- * through an allow without a row condition, so the helpers' API-key ceiling and
- * suspension rules apply and a relationship grant on the same permission never
- * reaches a topic or a folder.
+ * `rls.storage` describe. A topic admits a row only where the subject holds the
+ * permission in the scope instance its segment names, through an allow without
+ * a row condition. A bucket builds a row whose id and scope column are the
+ * folder, each cast to that column's type, and calls `can_<resource>` so the
+ * resource's row conditions apply.
  */
 export function realtimeStoragePolicies(
   ctx: RlsSqlContext,
   facts: HelperTableFacts,
   config: { readonly realtime?: RlsRealtime; readonly storage?: RlsStorage },
   warnings: string[] = [],
+  policy?: Policy,
 ): readonly CompiledPolicy[] {
   if (config.realtime === undefined && config.storage === undefined) {
     return [];
@@ -243,7 +332,7 @@ export function realtimeStoragePolicies(
       : realtimePolicies(ctx, facts, config.realtime, warnings)),
     ...(config.storage === undefined
       ? []
-      : storagePolicies(ctx, facts, config.storage, warnings)),
+      : storagePolicies(ctx, facts, config.storage, warnings, policy)),
   ];
   const seen = new Set<string>();
   for (const { name } of policies) {

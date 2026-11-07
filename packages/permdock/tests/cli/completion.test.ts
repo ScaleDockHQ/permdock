@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
 
+import type { CliContext } from "../../src/cli/core/context.ts";
+
+import { completion as completionCommand } from "../../src/cli/commands/completion.ts";
 import { candidates, SHELLS } from "../../src/cli/core/completion.ts";
 import { leaves } from "../../src/cli/core/manifest.ts";
 import { run } from "../../src/cli/core/run.ts";
 import { ARCHETYPES, FEATURES } from "../../src/preset/index.ts";
 
 describe("permdock completion", () => {
+  it("rejects a shell that was not given", () => {
+    expect(() =>
+      completionCommand.run(
+        // SAFETY: this leaf reads only the shell positional.
+        undefined as unknown as CliContext,
+        { args: {}, flags: {}, rest: [], passthrough: [] },
+      ),
+    ).toThrow("unknown shell ''");
+  });
+
   it.each(SHELLS)("matches the recorded %s script", async (shell) => {
     const { code, stdout } = await run(["completion", shell]);
     expect(code).toBe(0);
@@ -28,9 +41,9 @@ describe("permdock completion", () => {
   });
 
   it("prints one candidate per line through __complete", async () => {
-    const { code, stdout } = await run(["__complete", "--", "rls", "gen"]);
+    const { code, stdout } = await run(["__complete", "--", "rls", "ver"]);
     expect(code).toBe(0);
-    expect(stdout).toBe("generate\n");
+    expect(stdout).toBe("verify\n");
   });
 });
 
@@ -55,8 +68,8 @@ describe("completion candidates", () => {
 
   it("offers global flags on a group and leaf flags on a leaf", async () => {
     expect(await candidates(["rls", "--j"])).toStrictEqual(["--json"]);
-    expect(await candidates(["rls", "generate", "--sp"])).toStrictEqual([
-      "--split",
+    expect(await candidates(["rls", "verify", "--k"])).toStrictEqual([
+      "--kind",
     ]);
   });
 
@@ -80,7 +93,7 @@ describe("completion candidates", () => {
   });
 
   it("offers nothing after a plain string flag, so the shell lists files", async () => {
-    expect(await candidates(["rls", "generate", "--out", ""])).toStrictEqual(
+    expect(await candidates(["rls", "verify", "--fixtures", ""])).toStrictEqual(
       [],
     );
   });
@@ -95,14 +108,6 @@ describe("completion candidates", () => {
   });
 
   it("completes after the last comma and skips values already given", async () => {
-    expect(
-      await candidates(["rls", "generate", "--split", "helpers,"]),
-    ).toStrictEqual([
-      "helpers,seeds",
-      "helpers,indexes",
-      "helpers,policies",
-      "helpers,hook",
-    ]);
     expect(
       await candidates(["init", "--integration", "ai-sdk,m"]),
     ).toStrictEqual(["ai-sdk,mcp"]);
@@ -121,21 +126,15 @@ describe("completion candidates", () => {
   });
 
   it("offers codemod versions for the first positional only", async () => {
-    expect(await candidates(["codemod", ""])).toStrictEqual([
-      "0.5",
-      "0.8",
-      "0.17",
-    ]);
+    expect(await candidates(["codemod", ""])).toStrictEqual(["0.17", "0.26"]);
     expect(await candidates(["codemod", "--dry-run", ""])).toStrictEqual([
-      "0.5",
-      "0.8",
       "0.17",
+      "0.26",
     ]);
-    expect(await candidates(["codemod", "0.5", ""])).toStrictEqual([]);
+    expect(await candidates(["codemod", "0.26", ""])).toStrictEqual([]);
     expect(await candidates(["codemod", "--cwd", "app", ""])).toStrictEqual([
-      "0.5",
-      "0.8",
       "0.17",
+      "0.26",
     ]);
     expect(await candidates(["codemod", "--", ""])).toStrictEqual([]);
   });

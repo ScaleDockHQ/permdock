@@ -4,7 +4,6 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
@@ -12,6 +11,7 @@ import type { Postgres } from "./support/postgres.ts";
 import { membership } from "../fixtures/supabase-role-sources/sources.ts";
 import { defined } from "./support/defined.ts";
 import { startPostgres } from "./support/postgres.ts";
+import { hookGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/supabase-role-sources");
@@ -46,9 +46,7 @@ describe("junctionMembershipSource with several role sources", () => {
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-role-sources-"));
     const out = join(dir, "hook.sql");
-    const result = await run(["supabase", "hook", "generate", "--out", out], {
-      cwd: FIXTURE,
-    });
+    const result = await hookGenerate(["--out", out], { cwd: FIXTURE });
     if (result.code !== 0) {
       throw new Error(`hook generate: ${result.stdout}${result.stderr}`);
     }

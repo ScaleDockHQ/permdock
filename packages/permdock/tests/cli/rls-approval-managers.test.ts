@@ -54,9 +54,7 @@ describe("rls.approvals.managers", () => {
 
   it("routes the three-argument check through permdock_approves and keeps the base for other leaves", () => {
     const sql = approvalsSql(ctx, { managers }, false) ?? "";
-    expect(sql).toContain(
-      'drop function if exists "permdock".permdock_is_approver(jsonb, text);',
-    );
+    expect(sql).not.toContain("drop function if exists");
     expect(sql).toContain(
       'create or replace function "permdock".permdock_is_approver(p_approvers jsonb, p_tenant text default null, p_requester text default null)',
     );
@@ -72,6 +70,10 @@ describe("rls.approvals.managers", () => {
     expect(sql).toContain(
       'revoke execute on function "permdock".permdock_is_approver_base(jsonb, text) from public, anon, authenticated;',
     );
+    expect(sql).toContain("permdock_approver_for_ids");
+    expect(sql).toContain("permdock_managed_user_ids");
+    expect(sql).toContain('m."user_id"::text <>');
+    expect(sql).not.toContain("approval_delegations");
   });
 
   it("keeps the two-argument check as it was without managers", () => {
@@ -81,6 +83,9 @@ describe("rls.approvals.managers", () => {
     );
     expect(sql).not.toContain("permdock_is_approver_base");
     expect(sql).not.toContain("drop function if exists");
+    expect(sql).toContain("d.delegator::text");
+    expect(sql).toContain('d."until" > now()');
+    expect(sql).not.toContain("permdock_managed_user_ids");
   });
 
   it("leaves the four-argument check to the covers when delegations are on", () => {

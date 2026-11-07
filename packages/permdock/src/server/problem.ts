@@ -2,7 +2,6 @@ import type { Decision, LimitDetail } from "../core/decision.ts";
 import type { ApprovalHint, ProblemDetails } from "../core/errors.ts";
 import type { Permission } from "../core/permission-types.ts";
 import type { Disclosure } from "../core/problem-details.ts";
-import type { Subject } from "../core/subject.ts";
 import type { Instant } from "../core/time.ts";
 
 import { compact } from "../core/compact.ts";
@@ -354,8 +353,6 @@ function refusalDetails(
 export function problemFromDecision(
   decision: Decision,
   permission: Permission,
-  /** @deprecated Ignored: the `detail` never names the subject. */
-  _subject: Subject | undefined,
   options: DecisionProblemOptions = {},
 ): Response {
   if (decision.outcome === "granted") {

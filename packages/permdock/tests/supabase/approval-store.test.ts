@@ -246,36 +246,25 @@ describe(supabaseApprovalStore, () => {
     expect(sql).not.toContain("jsonb_matches_schema");
   });
 
-  it.each([
-    [
+  it("checks body against the v1 schema with rls.jsonSchema true", () => {
+    const sql = approvalStoreSql(
+      {
+        dialect: "supabase",
+        tenantClaim: "tenant_id",
+        scopes: [],
+        gucPrefix: "app",
+      },
       true,
+    );
+    expect(sql).toContain(
       "create extension if not exists pg_jsonschema with schema extensions;\nalter",
-    ],
-    [
-      "auto" as const,
-      "  if exists (select 1 from pg_available_extensions where name = 'pg_jsonschema') then\n    create schema",
-    ],
-  ])(
-    "checks body against the v1 schema with rls.jsonSchema %s",
-    (mode, setup) => {
-      const sql = approvalStoreSql(
-        {
-          dialect: "supabase",
-          tenantClaim: "tenant_id",
-          scopes: [],
-          gucPrefix: "app",
-        },
-        mode,
-      );
-      expect(sql).toContain(setup);
-      expect(sql).toContain(
-        'alter table "permdock".approval_requests add constraint "approval_requests_body_schema" check (extensions.jsonb_matches_schema(\'{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://permdock.com/schemas/approval-request-v1.json"',
-      );
-      expect(sql).toContain(
-        "::json, body)) not valid;\n" +
-          (mode === true ? "" : "    ") +
-          'alter table "permdock".approval_requests validate constraint "approval_requests_body_schema";',
-      );
-    },
-  );
+    );
+    expect(sql).toContain(
+      'alter table "permdock".approval_requests add constraint "approval_requests_body_schema" check (extensions.jsonb_matches_schema(\'{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://permdock.com/schemas/approval-request-v1.json"',
+    );
+    expect(sql).toContain(
+      '::json, body)) not valid;\nalter table "permdock".approval_requests validate constraint "approval_requests_body_schema";',
+    );
+    expect(sql).not.toContain("do $");
+  });
 });

@@ -1,4 +1,5 @@
 import type { CatalogUsage } from "../catalog/types.ts";
+import type { Seeds } from "../core/seeds.ts";
 import type { SqlMembershipSource } from "../supabase/sources.ts";
 import type { RoleMap, RoleThrough } from "../supabase/types.ts";
 import type { ExitCode } from "./core/errors.ts";
@@ -127,16 +128,30 @@ export type RlsTableVia = {
 };
 
 /**
- * A resource's table: its `schema.table`, an object that adds `via`, `false`
- * for a resource with no table (a console permission), or `{ tableOf }` for a
- * resource stored in another resource's table. `false` and `{ tableOf }` get no
- * policies while their role grants are still seeded; the owner resource writes
- * the table's policies.
+ * A resource's table. `false` is a resource with no table. `{ tableOf }` is the
+ * older way to store a resource in another resource's table; `also` on the
+ * owner replaces it. `follows` names child tables whose policies are an
+ * `exists` of `can_<resource>` on this row. `walk: "recursive"` is the manager
+ * chain: one recursive set helper.
  */
+export type RlsTableOwner = {
+  readonly table?: string;
+  readonly via?: RlsTableVia;
+  /** Other resources stored in this table. They get no policies of their own. */
+  readonly also?: readonly string[];
+  /**
+   * Child table to the column that holds this resource's id. Each child gets
+   * select, insert, update and delete policies that call `can_<resource>`.
+   */
+  readonly follows?: Readonly<Record<string, string>>;
+  /** A self-parented resource walked as one recursive set, the manager chain. */
+  readonly walk?: "recursive";
+};
+
 export type RlsTable =
   | string
   | false
-  | { readonly table?: string; readonly via: RlsTableVia }
+  | RlsTableOwner
   | { readonly tableOf: string };
 
 export type RlsConfig = {
@@ -354,12 +369,11 @@ export type RlsConfig = {
    */
   readonly approvals?: boolean | RlsApprovalsAdopt;
   /**
-   * A pg_jsonschema check constraint on generated `jsonb` columns: the approval
-   * store's `body` must match `approval-request-v1.json`. `true` installs the
-   * extension into `extensions`; `'auto'` adds the constraint only where
-   * `pg_available_extensions` lists it. Off by default.
+   * A pg_jsonschema check constraint on the approval store's `body`: it must
+   * match `approval-request-v1.json`. `true` installs the extension into
+   * `extensions`. Off by default. `'auto'` is refused: it needed a `do` block.
    */
-  readonly jsonSchema?: "auto" | boolean;
+  readonly jsonSchema?: boolean;
   /**
    * `false` leaves out the holder-count and transfer-only triggers `min`, `max`
    * and `transferOnly` put on the membership tables; a map with `<scope>:
@@ -448,9 +462,9 @@ export type RlsConfig = {
   /**
    * Emit `permitted_<resource>_rows(p_permission)`, its `_for` form,
    * `permitted_<resource>_rows(p_permission, p_ids)` limited to candidate ids
-   * and the row-valued `permitted_<resource>_row(p_row, p_permission)` for
-   * these resources, or for every resource a grant reaches with `true`: the row
-   * ids the caller may act on, as the generated policies decide them.
+   * and `can_<resource>(p_row, p_permission)` for these resources, or for every
+   * resource a grant reaches with `true`: the row ids the caller may act on, as
+   * the generated policies decide them.
    */
   readonly rowHelpers?: true | readonly string[];
   /**
@@ -861,9 +875,10 @@ export type RlsStorage = {
 export type SupabaseHookConfig = {
   /**
    * The same `tableMembershipSource` / `junctionMembershipSource` sources the
-   * app passes as `memberships`.
+   * app passes as `memberships`. Default: one junction source per
+   * `rls.memberships` scope table.
    */
-  readonly memberships: readonly SqlMembershipSource[];
+  readonly memberships?: readonly SqlMembershipSource[];
   /**
    * Schema of the hook and the version table. Default `rls.schema`, else
    * `permdock`.
@@ -903,9 +918,10 @@ export type SupabaseHookConfig = {
   /**
    * The `team_ids` claim: the uuid of every team the user belongs to, read from
    * `table` (`user` and `team` columns; `tenant` puts the active tenant's teams
-   * first). It shares the `memberships` budget, so a user with many teams gets
-   * a prefix and `memberships_truncated`. A suspended user gets none. Clients
-   * must not write the table.
+   * first) through `member_team_ids_for`. Teams have their own budget. On
+   * overflow `team_ids` is omitted and `team_ids_truncated` is set; the claim
+   * is never a prefix, and `memberships_truncated` is not set by team rows. A
+   * suspended user gets none. Clients must not write the table.
    */
   readonly teams?: {
     readonly table: string;
@@ -1075,6 +1091,17 @@ export type PermDockConfig = {
   readonly powersync?: PowerSyncConfig;
   readonly doctor?: DoctorConfig;
   readonly gen?: GenConfig;
+  /**
+   * Generate plugins, in `definePlugin` order. `after` reorders them. An empty
+   * list writes the core outputs only.
+   */
+  readonly plugins?: readonly unknown[];
+  /**
+   * `defineSeeds` output. Defaults become a data migration. Fixtures become
+   * `supabase/seeds/permdock.sql`. `rls.seeds` still chooses `'function'` or
+   * `'view'` for the compiled `role_permissions` rows.
+   */
+  readonly seeds?: Seeds;
 };
 
 /** What `permdock gen --kind` writes. */
@@ -1113,8 +1140,8 @@ export type PowerSyncConfig = {
   /** The Sync Streams file; default `sync-config.yaml`. */
   readonly out?: string;
   /**
-   * Resources that get a stream; default every resource with a grant of
-   * `action`.
+   * The only resources that get a stream. A helper does not add one. None when
+   * omitted.
    */
   readonly resources?: readonly string[];
   /** The action whose grants decide which rows sync; default `read`. */

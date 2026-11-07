@@ -11,7 +11,6 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { OpenApiPermDockOptions } from "../../src/openapi/types.ts";
 
-import { run } from "../../src/cli/core/run.ts";
 import {
   validateOpenapi,
   validateOverlay,
@@ -25,6 +24,7 @@ import {
   role,
 } from "../../src/index.ts";
 import { createPermDock, DRAFT_PINS } from "../../src/openapi/index.ts";
+import { openapiEmit } from "../cli/rls-call.ts";
 
 const permissions = definePermissions({
   post: resource({ actions: ["read", "update", "delete"] }),
@@ -367,11 +367,12 @@ describe("OpenAPI Overlay", () => {
       return cwd;
     }
 
-    const emit = (cwd: string, ...extra: string[]): ReturnType<typeof run> =>
-      run(
+    const emit = (
+      cwd: string,
+      ...extra: string[]
+    ): ReturnType<typeof openapiEmit> =>
+      openapiEmit(
         [
-          "openapi",
-          "emit",
           "--doc",
           "openapi.json",
           "--kind",

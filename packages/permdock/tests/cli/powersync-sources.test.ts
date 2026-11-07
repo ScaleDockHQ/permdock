@@ -68,6 +68,7 @@ function configOf(
   return {
     policy: "p.ts",
     rls: { tables: { job: "jobs" }, ...rls, membershipSources: sources },
+    powersync: { resources: ["job"] },
   };
 }
 
@@ -276,6 +277,7 @@ describe("powersync streams over a composite roles junction", () => {
       tables: { job: "jobs" },
       membershipSources: [blockMembershipSource({ roles: "many" })],
     },
+    powersync: { resources: ["job"] },
   });
 
   it("joins a resource stream on every pair of the junction", () => {
@@ -284,15 +286,14 @@ describe("powersync streams over a composite roles junction", () => {
     ]);
   });
 
-  it("syncs only the user's junction rows, keyed on an id built from the key", () => {
+  it("syncs every member of the caller's organizations, skipping a disabled membership", () => {
     expect(
       plan.subject.find((stream) => stream.table === "membership_roles"),
     ).toStrictEqual({
       name: "permdock_membership_roles",
       table: "membership_roles",
-      user: "user_id",
       queries: [
-        `SELECT membership_roles.organization_id, membership_roles.user_id, membership_roles.role, membership_roles.organization_id || ':' || membership_roles.user_id || ':' || membership_roles.role AS id FROM "better_supabase"."membership_roles" AS membership_roles WHERE membership_roles.organization_id IN (SELECT memberships.organization_id FROM "better_supabase"."memberships" AS memberships WHERE memberships.user_id = auth.user_id() AND memberships.disabled_at IS NULL) AND membership_roles.user_id = auth.user_id()`,
+        `SELECT membership_roles.organization_id, membership_roles.user_id, membership_roles.role, membership_roles.organization_id || ':' || membership_roles.user_id || ':' || membership_roles.role AS id FROM "better_supabase"."membership_roles" AS membership_roles WHERE membership_roles.organization_id IN (SELECT memberships.organization_id FROM "better_supabase"."memberships" AS memberships WHERE memberships.user_id = auth.user_id() AND memberships.disabled_at IS NULL) AND EXISTS (SELECT 1 FROM "better_supabase"."memberships" AS memberships WHERE memberships.organization_id = membership_roles.organization_id AND memberships.user_id = membership_roles.user_id AND memberships.disabled_at IS NULL)`,
       ],
     });
   });

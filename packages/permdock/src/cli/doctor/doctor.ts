@@ -31,7 +31,7 @@ import {
 import { pd039 } from "../supabase-setup.ts";
 import { pd064 } from "./assignments.ts";
 import { applyDoctorIgnores, reported } from "./baseline.ts";
-import { pd078, pd079, pd082, pd087 } from "./better-supabase.ts";
+import { pd078, pd079, pd082, pd087, pd094 } from "./better-supabase.ts";
 import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd077 } from "./config-names.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
@@ -61,6 +61,8 @@ import {
   pd076,
   pd086,
 } from "./rls.ts";
+import { pd095, pd096 } from "./schema-checks.ts";
+import { pd097 } from "./seed-data.ts";
 import { pd054 } from "./seeds.ts";
 import {
   pd001,
@@ -413,9 +415,39 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   },
   { code: "PD091", groups: ["openapi"], when: pd091Applies, run: pd091 },
   { code: "PD092", groups: ["project"], run: pd092 },
+  { code: "PD094", groups: ["better-supabase"], run: pd094 },
+  {
+    code: "PD095",
+    groups: ["rls", "supabase"],
+    run: (project) => pd095(project.cwd, project.files),
+  },
+  {
+    code: "PD096",
+    groups: ["supabase", "powersync"],
+    run: (project) => pd096(project.config),
+  },
+  { code: "PD097", groups: ["rls", "seeds"], run: pd097 },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
   { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },
 ];
+
+/**
+ * One finding per code, target and message, so two files do not report the same
+ * gap twice.
+ */
+function dedupe(findings: readonly DoctorFinding[]): readonly DoctorFinding[] {
+  const seen = new Set<string>();
+  const out: DoctorFinding[] = [];
+  for (const finding of findings) {
+    const key = `${finding.code}\u0000${finding.target ?? ""}\u0000${finding.message}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    out.push(finding);
+  }
+  return out;
+}
 
 export async function runDoctor(input: {
   readonly cwd: string;
@@ -473,7 +505,7 @@ export async function runDoctor(input: {
       continue;
     }
     if (selected(check)) {
-      collected.push(...(await check.run(project)));
+      collected.push(...dedupe(await check.run(project)));
     }
   }
   const { findings, ignored } = applyDoctorIgnores(

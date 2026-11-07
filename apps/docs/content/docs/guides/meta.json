@@ -1,6 +1,7 @@
 {
   "title": "Guides",
   "pages": [
+    "plugins",
     "extending",
     "merge-resources",
     "next-cache-components",

@@ -7,6 +7,8 @@ description: permdock/mcp guards MCP tools with typed permissions, scope step-up
 
 ## Purpose
 
+A token with no scope claim and no `authorization_details` is the user, not an OAuth client. `challengeFor` returns no `insufficient_scope` when the resource does not match or the call decides on the subject.
+
 MCP servers are OAuth 2.1 resource servers under the [2026-07-28 specification](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization). The SDK exposes `ctx.http.authInfo` (scopes, client id, expiry) and a `scopeChallenge` option on `registerTool`, but leaves per-tool authorization to hand-written checks in each handler. `permdock/mcp` replaces those checks with one `permission` reference per tool and applies the rest of PermDock to the call: the two-principal [subject](/docs/concepts/subject), [boundary validation](/docs/concepts/validation) of arguments, three-outcome [decisions](/docs/concepts/decisions) and [audit](/docs/concepts/audit-and-observability). The OWASP Top 10 for Agentic Applications asks for exactly this: per-tool least-privilege profiles attached to each tool as authorization policy, plus deterministic argument validation ([ASI02 / ASI03](/docs/security/owasp-agentic)).
 
 ## API

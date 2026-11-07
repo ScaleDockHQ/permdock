@@ -36,7 +36,7 @@ const policy = definePolicy(permissions, {
 const config: PermDockConfig = {
   policy: "policy.ts",
   rls: { tables: { job: "jobs" } },
-  powersync: {},
+  powersync: { resources: ["job"] },
 };
 
 const plan = powersyncPlan(policy, config, POSTGRES);
@@ -246,7 +246,7 @@ describe("powersync verify claims-change fixtures", () => {
         tables: { job: "jobs" },
         membershipSources: [blockMembershipSource({ roles: "many" })],
       },
-      powersync: {},
+      powersync: { resources: ["job"] },
     };
     const junctionPlan = powersyncPlan(byOrganization, junction, POSTGRES);
     const owned = [

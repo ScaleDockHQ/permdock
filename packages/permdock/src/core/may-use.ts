@@ -96,7 +96,15 @@ export function mayUse(permdock: PermDock, permission: Permission): boolean {
         grant.membership === undefined
           ? undefined
           : tenantOf(grant.membership, scopes);
-      return owner === undefined || owner === tenant;
+      // A tenant the subject does not hold is not "no tenant": membership
+      // grants stay with the tenants that hold them.
+      if (
+        owner !== undefined &&
+        permdock.subject.principal?.unheldTenant !== undefined
+      ) {
+        return false;
+      }
+      return owner === undefined || tenant === undefined || owner === tenant;
     });
     if (grants.some(blocksEveryRow)) {
       return false;

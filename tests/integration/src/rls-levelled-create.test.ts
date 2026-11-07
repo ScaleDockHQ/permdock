@@ -2,14 +2,13 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { run } from "permdock/cli";
 import { DatabaseError } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { Postgres } from "./support/postgres.ts";
 
 import { startPostgres } from "./support/postgres.ts";
-import { jwtClaims } from "./support/rls.ts";
+import { rlsGenerate, jwtClaims } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -47,7 +46,7 @@ grant select, insert on public.job to authenticated;
 const SEED = `insert into permdock.custom_role_permissions (tenant_id, scope, role, permission, effect)
 values ('acme', 'tenant', 'creator', 'job.create@own', 'allow');
 create policy job_insert_row_helper on public.job as restrictive for insert to authenticated
-  with check (permdock.permitted_job_row(job, 'job.create'));`;
+  with check (permdock.can_job(job, 'job.create'));`;
 
 describe("a custom role holding an instance create at a level", () => {
   const dir = mkdtempSync(join(tmpdir(), "permdock-levelled-create-"));
@@ -55,10 +54,9 @@ describe("a custom role holding an instance create at a level", () => {
 
   beforeAll(async () => {
     const out = join(dir, "rls.sql");
-    const result = await run(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: join(HERE, "../fixtures/levelled-create") },
-    );
+    const result = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: join(HERE, "../fixtures/levelled-create"),
+    });
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}`);
     }
@@ -109,11 +107,11 @@ describe("a custom role holding an instance create at a level", () => {
     expect(await insert(ADMIN, "admin", CREATOR)).toBeUndefined();
   });
 
-  it("answers the same through permitted_job_row's create arm", async () => {
+  it("answers the same through can_job's create arm", async () => {
     const check = (owner: string) =>
       as<boolean>(
         CREATOR,
-        `select permdock.permitted_job_row(row('j', 'acme', $1)::public.job, 'job.create')`,
+        `select permdock.can_job(row('j', 'acme', $1)::public.job, 'job.create')`,
         [owner],
       );
     expect(await check(CREATOR)).toBe(true);

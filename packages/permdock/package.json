@@ -315,6 +315,30 @@
       "types": "./dist/cli/index.d.ts",
       "default": "./dist/cli/index.js"
     },
+    "./cli/plugins/rls": {
+      "types": "./dist/cli/plugins/rls.d.ts",
+      "default": "./dist/cli/plugins/rls.js"
+    },
+    "./cli/plugins/supabase-hook": {
+      "types": "./dist/cli/plugins/supabase-hook.d.ts",
+      "default": "./dist/cli/plugins/supabase-hook.js"
+    },
+    "./cli/plugins/powersync": {
+      "types": "./dist/cli/plugins/powersync.d.ts",
+      "default": "./dist/cli/plugins/powersync.js"
+    },
+    "./cli/plugins/better-supabase": {
+      "types": "./dist/cli/plugins/better-supabase.d.ts",
+      "default": "./dist/cli/plugins/better-supabase.js"
+    },
+    "./cli/plugins/openapi": {
+      "types": "./dist/cli/plugins/openapi.d.ts",
+      "default": "./dist/cli/plugins/openapi.js"
+    },
+    "./cli/plugins/scim": {
+      "types": "./dist/cli/plugins/scim.d.ts",
+      "default": "./dist/cli/plugins/scim.js"
+    },
     "./unplugin": {
       "types": "./dist/unplugin/index.d.ts",
       "default": "./dist/unplugin/index.js"

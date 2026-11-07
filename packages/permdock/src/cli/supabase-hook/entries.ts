@@ -3,7 +3,7 @@ import type { Parts } from "./parts.ts";
 import { quoteIdent, quoteLiteral, quoteQualified } from "../sql/quote.ts";
 import { entriesSql, typedSourceUsers } from "./memberships.ts";
 
-export const MEMBERSHIP_ENTRIES_FOR = "membership_entries_for";
+export const MEMBERSHIPS_FOR = "memberships_for";
 const GLOBAL_ROLES_FOR = "global_roles_for";
 
 function qualified(parts: Parts, name: string): string {
@@ -11,19 +11,21 @@ function qualified(parts: Parts, name: string): string {
 }
 
 /**
- * `membership_entries_for(p_user uuid) returns table(ord int, entry jsonb)`:
- * every membership entry the hook and `subject_for` read, one row per entry in
- * the shape of a token's `memberships` claim. Both callers order and budget the
- * rows themselves; the function never truncates. `security invoker`, so the
- * caller's table reads apply.
+ * `memberships_for(p_user uuid) returns table(ord int, entry jsonb)`: every
+ * membership entry the hook and `subject_for` read, one row per entry in the
+ * shape of a token's `memberships` claim. Both callers order and budget the
+ * rows themselves; the function never truncates. `security definer`, and it
+ * never compares `p_user` with `auth.uid()`. Execute belongs to
+ * `supabase_auth_admin` only.
  */
 export function membershipEntriesSql(parts: Parts): string {
-  const fn = qualified(parts, MEMBERSHIP_ENTRIES_FOR);
+  const fn = qualified(parts, MEMBERSHIPS_FOR);
   return `-- the membership entries the hook and subject_for read for p_user; no client role may execute it
 create or replace function ${fn}(p_user uuid)
 returns table (ord integer, entry jsonb)
 language plpgsql
 stable
+security definer
 set search_path = ''
 as $$
 #variable_conflict use_column
@@ -77,7 +79,7 @@ revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
  */
 export function entriesGrantsSql(parts: Parts): string {
   const names = [
-    MEMBERSHIP_ENTRIES_FOR,
+    MEMBERSHIPS_FOR,
     ...(parts.roles === undefined ? [] : [GLOBAL_ROLES_FOR]),
   ];
   return names

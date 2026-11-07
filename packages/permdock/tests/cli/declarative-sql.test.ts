@@ -12,6 +12,23 @@ describe(declarativeSql, () => {
     expect(out).toContain('create policy "p"');
   });
 
+  it("writes plain create table and create unique index", () => {
+    const out = declarativeSql(
+      "create table if not exists app.docs (id uuid);\ncreate unique index if not exists docs_id on app.docs (id);\n",
+    );
+    expect(out).toBe(
+      "create table app.docs (id uuid);\ncreate unique index docs_id on app.docs (id);\n",
+    );
+  });
+
+  it("keeps if not exists on a schema two files share", () => {
+    const out = declarativeSql(
+      'create schema if not exists "permdock";\ncreate table if not exists "permdock".docs (id uuid);\n',
+    );
+    expect(out).toContain('create schema if not exists "permdock";');
+    expect(out).toContain('create table "permdock".docs (id uuid);');
+  });
+
   it("keeps a constraint trigger plain, which pg-delta cannot replace", () => {
     const out = declarativeSql(
       'drop trigger if exists "h" on "public"."a";\ncreate constraint trigger "h"\n  after delete on "public"."a" deferrable;\n',

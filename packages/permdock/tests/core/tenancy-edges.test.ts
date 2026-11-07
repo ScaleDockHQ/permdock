@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { getResource } from "../../src/core/permission-registry.ts";
-import { defineScopes } from "../../src/core/scopes.ts";
+import {
+  defineScopes,
+  normalizeMembership,
+  resolveScope,
+} from "../../src/core/scopes.ts";
 import { matchScopedMembership, nowSeconds } from "../../src/core/tenancy.ts";
 import { tree } from "../fixtures/org-tree.ts";
 
@@ -225,5 +229,41 @@ describe("matchScopedMembership edges", () => {
         1_700_000_000,
       ).ok,
     ).toBe(false);
+  });
+});
+
+describe(defineScopes, () => {
+  it("rejects a non-object and a team that is not second", () => {
+    // SAFETY: the runtime guard is what this test exercises.
+    expect(() => defineScopes(null as never)).toThrow("must be an object");
+    expect(() => defineScopes({ team: { key: "id" } })).toThrow(
+      "declared second",
+    );
+    expect(resolveScope(defineScopes(undefined), 1)).toBeUndefined();
+  });
+
+  it("drops a membership whose extra fields are not the canonical shape", () => {
+    const scopes = defineScopes({ tenant: { key: "orgId" } });
+    const row = { scope: "tenant", id: "o1", roles: ["member"] };
+    expect(
+      normalizeMembership({ ...row, keep: "nope" }, scopes),
+    ).toBeUndefined();
+    expect(
+      normalizeMembership({ ...row, tenant: "o1" }, scopes),
+    ).toBeUndefined();
+    expect(
+      normalizeMembership({ roles: ["member"], on: null }, scopes),
+    ).toBeUndefined();
+    expect(normalizeMembership({ ...row, within: [] }, scopes)).toBeUndefined();
+    const within: Record<string, string> = {};
+    const forbidden = "constructor";
+    within[forbidden] = "o1";
+    expect(normalizeMembership({ ...row, within }, scopes)).toBeUndefined();
+    expect(
+      normalizeMembership(
+        { roles: ["member"], scope: "nope", id: "o1" },
+        scopes,
+      ),
+    ).toBeUndefined();
   });
 });

@@ -26,8 +26,8 @@ function betterSupabaseConfig(blocks: object): string {
 }
 
 const CATALOG = JSON.stringify({
-  $schema: "https://permdock.com/schemas/catalog-v1.json",
-  version: 1,
+  $schema: "https://permdock.com/schemas/catalog-v2.json",
+  version: 2,
   generatedAt: "2026-10-25T00:00:00Z",
   generator: "test",
   resources: { post: { id: "id", schema: null } },

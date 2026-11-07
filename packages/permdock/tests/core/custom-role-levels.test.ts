@@ -230,7 +230,7 @@ describe("resolveCustomRole with levels", () => {
     const narrowed = leveled({ ...grant, check: own }, "own", own);
     expect(narrowed.level).toBe("own");
     expect(narrowed.where).toStrictEqual(own);
-    expect(narrowed.check).toStrictEqual({ op: "and", conditions: [own, own] });
+    expect(narrowed.check).toStrictEqual(own);
     expect(
       leveled(grant, "all", { op: "and", conditions: [] }).where,
     ).toBeUndefined();

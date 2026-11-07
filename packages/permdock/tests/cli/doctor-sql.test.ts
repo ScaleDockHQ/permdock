@@ -287,9 +287,9 @@ alter table only public.notes add constraint notes_author_key unique (author_id,
       expect(
         messages(pd088(cwd, { rls: { dialect: "supabase" } })),
       ).toStrictEqual([
-        `${MIGRATION}:1 casts to text around a permitted_*_rows or permitted_*_row call`,
-        `${MIGRATION}:2 casts to text around a permitted_*_rows or permitted_*_row call`,
-        `${MIGRATION}:3 casts to text around a permitted_*_rows or permitted_*_row call`,
+        `${MIGRATION}:1 casts to text around a permitted_*_rows or can_<resource> call`,
+        `${MIGRATION}:2 casts to text around a permitted_*_rows or can_<resource> call`,
+        `${MIGRATION}:3 casts to text around a permitted_*_rows or can_<resource> call`,
       ]);
     });
 

@@ -26,6 +26,7 @@ export default {
     ],
   },
   powersync: {
+    resources: ["job"],
     out: "sync-config.yaml",
     manifest: "permdock-manifest.json",
     tables: {

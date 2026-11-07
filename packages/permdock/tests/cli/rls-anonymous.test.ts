@@ -1,7 +1,6 @@
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
 import {
@@ -14,6 +13,7 @@ import {
   role,
 } from "../../src/index.ts";
 import { project, removeProjects } from "./doctor-kit.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 describe("rls anonymous", () => {
   afterAll(removeProjects);
@@ -41,6 +41,7 @@ describe("rls anonymous", () => {
         tenantClaim: "tenant_id",
         scopes: scopeList(undefined),
         gucPrefix: "app",
+        actions: { accept: "none", disable: "none", pay: "none" },
         ...(anonymousSignIns === undefined ? {} : { anonymousSignIns }),
       },
       undefined,
@@ -78,8 +79,8 @@ describe("rls anonymous", () => {
           rls: { anonymousSignIns: "deny" },
         })};\n`,
       });
-      const result = await run(
-        ["rls", "generate", "--dialect", "guc", "--out", "rls.sql"],
+      const result = await rlsGenerate(
+        ["--dialect", "guc", "--out", "rls.sql"],
         { cwd },
       );
       expect(result.code).toBe(2);

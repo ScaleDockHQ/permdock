@@ -1,10 +1,11 @@
 import type { DirectoryStore, ScimFilter, SqlQuery } from "permdock/scim";
 
 import { PGlite } from "@electric-sql/pglite";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { run } from "permdock/cli";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { scim } from "permdock/cli/plugins/scim";
 import {
   DirectoryUniquenessError,
   directoryMembershipSource,
@@ -14,17 +15,27 @@ import {
 import { testDirectoryStore } from "permdock/testing";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { run } from "./support/cli-run.ts";
+
 async function generated(dialect: "guc" | "supabase"): Promise<string> {
   const cwd = mkdtempSync(join(tmpdir(), "permdock-scim-generate-"));
   try {
-    const result = await run(
-      ["scim", "generate", "--dialect", dialect, "--out", "-"],
-      { cwd },
+    const policy = join(
+      dirname(fileURLToPath(import.meta.url)),
+      "../fixtures/capabilities/policy.ts",
     );
+    writeFileSync(
+      join(cwd, "permdock.config.ts"),
+      `export default { permissions: ${JSON.stringify(policy)}, policy: ${JSON.stringify(policy)} };\n`,
+    );
+    const result = await run(["generate", "--only", "scim", "--no-cache"], {
+      cwd,
+      plugins: [scim({ dialect, out: "scim.sql" })],
+    });
     if (result.code !== 0) {
-      throw new Error(`scim generate: ${result.stdout}`);
+      throw new Error(`scim generate: ${result.stderr}`);
     }
-    return result.stdout;
+    return readFileSync(join(cwd, "scim.sql"), "utf8");
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

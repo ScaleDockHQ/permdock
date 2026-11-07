@@ -41,6 +41,7 @@ function configOf(
 ): PermDockConfig {
   return {
     policy: "p.ts",
+    powersync: { resources: ["job"] },
     rls: {
       authorize: "database",
       customRoles: true,

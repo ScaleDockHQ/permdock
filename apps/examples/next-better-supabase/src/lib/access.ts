@@ -5,6 +5,7 @@ import { emptySnapshot } from "permdock";
 import { snapshotTag } from "permdock/next";
 
 import { getSnapshot } from "../permdock/server.ts";
+import { brandGuard } from "./brand-guard.ts";
 import { latency } from "./latency.ts";
 import { bsb, postgres } from "./supabase/server.ts";
 
@@ -77,6 +78,9 @@ export async function loadSnapshot(organization: string): Promise<Snapshot> {
  * answers 404.
  */
 export async function snapshotForSlug(slug: string): Promise<Snapshot> {
+  if (brandGuard(slug) === null) {
+    return emptySnapshot();
+  }
   const organization = await organizationBySlug(slug);
   return organization === null
     ? emptySnapshot()

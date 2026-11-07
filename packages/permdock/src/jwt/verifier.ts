@@ -29,9 +29,6 @@ function algorithmAllowed(
   allowed: readonly JwtAlgorithm[],
   key: Record<string, unknown> | undefined,
 ): boolean {
-  if (alg === "none") {
-    return false;
-  }
   if (alg === "EdDSA") {
     return (
       allowed.includes("Ed25519") &&
@@ -139,10 +136,7 @@ export function joseTokenVerifier(
 ): TokenVerifier {
   assertVerifierConfig(options);
   const algorithms = resolveAlgorithms(options);
-  const cache =
-    options.jwks !== undefined && isSecretJwks(options.jwks)
-      ? undefined
-      : createKeyCache(options);
+  const cache = createKeyCache(options);
   const issuer =
     options.issuer ??
     (options.discovery === undefined
@@ -161,11 +155,8 @@ export function joseTokenVerifier(
       keys instanceof Uint8Array
         ? undefined
         : findKey(keys, header?.kid, options.profile);
-    if (!(keys instanceof Uint8Array) && key === undefined) {
-      return fail("unknown-kid");
-    }
     if (!algorithmAllowed(alg, algorithms, key)) {
-      return fail(alg === "none" ? "alg-none" : "alg-not-allowed");
+      return fail("alg-not-allowed");
     }
     const expectedTyp = expectations.typ ?? options.typ;
     if (!typAccepted(header?.typ, expectedTyp, options.profile)) {
@@ -198,9 +189,6 @@ export function joseTokenVerifier(
       );
       // SAFETY: jwtVerify returns the verified JSON payload; JwtClaims types each claim optionally.
       const claims = result.payload as JwtClaims;
-      if (!securityEvent && typeof claims.exp !== "number") {
-        return fail("expired");
-      }
       return {
         ok: true,
         claims,
@@ -281,7 +269,7 @@ export function joseTokenVerifier(
       if (options.jwks !== undefined && isSecretJwks(options.jwks)) {
         const hsAllowed = algorithms.includes("HS256");
         if (!hsAllowed || header.alg !== "HS256") {
-          return fail(header.alg === "none" ? "alg-none" : "alg-not-allowed");
+          return fail("alg-not-allowed");
         }
         return await verifyInner(
           jwt,
@@ -289,9 +277,6 @@ export function joseTokenVerifier(
           secretBytes(options.jwks.secret),
           header,
         );
-      }
-      if (cache === undefined) {
-        return fail("jwks-unavailable");
       }
       let resolved = await cache.resolveJwks();
       if (!resolved.ok) {

@@ -27,6 +27,7 @@ const ctx: RlsSqlContext = {
   tenantClaim: "tenant_id",
   scopes: scopeList(policy.scopes),
   gucPrefix: "app",
+  actions: { accept: "none", disable: "none", pay: "none" },
   tenantType: "uuid",
   authorize: "database",
   customRoles: {
@@ -74,7 +75,7 @@ describe(customRoleSyncSql, () => {
       `create trigger "permdock_sync_custom_role_guard_includes"\n  before insert or update or delete on "public"."role_includes"`,
     );
     expect(sql).toContain(
-      `if not (coalesce((select "permdock".permdock_user_id())::text, '') <> '' and pg_trigger_depth() = 1) then`,
+      `if not (coalesce((select "permdock".permdock_user_id())::text, '') <> '') or current_setting('permdock.sync', true) = 'on' then`,
     );
     expect(sql).toContain(
       `perform "permdock".permdock_custom_role_guard(v.tenant_id, v.scope, v.scope_id, v.role);`,

@@ -9,8 +9,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { run } from "../../src/cli/core/run.ts";
 import { globalRoleSource } from "../../src/cli/sql/global-roles.ts";
+import { rlsGenerate } from "./rls-call.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const POLICY = join(HERE, "../fixtures/named-scopes.ts");
@@ -105,10 +105,8 @@ export default {
   describe("rls.roles", () => {
     it("reads permdock_has and the hook through roles.key, with a version trigger on roles", async () => {
       const cwd = project();
-      const result = await run(
+      const result = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--split",
@@ -136,7 +134,7 @@ export default {
         'grant select on table "identity"."roles" to supabase_auth_admin;',
       );
       expect(hook).toContain(`create trigger "permdock_authz_version"
-  after update or delete on "identity"."roles"
+  after insert or update or delete on "identity"."roles"
   for each row execute function "permdock".permdock_bump_authz_version_role_keys();`);
     });
 
@@ -144,10 +142,8 @@ export default {
       const cwd = project(
         `, customRoles: true, customRoleWrites: { roles: { table: 'identity.roles', key: 'key', tenant: 'organization_id' } }`,
       );
-      const result = await run(
+      const result = await rlsGenerate(
         [
-          "rls",
-          "generate",
           "--target",
           "sql",
           "--split",
@@ -174,8 +170,8 @@ export default {
     });
 
     it("refuses the RBAC scaffold, which brings its own user_roles", async () => {
-      const result = await run(
-        ["rls", "generate", "--target", "sql", "--rbac", "supabase"],
+      const result = await rlsGenerate(
+        ["--target", "sql", "--rbac", "supabase"],
         { cwd: project() },
       );
       expect(result.code).toBe(2);

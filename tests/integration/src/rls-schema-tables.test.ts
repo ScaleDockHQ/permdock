@@ -8,6 +8,7 @@ import type { Postgres } from "./support/postgres.ts";
 
 import { runPipingDbUrl } from "./db-url.ts";
 import { startPostgres, testerUri } from "./support/postgres.ts";
+import { rlsGenerate } from "./support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURE = join(HERE, "../fixtures/schema-tables");
@@ -109,10 +110,9 @@ describe("rls.tables with schema-qualified names", () => {
   beforeAll(async () => {
     writeFileSync(fixturesPath, `${JSON.stringify(FIXTURES, null, 2)}\n`);
     const out = join(dir, "rls.sql");
-    const result = await runPipingDbUrl(
-      ["rls", "generate", "--target", "sql", "--out", out],
-      { cwd: FIXTURE },
-    );
+    const result = await rlsGenerate(["--target", "sql", "--out", out], {
+      cwd: FIXTURE,
+    });
     if (result.code !== 0) {
       throw new Error(`rls generate: ${result.stdout}`);
     }
