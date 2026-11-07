@@ -21,7 +21,10 @@ function named(value: unknown): value is string {
   return typeof value === "string" && value !== "";
 }
 
-function checked(managers: unknown): RlsApprovalManagers {
+function checked(
+  managers: unknown,
+  ctx: RlsSqlContext,
+): RlsApprovalManagers {
   if (
     typeof managers !== "object" ||
     managers === null ||
@@ -33,16 +36,29 @@ function checked(managers: unknown): RlsApprovalManagers {
       "PermDock CLI: rls.approvals.managers needs { table, user, manager }: the table that names each user's manager, its user column and its manager column",
     );
   }
+  const tenant =
+    "tenant" in managers && named(managers.tenant) ? managers.tenant : undefined;
+  if ("tenant" in managers && managers.tenant !== undefined && tenant === undefined) {
+    throw configError(
+      "PermDock CLI: rls.approvals.managers.tenant must be a column name",
+    );
+  }
+  if (tenant === undefined && ctx.scopes.length > 0) {
+    throw configError(
+      "PermDock CLI: rls.approvals.managers needs `tenant`, the column of the manager table or view that holds each edge's tenant; without it an edge in one tenant would count in every tenant",
+    );
+  }
   return {
     table: managers.table,
     user: managers.user,
     manager: managers.manager,
+    ...(tenant === undefined ? {} : { tenant }),
   };
 }
 
 /**
  * `rls.approvals.managers`: `permdock_manages(p_requester, p_levels)` walks the
- * app's manager table up to `levels` steps (at most `MAX_MANAGER_LEVELS`) with
+ * app's manager table, keeping the edges of `p_tenant`, up to `levels` steps (at most `MAX_MANAGER_LEVELS`) with
  * a cycle guard, and `permdock_approves` decides `manager` leaves with it and
  * every other leaf through `base`, the two-argument check. The requester never
  * manages themselves into an approval. `permdock_is_approver(p_approvers,
@@ -59,7 +75,7 @@ export function approvalManagersSql(
   base: string,
   delegations: boolean,
 ): string {
-  const managers = checked(given);
+  const managers = checked(given, ctx);
   const table = quoteQualified(managers.table);
   const user = quoteIdent(managers.user);
   const boss = quoteIdent(managers.manager);
@@ -67,6 +83,10 @@ export function approvalManagersSql(
   const managesFor = qualified(ctx, MANAGES_FOR);
   const approves = qualified(ctx, APPROVES);
   const me = `${subjectIdSql(ctx)}::text`;
+  const tenant =
+    managers.tenant === undefined ? undefined : quoteIdent(managers.tenant);
+  const edgeTenant = (alias: string): string =>
+    tenant === undefined ? "" : `\n      and ${alias}.${tenant}::text = p_tenant`;
   const entry = delegations
     ? ""
     : `
@@ -99,7 +119,7 @@ grant execute on function ${isApprover}(jsonb, text, text) to authenticated;
 `;
   return `
 -- approval managers: whether p_user manages p_requester within p_levels steps of ${managers.table}
-create or replace function ${managesFor}(p_user text, p_requester text, p_levels integer)
+create or replace function ${managesFor}(p_user text, p_requester text, p_levels integer, p_tenant text default null)
 returns boolean
 language sql
 stable
@@ -110,14 +130,14 @@ as $$
     select m.${boss}::text, 1, array[p_requester, m.${boss}::text]
     from ${table} m
     where m.${user}::text = p_requester
-      and m.${boss} is not null
+      and m.${boss} is not null${edgeTenant("m")}
     union all
     select m.${boss}::text, c.depth + 1, c.path || m.${boss}::text
     from chain c
     join ${table} m on m.${user}::text = c.id
     where c.depth < least(p_levels, ${String(MAX_MANAGER_LEVELS)})
       and m.${boss} is not null
-      and not (m.${boss}::text = any (c.path))
+      and not (m.${boss}::text = any (c.path))${edgeTenant("m")}
   )
   select coalesce(
     p_requester <> ''
@@ -128,19 +148,19 @@ as $$
     false
   )
 $$;
-revoke execute on function ${managesFor}(text, text, integer) from public, anon, authenticated;
+revoke execute on function ${managesFor}(text, text, integer, text) from public, anon, authenticated;
 
 -- approval managers: whether the signed-in user manages p_requester within p_levels steps of ${managers.table}
-create or replace function ${manages}(p_requester text, p_levels integer)
+create or replace function ${manages}(p_requester text, p_levels integer, p_tenant text default null)
 returns boolean
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select ${managesFor}(${me}, p_requester, p_levels)
+  select ${managesFor}(${me}, p_requester, p_levels, p_tenant)
 $$;
-revoke execute on function ${manages}(text, integer) from public, anon, authenticated;
+revoke execute on function ${manages}(text, integer, text) from public, anon, authenticated;
 
 -- approval managers: approvers.by with manager leaves; only permdock_is_approver calls it
 create or replace function ${approves}(p_approvers jsonb, p_tenant text, p_requester text)
@@ -177,7 +197,7 @@ begin
       if jsonb_typeof(v_levels) <> 'number' or v_levels::text !~ '^[0-9]{1,2}$' then
         return false;
       end if;
-      return coalesce(${manages}(p_requester, v_levels::text::integer), false);
+      return coalesce(${manages}(p_requester, v_levels::text::integer, p_tenant), false);
     when 'any-of' then
       if jsonb_typeof(p_approvers -> 'of') <> 'array' then
         return false;

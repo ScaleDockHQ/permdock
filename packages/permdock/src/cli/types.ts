@@ -533,6 +533,12 @@ export type RlsApprovalManagers = {
   readonly user: string;
   /** The column holding the id of that user's manager. */
   readonly manager: string;
+  /**
+   * The column holding the tenant each edge belongs to. Required when the
+   * policy has a tenant scope: both walks keep only the edges of the request's
+   * tenant, so the table or view must expose it.
+   */
+  readonly tenant?: string;
 };
 
 /**

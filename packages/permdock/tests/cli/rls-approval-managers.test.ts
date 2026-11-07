@@ -16,6 +16,7 @@ const managers = {
   table: "public.reporting_lines",
   user: "user_id",
   manager: "manager_id",
+  tenant: "tenant_id",
 };
 
 describe("rls.approvals.managers", () => {
@@ -28,7 +29,7 @@ describe("rls.approvals.managers", () => {
       false,
     );
     expect(sql).toContain(
-      'create or replace function "permdock".permdock_manages(p_requester text, p_levels integer)',
+      'create or replace function "permdock".permdock_manages(p_requester text, p_levels integer, p_tenant text default null)',
     );
     expect(sql).toContain('from "public"."reporting_lines" m');
     expect(sql).toContain("where c.depth < least(p_levels, 8)");
@@ -36,13 +37,13 @@ describe("rls.approvals.managers", () => {
     expect(sql).toContain("and p_levels between 1 and 8");
     expect(sql).toContain("and p_user <> p_requester");
     expect(sql).toMatch(
-      /select "permdock"\.permdock_manages_for\(\(select .+\)::text, p_requester, p_levels\)/u,
+      /select "permdock"\.permdock_manages_for\(\(select .+\)::text, p_requester, p_levels, p_tenant\)/u,
     );
     expect(sql).toContain(
-      'revoke execute on function "permdock".permdock_manages_for(text, text, integer) from public, anon, authenticated;',
+      'revoke execute on function "permdock".permdock_manages_for(text, text, integer, text) from public, anon, authenticated;',
     );
     expect(sql).toContain(
-      'revoke execute on function "permdock".permdock_manages(text, integer) from public, anon, authenticated;',
+      'revoke execute on function "permdock".permdock_manages(text, integer, text) from public, anon, authenticated;',
     );
     expect(sql).toContain(
       'create or replace function "permdock".permdock_is_approver(p_approvers jsonb, p_tenant text, p_requester text, p_resource text)',

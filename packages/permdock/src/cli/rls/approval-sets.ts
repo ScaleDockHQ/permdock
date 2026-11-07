@@ -2,6 +2,7 @@ import type { RlsSqlContext } from "../sql/context.ts";
 import type { RlsApprovalManagers } from "../types.ts";
 
 import { MAX_MANAGER_LEVELS } from "../../core/approvers.ts";
+import { tenantTypeOf, userTypeOf } from "../sql/columns.ts";
 import { qualified, quoteIdent, quoteQualified } from "../sql/quote.ts";
 import { subjectIdSql } from "../sql/subject.ts";
 
@@ -26,31 +27,32 @@ export function approvalSetsSql(
     readonly managers?: RlsApprovalManagers;
   },
 ): string {
-  const me = `${subjectIdSql(ctx)}::text`;
+  const me = subjectIdSql(ctx);
+  const user = userTypeOf(ctx);
   const approvers = qualified(ctx, APPROVER_FOR_IDS);
   const covers = options.delegations
     ? `
   union
-  select d.delegator::text
+  select d.delegator
   from ${qualified(ctx, "approval_delegations")} d
-  where d.delegate::text = ${me}
+  where d.delegate = ${me}
     and d."from" <= now()
     and d."until" > now()
-    and d.delegator::text <> ${me}`
+    and d.delegator <> ${me}`
     : "";
   const managed =
     options.managers === undefined ? "" : managedSql(ctx, options.managers, me);
   return `
 -- approvers: the caller, plus each active delegator, one hop
 create or replace function ${approvers}()
-returns setof text
+returns setof ${user}
 language sql
 stable
 security definer
 set search_path = ''
 as $$
   select ${me}
-  where coalesce(${me}, '') <> ''${covers}
+  where ${me} is not null${covers}
 $$;
 revoke execute on function ${approvers}() from public, anon;
 grant execute on function ${approvers}() to authenticated;
@@ -66,33 +68,39 @@ function managedSql(
   const table = quoteQualified(managers.table);
   const user = quoteIdent(managers.user);
   const boss = quoteIdent(managers.manager);
+  const type = userTypeOf(ctx);
+  const tenant = managers.tenant === undefined ? undefined : quoteIdent(managers.tenant);
+  const argType = tenant === undefined ? "" : tenantTypeOf(ctx);
+  const argument = tenant === undefined ? "" : `p_tenant ${argType}`;
+  const seedTenant = tenant === undefined ? "" : `\n      and m.${tenant} = p_tenant`;
+  const stepTenant = tenant === undefined ? "" : `\n      and m.${tenant} = p_tenant`;
   return `
--- approval managers: users below the caller; the caller is not in the set, so a self-decision stays refused
-create or replace function ${fn}()
-returns setof text
+-- approval managers: users below the caller within p_tenant; the caller is not in the set, so a self-decision stays refused
+create or replace function ${fn}(${argument})
+returns setof ${type}
 language sql
 stable
 security definer
 set search_path = ''
 as $$
   with recursive down (id, depth, path) as (
-    select m.${user}::text, 1, array[${me}, m.${user}::text]
+    select m.${user}, 1, array[${me}, m.${user}]
     from ${table} m
-    where m.${boss}::text = ${me}
+    where m.${boss} = ${me}
       and m.${user} is not null
-      and m.${user}::text <> ${me}
+      and m.${user} <> ${me}${seedTenant}
     union all
-    select m.${user}::text, d.depth + 1, d.path || m.${user}::text
+    select m.${user}, d.depth + 1, d.path || m.${user}
     from down d
-    join ${table} m on m.${boss}::text = d.id
+    join ${table} m on m.${boss} = d.id
     where d.depth < ${String(MAX_MANAGER_LEVELS)}
       and m.${user} is not null
-      and m.${user}::text <> ${me}
-      and not (m.${user}::text = any (d.path))
+      and m.${user} <> ${me}
+      and not (m.${user} = any (d.path))${stepTenant}
   )
   select id from down
 $$;
-revoke execute on function ${fn}() from public, anon;
-grant execute on function ${fn}() to authenticated;
+revoke execute on function ${fn}(${argType}) from public, anon;
+grant execute on function ${fn}(${argType}) to authenticated;
 `;
 }
