@@ -7,7 +7,9 @@ import type { PermDockPlugin } from "../../src/cli/generate/plugin.ts";
 import type { PermDockConfig } from "../../src/cli/types.ts";
 
 import { projectContext } from "../../src/cli/generate/context.ts";
+import { policyModel } from "../../src/cli/generate/model.ts";
 import { runGenerate } from "../../src/cli/generate/pipeline.ts";
+import { quietIo } from "../../src/cli/generate/plugin.ts";
 import { rls } from "../../src/cli/generate/plugins/rls.ts";
 import { supabaseHook } from "../../src/cli/generate/plugins/supabase-hook.ts";
 import { supabase } from "../../src/cli/generate/plugins/supabase.ts";
@@ -61,6 +63,7 @@ describe("supabase plugin", () => {
 
   async function generate(
     plugins: readonly PermDockPlugin[],
+    given: PermDockConfig = config,
   ): Promise<{ readonly code: number; readonly dir: string }> {
     const cwd = mkdtempSync(join(tmpdir(), "permdock-supabase-plugin-"));
     dirs.push(cwd);
@@ -68,7 +71,7 @@ describe("supabase plugin", () => {
     const result = await runGenerate({
       cwd,
       policy,
-      config,
+      config: given,
       plugins,
       ctx: await projectContext(cwd),
       check: false,
@@ -110,5 +113,53 @@ describe("supabase plugin", () => {
     await expect(generate([supabaseHook(), supabase()])).rejects.toThrow(
       /already emits what 'supabase' emits/u,
     );
+  });
+
+  it("writes the hook and the manifest where the options say", async () => {
+    const { code, dir } = await generate([
+      supabase({
+        out: "sql/rls.sql",
+        hook: { out: "sql/hook.sql", schema: "permdock", budget: "1024" },
+        manifest: "sql/manifest.json",
+      }),
+    ]);
+    expect(code).toBe(0);
+    expect(Object.keys(filesOf(dir))).toStrictEqual(
+      expect.arrayContaining([
+        "sql/rls.sql",
+        "sql/hook.sql",
+        "sql/manifest.json",
+      ]),
+    );
+  });
+
+  it("emits nothing for the hook and manifest tasks without a project", async () => {
+    const plugin = supabase();
+    const model = policyModel(
+      await requirePolicy(process.cwd(), POLICY, "missing policy"),
+    );
+    expect(
+      await plugin.emit({ id: "hook", out: "h.sql" }, model),
+    ).toStrictEqual([]);
+  });
+
+  it("fails when the hook has no configuration", async () => {
+    await expect(
+      generate([supabase()], {
+        policy: POLICY,
+        rls: { actions: { accept: "none", disable: "none", pay: "none" } },
+      }),
+    ).rejects.toThrow(/supabase\.hook/u);
+  });
+
+  it("gives the generators a sink that drops their output", () => {
+    expect(quietIo.stdout()).toBeUndefined();
+    expect(quietIo.stderr()).toBeUndefined();
+  });
+
+  it("reports a hook option the writer refuses as a config error", async () => {
+    await expect(
+      generate([supabase({ hook: { budget: "not-a-number" } })]),
+    ).rejects.toThrow(/budget/u);
   });
 });

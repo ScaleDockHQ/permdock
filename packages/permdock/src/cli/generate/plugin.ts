@@ -31,6 +31,16 @@ export type NotedFiles = readonly EmittedFile[] & {
 
 export type PluginEmit = NotedFiles;
 
+/** Output sink for the generators a plugin calls; the pipeline prints the notes. */
+export const quietIo = {
+  stdout(): void {
+    return undefined;
+  },
+  stderr(): void {
+    return undefined;
+  },
+};
+
 /** An array the existing callers can map, with `notes` for the command to print. */
 export function noted(
   files: readonly EmittedFile[],

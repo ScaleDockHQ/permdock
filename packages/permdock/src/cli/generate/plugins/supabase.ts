@@ -2,8 +2,9 @@ import type { SupabaseSchemas } from "../../types.ts";
 import type { PermDockPlugin } from "../plugin.ts";
 import type { RlsPluginOptions } from "./rls-options.ts";
 
-import { CliError } from "../../core/errors.ts";
-import { definePlugin, noted, schemaInputs } from "../plugin.ts";
+import { compact } from "../../../core/compact.ts";
+import { definePlugin, quietIo, schemaInputs } from "../plugin.ts";
+import { outcomeNotes } from "./supabase-outcome.ts";
 import { pluginVersion } from "./version.ts";
 
 /** The Custom Access Token hook the plugin writes; `false` skips it. */
@@ -30,13 +31,14 @@ export type SupabasePluginOptions = Omit<RlsPluginOptions, "dialect"> & {
 // manifest-json.ts shares a chunk that loads pg, which a plugin entry must not.
 const MANIFEST_FILE = "permdock.manifest.json";
 
-const quiet = {
-  stdout(): void {
-    return undefined;
-  },
-  stderr(): void {
-    return undefined;
-  },
+type SupabaseOverrides = {
+  readonly out?: string;
+  readonly schemas?: SupabaseSchemas;
+  readonly grantsOut?: string;
+  readonly schema?: string;
+  readonly activeFrom?: string;
+  readonly budget?: string;
+  readonly db?: string;
 };
 
 /**
@@ -86,35 +88,18 @@ export function supabase(options: SupabasePluginOptions = {}): PermDockPlugin {
         config: source.config,
         rest: task.id === "hook" ? ["hook", "generate"] : ["inspect"],
         check: false,
-        io: quiet,
-        ...(task.id === "manifest"
-          ? { out: task.out }
-          : hookOut === undefined
-            ? {}
-            : { out: hookOut }),
-        ...(options.schemas === undefined ? {} : { schemas: options.schemas }),
-        ...(options.grantsOut === undefined
-          ? {}
-          : { grantsOut: options.grantsOut }),
-        ...(hookOptions.schema === undefined
-          ? {}
-          : { schema: hookOptions.schema }),
-        ...(hookOptions.activeFrom === undefined
-          ? {}
-          : { activeFrom: hookOptions.activeFrom }),
-        ...(hookOptions.budget === undefined
-          ? {}
-          : { budget: hookOptions.budget }),
-        ...(source.db === undefined ? {} : { db: source.db }),
+        io: quietIo,
+        ...compact<SupabaseOverrides>({
+          out: task.id === "manifest" ? task.out : hookOut,
+          schemas: options.schemas,
+          grantsOut: options.grantsOut,
+          schema: hookOptions.schema,
+          activeFrom: hookOptions.activeFrom,
+          budget: hookOptions.budget,
+          db: source.db,
+        }),
       });
-      if (outcome.code !== 0) {
-        throw new CliError(
-          outcome.code === 2 ? "usage" : "failed",
-          outcome.output,
-          { code: outcome.code === 2 ? "config_invalid" : "check_failed" },
-        );
-      }
-      return noted([], outcome.output === "" ? [] : outcome.output.split("\n"));
+      return outcomeNotes(outcome);
     },
   });
 }
