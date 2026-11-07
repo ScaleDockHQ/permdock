@@ -513,7 +513,7 @@ as $$
   pdk_s as (
     select pdk_i.grant_key
     from (
-  select null::uuid where false -- no team memberships table configured
+  select null::uuid, null::text where false -- no team memberships table configured
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
@@ -560,7 +560,7 @@ as $$
   pdk_s as (
     select pdk_i.grant_key
     from (
-  select null::uuid where false -- no team memberships table configured
+  select null::uuid, null::text where false -- no team memberships table configured
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
@@ -854,7 +854,7 @@ as $$
   pdk_s as (
     select pdk_i.grant_key
     from (
-  select null::uuid where false -- no team memberships table configured
+  select null::uuid, null::text where false -- no team memberships table configured
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
@@ -900,7 +900,7 @@ as $$
   pdk_s as (
     select pdk_i.grant_key
     from (
-  select null::uuid where false -- no team memberships table configured
+  select null::uuid, null::text where false -- no team memberships table configured
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
