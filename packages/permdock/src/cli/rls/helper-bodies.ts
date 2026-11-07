@@ -779,8 +779,8 @@ function memoDiscriminatorSql(user: string, key: string): string {
       ${key},
       coalesce((select auth.jwt()) ->> 'authz_ver', ''),
       coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
-      statement_timestamp()::text,
-      md5(coalesce((select auth.jwt())::text, ''))
+      coalesce((select auth.jwt()) ->> 'session_id', ''),
+      statement_timestamp()::text
     ))`;
 }
 

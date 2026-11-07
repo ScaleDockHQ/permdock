@@ -139,7 +139,9 @@ describe("claims first helpers", () => {
       "coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')",
     );
     expect(body).toContain("statement_timestamp()::text");
-    expect(body).toContain("md5(coalesce((select auth.jwt())::text, ''))");
+    expect(body).toContain(
+      "coalesce((select auth.jwt()) ->> 'session_id', '')",
+    );
     expect(body).toContain(
       "v_memo text := nullif(current_setting(v_key, true), '');",
     );
