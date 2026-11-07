@@ -1,8 +1,8 @@
 import type { SupabaseSchemas } from "../../types.ts";
 import type { PermDockPlugin } from "../plugin.ts";
 
-import { CliError } from "../../core/errors.ts";
-import { definePlugin, noted, schemaInputs } from "../plugin.ts";
+import { definePlugin, quietIo, schemaInputs } from "../plugin.ts";
+import { outcomeNotes } from "./supabase-outcome.ts";
 import { pluginVersion } from "./version.ts";
 
 export type SupabaseHookPluginOptions = {
@@ -21,6 +21,7 @@ export function supabaseHook(
   return definePlugin({
     name: "supabaseHook",
     version: pluginVersion(),
+    conflicts: ["supabase"],
     after: ["rls"],
     inputs: (ctx) => schemaInputs(ctx, options),
     plan: () => [
@@ -38,14 +39,7 @@ export function supabaseHook(
         config: source.config,
         rest: ["hook", "generate"],
         check: false,
-        io: {
-          stdout() {
-            return undefined;
-          },
-          stderr() {
-            return undefined;
-          },
-        },
+        io: quietIo,
         ...(options.out === undefined ? {} : { out: options.out }),
         ...(options.schemas === undefined ? {} : { schemas: options.schemas }),
         ...(options.schema === undefined ? {} : { schema: options.schema }),
@@ -58,14 +52,7 @@ export function supabaseHook(
         ...(options.budget === undefined ? {} : { budget: options.budget }),
         ...(source.db === undefined ? {} : { db: source.db }),
       });
-      if (outcome.code !== 0) {
-        throw new CliError(
-          outcome.code === 2 ? "usage" : "failed",
-          outcome.output,
-          { code: outcome.code === 2 ? "config_invalid" : "check_failed" },
-        );
-      }
-      return noted([], outcome.output === "" ? [] : outcome.output.split("\n"));
+      return outcomeNotes(outcome);
     },
   });
 }

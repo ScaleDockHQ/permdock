@@ -311,7 +311,7 @@ describe(executeGenerate, () => {
         source,
       ),
     ).rejects.toThrow(/missing\.json/u);
-    expect(betterSupabase().after).toStrictEqual(["supabaseHook"]);
+    expect(betterSupabase().after).toStrictEqual(["supabase", "supabaseHook"]);
     expect(
       await betterSupabase().plan(model, await projectContext(cwd)),
     ).toStrictEqual([]);

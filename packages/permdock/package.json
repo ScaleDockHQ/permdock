@@ -331,6 +331,10 @@
       "types": "./dist/cli/plugins/powersync.d.ts",
       "default": "./dist/cli/plugins/powersync.js"
     },
+    "./cli/plugins/supabase": {
+      "types": "./dist/cli/plugins/supabase.d.ts",
+      "default": "./dist/cli/plugins/supabase.js"
+    },
     "./cli/plugins/better-supabase": {
       "types": "./dist/cli/plugins/better-supabase.d.ts",
       "default": "./dist/cli/plugins/better-supabase.js"

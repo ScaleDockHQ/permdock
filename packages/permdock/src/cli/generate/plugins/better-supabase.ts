@@ -15,7 +15,7 @@ export function betterSupabase(
   return definePlugin({
     name: "betterSupabase",
     version: pluginVersion(),
-    after: ["supabaseHook"],
+    after: ["supabase", "supabaseHook"],
     inputs: (ctx) => schemaInputs(ctx, options),
     plan: () => [],
     emit: () => [],

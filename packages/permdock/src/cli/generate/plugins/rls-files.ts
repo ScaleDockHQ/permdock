@@ -13,17 +13,8 @@ import {
   fixturesSeedSql,
 } from "../../rls/emit/seed-sql.ts";
 import { runRlsGenerate } from "../../rls/generate.ts";
-import { noted } from "../plugin.ts";
+import { noted, quietIo } from "../plugin.ts";
 import { applyRlsPlugin } from "./rls-options.ts";
-
-const io = {
-  stdout(): void {
-    return undefined;
-  },
-  stderr(): void {
-    return undefined;
-  },
-};
 
 /**
  * The SQL `rls()` would write, without writing it. The pipeline writes the
@@ -60,7 +51,7 @@ export async function filesForRls(
     revokeColumns: applied.config.revokeColumns === true,
     write: false,
     listFiles: true,
-    io,
+    io: quietIo,
     ...(applied.split === undefined ? {} : { split: applied.split }),
     ...(applied.schemas === undefined ? {} : { schemas: applied.schemas }),
     ...(applied.seedsOut === undefined ? {} : { seedsOut: applied.seedsOut }),

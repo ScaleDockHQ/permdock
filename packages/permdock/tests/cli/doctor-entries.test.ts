@@ -39,6 +39,7 @@ const TOOLING = new Set([
   "permdock/cli/plugins/ui",
   "permdock/cli/plugins/app",
   "permdock/cli/plugins/supabase-hook",
+  "permdock/cli/plugins/supabase",
   "permdock/next/plugin",
   "permdock/testing",
   "permdock/testing/core",

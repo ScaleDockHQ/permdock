@@ -13,6 +13,8 @@ import type { Principal, Subject } from "../core/subject.ts";
 import type { ServerAdapterServices } from "../server/bind.ts";
 import type { RequestContext } from "../server/create.ts";
 import type { OpenApiHooks } from "../server/server-types.ts";
+import type { SupabasePermDock } from "./define-permdock.ts";
+import type { SupabaseRpcCaller } from "./postgrest.ts";
 
 import { withApp } from "../core/app.ts";
 import { compact } from "../core/compact.ts";
@@ -22,6 +24,8 @@ import { composeWraps } from "../core/wrap.ts";
 import { attached } from "../server/bind.ts";
 import { createPermDock as createServerPermDock } from "../server/create.ts";
 import { methodNotAllowed } from "../server/problem.ts";
+import { SUPABASE_OPTIONS, supabaseOptionsOf } from "./definition-options.ts";
+import { subjectFromSupabase } from "./subject.ts";
 
 /**
  * The verified Supabase Auth access-token payload as `@supabase/server`
@@ -200,6 +204,38 @@ function secretKeySubject(
   return name === undefined ? undefined : subjects.get(name);
 }
 
+function isRpcCaller(value: unknown): value is SupabaseRpcCaller {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof Reflect.get(value, "schema") === "function"
+  );
+}
+
+/** The options a Supabase definition lets `subject` default. */
+export type SupabaseDefinitionMiddlewareOptions<TUser = unknown> = Omit<
+  SupabaseMiddlewarePermDockOptions<TUser>,
+  "subject"
+> &
+  Partial<Pick<SupabaseMiddlewarePermDockOptions<TUser>, "subject">>;
+
+/**
+ * With a `permdock/supabase` definition, `subject` defaults to
+ * `subjectFromSupabase(ctx.jwtClaims, definition.subject)`, and memberships are
+ * read through the definition's `client`, or, without one, through the
+ * `supabaseAdmin` client `withSupabase` contributed. Without either, only the
+ * token's claims count. A token's `authz_ver` is checked against the database,
+ * never taken as current.
+ */
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+  TClient extends SupabaseRpcCaller = SupabaseRpcCaller,
+>(
+  app: SupabasePermDock<TUser, TPrincipal, V, TClient>,
+  options?: SupabaseDefinitionMiddlewareOptions<TUser>,
+): SupabaseMiddlewarePermDock<V>;
 export function createPermDock<
   TUser,
   TPrincipal extends Principal = Principal,
@@ -207,52 +243,107 @@ export function createPermDock<
 >(
   policy: Policy<TUser, TPrincipal, V>,
   given: SupabaseMiddlewarePermDockOptions<TUser>,
+): SupabaseMiddlewarePermDock<V>;
+export function createPermDock<
+  TUser,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+>(
+  policy: Policy<TUser, TPrincipal, V>,
+  given: SupabaseDefinitionMiddlewareOptions<TUser> = {},
 ): SupabaseMiddlewarePermDock<V> {
+  type Kernel = ReturnType<typeof createServerPermDock<TUser, TPrincipal, V>>;
   const options = withApp(policy, given);
+  const definitionSubject = supabaseOptionsOf(policy);
+  const isDefinition = Reflect.has(policy, SUPABASE_OPTIONS);
   const contexts = new WeakMap<Request, SupabaseMiddlewareContext>();
   const tenantOption = options.tenant;
 
   const contextFor = (request: Request): SupabaseMiddlewareContext =>
     contexts.get(request) ?? { jwtClaims: null };
   const secretKeys = secretKeySubjects(options.secretKeys, policy.permissions);
+  const subjectOption = options.subject;
+  if (subjectOption === undefined && !isDefinition) {
+    throw new TypeError(
+      "PermDock: createPermDock needs a subject, or a permdock/supabase definePermDock policy",
+    );
+  }
 
-  const kernel = createServerPermDock(
-    policy,
-    compact({
-      subject: (request: Request) => {
-        const ctx = contextFor(request);
-        const service = secretKeySubject(secretKeys, ctx);
-        // SAFETY: the kernel passes it to core createPermDock, which accepts TUser, a Subject or null.
-        return (service ?? options.subject(ctx, request)) as
-          | TUser
-          | Promise<TUser>;
-      },
-      tenant:
-        typeof tenantOption === "function"
-          ? (
-              request: Request,
-            ): string | undefined | Promise<string | undefined> =>
-              tenantOption(contextFor(request), request)
-          : tenantOption,
-      context:
-        options.context === undefined
-          ? undefined
-          : (
-              request: Request,
-            ):
-              | RequestContext
-              | undefined
-              | Promise<RequestContext | undefined> =>
-              options.context?.(contextFor(request), request),
-      ...instanceOptions(options),
-      store: options.store,
-      pdp: options.pdp,
-      webBotAuth: options.webBotAuth,
-      adapter: "supabase-middleware",
-      wrap: composeWraps(options.otel, options.wrap),
-      deniedResponse: options.deniedResponse,
-    }),
-  );
+  const makeKernel = (target: Policy<TUser, TPrincipal, V>): Kernel =>
+    createServerPermDock(
+      target,
+      compact({
+        subject: (request: Request) => {
+          const ctx = contextFor(request);
+          const service = secretKeySubject(secretKeys, ctx);
+          const user =
+            service ??
+            (subjectOption === undefined
+              ? subjectFromSupabase(ctx.jwtClaims, definitionSubject)
+              : subjectOption(ctx, request));
+          // SAFETY: the kernel passes it to core createPermDock, which accepts TUser, a Subject or null.
+          return user as TUser | Promise<TUser>;
+        },
+        tenant:
+          typeof tenantOption === "function"
+            ? (
+                request: Request,
+              ): string | undefined | Promise<string | undefined> =>
+                tenantOption(contextFor(request), request)
+            : tenantOption,
+        context:
+          options.context === undefined
+            ? undefined
+            : (
+                request: Request,
+              ):
+                | RequestContext
+                | undefined
+                | Promise<RequestContext | undefined> =>
+                options.context?.(contextFor(request), request),
+        ...instanceOptions(options),
+        store: options.store,
+        pdp: options.pdp,
+        webBotAuth: options.webBotAuth,
+        adapter: "supabase-middleware",
+        wrap: composeWraps(options.otel, options.wrap),
+        deniedResponse: options.deniedResponse,
+      }),
+    );
+
+  const base = makeKernel(policy);
+  const kernels = new WeakMap<object, Kernel>([[policy, base]]);
+  const handlers = new WeakMap<Kernel, ReturnType<Kernel["permdockHandler"]>>();
+
+  /** The definition bound to the client that reads this request's sources. */
+  const kernelFor = async (ctx: SupabaseMiddlewareContext): Promise<Kernel> => {
+    if (!isDefinition) {
+      return base;
+    }
+    // SAFETY: a Supabase definition has client(), forClient() and the policy shape.
+    const app = policy as unknown as SupabasePermDock<TUser, TPrincipal, V>;
+    let client: SupabaseRpcCaller | undefined;
+    try {
+      client = await app.client();
+    } catch (error) {
+      if (!(error instanceof TypeError)) {
+        throw error;
+      }
+      const admin: unknown = Reflect.get(ctx, "supabaseAdmin");
+      client = isRpcCaller(admin) ? admin : undefined;
+    }
+    if (client === undefined) {
+      return base;
+    }
+    const bound: Policy<TUser, TPrincipal, V> = app.forClient(client);
+    const known = kernels.get(bound);
+    if (known !== undefined) {
+      return known;
+    }
+    const made = makeKernel(bound);
+    kernels.set(bound, made);
+    return made;
+  };
 
   const bind = (request: Request, ctx: SupabaseMiddlewareContext): Request => {
     contexts.set(request, ctx);
@@ -273,6 +364,7 @@ export function createPermDock<
         ctx,
       ): Promise<Response | { readonly permdock: PermDock<V> }> => {
         bind(request, ctx);
+        const kernel = await kernelFor(ctx);
         if (
           config?.protect === undefined &&
           config?.oauthScopes === undefined
@@ -298,19 +390,19 @@ export function createPermDock<
   });
 
   const permdockHandler = (): SupabaseMiddlewareHandler => {
-    const { POST, GET } = kernel.permdockHandler();
-    return (request, ctx): Promise<Response> => {
+    return async (request, ctx): Promise<Response> => {
       bind(request, ctx);
-      switch (request.method) {
-        case "POST":
-          return POST(request);
-        case "GET":
-          return GET(request);
-        default:
-          return Promise.resolve(methodNotAllowed("GET, POST"));
+      if (request.method !== "POST" && request.method !== "GET") {
+        return methodNotAllowed("GET, POST");
       }
+      const kernel = await kernelFor(ctx);
+      const handler = handlers.get(kernel) ?? kernel.permdockHandler();
+      handlers.set(kernel, handler);
+      return request.method === "POST"
+        ? handler.POST(request)
+        : handler.GET(request);
     };
   };
 
-  return { withPermDock, permdockHandler, openapi: kernel.openapi };
+  return { withPermDock, permdockHandler, openapi: base.openapi };
 }

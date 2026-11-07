@@ -4,10 +4,8 @@ import type {
 } from "../app/define-permdock.ts";
 import type { AppOptions } from "../core/app.ts";
 import type { PermissionCheck, PermissionState } from "../core/checks.ts";
-import type { InstanceCache } from "../core/instance-cache.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
-import type { SubjectCache } from "../core/subject-cache.ts";
 import type { Principal, Subject } from "../core/subject.ts";
 import type { VersionCache } from "../core/version-cache.ts";
 import type { AuthorizerOptions } from "./authorizer.ts";
@@ -20,10 +18,8 @@ import type { BetterSupabaseSubjectOptions } from "./subject.ts";
 
 import { definePermDock as defineApp } from "../app/define-permdock.ts";
 import { isRecord } from "../core/compact.ts";
-import { instanceCache } from "../core/instance-cache.ts";
 import { getPermDock } from "../core/permdock.ts";
-import { memorySubjectCache } from "../core/subject-cache.ts";
-import { memoryVersionCache } from "../core/version-cache.ts";
+import { ownedCaches, withMembers } from "../supabase/app-members.ts";
 import { authorizer } from "./authorizer.ts";
 import { getPermissions, permdockFor } from "./permdock-for.ts";
 
@@ -89,25 +85,6 @@ export type BetterSupabasePermDock<
   ) => Promise<Readonly<Record<K, PermissionState>>>;
 };
 
-function ownedCaches(options: {
-  readonly maxStaleMs?: number;
-  readonly versions?: VersionCache;
-  readonly instances?: InstanceCache;
-  readonly subjects?: SubjectCache;
-}): {
-  readonly versions: VersionCache;
-  readonly instances: InstanceCache;
-  readonly subjects: SubjectCache;
-} {
-  const stale =
-    options.maxStaleMs === undefined ? {} : { maxStaleMs: options.maxStaleMs };
-  return {
-    versions: options.versions ?? memoryVersionCache(stale),
-    instances: options.instances ?? instanceCache(),
-    subjects: options.subjects ?? memorySubjectCache(stale),
-  };
-}
-
 function withVersion<
   TUser,
   TPrincipal extends Principal,
@@ -170,15 +147,6 @@ export function definePermDock<
   });
   const made = (extra?: AuthorizerExtra<V>): ReturnType<typeof authorizer<V>> =>
     authorizer({ policy: app, permdockFor: dock, ...extra });
-  // SAFETY: getPrototypeOf returns the policy prototype or null, which Object.create accepts.
-  const prototype = Object.getPrototypeOf(app) as object | null;
-  const { fromClaims: _replaced, ...descriptors } =
-    Object.getOwnPropertyDescriptors(app);
-  // SAFETY: the descriptors are the app's own properties, including the app symbol, so the copy is that definition.
-  const definition = Object.create(
-    prototype,
-    descriptors,
-  ) as BetterSupabasePermDock<TUser, TPrincipal, V, TClient>;
   const members = {
     client: (): Promise<TClient> => {
       if (load === undefined) {
@@ -221,8 +189,5 @@ export function definePermDock<
     ): Promise<Readonly<Record<K, PermissionState>>> =>
       getPermissions(dock, input, checks, query),
   };
-  for (const [name, value] of Object.entries(members)) {
-    Object.defineProperty(definition, name, { value });
-  }
-  return Object.freeze(definition);
+  return withMembers(app, members, ["fromClaims"]);
 }
