@@ -154,6 +154,10 @@ export function definePermDock<
     assertProduction(policy, definition);
   }
   const perClient = new WeakMap<object, ClientSources>();
+  const boundByClient = new WeakMap<
+    object,
+    PermDockDefinition<TUser, TPrincipal, V, TClient>
+  >();
   const sourcesOfClient = (client: TClient): ClientSources => {
     if (definition.sources === undefined) {
       throw new TypeError(
@@ -241,12 +245,18 @@ export function definePermDock<
       },
       forClient(client) {
         const { memberships, customRoles, subjects } = sourcesOfClient(client);
-        return bind({
+        const known = boundByClient.get(client);
+        if (known !== undefined) {
+          return known;
+        }
+        const made = bind({
           ...definition,
           ...(memberships === undefined ? {} : { memberships }),
           ...(customRoles === undefined ? {} : { customRoles }),
           ...(subjects === undefined ? {} : { subjects }),
         });
+        boundByClient.set(client, made);
+        return made;
       },
     };
     for (const [name, value] of Object.entries(members)) {

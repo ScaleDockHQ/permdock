@@ -1,6 +1,6 @@
 import type { PermDock } from "./permdock.ts";
 import type { Permission } from "./permission-types.ts";
-import type { SnapshotGrant } from "./snapshot-types.ts";
+import type { ExpandedSnapshot, SnapshotGrant } from "./snapshot-types.ts";
 import type { Delegation } from "./subject.ts";
 
 import { coveredByDelegation, readOnlyActorRefuses } from "./delegation.ts";
@@ -57,6 +57,23 @@ function withinDelegation(
   );
 }
 
+/** One instance's expanded snapshot, its grants indexed by permission key. */
+type UseView = {
+  readonly snapshot: ExpandedSnapshot;
+  readonly byPermission: ReadonlyMap<string, readonly SnapshotGrant[]>;
+};
+
+function buildView(permdock: PermDock): UseView {
+  const snapshot = expandSnapshot(permdock.snapshot());
+  const byPermission = new Map<string, SnapshotGrant[]>();
+  for (const grant of snapshot.grants) {
+    const list = byPermission.get(grant.permission) ?? [];
+    list.push(grant);
+    byPermission.set(grant.permission, list);
+  }
+  return { snapshot, byPermission };
+}
+
 /**
  * Whether the subject's delegation, its delegated ceiling and a read-only actor
  * leave `permission` within reach, whatever the grants say. A hint, never a
@@ -81,35 +98,54 @@ export function delegationAllows(
  * skills, never a decision; the call itself is decided in full.
  */
 export function mayUse(permdock: PermDock, permission: Permission): boolean {
-  try {
-    const snapshot = expandSnapshot(permdock.snapshot());
-    if (!withinDelegation(permdock, permission, snapshot.delegated)) {
+  return mayUseOf(permdock)(permission);
+}
+
+/**
+ * `mayUse` for one instance, reading the instance snapshot on the first call
+ * only: a tool listing asks once per tool.
+ */
+export function mayUseOf(
+  permdock: PermDock,
+): (permission: Permission) => boolean {
+  let view: UseView | undefined;
+  return (permission) => {
+    try {
+      view ??= buildView(permdock);
+      return mayUseIn(permdock, permission, view);
+    } catch {
       return false;
     }
-    const tenant = permdock.subject.principal?.tenant;
-    const scopes = scopeList(snapshot.scopes);
-    const grants = snapshot.grants.filter((grant) => {
-      if (grant.permission !== permission.key) {
-        return false;
-      }
-      const owner =
-        grant.membership === undefined
-          ? undefined
-          : tenantOf(grant.membership, scopes);
-      // A tenant the subject does not hold is not "no tenant".
-      return (
-        owner === undefined ||
-        (permdock.subject.principal?.unheldTenant === undefined &&
-          (tenant === undefined || owner === tenant))
-      );
-    });
-    if (grants.some(blocksEveryRow)) {
-      return false;
-    }
-    return grants.some((grant) => grant.effect === "allow");
-  } catch {
+  };
+}
+
+function mayUseIn(
+  permdock: PermDock,
+  permission: Permission,
+  view: UseView,
+): boolean {
+  const { snapshot, byPermission } = view;
+  if (!withinDelegation(permdock, permission, snapshot.delegated)) {
     return false;
   }
+  const tenant = permdock.subject.principal?.tenant;
+  const scopes = scopeList(snapshot.scopes);
+  const grants = (byPermission.get(permission.key) ?? []).filter((grant) => {
+    const owner =
+      grant.membership === undefined
+        ? undefined
+        : tenantOf(grant.membership, scopes);
+    // A tenant the subject does not hold is not "no tenant".
+    return (
+      owner === undefined ||
+      (permdock.subject.principal?.unheldTenant === undefined &&
+        (tenant === undefined || owner === tenant))
+    );
+  });
+  if (grants.some(blocksEveryRow)) {
+    return false;
+  }
+  return grants.some((grant) => grant.effect === "allow");
 }
 
 function isConditioned(grant: SnapshotGrant): boolean {

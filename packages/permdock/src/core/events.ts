@@ -1,5 +1,5 @@
 import type { LoadedApprovalPolicies } from "./approval-policies.ts";
-import type { CustomGrant } from "./custom-roles.ts";
+import type { CustomGrant, CustomRoleLookup } from "./custom-roles.ts";
 import type { Decision } from "./decision.ts";
 import type { AuthEvent, DecisionEvent } from "./event-types.ts";
 import type { DecisionSink } from "./interfaces.ts";
@@ -69,6 +69,11 @@ export type EvalEnv = {
   readonly outcomeOnly?: boolean;
   readonly customRoles: readonly CustomRole[];
   readonly customGrants: readonly CustomGrant[];
+  /**
+   * The instance's custom roles indexed once; absent, lookups scan
+   * `customRoles` and `customGrants`.
+   */
+  readonly customLookup?: CustomRoleLookup;
   readonly listeners: ListenerMap;
   readonly sink: DecisionSink | undefined;
   /**

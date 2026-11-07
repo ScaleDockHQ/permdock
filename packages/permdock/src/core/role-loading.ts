@@ -1,3 +1,4 @@
+import type { CustomRoleLookup } from "./custom-roles.ts";
 import type { AuthEvent } from "./event-types.ts";
 import type {
   CustomRoleSource,
@@ -7,7 +8,7 @@ import type {
 import type { CustomRole, Subject } from "./subject.ts";
 
 import { compact } from "./compact.ts";
-import { isCustomRoleName } from "./custom-roles.ts";
+import { isCustomRoleName, isKnownCustomRole } from "./custom-roles.ts";
 import { sourceName } from "./source-name.ts";
 import { isThenable } from "./thenable.ts";
 
@@ -181,13 +182,18 @@ export function expandRoleNames(
   declared: ReadonlySet<string>,
   custom: readonly CustomRole[],
   tenant: string | undefined,
+  lookup?: CustomRoleLookup,
 ): { readonly roles: readonly string[]; readonly unknown: readonly string[] } {
   const resolved = new Set<string>();
   const unknown: string[] = [];
   for (const name of names) {
     if (declared.has(name)) {
       resolved.add(name);
-    } else if (!isCustomRoleName(name, custom, tenant)) {
+    } else if (
+      !(lookup === undefined
+        ? isCustomRoleName(name, custom, tenant)
+        : isKnownCustomRole(lookup, name, tenant))
+    ) {
       unknown.push(name);
     }
   }
