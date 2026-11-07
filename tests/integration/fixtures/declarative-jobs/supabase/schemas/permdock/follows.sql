@@ -10,26 +10,26 @@ create policy "permdock_follow_job_parties_select"
   as permissive
   for select
   to authenticated
-  using ("job_parties"."job_id" = any(array(select "permdock".permitted_jobs_rows('jobs.read'))));
+  using (exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_jobs(p, 'jobs.read'::text)));
 
 create policy "permdock_follow_job_parties_insert"
   on "public"."job_parties"
   as permissive
   for insert
   to authenticated
-  with check ("job_parties"."job_id" = any(array(select "permdock".permitted_jobs_rows('jobs.update'))));
+  with check (exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_jobs(p, 'jobs.update'::text)));
 
 create policy "permdock_follow_job_parties_update"
   on "public"."job_parties"
   as permissive
   for update
   to authenticated
-  using ("job_parties"."job_id" = any(array(select "permdock".permitted_jobs_rows('jobs.update'))))
-  with check ("job_parties"."job_id" = any(array(select "permdock".permitted_jobs_rows('jobs.update'))));
+  using (exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_jobs(p, 'jobs.update'::text)))
+  with check (exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_jobs(p, 'jobs.update'::text)));
 
 create policy "permdock_follow_job_parties_delete"
   on "public"."job_parties"
   as permissive
   for delete
   to authenticated
-  using ("job_parties"."job_id" = any(array(select "permdock".permitted_jobs_rows('jobs.update'))));
+  using (exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_jobs(p, 'jobs.update'::text)));

@@ -433,28 +433,30 @@ function tenantFirstOf(
 
 /**
  * The ids of a resource's rows a permission reaches, as one uncorrelated
- * `select`, for `<fk> = any(array(<select>))`. A permission every allow of
- * which is a root-scope role reads one tenant at a time through the tenant
- * column's index (`permitted_<resource>_rows(p, t)` over the tenants the caller
- * holds it in); any other reads `permitted_<resource>_rows(p)`.
+ * `select` for `<fk> = any(array(<select>))`, or `undefined` when the
+ * permission cannot be read one tenant at a time. Only a permission every allow
+ * of which is a root-scope role can: it reads `permitted_<resource>_rows(p, t)`
+ * over the tenants the caller holds it in, through the tenant column's index.
+ * Any other permission would need the whole platform's rows to answer one
+ * lookup, so the caller keeps its per-row form.
  */
-export function rowSetSql(
+export function tenantRowSetSql(
   ctx: RlsSqlContext,
   policy: Policy,
   node: ResourceNode,
   permission: string,
-): string {
-  const literal = quoteLiteral(permission);
-  const rows = qualified(ctx, rowsHelper(node.name));
+): string | undefined {
   const root = rootScope(ctx.scopes);
   if (
-    root !== undefined &&
-    tenantFirstOf(ctx, policy, node)?.(permission) !== undefined
+    root === undefined ||
+    tenantFirstOf(ctx, policy, node)?.(permission) === undefined
   ) {
-    const tenants = qualified(ctx, permittedByPermissionHelper(root));
-    return `select r from unnest(array(select ${tenants}(${literal}, true))) t(id) cross join lateral ${rows}(${literal}, t.id) r`;
+    return undefined;
   }
-  return `select ${rows}(${literal})`;
+  const literal = quoteLiteral(permission);
+  const rows = qualified(ctx, rowsHelper(node.name));
+  const tenants = qualified(ctx, permittedByPermissionHelper(root));
+  return `select r from unnest(array(select ${tenants}(${literal}, true))) t(id) cross join lateral ${rows}(${literal}, t.id) r`;
 }
 
 /**
