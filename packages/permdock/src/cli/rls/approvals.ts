@@ -515,6 +515,7 @@ create table if not exists ${table} (
   constraint ${quoteIdent(`${DELEGATIONS.table}_distinct`)} check (delegator <> delegate)
 );
 create index if not exists ${quoteIdent(`${DELEGATIONS.table}_delegate`)} on ${table} (delegate, "until");
+create index if not exists ${quoteIdent(`${DELEGATIONS.table}_delegator`)} on ${table} (delegator, "until");
 alter table ${table} enable row level security;
 revoke all on table ${table} from anon, public;
 grant select, insert, update, delete on table ${table} to authenticated;

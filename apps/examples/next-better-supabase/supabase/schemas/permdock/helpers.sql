@@ -312,6 +312,35 @@ $$;
 revoke execute on function "permdock".permitted_organization_ids(text) from public, anon;
 grant execute on function "permdock".permitted_organization_ids(text) to authenticated;
 
+-- organization ids a grant key reaches, as one array, for `<column> = any(...)`
+create or replace function "permdock".permitted_organization_id_array(p_grant text)
+returns uuid[]
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select coalesce(array_agg(i), '{}'::uuid[]) from "permdock".permitted_organization_ids(p_grant) i
+$$;
+revoke execute on function "permdock".permitted_organization_id_array(text) from public, anon;
+grant execute on function "permdock".permitted_organization_id_array(text) to authenticated;
+-- whether a grant key reaches one organization
+create or replace function "permdock".permdock_organization_has(p_grant text, p_tenant uuid)
+returns boolean
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select p_tenant = any("permdock".permitted_organization_id_array(p_grant))
+$$;
+revoke execute on function "permdock".permdock_organization_has(text, uuid) from public, anon;
+grant execute on function "permdock".permdock_organization_has(text, uuid) to authenticated;
+
 create or replace function "permdock".member_organization_ids()
 returns setof uuid
 language plpgsql
@@ -442,6 +471,21 @@ end;
 $$;
 revoke execute on function "permdock".permitted_customer_ids(text) from public, anon;
 grant execute on function "permdock".permitted_customer_ids(text) to authenticated;
+
+-- customer ids a grant key reaches, as one array, for `<column> = any(...)`
+create or replace function "permdock".permitted_customer_id_array(p_grant text)
+returns uuid[]
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select coalesce(array_agg(i), '{}'::uuid[]) from "permdock".permitted_customer_ids(p_grant) i
+$$;
+revoke execute on function "permdock".permitted_customer_id_array(text) from public, anon;
+grant execute on function "permdock".permitted_customer_id_array(text) to authenticated;
 
 create or replace function "permdock".member_customer_ids()
 returns setof uuid
@@ -3226,22 +3270,23 @@ create table "permdock".approval_delegations (
   constraint "approval_delegations_distinct" check (delegator <> delegate)
 );
 create index "approval_delegations_delegate" on "permdock".approval_delegations (delegate, "until");
+create index "approval_delegations_delegator" on "permdock".approval_delegations (delegator, "until");
 alter table "permdock".approval_delegations enable row level security;
 revoke all on table "permdock".approval_delegations from anon, public;
 grant select, insert, update, delete on table "permdock".approval_delegations to authenticated;
 create policy "approval_delegations_read" on "permdock".approval_delegations
   for select to authenticated
-  using (delegator::text = (select "permdock".permdock_user_id())::text or delegate::text = (select "permdock".permdock_user_id())::text);
+  using (delegator = (select "permdock".permdock_user_id())::uuid or delegate = (select "permdock".permdock_user_id())::uuid);
 create policy "approval_delegations_insert" on "permdock".approval_delegations
   for insert to authenticated
-  with check (delegator::text = (select "permdock".permdock_user_id())::text and (select "permdock".permdock_actor_may_write()) and (tenant is null or tenant in (select m.id::text from "permdock".member_organization_ids() m(id))));
+  with check (delegator = (select "permdock".permdock_user_id())::uuid and (select "permdock".permdock_actor_may_write()) and (tenant is null or tenant in (select m.id::text from "permdock".member_organization_ids() m(id))));
 create policy "approval_delegations_update" on "permdock".approval_delegations
   for update to authenticated
-  using (delegator::text = (select "permdock".permdock_user_id())::text and (select "permdock".permdock_actor_may_write()))
-  with check (delegator::text = (select "permdock".permdock_user_id())::text and (select "permdock".permdock_actor_may_write()) and (tenant is null or tenant in (select m.id::text from "permdock".member_organization_ids() m(id))));
+  using (delegator = (select "permdock".permdock_user_id())::uuid and (select "permdock".permdock_actor_may_write()))
+  with check (delegator = (select "permdock".permdock_user_id())::uuid and (select "permdock".permdock_actor_may_write()) and (tenant is null or tenant in (select m.id::text from "permdock".member_organization_ids() m(id))));
 create policy "approval_delegations_delete" on "permdock".approval_delegations
   for delete to authenticated
-  using (delegator::text = (select "permdock".permdock_user_id())::text and (select "permdock".permdock_actor_may_write()));
+  using (delegator = (select "permdock".permdock_user_id())::uuid and (select "permdock".permdock_actor_may_write()));
 
 -- approval delegations: whether a delegator's own rights match approvers.by; only permdock_is_approver calls it
 create or replace function "permdock".permdock_cover_approves(p_delegator uuid, p_approvers jsonb, p_tenant text, p_requester text)
@@ -3324,7 +3369,7 @@ begin
   for v_delegator in
     select d.delegator
     from "permdock".approval_delegations d
-    where d.delegate::text = v_user
+    where d.delegate = v_user::uuid
       and d.delegator::text <> v_user
       and d.delegator::text <> p_requester
       and d."from" <= now()
@@ -3532,6 +3577,54 @@ end
 $$;
 revoke execute on function "permdock".permitted_quotes_rows(text, uuid[]) from public, anon;
 grant execute on function "permdock".permitted_quotes_rows(text, uuid[]) to authenticated;
+create or replace function "permdock".permitted_quotes_ids_in(p_permission text, p_ids uuid[])
+returns setof uuid
+language sql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+  select i from "permdock".permitted_quotes_rows(p_permission, p_ids) i
+$$;
+revoke execute on function "permdock".permitted_quotes_ids_in(text, uuid[]) from public, anon;
+grant execute on function "permdock".permitted_quotes_ids_in(text, uuid[]) to authenticated;
+
+-- quotes: the same set within one organization, by the index on organization_id
+create or replace function "permdock".permitted_quotes_rows(p_permission text, p_tenant uuid)
+returns setof uuid
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select "id"::uuid from "public"."quotes" as permdock_row
+  where permdock_row."organization_id" = p_tenant
+    and case p_permission
+    when 'quotes.list' then coalesce((("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.list')))) or ("customer_id" = any(array(select "permdock".permitted_customer_ids('quotes.list'))))), false)
+    when 'quotes.read' then coalesce((("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.read')))) or ("customer_id" = any(array(select "permdock".permitted_customer_ids('quotes.read'))))), false)
+    when 'quotes.update' then coalesce(("organization_id" = any(array(select "permdock".permitted_organization_ids('quotes.update')))), false)
+    else "permdock".permitted_quotes_match(permdock_row, p_permission)
+  end
+$$;
+revoke execute on function "permdock".permitted_quotes_rows(text, uuid) from public, anon;
+grant execute on function "permdock".permitted_quotes_rows(text, uuid) to authenticated;
+-- quotes: how many of them the caller may act on, counted up to p_cap
+create or replace function "permdock".permitted_quotes_count(p_permission text, p_tenant uuid, p_cap integer)
+returns integer
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select count(*)::integer from (select 1 from "permdock".permitted_quotes_rows(p_permission, p_tenant) limit greatest(p_cap, 0)) s
+$$;
+revoke execute on function "permdock".permitted_quotes_count(text, uuid, integer) from public, anon;
+grant execute on function "permdock".permitted_quotes_count(text, uuid, integer) to authenticated;
 create or replace function "permdock".can_quotes(p_row "public"."quotes", p_permission text)
 returns boolean
 language sql

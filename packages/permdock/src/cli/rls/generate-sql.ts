@@ -58,6 +58,7 @@ import { actorMayWriteSql, readOnlyActorKinds } from "./policies.ts";
 import { rbacScaffold } from "./rbac.ts";
 import { storageResources } from "./realtime-storage.ts";
 import { CANDIDATES, inheritTargets, rowHelpersSql } from "./rows.ts";
+import { mergeIndexTargets, ruleIndexTargets } from "./rule-indexes.ts";
 import { shimGrants, shimsSql } from "./shims.ts";
 import { auditSql, generatedTables, triggersSql } from "./triggers.ts";
 
@@ -616,14 +617,23 @@ export function generateSql(
     ...generated,
     ...emitted,
     backfill: checked.backfill,
-    indexes: indexTargets(
-      ctx,
-      tableColumns(
-        generated.compiled.rowColumns,
-        tableNames(rls?.tables),
-        helpersOnly,
-        warnings,
+    indexes: mergeIndexTargets(
+      indexTargets(
+        ctx,
+        tableColumns(
+          generated.compiled.rowColumns,
+          tableNames(rls?.tables),
+          helpersOnly,
+          warnings,
+        ),
       ),
+      ruleIndexTargets(policy, {
+        ...(rls?.tables === undefined ? {} : { tables: rls.tables }),
+        ...(typeof rls?.approvals === "object" &&
+        rls.approvals.managers !== undefined
+          ? { managers: rls.approvals.managers }
+          : {}),
+      }),
     ),
     parts: (indexes) => ({
       policies: dialectRoles(
