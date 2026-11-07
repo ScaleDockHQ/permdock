@@ -77,6 +77,9 @@ alter table ${table} add constraint ${quoteIdent(`${name}_shape`)} check (
 );
 ${index}
   on ${table} (${unique}) nulls not distinct;
+-- the probe's equality columns lead, so one range scan reads a role's rows whatever its instance pin
+create index if not exists ${quoteIdent(`${name}_probe_idx`)}
+  on ${table} (tenant_id, scope, role) include (scope_id, ${column}${name === CUSTOM_ROLES.permissions ? ", effect" : ""}${leveled ? ", level" : ""});
 -- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
 alter table ${table} add column if not exists id bigint generated always as identity primary key;
 alter table ${table} enable row level security;

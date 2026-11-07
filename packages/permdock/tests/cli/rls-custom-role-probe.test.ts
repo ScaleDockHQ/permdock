@@ -5,6 +5,7 @@ import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 import {
   customArraysQuery,
   customKeysQuery,
+  customRolesSql,
 } from "../../src/cli/rls/custom-roles.ts";
 
 const ctx: RlsSqlContext = {
@@ -50,5 +51,20 @@ describe("custom-role probe", () => {
       instance: undefined,
     });
     expect(sql).toContain("c.tenant_id is null");
+  });
+});
+
+describe("custom-role tables", () => {
+  it("index the probe columns and carry the entry columns in the leaf", () => {
+    const sql = customRolesSql(ctx);
+    expect(sql).toContain(
+      'create index if not exists "custom_role_permissions_probe_idx"',
+    );
+    expect(sql).toMatch(
+      /on [^\n]*custom_role_permissions[^\n]* \(tenant_id, scope, role\) include \(scope_id, permission, effect\);/u,
+    );
+    expect(sql).toMatch(
+      /on [^\n]*custom_role_includes[^\n]* \(tenant_id, scope, role\) include \(scope_id, include_role\);/u,
+    );
   });
 });
