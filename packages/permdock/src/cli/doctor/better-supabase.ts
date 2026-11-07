@@ -153,7 +153,10 @@ function isKeyLister(
 
 /**
  * A permission key a configured better-supabase block checks that the catalog
- * does not list: no role holds it, so the block's SQL checks deny it.
+ * does not list: no role holds it, so the block's SQL checks deny it. The check
+ * cannot run without `modulePermissionKeys` from the project's
+ * `better-supabase/sql`, and then it is an error: a key that goes unchecked is
+ * a block that denies.
  */
 export async function pd079(
   input: DoctorInput,
@@ -162,6 +165,18 @@ export async function pd079(
   const blocks = config?.["blocks"];
   if (!isRecord(blocks)) {
     return [];
+  }
+  const keys = await blockPermissionKeys(input.cwd, blocks);
+  if (keys === undefined) {
+    return [
+      {
+        code: "PD079",
+        severity: "error",
+        message:
+          "better-supabase/sql does not export modulePermissionKeys, so PermDock cannot list the permission keys the configured blocks check",
+        fix: "install a better-supabase release that exports modulePermissionKeys from better-supabase/sql",
+      },
+    ];
   }
   const files = filesOf(input);
   const path = catalogPath(input.config, input.cwd);
@@ -176,10 +191,6 @@ export async function pd079(
   } catch {
     return [];
   }
-  const keys = await blockPermissionKeys(input.cwd, blocks);
-  if (keys === undefined) {
-    return [];
-  }
   const missing = new Map<string, string[]>();
   for (const entry of keys) {
     if (!declared.has(entry.key)) {
@@ -191,9 +202,9 @@ export async function pd079(
   const catalog = rel(input.cwd, path);
   return [...missing].map(([key, uses]): DoctorFinding => ({
     code: "PD079",
-    severity: "warning",
+    severity: "error",
     message: `${key} (${[...new Set(uses)].join(", ")}) is not in ${catalog}, so no role holds it and better-supabase's SQL check denies it`,
-    fix: `declare ${key} in the policy and run permdock collect, or map the block action to a key the catalog lists`,
+    fix: `declare ${key} in the policy and run permdock collect, or map the block action to a key the catalog lists; defineBlocksConfig<typeof policy>() from permdock/better-supabase checks the keys at compile time`,
   }));
 }
 
