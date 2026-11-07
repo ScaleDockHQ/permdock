@@ -322,6 +322,50 @@ describe("supabase.hook.teams", () => {
         },
       });
 
+    it("reads roles, memberships, teams and the version in one statement and budgets them", () => {
+      const { sql, manifest } = teamsHook();
+      expect(sql).toContain("pdk_teams as (");
+      expect(sql).toContain("pdk_version as (");
+      expect(sql).toContain(
+        "into held, kept, truncated, in_active, used, team_ids, ver;",
+      );
+      expect(sql).toContain("truncated or (select count(*) from pdk_ranked)");
+      for (const name of ["roles", "team_ids", "authz_ver"]) {
+        expect(manifest.claims).toContainEqual({
+          name,
+          source: "permdock",
+          budget: true,
+        });
+      }
+    });
+
+    it("leaves the roles and the version out of the statement when the hook has neither", () => {
+      const { sql, manifest } = supabaseHookSql(scopes, {
+        policy: "p.ts",
+        supabase: {
+          hook: {
+            roles: false,
+            version: false,
+            memberships: [
+              junctionMembershipSource({
+                table: "organization_members",
+                scope: "organization",
+                id: "organization_id",
+                roles: "role",
+              }),
+            ],
+          },
+        },
+      });
+      expect(sql).toContain("select '[]'::jsonb as held");
+      expect(sql).not.toContain("pdk_version");
+      expect(sql).not.toContain("pdk_teams");
+      expect(sql).toContain("into held, kept, truncated, in_active, used;");
+      expect(manifest.claims.map((claim) => claim.name)).not.toContain(
+        "authz_ver",
+      );
+    });
+
     it("lists the helpers and leaves the function bodies to rls generate", () => {
       const { sql, manifest } = teamsHook();
       expect(sql).not.toContain('function "permdock"."member_team_ids_of"');

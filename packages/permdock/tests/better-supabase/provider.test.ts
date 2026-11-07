@@ -141,7 +141,7 @@ describe(authorizationProvider, () => {
         { name: "features", function: "public.feature_claims" },
       ],
       budget: {
-        claims: ["memberships"],
+        claims: ["roles", "memberships", "authz_ver"],
         bytes: 1024,
         truncatedClaim: "memberships_truncated",
       },

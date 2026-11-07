@@ -191,12 +191,20 @@ as $$
     from "permdock".user_roles ur
     where ur.user_id = (select "permdock".permdock_user_id())
       and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
-      and p_grant in (select "permdock".permdock_custom_keys(
-      array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
-      array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
-      array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
-      'global'
-    ))
+      and p_grant in (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select false as shared) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where i.tenant_id is null and i.scope = 'global' and i.scope_id is null and i.role = ur.role::text order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'global') k(grant_key))
   )
 $$;
 revoke execute on function "permdock".permdock_has(text) from public, anon;
@@ -238,6 +246,41 @@ declare
   v_user_0 "public"."organization_memberships"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
+  with pdk_m as (
+  select (ms.id)::uuid as id, pdk_e.allow, pdk_e.deny, pdk_e.incl
+  from (
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
+    where m."user_id" = v_user_0
+    group by m."organization_id"
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral (select p.allow, p.deny, i.incl
+        from (select "permdock".permdock_is_shared_role('organization', r.role) as shared offset 0) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.id)::text end and i.scope = 'organization' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+        ) p) pdk_e
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'organization'
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+  ),
+  pdk_k as materialized (
+    select a.allow, a.deny, a.incl
+    from (select distinct pdk_m.allow, pdk_m.deny, pdk_m.incl from pdk_m) a
+    cross join lateral "permdock".permdock_custom_keys(a.allow, a.deny, a.incl, 'organization') k(grant_key)
+    where k.grant_key = p_grant
+  )
   select (ms.id)::uuid
   from (
     select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
@@ -256,27 +299,8 @@ begin
     and rp.scope = 'organization'
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
   union
-  select (ms.id)::uuid
-  from (
-    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."organization_memberships" m
-    where m."user_id" = v_user_0
-    group by m."organization_id"
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-  ) ms
-  cross join lateral jsonb_array_elements_text(
-    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
-  ) r(role)
-  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
-    and ms.scope = 'organization'
-    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
-    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.id = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
-    and p_grant in (select "permdock".permdock_custom_keys(
-      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
-      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
-      array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
-      'organization'
-    ));
+  select pdk_m.id from pdk_m
+  join pdk_k on pdk_k.allow = pdk_m.allow and pdk_k.deny = pdk_m.deny and pdk_k.incl = pdk_m.incl;
 end;
 $$;
 revoke execute on function "permdock".permitted_organization_ids(text) from public, anon;
@@ -353,6 +377,41 @@ declare
   v_user_0 "public"."contacts"."user_id"%type := (select "permdock".permdock_user_id());
 begin
   return query
+  with pdk_m as (
+  select (ms.id)::uuid as id, pdk_e.allow, pdk_e.deny, pdk_e.incl
+  from (
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id" = v_user_0
+    group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral (select p.allow, p.deny, i.incl
+        from (select "permdock".permdock_is_shared_role('customer', r.role) as shared offset 0) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.within ->> 'organization')::text end and i.scope = 'customer' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+        ) p) pdk_e
+  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+    and ms.scope = 'customer'
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
+    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
+  ),
+  pdk_k as materialized (
+    select a.allow, a.deny, a.incl
+    from (select distinct pdk_m.allow, pdk_m.deny, pdk_m.incl from pdk_m) a
+    cross join lateral "permdock".permdock_custom_keys(a.allow, a.deny, a.incl, 'customer') k(grant_key)
+    where k.grant_key = p_grant
+  )
   select (ms.id)::uuid
   from (
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
@@ -371,27 +430,8 @@ begin
     and rp.scope = 'customer'
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
   union
-  select (ms.id)::uuid
-  from (
-    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."contacts" m
-    where m."user_id" = v_user_0
-    group by m."customer_id", m."organization_id"
-    having jsonb_build_array('contact') is not null
-  ) ms
-  cross join lateral jsonb_array_elements_text(
-    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
-  ) r(role)
-  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
-    and ms.scope = 'customer'
-    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
-    and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or ms.within ->> 'organization' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
-    and p_grant in (select "permdock".permdock_custom_keys(
-      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
-      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
-      array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
-      'customer'
-    ));
+  select pdk_m.id from pdk_m
+  join pdk_k on pdk_k.allow = pdk_m.allow and pdk_k.deny = pdk_m.deny and pdk_k.incl = pdk_m.incl;
 end;
 $$;
 revoke execute on function "permdock".permitted_customer_ids(text) from public, anon;
@@ -477,12 +517,20 @@ as $$
     from "permdock".user_roles ur
     where ur.user_id = p_user
       and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
-      and p_grant in (select "permdock".permdock_custom_keys(
-      array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
-      array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
-      array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
-      'global'
-    ))
+      and p_grant in (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select false as shared) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where i.tenant_id is null and i.scope = 'global' and i.scope_id is null and i.role = ur.role::text order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'global') k(grant_key))
   )
 $$;
 revoke execute on function "permdock".permdock_has_for(uuid, text) from public, anon, authenticated;
@@ -501,6 +549,40 @@ declare
   v_user_0 "public"."organization_memberships"."user_id"%type := p_user;
 begin
   return query
+  with pdk_m as (
+  select (ms.id)::uuid as id, pdk_e.allow, pdk_e.deny, pdk_e.incl
+  from (
+    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."organization_memberships" m
+    where m."user_id" = v_user_0
+    group by m."organization_id"
+    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral (select p.allow, p.deny, i.incl
+        from (select "permdock".permdock_is_shared_role('organization', r.role) as shared offset 0) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.id)::text end and i.scope = 'organization' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+        ) p) pdk_e
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'organization'
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
+  ),
+  pdk_k as materialized (
+    select a.allow, a.deny, a.incl
+    from (select distinct pdk_m.allow, pdk_m.deny, pdk_m.incl from pdk_m) a
+    cross join lateral "permdock".permdock_custom_keys(a.allow, a.deny, a.incl, 'organization') k(grant_key)
+    where k.grant_key = p_grant
+  )
   select (ms.id)::uuid
   from (
     select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
@@ -518,26 +600,8 @@ begin
     and rp.grant_key = p_grant
     and rp.scope = 'organization'
   union
-  select (ms.id)::uuid
-  from (
-    select 'organization'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."organization_memberships" m
-    where m."user_id" = v_user_0
-    group by m."organization_id"
-    having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
-  ) ms
-  cross join lateral jsonb_array_elements_text(
-    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
-  ) r(role)
-  where coalesce(p_user::text, '') <> ''
-    and ms.scope = 'organization'
-    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
-    and p_grant in (select "permdock".permdock_custom_keys(
-      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
-      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
-      array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
-      'organization'
-    ));
+  select pdk_m.id from pdk_m
+  join pdk_k on pdk_k.allow = pdk_m.allow and pdk_k.deny = pdk_m.deny and pdk_k.incl = pdk_m.incl;
 end;
 $$;
 revoke execute on function "permdock".permitted_organization_ids_for(uuid, text) from public, anon, authenticated;
@@ -556,6 +620,40 @@ declare
   v_user_0 "public"."contacts"."user_id"%type := p_user;
 begin
   return query
+  with pdk_m as (
+  select (ms.id)::uuid as id, pdk_e.allow, pdk_e.deny, pdk_e.incl
+  from (
+    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+    from "public"."contacts" m
+    where m."user_id" = v_user_0
+    group by m."customer_id", m."organization_id"
+    having jsonb_build_array('contact') is not null
+  ) ms
+  cross join lateral jsonb_array_elements_text(
+    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
+  ) r(role)
+  cross join lateral (select p.allow, p.deny, i.incl
+        from (select "permdock".permdock_is_shared_role('customer', r.role) as shared offset 0) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.within ->> 'organization')::text end and i.scope = 'customer' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+        ) p) pdk_e
+  where coalesce(p_user::text, '') <> ''
+    and ms.scope = 'customer'
+    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
+  ),
+  pdk_k as materialized (
+    select a.allow, a.deny, a.incl
+    from (select distinct pdk_m.allow, pdk_m.deny, pdk_m.incl from pdk_m) a
+    cross join lateral "permdock".permdock_custom_keys(a.allow, a.deny, a.incl, 'customer') k(grant_key)
+    where k.grant_key = p_grant
+  )
   select (ms.id)::uuid
   from (
     select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
@@ -573,26 +671,8 @@ begin
     and rp.grant_key = p_grant
     and rp.scope = 'customer'
   union
-  select (ms.id)::uuid
-  from (
-    select 'customer'::text as scope, m."customer_id"::text as id, jsonb_build_object('organization', m."organization_id"::text) as within, jsonb_build_array('contact') as roles, 'contact'::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-    from "public"."contacts" m
-    where m."user_id" = v_user_0
-    group by m."customer_id", m."organization_id"
-    having jsonb_build_array('contact') is not null
-  ) ms
-  cross join lateral jsonb_array_elements_text(
-    case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
-  ) r(role)
-  where coalesce(p_user::text, '') <> ''
-    and ms.scope = 'customer'
-    and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
-    and p_grant in (select "permdock".permdock_custom_keys(
-      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
-      array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
-      array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
-      'customer'
-    ));
+  select pdk_m.id from pdk_m
+  join pdk_k on pdk_k.allow = pdk_m.allow and pdk_k.deny = pdk_m.deny and pdk_k.incl = pdk_m.incl;
 end;
 $$;
 revoke execute on function "permdock".permitted_customer_ids_for(uuid, text) from public, anon, authenticated;
@@ -1709,12 +1789,20 @@ begin
   union
   select ck.grant_key
   from "permdock".user_roles ur
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
-    'global'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select false as shared) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where i.tenant_id is null and i.scope = 'global' and i.scope_id is null and i.role = ur.role::text order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'global') k(grant_key)) ck(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
     and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
@@ -1749,12 +1837,20 @@ begin
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
   ) r(role)
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
-    'organization'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select "permdock".permdock_is_shared_role('organization', r.role) as shared offset 0) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.id)::text end and i.scope = 'organization' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'organization') k(grant_key)) ck(grant_key)
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'organization'
     and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
@@ -1816,12 +1912,20 @@ begin
   union
   select ck.grant_key
   from "permdock".user_roles ur
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
-    'global'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select false as shared) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where i.tenant_id is null and i.scope = 'global' and i.scope_id is null and i.role = ur.role::text order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'global') k(grant_key)) ck(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
     and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
@@ -1856,12 +1960,20 @@ begin
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
   ) r(role)
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
-    'organization'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select "permdock".permdock_is_shared_role('organization', r.role) as shared offset 0) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.id)::text end and i.scope = 'organization' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'organization') k(grant_key)) ck(grant_key)
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'organization'
     and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
@@ -1971,12 +2083,20 @@ begin
   union
   select ck.grant_key
   from "permdock".user_roles ur
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
-    'global'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select false as shared) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where i.tenant_id is null and i.scope = 'global' and i.scope_id is null and i.role = ur.role::text order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'global') k(grant_key)) ck(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
     and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
@@ -2011,12 +2131,20 @@ begin
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
   ) r(role)
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
-    'customer'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select "permdock".permdock_is_shared_role('customer', r.role) as shared offset 0) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.within ->> 'organization')::text end and i.scope = 'customer' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'customer') k(grant_key)) ck(grant_key)
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'customer'
     and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
@@ -2072,12 +2200,20 @@ begin
   union
   select ck.grant_key
   from "permdock".user_roles ur
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
-    'global'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select false as shared) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where i.tenant_id is null and i.scope = 'global' and i.scope_id is null and i.role = ur.role::text order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'global') k(grant_key)) ck(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
     and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
@@ -2112,12 +2248,20 @@ begin
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
   ) r(role)
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
-    'customer'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select "permdock".permdock_is_shared_role('customer', r.role) as shared offset 0) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.within ->> 'organization')::text end and i.scope = 'customer' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'customer') k(grant_key)) ck(grant_key)
   where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
     and ms.scope = 'customer'
     and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
@@ -2276,12 +2420,20 @@ begin
   union
   select ck.grant_key
   from "permdock".user_roles ur
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
-    'global'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select false as shared) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where i.tenant_id is null and i.scope = 'global' and i.scope_id is null and i.role = ur.role::text order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'global') k(grant_key)) ck(grant_key)
   where ur.user_id = p_user
     and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
@@ -2315,12 +2467,20 @@ begin
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
   ) r(role)
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
-    'organization'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select "permdock".permdock_is_shared_role('organization', r.role) as shared offset 0) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.id)::text end and i.scope = 'organization' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'organization') k(grant_key)) ck(grant_key)
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'organization'
     and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
@@ -2380,12 +2540,20 @@ begin
   union
   select ck.grant_key
   from "permdock".user_roles ur
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
-    'global'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select false as shared) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where i.tenant_id is null and i.scope = 'global' and i.scope_id is null and i.role = ur.role::text order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'global') k(grant_key)) ck(grant_key)
   where ur.user_id = p_user
     and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
@@ -2419,12 +2587,20 @@ begin
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
   ) r(role)
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('organization', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
-    'organization'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select "permdock".permdock_is_shared_role('organization', r.role) as shared offset 0) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.id)::text end and i.scope = 'organization' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'organization' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'organization') k(grant_key)) ck(grant_key)
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'organization'
     and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
@@ -2528,12 +2704,20 @@ begin
   union
   select ck.grant_key
   from "permdock".user_roles ur
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
-    'global'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select false as shared) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where i.tenant_id is null and i.scope = 'global' and i.scope_id is null and i.role = ur.role::text order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'global') k(grant_key)) ck(grant_key)
   where ur.user_id = p_user
     and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
@@ -2567,12 +2751,20 @@ begin
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
   ) r(role)
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
-    'customer'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select "permdock".permdock_is_shared_role('customer', r.role) as shared offset 0) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.within ->> 'organization')::text end and i.scope = 'customer' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'customer') k(grant_key)) ck(grant_key)
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'customer'
     and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
@@ -2626,12 +2818,20 @@ begin
   union
   select ck.grant_key
   from "permdock".user_roles ur
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text),
-    'global'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select false as shared) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where i.tenant_id is null and i.scope = 'global' and i.scope_id is null and i.role = ur.role::text order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'global') k(grant_key)) ck(grant_key)
   where ur.user_id = p_user
     and not (ur.role::text = any(array['contact', 'guest', 'member', 'owner']::text[]))
   ),
@@ -2665,12 +2865,20 @@ begin
   cross join lateral jsonb_array_elements_text(
     case jsonb_typeof(ms.roles) when 'array' then ms.roles else '[]'::jsonb end
   ) r(role)
-  cross join lateral "permdock".permdock_custom_keys(
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'allow'),
-    array(select c.permission from "permdock".custom_role_permissions c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role and c.effect = 'deny'),
-    array(select c.include_role from "permdock".custom_role_includes c where case when "permdock".permdock_is_shared_role('customer', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role),
-    'customer'
-  ) ck(grant_key)
+  cross join lateral (select k.grant_key
+      from (select p.allow, p.deny, i.incl
+        from (select "permdock".permdock_is_shared_role('customer', r.role) as shared offset 0) pdk_s
+        cross join lateral (
+          select array(select i.include_role from "permdock".custom_role_includes i where case when pdk_s.shared then i.tenant_id is null else i.tenant_id::text = (ms.within ->> 'organization')::text end and i.scope = 'customer' and (i.scope_id is null or i.scope_id = (ms.id)::text) and i.role = r.role order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from "permdock".custom_role_permissions c
+          where case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'organization')::text end and c.scope = 'customer' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role
+        ) p) pdk_e
+      cross join lateral "permdock".permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'customer') k(grant_key)) ck(grant_key)
   where coalesce(p_user::text, '') <> ''
     and ms.scope = 'customer'
     and not (r.role = any(array['contact', 'guest', 'member', 'owner']::text[]))
@@ -3270,7 +3478,12 @@ parallel safe
 set search_path = ''
 as $$
   select "id"::uuid from "public"."quotes" as permdock_row
-  where "permdock".permitted_quotes_match(permdock_row, p_permission)
+  where case p_permission
+    when 'quotes.list' then coalesce((("organization_id" in (select "permdock".permitted_organization_ids('quotes.list'))) or ("customer_id" in (select "permdock".permitted_customer_ids('quotes.list')))), false)
+    when 'quotes.read' then coalesce((("organization_id" in (select "permdock".permitted_organization_ids('quotes.read'))) or ("customer_id" in (select "permdock".permitted_customer_ids('quotes.read')))), false)
+    when 'quotes.update' then coalesce(("organization_id" in (select "permdock".permitted_organization_ids('quotes.update'))), false)
+    else "permdock".permitted_quotes_match(permdock_row, p_permission)
+  end
 $$;
 revoke execute on function "permdock".permitted_quotes_rows(text) from public, anon;
 grant execute on function "permdock".permitted_quotes_rows(text) to authenticated;

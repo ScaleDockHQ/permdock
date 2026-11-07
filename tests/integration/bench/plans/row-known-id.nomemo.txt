@@ -1,7 +1,6 @@
-Index Scan using item_pkey on item  (cost=…) (actual time=… rows=1.00 loops=1)
+Index Scan using item_pkey on item  (cost=…) (actual time=… rows=1 loops=1)
   Index Cond: (id = '00000000-0000-4000-8002-000000000000'::uuid)
-  Filter: (ANY ("orgId" = (hashed SubPlan 1).col1))
-  Index Searches: 1
+  Filter: (hashed SubPlan 1)
   SubPlan 1
-    ->  ProjectSet  (cost=…) (actual time=… rows=1.00 loops=1)
-          ->  Result  (cost=…) (actual time=… rows=1.00 loops=1)
+    ->  ProjectSet  (cost=…) (actual time=… rows=1 loops=1)
+          ->  Result  (cost=…) (actual time=… rows=1 loops=1)

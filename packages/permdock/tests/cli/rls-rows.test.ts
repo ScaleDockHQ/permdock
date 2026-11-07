@@ -103,12 +103,9 @@ describe("permitted_<resource>_rows", () => {
       `when 'doc.archive' then coalesce(("ownerId" = (select "permdock".permdock_user_id())), false)`,
     );
     expect(sql).toContain(`when 'doc.update' then`);
-    expect(sql).toContain(
-      `when 'doc.create' then "orgId" in (select "permdock".permitted_tenant_ids_by_permission(p_permission, true))`,
-    );
-    expect(sql).toContain(
-      `when 'doc.create' then coalesce(("orgId" in (select "permdock".permitted_tenant_ids('doc.create'))), false)`,
-    );
+    const create = `when 'doc.create' then coalesce(("orgId" in (select "permdock".permitted_tenant_ids('doc.create'))), false)`;
+    // The match and the id-set query each carry an arm that reads only the row.
+    expect(sql.split(create)).toHaveLength(3);
     expect(sql).toContain("    else false");
     expect(sql).toContain(
       '"permdock".permitted_doc_rows_for(p_user uuid, p_permission text, p_claims jsonb',
@@ -200,16 +197,59 @@ describe("permitted_<resource>_rows", () => {
     );
   });
 
-  it("leads a root-scope key with the tenant prefilter and skips it for a global role", () => {
+  it("carries an arm that reads only the row in the id-set query, and calls the match for the rest", () => {
     const { sql } = generate("supabase", ["doc"]);
-    expect(sql).toContain(
-      `when 'doc.read' then "orgId" in (select "permdock".permitted_tenant_ids_by_permission(p_permission, true))`,
+    const rows = sql.slice(
+      sql.indexOf(
+        'create or replace function "permdock".permitted_doc_rows(p_permission text)',
+      ),
     );
-    expect(sql).toContain(
-      'and "permdock".permitted_doc_match(permdock_row, p_permission)',
+    const body = rows.slice(0, rows.indexOf("$$;", rows.indexOf("as $$")));
+    expect(body).toContain(
+      `when 'doc.read' then coalesce(("orgId" in (select "permdock".permitted_tenant_ids('doc.read#1'))), false)`,
+    );
+    expect(body).toContain(
+      'else "permdock".permitted_doc_match(permdock_row, p_permission)',
     );
     expect(sql).not.toContain(
-      `when 'note.read' then "orgId" in (select "permdock".permitted_tenant_ids_by_permission`,
+      "permitted_tenant_ids_by_permission(p_permission, true))\n",
+    );
+  });
+
+  it("leaves a key to the match when the policy declares no scope", () => {
+    const { sql } = generate("supabase", ["note"], undefined, { scopes: [] });
+    const body = sql.slice(
+      sql.indexOf(
+        'create or replace function "permdock".permitted_note_rows(p_permission text)',
+      ),
+    );
+    expect(body).toContain("permitted_note_match(permdock_row, p_permission)");
+    expect(body).not.toContain("by_permission");
+  });
+
+  it("leads a root-scope key with the tenant prefilter when the match cannot be carried inline", () => {
+    const warnings: string[] = [];
+    const ctx = context("supabase");
+    const compiled = compileGrants(
+      policy,
+      ctx,
+      undefined,
+      warnings,
+      false,
+      true,
+    );
+    // The match decides nothing for the narrowed set, so no arm is carried inline.
+    const sql = rowHelpersSql(
+      ctx,
+      policy,
+      [...compiled.branches, ...compiled.actionBranches],
+      ["doc"],
+      { doc: "app.documents" },
+      warnings,
+      [],
+    );
+    expect(sql).toContain(
+      `when 'doc.read' then "orgId" in (select "permdock".permitted_tenant_ids_by_permission(p_permission, true)) and "permdock".permitted_doc_match(permdock_row, p_permission)`,
     );
   });
 

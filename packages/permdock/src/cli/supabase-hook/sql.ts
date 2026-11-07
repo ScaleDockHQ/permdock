@@ -36,7 +36,6 @@ import {
   MEMBERSHIPS_FOR,
   entriesGrantsSql,
   entryTenantSql,
-  heldSql,
 } from "./entries.ts";
 import {
   activeFromSql,
@@ -61,7 +60,6 @@ export function schemaSql(parts: Parts): string {
 export function hookSql(parts: Parts): string {
   const schema = quoteIdent(parts.schema);
   const fn = `${schema}.custom_access_token_hook`;
-  const roles = heldSql(parts, "uid");
   const plan = parts.attrs;
   const tableMembershipSource =
     plan === undefined || plan.columns.length === 0 || plan.table === undefined
@@ -104,6 +102,10 @@ export function hookSql(parts: Parts): string {
   select v.version into ver from ${versionTable} v where v.user_id = uid;
   claims := jsonb_set(claims, '{authz_ver}', to_jsonb(coalesce(ver, 0)));`
     : "";
+  const versionClaim = parts.version
+    ? `
+  claims := jsonb_set(claims, '{authz_ver}', to_jsonb(ver));`
+    : "";
   const dropExtra = parts.extra
     .map((entry) => ` - ${quoteLiteral(entry.claim)}`)
     .join("");
@@ -134,13 +136,7 @@ export function hookSql(parts: Parts): string {
     teamsConfig === undefined
       ? ""
       : `
-  team_ids := coalesce((
-    select jsonb_agg(to_jsonb(u.id::text) order by u.n)
-    from unnest(array(
-      select team_id from ${quoteIdent(parts.schema)}.member_team_ids_for(uid, active) as team(team_id)
-    )) with ordinality as u(id, n)
-  ), '[]'::jsonb);
-  -- the teams share the budget with the attrs and the memberships already kept
+  -- the teams share the budget with the roles, the attrs, the version and the memberships already kept
   if used + octet_length(kept::text) + octet_length(team_ids::text) > budget then
     team_truncated := true;
   end if;
@@ -152,6 +148,67 @@ export function hookSql(parts: Parts): string {
       claims := jsonb_set(claims, '{team_ids}', team_ids);
     end if;
   end if;`;
+  const schemaName = quoteIdent(parts.schema);
+  const rolesCte =
+    parts.roles === undefined
+      ? "select '[]'::jsonb as held"
+      : `select ${schemaName}.global_roles_for(uid) as held`;
+  const versionCte = parts.version
+    ? `,
+    pdk_version as (
+      select coalesce((select v.version from ${versionTable} v where v.user_id = uid), 0) as ver
+    )`
+    : "";
+  const teamsCte =
+    teamsConfig === undefined
+      ? ""
+      : `,
+    pdk_teams as (
+      select coalesce(jsonb_agg(to_jsonb(u.id::text) order by u.n), '[]'::jsonb) as team_ids
+      from unnest(array(
+        select team_id from ${schemaName}.member_team_ids_for(uid, active) as team(team_id)
+      )) with ordinality as u(id, n)
+    )`;
+  const fixed = `used + octet_length(pdk_roles.held::text)${parts.version ? " + octet_length(pdk_version.ver::text)" : ""}`;
+  const fixedFrom = `pdk_roles${parts.version ? ", pdk_version" : ""}`;
+  const oneQuery = `  -- one statement reads the roles, the memberships${teamsConfig === undefined ? "" : ", the teams"}${parts.version ? " and the authorization version" : ""}; the budget counts every slice
+  with pdk_roles as (
+      ${rolesCte}
+    )${versionCte}${teamsCte},
+    pdk_entries as (
+      select e.ord, e.entry, ${entryTenantSql(parts, "e")} as root_id
+      from ${schemaName}.${MEMBERSHIPS_FOR}(uid) e
+    ),
+    pdk_fixed as (
+      select ${fixed} as bytes from ${fixedFrom}
+    ),
+    pdk_ranked as (
+      select x.entry, x.root_id is not distinct from active as current,
+        row_number() over w as n,
+        sum(octet_length(x.entry::text)) over w as bytes
+      from pdk_entries x
+      window w as (
+        order by (x.root_id is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
+        rows between unbounded preceding and current row
+      )
+    ),
+    pdk_kept as (
+      select r.* from pdk_ranked r, pdk_fixed f where f.bytes + 2 + r.bytes + 2 * (r.n - 1) <= budget
+    )
+  select
+    (select pdk_roles.held from pdk_roles),
+    coalesce((select jsonb_agg(k.entry order by k.n) from pdk_kept k), '[]'::jsonb),
+    truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
+    active is not null and coalesce((select bool_or(k.current) from pdk_kept k), false),
+    (select bytes from pdk_fixed)${teamsConfig === undefined ? "" : ",\n    (select pdk_teams.team_ids from pdk_teams)"}${parts.version ? ",\n    (select pdk_version.ver from pdk_version)" : ""}
+  into held, kept, truncated, in_active, used${teamsConfig === undefined ? "" : ", team_ids"}${parts.version ? ", ver" : ""};
+  claims := jsonb_set(claims, '{roles}', held);
+  if jsonb_array_length(held) = 1 then
+    claims := jsonb_set(claims, '{user_role}', held -> 0);
+  elsif jsonb_array_length(held) > 1 then
+    claims := jsonb_set(claims, '{user_role}', held);
+  end if;
+  claims := jsonb_set(claims, '{memberships}', kept);`;
   return `create or replace function ${fn}(event jsonb)
 returns jsonb
 language plpgsql
@@ -167,34 +224,11 @@ declare
   truncated boolean := false;
   in_active boolean := false;
   budget integer := ${String(parts.budget)};
-  used integer := 0;
-  item record;${teamsConfig === undefined ? "" : "\n  team_ids jsonb := '[]'::jsonb;\n  team_truncated boolean := false;"}${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}${parts.before.length === 0 ? "" : "\n  checked jsonb;"}
+  used integer := 0;${teamsConfig === undefined ? "" : "\n  team_ids jsonb := '[]'::jsonb;\n  team_truncated boolean := false;"}${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}${parts.before.length === 0 ? "" : "\n  checked jsonb;"}
 begin${beforeSql(parts.before)}${suspended}
   claims := claims - 'attrs'${dropTeams}${dropExtra};
-${roles}
-  claims := jsonb_set(claims, '{roles}', held);
-  if jsonb_array_length(held) = 1 then
-    claims := jsonb_set(claims, '{user_role}', held -> 0);
-  elsif jsonb_array_length(held) > 1 then
-    claims := jsonb_set(claims, '{user_role}', held);
-  end if;
   active := ${parts.active.sql};${attrs}
-  for item in
-    select x.entry, x.root_id is not distinct from active as current
-    from (
-      select e.ord, e.entry, ${entryTenantSql(parts, "e")} as root_id
-      from ${quoteIdent(parts.schema)}.${MEMBERSHIPS_FOR}(uid) e
-    ) x
-    order by (x.root_id is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
-  loop
-    if octet_length((kept || jsonb_build_array(item.entry))::text) + used > budget then
-      truncated := true;
-      exit;
-    end if;
-    kept := kept || jsonb_build_array(item.entry);
-    in_active := in_active or (active is not null and item.current);
-  end loop;
-  claims := jsonb_set(claims, '{memberships}', kept);${teams}
+${oneQuery}${teams}
   if truncated then
     claims := jsonb_set(claims, '{memberships_truncated}', 'true'::jsonb);
   else
@@ -202,7 +236,7 @@ ${roles}
   end if;
   if in_active then
     claims := jsonb_set(claims, ${quoteLiteral(`{${parts.tenantClaim}}`)}, to_jsonb(active));
-  end if;${extra}${version}${validateSql(parts)}
+  end if;${extra}${versionClaim}${validateSql(parts)}
   return jsonb_set(event, '{claims}', claims);
 end;
 $$;`;
@@ -413,7 +447,7 @@ uri = "${hookUri(schema)}"`;
 }
 
 export const BUDGET_MEASURE =
-  "octet_length(memberships::text) + octet_length(attrs::text)";
+  "octet_length(roles::text) + octet_length(memberships::text) + octet_length(team_ids::text) + octet_length(attrs::text) + octet_length(authz_ver::text)";
 
 export type HookOverrides = {
   readonly activeFrom?: string;

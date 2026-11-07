@@ -261,7 +261,8 @@ describe("one membership function", () => {
 
   it("reads the global roles through global_roles_for once", () => {
     const sql = hookOf();
-    expect(sql.match(/into held/gu)).toHaveLength(1);
+    // The function's own `into held`, and the hook's one statement.
+    expect(sql.match(/into held/gu)).toHaveLength(2);
     expect(sql.match(/"permdock"\.global_roles_for\(uid\)/gu)).toHaveLength(2);
   });
 
