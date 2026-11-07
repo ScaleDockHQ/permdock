@@ -8,6 +8,8 @@
     "audit:high": "pnpm audit --audit-level high",
     "authzen:vectors": "node scripts/fetch-authzen-vectors.ts",
     "bench": "pnpm --filter permdock bench",
+    "bench:runtime": "node scripts/runtime-perf.ts",
+    "bench:scale": "node scripts/scale-bench.ts",
     "boundaries": "turbo boundaries",
     "build": "turbo run build",
     "changeset": "changeset",
