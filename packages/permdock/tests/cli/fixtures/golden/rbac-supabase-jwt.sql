@@ -620,7 +620,7 @@ create policy "post_select"
   as permissive
   for select
   to authenticated
-  using (((select "app".permdock_has('post.read')) or ("orgId" in (select "app".permitted_tenant_ids('post.read')))) or ((select "app".permdock_has('post.list')) or ("orgId" in (select "app".permitted_tenant_ids('post.list')))));
+  using (((select "app".permdock_has('post.read')) or ("orgId" = any(array(select "app".permitted_tenant_ids('post.read'))))) or ((select "app".permdock_has('post.list')) or ("orgId" = any(array(select "app".permitted_tenant_ids('post.list'))))));
 
 drop policy if exists "post_update" on "public"."post";
 create policy "post_update"
@@ -628,8 +628,8 @@ create policy "post_update"
   as permissive
   for update
   to authenticated
-  using ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select "app".permdock_user_id()))))
-  with check ((select "app".permdock_has('post.update#1')) or (("orgId" in (select "app".permitted_tenant_ids('post.update#2'))) and ("authorId" = (select "app".permdock_user_id()))));
+  using ((select "app".permdock_has('post.update#1')) or (("orgId" = any(array(select "app".permitted_tenant_ids('post.update#2')))) and ("authorId" = (select "app".permdock_user_id()))))
+  with check ((select "app".permdock_has('post.update#1')) or (("orgId" = any(array(select "app".permitted_tenant_ids('post.update#2')))) and ("authorId" = (select "app".permdock_user_id()))));
 
 drop policy if exists "post_delete" on "public"."post";
 create policy "post_delete"
@@ -645,4 +645,4 @@ create policy "post_insert"
   as permissive
   for insert
   to authenticated
-  with check ((select "app".permdock_has('post.create')) or ("orgId" in (select "app".permitted_tenant_ids('post.create'))));
+  with check ((select "app".permdock_has('post.create')) or ("orgId" = any(array(select "app".permitted_tenant_ids('post.create')))));

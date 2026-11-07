@@ -97,13 +97,13 @@ describe("permitted_<resource>_rows", () => {
       '"permdock".permitted_doc_match(permdock_row, p_permission)',
     );
     expect(sql).toContain(
-      `when 'doc.read' then coalesce(("orgId" in (select "permdock".permitted_tenant_ids('doc.read#1'))), false) and (("orgId" in (select "permdock".permitted_tenant_ids('doc.read#2'))) and ("locked" = true)) is not true`,
+      `when 'doc.read' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1')))), false) and (("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#2')))) and ("locked" = true)) is not true`,
     );
     expect(sql).toContain(
       `when 'doc.archive' then coalesce(("ownerId" = (select "permdock".permdock_user_id())), false)`,
     );
     expect(sql).toContain(`when 'doc.update' then`);
-    const create = `when 'doc.create' then coalesce(("orgId" in (select "permdock".permitted_tenant_ids('doc.create'))), false)`;
+    const create = `when 'doc.create' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.create')))), false)`;
     // The match and the id-set query each carry an arm that reads only the row.
     expect(sql.split(create)).toHaveLength(3);
     expect(sql).toContain("    else false");
@@ -206,7 +206,7 @@ describe("permitted_<resource>_rows", () => {
     );
     const body = rows.slice(0, rows.indexOf("$$;", rows.indexOf("as $$")));
     expect(body).toContain(
-      `when 'doc.read' then coalesce(("orgId" in (select "permdock".permitted_tenant_ids('doc.read#1'))), false)`,
+      `when 'doc.read' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1')))), false)`,
     );
     expect(body).toContain(
       'else "permdock".permitted_doc_match(permdock_row, p_permission)',
@@ -249,7 +249,7 @@ describe("permitted_<resource>_rows", () => {
       [],
     );
     expect(sql).toContain(
-      `when 'doc.read' then "orgId" in (select "permdock".permitted_tenant_ids_by_permission(p_permission, true)) and "permdock".permitted_doc_match(permdock_row, p_permission)`,
+      `when 'doc.read' then "orgId" = any(array(select "permdock".permitted_tenant_ids_by_permission(p_permission, true))) and "permdock".permitted_doc_match(permdock_row, p_permission)`,
     );
   });
 
@@ -291,7 +291,7 @@ describe("permitted_<resource>_match", () => {
     const body = matchBody(sql);
     expect(body).toContain("returns boolean\nlanguage sql\nstable");
     expect(body).toContain(
-      `when 'doc.read' then coalesce(("orgId" in (select "permdock".permitted_tenant_ids('doc.read#1'))), false)`,
+      `when 'doc.read' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1')))), false)`,
     );
     expect(body).toContain(
       `when 'doc.archive' then coalesce(("ownerId" = (select "permdock".permdock_user_id())), false)`,

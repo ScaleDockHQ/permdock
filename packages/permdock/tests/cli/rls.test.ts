@@ -198,7 +198,7 @@ export const policy = definePolicy(permissions, {
       const sql = readFileSync(join(cwd, "rls.sql"), "utf8");
       expect(sql).toContain('from "public"."organization_members" m');
       expect(sql).toContain(
-        `"orgId" in (select "permdock".permitted_tenant_ids('post.read'))`,
+        `"orgId" = any(array(select "permdock".permitted_tenant_ids('post.read')))`,
       );
       expect(sql).toContain("security definer");
       expect(sql).toContain(
@@ -511,7 +511,7 @@ export const policy = definePolicy(permissions, {
       expect(result.code).toBe(0);
       const sql = readFileSync(join(cwd, "rls.sql"), "utf8");
       expect(sql).toContain(
-        `"orgId" in (select "permdock".permitted_tenant_ids('post.read'))`,
+        `"orgId" = any(array(select "permdock".permitted_tenant_ids('post.read')))`,
       );
       expect(sql).toContain("(select auth.jwt()) -> 'memberships'");
     });

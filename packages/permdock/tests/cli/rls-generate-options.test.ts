@@ -447,7 +447,7 @@ export const policy = definePolicy(permissions, {
         'create or replace view "public"."quotes_visible" with (security_invoker = true) as',
       );
       expect(outcome.text).toContain(
-        `case when "orgId" in (select "permdock".permitted_tenant_ids('quote.read#1'))`,
+        `case when "orgId" = any(array(select "permdock".permitted_tenant_ids('quote.read#1')))`,
       );
       expect(outcome.text).not.toContain("create policy");
       expect(outcome.output).toContain(

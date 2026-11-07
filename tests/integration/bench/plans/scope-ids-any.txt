@@ -1,0 +1,10 @@
+Aggregate  (cost=…) (actual time=… rows=1 loops=1)
+  InitPlan 1 (returns $0)
+    ->  ProjectSet  (cost=…) (actual time=… rows=1 loops=1)
+          ->  Result  (cost=…) (actual time=… rows=1 loops=1)
+  ->  Seq Scan on item  (cost=…) (actual time=… rows=500 loops=1)
+        Filter: ((hashed SubPlan 2) AND ("orgId" = ANY ($0)))
+        Rows Removed by Filter: 4500
+        SubPlan 2
+          ->  ProjectSet  (cost=…) (actual time=… rows=1 loops=1)
+                ->  Result  (cost=…) (actual time=… rows=1 loops=1)

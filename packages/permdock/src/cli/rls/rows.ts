@@ -397,7 +397,7 @@ function tenantFirstOf(
   if (column === undefined || !("field" in column)) {
     return undefined;
   }
-  const check = `${quoteIdent(column.field)} in (select ${qualified(ctx, permittedByPermissionHelper(root))}(p_permission, true))`;
+  const check = `${quoteIdent(column.field)} = any(array(select ${qualified(ctx, permittedByPermissionHelper(root))}(p_permission, true)))`;
   return (key) => {
     const allows = policy.grants.filter(
       (grant) => grant.effect === "allow" && grant.permission.key === key,

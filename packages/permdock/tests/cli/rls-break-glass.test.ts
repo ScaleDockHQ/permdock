@@ -180,7 +180,7 @@ describe("break-glass RLS generation", () => {
       breakGlassEntries(tenanted, undefined),
     );
     expect(sql).toContain(
-      `(p_permission = 'chart.read' and "organization_id" in (select "permdock".permitted_organization_ids('chart.read#break-glass')))`,
+      `(p_permission = 'chart.read' and "organization_id" = any(array(select "permdock".permitted_organization_ids('chart.read#break-glass'))))`,
     );
     expect(sql).toContain(
       `(p_permission = 'chart.read' and "organization_id" in (select "permdock".member_organization_ids()))`,
