@@ -263,6 +263,25 @@ describe("graph grants in RLS", () => {
     );
   });
 
+  it("compares uuid ids in the closure refresh without casting the column", () => {
+    const plan = graphPlan(policy);
+    const sql = graphSql(
+      {
+        dialect: "supabase",
+        scopes: scopeList(policy.scopes),
+        tenantClaim: "tenant_id",
+        gucPrefix: "app",
+        idTypes: { "*": "uuid" },
+      },
+      plan,
+      undefined,
+    );
+    expect(sql).toContain("p_ids text[]");
+    expect(sql).toMatch(/where t\."id" = any\(p_ids::uuid\[\]\)/u);
+    expect(sql).toMatch(/t\."parentId" = any\(p_ids::uuid\[\]\)/u);
+    expect(sql).not.toMatch(/t\."(id|parentId)"::text = any/u);
+  });
+
   it("refuses two resources that share a snake_case SQL name", () => {
     const twins = definePermissions({
       chatThread: resource({
