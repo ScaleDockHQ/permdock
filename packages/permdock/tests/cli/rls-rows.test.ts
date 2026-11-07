@@ -84,6 +84,29 @@ function generate(
 }
 
 describe("permitted_<resource>_rows", () => {
+  it("writes the tenant, id-list and capped-count forms beside the set", () => {
+    const { sql } = generate("supabase", ["doc", "note"]);
+    expect(sql).toContain(
+      '"permdock".permitted_doc_rows(p_permission text, p_tenant uuid)',
+    );
+    expect(sql).toMatch(/where permdock_row\."orgId" = p_tenant\n {4}and /u);
+    expect(sql).toContain(
+      '"permdock".permitted_doc_ids_in(p_permission text, p_ids uuid[])',
+    );
+    expect(sql).toContain(
+      '"permdock".permitted_doc_count(p_permission text, p_tenant uuid, p_cap integer)',
+    );
+    expect(sql).toContain(
+      'select count(*)::integer from (select 1 from "permdock".permitted_doc_rows(p_permission, p_tenant) limit greatest(p_cap, 0)) s',
+    );
+    // note has no tenant column: only the id-list form
+    expect(sql).toContain('"permdock".permitted_note_ids_in(');
+    expect(sql).not.toContain("permitted_note_count");
+    expect(sql).not.toContain(
+      "permitted_note_rows(p_permission text, p_tenant",
+    );
+  });
+
   it("writes nothing for an empty resource list", () => {
     expect(generate("supabase", []).sql).toBe("");
   });
@@ -104,8 +127,8 @@ describe("permitted_<resource>_rows", () => {
     );
     expect(sql).toContain(`when 'doc.update' then`);
     const create = `when 'doc.create' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.create')))), false)`;
-    // The match and the id-set query each carry an arm that reads only the row.
-    expect(sql.split(create)).toHaveLength(3);
+    // The match, the id-set query and the tenant set each carry an arm that reads only the row.
+    expect(sql.split(create)).toHaveLength(4);
     expect(sql).toContain("    else false");
     expect(sql).toContain(
       '"permdock".permitted_doc_rows_for(p_user uuid, p_permission text, p_claims jsonb',

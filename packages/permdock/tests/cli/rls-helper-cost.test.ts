@@ -21,7 +21,7 @@ describe("generated helper planner settings", () => {
       "rbac-supabase-database.sql",
     ]) {
       const ids = functions(file).filter((fn) =>
-        /\.permitted_\w+_ids\(/u.test(fn),
+        /^create or replace function \S*\.permitted_\w+_ids\(/u.test(fn),
       );
       expect(ids.length).toBeGreaterThan(0);
       for (const fn of ids) {
@@ -32,7 +32,7 @@ describe("generated helper planner settings", () => {
 
   it("marks the claim-reading helpers parallel safe in jwt mode", () => {
     const ids = functions("rbac-supabase-jwt.sql").filter((fn) =>
-      /\.permitted_\w+_ids\(/u.test(fn),
+      /^create or replace function \S*\.permitted_\w+_ids\(/u.test(fn),
     );
     for (const fn of ids) {
       expect(head(fn)).toContain("cost 1000\nrows 10\nparallel safe");
@@ -46,7 +46,7 @@ describe("generated helper planner settings", () => {
     );
     expect(sql).not.toContain("set_config(");
     const ids = functions("rbac-supabase-database.sql").filter((fn) =>
-      /\.permitted_\w+_ids\(/u.test(fn),
+      /^create or replace function \S*\.permitted_\w+_ids\(/u.test(fn),
     );
     expect(ids.length).toBeGreaterThan(0);
     for (const fn of ids) {

@@ -46,6 +46,24 @@ const teamMembers = {
   columns: { team: "team_id", org: "org_id" },
 };
 
+describe("set helpers", () => {
+  it("returns a scope's ids as one array and asks one tenant", () => {
+    const sql = helpers({});
+    expect(fnBody(sql, "permitted_org_id_array")).toContain(
+      "select coalesce(array_agg(i), '{}'::uuid[]) from \"permdock\".permitted_org_ids(p_grant) i",
+    );
+    expect(sql).toContain(
+      'create or replace function "permdock".permitted_org_id_array(p_grant text)\nreturns uuid[]',
+    );
+    expect(fnBody(sql, "permdock_org_has")).toContain(
+      'select p_tenant = any("permdock".permitted_org_id_array(p_grant))',
+    );
+    expect(sql).toContain(
+      'revoke execute on function "permdock".permdock_org_has(text, uuid) from public, anon;',
+    );
+  });
+});
+
 describe("accessSql and membershipTable", () => {
   it("needs the scope column for a scoped grant", () => {
     expect(() => accessSql(ctx(), "team", "doc.read", undefined)).toThrow(

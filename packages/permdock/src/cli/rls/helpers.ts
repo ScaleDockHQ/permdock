@@ -50,6 +50,7 @@ import {
   memberRolesFunction,
 } from "./helper-members.ts";
 import { memoGenerationSql } from "./memo-generation.ts";
+import { setHelpersSql } from "./set-helpers.ts";
 import { tokenScopeAllowsCall, tokenScopeAllowsSql } from "./token-scopes.ts";
 
 /** `'global'` or a scope name. */
@@ -476,6 +477,7 @@ revoke all on table ${ur} from anon, authenticated, public;`);
         anon,
       ),
     );
+    chunks.push(setHelpersSql(ctx, scope.name, anon));
     chunks.push(memberFunction(ctx, scope.name, type, anon));
     if (ctx.roleMemberScopes?.includes(scope.name) === true) {
       chunks.push(memberRolesFunction(ctx, scope.name, type, anon));
