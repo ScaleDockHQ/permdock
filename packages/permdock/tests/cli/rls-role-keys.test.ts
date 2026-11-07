@@ -80,6 +80,15 @@ describe("seeds: 'view' reads grant keys from a jsonb map", () => {
     expect(ids).not.toMatch(/join "permdock"\.role_permissions/u);
   });
 
+  it("lists a grant key once for a role that holds it as an allow and a deny", () => {
+    const sql = helpersSql(
+      ctx({ seeds: "view" }),
+      [...rows, { ...rows[0], effect: "deny" }],
+      { userRoles: true },
+    );
+    expect(sql).toContain(`"org":{"admin":["doc.edit","doc.read"]}`);
+  });
+
   it("keeps the join without the view", () => {
     const table = helpersSql(ctx(), rows, { userRoles: true });
     expect(table).not.toContain("permdock_role_keys");
