@@ -53,6 +53,11 @@ export type RlsSqlContext = {
     readonly team: string;
     readonly tenant?: string;
   };
+  /**
+   * `supabase.hook.security`: `member_team_ids_for` is granted to
+   * `supabase_auth_admin` only for an `invoker` hook, which is the default.
+   */
+  readonly hookSecurity?: "invoker" | "definer";
   readonly tenantClaim: string;
   /**
    * Scopes whose `member_<scope>_ids(p_roles text[])` overload `rls.migrate`'s

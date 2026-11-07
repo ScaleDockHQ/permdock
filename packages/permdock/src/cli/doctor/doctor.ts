@@ -31,7 +31,7 @@ import {
 import { pd039 } from "../supabase-setup.ts";
 import { pd064 } from "./assignments.ts";
 import { applyDoctorIgnores, reported } from "./baseline.ts";
-import { pd078, pd079, pd082, pd087, pd094 } from "./better-supabase.ts";
+import { pd078, pd079, pd082, pd087, pd094, pd100 } from "./better-supabase.ts";
 import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd077 } from "./config-names.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
@@ -43,7 +43,7 @@ import { pd091, pd091Applies } from "./openapi.ts";
 import { pd080, pd081 } from "./per-request.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
 import { pd083 } from "./postgrest.ts";
-import { pd058, pd084 } from "./powersync.ts";
+import { pd058, pd084, pd102 } from "./powersync.ts";
 import { pd005, pd006, pd009, pd012, pd022, pd028, pd040 } from "./project.ts";
 import {
   pd016,
@@ -61,7 +61,7 @@ import {
   pd076,
   pd086,
 } from "./rls.ts";
-import { pd095, pd096 } from "./schema-checks.ts";
+import { pd095, pd096, pd101 } from "./schema-checks.ts";
 import { pd097 } from "./seed-data.ts";
 import { pd054 } from "./seeds.ts";
 import {
@@ -401,6 +401,7 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
   },
   { code: "PD058", groups: ["powersync"], run: pd058 },
   { code: "PD084", groups: ["powersync", "react-native"], run: pd084 },
+  { code: "PD102", groups: ["powersync"], run: pd102 },
   { code: "PD086", groups: ["rls"], run: pd086 },
   {
     code: "PD061",
@@ -423,6 +424,15 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: (project) => pd095(project.cwd, project.files),
   },
   {
+    code: "PD101",
+    groups: ["rls", "supabase"],
+    when: (config) =>
+      Object.values(config.rls?.tables ?? {}).some(
+        (entry) => typeof entry === "object" && "follows" in entry,
+      ),
+    run: (project) => pd101(project.cwd, project.config, project.files),
+  },
+  {
     code: "PD096",
     groups: ["supabase", "powersync"],
     run: (project) => pd096(project.config),
@@ -437,6 +447,11 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     code: "PD099",
     groups: ["rls", "supabase"],
     run: (project) => pd099(project.cwd, project.files),
+  },
+  {
+    code: "PD100",
+    groups: ["better-supabase", "supabase"],
+    run: (project) => pd100(project, project.sources()),
   },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
   { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },

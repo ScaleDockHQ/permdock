@@ -144,6 +144,20 @@ export function declaredScopes(
   return Object.freeze([first, ...rest]);
 }
 
+/**
+ * A session token: it carries no scope and no `authorization_details`, which is
+ * what Supabase Auth issues for a signed-in user. It acts as the user alone, so
+ * the scope check passes, `challengeFor` raises no challenge, and the call has
+ * no actor and no delegation. A token with scopes, none of them the policy's,
+ * is not one: `unscopedTokens` governs it.
+ */
+export function isSessionToken(authInfo: McpAuthInfo): boolean {
+  return (
+    (authInfo.scopes ?? []).length === 0 &&
+    authorizationDetailsOf(authInfo.extra) === undefined
+  );
+}
+
 export type ChallengeInput = {
   readonly unscopedTokens?: "deny" | "subject";
   readonly resource?: string | URL;
@@ -170,7 +184,11 @@ export function challengeFor(
       return first;
     }
     const authInfo = context.authInfo;
-    if (authInfo === undefined || hasScope(authInfo.scopes, reaching)) {
+    if (
+      authInfo === undefined ||
+      hasScope(authInfo.scopes, reaching) ||
+      isSessionToken(authInfo)
+    ) {
       return undefined;
     }
     if (

@@ -494,7 +494,7 @@ export function approvalDelegationsSql(
       if jsonb_typeof(v_levels) <> 'number' or v_levels::text !~ '^[0-9]{1,2}$' then
         return false;
       end if;
-      return coalesce(${qualified(ctx, MANAGES_FOR)}(p_delegator::text, p_requester, v_levels::text::integer), false);`
+      return coalesce(${qualified(ctx, MANAGES_FOR)}(p_delegator::text, p_requester, v_levels::text::integer, p_tenant), false);`
     : "";
   const mine = `delegator::text = ${me}${writable}`;
   const own = `${mine} and (tenant is null or ${member("tenant")})`;

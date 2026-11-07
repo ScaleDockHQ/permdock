@@ -3,7 +3,11 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import type { BetterSupabaseActiveTenant } from "../../better-supabase/active-tenant.ts";
-import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
+import type {
+  DoctorFinding,
+  DoctorInput,
+  DoctorSource,
+} from "../shared/doctor-types.ts";
 
 import { activeTenantMismatch } from "../../better-supabase/active-tenant.ts";
 import { parseCatalog } from "../../catalog/parse.ts";
@@ -153,7 +157,10 @@ function isKeyLister(
 
 /**
  * A permission key a configured better-supabase block checks that the catalog
- * does not list: no role holds it, so the block's SQL checks deny it.
+ * does not list: no role holds it, so the block's SQL checks deny it. The check
+ * cannot run without `modulePermissionKeys` from the project's
+ * `better-supabase/sql`, and then it is an error: a key that goes unchecked is
+ * a block that denies.
  */
 export async function pd079(
   input: DoctorInput,
@@ -162,6 +169,18 @@ export async function pd079(
   const blocks = config?.["blocks"];
   if (!isRecord(blocks)) {
     return [];
+  }
+  const keys = await blockPermissionKeys(input.cwd, blocks);
+  if (keys === undefined) {
+    return [
+      {
+        code: "PD079",
+        severity: "error",
+        message:
+          "better-supabase/sql does not export modulePermissionKeys, so PermDock cannot list the permission keys the configured blocks check",
+        fix: "install a better-supabase release that exports modulePermissionKeys from better-supabase/sql",
+      },
+    ];
   }
   const files = filesOf(input);
   const path = catalogPath(input.config, input.cwd);
@@ -176,10 +195,6 @@ export async function pd079(
   } catch {
     return [];
   }
-  const keys = await blockPermissionKeys(input.cwd, blocks);
-  if (keys === undefined) {
-    return [];
-  }
   const missing = new Map<string, string[]>();
   for (const entry of keys) {
     if (!declared.has(entry.key)) {
@@ -191,9 +206,9 @@ export async function pd079(
   const catalog = rel(input.cwd, path);
   return [...missing].map(([key, uses]): DoctorFinding => ({
     code: "PD079",
-    severity: "warning",
+    severity: "error",
     message: `${key} (${[...new Set(uses)].join(", ")}) is not in ${catalog}, so no role holds it and better-supabase's SQL check denies it`,
-    fix: `declare ${key} in the policy and run permdock collect, or map the block action to a key the catalog lists`,
+    fix: `declare ${key} in the policy and run permdock collect, or map the block action to a key the catalog lists; defineBlocksConfig<typeof policy>() from permdock/better-supabase checks the keys at compile time`,
   }));
 }
 
@@ -306,4 +321,32 @@ export async function pd094(
     message: `better-supabase config sets ${item.name}, which the provider supplies`,
     fix: `delete ${item.name} from the better-supabase config`,
   }));
+}
+
+const SUPABASE_FACTORY =
+  /import\s+(?!type\b)(?:[^;'"]*?\{[^}]*\bdefinePermDock\b[^}]*\}[^;'"]*?)from\s+["']permdock\/supabase["']/u;
+
+/**
+ * PD100: a source file imports `definePermDock` from `permdock/supabase` while
+ * a better-supabase config exists. Two factories mean two version, instance and
+ * subject caches; `definePermDock` from `permdock/better-supabase` is the one
+ * factory for an app with both adapters.
+ */
+export async function pd100(
+  input: DoctorInput,
+  sources: readonly DoctorSource[],
+): Promise<readonly DoctorFinding[]> {
+  const config = await betterSupabaseConfig(lookupOf(input));
+  if (config === undefined) {
+    return [];
+  }
+  return sources
+    .filter((source) => SUPABASE_FACTORY.test(source.text))
+    .map((source) => ({
+      code: "PD100",
+      severity: "error" as const,
+      target: source.file,
+      message: `${source.file} imports definePermDock from permdock/supabase while a better-supabase config exists, so the app keeps two caches`,
+      fix: "import definePermDock from permdock/better-supabase, pass it the subject options, and hand the result to permdock/supabase/middleware createPermDock",
+    }));
 }

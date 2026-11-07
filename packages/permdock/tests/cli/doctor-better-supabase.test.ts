@@ -9,6 +9,7 @@ import {
   pd079,
   pd082,
   pd087,
+  pd100,
 } from "../../src/cli/doctor/better-supabase.ts";
 import {
   betterSupabaseDefaults,
@@ -355,11 +356,35 @@ describe("doctor better-supabase", () => {
       );
       const findings = await pd079({ cwd, config });
       expect(findings).toStrictEqual([
-        expect.objectContaining({ code: "PD079", severity: "warning" }),
+        expect.objectContaining({ code: "PD079", severity: "error" }),
       ]);
       expect(findings[0]?.message).toBe(
         "audit.view (blocks.audit.permissions.read, blocks.audit.permissions.readAll) is not in permissions.catalog.json, so no role holds it and better-supabase's SQL check denies it",
       );
+    });
+
+    it("is an error when better-supabase/sql has no modulePermissionKeys", async () => {
+      const cwd = policyProject(
+        { policy: POLICY },
+        {
+          "permissions.catalog.json": CATALOG,
+          "better-supabase.config.mjs": betterSupabaseConfig({
+            audit: { permissions: { read: "audit.read" } },
+          }),
+          "node_modules/better-supabase/package.json": JSON.stringify({
+            name: "better-supabase",
+            version: "0.0.0",
+            type: "module",
+            exports: { "./sql": "./sql.mjs" },
+          }),
+          "node_modules/better-supabase/sql.mjs": "export const other = 1;\n",
+        },
+      );
+      const findings = await pd079({ cwd, config });
+      expect(findings).toStrictEqual([
+        expect.objectContaining({ code: "PD079", severity: "error" }),
+      ]);
+      expect(findings[0]?.message).toContain("modulePermissionKeys");
     });
 
     it("passes when every block key is in the catalog", async () => {
@@ -406,6 +431,47 @@ describe("doctor better-supabase", () => {
         },
       );
       expect(await pd079({ cwd: badCatalog, config })).toStrictEqual([]);
+    });
+  });
+
+  describe("PD100", () => {
+    const config: PermDockConfig = {
+      permissions: "src/permissions.ts",
+      policy: "src/policy.ts",
+    };
+    const sources = [
+      {
+        file: "src/permdock.ts",
+        text: 'import { definePermDock } from "permdock/supabase";\n',
+      },
+      {
+        file: "src/ok.ts",
+        text: 'import { definePermDock } from "permdock/better-supabase";\nimport { createPermDock } from "permdock/supabase/middleware";\n',
+      },
+      {
+        file: "src/types.ts",
+        text: 'import type { definePermDock } from "permdock/supabase";\n',
+      },
+    ];
+
+    it("flags a permdock/supabase factory next to a better-supabase config", async () => {
+      const cwd = policyProject(
+        { policy: POLICY },
+        { "better-supabase.config.mjs": betterSupabaseConfig({}) },
+      );
+      const findings = await pd100({ cwd, config }, sources);
+      expect(findings).toStrictEqual([
+        expect.objectContaining({
+          code: "PD100",
+          severity: "error",
+          target: "src/permdock.ts",
+        }),
+      ]);
+    });
+
+    it("stays quiet without a better-supabase config", async () => {
+      const cwd = policyProject({ policy: POLICY }, {});
+      expect(await pd100({ cwd, config }, sources)).toStrictEqual([]);
     });
   });
 

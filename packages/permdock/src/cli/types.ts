@@ -146,6 +146,11 @@ export type RlsTableOwner = {
   readonly follows?: Readonly<Record<string, string>>;
   /** A self-parented resource walked as one recursive set, the manager chain. */
   readonly walk?: "recursive";
+  /**
+   * With `walk`, the column holding the row's user id, where the caller's walk
+   * starts. The id column when unset, which suits a users table.
+   */
+  readonly user?: string;
 };
 
 export type RlsTable =
@@ -533,6 +538,12 @@ export type RlsApprovalManagers = {
   readonly user: string;
   /** The column holding the id of that user's manager. */
   readonly manager: string;
+  /**
+   * The column holding the tenant each edge belongs to. Required when the
+   * policy has a tenant scope: both walks keep only the edges of the request's
+   * tenant, so the table or view must expose it.
+   */
+  readonly tenant?: string;
 };
 
 /**

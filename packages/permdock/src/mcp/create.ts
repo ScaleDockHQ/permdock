@@ -21,7 +21,7 @@ import { scopesReaching } from "../core/oauth-scopes.ts";
 import { listPermissions } from "../core/permission-registry.ts";
 import { composeWraps } from "../core/wrap.ts";
 import { decidesOnSubject } from "./call-check.ts";
-import { tenantOf } from "./mcp-auth.ts";
+import { isSessionToken, tenantOf } from "./mcp-auth.ts";
 import { protectServer } from "./protect-server.ts";
 import { mcpActorKind } from "./subject.ts";
 
@@ -49,6 +49,9 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           return options.actor(call.authInfo ?? {});
         }
         const clientId = call.authInfo?.clientId;
+        if (call.authInfo !== undefined && isSessionToken(call.authInfo)) {
+          return undefined;
+        }
         return typeof clientId === "string" && clientId !== ""
           ? compact({
               id: clientId,
@@ -62,6 +65,7 @@ export function createPermDock<TUser, TPrincipal extends Principal = Principal>(
           return options.delegation(call.authInfo ?? {});
         }
         return call.authInfo === undefined ||
+          isSessionToken(call.authInfo) ||
           decidesOnSubject(options, policyScopes, call.authInfo)
           ? undefined
           : delegationFrom(call.authInfo.scopes, call.authInfo.extra);

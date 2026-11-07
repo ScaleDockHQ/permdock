@@ -27,6 +27,8 @@ export type SplitSql = {
   readonly policies: string;
   /** The policies part without the Realtime and Storage policies, for pg-delta. */
   readonly declarativePolicies: string;
+  /** The `follows` child policies; written with or without the policies part. */
+  readonly follows?: string;
   /** Plain Realtime policies for `<parent>/service/realtime/permdock.sql`. */
   readonly realtimePolicies?: string;
   /** Plain Storage policies for `<parent>/service/storage/permdock.sql`. */
@@ -301,6 +303,16 @@ export function outputFiles(plan: {
         return exhaustive;
       }
     }
+  }
+  if (sql.follows !== undefined) {
+    files.push({
+      part: "follows",
+      rel:
+        pgDelta === undefined || placeholder
+          ? partPath(plan.outRel, "follows")
+          : `${pgDelta.schemaDir.replace(/\/$/u, "")}/permdock/follows.sql`,
+      text: sql.follows,
+    });
   }
   if (pgDelta !== undefined && split.includes("policies")) {
     if (sql.realtimePolicies !== undefined) {

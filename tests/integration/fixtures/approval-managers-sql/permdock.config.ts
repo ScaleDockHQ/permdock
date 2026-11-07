@@ -12,6 +12,7 @@ export default {
         table: "public.reporting_lines",
         user: "user_id",
         manager: "manager_id",
+        tenant: "org",
       },
     },
   },

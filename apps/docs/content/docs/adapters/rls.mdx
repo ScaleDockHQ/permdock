@@ -5,7 +5,7 @@ description: permdock rls generate, import and verify round-trip PermDock polici
 
 `permdock rls` is the CLI surface (with a `permdock/rls` runtime for the parity runner) that compiles roles and grants to Postgres row-level security policies, imports existing policies back into generated definitions, and verifies that in-process decisions and database outcomes agree.
 
-Write the SQL with `permdock generate --only rls`. Both `permitted_<resource>_row` overloads are `can_<resource>`. A resource that shares the owner's table is `also` on that owner. `follows` writes the child table's policies. `rls.seeds: "view"` makes `role_permissions` a view. A verb with no `rls.actions` entry and no inferred command fails generate.
+Write the SQL with `permdock generate --only rls`. Both `permitted_<resource>_row` overloads are `can_<resource>`. A resource that shares the owner's table is `also` on that owner. `follows` writes the child table's policies to their own `follows` part, with or without the `policies` part ([PD101](/docs/cli/doctor#pd101-app-policies-on-a-follows-child-table) flags an app policy that duplicates them). `walk: "recursive"` starts at the caller's own row, the one whose `rls.tables.<resource>.user` column (the id column by default) is the caller, and returns every row below it in that row's tenant, with a path guard and a depth cap of 32; an active approval cover adds the delegator's row and every row below it. `rls.seeds: "view"` makes `role_permissions` a view. A verb with no `rls.actions` entry and no inferred command fails generate.
 
 ## Database-first (SQL is the authority)
 

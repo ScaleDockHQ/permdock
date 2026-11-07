@@ -141,14 +141,18 @@ export function subjectStreams(ctx: Ctx): readonly SubjectStream[] {
     const active =
       disabledAt !== undefined &&
       keptKeys(rls?.suspension?.memberships).length === 0
-        ? ` AND ${dialect.column(name, disabledAt)} IS NULL`
-        : "";
-    const mine = `${dialect.column(name, user)} = ${dialect.user}${active}`;
+        ? [`${dialect.column(name, disabledAt)} IS NULL`]
+        : [];
+    const mine = [
+      `${dialect.column(name, user)} = ${dialect.user}`,
+      ...active,
+    ].join(" AND ");
     add(name, `SELECT * FROM ${fromTable(table, dialect)} WHERE ${mine}`, user);
     const rows = {
       table: name,
       from: fromTable(table, dialect),
       where: [mine],
+      active,
     };
     for (const through of roleThroughs(role)) {
       if (Object.keys(through.on).length === 0) {

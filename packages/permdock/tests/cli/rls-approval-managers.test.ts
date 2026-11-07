@@ -16,6 +16,7 @@ const managers = {
   table: "public.reporting_lines",
   user: "user_id",
   manager: "manager_id",
+  tenant: "tenant_id",
 };
 
 describe("rls.approvals.managers", () => {
@@ -28,7 +29,7 @@ describe("rls.approvals.managers", () => {
       false,
     );
     expect(sql).toContain(
-      'create or replace function "permdock".permdock_manages(p_requester text, p_levels integer)',
+      'create or replace function "permdock".permdock_manages(p_requester text, p_levels integer, p_tenant text default null)',
     );
     expect(sql).toContain('from "public"."reporting_lines" m');
     expect(sql).toContain("where c.depth < least(p_levels, 8)");
@@ -36,13 +37,13 @@ describe("rls.approvals.managers", () => {
     expect(sql).toContain("and p_levels between 1 and 8");
     expect(sql).toContain("and p_user <> p_requester");
     expect(sql).toMatch(
-      /select "permdock"\.permdock_manages_for\(\(select .+\)::text, p_requester, p_levels\)/u,
+      /select "permdock"\.permdock_manages_for\(\(select .+\)::text, p_requester, p_levels, p_tenant\)/u,
     );
     expect(sql).toContain(
-      'revoke execute on function "permdock".permdock_manages_for(text, text, integer) from public, anon, authenticated;',
+      'revoke execute on function "permdock".permdock_manages_for(text, text, integer, text) from public, anon, authenticated;',
     );
     expect(sql).toContain(
-      'revoke execute on function "permdock".permdock_manages(text, integer) from public, anon, authenticated;',
+      'revoke execute on function "permdock".permdock_manages(text, integer, text) from public, anon, authenticated;',
     );
     expect(sql).toContain(
       'create or replace function "permdock".permdock_is_approver(p_approvers jsonb, p_tenant text, p_requester text, p_resource text)',
@@ -72,7 +73,7 @@ describe("rls.approvals.managers", () => {
     );
     expect(sql).toContain("permdock_approver_for_ids");
     expect(sql).toContain("permdock_managed_user_ids");
-    expect(sql).toContain('m."user_id"::text <>');
+    expect(sql).toContain('m."user_id" <>');
     expect(sql).not.toContain("approval_delegations");
   });
 
@@ -106,7 +107,7 @@ describe("rls.approvals.managers", () => {
   it("lets a cover pass on a manager leaf when the delegator manages the requester", () => {
     const sql = approvalsSql(ctx, { managers, delegations: true }, false);
     expect(sql).toContain(
-      'return coalesce("permdock".permdock_manages_for(p_delegator::text, p_requester, v_levels::text::integer), false);',
+      'return coalesce("permdock".permdock_manages_for(p_delegator::text, p_requester, v_levels::text::integer, p_tenant), false);',
     );
     expect(approvalsSql(ctx, { delegations: true }, false)).not.toContain(
       "permdock_manages_for",
@@ -124,5 +125,83 @@ describe("rls.approvals.managers", () => {
         approvalsSql(ctx, { managers: given as typeof managers }, false),
       ).toThrow("rls.approvals.managers needs { table, user, manager }");
     }
+  });
+});
+
+describe("rls.approvals approval sets", () => {
+  const withManagers = (
+    scopes: RlsSqlContext["scopes"],
+    tenant: string | undefined,
+  ): string =>
+    approvalsSql(
+      { ...ctx, scopes },
+      {
+        managers: {
+          table: managers.table,
+          user: managers.user,
+          manager: managers.manager,
+          ...(tenant === undefined ? {} : { tenant }),
+        },
+      },
+      false,
+    ) ?? "";
+
+  it("returns setof uuid on Supabase with no ::text cast in the sets", () => {
+    const sql = withManagers([{ name: "tenant" }], "organization_id");
+    const start = sql.indexOf("permdock_approver_for_ids()");
+    const sets = sql.slice(start);
+    expect(sets).toContain("returns setof uuid");
+    expect(sets).not.toContain("returns setof text");
+    expect(sets).not.toContain("::text");
+  });
+
+  it("filters the downward walk by tenant on the seed and every step", () => {
+    const sql = withManagers([{ name: "tenant" }], "organization_id");
+    expect(sql).toContain("permdock_managed_user_ids(p_tenant uuid)");
+    expect(sql.match(/m\."organization_id" = p_tenant/gu)).toHaveLength(2);
+  });
+
+  it("filters the upward walk by the request's tenant", () => {
+    const sql = withManagers([{ name: "tenant" }], "organization_id");
+    expect(sql.match(/m\."organization_id"::text = p_tenant/gu)).toHaveLength(
+      2,
+    );
+    expect(sql).toContain(
+      "permdock_manages_for(p_user text, p_requester text, p_levels integer, p_tenant text default null)",
+    );
+  });
+
+  it("refuses managers without a tenant column when the policy has a tenant scope", () => {
+    expect(() => withManagers([{ name: "tenant" }], undefined)).toThrow(
+      /managers needs `tenant`/u,
+    );
+  });
+});
+
+describe("rls.approvals approval sets without a tenant scope", () => {
+  const plain: RlsSqlContext = {
+    dialect: "neon",
+    scopes: [],
+    tenantClaim: "tenant_id",
+    gucPrefix: "app",
+  };
+  const bare = {
+    table: managers.table,
+    user: managers.user,
+    manager: managers.manager,
+  };
+
+  it("walks without a tenant filter and returns text ids on a dialect with text users", () => {
+    const sql = approvalsSql(plain, { managers: bare }, false) ?? "";
+    expect(sql).toContain("permdock_managed_user_ids()");
+    expect(sql).toContain("returns setof text");
+    expect(sql).not.toContain("p_tenant uuid");
+    expect(sql).not.toContain('"tenant_id"::text = p_tenant');
+  });
+
+  it("refuses a tenant that is not a column name", () => {
+    expect(() =>
+      approvalsSql(plain, { managers: { ...bare, tenant: "" } }, false),
+    ).toThrow(/must be a column name/u);
   });
 });

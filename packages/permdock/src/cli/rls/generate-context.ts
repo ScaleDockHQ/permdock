@@ -462,7 +462,10 @@ export function buildContext(
       : { memberSources }),
     ...(input.dialect === "supabase" &&
     input.config.supabase?.hook?.teams !== undefined
-      ? { hookTeams: input.config.supabase.hook.teams }
+      ? {
+          hookTeams: input.config.supabase.hook.teams,
+          hookSecurity: input.config.supabase.hook.security ?? "invoker",
+        }
       : {}),
     ...(suspension === undefined ? {} : { suspension }),
     ...(roles === undefined ? {} : { roles }),

@@ -2,12 +2,16 @@ import type {
   PermDockQuery,
   PermDockDefinition,
 } from "../app/define-permdock.ts";
-import type { AppOptions } from "../core/app.ts";
+import type { AppOptions, ClientSources } from "../core/app.ts";
 import type { PermissionCheck, PermissionState } from "../core/checks.ts";
+import type { CustomRoleSource } from "../core/interfaces.ts";
 import type { PermDock } from "../core/permdock.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { Principal, Subject } from "../core/subject.ts";
 import type { VersionCache } from "../core/version-cache.ts";
+import type { SupabaseClaimsClient } from "../supabase/client-subject.ts";
+import type { PostgrestSourcesOptions } from "../supabase/postgrest.ts";
+import type { SupabaseSubjectOptions } from "../supabase/types.ts";
 import type { AuthorizerOptions } from "./authorizer.ts";
 import type {
   PermDockFor,
@@ -20,6 +24,9 @@ import { definePermDock as defineApp } from "../app/define-permdock.ts";
 import { isRecord } from "../core/compact.ts";
 import { getPermDock } from "../core/permdock.ts";
 import { ownedCaches, withMembers } from "../supabase/app-members.ts";
+import { subjectFromSupabaseClient } from "../supabase/client-subject.ts";
+import { SUPABASE_OPTIONS } from "../supabase/definition-options.ts";
+import { postgrestSources } from "../supabase/postgrest.ts";
 import { authorizer } from "./authorizer.ts";
 import { getPermissions, permdockFor } from "./permdock-for.ts";
 
@@ -49,6 +56,13 @@ export type BetterSupabaseDefineOptions<TClient extends object = object> =
     /** The shared admin client. Called once, the first time `client()` runs. */
     readonly client?: () => TClient | Promise<TClient>;
     readonly apiKeys?: BetterSupabaseSubjectOptions["apiKeys"];
+    /**
+     * How verified claims map to a subject for `fromClient` and for
+     * `permdock/supabase/middleware`'s `createPermDock(definition)`.
+     */
+    readonly subject?: SupabaseSubjectOptions;
+    /** The `supabase.hook.api` setting the hook file was generated with. */
+    readonly api?: PostgrestSourcesOptions["api"];
     readonly clients?: Readonly<Record<string, string>>;
     readonly maxStaleMs?: number;
     readonly onSourceCall?: (name: string) => void;
@@ -72,6 +86,11 @@ export type BetterSupabasePermDock<
   readonly fromClaims: (
     claims: Readonly<Record<string, unknown>>,
     query?: BetterSupabaseQuery,
+  ) => Promise<PermDock<V>>;
+  /** The instance for the session of a supabase-js or `@supabase/ssr` client. */
+  readonly fromClient: (
+    client: SupabaseClaimsClient,
+    query?: PermDockQuery,
   ) => Promise<PermDock<V>>;
   readonly server: (input: BetterSupabaseServerInput) => Promise<PermDock<V>>;
   readonly authorizer: (
@@ -126,6 +145,9 @@ export function definePermDock<
   const {
     client: load,
     apiKeys,
+    subject: subjectOptions,
+    api,
+    sources: given,
     clients: _clients,
     maxStaleMs: _maxStaleMs,
     onSourceCall: _onSourceCall,
@@ -136,6 +158,24 @@ export function definePermDock<
     versions: caches.versions,
     instances: caches.instances,
     subjects: caches.subjects,
+    sources:
+      given ??
+      ((sourceClient: TClient): ClientSources => {
+        // SAFETY: the sources factory runs only for a client that reads subject_for, which postgrestSources checks at call time.
+        const pg = postgrestSources(sourceClient as never, {
+          policy,
+          subjects: caches.subjects,
+          ...(api === undefined ? {} : { api }),
+        });
+        return {
+          memberships: pg.memberships,
+          customRoles: (subject): CustomRoleSource | undefined =>
+            subject.principal === null || subject.principal === undefined
+              ? undefined
+              : pg.customRoles(subject.principal),
+          subjects: caches.subjects,
+        };
+      }),
   });
   let pending: Promise<TClient> | undefined;
   const dock: PermDockFor<V> = permdockFor({
@@ -166,6 +206,14 @@ export function definePermDock<
         .fromClaims(claims, rest)
         .then((permdock) => withVersion(app, permdock, query));
     },
+    fromClient: async (
+      client: SupabaseClaimsClient,
+      query?: PermDockQuery,
+    ): Promise<PermDock<V>> =>
+      app.getPermDock(
+        await subjectFromSupabaseClient(client, subjectOptions),
+        query,
+      ),
     server: (input: BetterSupabaseServerInput): Promise<PermDock<V>> => {
       if (input.operations !== undefined && !isRecord(input.operations)) {
         throw new TypeError("PermDock: server operations must be an object");
@@ -189,5 +237,7 @@ export function definePermDock<
     ): Promise<Readonly<Record<K, PermissionState>>> =>
       getPermissions(dock, input, checks, query),
   };
-  return withMembers(app, members, ["fromClaims"]);
+  return withMembers(app, { ...members, [SUPABASE_OPTIONS]: subjectOptions }, [
+    "fromClaims",
+  ]);
 }

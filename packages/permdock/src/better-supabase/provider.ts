@@ -1017,16 +1017,21 @@ export function authorizationProvider<P = undefined>(
       role: "authenticated",
     });
   }
-  const setTemplate = (name: string): string | undefined => {
-    if (!helpers.has(name)) {
+  const setTemplate = (name: string, call = ""): string | undefined => {
+    const helper = helpers.get(name);
+    if (helper === undefined) {
       return undefined;
     }
     const fn = `${schema}.${sqlIdent(name)}`;
-    requires.push({ function: fn, role: "authenticated" });
-    return `${fn}()`;
+    requires.push({
+      function: fn,
+      ...(helper.args === "" ? {} : { args: argTypes(helper.args) }),
+      role: "authenticated",
+    });
+    return `${fn}(${call})`;
   };
   const approverFor = setTemplate(APPROVER_FOR);
-  const managedUsers = setTemplate(MANAGED_USERS);
+  const managedUsers = setTemplate(MANAGED_USERS, "{tenant}");
   const functions: AuthorizationFunctions = {
     ...rowTemplates,
     ...optional,

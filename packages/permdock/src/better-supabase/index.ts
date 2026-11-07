@@ -62,6 +62,7 @@ export type {
   BetterSupabaseMembershipRow,
   PrincipalFromMembershipsOptions,
 } from "./memberships.ts";
+export { defineBlocksConfig } from "./blocks-config.ts";
 export { definePermDock } from "./define-permdock.ts";
 export type {
   BetterSupabaseDefineOptions,

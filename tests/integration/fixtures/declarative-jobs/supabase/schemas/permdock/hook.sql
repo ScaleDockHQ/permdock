@@ -19,12 +19,12 @@ stable
 set search_path = ''
 as $$
 declare
-  v_roles_user "permdock"."user_roles"."user_id"%type := p_user;
+  v_roles_user "public"."platform_user_roles"."user_id"%type := p_user;
   held jsonb;
 begin
   select coalesce(jsonb_agg(distinct r."role"::text order by r."role"::text) filter (where r."role"::text is not null), '[]'::jsonb)
     into held
-    from "permdock"."user_roles" r
+    from "public"."platform_user_roles" r
     where r."user_id" = v_roles_user;
   return held;
 end;
@@ -41,7 +41,7 @@ set search_path = ''
 as $$
 #variable_conflict use_column
 declare
-  v_user_0 "public"."organization_members"."user_id"%type := p_user;
+  v_user_0 "better_supabase"."memberships"."user_id"%type := p_user;
 begin
   return query
   select x.ord, x.entry
@@ -55,11 +55,13 @@ begin
         'managed_by', s.managed_by, 'entitlements', s.seats
       )) as entry
     from (
-      select 'tenant'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-      from "public"."organization_members" m
+      select 'tenant'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct mk."role"::text order by mk."role"::text) filter (where mk."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+      from "better_supabase"."memberships" m
+      join "better_supabase"."membership_roles" mk on mk."organization_id" = m."organization_id" and mk."user_id" = m."user_id"
       where m."user_id" = v_user_0
+        and m."disabled_at" is null
       group by m."organization_id"
-      having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+      having jsonb_agg(distinct mk."role"::text order by mk."role"::text) filter (where mk."role"::text is not null) is not null
     ) s
   ) x;
 end;
@@ -125,7 +127,7 @@ begin
   select
     (select pdk_roles.held from pdk_roles),
     coalesce((select jsonb_agg(k.entry order by k.n) from pdk_kept k), '[]'::jsonb),
-    (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
+    truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
     active is not null and coalesce((select bool_or(k.current) from pdk_kept k), false),
     (select bytes from pdk_fixed),
     (select pdk_teams.team_ids from pdk_teams),
@@ -218,39 +220,39 @@ end;
 $$;
 revoke execute on function "permdock".permdock_bump_authz_version() from public, anon, authenticated;
 create or replace trigger "permdock_authz_version_insert"
-  after insert on "public"."organization_members"
+  after insert on "better_supabase"."memberships"
   referencing new table as permdock_new
   for each statement execute function "permdock".permdock_bump_authz_version('user_id');
 create or replace trigger "permdock_authz_version_update"
-  after update on "public"."organization_members"
+  after update on "better_supabase"."memberships"
   referencing old table as permdock_old new table as permdock_new
   for each statement execute function "permdock".permdock_bump_authz_version('user_id');
 create or replace trigger "permdock_authz_version_delete"
-  after delete on "public"."organization_members"
+  after delete on "better_supabase"."memberships"
   referencing old table as permdock_old
   for each statement execute function "permdock".permdock_bump_authz_version('user_id');
 create or replace trigger "permdock_authz_version_insert"
-  after insert on "permdock"."user_roles"
+  after insert on "public"."platform_user_roles"
   referencing new table as permdock_new
   for each statement execute function "permdock".permdock_bump_authz_version('user_id');
 create or replace trigger "permdock_authz_version_update"
-  after update on "permdock"."user_roles"
+  after update on "public"."platform_user_roles"
   referencing old table as permdock_old new table as permdock_new
   for each statement execute function "permdock".permdock_bump_authz_version('user_id');
 create or replace trigger "permdock_authz_version_delete"
-  after delete on "permdock"."user_roles"
+  after delete on "public"."platform_user_roles"
   referencing old table as permdock_old
   for each statement execute function "permdock".permdock_bump_authz_version('user_id');
 create or replace trigger "permdock_authz_version_insert"
-  after insert on "public"."team_members"
+  after insert on "better_supabase"."team_members"
   referencing new table as permdock_new
   for each statement execute function "permdock".permdock_bump_authz_version('user_id');
 create or replace trigger "permdock_authz_version_update"
-  after update on "public"."team_members"
+  after update on "better_supabase"."team_members"
   referencing old table as permdock_old new table as permdock_new
   for each statement execute function "permdock".permdock_bump_authz_version('user_id');
 create or replace trigger "permdock_authz_version_delete"
-  after delete on "public"."team_members"
+  after delete on "better_supabase"."team_members"
   referencing old table as permdock_old
   for each statement execute function "permdock".permdock_bump_authz_version('user_id');
 
@@ -283,6 +285,56 @@ create or replace trigger permdock_authz_version_broadcast_update
   referencing new table as permdock_new
   for each statement execute function "permdock".permdock_broadcast_authz_version();
 
+-- a renamed role key changes the roles of everyone who holds it, globally or through a membership
+create or replace function "permdock".permdock_bump_authz_version_role_keys()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if tg_op = 'INSERT' then
+    insert into "permdock"."permdock_authz_version" as v (user_id, version)
+    select distinct h.user_id, 1
+    from (
+      select h."user_id"::uuid as user_id from "better_supabase"."memberships" h where h."organization_id" = new."organization_id" and h."user_id" = new."user_id"
+    ) h
+    where h.user_id is not null
+      and exists (select 1 from auth.users au where au.id = h.user_id)
+    on conflict (user_id) do update set version = v.version + 1;
+  elsif tg_op = 'DELETE' then
+    insert into "permdock"."permdock_authz_version" as v (user_id, version)
+    select distinct h.user_id, 1
+    from (
+      select h."user_id"::uuid as user_id from "better_supabase"."memberships" h where h."organization_id" = old."organization_id" and h."user_id" = old."user_id"
+    ) h
+    where h.user_id is not null
+      and exists (select 1 from auth.users au where au.id = h.user_id)
+    on conflict (user_id) do update set version = v.version + 1;
+  elsif new."role" is not distinct from old."role"
+      and new."organization_id" is not distinct from old."organization_id"
+      and new."user_id" is not distinct from old."user_id" then
+    return null;
+  else
+    insert into "permdock"."permdock_authz_version" as v (user_id, version)
+    select distinct h.user_id, 1
+    from (
+      select h."user_id"::uuid as user_id from "better_supabase"."memberships" h where h."organization_id" = old."organization_id" and h."user_id" = old."user_id"
+      union
+      select h."user_id"::uuid as user_id from "better_supabase"."memberships" h where h."organization_id" = new."organization_id" and h."user_id" = new."user_id"
+    ) h
+    where h.user_id is not null
+      and exists (select 1 from auth.users au where au.id = h.user_id)
+    on conflict (user_id) do update set version = v.version + 1;
+  end if;
+  return null;
+end;
+$$;
+revoke execute on function "permdock".permdock_bump_authz_version_role_keys() from public, anon, authenticated;
+create or replace trigger "permdock_authz_version"
+  after insert or update or delete on "better_supabase"."membership_roles"
+  for each row execute function "permdock".permdock_bump_authz_version_role_keys();
+
 -- the subject the hook would mint for p_user, for a backend acting for a stored user; no client role may execute it
 create or replace function "permdock".subject_for(p_user uuid)
 returns jsonb
@@ -307,6 +359,45 @@ begin
   select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text), '[]'::jsonb)
     into memberships
     from "permdock".memberships_for(uid) x;
+  select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+      'name', c.role,
+      'shared', case when c.tenant_id is null and c.scope <> 'global' then true end,
+      'tenant', c.tenant_id::text,
+      'scope', c.scope,
+      'id', c.scope_id,
+      'grants', (
+        select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+            'permission', p.permission,
+            'effect', p.effect,
+            'level', to_jsonb(p) ->> 'level'
+          )) order by p.permission, p.effect), '[]'::jsonb)
+        from "permdock".custom_role_permissions p
+        where p.tenant_id is not distinct from c.tenant_id and p.scope = c.scope and p.scope_id is not distinct from c.scope_id and p.role = c.role
+      ),
+      'includes', (
+        select jsonb_agg(p.include_role order by p.include_role)
+        from "permdock".custom_role_includes p
+        where p.tenant_id is not distinct from c.tenant_id and p.scope = c.scope and p.scope_id is not distinct from c.scope_id and p.role = c.role
+      )
+    )) order by c.tenant_id::text, c.scope, c.scope_id, c.role), '[]'::jsonb)
+    into custom
+    from (
+      select tenant_id, scope, scope_id, role from "permdock".custom_role_permissions
+      union
+      select tenant_id, scope, scope_id, role from "permdock".custom_role_includes
+    ) c
+    where (c.scope = 'global' and c.tenant_id is null and held ? c.role)
+      or exists (
+        select 1
+        from jsonb_array_elements(memberships) m
+        where m -> 'roles' ? c.role
+          and m ->> 'scope' = c.scope
+          and (
+            (c.tenant_id is null and c.scope_id is null)
+            or c.tenant_id::text = case when m ->> 'scope' = 'tenant' then m ->> 'id' else m -> 'within' ->> 'tenant' end
+          )
+          and (c.scope_id is null or c.scope_id = m ->> 'id')
+      );
   select v.version into ver from "permdock"."permdock_authz_version" v where v.user_id = uid;
   ver := coalesce(ver, 0);
   select coalesce((
@@ -392,11 +483,13 @@ as $$
       ))
     ) order by s.user_id, s.roles::text), '[]'::jsonb)
   from (
-      select m."user_id"::text as user_id, 'tenant'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
-      from "public"."organization_members" m
+      select m."user_id"::text as user_id, 'tenant'::text as scope, m."organization_id"::text as id, null::jsonb as within, jsonb_agg(distinct mk."role"::text order by mk."role"::text) filter (where mk."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+      from "better_supabase"."memberships" m
+      join "better_supabase"."membership_roles" mk on mk."organization_id" = m."organization_id" and mk."user_id" = m."user_id"
       where $1::text = 'tenant' and m."organization_id"::text = $2::text
+        and m."disabled_at" is null
       group by m."user_id", m."organization_id"
-      having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+      having jsonb_agg(distinct mk."role"::text order by mk."role"::text) filter (where mk."role"::text is not null) is not null
   ) s
 $$;
 revoke execute on function "permdock".members_of(text, text) from public, anon, authenticated;

@@ -73,6 +73,28 @@ export function lastSegment(name: string): string {
   return bare;
 }
 
+function ifNotExistsShapes(text: string): readonly string[] {
+  const shapes: string[] = [];
+  const pattern =
+    /\bcreate\s+(table|(?:unique\s+)?index|policy)\s+if\s+not\s+exists\b/giu;
+  for (const match of text.matchAll(pattern)) {
+    const kind = captured(match, 1)
+      .toLowerCase()
+      .replace(/^unique\s+/u, "");
+    const shape = `create ${kind} if not exists`;
+    if (!shapes.includes(shape)) {
+      shapes.push(shape);
+    }
+  }
+  return shapes;
+}
+
+function dropsTriggerBeforeCreate(text: string): boolean {
+  return /\bdrop\s+trigger\b[^;]*;\s*create\s+(?:constraint\s+)?trigger\b/iu.test(
+    text,
+  );
+}
+
 function doCreates(text: string): boolean {
   const marker = /\bdo\s+(\$\$|\$[A-Za-z0-9_]*\$)/giu;
   for (const match of text.matchAll(marker)) {
@@ -147,9 +169,10 @@ function definedNames(text: string): ReadonlySet<string> {
 
 /**
  * PD095: a schema file uses a shape pg-delta rejects, or a `-- permdock:`
- * migration repeats DDL or a grant the schema file already defines. `if not
- * exists` and a drop-then-create trigger stay, because the generator and
- * better-supabase emit both.
+ * migration repeats DDL or a grant the schema file already defines. The shapes
+ * include `if not exists` on `create table`, `create index` and `create
+ * policy`, and a `drop trigger` before a `create trigger`: pg-delta diffs the
+ * file, so each is `create`, `create or replace` or nothing.
  */
 export function pd095(
   cwd: string,
@@ -174,6 +197,10 @@ export function pd095(
     );
     if (repeated.length > 0) {
       problems.push("two definitions of one signature");
+    }
+    problems.push(...ifNotExistsShapes(file.text));
+    if (dropsTriggerBeforeCreate(file.text)) {
+      problems.push("drop trigger before create trigger");
     }
     if (triggerOnView(file.text, viewNames(file.text))) {
       problems.push("a trigger on a view");
@@ -245,6 +272,72 @@ export function pd096(config: PermDockConfig): readonly DoctorFinding[] {
           fix: "regenerate the hook, the PowerSync streams and the manifest so every through.on pair is used",
         });
       }
+    }
+  }
+  return findings;
+}
+
+const POLICY_ON =
+  /create\s+policy\s+(?:"[^"]+"|\w+)\s+on\s+((?:"[^"]+"|\w+)(?:\s*\.\s*(?:"[^"]+"|\w+))?)([^;]*);/giu;
+
+function tableId(raw: string): string {
+  const bare = raw.replaceAll(/[\s"]/gu, "").toLowerCase();
+  return bare.includes(".") ? bare : `public.${bare}`;
+}
+
+/** Child table to the `rls.tables.<resource>.follows` resource that owns it. */
+function followChildren(config: PermDockConfig): ReadonlyMap<string, string> {
+  const children = new Map<string, string>();
+  for (const [resource, entry] of Object.entries(config.rls?.tables ?? {})) {
+    if (typeof entry !== "object" || !("follows" in entry)) {
+      continue;
+    }
+    for (const child of Object.keys(entry.follows ?? {})) {
+      children.set(tableId(child), resource);
+    }
+  }
+  return children;
+}
+
+/**
+ * PD101: a schema file the app writes defines a permissive policy on a
+ * `follows` child table. The generated `follows` policies already allow select,
+ * insert, update and delete there, and permissive policies add up, so the app
+ * policy widens them for the commands it names (`all` names every one).
+ */
+export function pd101(
+  cwd: string,
+  config: PermDockConfig,
+  files: DoctorFiles,
+): readonly DoctorFinding[] {
+  const children = followChildren(config);
+  if (children.size === 0) {
+    return [];
+  }
+  const findings: DoctorFinding[] = [];
+  for (const file of sqlUnder(cwd, SCHEMA_DIR, files)) {
+    if (permdockSchema(cwd, file)) {
+      continue;
+    }
+    const label = rel(cwd, file.path);
+    for (const match of file.text.matchAll(POLICY_ON)) {
+      const table = tableId(captured(match, 1));
+      const resource = children.get(table);
+      const clause = match[2] ?? "";
+      if (resource === undefined || /\bas\s+restrictive\b/iu.test(clause)) {
+        continue;
+      }
+      const command = (
+        /\bfor\s+(select|insert|update|delete|all)\b/iu.exec(clause)?.[1] ??
+        "all"
+      ).toLowerCase();
+      findings.push({
+        code: "PD101",
+        severity: "warning",
+        target: `${label}:${table}`,
+        message: `${label} defines a permissive ${command} policy on ${table}, which the generated follows policies for ${resource} already allow`,
+        fix: "delete the policy and let rls.tables.<resource>.follows decide, or drop the table from follows",
+      });
     }
   }
   return findings;

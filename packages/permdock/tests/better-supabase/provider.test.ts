@@ -758,7 +758,7 @@ describe(authorizationProvider, () => {
       "permdock.permdock_approver_for_ids()",
     );
     expect(provider.functions.managedUsers).toBe(
-      "permdock.permdock_managed_user_ids()",
+      "permdock.permdock_managed_user_ids({tenant})",
     );
   });
 

@@ -13,12 +13,12 @@
   "express createPermDock": 46312,
   "fastify createPermDock": 46136,
   "jwt subjectFromJwt": 9434,
-  "mcp createPermDock": 46678,
+  "mcp createPermDock": 46717,
   "ai-sdk createPermDock": 42185,
-  "supabase/middleware createPermDock": 48616,
+  "supabase/middleware createPermDock": 48609,
   "saas client react": 21607,
   "saas client react/lazy": 22152,
   "saas client react/lazy (initial)": 15088,
-  "saas server better-supabase + next": 81363,
+  "saas server better-supabase + next": 81345,
   "openapi securityFor + permissionsExtension + problemDetails": 862
 }

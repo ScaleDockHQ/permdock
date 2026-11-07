@@ -129,7 +129,7 @@ export function serviceRel(schemaDir: string, file: string): string {
 }
 
 /** The path of one split part: `{part}` in `out` replaced by the part name. */
-export function partPath(out: string, part: SplitPart): string {
+export function partPath(out: string, part: SplitPart | "follows"): string {
   return out.replaceAll("{part}", part);
 }
 

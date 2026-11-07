@@ -110,6 +110,14 @@ export function sqlType(name: string): string {
   return name;
 }
 
+/**
+ * Postgres type of a user id: `uuid` on Supabase, `text` elsewhere, the rule
+ * the delegation columns follow.
+ */
+export function userTypeOf(ctx: Pick<RlsSqlContext, "dialect">): string {
+  return ctx.dialect === "supabase" ? "uuid" : "text";
+}
+
 export function tenantTypeOf(ctx: RlsSqlContext): string {
   return sqlType(ctx.tenantType ?? "uuid");
 }

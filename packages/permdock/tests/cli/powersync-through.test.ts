@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { joinOn, throughRows } from "../../src/cli/powersync/sources.ts";
 import { POSTGRES } from "../../src/cli/powersync/stream-types.ts";
 
-const own = { table: "m", from: "public.m m", where: ["true"] };
+const own = { table: "m", from: "public.m m", where: ["true"], active: [] };
 
 describe("through rows", () => {
   it("keeps the signed-in user on one pair and filters the other pairs", () => {

@@ -85,7 +85,7 @@ guarded.registerTool(
 
 ### Session tokens without scopes
 
-A Supabase or Clerk session token carries `openid` or `email`, but none of the policy's scopes. By default (`unscopedTokens: 'deny'`) such a token reaches no guarded tool: the list is empty and every call is refused with `insufficient_scope`. `unscopedTokens: 'subject'` decides it on the subject: it skips the scope check in `tools/list` and in calls, and the subject gets no delegation from the token.
+A token with no scope and no `authorization_details` is a session token, such as the one Supabase Auth issues. It acts as the signed-in user alone: it passes the scope check in `tools/list` and in calls, raises no scope challenge, and gets no actor and no delegation, so `tools/list` lists every tool any of the caller's memberships grants. A Supabase or Clerk token that carries `openid` or `email` has scopes, none of them the policy's, and `unscopedTokens` governs it. By default (`unscopedTokens: 'deny'`) such a token reaches no guarded tool: the list is empty and every call is refused with `insufficient_scope`. `unscopedTokens: 'subject'` decides it on the subject: it skips the scope check in `tools/list` and in calls, and the subject gets no delegation from the token.
 
 ```ts
 const { protectServer } = createPermDock(policy, {

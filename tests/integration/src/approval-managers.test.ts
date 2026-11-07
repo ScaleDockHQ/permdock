@@ -19,6 +19,9 @@ const LOOP_A = "00000000-0000-4000-8000-000000000005";
 const LOOP_B = "00000000-0000-4000-8000-000000000006";
 const COVER = "00000000-0000-4000-8000-000000000007";
 const LATE = "00000000-0000-4000-8000-000000000008";
+const ALICE = "00000000-0000-4000-8000-000000000009";
+const BOB = "00000000-0000-4000-8000-00000000000a";
+const CAROL = "00000000-0000-4000-8000-00000000000b";
 
 const SETUP = `
 create role authenticated nologin;
@@ -34,14 +37,16 @@ $$;
 grant usage on schema auth to authenticated, anon;
 grant execute on all functions in schema auth to authenticated, anon;
 create table public.job (id text primary key, "orgId" text not null, "ownerId" uuid not null);
-create table public.reporting_lines (user_id uuid not null, manager_id uuid);
+create table public.reporting_lines (user_id uuid not null, manager_id uuid, org text not null);
 insert into public.reporting_lines values
-  ('${REQUESTER}', '${LEAD}'),
-  ('${LEAD}', '${HEAD}'),
-  ('${HEAD}', '${CHIEF}'),
-  ('${LOOP_A}', '${LOOP_B}'),
-  ('${LOOP_B}', '${LOOP_A}'),
-  ('${CHIEF}', null);
+  ('${REQUESTER}', '${LEAD}', 'o1'),
+  ('${LEAD}', '${HEAD}', 'o1'),
+  ('${HEAD}', '${CHIEF}', 'o1'),
+  ('${LOOP_A}', '${LOOP_B}', 'o1'),
+  ('${LOOP_B}', '${LOOP_A}', 'o1'),
+  ('${CHIEF}', null, 'o1'),
+  ('${BOB}', '${ALICE}', 'oA'),
+  ('${CAROL}', '${BOB}', 'oB');
 `;
 
 const member = (sub: string) => ({
@@ -90,6 +95,7 @@ describe("approval managers", () => {
     user: string,
     approvers: unknown,
     requester: string,
+    tenant = "o1",
   ): Promise<boolean> {
     const target = started();
     return target.as(
@@ -99,8 +105,8 @@ describe("approval managers", () => {
       },
       async () => {
         const result = await target.tester.query<{ readonly ok: boolean }>(
-          "select permdock.permdock_is_approver($1::jsonb, 'o1', $2, 'job') as ok",
-          [JSON.stringify(approvers), requester],
+          "select permdock.permdock_is_approver($1::jsonb, $3, $2, 'job') as ok",
+          [JSON.stringify(approvers), requester, tenant],
         );
         return result.rows[0]?.ok === true;
       },
@@ -194,6 +200,38 @@ describe("approval managers", () => {
     expect(await forStep(COVER, { manager: true }, LOOP_A)).toBe(false);
     expect(await forStep(LATE, { manager: true }, REQUESTER)).toBe(false);
     expect(await forStep(LEAD, { manager: true }, REQUESTER)).toBe(true);
+  });
+
+  async function managedBy(user: string, tenant: string): Promise<string[]> {
+    const target = started();
+    return target.as(
+      {
+        role: "authenticated",
+        settings: { "request.jwt.claims": JSON.stringify(member(user)) },
+      },
+      async () => {
+        const result = await target.tester.query<{ readonly id: string }>(
+          "select permdock.permdock_managed_user_ids($1) as id",
+          [tenant],
+        );
+        return result.rows.map((row) => row.id).toSorted();
+      },
+    );
+  }
+
+  it("returns uuid ids and walks only the edges of the asked tenant", async () => {
+    expect(await managedBy(ALICE, "oA")).toStrictEqual([BOB]);
+    expect(await managedBy(ALICE, "oB")).toStrictEqual([]);
+    expect(await managedBy(BOB, "oB")).toStrictEqual([CAROL]);
+    expect(await managedBy(LEAD, "o1")).toStrictEqual([REQUESTER]);
+  });
+
+  it("walks up only the edges of the request's tenant", async () => {
+    const levels = { kind: "manager", levels: 2 };
+    expect(await isApprover(ALICE, levels, BOB, "oA")).toBe(true);
+    expect(await isApprover(ALICE, levels, CAROL, "oA")).toBe(false);
+    expect(await isApprover(ALICE, levels, CAROL, "oB")).toBe(false);
+    expect(await isApprover(BOB, levels, CAROL, "oB")).toBe(true);
   });
 
   it("keeps the manager walk away from client roles", async () => {

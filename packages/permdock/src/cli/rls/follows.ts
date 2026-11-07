@@ -101,10 +101,17 @@ export function followPolicies(
   return out;
 }
 
+/** The relation-walk maximum: a chain stops this many steps below its start. */
+const WALK_DEPTH = 32;
+
 /**
  * `walk: "recursive"`: one set of the rows below the caller on a self-parented
- * resource. With approval delegations, a caller also starts from the delegators
- * whose cover is active.
+ * resource. The walk starts at the caller's own row, the one whose
+ * `tables.<resource>.user` column (the id column by default) is the caller, and
+ * stays in that row's tenant. A path guard and a depth cap of 32 end a cycle or
+ * a self-parented row. The caller's row is not in the result. With approval
+ * delegations, each delegator whose cover is active adds their row and every
+ * row below it.
  */
 export function walkChainSql(
   ctx: RlsSqlContext,
@@ -112,6 +119,7 @@ export function walkChainSql(
   tables: Readonly<Record<string, RlsTable>> | undefined,
   covers: boolean,
 ): string {
+  const root = rootScope(ctx.scopes);
   const chunks: string[] = [];
   for (const [resource, entry] of Object.entries(tables ?? {})) {
     if (!isOwner(entry) || entry.walk !== "recursive") {
@@ -138,18 +146,27 @@ export function walkChainSql(
     const table = quoteQualified(tableNameOf(entry, resource, tables));
     const id = quoteIdent(node.id);
     const up = quoteIdent(parent.field);
+    const user = quoteIdent(entry.user ?? node.id);
+    const tenantColumn =
+      root === undefined ? undefined : tenantField(policy, resource, root);
+    const tenant =
+      tenantColumn === undefined ? undefined : quoteIdent(tenantColumn);
     const fn = qualified(ctx, `permdock_${sql}_chain`);
     const me = `(select ${qualified(ctx, "permdock_user_id")}())`;
+    const startTenant = tenant === undefined ? "null" : `t.${tenant}`;
+    const stepTenant =
+      tenant === undefined ? "" : `\n      and c.${tenant} = w.tenant`;
     const cover = covers
       ? `
-    union
-    select d.delegator
-    from ${qualified(ctx, "approval_delegations")} d
+    union all
+    select t.${id}, ${startTenant}, 0, array[t.${id}], true
+    from ${table} t
+    join ${qualified(ctx, "approval_delegations")} d on t.${user} = d.delegator
     where d.delegate = ${me}
       and d."from" <= now()
       and d."until" > now()`
       : "";
-    chunks.push(`-- ${resource}: rows below the caller, one recursive set
+    chunks.push(`-- ${resource}: rows below the caller's row, one recursive set
 create or replace function ${fn}()
 returns setof ${type}
 language sql
@@ -157,16 +174,18 @@ stable
 security definer
 set search_path = ''
 as $$
-  with recursive chain(id) as (
-    select t.${id}
+  with recursive walk(id, tenant, depth, path, cover) as (
+    select t.${id}, ${startTenant}, 0, array[t.${id}], false
     from ${table} t
-    where t.${up} = ${me}${cover}
-    union
-    select c.${id}
+    where t.${user} = ${me}${cover}
+    union all
+    select c.${id}, w.tenant, w.depth + 1, w.path || c.${id}, false
     from ${table} c
-    join chain w on c.${up} = w.id
+    join walk w on c.${up} = w.id
+    where not c.${id} = any (w.path)
+      and w.depth < ${String(WALK_DEPTH)}${stepTenant}
   )
-  select id from chain
+  select id from walk where depth >= 1 or cover
 $$;
 revoke execute on function ${fn}() from public, anon;
 grant execute on function ${fn}() to authenticated;`);

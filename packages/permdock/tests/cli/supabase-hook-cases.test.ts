@@ -384,6 +384,53 @@ describe("supabase.hook.teams", () => {
       });
     });
 
+    it("grants member_team_ids_for to supabase_auth_admin only for an invoker hook", () => {
+      const scopesFor = {
+        dialect: "supabase" as const,
+        scopes,
+        tenantClaim: "tenant_id",
+        gucPrefix: "app",
+        hookTeams: { table: "team_members", user: "user_id", team: "team_id" },
+      };
+      const grant =
+        'grant execute on function "permdock"."member_team_ids_for"(uuid, text) to supabase_auth_admin;';
+      expect(
+        hookTeamReadersSql({ ...scopesFor, hookSecurity: "invoker" }),
+      ).toContain(grant);
+      expect(hookTeamReadersSql(scopesFor)).toContain(grant);
+      const definer = hookTeamReadersSql({
+        ...scopesFor,
+        hookSecurity: "definer",
+      });
+      expect(definer).not.toContain("supabase_auth_admin");
+      expect(definer).toContain(
+        'revoke execute on function "permdock"."member_team_ids_for"(uuid, text) from public, anon, authenticated;',
+      );
+      const { manifest } = supabaseHookSql(scopes, {
+        policy: "p.ts",
+        supabase: {
+          hook: {
+            security: "definer",
+            teams: { table: "team_members", user: "user_id", team: "team_id" },
+            memberships: [
+              junctionMembershipSource({
+                table: "organization_members",
+                scope: "organization",
+                id: "organization_id",
+                roles: "role",
+              }),
+            ],
+          },
+        },
+      });
+      expect(manifest.rls.helpers).toContainEqual({
+        name: "member_team_ids_for",
+        args: "p_user uuid, p_active text",
+        returns: "setof uuid",
+        execute: [],
+      });
+    });
+
     it("filters a suspended user in the helpers reader and never compares auth.uid()", () => {
       const sql = hookTeamReadersSql({
         dialect: "supabase",
