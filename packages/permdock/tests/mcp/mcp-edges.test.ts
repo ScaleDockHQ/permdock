@@ -200,7 +200,7 @@ describe("verified auth info", () => {
 
   it("names the stamped resource metadata URL in a scope refusal", async () => {
     const client = await connect(listServer({ subject: () => memberUser }), {
-      authInfo: auth([], {
+      authInfo: auth(["openid"], {
         resourceMetadataUrl:
           "https://mcp.example.com/.well-known/oauth-protected-resource",
       }),
@@ -218,7 +218,7 @@ describe("verified auth info", () => {
 
   it("omits resource metadata for a non-HTTP resource", async () => {
     const client = await connect(listServer({ subject: () => memberUser }), {
-      authInfo: auth([], { resource: new URL("urn:example:mcp") }),
+      authInfo: auth(["openid"], { resource: new URL("urn:example:mcp") }),
     });
     const refused = await client.callTool({
       name: "list_posts",

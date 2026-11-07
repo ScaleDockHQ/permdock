@@ -22,6 +22,7 @@ import { bearerChallenge } from "../server/problem.ts";
 import {
   approvalTokenOf,
   contextOf,
+  isSessionToken,
   resourceMetadataOf,
   sameResource,
 } from "./mcp-auth.ts";
@@ -103,6 +104,7 @@ function scoped(
 ): boolean {
   return (
     hasScope(authInfo.scopes, reach.scopes) ||
+    isSessionToken(authInfo) ||
     decidesOnSubject(checks.options, checks.policyScopes, authInfo)
   );
 }
