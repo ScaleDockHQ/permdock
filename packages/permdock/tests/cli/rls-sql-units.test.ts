@@ -668,7 +668,7 @@ describe("compileConditionSql memberOf", () => {
         { op: "memberOf", scope: "org", field: "org_id", roles: [] },
         { tenants: "all" },
       ),
-    ).toBe(`"org_id" in (select "permdock".member_org_ids())`);
+    ).toBe(`"org_id" = any(array(select "permdock".member_org_ids()))`);
     const nested = sql(
       { op: "memberOf", scope: "team", field: "team_id", roles: ["lead"] },
       { memberships, tenants: "all" },
@@ -704,7 +704,7 @@ describe("compileConditionSql memberOf", () => {
         // SAFETY: scopeSources reads only sql.scope of a source.
         { authorize: "database", sources: [source as never], schema: "authz" },
       ),
-    ).toBe(`"team_id" in (select "authz".member_team_ids())`);
+    ).toBe(`"team_id" = any(array(select "authz".member_team_ids()))`);
   });
 });
 

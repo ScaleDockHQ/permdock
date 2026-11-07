@@ -118,7 +118,7 @@ ${helperFunction(
   sqlBody(
     `  select p.${quoteIdent(via.id)}
   from ${quoteQualified(via.table)} p
-  where p.${quoteIdent(via.column)} in (select ${qualified(ctx, permittedIdsHelper(via.scope))}(p_grant))`,
+  where p.${quoteIdent(via.column)} = any(array(select ${qualified(ctx, permittedIdsHelper(via.scope))}(p_grant)))`,
   ),
   anonExecute,
 )}`,

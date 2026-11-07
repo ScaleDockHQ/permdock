@@ -431,12 +431,12 @@ function compileMemberOf(
     condition.roles.length === 0 &&
     scopeSources(ctx, scope).length > 0
   ) {
-    return `${quoteIdent(condition.field)} in (select ${qualified(ctx, memberIdsHelper(scope))}())`;
+    return `${quoteIdent(condition.field)} = any(array(select ${qualified(ctx, memberIdsHelper(scope))}()))`;
   }
   if (scope !== undefined && scope === rootScope(ctx.scopes)) {
     const parts = [
       ctx.tenants === "all"
-        ? `${quoteIdent(condition.field)} in (select ${qualified(ctx, memberIdsHelper(scope))}())`
+        ? `${quoteIdent(condition.field)} = any(array(select ${qualified(ctx, memberIdsHelper(scope))}()))`
         : `${quoteIdent(condition.field)} = ${tenantClaimSql(ctx)}`,
       ...(ctx.tenants === "all"
         ? []
