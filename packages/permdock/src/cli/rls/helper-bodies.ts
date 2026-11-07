@@ -12,6 +12,7 @@ import {
   grantPermissionSql,
   keptRowSql,
 } from "../sql/active.ts";
+import { tenantTypeOf } from "../sql/columns.ts";
 import { memberRoleOf, scopeSources, scopeTable } from "../sql/names.ts";
 import {
   qualified,
@@ -357,12 +358,12 @@ function tableBranch(
     ...checks.joins,
     ...(shared
       ? [
-          `  cross join lateral (${customArraysQuery(ctx, probeOf(scope, column, tenantColumn, role.sql))}) pdk_e`,
+          `  cross join lateral (${customArraysQuery(ctx, probeOf(ctx, scope, column, tenantColumn, role.sql))}) pdk_e`,
         ]
       : []),
     ...(branch === "custom" && set && custom !== undefined
       ? [
-          `  cross join lateral (${customKeysQuery(ctx, probeOf(scope, column, tenantColumn, role.sql))}) ck(grant_key)`,
+          `  cross join lateral (${customKeysQuery(ctx, probeOf(ctx, scope, column, tenantColumn, role.sql))}) ck(grant_key)`,
         ]
       : []),
     ...(branch === "declared"
@@ -386,6 +387,7 @@ function tableBranch(
 }
 
 function probeOf(
+  ctx: RlsSqlContext,
   scope: string,
   column: string,
   tenantColumn: string | undefined,
@@ -394,7 +396,7 @@ function probeOf(
   return {
     scope,
     role: roleSql,
-    tenant: `${memberColumn(tenantColumn ?? column)}::text`,
+    tenant: `(${memberColumn(tenantColumn ?? column)})::${tenantTypeOf(ctx)}`,
     instance: `${memberColumn(column)}::text`,
   };
 }
@@ -925,7 +927,7 @@ ${rpJoin(ctx, scope, "r.role", set, "  ")}  where ${signedIn(ctx)}
   const keys = customKeysQuery(ctx, {
     scope,
     role: "r.role",
-    tenant: `(${tenant})::text`,
+    tenant: `(${tenant})::${tenantTypeOf(ctx)}`,
     instance: "(ms.id)::text",
   });
   if (set) {
@@ -945,7 +947,7 @@ ${rows}
   const arrays = customArraysQuery(ctx, {
     scope,
     role: "r.role",
-    tenant: `(${tenant})::text`,
+    tenant: `(${tenant})::${tenantTypeOf(ctx)}`,
     instance: "(ms.id)::text",
   });
   return sourcesBodyOf(

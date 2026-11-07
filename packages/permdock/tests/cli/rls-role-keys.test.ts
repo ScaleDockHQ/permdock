@@ -117,13 +117,13 @@ describe("custom roles in the helpers", () => {
   it("matches the tenant of a role held on a sub-scope by the tenant column", () => {
     const ids = grantBodies(nested({})).ids("team").sql;
     expect(ids).toContain(
-      `case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = m."org_id"::text end`,
+      `(not pdk_s.shared and c.tenant_id = (m."org_id")::uuid or pdk_s.shared and c.tenant_id is null)`,
     );
     expect(ids).toContain(`c.scope_id = m."team_id"::text`);
     const listed = grantBodies({ ...nested({}), grantSet: true }).ids(
       "team",
     ).sql;
-    expect(listed).toContain(`c.tenant_id::text = m."org_id"::text`);
+    expect(listed).toContain(`c.tenant_id = (m."org_id")::uuid`);
   });
 
   const custom = { declared: ["admin"], assignable: [] };
