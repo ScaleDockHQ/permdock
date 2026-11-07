@@ -138,7 +138,9 @@ describe("decideIds at scale", () => {
     });
     const permdock = getPermDockSync(policy, subject);
     const ids = list.map((row) => row.id);
-    await permdock.decideIds(permissions.doc.read, ids, { data: () => watched });
+    await permdock.decideIds(permissions.doc.read, ids, {
+      data: () => watched,
+    });
     expect(reads).toBeLessThanOrEqual(list.length * 2);
   });
 });

@@ -7,6 +7,7 @@ import type {
   RESOURCE_NAME,
   RESOURCE_X,
   TREE_LEAVES,
+  TREE_LOOKUP,
   TREE_REGISTRY,
 } from "./brands.ts";
 
@@ -331,6 +332,8 @@ export type PermissionTree = {
 export type RegistryTree = PermissionTree & {
   readonly [TREE_REGISTRY]: ReadonlyMap<string, ResourceNode>;
   readonly [TREE_LEAVES]: readonly Permission[];
+  /** Key, scope and former names to the leaf `findPermission` answers. */
+  readonly [TREE_LOOKUP]?: ReadonlyMap<string, Permission>;
 };
 
 type ActionNames<A extends ActionList | undefined> = A extends readonly string[]

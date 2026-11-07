@@ -6,6 +6,8 @@ export const NODE_RESOURCE: unique symbol = Symbol.for("permdock.resource");
 
 export const TREE_LEAVES: unique symbol = Symbol.for("permdock.leaves");
 
+export const TREE_LOOKUP: unique symbol = Symbol.for("permdock.lookup");
+
 export const LEAF_FORMER: unique symbol = Symbol.for("permdock.former");
 
 /**
