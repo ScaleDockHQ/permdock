@@ -441,6 +441,48 @@ export default {
     );
   };
 
+  describe("rls generate follows part", () => {
+    const FOLLOWS =
+      ", tables: { asset: { table: 'public.assets', follows: { 'public.asset_parties': 'asset_id' } } }";
+
+    it("writes follows policies under pg-delta without the policies part, and writes it again unchanged", async () => {
+      const cwd = project(true, FOLLOWS, null);
+      pgDelta(cwd);
+      const args = ["--split", "helpers,seeds", "--seeds-out", SEEDS];
+      const first = await rlsGenerate(args, { cwd });
+      expect(first.code).toBe(0);
+      const follows = read(cwd, "supabase/schemas/permdock/follows.sql");
+      expect(follows).toContain('"permdock_follow_asset_parties_select"');
+      expect(follows).toContain('on "public"."asset_parties"');
+      expect(follows).not.toContain("drop policy");
+      expect(
+        existsSync(join(cwd, "supabase/schemas/public/policies/permdock.sql")),
+      ).toBe(false);
+      expect(first.stderr).toContain("skipped policies");
+      expect(first.stderr).toContain("follows");
+      const checked = await rlsGenerate([...args, "--check"], { cwd });
+      expect(checked.code).toBe(0);
+    });
+
+    it("keeps follows out of the policies part and writes it beside under {part}", async () => {
+      const cwd = project(true, FOLLOWS, "migra");
+      const result = await rlsGenerate(
+        [
+          "--split",
+          "helpers,seeds,policies",
+          "--out",
+          OUT,
+          "--seeds-out",
+          SEEDS,
+        ],
+        { cwd },
+      );
+      expect(result.code).toBe(0);
+      expect(read(cwd, part("policies"))).not.toContain("asset_parties");
+      expect(read(cwd, part("follows"))).toContain("asset_parties");
+    });
+  });
+
   describe("rls generate --split under pg-delta", () => {
     it("writes the per-schema, unnumbered layout without --out, grants included", async () => {
       const cwd = project(true, "", null);
