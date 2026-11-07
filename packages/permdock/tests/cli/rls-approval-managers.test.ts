@@ -126,3 +126,44 @@ describe("rls.approvals.managers", () => {
     }
   });
 });
+
+describe("rls.approvals approval sets", () => {
+  const withManagers = (
+    scopes: RlsSqlContext["scopes"],
+    tenant: string | undefined,
+  ): string =>
+    approvalsSql(
+      { ...ctx, scopes },
+      { managers: { ...managers, ...(tenant === undefined ? {} : { tenant }) } },
+      false,
+    ) ?? "";
+
+  it("returns setof uuid on Supabase with no ::text cast in the sets", () => {
+    const sql = withManagers([{ name: "tenant" }], "organization_id");
+    const start = sql.indexOf("permdock_approver_for_ids()");
+    const sets = sql.slice(start);
+    expect(sets).toContain("returns setof uuid");
+    expect(sets).not.toContain("returns setof text");
+    expect(sets).not.toContain("::text");
+  });
+
+  it("filters the downward walk by tenant on the seed and every step", () => {
+    const sql = withManagers([{ name: "tenant" }], "organization_id");
+    expect(sql).toContain("permdock_managed_user_ids(p_tenant uuid)");
+    expect(sql.match(/m\."organization_id" = p_tenant/gu)).toHaveLength(2);
+  });
+
+  it("filters the upward walk by the request's tenant", () => {
+    const sql = withManagers([{ name: "tenant" }], "organization_id");
+    expect(sql.match(/m\."organization_id"::text = p_tenant/gu)).toHaveLength(2);
+    expect(sql).toContain(
+      "permdock_manages_for(p_user text, p_requester text, p_levels integer, p_tenant text default null)",
+    );
+  });
+
+  it("refuses managers without a tenant column when the policy has a tenant scope", () => {
+    expect(() => withManagers([{ name: "tenant" }], undefined)).toThrow(
+      /managers needs `tenant`/u,
+    );
+  });
+});
