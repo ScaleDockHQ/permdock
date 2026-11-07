@@ -15,6 +15,8 @@ const config: KnipConfig = {
       project: ["*.{ts,mts}", "scripts/**/*.{ts,mjs}"],
       // Resolves debug's optional supports-color peer for every importer; nothing imports it.
       ignoreDependencies: ["supports-color"],
+      // scripts/next-build.ts runs the `next` each example app installs.
+      ignoreBinaries: ["next"],
     },
     "apps/docs": {
       // `@permdock/ui` code blocks import shiki, which Next.js externalises; it must resolve from the app.
@@ -77,7 +79,10 @@ const config: KnipConfig = {
       entry: [
         "src/fixtures/rsc/{register,render}.ts",
         "src/fixtures/gen/{policy,usage}.ts",
+        // The CLI loads this policy in a temporary project; the generated modules import valibot.
+        "src/fixtures/gen-shake/policy.ts",
       ],
+      ignoreDependencies: ["valibot"],
     },
     "tests/integration": {
       entry: ["fixtures/**/*.ts", "src/support/openai-resume.ts"],

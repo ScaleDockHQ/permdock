@@ -17,6 +17,7 @@ import { createClientStore } from "../../src/client/store.ts";
 import { emptySnapshot } from "../../src/core/from-snapshot.ts";
 import { compactSnapshot } from "../../src/core/snapshot-compact.ts";
 import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
+import { onlineRefresh } from "../../src/react/refresh-online.ts";
 import { supabaseRealtimeRefresh } from "../../src/supabase/client.ts";
 
 function signedIn(id: string): Snapshot {
@@ -63,6 +64,30 @@ describe(focusRefresh, () => {
   it("never fires without a window", () => {
     const refresh = vi.fn<() => void>();
     focusRefresh()(refresh)();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+});
+
+describe(onlineRefresh, () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("fires when the browser regains its connection and stops on unsubscribe", () => {
+    const target = new EventTarget();
+    vi.stubGlobal("window", target);
+    const refresh = vi.fn<() => void>();
+    const off = onlineRefresh()(refresh);
+    target.dispatchEvent(new Event("offline"));
+    target.dispatchEvent(new Event("online"));
+    off();
+    target.dispatchEvent(new Event("online"));
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
+  it("never fires without a window", () => {
+    const refresh = vi.fn<() => void>();
+    onlineRefresh()(refresh)();
     expect(refresh).not.toHaveBeenCalled();
   });
 });

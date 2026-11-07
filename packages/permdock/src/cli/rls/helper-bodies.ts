@@ -612,6 +612,7 @@ export type Body = {
 
 export function memoizes(ctx: RlsSqlContext): boolean {
   return (
+    ctx.noMemo !== true &&
     ctx.authorize === "database" &&
     ctx.dialect === "supabase" &&
     ctx.grantSet !== true &&
@@ -739,12 +740,19 @@ function memoDiscriminatorSql(user: string, key: string): string {
     ))`;
 }
 
+/** The planner's row estimate for a memoised id-set helper. */
+const SETOF_ROWS = 10;
+
 /**
  * `language sql`, or `plpgsql` returning the query when the body declares
  * variables.
  */
-export function functionBody(body: Body, parallelSafe = false): string {
-  const planner = `cost 1000${parallelSafe ? "\nparallel safe" : ""}`;
+export function functionBody(
+  body: Body,
+  parallelSafe = false,
+  setof = false,
+): string {
+  const planner = `cost 1000${setof ? `\nrows ${String(SETOF_ROWS)}` : ""}${parallelSafe ? "\nparallel safe" : ""}`;
   if (body.memo !== undefined) {
     const declare = [
       ...body.vars,
@@ -775,10 +783,13 @@ end;
 $$;`;
     }
     declare.push(`v_ids ${body.memo.type}[];`);
+    // A `setof` helper is estimated at 1,000 rows. A user holds a handful of scope
+    // instances, so a small estimate keeps `id in (select helper())` off a hash join.
     return `language plpgsql
 volatile
 security definer
 cost 1000
+rows ${SETOF_ROWS}
 set search_path = ''
 as $$
 declare

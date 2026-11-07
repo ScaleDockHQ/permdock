@@ -10,7 +10,7 @@ import { isRecord } from "../../core/compact.ts";
 import { byCodePoint } from "../../core/compare.ts";
 import { listPermissions } from "../../core/permission-registry.ts";
 import { scopeList } from "../../core/scopes.ts";
-import { listRoles } from "../../core/vocabulary.ts";
+import { listPlans, listRoles } from "../../core/vocabulary.ts";
 import { jsonSchemaOf } from "../catalog-doc.ts";
 import { configError } from "../core/errors.ts";
 import { resolveNames } from "../sql/resolve-names.ts";
@@ -39,6 +39,8 @@ export type GenModel = {
   readonly operations: readonly GenOperation[];
   readonly scopes: readonly Scope[];
   readonly roles: readonly string[];
+  /** Declared plan keys, sorted. */
+  readonly plans: readonly string[];
   readonly names: ResolvedNames;
   /** `rls.realtime.topics` keys, such as `org:{organization}:quotes`. */
   readonly topics: readonly string[];
@@ -197,6 +199,9 @@ export function genModel(input: {
     operations: unique("operation", operations),
     scopes: scopeList(policy.scopes),
     roles,
+    plans: listPlans(policy.vocabulary.plans)
+      .map((plan) => plan.key)
+      .toSorted(byCodePoint),
     names: resolveNames(policy, config),
     topics: Object.keys(config.rls?.realtime?.topics ?? {}).toSorted(
       byCodePoint,

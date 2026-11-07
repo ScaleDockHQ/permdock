@@ -607,22 +607,36 @@ PermDock's subject vocabulary is TypeScript, camelCase and typed; the specificat
 - Example apps are `apps/examples/<adapter>`; the docs page is `/docs/adapters/<adapter>`; the source folder is `packages/permdock/src/<adapter>`. The same short name is used in all three.
 - Errors are `PermDockDeniedError`, `PermDockApprovalRequiredError`, `PermDockValidationError` and `PermDockRevokedError`. Any other error class is a domain error with an `is<Name>` guard: `ApprovalError` and `isApprovalError`, `AccessReviewError` and `isAccessReviewError`, `DirectoryUniquenessError` and `isDirectoryUniquenessError`, `DirectoryNotFoundError` and `isDirectoryNotFoundError`, `CloudAuthError` and `isCloudAuthError`, plus `InvalidSignatureError`. Every guard matches by `name` and `code`, so an error from another copy of the module still maps. Problem Details `type` URIs end in `/denied`, `/approval-required` and `/validation`. The first two carry `digest` (React's name for the property that survives the Server Component boundary): `PERMDOCK_DENIED;<permission>` and `PERMDOCK_APPROVAL_REQUIRED;<permission>;<token>`, read with `parsePermDockDigest`.
 
+- Generated output is a directory, `src/permdock` by default, with one file per kind named after the kind (`constants.ts`, `types.ts`, `sql.ts`, `fields.ts`, `zod.ts`, `valibot.ts`, `arktype.ts`, `json-schema.json`, `standard-schema.ts`, `factories.ts`, `messages.json`, `react.ts`, `vue.ts`, `svelte.ts`, `solid.ts`) and no barrel. Resources get one camel identifier in every file (`taskItemRow`, `taskItemFactory`, `taskItemTable`, `orgQuotesTopic`, `quoteFilesPath`) and one Pascal type (`TaskItemRow`). A vocabulary is a `<thing>Names` tuple, or `permissionKeys`, and a singular union (`scopeNames` and `ScopeName`, `roleNames` and `RoleName`, `permissionKeys` and `PermissionKey`, `planNames` and `PlanName`, `operationNames` and `OperationName`). Every module starts with a `@generated` header that names the plugin, its version, the policy and a model digest.
+- Extensions are of three kinds: adapters (runtime subpath entries), build hooks (`createPermDockPlugin`, `createPermDockUnplugin`, which only collect) and generate plugins (`plugins` in `permdock.config.ts`, under `permdock/cli/plugins/<group>`). A plugin's `name` is kebab (`json-schema`, `supabase-hook`), its config factory camel (`jsonSchema()`, `supabaseHook()`) and its file `<name>.<ext>`. A third-party plugin package is `permdock-plugin-<name>` with `name: "<name>"`.
+
 ## Renamed in 0.26.0
 
-`permdock codemod 0.26` rewrites the helper calls, `{ tableOf }`, inferred `rls.actions` entries and a stored catalog. The old generate commands have no alias.
+`permdock codemod 0.26` rewrites the helper calls, `{ tableOf }`, inferred `rls.actions` entries, a stored catalog, imports of the generated files and `gen.fieldMeta`; the generated identifiers are a follow-up to edit by hand. The old generate commands have no alias.
 
-| Old                                                            | New                                              |
-| -------------------------------------------------------------- | ------------------------------------------------ |
-| `permitted_<resource>_row(`                                    | `can_<resource>(`                                |
-| `membership_entries_for`                                       | `memberships_for`                                |
-| catalog `catalog-v1.json`, `version: 1`                        | `catalog-v2.json`, `version: 2`                  |
-| `permdock rls generate`                                        | `permdock generate --only rls`                   |
-| `permdock supabase hook generate`                              | `permdock generate --only supabase-hook`         |
-| `permdock powersync generate`                                  | `permdock generate --only powersync`             |
-| `permdock scim generate`                                       | `permdock generate --only scim`                  |
-| `permdock openapi emit`                                        | `permdock generate --only openapi`               |
-| `rls.tables.<child>: { tableOf: '<owner>' }`                   | `also` on the owner                              |
-| `definePermDock` from `permdock/app` for a better-supabase app | `definePermDock` from `permdock/better-supabase` |
+| Old                                                                       | New                                                  |
+| ------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `permitted_<resource>_row(`                                               | `can_<resource>(`                                    |
+| `membership_entries_for`                                                  | `memberships_for`                                    |
+| catalog `catalog-v1.json`, `version: 1`                                   | `catalog-v2.json`, `version: 2`                      |
+| `permdock rls generate`                                                   | `permdock generate --only rls`                       |
+| `permdock supabase hook generate`                                         | `permdock generate --only supabase-hook`             |
+| `permdock powersync generate`                                             | `permdock generate --only powersync`                 |
+| `permdock scim generate`                                                  | `permdock generate --only scim`                      |
+| `permdock openapi emit`                                                   | `permdock generate --only openapi`                   |
+| `rls.tables.<child>: { tableOf: '<owner>' }`                              | `also` on the owner                                  |
+| `definePermDock` from `permdock/app` for a better-supabase app            | `definePermDock` from `permdock/better-supabase`     |
+| `permdock.generated.ts` (gen `constants`)                                 | `constants.ts`, with `types.ts` and `sql.ts`         |
+| `permdock.zod.ts`, `permdock.valibot.ts`, `permdock.arktype.ts`           | `zod.ts`, `valibot.ts`, `arktype.ts`                 |
+| `permdock.schemas.ts`, `permdock.schemas.json`                            | `standard-schema.ts`, `json-schema.json`             |
+| `permdock.factories.ts`, `permdock.react.ts`, `permdock.svelte-stores.ts` | `factories.ts`, `react.ts`, `svelte.ts`              |
+| `scopes`, `roles` (generated constants)                                   | `scopeNames`, `roleNames`                            |
+| `topics.<name>`, `paths.<name>` (generated builders)                      | `<name>Topic`, `<name>Path`                          |
+| `sqlNames.scopes.<scope>.<helper>`, `sqlNames.resources.<resource>.table` | one export per helper in `sql.ts`, `<resource>Table` |
+| `factories.<resource>`, `factories.subject`                               | `<resource>Factory`, `subjectFactory`                |
+| `AppVocabulary`, `AppScope`, `AppRolesOptions` (generated hooks)          | `Vocabulary`, `ScopeName`, `RolesOptions`            |
+| `gen.fieldMeta`, `<resource>Fields` in each validator file                | `gen.fields`, `fields.ts`                            |
+| `gen.out` default `src/generated`                                         | `src/permdock`                                       |
 
 ## Renamed in 0.22.0
 

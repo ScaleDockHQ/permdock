@@ -57,11 +57,10 @@ function heldTenantOf(principal: Principal): string | undefined {
 /** A token role the policy does not declare. A custom role is one. */
 function undeclaredRole(policy: Policy, principal: Principal): boolean {
   const declared = new Set(policy.roles.map((binding) => binding.name));
-  const names = [
+  return [
     ...(principal.roles ?? []),
     ...(principal.memberships ?? []).flatMap((membership) => membership.roles),
-  ];
-  return names.some((name) => name !== "" && !declared.has(name));
+  ].some((name) => name !== "" && !declared.has(name));
 }
 
 function outsideHeld(
@@ -170,6 +169,8 @@ function assemblePrincipal(
       return [];
     }
   };
+  const forced =
+    principal !== null && fromClaims && undeclaredRole(policy, principal);
   let stale: boolean | Promise<boolean> | undefined;
   let roles:
     | readonly string[]
@@ -182,7 +183,7 @@ function assemblePrincipal(
     principal?.memberships !== undefined &&
     fromClaims &&
     source.onStale === "reread" &&
-    (source.version !== undefined || undeclaredRole(policy, principal))
+    (source.version !== undefined || forced)
   ) {
     const reread = rereadStale(
       source,
@@ -199,7 +200,7 @@ function assemblePrincipal(
               { memo },
             ) ?? [],
       options.version?.known,
-      undeclaredRole(policy, principal),
+      forced,
     );
     memberships = reread.memberships;
     stale = reread.stale;

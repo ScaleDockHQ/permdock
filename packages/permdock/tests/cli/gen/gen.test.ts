@@ -50,7 +50,7 @@ export const operations = defineOperations(permissions, {
 const CONFIG = `export default {
   policy: './policy.ts',
   operations: './policy.ts',
-  gen: { fieldMeta: true },
+  gen: { fields: true },
   rls: {
     tenantClaim: 'organization_id',
     tables: { project: 'public.projects', 'task-item': 'public.task_items' },
@@ -76,22 +76,26 @@ const KINDS = [
 ] as const;
 
 const FILES = {
-  constants: "permdock.generated.ts",
-  zod: "permdock.zod.ts",
-  valibot: "permdock.valibot.ts",
-  arktype: "permdock.arktype.ts",
-  "json-schema": "permdock.schemas.json",
-  "standard-schema": "permdock.schemas.ts",
-  factories: "permdock.factories.ts",
-  react: "permdock.react.ts",
-  vue: "permdock.vue.ts",
-  svelte: "permdock.svelte-stores.ts",
-  solid: "permdock.solid.ts",
-  messages: "permdock.messages.json",
+  constants: "constants.ts",
+  zod: "zod.ts",
+  valibot: "valibot.ts",
+  arktype: "arktype.ts",
+  "json-schema": "json-schema.json",
+  "standard-schema": "standard-schema.ts",
+  factories: "factories.ts",
+  react: "react.ts",
+  vue: "vue.ts",
+  svelte: "svelte.ts",
+  solid: "solid.ts",
+  messages: "messages.json",
 } as const;
 
 const ORG = "00000000-0000-4000-8000-0000000000aa";
 const CATALOG = path.join(import.meta.dirname, "../../../src/catalog/index.ts");
+const TESTING = path.join(
+  import.meta.dirname,
+  "../../../src/testing/factory-kit.ts",
+);
 
 function fixture(config = CONFIG): string {
   return project({ "policy.ts": POLICY, "permdock.config.ts": config });
@@ -159,6 +163,9 @@ describe("permdock gen", () => {
     for (const kind of KINDS) {
       expect(written.stdout).toContain(`gen/${FILES[kind]}`);
     }
+    for (const sibling of ["types.ts", "sql.ts", "fields.ts"]) {
+      expect(written.stdout).toContain(`gen/${sibling}`);
+    }
     const check = await generate(dir, [
       ...kinds,
       "--out-dir",
@@ -177,14 +184,15 @@ describe("permdock gen", () => {
     expect(stale.stdout).toContain("run permdock gen to refresh");
   });
 
-  it("defaults to constants under src/generated, and gen.kinds overrides it", async () => {
+  it("defaults to constants under src/permdock, and gen.kinds overrides it", async () => {
     const dir = fixture();
     const dry = await generate(dir, ["--dry-run"]);
     expect(dry.code).toBe(0);
-    expect(dry.stdout).toContain("src/generated/permdock.generated.ts");
+    expect(dry.stdout).toContain("src/permdock/constants.ts");
+    expect(dry.stdout).toContain("src/permdock/types.ts");
     const configured = fixture(
       CONFIG.replace(
-        "gen: { fieldMeta: true }",
+        "gen: { fields: true }",
         "gen: { out: 'lib', kinds: ['zod'] }",
       ),
     );
@@ -225,7 +233,7 @@ describe("permdock gen", () => {
     expect(many.code).toBe(2);
     expect(many.stderr).toContain("--out-dir");
     const unknown = fixture(
-      CONFIG.replace("gen: { fieldMeta: true }", "gen: { kinds: ['yup'] }"),
+      CONFIG.replace("gen: { fields: true }", "gen: { kinds: ['yup'] }"),
     );
     const outcome = await generate(unknown, []);
     expect(outcome.code).not.toBe(0);
@@ -296,8 +304,7 @@ describe("permdock gen", () => {
 
   describe("generated modules", () => {
     const dir = fixture();
-    const file = (kind: keyof typeof FILES): string =>
-      path.join(dir, "out", FILES[kind]);
+    const file = (name: string): string => path.join(dir, "out", name);
     beforeAll(async () => {
       const kinds = [
         "constants",
@@ -314,7 +321,7 @@ describe("permdock gen", () => {
       if (outcome.code !== 0) {
         throw new Error(outcome.stderr);
       }
-      const standard = file("standard-schema");
+      const standard = file(FILES["standard-schema"]);
       writeFileSync(
         standard,
         readFileSync(standard, "utf8").replace(
@@ -322,43 +329,59 @@ describe("permdock gen", () => {
           JSON.stringify(CATALOG),
         ),
       );
+      const factories = file(FILES.factories);
+      writeFileSync(
+        factories,
+        readFileSync(factories, "utf8").replaceAll(
+          '"permdock/testing"',
+          JSON.stringify(TESTING),
+        ),
+      );
+      const sql = file("sql.ts");
+      writeFileSync(
+        sql,
+        readFileSync(sql, "utf8").replace('import "server-only";\n', ""),
+      );
     });
 
-    it("builds topics, paths and qualified SQL names", async () => {
-      const { topics, paths, sqlNames, scopes, roles } = await load(
-        file("constants"),
-      );
-      expect(call(row(topics)["orgProjects"], { organization: "o1" })).toBe(
+    it("builds topics, paths and qualified SQL names, one export each", async () => {
+      const constants = await load(file(FILES.constants));
+      const sql = await load(file("sql.ts"));
+      expect(call(constants["orgProjectsTopic"], { organization: "o1" })).toBe(
         "org:o1:projects",
       );
       expect(
-        call(row(paths)["avatars"], {
+        call(constants["avatarsPath"], {
           segment1: "users",
           organization: "o1",
           name: "me.png",
         }),
       ).toBe("users/o1/me.png");
-      expect(sqlNames).toMatchObject({
-        scopes: {
-          organization: { memberIds: "permdock.member_organization_ids" },
-        },
-      });
-      expect(scopes).toStrictEqual(["organization"]);
-      expect(roles).toStrictEqual(["admin", "member"]);
+      expect(sql["memberOrganizationIds"]).toBe(
+        "permdock.member_organization_ids",
+      );
+      expect(sql["projectTable"]).toBe("public.projects");
+      expect(sql["claimNames"]).toMatchObject({ tenant: "organization_id" });
+      expect(constants["scopeNames"]).toStrictEqual(["organization"]);
+      expect(constants["roleNames"]).toStrictEqual(["admin", "member"]);
+      expect(constants["permissionKeys"]).toContain("project.read");
+      expect(constants["operationNames"]).toStrictEqual(["listProjects"]);
     });
 
     it("factories fill rows every validator kind accepts", async () => {
-      const { factories, resetFactories } = await load(file("factories"));
+      const { projectFactory, taskItemFactory, resetFactories } = await load(
+        file(FILES.factories),
+      );
       const kinds = await Promise.all(
         (["zod", "valibot", "standard-schema"] as const).map(async (kind) =>
-          load(file(kind)),
+          load(file(FILES[kind])),
         ),
       );
       call(resetFactories);
-      const created = row(call(row(factories)["project"]));
+      const created = row(call(projectFactory));
       const task = row(
         call(
-          row(factories)["taskItem"],
+          taskItemFactory,
           { done: true },
           { parent: created, organization: ORG },
         ),
@@ -374,7 +397,7 @@ describe("permdock gen", () => {
         expect(accepts(schemas["listProjectsResult"], [created])).toBe(true);
       }
       call(resetFactories);
-      expect(row(call(row(factories)["project"]))["id"]).toBe(created["id"]);
+      expect(row(call(projectFactory))["id"]).toBe(created["id"]);
     });
   });
 });

@@ -220,4 +220,25 @@ select permitted_doc_rows('doc.read')::text;
     );
     expect(quote.source).not.toContain("roleThrough");
   });
+
+  it("moves imports of the old generated files to the new names", () => {
+    const source = `import { topics } from "./generated/permdock.generated.ts";
+import { projectRow } from "../gen/permdock.zod.js";
+import { schemas } from "./permdock.schemas.ts";
+import messages from "./permdock.messages.json";
+import raw from "./permdock.schemas.json";
+import { x } from "./permdock.svelte-stores.ts";
+`;
+    const rewritten = rewrite026("app.ts", source);
+    expect(rewritten.source)
+      .toBe(`import { topics } from "./generated/constants.ts";
+import { projectRow } from "../gen/zod.js";
+import { schemas } from "./standard-schema.ts";
+import messages from "./messages.json";
+import raw from "./json-schema.json";
+import { x } from "./svelte.ts";
+`);
+    expect(rewritten.changes).toHaveLength(6);
+    expect(rewritten.followUps.map((item) => item.name)).toContain("gen");
+  });
 });

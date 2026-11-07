@@ -24,6 +24,7 @@ export const CODEMOD_0_17: RenameSet = Object.freeze({
 export const CODEMOD_0_26: RenameSet = Object.freeze({
   renames: [],
   signatures: [],
+  configMoves: [{ from: ["gen", "fieldMeta"], to: ["gen", "fields"] }],
   literals: rewrite026,
 });
 

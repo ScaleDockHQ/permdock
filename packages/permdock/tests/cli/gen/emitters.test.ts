@@ -4,13 +4,16 @@ import { z } from "zod";
 import type { GenModel, GenResource } from "../../../src/cli/gen/model.ts";
 import type { JsonSchema } from "../../../src/cli/generate.ts";
 
-import { constantsModule } from "../../../src/cli/gen/constants.ts";
+import { constantsModule, sqlModule } from "../../../src/cli/gen/constants.ts";
 import { factoriesModule } from "../../../src/cli/gen/factories.ts";
+import { generatedHeader } from "../../../src/cli/gen/header.ts";
 import { camelCase, genModel } from "../../../src/cli/gen/model.ts";
 import {
+  fieldsModule,
   jsonSchemaDocument,
   standardSchemaModule,
   typeOf,
+  typesModule,
   validatorModule,
 } from "../../../src/cli/gen/schemas.ts";
 import { schemaExpression } from "../../../src/cli/generate.ts";
@@ -22,6 +25,12 @@ import {
   resource,
   role,
 } from "../../../src/index.ts";
+
+const HEADER = generatedHeader("test", {
+  version: "0.0.0",
+  policy: "policy.ts",
+  hash: "digest",
+});
 
 const NAMES = {
   schema: "app",
@@ -41,6 +50,7 @@ function model(
     operations: [],
     scopes: [],
     roles: [],
+    plans: [],
     names,
     topics: [],
     labels: { permissions: [], roles: [] },
@@ -116,12 +126,27 @@ const EDGE_RESOURCE: GenResource = {
 
 describe("gen emitters", () => {
   it("translates every JSON Schema edge for each validator kind", () => {
-    for (const kind of ["zod", "valibot", "arktype"] as const) {
-      const code = validatorModule(kind, model([EDGE_RESOURCE]), {
-        fieldMeta: true,
-      });
-      expect(code).toMatchSnapshot(kind);
-    }
+    const edges = model([EDGE_RESOURCE]);
+    const options = { header: HEADER };
+    expect(validatorModule("zod", edges, options)).toMatchSnapshot("zod");
+    expect(validatorModule("valibot", edges, options)).toMatchSnapshot(
+      "valibot",
+    );
+    expect(validatorModule("arktype", edges, options)).toMatchSnapshot(
+      "arktype",
+    );
+    expect(
+      validatorModule("zod", model([EDGE_RESOURCE]), {
+        header: HEADER,
+        zodSpecifier: "zod/mini",
+      }),
+    ).toMatchSnapshot("zod-mini");
+    expect(typesModule(model([EDGE_RESOURCE]), HEADER)).toMatchSnapshot(
+      "types",
+    );
+    expect(fieldsModule(model([EDGE_RESOURCE]), HEADER)).toMatchSnapshot(
+      "fields",
+    );
   });
 
   it("writes TypeScript types, json-schema and standard-schema for the edges", () => {
@@ -131,15 +156,18 @@ describe("gen emitters", () => {
     ];
     expect(
       standardSchemaModule(model([EDGE_RESOURCE], { operations }), {
-        fieldMeta: false,
+        header: HEADER,
       }),
-    ).toContain("export const listEdgesResult = resourceSchemaFromJson(");
+    ).toContain(
+      "export const listEdgesResult = /* @__PURE__ */ resourceSchemaFromJson(",
+    );
     expect(
       JSON.parse(
         jsonSchemaDocument(
           model([{ ...EDGE_RESOURCE, name: "a/b~c" }], {
             operations: [{ name: "x", ident: "x", results: "a/b~c" }],
           }),
+          HEADER,
         ),
       ),
     ).toMatchObject({
@@ -156,7 +184,7 @@ describe("gen emitters", () => {
     }
     expect(typeOf(schema)).toContain("unknown");
     expect(
-      factoriesModule(model([{ name: "deep", ident: "deep", schema }])),
+      factoriesModule(model([{ name: "deep", ident: "deep", schema }]), HEADER),
     ).toContain("n: { n: { n: { n: { n: {} } } } }");
     expect(
       schemaExpression("zod", schema, undefined, { constraints: true }),
@@ -179,21 +207,24 @@ describe("gen emitters", () => {
           ],
         },
       ),
+      HEADER,
     );
     expect(code).toMatchSnapshot();
-    expect(code).toContain(
-      'readonly scope: "tenant" | "odd-scope" | "global";',
+    expect(code).toContain("export const edgeFactory = (");
+    expect(code).toContain("factoryUuid()");
+    expect(factoriesModule(model([]), HEADER)).toContain(
+      "readonly roles: readonly (string)[];",
     );
-    expect(factoriesModule(model([]))).toContain("readonly scope: string;");
   });
 
   it("rejects two topics or buckets that build the same name", () => {
     expect(() =>
       constantsModule(
         model([], { topics: ["org:{id}:chat", "org-{id}-chat"] }),
+        HEADER,
       ),
     ).toThrow(
-      /topic 'org:\{id\}:chat' and 'org-\{id\}-chat' both generate the builder 'orgChat'/u,
+      /topic 'org:\{id\}:chat' and 'org-\{id\}-chat' both generate the export 'orgChatTopic'/u,
     );
     expect(
       constantsModule(
@@ -204,8 +235,40 @@ describe("gen emitters", () => {
             ["avatars", { scope: "tenant", folder: 1 }],
           ],
         }),
+        HEADER,
       ),
     ).toMatchSnapshot();
+  });
+
+  it("writes one server-only export per SQL helper", () => {
+    // SAFETY: the emitter reads only these ResolvedNames fields.
+    const names = {
+      schema: "permdock",
+      claims: { tenant: "tenant_id", role: "user_role" },
+      scopes: {
+        organization: {
+          permittedIds: "permitted_organization_ids",
+          memberIds: "member_organization_ids",
+        },
+      },
+      resources: {
+        "task-item": {
+          table: "public.task_items",
+          rows: "permitted_task_item_rows",
+          idType: "uuid",
+        },
+      },
+    } as unknown as GenModel["names"];
+    const code = sqlModule(model([], { names }), HEADER);
+    expect(code).toContain('import "server-only";');
+    expect(code).toContain(
+      'export const permittedOrganizationIds = "permdock.permitted_organization_ids" as const;',
+    );
+    expect(code).toContain(
+      'export const taskItemTable = "public.task_items" as const;',
+    );
+    expect(code).not.toContain("idType");
+    expect(code).toMatchSnapshot();
   });
 
   it("names identifiers in camel case", () => {
@@ -312,8 +375,44 @@ describe("the gen model", () => {
         list: { items: { type: ["string", "null"] } },
       },
     });
-    expect(validatorModule("zod", built, { fieldMeta: true })).toContain(
-      'tag: z.enum(["a"]).nullable()',
+    expect(validatorModule("zod", built, { header: HEADER })).toContain(
+      'tag: /* @__PURE__ */ z.enum(["a"]).nullable()',
+    );
+  });
+
+  it("hoists an enum literal used by two resources into one const", () => {
+    const status: JsonSchema = {
+      type: "object",
+      properties: { status: { enum: ["open", "closed"] } },
+      required: ["status"],
+    };
+    const two = model([
+      { name: "a", ident: "a", schema: status },
+      { name: "b", ident: "b", schema: status },
+    ]);
+    for (const kind of ["zod", "valibot"] as const) {
+      const code = validatorModule(kind, two, { header: HEADER });
+      expect(code).toContain("const values1 =");
+      expect(code.match(/values1/gu)).toHaveLength(3);
+    }
+    expect(validatorModule("arktype", two, { header: HEADER })).not.toContain(
+      "values1",
+    );
+  });
+
+  it("rejects two SQL names that generate one export", () => {
+    // SAFETY: the emitter reads only these ResolvedNames fields.
+    const names = {
+      schema: "permdock",
+      claims: {},
+      scopes: {
+        a: { permittedIds: "permitted_x_ids" },
+        b: { permittedIds: "permitted_x_ids" },
+      },
+      resources: {},
+    } as unknown as GenModel["names"];
+    expect(() => sqlModule(model([], { names }), HEADER)).toThrow(
+      /both generate the export 'permittedXIds'/u,
     );
   });
 });

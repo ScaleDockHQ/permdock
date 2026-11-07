@@ -72,10 +72,11 @@ function clientReferencePlugin(): {
     name: "react-provider-reference",
     resolveId(source, importer) {
       if (
-        source === "../react/provider-client.js" &&
+        (source === "../react/provider-client.js" ||
+          source === "../react/provider-client-lazy.js") &&
         importer?.endsWith("src/next/provider.tsx") === true
       ) {
-        return { id: "../react/provider-client.js", external: true };
+        return { id: source, external: true };
       }
       return null;
     },
@@ -90,11 +91,13 @@ export default defineConfig({
   entry: [
     "src/index.ts",
     "src/app/index.ts",
+    "src/seeds/index.ts",
     "src/approvals/index.ts",
     "src/jwt/index.ts",
     "src/react/index.ts",
     "src/react/lazy.ts",
     "src/react/provider-client.ts",
+    "src/react/provider-client-lazy.ts",
     "src/react-native/index.ts",
     "src/next/index.ts",
     "src/next/plugin.ts",
@@ -162,6 +165,9 @@ export default defineConfig({
     "src/cli/plugins/better-supabase.ts",
     "src/cli/plugins/openapi.ts",
     "src/cli/plugins/scim.ts",
+    "src/cli/plugins/schemas.ts",
+    "src/cli/plugins/ui.ts",
+    "src/cli/plugins/app.ts",
     "src/unplugin/index.ts",
     "src/testing/index.ts",
     "src/testing/core.ts",

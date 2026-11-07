@@ -143,7 +143,8 @@ const DOCTOR = {
 const GEN = {
   out: STRING,
   kinds: ARRAY,
-  fieldMeta: BOOLEAN,
+  fields: BOOLEAN,
+  zod: OBJECT,
 } as const satisfies Record<keyof GenConfig, KeyShape>;
 
 export type Section = Exclude<

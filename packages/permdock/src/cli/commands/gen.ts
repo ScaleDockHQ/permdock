@@ -28,13 +28,12 @@ const genFlags = {
   },
   out: {
     type: "string",
-    description: "File for a single kind (- for stdout)",
+    description: "File for a single kind (- for stdout), without its siblings",
     valueHint: "file",
   },
   "out-dir": {
     type: "string",
-    description:
-      "Directory for the files (default gen.out, else src/generated)",
+    description: "Directory for the files (default gen.out, else src/permdock)",
     valueHint: "dir",
   },
   ...checkFlag,

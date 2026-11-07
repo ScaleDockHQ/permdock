@@ -18,7 +18,7 @@ export default defineConfig({
     }),
   ],
   collect: { srcPath: ["./src"] },
-  // topics.orgQuotes and paths.quoteFiles, from the realtime and storage blocks below.
+  // orgQuotesTopic and quoteFilesPath, from the realtime and storage blocks below.
   gen: { kinds: ["constants"], out: "src/generated" },
   rls: {
     dialect: "supabase",

@@ -1,7 +1,7 @@
 import type { PermDockPlugin } from "../plugin.ts";
 import type { RlsPluginOptions } from "./rls-options.ts";
 
-import { definePlugin } from "../plugin.ts";
+import { definePlugin, schemaInputs } from "../plugin.ts";
 import { pluginVersion } from "./version.ts";
 
 export type { RlsPluginOptions } from "./rls-options.ts";
@@ -15,7 +15,7 @@ export function rls(options: RlsPluginOptions = {}): PermDockPlugin {
   return definePlugin({
     name: "rls",
     version: pluginVersion(),
-    inputs: () => ({ files: [], options }),
+    inputs: (ctx) => schemaInputs(ctx, options),
     plan: () => [{ id: "sql", out }],
     emit: async (task, _model, source) => {
       // Lazy: generate.ts pulls the SQL compiler, which importing rls() must not.

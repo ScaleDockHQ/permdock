@@ -129,7 +129,7 @@ returns ${returns}
 language sql
 stable
 security definer
-cost 1000${parallelSafe ? "\nparallel safe" : ""}
+cost 1000${returns.startsWith("setof") ? "\nrows 10" : ""}${parallelSafe ? "\nparallel safe" : ""}
 set search_path = ''
 as $$
 ${sql}

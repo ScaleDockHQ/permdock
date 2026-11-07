@@ -51,97 +51,15 @@ create table if not exists "permdock".user_roles (
 alter table "permdock".user_roles enable row level security;
 revoke all on table "permdock".user_roles from anon, authenticated, public;
 
--- a permission, custom-role, suspension or membership write changes permitted ids inside the statement
-create or replace function "permdock".permdock_memo_put(p_key text, p_value text)
-returns void
-language sql
-volatile
-security definer
-set search_path = ''
-as $$
-  select set_config(p_key, p_value, true)
-$$;
-revoke execute on function "permdock".permdock_memo_put(text, text) from public, anon, authenticated;
-
-create or replace function "permdock".permdock_bump_memo_generation()
-returns void
-language sql
-volatile
-security definer
-set search_path = ''
-as $$
-  select set_config(
-    'permdock.m.gen',
-    (coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0')::int + 1)::text,
-    true
-  )
-$$;
-revoke execute on function "permdock".permdock_bump_memo_generation() from public, anon, authenticated;
-
-create or replace function "permdock".permdock_memo_generation()
-returns trigger
-language plpgsql
-volatile
-security definer
-set search_path = ''
-as $$
-begin
-  perform "permdock".permdock_bump_memo_generation();
-  return null;
-end;
-$$;
-revoke execute on function "permdock".permdock_memo_generation() from public, anon, authenticated;
-drop trigger if exists "permdock_memo_generation" on "permdock"."role_permissions";
-create trigger "permdock_memo_generation"
-  after insert or update or delete on "permdock"."role_permissions"
-  for each statement execute function "permdock".permdock_memo_generation();
-drop trigger if exists "permdock_memo_generation_truncate" on "permdock"."role_permissions";
-create trigger "permdock_memo_generation_truncate"
-  after truncate on "permdock"."role_permissions"
-  for each statement execute function "permdock".permdock_memo_generation();
-drop trigger if exists "permdock_memo_generation" on "permdock"."user_roles";
-create trigger "permdock_memo_generation"
-  after insert or update or delete on "permdock"."user_roles"
-  for each statement execute function "permdock".permdock_memo_generation();
-drop trigger if exists "permdock_memo_generation_truncate" on "permdock"."user_roles";
-create trigger "permdock_memo_generation_truncate"
-  after truncate on "permdock"."user_roles"
-  for each statement execute function "permdock".permdock_memo_generation();
-drop trigger if exists "permdock_memo_generation" on "public"."members";
-create trigger "permdock_memo_generation"
-  after insert or update or delete on "public"."members"
-  for each statement execute function "permdock".permdock_memo_generation();
-drop trigger if exists "permdock_memo_generation_truncate" on "public"."members";
-create trigger "permdock_memo_generation_truncate"
-  after truncate on "public"."members"
-  for each statement execute function "permdock".permdock_memo_generation();
-
 create or replace function "permdock".permdock_has(p_grant text)
 returns boolean
-language plpgsql
-volatile
+language sql
+stable
 security definer
 cost 1000
+parallel safe
 set search_path = ''
 as $$
-declare
-  v_user text := (select "permdock".permdock_user_id())::text;
-  v_key text := 'permdock.m.' || 'global' || '.k' || (hashtext(p_grant) & 1023)::text;
-  v_disc text := md5(concat_ws('|',
-      v_user,
-      p_grant,
-      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
-      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
-      statement_timestamp()::text,
-      md5(coalesce((select auth.jwt())::text, ''))
-    ));
-  v_memo text := nullif(current_setting(v_key, true), '');
-  v_has boolean;
-begin
-  if v_memo is not null and (v_memo::jsonb ->> 'k') = v_disc then
-    return (v_memo::jsonb ->> 'v')::boolean;
-  end if;
-  v_has := (
   select exists (
     select 1
     from "permdock".user_roles ur
@@ -150,40 +68,20 @@ begin
       and rp.grant_key = p_grant
       and rp.scope = 'global'
   )
-  );
-  perform set_config(v_key, jsonb_build_object('k', v_disc, 'v', v_has)::text, true);
-  return v_has;
-end;
 $$;
 revoke execute on function "permdock".permdock_has(text) from public, anon;
 grant execute on function "permdock".permdock_has(text) to authenticated;
 
 create or replace function "permdock".permitted_tenant_ids(p_grant text)
 returns setof uuid
-language plpgsql
-volatile
+language sql
+stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
-declare
-  v_user text := (select "permdock".permdock_user_id())::text;
-  v_key text := 'permdock.m.' || 'tenant' || '.k' || (hashtext(p_grant) & 1023)::text;
-  v_disc text := md5(concat_ws('|',
-      v_user,
-      p_grant,
-      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
-      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
-      statement_timestamp()::text,
-      md5(coalesce((select auth.jwt())::text, ''))
-    ));
-  v_memo text := nullif(current_setting(v_key, true), '');
-  v_ids uuid[];
-begin
-  if v_memo is not null and (v_memo::jsonb ->> 'k') = v_disc then
-    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb -> 'ids')::uuid);
-  else
-    v_ids := array(
   select m."tenant_id"::uuid
   from "public"."members" m
   join "permdock".role_permissions rp on rp.role = m."role"::text
@@ -191,11 +89,6 @@ begin
     and rp.grant_key = p_grant
     and rp.scope = 'tenant'
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."tenant_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
-    );
-    perform set_config(v_key, jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text, true);
-  end if;
-  return query select unnest(v_ids);
-end;
 $$;
 revoke execute on function "permdock".permitted_tenant_ids(text) from public, anon;
 grant execute on function "permdock".permitted_tenant_ids(text) to authenticated;
@@ -233,36 +126,15 @@ revoke execute on function "permdock".member_tenant_ids_for(uuid) from public, a
 
 create or replace function "permdock".permitted_team_ids(p_grant text)
 returns setof uuid
-language plpgsql
-volatile
+language sql
+stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
-declare
-  v_user text := (select "permdock".permdock_user_id())::text;
-  v_key text := 'permdock.m.' || 'team' || '.k' || (hashtext(p_grant) & 1023)::text;
-  v_disc text := md5(concat_ws('|',
-      v_user,
-      p_grant,
-      coalesce((select auth.jwt()) ->> 'authz_ver', ''),
-      coalesce(nullif(current_setting('permdock.m.gen', true), ''), '0'),
-      statement_timestamp()::text,
-      md5(coalesce((select auth.jwt())::text, ''))
-    ));
-  v_memo text := nullif(current_setting(v_key, true), '');
-  v_ids uuid[];
-begin
-  if v_memo is not null and (v_memo::jsonb ->> 'k') = v_disc then
-    v_ids := array(select jsonb_array_elements_text(v_memo::jsonb -> 'ids')::uuid);
-  else
-    v_ids := array(
   select null::uuid where false -- no team memberships table configured
-    );
-    perform set_config(v_key, jsonb_build_object('k', v_disc, 'ids', to_jsonb(v_ids))::text, true);
-  end if;
-  return query select unnest(v_ids);
-end;
 $$;
 revoke execute on function "permdock".permitted_team_ids(text) from public, anon;
 grant execute on function "permdock".permitted_team_ids(text) to authenticated;
@@ -287,6 +159,7 @@ language sql
 stable
 security definer
 cost 1000
+parallel safe
 set search_path = ''
 as $$
   select exists (
@@ -306,6 +179,8 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select m."tenant_id"::uuid
@@ -323,6 +198,8 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select null::uuid where false -- no team memberships table configured
@@ -419,6 +296,7 @@ language sql
 stable
 security definer
 cost 1000
+parallel safe
 set search_path = ''
 as $$
   select exists (select 1 from "permdock".grant_keys(p_permission, 'global') g(grant_key) where "permdock".permdock_has(g.grant_key))
@@ -433,6 +311,8 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select a.id
@@ -453,6 +333,7 @@ language sql
 stable
 security definer
 cost 1000
+parallel safe
 set search_path = ''
 set jit = off
 as $$
@@ -503,6 +384,7 @@ language sql
 stable
 security definer
 cost 1000
+parallel safe
 set search_path = ''
 set jit = off
 as $$
@@ -556,6 +438,8 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select a.id
@@ -585,6 +469,8 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select a.id
@@ -605,6 +491,7 @@ language sql
 stable
 security definer
 cost 1000
+parallel safe
 set search_path = ''
 set jit = off
 as $$
@@ -650,6 +537,7 @@ language sql
 stable
 security definer
 cost 1000
+parallel safe
 set search_path = ''
 set jit = off
 as $$
@@ -698,6 +586,8 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select a.id
@@ -728,6 +618,7 @@ language sql
 stable
 security definer
 cost 1000
+parallel safe
 set search_path = ''
 as $$
   select exists (select 1 from "permdock".grant_keys(p_permission, 'global') g(grant_key) where "permdock".permdock_has_for(p_user, g.grant_key))
@@ -741,6 +632,8 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select a.id
@@ -759,6 +652,8 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select a.id
@@ -787,6 +682,7 @@ language sql
 stable
 security definer
 cost 1000
+parallel safe
 set search_path = ''
 set jit = off
 as $$
@@ -835,6 +731,7 @@ language sql
 stable
 security definer
 cost 1000
+parallel safe
 set search_path = ''
 set jit = off
 as $$
@@ -885,6 +782,8 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select a.id
@@ -903,6 +802,8 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select a.id
@@ -931,6 +832,7 @@ language sql
 stable
 security definer
 cost 1000
+parallel safe
 set search_path = ''
 set jit = off
 as $$
@@ -975,6 +877,7 @@ language sql
 stable
 security definer
 cost 1000
+parallel safe
 set search_path = ''
 set jit = off
 as $$

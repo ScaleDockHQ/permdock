@@ -55,12 +55,12 @@ export function customRolesSql(ctx: RlsSqlContext): string {
       const table = qualified(ctx, name);
       const leveled =
         custom.levels === true && name === CUSTOM_ROLES.permissions;
-      const unique = `${column}${name === CUSTOM_ROLES.permissions ? ", effect" : ""}${leveled ? ", coalesce(level, '')" : ""}`;
-      const index = leveled
-        ? `drop index if exists ${qualified(ctx, quoteIdent(`${name}_key`))};
-alter table ${table} add column if not exists level text check (level ~ '^[a-z][a-z0-9_]*$');
-create unique index if not exists ${quoteIdent(`${name}_level_key`)}`
-        : `create unique index if not exists ${quoteIdent(`${name}_key`)}`;
+      // `nulls not distinct` (Postgres 15) makes a null tenant, instance or level one
+      // key, which the old `coalesce(...)` expression index spelled out.
+      const unique = `tenant_id, scope, scope_id, role, ${column}${name === CUSTOM_ROLES.permissions ? ", effect" : ""}${leveled ? ", level" : ""}`;
+      // A declarative file holds no drop: pg-delta drops the old `${name}_key` index
+      // itself, and a migration project drops it once.
+      const index = `${leveled ? `alter table ${table} add column if not exists level text check (level ~ '^[a-z][a-z0-9_]*$');\n` : ""}create unique index if not exists ${quoteIdent(`${name}_nnd_key`)}`;
       chunks.push(`create table if not exists ${table} (
   tenant_id ${tenantType},
   scope text not null default ${quoteLiteral(rootName(ctx))},
@@ -76,7 +76,7 @@ alter table ${table} add constraint ${quoteIdent(`${name}_shape`)} check (
   else tenant_id is not null or scope_id is null end
 );
 ${index}
-  on ${table} (coalesce(tenant_id::text, ''), scope, coalesce(scope_id, ''), role, ${unique});
+  on ${table} (${unique}) nulls not distinct;
 -- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
 alter table ${table} add column if not exists id bigint generated always as identity primary key;
 alter table ${table} enable row level security;

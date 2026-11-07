@@ -1,11 +1,21 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { projectContext } from "../../src/cli/generate/context.ts";
 import { receiptRows, runGenerate } from "../../src/cli/generate/pipeline.ts";
-import { definePlugin, orderPlugins } from "../../src/cli/generate/plugin.ts";
+import {
+  definePlugin,
+  orderPlugins,
+  schemaInputs,
+} from "../../src/cli/generate/plugin.ts";
 import {
   allow,
   definePermissions,
@@ -172,6 +182,108 @@ describe("generate pipeline", () => {
     expect(second.summary.skipped).toBe(1);
     expect(second.summary.unchanged).toBe(0);
     expect(calls).toBe(2);
+  });
+
+  it("writes a plugin's seed files and prints its doctor findings", async () => {
+    const cwd = mkdtempSync(join(tmpdir(), "permdock-generate-"));
+    dirs.push(cwd);
+    const seeded = definePlugin({
+      name: "seeded",
+      version: "1",
+      plan: () => [{ id: "a", out: "a.txt" }],
+      emit: () => [{ path: "a.txt", contents: "a\n" }],
+      seeds: (model) => [
+        { path: "seed.txt", contents: `${String(model.roles.length)} roles\n` },
+      ],
+      doctor: () => [
+        { code: "X001", severity: "warning", message: "check the thing" },
+      ],
+      commands: [{ name: "seeded", summary: "Seeds" }],
+    });
+    expect(seeded.commands).toStrictEqual([
+      { name: "seeded", summary: "Seeds" },
+    ]);
+    const run = await runGenerate({
+      cwd,
+      policy,
+      plugins: [seeded],
+      config: {},
+      ctx: await projectContext(cwd),
+      check: false,
+      dryRun: false,
+      noCache: true,
+    });
+    expect(readFileSync(join(cwd, "seed.txt"), "utf8")).toBe("1 roles\n");
+    expect(run.files.map((file) => file.path)).toStrictEqual([
+      "a.txt",
+      "seed.txt",
+    ]);
+    expect(run.notes).toStrictEqual(["X001 warning: check the thing"]);
+  });
+
+  describe("cache key", () => {
+    function counted(options: unknown) {
+      const calls = { n: 0 };
+      const echo = definePlugin({
+        name: "echo",
+        version: "1",
+        inputs: (ctx) => schemaInputs(ctx, options),
+        plan: () => [{ id: "a", out: "a.txt" }],
+        emit: () => {
+          calls.n += 1;
+          return [{ path: "a.txt", contents: "hello\n" }];
+        },
+      });
+      return { calls, echo };
+    }
+
+    async function run(
+      cwd: string,
+      echo: ReturnType<typeof counted>["echo"],
+      config: Record<string, unknown> = {},
+    ) {
+      return runGenerate({
+        cwd,
+        policy,
+        plugins: [echo],
+        config,
+        ctx: await projectContext(cwd),
+        check: false,
+        dryRun: false,
+        cacheDir: join(cwd, ".cache"),
+      });
+    }
+
+    it("misses on a plugin option, a schema file, config.toml and a config change", async () => {
+      const cwd = mkdtempSync(join(tmpdir(), "permdock-generate-"));
+      dirs.push(cwd);
+      mkdirSync(join(cwd, "supabase", "schemas"), { recursive: true });
+      writeFileSync(join(cwd, "supabase", "schemas", "a.sql"), "one\n");
+      writeFileSync(join(cwd, "supabase", "config.toml"), "[api]\n");
+      const base = counted({ out: "a" });
+      await run(cwd, base.echo);
+      await run(cwd, base.echo);
+      expect(base.calls.n).toBe(1);
+
+      const option = counted({ out: "b" });
+      await run(cwd, option.echo);
+      expect(option.calls.n).toBe(1);
+
+      writeFileSync(join(cwd, "supabase", "schemas", "a.sql"), "two\n");
+      await run(cwd, base.echo);
+      expect(base.calls.n).toBe(2);
+
+      await run(cwd, base.echo);
+      expect(base.calls.n).toBe(2);
+      writeFileSync(join(cwd, "supabase", "config.toml"), "[api]\nport = 1\n");
+      await run(cwd, base.echo);
+      expect(base.calls.n).toBe(3);
+
+      await run(cwd, base.echo, { rls: { dialect: "neon" } });
+      expect(base.calls.n).toBe(4);
+      await run(cwd, base.echo, { rls: { dialect: "neon" } });
+      expect(base.calls.n).toBe(4);
+    });
   });
 
   it("skips an after name that is not configured", () => {

@@ -385,8 +385,6 @@ export {
   user,
 } from "./core/policy.ts";
 export { normalizeAssurance, role } from "./core/role-builder.ts";
-export { defineSeeds } from "./core/seeds.ts";
-export type { SeedFixtures, SeedInput, SeedRole, Seeds } from "./core/seeds.ts";
 export { allow, deny } from "./core/grant-builders.ts";
 export { normalizeApproval } from "./core/approval-normalize.ts";
 export { approvalFingerprint } from "./core/token.ts";

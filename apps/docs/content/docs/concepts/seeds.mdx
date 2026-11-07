@@ -5,6 +5,12 @@ description: defineSeeds separates role defaults, which ship in a migration, fro
 
 `defineSeeds(policy, { defaults, fixtures })` is the seed data `permdock generate` writes. Defaults and fixtures are different files.
 
+```ts
+import { defineSeeds } from "permdock/seeds";
+```
+
+`defineSeeds` lives in its own entry, not in `permdock`, so a runtime bundle that imports the policy never carries seed data.
+
 ## Defaults
 
 `defaults.roles` is a role key, a scope and the permission references that role holds. Generate writes those rows into the `role_permissions` migration, or into the `role_permissions` view when `rls.seeds` is `"view"`. A default that names an unknown role, scope or permission is doctor PD097.

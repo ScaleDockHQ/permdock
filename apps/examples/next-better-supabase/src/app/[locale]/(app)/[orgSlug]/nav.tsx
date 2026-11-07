@@ -8,10 +8,14 @@ import { use } from "react";
 
 import { permissions } from "../../../../permissions.ts";
 
+type NavPath = "/staff" | "/quotes";
+type NavBase = `/${string}/${string}`;
+type NavHref = `${NavBase}${NavPath}`;
+
 type Item = {
   readonly id: string;
   readonly label: string;
-  readonly path: string;
+  readonly path: NavPath;
   readonly permission: Permission;
 };
 
@@ -44,7 +48,7 @@ export function NavSkeleton() {
 
 // Pending keeps the row's height, so links do not shift in when the snapshot
 // resolves.
-function GatedLink(props: { readonly item: Item; readonly href: string }) {
+function GatedLink(props: { readonly item: Item; readonly href: NavHref }) {
   const { allowed, status } = usePermission(props.item.permission);
   if (status === "pending") {
     return (
@@ -65,7 +69,7 @@ function GatedLink(props: { readonly item: Item; readonly href: string }) {
   );
 }
 
-export function Nav(props: { readonly base: Promise<string> }) {
+export function Nav(props: { readonly base: Promise<NavBase> }) {
   const base = use(props.base);
   return (
     <nav aria-label="Main" data-testid="nav">

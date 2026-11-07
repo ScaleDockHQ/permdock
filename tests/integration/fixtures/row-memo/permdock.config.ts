@@ -5,6 +5,7 @@ export default {
     dialect: "supabase",
     scopeTypes: { tenant: "text" },
     authorize: "database",
+    memo: "permdock",
     helpersOnly: true,
     rowHelpers: ["doc"],
     idTypes: { doc: "text" },

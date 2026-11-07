@@ -19,9 +19,12 @@ describe("supabase hook", () => {
       );
       expect(code).toBe(0);
       expect(sql).toContain(
-        "perform realtime.send(jsonb_build_object('user_id', new.user_id, 'version', new.version), 'changed', 'permdock:authz', true);",
+        "perform realtime.send(jsonb_build_object('user_id', r.user_id, 'version', r.version), 'changed', 'permdock:authz', true);",
       );
-      expect(sql).toContain("'changed', 'authz:' || new.user_id::text, true);");
+      expect(sql).toContain("'changed', 'authz:' || r.user_id::text, true);");
+      expect(sql).toContain(
+        'after insert on "permdock"."permdock_authz_version"\n  referencing new table as permdock_new\n  for each statement',
+      );
       expect(sql).toContain(
         "create policy permdock_authz_version_receive on realtime.messages",
       );
@@ -83,7 +86,9 @@ describe("supabase hook", () => {
       expect(sql).toContain(
         'create table if not exists "permdock"."permdock_authz_version"',
       );
-      expect(sql).toContain('create trigger "permdock_authz_version"');
+      expect(sql).toContain('create trigger "permdock_authz_version_insert"');
+      expect(sql).toContain('create trigger "permdock_authz_version_update"');
+      expect(sql).toContain('create trigger "permdock_authz_version_delete"');
       expect(sql).toContain('create trigger "permdock_protect_managed"');
       expect(sql).toContain(
         'revoke execute on function "permdock".custom_access_token_hook(jsonb) from authenticated, anon, public;',

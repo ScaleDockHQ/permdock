@@ -6,6 +6,7 @@ import type {
   EmittedFile,
   PermDockPlugin,
   PluginEmit,
+  PluginInputs,
   PluginTask,
 } from "./plugin.ts";
 
@@ -15,6 +16,8 @@ import {
   cacheDirectory,
   cacheHit,
   hashText,
+  inputsKey,
+  optionsKey,
   readCache,
   writeCache,
 } from "./cache.ts";
@@ -130,9 +133,25 @@ export async function runGenerate(input: {
   const model = policyModel(input.policy);
   const plugins = orderPlugins(input.plugins);
   const useCache = input.noCache !== true && !input.check && !input.dryRun;
+  const declared: PluginInputs[] = [];
+  for (const plugin of plugins) {
+    declared.push(await plugin.inputs(input.ctx));
+  }
+  const configWithoutPlugins = Object.fromEntries(
+    Object.entries(input.config).filter(([name]) => name !== "plugins"),
+  );
   const key = hashText(
     [
-      ...plugins.map((plugin) => `${plugin.name}@${plugin.version}`),
+      ...plugins.map((plugin, index) => {
+        const inputs = declared[index];
+        return [
+          `${plugin.name}@${plugin.version}`,
+          optionsKey(inputs?.options),
+          ...inputsKey(input.cwd, inputs?.files ?? []),
+        ].join("|");
+      }),
+      optionsKey(configWithoutPlugins),
+      ...inputsKey(input.cwd, ["supabase/config.toml"]),
       canonicalJson(model),
       ...(input.importGraph ?? []),
     ].join("\n"),
@@ -167,7 +186,6 @@ export async function runGenerate(input: {
     readonly task: PluginTask;
   }[] = [];
   for (const plugin of plugins) {
-    await plugin.inputs(input.ctx);
     for (const task of await plugin.plan(model, input.ctx)) {
       tasks.push({ plugin, task });
     }
@@ -196,6 +214,14 @@ export async function runGenerate(input: {
   );
   const notes = groups.flatMap((group) => group.notes);
   const emitted = groups.flatMap((group) => group.files);
+  for (const plugin of plugins) {
+    for (const file of (await plugin.seeds?.(model, input.ctx)) ?? []) {
+      emitted.push({ plugin: plugin.name, ...file });
+    }
+    for (const finding of (await plugin.doctor?.(model, input.ctx)) ?? []) {
+      notes.push(`${finding.code} ${finding.severity}: ${finding.message}`);
+    }
+  }
   const bodies = emitted.map((item) => ({
     path: item.path,
     text: item.contents,

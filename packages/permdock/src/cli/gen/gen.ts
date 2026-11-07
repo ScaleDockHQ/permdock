@@ -1,16 +1,20 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import type { Policy } from "../../core/policy-types.ts";
 import type { OutputFile } from "../core/output-files.ts";
 import type { CommandResult } from "../core/result.ts";
 import type { GenKind, PermDockConfig } from "../types.ts";
+import type { HeaderInfo } from "./header.ts";
 
 import { loadConfiguredOperations } from "../catalog-operations.ts";
 import { CliError, configError } from "../core/errors.ts";
 import { fileSummary, planFiles } from "../core/files.ts";
 import { STDOUT, driftOf, writeOutputFiles } from "../core/output-files.ts";
+import { pluginVersion } from "../generate/plugins/version.ts";
 import { requirePolicy } from "../project/load.ts";
 import { FILE_NAMES, renderGen } from "./emit/render.ts";
+import { modelDigest } from "./header.ts";
 import { genModel } from "./model.ts";
 
 const GEN_KINDS = [
@@ -28,7 +32,7 @@ const GEN_KINDS = [
   "messages",
 ] as const satisfies readonly GenKind[];
 
-const DEFAULT_GEN_OUT = "src/generated";
+const DEFAULT_GEN_OUT = "src/permdock";
 
 function isGenKind(value: unknown): value is GenKind {
   return GEN_KINDS.some((kind) => kind === value);
@@ -86,30 +90,83 @@ async function genFiles(input: GenInput): Promise<readonly OutputFile[]> {
     input.from ?? input.config.policy,
     "gen needs policy in the config or --policy",
   );
+  return renderKinds({
+    cwd: input.cwd,
+    config: input.config,
+    policy,
+    policyPath,
+    kinds,
+    dir: input.outDir ?? input.config.gen?.out ?? DEFAULT_GEN_OUT,
+    ...(input.out === undefined ? {} : { out: input.out }),
+  });
+}
+
+export type RenderKindsInput = {
+  readonly cwd: string;
+  readonly config: PermDockConfig;
+  readonly policy: Policy;
+  /** The policy module as the config names it, for the header. */
+  readonly policyPath: string;
+  readonly kinds: readonly GenKind[];
+  readonly dir: string;
+  readonly out?: string;
+  /** Overrides `config.gen.fields`. */
+  readonly fields?: boolean;
+  /** Overrides `config.gen.zod.specifier`. */
+  readonly zodSpecifier?: "zod" | "zod/mini";
+};
+
+/**
+ * The files of `kinds` for a loaded policy, in kind order. `permdock generate`
+ * calls it for `config.gen`, and the schema, UI and app plugins call it for one
+ * kind each.
+ */
+export async function renderKinds(
+  input: RenderKindsInput,
+): Promise<readonly OutputFile[]> {
+  const { policyPath, dir } = input;
   const operations = await loadConfiguredOperations(
     input.cwd,
     input.config.operations,
   );
-  const model = genModel({ policy, config: input.config, operations });
-  const dir = input.outDir ?? input.config.gen?.out ?? DEFAULT_GEN_OUT;
-  const fieldMeta = input.config.gen?.fieldMeta === true;
-  return kinds.map((kind) => {
+  const model = genModel({
+    policy: input.policy,
+    config: input.config,
+    operations,
+  });
+  const fields = input.fields ?? input.config.gen?.fields === true;
+  const zodSpecifier =
+    input.zodSpecifier ?? input.config.gen?.zod?.specifier ?? "zod";
+  const header: HeaderInfo = {
+    version: pluginVersion(),
+    policy: policyPath === "" ? "policy" : policyPath.replace(/^\.\//u, ""),
+    hash: modelDigest(model),
+  };
+  return input.kinds.flatMap((kind) => {
     const rel = input.out ?? `${dir}/${FILE_NAMES[kind]}`;
     const file = resolve(
       input.cwd,
       rel === STDOUT ? `${dir}/${FILE_NAMES[kind]}` : rel,
     );
-    return {
-      part: kind,
+    const rendered = renderGen(kind, model, {
+      fields,
+      zodSpecifier,
       rel,
-      text: renderGen(kind, model, {
-        fieldMeta,
-        rel,
-        file,
-        policy: resolve(input.cwd, policyPath),
-        previous: rel === STDOUT ? undefined : readIfExists(file),
-      }),
-    };
+      file,
+      policy: resolve(input.cwd, policyPath),
+      previous: rel === STDOUT ? undefined : readIfExists(file),
+      header,
+    });
+    // `--out` names one file: the kind's own, without its siblings.
+    const wanted = input.out === undefined ? rendered : rendered.slice(0, 1);
+    return wanted.map((item, index): OutputFile => {
+      const itemRel = index === 0 ? rel : `${dir}/${item.name}`;
+      return {
+        part: index === 0 ? kind : item.name,
+        rel: itemRel,
+        text: item.text,
+      };
+    });
   });
 }
 

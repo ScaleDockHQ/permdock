@@ -13,20 +13,45 @@ description: definePlugin is the contract permdock generate runs. Each plugin pl
 
 `emit(task, model, source)` returns `{ path, contents }`. It reads no project file except what `inputs` named. `source` is present in the main process and absent in a worker, so a third-party plugin keeps `emit` a function of `task` and `model`.
 
+The model carries each resource's `schema` (JSON Schema 2020-12 through `~standard.jsonSchema`, `null` when the schema library has none) and `meta`, and stays `structuredClone`-safe, so a schema plugin runs without the policy. A schema plugin notes each resource it skips for that reason.
+
+Three optional members complete the contract:
+
+| Member     | Meaning                                                                                                                                                              |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `seeds`    | `(model, ctx)` returns seed files the plugin owns; they are written with the emitted files                                                                           |
+| `doctor`   | `(model, ctx)` returns `{ code, severity, message }` findings; the run prints them after the Generated line                                                          |
+| `commands` | `{ name, summary, run }` entries. `permdock <name> ...args` calls `run({ cwd, config, args })` when no built-in command has that name; it answers `{ code, output }` |
+
+The cache key hashes each plugin's name and version, its canonical `options`, the content of every `inputs.files` entry (a directory counts every file under it), the config without `plugins`, `supabase/config.toml` and the model. A changed plugin option, schema-directory file or `config.toml` is a miss.
+
+## Kinds of extension
+
+| Kind               | Where it lives                                                          | Example                                           |
+| ------------------ | ----------------------------------------------------------------------- | ------------------------------------------------- |
+| Adapter            | A runtime subpath entry                                                 | `permdock/hono`, `permdock/drizzle`               |
+| Build hook         | `createPermDockPlugin`, `createPermDockUnplugin`; they only collect     | `permdock/next/plugin`                            |
+| Generate plugin    | `plugins` in `permdock.config.ts`, under `permdock/cli/plugins/<group>` | `rls()`, `zod()`                                  |
+| Third-party plugin | `permdock-plugin-<name>` on npm, with `name: "<name>"`                  | `tests/integration/fixtures/adoption/third-party` |
+
 ## Built-in plugins
 
-| Plugin             | Writes                                                             |
-| ------------------ | ------------------------------------------------------------------ |
-| `rls()`            | Helpers, policies, seeds and the split parts                       |
-| `supabaseHook()`   | The Custom Access Token Hook                                       |
-| `powersync()`      | Sync Streams for `powersync.resources`                             |
-| `betterSupabase()` | The better-supabase authorization file                             |
-| `openapi()`        | An annotated document, and the operations map when `routes` is set |
-| `scim()`           | The SCIM schema file                                               |
+| Plugin                                                                | Writes                                                               |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `rls()`                                                               | Helpers, policies, seeds and the split parts                         |
+| `supabaseHook()`                                                      | The Custom Access Token Hook                                         |
+| `powersync()`                                                         | Sync Streams for `powersync.resources`                               |
+| `betterSupabase()`                                                    | The better-supabase authorization file                               |
+| `openapi()`                                                           | An annotated document, and the operations map when `routes` is set   |
+| `scim()`                                                              | The SCIM schema file                                                 |
+| `constants()`                                                         | `constants.ts`, `types.ts`, `sql.ts` and, with `fields`, `fields.ts` |
+| `zod()`, `valibot()`, `arktype()`, `jsonSchema()`, `standardSchema()` | Row validators, one file each                                        |
+| `reactHooks()`, `vueHooks()`, `svelteHooks()`, `solidHooks()`         | The adapter's exports bound to the policy                            |
+| `factories()`, `messages()`                                           | Test row factories, the messages skeleton                            |
 
-The factories are `rls` from `permdock/cli/plugins/rls`, `supabaseHook` from `permdock/cli/plugins/supabase-hook`, `powersync` from `permdock/cli/plugins/powersync`, `betterSupabase` from `permdock/cli/plugins/better-supabase`, `openapi` from `permdock/cli/plugins/openapi` and `scim` from `permdock/cli/plugins/scim`.
+The factories are `rls` from `permdock/cli/plugins/rls`, `supabaseHook` from `permdock/cli/plugins/supabase-hook`, `powersync` from `permdock/cli/plugins/powersync`, `betterSupabase` from `permdock/cli/plugins/better-supabase`, `openapi` from `permdock/cli/plugins/openapi`, `scim` from `permdock/cli/plugins/scim`, the schema plugins `zod`, `valibot`, `arktype`, `jsonSchema` and `standardSchema` from `permdock/cli/plugins/schemas`, the hook plugins `reactHooks`, `vueHooks`, `svelteHooks` and `solidHooks` from `permdock/cli/plugins/ui`, and `constants`, `factories` and `messages` from `permdock/cli/plugins/app`.
 
-`permdock generate --only rls` runs one of them. Repeat `--only` for more than one. Plugin order is the `plugins` array, then each plugin's `after` list.
+`gen.kinds` in the config is the shorthand for the same plugins and keeps working. `permdock generate --only rls` runs one of them. Repeat `--only` for more than one. Plugin order is the `plugins` array, then each plugin's `after` list.
 
 ## A third-party plugin
 

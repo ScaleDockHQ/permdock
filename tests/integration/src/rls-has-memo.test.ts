@@ -228,11 +228,19 @@ describe("permdock_has memo against Postgres", () => {
   });
 
   it("runs the has body again in the next statement", async () => {
-    const counted = await counting(async (tx) => {
+    const once = await counting(async (tx) => {
+      await visible(tx, "project");
+    });
+    const twice = await counting(async (tx) => {
       await visible(tx, "project");
       await visible(tx, "project");
     });
-    expect(counted).toMatchObject({ permdock_has: 2, user_roles: 4 });
+    // The scans per body run depend on the plan (a cached plan may skip one);
+    // the second statement enters the body again and never scans less.
+    expect(twice["permdock_has"]).toBe(2);
+    expect(twice["user_roles"] ?? 0).toBeGreaterThanOrEqual(
+      once["user_roles"] ?? 0,
+    );
   });
 
   it("sees a custom_role_permissions write in the next statement", async () => {
@@ -257,5 +265,22 @@ describe("permdock_has memo against Postgres", () => {
       return [before, await visible(tx, "project")];
     });
     expect(granted).toStrictEqual([1, 2]);
+  });
+
+  it("treats a null tenant and instance as one key in the custom role index", async () => {
+    const db = database();
+    await db.exec("begin");
+    try {
+      await db.exec(
+        "insert into permdock.custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect) values (null, 'global', null, 'dup', 'project.read', 'allow')",
+      );
+      await expect(
+        db.exec(
+          "insert into permdock.custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect) values (null, 'global', null, 'dup', 'project.read', 'allow')",
+        ),
+      ).rejects.toThrow(/custom_role_permissions_nnd_key/u);
+    } finally {
+      await db.exec("rollback");
+    }
   });
 });

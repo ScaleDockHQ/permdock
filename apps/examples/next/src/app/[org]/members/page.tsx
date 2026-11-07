@@ -1,4 +1,5 @@
 import { Lock } from "lucide-react";
+import { prefetch } from "next/cache";
 import { Protected } from "permdock/react";
 import { Suspense } from "react";
 
@@ -11,8 +12,11 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty.tsx";
 
+import {
+  Staff,
+  StaffSkeleton,
+} from "../../../features/member/components/staff.tsx";
 import { permissions } from "../../../permissions.ts";
-import { MembersSkeleton, Staff } from "./staff.tsx";
 
 export const instant = true;
 
@@ -30,9 +34,17 @@ function Hidden() {
   );
 }
 
-export default function Members(props: {
-  readonly params: Promise<{ readonly org: string }>;
-}) {
+/**
+ * `prefetch()` keeps the member read out of the App Shell every link loads; the
+ * Members link's own prefetch still carries it.
+ */
+async function StaffIsland(props: PageProps<"/[org]/members">) {
+  await prefetch();
+  const { org } = await props.params;
+  return <Staff organization={org} />;
+}
+
+export default function Members(props: PageProps<"/[org]/members">) {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -41,11 +53,11 @@ export default function Members(props: {
       />
       <Protected
         permission={permissions.member.list}
-        pending={<MembersSkeleton />}
+        pending={<StaffSkeleton />}
         denied={<Hidden />}
       >
-        <Suspense fallback={<MembersSkeleton />}>
-          <Staff params={props.params} />
+        <Suspense fallback={<StaffSkeleton />}>
+          <StaffIsland {...props} />
         </Suspense>
       </Protected>
     </div>

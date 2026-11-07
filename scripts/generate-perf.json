@@ -1,14 +1,40 @@
 {
-  "cold": {
-    "ms": 176,
-    "rssKb": 173760
+  "small": {
+    "cold": {
+      "ms": 184,
+      "rssKb": 175936
+    },
+    "warm": {
+      "ms": 127,
+      "rssKb": 109712
+    },
+    "oneFile": {
+      "ms": 124,
+      "rssKb": 138832
+    }
   },
-  "warm": {
-    "ms": 147,
-    "rssKb": 150096
+  "large": {
+    "cold": {
+      "ms": 393,
+      "rssKb": 188176
+    },
+    "warm": {
+      "ms": 110,
+      "rssKb": 128800
+    },
+    "oneFile": {
+      "ms": 123,
+      "rssKb": 142080
+    }
   },
-  "oneFile": {
-    "ms": 173,
-    "rssKb": 174144
+  "main": {
+    "rlsGenerateCold": {
+      "ms": 245,
+      "rssKb": 168000
+    },
+    "branchRlsOnlyCold": {
+      "ms": 280,
+      "rssKb": 164500
+    }
   }
 }

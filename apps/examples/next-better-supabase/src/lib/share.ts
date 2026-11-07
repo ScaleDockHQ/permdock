@@ -6,7 +6,7 @@ import { getPermDockSync } from "permdock";
 import { subjectFromShareLink } from "permdock/better-supabase";
 import { exchangeCapability } from "permdock/supabase";
 
-import type { QuoteRow } from "./access.ts";
+import type { QuoteRow } from "../features/quote/quote-queries.ts";
 
 import { env } from "../env.ts";
 import { permissions, policy } from "../policy.ts";

@@ -32,7 +32,7 @@ describe("platform custom roles in SQL", () => {
       "check ((scope = 'global') = (tenant_id is null))",
     );
     expect(sql).toContain(
-      "on \"permdock\".custom_role_permissions (coalesce(tenant_id::text, ''), scope, coalesce(scope_id, ''), role, permission, effect)",
+      'on "permdock".custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect) nulls not distinct',
     );
     expect(sql).toContain(
       "c.tenant_id is null and c.scope = 'global' and c.scope_id is null and c.role = ur.role::text",

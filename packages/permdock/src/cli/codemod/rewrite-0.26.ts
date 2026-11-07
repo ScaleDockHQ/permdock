@@ -310,6 +310,56 @@ function dropSupplied(source: string): {
  * `permissions.disabled` and a `canAssign` that names
  * `permdock_can_assign_any`.
  */
+/** Old `permdock gen` file names (without extension) to the 0.26 names. */
+const GEN_FILES: Readonly<Record<string, string>> = {
+  generated: "constants",
+  zod: "zod",
+  valibot: "valibot",
+  arktype: "arktype",
+  factories: "factories",
+  react: "react",
+  vue: "vue",
+  solid: "solid",
+  "svelte-stores": "svelte",
+  messages: "messages",
+};
+
+const GEN_IMPORT =
+  /(\bfrom\s*(['"]))((?:[^'"\n]*\/)?)permdock\.(generated|zod|valibot|arktype|factories|react|vue|solid|svelte-stores|schemas|messages)(\.[a-z]+)?\2/gu;
+
+/**
+ * An import of a generated file under its 0.25 name moves to the new name:
+ * `permdock.generated.ts` is `constants.ts`, `permdock.schemas.ts` is
+ * `standard-schema.ts` and `permdock.schemas.json` is `json-schema.json`.
+ */
+function rewriteGenImports(source: string): {
+  readonly text: string;
+  readonly changes: readonly CodemodChange[];
+} {
+  const changes: CodemodChange[] = [];
+  const text = source.replaceAll(
+    GEN_IMPORT,
+    (
+      _whole,
+      head: string,
+      quote: string,
+      dir: string,
+      name: string,
+      ext = "",
+    ) => {
+      const next =
+        name === "schemas"
+          ? ext === ".json"
+            ? "json-schema"
+            : "standard-schema"
+          : (GEN_FILES[name] ?? name);
+      changes.push(change(`permdock.${name}${ext}`, `${next}${ext}`));
+      return `${head}${dir}${next}${ext}${quote}`;
+    },
+  );
+  return { text, changes };
+}
+
 export function rewrite026(file: string, source: string): RewriteResult {
   const sql = rewriteSql(source);
   const followUps: CodemodFollowUp[] = [];
@@ -331,7 +381,17 @@ export function rewrite026(file: string, source: string): RewriteResult {
     }
     text = text.replaceAll(property[0], withAlso(property[0], child, owner));
   }
-  const changes = [...sql.changes];
+  const gen = rewriteGenImports(text);
+  text = gen.text;
+  const changes = [...sql.changes, ...gen.changes];
+  if (gen.changes.length > 0) {
+    followUps.push({
+      line: 1,
+      column: 0,
+      name: "gen",
+      message: `${file}: the generated files moved; rename topics.<x> to <x>Topic, paths.<x> to <x>Path, sqlNames.* to the per-helper exports in sql.ts, factories.<x> to <x>Factory, and scopes and roles to scopeNames and roleNames`,
+    });
+  }
   if (found.length > 0) {
     changes.push(change("tableOf", "also"));
   }

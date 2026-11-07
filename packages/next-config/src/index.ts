@@ -67,6 +67,8 @@ export function createNextConfig(options: CreateNextConfigOptions): NextConfig {
       globalNotFound: true,
       requestInsights: true,
       authInterrupts: true,
+      // `permdock/next` taints the instance and options when React exposes `taintObjectReference`.
+      taint: true,
       typedEnv: true,
       turbopackRustReactCompiler: true,
       serverComponentsHmrCancellation: true,

@@ -141,6 +141,8 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD091` | An operation under `openapi.tenantPaths` that `openapi.operations` declares no entry for, or a declared entry that matches no operation of an `openapi.doc` document                                                                                                                                       | error           |
 | `PD092` | `pnpm-lock.yaml` lists `permdock` more than once with different peer sets, so one app can load two copies of its stores and caches                                                                                                                                                                         | warning         |
 | `PD097` | Fixture seed data is in a migration or schema file, or a `defineSeeds` default names an unknown role, scope or permission. A missing `[db.seed]` `sql_paths` entry is a warning and names the line to add                                                                                                  | error / warning |
+| `PD098` | `DATABASE_URL` or `SUPABASE_DB_URL` uses port 6543, the transaction pooler, which does not keep the prepared statements the generated helpers run as                                                                                                                                                       | warning         |
+| `PD099` | A SQL file defines an `update` policy on a table that has no `select` policy, so updates match no rows                                                                                                                                                                                                     | warning         |
 | `PD087` | The hook broadcasts on another topic than better-supabase listens on, or better-supabase is a dependency whose config file is not found                                                                                                                                                                    |
 | `PD088` | A statement casts to `text` around a `permitted_*_rows` or `can_<resource>` call; the helpers use the resource id type                                                                                                                                                                                     | warning         |
 | `PD089` | A statement tests one known id against `permitted_*_rows`; `can_<resource>(id, permission)` evaluates that row only                                                                                                                                                                                        | warning         |
@@ -665,6 +667,14 @@ A file under `supabase/schemas` is an error when it contains a `do` block whose 
 ### PD096: a through pair deciding columns omit
 
 `through.on` pairs the membership join. A pair whose column is not in the deciding columns is a pair the hook, the PowerSync stream and the manifest can drop. Regenerate those three so every pair is used. `--only supabase` or `--only powersync` runs PD096.
+
+### PD098: the transaction pooler
+
+The generated helpers are called as prepared statements. Supabase's transaction pooler (port 6543) does not keep a prepared statement between statements, so use the session pooler (port 5432) or set `prepare: false` on the driver. The better-supabase provider templates and `supabasePostgresQuery` take the same setting.
+
+### PD099: an update policy with no select policy
+
+Postgres reads a row before it updates it, so an `update` policy on a table with no `select` policy matches no rows and returns none, with no error. `permdock generate` writes a `select` policy beside every write policy it writes; this check covers hand-written policies in `supabase/schemas` and `supabase/migrations`.
 
 ## Side effects
 

@@ -11,6 +11,7 @@ import {
   listPermissions,
 } from "../../core/permission-registry.ts";
 import { grantList } from "../../core/policy.ts";
+import { jsonSchemaOf } from "../catalog-doc.ts";
 import { dialectsFor } from "./dialects.ts";
 
 /**
@@ -63,6 +64,14 @@ export type ModelResource = {
   readonly orderedLevels?: true;
   readonly instanceActions: readonly string[];
   readonly collectionActions: readonly string[];
+  /**
+   * The resource schema as JSON Schema 2020-12 through `~standard.jsonSchema`.
+   * `null` when the schema library has no JSON Schema export, or the resource
+   * has no schema; a schema plugin skips such a resource.
+   */
+  readonly schema: Readonly<Record<string, unknown>> | null;
+  /** The resource's `meta`, JSON only. */
+  readonly meta: Readonly<Record<string, unknown>>;
 };
 
 /**
@@ -137,6 +146,15 @@ function plainData<T>(value: T): T {
   return JSON.parse(text) as T;
 }
 
+function schemaOf(
+  node: ResourceNode,
+): Readonly<Record<string, unknown>> | null {
+  const schema = jsonSchemaOf(node);
+  return schema !== null && typeof schema === "object" && !Array.isArray(schema)
+    ? plainData(Object.fromEntries(Object.entries(schema)))
+    : null;
+}
+
 function resourceOf(node: ResourceNode): ModelResource {
   return compact<ModelResource>({
     name: node.name,
@@ -148,6 +166,8 @@ function resourceOf(node: ResourceNode): ModelResource {
     orderedLevels: node.orderedLevels,
     instanceActions: [...node.instanceActions].toSorted(),
     collectionActions: [...node.collectionActions].toSorted(),
+    schema: schemaOf(node),
+    meta: plainData({ ...node.meta }),
   });
 }
 

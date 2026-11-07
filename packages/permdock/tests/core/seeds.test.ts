@@ -4,10 +4,10 @@ import {
   allow,
   definePermissions,
   definePolicy,
-  defineSeeds,
   resource,
   role,
 } from "../../src/index.ts";
+import { defineSeeds } from "../../src/seeds/index.ts";
 
 const permissions = definePermissions({
   doc: resource({

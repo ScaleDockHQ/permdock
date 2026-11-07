@@ -1,4 +1,13 @@
-import { readFileSync, rmSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -50,5 +59,33 @@ describe("adoption fixtures", () => {
     rmSync(join(cwd, "out"), { recursive: true, force: true });
     const doctor = await run(["doctor"], { cwd });
     expect(doctor.code, `${doctor.stderr}\n${doctor.stdout}`).toBe(0);
+  });
+
+  it("writes indexes.sql only when config.toml enables pg-delta, and a second run changes nothing", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "permdock-indexes-"));
+    try {
+      const cwd = join(dir, "app");
+      cpSync(join(ADOPTION, "supabase"), cwd, { recursive: true });
+      rmSync(join(cwd, "supabase"), { recursive: true, force: true });
+      const plain = await run(["generate", "--no-cache"], { cwd });
+      expect(plain.code).toBe(0);
+      expect(
+        existsSync(join(cwd, "supabase/schemas/permdock/indexes.sql")),
+      ).toBe(false);
+      mkdirSync(join(cwd, "supabase"), { recursive: true });
+      writeFileSync(
+        join(cwd, "supabase/config.toml"),
+        "[experimental.pgdelta]\nenabled = true\n",
+      );
+      const first = await run(["generate", "--no-cache"], { cwd });
+      expect(first.code).toBe(0);
+      expect(
+        existsSync(join(cwd, "supabase/schemas/permdock/indexes.sql")),
+      ).toBe(true);
+      const again = await run(["generate", "--check", "--no-cache"], { cwd });
+      expect(again.code).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

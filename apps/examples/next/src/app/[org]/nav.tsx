@@ -20,10 +20,13 @@ import { Skeleton } from "@/components/ui/skeleton.tsx";
 
 import { permissions } from "../../permissions.ts";
 
+type NavPath = "" | "/quotes" | "/members" | "/settings";
+type NavHref = `/${string}${NavPath}`;
+
 type Item = {
   readonly id: string;
   readonly label: string;
-  readonly path: string;
+  readonly path: NavPath;
   readonly icon: LucideIcon;
   readonly permission: Permission | null;
   /** Rarely visited: its segment is `prefetch = 'force-disabled'`. */
@@ -95,7 +98,7 @@ function Pending() {
 
 function NavLink(props: {
   readonly item: Item;
-  readonly href: string;
+  readonly href: NavHref;
   readonly current: boolean;
 }) {
   const Icon = props.item.icon;
@@ -122,7 +125,7 @@ function NavLink(props: {
 function GatedLink(props: {
   readonly item: Item;
   readonly permission: Permission;
-  readonly href: string;
+  readonly href: NavHref;
   readonly current: boolean;
 }) {
   return (
@@ -139,7 +142,7 @@ export function Nav(props: { readonly organization: Promise<string> }) {
     <nav aria-label="Main" data-testid="nav">
       <ul className={listClass}>
         {items.map((item) => {
-          const href = `/${organization}${item.path}`;
+          const href: NavHref = `/${organization}${item.path}`;
           const current =
             item.path === ""
               ? pathname === href

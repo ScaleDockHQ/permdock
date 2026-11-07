@@ -35,23 +35,25 @@ describe("generated helper planner settings", () => {
       /\.permitted_\w+_ids\(/u.test(fn),
     );
     for (const fn of ids) {
-      expect(head(fn)).toContain("cost 1000\nparallel safe");
+      expect(head(fn)).toContain("cost 1000\nrows 10\nparallel safe");
     }
   });
 
-  it("never marks a set_config memo helper parallel safe", () => {
-    const memoized = functions("rbac-supabase-database.sql").filter((fn) =>
-      fn.includes("set_config("),
+  it("writes no memo in database mode by default, so the helpers are stable and parallel safe", () => {
+    const sql = readFileSync(
+      join(GOLDEN, "rbac-supabase-database.sql"),
+      "utf8",
     );
-    expect(memoized.length).toBeGreaterThan(0);
-    for (const fn of memoized) {
-      expect(head(fn)).toContain("volatile");
-      expect(head(fn)).not.toContain("parallel safe");
-    }
-    for (const fn of functions("rbac-supabase-database.sql").filter((f) =>
-      /\.permitted_\w+_ids_by_permission\(/u.test(f),
-    )) {
-      expect(head(fn)).not.toContain("parallel safe");
+    expect(sql).not.toContain("set_config(");
+    const ids = functions("rbac-supabase-database.sql").filter((fn) =>
+      /\.permitted_\w+_ids\(/u.test(fn),
+    );
+    expect(ids.length).toBeGreaterThan(0);
+    for (const fn of ids) {
+      expect(head(fn)).toContain("stable");
+      expect(head(fn)).toContain("parallel safe");
+      expect(head(fn)).toContain("rows 10");
+      expect(head(fn)).toContain("set search_path = ''");
     }
   });
 });

@@ -2,20 +2,20 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { QuoteSkeleton } from "@/components/quotes/quote-states.tsx";
-import { QuoteView } from "@/components/quotes/quote-view.tsx";
 import { buttonVariants } from "@/components/ui/button.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 
+import {
+  QuoteView,
+  QuoteViewSkeleton,
+} from "../../../../../features/quote/components/quote-view.tsx";
+
 export const instant = true;
 
-async function Back(props: {
-  readonly params: Promise<{ readonly org: string }>;
-}) {
-  const { org } = await props.params;
+function Back(props: { readonly organization: string }) {
   return (
     <Link
-      href={`/portal/${org}`}
+      href={`/portal/${props.organization}`}
       prefetch
       className={buttonVariants({
         variant: "ghost",
@@ -29,16 +29,20 @@ async function Back(props: {
   );
 }
 
-export default function PortalQuote(props: {
-  readonly params: Promise<{ readonly org: string; readonly id: string }>;
-}) {
+export default function PortalQuote(
+  props: PageProps<"/portal/[org]/quotes/[id]">,
+) {
   return (
     <div className="flex flex-col gap-4">
       <Suspense fallback={<Skeleton className="h-8 w-28" />}>
-        <Back params={props.params} />
+        {props.params.then(({ org }) => (
+          <Back organization={org} />
+        ))}
       </Suspense>
-      <Suspense fallback={<QuoteSkeleton />}>
-        <QuoteView params={props.params} />
+      <Suspense fallback={<QuoteViewSkeleton />}>
+        {props.params.then(({ org, id }) => (
+          <QuoteView organization={org} id={id} />
+        ))}
       </Suspense>
     </div>
   );

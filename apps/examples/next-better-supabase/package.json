@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "next build",
+    "build": "node ../../../scripts/next-build.ts",
     "dev": "next dev -p 3489 -H 127.0.0.1",
     "doctor": "permdock doctor && permdock supabase inspect --check && node scripts/better-supabase.ts doctor",
     "gen": "permdock generate --only rls && permdock supabase inspect --out && node scripts/better-supabase.ts gen",
     "gen:check": "permdock generate --only rls --check && permdock supabase inspect --check && better-supabase upgrade --check && node scripts/better-supabase.ts gen --check",
-    "lint": "oxlint --disable-nested-config --type-aware",
+    "lint": "next typegen && oxlint --disable-nested-config --type-aware",
     "serve": "node scripts/serve.ts",
     "sql:regenerate": "better-supabase upgrade",
     "start": "next start -p 3489 -H 127.0.0.1",
@@ -21,7 +21,7 @@
     "test": "vitest run --exclude 'tests/stack/**'",
     "test:e2e": "playwright test",
     "test:stack": "vitest run tests/stack",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "typegen": "next typegen"
   },
   "dependencies": {

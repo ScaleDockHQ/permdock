@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { forbidden, unauthorized, unstable_rethrow } from "#next/navigation";
 import { cacheLife, cacheTag, io } from "next/cache.js";
 import { after } from "next/server.js";
+import * as React from "react";
 import { cache } from "react";
 
 import type { PermissionCheck, PermissionState } from "../core/checks.ts";
@@ -49,6 +50,32 @@ function assertServerOnly(): void {
   }
 }
 
+type TaintObject = (message: string, object: object) => void;
+
+/**
+ * React's `experimental_taintObjectReference` when the bundled React has it
+ * (Next.js with `experimental.taint`), else `undefined`.
+ */
+function taintOf(): TaintObject | undefined {
+  const taint: unknown = Reflect.get(
+    React,
+    "experimental_taintObjectReference",
+  );
+  // SAFETY: React's taint function takes a message and the object to keep on the server.
+  return typeof taint === "function" ? (taint as TaintObject) : undefined;
+}
+
+function keepOnServer(what: string, object: object): void {
+  try {
+    taintOf()?.(
+      `PermDock: the ${what} stays on the server. Pass a snapshot to the client, not the instance.`,
+      object,
+    );
+  } catch {
+    // Tainting is a safeguard; a frozen or already tainted object must not stop a request.
+  }
+}
+
 async function readTenant(
   tenant: NextPermDockOptions["tenant"],
 ): Promise<string | undefined> {
@@ -91,6 +118,40 @@ function isDevelopment(): boolean {
     env !== null &&
     Reflect.get(env, "NODE_ENV") === "development"
   );
+}
+
+/**
+ * The snapshot with `subject.context` cut to the `allow` keys. Without a list
+ * the context ships whole, as the instance holds it.
+ */
+function withContextAllowed(
+  snapshot: Snapshot,
+  allow: readonly string[] | undefined,
+  warned: Set<string>,
+): Snapshot {
+  if (allow === undefined) {
+    return snapshot;
+  }
+  const kept: Record<string, unknown> = {};
+  const dropped: string[] = [];
+  for (const [key, value] of Object.entries(snapshot.subject.context)) {
+    if (allow.includes(key)) {
+      kept[key] = value;
+    } else {
+      dropped.push(key);
+    }
+  }
+  const fresh = dropped.filter((key) => !warned.has(key));
+  if (fresh.length > 0 && isDevelopment()) {
+    for (const key of fresh) {
+      warned.add(key);
+    }
+    // oxlint-disable-next-line no-console -- one development hint per dropped key
+    console.warn(
+      `PermDock: the snapshot context drops ${fresh.join(", ")}; the context option names the keys the browser may receive.`,
+    );
+  }
+  return { ...snapshot, subject: { ...snapshot.subject, context: kept } };
 }
 
 function ignore(): undefined {
@@ -158,6 +219,7 @@ export function createPermDock<
 ): NextPermDock<V> {
   const options = withApp(policy, given);
   assertServerOnly();
+  keepOnServer("PermDock options", options);
 
   const sink =
     options.sink === undefined ? undefined : afterResponse(options.sink);
@@ -170,7 +232,9 @@ export function createPermDock<
     const traced =
       options.otel === undefined ? permdock : options.otel(permdock);
     const wrapped = options.wrap === undefined ? traced : options.wrap(traced);
-    return wrapInstance(wrapped, options.onDenied);
+    const instance = wrapInstance(wrapped, options.onDenied);
+    keepOnServer("PermDock instance", instance);
+    return instance;
   };
 
   const resolveFallbackTenant = cache((): Promise<string | undefined> =>
@@ -273,20 +337,34 @@ export function createPermDock<
   };
 
   let warnedShortLife = false;
+  let warnedPrefetchDrop = false;
+  let warnedUncachedProvider = false;
+  const droppedContext = new Set<string>();
   const getSnapshot = async (
     query: GetSnapshotQuery = {},
   ): Promise<Snapshot> => {
     const permdock = await getPermDock(
       compact({ tenant: query.tenant, version: query.version }),
     );
-    const snapshot = permdock.snapshot(
-      compact({
-        include: query.include,
-        tenants: query.tenants,
-        omitAssignable: query.omitAssignable,
-      }),
+    const snapshot = withContextAllowed(
+      permdock.snapshot(
+        compact({
+          include: query.include,
+          tenants: query.tenants,
+          omitAssignable: query.omitAssignable,
+        }),
+      ),
+      query.context,
+      droppedContext,
     );
     const life = cacheLifeFor(snapshot, query.cacheLife);
+    if (life.stale < 30 && !warnedPrefetchDrop && isDevelopment()) {
+      warnedPrefetchDrop = true;
+      // oxlint-disable-next-line no-console -- one development hint per process for a lifetime no prefetch carries
+      console.warn(
+        `PermDock: getSnapshot() caches for ${String(life.stale)} s; Next.js leaves a private entry under 30 s out of every prefetch, so the snapshot resolves at request time.`,
+      );
+    }
     if (life.stale < 300 && !warnedShortLife && isDevelopment()) {
       warnedShortLife = true;
       // oxlint-disable-next-line no-console -- one development hint per process for a short private lifetime
@@ -349,23 +427,37 @@ export function createPermDock<
   const PermDockProvider = (props: NextPermDockProviderProps): ReactElement => {
     // A rejection reaches the client store as `server-only`, or with
     // `suspend` the nearest error boundary; Next.js interrupts keep working.
+    if (props.snapshot === undefined && !warnedUncachedProvider) {
+      warnedUncachedProvider = true;
+      if (isDevelopment()) {
+        // oxlint-disable-next-line no-console -- one development hint per process for an uncached provider
+        console.warn(
+          "PermDock: PermDockProvider without a snapshot prop resolves the subject outside any cache scope. Pass a snapshot from a 'use cache: private' loader around getSnapshot().",
+        );
+      }
+    }
     const snapshotPromise: Promise<Snapshot | string> =
       props.snapshot ??
       getPermDock(
         props.tenant === undefined ? undefined : { tenant: props.tenant },
       ).then((permdock) =>
-        permdock.snapshot(
-          compact({
-            include: props.include,
-            tenants: props.tenants,
-            omitAssignable: props.omitAssignable,
-          }),
+        withContextAllowed(
+          permdock.snapshot(
+            compact({
+              include: props.include,
+              tenants: props.tenants,
+              omitAssignable: props.omitAssignable,
+            }),
+          ),
+          props.context,
+          droppedContext,
         ),
       );
     const {
       snapshot: _snapshot,
       include: _include,
       tenants: _tenants,
+      context: _context,
       ...rest
     } = props;
     return renderClientProvider({

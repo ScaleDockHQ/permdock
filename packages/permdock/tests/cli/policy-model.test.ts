@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import { policyModel } from "../../src/cli/generate/model.ts";
 import {
@@ -67,5 +68,30 @@ describe(policyModel, () => {
       key: "doc.read",
     });
     expect(JSON.stringify(model)).not.toContain("function");
+  });
+
+  it("carries the resource JSON Schema and meta, clone-safe", () => {
+    const typed = definePermissions({
+      note: resource(z.object({ id: z.string(), body: z.string() }), {
+        id: "id",
+        actions: ["read"],
+        meta: { title: "Note" },
+      }),
+    });
+    const withSchema = policyModel(
+      definePolicy(typed, { subject: () => null, roles: [] }),
+    );
+    const note = withSchema.resources[0];
+    expect(note?.schema).toMatchObject({
+      type: "object",
+      properties: { id: { type: "string" }, body: { type: "string" } },
+    });
+    expect(note?.meta).toStrictEqual({ title: "Note" });
+    expect(structuredClone(withSchema)).toStrictEqual(withSchema);
+  });
+
+  it("answers null for a resource with no schema", () => {
+    expect(model.resources[0]?.schema).toBeNull();
+    expect(model.resources[0]?.meta).toStrictEqual({});
   });
 });

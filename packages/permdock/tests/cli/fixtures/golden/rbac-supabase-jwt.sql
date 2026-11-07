@@ -121,6 +121,7 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
 parallel safe
 set search_path = ''
 as $$
@@ -291,6 +292,7 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
 parallel safe
 set search_path = ''
 as $$
@@ -469,6 +471,7 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
 parallel safe
 set search_path = ''
 as $$

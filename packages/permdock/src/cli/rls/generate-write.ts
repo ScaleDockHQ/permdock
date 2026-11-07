@@ -11,6 +11,8 @@ import {
   writeOutputFiles,
 } from "../core/output-files.ts";
 import { BACKFILL_MARKER } from "../sql/markers.ts";
+import { readSupabaseConfig } from "../supabase-config.ts";
+import { resolveSchemas } from "../supabase-schemas.ts";
 import { outputFiles } from "./generate-output.ts";
 
 /**
@@ -34,7 +36,13 @@ export function generatedFiles(plan: {
   readonly backfill: string | undefined;
 }): readonly OutputFile[] | string {
   const { input } = plan;
+  const schemas = resolveSchemas(input.cwd, input.config, input.schemas);
+  const read = readSupabaseConfig(input.cwd);
   const planned = outputFiles({
+    declarativeConfig:
+      schemas.mode === "pg-delta" &&
+      read?.ok === true &&
+      read.config.pgDelta !== undefined,
     input,
     outRel: plan.outRel,
     text: plan.text,

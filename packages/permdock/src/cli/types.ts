@@ -456,9 +456,11 @@ export type RlsConfig = {
    * and writes `permdock.m.*` with `current_setting` and `set_config`.
    * `'better-supabase'` calls `better_supabase.memo_get` and `memo_set`, so the
    * memo shares better-supabase's one mechanism; the keys stay `permdock.m.*`.
-   * Needs the `better_supabase` schema.
+   * Needs the `better_supabase` schema. `'none'` writes no memo: the helpers
+   * are `language sql stable parallel safe`, and a policy's `id in (select
+   * helper())` is one initPlan per statement.
    */
-  readonly memo?: "permdock" | "better-supabase";
+  readonly memo?: "permdock" | "better-supabase" | "none";
   /**
    * Emit `permitted_<resource>_rows(p_permission)`, its `_for` form,
    * `permitted_<resource>_rows(p_permission, p_ids)` limited to candidate ids
@@ -1121,15 +1123,21 @@ export type GenKind =
 
 /** `permdock gen` input. */
 export type GenConfig = {
-  /** The directory the generated files go to; default `src/generated`. */
+  /** The directory the generated files go to; default `src/permdock`. */
   readonly out?: string;
   /** The kinds `permdock gen` writes without `--kind`; default `['constants']`. */
   readonly kinds?: readonly GenKind[];
   /**
-   * The schema kinds also export `<resource>Fields`: per field its `label`,
-   * `required`, enum `options` and bounds, for forms.
+   * Also write `fields.ts`: `<resource>Fields` per resource, with each field's
+   * `label`, `required`, enum `options` and bounds, for forms. A form page
+   * imports it; a validator page does not.
    */
-  readonly fieldMeta?: boolean;
+  readonly fields?: boolean;
+  /** Zod output settings. */
+  readonly zod?: {
+    /** `zod/mini` writes the functional, tree-shakeable API; default `zod`. */
+    readonly specifier?: "zod" | "zod/mini";
+  };
 };
 
 /**

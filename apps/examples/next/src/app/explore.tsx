@@ -19,8 +19,16 @@ import {
 
 import { organizations } from "../lib/store.ts";
 
-const destinations = [
-  ...organizations.map((organization) => ({
+type Destination = {
+  readonly id: string;
+  readonly href: `/${string}`;
+  readonly title: string;
+  readonly description: string;
+  readonly portal: boolean;
+};
+
+const destinations: readonly Destination[] = [
+  ...organizations.map((organization): Destination => ({
     id: organization.id,
     href: `/${organization.id}`,
     title: organization.name,

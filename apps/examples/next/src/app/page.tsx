@@ -21,7 +21,7 @@ export default function Home() {
       </header>
       <main className="flex flex-col gap-10">
         <section className="flex flex-col gap-4">
-          <Badge variant="outline">Next.js 16.3 · Cache Components</Badge>
+          <Badge variant="outline">Next.js 16.4 · Cache Components</Badge>
           <h1 className="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
             Permission-gated UI that navigates instantly
           </h1>

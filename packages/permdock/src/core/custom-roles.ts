@@ -110,19 +110,18 @@ function andWhere(
   if (where === undefined) {
     return level;
   }
-  const parts = where.op === "and" ? [...where.conditions] : [where];
-  const levelKey = canonicalJson(level);
-  const unique = [...parts, level].filter(
-    (item, index, all) =>
-      all.findIndex((other) => canonicalJson(other) === canonicalJson(item)) ===
-      index,
-  );
-  if (unique.every((item) => canonicalJson(item) === levelKey)) {
-    return level;
-  }
-  const [only] = unique;
-  return unique.length === 1 && only !== undefined
-    ? only
+  const seen = new Set<string>();
+  const unique = [
+    ...(where.op === "and" ? where.conditions : [where]),
+    level,
+  ].filter((item) => {
+    const key = canonicalJson(item);
+    const fresh = !seen.has(key);
+    seen.add(key);
+    return fresh;
+  });
+  return unique.length === 1
+    ? (unique[0] ?? level)
     : { op: "and", conditions: unique };
 }
 

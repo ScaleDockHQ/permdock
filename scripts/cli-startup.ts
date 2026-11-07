@@ -1,5 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -23,6 +30,7 @@ const COMMANDS = {
   "catalog --help": ["catalog", "--help"],
   "doctor --help": ["doctor", "--help"],
   "generate --help": ["generate", "--help"],
+  "generate --check": ["generate", "--check"],
   "cloud push --help": ["cloud", "push", "--help"],
 } as const;
 
@@ -44,9 +52,40 @@ interface Budget {
   readonly helpSlackMs: number;
 }
 
-function once(args: readonly string[]): number {
+/** Commands that need a project: the small fixture, generated once. */
+const NEEDS_PROJECT: ReadonlySet<Command> = new Set(["generate --check"]);
+
+let projectDir: string | undefined;
+
+function project(): string {
+  if (projectDir === undefined) {
+    // Under the integration workspace so `permdock` resolves from its node_modules.
+    const root = join(ROOT, "tests", "integration", "tmp");
+    mkdirSync(root, { recursive: true });
+    projectDir = mkdtempSync(join(root, "cli-startup-"));
+    cpSync(
+      join(ROOT, "tests", "integration", "fixtures", "cli-startup"),
+      projectDir,
+      { recursive: true },
+    );
+    const made = spawnSync(process.execPath, [BIN, "generate"], {
+      cwd: projectDir,
+      encoding: "utf8",
+      env: { ...process.env, NO_COLOR: "1" },
+    });
+    if (made.status !== 0) {
+      throw new Error(
+        `permdock generate exited ${String(made.status)}:\n${made.stderr}`,
+      );
+    }
+  }
+  return projectDir;
+}
+
+function once(args: readonly string[], cwd?: string): number {
   const start = performance.now();
   const result = spawnSync(process.execPath, [BIN, ...args], {
+    ...(cwd === undefined ? {} : { cwd }),
     encoding: "utf8",
     env: { ...process.env, NO_COLOR: "1" },
   });
@@ -60,8 +99,9 @@ function once(args: readonly string[]): number {
 }
 
 function median(command: Command): number {
-  once(COMMANDS[command]);
-  const runs = Array.from({ length: RUNS }, () => once(COMMANDS[command]));
+  const cwd = NEEDS_PROJECT.has(command) ? project() : undefined;
+  once(COMMANDS[command], cwd);
+  const runs = Array.from({ length: RUNS }, () => once(COMMANDS[command], cwd));
   const sorted = runs.toSorted((a, b) => a - b);
   return Math.round(sorted[Math.floor(sorted.length / 2)] ?? 0);
 }
@@ -74,6 +114,12 @@ function readBudget(): Budget {
   // SAFETY: the budget file is written by this script in this shape
   return JSON.parse(readFileSync(BUDGET, "utf8")) as Budget;
 }
+
+process.on("exit", () => {
+  if (projectDir !== undefined) {
+    rmSync(projectDir, { recursive: true, force: true });
+  }
+});
 
 const write = process.argv.includes("--write");
 const budget = readBudget();

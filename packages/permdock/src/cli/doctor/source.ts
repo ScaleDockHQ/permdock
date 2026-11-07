@@ -57,6 +57,7 @@ export const SERVER_SPECIFIERS = [
   "permdock/prisma",
   "permdock/resend",
   "permdock/scim",
+  "permdock/seeds",
   "permdock/server",
   "permdock/solid-start",
   "permdock/ssf",

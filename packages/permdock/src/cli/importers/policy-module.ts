@@ -162,7 +162,6 @@ export function emitPolicyModule(input: {
   const names = new Set([
     "definePermissions",
     "definePolicy",
-    "defineSeeds",
     "resource",
     "role",
   ]);
@@ -172,7 +171,7 @@ export function emitPolicyModule(input: {
   if (grants.some((grant) => usesPrincipal(grant.where))) {
     names.add("principal");
   }
-  const imports = `import { ${[...names].toSorted().join(", ")} } from 'permdock'`;
+  const imports = `import { ${[...names].toSorted().join(", ")} } from 'permdock'\nimport { defineSeeds } from 'permdock/seeds'`;
   const roles = input.roles
     .toSorted((a, b) => byCodePoint(a.name, b.name))
     .map((role) => {
