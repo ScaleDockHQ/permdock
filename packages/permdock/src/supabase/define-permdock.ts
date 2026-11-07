@@ -26,6 +26,7 @@ import { isRecord } from "../core/compact.ts";
 import { isSubject } from "../core/subject.ts";
 import { ownedCaches, withMembers } from "./app-members.ts";
 import { subjectFromSupabaseClient } from "./client-subject.ts";
+import { SUPABASE_OPTIONS } from "./definition-options.ts";
 import { postgrestSources } from "./postgrest.ts";
 import { createResolver, getPermissions } from "./resolver.ts";
 import { subjectFromSupabase } from "./subject.ts";
@@ -221,16 +222,4 @@ export function definePermDock<
   return withMembers(app, { ...members, [SUPABASE_OPTIONS]: subjectOptions }, [
     "fromClaims",
   ]);
-}
-
-/** Where the definition keeps its `subject` options, for the middleware entry. */
-export const SUPABASE_OPTIONS: symbol = Symbol.for("permdock.supabase");
-
-/** The `subject` options of a Supabase definition, or `undefined`. */
-export function supabaseOptionsOf(
-  policy: object,
-): SupabaseSubjectOptions | undefined {
-  const value: unknown = Reflect.get(policy, SUPABASE_OPTIONS);
-  // SAFETY: definePermDock is the only writer of this symbol and stores the options it was given.
-  return value === undefined ? undefined : (value as SupabaseSubjectOptions);
 }
