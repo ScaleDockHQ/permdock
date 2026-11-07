@@ -16,6 +16,7 @@ import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
 import { expandRoleNames } from "../../src/core/role-loading.ts";
+import { collectSnapshotGrants } from "../../src/core/snapshot-grants.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 
 const permissions = definePermissions({
@@ -110,5 +111,31 @@ describe("custom role lookup", () => {
     expect(
       expandRoleNames(names, declared, many, "t2", lookup).unknown,
     ).toStrictEqual(["c1", "ghost"]);
+  });
+});
+
+describe("custom role holders in a snapshot", () => {
+  it("attaches a tenant role's grants to the memberships of that tenant that name it", () => {
+    const customRoles = ["t0", "t1", "t2", "t3"].map((tenant) => ({
+      name: "c",
+      tenant,
+      grants: [{ permission: "post.read" }],
+    }));
+    const subject = {
+      principal: {
+        id: "u1",
+        memberships: [
+          { scope: "tenant", id: "t0", roles: ["c"] },
+          { scope: "tenant", id: "t1", roles: ["viewer"] },
+          { scope: "tenant", id: "t2", roles: ["c"] },
+        ],
+      },
+      context: {},
+    };
+    const held = collectSnapshotGrants(policy, subject, customRoles)
+      .filter((item) => item.grant.role === "c")
+      .map((item) => item.membership?.id)
+      .toSorted();
+    expect(held).toStrictEqual(["t0", "t0", "t2", "t2"]);
   });
 });
