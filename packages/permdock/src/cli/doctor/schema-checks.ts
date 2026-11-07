@@ -73,6 +73,28 @@ export function lastSegment(name: string): string {
   return bare;
 }
 
+function ifNotExistsShapes(text: string): readonly string[] {
+  const shapes: string[] = [];
+  const pattern =
+    /\bcreate\s+(table|(?:unique\s+)?index|policy)\s+if\s+not\s+exists\b/giu;
+  for (const match of text.matchAll(pattern)) {
+    const kind = captured(match, 1)
+      .toLowerCase()
+      .replace(/^unique\s+/u, "");
+    const shape = `create ${kind} if not exists`;
+    if (!shapes.includes(shape)) {
+      shapes.push(shape);
+    }
+  }
+  return shapes;
+}
+
+function dropsTriggerBeforeCreate(text: string): boolean {
+  return /\bdrop\s+trigger\b[^;]*;\s*create\s+(?:constraint\s+)?trigger\b/iu.test(
+    text,
+  );
+}
+
 function doCreates(text: string): boolean {
   const marker = /\bdo\s+(\$\$|\$[A-Za-z0-9_]*\$)/giu;
   for (const match of text.matchAll(marker)) {
@@ -147,9 +169,10 @@ function definedNames(text: string): ReadonlySet<string> {
 
 /**
  * PD095: a schema file uses a shape pg-delta rejects, or a `-- permdock:`
- * migration repeats DDL or a grant the schema file already defines. `if not
- * exists` and a drop-then-create trigger stay, because the generator and
- * better-supabase emit both.
+ * migration repeats DDL or a grant the schema file already defines. The shapes
+ * include `if not exists` on `create table`, `create index` and `create
+ * policy`, and a `drop trigger` before a `create trigger`: pg-delta diffs the
+ * file, so each is `create`, `create or replace` or nothing.
  */
 export function pd095(
   cwd: string,
@@ -174,6 +197,10 @@ export function pd095(
     );
     if (repeated.length > 0) {
       problems.push("two definitions of one signature");
+    }
+    problems.push(...ifNotExistsShapes(file.text));
+    if (dropsTriggerBeforeCreate(file.text)) {
+      problems.push("drop trigger before create trigger");
     }
     if (triggerOnView(file.text, viewNames(file.text))) {
       problems.push("a trigger on a view");
