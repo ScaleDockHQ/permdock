@@ -9,6 +9,7 @@ import {
   pd079,
   pd082,
   pd087,
+  pd100,
 } from "../../src/cli/doctor/better-supabase.ts";
 import {
   betterSupabaseDefaults,
@@ -430,6 +431,47 @@ describe("doctor better-supabase", () => {
         },
       );
       expect(await pd079({ cwd: badCatalog, config })).toStrictEqual([]);
+    });
+  });
+
+  describe("PD100", () => {
+    const config: PermDockConfig = {
+      permissions: "src/permissions.ts",
+      policy: "src/policy.ts",
+    };
+    const sources = [
+      {
+        file: "src/permdock.ts",
+        text: 'import { definePermDock } from "permdock/supabase";\n',
+      },
+      {
+        file: "src/ok.ts",
+        text: 'import { definePermDock } from "permdock/better-supabase";\nimport { createPermDock } from "permdock/supabase/middleware";\n',
+      },
+      {
+        file: "src/types.ts",
+        text: 'import type { definePermDock } from "permdock/supabase";\n',
+      },
+    ];
+
+    it("flags a permdock/supabase factory next to a better-supabase config", async () => {
+      const cwd = policyProject(
+        { policy: POLICY },
+        { "better-supabase.config.mjs": betterSupabaseConfig({}) },
+      );
+      const findings = await pd100({ cwd, config }, sources);
+      expect(findings).toStrictEqual([
+        expect.objectContaining({
+          code: "PD100",
+          severity: "error",
+          target: "src/permdock.ts",
+        }),
+      ]);
+    });
+
+    it("stays quiet without a better-supabase config", async () => {
+      const cwd = policyProject({ policy: POLICY }, {});
+      expect(await pd100({ cwd, config }, sources)).toStrictEqual([]);
     });
   });
 

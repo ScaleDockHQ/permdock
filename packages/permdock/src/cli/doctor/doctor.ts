@@ -31,7 +31,7 @@ import {
 import { pd039 } from "../supabase-setup.ts";
 import { pd064 } from "./assignments.ts";
 import { applyDoctorIgnores, reported } from "./baseline.ts";
-import { pd078, pd079, pd082, pd087, pd094 } from "./better-supabase.ts";
+import { pd078, pd079, pd082, pd087, pd094, pd100 } from "./better-supabase.ts";
 import { pd002, pd003, pd004, pd067, pd070 } from "./catalog.ts";
 import { pd077 } from "./config-names.ts";
 import { pd042, pd043, pd068, pd069 } from "./declarative.ts";
@@ -437,6 +437,11 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     code: "PD099",
     groups: ["rls", "supabase"],
     run: (project) => pd099(project.cwd, project.files),
+  },
+  {
+    code: "PD100",
+    groups: ["better-supabase", "supabase"],
+    run: (project) => pd100(project, project.sources()),
   },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
   { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },

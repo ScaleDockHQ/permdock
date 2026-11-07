@@ -3,7 +3,11 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import type { BetterSupabaseActiveTenant } from "../../better-supabase/active-tenant.ts";
-import type { DoctorFinding, DoctorInput } from "../shared/doctor-types.ts";
+import type {
+  DoctorFinding,
+  DoctorInput,
+  DoctorSource,
+} from "../shared/doctor-types.ts";
 
 import { activeTenantMismatch } from "../../better-supabase/active-tenant.ts";
 import { parseCatalog } from "../../catalog/parse.ts";
@@ -317,4 +321,32 @@ export async function pd094(
     message: `better-supabase config sets ${item.name}, which the provider supplies`,
     fix: `delete ${item.name} from the better-supabase config`,
   }));
+}
+
+const SUPABASE_FACTORY =
+  /import\s+(?!type\b)(?:[^;'"]*?\{[^}]*\bdefinePermDock\b[^}]*\}[^;'"]*?)from\s+["']permdock\/supabase["']/u;
+
+/**
+ * PD100: a source file imports `definePermDock` from `permdock/supabase` while
+ * a better-supabase config exists. Two factories mean two version, instance and
+ * subject caches; `definePermDock` from `permdock/better-supabase` is the one
+ * factory for an app with both adapters.
+ */
+export async function pd100(
+  input: DoctorInput,
+  sources: readonly DoctorSource[],
+): Promise<readonly DoctorFinding[]> {
+  const config = await betterSupabaseConfig(lookupOf(input));
+  if (config === undefined) {
+    return [];
+  }
+  return sources
+    .filter((source) => SUPABASE_FACTORY.test(source.text))
+    .map((source) => ({
+      code: "PD100",
+      severity: "error" as const,
+      target: source.file,
+      message: `${source.file} imports definePermDock from permdock/supabase while a better-supabase config exists, so the app keeps two caches`,
+      fix: "import definePermDock from permdock/better-supabase, pass it the subject options, and hand the result to permdock/supabase/middleware createPermDock",
+    }));
 }

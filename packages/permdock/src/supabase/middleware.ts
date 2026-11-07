@@ -13,7 +13,6 @@ import type { Principal, Subject } from "../core/subject.ts";
 import type { ServerAdapterServices } from "../server/bind.ts";
 import type { RequestContext } from "../server/create.ts";
 import type { OpenApiHooks } from "../server/server-types.ts";
-import type { SupabasePermDock } from "./define-permdock.ts";
 import type { SupabaseRpcCaller } from "./postgrest.ts";
 
 import { withApp } from "../core/app.ts";
@@ -212,6 +211,21 @@ function isRpcCaller(value: unknown): value is SupabaseRpcCaller {
   );
 }
 
+/**
+ * A `definePermDock` result that reads memberships through a backend client:
+ * `permdock/supabase`'s, or `permdock/better-supabase`'s with its `subject`
+ * options. Structural, so this entry never imports the adapter.
+ */
+export type SupabaseMiddlewareDefinition<
+  TUser = unknown,
+  TPrincipal extends Principal = Principal,
+  V extends PolicyVocabulary = PolicyVocabulary,
+  TClient extends object = object,
+> = Policy<TUser, TPrincipal, V> & {
+  readonly client: () => Promise<TClient>;
+  readonly forClient: (client: TClient) => Policy<TUser, TPrincipal, V>;
+};
+
 /** The options a Supabase definition lets `subject` default. */
 export type SupabaseDefinitionMiddlewareOptions<TUser = unknown> = Omit<
   SupabaseMiddlewarePermDockOptions<TUser>,
@@ -231,9 +245,9 @@ export function createPermDock<
   TUser,
   TPrincipal extends Principal = Principal,
   V extends PolicyVocabulary = PolicyVocabulary,
-  TClient extends SupabaseRpcCaller = SupabaseRpcCaller,
+  TClient extends object = object,
 >(
-  app: SupabasePermDock<TUser, TPrincipal, V, TClient>,
+  app: SupabaseMiddlewareDefinition<TUser, TPrincipal, V, TClient>,
   options?: SupabaseDefinitionMiddlewareOptions<TUser>,
 ): SupabaseMiddlewarePermDock<V>;
 export function createPermDock<
@@ -320,9 +334,13 @@ export function createPermDock<
     if (!isDefinition) {
       return base;
     }
-    // SAFETY: a Supabase definition has client(), forClient() and the policy shape.
-    const app = policy as unknown as SupabasePermDock<TUser, TPrincipal, V>;
-    let client: SupabaseRpcCaller | undefined;
+    // SAFETY: a definition carrying SUPABASE_OPTIONS has client(), forClient() and the policy shape.
+    const app = policy as unknown as SupabaseMiddlewareDefinition<
+      TUser,
+      TPrincipal,
+      V
+    >;
+    let client: object | undefined;
     try {
       client = await app.client();
     } catch (error) {
