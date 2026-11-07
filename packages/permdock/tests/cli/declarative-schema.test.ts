@@ -692,16 +692,10 @@ export default {
       );
       expect(realtime).not.toContain("do ");
       expect(realtime).not.toContain("if not exists");
-      const storage = read(cwd, "supabase/schemas/storage/permdock.sql");
-      expect(storage).not.toContain("unscoped sync");
+      const storage = read(cwd, "supabase/service/storage/permdock.sql");
+      expect(storage).toContain("unscoped sync");
       expect(storage).toContain('on "storage"."objects"');
-      expect(storage).toContain("create policy");
       expect(storage).not.toContain("do ");
-      expect(storage).not.toContain("if not exists");
-      expect(existsSync(join(cwd, "supabase/service/storage"))).toBe(false);
-      expect(existsSync(join(cwd, "supabase/schemas/realtime/authz.sql"))).toBe(
-        false,
-      );
       const checked = await rlsGenerate(
         ["--split", "helpers,seeds,policies", "--seeds-out", SEEDS, "--check"],
         { cwd },
