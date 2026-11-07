@@ -981,6 +981,7 @@
   ],
   "./cli/plugins/rls": ["rls"],
   "./cli/plugins/supabase-hook": ["supabaseHook"],
+  "./cli/plugins/supabase": ["supabase"],
   "./cli/plugins/powersync": ["powersync"],
   "./cli/plugins/better-supabase": ["betterSupabase"],
   "./cli/plugins/openapi": ["openapi"],

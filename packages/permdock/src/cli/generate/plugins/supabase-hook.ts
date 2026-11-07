@@ -21,6 +21,7 @@ export function supabaseHook(
   return definePlugin({
     name: "supabaseHook",
     version: pluginVersion(),
+    conflicts: ["supabase"],
     after: ["rls"],
     inputs: (ctx) => schemaInputs(ctx, options),
     plan: () => [

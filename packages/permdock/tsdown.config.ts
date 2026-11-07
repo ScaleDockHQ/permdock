@@ -161,6 +161,7 @@ export default defineConfig({
     "src/cli/generate/watch-worker.ts",
     "src/cli/plugins/rls.ts",
     "src/cli/plugins/supabase-hook.ts",
+    "src/cli/plugins/supabase.ts",
     "src/cli/plugins/powersync.ts",
     "src/cli/plugins/better-supabase.ts",
     "src/cli/plugins/openapi.ts",

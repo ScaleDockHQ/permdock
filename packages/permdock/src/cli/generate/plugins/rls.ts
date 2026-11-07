@@ -15,6 +15,7 @@ export function rls(options: RlsPluginOptions = {}): PermDockPlugin {
   return definePlugin({
     name: "rls",
     version: pluginVersion(),
+    conflicts: ["supabase"],
     inputs: (ctx) => schemaInputs(ctx, options),
     plan: () => [{ id: "sql", out }],
     emit: async (task, _model, source) => {

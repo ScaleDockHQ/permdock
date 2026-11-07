@@ -89,6 +89,8 @@ export type PermDockPlugin = {
   readonly name: string;
   readonly version: string;
   readonly after: readonly string[];
+  /** Names of plugins that write the same output; configuring both throws. */
+  readonly conflicts?: readonly string[];
   readonly inputs: (
     ctx: ProjectContext,
   ) => PluginInputs | Promise<PluginInputs>;
@@ -116,6 +118,7 @@ export type PluginInit = {
   readonly name: string;
   readonly version: string;
   readonly after?: readonly string[];
+  readonly conflicts?: readonly string[];
   readonly inputs?: PermDockPlugin["inputs"];
   readonly plan: PermDockPlugin["plan"];
   readonly emit: PermDockPlugin["emit"];
@@ -145,6 +148,9 @@ export function definePlugin(init: PluginInit): PermDockPlugin {
     name: init.name,
     version: init.version,
     after: Object.freeze([...(init.after ?? [])]),
+    ...(init.conflicts === undefined
+      ? {}
+      : { conflicts: Object.freeze([...init.conflicts]) }),
     inputs: init.inputs ?? emptyInputs,
     plan: init.plan,
     emit: init.emit,
@@ -190,6 +196,14 @@ export function orderPlugins(
       throw new Error(`PermDock: duplicate plugin '${plugin.name}'`);
     }
     byName.set(plugin.name, { plugin, left: 0 });
+  }
+  for (const plugin of plugins) {
+    const clash = (plugin.conflicts ?? []).find((name) => byName.has(name));
+    if (clash !== undefined) {
+      throw new Error(
+        `PermDock: plugin '${plugin.name}' already emits what '${clash}' emits; remove one of them`,
+      );
+    }
   }
   const dependents = new Map<
     string,
