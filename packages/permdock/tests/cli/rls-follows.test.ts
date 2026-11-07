@@ -9,7 +9,13 @@ import {
 } from "../../src/cli/rls/follows.ts";
 import { tablelessResources } from "../../src/cli/sql/tables.ts";
 import { scopeList } from "../../src/core/scopes.ts";
-import { definePermissions, definePolicy, resource } from "../../src/index.ts";
+import {
+  allow,
+  definePermissions,
+  definePolicy,
+  resource,
+  role,
+} from "../../src/index.ts";
 
 const permissions = definePermissions({
   job: resource({
@@ -54,13 +60,32 @@ describe("rls.tables follows and walk", () => {
     const select = policies[0];
     expect(select?.table).toBe("public.job_parties");
     expect(select?.using).toContain(
-      `exists (select 1 from "public"."jobs" p where p."id" = "job_parties"."job_id" and "permdock".can_job(p, 'job.read'::text))`,
+      `"job_parties"."job_id" = any(array(select "permdock".permitted_job_rows('job.read')))`,
     );
-    expect(policies[1]?.check).toContain("can_job(p, 'job.update'::text)");
-    expect(policies[2]?.using).toContain("can_job(p, 'job.update'::text)");
-    expect(policies[2]?.check).toContain("can_job(p, 'job.update'::text)");
+    expect(policies[1]?.check).toContain("permitted_job_rows('job.update')");
+    expect(policies[2]?.using).toContain("permitted_job_rows('job.update')");
+    expect(policies[2]?.check).toContain("permitted_job_rows('job.update')");
+    expect(policies.map((item) => item.using).join(" ")).not.toContain(
+      "can_job",
+    );
     expect(policies.map((item) => item.using).join(" ")).not.toContain(
       "jobParty",
+    );
+  });
+
+  it("reads the parent set one tenant at a time when every allow is a root-scope role", () => {
+    const rooted = definePolicy(permissions, {
+      scopes: { tenant: { key: "orgId" } },
+      roles: [role("member", [allow(permissions.job.read)], { on: "tenant" })],
+      subject: () => null,
+    });
+    const [select] = followPolicies(
+      { ...ctx, scopes: scopeList(rooted.scopes) },
+      rooted,
+      tables,
+    );
+    expect(select?.using).toBe(
+      `"job_parties"."job_id" = any(array(select r from unnest(array(select "permdock".permitted_tenant_ids_by_permission('job.read', true))) t(id) cross join lateral "permdock".permitted_job_rows('job.read', t.id) r))`,
     );
   });
 

@@ -432,6 +432,32 @@ function tenantFirstOf(
 }
 
 /**
+ * The ids of a resource's rows a permission reaches, as one uncorrelated
+ * `select`, for `<fk> = any(array(<select>))`. A permission every allow of
+ * which is a root-scope role reads one tenant at a time through the tenant
+ * column's index (`permitted_<resource>_rows(p, t)` over the tenants the caller
+ * holds it in); any other reads `permitted_<resource>_rows(p)`.
+ */
+export function rowSetSql(
+  ctx: RlsSqlContext,
+  policy: Policy,
+  node: ResourceNode,
+  permission: string,
+): string {
+  const literal = quoteLiteral(permission);
+  const rows = qualified(ctx, rowsHelper(node.name));
+  const root = rootScope(ctx.scopes);
+  if (
+    root !== undefined &&
+    tenantFirstOf(ctx, policy, node)?.(permission) !== undefined
+  ) {
+    const tenants = qualified(ctx, permittedByPermissionHelper(root));
+    return `select r from unnest(array(select ${tenants}(${literal}, true))) t(id) cross join lateral ${rows}(${literal}, t.id) r`;
+  }
+  return `select ${rows}(${literal})`;
+}
+
+/**
  * A `(select <schema>.<function>(<literal>?))`: one uncorrelated call, which
  * Postgres runs once per statement as an InitPlan or a hashed subplan.
  */

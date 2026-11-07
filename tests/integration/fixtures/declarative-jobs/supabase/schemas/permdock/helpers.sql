@@ -331,6 +331,35 @@ $$;
 revoke execute on function "permdock".permitted_tenant_ids(text) from public, anon;
 grant execute on function "permdock".permitted_tenant_ids(text) to authenticated;
 
+-- tenant ids a grant key reaches, as one array, for `<column> = any(...)`
+create or replace function "permdock".permitted_tenant_id_array(p_grant text)
+returns uuid[]
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select coalesce(array_agg(i), '{}'::uuid[]) from "permdock".permitted_tenant_ids(p_grant) i
+$$;
+revoke execute on function "permdock".permitted_tenant_id_array(text) from public, anon;
+grant execute on function "permdock".permitted_tenant_id_array(text) to authenticated;
+-- whether a grant key reaches one tenant
+create or replace function "permdock".permdock_tenant_has(p_grant text, p_tenant uuid)
+returns boolean
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select p_tenant = any("permdock".permitted_tenant_id_array(p_grant))
+$$;
+revoke execute on function "permdock".permdock_tenant_has(text, uuid) from public, anon;
+grant execute on function "permdock".permdock_tenant_has(text, uuid) to authenticated;
+
 create or replace function "permdock".member_tenant_ids()
 returns setof uuid
 language plpgsql
@@ -406,6 +435,21 @@ as $$
 $$;
 revoke execute on function "permdock".permitted_team_ids(text) from public, anon;
 grant execute on function "permdock".permitted_team_ids(text) to authenticated;
+
+-- team ids a grant key reaches, as one array, for `<column> = any(...)`
+create or replace function "permdock".permitted_team_id_array(p_grant text)
+returns uuid[]
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select coalesce(array_agg(i), '{}'::uuid[]) from "permdock".permitted_team_ids(p_grant) i
+$$;
+revoke execute on function "permdock".permitted_team_id_array(text) from public, anon;
+grant execute on function "permdock".permitted_team_id_array(text) to authenticated;
 
 create or replace function "permdock".member_team_ids()
 returns setof uuid
@@ -2531,6 +2575,52 @@ end
 $$;
 revoke execute on function "permdock".permitted_jobs_rows(text, uuid[]) from public, anon;
 grant execute on function "permdock".permitted_jobs_rows(text, uuid[]) to authenticated;
+create or replace function "permdock".permitted_jobs_ids_in(p_permission text, p_ids uuid[])
+returns setof uuid
+language sql
+stable
+security definer
+cost 1000
+set search_path = ''
+as $$
+  select i from "permdock".permitted_jobs_rows(p_permission, p_ids) i
+$$;
+revoke execute on function "permdock".permitted_jobs_ids_in(text, uuid[]) from public, anon;
+grant execute on function "permdock".permitted_jobs_ids_in(text, uuid[]) to authenticated;
+
+-- jobs: the same set within one tenant, by the index on organization_id
+create or replace function "permdock".permitted_jobs_rows(p_permission text, p_tenant uuid)
+returns setof uuid
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select "id"::uuid from "public"."jobs" as permdock_row
+  where permdock_row."organization_id" = p_tenant
+    and case p_permission
+    when 'jobs.read' then coalesce((("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read')))) or (select "permdock".permdock_has('jobs.read')) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@own')))) and ("owner_id" = (select "permdock".permdock_user_id()))) or (("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@team')))) and ("private"."is_team_member"("owner_id", "team_id"))) or ("organization_id" = any(array(select "permdock".permitted_tenant_ids('jobs.read@all')))) or ((select "permdock".permdock_has('jobs.read@own')) and ("owner_id" = (select "permdock".permdock_user_id()))) or ((select "permdock".permdock_has('jobs.read@team')) and ("private"."is_team_member"("owner_id", "team_id"))) or (select "permdock".permdock_has('jobs.read@all'))), false)
+    else "permdock".permitted_jobs_match(permdock_row, p_permission)
+  end
+$$;
+revoke execute on function "permdock".permitted_jobs_rows(text, uuid) from public, anon;
+grant execute on function "permdock".permitted_jobs_rows(text, uuid) to authenticated;
+-- jobs: how many of them the caller may act on, counted up to p_cap
+create or replace function "permdock".permitted_jobs_count(p_permission text, p_tenant uuid, p_cap integer)
+returns integer
+language sql
+stable
+security definer
+cost 1000
+parallel safe
+set search_path = ''
+as $$
+  select count(*)::integer from (select 1 from "permdock".permitted_jobs_rows(p_permission, p_tenant) limit greatest(p_cap, 0)) s
+$$;
+revoke execute on function "permdock".permitted_jobs_count(text, uuid, integer) from public, anon;
+grant execute on function "permdock".permitted_jobs_count(text, uuid, integer) to authenticated;
 create or replace function "permdock".can_jobs(p_row "public"."jobs", p_permission text)
 returns boolean
 language sql

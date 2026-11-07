@@ -16,6 +16,7 @@ import {
   quoteQualified,
 } from "../sql/quote.ts";
 import { tableNameOf } from "../sql/tables.ts";
+import { rowSetSql } from "./rows.ts";
 
 function isOwner(entry: RlsTable): entry is RlsTableOwner {
   return typeof entry === "object" && !("tableOf" in entry);
@@ -39,10 +40,10 @@ function policyName(table: string, command: SqlCommand): string {
 }
 
 /**
- * Child policies for `rls.tables.<resource>.follows`. Select calls
- * `can_<resource>(parent, '<resource>.read')`. Insert, update and delete call
- * it with `<resource>.update`. The child resource gets no permission of its
- * own.
+ * Child policies for `rls.tables.<resource>.follows`. Select calls `<fk> =
+ * any(array(<parent rows the permission reaches>))` with `<resource>.read`.
+ * Insert, update and delete use `<resource>.update`. The child resource gets no
+ * permission of its own.
  */
 export function followPolicies(
   ctx: RlsSqlContext,
@@ -66,14 +67,11 @@ export function followPolicies(
         `PermDock CLI: rls.tables.${resource} is not a SQL name, so follows cannot call can_${resource}`,
       );
     }
-    const parent = quoteQualified(tableNameOf(entry, resource, tables));
-    const id = quoteIdent(node.id);
-    const can = qualified(ctx, `can_${sql}`);
     for (const [child, fk] of Object.entries(entry.follows)) {
       const childName = quoteIdent(bare(child));
       const column = quoteIdent(fk);
       const exists = (action: "read" | "update"): string =>
-        `exists (select 1 from ${parent} p where p.${id} = ${childName}.${column} and ${can}(p, ${quoteLiteral(`${resource}.${action}`)}::text))`;
+        `${childName}.${column} = any(array(${rowSetSql(ctx, policy, node, `${resource}.${action}`)}))`;
       const commands: readonly [
         SqlCommand,
         "read" | "update",
