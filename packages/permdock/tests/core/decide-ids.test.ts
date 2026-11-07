@@ -128,7 +128,7 @@ describe("decideIds at scale", () => {
       id: `d${String(index)}`,
       orgId: "acme",
     }));
-    const rows = new Proxy(list, {
+    const watched = new Proxy(list, {
       get(target, key, receiver) {
         if (typeof key === "string" && /^\d+$/u.test(key)) {
           reads += 1;
@@ -138,7 +138,7 @@ describe("decideIds at scale", () => {
     });
     const permdock = getPermDockSync(policy, subject);
     const ids = list.map((row) => row.id);
-    await permdock.decideIds(permissions.doc.read, ids, { data: () => rows });
+    await permdock.decideIds(permissions.doc.read, ids, { data: () => watched });
     expect(reads).toBeLessThanOrEqual(list.length * 2);
   });
 });
