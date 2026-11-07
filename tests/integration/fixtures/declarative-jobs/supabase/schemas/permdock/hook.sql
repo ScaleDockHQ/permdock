@@ -382,22 +382,32 @@ begin
     )) order by c.tenant_id::text, c.scope, c.scope_id, c.role), '[]'::jsonb)
     into custom
     from (
-      select tenant_id, scope, scope_id, role from "permdock".custom_role_permissions
-      union
-      select tenant_id, scope, scope_id, role from "permdock".custom_role_includes
-    ) c
-    where (c.scope = 'global' and c.tenant_id is null and held ? c.role)
-      or exists (
-        select 1
+      select p.tenant_id, p.scope, p.scope_id, p.role
+      from (
+        select m ->> 'scope' as scope, m ->> 'id' as id,
+          case when m ->> 'scope' = 'tenant' then m ->> 'id' else m -> 'within' ->> 'tenant' end as tenant,
+          r.role
         from jsonb_array_elements(memberships) m
-        where m -> 'roles' ? c.role
-          and m ->> 'scope' = c.scope
-          and (
-            (c.tenant_id is null and c.scope_id is null)
-            or c.tenant_id::text = case when m ->> 'scope' = 'tenant' then m ->> 'id' else m -> 'within' ->> 'tenant' end
-          )
-          and (c.scope_id is null or c.scope_id = m ->> 'id')
-      );
+        cross join lateral jsonb_array_elements_text(case when jsonb_typeof(m -> 'roles') = 'array' then m -> 'roles' else '[]'::jsonb end) r(role)
+      ) h
+      cross join lateral (
+        select t.tenant_id, t.scope, t.scope_id, t.role from "permdock".custom_role_permissions t
+        where t.scope = h.scope and t.role = h.role
+          and (t.tenant_id is null and t.scope_id is null or t.tenant_id = h.tenant::uuid)
+          and (t.scope_id is null or t.scope_id = h.id)
+        union
+        select t.tenant_id, t.scope, t.scope_id, t.role from "permdock".custom_role_includes t
+        where t.scope = h.scope and t.role = h.role
+          and (t.tenant_id is null and t.scope_id is null or t.tenant_id = h.tenant::uuid)
+          and (t.scope_id is null or t.scope_id = h.id)
+      ) p
+      union
+      select t.tenant_id, t.scope, t.scope_id, t.role from "permdock".custom_role_permissions t
+      where t.scope = 'global' and t.tenant_id is null and t.role in (select jsonb_array_elements_text(held))
+      union
+      select t.tenant_id, t.scope, t.scope_id, t.role from "permdock".custom_role_includes t
+      where t.scope = 'global' and t.tenant_id is null and t.role in (select jsonb_array_elements_text(held))
+    ) c;
   select v.version into ver from "permdock"."permdock_authz_version" v where v.user_id = uid;
   ver := coalesce(ver, 0);
   select coalesce((

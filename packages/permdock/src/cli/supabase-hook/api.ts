@@ -9,6 +9,7 @@ import {
 import { configError } from "../core/errors.ts";
 import { resolveAuthorize } from "../rls/rbac.ts";
 import { activeRowSql } from "../sql/active.ts";
+import { firstScopeType, sqlType } from "../sql/columns.ts";
 import { quoteIdent, quoteLiteral, quoteTable } from "../sql/quote.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
@@ -68,7 +69,10 @@ export function subjectForSql(parts: Parts, config: PermDockConfig): string {
     .join("");
   const custom =
     customRolesOn(config.rls) && resolveAuthorize(config) === "database"
-      ? customRolesOfSql(parts)
+      ? customRolesOfSql(
+          parts,
+          sqlType(firstScopeType(config.rls?.scopeTypes, parts.scopes)),
+        )
       : "";
   return `-- the subject the hook would mint for p_user, for a backend acting for a stored user; no client role may execute it
 create or replace function ${fn}(p_user uuid)
@@ -270,11 +274,16 @@ revoke execute on function ${fn}(text, text) from public, anon, authenticated;`;
  * the global roles, each with its grants and includes in `CustomRole` form. A
  * shadowed tenant role comes along; `resolveCustomRole`'s callers drop it.
  */
-function customRolesOfSql(parts: Parts): string {
+function customRolesOfSql(parts: Parts, tenantType: string): string {
   const helpers = quoteIdent(parts.helpers.schema);
   const perms = `${helpers}.custom_role_permissions`;
   const includes = `${helpers}.custom_role_includes`;
   const root = quoteLiteral(parts.root);
+  // Each held (scope, instance, role) probes the tables by tenant_id, scope and role; the parameter is cast, never the column, so the probe index applies.
+  const held = (alias: string): string =>
+    `${alias}.scope = h.scope and ${alias}.role = h.role
+          and (${alias}.tenant_id is null and ${alias}.scope_id is null or ${alias}.tenant_id = h.tenant::${tenantType})
+          and (${alias}.scope_id is null or ${alias}.scope_id = h.id)`;
   const match = `p.tenant_id is not distinct from c.tenant_id and p.scope = c.scope and p.scope_id is not distinct from c.scope_id and p.role = c.role`;
   return `
   select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
@@ -300,20 +309,26 @@ function customRolesOfSql(parts: Parts): string {
     )) order by c.tenant_id::text, c.scope, c.scope_id, c.role), '[]'::jsonb)
     into custom
     from (
-      select tenant_id, scope, scope_id, role from ${perms}
-      union
-      select tenant_id, scope, scope_id, role from ${includes}
-    ) c
-    where (c.scope = 'global' and c.tenant_id is null and held ? c.role)
-      or exists (
-        select 1
+      select p.tenant_id, p.scope, p.scope_id, p.role
+      from (
+        select m ->> 'scope' as scope, m ->> 'id' as id,
+          case when m ->> 'scope' = ${root} then m ->> 'id' else m -> 'within' ->> ${root} end as tenant,
+          r.role
         from jsonb_array_elements(memberships) m
-        where m -> 'roles' ? c.role
-          and m ->> 'scope' = c.scope
-          and (
-            (c.tenant_id is null and c.scope_id is null)
-            or c.tenant_id::text = case when m ->> 'scope' = ${root} then m ->> 'id' else m -> 'within' ->> ${root} end
-          )
-          and (c.scope_id is null or c.scope_id = m ->> 'id')
-      );`;
+        cross join lateral jsonb_array_elements_text(case when jsonb_typeof(m -> 'roles') = 'array' then m -> 'roles' else '[]'::jsonb end) r(role)
+      ) h
+      cross join lateral (
+        select t.tenant_id, t.scope, t.scope_id, t.role from ${perms} t
+        where ${held("t")}
+        union
+        select t.tenant_id, t.scope, t.scope_id, t.role from ${includes} t
+        where ${held("t")}
+      ) p
+      union
+      select t.tenant_id, t.scope, t.scope_id, t.role from ${perms} t
+      where t.scope = 'global' and t.tenant_id is null and t.role in (select jsonb_array_elements_text(held))
+      union
+      select t.tenant_id, t.scope, t.scope_id, t.role from ${includes} t
+      where t.scope = 'global' and t.tenant_id is null and t.role in (select jsonb_array_elements_text(held))
+    ) c;`;
 }

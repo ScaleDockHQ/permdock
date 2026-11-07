@@ -71,6 +71,9 @@ alter table "permdock".custom_role_permissions add constraint "custom_role_permi
 alter table "permdock".custom_role_permissions add column if not exists level text check (level ~ '^[a-z][a-z0-9_]*$');
 create unique index "custom_role_permissions_nnd_key"
   on "permdock".custom_role_permissions (tenant_id, scope, scope_id, role, permission, effect, level) nulls not distinct;
+-- the probe's equality columns lead, so one range scan reads a role's rows whatever its instance pin
+create index "custom_role_permissions_probe_idx"
+  on "permdock".custom_role_permissions (tenant_id, scope, role) include (scope_id, permission, effect, level);
 -- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
 alter table "permdock".custom_role_permissions add column if not exists id bigint generated always as identity primary key;
 alter table "permdock".custom_role_permissions enable row level security;
@@ -92,6 +95,9 @@ alter table "permdock".custom_role_includes add constraint "custom_role_includes
 );
 create unique index "custom_role_includes_nnd_key"
   on "permdock".custom_role_includes (tenant_id, scope, scope_id, role, include_role) nulls not distinct;
+-- the probe's equality columns lead, so one range scan reads a role's rows whatever its instance pin
+create index "custom_role_includes_probe_idx"
+  on "permdock".custom_role_includes (tenant_id, scope, role) include (scope_id, include_role);
 -- a row identity for triggers the application adds, such as an audit trigger that reads the primary key
 alter table "permdock".custom_role_includes add column if not exists id bigint generated always as identity primary key;
 alter table "permdock".custom_role_includes enable row level security;
