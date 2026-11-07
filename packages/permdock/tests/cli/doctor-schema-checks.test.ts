@@ -105,6 +105,38 @@ grant select on table public.notes to authenticated;
     expect(repeated?.message).toContain("notes");
   });
 
+  it("flags if not exists on create table, index and policy, and a drop-then-create trigger", () => {
+    const cwd = project();
+    put(
+      cwd,
+      "supabase/schemas/permdock/helpers.sql",
+      `create table if not exists public.notes (id int);
+create unique index if not exists notes_id on public.notes (id);
+create index if not exists notes_id2 on public.notes (id);
+create policy if not exists p on public.notes for select using (true);
+drop trigger if exists notes_t on public.notes;
+create trigger notes_t after insert on public.notes execute function permdock.kept();
+`,
+    );
+    const message = pd095(cwd, nodeFiles)[0]?.message ?? "";
+    expect(message).toContain("create table if not exists");
+    expect(message).toContain("create index if not exists");
+    expect(message).toContain("create policy if not exists");
+    expect(message).toContain("drop trigger before create trigger");
+  });
+
+  it("allows create or replace trigger and a schema if not exists", () => {
+    const cwd = project();
+    put(
+      cwd,
+      "supabase/schemas/permdock/helpers.sql",
+      `create schema if not exists permdock;
+create or replace trigger notes_t after insert on public.notes execute function permdock.kept();
+`,
+    );
+    expect(pd095(cwd, nodeFiles)).toStrictEqual([]);
+  });
+
   it("returns no findings when the schema directory is absent", () => {
     expect(pd095(project(), nodeFiles)).toStrictEqual([]);
   });
