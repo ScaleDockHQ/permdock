@@ -458,8 +458,9 @@ export default {
       expect(
         existsSync(join(cwd, "supabase/schemas/public/policies/permdock.sql")),
       ).toBe(false);
-      expect(first.stderr).toContain("skipped policies");
-      expect(first.stderr).toContain("follows");
+      expect(first.stdout + first.stderr).toContain(
+        "the rls.tables.<resource>.follows policies are still written to the follows part",
+      );
       const checked = await rlsGenerate([...args, "--check"], { cwd });
       expect(checked.code).toBe(0);
     });

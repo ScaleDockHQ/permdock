@@ -36,8 +36,18 @@ export type GeneratedPolicies = {
   readonly helpersOnly: boolean;
   readonly force: boolean;
   readonly views: readonly FieldView[];
-  /** The table policies, with the read-only actor policies over them. */
+  /**
+   * The table policies and the `follows` child policies, with the read-only
+   * actor policies over them: the single-file output.
+   */
   readonly policies: readonly CompiledPolicy[];
+  /** The table policies alone: the `policies` part. */
+  readonly parentPolicies: readonly CompiledPolicy[];
+  /**
+   * The `rls.tables.<resource>.follows` child policies: the `follows` part,
+   * which is written with or without the `policies` part.
+   */
+  readonly followPolicies: readonly CompiledPolicy[];
   /** The `realtime.messages` and `storage.objects` policies. */
   readonly helperTables?: string;
   /** Plain `realtime.messages` policies, written under `<root>/realtime/`. */
@@ -245,14 +255,18 @@ export function generatePolicies(
   }
   const servicePolicies =
     tablePolicies.length === 0 || helpersOnly ? [] : withActors(tablePolicies);
+  const parentPolicies = helpersOnly ? [] : withActors(assembled);
+  const childPolicies = helpersOnly
+    ? []
+    : withActors(followPolicies(ctx, policy, rls?.tables));
   const generated = {
     compiled,
     helpersOnly,
     force,
     views,
-    policies: helpersOnly
-      ? []
-      : withActors([...assembled, ...followPolicies(ctx, policy, rls?.tables)]),
+    policies: [...parentPolicies, ...childPolicies],
+    parentPolicies,
+    followPolicies: childPolicies,
     ...(actorGuards.length === 0
       ? {}
       : {

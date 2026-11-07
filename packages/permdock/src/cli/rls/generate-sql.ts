@@ -601,7 +601,8 @@ export function generateSql(
   }
   const emitted = emitTarget(input, built, generated, preamble);
   const {
-    policies,
+    parentPolicies,
+    followPolicies: childPolicies,
     force,
     views,
     helperTables,
@@ -626,13 +627,24 @@ export function generateSql(
     ),
     parts: (indexes) => ({
       policies: dialectRoles(
-        withHelperTables(emitSql(policies, "", force, views), helperTables),
+        withHelperTables(
+          emitSql(parentPolicies, "", force, views),
+          helperTables,
+        ),
         ctx.dialect,
       ),
       declarativePolicies: dialectRoles(
-        emitSql(policies, "", force, views),
+        emitSql(parentPolicies, "", force, views),
         ctx.dialect,
       ),
+      ...(childPolicies.length === 0
+        ? {}
+        : {
+            follows: dialectRoles(
+              emitSql(childPolicies, "", force, []),
+              ctx.dialect,
+            ),
+          }),
       ...(realtimePolicies === undefined
         ? {}
         : { realtimePolicies: dialectRoles(realtimePolicies, ctx.dialect) }),

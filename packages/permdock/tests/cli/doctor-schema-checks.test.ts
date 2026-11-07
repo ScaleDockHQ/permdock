@@ -13,6 +13,7 @@ import {
   matchStart,
   pd095,
   pd096,
+  pd101,
 } from "../../src/cli/doctor/schema-checks.ts";
 import { pd097 } from "../../src/cli/doctor/seed-data.ts";
 import { nodeFiles } from "../../src/cli/shared/doctor-files.ts";
@@ -257,5 +258,60 @@ describe("schema match parts", () => {
     }
     Object.defineProperty(bare, "index", { value: undefined });
     expect(() => matchStart(bare)).toThrow("no index");
+  });
+});
+
+describe("PD101", () => {
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  const config: PermDockConfig = {
+    permissions: "src/permissions.ts",
+    policy: "src/policy.ts",
+    rls: {
+      tables: {
+        job: {
+          table: "public.jobs",
+          follows: { "public.job_parties": "job_id" },
+        },
+      },
+    },
+  };
+
+  it("flags a permissive app policy on a follows child table", () => {
+    const cwd = project();
+    put(
+      cwd,
+      "supabase/schemas/job_parties/040_rls.sql",
+      `create policy "job_parties_select" on public.job_parties for select to authenticated using (true);
+create policy "job_parties_all" on "public"."job_parties" to authenticated using (true);
+create policy "job_parties_guard" on public.job_parties as restrictive for delete to authenticated using (true);
+create policy "jobs_select" on public.jobs for select to authenticated using (true);
+`,
+    );
+    put(
+      cwd,
+      "supabase/schemas/permdock/follows.sql",
+      `create policy "permdock_follow_job_parties_select" on "public"."job_parties" for select to authenticated using (true);
+`,
+    );
+    const findings = pd101(cwd, config, nodeFiles);
+    expect(findings.map((finding) => finding.message)).toStrictEqual([
+      expect.stringContaining("permissive select policy on public.job_parties"),
+      expect.stringContaining("permissive all policy on public.job_parties"),
+    ]);
+  });
+
+  it("stays quiet without follows", () => {
+    const cwd = project();
+    put(
+      cwd,
+      "supabase/schemas/a.sql",
+      "create policy p on public.job_parties for select using (true);\n",
+    );
+    expect(pd101(cwd, { ...config, rls: {} }, nodeFiles)).toStrictEqual([]);
   });
 });

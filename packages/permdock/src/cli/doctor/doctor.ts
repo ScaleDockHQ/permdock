@@ -61,7 +61,7 @@ import {
   pd076,
   pd086,
 } from "./rls.ts";
-import { pd095, pd096 } from "./schema-checks.ts";
+import { pd095, pd096, pd101 } from "./schema-checks.ts";
 import { pd097 } from "./seed-data.ts";
 import { pd054 } from "./seeds.ts";
 import {
@@ -421,6 +421,15 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     code: "PD095",
     groups: ["rls", "supabase"],
     run: (project) => pd095(project.cwd, project.files),
+  },
+  {
+    code: "PD101",
+    groups: ["rls", "supabase"],
+    when: (config) =>
+      Object.values(config.rls?.tables ?? {}).some(
+        (entry) => typeof entry === "object" && "follows" in entry,
+      ),
+    run: (project) => pd101(project.cwd, project.config, project.files),
   },
   {
     code: "PD096",

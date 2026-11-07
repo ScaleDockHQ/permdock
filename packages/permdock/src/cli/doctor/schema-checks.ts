@@ -276,3 +276,69 @@ export function pd096(config: PermDockConfig): readonly DoctorFinding[] {
   }
   return findings;
 }
+
+const POLICY_ON =
+  /create\s+policy\s+(?:"[^"]+"|\w+)\s+on\s+((?:"[^"]+"|\w+)(?:\s*\.\s*(?:"[^"]+"|\w+))?)([^;]*);/giu;
+
+function tableId(raw: string): string {
+  const bare = raw.replaceAll(/[\s"]/gu, "").toLowerCase();
+  return bare.includes(".") ? bare : `public.${bare}`;
+}
+
+/** Child table to the `rls.tables.<resource>.follows` resource that owns it. */
+function followChildren(config: PermDockConfig): ReadonlyMap<string, string> {
+  const children = new Map<string, string>();
+  for (const [resource, entry] of Object.entries(config.rls?.tables ?? {})) {
+    if (typeof entry !== "object" || !("follows" in entry)) {
+      continue;
+    }
+    for (const child of Object.keys(entry.follows ?? {})) {
+      children.set(tableId(child), resource);
+    }
+  }
+  return children;
+}
+
+/**
+ * PD101: a schema file the app writes defines a permissive policy on a
+ * `follows` child table. The generated `follows` policies already allow select,
+ * insert, update and delete there, and permissive policies add up, so the app
+ * policy widens them for the commands it names (`all` names every one).
+ */
+export function pd101(
+  cwd: string,
+  config: PermDockConfig,
+  files: DoctorFiles,
+): readonly DoctorFinding[] {
+  const children = followChildren(config);
+  if (children.size === 0) {
+    return [];
+  }
+  const findings: DoctorFinding[] = [];
+  for (const file of sqlUnder(cwd, SCHEMA_DIR, files)) {
+    if (permdockSchema(cwd, file)) {
+      continue;
+    }
+    const label = rel(cwd, file.path);
+    for (const match of file.text.matchAll(POLICY_ON)) {
+      const table = tableId(captured(match, 1));
+      const resource = children.get(table);
+      const clause = match[2] ?? "";
+      if (resource === undefined || /\bas\s+restrictive\b/iu.test(clause)) {
+        continue;
+      }
+      const command = (
+        /\bfor\s+(select|insert|update|delete|all)\b/iu.exec(clause)?.[1] ??
+        "all"
+      ).toLowerCase();
+      findings.push({
+        code: "PD101",
+        severity: "warning",
+        target: `${label}:${table}`,
+        message: `${label} defines a permissive ${command} policy on ${table}, which the generated follows policies for ${resource} already allow`,
+        fix: "delete the policy and let rls.tables.<resource>.follows decide, or drop the table from follows",
+      });
+    }
+  }
+  return findings;
+}

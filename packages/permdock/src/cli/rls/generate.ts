@@ -148,7 +148,7 @@ export async function runRlsGenerate(
     !helpersOnly
   ) {
     warnings.push(
-      "skipped policies: rls.split has no policies part, so no table policy is written",
+      `skipped policies: rls.split has no policies part, so no table policy is written${generated.followPolicies.length === 0 ? "" : "; the rls.tables.<resource>.follows policies are still written to the follows part"}`,
     );
   }
   if (!splitsPart(input.split, "indexes")) {
