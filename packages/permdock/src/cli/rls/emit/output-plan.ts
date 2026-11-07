@@ -31,7 +31,7 @@ export type SplitSql = {
   readonly follows?: string;
   /** Plain Realtime policies for `<parent>/service/realtime/permdock.sql`. */
   readonly realtimePolicies?: string;
-  /** Plain Storage policies for `<schemaDir>/storage/permdock.sql`. */
+  /** Plain Storage policies for `<parent>/service/storage/permdock.sql`. */
   readonly storagePolicies?: string;
   readonly helpers: string;
   readonly seeds: string;
@@ -325,7 +325,7 @@ export function outputFiles(plan: {
     if (sql.storagePolicies !== undefined) {
       files.push({
         part: "storage",
-        rel: `${pgDelta.schemaDir.replace(/\/$/u, "")}/storage/permdock.sql`,
+        rel: serviceRel(pgDelta.schemaDir, "storage/permdock.sql"),
         text: sql.storagePolicies,
       });
     }

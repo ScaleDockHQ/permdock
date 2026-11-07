@@ -72,8 +72,9 @@ const REALTIME_HEADER = `-- Supabase Realtime policies from rls.realtime.
 -- These policies sit outside the scoped declarative sync: pg-delta's shadow database has no realtime.messages.
 -- Apply this file with an unscoped sync only where the Realtime service has created the table.`;
 
-const STORAGE_HEADER =
-  "-- Supabase Storage policies from rls.storage: static create policy statements on storage.objects.";
+const STORAGE_HEADER = `-- Supabase Storage policies from rls.storage.
+-- These policies sit outside the scoped declarative sync: pg-delta's shadow database has no storage.objects.
+-- Apply this file with an unscoped sync only where the Storage service has created the table.`;
 
 function serviceFile(
   header: string,

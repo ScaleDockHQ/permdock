@@ -117,9 +117,9 @@ export function underSchemaDir(rel: string, schemaDir: string): boolean {
 }
 
 /**
- * A Realtime policy file beside the schema directory. A scoped sync loads only
- * that directory, and its shadow database has no `realtime.messages`. Storage
- * policies sit inside the schema directory instead.
+ * A Realtime or Storage policy file beside the schema directory. A scoped sync
+ * loads only that directory, and its shadow database has neither
+ * `realtime.messages` nor `storage.objects`.
  */
 export function serviceRel(schemaDir: string, file: string): string {
   const root = schemaDir.replace(/\/$/u, "");
