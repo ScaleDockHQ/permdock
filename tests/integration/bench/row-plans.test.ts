@@ -1,19 +1,22 @@
-import { PGlite } from "@electric-sql/pglite";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type { Postgres } from "../src/support/postgres.ts";
+
 import { setupSql } from "../fixtures/row-hot-path/policy.ts";
-import { rlsGenerate } from "./support/rls.ts";
+import { defined } from "../src/support/defined.ts";
+import { startPostgres } from "../src/support/postgres.ts";
+import { jwtClaims, rlsGenerate } from "../src/support/rls.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = {
   memo: join(HERE, "../fixtures/row-hot-path"),
   none: join(HERE, "../fixtures/row-hot-path-nomemo"),
 } as const;
-const PLANS = join(HERE, "../bench/plans");
+const PLANS = join(HERE, "plans");
 
 const READER = "00000000-0000-4000-8000-000000000000";
 const KNOWN = "00000000-0000-4000-8002-000000000000";
@@ -58,12 +61,12 @@ function stable(plan: string): string {
 }
 
 describe.each(["memo", "none"] as const)(
-  "explain (analyze, buffers) with memo %s",
+  "explain (analyze, buffers) on Postgres with memo %s",
   (mode) => {
-    const dir = mkdtempSync(join(tmpdir(), "permdock-plans-"));
-    let lite: PGlite | undefined;
+    let db: Postgres | undefined;
 
     beforeAll(async () => {
+      const dir = mkdtempSync(join(tmpdir(), "permdock-plans-"));
       const out = join(dir, "rls.sql");
       const generated = await rlsGenerate(["--target", "sql", "--out", out], {
         cwd: FIXTURES[mode],
@@ -71,45 +74,40 @@ describe.each(["memo", "none"] as const)(
       if (generated.code !== 0) {
         throw new Error(`rls generate: ${generated.stdout}${generated.stderr}`);
       }
-      lite = new PGlite();
-      await lite.exec("create role tester;");
-      await lite.exec(setupSql);
-      await lite.exec(readFileSync(out, "utf8"));
-      await lite.exec("analyze");
-    }, 120_000);
+      const sql = readFileSync(out, "utf8");
+      rmSync(dir, { recursive: true, force: true });
+      db = await startPostgres([setupSql, sql, "analyze"]);
+    }, 300_000);
 
     afterAll(async () => {
-      rmSync(dir, { recursive: true, force: true });
-      await lite?.close();
+      await db?.stop();
     });
 
     it.each(SHAPES)(
       "writes the $name plan",
       async (shape) => {
-        const db = lite;
-        if (db === undefined) {
-          throw new Error("PermDock: PGlite did not start");
-        }
-        await db.exec("begin");
-        try {
-          await db.query("select set_config('request.jwt.claims', $1, true)", [
-            JSON.stringify({ sub: READER, role: "authenticated" }),
-          ]);
-          await db.exec("set local role authenticated");
-          const rows = (
-            await db.query<{ readonly "QUERY PLAN": string }>(
-              `explain (analyze, buffers) ${shape.sql}`,
-            )
-          ).rows;
-          const plan = stable(rows.map((row) => row["QUERY PLAN"]).join("\n"));
-          expect(plan.length).toBeGreaterThan(0);
-          const file = mode === "memo" ? shape.name : `${shape.name}.nomemo`;
-          await expect(`${plan}\n`).toMatchFileSnapshot(
-            join(PLANS, `${file}.txt`),
-          );
-        } finally {
-          await db.exec("rollback");
-        }
+        const target = defined(db);
+        const plan = await target.as(
+          { role: "authenticated", settings: jwtClaims(READER) },
+          async () =>
+            (
+              await target.tester.query<{ readonly "QUERY PLAN": string }>(
+                `explain (analyze, buffers) ${shape.sql}`,
+              )
+            ).rows
+              .map((row) => row["QUERY PLAN"])
+              .join("\n"),
+        );
+        expect(plan.length).toBeGreaterThan(0);
+        const file = mode === "memo" ? shape.name : `${shape.name}.nomemo`;
+        await expect(`${stable(plan)}\n`).toMatchFileSnapshot(
+          join(PLANS, `${file}.txt`),
+        );
+        const hit = /Buffers: shared hit=(\d+)/u.exec(plan)?.[1];
+        const time = /Execution Time: ([\d.]+) ms/u.exec(plan)?.[1];
+        process.stdout.write(
+          `PLAN-NUMBERS ${mode} ${shape.name} execution_ms=${time ?? "?"} shared_hit=${hit ?? "?"}\n`,
+        );
       },
       60_000,
     );

@@ -385,11 +385,7 @@ function tenantFirstOf(
   node: ResourceNode,
 ): ((key: string) => string | undefined) | undefined {
   const root = rootScope(ctx.scopes);
-  if (
-    root === undefined ||
-    ctx.customRoles !== undefined ||
-    [...policyLevels(policy, node.name)].length > 0
-  ) {
+  if (root === undefined) {
     return undefined;
   }
   const column = Object.values(node.relations).find(
@@ -422,25 +418,64 @@ function tenantFirstOf(
   };
 }
 
-function tenantLeadSql(
+/**
+ * A `(select <schema>.<function>(<literal>?))`: one uncorrelated call, which
+ * Postgres runs once per statement as an InitPlan or a hashed subplan.
+ */
+const ONE_CALL =
+  /\(select (?:"[^"]+"|[a-z_]+)\.(?:"[^"]+"|[a-z_]+)\((?:'[^']*')?\)\)/gu;
+
+/**
+ * Whether a clause reads nothing but the row and uncorrelated one-call
+ * subselects, so the id-set query can carry it: behind
+ * `permitted_<resource>_match` each of those calls runs once per row, because a
+ * `security definer` function is not inlined.
+ */
+function readsOnlyTheRow(clause: string): boolean {
+  return !/\b(?:select|from|exists)\b/iu.test(clause.replaceAll(ONE_CALL, "x"));
+}
+
+function inlineArm(
+  key: string,
+  narrowed: ReadonlyMap<string, readonly CompiledBranch[]>,
+): string | undefined {
+  const list = narrowed.get(key) ?? [];
+  const arm = permissionCase(key, list);
+  return arm !== undefined &&
+    list.every((branch) => readsOnlyTheRow(clauseOf(branch)))
+    ? arm
+    : undefined;
+}
+
+/**
+ * The `where` of `permitted_<resource>_rows(p_permission)`: an arm that reads
+ * only the row inline, a tenant lead before the match for a key a root-scope
+ * role holds, and the match for the rest.
+ */
+function rowsWhereSql(
   ctx: RlsSqlContext,
   policy: Policy,
   node: ResourceNode,
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
+  narrowed: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string {
+  const match = `${qualified(ctx, matchHelper(node.name))}(${ROW}, p_permission)`;
   const first = tenantFirstOf(ctx, policy, node);
-  if (first === undefined) {
-    return "";
-  }
-  const cases = [...branches.keys()].toSorted().flatMap((key) => {
-    const predicate = first(key);
-    return predicate === undefined
-      ? []
-      : [`    when ${quoteLiteral(key)} then ${predicate}`];
-  });
-  return cases.length === 0
-    ? ""
-    : `case p_permission\n${cases.join("\n")}\n    else true\n  end\n  and `;
+  const arms = [...new Set([...branches.keys(), ...narrowed.keys()])]
+    .toSorted()
+    .flatMap((key) => {
+      const inline = inlineArm(key, narrowed);
+      if (inline !== undefined) {
+        return [inline];
+      }
+      const lead = first?.(key);
+      return lead === undefined
+        ? []
+        : [`    when ${quoteLiteral(key)} then ${lead} and ${match}`];
+    });
+  return arms.length === 0
+    ? match
+    : `case p_permission\n${arms.join("\n")}\n    else ${match}\n  end`;
 }
 
 function resourceSql(
@@ -456,7 +491,6 @@ function resourceSql(
   const table = quoteQualified(tableFor(node.name, tables));
   const idType = idTypeOf(ctx, node.name);
   const match = qualified(ctx, matchHelper(node.name));
-  const lead = tenantLeadSql(ctx, policy, node, branches);
   const rows = `-- ${node.name}: one predicate, called by the set, the id list and both row forms
 ${matchSql(ctx, node, table, narrowed)}
 -- ${node.name}: ids of the rows the caller may act on with p_permission, as the table's policies decide it
@@ -469,7 +503,7 @@ ${plannerOf(ctx)}
 set search_path = ''
 as $$
   select ${quoteIdent(node.id)}::${idType} from ${table} as ${ROW}
-  where ${lead}${match}(${ROW}, p_permission)
+  where ${rowsWhereSql(ctx, policy, node, branches, narrowed)}
 $$;
 revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;

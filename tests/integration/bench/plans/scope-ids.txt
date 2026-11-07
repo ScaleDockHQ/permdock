@@ -1,13 +1,13 @@
-Aggregate  (cost=…) (actual time=… rows=1.00 loops=1)
-  ->  Hash Semi Join  (cost=…) (actual time=… rows=500.00 loops=1)
+Aggregate  (cost=…) (actual time=… rows=1 loops=1)
+  ->  Hash Semi Join  (cost=…) (actual time=… rows=500 loops=1)
         Hash Cond: (item."orgId" = (permdock.permitted_tenant_ids('item.read'::text)))
-        ->  Seq Scan on item  (cost=…) (actual time=… rows=500.00 loops=1)
-              Filter: (ANY ("orgId" = (hashed SubPlan 1).col1))
+        ->  Seq Scan on item  (cost=…) (actual time=… rows=500 loops=1)
+              Filter: (hashed SubPlan 1)
               Rows Removed by Filter: 4500
               SubPlan 1
-                ->  ProjectSet  (cost=…) (actual time=… rows=1.00 loops=1)
-                      ->  Result  (cost=…) (actual time=… rows=1.00 loops=1)
-        ->  Hash  (cost=…) (actual time=… rows=1.00 loops=1)
-              Buckets: …  Memory Usage: 5kB
-              ->  ProjectSet  (cost=…) (actual time=… rows=1.00 loops=1)
-                    ->  Result  (cost=…) (actual time=… rows=1.00 loops=1)
+                ->  ProjectSet  (cost=…) (actual time=… rows=1 loops=1)
+                      ->  Result  (cost=…) (actual time=… rows=1 loops=1)
+        ->  Hash  (cost=…) (actual time=… rows=1 loops=1)
+              Buckets: …  Memory Usage: 9kB
+              ->  ProjectSet  (cost=…) (actual time=… rows=1 loops=1)
+                    ->  Result  (cost=…) (actual time=… rows=1 loops=1)
