@@ -16,7 +16,8 @@ const config: KnipConfig = {
       // Resolves debug's optional supports-color peer for every importer; nothing imports it.
       ignoreDependencies: ["supports-color"],
       // scripts/next-build.ts runs the `next` each example app installs.
-      ignoreBinaries: ["next"],
+      // MCP configs run marketing's `shadcn` through `pnpm exec`.
+      ignoreBinaries: ["next", "shadcn"],
     },
     "apps/docs": {
       // `@permdock/ui` code blocks import shiki, which Next.js externalises; it must resolve from the app.

@@ -1,5 +1,7 @@
 import type { UserConfig } from "@commitlint/types";
 
+import { RuleConfigSeverity } from "@commitlint/types";
+
 const BOT_HEADER = /^(chore: version packages|chore\(deps(?:-dev)?\):|Merge )/u;
 
 const config = {
@@ -10,7 +12,7 @@ const config = {
   ],
   rules: {
     "type-enum": [
-      2,
+      RuleConfigSeverity.Error,
       "always",
       [
         "feat",
@@ -26,8 +28,12 @@ const config = {
         "revert",
       ],
     ],
-    "subject-case": [2, "never", ["pascal-case", "start-case", "upper-case"]],
-    "header-max-length": [0],
+    "subject-case": [
+      RuleConfigSeverity.Error,
+      "never",
+      ["pascal-case", "start-case", "upper-case"],
+    ],
+    "header-max-length": [RuleConfigSeverity.Disabled],
   },
 } satisfies UserConfig;
 
