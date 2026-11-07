@@ -33,6 +33,12 @@ export type RoleThrough = {
   readonly on: Readonly<Record<string, string>>;
   /** The column of `through` that holds the value: the role key, or the user id. */
   readonly column: string;
+  /**
+   * `blockMembershipSource({ roles: 'many' })` sets it: `through` holds every
+   * member's role set, so a PowerSync stream syncs the rows of each member of
+   * the caller's tenants, not only the caller's.
+   */
+  readonly many?: true;
 };
 
 /**

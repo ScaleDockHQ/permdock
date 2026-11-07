@@ -23,6 +23,11 @@ export type OwnRows = {
   readonly table: string;
   readonly from: string;
   readonly where: readonly string[];
+  /**
+   * The `disabledAt IS NULL` clause of the source's table, empty when the
+   * stream keeps a suspended membership.
+   */
+  readonly active: readonly string[];
 };
 
 /**
@@ -116,7 +121,7 @@ export function throughRows(
 ): { readonly table: string; readonly query: string; readonly user?: string } {
   const keys = bare(through.through, dialect);
   const pairs = pairsOf(through);
-  const widened = keys === "membership_roles";
+  const widened = through.many === true;
   const user = widened
     ? undefined
     : pairs.find(([ref]) => ref === ownUser)?.[1];
@@ -132,13 +137,12 @@ export function throughRows(
     return pairs.length === 1 ? [mine, owned] : [mine];
   });
   if (widened) {
-    const active = own.where.filter((clause) => /disabled/u.test(clause));
     const match = pairs.map(
       ([ref, id]) =>
         `${dialect.column(own.table, ref)} = ${dialect.column(keys, id)}`,
     );
     where.push(
-      `EXISTS (SELECT 1 FROM ${own.from} WHERE ${[...match, ...active].join(" AND ")})`,
+      `EXISTS (SELECT 1 FROM ${own.from} WHERE ${[...match, ...own.active].join(" AND ")})`,
     );
   }
   const query = `SELECT ${throughSelect(through, keys, dialect)} FROM ${fromTable(through.through, dialect)} WHERE ${where.join(" AND ")}`;
@@ -198,6 +202,7 @@ export function ownRows(
         ...scoped,
         ...suspended,
       ],
+      active: suspended,
     };
   }
   const users = bare(stream.user.through, dialect);
@@ -209,6 +214,7 @@ export function ownRows(
       ...scoped,
       ...suspended,
     ],
+    active: suspended,
   };
 }
 

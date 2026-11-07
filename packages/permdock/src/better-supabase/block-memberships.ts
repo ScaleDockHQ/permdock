@@ -100,6 +100,7 @@ function roleOf(
         [columns.user]: junction?.columns.user ?? columns.user,
       },
       column: junction?.columns.role ?? "role",
+      many: true,
     };
   }
   if (options.roles !== undefined) {
