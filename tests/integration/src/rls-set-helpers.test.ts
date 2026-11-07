@@ -99,4 +99,12 @@ describe("set helpers (#302)", () => {
       ),
     ).toBe(0);
   });
+
+  it("runs the tenant-led set a follows policy compiles to", async () => {
+    expect(
+      await scalar(
+        `select count(*) from public.item where id = any(array(select r from unnest(array(select permdock.permitted_tenant_ids_by_permission('item.read', true))) t(id) cross join lateral permdock.permitted_item_rows('item.read', t.id) r))`,
+      ),
+    ).toBe("500");
+  });
 });
