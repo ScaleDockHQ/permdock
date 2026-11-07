@@ -34,6 +34,7 @@ const tables = {
     also: ["jobParty"],
     follows: { "public.job_parties": "job_id" },
     walk: "recursive",
+    user: "ownerId",
   },
 } as const;
 
@@ -63,20 +64,46 @@ describe("rls.tables follows and walk", () => {
     );
   });
 
-  it("emits one recursive chain and adds delegation covers when asked", () => {
+  it("starts the chain at the caller's row through tables.<resource>.user", () => {
     const plain = walkChainSql(ctx, policy, tables, false);
     expect(plain).toContain(
       'create or replace function "permdock".permdock_job_chain()',
     );
     expect(plain).toContain(
-      'where t."managerId" = (select "permdock".permdock_user_id())',
+      'where t."ownerId" = (select "permdock".permdock_user_id())',
     );
+    expect(plain).not.toContain('t."managerId" = (select');
+    expect(plain).toContain('on c."managerId" = w.id');
     expect(plain).not.toContain("approval_delegations");
     expect(plain).not.toContain("reporting_");
     expect(plain).not.toContain("accessible_");
-    expect(walkChainSql(ctx, policy, tables, true)).toContain(
-      '"permdock".approval_delegations',
+  });
+
+  it("defaults the start column to the id column", () => {
+    const sql = walkChainSql(
+      ctx,
+      policy,
+      { job: { table: "public.users", walk: "recursive" } },
+      false,
     );
+    expect(sql).toContain(
+      'where t."id" = (select "permdock".permdock_user_id())',
+    );
+  });
+
+  it("guards the path, caps the depth and keeps the start row's tenant", () => {
+    const sql = walkChainSql(ctx, policy, tables, false);
+    expect(sql).toContain('not c."id" = any (w.path)');
+    expect(sql).toContain("w.depth < 32");
+    expect(sql).toContain('c."orgId" = w.tenant');
+    expect(sql).toContain("where depth >= 1");
+  });
+
+  it("seeds each covered delegator's row and returns it", () => {
+    const sql = walkChainSql(ctx, policy, tables, true);
+    expect(sql).toContain('t."ownerId" = d.delegator');
+    expect(sql).toContain('"permdock".approval_delegations');
+    expect(sql).toContain("or cover");
   });
 
   it("walks only the treeValues folder, inside the caller's tenants", () => {
