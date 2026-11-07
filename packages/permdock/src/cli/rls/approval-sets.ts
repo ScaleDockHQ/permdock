@@ -69,11 +69,14 @@ function managedSql(
   const user = quoteIdent(managers.user);
   const boss = quoteIdent(managers.manager);
   const type = userTypeOf(ctx);
-  const tenant = managers.tenant === undefined ? undefined : quoteIdent(managers.tenant);
+  const tenant =
+    managers.tenant === undefined ? undefined : quoteIdent(managers.tenant);
   const argType = tenant === undefined ? "" : tenantTypeOf(ctx);
   const argument = tenant === undefined ? "" : `p_tenant ${argType}`;
-  const seedTenant = tenant === undefined ? "" : `\n      and m.${tenant} = p_tenant`;
-  const stepTenant = tenant === undefined ? "" : `\n      and m.${tenant} = p_tenant`;
+  const seedTenant =
+    tenant === undefined ? "" : `\n      and m.${tenant} = p_tenant`;
+  const stepTenant =
+    tenant === undefined ? "" : `\n      and m.${tenant} = p_tenant`;
   return `
 -- approval managers: users below the caller within p_tenant; the caller is not in the set, so a self-decision stays refused
 create or replace function ${fn}(${argument})

@@ -3374,21 +3374,21 @@ grant execute on function "permdock".permdock_is_approver(jsonb, text, text, tex
 
 -- approvers: the caller, plus each active delegator, one hop
 create or replace function "permdock".permdock_approver_for_ids()
-returns setof text
+returns setof uuid
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select (select "permdock".permdock_user_id())::text
-  where coalesce((select "permdock".permdock_user_id())::text, '') <> ''
+  select (select "permdock".permdock_user_id())
+  where (select "permdock".permdock_user_id()) is not null
   union
-  select d.delegator::text
+  select d.delegator
   from "permdock".approval_delegations d
-  where d.delegate::text = (select "permdock".permdock_user_id())::text
+  where d.delegate = (select "permdock".permdock_user_id())
     and d."from" <= now()
     and d."until" > now()
-    and d.delegator::text <> (select "permdock".permdock_user_id())::text
+    and d.delegator <> (select "permdock".permdock_user_id())
 $$;
 revoke execute on function "permdock".permdock_approver_for_ids() from public, anon;
 grant execute on function "permdock".permdock_approver_for_ids() to authenticated;

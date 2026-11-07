@@ -21,10 +21,7 @@ function named(value: unknown): value is string {
   return typeof value === "string" && value !== "";
 }
 
-function checked(
-  managers: unknown,
-  ctx: RlsSqlContext,
-): RlsApprovalManagers {
+function checked(managers: unknown, ctx: RlsSqlContext): RlsApprovalManagers {
   if (
     typeof managers !== "object" ||
     managers === null ||
@@ -37,8 +34,14 @@ function checked(
     );
   }
   const tenant =
-    "tenant" in managers && named(managers.tenant) ? managers.tenant : undefined;
-  if ("tenant" in managers && managers.tenant !== undefined && tenant === undefined) {
+    "tenant" in managers && named(managers.tenant)
+      ? managers.tenant
+      : undefined;
+  if (
+    "tenant" in managers &&
+    managers.tenant !== undefined &&
+    tenant === undefined
+  ) {
     throw configError(
       "PermDock CLI: rls.approvals.managers.tenant must be a column name",
     );
@@ -58,15 +61,15 @@ function checked(
 
 /**
  * `rls.approvals.managers`: `permdock_manages(p_requester, p_levels)` walks the
- * app's manager table, keeping the edges of `p_tenant`, up to `levels` steps (at most `MAX_MANAGER_LEVELS`) with
- * a cycle guard, and `permdock_approves` decides `manager` leaves with it and
- * every other leaf through `base`, the two-argument check. The requester never
- * manages themselves into an approval. `permdock_is_approver(p_approvers,
- * p_tenant, p_requester)` routes through `permdock_approves`, so the call with
- * a requester decides `manager` leaves; without one they match nobody. Without
- * `delegations`, the four-argument `permdock_is_approver` is written here; with
- * them, `approvalDelegationsSql` writes it and calls `permdock_approves`
- * first.
+ * app's manager table, keeping the edges of `p_tenant`, up to `levels` steps
+ * (at most `MAX_MANAGER_LEVELS`) with a cycle guard, and `permdock_approves`
+ * decides `manager` leaves with it and every other leaf through `base`, the
+ * two-argument check. The requester never manages themselves into an approval.
+ * `permdock_is_approver(p_approvers, p_tenant, p_requester)` routes through
+ * `permdock_approves`, so the call with a requester decides `manager` leaves;
+ * without one they match nobody. Without `delegations`, the four-argument
+ * `permdock_is_approver` is written here; with them, `approvalDelegationsSql`
+ * writes it and calls `permdock_approves` first.
  */
 export function approvalManagersSql(
   ctx: RlsSqlContext,
@@ -86,7 +89,9 @@ export function approvalManagersSql(
   const tenant =
     managers.tenant === undefined ? undefined : quoteIdent(managers.tenant);
   const edgeTenant = (alias: string): string =>
-    tenant === undefined ? "" : `\n      and ${alias}.${tenant}::text = p_tenant`;
+    tenant === undefined
+      ? ""
+      : `\n      and ${alias}.${tenant}::text = p_tenant`;
   const entry = delegations
     ? ""
     : `
