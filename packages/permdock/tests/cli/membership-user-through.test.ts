@@ -184,7 +184,7 @@ describe("membership sources with a user through a profile table", () => {
       },
     });
     expect(sql).toContain(
-      `select u."user_id"::uuid as user_id from "public"."customer_contacts" h join "public"."contact_profiles" u on u."id" = h."contact_profile_id" where h."role_id" = old."id"`,
+      `select u."user_id"::uuid as user_id from "public"."customer_contacts" h join "public"."contact_profiles" u on u."id" = h."contact_profile_id" join permdock_old r on h."role_id" = r."id"`,
     );
     expect(sql).toMatch(
       /join "public"\."contact_profiles" mu on mu\."id" = m\."contact_profile_id"\n\s+join "public"\."roles" mk on mk\."id" = m\."role_id"/u,

@@ -118,7 +118,7 @@ describe("role sources", () => {
     };
     const { sql } = supabaseHookSql(scopes, config);
     expect(sql).toContain(
-      'select h."user_id"::uuid as user_id from "public"."organization_users" h where h."role_id" = old."id"',
+      'select h."user_id"::uuid as user_id from "public"."organization_users" h join permdock_old r on h."role_id" = r."id"',
     );
     expect(sql).toContain(
       'grant select on table "public"."roles" to supabase_auth_admin;',

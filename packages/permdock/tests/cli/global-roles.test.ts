@@ -133,9 +133,16 @@ export default {
       expect(hook).toContain(
         'grant select on table "identity"."roles" to supabase_auth_admin;',
       );
-      expect(hook).toContain(`create trigger "permdock_authz_version"
-  after insert or update or delete on "identity"."roles"
-  for each row execute function "permdock".permdock_bump_authz_version_role_keys();`);
+      expect(hook).toContain(`create trigger "permdock_authz_version_update"
+  after update on "identity"."roles"
+  referencing old table as permdock_old new table as permdock_new
+  for each statement execute function "permdock".permdock_bump_authz_version_role_keys();`);
+      expect(hook).toContain(
+        'select "key", "id" from permdock_old except select "key", "id" from permdock_new',
+      );
+      expect(hook).not.toContain(
+        'for each row execute function "permdock".permdock_bump_authz_version_role_keys',
+      );
     });
 
     it("reads and replaces only global rows of a roles table that also holds tenant roles", async () => {
