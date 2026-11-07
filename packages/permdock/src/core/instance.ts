@@ -237,19 +237,22 @@ export function buildInstance(
       const resource = getResource(policy.permissions, permission.resource);
       const scopes = scopeList(policy.scopes);
       const root = scopes[0]?.name;
-      const rowOf = (id: string): unknown => {
-        if (loaded instanceof Map) {
-          return loaded.get(id);
+      let byId: ReadonlyMap<string, unknown> | undefined;
+      if (loaded instanceof Map) {
+        byId = loaded;
+      } else if (isReadonlyArray(loaded) && resource !== undefined) {
+        const idField = resource.id;
+        const indexed = new Map<string, unknown>();
+        for (const row of loaded) {
+          const key = isRecord(row) ? row[idField] : undefined;
+          if (typeof key === "string" && !indexed.has(key)) {
+            indexed.set(key, row);
+          }
         }
-        return isReadonlyArray(loaded)
-          ? loaded.find(
-              (row) =>
-                isRecord(row) &&
-                resource !== undefined &&
-                row[resource.id] === id,
-            )
-          : undefined;
-      };
+        byId = indexed;
+      }
+      const rowOf = (id: string): unknown => byId?.get(id);
+      const tenants = new Map<string, PermDock>();
       const tenantField =
         root === undefined ? undefined : scopeField(resource, root, scopes);
       const results: Decision[] = [];
@@ -263,10 +266,11 @@ export function buildInstance(
           tenantField !== undefined && isRecord(row)
             ? row[tenantField]
             : undefined;
-        const target =
-          typeof tenant === "string" && tenant !== ""
-            ? instance.tenant(tenant)
-            : instance;
+        let target = instance;
+        if (typeof tenant === "string" && tenant !== "") {
+          target = tenants.get(tenant) ?? instance.tenant(tenant);
+          tenants.set(tenant, target);
+        }
         results.push(
           target.decide(permission, row, { ...decide, trusted: true }),
         );

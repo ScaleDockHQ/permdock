@@ -93,3 +93,52 @@ describe("decideIds", () => {
     });
   });
 });
+
+describe("decideIds at scale", () => {
+  it("builds one instance per tenant however many ids it decides", async () => {
+    let reads = 0;
+    const counted = {
+      get name(): string {
+        reads += 1;
+        return "c0";
+      },
+      tenant: "acme",
+      grants: [],
+    };
+    const permdock = getPermDockSync(policy, subject, {
+      customRoles: { rolesFor: () => [counted], globalRoles: () => [] },
+    });
+    const perBuild = reads;
+    const ids = Array.from({ length: 40 }, (_, index) => `d${String(index)}`);
+    const loaded = new Map(
+      ids.map((id) => [id, { id, orgId: "acme" }] as const),
+    );
+    reads = 0;
+    const decisions = await permdock.decideIds(permissions.doc.read, ids, {
+      data: () => loaded,
+    });
+    expect(decisions.every((item) => item.outcome === "granted")).toBe(true);
+    expect(perBuild).toBeGreaterThan(0);
+    expect(reads).toBeLessThanOrEqual(perBuild * 2);
+  });
+
+  it("reads an array of rows once, not once per id", async () => {
+    let reads = 0;
+    const list = Array.from({ length: 200 }, (_, index) => ({
+      id: `d${String(index)}`,
+      orgId: "acme",
+    }));
+    const rows = new Proxy(list, {
+      get(target, key, receiver) {
+        if (typeof key === "string" && /^\d+$/u.test(key)) {
+          reads += 1;
+        }
+        return Reflect.get(target, key, receiver);
+      },
+    });
+    const permdock = getPermDockSync(policy, subject);
+    const ids = list.map((row) => row.id);
+    await permdock.decideIds(permissions.doc.read, ids, { data: () => rows });
+    expect(reads).toBeLessThanOrEqual(list.length * 2);
+  });
+});
