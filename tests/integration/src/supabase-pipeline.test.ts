@@ -1,176 +1,202 @@
-import type { SupabaseRpcClient } from "permdock/supabase";
+import type { PermDock, Principal } from "permdock";
 
-import { defineMiddleware, pipeline } from "@supabase/middleware";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { definePermDock } from "permdock/supabase";
+import { pipeline } from "@supabase/middleware";
+import { withCors } from "@supabase/middleware/cors";
+import { withSupabase } from "@supabase/server";
+import { withClaims } from "@supabase/server/middleware/claims";
+import { withRequiredClaims } from "@supabase/server/middleware/required-claims";
+import { Hono } from "hono";
+import {
+  allow,
+  definePermissions,
+  definePolicy,
+  principal,
+  resource,
+  role,
+} from "permdock";
+import { subjectFromSupabase } from "permdock/supabase";
 import { createPermDock } from "permdock/supabase/middleware";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  saasJwks,
+  saasPermissions,
+  saasPolicy,
+  saasPrincipal,
+  saasProject,
+  signSaasToken,
+} from "permdock/testing/saas";
+import { describe, expect, it } from "vitest";
+import { z } from "zod";
 
-import type { Postgres } from "./support/postgres.ts";
+import { toHono } from "./support/to-hono.ts";
 
-import { permissions, policy } from "../fixtures/named-scopes/policy.ts";
-import { startPostgres } from "./support/postgres.ts";
-import { generated } from "./support/rls.ts";
+const permissions = definePermissions({
+  post: resource(z.object({ id: z.string(), authorId: z.string() }), {
+    id: "id",
+    actions: ["update"],
+  }),
+});
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const FIXTURE = join(HERE, "../fixtures/subject-for");
+const policy = definePolicy(permissions, {
+  roles: [
+    role("member", [
+      allow(permissions.post.update, { where: { authorId: principal.id } }),
+    ]),
+  ],
+  subject: (user: Principal | null) => user,
+});
 
-const OWNER = "00000000-0000-4000-8000-0000000000d1";
-const CONTACT = "00000000-0000-4000-8000-0000000000d2";
-const SUSPENDED = "00000000-0000-4000-8000-0000000000d3";
-const USERS = [OWNER, CONTACT, SUSPENDED];
+const posts = new Map([
+  ["own", { id: "own", authorId: "u1" }],
+  ["other", { id: "other", authorId: "u9" }],
+]);
 
-const SETUP = `
-create role authenticated nologin;
-create role anon nologin;
-create role supabase_auth_admin nologin;
-create role service_role nologin;
-grant authenticated, anon, supabase_auth_admin, service_role to tester;
-create schema auth;
-create table auth.users (id uuid primary key, raw_app_meta_data jsonb not null default '{}');
-create function auth.uid() returns uuid language sql stable as $$
-  select nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'sub', '')::uuid
-$$;
-create function auth.jwt() returns jsonb language sql stable as $$
-  select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
-$$;
-grant usage on schema auth to supabase_auth_admin, authenticated, anon;
-grant execute on all functions in schema auth to authenticated, anon;
-grant select on auth.users to supabase_auth_admin;
-grant usage on schema public to authenticated, anon;
-insert into auth.users (id) values ${USERS.map((id) => `('${id}')`).join(", ")};
-create table memberships (
-  user_id uuid not null, scope text not null, scope_id text not null, role text,
-  via text, expires_at timestamptz, managed_by text, seats text[]
-);
-insert into memberships values
-  ('${OWNER}', 'organization', 'T', 'owner', 'staff', null, null, null),
-  ('${OWNER}', 'organization', 'B', 'mechanic', 'staff', null, null, null),
-  ('${OWNER}', 'organization', 'X', 'owner', 'staff', null, null, null),
-  ('${OWNER}', 'organization', 'N', null, 'staff', null, null, null),
-  ('${SUSPENDED}', 'organization', 'T', 'admin', 'staff', null, null, null);
-create table customer_contacts (customer_id text not null, organization_id text not null, user_id uuid not null);
-insert into customer_contacts values ('A', 'T', '${CONTACT}');
-create table profiles (id uuid primary key, disabled_at timestamptz);
-insert into profiles select id, null from auth.users;
-update profiles set disabled_at = now() where id = '${SUSPENDED}';
-create table organization (id text primary key, disabled_at timestamptz);
-insert into organization values ('T', null), ('B', null), ('X', now());
-`;
+const { withPermDock } = createPermDock(policy, {
+  subject: (ctx) =>
+    subjectFromSupabase(ctx.jwtClaims, { claims: { roles: "user_role" } }),
+});
 
-describe("definePermDock and the middleware against Postgres", () => {
-  let db: Postgres | undefined;
-
-  beforeAll(async () => {
-    db = await startPostgres([
-      SETUP,
-      ...(await generated(
-        [
-          "rls",
-          "generate",
-          "--target",
-          "sql",
-          "--schemas",
-          "migrations",
-          "--split",
-          "helpers,hook",
-          "--out",
-          "{dir}/{part}.sql",
-        ],
-        ["helpers.sql", "hook.sql"],
-        { cwd: FIXTURE },
-      )),
-      `insert into permdock.user_roles values ('${OWNER}', 'platform-support');
-select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization', null, 'mechanic', array['asset.read'], array[]::text[], array[]::text[]);`,
-    ]);
-  }, 180_000);
-
-  afterAll(async () => {
-    await db?.stop();
+const token = (sub: string) =>
+  signSaasToken(sub, {
+    memberships: false,
+    claims: { role: "authenticated", user_role: "member" },
   });
 
-  /**
-   * A supabase-js shaped client over the superuser connection, as a
-   * `service_role` client would call it.
-   */
-  const client = (): SupabaseRpcClient => ({
-    schema(name) {
-      return {
-        async rpc(fn, args) {
-          if (db === undefined) {
-            throw new Error("PermDock: Postgres was not started");
-          }
-          try {
-            const result =
-              fn === "members_of"
-                ? await db.admin.query<{ data: unknown }>(
-                    `select "${name}"."${fn}"($1, $2) as data`,
-                    [args["p_scope"], args["p_id"]],
-                  )
-                : await db.admin.query<{ data: unknown }>(
-                    `select "${name}"."${fn}"($1::uuid) as data`,
-                    [args["p_user"]],
-                  );
-            return { data: result.rows[0]?.data ?? null, error: null };
-          } catch (error) {
-            return { data: null, error: { message: String(error) } };
-          }
-        },
-      };
+describe("withPermDock composed with @supabase/server entries", () => {
+  const sp = saasPermissions;
+  const secret = "sb_secret_billing_0123456789";
+  const env = {
+    url: "http://127.0.0.1:54321",
+    publishableKeys: { default: "sb_publishable_0123456789" },
+    secretKeys: { billing: secret },
+    jwks: saasJwks,
+  };
+  const saas = createPermDock(saasPolicy, {
+    subject: (ctx) =>
+      ctx.jwtClaims === null ? null : saasPrincipal(ctx.jwtClaims.sub, "acme"),
+    tenant: "acme",
+    secretKeys: {
+      billing: {
+        id: "svc_billing",
+        tenant: "acme",
+        roles: ["admin"],
+        permissions: [sp.project.update],
+      },
     },
   });
-
-  const asset = { id: "a", organization_id: "B", customer_id: "c" };
-
-  it("reads memberships and custom roles through the default sources", async () => {
-    const app = definePermDock(policy, { client });
-    const owner = await app.fromClaims({ sub: OWNER, role: "authenticated" });
-    expect(owner.tenant("B").can(permissions.asset.read, asset)).toBe(true);
-    expect(owner.tenant("B").can(permissions.asset.update, asset)).toBe(false);
-    const suspended = await app.fromClaims({
-      sub: SUSPENDED,
-      role: "authenticated",
+  const decide = async (_request: Request, ctx: { permdock: PermDock }) =>
+    Response.json({
+      principal: ctx.permdock.subject.principal?.id ?? null,
+      update: ctx.permdock.can(sp.project.update, saasProject("p1")),
+      delete: ctx.permdock.can(sp.project.delete, saasProject("p1")),
     });
-    expect(
-      suspended
-        .tenant("T")
-        .can(permissions.asset.read, { ...asset, organization_id: "T" }),
-    ).toBe(false);
+  const call = (
+    fetch: (request: Request) => Promise<Response>,
+    headers: Record<string, string> = {},
+  ) => fetch(new Request("http://localhost/projects/p1", { headers }));
+
+  it("reads a user after withRequiredClaims and stops anonymous callers first", async () => {
+    const fetch = pipeline(
+      [withRequiredClaims({ jwks: saasJwks }), saas.withPermDock()],
+      async (request, ctx) => decide(request, ctx),
+    );
+    const { status } = await call(fetch);
+    expect(status).toBe(401);
+    const bob = await call(fetch, {
+      authorization: `Bearer ${await signSaasToken("bob")}`,
+    });
+    expect(await bob.json()).toStrictEqual({
+      principal: "bob",
+      update: true,
+      delete: true,
+    });
+    const hank = await call(fetch, {
+      authorization: `Bearer ${await signSaasToken("hank")}`,
+    });
+    expect(await hank.json()).toMatchObject({ update: false });
   });
 
-  it("rereads memberships when the token's authz_ver is stale", async () => {
-    const app = definePermDock(policy, { client });
-    const fresh = await app.fromClaims({
-      sub: OWNER,
-      role: "authenticated",
-      authz_ver: 0,
+  it("turns a named secret key from withSupabase into the declared service principal", async () => {
+    const fetch = pipeline(
+      [withSupabase({ auth: ["user", "secret:*"], env }), saas.withPermDock()],
+      async (request, ctx) => decide(request, ctx),
+    );
+    const key = await call(fetch, { apikey: secret });
+    expect(key.status).toBe(200);
+    expect(await key.json()).toStrictEqual({
+      principal: "svc_billing",
+      update: true,
+      delete: false,
     });
-    expect(fresh.tenant("B").can(permissions.asset.read, asset)).toBe(true);
+    const user = await call(fetch, {
+      authorization: `Bearer ${await signSaasToken("bob")}`,
+    });
+    expect(await user.json()).toMatchObject({ principal: "bob" });
+    const { status } = await call(fetch, { apikey: "sb_secret_wrong" });
+    expect(status).toBe(401);
   });
 
-  it("builds the instance for a request in the middleware pipeline", async () => {
-    const app = definePermDock(policy, { client });
-    const { withPermDock } = createPermDock(app);
-    const claims = { sub: OWNER, role: "authenticated" };
-    const withClaims = defineMiddleware<
-      "jwtClaims",
-      undefined,
-      Record<never, never>,
-      typeof claims
-    >({ key: "jwtClaims", run: () => async () => ({ jwtClaims: claims }) });
-    const handler = pipeline(
-      [withClaims(), withPermDock()],
-      async (_request, ctx) =>
-        Response.json({
-          read: ctx.permdock.tenant("B").can(permissions.asset.read, asset),
-          update: ctx.permdock.tenant("B").can(permissions.asset.update, asset),
-        }),
+  it("keeps CORS headers on a PermDock denial", async () => {
+    const fetch = pipeline(
+      [
+        withCors({ origin: "https://app.example" }),
+        withClaims({ jwks: saasJwks }),
+        saas.withPermDock({ protect: sp.project.delete }),
+      ],
+      async () => new Response(null, { status: 204 }),
     );
-    const response = await handler(
-      new Request("http://localhost/assets/a"),
-      {},
+    const denied = await call(fetch, {
+      origin: "https://app.example",
+      authorization: `Bearer ${await signSaasToken("hank")}`,
+    });
+    expect(denied.status).toBe(403);
+    expect(denied.headers.get("content-type")).toContain(
+      "application/problem+json",
     );
-    expect(await response.json()).toStrictEqual({ read: true, update: false });
+    expect(denied.headers.get("access-control-allow-origin")).toBe(
+      "https://app.example",
+    );
+  });
+});
+
+describe("@supabase/middleware entries in Hono through the pipeline bridge", () => {
+  const app = new Hono()
+    .use("*", toHono([withClaims({ jwks: saasJwks }), withPermDock()]))
+    .patch("/posts/:id", (c) => {
+      const post = posts.get(c.req.param("id")) ?? null;
+      if (post === null) {
+        return c.json({ ok: false }, 404);
+      }
+      return c.var.permdock.can(permissions.post.update, post)
+        ? c.json({ ok: true, by: c.var.jwtClaims?.sub })
+        : c.json({ ok: false }, 403);
+    });
+
+  const patch = async (id: string, bearer?: string) =>
+    app.request(`/posts/${id}`, {
+      method: "PATCH",
+      headers:
+        bearer === undefined ? {} : { authorization: `Bearer ${bearer}` },
+    });
+
+  it("publishes jwtClaims and permdock on c.var", async () => {
+    const response = await patch("own", await token("u1"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toStrictEqual({ ok: true, by: "u1" });
+  });
+
+  it("denies another author's post", async () => {
+    const { status } = await patch("other", await token("u1"));
+    expect(status).toBe(403);
+  });
+
+  it("treats a request without a token as anonymous", async () => {
+    const { status } = await patch("own");
+    expect(status).toBe(403);
+  });
+
+  it("answers an invalid token with withClaims' 401 before PermDock runs", async () => {
+    const response = await patch("own", "not-a-jwt");
+    expect(response.status).toBe(401);
+    expect(response.headers.get("x-supabase-server-error")).toBe("INVALID_JWT");
   });
 });
