@@ -25,7 +25,7 @@
   "tenantClaim": "tenant_id",
   "budget": {
     "bytes": 1024,
-    "measure": "octet_length(memberships::text) + octet_length(attrs::text)"
+    "measure": "octet_length(roles::text) + octet_length(memberships::text) + octet_length(team_ids::text) + octet_length(attrs::text) + octet_length(authz_ver::text)"
   },
   "claims": [
     {
@@ -36,7 +36,7 @@
     {
       "name": "roles",
       "source": "permdock",
-      "budget": false
+      "budget": true
     },
     {
       "name": "memberships",
@@ -56,7 +56,7 @@
     {
       "name": "authz_ver",
       "source": "permdock",
-      "budget": false
+      "budget": true
     },
     {
       "name": "datetime_preferences",
