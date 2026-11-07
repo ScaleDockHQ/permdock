@@ -305,6 +305,34 @@ create policy "jobs_select" on public.jobs for select to authenticated using (tr
     ]);
   });
 
+  it("reads an unqualified table as public, skips plain and false tables, and reports an app policy once per command", () => {
+    const cwd = project();
+    put(
+      cwd,
+      "supabase/schemas/app.sql",
+      `create policy "p" on job_parties for delete using (true);
+create policy "q" on "job_parties" as restrictive for all using (true);
+create policy "r" on public.other for select using (true);
+`,
+    );
+    const mixed: PermDockConfig = {
+      ...config,
+      rls: {
+        tables: {
+          job: { table: "public.jobs", follows: { job_parties: "job_id" } },
+          note: "public.notes",
+          cache: false,
+          link: { tableOf: "job" },
+        },
+      },
+    };
+    expect(pd101(cwd, mixed, nodeFiles)).toStrictEqual([
+      expect.objectContaining({
+        message: expect.stringContaining("permissive delete policy"),
+      }),
+    ]);
+  });
+
   it("stays quiet without follows", () => {
     const cwd = project();
     put(

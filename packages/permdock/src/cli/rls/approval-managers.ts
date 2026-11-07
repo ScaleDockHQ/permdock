@@ -33,15 +33,8 @@ function checked(managers: unknown, ctx: RlsSqlContext): RlsApprovalManagers {
       "PermDock CLI: rls.approvals.managers needs { table, user, manager }: the table that names each user's manager, its user column and its manager column",
     );
   }
-  const tenant =
-    "tenant" in managers && named(managers.tenant)
-      ? managers.tenant
-      : undefined;
-  if (
-    "tenant" in managers &&
-    managers.tenant !== undefined &&
-    tenant === undefined
-  ) {
+  const tenant = "tenant" in managers ? managers.tenant : undefined;
+  if (tenant !== undefined && !named(tenant)) {
     throw configError(
       "PermDock CLI: rls.approvals.managers.tenant must be a column name",
     );

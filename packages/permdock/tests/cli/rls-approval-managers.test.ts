@@ -177,3 +177,31 @@ describe("rls.approvals approval sets", () => {
     );
   });
 });
+
+describe("rls.approvals approval sets without a tenant scope", () => {
+  const plain: RlsSqlContext = {
+    dialect: "neon",
+    scopes: [],
+    tenantClaim: "tenant_id",
+    gucPrefix: "app",
+  };
+  const bare = {
+    table: managers.table,
+    user: managers.user,
+    manager: managers.manager,
+  };
+
+  it("walks without a tenant filter and returns text ids on a dialect with text users", () => {
+    const sql = approvalsSql(plain, { managers: bare }, false) ?? "";
+    expect(sql).toContain("permdock_managed_user_ids()");
+    expect(sql).toContain("returns setof text");
+    expect(sql).not.toContain("p_tenant uuid");
+    expect(sql).not.toContain('"tenant_id"::text = p_tenant');
+  });
+
+  it("refuses a tenant that is not a column name", () => {
+    expect(() =>
+      approvalsSql(plain, { managers: { ...bare, tenant: "" } }, false),
+    ).toThrow(/must be a column name/u);
+  });
+});

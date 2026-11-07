@@ -56,6 +56,36 @@ describe("PD102", () => {
     );
   });
 
+  it("skips sources whose roles are a column, a fixed list or a map", () => {
+    const sources: PermDockConfig = {
+      policy: "p.ts",
+      powersync: {},
+      rls: {
+        membershipSources: [
+          junctionMembershipSource({
+            table: "public.a",
+            scope: "organization",
+            id: "organization_id",
+            roles: "role",
+          }),
+          junctionMembershipSource({
+            table: "public.b",
+            scope: "organization",
+            id: "organization_id",
+            roles: ["member"],
+          }),
+          junctionMembershipSource({
+            table: "public.c",
+            scope: "organization",
+            id: "organization_id",
+            roles: { column: "kind", map: { admin: "owner" } },
+          }),
+        ],
+      },
+    };
+    expect(pd102({ cwd: project(STALE), config: sources })).toStrictEqual([]);
+  });
+
   it("passes the regenerated file, a plain junction and a project with no file", () => {
     const current = STALE.replace(
       "membership_roles.user_id = auth.user_id()",

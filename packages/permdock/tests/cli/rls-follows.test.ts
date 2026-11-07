@@ -79,6 +79,26 @@ describe("rls.tables follows and walk", () => {
     expect(plain).not.toContain("accessible_");
   });
 
+  it("walks without a tenant filter when the resource has no root-scope relation", () => {
+    const loose = definePolicy(
+      definePermissions({
+        folder: resource({
+          actions: ["read"],
+          parent: { field: "parentId", resource: "folder" },
+        }),
+      }),
+      { subject: () => null },
+    );
+    const sql = walkChainSql(
+      { ...ctx, scopes: [] },
+      loose,
+      { folder: { table: "public.folders", walk: "recursive" } },
+      false,
+    );
+    expect(sql).toContain('select t."id", null, 0, array[t."id"], false');
+    expect(sql).not.toContain("= w.tenant");
+  });
+
   it("defaults the start column to the id column", () => {
     const sql = walkChainSql(
       ctx,
