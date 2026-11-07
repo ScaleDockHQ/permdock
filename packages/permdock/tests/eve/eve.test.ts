@@ -153,7 +153,7 @@ describe("permdock/eve", () => {
     ).toMatchObject({ type: "denied" });
   });
 
-  it("records a cancel as a rejection and denies the re-check", async () => {
+  it("records a denial as a rejection and denies the re-check", async () => {
     const store = memoryApprovalStore();
     const { approval } = createPermDock(policy, {
       operations: tools(),
@@ -165,11 +165,11 @@ describe("permdock/eve", () => {
     expect(await approval.request(call("delete_post", { id: "p1" }))).toBe(
       "user-approval",
     );
-    const cancel = respond({ principalId: "u2", roles: "admin" }, deleteOwn);
+    const denial = respond({ principalId: "u2", roles: "admin" }, deleteOwn);
     expect(
       await approval.response({
-        ...cancel,
-        response: { ...cancel.response, decision: "cancel" },
+        ...denial,
+        response: { ...denial.response, decision: "deny" },
       }),
     ).toStrictEqual({ status: "allowed" });
     expect(

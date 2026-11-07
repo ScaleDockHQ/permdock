@@ -47,7 +47,9 @@ export function testReplayStore(store: ReplayStore): void {
       store.claim("claim-key", expiresAt),
       store.claim("claim-key", expiresAt),
     ]);
-    expect(results.toSorted()).toStrictEqual([false, true]);
+    expect(
+      results.toSorted((left, right) => Number(left) - Number(right)),
+    ).toStrictEqual([false, true]);
     expect(await store.seen("claim-key")).toBe(true);
     await store.release("claim-key");
     expect(await store.claim("claim-key", expiresAt)).toBe(true);
