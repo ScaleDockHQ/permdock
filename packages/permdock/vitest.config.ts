@@ -118,14 +118,14 @@ export default defineConfig({
         functions: 99,
         branches: 95,
         "src/core/**": {
-          statements: 97,
-          lines: 97,
+          statements: 98,
+          lines: 98,
           functions: 99,
           branches: 95,
         },
         "src/conditions/**": {
           statements: 97,
-          lines: 96,
+          lines: 97,
           functions: 100,
           branches: 96,
         },
