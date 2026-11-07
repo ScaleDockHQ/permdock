@@ -1,4 +1,4 @@
-import type { CustomRoleLookup, ExpandedRoleNames } from "./custom-roles.ts";
+import type { CustomRoleNames, ExpandedRoleNames } from "./custom-roles.ts";
 import type { AuthEvent } from "./event-types.ts";
 import type {
   CustomRoleSource,
@@ -182,7 +182,7 @@ export function expandRoleNames(
   declared: ReadonlySet<string>,
   custom: readonly CustomRole[],
   tenant: string | undefined,
-  lookup?: CustomRoleLookup,
+  lookup?: CustomRoleNames,
 ): ExpandedRoleNames {
   if (lookup === undefined) {
     return expandUncached(names, declared, (name) =>

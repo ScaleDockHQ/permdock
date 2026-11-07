@@ -612,20 +612,34 @@ function effectiveCustomRoles(
  * level. Built by `indexCustomRoles`; an instance holds it, so the lookups on a
  * decision never scan every role.
  */
-export type CustomRoleLookup = {
+export type CustomRoleLookup = CustomRoleNames & {
   readonly grants: readonly CustomGrant[];
   readonly unknownLevels: readonly UnknownLevel[];
   readonly grantsByKey: ReadonlyMap<string, readonly CustomGrant[]>;
+};
+
+/**
+ * The custom roles by name, and `expandRoleNames` answers by role-name list and
+ * tenant.
+ */
+export type CustomRoleNames = {
   readonly rolesByName: ReadonlyMap<string, readonly CustomRole[]>;
-  /**
-   * `expandRoleNames` answers by role-name list and tenant: a request asks each
-   * membership many times.
-   */
   readonly expanded: WeakMap<
     readonly string[],
     Map<string | undefined, ExpandedRoleNames>
   >;
 };
+
+/** The names of `roles` visible to a tenant, without resolving any role. */
+export function customRoleNames(roles: readonly CustomRole[]): CustomRoleNames {
+  const rolesByName = new Map<string, CustomRole[]>();
+  for (const role of effectiveCustomRoles(roles)) {
+    const named = rolesByName.get(role.name) ?? [];
+    named.push(role);
+    rolesByName.set(role.name, named);
+  }
+  return { rolesByName, expanded: new WeakMap() };
+}
 
 export type ExpandedRoleNames = {
   readonly roles: readonly string[];
@@ -686,7 +700,7 @@ export function customGrantsOfKey(
 
 /** Whether `name` is a custom role known in `tenant`, through the lookup. */
 export function isKnownCustomRole(
-  lookup: CustomRoleLookup,
+  lookup: CustomRoleNames,
   name: string,
   tenant: string | undefined,
 ): boolean {

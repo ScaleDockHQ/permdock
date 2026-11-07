@@ -10,6 +10,7 @@ import { compact } from "./compact.ts";
 import { contactMayUse } from "./contact.ts";
 import {
   customGrantsFor,
+  customRoleNames,
   customRoleScope,
   holdsCustomRole,
   holdsGlobalCustomRole,
@@ -119,11 +120,13 @@ export function collectSnapshotGrants(
         grant.effect !== "allow";
   const scopes = scopeList(policy.scopes);
   const declared = declaredRoleNames(policy);
+  const names = customRoleNames(customRoles);
   const global = expandRoleNames(
     subject.principal?.roles ?? [],
     declared,
     customRoles,
     subject.principal?.tenant,
+    names,
   );
   const held = (subject.principal?.memberships ?? []).map((membership) => ({
     membership,
@@ -133,6 +136,7 @@ export function collectSnapshotGrants(
         declared,
         customRoles,
         tenantOf(membership, scopes),
+        names,
       ).roles,
     ),
   }));

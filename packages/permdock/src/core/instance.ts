@@ -73,7 +73,8 @@ export function buildInstance(
   const listeners = emptyListeners();
   const queuedAuth = [...envBase.queuedAuth];
   const queuedErrors = [...(envBase.queuedErrors ?? [])];
-  const customLookup = indexCustomRoles(policy, envBase.customRoles);
+  const customLookup =
+    envBase.customLookup ?? indexCustomRoles(policy, envBase.customRoles);
   const customGrants = customLookup.grants;
   const unknownLevels = customLookup.unknownLevels;
   const relationCache: RelationCache = envBase.relationCache ?? new Map();

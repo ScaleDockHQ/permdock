@@ -134,8 +134,8 @@ describe("custom role holders in a snapshot", () => {
     };
     const held = collectSnapshotGrants(policy, subject, customRoles)
       .filter((item) => item.grant.role === "c")
-      .map((item) => item.membership?.id)
-      .toSorted();
+      .map((item) => item.membership?.id ?? "")
+      .toSorted((a, b) => a.localeCompare(b));
     expect(held).toStrictEqual(["t0", "t0", "t2", "t2"]);
   });
 });
