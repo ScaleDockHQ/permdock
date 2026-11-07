@@ -402,7 +402,7 @@ function probeOf(
 function tableBody(ctx: RlsSqlContext, scope: string, type: string): string {
   const mapped = scopeTable(ctx, scope);
   if (mapped === undefined) {
-    return `  select null::${type} where false -- no ${scope} memberships table configured`;
+    return `  select null::${type}${ctx.grantSet === true ? ", null::text" : ""} where false -- no ${scope} memberships table configured`;
   }
   const { table, column, tenantColumn } = mapped;
   const set = ctx.grantSet === true;
