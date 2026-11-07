@@ -467,15 +467,16 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
   tenantClaim: "tenant_id",
   budget: {
     bytes: 1024,
-    measure: "octet_length(memberships::text) + octet_length(attrs::text)",
+    measure:
+      "octet_length(roles::text) + octet_length(memberships::text) + octet_length(team_ids::text) + octet_length(attrs::text) + octet_length(authz_ver::text)",
   },
   claims: [
     { name: "user_role", source: "permdock", budget: false },
-    { name: "roles", source: "permdock", budget: false },
+    { name: "roles", source: "permdock", budget: true },
     { name: "memberships", source: "permdock", budget: true },
     { name: "memberships_truncated", source: "permdock", budget: false },
     { name: "tenant_id", source: "permdock", budget: false },
-    { name: "authz_ver", source: "permdock", budget: false },
+    { name: "authz_ver", source: "permdock", budget: true },
     { name: "features", source: "public.feature_claims", budget: false },
   ],
   authzVersion: true,

@@ -79,7 +79,8 @@ describe("supabase hook", () => {
       expect(sql).toContain(
         `where has_column_privilege(r.role, '"public"."profiles"', c.name, 'INSERT')`,
       );
-      expect(sql).toContain("+ used > budget");
+      expect(sql).toContain("<= budget");
+      expect(sql.match(/pdk_roles/gu)).not.toBeNull();
       expect(sql).not.toMatch(/user_meta/iu);
       expect(sql).toContain(`from "public"."customer_contacts" m`);
       expect(sql).toContain(`jsonb_build_array('contact')`);
@@ -270,8 +271,8 @@ describe("supabase hook", () => {
         sql.indexOf("end if;", sql.indexOf("if not ")),
       );
       expect(suspendedBranch).not.toContain("feature_claims");
-      const loopEnd = sql.indexOf("end loop;");
-      expect(sql.indexOf('feature_claims"(uid')).toBeGreaterThan(loopEnd);
+      const oneQueryEnd = sql.indexOf("into held, kept");
+      expect(sql.indexOf('feature_claims"(uid')).toBeGreaterThan(oneQueryEnd);
       expect(sql.split("\n", 1)[0]).toBe(
         "-- permdock:hook v1 schema=permdock tenant=tenant_id budget=1024 claims=user_role,roles,memberships,memberships_truncated,tenant_id,authz_ver,features",
       );

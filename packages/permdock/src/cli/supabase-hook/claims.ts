@@ -286,15 +286,15 @@ function permdockClaim(name: string, budget = false): SupabaseHookClaim {
 export function hookClaims(parts: Parts): readonly SupabaseHookClaim[] {
   return [
     permdockClaim("user_role"),
-    permdockClaim("roles"),
+    permdockClaim("roles", true),
     permdockClaim("memberships", true),
     permdockClaim("memberships_truncated"),
     permdockClaim(parts.tenantClaim),
     ...(parts.hook.teams === undefined
       ? []
-      : [permdockClaim("team_ids"), permdockClaim("team_ids_truncated")]),
+      : [permdockClaim("team_ids", true), permdockClaim("team_ids_truncated")]),
     ...(parts.attrs === undefined ? [] : [permdockClaim("attrs", true)]),
-    ...(parts.version ? [permdockClaim("authz_ver")] : []),
+    ...(parts.version ? [permdockClaim("authz_ver", true)] : []),
     ...parts.extra.map((entry) => ({
       name: entry.claim,
       source: entry.fn,

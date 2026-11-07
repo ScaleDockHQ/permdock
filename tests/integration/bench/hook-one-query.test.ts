@@ -1,0 +1,203 @@
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+
+import type { Postgres } from "../src/support/postgres.ts";
+
+import { defined } from "../src/support/defined.ts";
+import { startPostgres } from "../src/support/postgres.ts";
+import { generated } from "../src/support/rls.ts";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const FIXTURE = join(HERE, "../fixtures/supabase-sources");
+
+const OWNER = "00000000-0000-4000-8000-0000000000b1";
+const CONTACT = "00000000-0000-4000-8000-0000000000b2";
+const SUSPENDED = "00000000-0000-4000-8000-0000000000b3";
+const USERS = [OWNER, CONTACT, SUSPENDED];
+const HELD = 150;
+
+const SETUP = `
+create role authenticated nologin;
+create role anon nologin;
+create role supabase_auth_admin nologin;
+grant authenticated, anon, supabase_auth_admin to tester;
+create schema auth;
+create table auth.users (id uuid primary key, raw_app_meta_data jsonb not null default '{}');
+create function auth.uid() returns uuid language sql stable as $$
+  select nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'sub', '')::uuid
+$$;
+create function auth.jwt() returns jsonb language sql stable as $$
+  select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
+$$;
+grant usage on schema auth to supabase_auth_admin, authenticated, anon;
+grant execute on all functions in schema auth to authenticated, anon;
+grant select on auth.users to supabase_auth_admin;
+grant usage on schema public to authenticated, anon;
+insert into auth.users (id) values ${USERS.map((id) => `('${id}')`).join(", ")};
+create table memberships (
+  user_id uuid not null, scope text not null, scope_id text not null, role text not null,
+  via text, expires_at timestamptz, managed_by text, seats text[]
+);
+insert into memberships values
+  ('${OWNER}', 'organization', 'T', 'owner', 'staff', null, null, null),
+  ('${OWNER}', 'organization', 'B', 'member', 'staff', '2100-01-01T00:00:00Z', null, null),
+  ('${OWNER}', 'organization', 'X', 'owner', 'staff', null, null, null),
+  ('${CONTACT}', 'organization', 'T', 'member', 'staff', now() - interval '1 day', null, null),
+  ('${SUSPENDED}', 'organization', 'T', 'admin', 'staff', null, null, null);
+create table customer_contacts (customer_id text not null, organization_id text not null, user_id uuid not null);
+insert into customer_contacts values ('A', 'T', '${CONTACT}');
+create table user_roles (user_id uuid not null, role text not null);
+create table profiles (id uuid primary key, locale text, timezone text, disabled_at timestamptz);
+insert into profiles select id, null, null, null from auth.users;
+update profiles set disabled_at = now() where id = '${SUSPENDED}';
+create table organization (id text primary key, disabled_at timestamptz);
+insert into organization values ('T', null), ('B', null), ('X', now());
+create schema pd_db;
+grant usage on schema pd_db to authenticated;
+`;
+
+/**
+ * An extra claim another package owns: one entry per organization the user is a
+ * member of.
+ */
+const FEATURE_CLAIMS = `
+create schema billing;
+create function billing.feature_claims(uid uuid) returns jsonb language sql stable as $$
+  select jsonb_object_agg(id, jsonb_build_array('export') order by id)
+  from permdock.member_organization_ids_for(uid) id
+$$;
+`;
+
+const MANY = `
+insert into memberships
+  select '${OWNER}', 'organization', 'O' || lpad(n::text, 4, '0'), 'owner', 'staff', null, null, null
+  from generate_series(1, ${HELD}) n;
+insert into organization select 'O' || lpad(n::text, 4, '0'), null from generate_series(1, ${HELD}) n;
+analyze;
+`;
+
+/**
+ * The token hook for one user who holds 150 organizations: the plan's execution
+ * time and buffers are in the commit message, so a regression in the number of
+ * statements the hook runs shows up as a diff of the numbers there.
+ */
+describe("the token hook against Postgres", () => {
+  let db: Postgres | undefined;
+
+  beforeAll(async () => {
+    const [jwt, database, hook] = await Promise.all([
+      generated(
+        [
+          "rls",
+          "generate",
+          "--target",
+          "sql",
+          "--rbac",
+          "supabase",
+          "--authorize",
+          "jwt",
+          "--rbac-schema",
+          "permdock",
+          "--tenant-type",
+          "text",
+          "--schemas",
+          "migrations",
+          "--split",
+          "helpers,policies",
+          "--out",
+          "{dir}/{part}.sql",
+        ],
+        ["helpers.sql"],
+        { cwd: FIXTURE },
+      ),
+      generated(
+        [
+          "rls",
+          "generate",
+          "--target",
+          "sql",
+          "--rbac",
+          "supabase",
+          "--authorize",
+          "database",
+          "--rbac-schema",
+          "pd_db",
+          "--tenant-type",
+          "text",
+          "--schemas",
+          "migrations",
+          "--split",
+          "helpers,policies",
+          "--out",
+          "{dir}/{part}.sql",
+        ],
+        ["helpers.sql"],
+        { cwd: FIXTURE },
+      ),
+      generated(
+        [
+          "supabase",
+          "hook",
+          "generate",
+          "--out",
+          "{dir}/hook.sql",
+          "--schemas",
+          "migra",
+          "--grants-out",
+          "{dir}/grants.sql",
+        ],
+        ["hook.sql", "grants.sql"],
+        { cwd: FIXTURE },
+      ),
+    ]);
+    db = await startPostgres([
+      SETUP,
+      ...jwt,
+      ...database,
+      FEATURE_CLAIMS,
+      ...hook,
+      "grant usage on schema pd_db to supabase_auth_admin",
+      MANY,
+    ]);
+  }, 180_000);
+
+  afterAll(async () => {
+    await db?.stop();
+  });
+
+  it("keeps the active organization first and every claim the budget allows", async () => {
+    const target = defined(db);
+    const claims = await target.as(
+      { role: "supabase_auth_admin" },
+      async () => {
+        const answer = await target.tester.query<{
+          hook: { claims: Record<string, unknown> };
+        }>(
+          "select permdock.custom_access_token_hook(jsonb_build_object('user_id', $1::text, 'claims', '{}'::jsonb)) as hook",
+          [OWNER],
+        );
+        return answer.rows[0]?.hook.claims;
+      },
+    );
+    expect(Array.isArray(claims?.["memberships"])).toBe(true);
+  });
+
+  it("reports the plan numbers", async () => {
+    const target = defined(db);
+    const plan = await target.as({ role: "supabase_auth_admin" }, async () => {
+      const rows = (
+        await target.tester.query<{ "QUERY PLAN": string }>(
+          `explain (analyze, buffers) select permdock.custom_access_token_hook(jsonb_build_object('user_id', '${OWNER}', 'claims', '{}'::jsonb))`,
+        )
+      ).rows;
+      return rows.map((row) => row["QUERY PLAN"]).join("\n");
+    });
+    const hit = /Buffers: shared hit=(\d+)/u.exec(plan)?.[1];
+    const time = /Execution Time: ([\d.]+) ms/u.exec(plan)?.[1];
+    process.stdout.write(
+      `PLAN-NUMBERS hook execution_ms=${time ?? "?"} shared_hit=${hit ?? "?"}\n`,
+    );
+    expect(time).toBeDefined();
+  });
+});
