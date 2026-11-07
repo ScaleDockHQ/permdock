@@ -32,6 +32,7 @@ export function hookTeamReadersSql(ctx: RlsSqlContext): string {
   ) {
     return "";
   }
+  const definer = ctx.hookSecurity === "definer";
   const schema = quoteIdent(helperSchema(ctx));
   const reader = `${schema}.${quoteIdent("member_team_ids_for")}`;
   const wrapper = `${schema}.${quoteIdent("member_team_ids_of")}`;
@@ -50,7 +51,7 @@ export function hookTeamReadersSql(ctx: RlsSqlContext): string {
     teams.tenant === undefined
       ? `t.${quoteIdent(teams.team)}`
       : `(p_active is not null and t.${quoteIdent(teams.tenant)}::text is not distinct from p_active) desc, t.${quoteIdent(teams.team)}`;
-  return `-- teams of p_user from supabase.hook.teams; execute is supabase_auth_admin only
+  return `-- teams of p_user from supabase.hook.teams; ${definer ? "only the hook's owner executes it" : "execute is supabase_auth_admin only"}
 create or replace function ${reader}(p_user uuid, p_active text default null)
 returns setof uuid
 language sql
@@ -64,8 +65,7 @@ as $$
 ${filters.join("\n")}
   order by ${order}
 $$;
-revoke execute on function ${reader}(uuid, text) from public, anon, authenticated;
-grant execute on function ${reader}(uuid, text) to supabase_auth_admin;
+revoke execute on function ${reader}(uuid, text) from public, anon, authenticated;${definer ? "" : `\ngrant execute on function ${reader}(uuid, text) to supabase_auth_admin;`}
 
 -- the caller's teams only, for better-supabase's teamIdsOf
 create or replace function ${wrapper}(p_user uuid)

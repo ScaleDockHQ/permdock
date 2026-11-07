@@ -412,7 +412,14 @@ describe("supabase.hook.teams", () => {
           hook: {
             security: "definer",
             teams: { table: "team_members", user: "user_id", team: "team_id" },
-            memberships: [],
+            memberships: [
+              junctionMembershipSource({
+                table: "organization_members",
+                scope: "organization",
+                id: "organization_id",
+                roles: "role",
+              }),
+            ],
           },
         },
       });
