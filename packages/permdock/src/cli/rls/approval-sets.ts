@@ -49,6 +49,9 @@ returns setof ${user}
 language sql
 stable
 security definer
+cost 100
+rows 5
+parallel safe
 set search_path = ''
 as $$
   select ${me}
@@ -84,6 +87,9 @@ returns setof ${type}
 language sql
 stable
 security definer
+cost 1000
+rows 50
+parallel safe
 set search_path = ''
 as $$
   with recursive down (id, depth, path) as (

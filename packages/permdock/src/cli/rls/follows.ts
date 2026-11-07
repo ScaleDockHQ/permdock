@@ -178,6 +178,9 @@ returns setof ${type}
 language sql
 stable
 security definer
+cost 1000
+rows 100
+parallel safe
 set search_path = ''
 as $$
   with recursive walk(id, tenant, depth, path, cover) as (

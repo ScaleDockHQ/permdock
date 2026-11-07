@@ -140,6 +140,7 @@ create or replace function ${fn}()
 returns uuid
 language sql
 stable
+parallel safe
 set search_path = ''
 as $$
   select nullif(

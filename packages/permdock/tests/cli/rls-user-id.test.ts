@@ -34,6 +34,7 @@ create or replace function "permdock".permdock_user_id()
 returns uuid
 language sql
 stable
+parallel safe
 set search_path = ''
 as $$
   select nullif(

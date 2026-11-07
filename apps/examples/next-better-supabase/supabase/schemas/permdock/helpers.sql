@@ -13,6 +13,7 @@ create or replace function "permdock".permdock_user_id()
 returns uuid
 language sql
 stable
+parallel safe
 set search_path = ''
 as $$
   select nullif(
@@ -347,6 +348,8 @@ language plpgsql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
 declare
@@ -493,6 +496,8 @@ language plpgsql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
 declare
@@ -3429,6 +3434,9 @@ returns setof uuid
 language sql
 stable
 security definer
+cost 100
+rows 5
+parallel safe
 set search_path = ''
 as $$
   select (select "permdock".permdock_user_id())

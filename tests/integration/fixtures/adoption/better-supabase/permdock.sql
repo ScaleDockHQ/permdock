@@ -13,6 +13,7 @@ create or replace function "permdock".permdock_user_id()
 returns uuid
 language sql
 stable
+parallel safe
 set search_path = ''
 as $$
   select nullif(
@@ -128,6 +129,8 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select distinct m."tenant_id"::uuid
@@ -189,6 +192,8 @@ language sql
 stable
 security definer
 cost 1000
+rows 10
+parallel safe
 set search_path = ''
 as $$
   select null::uuid where false -- no team memberships table configured
