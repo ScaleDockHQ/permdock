@@ -5,7 +5,13 @@
   "tasks": {
     "build": {
       "dependsOn": ["$TURBO_EXTENDS$", "typegen"],
-      "env": ["$TURBO_EXTENDS$", "DEMO_LATENCY_MS", "EXPOSE_TESTING_API"]
+      "env": [
+        "$TURBO_EXTENDS$",
+        "DATABASE_URL",
+        "DEMO_LATENCY_MS",
+        "EXPOSE_TESTING_API",
+        "SEED_QUOTES"
+      ]
     },
     "typecheck": {
       "dependsOn": ["$TURBO_EXTENDS$", "typegen"]
