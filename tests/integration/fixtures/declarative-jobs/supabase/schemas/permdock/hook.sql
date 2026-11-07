@@ -119,7 +119,8 @@ begin
       select team_id from "permdock".member_team_ids_for(uid, active) as team(team_id)
     )) with ordinality as u(id, n)
   ), '[]'::jsonb);
-  if octet_length(team_ids::text) > budget then
+  -- the teams share the budget with the attrs and the memberships already kept
+  if used + octet_length(kept::text) + octet_length(team_ids::text) > budget then
     team_truncated := true;
   end if;
   if team_truncated then
@@ -171,6 +172,7 @@ as $$
 $$;
 revoke execute on function "permdock".permdock_bump_authz_version_for(uuid[]) from public, anon, authenticated;
 
+-- one bump per statement: the users in the transition tables, old and new, each once
 create or replace function "permdock".permdock_bump_authz_version()
 returns trigger
 language plpgsql
@@ -179,24 +181,60 @@ set search_path = ''
 as $$
 declare
   column_name text := tg_argv[0];
+  users uuid[] := '{}';
+  holder uuid[];
 begin
-  perform "permdock".permdock_bump_authz_version_for(array[
-    case when tg_op <> 'INSERT' then to_jsonb(old) ->> column_name end,
-    case when tg_op <> 'DELETE' then to_jsonb(new) ->> column_name end
-  ]::uuid[]);
+  if tg_op <> 'INSERT' then
+    execute format('select coalesce(array_agg(distinct %1$I::text::uuid), ''{}'') from permdock_old where %1$I is not null', column_name)
+      into holder;
+    users := users || holder;
+  end if;
+  if tg_op <> 'DELETE' then
+    execute format('select coalesce(array_agg(distinct %1$I::text::uuid), ''{}'') from permdock_new where %1$I is not null', column_name)
+      into holder;
+    users := users || holder;
+  end if;
+  perform "permdock".permdock_bump_authz_version_for(users);
   return null;
 end;
 $$;
 revoke execute on function "permdock".permdock_bump_authz_version() from public, anon, authenticated;
-create or replace trigger "permdock_authz_version"
-  after insert or update or delete on "public"."organization_members"
-  for each row execute function "permdock".permdock_bump_authz_version('user_id');
-create or replace trigger "permdock_authz_version"
-  after insert or update or delete on "permdock"."user_roles"
-  for each row execute function "permdock".permdock_bump_authz_version('user_id');
-create or replace trigger "permdock_authz_version"
-  after insert or update or delete on "public"."team_members"
-  for each row execute function "permdock".permdock_bump_authz_version('user_id');
+create or replace trigger "permdock_authz_version_insert"
+  after insert on "public"."organization_members"
+  referencing new table as permdock_new
+  for each statement execute function "permdock".permdock_bump_authz_version('user_id');
+create or replace trigger "permdock_authz_version_update"
+  after update on "public"."organization_members"
+  referencing old table as permdock_old new table as permdock_new
+  for each statement execute function "permdock".permdock_bump_authz_version('user_id');
+create or replace trigger "permdock_authz_version_delete"
+  after delete on "public"."organization_members"
+  referencing old table as permdock_old
+  for each statement execute function "permdock".permdock_bump_authz_version('user_id');
+create or replace trigger "permdock_authz_version_insert"
+  after insert on "permdock"."user_roles"
+  referencing new table as permdock_new
+  for each statement execute function "permdock".permdock_bump_authz_version('user_id');
+create or replace trigger "permdock_authz_version_update"
+  after update on "permdock"."user_roles"
+  referencing old table as permdock_old new table as permdock_new
+  for each statement execute function "permdock".permdock_bump_authz_version('user_id');
+create or replace trigger "permdock_authz_version_delete"
+  after delete on "permdock"."user_roles"
+  referencing old table as permdock_old
+  for each statement execute function "permdock".permdock_bump_authz_version('user_id');
+create or replace trigger "permdock_authz_version_insert"
+  after insert on "public"."team_members"
+  referencing new table as permdock_new
+  for each statement execute function "permdock".permdock_bump_authz_version('user_id');
+create or replace trigger "permdock_authz_version_update"
+  after update on "public"."team_members"
+  referencing old table as permdock_old new table as permdock_new
+  for each statement execute function "permdock".permdock_bump_authz_version('user_id');
+create or replace trigger "permdock_authz_version_delete"
+  after delete on "public"."team_members"
+  referencing old table as permdock_old
+  for each statement execute function "permdock".permdock_bump_authz_version('user_id');
 
 -- sends every version bump on the server topic and on the user's authz:<uid>
 create or replace function "permdock".permdock_broadcast_authz_version()
@@ -205,18 +243,27 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  r record;
 begin
   if to_regprocedure('realtime.send(jsonb, text, text, boolean)') is not null then
-    perform realtime.send(jsonb_build_object('user_id', new.user_id, 'version', new.version), 'changed', 'better_supabase:authz', true);
-    perform realtime.send(jsonb_build_object('user_id', new.user_id, 'version', new.version), 'changed', 'authz:' || new.user_id::text, true);
+    for r in select * from permdock_new loop
+      perform realtime.send(jsonb_build_object('user_id', r.user_id, 'version', r.version), 'changed', 'better_supabase:authz', true);
+      perform realtime.send(jsonb_build_object('user_id', r.user_id, 'version', r.version), 'changed', 'authz:' || r.user_id::text, true);
+    end loop;
   end if;
   return null;
 end;
 $$;
 revoke execute on function "permdock".permdock_broadcast_authz_version() from public, anon, authenticated;
-create or replace trigger permdock_authz_version_broadcast
-  after insert or update on "permdock"."permdock_authz_version"
-  for each row execute function "permdock".permdock_broadcast_authz_version();
+create or replace trigger permdock_authz_version_broadcast_insert
+  after insert on "permdock"."permdock_authz_version"
+  referencing new table as permdock_new
+  for each statement execute function "permdock".permdock_broadcast_authz_version();
+create or replace trigger permdock_authz_version_broadcast_update
+  after update on "permdock"."permdock_authz_version"
+  referencing new table as permdock_new
+  for each statement execute function "permdock".permdock_broadcast_authz_version();
 
 -- the subject the hook would mint for p_user, for a backend acting for a stored user; no client role may execute it
 create or replace function "permdock".subject_for(p_user uuid)

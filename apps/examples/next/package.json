@@ -10,7 +10,7 @@
     "lint": "oxlint --disable-nested-config --type-aware",
     "start": "next start -p 3485 -H 127.0.0.1",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@base-ui/react": "catalog:",

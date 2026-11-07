@@ -21,7 +21,7 @@
     "test": "vitest run --exclude 'tests/stack/**'",
     "test:e2e": "playwright test",
     "test:stack": "vitest run tests/stack",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "typegen": "next typegen"
   },
   "dependencies": {
