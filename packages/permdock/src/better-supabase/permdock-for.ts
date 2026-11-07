@@ -1,10 +1,8 @@
 import type { PermissionCheck, PermissionState } from "../core/checks.ts";
-import type { Decision } from "../core/decision.ts";
 import type { InstanceCache } from "../core/instance-cache.ts";
 import type { InstanceOptions } from "../core/instance-options.ts";
 import type { Intent, MembershipSource } from "../core/interfaces.ts";
 import type { PermDock, PermDockOptions } from "../core/permdock.ts";
-import type { Permission } from "../core/permission-types.ts";
 import type { Policy, PolicyVocabulary } from "../core/policy-types.ts";
 import type { SubjectCache } from "../core/subject-cache.ts";
 import type { Principal, Subject } from "../core/subject.ts";
@@ -16,15 +14,11 @@ import type {
 } from "./subject.ts";
 import type { AnyVersionCache } from "./version-cache.ts";
 
-import { appOf } from "../core/app.ts";
-import { buildInstance } from "../core/build-instance.ts";
-import { permissionStates } from "../core/checks.ts";
-import { compact, isRecord } from "../core/compact.ts";
-import { NO_GRANT } from "../core/decision.ts";
-import { instanceOptions } from "../core/instance-options.ts";
-import { readSubjectRecord } from "../core/subject-cache.ts";
 import { isSubject } from "../core/subject.ts";
-import { versionSources } from "../core/version-sources.ts";
+import {
+  createResolver,
+  getPermissions as sharedGetPermissions,
+} from "../supabase/resolver.ts";
 import { subjectFromBetterSupabase } from "./subject.ts";
 import { versionCacheOf } from "./version-cache.ts";
 
@@ -135,21 +129,6 @@ const RESOLVER_OWNS = [
   "options",
 ] as const;
 
-function isResult(source: unknown): source is PermDockForResult {
-  return (
-    isRecord(source) &&
-    Object.hasOwn(source, "session") &&
-    Object.hasOwn(source, "authzVersion") &&
-    !Object.hasOwn(source, "kind")
-  );
-}
-
-function knownVersion(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
-    ? value
-    : undefined;
-}
-
 function subjectOf(
   source: PermDockForInput,
   result: PermDockForResult | undefined,
@@ -171,100 +150,22 @@ function subjectOf(
   return subjectFromBetterSupabase(session, options);
 }
 
-/**
- * `options` with the `definePermDock` definition of its policy under it:
- * `memberships`, `instances`, `versions` and `subjects` by key, and the other
- * sources and `settings` inside `options.options`. A plain policy changes
- * nothing.
- */
-function withDefinition<V extends PolicyVocabulary>(
-  options: PermDockForOptions<V>,
-): PermDockForOptions<V> {
-  const app = appOf(options.policy);
-  if (app === undefined) return options;
-  const { memberships, instances, ...sources } = instanceOptions(app);
-  return {
-    ...options,
-    ...compact({
-      memberships: options.memberships ?? memberships,
-      instances: options.instances ?? instances,
-      versions: options.versions ?? app.versions,
-      subjects: options.subjects ?? app.subjects,
-    }),
-    options: {
-      ...sources,
-      ...compact({ settings: app.settings }),
-      ...options.options,
-    },
-  };
-}
-
-/**
- * The resolver behind `permdockFor`, the authorizer and the hooks: one sources
- * object per version cache, so every instance of one subject at one version
- * shares an `instances` entry.
- */
 function permdockResolver<V extends PolicyVocabulary>(
   given: PermDockForOptions<V>,
 ): PermDockResolver<V> {
-  const { versions: anyVersions, ...definition } = withDefinition(given);
-  const cache = versionCacheOf(anyVersions);
-  const options = {
-    ...definition,
-    ...(cache === undefined ? {} : { versions: cache }),
-  };
-  const versionSourcesFor = versionSources(options);
-  const sourcesFor = (versions?: AnyVersionCache): InstanceOptions =>
-    versionSourcesFor(versionCacheOf(versions));
-  const resolve = async (
-    source: PermDockForInput,
-    query: PermDockForQuery,
-    runtimeVersions?: AnyVersionCache,
-  ): Promise<PermDock<V>> => {
-    const result = isResult(source) ? source : undefined;
-    const signedOut = result?.sessionActive === false;
-    const user = subjectOf(source, result, signedOut, options.subject);
-    const tenant = query.tenant ?? result?.tenant ?? undefined;
-    const known = signedOut ? undefined : knownVersion(result?.authzVersion);
-    const sources = sourcesFor(runtimeVersions);
-    const id = user.principal?.id;
-    if (
-      options.subjects !== undefined &&
-      id !== undefined &&
-      known !== undefined
-    ) {
-      try {
-        await options.subjects.record(id, known);
-        const record =
-          result?.subject === undefined
-            ? undefined
-            : readSubjectRecord(result.subject);
-        if (
-          record?.active === true &&
-          record.id === id &&
-          record.authzVersion === known
-        ) {
-          await options.subjects.seed(record);
-        }
-      } catch {
-        // A cache that fails answers nothing; the source reads the record itself.
-      }
-    }
-    const { permdock } = await buildInstance({
-      policy: options.policy,
-      user,
-      sources,
-      scope: {
-        ...options.options,
-        memberships: sources.memberships,
-        intent: query.intent ?? "read",
-        tenant: tenant ?? undefined,
-        version: known === undefined ? undefined : { known },
-      },
-    });
-    return permdock;
-  };
-  return Object.freeze(Object.assign(resolve, { sources: sourcesFor }));
+  const { subject, ...rest } = given;
+  return createResolver<V, PermDockForInput, AnyVersionCache>({
+    ...rest,
+    subjectOf: (source, result, signedOut) =>
+      subjectOf(
+        source,
+        // SAFETY: a better-supabase access result carries a better-supabase session.
+        result as PermDockForResult | undefined,
+        signedOut,
+        subject,
+      ),
+    versionCacheOf,
+  });
 }
 
 /**
@@ -323,13 +224,8 @@ export function permdockFor<V extends PolicyVocabulary = PolicyVocabulary>(
   return Object.freeze(Object.assign(call, { sources: resolve.sources }));
 }
 
-/**
- * One `{ allowed, outcome, reason? }` per named check for `input`, from one
- * `permdockFor` instance: frozen plain JSON an island returns from `'use cache:
- * private'`. A check that throws denies its entry; an instance that cannot be
- * built denies them all.
- */
-export async function getPermissions<K extends string>(
+/** `getPermissions` over `permdockFor` input. */
+export function getPermissions<K extends string>(
   resolve: (
     source: PermDockForInput,
     query?: PermDockForQuery | string | null,
@@ -338,19 +234,5 @@ export async function getPermissions<K extends string>(
   checks: Readonly<Record<K, PermissionCheck>>,
   query?: PermDockForQuery | string | null,
 ): Promise<Readonly<Record<K, PermissionState>>> {
-  let permdock: PermDock | undefined;
-  try {
-    permdock = await resolve(input, query);
-  } catch {
-    permdock = undefined;
-  }
-  if (permdock === undefined) {
-    return permissionStates((): Decision => NO_GRANT, checks);
-  }
-  // SAFETY: decide's instance and collection overloads share one implementation that takes either kind.
-  const decide = permdock.decide as (
-    next: Permission,
-    row?: unknown,
-  ) => Decision;
-  return permissionStates(decide, checks);
+  return sharedGetPermissions(resolve, input, checks, query);
 }

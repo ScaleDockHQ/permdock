@@ -93,3 +93,13 @@ export type {
   SupabaseSuspendedScope,
   SupabaseSuspension,
 } from "./types.ts";
+export { definePermDock } from "./define-permdock.ts";
+export type {
+  SupabaseDefineOptions,
+  SupabaseInput,
+  SupabasePermDock,
+  SupabaseQuery,
+} from "./define-permdock.ts";
+export { subjectFromSupabaseClient } from "./client-subject.ts";
+export type { SupabaseClaimsClient } from "./client-subject.ts";
+export type { SupabaseAccessResult } from "./resolver.ts";
