@@ -496,7 +496,8 @@ export function approvalDelegationsSql(
       end if;
       return coalesce(${qualified(ctx, MANAGES_FOR)}(p_delegator::text, p_requester, v_levels::text::integer, p_tenant), false);`
     : "";
-  const mine = `delegator::text = ${me}${writable}`;
+  const meTyped = `${subjectIdSql(ctx)}::${user}`;
+  const mine = `delegator = ${meTyped}${writable}`;
   const own = `${mine} and (tenant is null or ${member("tenant")})`;
   return `
 -- approval delegations: out-of-office covers a user writes for themselves; tableApprovalDelegationSource and permdock_is_approver read them
@@ -520,7 +521,7 @@ grant select, insert, update, delete on table ${table} to authenticated;
 drop policy if exists ${policy("read")} on ${table};
 create policy ${policy("read")} on ${table}
   for select to authenticated
-  using (delegator::text = ${me} or delegate::text = ${me});
+  using (delegator = ${meTyped} or delegate = ${meTyped});
 drop policy if exists ${policy("insert")} on ${table};
 create policy ${policy("insert")} on ${table}
   for insert to authenticated
@@ -612,7 +613,7 @@ begin
   for v_delegator in
     select d.delegator
     from ${table} d
-    where d.delegate::text = v_user
+    where d.delegate = v_user::${user}
       and d.delegator::text <> v_user
       and d.delegator::text <> p_requester
       and d."from" <= now()
