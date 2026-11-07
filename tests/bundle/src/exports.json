@@ -777,6 +777,7 @@
     "blockMembershipSource",
     "bucketPolicy",
     "credentialGuard",
+    "defineBlocksConfig",
     "definePermDock",
     "getPermissions",
     "handlerCan",
