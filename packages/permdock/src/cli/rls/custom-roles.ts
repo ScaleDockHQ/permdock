@@ -533,18 +533,76 @@ export function storedTenant(ctx: RlsSqlContext): string {
   return `case when ${qualified(ctx, CUSTOM_ROLES.shared)}(p_scope, p_role) then c.tenant_id is null else c.tenant_id is not distinct from p_tenant end`;
 }
 
+type CustomRoleProbe = {
+  readonly scope: string;
+  readonly role: string;
+  /**
+   * A SQL text the role's tenant is compared with; `undefined` for a platform
+   * role.
+   */
+  readonly tenant: string | undefined;
+  /**
+   * A SQL text for the instance a role may be pinned to; `undefined` for a
+   * platform role.
+   */
+  readonly instance: string | undefined;
+};
+
 /**
- * The tenant half of a custom-role row match for a membership: the membership's
- * tenant, or no tenant when a shared role of that name exists at the scope, so
- * a shared role shadows a tenant role of the same name.
+ * One probe of one custom role: its allow entries, its deny entries and the
+ * roles it includes, as three sorted arrays in one row. One probe of
+ * `custom_role_permissions` serves the allows and the denies, and one
+ * `permdock_is_shared_role()` call per membership replaces the three the array
+ * subselects made. A platform role (`tenant` undefined) has no tenant.
  */
-export function customTenantMatch(
+export function customArraysQuery(
   ctx: RlsSqlContext,
-  tenant: string,
-  scope: string,
-  role: string,
+  input: CustomRoleProbe,
 ): string {
-  return `case when ${qualified(ctx, CUSTOM_ROLES.shared)}(${quoteLiteral(scope)}, ${role}) then c.tenant_id is null else c.tenant_id::text = ${tenant} end`;
+  const scope = quoteLiteral(input.scope);
+  const tenantMatch = (alias: string): string =>
+    input.tenant === undefined
+      ? `${alias}.tenant_id is null`
+      : `case when pdk_s.shared then ${alias}.tenant_id is null else ${alias}.tenant_id::text = ${input.tenant} end`;
+  const match = (alias: string): string =>
+    [
+      tenantMatch(alias),
+      `${alias}.scope = ${scope}`,
+      input.instance === undefined
+        ? `${alias}.scope_id is null`
+        : `(${alias}.scope_id is null or ${alias}.scope_id = ${input.instance})`,
+      `${alias}.role = ${input.role}`,
+    ].join(" and ");
+  const shared =
+    input.tenant === undefined
+      ? "(select false as shared)"
+      : `(select ${qualified(ctx, CUSTOM_ROLES.shared)}(${scope}, ${input.role}) as shared offset 0)`;
+  const entry = `c.${allowEntry(ctx)}`;
+  return `select p.allow, p.deny, i.incl
+        from ${shared} pdk_s
+        cross join lateral (
+          select array(select i.include_role from ${qualified(ctx, CUSTOM_ROLES.includes)} i where ${match("i")} order by 1) as incl
+        ) i
+        cross join lateral (
+          select
+            coalesce(array_agg(${entry} order by ${entry}) filter (where c.effect = 'allow'), '{}'::text[]) as allow,
+            coalesce(array_agg(c.permission order by c.permission) filter (where c.effect = 'deny'), '{}'::text[]) as deny
+          from ${qualified(ctx, CUSTOM_ROLES.permissions)} c
+          where ${match("c")}
+        ) p`;
+}
+
+/**
+ * The grant keys one custom role holds, as a `select` of `grant_key`, for a
+ * caller that asks per membership.
+ */
+export function customKeysQuery(
+  ctx: RlsSqlContext,
+  input: CustomRoleProbe,
+): string {
+  return `select k.grant_key
+      from (${customArraysQuery(ctx, input)}) pdk_e
+      cross join lateral ${qualified(ctx, CUSTOM_ROLES.keys)}(pdk_e.allow, pdk_e.deny, pdk_e.incl, ${quoteLiteral(input.scope)}) k(grant_key)`;
 }
 
 /**

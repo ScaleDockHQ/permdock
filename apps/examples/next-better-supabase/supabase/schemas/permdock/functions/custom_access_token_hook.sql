@@ -99,34 +99,52 @@ declare
   in_active boolean := false;
   budget integer := 1024;
   used integer := 0;
-  item record;
   extra jsonb;
   ver bigint;
 begin
   claims := claims - 'attrs' - 'datetime_preferences' - 'features';
-  held := "permdock".global_roles_for(uid);
+  active := claims -> 'app_metadata' ->> 'tenant_id';
+  -- one statement reads the roles, the memberships and the authorization version; the budget counts every slice
+  with pdk_roles as (
+      select "permdock".global_roles_for(uid) as held
+    ),
+    pdk_version as (
+      select coalesce((select v.version from "permdock"."permdock_authz_version" v where v.user_id = uid), 0) as ver
+    ),
+    pdk_entries as (
+      select e.ord, e.entry, case when e.entry ->> 'scope' = 'organization' then e.entry ->> 'id' else e.entry -> 'within' ->> 'organization' end as root_id
+      from "permdock".memberships_for(uid) e
+    ),
+    pdk_fixed as (
+      select used + octet_length(pdk_roles.held::text) + octet_length(pdk_version.ver::text) as bytes from pdk_roles, pdk_version
+    ),
+    pdk_ranked as (
+      select x.entry, x.root_id is not distinct from active as current,
+        row_number() over w as n,
+        sum(octet_length(x.entry::text)) over w as bytes
+      from pdk_entries x
+      window w as (
+        order by (x.root_id is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
+        rows between unbounded preceding and current row
+      )
+    ),
+    pdk_kept as (
+      select r.* from pdk_ranked r, pdk_fixed f where f.bytes + 2 + r.bytes + 2 * (r.n - 1) <= budget
+    )
+  select
+    (select pdk_roles.held from pdk_roles),
+    coalesce((select jsonb_agg(k.entry order by k.n) from pdk_kept k), '[]'::jsonb),
+    truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
+    active is not null and coalesce((select bool_or(k.current) from pdk_kept k), false),
+    (select bytes from pdk_fixed),
+    (select pdk_version.ver from pdk_version)
+  into held, kept, truncated, in_active, used, ver;
   claims := jsonb_set(claims, '{roles}', held);
   if jsonb_array_length(held) = 1 then
     claims := jsonb_set(claims, '{user_role}', held -> 0);
   elsif jsonb_array_length(held) > 1 then
     claims := jsonb_set(claims, '{user_role}', held);
   end if;
-  active := claims -> 'app_metadata' ->> 'tenant_id';
-  for item in
-    select x.entry, x.root_id is not distinct from active as current
-    from (
-      select e.ord, e.entry, case when e.entry ->> 'scope' = 'organization' then e.entry ->> 'id' else e.entry -> 'within' ->> 'organization' end as root_id
-      from "permdock".memberships_for(uid) e
-    ) x
-    order by (x.root_id is not distinct from active) desc, x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text
-  loop
-    if octet_length((kept || jsonb_build_array(item.entry))::text) + used > budget then
-      truncated := true;
-      exit;
-    end if;
-    kept := kept || jsonb_build_array(item.entry);
-    in_active := in_active or (active is not null and item.current);
-  end loop;
   claims := jsonb_set(claims, '{memberships}', kept);
   if truncated then
     claims := jsonb_set(claims, '{memberships_truncated}', 'true'::jsonb);
@@ -144,8 +162,7 @@ begin
   if extra is not null then
     claims := jsonb_set(claims, '{features}', extra);
   end if;
-  select v.version into ver from "permdock"."permdock_authz_version" v where v.user_id = uid;
-  claims := jsonb_set(claims, '{authz_ver}', to_jsonb(coalesce(ver, 0)));
+  claims := jsonb_set(claims, '{authz_ver}', to_jsonb(ver));
   return jsonb_set(event, '{claims}', claims);
 end;
 $$;

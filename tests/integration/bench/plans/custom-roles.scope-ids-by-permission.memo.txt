@@ -1,0 +1,2 @@
+Aggregate  (cost=…) (actual time=… rows=1 loops=1)
+  ->  Function Scan on permitted_tenant_ids_by_permission  (cost=…) (actual time=… rows=50 loops=1)

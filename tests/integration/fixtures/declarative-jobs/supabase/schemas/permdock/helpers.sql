@@ -30,6 +30,17 @@ select * from (values
   ('member', 'jobParty.read', 'jobParty.read', 'tenant', 'allow')
 ) as v(role, permission, grant_key, scope, effect);
 revoke all on table "permdock".role_permissions from anon, authenticated, public;
+-- the grant keys of each declared role per scope, as a hash lookup where the view's values list is scanned
+create or replace function "permdock".permdock_role_keys(p_scope text, p_role text)
+returns jsonb
+language sql
+immutable
+parallel safe
+set search_path = ''
+as $$
+  select '{"tenant":{"member":["job.read","jobParty.read"]}}'::jsonb -> p_scope -> p_role
+$$;
+revoke execute on function "permdock".permdock_role_keys(text, text) from public, anon, authenticated;
 
 create table "permdock".user_roles (
   user_id uuid not null references auth.users on delete cascade,
@@ -51,10 +62,8 @@ as $$
   select exists (
     select 1
     from "permdock".user_roles ur
-    join "permdock".role_permissions rp on rp.role = ur.role::text
     where ur.user_id = (select "permdock".permdock_user_id())
-      and rp.grant_key = p_grant
-      and rp.scope = 'global'
+      and jsonb_exists("permdock".permdock_role_keys('global', ur.role::text), p_grant)
   )
 $$;
 revoke execute on function "permdock".permdock_has(text) from public, anon;
@@ -72,10 +81,8 @@ set search_path = ''
 as $$
   select m."organization_id"::uuid
   from "public"."organization_members" m
-  join "permdock".role_permissions rp on rp.role = m."role"::text
   where m."user_id" = (select "permdock".permdock_user_id())
-    and rp.grant_key = p_grant
-    and rp.scope = 'tenant'
+    and jsonb_exists("permdock".permdock_role_keys('tenant', m."role"::text), p_grant)
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
 $$;
 revoke execute on function "permdock".permitted_tenant_ids(text) from public, anon;
@@ -185,10 +192,8 @@ as $$
   select exists (
     select 1
     from "permdock".user_roles ur
-    join "permdock".role_permissions rp on rp.role = ur.role::text
     where ur.user_id = p_user
-      and rp.grant_key = p_grant
-      and rp.scope = 'global'
+      and jsonb_exists("permdock".permdock_role_keys('global', ur.role::text), p_grant)
   )
 $$;
 revoke execute on function "permdock".permdock_has_for(uuid, text) from public, anon, authenticated;
@@ -205,10 +210,8 @@ set search_path = ''
 as $$
   select m."organization_id"::uuid
   from "public"."organization_members" m
-  join "permdock".role_permissions rp on rp.role = m."role"::text
   where m."user_id" = p_user
-    and rp.grant_key = p_grant
-    and rp.scope = 'tenant'
+    and jsonb_exists("permdock".permdock_role_keys('tenant', m."role"::text), p_grant)
 $$;
 revoke execute on function "permdock".permitted_tenant_ids_for(uuid, text) from public, anon, authenticated;
 
@@ -369,18 +372,16 @@ as $$
   pdk_g as (
   select rp.grant_key
   from "permdock".user_roles ur
-  join "permdock".role_permissions rp on rp.role = ur.role::text
+  cross join lateral jsonb_array_elements_text(coalesce("permdock".permdock_role_keys('global', ur.role::text), '[]'::jsonb)) rp(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
-    and rp.scope = 'global'
   ),
   pdk_s as (
     select pdk_i.grant_key
     from (
   select m."organization_id"::uuid, rp.grant_key
   from "public"."organization_members" m
-  join "permdock".role_permissions rp on rp.role = m."role"::text
+  cross join lateral jsonb_array_elements_text(coalesce("permdock".permdock_role_keys('tenant', m."role"::text), '[]'::jsonb)) rp(grant_key)
   where m."user_id" = (select "permdock".permdock_user_id())
-    and rp.scope = 'tenant'
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
@@ -422,18 +423,16 @@ as $$
   pdk_g as (
   select rp.grant_key
   from "permdock".user_roles ur
-  join "permdock".role_permissions rp on rp.role = ur.role::text
+  cross join lateral jsonb_array_elements_text(coalesce("permdock".permdock_role_keys('global', ur.role::text), '[]'::jsonb)) rp(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
-    and rp.scope = 'global'
   ),
   pdk_s as (
     select pdk_i.grant_key
     from (
   select m."organization_id"::uuid, rp.grant_key
   from "public"."organization_members" m
-  join "permdock".role_permissions rp on rp.role = m."role"::text
+  cross join lateral jsonb_array_elements_text(coalesce("permdock".permdock_role_keys('tenant', m."role"::text), '[]'::jsonb)) rp(grant_key)
   where m."user_id" = (select "permdock".permdock_user_id())
-    and rp.scope = 'tenant'
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
@@ -655,18 +654,16 @@ as $$
   pdk_g as (
   select rp.grant_key
   from "permdock".user_roles ur
-  join "permdock".role_permissions rp on rp.role = ur.role::text
+  cross join lateral jsonb_array_elements_text(coalesce("permdock".permdock_role_keys('global', ur.role::text), '[]'::jsonb)) rp(grant_key)
   where ur.user_id = p_user
-    and rp.scope = 'global'
   ),
   pdk_s as (
     select pdk_i.grant_key
     from (
   select m."organization_id"::uuid, rp.grant_key
   from "public"."organization_members" m
-  join "permdock".role_permissions rp on rp.role = m."role"::text
+  cross join lateral jsonb_array_elements_text(coalesce("permdock".permdock_role_keys('tenant', m."role"::text), '[]'::jsonb)) rp(grant_key)
   where m."user_id" = p_user
-    and rp.scope = 'tenant'
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
@@ -706,18 +703,16 @@ as $$
   pdk_g as (
   select rp.grant_key
   from "permdock".user_roles ur
-  join "permdock".role_permissions rp on rp.role = ur.role::text
+  cross join lateral jsonb_array_elements_text(coalesce("permdock".permdock_role_keys('global', ur.role::text), '[]'::jsonb)) rp(grant_key)
   where ur.user_id = p_user
-    and rp.scope = 'global'
   ),
   pdk_s as (
     select pdk_i.grant_key
     from (
   select m."organization_id"::uuid, rp.grant_key
   from "public"."organization_members" m
-  join "permdock".role_permissions rp on rp.role = m."role"::text
+  cross join lateral jsonb_array_elements_text(coalesce("permdock".permdock_role_keys('tenant', m."role"::text), '[]'::jsonb)) rp(grant_key)
   where m."user_id" = p_user
-    and rp.scope = 'tenant'
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
@@ -870,10 +865,9 @@ set search_path = ''
 as $$
   select "id"::uuid from "public"."jobs" as permdock_row
   where case p_permission
-    when 'job.read' then "organizationId" in (select "permdock".permitted_tenant_ids_by_permission(p_permission, true))
-    else true
+    when 'job.read' then coalesce(("organizationId" in (select "permdock".permitted_tenant_ids('job.read'))), false)
+    else "permdock".permitted_job_match(permdock_row, p_permission)
   end
-  and "permdock".permitted_job_match(permdock_row, p_permission)
 $$;
 revoke execute on function "permdock".permitted_job_rows(text) from public, anon;
 grant execute on function "permdock".permitted_job_rows(text) to authenticated;

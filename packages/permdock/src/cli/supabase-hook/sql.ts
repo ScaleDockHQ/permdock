@@ -198,7 +198,7 @@ export function hookSql(parts: Parts): string {
   select
     (select pdk_roles.held from pdk_roles),
     coalesce((select jsonb_agg(k.entry order by k.n) from pdk_kept k), '[]'::jsonb),
-    (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
+    truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
     active is not null and coalesce((select bool_or(k.current) from pdk_kept k), false),
     (select bytes from pdk_fixed)${teamsConfig === undefined ? "" : ",\n    (select pdk_teams.team_ids from pdk_teams)"}${parts.version ? ",\n    (select pdk_version.ver from pdk_version)" : ""}
   into held, kept, truncated, in_active, used${teamsConfig === undefined ? "" : ", team_ids"}${parts.version ? ", ver" : ""};
