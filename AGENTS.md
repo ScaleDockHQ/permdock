@@ -142,8 +142,8 @@ Records in `docs/decisions`:
 
 ## Pre-release pins
 
-- `@orpc/server`, `@orpc/client`, `@orpc/contract`, `@orpc/openapi` 2.0.0-beta.42: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
-- `drizzle-orm` 1.0.0-rc.5-5935859: the release candidate the standard asks for; the peer also accepts 0.40.
+- `@orpc/server`, `@orpc/client`, `@orpc/contract`, `@orpc/openapi` 2.0.0-beta.47: `permdock/orpc` targets oRPC 2's `openapi()` metadata.
+- `drizzle-orm` 1.0.0-rc.5: the release candidate the standard asks for; the peer also accepts 0.40.
 - `@supabase/pg-delta` 1.0.0-alpha.60, `pg-topo` 1.0.0-alpha.8: Declarative Schemas 2.0 for `tests/integration` and `db diff`.
 - Prisma 8 and Expo SDK 58 stay on 7.10.0 and SDK 57 until their blockers clear (0018).
 

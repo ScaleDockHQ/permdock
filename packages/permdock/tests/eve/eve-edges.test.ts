@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ApprovalStore } from "../../src/approvals/types.ts";
 import type {
   EveApprovalContext,
+  EvePrincipal,
   EveResponseContext,
 } from "../../src/eve/index.ts";
 
@@ -67,7 +68,13 @@ describe("eve session helpers", () => {
   it("reads roles only from a string or a string array", () => {
     expect([
       rolesOf(principal("u", ["a"])),
-      rolesOf({ principalId: "u", attributes: { roles: 7 } }),
+      rolesOf({
+        principalId: "u",
+        // SAFETY: eve rejects a numeric role; rolesOf must still return none.
+        attributes: { roles: 7 } as unknown as NonNullable<
+          EvePrincipal["attributes"]
+        >,
+      }),
       rolesOf(null),
     ]).toStrictEqual([["a"], [], []]);
   });

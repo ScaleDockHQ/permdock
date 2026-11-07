@@ -26,7 +26,7 @@ export type EvePrincipal = {
   readonly authenticator?: string;
   readonly issuer?: string;
   readonly subject?: string;
-  readonly attributes?: Readonly<Record<string, unknown>>;
+  readonly attributes?: Readonly<Record<string, string | readonly string[]>>;
 };
 
 /** Structural `ApprovalContext` from `eve/tools/approval`. */
@@ -51,9 +51,12 @@ export type EveResponseContext = {
     readonly toolName: string;
     readonly toolInput?: unknown;
   };
-  /** Who answered and how; eve settles the request only on `allowed`. */
+  /**
+   * Who answered and how; eve settles the request only on `allowed`. Eve 0.91
+   * sends `deny`. Earlier releases sent `cancel` for the same refusal.
+   */
   readonly response: {
-    readonly decision: "approve" | "cancel";
+    readonly decision: "approve" | "deny" | "cancel";
     readonly principal: EvePrincipal;
   };
   readonly session: {
