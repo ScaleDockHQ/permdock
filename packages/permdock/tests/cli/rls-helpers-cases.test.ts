@@ -99,15 +99,20 @@ describe("helpersSql scopes off the root chain", () => {
       customRoles: { declared: ["admin"], assignable: ["admin"] },
     });
     const org = idsBody(sql, "permitted_org_ids");
-    expect(org).toContain("  union\n  select (ms.id)::uuid");
+    expect(org).toContain("with pdk_m as (");
+    expect(org).toContain("select (ms.id)::uuid as id, pdk_e.allow");
+    expect(org).toContain("  union\n  select pdk_m.id from pdk_m");
     expect(org).toContain("and not (r.role = any(array['admin']::text[]))");
     expect(org).toContain(
-      "case when \"permdock\".permdock_is_shared_role('org', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'org' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role",
+      "case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.id)::text end and c.scope = 'org' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role",
     );
-    expect(org).toContain('"permdock".permdock_custom_keys(');
+    expect(org.match(/permdock_is_shared_role\(/gu)).toHaveLength(1);
+    expect(org).toContain(
+      "permdock_custom_keys(a.allow, a.deny, a.incl, 'org')",
+    );
     const team = idsBody(sql, "permitted_team_ids");
     expect(team).toContain(
-      "case when \"permdock\".permdock_is_shared_role('team', r.role) then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'org')::text end and c.scope = 'team'",
+      "case when pdk_s.shared then c.tenant_id is null else c.tenant_id::text = (ms.within ->> 'org')::text end and c.scope = 'team'",
     );
   });
 });

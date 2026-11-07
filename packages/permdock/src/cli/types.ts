@@ -452,13 +452,13 @@ export type RlsConfig = {
    */
   readonly helpersOnly?: boolean;
   /**
-   * Where the transaction-local helper memos live. `'permdock'` (default) reads
-   * and writes `permdock.m.*` with `current_setting` and `set_config`.
+   * Where the transaction-local helper memos live. `'permdock'` reads and
+   * writes `permdock.m.*` with `current_setting` and `set_config`.
    * `'better-supabase'` calls `better_supabase.memo_get` and `memo_set`, so the
    * memo shares better-supabase's one mechanism; the keys stay `permdock.m.*`.
-   * Needs the `better_supabase` schema. `'none'` writes no memo: the helpers
-   * are `language sql stable parallel safe`, and a policy's `id in (select
-   * helper())` is one initPlan per statement.
+   * Needs the `better_supabase` schema. `'none'` (default) writes no memo: the
+   * helpers are `language sql stable parallel safe`, and a policy's `id in
+   * (select helper())` is one initPlan per statement.
    */
   readonly memo?: "permdock" | "better-supabase" | "none";
   /**

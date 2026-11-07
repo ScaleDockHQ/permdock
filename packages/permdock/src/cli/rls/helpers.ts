@@ -3,6 +3,7 @@ import type { Body } from "./helper-bodies.ts";
 
 import { AUTHZ_VERSION_TABLE } from "../../supabase/sources.ts";
 import { configError } from "../core/errors.ts";
+import { byKey } from "../shared/compare.ts";
 import { scopeTypeOf } from "../sql/columns.ts";
 import {
   hasMemberFor,
@@ -293,10 +294,42 @@ function seedViewSql(
               `  (${[row.role, row.permission, row.grantKey, row.scope, row.effect].map(quoteLiteral).join(", ")})`,
           )
           .join(",\n")}\n) as v(${columns})`;
+  const map: Record<string, Record<string, string[]>> = {};
+  for (const row of rows) {
+    const byRole = (map[row.scope] ??= {});
+    const keys = (byRole[row.role] ??= []);
+    if (!keys.includes(row.grantKey)) {
+      keys.push(row.grantKey);
+    }
+  }
+  const sorted = Object.fromEntries(
+    Object.entries(map)
+      .toSorted(byKey)
+      .map(([scope, byRole]) => [
+        scope,
+        Object.fromEntries(
+          Object.entries(byRole)
+            .toSorted(byKey)
+            .map(([role, keys]) => [role, keys.toSorted()]),
+        ),
+      ]),
+  );
+  const keys = qualified(ctx, "permdock_role_keys");
   return `-- rls.seeds: 'view': role_permissions is a view, so the rows travel with the schema
 create or replace view ${view} (${columns}) with (security_invoker = true) as
 ${body};
-revoke all on table ${view} from anon, authenticated, public;`;
+revoke all on table ${view} from anon, authenticated, public;
+-- the grant keys of each declared role per scope, as a hash lookup where the view's values list is scanned
+create or replace function ${keys}(p_scope text, p_role text)
+returns jsonb
+language sql
+immutable
+parallel safe
+set search_path = ''
+as $$
+  select ${quoteLiteral(JSON.stringify(sorted))}::jsonb -> p_scope -> p_role
+$$;
+revoke execute on function ${keys}(text, text) from public, anon, authenticated;`;
 }
 
 /**

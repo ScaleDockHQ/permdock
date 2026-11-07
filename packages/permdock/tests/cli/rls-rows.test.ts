@@ -216,6 +216,43 @@ describe("permitted_<resource>_rows", () => {
     );
   });
 
+  it("leaves a key to the match when the policy declares no scope", () => {
+    const { sql } = generate("supabase", ["note"], undefined, { scopes: [] });
+    const body = sql.slice(
+      sql.indexOf(
+        'create or replace function "permdock".permitted_note_rows(p_permission text)',
+      ),
+    );
+    expect(body).toContain("permitted_note_match(permdock_row, p_permission)");
+    expect(body).not.toContain("by_permission");
+  });
+
+  it("leads a root-scope key with the tenant prefilter when the match cannot be carried inline", () => {
+    const warnings: string[] = [];
+    const ctx = context("supabase");
+    const compiled = compileGrants(
+      policy,
+      ctx,
+      undefined,
+      warnings,
+      false,
+      true,
+    );
+    // The match decides nothing for the narrowed set, so no arm is carried inline.
+    const sql = rowHelpersSql(
+      ctx,
+      policy,
+      [...compiled.branches, ...compiled.actionBranches],
+      ["doc"],
+      { doc: "app.documents" },
+      warnings,
+      [],
+    );
+    expect(sql).toContain(
+      `when 'doc.read' then "orgId" in (select "permdock".permitted_tenant_ids_by_permission(p_permission, true)) and "permdock".permitted_doc_match(permdock_row, p_permission)`,
+    );
+  });
+
   it("sets the guc user and claims for a named user and restores them", () => {
     const { sql } = generate("guc", ["doc"]);
     expect(sql).toContain("p_user text, p_permission text, p_claims jsonb");

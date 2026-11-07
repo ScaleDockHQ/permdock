@@ -40,7 +40,9 @@ describe("platform custom roles in SQL", () => {
     expect(sql).toContain(
       "and not (ur.role::text = any(array['admin', 'support']::text[]))",
     );
-    expect(sql).toMatch(/permdock_custom_keys\([\s\S]*?'global'\n {4}\)\)/u);
+    expect(sql).toContain(
+      "permdock_custom_keys(pdk_e.allow, pdk_e.deny, pdk_e.incl, 'global')",
+    );
     expect(sql).not.toContain("where rp.scope <> 'global'");
   });
 
