@@ -3,7 +3,6 @@ import type { PermDockPlugin } from "../plugin.ts";
 import type { RlsPluginOptions } from "./rls-options.ts";
 
 import { CliError } from "../../core/errors.ts";
-import { MANIFEST_FILE } from "../../manifest-json.ts";
 import { definePlugin, noted, schemaInputs } from "../plugin.ts";
 import { pluginVersion } from "./version.ts";
 
@@ -27,6 +26,9 @@ export type SupabasePluginOptions = Omit<RlsPluginOptions, "dialect"> & {
   /** The manifest file, `permdock.manifest.json` by default; `false` skips it. */
   readonly manifest?: string | false;
 };
+
+// manifest-json.ts shares a chunk that loads pg, which a plugin entry must not.
+const MANIFEST_FILE = "permdock.manifest.json";
 
 const quiet = {
   stdout(): void {

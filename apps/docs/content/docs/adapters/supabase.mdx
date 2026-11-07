@@ -101,6 +101,29 @@ Claim mapping used by both the in-process subject and the RLS compiler:
 
 A single-tenant-per-user app (the common Supabase case) needs only `tenant_id` in the hook; the active tenant is the claim, and tenant-scoped roles compile to one equality per policy. A multi-organization user needs a membership table the hook or a `MembershipSource` reads, and the compiled policy joins it; `permdock rls generate` emits the `exists` form when `supabaseRls` names the table and refuses tenant-scoped grants when neither a tenant claim nor a table is configured (fail closed, not a permissive policy).
 
+## Definition: `definePermDock`
+
+`definePermDock(policy, options)` from `permdock/supabase` binds a policy to Supabase claims, a backend client and the caches, without `better-supabase`. It takes the options of [`permdock/app`](/docs/adapters/app) minus `claims`, plus `subject` (the claim mapping of `subjectFromSupabase`), `client`, `api` and `maxStaleMs`.
+
+```ts
+import { definePermDock } from "permdock/supabase";
+
+export const app = definePermDock(policy, {
+  subject: { claims: { roles: "user_role", tenant: "tenant_id" } },
+  // a server-side client: subject_for, members_of and authz_version_for are revoked from client roles
+  client: () => createClient(url, secretKey),
+});
+
+const permdock = await app.fromClaims(claims); // verified claims, or null for anonymous
+const fromSession = await app.fromClient(supabase); // a supabase-js or @supabase/ssr client
+```
+
+- `client()` is called once, on first use. Without it, only the claims count and `app.forClient(client)` binds one later.
+- The default `sources(client)` is `postgrestSources(client)`: memberships through `members_of`, custom roles through `subject_for`, the version through `authz_version_for`.
+- `fromClaims(claims, { version })` compares the token's `authz_ver` with the database before it trusts the claims, as [freshness](#freshness-and-the-version-cache) describes. A token's `authz_ver` is never taken as current.
+- `getPermissions(app, input, checks)` is the same batch decision `permdock/better-supabase` offers; both import one resolver.
+- `permdock/supabase` does not import `better-supabase`; `tests/package/supabase-layering.test.ts` fails if it does. `permdock/better-supabase`'s `definePermDock` builds on the same resolver and adds `.server`, `.authorizer` and `.next`.
+
 ## Middleware: `permdock/supabase/middleware`
 
 Supabase's server packages compose through [`@supabase/middleware`](https://github.com/supabase/middleware): `defineMiddleware` produces a `withFoo(config)` entry that contributes typed keys to a shared `ctx`, declares the upstream keys it needs, and `pipeline([...entries], handler)` runs them in order. `permdock/supabase/middleware` is PermDock's entry for that pipeline. It is a separate subpath so `permdock/supabase` keeps zero peer dependencies; `@supabase/middleware` is the optional peer of the middleware entry only.
@@ -144,6 +167,19 @@ const publish = pipeline(
 // AuthZEN evaluations for the caller's own claims
 const evaluations = pipeline([withClaims()], permdockHandler());
 ```
+
+With a `definePermDock` definition, `subject` is optional:
+
+```ts
+import { createPermDock } from "permdock/supabase/middleware";
+
+const { withPermDock } = createPermDock(app);
+export default {
+  fetch: pipeline([withSupabase({ auth: "user" }), withPermDock()], handler),
+};
+```
+
+`subject` defaults to `subjectFromSupabase(ctx.jwtClaims, app's subject options)`. Memberships come from the definition's `client`; without one, from the `supabaseAdmin` client that `withSupabase` contributed; without either, only the token's claims count. A plain policy still needs `subject`, and `createPermDock` throws without it.
 
 - `createPermDock(policy, options)` takes the same options as the HTTP adapters (`subject`, `tenant`, `memberships`, `customRoles`, `store`, `sink`, `limits`, `pdp`, `otel`, `webBotAuth`, and the rest of `InstanceOptions`) and returns `withPermDock`, `permdockHandler` and `openapi`. `subject(ctx, request)` receives the pipeline context; the documented body is `subjectFromSupabase(ctx.jwtClaims, …)`. `tenant` may be a string or `(ctx, request) => string | undefined`; a requested tenant without a matching membership yields no tenant ([tenancy](/docs/concepts/tenancy)). `context(ctx, request)`, `deniedResponse` and `wrap` behave as on the [server kernel](/docs/adapters/server-kernel#options).
 - `withPermDock()` declares `jwtClaims` as its prerequisite and contributes `ctx.permdock`, a frozen request-scoped `PermDock`. A pipeline that places it without an upstream contributor of `jwtClaims` (`withClaims`, `withRequiredClaims`, or `withSupabase`'s context) is a type error, not a runtime surprise. Nested, `withPermDock(config, handler) satisfies FetchHandler` fails until a `withClaims` wraps it; `permdock/supabase/middleware` re-exports `type FetchHandler` for that annotation.
@@ -348,6 +384,34 @@ export const config = {
 ```
 
 Return the `response` that `setAll` last built. It carries the refreshed cookies and the `Cache-Control: private, no-cache, no-store, must-revalidate, max-age=0`, `Expires: 0` and `Pragma: no-cache` headers `@supabase/ssr` 0.12 passes with the first cookie write, so a CDN never serves one user's session to another. Create a new server client per request: the headers arrive only once per client. Call `getClaims()` before any other work, so a refresh lands before the response is committed. The browser client from `createBrowserClient` never builds a subject; the client `PermDock` comes from `permdock.snapshot()` through [`permdock/react`](/docs/adapters/react).
+
+### SSR helper: `subjectFromSupabaseClient`
+
+`subjectFromSupabaseClient(client, options)` calls `client.auth.getClaims()` and maps the result through `subjectFromSupabase`. An error, a missing session or a throwing client yields the anonymous subject; it never calls `getSession()`. It takes any client with a `getClaims` method, so it works with `@supabase/ssr` clients in every framework. `app.fromClient(client)` does the same through a definition.
+
+```ts
+// SvelteKit: src/hooks.server.ts
+export const handle = async ({ event, resolve }) => {
+  const supabase = createServerClient(url, publishableKey, {
+    cookies: cookiesOf(event),
+  });
+  event.locals.permdock = await app.fromClient(supabase);
+  return resolve(event);
+};
+```
+
+```ts
+// Astro: src/middleware.ts
+export const onRequest = defineMiddleware(async (context, next) => {
+  const supabase = createServerClient(url, publishableKey, {
+    cookies: cookiesOf(context),
+  });
+  context.locals.permdock = await app.fromClient(supabase);
+  return next();
+});
+```
+
+In Next.js, call `app.fromClient(supabase)` in the `subject` callback of `permdock/next`, after the `proxy.ts` refresh above.
 
 ## Verified material
 
@@ -730,6 +794,22 @@ List and revoke sessions through the Supabase Auth API (`auth.admin.listUserSess
 - In Postgres: a helper that admits no role yields `filtered` (SELECT, UPDATE `USING`) or `rejected 42501` (INSERT and UPDATE `WITH CHECK`); `permdock rls verify` maps these to the in-process outcome.
 - Anonymous requests: `auth.uid()` is NULL, so `(select auth.uid()) = user_id` is never true and every ownership policy filters; in-process, `subjectFromSupabase(null)` yields the anonymous subject and only anonymous grants apply.
 - Stale claims: a demoted user keeps `user_role` until refresh; the [SSF receiver](/docs/adapters/ssf) or an app-level `updateTag` on role change shortens the window.
+
+## Generate plugin: `supabase()`
+
+`supabase()` from `permdock/cli/plugins/supabase` writes what `rls()`, `supabaseHook()` and `permdock supabase inspect --out` write together: `permdock.sql` with the `supabase` dialect, `supabase/permdock-hook.sql` and `permdock.manifest.json`.
+
+```ts
+import { defineConfig } from "permdock/cli";
+import { supabase } from "permdock/cli/plugins/supabase";
+
+export default defineConfig({
+  policy: "./src/policy.ts",
+  plugins: [supabase({ out: "supabase/schemas/permdock.sql" })],
+});
+```
+
+It takes the options of `rls()` except `dialect`, plus `hook` (`false` skips the hook SQL, an object sets `out`, `schema`, `activeFrom` and `budget`) and `manifest` (a file name, or `false`). Listing `supabase()` next to `rls()` or `supabaseHook()` is an error. `betterSupabase()` orders after it. `tests/cli/supabase-plugin.test.ts` compares its output byte for byte with the three separate steps.
 
 ## Example app
 

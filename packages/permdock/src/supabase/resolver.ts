@@ -71,9 +71,7 @@ export type Resolver<V extends PolicyVocabulary, TSource, TVersions> = {
   readonly sources: (versions?: TVersions) => InstanceOptions;
 };
 
-export function isAccessResult(
-  source: unknown,
-): source is SupabaseAccessResult {
+function isAccessResult(source: unknown): source is SupabaseAccessResult {
   return (
     isRecord(source) &&
     Object.hasOwn(source, "session") &&

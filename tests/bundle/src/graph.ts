@@ -119,6 +119,7 @@ const TOOLING_ENTRIES = [
   "./cli/plugins/rls",
   "./cli/plugins/supabase-hook",
   "./cli/plugins/powersync",
+  "./cli/plugins/supabase",
   "./cli/plugins/better-supabase",
   "./cli/plugins/openapi",
   "./cli/plugins/scim",
