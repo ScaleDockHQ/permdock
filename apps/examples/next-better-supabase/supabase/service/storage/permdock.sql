@@ -1,4 +1,7 @@
--- Supabase Storage policies from rls.storage: static create policy statements on storage.objects.
+-- Supabase Storage policies from rls.storage.
+-- These policies sit outside the scoped declarative sync: pg-delta's shadow database has no storage.objects.
+-- Apply this file with an unscoped sync only where the Storage service has created the table.
+drop policy if exists "permdock_storage_quote_files_select" on "storage"."objects";
 create policy "permdock_storage_quote_files_select"
   on "storage"."objects"
   as permissive
@@ -7,6 +10,7 @@ create policy "permdock_storage_quote_files_select"
   using (bucket_id = 'quote-files'
     and "permdock".can_quotes(json_populate_record(null::"public"."quotes", json_build_object('id', (storage.foldername(name))[1]::uuid, 'organization_id', (storage.foldername(name))[1]::uuid)), 'quotes.read'::text));
 
+drop policy if exists "permdock_storage_quote_files_insert" on "storage"."objects";
 create policy "permdock_storage_quote_files_insert"
   on "storage"."objects"
   as permissive
@@ -15,6 +19,7 @@ create policy "permdock_storage_quote_files_insert"
   with check (bucket_id = 'quote-files'
     and "permdock".can_quotes(json_populate_record(null::"public"."quotes", json_build_object('id', (storage.foldername(name))[1]::uuid, 'organization_id', (storage.foldername(name))[1]::uuid)), 'quotes.update'::text));
 
+drop policy if exists "permdock_storage_quote_files_update" on "storage"."objects";
 create policy "permdock_storage_quote_files_update"
   on "storage"."objects"
   as permissive
@@ -25,6 +30,7 @@ create policy "permdock_storage_quote_files_update"
   with check (bucket_id = 'quote-files'
     and "permdock".can_quotes(json_populate_record(null::"public"."quotes", json_build_object('id', (storage.foldername(name))[1]::uuid, 'organization_id', (storage.foldername(name))[1]::uuid)), 'quotes.update'::text));
 
+drop policy if exists "permdock_storage_quote_files_delete" on "storage"."objects";
 create policy "permdock_storage_quote_files_delete"
   on "storage"."objects"
   as permissive
@@ -33,6 +39,7 @@ create policy "permdock_storage_quote_files_delete"
   using (bucket_id = 'quote-files'
     and "permdock".can_quotes(json_populate_record(null::"public"."quotes", json_build_object('id', (storage.foldername(name))[1]::uuid, 'organization_id', (storage.foldername(name))[1]::uuid)), 'quotes.update'::text));
 
+drop policy if exists "storage_objects_insert_read_only_actors" on "storage"."objects";
 create policy "storage_objects_insert_read_only_actors"
   on "storage"."objects"
   as restrictive
@@ -40,6 +47,7 @@ create policy "storage_objects_insert_read_only_actors"
   to authenticated
   with check ((select "permdock".permdock_actor_may_write()));
 
+drop policy if exists "storage_objects_update_read_only_actors" on "storage"."objects";
 create policy "storage_objects_update_read_only_actors"
   on "storage"."objects"
   as restrictive
@@ -48,6 +56,7 @@ create policy "storage_objects_update_read_only_actors"
   using ((select "permdock".permdock_actor_may_write()))
   with check ((select "permdock".permdock_actor_may_write()));
 
+drop policy if exists "storage_objects_delete_read_only_actors" on "storage"."objects";
 create policy "storage_objects_delete_read_only_actors"
   on "storage"."objects"
   as restrictive
