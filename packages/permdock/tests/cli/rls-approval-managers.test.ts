@@ -73,7 +73,7 @@ describe("rls.approvals.managers", () => {
     );
     expect(sql).toContain("permdock_approver_for_ids");
     expect(sql).toContain("permdock_managed_user_ids");
-    expect(sql).toContain('m."user_id"::text <>');
+    expect(sql).toContain('m."user_id" <>');
     expect(sql).not.toContain("approval_delegations");
   });
 
@@ -107,7 +107,7 @@ describe("rls.approvals.managers", () => {
   it("lets a cover pass on a manager leaf when the delegator manages the requester", () => {
     const sql = approvalsSql(ctx, { managers, delegations: true }, false);
     expect(sql).toContain(
-      'return coalesce("permdock".permdock_manages_for(p_delegator::text, p_requester, v_levels::text::integer), false);',
+      'return coalesce("permdock".permdock_manages_for(p_delegator::text, p_requester, v_levels::text::integer, p_tenant), false);',
     );
     expect(approvalsSql(ctx, { delegations: true }, false)).not.toContain(
       "permdock_manages_for",
@@ -135,7 +135,14 @@ describe("rls.approvals approval sets", () => {
   ): string =>
     approvalsSql(
       { ...ctx, scopes },
-      { managers: { ...managers, ...(tenant === undefined ? {} : { tenant }) } },
+      {
+        managers: {
+          table: managers.table,
+          user: managers.user,
+          manager: managers.manager,
+          ...(tenant === undefined ? {} : { tenant }),
+        },
+      },
       false,
     ) ?? "";
 
@@ -156,7 +163,9 @@ describe("rls.approvals approval sets", () => {
 
   it("filters the upward walk by the request's tenant", () => {
     const sql = withManagers([{ name: "tenant" }], "organization_id");
-    expect(sql.match(/m\."organization_id"::text = p_tenant/gu)).toHaveLength(2);
+    expect(sql.match(/m\."organization_id"::text = p_tenant/gu)).toHaveLength(
+      2,
+    );
     expect(sql).toContain(
       "permdock_manages_for(p_user text, p_requester text, p_levels integer, p_tenant text default null)",
     );
