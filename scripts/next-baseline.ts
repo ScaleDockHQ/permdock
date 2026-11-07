@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines-per-function, no-negated-condition, typescript/prefer-readonly-parameter-types, typescript/no-unsafe-assignment -- one-off measurement driver over untyped agent-browser JSON */
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
