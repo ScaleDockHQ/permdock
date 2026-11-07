@@ -15,6 +15,7 @@ import { resource } from "../../src/core/permission-leaf.ts";
 import { definePermissions } from "../../src/core/permissions.ts";
 import { definePolicy } from "../../src/core/policy.ts";
 import { role } from "../../src/core/role-builder.ts";
+import { expandRoleNames } from "../../src/core/role-loading.ts";
 import { defineRoles } from "../../src/core/vocabulary.ts";
 
 const permissions = definePermissions({
@@ -98,5 +99,16 @@ describe("custom role lookup", () => {
       lookup.grants.length,
     );
     expect(customGrantsOfKey(lookup, "post.update")).toHaveLength(0);
+  });
+
+  it("expands a role-name list once per tenant", () => {
+    const names = ["admin", "c1", "ghost"];
+    const declared = new Set(["admin", "viewer"]);
+    const first = expandRoleNames(names, declared, many, "t1", lookup);
+    expect(first).toStrictEqual({ roles: ["admin"], unknown: ["ghost"] });
+    expect(expandRoleNames(names, declared, many, "t1", lookup)).toBe(first);
+    expect(
+      expandRoleNames(names, declared, many, "t2", lookup).unknown,
+    ).toStrictEqual(["c1", "ghost"]);
   });
 });

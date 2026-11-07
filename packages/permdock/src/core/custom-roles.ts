@@ -292,7 +292,6 @@ export function resolveCustomRole(
   const ceilingSet = index.ceilingSets.get(scope) ?? new Set<Grant>();
   const ceilingKeys = index.ceilingKeys.get(scope) ?? new Set<string>();
   const declared = declaredRoleNames(policy);
-  const all = index.all;
   const dropped: CustomRoleDrop[] = [];
   const renamed: CustomRoleRename[] = [];
   const seen = new Set<string>();
@@ -441,10 +440,10 @@ export function resolveCustomRole(
         push(leveled(grant, level, condition));
       }
     }
-    for (const grant of all) {
+    for (const grant of policy.index.grantsByKey.get(key) ?? []) {
       if (
         grant.effect === "deny" &&
-        grant.permission.key === key &&
+        grant.hosted === undefined &&
         sources.has(soleRole(grant) ?? "")
       ) {
         push(grant);
@@ -618,6 +617,19 @@ export type CustomRoleLookup = {
   readonly unknownLevels: readonly UnknownLevel[];
   readonly grantsByKey: ReadonlyMap<string, readonly CustomGrant[]>;
   readonly rolesByName: ReadonlyMap<string, readonly CustomRole[]>;
+  /**
+   * `expandRoleNames` answers by role-name list and tenant: a request asks each
+   * membership many times.
+   */
+  readonly expanded: WeakMap<
+    readonly string[],
+    Map<string | undefined, ExpandedRoleNames>
+  >;
+};
+
+export type ExpandedRoleNames = {
+  readonly roles: readonly string[];
+  readonly unknown: readonly string[];
 };
 
 /** Resolves each custom role once and indexes the result. */
@@ -655,7 +667,13 @@ export function indexCustomRoles(
       }
     }
   }
-  return { grants, unknownLevels, grantsByKey, rolesByName };
+  return {
+    grants,
+    unknownLevels,
+    grantsByKey,
+    rolesByName,
+    expanded: new WeakMap(),
+  };
 }
 
 /** The custom grants of one permission key. */
