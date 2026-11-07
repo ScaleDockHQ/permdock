@@ -318,3 +318,81 @@ describe("powersync streams over a composite roles junction", () => {
     ]);
   });
 });
+
+describe("powersync streams widen the configured roles: many junction", () => {
+  const organizations = definePermissions({
+    job: resource(Row, {
+      id: "id",
+      actions: ["read"],
+      relations: {
+        organization: { field: "organization_id", memberOf: "organization" },
+      },
+    }),
+  });
+  const byOrganization = definePolicy(organizations, {
+    scopes: { organization: { key: "organization_id" } },
+    // SAFETY: stream generation never calls the subject mapper.
+    subject: (user: unknown) => user as never,
+    roles: [
+      role("owner", [allow(organizations.job.read)], { on: "organization" }),
+    ],
+  });
+  const plan = (source: SqlMembershipSource) =>
+    powersyncPlan(byOrganization, {
+      policy: "p.ts",
+      rls: { tables: { job: "jobs" }, membershipSources: [source] },
+      powersync: { resources: ["job"] },
+    });
+
+  it("keeps the disabledAt column of a renamed junction on both memberships", () => {
+    const stream = plan(
+      blockMembershipSource({
+        roles: "many",
+        columns: { disabledAt: "paused_at" },
+        tables: {
+          memberships: {
+            schema: "app",
+            name: "members",
+            table: "app.members",
+            columns: {
+              tenant: "organization_id",
+              user: "user_id",
+              role: "role",
+              disabledAt: "paused_at",
+            },
+          },
+          membershipRoles: {
+            schema: "app",
+            name: "member_role_set",
+            table: "app.member_role_set",
+            columns: {
+              tenant: "organization_id",
+              user: "user_id",
+              role: "role",
+            },
+          },
+          byBlock: {},
+        },
+      }),
+    ).subject.find((entry) => entry.table === "member_role_set");
+    expect(stream?.queries[0]).toContain(
+      'WHERE member_role_set.organization_id IN (SELECT members.organization_id FROM "app"."members" AS members WHERE members.user_id = auth.user_id() AND members.paused_at IS NULL) AND EXISTS (SELECT 1 FROM "app"."members" AS members WHERE members.organization_id = member_role_set.organization_id AND members.user_id = member_role_set.user_id AND members.paused_at IS NULL)',
+    );
+  });
+
+  it("leaves a plain junction named membership_roles to the user's own rows", () => {
+    const stream = plan(
+      junctionMembershipSource({
+        table: "better_supabase.memberships",
+        scope: "organization",
+        id: "organization_id",
+        roles: {
+          through: "better_supabase.membership_roles",
+          on: { organization_id: "organization_id", user_id: "user_id" },
+          column: "role",
+        },
+      }),
+    ).subject.find((entry) => entry.table === "membership_roles");
+    expect(stream?.queries[0]).not.toContain("EXISTS");
+  });
+});
