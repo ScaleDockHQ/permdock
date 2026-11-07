@@ -13,6 +13,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 
 const ADMIN = "00000000-0000-4000-8000-0000000000e1";
 const OUTSIDER = "00000000-0000-4000-8000-0000000000e2";
+const STAFF = "00000000-0000-4000-8000-0000000000e3";
 
 const SETUP = `
 create role authenticated nologin;
@@ -29,7 +30,7 @@ $$;
 grant usage on schema auth to authenticated, anon;
 grant execute on all functions in schema auth to authenticated, anon;
 grant usage on schema public to authenticated, anon;
-insert into auth.users (id) values ('${ADMIN}'), ('${OUTSIDER}');
+insert into auth.users (id) values ('${ADMIN}'), ('${OUTSIDER}'), ('${STAFF}');
 create table public.organization_members (
   organization_id text not null,
   user_id uuid not null references auth.users on delete cascade,
@@ -86,7 +87,7 @@ describe("rls.customRoleWrites.roles", () => {
   const grants = async (): Promise<string[]> =>
     (
       await started().admin.query<{ row: string }>(
-        "select tenant_id || '/' || scope || '/' || role || '/' || permission as row from permdock.custom_role_permissions order by 1",
+        "select coalesce(tenant_id, '-') || '/' || scope || '/' || role || '/' || permission as row from permdock.custom_role_permissions order by 1",
       )
     ).rows.map((row) => row.row);
 
@@ -152,5 +153,38 @@ describe("rls.customRoleWrites.roles", () => {
     expect(await grants()).toStrictEqual(["acme/tenant/reviewer/job.read"]);
     await admin.query("delete from public.app_roles where name = 'reviewer'");
     expect(await grants()).toStrictEqual([]);
+  });
+
+  it("lets a staff caller with no membership delete a platform role, with no app trigger", async () => {
+    const admin = started().admin;
+    await admin.query(
+      "insert into permdock.user_roles (user_id, role) values ($1, 'operator')",
+      [STAFF],
+    );
+    await admin.query(
+      "insert into public.app_roles (organization_id, name, builtin) values (null, 'auditor', false)",
+    );
+    await admin.query(
+      "select permdock.permdock_trusted_replace_custom_role_grants(null, 'global', null, 'auditor', array['job.read'], array[]::text[], array[]::text[])",
+    );
+    expect(await grants()).toContain("-/global/auditor/job.read");
+    try {
+      expect(
+        await as(
+          STAFF,
+          "delete from public.app_roles where name = 'auditor' and organization_id is null",
+        ),
+      ).toStrictEqual([]);
+      await expect(
+        as(
+          OUTSIDER,
+          "delete from public.app_roles where name = 'auditor' and organization_id is null",
+        ),
+      ).rejects.toThrow(/not a member of the platform/u);
+    } finally {
+      await admin.query(
+        "delete from public.app_roles where name = 'auditor' and organization_id is null",
+      );
+    }
   });
 });

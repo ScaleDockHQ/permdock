@@ -132,8 +132,7 @@ ${raiseSql("    ", "22023", `'permdock: ' || v_new_key || ' already has grants'`
 end;
 $$;
 revoke execute on function ${fn}() from public, anon, authenticated;
-drop trigger if exists "permdock_custom_role_cascade" on ${target};
-create trigger "permdock_custom_role_cascade"
+create or replace trigger "permdock_custom_role_cascade"
   after update or delete on ${target}
   for each row execute function ${fn}();
 `;

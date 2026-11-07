@@ -368,7 +368,7 @@ describe("RLS adopter cutover: database mode with an application roles table", (
         started().as(asUser(MANAGER), () =>
           insert("manager", "job.update", null),
         ),
-      ).rejects.toMatchObject({ code: "42501" });
+      ).rejects.toMatchObject({ code: "42501", hint: "not-assignable-by" });
       expect(await grants("manager")).toStrictEqual([
         "tenant:job.read@all:allow",
         "tenant:role.manage:allow",
