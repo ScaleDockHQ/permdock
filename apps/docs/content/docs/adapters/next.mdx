@@ -197,6 +197,8 @@ When the bundled React exposes `experimental_taintObjectReference` (Next.js with
 
 `snapshot.subject.context` reaches the browser as the instance holds it. `getSnapshot({ context: ["plan"] })` and `<PermDockProvider context={["plan"]}>` keep only the named keys, and in development one warning names each key it dropped.
 
+Measure the snapshot with `permdock snapshot size`: it prints bytes and gzip bytes for `grants`, `conditions`, `vocabulary`, `tenants`, `assignable` and `subject`, and doctor PD112 warns above 65,536 bytes for the role with the most grants. Each rendered `PermDockProvider` serialises its snapshot into the Flight stream ([snapshot size](/docs/cli/snapshot)). `omitAssignable` drops `assignable` on a page with no role editor.
+
 A `PermDockProvider` with no `snapshot` prop resolves the subject outside any cache scope and warns once in development; pass the snapshot from a `'use cache: private'` loader. `evaluator="lazy"` renders the provider that loads the evaluator when a check needs it (14.5 KB initial instead of 21 KB gzip, `tests/bundle/src/consumers.json`).
 
 `useOffline` retries only navigation, prefetch and Server Action requests; the snapshot store's own `fetch` settles to `stale` or `server-only` with no retry. Add `onlineRefresh()` from `permdock/react` to `useRefreshOn` to refresh the snapshot when the browser regains its connection.

@@ -1,0 +1,123 @@
+import { describe, expect, it } from "vitest";
+
+import { pd112 } from "../../src/cli/doctor/perf-snapshot.ts";
+import {
+  mostPrivilegedRole,
+  runSnapshotSize,
+  snapshotSize,
+} from "../../src/cli/snapshot-size.ts";
+import {
+  allow,
+  definePermissions,
+  definePolicy,
+  resource,
+  role,
+} from "../../src/index.ts";
+
+const Row = {
+  "~standard": {
+    version: 1,
+    vendor: "test",
+    validate: (value: unknown) => ({ value }),
+  },
+} as const;
+
+function policyOf(resources: number) {
+  const permissions = definePermissions(
+    Object.fromEntries(
+      Array.from({ length: resources }, (_, index) => [
+        `thing${String(index)}`,
+        resource(Row, {
+          id: "id",
+          actions: ["read", "create", "update", "delete"],
+          relations: { tenant: { field: "tenant_id", memberOf: "tenant" } },
+        }),
+      ]),
+    ),
+  );
+  const leaves = Object.values(permissions).flatMap((node) =>
+    Object.values(node),
+  );
+  return definePolicy(permissions, {
+    scopes: { tenant: { key: "tenant_id" } },
+    // SAFETY: the size probe never calls the subject mapper.
+    subject: (user: unknown) => user as never,
+    roles: [
+      role("viewer", [], { on: "tenant" }),
+      // SAFETY: each leaf is a permission reference of the policy above.
+      role(
+        "owner",
+        leaves.map((leaf) => allow(leaf as never)),
+        { on: "tenant" },
+      ),
+    ],
+  });
+}
+
+describe("snapshot size", () => {
+  it("measures the role with the most grants by default", () => {
+    expect(mostPrivilegedRole(policyOf(2))).toBe("owner");
+  });
+
+  it("reports every part and names the largest", () => {
+    const report = snapshotSize({
+      policy: policyOf(3),
+      role: "owner",
+      tenants: 2,
+      omitAssignable: false,
+    });
+    if (typeof report === "string") {
+      throw new TypeError(report);
+    }
+    expect(report.total.bytes).toBeGreaterThan(0);
+    expect(report.parts.map((part) => part.part)).toContain("grants");
+    expect(report.largest).not.toBe("none");
+  });
+
+  it("answers an unknown role as a usage error", () => {
+    const result = runSnapshotSize({
+      policy: policyOf(1),
+      role: "nobody",
+      tenants: 1,
+      omitAssignable: false,
+      budget: 100,
+      json: false,
+    });
+    expect(result.code).toBe(2);
+  });
+
+  it("flags a snapshot over the budget in text and data", () => {
+    const result = runSnapshotSize({
+      policy: policyOf(3),
+      role: "owner",
+      tenants: 1,
+      omitAssignable: false,
+      budget: 10,
+      json: false,
+    });
+    expect(result.output).toContain("over the 10 byte budget");
+  });
+});
+
+describe("PD112 snapshot size", () => {
+  it("passes a small policy", async () => {
+    const policy = policyOf(2);
+    expect(
+      await pd112({ policy: () => Promise.resolve(policy) }),
+    ).toStrictEqual([]);
+  });
+
+  it("skips a project with no policy", async () => {
+    expect(
+      await pd112({ policy: () => Promise.resolve(undefined) }),
+    ).toStrictEqual([]);
+  });
+
+  it("warns for the role with the most grants once it exceeds 64 KB", async () => {
+    const policy = policyOf(600);
+    const findings = await pd112({ policy: () => Promise.resolve(policy) });
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.code).toBe("PD112");
+    expect(findings[0]?.message).toContain("the largest part is");
+  });
+});

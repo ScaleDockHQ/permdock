@@ -14,13 +14,13 @@ permdock claims size --memberships 11 --roles 3 --json
 
 Each membership is a synthetic entry `{ scope, id, roles }` with a UUID `id` and role names of eight characters, the shape the [Supabase hook](/docs/cli/supabase) writes. The hook keeps the entries that fit its budget (`supabase.membershipsBudget`, 1024 bytes by default) and sets `memberships_truncated`. The report counts only the array against the budget and ignores the other claims the hook writes, so a real hook keeps slightly fewer entries.
 
-| Flag                  | Meaning                                                          |
-| --------------------- | ---------------------------------------------------------------- |
-| `--memberships <n>`   | Memberships the user holds. Default 11                           |
-| `--roles <n>`         | Roles in each membership. Default 1                              |
-| `--scope <name>`      | Scope name written in each entry. Default `organization`         |
-| `--budget <bytes>`    | Byte budget of the claim. Default 1024                           |
-| `--json`              | Print the report as JSON                                         |
+| Flag                | Meaning                                                  |
+| ------------------- | -------------------------------------------------------- |
+| `--memberships <n>` | Memberships the user holds. Default 11                   |
+| `--roles <n>`       | Roles in each membership. Default 1                      |
+| `--scope <name>`    | Scope name written in each entry. Default `organization` |
+| `--budget <bytes>`  | Byte budget of the claim. Default 1024                   |
+| `--json`            | Print the report as JSON                                 |
 
 The report holds `entryBytes`, `claimBytes`, `kept`, `truncated`, `fits` and `tokenChars`. `tokenChars` is the length of the compact JWT with the base Supabase claims and the kept entries; [PD110](/docs/cli/doctor) warns above 4096.
 

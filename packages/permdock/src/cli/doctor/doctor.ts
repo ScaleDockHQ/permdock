@@ -42,6 +42,7 @@ import { pd044, pd065 } from "./next.ts";
 import { pd091, pd091Applies } from "./openapi.ts";
 import { pd080, pd081 } from "./per-request.ts";
 import { pd111 } from "./perf-limit.ts";
+import { pd112 } from "./perf-snapshot.ts";
 import { pd103, pd104, pd105, pd106, pd107, pd108 } from "./perf-sql.ts";
 import { pd109, pd110 } from "./perf-token.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
@@ -486,6 +487,12 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     run: (project) => pd110(project, eventsOf(project)),
   },
   { code: "PD111", groups: ["openapi", "mcp", "performance"], run: pd111 },
+  {
+    code: "PD112",
+    groups: ["next", "snapshot", "performance"],
+    when: (config) => config.policy !== undefined,
+    run: pd112,
+  },
   { code: "PD044", groups: ["next", "endpoint"], run: pd044 },
   { code: "PD065", groups: ["react-native", "endpoint"], run: pd065 },
 ];

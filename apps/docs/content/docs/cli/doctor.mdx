@@ -163,6 +163,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD109` | `rls.customRoles` with `rls.authorize: "jwt"` and no `supabase.hook.claims` function, so no token carries `grants`                                                                                                                                                                                                                   | error           |
 | `PD110` | With `--db-url-stdin`, the access token the hook builds for a sample user is over 4,096 characters                                                                                                                                                                                                                                   | warning         |
 | `PD111` | A list endpoint takes an optional `limit`: an `openapi.doc` `GET` on a collection path, or an MCP tool schema with `limit: …optional()`                                                                                                                                                                                              | warning         |
+| `PD112` | The snapshot of the role with the most grants is over 65,536 bytes of JSON; the message names the largest part warning                                                                                                                                                                                                               |
 
 ### PD001: server-only imports in client entries
 
@@ -702,7 +703,7 @@ Postgres reads a row before it updates it, so an `update` policy on a table with
 
 ### Performance checks
 
-PD103 to PD108 read the statements of `supabase/schemas`, `rls.out` and the migration folders. The generated files are included, so output from an older release is reported until you run `permdock rls generate`. `--only performance` runs PD103 to PD111.
+PD103 to PD108 read the statements of `supabase/schemas`, `rls.out` and the migration folders. The generated files are included, so output from an older release is reported until you run `permdock rls generate`. `--only performance` runs PD103 to PD112.
 
 #### PD103: a PermDock call per row
 
@@ -741,6 +742,10 @@ With `--db-url-stdin`, doctor runs `custom_access_token_hook` for the sample use
 #### PD111: an optional `limit`
 
 A list that takes no limit returns every row the policies allow, and Lienlink's jobs API did so at 1M rows. PD111 is a warning for a `GET` on a collection path in an `openapi.doc` document whose `limit` query parameter is not `required`, and for a source file that builds an MCP server (`permdock/mcp`, `registerTool(`, `.tool(`) with `limit: …optional()` on a line that sets no `default`. Make `limit` required, or give it a default and a maximum.
+
+#### PD112: snapshot size
+
+`permdock snapshot size` measures the compact snapshot of one role. PD112 measures the role with the most grants, held in three tenants, and is a warning above 65,536 bytes of JSON. A Next.js page serialises that snapshot into the Flight stream for each `PermDockProvider`. The message names the largest part, usually `grants` or `assignable`; `omitAssignable` drops the second on a page with no role editor. `--only snapshot` runs PD112.
 
 ## Side effects
 

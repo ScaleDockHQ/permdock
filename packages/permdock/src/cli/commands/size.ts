@@ -1,8 +1,8 @@
 import type { Leaf } from "../core/command.ts";
 
 import { defineLeaf } from "../core/command.ts";
-import { given, policyFlag } from "../core/flags.ts";
 import { usageResult } from "../core/errors.ts";
+import { given, policyFlag } from "../core/flags.ts";
 import { requirePolicy } from "../project/load.ts";
 
 function count(value: string | undefined, fallback: number): number {
@@ -11,7 +11,9 @@ function count(value: string | undefined, fallback: number): number {
   }
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 0) {
-    throw new TypeError(`PermDock CLI: '${value}' is not a non-negative integer`);
+    throw new TypeError(
+      `PermDock CLI: '${value}' is not a non-negative integer`,
+    );
   }
   return parsed;
 }
@@ -42,9 +44,8 @@ export const snapshotSize: Leaf = defineLeaf({
   async run(ctx, { flags }) {
     try {
       // Lazy: the implementation loads only when this command runs, not for --help.
-      const { runSnapshotSize, SNAPSHOT_BUDGET_BYTES } = await import(
-        "../snapshot-size.ts"
-      );
+      const { runSnapshotSize, SNAPSHOT_BUDGET_BYTES } =
+        await import("../snapshot-size.ts");
       const path = given(flags.policy) ?? ctx.config.policy;
       const policy = await requirePolicy(
         ctx.cwd,

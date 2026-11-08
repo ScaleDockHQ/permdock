@@ -15,19 +15,19 @@ permdock snapshot size --omit-assignable --budget 32768
 
 Without `--role` the command measures the role with the most grants. A role held on a scope gets `--tenants` memberships with UUID ids, and the snapshot includes every tenant. A role held on a resource is not supported.
 
-| Flag                | Meaning                                                              |
-| ------------------- | -------------------------------------------------------------------- |
-| `--policy <module>` | Module exporting the policy; default `policy` in the config          |
-| `--role <name>`     | Role to measure                                                      |
-| `--tenants <n>`     | Memberships of a scoped role. Default 1                              |
-| `--omit-assignable` | Measure with the `assignable` part left out                          |
-| `--budget <bytes>`  | Bytes the total may weigh. Default 65536. Reported, never a failure  |
-| `--json`            | Print the report as JSON                                             |
+| Flag                | Meaning                                                             |
+| ------------------- | ------------------------------------------------------------------- |
+| `--policy <module>` | Module exporting the policy; default `policy` in the config         |
+| `--role <name>`     | Role to measure                                                     |
+| `--tenants <n>`     | Memberships of a scoped role. Default 1                             |
+| `--omit-assignable` | Measure with the `assignable` part left out                         |
+| `--budget <bytes>`  | Bytes the total may weigh. Default 65536. Reported, never a failure |
+| `--json`            | Print the report as JSON                                            |
 
 The report lists `grants`, `conditions`, `vocabulary`, `tenants`, `assignable` and `subject` with bytes and gzip bytes, the total, and the largest part.
 
 ## Side effects
 
-| Command                   | Effects |
-| ------------------------- | ------- |
-| `permdock snapshot size`  | None    |
+| Command                  | Effects |
+| ------------------------ | ------- |
+| `permdock snapshot size` | None    |

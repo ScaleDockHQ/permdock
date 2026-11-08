@@ -16,7 +16,10 @@ export type ClaimsSizeReport = {
   readonly truncated: boolean;
   /** The most memberships of this shape the budget keeps. */
   readonly fits: number;
-  /** Characters of the compact token with the kept entries and the Supabase base claims. */
+  /**
+   * Characters of the compact token with the kept entries and the Supabase base
+   * claims.
+   */
   readonly tokenChars: number;
 };
 
@@ -46,7 +49,8 @@ export function claimsSize(input: {
   const entries = Array.from({ length: input.memberships }, (_, index) =>
     entry(input.scope, index, input.roles),
   );
-  const entryBytes = entries[0] === undefined ? 0 : Buffer.byteLength(entries[0]);
+  const entryBytes =
+    entries[0] === undefined ? 0 : Buffer.byteLength(entries[0]);
   const fits = fitting(entryBytes, input.budget);
   const kept = Math.min(fits, input.memberships);
   const claim = `[${entries.join(",")}]`;

@@ -262,7 +262,8 @@ export const SECTIONS: readonly Section[] = [
             docs: "snapshot",
             effects: [],
             config: true,
-            load: async () => (await import("../commands/size.ts")).snapshotSize,
+            load: async () =>
+              (await import("../commands/size.ts")).snapshotSize,
           }),
         ],
       ),
@@ -271,16 +272,21 @@ export const SECTIONS: readonly Section[] = [
         "Measure the memberships claim of an access token",
         "claims",
         [
-          leaf("size", "Report claim bytes, token characters and the budget cut", {
-            examples: [
-              "permdock claims size --memberships 60",
-              "permdock claims size --memberships 11 --roles 3 --json",
-            ],
-            docs: "claims",
-            effects: [],
-            config: false,
-            load: async () => (await import("../commands/size.ts")).claimsSize,
-          }),
+          leaf(
+            "size",
+            "Report claim bytes, token characters and the budget cut",
+            {
+              examples: [
+                "permdock claims size --memberships 60",
+                "permdock claims size --memberships 11 --roles 3 --json",
+              ],
+              docs: "claims",
+              effects: [],
+              config: false,
+              load: async () =>
+                (await import("../commands/size.ts")).claimsSize,
+            },
+          ),
         ],
       ),
       leaf(
