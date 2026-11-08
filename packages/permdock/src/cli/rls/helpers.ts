@@ -4,6 +4,7 @@ import type { Body } from "./helper-bodies.ts";
 import { AUTHZ_VERSION_TABLE } from "../../supabase/sources.ts";
 import { configError } from "../core/errors.ts";
 import { scopeTypeOf } from "../sql/columns.ts";
+import { stampHelpers } from "../sql/digest.ts";
 import {
   hasMemberFor,
   hasMemberOf,
@@ -555,7 +556,7 @@ revoke all on table ${ur} from anon, authenticated, public;`);
     chunks.push(globalRoles);
   }
   chunks.push(roleReadersSql(ctx, options.permissions, options.trustedReaders));
-  return `${chunks.join("\n\n")}\n`;
+  return stampHelpers(`${chunks.join("\n\n")}\n`);
 }
 
 function memoBody(

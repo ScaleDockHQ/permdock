@@ -41,6 +41,7 @@ import { pd092 } from "./lockfile.ts";
 import { pd044, pd065 } from "./next.ts";
 import { pd091, pd091Applies } from "./openapi.ts";
 import { pd080, pd081 } from "./per-request.ts";
+import { pd115 } from "./perf-drift.ts";
 import { pd111 } from "./perf-limit.ts";
 import { pd112 } from "./perf-snapshot.ts";
 import { pd103, pd104, pd105, pd106, pd107, pd108 } from "./perf-sql.ts";
@@ -471,6 +472,11 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     groups: ["rls", "sql", "performance"],
     run: (project) => check(project.cwd, project.config, project.files),
   })),
+  {
+    code: "PD115",
+    groups: ["rls", "sql", "drift"],
+    run: (project) => pd115(project.cwd, project.config, project.files),
+  },
   {
     code: "PD105",
     groups: ["rls", "sql", "performance"],

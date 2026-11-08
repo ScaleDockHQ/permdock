@@ -4,7 +4,7 @@ import type { RlsPluginOptions } from "./rls.ts";
 import { isSeeds } from "../../../core/seeds.ts";
 import { dateAt } from "../../../core/time.ts";
 import { CliError } from "../../core/errors.ts";
-import { seedsMigration } from "../../core/output-files.ts";
+import { seedDeltaNote, seedsMigration } from "../../core/output-files.ts";
 import {
   DEFAULTS_MARKER,
   FIXTURES_PATH,
@@ -112,6 +112,9 @@ export async function filesForRls(
     );
     if (!planned.current) {
       files.push({ path: planned.rel, contents: text });
+      if (planned.delta !== undefined) {
+        notes.push(seedDeltaNote(planned.delta));
+      }
     }
   }
   if (fixturesPresent(seeds)) {

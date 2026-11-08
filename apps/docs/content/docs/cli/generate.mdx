@@ -28,6 +28,8 @@ permdock generate --dry-run
 | `--watch`           | Generate again when a policy, config or plugin input changes. Ctrl-C exits 130.        |
 | `--db-url-stdin`    | Read the Postgres URL from stdin. RLS index suggestions and hook helper checks use it. |
 
+When a new seeds or defaults migration is due, the command prints `seeds: +N rows, -M rows against the newest seeds migration (<file>)` on stderr, counted by value row against the newest migration that carries the marker. The helpers carry a `sha-256:` digest on their first line ([PD115](/docs/cli/doctor#pd115-a-migration-behind-the-schema-file)).
+
 `--json` puts `files` and `summary` in the result. Each file has `path`, `plugin`, `outcome`, `bytes` (size after the run) and `delta` (`bytes` minus the size on disk before; `bytes` for a new file). `--check` and `--dry-run` also print one stdout row per file that would change: `+ path (+N bytes, M total)` for a new file and `~ path (…)` for a changed one. `outcome` is `created`, `updated`, `unchanged` or, with `--dry-run`, `planned`. A cache hit leaves those files `unchanged` and counts them in `summary.skipped`. The stderr row is `Skipped (cache) N`. With `--watch`, each cycle is one JSON line on stdout and the process keeps running.
 
 `--watch` loads the policy in a new worker on every cycle, because native ESM cannot drop a module it has already imported. A cycle writes nothing until the policy and the plugins have been read.

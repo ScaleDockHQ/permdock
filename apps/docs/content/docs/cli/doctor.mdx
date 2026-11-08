@@ -166,6 +166,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD112` | The snapshot of the role with the most grants is over 65,536 bytes of JSON; the message names the largest part                                                                                                                                                                                                                       | warning         |
 | `PD113` | Source reads the legacy shared JWT secret (`SUPABASE_JWT_SECRET`, `JWT_SECRET`) or lists `HS256` as the only verification algorithm                                                                                                                                                                                                  | warning         |
 | `PD114` | `rls.authorize: "jwt"` with a token hook: the helpers read only the memberships the budget keeps; an error when a sample user's token is truncated                                                                                                                                                                                   | warning         |
+| `PD115` | The newest migration with the generated helpers carries a different `sha-256:` digest from the schema file `rls generate` writes                                                                                                                                                                                                     | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -756,6 +757,10 @@ A Supabase project that still signs with the legacy shared secret verifies a tok
 ### PD114: truncated tokens in jwt mode
 
 With `rls.authorize: "jwt"` the helpers read the `memberships` claim and nothing else. When the hook budget cuts a user's memberships it sets `memberships_truncated` and keeps a prefix, and the helpers see only that prefix: the user loses the other organisations with no error. PD114 is a warning for a project that sets both a token hook and `jwt` mode. With `--db-url-stdin` it runs the hook for the `doctor.claims` sample users, as PD110 does, and is an error for a sample whose token is truncated. Use `rls.authorize: "database"`: with a hook the helpers read the claims first and the tables when the token is truncated ([token shape](/docs/adapters/supabase-hook#token-shape)). `--only hook` runs PD114.
+
+### PD115: a migration behind the schema file
+
+`permdock generate --only rls` writes `-- permdock helpers (…) sha-256:<digest>` as the first line of the helpers, where the digest covers every line after it. The digest depends on the helper text only, so a release that writes the same helpers writes the same line. PD115 compares the newest migration in the migration folders that holds that line with the schema file (`supabase/schemas` or `rls.out`). A different digest means a policy change reached the schema file and no migration applies it. The check is silent when either side has no stamp, which is the case for a migration that `supabase db diff` wrote, since a diff carries no comments. `--only drift` runs PD115.
 
 ## Side effects
 
