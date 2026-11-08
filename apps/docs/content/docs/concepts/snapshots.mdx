@@ -19,6 +19,7 @@ const scoped = permdock.snapshot({
 const all = permdock.snapshot({ tenants: "all" }); // every membership, for a local tenant switcher
 const some = permdock.snapshot({ tenants: ["o_acme", "o_globex"] }); // only these, when the subject belongs to them
 const lean = permdock.snapshot({ tenants: "all", omitAssignable: true }); // no assignable roles or permissions
+const refs = permdock.snapshot({ omitAssignable: true, omitStatic: true }); // declared roles as bundle references
 const preview = permdock
   .simulate({ tenant: "o_globex", roles: ["viewer"] })
   .snapshot(); // simulated: true
@@ -26,7 +27,41 @@ const preview = permdock
 
 `assignableFor(policy, user, { tenant, customRoles?, assignable? })` returns the `assignable` entry of one tenant without building the rest. A page with a role editor for the open tenant calls it instead of shipping every tenant's entry with `tenants: "all"`; use `omitAssignable: true` on the snapshot and read the entry when the editor opens. It answers an empty entry for a tenant the subject holds no membership in.
 
-`snapshot` is synchronous and pure (asynchronous only when a `signer` is passed, see below). It includes only what the current subject's roles and memberships grant, so a member's snapshot never reveals admin grants. By default it is scoped to the active tenant: a member of ten organisations ships the grants of the one this request is about, plus global grants. `tenants: 'all'` includes every membership so the client can switch tenants without a round trip; it stays opt-in, with no membership-count threshold ([snapshots](/docs/concepts/snapshots), [tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui)). Full grants with normalised conditions ship; `include` is the size lever. `omitAssignable: true` leaves out `assignable`, which repeats the roles and permissions the subject may hand out for every tenant; use it when the client never offers role or custom-role choices. `parseSnapshot(json)` is the public reader.
+`snapshot` is synchronous and pure (asynchronous only when a `signer` is passed, see below). It includes only what the current subject's roles and memberships grant, so a member's snapshot never reveals admin grants. By default it is scoped to the active tenant: a member of ten organisations ships the grants of the one this request is about, plus global grants. Without an active tenant, every membership ships. `permdock.grantedPermissions` always reads every tenant. `tenants: 'all'` includes every membership so the client can switch tenants without a round trip; it stays opt-in, with no membership-count threshold ([snapshots](/docs/concepts/snapshots), [tenancy](/docs/concepts/tenancy), [UI](/docs/concepts/ui)). Full grants with normalised conditions ship; `include` is the size lever. `omitAssignable: true` leaves out `assignable`, which repeats the roles and permissions the subject may hand out for every tenant; use it when the client never offers role or custom-role choices. `parseSnapshot(json)` is the public reader.
+
+### Static roles: `omitStatic`
+
+A role's grants repeat in every snapshot of every user who holds it. `omitStatic: true` removes them. The snapshot lists the roles the subject holds, and the client reads the grants from a generated bundle that ships once as a cacheable script.
+
+```ts
+// permdock.config.ts
+export default defineConfig({
+  policy: "./src/policy.ts",
+  gen: { kinds: ["bundle"] },
+});
+```
+
+`permdock generate` then writes `src/permdock/bundle.ts` ([generate](/docs/cli/gen#bundle)).
+
+```tsx
+import { clientBundle } from "./permdock/bundle.ts";
+
+const snapshot = await getSnapshot({ omitStatic: true });
+<PermDockProvider snapshot={snapshot} bundle={clientBundle} />;
+```
+
+`bundle.ts` starts with `"use client"`. A server component that passes `clientBundle` to a provider hands over a client reference, so the page does not serialise the grants. The same `bundle` option exists on the React, Vue, Svelte and Solid providers and on `createClientStore`.
+
+The snapshot carries `static: { held, digests }`. `held` pairs each role with the index of the membership that holds it, and `digests` pins the role to its bundle entry by SHA-256. A client resolves a role only when the bundle's digest for it equals the snapshot's. A missing bundle, a stale bundle or an index outside the memberships resolves nothing, so the client denies.
+
+Only roles whose grants the bundle can reproduce exactly are removed. The bundle is built from a probe subject holding each role through the real snapshot builder, and the server compares every role of the live snapshot with it. These stay inline in `grants`:
+
+- a role with `meta.clientBundle: false`
+- grants whose conditions bind a claim, a plan gate, a delegation or a `fresh` requirement
+- grants added through `include` or custom roles
+- grants of a role the probe cannot reproduce for that membership
+
+The client never repeats a grant rule: it reads a grant from the bundle and runs the same evaluator over it. The bundle is public to every signed-in browser, so keep a role out of it with `meta.clientBundle: false` when its grants must not be readable by users who do not hold it. `permdock snapshot size --omit-static` reports the effect for one role.
 
 ### Without an instance: `snapshotFor`
 
@@ -210,6 +245,7 @@ A grant entry is roughly the size of its condition. A policy with two hundred po
 
 ## What is not in a snapshot
 
+- With `omitStatic`, the grants of declared roles: only a reference to the client bundle.
 - Closures and opaque conditions: only their existence (`portable: false`).
 - Grants of roles the subject does not have, and grants of tenants outside `tenants` (the active one by default).
 - Custom-role definitions: only their resolved grants, each bounded by the ceiling and carrying the custom role name as `role` ([custom roles](/docs/concepts/custom-roles)).
@@ -218,6 +254,12 @@ A grant entry is roughly the size of its condition. A policy with two hundred po
 - Anything from the actor beyond what appears in `delegation`.
 
 ## Why
+
+- **The grants of a declared role are policy, not user data.** Every holder of `admin` gets the same 1,790 grants, so sending them per user and per page repeats a fact the build already knows. `omitStatic` replaces them with a role name and a digest. On the large-policy admin (`tests/fixtures/large-policy.ts`, `omitAssignable`) the snapshot falls from 28,152 B (2,066 gzipped) to 765 B (389 gzipped); on the CentraKit-shaped user with eleven memberships it falls from 34,937 B (3,236 gzipped) to 5,661 B (1,289 gzipped). The bundle costs 25,974 B (2,049 gzipped) for the large policy and loads once. On the `next` example the page HTML falls about 150 B gzipped, because its policy has two roles with a handful of grants, and the bundle script adds 670 B gzipped; a policy needs a few hundred grants before it pays back within a few pages (`tests/core/snapshot-size.test.ts`, `permdock snapshot size --omit-static`).
+- **The bundle is a generated client module, not a route.** A fetched bundle adds a request to the first render and a failure mode to every guard. A `"use client"` module is part of the client build, cached by its content hash, and arrives as a reference in the Flight stream. The digest lets a deployment that ships a new snapshot before a new bundle deny instead of guess.
+- **Every declared role is bundled; `meta.clientBundle: false` opts one out.** A rule that listed bundled roles by name would drift from the policy. The bundle makes the grants of every declared role readable by every signed-in browser, which the threat model records ([threat model](/docs/security/threat-model)). A role whose grants are themselves sensitive stays inline.
+- **The role map is not built.** A client-side map from role to grants for every role of the policy would let the bundle answer "which roles may do this", which the role editor needs. No page asked for it, and it would need its own digest and invalidation. Deferred until a page does.
+- **The default snapshot ships the active tenant only.** A snapshot that listed every membership's grants made a member of eleven organisations pay for ten the page never read. The default now drops grants whose membership belongs to another tenant, and `tenants: "all"` restores them. A request with no active tenant keeps every membership, as before.
 
 - **A snapshot interns repeated grant terms.** An admin of a 39-resource, 273-permission policy holds 1,790 grants over 28 distinct conditions; repeating each term per grant weighs 467,592 bytes (11,962 gzipped), the interned form weighs 58,412 bytes (4,544 gzipped), 8.0 times smaller raw and 2.6 times gzipped (`tests/core/snapshot-size.test.ts`, fixture `tests/fixtures/large-policy.ts`). Interning alone gave 5.2 times; merging runs of consecutive grants of one permission into an index list gave the rest. PermDock has one snapshot form: the flat per-grant form is internal (`expandSnapshot`) and a reader that needs it expands the wire form.
 - **`tenants: 'all'` has no cap and no paging.** A cap would silently drop tenants from a switcher, which is worse than a large payload the application chose; paging would turn one pure, cacheable value into a sequence of requests with a consistency problem between pages. A subject with many memberships combines `tenants: 'all'` with `include` to ship only the groups the switcher needs, and the default (the active tenant) stays the right answer for everyone else. `include` already filters by permission, which is the axis that grows with policy size; a separate tenant filter on `include` was rejected because `tenants` is that filter.
