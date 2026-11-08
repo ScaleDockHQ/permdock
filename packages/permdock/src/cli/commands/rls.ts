@@ -362,7 +362,7 @@ export const verify: Leaf = defineLeaf({
     },
     advisors: {
       type: "boolean",
-      description: "Run the Supabase security advisors",
+      description: "Run the Supabase security and performance advisors",
     },
     ignore: {
       type: "string",

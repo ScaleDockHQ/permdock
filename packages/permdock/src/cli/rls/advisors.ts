@@ -30,6 +30,8 @@ export type CliExec = (
 const ADVISOR_CODES: Readonly<Record<string, `PD${string}`>> = {
   function_search_path_mutable: "PD048",
   auth_rls_initplan: "PD051",
+  multiple_permissive_policies: "PD104",
+  unindexed_foreign_keys: "PD105",
   rls_disabled_in_public: "PD050",
   security_definer_view: "PD022",
   anon_security_definer_function_executable: "PD049",
@@ -103,10 +105,13 @@ function installHint(agent: Agent | undefined): string {
   return `rls verify --advisors runs the Supabase CLI: install it with ${addLine(agent, ["supabase"], { dev: true })} (or brew install supabase/tap/supabase)`;
 }
 
+const ADVISOR_TYPES = ["security", "performance"] as const;
+
 /**
- * `supabase db advisors --type security` against `--db-url` or the local stack,
- * from the project's `node_modules/.bin` first, then `PATH`. Exit 1 on a WARN
- * or ERROR row, 2 when the CLI is missing or fails.
+ * `supabase db advisors --type security` and `--type performance` against
+ * `--db-url` or the local stack, from the project's `node_modules/.bin` first,
+ * then `PATH`. Exit 1 on a WARN or ERROR row, 2 when the CLI is missing or
+ * fails.
  */
 export async function runRlsAdvisors(input: {
   readonly cwd: string;
@@ -119,48 +124,63 @@ export async function runRlsAdvisors(input: {
   const exec = input.exec ?? defaultExec;
   const bin = join(input.cwd, "node_modules", ".bin");
   const path = input.env["PATH"];
-  const result = await exec(
-    "supabase",
-    [
-      "db",
-      "advisors",
-      ...(input.db === undefined ? ["--local"] : ["--db-url", input.db]),
-      "--type",
-      "security",
-      "--output-format",
-      "json",
-    ],
-    {
-      cwd: input.cwd,
-      env: {
-        ...input.env,
-        PATH: path === undefined ? bin : `${bin}${delimiter}${path}`,
+  const findings: AdvisorFinding[] = [];
+  const seen = new Set<string>();
+  for (const type of ADVISOR_TYPES) {
+    const result = await exec(
+      "supabase",
+      [
+        "db",
+        "advisors",
+        ...(input.db === undefined ? ["--local"] : ["--db-url", input.db]),
+        "--type",
+        type,
+        "--output-format",
+        "json",
+      ],
+      {
+        cwd: input.cwd,
+        env: {
+          ...input.env,
+          PATH: path === undefined ? bin : `${bin}${delimiter}${path}`,
+        },
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
       },
-      ...(input.signal === undefined ? {} : { signal: input.signal }),
-    },
-  );
-  if (result.error !== undefined) {
-    return { code: 2, output: installHint(await packageManagerOf(input.cwd)) };
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(result.stdout);
-  } catch {
-    parsed = undefined;
-  }
-  const findings = findingsOf(parsed);
-  if (findings === undefined) {
-    const error =
-      typeof parsed === "object" && parsed !== null
-        ? Reflect.get(parsed, "error")
-        : undefined;
-    const message = [text(error, "message"), text(error, "suggestion")]
-      .filter((part) => part !== "")
-      .join(" ");
-    return {
-      code: 2,
-      output: `supabase db advisors failed: ${message === "" ? nonEmptyOr(result.stderr.trim(), `exit ${String(result.status)}`) : message}`,
-    };
+    );
+    if (result.error !== undefined) {
+      return {
+        code: 2,
+        output: installHint(await packageManagerOf(input.cwd)),
+      };
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(result.stdout);
+    } catch {
+      parsed = undefined;
+    }
+    const rows = findingsOf(parsed);
+    if (rows === undefined) {
+      const error =
+        typeof parsed === "object" && parsed !== null
+          ? Reflect.get(parsed, "error")
+          : undefined;
+      const message = [text(error, "message"), text(error, "suggestion")]
+        .filter((part) => part !== "")
+        .join(" ");
+      return {
+        code: 2,
+        output: `supabase db advisors failed: ${message === "" ? nonEmptyOr(result.stderr.trim(), `exit ${String(result.status)}`) : message}`,
+      };
+    }
+    for (const row of rows) {
+      // A lint can appear under both types; its cache key names it once.
+      const key = `${row.cacheKey}\u0000${row.name}\u0000${row.detail}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        findings.push(row);
+      }
+    }
   }
   const failing = findings.filter(
     (finding) => finding.level === "WARN" || finding.level === "ERROR",
@@ -183,7 +203,10 @@ export async function runRlsAdvisors(input: {
     };
   }
   if (findings.length === 0) {
-    return { code, output: "supabase db advisors: no security findings" };
+    return {
+      code,
+      output: "supabase db advisors: no security or performance findings",
+    };
   }
   const lines = findings.map(
     (finding) =>
