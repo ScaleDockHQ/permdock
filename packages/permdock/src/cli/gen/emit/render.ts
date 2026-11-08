@@ -1,7 +1,9 @@
+import type { ClientBundle } from "../../../core/snapshot-types.ts";
 import type { GenKind } from "../../types.ts";
 import type { HeaderInfo } from "../header.ts";
 import type { GenModel } from "../model.ts";
 
+import { bundleDigest, bundleModule } from "../bundle.ts";
 import { constantsModule, sqlModule } from "../constants.ts";
 import { factoriesModule } from "../factories.ts";
 import { generatedHeader } from "../header.ts";
@@ -33,6 +35,7 @@ export const FILE_NAMES: Readonly<Record<GenKind, string>> = {
   svelte: "svelte.ts",
   solid: "solid.ts",
   messages: "messages.json",
+  bundle: "bundle.ts",
 };
 
 export type RenderContext = {
@@ -55,6 +58,8 @@ export type RenderContext = {
   readonly previous: string | undefined;
   /** What every generated module's header names. */
   readonly header: HeaderInfo;
+  /** Built only when the `bundle` kind is rendered. */
+  readonly bundle?: ClientBundle;
 };
 
 /** One file a kind writes: `name` is relative to the output directory. */
@@ -126,6 +131,22 @@ export function renderGen(
       );
     case "messages":
       return own(messagesDocument(model, context.rel, context.previous));
+    case "bundle": {
+      if (context.bundle === undefined) {
+        throw new Error(
+          "PermDock CLI: the bundle kind needs the loaded policy",
+        );
+      }
+      return own(
+        bundleModule(
+          context.bundle,
+          generatedHeader(kind, {
+            ...context.header,
+            hash: bundleDigest(context.bundle),
+          }),
+        ),
+      );
+    }
     default: {
       const exhaustive: never = kind;
       return exhaustive;

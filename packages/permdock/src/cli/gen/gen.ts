@@ -7,6 +7,7 @@ import type { CommandResult } from "../core/result.ts";
 import type { GenKind, PermDockConfig } from "../types.ts";
 import type { HeaderInfo } from "./header.ts";
 
+import { clientBundle } from "../../core/client-bundle.ts";
 import { loadConfiguredOperations } from "../catalog-operations.ts";
 import { CliError, configError } from "../core/errors.ts";
 import { fileSummary, planFiles } from "../core/files.ts";
@@ -30,6 +31,7 @@ const GEN_KINDS = [
   "svelte",
   "solid",
   "messages",
+  "bundle",
 ] as const satisfies readonly GenKind[];
 
 const DEFAULT_GEN_OUT = "src/permdock";
@@ -142,6 +144,9 @@ export async function renderKinds(
     policy: policyPath === "" ? "policy" : policyPath.replace(/^\.\//u, ""),
     hash: modelDigest(model),
   };
+  const bundle = input.kinds.includes("bundle")
+    ? clientBundle(input.policy)
+    : undefined;
   return input.kinds.flatMap((kind) => {
     const rel = input.out ?? `${dir}/${FILE_NAMES[kind]}`;
     const file = resolve(
@@ -156,6 +161,7 @@ export async function renderKinds(
       policy: resolve(input.cwd, policyPath),
       previous: rel === STDOUT ? undefined : readIfExists(file),
       header,
+      ...(bundle === undefined ? {} : { bundle }),
     });
     // `--out` names one file: the kind's own, without its siblings.
     const wanted = input.out === undefined ? rendered : rendered.slice(0, 1);

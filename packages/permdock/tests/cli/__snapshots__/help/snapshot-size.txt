@@ -7,6 +7,7 @@ Flags
   --role <name>      Role to measure (default the role with the most grants)
   --tenants <count>  Memberships of a scoped role (default 1)
   --omit-assignable  Measure with the assignable part left out
+  --omit-static      Measure with the grants of declared roles replaced by bundle references
   --budget <bytes>   Bytes the total may weigh (default 65536)
 
 Global flags

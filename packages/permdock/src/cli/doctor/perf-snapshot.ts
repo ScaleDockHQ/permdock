@@ -44,7 +44,7 @@ export async function pd112(
       severity: "warning",
       target: role,
       message: `the snapshot of role '${role}' is ${String(report.total.bytes)} bytes (${String(report.total.gzip)} gzip), over ${String(SNAPSHOT_BUDGET_BYTES)}; the largest part is ${report.largest}`,
-      fix: "pass omitAssignable to the provider when the page has no role editor, or narrow the role's grants; `permdock snapshot size` lists the parts",
+      fix: "pass omitStatic with the generated bundle (`permdock gen --kind bundle`), omitAssignable when the page has no role editor, or narrow the role's grants; `permdock snapshot size` lists the parts",
     },
   ];
 }

@@ -21,10 +21,11 @@ Without `--role` the command measures the role with the most grants. A role held
 | `--role <name>`     | Role to measure                                                     |
 | `--tenants <n>`     | Memberships of a scoped role. Default 1                             |
 | `--omit-assignable` | Measure with the `assignable` part left out                         |
+| `--omit-static`     | Measure with declared roles replaced by bundle references           |
 | `--budget <bytes>`  | Bytes the total may weigh. Default 65536. Reported, never a failure |
 | `--json`            | Print the report as JSON                                            |
 
-The report lists `grants`, `conditions`, `vocabulary`, `tenants`, `assignable` and `subject` with bytes and gzip bytes, the total, and the largest part.
+The report lists `grants`, `static`, `conditions`, `vocabulary`, `tenants`, `assignable` and `subject` with bytes and gzip bytes, the total, the largest part, and `perMembership`: the bytes of `grants` and `static` for each membership of a scoped role. With `--omit-static`, `perMembership` shows what the bundle takes out of the page. See [Snapshots](/docs/concepts/snapshots).
 
 ## Side effects
 
