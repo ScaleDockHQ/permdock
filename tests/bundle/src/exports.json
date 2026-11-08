@@ -45,6 +45,7 @@
     "checkRoleChange",
     "claim",
     "claimsFirst",
+    "clientBundle",
     "cloudEventType",
     "composeMemberships",
     "context",
@@ -998,7 +999,7 @@
     "zod"
   ],
   "./cli/plugins/ui": ["reactHooks", "solidHooks", "svelteHooks", "vueHooks"],
-  "./cli/plugins/app": ["constants", "factories", "messages"],
+  "./cli/plugins/app": ["bundle", "constants", "factories", "messages"],
   "./unplugin": ["createPermDockUnplugin"],
   "./next/plugin": ["createPermDockPlugin"],
   "./next/client": ["PermissionBoundary", "usePermissionBoundary"]
