@@ -49,6 +49,7 @@ import {
   positiveInteger,
   typedUsers,
 } from "./memberships.ts";
+import { oauthMode, refreshReuse } from "./refresh.ts";
 
 const MANAGED_TRIGGER = "permdock_protect_managed";
 
@@ -186,7 +187,7 @@ export function hookSql(parts: Parts): string {
     "octet_length(case jsonb_array_length(pdk_roles.held) when 0 then '' when 1 then (pdk_roles.held -> 0)::text else pdk_roles.held::text end)";
   const fixed = `used + octet_length(pdk_roles.held::text) + ${userRoleBytes} + coalesce(octet_length(to_jsonb(active)::text), 0)${parts.customRoles === undefined ? "" : " + 20"}${parts.version ? " + octet_length(pdk_version.ver::text)" : ""}`;
   const fixedFrom = `pdk_roles${parts.version ? ", pdk_version" : ""}`;
-  const oneQuery = `  -- one statement reads the roles, the memberships${teamsConfig === undefined ? "" : ", the teams"}${parts.version ? " and the authorization version" : ""}; the budget counts every slice
+  const readQuery = `  -- one statement reads the roles, the memberships${teamsConfig === undefined ? "" : ", the teams"}${parts.version ? " and the authorization version" : ""}; the budget counts every slice
   with pdk_roles as (
       ${rolesCte}
     )${versionCte}${teamsCte},
@@ -216,14 +217,58 @@ export function hookSql(parts: Parts): string {
     truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
     active is not null and coalesce((select bool_or(k.current) from pdk_ranked k), false),
     (select bytes from pdk_fixed)${teamsConfig === undefined ? "" : ",\n    (select pdk_teams.team_ids from pdk_teams)"}${parts.version ? ",\n    (select pdk_version.ver from pdk_version)" : ""}
-  into held, kept, truncated, in_active, used${teamsConfig === undefined ? "" : ", team_ids"}${parts.version ? ", ver" : ""};
-  claims := jsonb_set(claims, '{roles}', held);
+  into held, kept, truncated, in_active, used${teamsConfig === undefined ? "" : ", team_ids"}${parts.version ? ", ver" : ""};`;
+  const applyHeld = `  claims := jsonb_set(claims, '{roles}', held);
   if jsonb_array_length(held) = 1 then
     claims := jsonb_set(claims, '{user_role}', held -> 0);
   elsif jsonb_array_length(held) > 1 then
     claims := jsonb_set(claims, '{user_role}', held);
   end if;
   claims := jsonb_set(claims, '{memberships}', kept);`;
+  const incoming = "event -> 'claims'";
+  const fastBlock = parts.refreshReuse
+    ? `
+  -- a refresh whose token carries the current authz_ver keeps the roles, memberships and teams it holds; any doubt reads them again
+  if event ->> 'authentication_method' = 'token_refresh'
+    and not truncated
+    and jsonb_typeof(${incoming} -> 'authz_ver') = 'number'
+    and jsonb_typeof(${incoming} -> 'roles') = 'array'
+    and jsonb_typeof(${incoming} -> 'memberships') = 'array'
+    and not (${incoming} ? 'memberships_truncated')${teamsConfig === undefined ? "" : `\n    and not (${incoming} ? 'team_ids_truncated')`} then
+    select coalesce((select v.version from ${versionTable} v where v.user_id = uid), 0) into ver;
+    if (${incoming} ->> 'authz_ver')::numeric = ver then
+      held := ${incoming} -> 'roles';
+      kept := ${incoming} -> 'memberships';${teamsConfig === undefined ? "" : `\n      team_ids := case when jsonb_typeof(${incoming} -> 'team_ids') = 'array' then ${incoming} -> 'team_ids' else '[]'::jsonb end;`}
+      if used + 2 * octet_length(held::text) + octet_length(kept::text)${teamsConfig === undefined ? "" : " + octet_length(team_ids::text)"} + coalesce(octet_length(to_jsonb(active)::text), 0) + octet_length(ver::text) + ${parts.customRoles === undefined ? "0" : "20"} + 2 <= budget then
+        fast := true;
+      end if;
+    end if;
+  end if;`
+    : "";
+  const oneQuery = parts.refreshReuse
+    ? `${fastBlock}
+  if fast then
+    in_active := active is not null and exists (
+      select 1 from jsonb_array_elements(kept) as e(entry) where ${entryTenantSql(parts, "e")} = active
+    );
+  else
+${readQuery.replaceAll(/^/gmu, "  ")}
+  end if;
+${applyHeld}`
+    : `${readQuery}\n${applyHeld}`;
+  const slim =
+    parts.oauth === "slim"
+      ? `
+  -- a token for an OAuth client (client_id) gets no memberships, roles or attrs: the client acts for a scope the user granted, not as the user
+  if coalesce(claims ->> 'client_id', '') <> '' then
+    claims := claims - 'memberships_truncated' - 'attrs' - 'user_role' - 'authz_ver'${dropTeams} - ${quoteLiteral(parts.tenantClaim)}${dropCustom}${dropExtra};
+    claims := claims || jsonb_build_object('roles', '[]'::jsonb, 'memberships', '[]'::jsonb);
+    return jsonb_set(event, '{claims}', claims);
+  end if;`
+      : "";
+  const dropIssued = parts.refreshReuse
+    ? ` - 'user_role' - ${quoteLiteral(parts.tenantClaim)}`
+    : "";
   return `create or replace function ${fn}(event jsonb)
 returns jsonb
 language plpgsql
@@ -239,9 +284,9 @@ declare
   truncated boolean := false;
   in_active boolean := false;
   budget integer := ${String(parts.budget)};
-  used integer := 0;${teamsConfig === undefined ? "" : "\n  team_ids jsonb := '[]'::jsonb;\n  team_truncated boolean := false;"}${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}${parts.before.length === 0 ? "" : "\n  checked jsonb;"}
-begin${beforeSql(parts.before)}${suspended}
-  claims := claims - 'attrs'${dropTeams}${dropCustom}${dropExtra};
+  used integer := 0;${teamsConfig === undefined ? "" : "\n  team_ids jsonb := '[]'::jsonb;\n  team_truncated boolean := false;"}${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}${parts.refreshReuse ? "\n  fast boolean := false;" : ""}${parts.before.length === 0 ? "" : "\n  checked jsonb;"}
+begin${beforeSql(parts.before)}${suspended}${slim}
+  claims := claims - 'attrs'${dropTeams}${dropCustom}${dropExtra}${dropIssued};
   active := ${parts.active.sql};${attrs}
 ${oneQuery}${teams}
   if truncated then
@@ -517,6 +562,13 @@ export function hookParts(
       "budget",
     ),
     version: hook.version !== false,
+    refreshReuse: refreshReuse(
+      hook,
+      sources,
+      hook.version !== false,
+      suspension?.users?.table,
+    ),
+    oauth: oauthMode(hook),
     broadcast:
       hook.version === false || hook.broadcast === false
         ? undefined

@@ -16,6 +16,13 @@ export type Parts = {
   readonly sources: readonly SqlMembershipSource[];
   readonly budget: number;
   readonly version: boolean;
+  /**
+   * The hook reuses the incoming claims on a token refresh whose `authz_ver` is
+   * current.
+   */
+  readonly refreshReuse: boolean;
+  /** `'slim'` skips every read for a token with a `client_id`. */
+  readonly oauth: "full" | "slim";
   /** The version bump broadcast; `undefined` sends nothing. */
   readonly broadcast:
     | { readonly topic: string; readonly receivePolicy: boolean }
