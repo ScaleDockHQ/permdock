@@ -10,7 +10,7 @@ import { KIND, ROW_TIERS, TENANTS, uuidOf, uuidSql } from "./tiers.ts";
  */
 export const SCALE_CALLER = uuidOf(KIND.user, 5_000_000);
 export const CALLER_TENANTS = 12;
-export const FOLDER_DEPTH = 8;
+const FOLDER_DEPTH = 8;
 
 const tenant = (n: string): string => uuidSql(KIND.tenant, n);
 

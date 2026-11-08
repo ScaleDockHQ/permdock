@@ -374,7 +374,7 @@ grant execute on function ${fn}(text, ${idType}[]) to authenticated;`;
  * The column of a resource that holds its root-scope id, from a `memberOf`
  * relation.
  */
-export function tenantColumnOf(
+function tenantColumnOf(
   ctx: RlsSqlContext,
   node: ResourceNode,
 ): string | undefined {
@@ -546,12 +546,12 @@ grant execute on function ${fn}(text, ${idType}[]) to authenticated;
 }
 
 /** `permitted_<resource>_ids_in`. */
-export function idsInHelper(resource: string): string {
+function idsInHelper(resource: string): string {
   return rowsHelper(resource).replace(/_rows$/u, "_ids_in");
 }
 
 /** `permitted_<resource>_count`. */
-export function countHelper(resource: string): string {
+function countHelper(resource: string): string {
   return rowsHelper(resource).replace(/_rows$/u, "_count");
 }
 

@@ -6,9 +6,9 @@ export const ROW_TIERS = {
 } as const;
 export type RowTier = keyof typeof ROW_TIERS;
 
-export const MEMBERSHIP_TIERS = [1, 12, 150, 500] as const;
-export const ROLE_TIERS = [1, 5, 20] as const;
-export const CUSTOM_ROLE_TIERS = [0, 50, 500] as const;
+const MEMBERSHIP_TIERS = [1, 12, 150, 500] as const;
+const ROLE_TIERS = [1, 5, 20] as const;
+const CUSTOM_ROLE_TIERS = [0, 50, 500] as const;
 /** 500 custom roles in each of 1,000 tenants, 8 grants each. */
 export const CUSTOM_PERMISSION_ROWS = 4_000_000;
 export const TENANTS = 1_000;

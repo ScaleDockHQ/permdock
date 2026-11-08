@@ -17,7 +17,7 @@ const config: KnipConfig = {
       ignoreDependencies: ["supports-color"],
       // scripts/next-build.ts runs the `next` each example app installs.
       // MCP configs run marketing's `shadcn` through `pnpm exec`.
-      ignoreBinaries: ["next", "shadcn"],
+      ignoreBinaries: ["next", "shadcn", "agent-browser"],
     },
     "apps/docs": {
       // `@permdock/ui` code blocks import shiki, which Next.js externalises; it must resolve from the app.
@@ -73,6 +73,8 @@ const config: KnipConfig = {
         "tests/fixtures/rls-standard.ts",
         // The 0.26 codemod test reads this config by path.
         "tests/cli/codemod/fixtures/lienlink.permdock.config.ts",
+        // scripts/runtime-perf.ts runs it as a child process.
+        "tests/bench/scale-runner.ts",
       ],
     },
     "tests/*": {},
@@ -86,7 +88,12 @@ const config: KnipConfig = {
       ignoreDependencies: ["valibot"],
     },
     "tests/integration": {
-      entry: ["fixtures/**/*.ts", "src/support/openai-resume.ts"],
+      entry: [
+        "fixtures/**/*.ts",
+        "src/support/openai-resume.ts",
+        // The scale baseline generates from this project in a temporary directory.
+        "bench/fixtures/scale/project/*.ts",
+      ],
       // The gitignored client `prisma generate` writes to src/support/prisma imports its runtime.
       ignoreDependencies: ["@prisma/client"],
     },

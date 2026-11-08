@@ -20,7 +20,7 @@ export const TOOL_COUNT = 300;
 export const FILTER_ROWS = 100_000;
 export const DECIDE_IDS = 1_000;
 /** Grants per custom role; 500 roles × 500 tenants × 16 is the 4M-row table. */
-export const GRANTS_PER_CUSTOM_ROLE = 16;
+const GRANTS_PER_CUSTOM_ROLE = 16;
 
 const Item = z.object({
   id: z.string(),
@@ -56,7 +56,7 @@ function toolPermission(index: number) {
   return tool.invoke;
 }
 
-export function roleName(index: number): string {
+function roleName(index: number): string {
   return `r${String(index)}`;
 }
 
@@ -96,7 +96,7 @@ export function tenantId(index: number): string {
   return `t${String(index).padStart(4, "0")}`;
 }
 
-export function customRoleName(index: number): string {
+function customRoleName(index: number): string {
   return `c${String(index)}`;
 }
 

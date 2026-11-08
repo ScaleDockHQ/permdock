@@ -10,7 +10,7 @@ import { memoizes } from "./helper-bodies.ts";
  * `permitted_<scope>_id_array(p_grant)`: the ids of a scope a grant key
  * reaches, as one array.
  */
-export function idArrayHelper(scope: string): string {
+function idArrayHelper(scope: string): string {
   return permittedIdsHelper(scope).replace(/_ids$/u, "_id_array");
 }
 
@@ -18,7 +18,7 @@ export function idArrayHelper(scope: string): string {
  * `permdock_<root scope>_has(p_grant, p_tenant)`, named after the root scope
  * (`permdock_tenant_has` for a scope called `tenant`).
  */
-export function scopeHasHelper(scope: string): string {
+function scopeHasHelper(scope: string): string {
   return permittedIdsHelper(scope)
     .replace(/^permitted_/u, "permdock_")
     .replace(/_ids$/u, "_has");
