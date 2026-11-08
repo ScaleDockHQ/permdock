@@ -71,6 +71,7 @@ function connectSvelteStore(options: SveltePermDockOptions): {
       fetchSnapshot: options.fetchSnapshot,
       approvals: options.approvals,
       tenant: typeof tenant === "function" ? tenant() : tenant,
+      bundle: options.bundle,
       maxAge: options.maxAge,
       onSnapshot: options.onSnapshot,
       onClear: options.onClear,

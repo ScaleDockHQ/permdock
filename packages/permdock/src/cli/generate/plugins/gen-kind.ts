@@ -33,6 +33,7 @@ const FILE: Readonly<Record<GenKind, string>> = {
   svelte: "svelte.ts",
   solid: "solid.ts",
   messages: "messages.json",
+  bundle: "bundle.ts",
 };
 
 const SCHEMA_KINDS: ReadonlySet<GenKind> = new Set([

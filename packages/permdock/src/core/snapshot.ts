@@ -15,7 +15,7 @@ import { bindConditionRefs } from "../conditions/bind.ts";
 import { compact } from "./compact.ts";
 import { freezeDeep } from "./freeze.ts";
 import { isForbiddenKey } from "./paths.ts";
-import { scopeList } from "./scopes.ts";
+import { scopeList, tenantOf } from "./scopes.ts";
 import { expandGrants } from "./snapshot-compact.ts";
 import { tenantsOf } from "./tenancy.ts";
 import { isRfc3339, nowSeconds, rfc3339 } from "./time.ts";
@@ -173,7 +173,21 @@ export function buildSnapshot(input: {
         permission.key.startsWith(`${prefix}.`) ||
         permission.resource === prefix,
     );
+  const shown = new Set(tenants);
+  const scopes = scopeList(input.scopes);
+  // A membership in a tenant the snapshot does not list carries no grants: the client cannot switch to it.
+  const narrowed =
+    (wanted !== undefined && wanted !== "all") ||
+    (wanted === undefined && principal?.tenant !== undefined);
+  const listed = (membership: Membership | undefined): boolean => {
+    if (!narrowed || membership === undefined) {
+      return true;
+    }
+    const tenant = tenantOf(membership, scopes);
+    return tenant === undefined || shown.has(tenant);
+  };
   const grants = input.grants
+    .filter((item) => listed(item.membership))
     .filter((item) => included(item.grant.permission))
     .map((item) =>
       bindClaims(snapshotGrant(item.grant, item.membership), input.subject),
@@ -349,6 +363,40 @@ function validTypeLevel(value: unknown): boolean {
   );
 }
 
+function validStatic(value: unknown, memberships: number): boolean {
+  if (value === undefined) {
+    return true;
+  }
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  // SAFETY: a non-array object checked above; each field is checked next.
+  const record = value as Record<string, unknown>;
+  const held = record["held"];
+  const digests = record["digests"];
+  if (
+    !Array.isArray(held) ||
+    digests === null ||
+    typeof digests !== "object" ||
+    Array.isArray(digests)
+  ) {
+    return false;
+  }
+  return (
+    held.every(
+      (item: unknown) =>
+        Array.isArray(item) &&
+        item.length === 2 &&
+        typeof item[0] === "string" &&
+        (item[1] === null ||
+          (Number.isInteger(item[1]) && item[1] >= 0 && item[1] < memberships)),
+    ) &&
+    Object.values(digests).every(
+      (digest) => typeof digest === "string" && digest.startsWith("sha-256:"),
+    )
+  );
+}
+
 /**
  * Validates a snapshot document, from JSON text or a value, and returns it
  * frozen. Throws on an unsupported `v`, a malformed time, `typeLevel` or grant
@@ -397,6 +445,25 @@ export function parseSnapshot(json: unknown): Snapshot {
   if (!validTypeLevel(record["typeLevel"])) {
     throw new Error(
       "PermDock: snapshot typeLevel must list permission keys under granted, approval and endpoint",
+    );
+  }
+  const subject = record["subject"];
+  const principal: unknown =
+    subject !== null && typeof subject === "object"
+      ? Reflect.get(subject, "principal")
+      : undefined;
+  const memberships: unknown =
+    principal !== null && typeof principal === "object"
+      ? Reflect.get(principal, "memberships")
+      : undefined;
+  if (
+    !validStatic(
+      record["static"],
+      Array.isArray(memberships) ? memberships.length : 0,
+    )
+  ) {
+    throw new Error(
+      "PermDock: snapshot static must list [role, membership index] pairs and sha-256 digests",
     );
   }
   // Reading the grants checks every `cond` index now, so a malformed document never parses.

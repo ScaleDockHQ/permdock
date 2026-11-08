@@ -21,6 +21,7 @@ const genFlags = {
       "svelte",
       "solid",
       "messages",
+      "bundle",
     ],
     repeatable: true,
     description: "What to write (default gen.kinds, else constants)",

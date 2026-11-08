@@ -12,6 +12,7 @@ export type SnapshotKeyInput = {
   readonly include?: Included | undefined;
   readonly tenants?: SnapshotTenants | undefined;
   readonly omitAssignable?: boolean | undefined;
+  readonly omitStatic?: boolean | undefined;
   readonly context?: readonly string[] | undefined;
 };
 
@@ -59,6 +60,7 @@ function keyOf(input: SnapshotKeyInput, ids: ObjectIds): string {
     include ?? null,
     input.tenants ?? null,
     input.omitAssignable ?? false,
+    input.omitStatic ?? false,
     input.context ?? null,
   ]);
 }

@@ -176,6 +176,32 @@
       "items": {
         "$ref": "#/$defs/terms"
       }
+    },
+    "static": {
+      "type": "object",
+      "description": "Grants of declared roles left out of `grants` and listed as references into the client bundle. `held` pairs a role with the index of the principal membership that holds it, or null for a global role. `digests` pins each listed role to the bundle entry with the same sha-256 digest; a client without a matching entry grants nothing from that role.",
+      "required": ["held", "digests"],
+      "properties": {
+        "held": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              { "type": "string" },
+              { "type": ["integer", "null"], "minimum": 0 }
+            ],
+            "items": false,
+            "minItems": 2
+          }
+        },
+        "digests": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^sha-256:"
+          }
+        }
+      }
     }
   },
   "$defs": {

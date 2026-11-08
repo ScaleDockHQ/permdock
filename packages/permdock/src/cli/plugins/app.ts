@@ -24,6 +24,14 @@ export function factories(options: GenKindPluginOptions = {}): PermDockPlugin {
   return kindPlugin("factories", options);
 }
 
+/**
+ * The `"use client"` bundle that a snapshot written with `omitStatic` points
+ * into: `bundle.ts`.
+ */
+export function bundle(options: GenKindPluginOptions = {}): PermDockPlugin {
+  return kindPlugin("bundle", options);
+}
+
 /** The `DescribeMessages` skeleton, which keeps translated values. */
 export function messages(options: GenKindPluginOptions = {}): PermDockPlugin {
   return kindPlugin("messages", options);

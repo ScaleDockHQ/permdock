@@ -27,6 +27,7 @@ import type { Role } from "./vocabulary.ts";
 import { assertDecision } from "./assert-decision.ts";
 import { assignableIn } from "./assignable.ts";
 import { canAllWith, decideAllWith } from "./checks.ts";
+import { compactWithBundle } from "./client-bundle.ts";
 import { compact, isReadonlyArray, isRecord } from "./compact.ts";
 import { indexCustomRoles } from "./custom-roles.ts";
 import { decideForTarget, deniedFor } from "./decide-for.ts";
@@ -527,7 +528,10 @@ export function buildInstance(
           simulated: envBase.simulated,
         }),
       );
-      const snapshot = compactSnapshot(expanded);
+      const snapshot =
+        options?.omitStatic === true
+          ? compactWithBundle(policy, expanded)
+          : compactSnapshot(expanded);
       if (options?.signer !== undefined) {
         return signSnapshot(
           snapshot,
@@ -605,6 +609,7 @@ export function buildInstance(
           customRoles: envBase.customRoles,
           customGrants,
           omitAssignable: true,
+          tenants: "all",
           ...(envBase.simulated === undefined
             ? {}
             : { simulated: envBase.simulated }),

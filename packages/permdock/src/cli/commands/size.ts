@@ -35,6 +35,11 @@ export const snapshotSize: Leaf = defineLeaf({
       type: "boolean",
       description: "Measure with the assignable part left out",
     },
+    "omit-static": {
+      type: "boolean",
+      description:
+        "Measure with the grants of declared roles replaced by bundle references",
+    },
     budget: {
       type: "string",
       description: "Bytes the total may weigh (default 65536)",
@@ -57,6 +62,7 @@ export const snapshotSize: Leaf = defineLeaf({
         role: given(flags.role),
         tenants: count(flags.tenants, 1),
         omitAssignable: flags["omit-assignable"],
+        omitStatic: flags["omit-static"],
         budget: count(flags.budget, SNAPSHOT_BUDGET_BYTES),
         json: ctx.json,
       });

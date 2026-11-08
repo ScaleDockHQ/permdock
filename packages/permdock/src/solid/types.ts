@@ -25,7 +25,7 @@ import type {
 } from "../core/decision.ts";
 import type { TokenVerifier } from "../core/interfaces.ts";
 import type { Permission } from "../core/permission-types.ts";
-import type { Snapshot } from "../core/snapshot-types.ts";
+import type { ClientBundle, Snapshot } from "../core/snapshot-types.ts";
 
 /** Structural `JSX.Element`: text, a DOM node or a list of children. */
 export type SolidChild =
@@ -50,6 +50,11 @@ export type PermDockProviderProps = ProviderOptionsBase & {
     | PromiseLike<Snapshot | string>;
   /** A change switches the active tenant (`refresh({ tenant })`). */
   readonly tenant?: string;
+  /**
+   * The generated bundle (`permdock generate bundle`) that a snapshot written
+   * with `omitStatic` points into.
+   */
+  readonly bundle?: ClientBundle;
   /**
    * Read on every request, with `verifier`, so a rotated token applies without
    * a new store.

@@ -217,6 +217,8 @@ export type {
   VersionStore,
 } from "./core/version-cache.ts";
 export type {
+  ClientBundle,
+  SnapshotStatic,
   LocalCustomRoleTable,
   LocalMembershipRows,
   LocalRowColumn,
@@ -254,6 +256,7 @@ export type {
   ArazzoStepResult,
 } from "./core/arazzo.ts";
 export { emptySnapshot, fromSnapshot } from "./core/from-snapshot.ts";
+export { clientBundle } from "./core/client-bundle.ts";
 export { localSnapshotManifest } from "./core/local-manifest.ts";
 export { parseLocalSnapshotManifest } from "./core/parse-local-manifest.ts";
 export {

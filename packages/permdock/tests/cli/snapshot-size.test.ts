@@ -74,6 +74,27 @@ describe("snapshot size", () => {
     expect(report.largest).not.toBe("none");
   });
 
+  it("reports the grants per membership and shrinks them with omitStatic", () => {
+    const measure = (omitStatic: boolean) => {
+      const report = snapshotSize({
+        policy: policyOf(3),
+        role: "owner",
+        tenants: 4,
+        omitAssignable: true,
+        omitStatic,
+      });
+      if (typeof report === "string") {
+        throw new TypeError(report);
+      }
+      return report;
+    };
+    const full = measure(false);
+    const lean = measure(true);
+    expect(full.perMembership).toBeGreaterThan(0);
+    expect(lean.perMembership).toBeLessThan(full.perMembership ?? 0);
+    expect(lean.parts.map((part) => part.part)).toContain("static");
+  });
+
   it("answers an unknown role as a usage error", () => {
     const result = runSnapshotSize({
       policy: policyOf(1),

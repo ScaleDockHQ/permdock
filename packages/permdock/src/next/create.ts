@@ -368,6 +368,7 @@ export function createPermDock<
         include: query.include,
         tenants: query.tenants,
         omitAssignable: query.omitAssignable,
+        omitStatic: query.omitStatic,
         context: query.context,
       },
       () =>
@@ -378,6 +379,7 @@ export function createPermDock<
                 include: query.include,
                 tenants: query.tenants,
                 omitAssignable: query.omitAssignable,
+                omitStatic: query.omitStatic,
               }),
             ),
             query.context,
@@ -473,6 +475,7 @@ export function createPermDock<
           include: props.include,
           tenants: props.tenants,
           omitAssignable: props.omitAssignable,
+          omitStatic: props.omitStatic,
           context: props.context,
         },
         () =>
@@ -485,6 +488,7 @@ export function createPermDock<
                   include: props.include,
                   tenants: props.tenants,
                   omitAssignable: props.omitAssignable,
+                  omitStatic: props.omitStatic,
                 }),
               ),
               props.context,
@@ -499,6 +503,7 @@ export function createPermDock<
       tenants: _tenants,
       context: _context,
       omitAssignable: _omitAssignable,
+      omitStatic: _omitStatic,
       ...rest
     } = props;
     return renderClientProvider({

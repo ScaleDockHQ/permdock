@@ -23,10 +23,16 @@ export type SnapshotSizeReport = {
   readonly parts: readonly SnapshotPart[];
   readonly total: SnapshotPart;
   readonly largest: string;
+  /**
+   * Bytes of `grants` and `static` per membership of a scoped role; null for a
+   * global role.
+   */
+  readonly perMembership: number | null;
 };
 
 const PARTS = [
   "grants",
+  "static",
   "conditions",
   "vocabulary",
   "tenants",
@@ -82,6 +88,7 @@ export function snapshotSize(input: {
   readonly role: string;
   readonly tenants: number;
   readonly omitAssignable: boolean;
+  readonly omitStatic?: boolean;
 }): SnapshotSizeReport | string {
   const built = subjectOf(input.policy, input.role, input.tenants);
   if (typeof built === "string") {
@@ -89,6 +96,7 @@ export function snapshotSize(input: {
   }
   const snapshot = snapshotFor(input.policy, built.subject, {
     ...(input.omitAssignable ? { omitAssignable: true } : {}),
+    ...(input.omitStatic === true ? { omitStatic: true } : {}),
     ...(built.scope === null ? {} : { tenants: "all" as const }),
   });
   const record: Readonly<Record<string, unknown>> = { ...snapshot };
@@ -101,6 +109,9 @@ export function snapshotSize(input: {
       largest = item;
     }
   }
+  const repeated = parts
+    .filter((item) => item.part === "grants" || item.part === "static")
+    .reduce((sum, item) => sum + item.bytes, 0);
   return {
     role: input.role,
     scope: built.scope,
@@ -109,6 +120,10 @@ export function snapshotSize(input: {
     parts,
     total: measure("total", snapshot),
     largest: largest.part,
+    perMembership:
+      built.scope === null || input.tenants === 0
+        ? null
+        : Math.round(repeated / input.tenants),
   };
 }
 
@@ -117,6 +132,7 @@ export function runSnapshotSize(input: {
   readonly role: string | undefined;
   readonly tenants: number;
   readonly omitAssignable: boolean;
+  readonly omitStatic?: boolean;
   readonly budget: number;
   readonly json: boolean;
 }): CommandResult {
@@ -138,6 +154,11 @@ export function runSnapshotSize(input: {
       (item) =>
         `${item.part.padEnd(12)} ${String(item.bytes).padStart(9)} bytes ${String(item.gzip).padStart(9)} gzip`,
     ),
+    ...(report.perMembership === null
+      ? []
+      : [
+          `${String(report.perMembership)} bytes of grants per ${report.scope ?? "scope"} membership`,
+        ]),
     over
       ? `over the ${String(input.budget)} byte budget; the largest part is ${report.largest}`
       : `within the ${String(input.budget)} byte budget`,

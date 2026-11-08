@@ -1157,7 +1157,8 @@ export type GenKind =
   | "vue"
   | "svelte"
   | "solid"
-  | "messages";
+  | "messages"
+  | "bundle";
 
 /** `permdock gen` input. */
 export type GenConfig = {

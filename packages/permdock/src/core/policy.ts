@@ -94,6 +94,7 @@ export function indexPolicy(
     supports,
     grantsByKey: byKey,
     resolve: buildResolveIndex(roles, listed, vocabulary),
+    bundle: new WeakMap(),
   });
 }
 

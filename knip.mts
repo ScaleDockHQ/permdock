@@ -48,6 +48,9 @@ const config: KnipConfig = {
     "apps/examples/monorepo": {
       entry: ["permdock.config.ts", "src/**/*.ts", "packages/*/src/**/*.ts"],
     },
+    "apps/examples/next": {
+      entry: ["permdock.config.ts", "src/**/*.{ts,tsx}"],
+    },
     "apps/examples/supabase-rls": {
       entry: ["permdock.config.ts", "src/**/*.ts"],
     },
