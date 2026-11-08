@@ -100,7 +100,13 @@ describe("generate pipeline", () => {
       dryRun: false,
     });
     expect(first.files).toStrictEqual([
-      { path: "rules.txt", plugin: "rules", outcome: "created" },
+      {
+        path: "rules.txt",
+        plugin: "rules",
+        outcome: "created",
+        bytes: 6,
+        delta: 6,
+      },
     ]);
     expect(readFileSync(join(cwd, "rules.txt"), "utf8")).toBe("rules\n");
     expect(structuredClone(first.model)).toStrictEqual(first.model);

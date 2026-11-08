@@ -458,6 +458,7 @@ export function createPermDock<
       include: _include,
       tenants: _tenants,
       context: _context,
+      omitAssignable: _omitAssignable,
       ...rest
     } = props;
     return renderClientProvider({

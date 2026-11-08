@@ -468,7 +468,7 @@ export const supabaseHookManifestFixture: SupabaseHookManifest = {
   budget: {
     bytes: 1024,
     measure:
-      "octet_length(roles::text) + octet_length(memberships::text) + octet_length(team_ids::text) + octet_length(attrs::text) + octet_length(authz_ver::text)",
+      "octet_length(roles::text) + octet_length(user_role::text) + octet_length(memberships::text) + octet_length(team_ids::text) + octet_length(attrs::text) + octet_length(active_tenant::text) + 20 + octet_length(authz_ver::text)",
   },
   claims: [
     { name: "user_role", source: "permdock", budget: false },

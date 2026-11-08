@@ -1064,7 +1064,7 @@ The `data` of `permdock supabase inspect --json`, and the file `inspect --out pe
   "tenantClaim": "tenant_id",
   "budget": {
     "bytes": 1024,
-    "measure": "octet_length(roles::text) + octet_length(memberships::text) + octet_length(team_ids::text) + octet_length(attrs::text) + octet_length(authz_ver::text)"
+    "measure": "octet_length(roles::text) + octet_length(user_role::text) + octet_length(memberships::text) + octet_length(team_ids::text) + octet_length(attrs::text) + octet_length(active_tenant::text) + 20 + octet_length(authz_ver::text)"
   },
   "claims": [
     { "name": "roles", "source": "permdock", "budget": true },

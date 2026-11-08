@@ -20,7 +20,7 @@ permdock generate --dry-run
 | ------------------- | -------------------------------------------------------------------------------------- |
 | `--only <plugin>`   | Run this plugin. Repeat the flag to run more than one.                                 |
 | `--check`           | Exit 1 when a file on disk differs; write nothing. The diff is stdout.                 |
-| `--dry-run`         | Report each change as `planned`; write nothing.                                        |
+| `--dry-run`         | Report each change as `planned`, with its byte delta; write nothing.                   |
 | `--policy <module>` | The module exporting the policy. Default: `policy` in the config.                      |
 | `--no-cache`        | Emit and write even when a cache entry matches.                                        |
 | `--cache-dir <dir>` | Cache directory. Default `node_modules/.cache/permdock`, or `PERMDOCK_CACHE_DIR`.      |
@@ -28,7 +28,7 @@ permdock generate --dry-run
 | `--watch`           | Generate again when a policy, config or plugin input changes. Ctrl-C exits 130.        |
 | `--db-url-stdin`    | Read the Postgres URL from stdin. RLS index suggestions and hook helper checks use it. |
 
-`--json` puts `files` and `summary` in the result. Each file has `path`, `plugin` and `outcome`. `outcome` is `created`, `updated`, `unchanged` or, with `--dry-run`, `planned`. A cache hit leaves those files `unchanged` and counts them in `summary.skipped`. The stderr row is `Skipped (cache) N`. With `--watch`, each cycle is one JSON line on stdout and the process keeps running.
+`--json` puts `files` and `summary` in the result. Each file has `path`, `plugin`, `outcome`, `bytes` (size after the run) and `delta` (`bytes` minus the size on disk before; `bytes` for a new file). `--check` and `--dry-run` also print one stdout row per file that would change: `+ path (+N bytes, M total)` for a new file and `~ path (…)` for a changed one. `outcome` is `created`, `updated`, `unchanged` or, with `--dry-run`, `planned`. A cache hit leaves those files `unchanged` and counts them in `summary.skipped`. The stderr row is `Skipped (cache) N`. With `--watch`, each cycle is one JSON line on stdout and the process keeps running.
 
 `--watch` loads the policy in a new worker on every cycle, because native ESM cannot drop a module it has already imported. A cycle writes nothing until the policy and the plugins have been read.
 

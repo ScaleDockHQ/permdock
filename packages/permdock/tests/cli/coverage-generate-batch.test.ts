@@ -316,6 +316,7 @@ describe("generate coverage", () => {
       expect(dry.summary.planned).toBe(1);
       expect(dry.output).toBe(
         [
+          "+ echo.txt (+4 bytes, 4 total)",
           "Would create src/permdock/constants.ts",
           "Would create src/permdock/types.ts",
           "Would create src/permdock/sql.ts",
