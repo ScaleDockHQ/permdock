@@ -27,7 +27,7 @@ create table if not exists "app"."user_roles" (
 alter table "app"."user_roles" enable row level security;
 revoke all on table "app"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (jwt: reads the role and memberships claims) sha-256:DRJbaOsG1zz675Gikzvzd7b1R66jxrgaFaYNU7Q39t0
+-- permdock helpers (jwt: reads the role and memberships claims) sha-256:MfNjS0BUc4kKCbPFKFC5BChSGqIQ7I98mB9lW3iUN1A
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "app";
@@ -60,6 +60,17 @@ create table if not exists "app".role_permissions (
 );
 alter table "app".role_permissions enable row level security;
 revoke all on table "app".role_permissions from anon, authenticated, public;
+create or replace function "app".permdock_role_grant_keys(p_scope text, p_role text)
+returns setof text
+language sql
+stable
+parallel safe
+rows 10
+set search_path = ''
+as $$
+  select rp.grant_key from "app".role_permissions rp where rp.role = p_role and rp.scope = p_scope
+$$;
+revoke execute on function "app".permdock_role_grant_keys(text, text) from public, anon, authenticated;
 
 insert into "app".role_permissions (role, permission, grant_key, scope, effect) values
   ('admin', 'post.read', 'post.read', 'global', 'allow'),
@@ -108,9 +119,8 @@ as $$
         else '[]'::jsonb
       end
     ) r(role)
-    join "app".role_permissions rp on rp.role = r.role
+    cross join lateral "app".permdock_role_grant_keys('global', r.role) rp(grant_key)
     where rp.grant_key = p_grant
-      and rp.scope = 'global'
   )
 $$;
 revoke execute on function "app".permdock_has(text) from public, anon;
@@ -134,10 +144,9 @@ as $$
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
     ) r(role)
-  join "app".role_permissions rp on rp.role = r.role
+  cross join lateral "app".permdock_role_grant_keys('tenant', r.role) rp(grant_key)
   where coalesce((select "app".permdock_user_id())::text, '') <> ''
     and rp.grant_key = p_grant
-    and rp.scope = 'tenant'
     and m ->> 'scope' = 'tenant'
     and m ->> 'id' is not null
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'id' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
@@ -378,9 +387,8 @@ as $$
         else '[]'::jsonb
       end
     ) r(role)
-  join "app".role_permissions rp on rp.role = r.role
+  cross join lateral "app".permdock_role_grant_keys('global', r.role) rp(grant_key)
   where coalesce((select "app".permdock_user_id())::text, '') <> ''
-    and rp.scope = 'global'
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -393,9 +401,8 @@ as $$
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
     ) r(role)
-  join "app".role_permissions rp on rp.role = r.role
+  cross join lateral "app".permdock_role_grant_keys('tenant', r.role) rp(grant_key)
   where coalesce((select "app".permdock_user_id())::text, '') <> ''
-    and rp.scope = 'tenant'
     and m ->> 'scope' = 'tenant'
     and m ->> 'id' is not null
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'id' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
@@ -457,9 +464,8 @@ as $$
         else '[]'::jsonb
       end
     ) r(role)
-  join "app".role_permissions rp on rp.role = r.role
+  cross join lateral "app".permdock_role_grant_keys('global', r.role) rp(grant_key)
   where coalesce((select "app".permdock_user_id())::text, '') <> ''
-    and rp.scope = 'global'
   ),
   pdk_s as (
     select pdk_i.grant_key
@@ -472,9 +478,8 @@ as $$
     cross join lateral jsonb_array_elements_text(
       case jsonb_typeof(m -> 'roles') when 'array' then m -> 'roles' else '[]'::jsonb end
     ) r(role)
-  join "app".role_permissions rp on rp.role = r.role
+  cross join lateral "app".permdock_role_grant_keys('tenant', r.role) rp(grant_key)
   where coalesce((select "app".permdock_user_id())::text, '') <> ''
-    and rp.scope = 'tenant'
     and m ->> 'scope' = 'tenant'
     and m ->> 'id' is not null
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m ->> 'id' = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))

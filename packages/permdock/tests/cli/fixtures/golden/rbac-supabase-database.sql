@@ -27,7 +27,7 @@ create table if not exists "permdock"."user_roles" (
 alter table "permdock"."user_roles" enable row level security;
 revoke all on table "permdock"."user_roles" from authenticated, anon, public;
 
--- permdock helpers (database: reads the membership and user_roles tables) sha-256:w0Vlsy66ixNU-P6RajKGwLDAMge4rgCXUZrNVJ7wdPU
+-- permdock helpers (database: reads the membership and user_roles tables) sha-256:DRoVPlLNnw7XvWaBPJQTcefuTjo2Nt9IHD9_KGGoRQE
 -- policies call them uncorrelated, so Postgres evaluates each once per statement
 
 create schema if not exists "permdock";
@@ -60,6 +60,17 @@ create table if not exists "permdock".role_permissions (
 );
 alter table "permdock".role_permissions enable row level security;
 revoke all on table "permdock".role_permissions from anon, authenticated, public;
+create or replace function "permdock".permdock_role_grant_keys(p_scope text, p_role text)
+returns setof text
+language sql
+stable
+parallel safe
+rows 10
+set search_path = ''
+as $$
+  select rp.grant_key from "permdock".role_permissions rp where rp.role = p_role and rp.scope = p_scope
+$$;
+revoke execute on function "permdock".permdock_role_grant_keys(text, text) from public, anon, authenticated;
 
 insert into "permdock".role_permissions (role, permission, grant_key, scope, effect) values
   ('admin', 'post.read', 'post.read', 'global', 'allow'),
@@ -102,10 +113,9 @@ as $$
   select exists (
     select 1
     from "permdock".user_roles ur
-    join "permdock".role_permissions rp on rp.role = ur.role::text
+    cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
     where ur.user_id = (select "permdock".permdock_user_id())
       and rp.grant_key = p_grant
-      and rp.scope = 'global'
   )
 $$;
 revoke execute on function "permdock".permdock_has(text) from public, anon;
@@ -123,10 +133,9 @@ set search_path = ''
 as $$
   select m."organization_id"::uuid
   from "public"."organization_members" m
-  join "permdock".role_permissions rp on rp.role = m."role"::text
+  cross join lateral "permdock".permdock_role_grant_keys('tenant', m."role"::text) rp(grant_key)
   where m."user_id" = (select "permdock".permdock_user_id())
     and rp.grant_key = p_grant
-    and rp.scope = 'tenant'
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
 $$;
 revoke execute on function "permdock".permitted_tenant_ids(text) from public, anon;
@@ -207,10 +216,9 @@ as $$
   select exists (
     select 1
     from "permdock".user_roles ur
-    join "permdock".role_permissions rp on rp.role = ur.role::text
+    cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
     where ur.user_id = p_user
       and rp.grant_key = p_grant
-      and rp.scope = 'global'
   )
 $$;
 revoke execute on function "permdock".permdock_has_for(uuid, text) from public, anon, authenticated;
@@ -227,10 +235,9 @@ set search_path = ''
 as $$
   select m."organization_id"::uuid
   from "public"."organization_members" m
-  join "permdock".role_permissions rp on rp.role = m."role"::text
+  cross join lateral "permdock".permdock_role_grant_keys('tenant', m."role"::text) rp(grant_key)
   where m."user_id" = p_user
     and rp.grant_key = p_grant
-    and rp.scope = 'tenant'
 $$;
 revoke execute on function "permdock".permitted_tenant_ids_for(uuid, text) from public, anon, authenticated;
 
@@ -385,18 +392,16 @@ as $$
   pdk_g as (
   select rp.grant_key
   from "permdock".user_roles ur
-  join "permdock".role_permissions rp on rp.role = ur.role::text
+  cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
-    and rp.scope = 'global'
   ),
   pdk_s as (
     select pdk_i.grant_key
     from (
   select m."organization_id"::uuid, rp.grant_key
   from "public"."organization_members" m
-  join "permdock".role_permissions rp on rp.role = m."role"::text
+  cross join lateral "permdock".permdock_role_grant_keys('tenant', m."role"::text) rp(grant_key)
   where m."user_id" = (select "permdock".permdock_user_id())
-    and rp.scope = 'tenant'
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
@@ -446,18 +451,16 @@ as $$
   pdk_g as (
   select rp.grant_key
   from "permdock".user_roles ur
-  join "permdock".role_permissions rp on rp.role = ur.role::text
+  cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
   where ur.user_id = (select "permdock".permdock_user_id())
-    and rp.scope = 'global'
   ),
   pdk_s as (
     select pdk_i.grant_key
     from (
   select m."organization_id"::uuid, rp.grant_key
   from "public"."organization_members" m
-  join "permdock".role_permissions rp on rp.role = m."role"::text
+  cross join lateral "permdock".permdock_role_grant_keys('tenant', m."role"::text) rp(grant_key)
   where m."user_id" = (select "permdock".permdock_user_id())
-    and rp.scope = 'tenant'
     and (nullif(((select auth.jwt()) ->> 'tenant_id'), '') is null or m."organization_id"::text = nullif(((select auth.jwt()) ->> 'tenant_id'), ''))
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
@@ -604,18 +607,16 @@ as $$
   pdk_g as (
   select rp.grant_key
   from "permdock".user_roles ur
-  join "permdock".role_permissions rp on rp.role = ur.role::text
+  cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
   where ur.user_id = p_user
-    and rp.scope = 'global'
   ),
   pdk_s as (
     select pdk_i.grant_key
     from (
   select m."organization_id"::uuid, rp.grant_key
   from "public"."organization_members" m
-  join "permdock".role_permissions rp on rp.role = m."role"::text
+  cross join lateral "permdock".permdock_role_grant_keys('tenant', m."role"::text) rp(grant_key)
   where m."user_id" = p_user
-    and rp.scope = 'tenant'
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),
@@ -663,18 +664,16 @@ as $$
   pdk_g as (
   select rp.grant_key
   from "permdock".user_roles ur
-  join "permdock".role_permissions rp on rp.role = ur.role::text
+  cross join lateral "permdock".permdock_role_grant_keys('global', ur.role::text) rp(grant_key)
   where ur.user_id = p_user
-    and rp.scope = 'global'
   ),
   pdk_s as (
     select pdk_i.grant_key
     from (
   select m."organization_id"::uuid, rp.grant_key
   from "public"."organization_members" m
-  join "permdock".role_permissions rp on rp.role = m."role"::text
+  cross join lateral "permdock".permdock_role_grant_keys('tenant', m."role"::text) rp(grant_key)
   where m."user_id" = p_user
-    and rp.scope = 'tenant'
     ) pdk_i(id, grant_key)
     where pdk_i.id = p_id
   ),

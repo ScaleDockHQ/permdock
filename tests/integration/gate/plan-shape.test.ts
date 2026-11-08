@@ -74,6 +74,11 @@ async function explain(
   return plan;
 }
 
+/** Prints `PLAN_MS <name> <ms>` so a before and after run can be compared. */
+function reportMs(name: string, ms: number): void {
+  process.stderr.write(`PLAN_MS ${name} ${ms.toFixed(3)}\n`);
+}
+
 function median(values: readonly number[]): number {
   return values.toSorted((a, b) => a - b)[Math.floor(values.length / 2)] ?? 0;
 }
@@ -169,7 +174,7 @@ describe("rls-bench plan shapes, 1k tier", () => {
 
   it.each(Object.entries(INDEXED))(
     "%s runs each helper once and stays under the time ceiling",
-    async (_name, sql) => {
+    async (name, sql) => {
       const { plan, times } = await asCaller(async (client) => {
         await explain(client, sql);
         const runs: Explained[number][] = [];
@@ -188,6 +193,7 @@ describe("rls-bench plan shapes, 1k tier", () => {
       for (const node of helpers) {
         expect(node["Actual Loops"]).toBeLessThanOrEqual(1);
       }
+      reportMs(name, median(times));
       expect(median(times)).toBeLessThan(TIME_CEILING_MS);
     },
   );
@@ -231,6 +237,8 @@ describe("rls-bench plan shapes, 1k tier", () => {
         warm.push((await explain(client, sql))["Execution Time"]);
       }
       expect(cold["Execution Time"]).toBeLessThan(HELPER_COLD_CEILING_MS);
+      reportMs("helperFixedCost.cold", cold["Execution Time"]);
+      reportMs("helperFixedCost.warm", median(warm));
       expect(median(warm)).toBeLessThan(HELPER_WARM_CEILING_MS);
     } finally {
       await client.query("rollback");

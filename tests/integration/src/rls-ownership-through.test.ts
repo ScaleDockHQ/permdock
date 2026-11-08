@@ -33,6 +33,7 @@ grant select on ledger, ledger_members, org_roles to authenticated;
 
 describe("ownership triggers over a role column through a roles table", () => {
   let db: Postgres | undefined;
+  let generated = "";
 
   beforeAll(async () => {
     const dir = mkdtempSync(join(tmpdir(), "permdock-ownership-through-"));
@@ -45,9 +46,15 @@ describe("ownership triggers over a role column through a roles table", () => {
       throw new Error(`rls generate: ${result.stdout}${result.stderr}`);
     }
     const sql = readFileSync(out, "utf8");
+    generated = sql;
     rmSync(dir, { recursive: true, force: true });
     db = await startPostgres([SETUP, sql]);
   }, 120_000);
+
+  // After a generator change, write this test's generated SQL over rls.sql.
+  it("matches the committed rls.sql", () => {
+    expect(generated).toBe(readFileSync(join(FIXTURE, "rls.sql"), "utf8"));
+  });
 
   afterAll(async () => {
     await db?.stop();

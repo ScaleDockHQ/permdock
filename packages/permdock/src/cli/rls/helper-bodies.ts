@@ -49,7 +49,8 @@ function roleKeys(ctx: RlsSqlContext, scope: string, role: string): string {
 }
 
 /**
- * How a body reaches the grant keys of a declared role: a join over
+ * How a body reaches the grant keys of a declared role: a lateral call of
+ * `permdock_role_grants(scope, role)`, the one inlinable function over
  * `role_permissions`, or with `rls.seeds: 'view'` the jsonb map
  * `permdock_role_keys(scope, role)`, which a hash lookup answers where the
  * view's `values` list is scanned.
@@ -62,7 +63,7 @@ function rpJoin(
   indent: string,
 ): string {
   if (ctx.seeds !== "view") {
-    return `${indent}join ${qualified(ctx, "role_permissions")} rp on rp.role = ${role}\n`;
+    return `${indent}cross join lateral ${qualified(ctx, HELPERS.roleGrantKeys)}(${quoteLiteral(scope)}, ${role}) rp(grant_key)\n`;
   }
   return set
     ? `${indent}cross join lateral jsonb_array_elements_text(coalesce(${roleKeys(ctx, scope, role)}, '[]'::jsonb)) rp(grant_key)\n`
@@ -76,10 +77,7 @@ function rpConds(
   set: boolean,
 ): readonly string[] {
   if (ctx.seeds !== "view") {
-    return [
-      ...(set ? [] : ["rp.grant_key = p_grant"]),
-      `rp.scope = ${quoteLiteral(scope)}`,
-    ];
+    return set ? [] : ["rp.grant_key = p_grant"];
   }
   return set ? [] : [`jsonb_exists(${roleKeys(ctx, scope, role)}, p_grant)`];
 }

@@ -122,7 +122,7 @@ export default {
       const helpers = readFileSync(join(cwd, "helpers.sql"), "utf8");
       expect(helpers).toContain(`from "identity"."user_roles" ur
     join "identity"."roles" urk on urk."id" = ur."role_id"
-    join "permdock".role_permissions rp on rp.role = urk."key"::text`);
+    cross join lateral "permdock".permdock_role_grant_keys('global', urk."key"::text) rp(grant_key)`);
       expect(helpers).not.toContain(
         'create table if not exists "permdock".user_roles',
       );
@@ -166,7 +166,7 @@ export default {
       const helpers = readFileSync(join(cwd, "helpers.sql"), "utf8");
       expect(helpers).toContain(`from "identity"."user_roles" ur
     join "identity"."roles" urk on urk."id" = ur."role_id" and urk."organization_id" is null
-    join "permdock".role_permissions rp on rp.role = urk."key"::text`);
+    cross join lateral "permdock".permdock_role_grant_keys('global', urk."key"::text) rp(grant_key)`);
       expect(helpers).toContain(
         `where k."key"::text in (select distinct r from unnest(coalesce(p_roles, '{}'::text[])) r where r is not null) and k."organization_id" is null`,
       );

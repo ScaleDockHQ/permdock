@@ -18,6 +18,7 @@ export const HELPERS = {
   has: "permdock_has",
   hasFor: "permdock_has_for",
   tokenCurrent: "permdock_token_current",
+  roleGrantKeys: "permdock_role_grant_keys",
 } as const;
 
 /**

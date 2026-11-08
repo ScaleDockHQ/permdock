@@ -6,6 +6,7 @@
   "create or replace function "permdock".permdock_has_permission(p_permission text)",
   "create or replace function "permdock".permdock_permission_keys()",
   "create or replace function "permdock".permdock_permission_keys(p_scope text)",
+  "create or replace function "permdock".permdock_role_grant_keys(p_scope text, p_role text)",
   "create or replace function "permdock".permdock_role_permissions(p_role text, p_scope text, p_tenant uuid default null, p_scope_id text default null)",
   "create or replace function "permdock".permdock_tenant_has(p_grant text, p_tenant uuid)",
   "create or replace function "permdock".permdock_trusted_role_permissions(p_role text, p_scope text, p_tenant uuid default null, p_scope_id text default null)",
