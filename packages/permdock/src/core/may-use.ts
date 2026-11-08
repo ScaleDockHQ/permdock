@@ -7,6 +7,7 @@ import type { Delegation } from "./subject.ts";
 
 import { compact } from "./compact.ts";
 import { coveredByDelegation, readOnlyActorRefuses } from "./delegation.ts";
+import { expandedViewOf } from "./expanded-view.ts";
 import { getResource } from "./permission-registry.ts";
 import { resolveScope, scopeList, tenantOf } from "./scopes.ts";
 import { expandSnapshot } from "./snapshot-compact.ts";
@@ -74,7 +75,8 @@ type UseView = {
 };
 
 function buildView(permdock: PermDock): UseView {
-  const snapshot = expandSnapshot(permdock.snapshot());
+  const snapshot =
+    expandedViewOf(permdock)?.() ?? expandSnapshot(permdock.snapshot());
   const byPermission = new Map<string, SnapshotGrant[]>();
   for (const grant of snapshot.grants) {
     const list = byPermission.get(grant.permission) ?? [];

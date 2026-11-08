@@ -45,6 +45,8 @@ export function snapshotOf(
     readonly include?: SnapshotInclude;
     readonly tenants?: SnapshotTenants;
     readonly omitAssignable?: boolean;
+    /** Skips the type-level table, which evaluates every held permission. */
+    readonly omitTypeLevel?: boolean;
     readonly simulated?: boolean;
     readonly now?: number;
   },
@@ -133,7 +135,8 @@ export function snapshotOf(
             },
     }),
   );
-  const typeLevel = typeLevelOf(policy, built);
+  const typeLevel =
+    options.omitTypeLevel === true ? undefined : typeLevelOf(policy, built);
   return typeLevel === undefined ? built : freezeDeep({ ...built, typeLevel });
 }
 

@@ -32,6 +32,7 @@ import { indexCustomRoles } from "./custom-roles.ts";
 import { decideForTarget, deniedFor } from "./decide-for.ts";
 import { evaluate } from "./evaluate/index.ts";
 import { emitSafe, emptyListeners, finish } from "./events.ts";
+import { withExpandedView } from "./expanded-view.ts";
 import { pickVisible } from "./fields.ts";
 import { freezeDeep } from "./freeze.ts";
 import { grantedPermissionsOfExpanded } from "./granted-permissions.ts";
@@ -728,5 +729,19 @@ export function buildInstance(
       return result;
     },
   });
-  return Object.freeze(instance);
+  return Object.freeze(
+    withExpandedView(instance, () =>
+      snapshotOf(
+        policy,
+        subject,
+        compact<Parameters<typeof snapshotOf>[2]>({
+          customRoles: envBase.customRoles,
+          customGrants,
+          omitAssignable: true,
+          omitTypeLevel: true,
+          simulated: envBase.simulated,
+        }),
+      ),
+    ),
+  );
 }
