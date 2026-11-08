@@ -65,3 +65,5 @@ Copy `0000-template.md`, take the next number, and add a row below. When a decis
 | [0057](./0057-optional-cli-peers.md)                              | `oxc-parser` and `jiti` are optional peers of the CLI, loaded on first use                             |
 | [0058](./0058-react-evaluator-split.md)                           | `permdock/react` loads its evaluator on demand                                                         |
 | [0060](./0060-no-recursive-scopes.md)                             | Scopes are flat tenancy; hierarchies are self-parented resources                                       |
+| [0062](./0062-next-baseline-file-lint-suppressions.md)            | File-level lint suppressions in `scripts/next-baseline.ts`                                             |
+| [0063](./0063-perf-gates-machine-and-docker.md)                   | The runtime and `rls-bench` gates: timings on one machine, Docker in the perf job                      |

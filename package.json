@@ -39,6 +39,8 @@
     "permdock": "node packages/permdock/dist/cli/bin.js",
     "prepare": "node scripts/prepare.ts",
     "release": "node scripts/publish.ts",
+    "rls-bench": "turbo run rls-bench",
+    "runtime:perf": "node scripts/runtime-perf.ts --check",
     "size": "turbo run size",
     "standards:fixtures": "node scripts/fetch-standards-fixtures.ts && oxfmt packages/permdock/tests/fixtures/standards",
     "supabase:prune": "node scripts/supabase-prune.ts",
@@ -49,7 +51,7 @@
     "typecheck": "turbo run typecheck",
     "typecheck:perf": "node scripts/typecheck-perf.ts",
     "typecheck:tooling": "tsc --noEmit",
-    "verify": "pnpm run format:check && pnpm run lint:root && pnpm run boundaries && turbo run --continue=dependencies-successful lint typecheck typecheck:tooling knip test size docs:drift openapi:check gen:check doctor check:publish typecheck:perf generate:perf cli:startup audit:high",
+    "verify": "pnpm run format:check && pnpm run lint:root && pnpm run boundaries && turbo run --continue=dependencies-successful lint typecheck typecheck:tooling knip test size docs:drift openapi:check gen:check doctor check:publish typecheck:perf generate:perf runtime:perf rls-bench cli:startup audit:high",
     "version-packages": "node scripts/root-changelog.ts && changeset version && node scripts/sync-server-version.ts && oxfmt .",
     "worktree:setup": "node scripts/worktree-setup.ts"
   },

@@ -59,6 +59,8 @@ pnpm lint && pnpm format   # oxlint per workspace, oxfmt everywhere; `pnpm fix` 
 pnpm knip                  # unused files, exports and dependencies
 pnpm size                  # per-entry gzip against the baseline
 pnpm generate:perf         # generator time and peak RSS against scripts/generate-perf.json
+pnpm runtime:perf          # quick runtime matrix against scripts/runtime-perf.json, 10% margin
+pnpm rls-bench             # plan-shape gate on the 1k scale fixture (Docker)
 pnpm gen:check && pnpm doctor   # generated catalogs and SQL current; doctors per example
 pnpm docs:drift            # docs match doctor codes, entries, meta.json, names
 pnpm dev:portless          # https://permdock.localhost, docs at /docs
@@ -139,6 +141,7 @@ Records in `docs/decisions`:
 - 0055 `turbo.json` `global` block
 - 0056 `permdock/app` `definePermDock`; 0061 `.next` and `.authorizer` on better-supabase
 - 0057 `oxc-parser`, `jiti` optional CLI peers; 0058 React evaluator split
+- 0062 `next-baseline.ts` lint suppressions; 0063 runtime and `rls-bench` gates
 
 ## Pre-release pins
 
