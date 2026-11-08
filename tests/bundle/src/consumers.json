@@ -5,7 +5,7 @@
   "react/lazy PermDockProvider + usePermission (initial)": 14896,
   "react-native PermDockProvider + usePermission": 23324,
   "react-native PermDockProvider + localSnapshot": 25561,
-  "next createPermDock": 52368,
+  "next createPermDock": 52737,
   "server createPermDock": 46732,
   "server createPermDock + webBotAuthVerifier": 48491,
   "hono createPermDock": 48054,
@@ -19,6 +19,6 @@
   "saas client react": 22614,
   "saas client react/lazy": 23135,
   "saas client react/lazy (initial)": 15470,
-  "saas server better-supabase + next": 83874,
+  "saas server better-supabase + next": 84265,
   "openapi securityFor + permissionsExtension + problemDetails": 862
 }

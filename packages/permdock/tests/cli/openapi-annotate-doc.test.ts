@@ -182,4 +182,67 @@ describe("openapi annotate --doc", () => {
     expect(none.code).toBe(3);
     expect(jsonData(none.stdout)).toMatchObject({ code: "input_required" });
   });
+
+  it("groups by path segment or root, skips non-operations and reads a missing or invalid document", async () => {
+    const dir = workdir({
+      "/widgets/{id}": {
+        parameters: [],
+        get: {
+          operationId: "getWidget",
+          "x-permdock-permissions": ["post.read"],
+        },
+        trace: { "x-permdock-permissions": ["post.read"] },
+      },
+      "/{only}": {
+        get: { operationId: "only", "x-permdock-permissions": ["post.read"] },
+      },
+      "/ignored": "not an object",
+    });
+    const result = await annotate(dir);
+    expect(result.code).toBe(0);
+    const text = readFileSync(join(dir, "operations.ts"), "utf8");
+    expect(text).toContain('"widgets": [');
+    expect(text).toContain('"root": [');
+    const missing = await run(
+      [
+        "openapi",
+        "annotate",
+        "--doc",
+        "nope.json",
+        "--permissions",
+        "permissions.ts",
+        "--json",
+      ],
+      { cwd: dir },
+    );
+    expect(missing.code).toBe(2);
+    writeFileSync(join(dir, "bad.yaml"), "- just\n- a list\n");
+    const bad = await run(
+      [
+        "openapi",
+        "annotate",
+        "--doc",
+        "bad.yaml",
+        "--permissions",
+        "permissions.ts",
+        "--json",
+      ],
+      { cwd: dir },
+    );
+    expect(bad.code).toBe(2);
+    writeFileSync(join(dir, "broken.json"), "{ not: [valid");
+    const broken = await run(
+      [
+        "openapi",
+        "annotate",
+        "--doc",
+        "broken.json",
+        "--permissions",
+        "permissions.ts",
+        "--json",
+      ],
+      { cwd: dir },
+    );
+    expect(broken.code).toBe(2);
+  });
 });
