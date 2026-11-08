@@ -82,7 +82,7 @@ export function customRoleCompiledSql(ctx: RlsSqlContext): string {
       where v.tenant_id in (select u from unnest(p_owners) u)
         or (v.tenant_id is null and exists (select 1 from unnest(p_owners) u where u is null))
     loop
-      execute 'select realtime.send($1, $2, $3, true)' using
+      execute pg_catalog.format('select %I.send($1, $2, $3, true)', 'realtime') using
         jsonb_build_object('tenant', r.tenant_id, 'version', r.version),
         ${quoteLiteral(CUSTOM_ROLES_EVENT)}::text,
         (case when r.tenant_id is null then ${quoteLiteral(broadcast.topic)} else ${quoteLiteral(CUSTOM_ROLES_TENANT_TOPIC)} || r.tenant_id::text end)::text;

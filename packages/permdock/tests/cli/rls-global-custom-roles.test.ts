@@ -116,7 +116,7 @@ describe("platform custom roles in SQL", () => {
     expect(sql).not.toContain("permdock_custom_keys");
   });
 
-  it("calls realtime.send through execute, so the function lints where the stack has no realtime.send", () => {
+  it("builds the realtime.send call at run time, so the function lints where the stack has no realtime.send", () => {
     const sql = helpersSql(
       {
         ...base,
@@ -131,7 +131,7 @@ describe("platform custom roles in SQL", () => {
       { userRoles: true },
     );
     expect(sql).toContain(
-      "execute 'select realtime.send($1, $2, $3, true)' using",
+      "execute pg_catalog.format('select %I.send($1, $2, $3, true)', 'realtime') using",
     );
     expect(sql).not.toContain("perform realtime.send(");
   });
