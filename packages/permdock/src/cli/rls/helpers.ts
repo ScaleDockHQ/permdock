@@ -412,6 +412,28 @@ export type HelpersOptions = {
 };
 
 /**
+ * The one lookup from a role to its grant keys on a scope, which every helper
+ * body reads through `cross join lateral`. It reads `role_permissions` as its
+ * caller, as the join it replaces did, and pins `search_path` like every
+ * helper. The pin keeps Postgres from inlining it, so each call is a primary
+ * key range read of `role_permissions`.
+ */
+function roleGrantKeysSql(ctx: RlsSqlContext): string {
+  const fn = qualified(ctx, HELPERS.roleGrantKeys);
+  return `create or replace function ${fn}(p_scope text, p_role text)
+returns setof text
+language sql
+stable
+parallel safe
+rows 10
+set search_path = ''
+as $$
+  select rp.grant_key from ${qualified(ctx, "role_permissions")} rp where rp.role = p_role and rp.scope = p_scope
+$$;
+revoke execute on function ${fn}(text, text) from public, anon, authenticated;`;
+}
+
+/**
  * `role_permissions`, its seeds, and the three `security definer` helpers with
  * `search_path = ''`. `execute` goes to `authenticated` only.
  */
@@ -452,7 +474,8 @@ export function helpersSql(
   primary key (role, grant_key, scope)
 );
 alter table ${rp} enable row level security;
-revoke all on table ${rp} from anon, authenticated, public;`);
+revoke all on table ${rp} from anon, authenticated, public;
+${roleGrantKeysSql(ctx)}`);
   }
   if (ctx.seeds === "function") {
     chunks.push(seedFunctionSql(ctx, rows));

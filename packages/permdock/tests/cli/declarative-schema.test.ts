@@ -225,9 +225,9 @@ export default {
         'revoke all on table "permdock".permdock_ceiling from anon, authenticated, public;',
       );
       expect(grants.split("\n").slice(2)).toStrictEqual([
-        ...moved.slice(0, 4),
+        ...moved.slice(0, 5),
         'alter view "permdock".permdock_ceiling set (security_invoker = true);',
-        ...moved.slice(4),
+        ...moved.slice(5),
         "",
       ]);
       expect(grants).not.toContain("custom_role_permissions");
