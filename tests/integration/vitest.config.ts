@@ -13,6 +13,10 @@ export default defineConfig({
         extends: true,
         test: { name: "rls-bench", include: ["bench/**/*.test.ts"] },
       },
+      {
+        extends: true,
+        test: { name: "plan-gate", include: ["gate/**/*.test.ts"] },
+      },
     ],
   },
 });
