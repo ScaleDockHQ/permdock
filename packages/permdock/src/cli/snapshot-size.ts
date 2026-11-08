@@ -3,8 +3,8 @@ import { gzipSync } from "node:zlib";
 import type { Membership, Policy, Principal, Subject } from "../index.ts";
 import type { CommandResult } from "./core/result.ts";
 
-import { snapshotFor } from "../index.ts";
 import { scopeList } from "../core/scopes.ts";
+import { snapshotFor } from "../index.ts";
 
 /** The default budget of the PD112 doctor rule, in bytes of JSON. */
 export const SNAPSHOT_BUDGET_BYTES = 65_536;
@@ -36,11 +36,7 @@ const PARTS = [
 
 function measure(part: string, value: unknown): SnapshotPart {
   const text = JSON.stringify(value) ?? "";
-  return {
-    part,
-    bytes: Buffer.byteLength(text),
-    gzip: gzipSync(text).length,
-  };
+  return { part, bytes: Buffer.byteLength(text), gzip: gzipSync(text).length };
 }
 
 function subjectOf(
@@ -99,10 +95,12 @@ export function snapshotSize(input: {
   const parts = PARTS.filter((name) => record[name] !== undefined).map((name) =>
     measure(name, record[name]),
   );
-  const largest = parts.reduce<SnapshotPart | undefined>(
-    (best, item) => (best === undefined || item.bytes > best.bytes ? item : best),
-    undefined,
-  );
+  let largest: SnapshotPart | undefined;
+  for (const item of parts) {
+    if (largest === undefined || item.bytes > largest.bytes) {
+      largest = item;
+    }
+  }
   return {
     role: input.role,
     scope: built.scope,
@@ -124,7 +122,10 @@ export function runSnapshotSize(input: {
 }): CommandResult {
   const role = input.role ?? mostPrivilegedRole(input.policy);
   if (role === undefined) {
-    return { code: 2, output: "snapshot size: the policy declares no role to measure" };
+    return {
+      code: 2,
+      output: "snapshot size: the policy declares no role to measure",
+    };
   }
   const report = snapshotSize({ ...input, role });
   if (typeof report === "string") {
@@ -150,13 +151,11 @@ export function runSnapshotSize(input: {
 
 /** The role with the most grants: the heaviest snapshot the policy can produce. */
 export function mostPrivilegedRole(policy: Policy): string | undefined {
-  return policy.roles.reduce<
-    { readonly name: string; readonly grants: number } | undefined
-  >(
-    (best, role) =>
-      best === undefined || role.grants.length > best.grants
-        ? { name: role.name, grants: role.grants.length }
-        : best,
-    undefined,
-  )?.name;
+  let best: { readonly name: string; readonly grants: number } | undefined;
+  for (const role of policy.roles) {
+    if (best === undefined || role.grants.length > best.grants) {
+      best = { name: role.name, grants: role.grants.length };
+    }
+  }
+  return best?.name;
 }
