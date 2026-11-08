@@ -7,6 +7,7 @@ import {
   levelKeys,
   rowHelpersSql,
   rowsHelper,
+  tenantRowSetSql,
 } from "../../src/cli/rls/rows.ts";
 import { compileGrants } from "../../src/cli/sql/compile.ts";
 import { scopeList } from "../../src/core/scopes.ts";
@@ -279,6 +280,32 @@ describe("permitted_<resource>_rows", () => {
     expect(body).toContain(
       `when 'doc.read' then coalesce(("orgId" = any(array(select "permdock".permitted_tenant_ids('doc.read#1')))), false)`,
     );
+  });
+
+  it("writes nothing when no resource asks for a row helper", () => {
+    const warnings: string[] = [];
+    const ctx = context("supabase");
+    expect(rowHelpersSql(ctx, policy, [], [], undefined, warnings, [])).toBe(
+      "",
+    );
+    expect(warnings).toStrictEqual([]);
+  });
+
+  it("reads a tenant set only for a key every allow of which is a root-scope role", () => {
+    const ctx = context("supabase");
+    const docNode = policy.resources.get("doc");
+    const noteNode = policy.resources.get("note");
+    if (docNode === undefined || noteNode === undefined) {
+      throw new Error("PermDock test: the policy declares doc and note");
+    }
+    expect(tenantRowSetSql(ctx, policy, docNode, "doc.read")).toContain(
+      `cross join lateral "permdock".permitted_doc_rows('doc.read', t.id) r`,
+    );
+    expect(tenantRowSetSql(ctx, policy, docNode, "doc.update")).toBeUndefined();
+    expect(
+      tenantRowSetSql({ ...ctx, scopes: [] }, policy, docNode, "doc.read"),
+    ).toBeUndefined();
+    expect(tenantRowSetSql(ctx, policy, noteNode, "note.read")).toBeUndefined();
   });
 
   it("sets the guc user and claims for a named user and restores them", () => {

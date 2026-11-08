@@ -460,44 +460,19 @@ export function tenantRowSetSql(
 }
 
 /**
- * The arm of a key as the table's policy states it. Its sub-selects do not read
- * the row, so Postgres hoists each into one InitPlan or hashed subplan per
- * statement, where behind `permitted_<resource>_match` (a `security definer`
- * function, never inlined) a closure walk or a drive lookup runs once per row.
- */
-function inlineArm(
-  key: string,
-  branches: ReadonlyMap<string, readonly CompiledBranch[]>,
-): string | undefined {
-  return permissionCase(key, branches.get(key) ?? []);
-}
-
-/**
- * The `where` of `permitted_<resource>_rows(p_permission)`: an arm that reads
- * only the row inline, a tenant lead before the match for a key a root-scope
- * role holds, and the match for the rest.
+ * The `where` of `permitted_<resource>_rows(p_permission)`: one arm per key, as
+ * the table's policy states it, and the match for a key the resource does not
+ * declare.
  */
 function rowsWhereSql(
   ctx: RlsSqlContext,
-  policy: Policy,
   node: ResourceNode,
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
-  narrowed: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string {
   const match = `${qualified(ctx, matchHelper(node.name))}(${ROW}, p_permission)`;
-  const first = tenantFirstOf(ctx, policy, node);
-  const arms = [...new Set([...branches.keys(), ...narrowed.keys()])]
-    .toSorted()
-    .flatMap((key) => {
-      const inline = inlineArm(key, branches);
-      if (inline !== undefined) {
-        return [inline];
-      }
-      const lead = first?.(key);
-      return lead === undefined
-        ? []
-        : [`    when ${quoteLiteral(key)} then ${lead} and ${match}`];
-    });
+  const arms = [...branches]
+    .toSorted(([a], [b]) => Number(a > b) - Number(a < b))
+    .flatMap(([key, list]) => permissionCase(key, list) ?? []);
   return arms.length === 0
     ? match
     : `case p_permission\n${arms.join("\n")}\n    else ${match}\n  end`;
@@ -546,13 +521,11 @@ function countHelper(resource: string): string {
  */
 function tenantRowsSql(
   ctx: RlsSqlContext,
-  policy: Policy,
   node: ResourceNode,
   rows: string,
   table: string,
   idType: string,
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
-  narrowed: ReadonlyMap<string, readonly CompiledBranch[]>,
 ): string {
   const column = tenantColumnOf(ctx, node);
   const root = rootScope(ctx.scopes);
@@ -572,7 +545,7 @@ set search_path = ''
 as $$
   select ${quoteIdent(node.id)}::${idType} from ${table} as ${ROW}
   where ${ROW}.${quoteIdent(column)} = p_tenant
-    and ${rowsWhereSql(ctx, policy, node, branches, narrowed)}
+    and ${rowsWhereSql(ctx, node, branches)}
 $$;
 revoke execute on function ${rows}(text, ${tenantType}) from public, anon;
 grant execute on function ${rows}(text, ${tenantType}) to authenticated;
@@ -594,7 +567,6 @@ grant execute on function ${count}(text, ${tenantType}, integer) to authenticate
 
 function resourceSql(
   ctx: RlsSqlContext,
-  policy: Policy,
   node: ResourceNode,
   branches: ReadonlyMap<string, readonly CompiledBranch[]>,
   narrowed: ReadonlyMap<string, readonly CompiledBranch[]>,
@@ -617,13 +589,13 @@ ${plannerOf(ctx)}
 set search_path = ''
 as $$
   select ${quoteIdent(node.id)}::${idType} from ${table} as ${ROW}
-  where ${rowsWhereSql(ctx, policy, node, branches, narrowed)}
+  where ${rowsWhereSql(ctx, node, branches)}
 $$;
 revoke execute on function ${fn}(text) from public, anon;
 grant execute on function ${fn}(text) to authenticated;
 ${candidatesSql(fn, table, quoteIdent(node.id), idType, match)}
 ${idsInSql(ctx, node, fn, idType)}
-${tenantRowsSql(ctx, policy, node, fn, table, idType, branches, narrowed)}${rowSql(ctx, node, table)}
+${tenantRowsSql(ctx, node, fn, table, idType, branches)}${rowSql(ctx, node, table)}
 ${rowByIdSql(ctx, node, table, idType)}`;
   if (ctx.dialect === "neon") {
     return rows;
@@ -685,7 +657,6 @@ export function rowHelpersSql(
     chunks.push(
       resourceSql(
         ctx,
-        policy,
         node,
         rowBranchesOf(branches, name),
         rowBranchesOf(narrowed, name),
