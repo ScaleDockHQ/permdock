@@ -59,3 +59,44 @@ describe("roles grants", () => {
     expect(runRoleGrants({ policy, role: "nobody", json: false }).code).toBe(2);
   });
 });
+
+describe("roles grants notes", () => {
+  it("marks each grant that carries a condition, approval, limit or fields", () => {
+    const leaf = { key: "x.read" };
+    // SAFETY: a minimal policy shape; roleGrants reads only roles, grants and their notes.
+    const fake = {
+      roles: [
+        {
+          name: "r",
+          on: undefined,
+          grants: [
+            {
+              permission: leaf,
+              effect: "deny",
+              where: {},
+              check: {},
+              approval: "human",
+              limit: {},
+              fields: ["a"],
+            },
+          ],
+        },
+      ],
+    } as unknown as typeof policy;
+    const reports = roleGrants(fake, undefined);
+    if (typeof reports === "string") {
+      throw new TypeError(reports);
+    }
+    expect(reports[0]?.grants[0]?.notes).toStrictEqual([
+      "where",
+      "check",
+      "approval",
+      "limit",
+      "fields",
+    ]);
+    expect(reports[0]?.scope).toBeNull();
+    // SAFETY: a policy with no roles; roleGrants reads only the role list.
+    const empty = { roles: [] } as unknown as typeof policy;
+    expect(roleGrants(empty, undefined)).toBe("the policy declares no role");
+  });
+});

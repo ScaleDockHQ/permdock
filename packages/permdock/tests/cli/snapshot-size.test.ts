@@ -121,3 +121,33 @@ describe("PD112 snapshot size", () => {
     expect(findings[0]?.message).toContain("the largest part is");
   });
 });
+
+describe("snapshot size edge cases", () => {
+  it("refuses a role held on a resource and a policy with no roles", () => {
+    // SAFETY: a minimal policy shape; snapshotSize reads roles and scopes before it refuses.
+    const onResource = {
+      roles: [{ name: "owner", on: { resource: "x" }, grants: [] }],
+      scopes: [],
+    } as unknown as ReturnType<typeof policyOf>;
+    expect(
+      snapshotSize({
+        policy: onResource,
+        role: "owner",
+        tenants: 1,
+        omitAssignable: false,
+      }),
+    ).toContain("held on a resource");
+    // SAFETY: a policy with no roles; the command refuses before it reads anything else.
+    const empty = { roles: [] } as unknown as ReturnType<typeof policyOf>;
+    expect(
+      runSnapshotSize({
+        policy: empty,
+        role: undefined,
+        tenants: 1,
+        omitAssignable: false,
+        budget: 1,
+        json: false,
+      }).code,
+    ).toBe(2);
+  });
+});
