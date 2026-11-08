@@ -26,6 +26,7 @@ import {
   policy as large,
   rowsFor,
 } from "../fixtures/large-policy.ts";
+import { personas, policy as named } from "../fixtures/named-scopes.ts";
 import { tree } from "../fixtures/org-tree.ts";
 import {
   alice,
@@ -84,6 +85,21 @@ const cases: readonly Case[] = [
     tenant: "acme",
     rows: [ownProject, otherProject],
     tenants: "all",
+  },
+  {
+    name: "named scopes, owner of two organisations",
+    policy: erase(named),
+    user: personas.owner,
+    tenant: "T",
+    rows: [{ id: "q1", organization_id: "T", customer_id: "A" }],
+    tenants: "all",
+  },
+  {
+    name: "named scopes, customer contact",
+    policy: erase(named),
+    user: personas.privateContact,
+    tenant: "T",
+    rows: [{ id: "q1", organization_id: "T", customer_id: "A" }],
   },
   {
     name: "saas member",
@@ -247,6 +263,32 @@ describe("snapshot omitStatic", () => {
       expect(() =>
         parseSnapshot({ ...broken, static: { ...broken.static, held } }),
       ).toThrow(/static/u);
+    });
+
+    it("rejects a static field that is not an object of held and digests", () => {
+      for (const bad of [
+        null,
+        [],
+        { held: "x", digests: {} },
+        { held: [], digests: [] },
+        { held: [], digests: null },
+        { held: [["admin"]], digests: {} },
+      ]) {
+        expect(() => parseSnapshot({ ...lean, static: bad })).toThrow(
+          /static/u,
+        );
+      }
+    });
+
+    it("grants nothing for a held index that points at no membership", () => {
+      const held: [string, number][] = [["admin", 99]];
+      const dangling: Snapshot = {
+        ...lean,
+        static: { held, digests: lean.static?.digests ?? {} },
+      };
+      expect(expandSnapshot(dangling, { bundle }).grants).toStrictEqual(
+        expandSnapshot(dangling).grants,
+      );
     });
 
     it("rejects a malformed digest", () => {
