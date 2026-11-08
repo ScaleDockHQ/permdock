@@ -44,7 +44,7 @@ import { pd080, pd081 } from "./per-request.ts";
 import { pd111 } from "./perf-limit.ts";
 import { pd112 } from "./perf-snapshot.ts";
 import { pd103, pd104, pd105, pd106, pd107, pd108 } from "./perf-sql.ts";
-import { pd109, pd110 } from "./perf-token.ts";
+import { pd109, pd110, pd114 } from "./perf-token.ts";
 import { pd017, pd019, pd021, pd024, pd026, pd033, pd035 } from "./policy.ts";
 import { pd083 } from "./postgrest.ts";
 import { pd058, pd084, pd102 } from "./powersync.ts";
@@ -486,6 +486,12 @@ export const DOCTOR_CHECKS: readonly DoctorCheck[] = [
     groups: ["supabase", "hook", "performance"],
     when: (config) => config.supabase?.hook !== undefined,
     run: (project) => pd110(project, eventsOf(project)),
+  },
+  {
+    code: "PD114",
+    groups: ["rls", "supabase", "hook", "performance"],
+    when: (config) => config.supabase?.hook !== undefined,
+    run: (project) => pd114(project.config),
   },
   { code: "PD111", groups: ["openapi", "mcp", "performance"], run: pd111 },
   {

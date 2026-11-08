@@ -165,6 +165,7 @@ PD004 compares the catalog on disk with the one `collect` would write from `coll
 | `PD111` | A list endpoint takes an optional `limit`: an `openapi.doc` `GET` on a collection path, or an MCP tool schema with `limit: …optional()`                                                                                                                                                                                              | warning         |
 | `PD112` | The snapshot of the role with the most grants is over 65,536 bytes of JSON; the message names the largest part                                                                                                                                                                                                                       | warning         |
 | `PD113` | Source reads the legacy shared JWT secret (`SUPABASE_JWT_SECRET`, `JWT_SECRET`) or lists `HS256` as the only verification algorithm                                                                                                                                                                                                  | warning         |
+| `PD114` | `rls.authorize: "jwt"` with a token hook: the helpers read only the memberships the budget keeps; an error when a sample user's token is truncated                                                                                                                                                                                   | warning         |
 
 ### PD001: server-only imports in client entries
 
@@ -751,6 +752,10 @@ A list that takes no limit returns every row the policies allow, and Lienlink's 
 ### PD113: legacy HS256 verification
 
 A Supabase project that still signs with the legacy shared secret verifies a token only by calling `GET /auth/v1/user`, or by holding the secret, which also mints any user's token. Asymmetric signing keys (ES256) let the app verify locally against `/auth/v1/.well-known/jwks.json`, and `supabase.auth.getClaims()` does that for you. PD113 is a warning for each source file that reads `SUPABASE_JWT_SECRET` or `JWT_SECRET` from the environment, or passes `algorithms: ["HS256"]`. Rotate to an ES256 signing key, verify with `permdock/jwt` or `subjectFromSupabaseClient`, and drop the secret. `--only supabase` or `--only jwt` runs PD113. See [signing keys](https://supabase.com/docs/guides/auth/signing-keys) and [JWTs](https://supabase.com/docs/guides/auth/jwts).
+
+### PD114: truncated tokens in jwt mode
+
+With `rls.authorize: "jwt"` the helpers read the `memberships` claim and nothing else. When the hook budget cuts a user's memberships it sets `memberships_truncated` and keeps a prefix, and the helpers see only that prefix: the user loses the other organisations with no error. PD114 is a warning for a project that sets both a token hook and `jwt` mode. With `--db-url-stdin` it runs the hook for the `doctor.claims` sample users, as PD110 does, and is an error for a sample whose token is truncated. Use `rls.authorize: "database"`: with a hook the helpers read the claims first and the tables when the token is truncated ([token shape](/docs/adapters/supabase-hook#token-shape)). `--only hook` runs PD114.
 
 ## Side effects
 

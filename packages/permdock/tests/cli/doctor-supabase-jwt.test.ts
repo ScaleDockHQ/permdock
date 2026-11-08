@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { pd114 } from "../../src/cli/doctor/perf-token.ts";
 import { pd113 } from "../../src/cli/doctor/supabase-jwt.ts";
 
 describe("PD113 legacy HS256 verification", () => {
@@ -36,5 +37,22 @@ describe("PD113 legacy HS256 verification", () => {
         },
       ]),
     ).toStrictEqual([]);
+  });
+});
+
+describe("PD114 truncated tokens in jwt mode", () => {
+  it("warns on jwt mode with a hook", () => {
+    expect(
+      pd114({ rls: { authorize: "jwt" }, supabase: { hook: {} } }).map(
+        (finding) => finding.code,
+      ),
+    ).toStrictEqual(["PD114"]);
+  });
+
+  it("passes database mode and a project with no hook", () => {
+    expect(
+      pd114({ rls: { authorize: "database" }, supabase: { hook: {} } }),
+    ).toStrictEqual([]);
+    expect(pd114({ rls: { authorize: "jwt" } })).toStrictEqual([]);
   });
 });

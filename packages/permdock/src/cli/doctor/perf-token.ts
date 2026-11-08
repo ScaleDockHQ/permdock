@@ -108,6 +108,30 @@ export function pd109(config: PermDockConfig): readonly DoctorFinding[] {
 }
 
 /**
+ * PD114: `rls.authorize: "jwt"` with a token hook. The helpers read the
+ * `memberships` claim and nothing else, so an organisation the hook budget cut
+ * is missing from every policy: the user loses access with no error.
+ * `rls.authorize: "database"` with the hook reads the claims first and the
+ * tables when the token is truncated. With `--db-url-stdin`, PD110's sample run
+ * raises this to an error for a sample user whose minted token is truncated.
+ */
+export function pd114(config: PermDockConfig): readonly DoctorFinding[] {
+  if (config.rls?.authorize !== "jwt" || config.supabase?.hook === undefined) {
+    return [];
+  }
+  return [
+    {
+      code: "PD114",
+      severity: "warning",
+      target: "rls.authorize",
+      message:
+        "rls.authorize 'jwt' reads only the memberships the hook budget keeps, so a user with more organisations than fit loses access to the rest with no error",
+      fix: "set rls.authorize to 'database': with the hook the helpers read the claims and fall back to the tables for a truncated token; or run doctor with --db-url-stdin to check the sample users",
+    },
+  ];
+}
+
+/**
  * PD110: with `--db-url-stdin`, the token the hook builds for a sample user is
  * longer than {@link TOKEN_CHARS_BUDGET}. It measures the whole token, as
  * better-supabase's BS405 measures the claims against `tokenHook.budget`, and
@@ -134,7 +158,21 @@ export async function pd110(
           `select (${fn}($1::jsonb) -> 'claims') as claims`,
           [JSON.stringify(event)],
         );
-        const length = tokenChars(result.rows[0]?.["claims"]);
+        const minted: unknown = result.rows[0]?.["claims"];
+        if (
+          project.config.rls?.authorize === "jwt" &&
+          isRecord(minted) &&
+          minted["memberships_truncated"] === true
+        ) {
+          findings.push({
+            code: "PD114",
+            severity: "error",
+            target: label,
+            message: `the token for ${label} is truncated and rls.authorize is 'jwt': the helpers miss every organisation the budget cut`,
+            fix: "set rls.authorize to 'database', which falls back to the tables, or raise supabase.hook.budget until the token holds every membership",
+          });
+        }
+        const length = tokenChars(minted);
         if (length > TOKEN_CHARS_BUDGET) {
           findings.push({
             code: "PD110",
