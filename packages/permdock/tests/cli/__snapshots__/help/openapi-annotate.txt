@@ -1,16 +1,22 @@
-permdock openapi annotate: Write an operations map from @permission comments
+permdock openapi annotate: Write an operations map from @permission comments or an OpenAPI document
 
 Usage  permdock openapi annotate [flags]
 
 Flags
-  --routes <glob>  Glob of route modules with @permission comments
-  --out <file>     File to write
+  --routes <glob>         Glob of route modules with @permission comments
+  --doc <path>            OpenAPI file to read the operations from
+  --permissions <module>  Module exporting the permissions (default permissions in the config)
+  --tenant-path <param>   Path parameter that carries the tenant id, such as orgId
+  --out <file>            File to write
+  --check                 Exit 1 when a file on disk is stale; write nothing
+  --dry-run               Print what would change; write nothing
 
 Global flags
   --cwd --config --json --format --yes --confirm --agent --debug --color --help; see permdock --help
 
 Examples
   permdock openapi annotate --routes 'app/**/route.ts'
+  permdock openapi annotate --doc openapi.yaml --tenant-path orgId
 
 Side effects  files
 Docs  https://permdock.com/docs/cli/openapi

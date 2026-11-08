@@ -5,12 +5,14 @@ import type { CommandResult } from "../core/result.ts";
 
 import { parseLeaf } from "../core/args.ts";
 import { defineLeaf } from "../core/command.ts";
-import { missingInput } from "../core/errors.ts";
+import { CliError, missingInput } from "../core/errors.ts";
 import {
   checkFlag,
+  dryRunFlag,
   fileOut,
   given,
   outFlag,
+  permissionsFlag,
   policyFlag,
   validatorFlag,
 } from "../core/flags.ts";
@@ -135,7 +137,20 @@ const annotateFlags = {
     description: "Glob of route modules with @permission comments",
     valueHint: "glob",
   },
+  doc: {
+    type: "string",
+    description: "OpenAPI file to read the operations from",
+    valueHint: "path",
+  },
+  ...permissionsFlag,
+  "tenant-path": {
+    type: "string",
+    description: "Path parameter that carries the tenant id, such as orgId",
+    valueHint: "param",
+  },
   ...outFlag,
+  ...checkFlag,
+  ...dryRunFlag,
 } as const;
 
 async function executeAnnotate(
@@ -143,11 +158,34 @@ async function executeAnnotate(
   flags: FlagValues<typeof annotateFlags>,
 ): Promise<CommandResult> {
   const routes = given(flags.routes);
+  const doc = given(flags.doc);
+  if (routes !== undefined && doc !== undefined) {
+    throw new CliError(
+      "usage",
+      "openapi annotate takes --routes or --doc, not both",
+      { code: "usage" },
+    );
+  }
+  if (doc !== undefined) {
+    // Lazy: the implementation loads only when this command runs, not for --help.
+    return (await import("../openapi/annotate-doc.ts")).runAnnotateDocument({
+      cwd: ctx.cwd,
+      config: ctx.config,
+      doc,
+      permissions: given(flags.permissions),
+      tenantPath: given(flags["tenant-path"]),
+      out:
+        fileOut("openapi annotate", flags.out) ?? "src/operations.generated.ts",
+      check: flags.check,
+      dryRun: flags["dry-run"],
+      io: ctx.io,
+    });
+  }
   if (routes === undefined) {
     throw missingInput(
       "openapi annotate",
-      ["--routes"],
-      "the route modules to read",
+      ["--routes or --doc"],
+      "the route modules or the OpenAPI document to read",
     );
   }
   return (await import("../openapi/annotate.ts")).runAnnotate({
