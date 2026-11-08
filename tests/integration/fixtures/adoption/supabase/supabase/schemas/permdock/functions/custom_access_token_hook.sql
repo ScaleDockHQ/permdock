@@ -66,6 +66,42 @@ end;
 $$;
 revoke execute on function "permdock".memberships_for(uuid) from public, anon, authenticated;
 
+-- the membership entries of one tenant that subject_for(p_user, p_tenant) reads; no client role may execute it
+create or replace function "permdock".memberships_for(p_user uuid, p_tenant text)
+returns table (ord integer, entry jsonb)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+#variable_conflict use_column
+declare
+  v_user_0 "public"."members"."user_id"%type := p_user;
+begin
+  return query
+  select x.ord, x.entry
+  from (
+    select 0 as ord,
+      (case when s.scope = 'tenant' then s.id else s.within ->> 'tenant' end) as tenant,
+      jsonb_strip_nulls(jsonb_build_object(
+        'scope', s.scope, 'id', s.id, 'within', s.within, 'roles', s.roles, 'via', s.via,
+        'expires_at', s.expires_at, 'granted_by', s.granted_by, 'reason', s.reason,
+        'member', case when s.member_group is not null then jsonb_build_object('group', s.member_group) end,
+        'managed_by', s.managed_by, 'entitlements', s.seats
+      )) as entry
+    from (
+      select 'tenant'::text as scope, m."tenant_id"::text as id, null::jsonb as within, jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) as roles, null::text as via, null::bigint as expires_at, null::text as granted_by, null::text as reason, null::text as member_group, null::text as managed_by, null::jsonb as seats
+      from "public"."members" m
+      where m."user_id" = v_user_0
+      group by m."tenant_id"
+      having jsonb_agg(distinct m."role"::text order by m."role"::text) filter (where m."role"::text is not null) is not null
+    ) s
+  ) x
+  where x.tenant = p_tenant;
+end;
+$$;
+revoke execute on function "permdock".memberships_for(uuid, text) from public, anon, authenticated;
+
 create or replace function "permdock".custom_access_token_hook(event jsonb)
 returns jsonb
 language plpgsql
@@ -310,6 +346,44 @@ begin
 end;
 $$;
 revoke execute on function "permdock".subject_for(uuid) from public, anon, authenticated;
+
+-- the subject the hook would mint for p_user, with the memberships of p_tenant only, for a backend acting for a stored user; no client role may execute it
+create or replace function "permdock".subject_for(p_user uuid, p_tenant uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  uid uuid := p_user;
+  held jsonb;
+  memberships jsonb;
+  custom jsonb := '[]'::jsonb;
+  ver bigint;
+  claims jsonb := '{}'::jsonb;
+begin
+  if uid is null or not exists (select 1 from auth.users u where u.id = uid) then
+    return null;
+  end if;
+  held := "permdock".global_roles_for(uid);
+  select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text), '[]'::jsonb)
+    into memberships
+    from "permdock".memberships_for(uid, p_tenant::text) x;
+  select v.version into ver from "permdock"."permdock_authz_version" v where v.user_id = uid;
+  ver := coalesce(ver, 0);
+  return jsonb_strip_nulls(jsonb_build_object(
+    'claims', case when claims = '{}'::jsonb then null else claims end,
+    'id', uid::text,
+    'active', true,
+    'roles', held,
+    'memberships', memberships,
+    'customRoles', custom,
+    'authzVersion', ver
+  ));
+end;
+$$;
+revoke execute on function "permdock".subject_for(uuid, uuid) from public, anon, authenticated;
 
 -- the signed-in user's subject_for record, for a bootstrap that seeds the authorizer; null when anonymous or suspended
 create or replace function "permdock".permdock_subject()

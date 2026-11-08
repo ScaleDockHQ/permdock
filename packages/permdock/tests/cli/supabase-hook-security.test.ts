@@ -254,16 +254,19 @@ describe("one membership function", () => {
     const create = sql.match(
       /create or replace function "permdock"\.memberships_for/gu,
     );
-    expect(create).toHaveLength(1);
+    expect(create).toHaveLength(2);
     expect(sql).toContain(`from "permdock".memberships_for(uid)`);
-    expect(sql.match(/'managed_by', s\.managed_by/gu)).toHaveLength(2);
+    expect(sql).toContain(
+      `from "permdock".memberships_for(uid, p_tenant::text)`,
+    );
+    expect(sql.match(/'managed_by', s\.managed_by/gu)).toHaveLength(3);
   });
 
   it("reads the global roles through global_roles_for once", () => {
     const sql = hookOf();
     // The function's own `into held`, and the hook's one statement.
     expect(sql.match(/into held/gu)).toHaveLength(2);
-    expect(sql.match(/"permdock"\.global_roles_for\(uid\)/gu)).toHaveLength(2);
+    expect(sql.match(/"permdock"\.global_roles_for\(uid\)/gu)).toHaveLength(3);
   });
 
   it("revokes both readers from the client roles and grants an invoker hook execute", () => {

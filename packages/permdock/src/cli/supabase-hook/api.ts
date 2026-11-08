@@ -10,7 +10,12 @@ import { configError } from "../core/errors.ts";
 import { resolveAuthorize } from "../rls/rbac.ts";
 import { activeRowSql } from "../sql/active.ts";
 import { firstScopeType, sqlType } from "../sql/columns.ts";
-import { quoteIdent, quoteLiteral, quoteTable } from "../sql/quote.ts";
+import {
+  quoteIdent,
+  quoteLiteral,
+  quoteQualified,
+  quoteTable,
+} from "../sql/quote.ts";
 import { customRolesOn } from "../sql/shared.ts";
 import { USER_ID_HELPER } from "../sql/subject.ts";
 import { MEMBERSHIPS_FOR, heldSql } from "./entries.ts";
@@ -28,8 +33,42 @@ export const PERMDOCK_SUBJECT = "permdock_subject";
  * role may execute it.
  */
 export function subjectForSql(parts: Parts, config: PermDockConfig): string {
+  return subjectSql(parts, config, false);
+}
+
+/**
+ * `subject_for(p_user, p_tenant) returns jsonb`: `subject_for(p_user)` for one
+ * tenant. The memberships are the entries `memberships_for(p_user, p_tenant)`
+ * reads for that tenant alone, so the custom roles and their versions follow
+ * the one tenant, and `team_ids` keeps the teams of that tenant (none without a
+ * membership there, and none when `supabase.hook.teams` has no `tenant` column
+ * to tell them apart). The global roles, the authorization version and the
+ * `claims` of `supabase.hook.claims` are the user's, not the tenant's. An
+ * unknown tenant, a tenant the user holds no membership in and a null
+ * `p_tenant` answer with no memberships: the function never reads another
+ * tenant. Same security posture as the one-argument form: `security definer`,
+ * empty `search_path`, no client role may execute it.
+ */
+export function subjectForTenantSql(
+  parts: Parts,
+  config: PermDockConfig,
+): string {
+  return subjectSql(parts, config, true);
+}
+
+function subjectSql(
+  parts: Parts,
+  config: PermDockConfig,
+  tenant: boolean,
+): string {
   const schema = quoteIdent(parts.schema);
   const fn = `${schema}.${SUBJECT_FOR}`;
+  const tenantType = tenant ? tenantTypeFor(parts, config) : "";
+  const params = tenant ? `p_user uuid, p_tenant ${tenantType}` : "p_user uuid";
+  const types = tenant ? `uuid, ${tenantType}` : "uuid";
+  const entries = tenant
+    ? `${schema}.${MEMBERSHIPS_FOR}(uid, p_tenant::text)`
+    : `${schema}.${MEMBERSHIPS_FOR}(uid)`;
   const roles = heldSql(parts, "uid");
   const suspended =
     parts.users === undefined
@@ -44,16 +83,24 @@ export function subjectForSql(parts: Parts, config: PermDockConfig): string {
   ver := coalesce(ver, 0);`
     : "";
   const teamsConfig = parts.hook.teams;
+  const teamTenant =
+    teamsConfig !== undefined && tenant && teamsConfig.tenant !== undefined
+      ? `
+      where team_id in (
+        select t.${quoteIdent(teamsConfig.team)} from ${quoteQualified(teamsConfig.table)} t
+        where t.${quoteIdent(teamsConfig.tenant)}::text = p_tenant::text
+      )`
+      : "";
   const teams =
-    teamsConfig === undefined
+    teamsConfig === undefined || (tenant && teamsConfig.tenant === undefined)
       ? ""
       : `
-  select coalesce((
+  select ${tenant ? "case when memberships = '[]'::jsonb then '[]'::jsonb else " : ""}coalesce((
     select jsonb_agg(to_jsonb(u.id::text) order by u.n)
     from unnest(array(
-      select team_id from ${schema}.member_team_ids_for(uid) as team(team_id)
+      select team_id from ${schema}.member_team_ids_for(uid) as team(team_id)${teamTenant}
     )) with ordinality as u(id, n)
-  ), '[]'::jsonb)
+  ), '[]'::jsonb)${tenant ? " end" : ""}
     into team_ids;
   if team_ids <> '[]'::jsonb then
     claims := jsonb_set(claims, '{team_ids}', team_ids);
@@ -74,8 +121,8 @@ export function subjectForSql(parts: Parts, config: PermDockConfig): string {
           sqlType(firstScopeType(config.rls?.scopeTypes, parts.scopes)),
         )
       : "";
-  return `-- the subject the hook would mint for p_user, for a backend acting for a stored user; no client role may execute it
-create or replace function ${fn}(p_user uuid)
+  return `-- the subject the hook would mint for p_user${tenant ? ", with the memberships of p_tenant only" : ""}, for a backend acting for a stored user; no client role may execute it
+create or replace function ${fn}(${params})
 returns jsonb
 language plpgsql
 stable
@@ -96,7 +143,7 @@ begin
 ${roles}
   select coalesce(jsonb_agg(x.entry order by x.ord, x.entry ->> 'scope', x.entry ->> 'id', x.entry::text), '[]'::jsonb)
     into memberships
-    from ${schema}.${MEMBERSHIPS_FOR}(uid) x;${custom}${version}${teams}${extra}
+    from ${entries} x;${custom}${version}${teams}${extra}
   return jsonb_strip_nulls(jsonb_build_object(
     'claims', case when claims = '{}'::jsonb then null else claims end,
     'id', uid::text,
@@ -108,7 +155,7 @@ ${roles}
   ));
 end;
 $$;
-revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
+revoke execute on function ${fn}(${types}) from public, anon, authenticated;`;
 }
 
 /**
@@ -185,6 +232,8 @@ grant execute on function ${source}.${inner}(${types}) to service_role;`;
 grant usage on schema ${source} to service_role;
 
 ${wrapper(names.subjectFor, SUBJECT_FOR, "p_user uuid", "p_user", "uuid", "jsonb")}
+
+${wrapper(names.subjectFor, SUBJECT_FOR, `p_user uuid, p_tenant ${tenantTypeFor(parts, config)}`, "p_user, p_tenant", `uuid, ${tenantTypeFor(parts, config)}`, "jsonb")}
 
 ${wrapper(names.membersOf, MEMBERS_OF, "p_scope text, p_id text", "p_scope, p_id", "text, text", "jsonb")}
 

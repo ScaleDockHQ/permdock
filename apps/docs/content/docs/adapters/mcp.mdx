@@ -296,6 +296,8 @@ export { authed as GET, authed as POST };
   export const POST = bsb.endpoint;
   ```
 
+  `visible` calls `mayUse` once per tool. To list a catalogue yourself, `permdock.mayUseMany(permissions)` answers all of it, in order, from one snapshot read: `const shown = tools.filter((_, index) => may[index])` after `const may = permdock.mayUseMany(tools.map((tool) => tool.meta))`.
+
   Refuse a tool whose `meta` is not a permission in both hooks: `authorize` is optional in better-supabase, and a missing or permissive one lets the call through. An `approval-required` outcome is refused here, because `createMcp` has no approval store; use `permdock/mcp` on an SDK server when tools need human approval. `createMcp` validates `args` against the tool's `input` before `authorize`, which covers invariant 9 when `input` is the resource schema.
 
   `advertisedScopes` (formerly `scopes`) only publishes `scopes_supported`; `requiredScopes` is what better-supabase enforces, answering 403 `insufficient_scope` to an `oauth-client` token without one. Neither limits a support or impersonation session, which PermDock reaches only through a policy delegation ([Supabase](/docs/adapters/supabase#support-and-impersonation-actors)). `mayUse` follows the policy delegation ceiling too, so a read-only support session is shown only read-only tools.

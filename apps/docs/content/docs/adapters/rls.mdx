@@ -193,6 +193,8 @@ Four helpers read one tenant or one id list instead of the whole platform ([#302
 
 The count reads rows through the same match as the set, so it is exact up to the cap and never reads past it.
 
+In process, `permdock.permittedScopeIds(permission, { tenant? })` is the twin of `permitted_<scope>_id_array`, and `permdock.filterIds(permission, ids)` the twin of a scope-id membership test; both list or keep scope ids and never load a row ([policies](/docs/concepts/policies)).
+
 ### Id types and the tenant prefilter
 
 The row helpers return and take the resource's id type: `uuid` on the `supabase` dialect, `text` on `neon`. `rls.idTypes` overrides it per resource, with `'*'` as the default for the rest: `rls.idTypes: { '*': 'uuid', ledger: 'bigint' }`. Compare the id column to the helper's own type, without a `::text` cast ([PD088](/docs/cli/doctor#pd088-text-cast-on-a-row-helper)). With a known id, call `can_<resource>(p_id, p_permission)` instead of `p_id in (select permitted_<resource>_rows(…))` ([PD089](/docs/cli/doctor#pd089-one-id-tested-against-the-whole-row-set)).
