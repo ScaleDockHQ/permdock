@@ -82,7 +82,7 @@ export function customRoleByIdSql(
       ? "false"
       : `(${tenant} is not null and coalesce(${col(roles.skip)}, false))`;
   const match =
-    "c.tenant_id is not distinct from v_tenant and c.scope = v_scope and c.scope_id is not distinct from v_scope_id and c.role = v_key";
+    "(v_tenant is null and c.tenant_id is null or c.tenant_id = v_tenant) and c.scope = v_scope and (v_scope_id is null and c.scope_id is null or c.scope_id = v_scope_id) and c.role = v_key";
 
   const audit = custom.audit;
   const auditCall =
@@ -197,9 +197,9 @@ ${raiseSql("    ", "42501", "'permdock: a role id belongs to another tenant than
       and not (${col(roles.key)}::text = any(${declaredRoles}))
   ) v
   join ${perms} c
-    on c.tenant_id is not distinct from v.tenant_id
+    on (v.tenant_id is null and c.tenant_id is null or c.tenant_id = v.tenant_id)
     and c.scope = v.scope
-    and c.scope_id is not distinct from v.scope_id
+    and (v.scope_id is null and c.scope_id is null or c.scope_id = v.scope_id)
     and c.role = v.role
   where c.effect = 'allow'
     and ${current("c.permission")} = any(${declaredKeys})

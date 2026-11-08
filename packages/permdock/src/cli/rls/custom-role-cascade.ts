@@ -13,7 +13,7 @@ function rowColumn(row: string, name: string): string {
 
 /** The custom-role rows of the role a trigger's `v_<prefix>_*` variables name. */
 function cascadeMatch(prefix: string): string {
-  return `c.tenant_id is not distinct from v_${prefix}_tenant and c.scope = v_${prefix}_scope and c.scope_id is not distinct from v_${prefix}_id and c.role = v_${prefix}_key`;
+  return `(v_${prefix}_tenant is null and c.tenant_id is null or c.tenant_id = v_${prefix}_tenant) and c.scope = v_${prefix}_scope and (v_${prefix}_id is null and c.scope_id is null or c.scope_id = v_${prefix}_id) and c.role = v_${prefix}_key`;
 }
 
 /**

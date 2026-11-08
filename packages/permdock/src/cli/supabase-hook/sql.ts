@@ -5,6 +5,7 @@ import type { Parts } from "./parts.ts";
 
 import { rootScope } from "../../core/scopes.ts";
 import { AUTHZ_TOPIC } from "../../supabase/authz-topic.ts";
+import { CUSTOM_ROLES_VERSION_CLAIM } from "../../supabase/budget.ts";
 import {
   AUTHZ_VERSION_TABLE,
   PERMDOCK_SCHEMA,
@@ -12,9 +13,10 @@ import {
   supabaseTenantClaim,
 } from "../../supabase/sources.ts";
 import { configError } from "../core/errors.ts";
-import { authAdminRead, hookUri } from "../rls/rbac.ts";
+import { authAdminRead, hookUri, resolveAuthorize } from "../rls/rbac.ts";
 import { beforeFirst } from "../shared/text.ts";
 import { activeRowSql, checkSuspension } from "../sql/active.ts";
+import { firstScopeType, sqlType } from "../sql/columns.ts";
 import { globalRoleSource } from "../sql/global-roles.ts";
 import { memberForHelper } from "../sql/names.ts";
 import {
@@ -23,6 +25,7 @@ import {
   quoteQualified,
   quoteTable,
 } from "../sql/quote.ts";
+import { customRolesOn } from "../sql/shared.ts";
 import { membershipSourcesOf } from "../sql/sources.ts";
 import {
   attrsPlan,
@@ -106,6 +109,15 @@ export function hookSql(parts: Parts): string {
     ? `
   claims := jsonb_set(claims, '{authz_ver}', to_jsonb(ver));`
     : "";
+  const customVersion =
+    parts.customRoles === undefined
+      ? ""
+      : `
+    claims := jsonb_set(claims, ${quoteLiteral(`{${CUSTOM_ROLES_VERSION_CLAIM}}`)}, to_jsonb(${schema}.custom_roles_version_for(active::${parts.customRoles.tenantType})));`;
+  const dropCustom =
+    parts.customRoles === undefined
+      ? ""
+      : ` - ${quoteLiteral(CUSTOM_ROLES_VERSION_CLAIM)}`;
   const dropExtra = parts.extra
     .map((entry) => ` - ${quoteLiteral(entry.claim)}`)
     .join("");
@@ -127,7 +139,7 @@ export function hookSql(parts: Parts): string {
       ? ""
       : `
   if not ${activeRowSql(parts.users, "uid")} then
-    claims := claims - 'memberships_truncated' - 'attrs'${dropTeams} - ${quoteLiteral(parts.tenantClaim)}${dropExtra};
+    claims := claims - 'memberships_truncated' - 'attrs'${dropTeams} - ${quoteLiteral(parts.tenantClaim)}${dropCustom}${dropExtra};
     claims := claims || jsonb_build_object('user_role', '[]'::jsonb, 'roles', '[]'::jsonb, 'memberships', '[]'::jsonb);${version}
     return jsonb_set(event, '{claims}', claims);
   end if;`;
@@ -169,7 +181,10 @@ export function hookSql(parts: Parts): string {
         select team_id from ${schemaName}.member_team_ids_for(uid, active) as team(team_id)
       )) with ordinality as u(id, n)
     )`;
-  const fixed = `used + octet_length(pdk_roles.held::text)${parts.version ? " + octet_length(pdk_version.ver::text)" : ""}`;
+  // user_role repeats the roles (the one role, or the list), and the tenant claim is written whenever a membership is in the active tenant: both count.
+  const userRoleBytes =
+    "octet_length(case jsonb_array_length(pdk_roles.held) when 0 then '' when 1 then (pdk_roles.held -> 0)::text else pdk_roles.held::text end)";
+  const fixed = `used + octet_length(pdk_roles.held::text) + ${userRoleBytes} + coalesce(octet_length(to_jsonb(active)::text), 0)${parts.customRoles === undefined ? "" : " + 20"}${parts.version ? " + octet_length(pdk_version.ver::text)" : ""}`;
   const fixedFrom = `pdk_roles${parts.version ? ", pdk_version" : ""}`;
   const oneQuery = `  -- one statement reads the roles, the memberships${teamsConfig === undefined ? "" : ", the teams"}${parts.version ? " and the authorization version" : ""}; the budget counts every slice
   with pdk_roles as (
@@ -199,7 +214,7 @@ export function hookSql(parts: Parts): string {
     (select pdk_roles.held from pdk_roles),
     coalesce((select jsonb_agg(k.entry order by k.n) from pdk_kept k), '[]'::jsonb),
     truncated or (select count(*) from pdk_ranked) > (select count(*) from pdk_kept),
-    active is not null and coalesce((select bool_or(k.current) from pdk_kept k), false),
+    active is not null and coalesce((select bool_or(k.current) from pdk_ranked k), false),
     (select bytes from pdk_fixed)${teamsConfig === undefined ? "" : ",\n    (select pdk_teams.team_ids from pdk_teams)"}${parts.version ? ",\n    (select pdk_version.ver from pdk_version)" : ""}
   into held, kept, truncated, in_active, used${teamsConfig === undefined ? "" : ", team_ids"}${parts.version ? ", ver" : ""};
   claims := jsonb_set(claims, '{roles}', held);
@@ -226,7 +241,7 @@ declare
   budget integer := ${String(parts.budget)};
   used integer := 0;${teamsConfig === undefined ? "" : "\n  team_ids jsonb := '[]'::jsonb;\n  team_truncated boolean := false;"}${typedUsers(parts)}${plan === undefined ? "" : "\n  attrs jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${parts.version ? "\n  ver bigint;" : ""}${parts.before.length === 0 ? "" : "\n  checked jsonb;"}
 begin${beforeSql(parts.before)}${suspended}
-  claims := claims - 'attrs'${dropTeams}${dropExtra};
+  claims := claims - 'attrs'${dropTeams}${dropCustom}${dropExtra};
   active := ${parts.active.sql};${attrs}
 ${oneQuery}${teams}
   if truncated then
@@ -235,7 +250,7 @@ ${oneQuery}${teams}
     claims := claims - 'memberships_truncated';
   end if;
   if in_active then
-    claims := jsonb_set(claims, ${quoteLiteral(`{${parts.tenantClaim}}`)}, to_jsonb(active));
+    claims := jsonb_set(claims, ${quoteLiteral(`{${parts.tenantClaim}}`)}, to_jsonb(active));${customVersion}
   end if;${extra}${versionClaim}${validateSql(parts)}
   return jsonb_set(event, '{claims}', claims);
 end;
@@ -256,7 +271,7 @@ grant execute on function ${fn}(jsonb) to supabase_auth_admin;${extraRevokesSql(
     `-- supabase_auth_admin: the grants and read policies the hook needs
 grant usage on schema ${schema} to supabase_auth_admin;
 grant execute on function ${fn}(jsonb) to supabase_auth_admin;
-revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}${beforeGrantsSql(parts.before, parts.extra)}${entriesGrantsSql(parts)}${memberForGrantsSql(parts)}${validateGrantsSql(parts)}`,
+revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extraGrantsSql(parts.extra)}${beforeGrantsSql(parts.before, parts.extra)}${customRolesGrantsSql(parts)}${entriesGrantsSql(parts)}${memberForGrantsSql(parts)}${validateGrantsSql(parts)}`,
     readsSql(parts),
     parts.version
       ? authAdminRead(`${parts.schema}.${AUTHZ_VERSION_TABLE}`, "version")
@@ -264,6 +279,16 @@ revoke execute on function ${fn}(jsonb) from authenticated, anon, public;${extra
   ]
     .filter((chunk) => chunk !== "")
     .join("\n");
+}
+
+/**
+ * The hook reads the active tenant's custom-role version through the definer
+ * function.
+ */
+function customRolesGrantsSql(parts: Parts): string {
+  return parts.customRoles === undefined
+    ? ""
+    : `\ngrant execute on function ${quoteIdent(parts.schema)}.custom_roles_version_for(${parts.customRoles.tenantType}) to supabase_auth_admin;`;
 }
 
 /**
@@ -501,6 +526,12 @@ export function hookParts(
           },
     jwtExpiry: positiveInteger(hook.jwtExpiry ?? 900, "jwtExpiry"),
     tenantClaim,
+    customRoles:
+      customRolesOn(config.rls) && resolveAuthorize(config) === "database"
+        ? {
+            tenantType: sqlType(firstScopeType(config.rls?.scopeTypes, scopes)),
+          }
+        : undefined,
     users: suspension?.users,
     hook,
     roles:

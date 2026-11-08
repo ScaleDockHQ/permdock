@@ -110,7 +110,8 @@ describe("claims first helpers", () => {
     );
     const parts = branches(body);
     expect(parts).toHaveLength(3);
-    expect(body).toContain("permdock_custom_keys(a.allow, a.deny, a.incl");
+    expect(body).toContain("where p_grant = any(pdk_m.keys)");
+    expect(body).not.toContain("permdock_custom_keys");
     expect(parts[2]).toContain("from pdk_m");
     expect(parts[2]).not.toContain("permdock_token_current");
   });

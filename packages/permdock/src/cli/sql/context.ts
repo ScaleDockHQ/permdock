@@ -195,6 +195,12 @@ export type RlsSqlContext = {
      * legacy tables.
      */
     readonly sync?: string;
+    /**
+     * Set when the hook broadcasts: an edit sends one message per edited tenant
+     * on its `authz-tenant:<tenant>` topic, and one on `topic` for the shared
+     * and platform roles.
+     */
+    readonly broadcast?: { readonly topic: string };
   };
   /**
    * Set when link capabilities compile: resource-scoped grants also get `anon`

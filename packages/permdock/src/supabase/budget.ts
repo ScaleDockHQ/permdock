@@ -10,3 +10,10 @@ export const supabaseMembershipsBudget = 1024;
  * `rls.tenantClaim` and the `tenant` option change it.
  */
 export const supabaseTenantClaim = "tenant_id";
+
+/**
+ * The claim that carries the custom-role version of the active first-scope
+ * instance, written by the hook when custom roles live in the `permdock`
+ * tables.
+ */
+export const CUSTOM_ROLES_VERSION_CLAIM = "custom_roles_ver";

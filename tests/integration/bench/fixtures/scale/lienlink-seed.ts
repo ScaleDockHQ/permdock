@@ -104,8 +104,8 @@ const GRANTS_PER_ROLE = CUSTOM_PERMISSION_ROWS / (500 * TENANTS);
 
 /**
  * Custom roles `c<from>` to `c<to - 1>` in every tenant, as `roles`,
- * `role_permissions` and the compiled `permdock.custom_role_permissions` table,
- * inserted with the sync triggers off.
+ * `role_permissions` and the `permdock.custom_role_permissions` table, inserted
+ * with the sync triggers off, then compiled in one recompile.
  */
 export function customRolesSeed(from: number, to: number): string {
   if (to <= from) {
@@ -130,6 +130,8 @@ insert into permdock.custom_role_permissions (tenant_id, scope, role, permission
 alter table public.roles enable trigger user;
 alter table public.role_permissions enable trigger user;
 alter table permdock.custom_role_permissions enable trigger user;
+select permdock.permdock_recompile_custom_roles();
 analyze permdock.custom_role_permissions;
+analyze permdock.custom_role_compiled;
 `;
 }

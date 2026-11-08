@@ -375,8 +375,8 @@ describe("rls generate options", () => {
         },
       });
       expect(hook.sql).toContain('"permdock".subject_for(p_user uuid)');
-      expect(hook.sql).toContain('from "permdock".custom_role_permissions p');
-      // starts from the held roles: no full union of both tables, no tenant cast on the column
+      expect(hook.sql).toContain('from "permdock".custom_role_compiled t');
+      // one indexed read of the compiled table per held role: no union of both source tables, no tenant cast on the column
       expect(hook.sql).not.toMatch(
         /select tenant_id, scope, scope_id, role from "permdock"\.custom_role_permissions\s+union/u,
       );

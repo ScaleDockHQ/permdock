@@ -118,16 +118,14 @@ describe("helpersSql scopes off the root chain", () => {
     });
     const org = idsBody(sql, "permitted_org_ids");
     expect(org).toContain("with pdk_m as (");
-    expect(org).toContain("select (ms.id)::uuid as id, pdk_e.allow");
+    expect(org).toContain("select (ms.id)::uuid as id, pdk_e.keys");
     expect(org).toContain("  union\n  select pdk_m.id from pdk_m");
     expect(org).toContain("and not (r.role = any(array['admin']::text[]))");
     expect(org).toContain(
       "(not pdk_s.shared and c.tenant_id = (ms.id)::uuid or pdk_s.shared and c.tenant_id is null) and c.scope = 'org' and (c.scope_id is null or c.scope_id = (ms.id)::text) and c.role = r.role",
     );
     expect(org.match(/permdock_is_shared_role\(/gu)).toHaveLength(1);
-    expect(org).toContain(
-      "permdock_custom_keys(a.allow, a.deny, a.incl, 'org')",
-    );
+    expect(org).toContain("where p_grant = any(pdk_m.keys)");
     const team = idsBody(sql, "permitted_team_ids");
     expect(team).toContain(
       "(not pdk_s.shared and c.tenant_id = (ms.within ->> 'org')::uuid or pdk_s.shared and c.tenant_id is null) and c.scope = 'team'",
@@ -608,12 +606,13 @@ describe("membership source helpers with levels", () => {
         missing.push(name);
         continue;
       }
-      const body = sql.slice(start, sql.indexOf("$$;", start));
-      expect(body).toContain("c.permission || coalesce('@' || c.level, '')");
+      expect(sql.slice(start, sql.indexOf("$$;", start))).not.toContain(
+        "permdock_custom_keys",
+      );
     }
     expect(missing).toStrictEqual([]);
     expect(sql).toContain(
-      "array(select c.permission || coalesce('@' || c.level, '') from",
+      "c.permission || coalesce('@' || c.level, '') order by",
     );
   });
 });

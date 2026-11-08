@@ -31,6 +31,7 @@ import {
 import { capabilitiesSql } from "./capabilities.ts";
 import { customRoleByIdSql } from "./custom-role-by-id.ts";
 import { customRoleCascadeSql } from "./custom-role-cascade.ts";
+import { customRoleCompiledSql } from "./custom-role-compiled.ts";
 import { customRoleNameGuardSql } from "./custom-role-guard.ts";
 import { customRoleWritesSql } from "./custom-role-writes.ts";
 import { customRolesSql, roleReadersSql } from "./custom-roles.ts";
@@ -448,6 +449,10 @@ revoke all on table ${ur} from anon, authenticated, public;`);
   const custom = customRolesSql(ctx);
   if (custom !== "") {
     chunks.push(custom);
+  }
+  const compiled = customRoleCompiledSql(ctx);
+  if (compiled !== "") {
+    chunks.push(compiled);
   }
   const memoGeneration = memoGenerationSql(ctx, memoReadsSql(ctx));
   if (memoGeneration !== "") {

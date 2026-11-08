@@ -86,7 +86,7 @@ declare
   uid uuid := p_user;
   held jsonb;
   memberships jsonb;
-  custom jsonb := '[]'::jsonb;
+  custom jsonb := '[]'::jsonb;${custom === "" ? "" : "\n  custom_versions jsonb := '{}'::jsonb;"}
   ver bigint;
   claims jsonb := '{}'::jsonb;${teamsConfig === undefined ? "" : "\n  team_ids jsonb := '[]'::jsonb;"}${parts.extra.length === 0 ? "" : "\n  extra jsonb;"}${typedUsers(parts)}
 begin
@@ -103,7 +103,7 @@ ${roles}
     'active', true,
     'roles', held,
     'memberships', memberships,
-    'customRoles', custom,
+    'customRoles', custom,${custom === "" ? "" : "\n    'customRolesVersions', case when custom_versions = '{}'::jsonb then null else custom_versions end,"}
     'authzVersion', ver
   ));
 end;
@@ -148,7 +148,7 @@ grant execute on function ${fn}() to authenticated;`;
  * does not expose; `service_role` gets `usage` on it and `execute` on each
  * reader, so no definer function sits in an exposed schema.
  */
-export function apiWrappersSql(parts: Parts): string {
+export function apiWrappersSql(parts: Parts, config: PermDockConfig): string {
   const api = parts.hook.api;
   if (api === undefined) {
     return "";
@@ -188,7 +188,56 @@ ${wrapper(names.subjectFor, SUBJECT_FOR, "p_user uuid", "p_user", "uuid", "jsonb
 
 ${wrapper(names.membersOf, MEMBERS_OF, "p_scope text, p_id text", "p_scope, p_id", "text, text", "jsonb")}
 
-${wrapper(names.authzVersionFor, AUTHZ_VERSION_FOR, "p_user uuid", "p_user", "uuid", "bigint")}`;
+${wrapper(names.authzVersionFor, AUTHZ_VERSION_FOR, "p_user uuid", "p_user", "uuid", "bigint")}${
+    storesCustomRoles(config)
+      ? `\n\n${wrapper(names.rolesVersionFor, CUSTOM_ROLES_VERSION_FOR, `p_tenant ${tenantTypeFor(parts, config)}`, "p_tenant", tenantTypeFor(parts, config), "bigint")}`
+      : ""
+  }`;
+}
+
+/**
+ * Whether the custom roles live in the `permdock` tables, which keep a version
+ * per tenant.
+ */
+function storesCustomRoles(config: PermDockConfig): boolean {
+  return customRolesOn(config.rls) && resolveAuthorize(config) === "database";
+}
+
+function tenantTypeFor(parts: Parts, config: PermDockConfig): string {
+  return sqlType(firstScopeType(config.rls?.scopeTypes, parts.scopes));
+}
+
+const CUSTOM_ROLES_VERSION_FOR = "custom_roles_version_for";
+
+/**
+ * `custom_roles_version_for(p_tenant) returns bigint`: the custom-role version
+ * of one tenant, which every edit of a role in the tenant (or of a shared or
+ * platform role) raises. A backend that holds a subject read at one version
+ * reads this to know whether the tenant's custom roles moved since. No client
+ * role may execute it.
+ */
+export function customRolesVersionForSql(
+  parts: Parts,
+  config: PermDockConfig,
+): string {
+  if (!storesCustomRoles(config)) {
+    return "";
+  }
+  const fn = `${quoteIdent(parts.schema)}.${CUSTOM_ROLES_VERSION_FOR}`;
+  const type = tenantTypeFor(parts, config);
+  const table = `${quoteIdent(parts.helpers.schema)}.custom_role_version`;
+  return `-- the custom-role version of p_tenant: its own counter plus the counter of the shared and platform roles; no client role may execute it
+create or replace function ${fn}(p_tenant ${type})
+returns bigint
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(sum(v.version), 0)::bigint from ${table} v
+  where v.tenant_id = p_tenant or v.tenant_id is null
+$$;
+revoke execute on function ${fn}(${type}) from public, anon, authenticated;`;
 }
 
 const AUTHZ_VERSION_FOR = "authz_version_for";
@@ -271,20 +320,14 @@ revoke execute on function ${fn}(text, text) from public, anon, authenticated;`;
 /**
  * The custom roles `p_user` holds: tenant and shared roles named on a
  * membership of the scope (and instance) they live at, and platform roles among
- * the global roles, each with its grants and includes in `CustomRole` form. A
- * shadowed tenant role comes along; `resolveCustomRole`'s callers drop it.
+ * the global roles, each with its grants and includes in `CustomRole` form. One
+ * indexed read of `custom_role_compiled` per held role. A shadowed tenant role
+ * comes along; `resolveCustomRole`'s callers drop it.
  */
 function customRolesOfSql(parts: Parts, tenantType: string): string {
   const helpers = quoteIdent(parts.helpers.schema);
-  const perms = `${helpers}.custom_role_permissions`;
-  const includes = `${helpers}.custom_role_includes`;
+  const compiled = `${helpers}.custom_role_compiled`;
   const root = quoteLiteral(parts.root);
-  // Each held (scope, instance, role) probes the tables by tenant_id, scope and role; the parameter is cast, never the column, so the probe index applies.
-  const held = (alias: string): string =>
-    `${alias}.scope = h.scope and ${alias}.role = h.role
-          and (${alias}.tenant_id is null and ${alias}.scope_id is null or ${alias}.tenant_id = h.tenant::${tenantType})
-          and (${alias}.scope_id is null or ${alias}.scope_id = h.id)`;
-  const match = `p.tenant_id is not distinct from c.tenant_id and p.scope = c.scope and p.scope_id is not distinct from c.scope_id and p.role = c.role`;
   return `
   select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
       'name', c.role,
@@ -292,24 +335,12 @@ function customRolesOfSql(parts: Parts, tenantType: string): string {
       'tenant', c.tenant_id::text,
       'scope', c.scope,
       'id', c.scope_id,
-      'grants', (
-        select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
-            'permission', p.permission,
-            'effect', p.effect,
-            'level', to_jsonb(p) ->> 'level'
-          )) order by p.permission, p.effect), '[]'::jsonb)
-        from ${perms} p
-        where ${match}
-      ),
-      'includes', (
-        select jsonb_agg(p.include_role order by p.include_role)
-        from ${includes} p
-        where ${match}
-      )
+      'grants', c.grants,
+      'includes', case when cardinality(c.includes) > 0 then to_jsonb(c.includes) end
     )) order by c.tenant_id::text, c.scope, c.scope_id, c.role), '[]'::jsonb)
     into custom
     from (
-      select p.tenant_id, p.scope, p.scope_id, p.role
+      select distinct c.tenant_id, c.scope, c.scope_id, c.role, c.grants, c.includes
       from (
         select m ->> 'scope' as scope, m ->> 'id' as id,
           case when m ->> 'scope' = ${root} then m ->> 'id' else m -> 'within' ->> ${root} end as tenant,
@@ -318,17 +349,25 @@ function customRolesOfSql(parts: Parts, tenantType: string): string {
         cross join lateral jsonb_array_elements_text(case when jsonb_typeof(m -> 'roles') = 'array' then m -> 'roles' else '[]'::jsonb end) r(role)
       ) h
       cross join lateral (
-        select t.tenant_id, t.scope, t.scope_id, t.role from ${perms} t
-        where ${held("t")}
-        union
-        select t.tenant_id, t.scope, t.scope_id, t.role from ${includes} t
-        where ${held("t")}
-      ) p
+        select t.tenant_id, t.scope, t.scope_id, t.role, t.grants, t.includes from ${compiled} t
+        where t.scope = h.scope and t.role = h.role
+          and (t.tenant_id is null and t.scope_id is null or t.tenant_id = h.tenant::${tenantType})
+          and (t.scope_id is null or t.scope_id = h.id)
+      ) c
       union
-      select t.tenant_id, t.scope, t.scope_id, t.role from ${perms} t
+      select t.tenant_id, t.scope, t.scope_id, t.role, t.grants, t.includes from ${compiled} t
       where t.scope = 'global' and t.tenant_id is null and t.role in (select jsonb_array_elements_text(held))
-      union
-      select t.tenant_id, t.scope, t.scope_id, t.role from ${includes} t
-      where t.scope = 'global' and t.tenant_id is null and t.role in (select jsonb_array_elements_text(held))
-    ) c;`;
+    ) c;
+  -- the custom-role version of each tenant where a held role is a custom one, so a cached record is served only at the version it was read at
+  select coalesce(jsonb_object_agg(v.tenant, ${quoteIdent(parts.schema)}.${CUSTOM_ROLES_VERSION_FOR}(v.tenant::${tenantType})), '{}'::jsonb)
+    into custom_versions
+    from (
+      select distinct case when m ->> 'scope' = ${root} then m ->> 'id' else m -> 'within' ->> ${root} end as tenant
+      from jsonb_array_elements(memberships) m
+      where exists (
+        select 1 from jsonb_array_elements_text(case when jsonb_typeof(m -> 'roles') = 'array' then m -> 'roles' else '[]'::jsonb end) r(role)
+        where r.role in (select k ->> 'name' from jsonb_array_elements(custom) k)
+      )
+    ) v
+    where v.tenant is not null;`;
 }

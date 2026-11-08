@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { RlsSqlContext } from "../../src/cli/sql/context.ts";
 
 import {
-  customArraysQuery,
+  customKeysArrayQuery,
   customKeysQuery,
   customRolesSql,
 } from "../../src/cli/rls/custom-roles.ts";
@@ -33,7 +33,7 @@ const probe = {
 describe("custom-role probe", () => {
   it("compares the tenant column without a cast so the unique index applies", () => {
     for (const sql of [
-      customArraysQuery(ctx, probe),
+      customKeysArrayQuery(ctx, probe),
       customKeysQuery(ctx, probe),
     ]) {
       expect(sql).not.toContain("tenant_id::text");
@@ -45,7 +45,7 @@ describe("custom-role probe", () => {
   });
 
   it("keeps a platform role on tenant_id is null", () => {
-    const sql = customArraysQuery(ctx, {
+    const sql = customKeysArrayQuery(ctx, {
       ...probe,
       tenant: undefined,
       instance: undefined,
