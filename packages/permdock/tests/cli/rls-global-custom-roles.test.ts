@@ -131,7 +131,7 @@ describe("platform custom roles in SQL", () => {
       { userRoles: true },
     );
     expect(sql).toContain(
-      "execute pg_catalog.format('select %I.send($1, $2, $3, true)', 'realtime') using",
+      "execute pg_catalog.format('select %s($1, $2, $3, true)', pg_catalog.to_regprocedure('realtime.send(jsonb, text, text, boolean)')::oid::regproc) using",
     );
     expect(sql).not.toContain("perform realtime.send(");
   });
