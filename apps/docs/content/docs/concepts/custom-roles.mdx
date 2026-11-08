@@ -200,6 +200,23 @@ Snapshots also carry `assignable`: one `{ tenant, roles, permissions, levels? }`
 
 For every custom role, `decide` on the server and `fromSnapshot(snapshot).decide` agree; the parity suite checks includes, own allows, inherited denies, own denies, dropped keys and team scope.
 
+## Version and compiled roles
+
+In `database` mode a custom-role edit raises one counter per tenant, so a cached subject stays current only while its version matches.
+
+| Name                                                                                             | What it is                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `custom_role_version (tenant_id, version)`                                                       | One row per tenant, and one row with a null `tenant_id` for shared and platform roles. A statement trigger on `custom_role_permissions` and `custom_role_includes` raises it once per tenant and statement, however many rows the statement writes. |
+| `custom_role_compiled (tenant_id, scope, scope_id, role, grant_keys, grants, includes, version)` | One row per stored role, and one more per instance a role is pinned to. The helpers and `subject_for` read it; nothing calls `permdock_custom_keys` at query time. The same triggers keep it current.                                               |
+| `custom_roles_version_for(p_tenant)`                                                             | The tenant's counter plus the counter of the shared and platform roles, in the hook schema. `hook.api` writes the wrapper `<prefix>custom_roles_version_for`. No client role may execute it.                                                        |
+| `permdock_recompile_custom_roles()`                                                              | Rebuilds `custom_role_compiled` from the stored rows. Run `select permdock.permdock_recompile_custom_roles()` once after an upgrade or a change to the declared roles; until then a role stored earlier has no compiled row and grants nothing.     |
+| `custom_roles_ver`                                                                               | The token claim: the version of the active tenant when the token was minted. The hook writes it with an active tenant and `rls.customRoles` in `database` mode, and drops it otherwise.                                                             |
+| `Principal.customRolesVersion`                                                                   | The claim as `subjectFromSupabase` reads it.                                                                                                                                                                                                        |
+| `MembershipSource.customRolesVersion(query, context)`                                            | Reads a tenant's current version. `postgrestSources` calls `custom_roles_version_for`.                                                                                                                                                              |
+| `SubjectRecord.customRolesVersions`                                                              | The version of each tenant in which `subject_for` found a held custom role, so a `SubjectCache` serves a record only at the versions it was read at: `SubjectCache.record(id, version, roles?)` takes them as `roles`.                              |
+
+A token that holds a role the policy does not declare is checked against the tenant's current version. A token behind it, or a version that cannot be read, reads the memberships live instead of trusting the claim. The version also joins the keys of the subject cache and the instance cache. Each edited tenant sends one broadcast on `authz-tenant:<tenant>`, in place of two messages per holder ([Supabase token hook](/docs/adapters/supabase-hook#authorization-version)).
+
 ## Row level security
 
 `permdock rls generate --custom-roles` resolves custom roles inside the generated helpers, with the same rules and the same ceiling ([RLS](/docs/adapters/rls)):

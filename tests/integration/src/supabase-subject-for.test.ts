@@ -268,6 +268,7 @@ select permdock.permdock_trusted_replace_custom_role_grants('B', 'organization',
       "permdock_custom_roles_version_for",
       "permdock_members_of",
       "permdock_subject_for",
+      "permdock_subject_for",
     ]);
     const version = await target.as({ role: "service_role" }, async () =>
       target.tester.query<{ v: string }>(

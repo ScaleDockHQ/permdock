@@ -21,6 +21,9 @@ const rows = await db
   .where("published", "=", true)
   .execute();
 
+// one organisation's rows, whichever tenant the instance has active
+toWhere(permdock.where(permissions.post.read, { tenant: orgId }), "posts");
+
 // column mapping when schema fields differ from column names
 toWhere(condition, "posts", { columns: { authorId: "author_id" } });
 
@@ -32,6 +35,7 @@ await withSubject(db, permdock, async (trx) => {
 
 - `toWhere(condition, table, options?)` returns `(eb) => Expression<SqlBool>`; fields map to `table.column` references, operators map to Kysely binary operators and `eb.and` / `eb.or` / `eb.not`, `in` / `notIn` to `in` / `not in`, `isNull` to `is null`, `contains` to `@>` with a one-element array for fields in `options.listFields` and to `like` (with `%`, `_` and `\` escaped) for strings. `kysely` is an optional peer; the callback is typed structurally so tests need no install.
 - `memberOf` and NULL handling match the [Drizzle rules](/docs/adapters/drizzle): frozen memberships become equality / `in`, and `options.memberships` becomes `eb.exists(eb.selectFrom('<table> as m')...)` with the same expiry, active-tenant and resource-column predicates. Without `eb.exists` / `eb.selectFrom` the join fails closed (`eb.lit(false)`).
+- `permdock.where(permission, { tenant })` compiles for that tenant instead of the instance's active one. The result's `subject` carries the tenant as its active tenant, so `toWhere` compiles `memberOf` for that tenant's memberships, with or without `options.memberships`. A tenant the subject does not hold compiles to `(eb) => eb.lit(false)`.
 - `where(expression)` accepts the callback directly: `db.selectFrom('post').where(toWhere(permdock.where(permissions.post.read), 'post'))`.
 - No grant returns `(eb) => eb.lit(false)`, so the query yields no rows (fail closed).
 - `principal.<field>` and `context.<key>` values become bound parameters via `eb.val`.

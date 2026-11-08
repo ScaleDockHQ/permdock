@@ -126,6 +126,27 @@ describe("supabase.hook.teams", () => {
     expect(none.rows[0]?.subject.claims).toBeUndefined();
   });
 
+  it("returns only the teams of the tenant from subject_for(p_user, p_tenant), and none without a membership there", async () => {
+    if (db === undefined) {
+      throw new Error("PermDock: Postgres was not started");
+    }
+    const teamsIn = async (user: string, tenant: string): Promise<unknown> =>
+      (
+        await db?.admin.query<{
+          readonly subject: {
+            readonly claims?: { readonly team_ids?: string[] };
+          };
+        }>("select permdock.subject_for($1::uuid, $2) as subject", [
+          user,
+          tenant,
+        ])
+      )?.rows[0]?.subject.claims?.team_ids;
+    expect(await teamsIn(MEMBER, "acme")).toStrictEqual([TEAM(1)]);
+    expect(await teamsIn(MEMBER, "other")).toBeUndefined();
+    expect(await teamsIn(CROWDED, "acme")).toHaveLength(31);
+    expect(await teamsIn(CROWDED, "nowhere")).toBeUndefined();
+  });
+
   it("writes no team_ids for a user in no team", async () => {
     expect((await mint(SUSPENDED))["team_ids"]).toBeUndefined();
   });

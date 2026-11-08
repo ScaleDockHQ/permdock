@@ -19,9 +19,23 @@ function qualified(parts: Parts, name: string): string {
  * `supabase_auth_admin` only.
  */
 export function membershipEntriesSql(parts: Parts): string {
+  return `${entriesFunction(parts, false)}\n\n${entriesFunction(parts, true)}`;
+}
+
+/**
+ * `memberships_for(p_user uuid, p_tenant text)`: the entries of `p_tenant`
+ * alone, filtered inside each source's read so a user in many tenants costs one
+ * tenant's rows. A null or unknown tenant answers no rows. `p_tenant` is text
+ * because an entry's tenant is the text of its id; `subject_for(p_user,
+ * p_tenant)` passes its tenant cast to text. Execute belongs to no client
+ * role.
+ */
+function entriesFunction(parts: Parts, tenant: boolean): string {
   const fn = qualified(parts, MEMBERSHIPS_FOR);
-  return `-- the membership entries the hook and subject_for read for p_user; no client role may execute it
-create or replace function ${fn}(p_user uuid)
+  const params = tenant ? "p_user uuid, p_tenant text" : "p_user uuid";
+  const types = tenant ? "uuid, text" : "uuid";
+  return `-- the membership entries ${tenant ? "of one tenant that subject_for(p_user, p_tenant) reads" : "the hook and subject_for read for p_user"}; no client role may execute it
+create or replace function ${fn}(${params})
 returns table (ord integer, entry jsonb)
 language plpgsql
 stable
@@ -35,10 +49,10 @@ begin
   select x.ord, x.entry
   from (
 ${entriesSql(parts).replaceAll(/^/gmu, "    ")}
-  ) x;
+  ) x${tenant ? "\n  where x.tenant = p_tenant" : ""};
 end;
 $$;
-revoke execute on function ${fn}(uuid) from public, anon, authenticated;`;
+revoke execute on function ${fn}(${types}) from public, anon, authenticated;`;
 }
 
 /**

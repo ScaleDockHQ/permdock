@@ -34,6 +34,9 @@ await db
 // column mapping when schema field names differ from Drizzle column names
 toWhere(condition, posts, { columns: { authorId: posts.author_id } });
 
+// one organisation's rows, whichever tenant the instance has active
+toWhere(permdock.where(permissions.post.read, { tenant: orgId }), posts);
+
 // graph grants: related nodes compile to a subquery over the relation tables
 toWhere(permdock.where(permissions.doc.read), docs, {
   relations: { closure: "permdock.permdock_closure" },
@@ -54,6 +57,7 @@ await withSubject(db, permdock, (tx) => tx.select().from(posts), {
 ```
 
 - `toWhere(condition, table, options?)` returns a Drizzle `SQL` and maps each condition field to a column of `table` by name (or via `options.columns`), and each operator (`eq`, `ne`, `in`, `notIn`, `gt`, `gte`, `lt`, `lte`, `isNull`, `contains`, `and`, `or`, `not`) to the Drizzle operator of the same meaning. `table` is any Drizzle table object; no cast is needed. `options.columns` accepts only columns of that table or `SQL`, so a column of another table is a type error.
+- `permdock.where(permission, { tenant })` compiles for that tenant instead of the instance's active one. The result's `subject` carries the tenant as its active tenant, so `toWhere` compiles `memberOf` for that tenant's memberships, with or without `options.memberships`. A tenant the subject does not hold compiles to the constant `false`. A page that lists one organisation's rows for a user who works in several needs no second instance.
 - `options.relations` (`{ tables?, closure? }`) lets a `related` node compile: one subquery over the edge tables, the closure table when named, otherwise a recursive walk of the resource's own table bounded by the grant's depth ([relationships](/docs/concepts/relationships#snapshots-clients-and-where)). Without it a `related` node throws `non-portable-condition`.
 - `checkRow(db, table, condition, key, options?)` selects the rows matching `key` with the filter as a boolean column and returns `{ found: false }` or `{ found: true, granted }`, so a handler can answer `404` and `403` apart with one query. More than one row matching `key` throws.
 - `withSubject(db, permdock, fn, options?)` opens a transaction, sets the local role and the claim settings for the frozen subject in one `select set_config(…)` statement, then calls `fn(tx)`. `options` are `dialect` (`supabase`, `guc`, `neon`), `role` (default `authenticated` with a principal, `anon` without, `false` to leave the role), `gucPrefix`, `tenantClaim` and extra `claims`. They must match what `permdock rls generate` was configured with; `withSubject` does not read the config. `drizzle-orm` is an optional peer; tests can inject `options.operators`. The call stays two-step (`permdock.where` then `toWhere`) so the adapter never needs the instance.

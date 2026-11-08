@@ -173,7 +173,7 @@ describe("supabase.hook.api", () => {
     expect(sql).not.toContain("service_role");
   });
 
-  it("writes the three wrappers in public with the default prefix", () => {
+  it("writes the four wrappers in public with the default prefix", () => {
     const sql = hook({});
     expect(sql).toContain(
       `create or replace function "public"."permdock_subject_for"(p_user uuid)\nreturns jsonb`,
@@ -185,11 +185,17 @@ describe("supabase.hook.api", () => {
     const wrappers = sql
       .split("create or replace function ")
       .filter((chunk) => chunk.startsWith('"public"."permdock_'));
-    expect(wrappers).toHaveLength(3);
+    expect(wrappers).toHaveLength(4);
     for (const wrapper of wrappers) {
       expect(wrapper).toContain("security invoker");
       expect(wrapper).not.toContain("security definer");
     }
+    expect(sql).toContain(
+      `create or replace function "public"."permdock_subject_for"(p_user uuid, p_tenant uuid)\nreturns jsonb`,
+    );
+    expect(sql).toContain(
+      `as $$ select "permdock".subject_for(p_user, p_tenant) $$;\nrevoke execute on function "public"."permdock_subject_for"(uuid, uuid) from public, anon, authenticated;\ngrant execute on function "public"."permdock_subject_for"(uuid, uuid) to service_role;\ngrant execute on function "permdock".subject_for(uuid, uuid) to service_role;`,
+    );
     expect(sql).toContain(
       `create or replace function "public"."permdock_members_of"(p_scope text, p_id text)`,
     );
@@ -499,6 +505,94 @@ describe("supabase.hook.teams", () => {
   it("refuses team_ids as an extra claim name", () => {
     expect(() => hook({ team_ids: "public.team_claims" })).toThrow(
       "supabase.hook.claims names team_ids, which PermDock or Supabase Auth writes",
+    );
+  });
+});
+
+describe("subject_for(p_user, p_tenant)", () => {
+  const source = junctionMembershipSource({
+    table: "organization_members",
+    scope: "organization",
+    id: "organization_id",
+    roles: "role",
+  });
+  const hook = (teams?: {
+    table: string;
+    user: string;
+    team: string;
+    tenant?: string;
+  }) =>
+    supabaseHookSql(scopes, {
+      policy: "p.ts",
+      supabase: {
+        hook: {
+          memberships: [source],
+          ...(teams === undefined ? {} : { teams }),
+        },
+      },
+    }).sql;
+  const bodyOf = (sql: string, signature: string): string => {
+    const start = sql.indexOf(signature);
+    expect(start).toBeGreaterThan(-1);
+    return sql.slice(start, sql.indexOf("$$;", start));
+  };
+
+  it("keeps the posture of the one-argument form and never grants a client role", () => {
+    const sql = hook();
+    const body = bodyOf(
+      sql,
+      'function "permdock".subject_for(p_user uuid, p_tenant uuid)',
+    );
+    expect(body).toContain("security definer");
+    expect(body).toContain("set search_path = ''");
+    expect(body).toContain(
+      'from "permdock".memberships_for(uid, p_tenant::text) x',
+    );
+    expect(sql).toContain(
+      'revoke execute on function "permdock".subject_for(uuid, uuid) from public, anon, authenticated;',
+    );
+    expect(sql).not.toContain("service_role");
+  });
+
+  it("filters the entries of one tenant inside the reader", () => {
+    const sql = hook();
+    const reader = bodyOf(
+      sql,
+      'function "permdock".memberships_for(p_user uuid, p_tenant text)',
+    );
+    expect(reader).toContain("where x.tenant = p_tenant");
+    expect(sql).toContain(
+      'revoke execute on function "permdock".memberships_for(uuid, text) from public, anon, authenticated;',
+    );
+  });
+
+  it("restricts team_ids to the tenant, and drops them without a tenant column", () => {
+    const withTenant = bodyOf(
+      hook({
+        table: "team_members",
+        user: "user_id",
+        team: "team_id",
+        tenant: "organization_id",
+      }),
+      "subject_for(p_user uuid, p_tenant uuid)",
+    );
+    expect(withTenant).toContain('"organization_id"::text = p_tenant::text');
+    const without = bodyOf(
+      hook({ table: "team_members", user: "user_id", team: "team_id" }),
+      "subject_for(p_user uuid, p_tenant uuid)",
+    );
+    expect(without).not.toContain("member_team_ids_for");
+  });
+
+  it("types the tenant parameter from rls.scopeTypes", () => {
+    const { sql } = supabaseHookSql(scopes, {
+      policy: "p.ts",
+      rls: { scopeTypes: { organization: "text" } },
+      supabase: { hook: { memberships: [source], api: {} } },
+    });
+    expect(sql).toContain('"permdock".subject_for(p_user uuid, p_tenant text)');
+    expect(sql).toContain(
+      '"public"."permdock_subject_for"(p_user uuid, p_tenant text)',
     );
   });
 });

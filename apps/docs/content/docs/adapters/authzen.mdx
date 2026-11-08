@@ -19,7 +19,7 @@ export const { permdockHandler } = createPermDock(policy, {
   resources: {
     post: {
       data: (id) => loadPost(id),
-      list: ({ where }) => db.posts.where(where),
+      list: ({ where }) => db.posts.where(where), // an array: the handler decides and pages it
     },
   },
 });
@@ -70,6 +70,49 @@ const rows = await evaluateBatch(body.evaluations, semantic, (item) =>
 - `evaluateBatch(items, semantic, rowOf)` runs every item at once for `execute_all`, and otherwise in order, stopping after the first row whose `decision` is `false` (`deny_on_first_deny`) or `true` (`permit_on_first_permit`).
 - `mergeEvaluationItem(shared, item)` fills an item's missing `subject`, `action`, `resource` and `context` from the request's top-level fields; a non-object item is the shared fields alone.
 - `AuthzenItem` and `AuthzenEntity` type the unvalidated request; every field is `unknown` until the evaluator checks it.
+
+### Resource search
+
+`search/resource` calls `resources.<type>.list(query)` for the `resource.type` of the request. `query` is an `AuthzenResourceQuery`:
+
+| Field    | Value                                                                                                                                                         |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `where`  | The request's `resource.properties`, or `undefined`.                                                                                                          |
+| `access` | `permdock.where(permission)` for an instance action, as `toWhere` takes it; absent for a collection action. An action that reaches no row never calls `list`. |
+| `limit`  | The page size: `page.limit`, default 50, at most 200.                                                                                                         |
+| `cursor` | The request's `page.token`, as sent; absent on the first page.                                                                                                |
+
+`list` answers one of two shapes. An array is decided row by row and paged in memory, and the response carries `count` and `total`. A `{ rows, next? }` page (`AuthzenResourcePage`) is the page `list` built from `cursor` and `limit`; the handler decides each row, answers `next` as `next_token`, and the response has `count` and no `total`, because the handler never sees the rows after the page. A `list` that ignores `access` is still correct, since every row is decided, but it reads rows the subject cannot see.
+
+```ts
+import { toWhere } from "permdock/drizzle";
+import { and, asc, gt } from "drizzle-orm";
+
+resources: {
+  post: {
+    list: async ({ access, limit, cursor }) => {
+      const rows = await db
+        .select()
+        .from(posts)
+        .where(
+          and(
+            access === undefined ? undefined : toWhere(access, posts),
+            cursor === undefined ? undefined : gt(posts.id, cursor),
+          ),
+        )
+        .orderBy(asc(posts.id))
+        .limit(limit + 1);
+      const page = rows.slice(0, limit);
+      return {
+        rows: page,
+        next: rows.length > limit ? page.at(-1)?.id : undefined,
+      };
+    },
+  },
+},
+```
+
+A page that is shorter than `limit` after the decisions is not the last page: follow `next_token` until it is empty. A `list` that throws answers an empty page.
 
 ### Request parsing, paging and search
 
