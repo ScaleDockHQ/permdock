@@ -566,6 +566,29 @@ Hosted grants travel as a `PolicyDocument` ([hostable permissions](/docs/concept
 
 `effect` defaults to `allow`. `to` is one grantee or an array (an intersection) of `role`, `plan` and `relation` grantees; a hosted `relation` is declared on the permission's own resource, and it may carry `through: "parent"` (with an integer `depth` from 0 to 32) only when that resource parents itself, so a hosted grant never walks further than a code grant could; `where` and `check` are portable conditions only; `approval` is `"human"` or the object form, with `mode` defaulting to `authorize` as on a code grant, so a hosted `mode: "confirm"` on a permission a code allow guards with an approval is dropped as `weaker-approval`; `fields` is an optional string list. `catalog` is the fingerprint of the `permdock collect` catalog the document was authored against, and `fingerprint` is what `matched.hosted.document` records. `issuedAt` is RFC 3339. `parsePolicyDocument` rejects a `v` other than `1`, a missing envelope field, a numeric `issuedAt` and any `__proto__`, `constructor` or `prototype` key; grant-level problems drop only that grant.
 
+## Policy bundle
+
+`permdock policy bundle` writes the static grants of a policy as one JSON document, and `rls.staticGrants: 'ref'` pins its hash in the generated SQL ([policy](/docs/cli/policy)). The document is `format: "policy-bundle"` with `v: 1`.
+
+```json
+{
+  "format": "policy-bundle",
+  "roleKeys": { "org": { "admin": ["doc.read", "doc.update"] } },
+  "rows": [
+    {
+      "effect": "allow",
+      "grant_key": "doc.read",
+      "permission": "doc.read",
+      "role": "admin",
+      "scope": "org"
+    }
+  ],
+  "v": 1
+}
+```
+
+`rows` are the `role_permissions` rows, sorted by scope, role, grant key and permission, without duplicates. `roleKeys` is the grant keys of each role per scope, which `permdock_role_keys` reads. The text is RFC 8785 JSON, and the bundle's identity is `sha-256:` plus the base64url SHA-256 of its UTF-8 bytes ([digests](#digests)), so the hash of the file equals the hash the SQL pins. A reader rejects an unknown `v` and a body whose hash differs; the generated table recomputes the digest in a check constraint and the helpers read only the bundle whose hash they pin, so a missing, unknown or mismatched bundle denies.
+
 ## Capability
 
 A share link travels as the `capability` claim of a `vnd.permdock.capability+jwt` ([link capabilities](/docs/concepts/capabilities)). `on` has the shape of a resource membership's `on`, and the resolver turns the claim into exactly that membership. The link id is the token's `sub` and its expiry the token's `exp`; neither repeats inside the claim.
@@ -1262,7 +1285,7 @@ Every digest PermDock writes is `sha-256:` plus the unpadded base64url SHA-256 o
 
 ## Versioning
 
-- The snapshot `v`, the approval request `v`, the policy document `v`, the capability `v`, the credential `v` and the catalog `version` follow the format, not the package version, and are all `1`. Times follow the [time rule](#time-rule). A breaking change to a shape bumps the major. Readers reject unknown majors.
+- The snapshot `v`, the approval request `v`, the policy document `v`, the policy bundle `v`, the capability `v`, the credential `v` and the catalog `version` follow the format, not the package version, and are all `1`. Times follow the [time rule](#time-rule). A breaking change to a shape bumps the major. Readers reject unknown majors.
 - The JWS envelope of a signed output is versioned by its `typ`: a change to the header set, the registered claims or the private claim name is a new `typ` (`vnd.permdock.snapshot.v2+jwt`), never a silent change, so a verifier configured for one `typ` keeps rejecting what it does not understand.
 - Everything PermDock writes names a scope instance the same way: `scope`, `id` and `within`. Memberships, snapshot grants, the `memberships` claim and `membership` events all use this shape. A fixed `tenant` / `team` pair could not describe a third level, and one shape lets the Cloud and a sink join an event to the membership it changed without a per-format mapping. Since 0.17.0 the readers take this shape only; `permdock codemod 0.17` rewrites `{ tenant, team }` literals.
 - Condition, Decision, event and Problem Details shapes are additive within a major: new optional fields may appear, existing fields keep their meaning. App data (`meta.x`, `Membership.x`, grant `meta`, app obligations, and `x` on an approval request, on every sink event and on a SCIM User or Group) was added this way: every field is optional, plain JSON, and changes no outcome. The event schemas set `additionalProperties: false`, so each lists `x`; a consumer that validates against a copy of a schema from before `x` must refresh it. New condition `op` values (such as `sqlFunction`) are additive; readers that do not know an op deny. The `sqlFunction` set variant is an optional `set` field on that op, additive within v1.

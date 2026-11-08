@@ -882,6 +882,17 @@ The `role_permissions` rows are data, which no schema diff carries. Under `pg-de
 
 `rls.seeds: 'view'` creates `<schema>.role_permissions` as `create or replace view ... with (security_invoker = true) as select ... from (values ...)` in the helpers part, with the same `revoke` from `public`, `anon` and `authenticated` the table has. A declarative diff carries a view, so under `pg-delta` and `migra` the project needs no seeds migration and no `select <schema>.seed();` call. The part names stay as they are: `--split ...,seeds` still writes the `seeds` part, which holds only a comment. The view is read-only: a statement that inserts into `role_permissions`, such as a hand-written seed file, fails with `cannot insert into view`. Doctor PD054 and `rls verify --introspect` read it as they read the table.
 
+#### Static grants by reference
+
+`rls.staticGrants: 'ref'` keeps the grant rows out of the generated SQL. The helpers part creates `<schema>.permdock_policy_bundle (hash, body, doc)`, a table whose check constraint recomputes the SHA-256 of `body` and refuses a row stored under another hash, and a `security_invoker` view `<schema>.role_permissions` over the one bundle whose `hash` the SQL pins. `permdock_role_keys(scope, role)` reads that bundle's lookup and is `stable`. The generated SQL names the hash and holds no role, permission or grant key row. [`permdock policy bundle`](/docs/cli/policy) writes the bundle and, with `--kind sql`, the statement that loads it.
+
+A database that holds no bundle with the pinned hash has an empty view and a null lookup, so every static grant denies: a missing, older or tampered bundle fails closed. A bundle for another policy version stays in the table and is never read.
+
+- **`permdock generate --only rls` rewrites files.** Switching to `'ref'` rewrites the `helpers` part (the table, the view and `permdock_role_keys`), and each later grant change rewrites only the pinned hash in it. The seeds part becomes a comment, as with `rls.seeds: 'view'`; policies, indexes and hook parts are unchanged.
+- **A data migration is needed.** Apply `permdock policy bundle --kind sql` in the same deploy, ordered after the helpers; until it runs, every static grant denies. Run it again after each grant change, with the helpers it belongs to.
+- **Combinations.** `'ref'` makes `role_permissions` a view, so it refuses `rls.seeds: 'function'` with exit `2`; `rls.seeds: 'view'` is implied. `--no-seeds` and `--seeds-out` have nothing to write for the rows. Custom roles and the rest of `permdock_has` are unchanged, and the lookup costs one primary-key read of the bundle per call where `rls.seeds: 'view'` reads a literal.
+- **Not covered.** Seed rows for former permission keys (`renamed`) are in the bundle with the rest. Pruning bundles that no helper pins is left to a hand-written statement.
+
 #### pg-delta
 
 Declarative Schemas 2.0 is the default. It needs Supabase CLI 2.119 or later and `[experimental.pgdelta] enabled = true` in `supabase/config.toml`: without that line the CLI diffs the files with migra, which drops the hook and helper grants, and doctor PD068 fails. With no `--out`, `--split` writes pg-delta's per-schema, unnumbered layout under `declarative_schema_path` (default `supabase/schemas`). pg-delta orders statements by their dependencies, so no file needs a number and `[db.migrations] schema_paths` is not needed:

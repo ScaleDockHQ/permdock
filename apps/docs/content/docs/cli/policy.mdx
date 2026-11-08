@@ -1,0 +1,59 @@
+---
+title: policy
+description: Write the static grants of a policy as a content-addressed bundle that rls.staticGrants 'ref' pins by hash.
+---
+
+`permdock policy bundle` compiles the role grants of a policy into one JSON document, the `policy-bundle` v1 wire format ([wire formats](/docs/concepts/wire-formats#policy-bundle)), and prints it with its `sha-256` hash. The grants are the `role_permissions` rows `permdock generate --only rls` would otherwise write into the SQL.
+
+## Usage
+
+```bash
+permdock policy bundle
+permdock policy bundle --out supabase/permdock-policy-bundle.json
+permdock policy bundle --kind sql --out supabase/seeds/permdock-bundle.sql
+permdock policy bundle --out supabase/permdock-policy-bundle.json --check
+```
+
+| Flag                | Meaning                                                                                                                                      |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--policy <module>` | Module exporting the policy; default `policy` in the config                                                                                  |
+| `--kind <kind>`     | `bundle` (default) prints the bundle JSON; `sql` prints the statement that loads it into the database                                        |
+| `--out <file>`      | File to write; without it the document goes to stdout, and `-` means stdout                                                                  |
+| `--check`           | Exit `1` when `--out` differs from what the policy compiles to; write nothing                                                                |
+| `--dry-run`         | Print what would be written; write nothing                                                                                                   |
+| `--json`            | Print `format`, `v`, `kind`, `hash`, `rows` and, with `--out`, `out` as the [`cli-result-v1`](/docs/concepts/wire-formats#cli-result) `data` |
+
+The compile reads `rls` from `permdock.config.ts`, so the rows are the ones the generated SQL would carry for that dialect, memberships and custom roles.
+
+## Output
+
+The bundle is deterministic. Rows are sorted by scope, role and grant key and deduplicated, and every object is written as RFC 8785 JSON, so the same policy gives the same bytes. The hash is `sha-256:` followed by the base64url digest of those bytes, the digest form every PermDock signed output uses. Hashing the file with any SHA-256 tool gives the same value.
+
+The `sql` kind is one idempotent `insert` keyed by the hash. Running it twice, or loading an older bundle next to a newer one, changes nothing the generated helpers read.
+
+## Use it with `rls.staticGrants`
+
+```ts
+export default defineConfig({ rls: { staticGrants: "ref" } });
+```
+
+1. `permdock generate --only rls` writes the helpers with the bundle hash pinned and no grant rows.
+2. `permdock policy bundle --kind sql --out supabase/migrations/<version>_permdock_bundle.sql` writes the migration that loads the bundle.
+3. Apply both. The helpers deny every static grant until the bundle with the pinned hash is in `<schema>.permdock_policy_bundle`.
+
+See [static grants by reference](/docs/cli/rls#static-grants-by-reference) for the SQL and the migration order.
+
+## Side effects
+
+| Command                  | Effects |
+| ------------------------ | ------- |
+| `permdock policy bundle` | `files` |
+
+## Why
+
+A policy that changes one grant rewrites the `role_permissions` rows, and with `rls.seeds: 'view'` those rows sit inside a generated schema file. Every change then touches a large file that reviewers cannot read. A bundle moves the rows into a separate file whose name is its hash: the schema file changes only when the hash changes, and a database that holds a bundle with another hash grants nothing instead of the wrong thing.
+
+## Related
+
+- [rls](/docs/cli/rls): the `staticGrants` option and the generated helpers
+- [Seeds](/docs/concepts/seeds): role defaults and fixtures
