@@ -4,9 +4,14 @@ import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 
+import { clientBundle } from "../../src/core/client-bundle.ts";
 import { getPermDockSync } from "../../src/core/permdock.ts";
 import { expandSnapshot } from "../../src/core/snapshot-compact.ts";
-import { adminOf, policy } from "../fixtures/large-policy.ts";
+import {
+  commerceUser,
+  policy as commerce,
+} from "../fixtures/centrakit-shape.ts";
+import { adminOf, mixed, policy } from "../fixtures/large-policy.ts";
 
 function bytes(snapshot: unknown): { raw: number; gzip: number } {
   const text = JSON.stringify(snapshot);
@@ -46,5 +51,67 @@ describe("snapshot size", () => {
     const strip = (value: unknown): string =>
       JSON.stringify(value).replace(/"issuedAt":"[^"]*"/u, "");
     expect(strip(a.snapshot())).toBe(strip(b.snapshot()));
+  });
+
+  describe("omitStatic", () => {
+    function sizes(build: (omitStatic: boolean) => unknown): {
+      inline: ReturnType<typeof bytes>;
+      lean: ReturnType<typeof bytes>;
+    } {
+      return { inline: bytes(build(false)), lean: bytes(build(true)) };
+    }
+
+    // Ceilings sit about 20% above the measured size: large admin 765 B
+    // (389 gzip), large mixed 1,425 B (531), CentraKit shape 5,661 B (1,289).
+    it("keeps the large admin snapshot under 1 KB", () => {
+      const { inline, lean } = sizes((omitStatic) =>
+        getPermDockSync(policy, adminOf("o0"), { tenant: "o0" }).snapshot({
+          omitAssignable: true,
+          omitStatic,
+        }),
+      );
+      expect(inline.raw / lean.raw).toBeGreaterThanOrEqual(20);
+      expect(lean.raw).toBeLessThanOrEqual(920);
+      expect(lean.gzip).toBeLessThanOrEqual(470);
+    });
+
+    it("keeps a mixed-role snapshot of all tenants under 1.8 KB", () => {
+      const { inline, lean } = sizes((omitStatic) =>
+        getPermDockSync(policy, mixed(), { tenant: "o0" }).snapshot({
+          omitAssignable: true,
+          tenants: "all",
+          omitStatic,
+        }),
+      );
+      expect(inline.raw / lean.raw).toBeGreaterThanOrEqual(15);
+      expect(lean.raw).toBeLessThanOrEqual(1710);
+      expect(lean.gzip).toBeLessThanOrEqual(640);
+    });
+
+    it("shrinks the CentraKit-shaped snapshot at least 5 times", () => {
+      const { inline, lean } = sizes((omitStatic) =>
+        getPermDockSync(commerce, commerceUser(), { tenant: "org0" }).snapshot({
+          omitAssignable: true,
+          tenants: "all",
+          omitStatic,
+        }),
+      );
+      expect(inline.raw / lean.raw).toBeGreaterThanOrEqual(5);
+      expect(lean.raw).toBeLessThanOrEqual(6800);
+      expect(lean.gzip).toBeLessThanOrEqual(1550);
+    });
+
+    it("ships the active tenant only by default, 17,311 B for the CentraKit shape", () => {
+      const snapshot = getPermDockSync(commerce, commerceUser(), {
+        tenant: "org0",
+      }).snapshot({ omitAssignable: true });
+      expect(bytes(snapshot).raw).toBeLessThanOrEqual(20_800);
+    });
+
+    it("keeps the bundle of the large policy under 31 KB", () => {
+      const { raw, gzip } = bytes(clientBundle(policy));
+      expect(raw).toBeLessThanOrEqual(31_200);
+      expect(gzip).toBeLessThanOrEqual(2460);
+    });
   });
 });
