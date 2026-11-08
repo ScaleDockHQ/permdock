@@ -125,6 +125,7 @@ const POWERSYNC = {
   action: STRING,
   manifest: STRING,
   tables: OBJECT,
+  memberLevel: OBJECT,
 } as const satisfies Record<keyof PowerSyncConfig, KeyShape>;
 
 const DOCTOR = {

@@ -64,6 +64,11 @@ function namedIn(config: PermDockConfig): readonly Named[] {
       config.powersync?.resources ?? [],
     ),
     ...named(
+      "powersync.memberLevel",
+      "resource",
+      Object.keys(config.powersync?.memberLevel ?? {}),
+    ),
+    ...named(
       "powersync.action",
       "action",
       config.powersync?.action === undefined ? [] : [config.powersync.action],
