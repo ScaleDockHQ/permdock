@@ -960,6 +960,23 @@ export type SupabaseHookConfig = {
    */
   readonly validate?: boolean;
   /**
+   * How the hook answers `authentication_method: 'token_refresh'`. `'reuse'`
+   * (default) keeps the roles, memberships and team ids of the incoming claims
+   * when they carry an `authz_ver` equal to the current version and no
+   * truncation flag, and otherwise reads everything again. Sources with
+   * `expiresAt` or a scope suspension, and `version: false`, always read again;
+   * an explicit `'reuse'` with one of them fails the command. `'full'` always
+   * reads.
+   */
+  readonly refresh?: "reuse" | "full";
+  /**
+   * The claim shape for a token with a `client_id` (an OAuth client). `'full'`
+   * (default) writes the same claims as a user session. `'slim'` writes empty
+   * `roles` and `memberships` and no `attrs`, `team_ids`, tenant claim,
+   * `authz_ver` or `hook.claims`, and skips every read.
+   */
+  readonly oauth?: "full" | "slim";
+  /**
    * Bytes of JSON the `memberships` claim may use. Default
    * `supabaseMembershipsBudget` (1024).
    */
